@@ -66,10 +66,8 @@ type Engine struct {
 	ServicesWG                  sync.WaitGroup
 }
 
-
-	// Bot is a happy global for the engine
-	var Bot *Engine
-
+// Bot is a happy global for the engine
+var Bot *Engine
 
 // New starts a new engine
 func New() (*Engine, error) {
@@ -643,6 +641,12 @@ func (bot *Engine) Stop() {
 	if bot.OrderManager.IsRunning() {
 		if err := bot.OrderManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to stop. Error: %v", err)
+		}
+	}
+
+	if bot.eventManager.IsRunning() {
+		if err := bot.eventManager.Stop(); err != nil {
+			gctlog.Errorf(gctlog.Global, "event manager unable to stop. Error: %v", err)
 		}
 	}
 

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 
 	"github.com/thrasher-corp/gocryptotrader/subsystems/eventmanager"
 
@@ -3072,7 +3073,7 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 		return fmt.Errorf("%s %w", exchName, errExchangeNotLoaded)
 	}
 	if !e.IsEnabled() {
-		return fmt.Errorf("%s %w", exchName, eventmanager.ErrExchangeDisabled)
+		return fmt.Errorf("%s %w", exchName, exchangemanager.ErrExchangeNotFound)
 	}
 	if a.IsValid() {
 		b := e.GetBase()

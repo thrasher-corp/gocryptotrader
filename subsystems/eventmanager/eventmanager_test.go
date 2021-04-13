@@ -15,6 +15,7 @@ import (
 const testExchange = "Bitstamp"
 
 func TestSetup(t *testing.T) {
+	t.Parallel()
 	_, err := Setup(nil, nil, 0, false)
 	if !errors.Is(err, errNilComManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilComManager)
@@ -59,7 +60,56 @@ func TestStart(t *testing.T) {
 	}
 }
 
+func TestIsRunning(t *testing.T) {
+	t.Parallel()
+	m, err := Setup(&communicationmanager.Manager{}, &exchangemanager.Manager{}, 0, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	err = m.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	if !m.IsRunning() {
+		t.Error("expected true")
+	}
+	m.started = 0
+	if m.IsRunning() {
+		t.Error("expected false")
+	}
+	m = nil
+	if m.IsRunning() {
+		t.Error("expected false")
+	}
+}
+
+func TestStop(t *testing.T) {
+	t.Parallel()
+	m, err := Setup(&communicationmanager.Manager{}, &exchangemanager.Manager{}, 0, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	err = m.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	err = m.Stop()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	err = m.Stop()
+	if !errors.Is(err, subsystems.ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemNotStarted)
+	}
+	m = nil
+	err = m.Stop()
+	if !errors.Is(err, subsystems.ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrNilSubsystem)
+	}
+}
+
 func TestAdd(t *testing.T) {
+	t.Parallel()
 	em := exchangemanager.Setup()
 	m, err := Setup(&communicationmanager.Manager{}, em, 0, false)
 	if !errors.Is(err, nil) {
@@ -74,8 +124,8 @@ func TestAdd(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	_, err = m.Add("", "", EventConditionParams{}, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
-	if !errors.Is(err, ErrExchangeDisabled) {
-		t.Errorf("error '%v', expected '%v'", err, ErrExchangeDisabled)
+	if !errors.Is(err, errExchangeDisabled) {
+		t.Errorf("error '%v', expected '%v'", err, errExchangeDisabled)
 	}
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
@@ -84,8 +134,8 @@ func TestAdd(t *testing.T) {
 	exch.SetDefaults()
 	em.Add(exch)
 	_, err = m.Add(testExchange, "", EventConditionParams{}, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
-	if !errors.Is(err, ErrInvalidItem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrInvalidItem)
+	if !errors.Is(err, errInvalidItem) {
+		t.Errorf("error '%v', expected '%v'", err, errInvalidItem)
 	}
 
 	cond := EventConditionParams{
@@ -94,8 +144,8 @@ func TestAdd(t *testing.T) {
 		OrderbookAmount: 1337,
 	}
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
-	if !errors.Is(err, ErrInvalidAction) {
-		t.Errorf("error '%v', expected '%v'", err, ErrInvalidAction)
+	if !errors.Is(err, errInvalidAction) {
+		t.Errorf("error '%v', expected '%v'", err, errInvalidAction)
 	}
 
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, ActionTest)
@@ -111,6 +161,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
+	t.Parallel()
 	em := exchangemanager.Setup()
 	m, err := Setup(&communicationmanager.Manager{}, em, 0, false)
 	if !errors.Is(err, nil) {
@@ -149,12 +200,13 @@ func TestRemove(t *testing.T) {
 }
 
 func TestGetEventCounter(t *testing.T) {
+	t.Parallel()
 	em := exchangemanager.Setup()
 	m, err := Setup(&communicationmanager.Manager{}, em, 0, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	total, executed := m.GetEventCounter()
+	total, executed := m.getEventCounter()
 	if total != 0 && executed != 0 {
 		t.Error("expected 0")
 	}
@@ -162,7 +214,7 @@ func TestGetEventCounter(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	total, executed = m.GetEventCounter()
+	total, executed = m.getEventCounter()
 	if total != 0 && executed != 0 {
 		t.Error("expected 0")
 	}
@@ -183,19 +235,20 @@ func TestGetEventCounter(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	total, _ = m.GetEventCounter()
+	total, _ = m.getEventCounter()
 	if total == 0 {
 		t.Error("expected 1")
 	}
 }
 
 func TestCheckEventCondition(t *testing.T) {
+	t.Parallel()
 	em := exchangemanager.Setup()
 	m, err := Setup(&communicationmanager.Manager{}, em, 0, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.CheckEventCondition(nil)
+	err = m.checkEventCondition(nil)
 	if !errors.Is(err, subsystems.ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemNotStarted)
 	}
@@ -203,7 +256,7 @@ func TestCheckEventCondition(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.CheckEventCondition(nil)
+	err = m.checkEventCondition(nil)
 	if !errors.Is(err, errNilEvent) {
 		t.Errorf("error '%v', expected '%v'", err, errNilEvent)
 	}
@@ -223,7 +276,7 @@ func TestCheckEventCondition(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.CheckEventCondition(&m.events[0])
+	err = m.checkEventCondition(&m.events[0])
 	if err != nil && !strings.Contains(err.Error(), "no tickers for") {
 		t.Error(err)
 	} else if err == nil {
@@ -233,7 +286,7 @@ func TestCheckEventCondition(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.CheckEventCondition(&m.events[0])
+	err = m.checkEventCondition(&m.events[0])
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -241,7 +294,7 @@ func TestCheckEventCondition(t *testing.T) {
 	m.events[0].Item = ItemOrderbook
 	m.events[0].Executed = false
 	m.events[0].Condition.CheckBidsAndAsks = true
-	err = m.CheckEventCondition(&m.events[0])
+	err = m.checkEventCondition(&m.events[0])
 	if err != nil && !strings.Contains(err.Error(), "no orderbooks for") {
 		t.Error(err)
 	} else if err == nil {
@@ -252,7 +305,7 @@ func TestCheckEventCondition(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.CheckEventCondition(&m.events[0])
+	err = m.checkEventCondition(&m.events[0])
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

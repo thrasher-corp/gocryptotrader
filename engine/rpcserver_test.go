@@ -13,14 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/eventmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/goose"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -36,6 +29,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
+	"github.com/thrasher-corp/goose"
 )
 
 const (
@@ -1033,8 +1032,8 @@ func TestCheckVars(t *testing.T) {
 	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, eventmanager.ErrExchangeDisabled) {
-		t.Errorf("expected %v, got %v", eventmanager.ErrExchangeDisabled, err)
+	if !errors.Is(err, exchangemanager.ErrExchangeNotFound) {
+		t.Errorf("expected %v, got %v", exchangemanager.ErrExchangeNotFound, err)
 	}
 
 	e.SetEnabled(true)

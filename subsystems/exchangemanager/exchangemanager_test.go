@@ -7,6 +7,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 )
 
+const testExchange = "Bitstamp"
+
+func TestSetup(t *testing.T) {
+	t.Parallel()
+	m := Setup()
+	if m == nil {
+		t.Fatalf("unexpected response")
+	}
+	if m.exchanges == nil {
+		t.Error("unexpected response")
+	}
+}
+
 func TestExchangeManagerAdd(t *testing.T) {
 	t.Parallel()
 	var e Manager
@@ -55,7 +68,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 func TestCheckExchangeExists(t *testing.T) {
 	e := engine.CreateTestBot(t)
 
-	if e.GetExchangeByName(events.testExchange) == nil {
+	if e.GetExchangeByName(testExchange) == nil {
 		t.Errorf("TestGetExchangeExists: Unable to find exchange")
 	}
 
@@ -67,7 +80,7 @@ func TestCheckExchangeExists(t *testing.T) {
 func TestGetExchangeByName(t *testing.T) {
 	e := engine.CreateTestBot(t)
 
-	exch := e.GetExchangeByName(events.testExchange)
+	exch := e.GetExchangeByName(testExchange)
 	if exch == nil {
 		t.Errorf("TestGetExchangeByName: Failed to get exchange")
 	}
@@ -77,12 +90,12 @@ func TestGetExchangeByName(t *testing.T) {
 	}
 
 	exch.SetEnabled(false)
-	bfx := e.GetExchangeByName(events.testExchange)
+	bfx := e.GetExchangeByName(testExchange)
 	if bfx.IsEnabled() {
 		t.Errorf("TestGetExchangeByName: Unexpected result")
 	}
 
-	if exch.GetName() != events.testExchange {
+	if exch.GetName() != testExchange {
 		t.Errorf("TestGetExchangeByName: Unexpected result")
 	}
 
@@ -101,7 +114,7 @@ func TestUnloadExchange(t *testing.T) {
 			err)
 	}
 
-	err = e.UnloadExchange(events.testExchange)
+	err = e.UnloadExchange(testExchange)
 	if err != nil {
 		t.Errorf("TestUnloadExchange: Failed to get exchange. %s",
 			err)
@@ -113,7 +126,7 @@ func TestUnloadExchange(t *testing.T) {
 			err)
 	}
 
-	err = e.UnloadExchange(events.testExchange)
+	err = e.UnloadExchange(testExchange)
 	if err != ErrNoExchangesLoaded {
 		t.Errorf("TestUnloadExchange: Incorrect result: %s",
 			err)
@@ -126,17 +139,17 @@ func TestDryRunParamInteraction(t *testing.T) {
 	// Simulate overiding default settings and ensure that enabling exchange
 	// verbose mode will be set on Bitfinex
 	var err error
-	if err = bot.UnloadExchange(events.testExchange); err != nil {
+	if err = bot.UnloadExchange(testExchange); err != nil {
 		t.Error(err)
 	}
 
 	bot.Settings.CheckParamInteraction = false
 	bot.Settings.EnableExchangeVerbose = false
-	if err = bot.LoadExchange(events.testExchange, false, nil); err != nil {
+	if err = bot.LoadExchange(testExchange, false, nil); err != nil {
 		t.Error(err)
 	}
 
-	exchCfg, err := bot.Config.GetExchangeConfig(events.testExchange)
+	exchCfg, err := bot.Config.GetExchangeConfig(testExchange)
 	if err != nil {
 		t.Error(err)
 	}
@@ -145,7 +158,7 @@ func TestDryRunParamInteraction(t *testing.T) {
 		t.Error("verbose should have been disabled")
 	}
 
-	if err = bot.UnloadExchange(events.testExchange); err != nil {
+	if err = bot.UnloadExchange(testExchange); err != nil {
 		t.Error(err)
 	}
 
@@ -155,11 +168,11 @@ func TestDryRunParamInteraction(t *testing.T) {
 	bot.Settings.EnableDryRun = true
 	bot.Settings.CheckParamInteraction = true
 	bot.Settings.EnableExchangeVerbose = true
-	if err = bot.LoadExchange(events.testExchange, false, nil); err != nil {
+	if err = bot.LoadExchange(testExchange, false, nil); err != nil {
 		t.Error(err)
 	}
 
-	exchCfg, err = bot.Config.GetExchangeConfig(events.testExchange)
+	exchCfg, err = bot.Config.GetExchangeConfig(testExchange)
 	if err != nil {
 		t.Error(err)
 	}

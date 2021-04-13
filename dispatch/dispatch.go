@@ -156,6 +156,9 @@ func (d *Dispatcher) stop() error {
 
 // isRunning returns if the dispatch system is running
 func (d *Dispatcher) isRunning() bool {
+	if d == nil {
+		return false
+	}
 	return atomic.LoadUint32(&d.running) == 1
 }
 

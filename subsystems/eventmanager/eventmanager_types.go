@@ -11,8 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// TO-DO MAKE THIS A SERVICE SUBSYSTEM
-
 // Event const vars
 const (
 	ItemPrice     = "PRICE"
@@ -33,16 +31,15 @@ const (
 
 // vars related to events package
 var (
-	ErrInvalidItem         = errors.New("invalid item")
-	ErrInvalidCondition    = errors.New("invalid conditional option")
-	ErrInvalidAction       = errors.New("invalid action")
-	ErrExchangeDisabled    = errors.New("desired exchange is disabled")
-	errNilEvent            = errors.New("nil event received")
 	EventSleepDelay        = defaultSleepDelay
+	errInvalidItem         = errors.New("invalid item")
+	errInvalidCondition    = errors.New("invalid conditional option")
+	errInvalidAction       = errors.New("invalid action")
+	errExchangeDisabled    = errors.New("desired exchange is disabled")
+	errNilEvent            = errors.New("nil event received")
 	errNilComManager       = errors.New("nil communications manager received")
 	errNilExchangeManager  = errors.New("nil exchange manager received")
 	errTickerLastPriceZero = errors.New("ticker last price is 0")
-	errTickerFail          = errors.New("failed to get ticker")
 )
 
 // EventConditionParams holds the event condition variables
@@ -85,4 +82,5 @@ type Manager struct {
 	verbose         bool
 	sleepDelay      time.Duration
 	exchangeManager iExchangeManager
+	shutdown        chan struct{}
 }

@@ -30,6 +30,7 @@ func Setup(comManager iCommsManager, exchangeManager iExchangeManager, sleepDela
 		exchangeManager: exchangeManager,
 		verbose:         verbose,
 		sleepDelay:      sleepDelay,
+		shutdown:        make(chan struct{}),
 	}, nil
 }
 
@@ -43,38 +44,63 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("event manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
 	log.Debugf(log.EventMgr, "Event Manager started. SleepDelay: %v\n", EventSleepDelay.String())
-
+	m.shutdown = make(chan struct{})
 	go m.run()
 	return nil
 }
 
+func (m *Manager) IsRunning() bool {
+	if m == nil {
+		return false
+	}
+	return atomic.LoadInt32(&m.started) == 1
+}
+
+func (m *Manager) Stop() error {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
+		return fmt.Errorf("event manager %w", subsystems.ErrSubSystemNotStarted)
+	}
+	close(m.shutdown)
+	return nil
+}
+
 func (m *Manager) run() {
-	for {
-		total, executed := m.GetEventCounter()
+	ticker := time.NewTicker(m.sleepDelay)
+	select {
+	case <-m.shutdown:
+		return
+	case <-ticker.C:
+		total, executed := m.getEventCounter()
 		if total > 0 && executed != total {
 			for i := range m.events {
-				if !m.events[i].Executed {
-					if m.verbose {
-						log.Debugf(log.EventMgr, "Events: Processing event %s.\n", m.events[i].String())
-					}
-					err := m.CheckEventCondition(&m.events[i])
-					if err != nil {
-						msg := fmt.Sprintf(
-							"Events: ID: %d triggered on %s successfully [%v]\n", m.events[i].ID,
-							m.events[i].Exchange, m.events[i].String(),
-						)
-						log.Infoln(log.EventMgr, msg)
-						m.comms.PushEvent(base.Event{Type: "event", Message: msg})
-						m.events[i].Executed = true
-					} else {
-						if m.verbose {
-							log.Debugf(log.EventMgr, "%v", err)
-						}
-					}
-				}
+				m.executeEvent(i)
 			}
 		}
-		time.Sleep(m.sleepDelay)
+	}
+}
+
+func (m *Manager) executeEvent(i int) {
+	if !m.events[i].Executed {
+		if m.verbose {
+			log.Debugf(log.EventMgr, "Events: Processing event %s.\n", m.events[i].String())
+		}
+		err := m.checkEventCondition(&m.events[i])
+		if err != nil {
+			msg := fmt.Sprintf(
+				"Events: ID: %d triggered on %s successfully [%v]\n", m.events[i].ID,
+				m.events[i].Exchange, m.events[i].String(),
+			)
+			log.Infoln(log.EventMgr, msg)
+			m.comms.PushEvent(base.Event{Type: "event", Message: msg})
+			m.events[i].Executed = true
+		} else {
+			if m.verbose {
+				log.Debugf(log.EventMgr, "%v", err)
+			}
+		}
 	}
 }
 
@@ -121,9 +147,9 @@ func (m *Manager) Remove(eventID int64) bool {
 	return false
 }
 
-// GetEventCounter displays the amount of total events on the chain and the
+// getEventCounter displays the amount of total events on the chain and the
 // events that have been executed.
-func (m *Manager) GetEventCounter() (total, executed int) {
+func (m *Manager) getEventCounter() (total, executed int) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return 0, 0
 	}
@@ -136,9 +162,9 @@ func (m *Manager) GetEventCounter() (total, executed int) {
 	return total, executed
 }
 
-// CheckEventCondition will check the event structure to see if there is a condition
+// checkEventCondition will check the event structure to see if there is a condition
 // met
-func (m *Manager) CheckEventCondition(e *Event) error {
+func (m *Manager) checkEventCondition(e *Event) error {
 	if m == nil {
 		return subsystems.ErrNilSubsystem
 	}
@@ -161,26 +187,26 @@ func (m *Manager) isValidEvent(exchange, item string, condition EventConditionPa
 	action = strings.ToUpper(action)
 
 	if !m.isValidExchange(exchange) {
-		return ErrExchangeDisabled
+		return errExchangeDisabled
 	}
 
 	if !isValidItem(item) {
-		return ErrInvalidItem
+		return errInvalidItem
 	}
 
 	if !isValidCondition(condition.Condition) {
-		return ErrInvalidCondition
+		return errInvalidCondition
 	}
 
 	if item == ItemPrice {
 		if condition.Price <= 0 {
-			return ErrInvalidCondition
+			return errInvalidCondition
 		}
 	}
 
 	if item == ItemOrderbook {
 		if condition.OrderbookAmount <= 0 {
-			return ErrInvalidCondition
+			return errInvalidCondition
 		}
 	}
 
@@ -188,10 +214,10 @@ func (m *Manager) isValidEvent(exchange, item string, condition EventConditionPa
 		a := strings.Split(action, ",")
 
 		if a[0] != ActionSMSNotify {
-			return ErrInvalidAction
+			return errInvalidAction
 		}
 	} else if action != ActionConsolePrint && action != ActionTest {
-		return ErrInvalidAction
+		return errInvalidAction
 	}
 
 	return nil
