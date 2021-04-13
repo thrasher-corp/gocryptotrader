@@ -757,7 +757,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	Check(a, 16, 156, 8, t)
 
-	// insert between lest and 2nd last
+	// insert between last and 2nd last
 	err = a.updateInsertByID(Items{
 		{Price: 12, Amount: 2, ID: 12345},
 	}, s)
@@ -1029,7 +1029,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	Check(b, 16, 154, 8, t)
 
-	// insert between lest and 2nd last
+	// insert between last and 2nd last
 	err = b.updateInsertByID(Items{
 		{Price: 1.5, Amount: 2, ID: 12345},
 	}, s)

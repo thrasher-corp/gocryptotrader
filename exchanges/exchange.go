@@ -603,7 +603,7 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 			b.Name)
 	}
 	// Not is used so we can set a bypass being true via the configuration.
-	// This allows for easier variable naming convention throughout and setting
+	// This allows for easier variable naming convention throughout.
 	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
 	return nil
 }

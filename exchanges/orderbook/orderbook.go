@@ -2,7 +2,6 @@ package orderbook
 
 import (
 	"fmt"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -229,8 +228,6 @@ func (b *Base) Verify() error {
 	if !b.VerifyOrderbook {
 		return nil
 	}
-
-	runtime.Breakpoint()
 
 	// Checking for both ask and bid lengths being zero has been removed and
 	// a warning has been put in place some exchanges e.g. LakeBTC return zero
