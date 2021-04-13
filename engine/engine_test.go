@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -90,11 +91,29 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 }
 
 func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
-	t.Skip("Closing global currency.storage from two bots causes panic")
 	t.Parallel()
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
+	}
+	tempDir2, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
+	}
+	defer func() {
+		err := os.RemoveAll(tempDir)
+		if err != nil {
+			t.Error(err)
+		}
+		err = os.RemoveAll(tempDir2)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
 		EnableDryRun: true,
+		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
 		t.Error(err)
@@ -102,10 +121,12 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	botTwo, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
 		EnableDryRun: true,
+		DataDir:      tempDir2,
 	}, nil)
 	if err != nil {
 		t.Error(err)
 	}
+
 	if err = botOne.Start(); err != nil {
 		t.Error(err)
 	}

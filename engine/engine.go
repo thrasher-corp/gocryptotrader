@@ -507,7 +507,7 @@ func (bot *Engine) Start() error {
 				go func() {
 					err = bot.apiServer.StartRESTServer()
 					if err != nil {
-						gctlog.Errorf(gctlog.Global, "could not start REST API server: %w", err)
+						gctlog.Errorf(gctlog.Global, "could not start REST API server: %s", err)
 					}
 				}()
 			}
@@ -515,7 +515,7 @@ func (bot *Engine) Start() error {
 				go func() {
 					err = bot.apiServer.StartWebsocketServer()
 					if err != nil {
-						gctlog.Errorf(gctlog.Global, "could not start websocket API server: %w", err)
+						gctlog.Errorf(gctlog.Global, "could not start websocket API server: %s", err)
 					}
 				}()
 			}
