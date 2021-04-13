@@ -326,40 +326,81 @@ func TestWait(t *testing.T) {
 	wg.Add(100)
 	for x := 0; x < 100; x++ {
 		go func() {
-			<-wait.Wait(nil)
+			w := wait.Wait(nil)
+			wg.Done()
+			<-w
 			wg.Done()
 		}()
 	}
-	time.Sleep(time.Millisecond)
-	go wait.alert()
+
 	wg.Wait()
+	wg.Add(100)
+	select {
+	case <-wait.Wait(nil):
+		t.Fatal("leaky waiter")
+	default:
+	}
+	wait.alert()
+	wg.Wait()
+	select {
+	case <-wait.Wait(nil):
+		t.Fatal("leaky waiter")
+	default:
+	}
 
 	// use kick
 	ch := make(chan struct{})
 	wg.Add(100)
 	for x := 0; x < 100; x++ {
 		go func() {
-			<-wait.Wait(ch)
+			w := wait.Wait(ch)
+			wg.Done()
+			<-w
 			wg.Done()
 		}()
 	}
-	time.Sleep(time.Millisecond)
-	go close(ch)
 	wg.Wait()
+	wg.Add(100)
+	select {
+	case <-wait.Wait(ch):
+		t.Fatal("leaky waiter")
+	default:
+	}
+	close(ch)
+	wg.Wait()
+	select {
+	case <-wait.Wait(ch):
+		t.Fatal("leaky waiter")
+	default:
+	}
 
 	// late receivers
 	ch = make(chan struct{})
 	wg.Add(100)
 	for x := 0; x < 100; x++ {
-		go func() {
+		go func(x int) {
 			bb := wait.Wait(ch)
-			time.Sleep(time.Millisecond * 5)
+			wg.Done()
+			if x%2 == 0 {
+				time.Sleep(time.Millisecond * 5)
+			}
 			<-bb
 			wg.Done()
-		}()
+		}(x)
 	}
-	time.Sleep(time.Millisecond)
-	go wait.alert()
-	go close(ch)
 	wg.Wait()
+	wg.Add(100)
+	select {
+	case <-wait.Wait(ch):
+		t.Fatal("leaky waiter")
+	default:
+	}
+	go wait.alert()
+	close(ch)
+	wg.Wait()
+	select {
+	case <-wait.Wait(ch):
+		t.Fatal("leaky waiter")
+	default:
+	}
 }
