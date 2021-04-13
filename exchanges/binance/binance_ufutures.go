@@ -60,6 +60,14 @@ const (
 	ufuturesADLQuantile           = "/fapi/v1/adlQuantile"
 )
 
+// UServerTime gets the server time
+func (b *Binance) UServerTime() (int64, error) {
+	var data struct {
+		ServerTime int64 `json:"serverTime"`
+	}
+	return data.ServerTime, b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesExchangeInfo, limitDefault, &data)
+}
+
 // UExchangeInfo stores usdt margined futures data
 func (b *Binance) UExchangeInfo() (UFuturesExchangeInfo, error) {
 	var resp UFuturesExchangeInfo

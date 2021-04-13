@@ -2,6 +2,7 @@ package binance
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -35,6 +36,14 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
 	}
+}
+
+func TestUServerTime(t *testing.T) {
+	_, err := b.UServerTime()
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Printf("noo\n\n")
 }
 
 func TestUpdateTicker(t *testing.T) {
