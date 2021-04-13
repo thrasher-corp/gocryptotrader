@@ -66,10 +66,10 @@ type Engine struct {
 	ServicesWG                  sync.WaitGroup
 }
 
-// Vars for engine
-var (
-	Bot *Engine
-)
+
+	// Bot is a happy global for the engine
+	var Bot *Engine
+
 
 // New starts a new engine
 func New() (*Engine, error) {
@@ -584,20 +584,27 @@ func (bot *Engine) Start() error {
 			bot,
 			&bot.Config.RemoteControl)
 		if err != nil {
-			gctlog.Warnf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
+			gctlog.Errorf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {
-			go bot.ExchangeCurrencyPairManager.Start()
+			go func() {
+				err := bot.ExchangeCurrencyPairManager.Start()
+				if err != nil {
+					gctlog.Errorf(gctlog.Global, "failed to start exchange currency pair manager. Err: %s", err)
+				}
+			}()
 		}
 	}
 
 	if bot.Settings.EnableEventManager {
-		bot.eventManager = eventmanager.Setup(bot.CommunicationsManager, bot.Settings.EnableDryRun)
-		go func() {
+		bot.eventManager, err = eventmanager.Setup(bot.CommunicationsManager, nil, bot.Settings.EventManagerDelay, bot.Settings.EnableDryRun)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "Unable to initialise event manager. Err: %s", err)
+		} else {
 			err = bot.eventManager.Start()
 			if err != nil {
 				gctlog.Errorf(gctlog.Global, "failed to start event manager. Err: %s", err)
 			}
-		}()
+		}
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
