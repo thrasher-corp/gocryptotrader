@@ -237,6 +237,12 @@ updates:
 		for tip := ll.head; tip != nil; tip = tip.next {
 			if tip.value.ID == updts[x].ID {
 				if tip.value.Price != updts[x].Price { // Price level change
+					if tip.next == nil {
+						// no movement needed just a re-adjustment
+						tip.value.Price = updts[x].Price
+						tip.value.Amount = updts[x].Amount
+						continue updates
+					}
 					// bookmark tip to move this node to correct price level
 					bookmark = tip
 					continue // continue through node depth
@@ -263,6 +269,22 @@ updates:
 					}
 				}
 				// ID not matched in depth so add correct level for insert
+				if tip.next == nil {
+					n := stack.Pop()
+					n.value = updts[x]
+					ll.length++
+					if tip.prev == nil {
+						tip.prev = n
+						n.next = tip
+						ll.head = n
+						continue updates
+					}
+					tip.prev.next = n
+					n.prev = tip.prev
+					tip.prev = n
+					n.next = tip
+					continue updates
+				}
 				bookmark = tip
 				break
 			}
@@ -398,6 +420,12 @@ updates:
 		for tip := ll.head; tip != nil; tip = tip.next {
 			if tip.value.ID == updts[x].ID {
 				if tip.value.Price != updts[x].Price { // Price level change
+					if tip.next == nil {
+						// no movement needed just a re-adjustment
+						tip.value.Price = updts[x].Price
+						tip.value.Amount = updts[x].Amount
+						continue updates
+					}
 					// bookmark tip to move this node to correct price level
 					bookmark = tip
 					continue // continue through node depth
@@ -424,6 +452,22 @@ updates:
 					}
 				}
 				// ID not matched in depth so add correct level for insert
+				if tip.next == nil {
+					n := stack.Pop()
+					n.value = updts[x]
+					ll.length++
+					if tip.prev == nil {
+						tip.prev = n
+						n.next = tip
+						ll.head = n
+						continue updates
+					}
+					tip.prev.next = n
+					n.prev = tip.prev
+					tip.prev = n
+					n.next = tip
+					continue updates
+				}
 				bookmark = tip
 				break
 			}

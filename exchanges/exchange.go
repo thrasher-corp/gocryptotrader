@@ -596,7 +596,15 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 		return err
 	}
 	b.BaseCurrencies = exch.BaseCurrencies
-	b.OrderbookVerificationBypass = exch.OrderbookConfig.VerificationBypass
+
+	if exch.OrderbookConfig.VerificationBypass {
+		log.Warnf(log.ExchangeSys,
+			"%s orderbook verification has been bypassed via config.",
+			b.Name)
+	}
+	// Not is used so we can set a bypass being true via the configuration.
+	// This allows for easier variable naming convention throughout and setting
+	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
 	return nil
 }
 

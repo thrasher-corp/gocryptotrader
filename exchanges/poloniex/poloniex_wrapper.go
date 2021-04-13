@@ -330,10 +330,10 @@ func (p *Poloniex) FetchOrderbook(currencyPair currency.Pair, assetType asset.It
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (p *Poloniex) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	callingBook := &orderbook.Base{
-		Exchange:           p.Name,
-		Pair:               c,
-		Asset:              assetType,
-		VerificationBypass: p.OrderbookVerificationBypass,
+		Exchange:        p.Name,
+		Pair:            c,
+		Asset:           assetType,
+		VerifyOrderbook: p.CanVerifyOrderbook,
 	}
 	orderbookNew, err := p.GetOrderbook("", poloniexMaxOrderbookDepth)
 	if err != nil {
@@ -346,10 +346,10 @@ func (p *Poloniex) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orde
 	}
 	for i := range enabledPairs {
 		book := &orderbook.Base{
-			Exchange:           p.Name,
-			Pair:               enabledPairs[i],
-			Asset:              assetType,
-			VerificationBypass: p.OrderbookVerificationBypass,
+			Exchange:        p.Name,
+			Pair:            enabledPairs[i],
+			Asset:           assetType,
+			VerifyOrderbook: p.CanVerifyOrderbook,
 		}
 
 		fpair, err := p.FormatExchangeCurrency(enabledPairs[i], assetType)

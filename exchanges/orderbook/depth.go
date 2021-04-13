@@ -73,6 +73,7 @@ func (d *Depth) Retrieve() *Base {
 		LastUpdateID:     d.lastUpdateID,
 		PriceDuplication: d.priceDuplication,
 		IsFundingRate:    d.isFundingRate,
+		VerifyOrderbook:  d.VerifyOrderbook,
 	}
 }
 
@@ -223,17 +224,16 @@ func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items) error {
 func (d *Depth) AssignOptions(b *Base) {
 	d.m.Lock()
 	d.options = options{
-		exchange:              b.Exchange,
-		pair:                  b.Pair,
-		asset:                 b.Asset,
-		lastUpdated:           b.LastUpdated,
-		lastUpdateID:          b.LastUpdateID,
-		priceDuplication:      b.PriceDuplication,
-		isFundingRate:         b.IsFundingRate,
-		verificationBypass:    b.VerificationBypass,
-		hasChecksumValidation: b.HasChecksumValidation,
-		restSnapshot:          b.RestSnapshot,
-		idAligned:             b.IDAlignment,
+		exchange:         b.Exchange,
+		pair:             b.Pair,
+		asset:            b.Asset,
+		lastUpdated:      b.LastUpdated,
+		lastUpdateID:     b.LastUpdateID,
+		priceDuplication: b.PriceDuplication,
+		isFundingRate:    b.IsFundingRate,
+		VerifyOrderbook:  b.VerifyOrderbook,
+		restSnapshot:     b.RestSnapshot,
+		idAligned:        b.IDAlignment,
 	}
 	d.m.Unlock()
 }

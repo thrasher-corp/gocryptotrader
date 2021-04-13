@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"fmt"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -225,6 +226,12 @@ func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
 // Bids should always go from a high price to a low price and
 // Asks should always go from a low price to a higher price
 func (b *Base) Verify() error {
+	if !b.VerifyOrderbook {
+		return nil
+	}
+
+	runtime.Breakpoint()
+
 	// Checking for both ask and bid lengths being zero has been removed and
 	// a warning has been put in place some exchanges e.g. LakeBTC return zero
 	// level books. In the event that there is a massive liquidity change where
@@ -320,18 +327,11 @@ func (b *Base) Process() error {
 		b.LastUpdated = time.Now()
 	}
 
-	if b.CanVerify() {
-		err := b.Verify()
-		if err != nil {
-			return err
-		}
+	err := b.Verify()
+	if err != nil {
+		return err
 	}
 	return service.Update(b)
-}
-
-// CanVerify checks to see if orderbook should be verified or it is not required
-func (b *Base) CanVerify() bool {
-	return !b.VerificationBypass && !b.HasChecksumValidation
 }
 
 // Reverse reverses the order of orderbook items; some bid/asks are

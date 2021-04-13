@@ -147,7 +147,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 		book.Asset = asset.Spot
 		book.Pair = cPair
 		book.Exchange = z.Name
-		book.VerificationBypass = z.OrderbookVerificationBypass
+		book.VerifyOrderbook = z.CanVerifyOrderbook
 
 		err = z.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {

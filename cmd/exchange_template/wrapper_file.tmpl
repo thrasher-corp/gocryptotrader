@@ -286,7 +286,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetTyp
 		Exchange: {{.Variable}}.Name, 
 		Pair: p, 
 		Asset: assetType,
-		VerificationBypass: {{.Variable}}.OrderbookVerificationBypass,
+		VerifyOrderbook: {{.Variable}}.CanVerifyOrderbook,
 	}
 	
 	// NOTE: UPDATE ORDERBOOK EXAMPLE

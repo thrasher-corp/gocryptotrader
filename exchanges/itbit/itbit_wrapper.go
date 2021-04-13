@@ -191,11 +191,11 @@ func (i *ItBit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		Exchange:           i.Name,
-		Pair:               p,
-		Asset:              assetType,
-		PriceDuplication:   true,
-		VerificationBypass: i.OrderbookVerificationBypass,
+		Exchange:         i.Name,
+		Pair:             p,
+		Asset:            assetType,
+		PriceDuplication: true,
+		VerifyOrderbook:  i.CanVerifyOrderbook,
 	}
 	fpair, err := i.FormatExchangeCurrency(p, assetType)
 	if err != nil {

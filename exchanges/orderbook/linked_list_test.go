@@ -757,6 +757,36 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	Check(a, 16, 156, 8, t)
 
+	// insert between lest and 2nd last
+	err = a.updateInsertByID(Items{
+		{Price: 12, Amount: 2, ID: 12345},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(a, 18, 180, 9, t)
+
+	// readjust at end
+	err = a.updateInsertByID(Items{
+		{Price: 29, Amount: 3, ID: 1234},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(a, 19, 207, 9, t)
+
+	// readjust further and decrease price past tail
+	err = a.updateInsertByID(Items{
+		{Price: 31, Amount: 3, ID: 1234},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(a, 19, 213, 9, t)
+
 	// purge
 	a.load(nil, s)
 
@@ -998,6 +1028,33 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	}
 
 	Check(b, 16, 154, 8, t)
+
+	// insert between lest and 2nd last
+	err = b.updateInsertByID(Items{
+		{Price: 1.5, Amount: 2, ID: 12345},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Check(b, 18, 157, 9, t)
+
+	// readjust at end
+	err = b.updateInsertByID(Items{
+		{Price: 1, Amount: 3, ID: 1},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Check(b, 19, 158, 9, t)
+
+	// readjust further and decrease price past tail
+	err = b.updateInsertByID(Items{
+		{Price: .9, Amount: 3, ID: 1},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Check(b, 19, 157.7, 9, t)
 
 	// purge
 	b.load(nil, s)

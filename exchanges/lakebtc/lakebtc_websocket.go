@@ -174,11 +174,11 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 	}
 
 	book := orderbook.Base{
-		Pair:               p,
-		LastUpdated:        time.Now(),
-		Asset:              asset.Spot,
-		Exchange:           l.Name,
-		VerificationBypass: l.OrderbookVerificationBypass,
+		Pair:            p,
+		LastUpdated:     time.Now(),
+		Asset:           asset.Spot,
+		Exchange:        l.Name,
+		VerifyOrderbook: l.CanVerifyOrderbook,
 	}
 
 	for i := range update.Asks {

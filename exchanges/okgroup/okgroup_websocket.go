@@ -678,14 +678,13 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, ins
 	}
 
 	newOrderBook := orderbook.Base{
-		Asks:                  asks,
-		Bids:                  bids,
-		Asset:                 a,
-		LastUpdated:           wsEventData.Timestamp,
-		Pair:                  instrument,
-		Exchange:              o.Name,
-		HasChecksumValidation: true,
-		VerificationBypass:    o.OrderbookVerificationBypass,
+		Asks:            asks,
+		Bids:            bids,
+		Asset:           a,
+		LastUpdated:     wsEventData.Timestamp,
+		Pair:            instrument,
+		Exchange:        o.Name,
+		VerifyOrderbook: o.CanVerifyOrderbook,
 	}
 	return o.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

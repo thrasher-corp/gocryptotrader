@@ -240,10 +240,10 @@ func (y *Yobit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		Exchange:           y.Name,
-		Pair:               p,
-		Asset:              assetType,
-		VerificationBypass: y.OrderbookVerificationBypass,
+		Exchange:        y.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: y.CanVerifyOrderbook,
 	}
 	fpair, err := y.FormatExchangeCurrency(p, assetType)
 	if err != nil {

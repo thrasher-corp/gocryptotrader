@@ -84,12 +84,10 @@ type Base struct {
 	// prices in a payload
 	PriceDuplication bool
 	IsFundingRate    bool
-	// VerificationBypass is a complete orderbook verification bypass set by
-	// user configuration
-	VerificationBypass bool `json:"-"`
-	// HasChecksumValidation defines an allowance to bypass internal
-	// verification if the book has been verified by checksum.
-	HasChecksumValidation bool `json:"-"`
+	// VerifyOrderbook allows for a toggle between orderbook verification set by
+	// user configuration, this allows for a potential processing boost but
+	// a potential for orderbook integrity being deminished.
+	VerifyOrderbook bool `json:"-"`
 	// RestSnapshot defines if the depth was applied via the REST protocol thus
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
@@ -105,15 +103,14 @@ func (a byOBPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byOBPrice) Less(i, j int) bool { return a[i].Price < a[j].Price }
 
 type options struct {
-	exchange              string
-	pair                  currency.Pair
-	asset                 asset.Item
-	lastUpdated           time.Time
-	lastUpdateID          int64
-	priceDuplication      bool
-	isFundingRate         bool
-	verificationBypass    bool
-	hasChecksumValidation bool
-	restSnapshot          bool
-	idAligned             bool
+	exchange         string
+	pair             currency.Pair
+	asset            asset.Item
+	lastUpdated      time.Time
+	lastUpdateID     int64
+	priceDuplication bool
+	isFundingRate    bool
+	VerifyOrderbook  bool
+	restSnapshot     bool
+	idAligned        bool
 }

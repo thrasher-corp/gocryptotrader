@@ -411,10 +411,10 @@ func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType asset.Item) (*or
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		Exchange:           c.Name,
-		Pair:               p,
-		Asset:              assetType,
-		VerificationBypass: c.OrderbookVerificationBypass,
+		Exchange:        c.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: c.CanVerifyOrderbook,
 	}
 	fpair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {

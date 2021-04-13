@@ -86,10 +86,10 @@ func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		Exchange:           o.Name,
-		Pair:               p,
-		Asset:              a,
-		VerificationBypass: o.OrderbookVerificationBypass,
+		Exchange:        o.Name,
+		Pair:            p,
+		Asset:           a,
+		VerifyOrderbook: o.CanVerifyOrderbook,
 	}
 
 	if a == asset.Index {

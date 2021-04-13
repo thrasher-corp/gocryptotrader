@@ -512,7 +512,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 		book.Asset = a
 		book.Pair = p
 		book.Exchange = b.Name
-		book.VerificationBypass = b.OrderbookVerificationBypass
+		book.VerifyOrderbook = b.CanVerifyOrderbook
 
 		err := b.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {

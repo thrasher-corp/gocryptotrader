@@ -43,17 +43,16 @@ func TestRetrieve(t *testing.T) {
 	d.asks.load([]Item{{Price: 1337}}, d.stack)
 	d.bids.load([]Item{{Price: 1337}}, d.stack)
 	d.options = options{
-		exchange:              "THE BIG ONE!!!!!!",
-		pair:                  currency.NewPair(currency.THETA, currency.USD),
-		asset:                 "Silly asset",
-		lastUpdated:           time.Now(),
-		lastUpdateID:          007,
-		priceDuplication:      true,
-		isFundingRate:         true,
-		verificationBypass:    true,
-		hasChecksumValidation: true,
-		restSnapshot:          true,
-		idAligned:             true,
+		exchange:         "THE BIG ONE!!!!!!",
+		pair:             currency.NewPair(currency.THETA, currency.USD),
+		asset:            "Silly asset",
+		lastUpdated:      time.Now(),
+		lastUpdateID:     007,
+		priceDuplication: true,
+		isFundingRate:    true,
+		VerifyOrderbook:  true,
+		restSnapshot:     true,
+		idAligned:        true,
 	}
 
 	// If we add anymore options to the options struct later this will complain
@@ -245,17 +244,16 @@ func TestAssignOptions(t *testing.T) {
 	cp := currency.NewPair(currency.LINK, currency.BTC)
 	tn := time.Now()
 	d.AssignOptions(&Base{
-		Exchange:              "test",
-		Pair:                  cp,
-		Asset:                 asset.Spot,
-		LastUpdated:           tn,
-		LastUpdateID:          1337,
-		PriceDuplication:      true,
-		IsFundingRate:         true,
-		VerificationBypass:    true,
-		HasChecksumValidation: true,
-		RestSnapshot:          true,
-		IDAlignment:           true,
+		Exchange:         "test",
+		Pair:             cp,
+		Asset:            asset.Spot,
+		LastUpdated:      tn,
+		LastUpdateID:     1337,
+		PriceDuplication: true,
+		IsFundingRate:    true,
+		VerifyOrderbook:  true,
+		RestSnapshot:     true,
+		IDAlignment:      true,
 	})
 
 	if d.exchange != "test" ||
@@ -265,8 +263,7 @@ func TestAssignOptions(t *testing.T) {
 		d.lastUpdateID != 1337 ||
 		!d.priceDuplication ||
 		!d.isFundingRate ||
-		!d.verificationBypass ||
-		!d.hasChecksumValidation ||
+		!d.VerifyOrderbook ||
 		!d.restSnapshot ||
 		!d.idAligned {
 		t.Fatal("failed to set correctly")

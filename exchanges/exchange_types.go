@@ -221,9 +221,12 @@ type Base struct {
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *stream.Websocket
 	*request.Requester
-	Config                      *config.ExchangeConfig
-	settingsMutex               sync.RWMutex
-	OrderbookVerificationBypass bool
+	Config        *config.ExchangeConfig
+	settingsMutex sync.RWMutex
+	// CanVerifyOrderbook determines if the orderbook verification can be bypassed,
+	// increasing potential update speed but decreasing confidence in orderbook
+	// integrity.
+	CanVerifyOrderbook bool
 	order.ExecutionLimits
 
 	AssetWebsocketSupport

@@ -966,9 +966,8 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	book.Pair = p
 	book.Exchange = b.Name
 	book.PriceDuplication = true
-	book.HasChecksumValidation = true
 	book.IsFundingRate = fundingRate
-	book.VerificationBypass = b.OrderbookVerificationBypass
+	book.VerifyOrderbook = b.CanVerifyOrderbook
 	return b.Websocket.Orderbook.LoadSnapshot(&book)
 }
 

@@ -529,7 +529,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		newOrderBook.Asset = asset.Spot
 		newOrderBook.Pair = pair
 		newOrderBook.Exchange = g.Name
-		newOrderBook.VerificationBypass = g.OrderbookVerificationBypass
+		newOrderBook.VerifyOrderbook = g.CanVerifyOrderbook
 		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
 			return err

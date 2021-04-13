@@ -121,6 +121,15 @@ func (w *Orderbook) Update(u *Update) error {
 		}
 	}
 
+	if book.ob.VerifyOrderbook { // This is used here so as to not retrieve
+		// book if verfication is off.
+		// On every update, this will retrieve and verify orderbook depths
+		err := book.ob.Retrieve().Verify()
+		if err != nil {
+			return err
+		}
+	}
+
 	select {
 	case <-book.ticker.C:
 		// Opted to wait for receiver because we are limiting here and the sync
@@ -238,24 +247,24 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		m2[book.Asset] = holder
 	}
 
-	if book.CanVerify() {
-		// Checks if book can deploy to linked list
-		err := book.Verify()
-		if err != nil {
-			return err
-		}
+	// Checks if book can deploy to linked list
+	err := book.Verify()
+	if err != nil {
+		return err
 	}
 
 	holder.ob.LoadSnapshot(book.Bids, book.Asks)
 
-	if book.CanVerify() {
+	if holder.ob.VerifyOrderbook { // This is used here so as to not retrieve
+		// book if verfication is off.
 		// Checks to see if orderbook snapshot that was deployed has not been
 		// altered in any way
-		err := holder.ob.Retrieve().Verify()
+		err = holder.ob.Retrieve().Verify()
 		if err != nil {
 			return err
 		}
 	}
+
 	w.dataHandler <- holder.ob.Retrieve()
 	holder.ob.Publish()
 	return nil

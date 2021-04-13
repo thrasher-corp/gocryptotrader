@@ -509,14 +509,13 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 	}
 
 	newOrderBook := orderbook.Base{
-		Asks:                  asks,
-		Bids:                  bids,
-		Asset:                 a,
-		LastUpdated:           timestampFromFloat64(data.Time),
-		Pair:                  p,
-		Exchange:              f.Name,
-		HasChecksumValidation: true,
-		VerificationBypass:    f.OrderbookVerificationBypass,
+		Asks:            asks,
+		Bids:            bids,
+		Asset:           a,
+		LastUpdated:     timestampFromFloat64(data.Time),
+		Pair:            p,
+		Exchange:        f.Name,
+		VerifyOrderbook: f.CanVerifyOrderbook,
 	}
 	return f.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

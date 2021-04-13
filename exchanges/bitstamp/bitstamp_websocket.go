@@ -239,13 +239,13 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		bids = append(bids, orderbook.Item{Price: target, Amount: amount})
 	}
 	return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Bids:               bids,
-		Asks:               asks,
-		Pair:               p,
-		LastUpdated:        time.Unix(update.Timestamp, 0),
-		Asset:              assetType,
-		Exchange:           b.Name,
-		VerificationBypass: b.OrderbookVerificationBypass,
+		Bids:            bids,
+		Asks:            asks,
+		Pair:            p,
+		LastUpdated:     time.Unix(update.Timestamp, 0),
+		Asset:           assetType,
+		Exchange:        b.Name,
+		VerifyOrderbook: b.CanVerifyOrderbook,
 	})
 }
 
@@ -277,7 +277,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		newOrderBook.Pair = p[x]
 		newOrderBook.Asset = asset.Spot
 		newOrderBook.Exchange = b.Name
-		newOrderBook.VerificationBypass = b.OrderbookVerificationBypass
+		newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
 
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
