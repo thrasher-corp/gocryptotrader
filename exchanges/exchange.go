@@ -602,8 +602,6 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 			"%s orderbook verification has been bypassed via config.",
 			b.Name)
 	}
-	// Not is used so we can set a bypass being true via the configuration.
-	// This allows for easier variable naming convention throughout.
 	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
 	return nil
 }

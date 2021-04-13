@@ -69,6 +69,11 @@ func (b *Bitmex) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	err = b.DisableAssetWebsocketSupport(asset.Index)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,

@@ -93,6 +93,11 @@ func (k *Kraken) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	err = k.DisableAssetWebsocketSupport(asset.Futures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	k.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
