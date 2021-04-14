@@ -282,7 +282,7 @@ func (y *Yobit) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
 func (y *Yobit) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, params url.Values, result interface{}) (err error) {
 	if !y.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, y.Name)
+		return fmt.Errorf("%s %w", y.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	endpoint, err := y.API.Endpoints.GetURL(ep)
 	if err != nil {

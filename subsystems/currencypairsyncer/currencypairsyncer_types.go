@@ -13,7 +13,9 @@ import (
 )
 
 type iWebsocketDataReceiver interface {
+	IsRunning() bool
 	WebsocketDataReceiver(ws *stream.Websocket)
+	WebsocketDataHandler(string, interface{}) error
 }
 
 type iExchangeManager interface {

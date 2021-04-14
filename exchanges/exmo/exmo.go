@@ -318,8 +318,7 @@ func (e *EXMO) SendHTTPRequest(endpoint exchange.URL, path string, result interf
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (e *EXMO) SendAuthenticatedHTTPRequest(epath exchange.URL, method, endpoint string, vals url.Values, result interface{}) error {
 	if !e.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
-			e.Name)
+		return fmt.Errorf("%s %w", e.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	urlPath, err := e.API.Endpoints.GetURL(epath)

@@ -468,7 +468,7 @@ func (b *Bithumb) SendHTTPRequest(ep exchange.URL, path string, result interface
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bithumb
 func (b *Bithumb) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, params url.Values, result interface{}) error {
 	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {

@@ -365,7 +365,7 @@ func (g *Gemini) SendHTTPRequest(ep exchange.URL, path string, result interface{
 // exchange and returns an error
 func (g *Gemini) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path string, params map[string]interface{}, result interface{}) (err error) {
 	if !g.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
+		return fmt.Errorf("%s %w", g.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	endpoint, err := g.API.Endpoints.GetURL(ep)

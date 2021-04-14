@@ -611,7 +611,7 @@ func (b *Bitstamp) SendHTTPRequest(ep exchange.URL, path string, result interfac
 // SendAuthenticatedHTTPRequest sends an authenticated request
 func (b *Bitstamp) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, v2 bool, values url.Values, result interface{}) error {
 	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {

@@ -29,27 +29,23 @@ const (
 )
 
 var (
-	createdCounter              = 0
-	removedCounter              = 0
-	DefaultSyncerWorkers        = 15
-	DefaultSyncerTimeout        = time.Second * 15
-	errNoSyncItemsEnabled       = errors.New("no sync items enabled")
-	errNilExchangeManager       = errors.New("nil exchange manager received")
-	errNilWebsocketDataReceiver = errors.New("nil websocket data receiver received")
-	errNilConfig                = errors.New("nil config received")
-	errUnknownSyncItem          = errors.New("unknown sync item")
+	createdCounter        = 0
+	removedCounter        = 0
+	DefaultSyncerWorkers  = 15
+	DefaultSyncerTimeout  = time.Second * 15
+	errNoSyncItemsEnabled = errors.New("no sync items enabled")
+	errNilExchangeManager = errors.New("nil exchange manager received")
+	errNilConfig          = errors.New("nil config received")
+	errUnknownSyncItem    = errors.New("unknown sync item")
 )
 
 // Setup starts a new CurrencyPairSyncer
-func Setup(c Config, exchangeManager iExchangeManager, websocketDataReceiver iWebsocketDataReceiver, remoteConfig *config.RemoteControlConfig) (*ExchangeCurrencyPairSyncer, error) {
+func Setup(c *Config, exchangeManager iExchangeManager, websocketDataReceiver iWebsocketDataReceiver, remoteConfig *config.RemoteControlConfig) (*ExchangeCurrencyPairSyncer, error) {
 	if !c.SyncOrderbook && !c.SyncTicker && !c.SyncTrades {
 		return nil, errNoSyncItemsEnabled
 	}
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
-	}
-	if websocketDataReceiver == nil {
-		return nil, errNilWebsocketDataReceiver
 	}
 	if remoteConfig == nil {
 		return nil, errNilConfig
@@ -85,6 +81,13 @@ func Setup(c Config, exchangeManager iExchangeManager, websocketDataReceiver iWe
 		s.config.SyncContinuously, s.config.SyncTicker, s.config.SyncOrderbook,
 		s.config.SyncTrades, s.config.NumWorkers, s.config.Verbose, s.config.SyncTimeout)
 	return s, nil
+}
+
+func (e *ExchangeCurrencyPairSyncer) IsRunning() bool {
+	if e == nil {
+		return false
+	}
+	return atomic.LoadInt32(&e.started) == 1
 }
 
 // Start starts an exchange currency pair syncer
@@ -123,7 +126,9 @@ func (e *ExchangeCurrencyPairSyncer) Start() error {
 			}
 
 			if !ws.IsConnected() && !ws.IsConnecting() {
-				go e.websocketDataReceiver.WebsocketDataReceiver(ws)
+				if e.websocketDataReceiver.IsRunning() {
+					go e.websocketDataReceiver.WebsocketDataReceiver(ws)
+				}
 
 				err = ws.Connect()
 				if err == nil {

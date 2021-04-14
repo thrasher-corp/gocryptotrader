@@ -1108,8 +1108,7 @@ func (c *Coinbene) SendHTTPRequest(ep exchange.URL, path string, f request.Endpo
 func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath string, isSwap bool,
 	params, result interface{}, f request.EndpointLimit) error {
 	if !c.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
-			c.Name)
+		return fmt.Errorf("%s %w", c.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	endpoint, err := c.API.Endpoints.GetURL(ep)
 	if err != nil {

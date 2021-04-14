@@ -19,15 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
-// IsRunning returns the status of the OrderManager
-func (m *Manager) IsRunning() bool {
-	if m == nil {
-		return false
-	}
-	return atomic.LoadInt32(&m.started) == 1
-}
-
-// Start will boot up the OrderManager
+// Setup will boot up the OrderManager
 func Setup(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose bool) (*Manager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
@@ -49,6 +41,14 @@ func Setup(exchangeManager iExchangeManager, communicationsManager iCommsManager
 		},
 		verbose: verbose,
 	}, nil
+}
+
+// IsRunning returns the status of the OrderManager
+func (m *Manager) IsRunning() bool {
+	if m == nil {
+		return false
+	}
+	return atomic.LoadInt32(&m.started) == 1
 }
 
 func (m *Manager) Start() error {

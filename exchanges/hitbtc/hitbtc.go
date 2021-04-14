@@ -539,8 +539,7 @@ func (h *HitBTC) SendHTTPRequest(ep exchange.URL, path string, result interface{
 // SendAuthenticatedHTTPRequest sends an authenticated http request
 func (h *HitBTC) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint string, values url.Values, f request.EndpointLimit, result interface{}) error {
 	if !h.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
-			h.Name)
+		return fmt.Errorf("%s %w", h.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	ePoint, err := h.API.Endpoints.GetURL(ep)
 	if err != nil {

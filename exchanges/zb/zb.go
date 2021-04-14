@@ -300,7 +300,7 @@ func (z *ZB) SendHTTPRequest(ep exchange.URL, path string, result interface{}, f
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
 func (z *ZB) SendAuthenticatedHTTPRequest(ep exchange.URL, httpMethod string, params url.Values, result interface{}, f request.EndpointLimit) error {
 	if !z.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, z.Name)
+		return fmt.Errorf("%s %w", z.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	endpoint, err := z.API.Endpoints.GetURL(ep)
 	if err != nil {

@@ -971,8 +971,7 @@ func (k *Kraken) SendHTTPRequest(ep exchange.URL, path string, result interface{
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, params url.Values, result interface{}) error {
 	if !k.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
-			k.Name)
+		return fmt.Errorf("%s %w", k.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	endpoint, err := k.API.Endpoints.GetURL(ep)
 	if err != nil {

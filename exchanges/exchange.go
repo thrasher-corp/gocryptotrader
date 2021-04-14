@@ -27,8 +27,6 @@ import (
 
 const (
 	warningBase64DecryptSecretKeyFailed = "exchange %s unable to base64 decode secret key.. Disabling Authenticated API support" // nolint // False positive (G101: Potential hardcoded credentials)
-	// WarningAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
-	WarningAuthenticatedRequestWithoutCredentialsSet = "exchange %s authenticated HTTP request called but not supported due to unset/default API keys"
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
 	// DefaultWebsocketResponseCheckTimeout is the default delay in checking for an expected websocket response
@@ -38,6 +36,9 @@ const (
 	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
 	DefaultWebsocketOrderbookBufferLimit = 5
 )
+
+// ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
+var ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
 
 func (e *Base) checkAndInitRequester() {
 	if e.Requester == nil {

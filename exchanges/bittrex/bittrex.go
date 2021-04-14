@@ -421,7 +421,7 @@ func (b *Bittrex) SendHTTPRequest(ep exchange.URL, path string, result interface
 // path
 func (b *Bittrex) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, values url.Values, result interface{}) (err error) {
 	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {

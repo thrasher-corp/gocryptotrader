@@ -168,7 +168,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case currencypairsyncer.Name:
 		if enable {
 			if bot.ExchangeCurrencyPairManager == nil {
-				exchangeSyncCfg := currencypairsyncer.Config{
+				exchangeSyncCfg := &currencypairsyncer.Config{
 					SyncTicker:       bot.Settings.EnableTickerSyncing,
 					SyncOrderbook:    bot.Settings.EnableOrderbookSyncing,
 					SyncTrades:       bot.Settings.EnableTradeSyncing,
@@ -179,12 +179,12 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 				}
 				bot.ExchangeCurrencyPairManager, err = currencypairsyncer.Setup(exchangeSyncCfg,
 					bot.ExchangeManager,
-					bot,
+					bot.websocketRoutineManager,
 					&bot.Config.RemoteControl)
 			}
-			bot.ExchangeCurrencyPairManager.Start()
+			return bot.ExchangeCurrencyPairManager.Start()
 		}
-		bot.ExchangeCurrencyPairManager.Stop()
+		return bot.ExchangeCurrencyPairManager.Stop()
 	case dispatch.Name:
 		if enable {
 			return dispatch.Start(bot.Settings.DispatchMaxWorkerAmount, bot.Settings.DispatchJobsLimit)
@@ -651,13 +651,6 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 		result[exchName] = cryptoAddr
 	}
 	return result
-}
-
-// FormatCurrency is a method that formats and returns a currency pair
-// based on the user currency display preferences
-func (bot *Engine) FormatCurrency(p currency.Pair) currency.Pair {
-	return p.Format(bot.Config.Currency.CurrencyPairFormat.Delimiter,
-		bot.Config.Currency.CurrencyPairFormat.Uppercase)
 }
 
 // GetExchangeNames returns a list of enabled or disabled exchanges

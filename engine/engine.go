@@ -18,11 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
@@ -39,6 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ntpmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/websocketroutinemanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
@@ -58,6 +55,7 @@ type Engine struct {
 	ExchangeManager             *exchangemanager.Manager
 	CommunicationsManager       *communicationmanager.Manager
 	eventManager                *eventmanager.Manager
+	websocketRoutineManager     *websocketroutinemanager.Manager
 	DepositAddressManager       *depositaddress.Manager
 	WithdrawalManager           *withdrawalmanager.Manager
 	Settings                    Settings
@@ -566,7 +564,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableExchangeSyncManager {
-		exchangeSyncCfg := currencypairsyncer.Config{
+		exchangeSyncCfg := &currencypairsyncer.Config{
 			SyncTicker:       bot.Settings.EnableTickerSyncing,
 			SyncOrderbook:    bot.Settings.EnableOrderbookSyncing,
 			SyncTrades:       bot.Settings.EnableTradeSyncing,
@@ -579,7 +577,7 @@ func (bot *Engine) Start() error {
 		bot.ExchangeCurrencyPairManager, err = currencypairsyncer.Setup(
 			exchangeSyncCfg,
 			bot.ExchangeManager,
-			bot,
+			bot.websocketRoutineManager,
 			&bot.Config.RemoteControl)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
@@ -606,7 +604,15 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
-		go bot.WebsocketRoutine()
+		bot.websocketRoutineManager, err = websocketroutinemanager.Setup(bot.ExchangeManager, bot.OrderManager, bot.ExchangeCurrencyPairManager, &bot.Config.Currency, bot.Settings.Verbose)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "Unable to initialise websocket routine manager. Err: %s", err)
+		} else {
+			err = bot.websocketRoutineManager.Start()
+			if err != nil {
+				gctlog.Errorf(gctlog.Global, "failed to start websocket routine manager. Err: %s", err)
+			}
+		}
 	}
 
 	if bot.Settings.EnableGCTScriptManager {
@@ -945,173 +951,6 @@ func (bot *Engine) SetupExchanges() error {
 	wg.Wait()
 	if len(bot.ExchangeManager.GetExchanges()) == 0 {
 		return exchangemanager.ErrNoExchangesLoaded
-	}
-	return nil
-}
-
-// WebsocketRoutine Initial routine management system for websocket
-func (bot *Engine) WebsocketRoutine() {
-	if bot.Settings.Verbose {
-		gctlog.Debugln(gctlog.WebsocketMgr, "Connecting exchange websocket services...")
-	}
-
-	exchanges := bot.GetExchanges()
-	for i := range exchanges {
-		go func(i int) {
-			if exchanges[i].SupportsWebsocket() {
-				if bot.Settings.Verbose {
-					gctlog.Debugf(gctlog.WebsocketMgr,
-						"Exchange %s websocket support: Yes Enabled: %v\n",
-						exchanges[i].GetName(),
-						common.IsEnabled(exchanges[i].IsWebsocketEnabled()),
-					)
-				}
-
-				ws, err := exchanges[i].GetWebsocket()
-				if err != nil {
-					gctlog.Errorf(
-						gctlog.WebsocketMgr,
-						"Exchange %s GetWebsocket error: %s\n",
-						exchanges[i].GetName(),
-						err,
-					)
-					return
-				}
-
-				// Exchange sync manager might have already started ws
-				// service or is in the process of connecting, so check
-				if ws.IsConnected() || ws.IsConnecting() {
-					return
-				}
-
-				// Data handler routine
-				go bot.WebsocketDataReceiver(ws)
-
-				if ws.IsEnabled() {
-					err = ws.Connect()
-					if err != nil {
-						gctlog.Errorf(gctlog.WebsocketMgr, "%v\n", err)
-					}
-					err = ws.FlushChannels()
-					if err != nil {
-						gctlog.Errorf(gctlog.WebsocketMgr, "Failed to subscribe: %v\n", err)
-					}
-				}
-			} else if bot.Settings.Verbose {
-				gctlog.Debugf(gctlog.WebsocketMgr,
-					"Exchange %s websocket support: No\n",
-					exchanges[i].GetName(),
-				)
-			}
-		}(i)
-	}
-}
-
-var shutdowner = make(chan struct{}, 1)
-var wg sync.WaitGroup
-
-// WebsocketDataReceiver handles websocket data coming from a websocket feed
-// associated with an exchange
-func (bot *Engine) WebsocketDataReceiver(ws *stream.Websocket) {
-	wg.Add(1)
-	defer wg.Done()
-
-	for {
-		select {
-		case <-shutdowner:
-			return
-		case data := <-ws.ToRoutine:
-			err := bot.WebsocketDataHandler(ws.GetName(), data)
-			if err != nil {
-				gctlog.Error(gctlog.WebsocketMgr, err)
-			}
-		}
-	}
-}
-
-// WebsocketDataHandler is a central point for exchange websocket implementations to send
-// processed data. WebsocketDataHandler will then pass that to an appropriate handler
-func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error {
-	if data == nil {
-		return fmt.Errorf("exchange %s nil data sent to websocket",
-			exchName)
-	}
-
-	switch d := data.(type) {
-	case string:
-		gctlog.Info(gctlog.WebsocketMgr, d)
-	case error:
-		return fmt.Errorf("exchange %s websocket error - %s", exchName, data)
-	case stream.FundingData:
-		if bot.Settings.Verbose {
-			gctlog.Infof(gctlog.WebsocketMgr, "%s websocket %s %s funding updated %+v",
-				exchName,
-				bot.FormatCurrency(d.CurrencyPair),
-				d.AssetType,
-				d)
-		}
-	case *ticker.Price:
-		if bot.Settings.EnableExchangeSyncManager && bot.ExchangeCurrencyPairManager != nil {
-			bot.ExchangeCurrencyPairManager.Update(exchName,
-				d.Pair,
-				d.AssetType,
-				currencypairsyncer.SyncItemTicker,
-				nil)
-		}
-		err := ticker.ProcessTicker(d)
-		if err != nil {
-			return err
-		}
-		bot.ExchangeCurrencyPairManager.PrintTickerSummary(d, "websocket", err)
-	case stream.KlineData:
-		if bot.Settings.Verbose {
-			gctlog.Infof(gctlog.WebsocketMgr, "%s websocket %s %s kline updated %+v",
-				exchName,
-				bot.FormatCurrency(d.Pair),
-				d.AssetType,
-				d)
-		}
-	case *orderbook.Base:
-		if bot.Settings.EnableExchangeSyncManager && bot.ExchangeCurrencyPairManager != nil {
-			bot.ExchangeCurrencyPairManager.Update(exchName,
-				d.Pair,
-				d.AssetType,
-				currencypairsyncer.SyncItemOrderbook,
-				nil)
-		}
-		bot.ExchangeCurrencyPairManager.PrintOrderbookSummary(d, "websocket", nil)
-	case *order.Detail:
-		if !bot.OrderManager.Exists(d) {
-			err := bot.OrderManager.Add(d)
-			if err != nil {
-				return err
-			}
-		} else {
-			od, err := bot.OrderManager.GetByExchangeAndID(d.Exchange, d.ID)
-			if err != nil {
-				return err
-			}
-			od.UpdateOrderFromDetail(d)
-		}
-	case *order.Cancel:
-		return bot.OrderManager.Cancel(d)
-	case *order.Modify:
-		od, err := bot.OrderManager.GetByExchangeAndID(d.Exchange, d.ID)
-		if err != nil {
-			return err
-		}
-		od.UpdateOrderFromModify(d)
-	case order.ClassificationError:
-		return errors.New(d.Error())
-	case stream.UnhandledMessageWarning:
-		gctlog.Warn(gctlog.WebsocketMgr, d.Message)
-	default:
-		if bot.Settings.Verbose {
-			gctlog.Warnf(gctlog.WebsocketMgr,
-				"%s websocket Unknown type: %+v",
-				exchName,
-				d)
-		}
 	}
 	return nil
 }
