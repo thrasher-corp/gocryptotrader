@@ -396,7 +396,7 @@ func (bot *Engine) Start() error {
 		if bot.Config.NTPClient.Level == 0 {
 			responseMessage, err := bot.Config.SetNTPCheck(os.Stdin)
 			if err != nil {
-				return fmt.Errorf("unable to disable NTP check: %w", err)
+				return fmt.Errorf("unable to set NTP check: %w", err)
 			}
 			gctlog.Info(gctlog.TimeMgr, responseMessage)
 		}

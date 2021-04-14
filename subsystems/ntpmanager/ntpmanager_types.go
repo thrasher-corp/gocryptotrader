@@ -12,8 +12,10 @@ const (
 )
 
 var (
-	errNTPDisabled = errors.New("ntp client disabled")
-	errNilConfig   = errors.New("nil NTP config received")
+	errNTPDisabled        = errors.New("ntp client disabled")
+	errNilConfig          = errors.New("nil NTP config received")
+	errNilConfigValues    = errors.New("nil allowed time differences received")
+	errNTPManagerDisabled = errors.New("NTP manager disabled")
 )
 
 // Manager starts the NTP manager
