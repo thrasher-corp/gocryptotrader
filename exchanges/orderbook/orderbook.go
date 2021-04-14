@@ -43,11 +43,6 @@ func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 	return service.Mux.Subscribe(exch.ID)
 }
 
-// GetDispatch returns the service mux for subsystem alerting
-func GetDispatch() *dispatch.Mux {
-	return service.Mux
-}
-
 // Update stores orderbook data
 func (s *Service) Update(b *Base) error {
 	name := strings.ToLower(b.Exchange)
