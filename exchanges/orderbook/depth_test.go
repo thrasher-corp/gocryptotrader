@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"errors"
+	"log"
 	"reflect"
 	"sync"
 	"testing"
@@ -328,25 +329,19 @@ func TestWait(t *testing.T) {
 		go func() {
 			w := wait.Wait(nil)
 			wg.Done()
-			<-w
+			if <-w {
+				log.Fatal("incorrect routine wait response for alert expecting false")
+			}
 			wg.Done()
 		}()
 	}
 
 	wg.Wait()
 	wg.Add(100)
-	select {
-	case <-wait.Wait(nil):
-		t.Fatal("leaky waiter")
-	default:
-	}
+	isLeaky(&wait, nil, t)
 	wait.alert()
 	wg.Wait()
-	select {
-	case <-wait.Wait(nil):
-		t.Fatal("leaky waiter")
-	default:
-	}
+	isLeaky(&wait, nil, t)
 
 	// use kick
 	ch := make(chan struct{})
@@ -355,27 +350,21 @@ func TestWait(t *testing.T) {
 		go func() {
 			w := wait.Wait(ch)
 			wg.Done()
-			<-w
+			if !<-w {
+				log.Fatal("incorrect routine wait response for kick expecting true")
+			}
 			wg.Done()
 		}()
 	}
 	wg.Wait()
 	wg.Add(100)
-	select {
-	case <-wait.Wait(ch):
-		t.Fatal("leaky waiter")
-	default:
-	}
+	isLeaky(&wait, ch, t)
 	close(ch)
 	wg.Wait()
-	select {
-	case <-wait.Wait(ch):
-		t.Fatal("leaky waiter")
-	default:
-	}
+	ch = make(chan struct{})
+	isLeaky(&wait, ch, t)
 
 	// late receivers
-	ch = make(chan struct{})
 	wg.Add(100)
 	for x := 0; x < 100; x++ {
 		go func(x int) {
@@ -384,22 +373,31 @@ func TestWait(t *testing.T) {
 			if x%2 == 0 {
 				time.Sleep(time.Millisecond * 5)
 			}
-			<-bb
+			b := <-bb
+			if b {
+				log.Fatal("incorrect routine wait response since we call alert below; expecting false")
+			}
 			wg.Done()
 		}(x)
 	}
 	wg.Wait()
 	wg.Add(100)
-	select {
-	case <-wait.Wait(ch):
-		t.Fatal("leaky waiter")
-	default:
-	}
-	go wait.alert()
-	close(ch)
+	isLeaky(&wait, ch, t)
+	wait.alert()
 	wg.Wait()
+	isLeaky(&wait, ch, t)
+}
+
+// isLeaky tests to see if the wait functionality is returning an abnormal
+// channel that is operational when it shouldn't be.
+func isLeaky(a *Alert, ch chan struct{}, t *testing.T) {
+	t.Helper()
+	check := a.Wait(ch)
+	time.Sleep(time.Millisecond * 5) // When we call wait a routine for hold is
+	// spawned, so for a test we need to add in a time for goschedular to allow
+	// routine to actually wait on the forAlert and kick channels
 	select {
-	case <-wait.Wait(ch):
+	case <-check:
 		t.Fatal("leaky waiter")
 	default:
 	}

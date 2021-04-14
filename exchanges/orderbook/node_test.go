@@ -59,7 +59,7 @@ func (s *stack) Display() {
 	for i := int32(0); i < s.getCount(); i++ {
 		fmt.Printf("NODE IN STACK: %+v %p \n", s.nodes[i], s.nodes[i])
 	}
-	fmt.Println("Tatal Count:", s.getCount())
+	fmt.Println("TOTAL COUNT:", s.getCount())
 }
 
 //  158	   9,521,717 ns/op	 9600104 B/op	  100001 allocs/op

@@ -703,7 +703,7 @@ func BenchmarkSortBidsDescending(b *testing.B) {
 	}
 }
 
-// 923154	      1169 ns/op	    4096 B/op	       1 allocs/op
+// 124867	      8480 ns/op	   49152 B/op	       1 allocs/op
 func BenchmarkDuplicatingSlice(b *testing.B) {
 	s := deploySliceOrdered()
 	for i := 0; i < b.N; i++ {
@@ -711,7 +711,7 @@ func BenchmarkDuplicatingSlice(b *testing.B) {
 	}
 }
 
-// 705922	      1546 ns/op	    4096 B/op	       1 allocs/op
+// 122998	      8441 ns/op	   49152 B/op	       1 allocs/op
 func BenchmarkCopySlice(b *testing.B) {
 	s := deploySliceOrdered()
 	for i := 0; i < b.N; i++ {
