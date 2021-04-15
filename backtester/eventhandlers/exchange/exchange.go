@@ -118,7 +118,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	case gctorder.Sell:
 		if limitReducedAmount < cs.SellSide.MinimumSize || limitReducedAmount > cs.SellSide.MaximumSize {
 			f.SetDirection(common.CouldNotSell)
-			e := fmt.Sprintf("Order size  %.8f exceed minimum size %.8f or maximum size %.8f ", limitReducedAmount, cs.BuySide.MinimumSize, cs.BuySide.MaximumSize)
+			e := fmt.Sprintf("Order size  %.8f exceed minimum size %.8f or maximum size %.8f ", limitReducedAmount, cs.SellSide.MinimumSize, cs.SellSide.MaximumSize)
 			f.AppendReason(e)
 			return f, fmt.Errorf(e)
 		}
