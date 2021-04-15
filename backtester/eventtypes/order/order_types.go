@@ -17,13 +17,16 @@ type Order struct {
 	OrderType order.Type
 	Leverage  float64
 	Funds     float64
+	BuyLimit  float64
+	SellLimit float64
 }
 
 // Event inherits common event interfaces along with extra functions related to handling orders
 type Event interface {
 	common.EventHandler
 	common.Directioner
-
+	GetBuyLimit() float64
+	GetSellLimit() float64
 	SetAmount(float64)
 	GetAmount() float64
 	IsOrder() bool
