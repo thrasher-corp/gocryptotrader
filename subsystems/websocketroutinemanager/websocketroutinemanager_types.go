@@ -1,6 +1,7 @@
 package websocketroutinemanager
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -39,4 +40,13 @@ type iOrderManager interface {
 	Add(*order.Detail) error
 	Cancel(*order.Cancel) error
 	GetByExchangeAndID(string, string) (*order.Detail, error)
+	UpdateExistingOrder(*order.Detail) error
 }
+
+var (
+	errNilExchangeManager    = errors.New("nil exchange manager received")
+	errNilOrderManager       = errors.New("nil order manager received")
+	errNilCurrencyPairSyncer = errors.New("nil currency pair syncer received")
+	errNilCurrencyConfig     = errors.New("nil currency config received")
+	errNilCurrencyPairFormat = errors.New("nil currency pair format received")
+)

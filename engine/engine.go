@@ -44,7 +44,7 @@ import (
 // overarching type across this code base.
 type Engine struct {
 	Config                      *config.Config
-	ExchangeCurrencyPairManager *currencypairsyncer.ExchangeCurrencyPairSyncer
+	ExchangeCurrencyPairManager *currencypairsyncer.Manager
 	ntpManager                  *ntpmanager.Manager
 	connectionManager           *connectionmanager.Manager
 	DatabaseManager             *databaseconnection.Manager

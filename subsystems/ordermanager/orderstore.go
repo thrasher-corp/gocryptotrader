@@ -36,6 +36,23 @@ func (s *store) getByExchangeAndID(exchange, id string) (*order.Detail, error) {
 	return nil, ErrOrderNotFound
 }
 
+func (s *store) updateExisting(od *order.Detail) error {
+	s.m.RLock()
+	defer s.m.RUnlock()
+	r, ok := s.Orders[strings.ToLower(od.Exchange)]
+	if !ok {
+		return exchangemanager.ErrExchangeNotFound
+	}
+	for x := range r {
+		if r[x].ID == od.ID {
+			r[x] = od
+			return nil
+		}
+	}
+
+	return ErrOrderNotFound
+}
+
 // getByExchange returns orders by exchange
 func (s *store) getByExchange(exchange string) ([]*order.Detail, error) {
 	s.m.RLock()

@@ -1,7 +1,6 @@
 package websocketroutinemanager
 
 import (
-	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -19,16 +18,19 @@ import (
 
 func Setup(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *config.CurrencyConfig, verbose bool) (*Manager, error) {
 	if exchangeManager == nil {
-		return nil, nil
+		return nil, errNilExchangeManager
 	}
 	if orderManager == nil {
-		return nil, nil
+		return nil, errNilOrderManager
 	}
 	if syncer == nil {
-		return nil, nil
+		return nil, errNilCurrencyPairSyncer
 	}
 	if cfg == nil {
-		return nil, nil
+		return nil, errNilCurrencyConfig
+	}
+	if cfg.CurrencyPairFormat == nil && verbose {
+		return nil, errNilCurrencyPairFormat
 	}
 	return &Manager{
 		verbose:         verbose,
@@ -59,7 +61,7 @@ func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
-func (m *Manager) Shutdown() error {
+func (m *Manager) Stop() error {
 	if m == nil {
 		return subsystems.ErrNilSubsystem
 	}
@@ -76,7 +78,6 @@ func (m *Manager) websocketRoutine() {
 	if m.verbose {
 		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
-
 	exchanges := m.exchangeManager.GetExchanges()
 	for i := range exchanges {
 		go func(i int) {
@@ -220,6 +221,11 @@ func (m *Manager) WebsocketDataHandler(exchName string, data interface{}) error 
 				return err
 			}
 			od.UpdateOrderFromDetail(d)
+
+			err = m.orderManager.UpdateExistingOrder(od)
+			if err != nil {
+				return err
+			}
 		}
 	case *order.Cancel:
 		return m.orderManager.Cancel(d)
@@ -229,8 +235,12 @@ func (m *Manager) WebsocketDataHandler(exchName string, data interface{}) error 
 			return err
 		}
 		od.UpdateOrderFromModify(d)
+		err = m.orderManager.UpdateExistingOrder(od)
+		if err != nil {
+			return err
+		}
 	case order.ClassificationError:
-		return errors.New(d.Error())
+		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case stream.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
 	default:
@@ -247,6 +257,9 @@ func (m *Manager) WebsocketDataHandler(exchName string, data interface{}) error 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
 func (m *Manager) FormatCurrency(p currency.Pair) currency.Pair {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return p
+	}
 	return p.Format(m.currencyConfig.CurrencyPairFormat.Delimiter,
 		m.currencyConfig.CurrencyPairFormat.Uppercase)
 }

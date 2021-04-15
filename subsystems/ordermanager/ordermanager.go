@@ -112,6 +112,10 @@ func (m *Manager) run() {
 
 // CancelAllOrders iterates and cancels all orders for each exchange provided
 func (m *Manager) CancelAllOrders(exchangeNames []exchange.IBotExchange) {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return
+	}
+
 	orders := m.orderStore.get()
 	if orders == nil {
 		return
@@ -145,6 +149,12 @@ func (m *Manager) CancelAllOrders(exchangeNames []exchange.IBotExchange) {
 // Cancel will find the order in the OrderManager, send a cancel request
 // to the exchange and if successful, update the status of the order
 func (m *Manager) Cancel(cancel *order.Cancel) error {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return fmt.Errorf("order manager %w", subsystems.ErrSubSystemNotStarted)
+	}
 	var err error
 	defer func() {
 		if err != nil {
@@ -184,13 +194,13 @@ func (m *Manager) Cancel(cancel *order.Cancel) error {
 
 	err = exch.CancelOrder(cancel)
 	if err != nil {
-		err = fmt.Errorf("%v - Failed to cancel order: %v", cancel.Exchange, err)
+		err = fmt.Errorf("%v - Failed to cancel order: %w", cancel.Exchange, err)
 		return err
 	}
 	var od *order.Detail
 	od, err = m.orderStore.getByExchangeAndID(cancel.Exchange, cancel.ID)
 	if err != nil {
-		err = fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %v", cancel.Exchange, cancel.ID, err)
+		err = fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %w", cancel.Exchange, cancel.ID, err)
 		return err
 	}
 
@@ -209,6 +219,13 @@ func (m *Manager) Cancel(cancel *order.Cancel) error {
 // GetOrderInfo calls the exchange's wrapper GetOrderInfo function
 // and stores the result in the order manager
 func (m *Manager) GetOrderInfo(exchangeName, orderID string, cp currency.Pair, a asset.Item) (order.Detail, error) {
+	if m == nil {
+		return order.Detail{}, subsystems.ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return order.Detail{}, fmt.Errorf("order manager %w", subsystems.ErrSubSystemNotStarted)
+	}
+
 	if orderID == "" {
 		return order.Detail{}, ErrOrderIDCannotBeEmpty
 	}
@@ -267,6 +284,13 @@ func (m *Manager) validate(newOrder *order.Submit) error {
 // Submit will take in an order struct, send it to the exchange and
 // populate it in the OrderManager if successful
 func (m *Manager) Submit(newOrder *order.Submit) (*orderSubmitResponse, error) {
+	if m == nil {
+		return nil, subsystems.ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, fmt.Errorf("order manager %w", subsystems.ErrSubSystemNotStarted)
+	}
+
 	err := m.validate(newOrder)
 	if err != nil {
 		return nil, err
@@ -300,6 +324,12 @@ func (m *Manager) Submit(newOrder *order.Submit) (*orderSubmitResponse, error) {
 // SubmitFakeOrder runs through the same process as order submission
 // but does not touch live endpoints
 func (m *Manager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse, checkExchangeLimits bool) (*orderSubmitResponse, error) {
+	if m == nil {
+		return nil, subsystems.ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, fmt.Errorf("order manager %w", subsystems.ErrSubSystemNotStarted)
+	}
 	err := m.validate(newOrder)
 	if err != nil {
 		return nil, err
@@ -330,6 +360,9 @@ func (m *Manager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.S
 // but a status of "" or ANY will include all
 // the time adds contexts for the when the snapshot is relevant for
 func (m *Manager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.Time) {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return nil, time.Time{}
+	}
 	var os []order.Detail
 	var latestUpdate time.Time
 	for _, v := range m.orderStore.Orders {
@@ -492,16 +525,34 @@ func (m *Manager) processOrders() {
 
 // Exists checks whether an order exists in the order store
 func (m *Manager) Exists(o *order.Detail) bool {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return false
+	}
+
 	return m.orderStore.exists(o)
 }
 
 // Add adds an order to the orderstore
 func (m *Manager) Add(o *order.Detail) error {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return fmt.Errorf("order manager %w", subsystems.ErrSubSystemNotStarted)
+	}
+
 	return m.orderStore.add(o)
 }
 
 // GetByExchangeAndID returns a copy of an order from an exchange if it matches the ID
 func (m *Manager) GetByExchangeAndID(exchangeName, id string) (*order.Detail, error) {
+	if m == nil {
+		return nil, subsystems.ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, fmt.Errorf("order manager %w", subsystems.ErrSubSystemNotStarted)
+	}
+
 	o, err := m.orderStore.getByExchangeAndID(exchangeName, id)
 	if err != nil {
 		return nil, err
@@ -509,4 +560,14 @@ func (m *Manager) GetByExchangeAndID(exchangeName, id string) (*order.Detail, er
 	var cpy order.Detail
 	cpy.UpdateOrderFromDetail(o)
 	return &cpy, nil
+}
+
+func (m *Manager) UpdateExistingOrder(od *order.Detail) error {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return fmt.Errorf("order manager %w", subsystems.ErrSubSystemNotStarted)
+	}
+	return m.orderStore.updateExisting(od)
 }

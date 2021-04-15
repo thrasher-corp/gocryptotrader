@@ -202,6 +202,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 			d.LastUpdated = m.LastUpdated
 		}
 	}
+	if d.Exchange == "" {
+		d.Exchange = m.Exchange
+	}
+	if d.ID == "" {
+		d.ID = m.ID
+	}
 }
 
 // UpdateOrderFromModify Will update an order detail (used in order management)
@@ -351,6 +357,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 			d.LastUpdated = m.LastUpdated
 		}
 	}
+
 }
 
 // String implements the stringer interface
@@ -710,18 +717,23 @@ func (c *Cancel) StandardCancel() validate.Checker {
 	})
 }
 
+func (c *Cancel) PairAssetRequired() validate.Checker {
+	return validate.Check(func() error {
+		if c.Pair.IsEmpty() {
+			return ErrPairIsEmpty
+		}
+
+		if c.AssetType == "" {
+			return ErrAssetNotSet
+		}
+		return nil
+	})
+}
+
 // Validate checks internal struct requirements
 func (c *Cancel) Validate(opt ...validate.Checker) error {
 	if c == nil {
 		return ErrCancelOrderIsNil
-	}
-
-	if c.Pair.IsEmpty() {
-		return ErrPairIsEmpty
-	}
-
-	if c.AssetType == "" {
-		return ErrAssetNotSet
 	}
 
 	var errs common.Errors

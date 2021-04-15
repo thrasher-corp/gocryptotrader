@@ -109,6 +109,7 @@ func TestStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 }
+
 func OrdersSetup(t *testing.T) *Manager {
 	var wg sync.WaitGroup
 	em := exchangemanager.Setup()
