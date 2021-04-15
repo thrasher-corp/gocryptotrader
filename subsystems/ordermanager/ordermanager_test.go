@@ -367,7 +367,7 @@ func TestCancelOrder(t *testing.T) {
 
 	cancel := &order.Cancel{
 		Exchange:  testExchange,
-		ID:        "TestCancelOrder",
+		ID:        "1337",
 		Side:      order.Sell,
 		Status:    order.New,
 		AssetType: asset.Spot,

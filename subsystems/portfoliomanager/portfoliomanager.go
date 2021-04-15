@@ -1,6 +1,7 @@
 package portfoliomanager
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -17,9 +18,11 @@ import (
 
 const Name = "portfolio"
 
-// vars for the fund manager package
 var (
-	PortfolioSleepDelay = time.Minute
+	PortfolioSleepDelay   = time.Minute
+	errNilBase            = errors.New("nil portfolio base received")
+	errNilExchangeManager = errors.New("nil exchange manager base received")
+	errNilWaitGroup       = errors.New("nil wait group received")
 )
 
 type Manager struct {
@@ -32,14 +35,16 @@ type Manager struct {
 	base                  *portfolio.Base
 }
 
-func (m *Manager) IsRunning() bool {
-	if m == nil {
-		return false
-	}
-	return atomic.LoadInt32(&m.started) == 1
-}
-
 func Setup(b *portfolio.Base, e *exchangemanager.Manager, portfolioManagerDelay time.Duration, verbose bool) (*Manager, error) {
+	if b == nil {
+		return nil, errNilBase
+	}
+	if e == nil {
+		return nil, errNilExchangeManager
+	}
+	if portfolioManagerDelay <= 0 {
+		portfolioManagerDelay = PortfolioSleepDelay
+	}
 	m := &Manager{
 		portfolioManagerDelay: portfolioManagerDelay,
 		exchangeManager:       e,
@@ -51,13 +56,24 @@ func Setup(b *portfolio.Base, e *exchangemanager.Manager, portfolioManagerDelay 
 	return m, nil
 }
 
+func (m *Manager) IsRunning() bool {
+	if m == nil {
+		return false
+	}
+	return atomic.LoadInt32(&m.started) == 1
+}
+
 func (m *Manager) Start(wg *sync.WaitGroup) error {
 	if m == nil {
 		return subsystems.ErrNilSubsystem
 	}
+	if wg == nil {
+		return errNilWaitGroup
+	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("portfolio manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
+
 	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", subsystems.MsgSubSystemStarting)
 	m.shutdown = make(chan struct{})
 	m.base.Seed(*m.base)
