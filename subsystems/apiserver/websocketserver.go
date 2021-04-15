@@ -2,7 +2,6 @@ package apiserver
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -216,7 +215,7 @@ func StartWebsocketHandler() {
 // BroadcastWebsocketMessage meow
 func BroadcastWebsocketMessage(evt WebsocketEvent) error {
 	if !wsHubStarted {
-		return errors.New("websocket service not started")
+		return ErrWebsocketServiceNotRunning
 	}
 
 	data, err := json.Marshal(evt)

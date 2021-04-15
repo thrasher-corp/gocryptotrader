@@ -22,15 +22,16 @@ const (
 )
 
 var (
-	wsHub                 *WebsocketHub
-	wsHubStarted          bool
-	errNilRemoteConfig    = errors.New("received nil remote config")
-	errNilPProfConfig     = errors.New("received nil pprof config")
-	errNilExchangeManager = errors.New("received nil exchange manager")
-	errNilBot             = errors.New("received nil engine bot")
-	errEmptyConfigPath    = errors.New("received empty config path")
-	errServerDisabled     = errors.New("server disabled")
-	errAlreadyRuning      = errors.New("already running")
+	wsHub                         *WebsocketHub
+	wsHubStarted                  bool
+	errNilRemoteConfig            = errors.New("received nil remote config")
+	errNilPProfConfig             = errors.New("received nil pprof config")
+	errNilExchangeManager         = errors.New("received nil exchange manager")
+	errNilBot                     = errors.New("received nil engine bot")
+	errEmptyConfigPath            = errors.New("received empty config path")
+	errServerDisabled             = errors.New("server disabled")
+	errAlreadyRuning              = errors.New("already running")
+	ErrWebsocketServiceNotRunning = errors.New("websocket service not started")
 )
 
 // iExchangeManager limits exposure of accessible functions to order manager

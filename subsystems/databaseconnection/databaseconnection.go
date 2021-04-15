@@ -125,7 +125,7 @@ func (m *Manager) Stop() error {
 		return subsystems.ErrNilSubsystem
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("database manager %w", subsystems.ErrSubSystemNotStarted)
+		return fmt.Errorf("%s %w", Name, subsystems.ErrSubSystemNotStarted)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
@@ -170,7 +170,7 @@ func (m *Manager) checkConnection() error {
 		return subsystems.ErrNilSubsystem
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return subsystems.ErrSubSystemNotStarted
+		return fmt.Errorf("%s %w", Name, subsystems.ErrSubSystemNotStarted)
 	}
 	if !m.enabled {
 		return database.ErrDatabaseSupportDisabled

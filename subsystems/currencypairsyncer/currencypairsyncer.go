@@ -246,7 +246,7 @@ func (m *Manager) Stop() error {
 		return subsystems.ErrNilSubsystem
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
-		return subsystems.ErrSubSystemNotStarted
+		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystems.ErrSubSystemNotStarted)
 	}
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
 	return nil
@@ -389,8 +389,8 @@ func (m *Manager) Update(exchangeName string, p currency.Pair, a asset.Item, syn
 	if m == nil {
 		return subsystems.ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) != 0 {
-		return subsystems.ErrSubSystemNotStarted
+	if atomic.LoadInt32(&m.started) == 0 {
+		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystems.ErrSubSystemNotStarted)
 	}
 
 	if atomic.LoadInt32(&m.initSyncStarted) != 1 {
@@ -889,7 +889,7 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 		Exchange:  exchangeName,
 	}
 	err := apiserver.BroadcastWebsocketMessage(evt)
-	if err != nil {
+	if !errors.Is(err, apiserver.ErrWebsocketServiceNotRunning) {
 		log.Errorf(log.WebsocketMgr, "Failed to broadcast websocket event %v. Error: %s\n",
 			event, err)
 	}

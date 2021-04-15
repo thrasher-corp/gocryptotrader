@@ -111,7 +111,7 @@ func (m *Manager) Add(exchange, item string, condition EventConditionParams, p c
 		return 0, subsystems.ErrNilSubsystem
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return 0, subsystems.ErrSubSystemNotStarted
+		return 0, fmt.Errorf("event manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	err := m.isValidEvent(exchange, item, condition, action)
 	if err != nil {
@@ -169,7 +169,7 @@ func (m *Manager) checkEventCondition(e *Event) error {
 		return subsystems.ErrNilSubsystem
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return subsystems.ErrSubSystemNotStarted
+		return fmt.Errorf("event manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	if e == nil {
 		return errNilEvent

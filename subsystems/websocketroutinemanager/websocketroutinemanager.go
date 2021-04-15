@@ -66,7 +66,7 @@ func (m *Manager) Stop() error {
 		return subsystems.ErrNilSubsystem
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
-		return subsystems.ErrSubSystemNotStarted
+		return fmt.Errorf("websocket routine manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	close(m.shutdown)
 	m.wg.Wait()
