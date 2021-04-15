@@ -382,6 +382,10 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 		if err != nil {
 			return err
 		}
+		err = bt.Bot.OrderManager.Start()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
