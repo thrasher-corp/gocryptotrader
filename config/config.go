@@ -749,7 +749,7 @@ func (c *Config) GetExchangeConfig(name string) (*ExchangeConfig, error) {
 			return &c.Exchanges[i], nil
 		}
 	}
-	return nil, fmt.Errorf(ErrExchangeNotFound, name)
+	return nil, fmt.Errorf("%s %w", name, ErrExchangeNotFound)
 }
 
 // GetForexProvider returns a forex provider configuration by its name
@@ -794,7 +794,7 @@ func (c *Config) UpdateExchangeConfig(e *ExchangeConfig) error {
 			return nil
 		}
 	}
-	return fmt.Errorf(ErrExchangeNotFound, e.Name)
+	return fmt.Errorf("%s %w", e.Name, ErrExchangeNotFound)
 }
 
 // CheckExchangeConfigValues returns configuation values for all enabled

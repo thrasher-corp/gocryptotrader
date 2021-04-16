@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 const testExchange = "binance"
@@ -24,7 +25,7 @@ func TestLoadCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
+	bot.ExchangeManager = exchangemanager.Setup()
 	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -60,6 +61,7 @@ func TestLoadTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	bot.ExchangeManager = exchangemanager.Setup()
 
 	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {

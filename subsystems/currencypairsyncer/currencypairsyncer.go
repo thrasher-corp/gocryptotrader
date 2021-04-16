@@ -93,7 +93,7 @@ func (m *Manager) IsRunning() bool {
 // Start starts an exchange currency pair syncer
 func (m *Manager) Start() error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystems.ErrNilSubsystem)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return subsystems.ErrSubSystemAlreadyStarted
@@ -243,7 +243,7 @@ func (m *Manager) Start() error {
 // Stop shuts down the exchange currency pair syncer
 func (m *Manager) Stop() error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystems.ErrNilSubsystem)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystems.ErrSubSystemNotStarted)
@@ -387,7 +387,7 @@ func (m *Manager) setProcessing(exchangeName string, p currency.Pair, a asset.It
 // Update notifies the Manager to change the last updated time for a exchange asset pair
 func (m *Manager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, err error) error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystems.ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystems.ErrSubSystemNotStarted)

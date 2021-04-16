@@ -1,6 +1,7 @@
 package portfolio
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -31,11 +32,8 @@ func TestGetEthereumBalance(t *testing.T) {
 	}
 
 	response, err = GetEthereumBalance(nonsenseAddress)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if response.Error.Message != "" {
-		t.Error(response.Error.Message)
+	if !errors.Is(err, errNotEthAddress) {
+		t.Errorf("received '%v', expected '%v'", err, errNotEthAddress)
 	}
 }
 

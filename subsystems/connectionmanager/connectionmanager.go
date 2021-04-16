@@ -51,7 +51,7 @@ func Setup(cfg *config.ConnectionMonitorConfig) (*Manager, error) {
 // Start starts an instance of the connection manager
 func (m *Manager) Start() error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("connection manager %w", subsystems.ErrNilSubsystem)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("connection manager %w", subsystems.ErrSubSystemAlreadyStarted)
@@ -74,7 +74,7 @@ func (m *Manager) Start() error {
 // Stop stops the connection manager
 func (m *Manager) Stop() error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("connection manager %w", subsystems.ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("connection manager %w", subsystems.ErrSubSystemNotStarted)

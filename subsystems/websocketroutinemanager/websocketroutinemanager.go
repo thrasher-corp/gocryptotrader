@@ -44,7 +44,7 @@ func Setup(exchangeManager iExchangeManager, orderManager iOrderManager, syncer 
 
 func (m *Manager) Start() error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("websocket routine manager %w", subsystems.ErrNilSubsystem)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return subsystems.ErrSubSystemAlreadyStarted
@@ -63,7 +63,7 @@ func (m *Manager) IsRunning() bool {
 
 func (m *Manager) Stop() error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("websocket routine manager %w", subsystems.ErrNilSubsystem)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("websocket routine manager %w", subsystems.ErrSubSystemNotStarted)

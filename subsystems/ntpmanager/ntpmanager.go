@@ -41,7 +41,7 @@ func (m *Manager) IsRunning() bool {
 
 func (m *Manager) Start() error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("ntp manager %w", subsystems.ErrNilSubsystem)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("NTP manager %w", subsystems.ErrSubSystemAlreadyStarted)
@@ -78,7 +78,7 @@ func (m *Manager) Start() error {
 
 func (m *Manager) Stop() error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("ntp manager %w", subsystems.ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("NTP manager %w", subsystems.ErrSubSystemNotStarted)
@@ -113,7 +113,7 @@ func (m *Manager) run() {
 
 func (m *Manager) FetchNTPTime() (time.Time, error) {
 	if m == nil {
-		return time.Time{}, subsystems.ErrNilSubsystem
+		return time.Time{}, fmt.Errorf("ntp manager %w", subsystems.ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return time.Time{}, fmt.Errorf("NTP manager %w", subsystems.ErrSubSystemNotStarted)

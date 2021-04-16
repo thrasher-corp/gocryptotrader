@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -39,17 +40,9 @@ const (
 // Constants here hold some messages
 const (
 	ErrExchangeNameEmpty                       = "exchange #%d name is empty"
-	ErrExchangeAvailablePairsEmpty             = "exchange %s available pairs is empty"
-	ErrExchangeEnabledPairsEmpty               = "exchange %s enabled pairs is empty"
-	ErrExchangeBaseCurrenciesEmpty             = "exchange %s base currencies is empty"
-	ErrExchangeNotFound                        = "exchange %s not found"
 	ErrNoEnabledExchanges                      = "no exchanges enabled"
-	ErrCryptocurrenciesEmpty                   = "cryptocurrencies variable is empty"
 	ErrFailureOpeningConfig                    = "fatal error opening %s file. Error: %s"
 	ErrCheckingConfigValues                    = "fatal error checking config values. Error: %s"
-	ErrSavingConfigBytesMismatch               = "config file %q bytes comparison doesn't match, read %s expected %s"
-	WarningWebserverCredentialValuesEmpty      = "webserver support disabled due to empty Username/Password values"
-	WarningWebserverListenAddressInvalid       = "webserver support disabled due to invalid listen address"
 	WarningExchangeAuthAPIDefaultOrEmptyValues = "exchange %s authenticated API support disabled due to default/empty APIKey/Secret/ClientID values"
 	WarningPairsLastUpdatedThresholdExceeded   = "exchange %s last manual update of available currency pairs has exceeded %d days. Manual update required!"
 )
@@ -67,8 +60,9 @@ const (
 
 // Variables here are used for configuration
 var (
-	Cfg Config
-	m   sync.Mutex
+	Cfg                 Config
+	m                   sync.Mutex
+	ErrExchangeNotFound = errors.New("exchange not found")
 )
 
 // Config is the overarching object that holds all the information for

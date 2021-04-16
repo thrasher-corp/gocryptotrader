@@ -17,6 +17,34 @@ import (
 
 const testExchange = "Bitstamp"
 
+// fExchange is a fake exchange with function overrides
+// we're not testing an actual exchange's implemented functions
+type fExchange struct {
+	exchange.IBotExchange
+}
+
+// CancelOrder overrides testExchange's cancel order function
+// to do the bare minimum required with no API calls or credentials required
+func (f fExchange) CancelOrder(o *order.Cancel) error {
+	o.Status = order.Cancelled
+	return nil
+}
+
+// GetOrderInfo overrides testExchange's get order function
+// to do the bare minimum required with no API calls or credentials required
+func (f fExchange) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+	if orderID == "" {
+		return order.Detail{}, errors.New("")
+	}
+
+	return order.Detail{
+		Exchange:  testExchange,
+		ID:        orderID,
+		Pair:      pair,
+		AssetType: assetType,
+	}, nil
+}
+
 func TestSetup(t *testing.T) {
 	_, err := Setup(nil, nil, nil, false)
 	if !errors.Is(err, errNilExchangeManager) {
@@ -118,7 +146,11 @@ func OrdersSetup(t *testing.T) *Manager {
 		t.Error(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
 	m, err := Setup(em, &communicationmanager.Manager{}, &wg, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -308,6 +340,7 @@ func TestExists(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	m := OrdersSetup(t)
+
 	err := m.Cancel(nil)
 	if err == nil {
 		t.Error("Expected error due to empty order")
@@ -343,7 +376,7 @@ func TestCancelOrder(t *testing.T) {
 
 	o := &order.Detail{
 		Exchange: testExchange,
-		ID:       "TestCancelOrder",
+		ID:       "1337",
 		Status:   order.New,
 	}
 	err = m.orderStore.add(o)
@@ -375,8 +408,8 @@ func TestCancelOrder(t *testing.T) {
 		Pair:      pair,
 	}
 	err = m.Cancel(cancel)
-	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
-		t.Errorf("error '%v', expected '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
 	if o.Status != order.Cancelled {
@@ -392,19 +425,19 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 
 	var result order.Detail
-	result, err = m.GetOrderInfo(testExchange, "1234", currency.Pair{}, "")
+	result, err = m.GetOrderInfo(testExchange, "1337", currency.Pair{}, "")
 	if err != nil {
 		t.Error(err)
 	}
-	if result.ID != "fakeOrder" {
+	if result.ID != "1337" {
 		t.Error("unexpected order returned")
 	}
 
-	result, err = m.GetOrderInfo(testExchange, "1234", currency.Pair{}, "")
+	result, err = m.GetOrderInfo(testExchange, "1337", currency.Pair{}, "")
 	if err != nil {
 		t.Error(err)
 	}
-	if result.ID != "fakeOrder" {
+	if result.ID != "1337" {
 		t.Error("unexpected order returned")
 	}
 }

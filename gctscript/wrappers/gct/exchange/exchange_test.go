@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 // change these if you wish to test another exchange and/or currency pair
@@ -60,8 +61,8 @@ func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()
 	x := exchangeTest.Exchanges(false)
 	y := len(x)
-	if y != 28 {
-		t.Fatalf("expected 28 received %v", y)
+	if y != 1 {
+		t.Fatalf("expected 1 received %v", y)
 	}
 }
 
@@ -205,6 +206,9 @@ func setupEngine() (err error) {
 	if err != nil {
 		return err
 	}
+
+	em := exchangemanager.Setup()
+	engine.Bot.ExchangeManager = em
 
 	return engine.Bot.LoadExchange(exchName, false, nil)
 }

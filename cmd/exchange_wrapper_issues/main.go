@@ -15,7 +15,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -724,15 +724,14 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{GetFeeByTypeResponse}),
 		})
 
-		withdrawRequest := withdrawalmanager.Request{
+		withdrawRequest := withdraw.Request{
 			Currency: p.Quote,
-			Crypto: withdrawalmanager.CryptoRequest{
+			Crypto: withdraw.CryptoRequest{
 				Address: withdrawAddressOverride,
 			},
 			Amount: config.OrderSubmission.Amount,
 		}
-		var withdrawCryptocurrencyFundsResponse *withdrawalmanager.ExchangeResponse
-		withdrawCryptocurrencyFundsResponse, err = e.WithdrawCryptocurrencyFunds(&withdrawRequest)
+		withdrawCryptocurrencyFundsResponse, err := e.WithdrawCryptocurrencyFunds(&withdrawRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -767,10 +766,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{getFeeByTypeFiatResponse}),
 		})
 
-		withdrawRequestFiat := withdrawalmanager.Request{
+		withdrawRequestFiat := withdraw.Request{
 			Currency: p.Quote,
 			Amount:   config.OrderSubmission.Amount,
-			Fiat: withdrawalmanager.FiatRequest{
+			Fiat: withdraw.FiatRequest{
 				Bank: banking.Account{
 					AccountName:    config.BankDetails.BankAccountName,
 					AccountNumber:  config.BankDetails.BankAccountNumber,
@@ -797,8 +796,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				IntermediaryBankCode:          config.BankDetails.IntermediaryBankCode,
 			},
 		}
-		var withdrawFiatFundsResponse *withdrawalmanager.ExchangeResponse
-		withdrawFiatFundsResponse, err = e.WithdrawFiatFunds(&withdrawRequestFiat)
+		withdrawFiatFundsResponse, err := e.WithdrawFiatFunds(&withdrawRequestFiat)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -811,8 +809,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   withdrawFiatFundsResponse,
 		})
 
-		var withdrawFiatFundsInternationalResponse *withdrawalmanager.ExchangeResponse
-		withdrawFiatFundsInternationalResponse, err = e.WithdrawFiatFundsToInternationalBank(&withdrawRequestFiat)
+		withdrawFiatFundsInternationalResponse, err := e.WithdrawFiatFundsToInternationalBank(&withdrawRequestFiat)
 		msg = ""
 		if err != nil {
 			msg = err.Error()

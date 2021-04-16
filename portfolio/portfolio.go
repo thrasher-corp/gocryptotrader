@@ -29,13 +29,14 @@ var Portfolio Base
 
 // Verbose allows for debug output when sending an http request
 var Verbose bool
+var errNotEthAddress = errors.New("not an Ethereum address")
 
 // GetEthereumBalance single or multiple address information as
 // EtherchainBalanceResponse
 func GetEthereumBalance(address string) (EthplorerResponse, error) {
 	valid, _ := common.IsValidCryptoAddress(address, "eth")
 	if !valid {
-		return EthplorerResponse{}, errors.New("not an Ethereum address")
+		return EthplorerResponse{}, errNotEthAddress
 	}
 
 	urlPath := fmt.Sprintf(

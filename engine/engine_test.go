@@ -1,11 +1,13 @@
 package engine
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 func TestLoadConfigWithSettings(t *testing.T) {
@@ -82,7 +84,6 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 	if err = botOne.Start(); err != nil {
 		t.Error(err)
 	}
@@ -90,8 +91,13 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	botOne.Stop()
 }
 
+var enableExperimentalTest = true
+
 func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	t.Parallel()
+	if !enableExperimentalTest {
+		t.Skip("test is functional, however does not need to be included in go test runs")
+	}
 	tempDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
@@ -118,14 +124,21 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	botOne.Settings.EnableDeprecatedRPC = false
+	botOne.Settings.EnableWebsocketRPC = false
+
 	botTwo, err := NewFromSettings(&Settings{
-		ConfigFile:   config.TestFile,
-		EnableDryRun: true,
-		DataDir:      tempDir2,
+		ConfigFile:          config.TestFile,
+		EnableDryRun:        true,
+		DataDir:             tempDir2,
+		EnableWebsocketRPC:  false,
+		EnableDeprecatedRPC: false,
 	}, nil)
 	if err != nil {
 		t.Error(err)
 	}
+	botTwo.Settings.EnableDeprecatedRPC = false
+	botTwo.Settings.EnableWebsocketRPC = false
 
 	if err = botOne.Start(); err != nil {
 		t.Error(err)
@@ -136,4 +149,114 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 
 	botOne.Stop()
 	botTwo.Stop()
+}
+
+func TestCheckExchangeExists(t *testing.T) {
+	e := CreateTestBot(t)
+
+	if e.GetExchangeByName(testExchange) == nil {
+		t.Errorf("TestGetExchangeExists: Unable to find exchange")
+	}
+
+	if e.GetExchangeByName("Asdsad") != nil {
+		t.Errorf("TestGetExchangeExists: Non-existent exchange found")
+	}
+}
+
+func TestGetExchangeByName(t *testing.T) {
+	e := CreateTestBot(t)
+
+	exch := e.GetExchangeByName(testExchange)
+	if exch == nil {
+		t.Errorf("TestGetExchangeByName: Failed to get exchange")
+	}
+
+	if !exch.IsEnabled() {
+		t.Errorf("TestGetExchangeByName: Unexpected result")
+	}
+
+	exch.SetEnabled(false)
+	bfx := e.GetExchangeByName(testExchange)
+	if bfx.IsEnabled() {
+		t.Errorf("TestGetExchangeByName: Unexpected result")
+	}
+
+	if exch.GetName() != testExchange {
+		t.Errorf("TestGetExchangeByName: Unexpected result")
+	}
+
+	exch = e.GetExchangeByName("Asdasd")
+	if exch != nil {
+		t.Errorf("TestGetExchangeByName: Non-existent exchange found")
+	}
+}
+
+func TestUnloadExchange(t *testing.T) {
+	e := CreateTestBot(t)
+
+	err := e.UnloadExchange("asdf")
+	if !errors.Is(err, config.ErrExchangeNotFound) {
+		t.Errorf("error '%v', expected '%v'", err, config.ErrExchangeNotFound)
+	}
+
+	err = e.UnloadExchange(testExchange)
+	if err != nil {
+		t.Errorf("TestUnloadExchange: Failed to get exchange. %s",
+			err)
+	}
+
+	err = e.UnloadExchange(testExchange)
+	if !errors.Is(err, exchangemanager.ErrNoExchangesLoaded) {
+		t.Errorf("error '%v', expected '%v'", err, exchangemanager.ErrNoExchangesLoaded)
+	}
+}
+
+func TestDryRunParamInteraction(t *testing.T) {
+	bot := CreateTestBot(t)
+
+	// Simulate overiding default settings and ensure that enabling exchange
+	// verbose mode will be set on Bitfinex
+	var err error
+	if err = bot.UnloadExchange(testExchange); err != nil {
+		t.Error(err)
+	}
+
+	bot.Settings.CheckParamInteraction = false
+	bot.Settings.EnableExchangeVerbose = false
+	if err = bot.LoadExchange(testExchange, false, nil); err != nil {
+		t.Error(err)
+	}
+
+	exchCfg, err := bot.Config.GetExchangeConfig(testExchange)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if exchCfg.Verbose {
+		t.Error("verbose should have been disabled")
+	}
+
+	if err = bot.UnloadExchange(testExchange); err != nil {
+		t.Error(err)
+	}
+
+	// Now set dryrun mode to true,
+	// enable exchange verbose mode and verify that verbose mode
+	// will be set on Bitfinex
+	bot.Settings.EnableDryRun = true
+	bot.Settings.CheckParamInteraction = true
+	bot.Settings.EnableExchangeVerbose = true
+	if err = bot.LoadExchange(testExchange, false, nil); err != nil {
+		t.Error(err)
+	}
+
+	exchCfg, err = bot.Config.GetExchangeConfig(testExchange)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !bot.Settings.EnableDryRun ||
+		!exchCfg.Verbose {
+		t.Error("dryrun should be true and verbose should be true")
+	}
 }

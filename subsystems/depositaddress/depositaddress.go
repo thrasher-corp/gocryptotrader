@@ -2,6 +2,7 @@ package depositaddress
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -73,7 +74,7 @@ func (m *Manager) GetDepositAddressesByExchange(exchName string) (map[string]str
 // Sync synchronises all deposit addresses
 func (m *Manager) Sync(addresses map[string]map[string]string) error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("deposit address manager %w", subsystems.ErrNilSubsystem)
 	}
 	m.m.Lock()
 	defer m.m.Unlock()

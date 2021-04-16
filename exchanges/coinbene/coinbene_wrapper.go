@@ -268,7 +268,7 @@ func (c *Coinbene) FetchTradablePairs(a asset.Item) ([]string, error) {
 		}
 		for t := range tickers {
 			idx := strings.Index(t, currency.USDT.String())
-			if idx == 0 {
+			if idx <= 0 {
 				return nil,
 					fmt.Errorf("%s SWAP currency does not contain USDT", c.Name)
 			}

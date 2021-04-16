@@ -80,7 +80,7 @@ func (b *Bitstamp) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 			feeBuilder.PurchasePrice,
 			feeBuilder.Amount,
 			balance)
-	case exchange.CyptocurrencyDepositFee:
+	case exchange.CryptocurrencyDepositFee:
 		fee = 0
 	case exchange.InternationalBankDepositFee:
 		fee = getInternationalBankDepositFee(feeBuilder.Amount)

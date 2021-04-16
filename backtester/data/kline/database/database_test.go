@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
 )
 
 const (
@@ -86,7 +87,8 @@ func TestLoadDataCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bot.DatabaseManager.Start(&bot.Config.Database, &bot.ServicesWG)
+	bot.DatabaseManager, err = databaseconnection.Setup(&bot.Config.Database)
+	err = bot.DatabaseManager.Start(&bot.ServicesWG)
 	if err != nil {
 		t.Error(err)
 	}
@@ -161,7 +163,11 @@ func TestLoadDataTrades(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bot.DatabaseManager.Start(&bot.Config.Database, &bot.ServicesWG)
+	bot.DatabaseManager, err = databaseconnection.Setup(&bot.Config.Database)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bot.DatabaseManager.Start(&bot.ServicesWG)
 	if err != nil {
 		t.Error(err)
 	}

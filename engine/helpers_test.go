@@ -47,12 +47,7 @@ func CreateTestBot(t *testing.T) *Engine {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
 	}
-	if bot.GetExchangeByName(fakePassExchange) == nil {
-		err := addPassingFakeExchange(testExchange, bot)
-		if err != nil {
-			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
-		}
-	}
+
 	return bot
 }
 
@@ -123,6 +118,25 @@ func TestGetExchangeoOTPByName(t *testing.T) {
 
 func TestGetAuthAPISupportedExchanges(t *testing.T) {
 	e := CreateTestBot(t)
+	if result := e.GetAuthAPISupportedExchanges(); len(result) != 0 {
+		t.Fatal("Unexpected result", result)
+	}
+
+	exch := e.ExchangeManager.GetExchangeByName(testExchange)
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Error(err)
+	}
+	cfg.Enabled = true
+	cfg.API.AuthenticatedSupport = true
+	cfg.API.AuthenticatedWebsocketSupport = true
+	cfg.API.Credentials.Key = "test"
+	cfg.API.Credentials.Secret = "test"
+	cfg.WebsocketTrafficTimeout = time.Minute
+	err = exch.Setup(cfg)
+	if err != nil {
+		t.Error(err)
+	}
 	if result := e.GetAuthAPISupportedExchanges(); len(result) != 1 {
 		t.Fatal("Unexpected result", result)
 	}
@@ -770,8 +784,8 @@ func TestGetExchangeNames(t *testing.T) {
 	if e := bot.GetExchangeNames(true); common.StringDataCompare(e, testExchange) {
 		t.Error("Bitstamp should be missing")
 	}
-	if e := bot.GetExchangeNames(false); len(e) != 1 {
-		t.Errorf("Expected %v Received %v", len(e), 1)
+	if e := bot.GetExchangeNames(false); len(e) != 0 {
+		t.Errorf("Expected %v Received %v", len(e), 0)
 	}
 
 	for i := range bot.Config.Exchanges {

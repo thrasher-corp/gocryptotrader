@@ -1059,7 +1059,7 @@ func (k *Kraken) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 				}
 			}
 		}
-	case exchange.CyptocurrencyDepositFee:
+	case exchange.CryptocurrencyDepositFee:
 		fee = getCryptocurrencyDepositFee(feeBuilder.Pair.Base)
 
 	case exchange.InternationalBankWithdrawalFee:

@@ -10,13 +10,16 @@ import (
 	"testing"
 
 	objects "github.com/d5/tengo/v2"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/depositaddress"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
 )
 
 func TestMain(m *testing.M) {
@@ -32,10 +35,36 @@ func TestMain(m *testing.M) {
 		log.Print(err)
 		os.Exit(1)
 	}
-	engine.Bot.LoadExchange(exch.Value, false, nil)
-	engine.Bot.DepositAddressManager = new(depositaddress.Manager)
-	go engine.Bot.DepositAddressManager.Sync(engine.Bot.GetExchangeCryptocurrencyDepositAddresses())
-	err = engine.Bot.OrderManager.Setup(engine.Bot)
+	em := exchangemanager.Setup()
+	exch, err := em.NewExchangeByName(exch.Value)
+	if err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+	exch.SetDefaults()
+	em.Add(exch)
+	engine.Bot.ExchangeManager = em
+	engine.Bot.WithdrawalManager, err = withdrawalmanager.Setup(em, true)
+	if err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+
+	engine.Bot.DepositAddressManager = depositaddress.Setup()
+	go func() {
+		err := engine.Bot.DepositAddressManager.Sync(engine.Bot.GetExchangeCryptocurrencyDepositAddresses())
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+	}()
+
+	engine.Bot.OrderManager, err = ordermanager.Setup(em, &communicationmanager.Manager{}, &engine.Bot.ServicesWG, false)
+	if err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+	err = engine.Bot.OrderManager.Start()
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)

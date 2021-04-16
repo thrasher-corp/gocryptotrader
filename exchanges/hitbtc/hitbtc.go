@@ -588,7 +588,7 @@ func (h *HitBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-	case exchange.CyptocurrencyDepositFee:
+	case exchange.CryptocurrencyDepositFee:
 		fee = calculateCryptocurrencyDepositFee(feeBuilder.Pair.Base,
 			feeBuilder.Amount)
 	case exchange.OfflineTradeFee:

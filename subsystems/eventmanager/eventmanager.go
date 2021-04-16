@@ -38,7 +38,7 @@ func Setup(comManager iCommsManager, exchangeManager iExchangeManager, sleepDela
 // chain
 func (m *Manager) Start() error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("event manager %w", subsystems.ErrNilSubsystem)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("event manager %w", subsystems.ErrSubSystemAlreadyStarted)
@@ -58,7 +58,7 @@ func (m *Manager) IsRunning() bool {
 
 func (m *Manager) Stop() error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("event manager %w", subsystems.ErrNilSubsystem)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("event manager %w", subsystems.ErrSubSystemNotStarted)
@@ -108,7 +108,7 @@ func (m *Manager) executeEvent(i int) {
 // and an error
 func (m *Manager) Add(exchange, item string, condition EventConditionParams, p currency.Pair, a asset.Item, action string) (int64, error) {
 	if m == nil {
-		return 0, subsystems.ErrNilSubsystem
+		return 0, fmt.Errorf("event manager %w", subsystems.ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return 0, fmt.Errorf("event manager %w", subsystems.ErrSubSystemNotStarted)
@@ -166,7 +166,7 @@ func (m *Manager) getEventCounter() (total, executed int) {
 // met
 func (m *Manager) checkEventCondition(e *Event) error {
 	if m == nil {
-		return subsystems.ErrNilSubsystem
+		return fmt.Errorf("event manager %w", subsystems.ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("event manager %w", subsystems.ErrSubSystemNotStarted)

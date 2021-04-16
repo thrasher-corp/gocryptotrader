@@ -226,7 +226,7 @@ func TestCancelSpotOrders(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPairWithDelimiter("BTC", "USDT", "/")
+	cp := currency.NewPairWithDelimiter("LTC", "USDT", "/")
 	_, err := c.UpdateTicker(cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -250,11 +250,12 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPairWithDelimiter("BTC", "USDT", "/")
+	cp := currency.NewPairWithDelimiter("LTC", "USDT", "")
 	_, err := c.UpdateOrderbook(cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
+	c.Verbose = true
 	_, err = c.UpdateOrderbook(cp, asset.PerpetualSwap)
 	if err != nil {
 		t.Error(err)
@@ -540,7 +541,7 @@ func TestWsUserAccount(t *testing.T) {
 	pressXToJSON := []byte(`{
     "topic": "btc/user.account",
     "data": [{
-        "asset": "BTC",
+        "asset": "LTC",
         "availableBalance": "20.3859", 
         "frozenBalance": "0.7413",
         "balance": "21.1272", 
@@ -717,7 +718,7 @@ func TestGetCurrencyFromWsTopic(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if p.Base.String() != "BTC" && p.Quote.String() != "USDT" {
+	if p.Base.String() != "LTC" && p.Quote.String() != "USDT" {
 		t.Errorf("unexpected currency, wanted BTCUSD, received %v", p.String())
 	}
 

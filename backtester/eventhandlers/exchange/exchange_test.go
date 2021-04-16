@@ -18,6 +18,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
 )
 
 const testExchange = "binance"
@@ -139,7 +142,13 @@ func TestPlaceOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = bot.OrderManager.Setup(bot)
+	em := exchangemanager.Setup()
+	bot.ExchangeManager = em
+	bot.OrderManager, err = ordermanager.Setup(em, &communicationmanager.Manager{}, &bot.ServicesWG, false)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bot.OrderManager.Start()
 	if err != nil {
 		t.Error(err)
 	}
@@ -187,7 +196,13 @@ func TestExecuteOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = bot.OrderManager.Setup(bot)
+	em := exchangemanager.Setup()
+	bot.ExchangeManager = em
+	bot.OrderManager, err = ordermanager.Setup(em, &communicationmanager.Manager{}, &bot.ServicesWG, false)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bot.OrderManager.Start()
 	if err != nil {
 		t.Error(err)
 	}

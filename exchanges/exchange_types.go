@@ -42,7 +42,7 @@ const (
 	InternationalBankDepositFee
 	InternationalBankWithdrawalFee
 	CryptocurrencyTradeFee
-	CyptocurrencyDepositFee
+	CryptocurrencyDepositFee
 	CryptocurrencyWithdrawalFee
 	OfflineTradeFee
 	// Definitions for each type of withdrawal method for a given exchange

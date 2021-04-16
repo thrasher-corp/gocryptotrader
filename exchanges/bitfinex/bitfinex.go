@@ -1508,7 +1508,7 @@ func (b *Bitfinex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-	case exchange.CyptocurrencyDepositFee:
+	case exchange.CryptocurrencyDepositFee:
 		//TODO: fee is charged when < $1000USD is transferred, need to infer value in some way
 		fee = 0
 	case exchange.CryptocurrencyWithdrawalFee:

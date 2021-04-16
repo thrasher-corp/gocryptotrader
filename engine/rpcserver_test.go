@@ -23,6 +23,7 @@ import (
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -43,6 +44,45 @@ const (
 	databaseFolder        = "database"
 	databaseName          = "rpctestdb"
 )
+
+// fExchange is a fake exchange with function overrides
+// we're not testing an actual exchange's implemented functions
+type fExchange struct {
+	exchange.IBotExchange
+}
+
+// FetchAccountInfo overrides testExchange's fetch account info function
+// to do the bare minimum required with no API calls or credentials required
+func (f fExchange) FetchAccountInfo(a asset.Item) (account.Holdings, error) {
+	return account.Holdings{
+		Exchange: f.GetName(),
+		Accounts: []account.SubAccount{
+			{
+				ID:         "1337",
+				AssetType:  a,
+				Currencies: nil,
+			},
+		},
+	}, nil
+}
+
+// UpdateAccountInfo overrides testExchange's update account info function
+// to do the bare minimum required with no API calls or credentials required
+func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
+	if a == asset.Futures {
+		return account.Holdings{}, errAssetTypeDisabled
+	}
+	return account.Holdings{
+		Exchange: f.GetName(),
+		Accounts: []account.SubAccount{
+			{
+				ID:         "1337",
+				AssetType:  a,
+				Currencies: nil,
+			},
+		},
+	}, nil
+}
 
 // Sets up everything required to run any function inside rpcserver
 func RPCTestSetup(t *testing.T) *Engine {
@@ -814,39 +854,48 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	bot := CreateTestBot(t)
+	exch := bot.ExchangeManager.GetExchangeByName(testExchange)
+	b := exch.GetBase()
+	b.Name = "fake"
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	bot.ExchangeManager.Add(fakeExchange)
 	s := RPCServer{Engine: bot}
 
-	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Spot.String()})
-	if err != nil {
-		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
-	}
-	if r.Accounts[0].Currencies[0].TotalValue != 10 {
-		t.Fatal("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
+	_, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
+	if !errors.Is(err, nil) {
+		t.Errorf("expected %v, received %v", errAssetTypeDisabled, nil)
 	}
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
 	bot := CreateTestBot(t)
+	exch := bot.ExchangeManager.GetExchangeByName(testExchange)
+	b := exch.GetBase()
+	b.Name = "fake"
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	bot.ExchangeManager.Add(fakeExchange)
 	s := RPCServer{Engine: bot}
 
-	getResponse, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Spot.String()})
-	if err != nil {
-		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
+	_, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
+	if !errors.Is(err, nil) {
+		t.Errorf("expected %v, received %v", nil, err)
 	}
 
-	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Futures.String()})
+	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Futures.String()})
 	if !errors.Is(err, errAssetTypeDisabled) {
 		t.Errorf("expected %v, received %v", errAssetTypeDisabled, err)
 	}
 
-	updateResp, err := s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{
-		Exchange:  fakePassExchange,
+	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{
+		Exchange:  "fake",
 		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, nil) {
-		t.Error(err)
-	} else if getResponse.Accounts[0].Currencies[0].TotalValue == updateResp.Accounts[0].Currencies[0].TotalValue {
-		t.Fatalf("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
+		t.Errorf("expected %v, received %v", nil, err)
 	}
 }
 
@@ -993,6 +1042,16 @@ func TestGetOrder(t *testing.T) {
 		t.Errorf("expected %v, received %v", asset.ErrNotSupported, err)
 	}
 
+	s.OrderManager, err = ordermanager.Setup(engerino.ExchangeManager, engerino.CommunicationsManager, &engerino.ServicesWG, engerino.Settings.Verbose)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = s.OrderManager.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,
 		OrderId:  "",
@@ -1001,10 +1060,6 @@ func TestGetOrder(t *testing.T) {
 	})
 	if !errors.Is(err, ordermanager.ErrOrderIDCannotBeEmpty) {
 		t.Errorf("expected %v, received %v", ordermanager.ErrOrderIDCannotBeEmpty, err)
-	}
-	s.OrderManager, err = ordermanager.Setup(engerino.ExchangeManager, engerino.CommunicationsManager, &engerino.ServicesWG, engerino.Settings.Verbose)
-	if err != nil {
-		t.Fatal(err)
 	}
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,

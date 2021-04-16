@@ -36,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/zb"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
 // vars related to exchange functions
@@ -115,6 +116,9 @@ func (m *Manager) Len() int {
 }
 
 func (m *Manager) NewExchangeByName(name string) (exchange.IBotExchange, error) {
+	if m == nil {
+		return nil, fmt.Errorf("exchange manager %w", subsystems.ErrNilSubsystem)
+	}
 	nameLower := strings.ToLower(name)
 	if m.GetExchangeByName(nameLower) != nil {
 		return nil, fmt.Errorf("%s %w", name, ErrExchangeAlreadyLoaded)
