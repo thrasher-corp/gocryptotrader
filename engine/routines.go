@@ -428,7 +428,7 @@ func printOrderCancelSummary(m *order.Cancel) {
 		return
 	}
 	log.Debugf(log.WebsocketMgr,
-		"Order Cancelled: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
+		"Order Cancelled: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f",
 		m.Exchange,
 		m.AssetType,
 		m.Pair,

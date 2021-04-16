@@ -146,7 +146,8 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 	case ws24HourExchangeVolumeID, wsHeartbeat:
 		return nil
 	case wsAccountNotificationID:
-		notificationsArray, ok := data[2].([]interface{})
+		var notificationsArray []interface{}
+		notificationsArray, ok = data[2].([]interface{})
 		if !ok {
 			return fmt.Errorf("%w account notification is not a []interface{}",
 				errTypeAssertionFailure)
@@ -244,7 +245,8 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			seqNo, ok := data[1].(float64)
+			var seqNo float64
+			seqNo, ok = data[1].(float64)
 			if !ok {
 				return fmt.Errorf("%w sequence number is not a float64",
 					errTypeAssertionFailure)
@@ -509,6 +511,8 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
+	// This is temp commented as we have instability with orderbooks on the
+	// websocket connection
 	// subscriptions = append(subscriptions, stream.ChannelSubscription{
 	// 	Channel: strconv.FormatInt(wsTickerDataID, 10),
 	// })
@@ -1004,7 +1008,7 @@ func (p *Poloniex) processAccountTrades(notification []interface{}) error {
 
 	// notification[4].(string) is the fee multiplier
 	// notification[5].(string) is the funding type 0 (exchange wallet),
-	//1 (borrowed funds), 2 (margin funds), or 3 (lending funds)
+	// 1 (borrowed funds), 2 (margin funds), or 3 (lending funds)
 
 	orderID, ok := notification[6].(float64)
 	if !ok {

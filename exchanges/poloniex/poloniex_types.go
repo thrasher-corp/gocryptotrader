@@ -440,13 +440,6 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.ZEC:   0.001,
 }
 
-// WsAccountBalanceUpdateResponse Authenticated Ws Account data
-type WsAccountBalanceUpdateResponse struct {
-	currencyID currency.Code
-	wallet     string
-	amount     float64
-}
-
 // WsOrderUpdateResponse Authenticated Ws Account data
 type WsOrderUpdateResponse struct {
 	OrderNumber float64
