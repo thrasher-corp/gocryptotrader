@@ -2,6 +2,7 @@ package base
 
 import (
 	"testing"
+	"time"
 )
 
 var (
@@ -38,10 +39,11 @@ func TestGetName(t *testing.T) {
 type CommunicationProvider struct {
 	ICommunicate
 
-	isEnabled       bool
-	isConnected     bool
-	ConnectCalled   bool
-	PushEventCalled bool
+	isEnabled        bool
+	isConnected      bool
+	ConnectCalled    bool
+	PushEventCalled  bool
+	ServiceStartTime time.Time
 }
 
 func (p *CommunicationProvider) IsEnabled() bool {
@@ -64,6 +66,10 @@ func (p *CommunicationProvider) PushEvent(e Event) error {
 
 func (p *CommunicationProvider) GetName() string {
 	return "someTestProvider"
+}
+
+func (p *CommunicationProvider) SetServiceStarted(t time.Time) {
+	p.ServiceStartTime = t
 }
 
 func TestSetup(t *testing.T) {

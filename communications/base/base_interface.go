@@ -19,12 +19,12 @@ type ICommunicate interface {
 	IsEnabled() bool
 	IsConnected() bool
 	GetName() string
+	SetServiceStarted(time.Time)
 }
 
-// Setup sets up communication variables and intiates a connection to the
+// Setup sets up communication variables and initiates a connection to the
 // communication mediums
 func (c IComm) Setup() {
-	ServiceStarted = time.Now()
 	for i := range c {
 		if c[i].IsEnabled() && !c[i].IsConnected() {
 			err := c[i].Connect()
@@ -33,6 +33,7 @@ func (c IComm) Setup() {
 				continue
 			}
 			log.Debugf(log.CommunicationMgr, "Communications: %v is enabled and online.", c[i].GetName())
+			c[i].SetServiceStarted(time.Now())
 		}
 	}
 }

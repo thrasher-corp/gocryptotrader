@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 const testExchange = "binance"
@@ -33,6 +34,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
+	bot.ExchangeManager = exchangemanager.Setup()
 	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -70,7 +72,7 @@ func TestLoadCandles(t *testing.T) {
 func TestLoadTrades(t *testing.T) {
 	t.Parallel()
 	interval := gctkline.FifteenMin
-	tt1 := time.Now().Add(-time.Minute * 60).Round(interval.Duration())
+	tt1 := time.Now().Add(-time.Minute * 15).Round(interval.Duration())
 	tt2 := time.Now().Round(interval.Duration())
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)

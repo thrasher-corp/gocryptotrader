@@ -4,18 +4,13 @@ import (
 	"time"
 )
 
-// global vars contain staged update data that will be sent to the communication
-// mediums
-var (
-	ServiceStarted time.Time
-)
-
 // Base enforces standard variables across communication packages
 type Base struct {
-	Name      string
-	Enabled   bool
-	Verbose   bool
-	Connected bool
+	Name           string
+	Enabled        bool
+	Verbose        bool
+	Connected      bool
+	ServiceStarted time.Time
 }
 
 // Event is a generalise event type
@@ -50,5 +45,9 @@ func (b *Base) GetName() string {
 func (b *Base) GetStatus() string {
 	return `
 	GoCryptoTrader Service: Online
-	Service Started: ` + ServiceStarted.String()
+	Service Started: ` + b.ServiceStarted.String()
+}
+
+func (b *Base) SetServiceStarted(t time.Time) {
+	b.ServiceStarted = t
 }

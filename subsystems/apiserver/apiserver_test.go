@@ -67,12 +67,10 @@ func TestStartRESTServer(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	// this is difficult to test as a webserver actually starts, so quit if an immediate error is not received
-	go func() {
-		err = m.StartRESTServer()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
+	err = m.StartRESTServer()
+	if err != nil {
+		t.Fatal(err)
+	}
 	time.Sleep(time.Second)
 	wg.Done()
 }
@@ -99,12 +97,10 @@ func TestStartWebsocketServer(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	// this is difficult to test as a webserver actually starts, so quit if an immediate error is not received
-	go func() {
-		err = m.StartWebsocketServer()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
+	err = m.StartWebsocketServer()
+	if err != nil {
+		t.Fatal(err)
+	}
 	time.Sleep(time.Second)
 	wg.Done()
 }

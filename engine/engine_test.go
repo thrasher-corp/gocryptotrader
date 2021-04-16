@@ -91,7 +91,7 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	botOne.Stop()
 }
 
-var enableExperimentalTest = true
+var enableExperimentalTest = false
 
 func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	t.Parallel()
@@ -124,8 +124,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	botOne.Settings.EnableDeprecatedRPC = false
-	botOne.Settings.EnableWebsocketRPC = false
+	botOne.Settings.EnableGRPCProxy = false
 
 	botTwo, err := NewFromSettings(&Settings{
 		ConfigFile:          config.TestFile,
@@ -137,8 +136,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	botTwo.Settings.EnableDeprecatedRPC = false
-	botTwo.Settings.EnableWebsocketRPC = false
+	botTwo.Settings.EnableGRPCProxy = false
 
 	if err = botOne.Start(); err != nil {
 		t.Error(err)

@@ -36,12 +36,14 @@ func (m *Manager) StartWebsocketServer() error {
 		Addr:    m.websocketListenAddress,
 		Handler: m.websocketRouter,
 	}
-	err := m.websocketHttpServer.ListenAndServe()
-	if err != nil {
-		atomic.StoreInt32(&m.websocketStarted, 0)
-		atomic.StoreInt32(&m.started, 0)
-		return err
-	}
+	go func() {
+		err := m.websocketHttpServer.ListenAndServe()
+		if err != nil {
+			atomic.StoreInt32(&m.websocketStarted, 0)
+			atomic.StoreInt32(&m.started, 0)
+			log.Error(log.GRPCSys, err)
+		}
+	}()
 	return nil
 }
 

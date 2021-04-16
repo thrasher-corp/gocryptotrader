@@ -39,7 +39,7 @@ func TestSetup(t *testing.T) {
 func TestIsRunning(t *testing.T) {
 	t.Parallel()
 	m, err := Setup(&config.CommunicationsConfig{
-		SlackConfig: config.SlackConfig{
+		SMSGlobalConfig: config.SMSGlobalConfig{
 			Enabled: true,
 		},
 	})
@@ -66,7 +66,7 @@ func TestIsRunning(t *testing.T) {
 func TestStart(t *testing.T) {
 	t.Parallel()
 	m, err := Setup(&config.CommunicationsConfig{
-		SlackConfig: config.SlackConfig{
+		SMTPConfig: config.SMTPConfig{
 			Enabled: true,
 		},
 	})
@@ -87,7 +87,7 @@ func TestStart(t *testing.T) {
 func TestGetStatus(t *testing.T) {
 	t.Parallel()
 	m, err := Setup(&config.CommunicationsConfig{
-		SlackConfig: config.SlackConfig{
+		TelegramConfig: config.TelegramConfig{
 			Enabled: true,
 		},
 	})

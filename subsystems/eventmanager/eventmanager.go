@@ -75,9 +75,11 @@ func (m *Manager) run() {
 	case <-ticker.C:
 		total, executed := m.getEventCounter()
 		if total > 0 && executed != total {
+			m.m.Lock()
 			for i := range m.events {
 				m.executeEvent(i)
 			}
+			m.m.Unlock()
 		}
 	}
 }
@@ -126,10 +128,13 @@ func (m *Manager) Add(exchange, item string, condition EventConditionParams, p c
 		Action:    action,
 		Executed:  false,
 	}
+	m.m.Lock()
 	if len(m.events) > 0 {
 		evt.ID = int64(len(m.events) + 1)
 	}
 	m.events = append(m.events, evt)
+	m.m.Unlock()
+
 	return evt.ID, nil
 }
 
@@ -138,6 +143,8 @@ func (m *Manager) Remove(eventID int64) bool {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return false
 	}
+	m.m.Lock()
+	defer m.m.Unlock()
 	for i := range m.events {
 		if m.events[i].ID == eventID {
 			m.events = append(m.events[:i], m.events[i+1:]...)
@@ -153,6 +160,8 @@ func (m *Manager) getEventCounter() (total, executed int) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return 0, 0
 	}
+	m.m.Lock()
+	defer m.m.Unlock()
 	total = len(m.events)
 	for i := range m.events {
 		if m.events[i].Executed {

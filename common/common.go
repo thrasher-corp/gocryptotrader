@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -32,6 +33,7 @@ var (
 	// ErrFunctionNotSupported defines a standardised error for an unsupported
 	// wrapper function by an API
 	ErrFunctionNotSupported = errors.New("unsupported wrapper function")
+	m                       sync.Mutex
 )
 
 // Const declarations for common.go operations
@@ -50,10 +52,12 @@ const (
 )
 
 func initialiseHTTPClient() {
+	m.Lock()
 	// If the HTTPClient isn't set, start a new client with a default timeout of 15 seconds
 	if HTTPClient == nil {
 		HTTPClient = NewHTTPClientWithTimeout(time.Second * 15)
 	}
+	m.Unlock()
 }
 
 // NewHTTPClientWithTimeout initialises a new HTTP client and its underlying

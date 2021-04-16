@@ -31,12 +31,14 @@ func (m *Manager) StartRESTServer() error {
 		Addr:    m.restListenAddress,
 		Handler: m.restRouter,
 	}
-	err := m.restHttpServer.ListenAndServe()
-	if err != nil {
-		atomic.StoreInt32(&m.restStarted, 0)
-		atomic.StoreInt32(&m.started, 0)
-		return err
-	}
+	go func() {
+		err := m.restHttpServer.ListenAndServe()
+		if err != nil {
+			atomic.StoreInt32(&m.restStarted, 0)
+			atomic.StoreInt32(&m.started, 0)
+			log.Error(log.GRPCSys, err)
+		}
+	}()
 	return nil
 }
 

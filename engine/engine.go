@@ -486,8 +486,9 @@ func (bot *Engine) Start() error {
 		go StartRPCServer(bot)
 	}
 
-	if bot.Settings.EnableDeprecatedRPC ||
-		bot.Settings.EnableWebsocketRPC {
+	if bot.Settings.EnableGRPCProxy &&
+		(bot.Settings.EnableDeprecatedRPC ||
+			bot.Settings.EnableWebsocketRPC) {
 		filePath, err := config.GetAndMigrateDefaultPath(bot.Settings.ConfigFile)
 		if err != nil {
 			return err
@@ -502,20 +503,16 @@ func (bot *Engine) Start() error {
 			gctlog.Errorf(gctlog.Global, "API Server unable to start: %s", err)
 		} else {
 			if bot.Settings.EnableDeprecatedRPC {
-				go func() {
-					err = bot.apiServer.StartRESTServer()
-					if err != nil {
-						gctlog.Errorf(gctlog.Global, "could not start REST API server: %s", err)
-					}
-				}()
+				err = bot.apiServer.StartRESTServer()
+				if err != nil {
+					gctlog.Errorf(gctlog.Global, "could not start REST API server: %s", err)
+				}
 			}
 			if bot.Settings.EnableWebsocketRPC {
-				go func() {
-					err = bot.apiServer.StartWebsocketServer()
-					if err != nil {
-						gctlog.Errorf(gctlog.Global, "could not start websocket API server: %s", err)
-					}
-				}()
+				err = bot.apiServer.StartWebsocketServer()
+				if err != nil {
+					gctlog.Errorf(gctlog.Global, "could not start websocket API server: %s", err)
+				}
 			}
 		}
 	}

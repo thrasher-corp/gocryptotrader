@@ -2,6 +2,7 @@ package eventmanager
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
@@ -83,4 +84,5 @@ type Manager struct {
 	sleepDelay      time.Duration
 	exchangeManager iExchangeManager
 	shutdown        chan struct{}
+	m               sync.Mutex
 }
