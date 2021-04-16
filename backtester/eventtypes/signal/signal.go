@@ -30,7 +30,7 @@ func (s *Signal) GetBuyLimit() float64 {
 	return s.BuyLimit
 }
 
-// SetSellLimit sets the buy limit
+// SetSellLimit sets the sell limit
 func (s *Signal) SetSellLimit(f float64) {
 	s.SellLimit = f
 }
