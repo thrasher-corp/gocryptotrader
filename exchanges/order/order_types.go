@@ -238,6 +238,7 @@ const (
 	Open                Status = "OPEN"
 	AutoDeleverage      Status = "ADL"
 	Closed              Status = "CLOSED"
+	Pending             Status = "PENDING"
 )
 
 // Type enforces a standard for order types across the code base

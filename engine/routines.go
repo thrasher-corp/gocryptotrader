@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
@@ -323,6 +324,11 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 		}
 		printOrderbookSummary(d, "websocket", bot, nil)
 	case *order.Detail:
+		if bot.Settings.Verbose {
+			printOrderSummary(d)
+		}
+		// TODO: Dont check if exists this creates two locks, on conflict update
+		// else insert.
 		if !bot.OrderManager.orderStore.exists(d) {
 			err := bot.OrderManager.orderStore.Add(d)
 			if err != nil {
@@ -336,8 +342,17 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 			od.UpdateOrderFromDetail(d)
 		}
 	case *order.Cancel:
+		if bot.Settings.Verbose {
+			printOrderCancelSummary(d)
+		}
+		// TODO: This can be inferred by its status so no exceess type needs
+		// to exist.
 		return bot.OrderManager.Cancel(d)
 	case *order.Modify:
+		if bot.Settings.Verbose {
+			printOrderChangeSummary(d)
+		}
+		// TODO: On conflict update or insert if not found
 		od, err := bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
 		if err != nil {
 			return err
@@ -347,6 +362,10 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 		return errors.New(d.Error())
 	case stream.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
+	case account.Change:
+		if bot.Settings.Verbose {
+			printAccountHoldingsChangeSummary(d)
+		}
 	default:
 		if bot.Settings.Verbose {
 			log.Warnf(log.WebsocketMgr,
@@ -356,4 +375,93 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 		}
 	}
 	return nil
+}
+
+// printOrderChangeSummary this function will be deprecated when a order manager
+// update is done.
+func printOrderChangeSummary(m *order.Modify) {
+	if m == nil {
+		return
+	}
+	log.Debugf(log.WebsocketMgr,
+		"Order Change: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
+		m.Exchange,
+		m.AssetType,
+		m.Pair,
+		m.Status,
+		m.Type,
+		m.Side,
+		m.ID,
+		m.ClientOrderID,
+		m.Price,
+		m.Amount,
+		m.ExecutedAmount,
+		m.RemainingAmount)
+}
+
+// printOrderSummary this function will be deprecated when a order manager
+// update is done.
+func printOrderSummary(m *order.Detail) {
+	if m == nil {
+		return
+	}
+	log.Debugf(log.WebsocketMgr,
+		"New Order: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
+		m.Exchange,
+		m.AssetType,
+		m.Pair,
+		m.Status,
+		m.Type,
+		m.Side,
+		m.ID,
+		m.ClientOrderID,
+		m.Price,
+		m.Amount,
+		m.ExecutedAmount,
+		m.RemainingAmount)
+}
+
+// printOrderCancelSummary this function will be deprecated when a order manager
+// update is done.
+func printOrderCancelSummary(m *order.Cancel) {
+	if m == nil {
+		return
+	}
+	log.Debugf(log.WebsocketMgr,
+		"Order Cancelled: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
+		m.Exchange,
+		m.AssetType,
+		m.Pair,
+		m.Status,
+		m.Type,
+		m.Side,
+		m.ID,
+		m.ClientOrderID,
+		m.Price,
+		m.Amount,
+		// m.ExecutedAmount, // this should be added
+		// m.RemainingAmount // this should be added
+	)
+}
+
+// printAccountHoldingsChangeSummary this function will be deprecated when a
+// account holdings update is done.
+func printAccountHoldingsChangeSummary(m account.Change) {
+	if m.Amount < 0 {
+		log.Debugf(log.WebsocketMgr,
+			"Account Holdings Balance Changed: %s %s %s has decreased balance by %f for account: %s",
+			m.Exchange,
+			m.Asset,
+			m.Currency,
+			m.Amount*-1,
+			m.Account)
+		return
+	}
+	log.Debugf(log.WebsocketMgr,
+		"Account Holdings Balance Changed: %s %s %s has increased balance by %f for account: %s",
+		m.Exchange,
+		m.Asset,
+		m.Currency,
+		m.Amount,
+		m.Account)
 }
