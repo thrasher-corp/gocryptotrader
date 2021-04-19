@@ -747,6 +747,9 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64, d
 
 // PrintTickerSummary outputs the ticker results
 func (m *Manager) PrintTickerSummary(result *ticker.Price, protocol string, err error) {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return
+	}
 	if err != nil {
 		if err == common.ErrNotYetImplemented {
 			log.Warnf(log.Ticker, "Failed to get %s ticker. Error: %s\n",
@@ -814,6 +817,9 @@ func (m *Manager) PrintTickerSummary(result *ticker.Price, protocol string, err 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
 func (m *Manager) FormatCurrency(p currency.Pair) currency.Pair {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return p
+	}
 	return p.Format(m.delimiter, m.uppercase)
 }
 
@@ -823,6 +829,9 @@ const (
 
 // PrintOrderbookSummary outputs orderbook results
 func (m *Manager) PrintOrderbookSummary(result *orderbook.Base, protocol string, err error) {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return
+	}
 	if err != nil {
 		if result == nil {
 			log.Errorf(log.OrderBook, "Failed to get %s orderbook. Error: %s\n",
