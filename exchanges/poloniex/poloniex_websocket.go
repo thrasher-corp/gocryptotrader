@@ -32,17 +32,17 @@ const (
 	ws24HourExchangeVolumeID = 1003
 	wsHeartbeat              = 1010
 
-	AccountNotificationBalanceUpdate     = "b"
-	AccountNotificationOrderUpdate       = "o"
-	AccountNotificationPendingOrder      = "p"
-	AccountNotificationOrderLimitCreated = "n"
-	AccountNotificationTrades            = "t"
-	AccountNotificationKilledOrder       = "k"
-	AccountNotificationMarginPosition    = "m"
+	accountNotificationBalanceUpdate     = "b"
+	accountNotificationOrderUpdate       = "o"
+	accountNotificationPendingOrder      = "p"
+	accountNotificationOrderLimitCreated = "n"
+	accountNotificationTrades            = "t"
+	accountNotificationKilledOrder       = "k"
+	accountNotificationMarginPosition    = "m"
 
-	OrderbookInitial = "i"
-	OrderbookUpdate  = "o"
-	TradeUpdate      = "t"
+	orderbookInitial = "i"
+	orderbookUpdate  = "o"
+	tradeUpdate      = "t"
 )
 
 var (
@@ -167,37 +167,37 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 			}
 
 			switch updateType {
-			case AccountNotificationPendingOrder:
+			case accountNotificationPendingOrder:
 				err = p.processAccountPendingOrder(notification)
 				if err != nil {
 					return fmt.Errorf("account notification pending order: %w", err)
 				}
-			case AccountNotificationOrderUpdate:
+			case accountNotificationOrderUpdate:
 				err = p.processAccountOrderUpdate(notification)
 				if err != nil {
 					return fmt.Errorf("account notification order update: %w", err)
 				}
-			case AccountNotificationOrderLimitCreated:
+			case accountNotificationOrderLimitCreated:
 				err = p.processAccountOrderLimit(notification)
 				if err != nil {
 					return fmt.Errorf("account notification limit order creation: %w", err)
 				}
-			case AccountNotificationBalanceUpdate:
+			case accountNotificationBalanceUpdate:
 				err = p.processAccountBalanceUpdate(notification)
 				if err != nil {
 					return fmt.Errorf("account notification balance update: %w", err)
 				}
-			case AccountNotificationTrades:
+			case accountNotificationTrades:
 				err = p.processAccountTrades(notification)
 				if err != nil {
 					return fmt.Errorf("account notification trades: %w", err)
 				}
-			case AccountNotificationKilledOrder:
+			case accountNotificationKilledOrder:
 				err = p.processAccountKilledOrder(notification)
 				if err != nil {
 					return fmt.Errorf("account notification killed order: %w", err)
 				}
-			case AccountNotificationMarginPosition:
+			case accountNotificationMarginPosition:
 				err = p.processAccountMarginPosition(notification)
 				if err != nil {
 					return fmt.Errorf("account notification margin position: %w", err)
@@ -235,12 +235,12 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 		}
 
 		switch updateIdent {
-		case OrderbookInitial:
+		case orderbookInitial:
 			err = p.WsProcessOrderbookSnapshot(subData)
 			if err != nil {
 				return fmt.Errorf("websocket process orderbook snapshot: %w", err)
 			}
-		case OrderbookUpdate:
+		case orderbookUpdate:
 			pair, err := p.details.GetPair(channelID)
 			if err != nil {
 				return err
@@ -255,7 +255,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return fmt.Errorf("websocket process orderbook update: %w", err)
 			}
-		case TradeUpdate:
+		case tradeUpdate:
 			err = p.processTrades(channelID, subData)
 			if err != nil {
 				return fmt.Errorf("websocket process trades update: %w", err)
@@ -407,7 +407,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 		return errNotEnoughData
 	}
 
-	askdata, ok := ob[0].(map[string]interface{})
+	askData, ok := ob[0].(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("%w ask data is not map[string]interface{}",
 			errTypeAssertionFailure)
@@ -420,7 +420,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 	}
 
 	var book orderbook.Base
-	for price, volume := range askdata {
+	for price, volume := range askData {
 		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
@@ -511,11 +511,9 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
-	// This is temp commented as we have instability with orderbooks on the
-	// websocket connection
-	// subscriptions = append(subscriptions, stream.ChannelSubscription{
-	// 	Channel: strconv.FormatInt(wsTickerDataID, 10),
-	// })
+	subscriptions = append(subscriptions, stream.ChannelSubscription{
+		Channel: strconv.FormatInt(wsTickerDataID, 10),
+	})
 
 	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		subscriptions = append(subscriptions, stream.ChannelSubscription{
@@ -634,9 +632,6 @@ func (p *Poloniex) processAccountMarginPosition(notification []interface{}) erro
 		return errNotEnoughData
 	}
 
-	// Notification Data Example:
-	// ["m", 23432933, 28, "-0.06000000", null]
-
 	orderID, ok := notification[1].(float64)
 	if !ok {
 		return fmt.Errorf("%w order id not float64", errTypeAssertionFailure)
@@ -684,9 +679,6 @@ func (p *Poloniex) processAccountPendingOrder(notification []interface{}) error 
 	if len(notification) < 7 {
 		return errNotEnoughData
 	}
-
-	// Notification Data Example:
-	// ["p",431682155857,127,"1000.00000000","1.00000000","0",null]
 
 	orderID, ok := notification[1].(float64)
 	if !ok {
@@ -755,9 +747,6 @@ func (p *Poloniex) processAccountOrderUpdate(notification []interface{}) error {
 	if len(notification) < 5 {
 		return errNotEnoughData
 	}
-
-	// Notification Data Example:
-	// ["o",431682155857,"0.00000000","c",null,"1.00000000"]
 
 	orderID, ok := notification[1].(float64)
 	if !ok {
@@ -828,9 +817,6 @@ func (p *Poloniex) processAccountOrderLimit(notification []interface{}) error {
 	if len(notification) != 9 {
 		return errNotEnoughData
 	}
-
-	// Notification Data Example:
-	// ["n",127,431682155857,"0","1000.00000000","1.00000000","2021-04-13 07:19:56","1.00000000",null]
 
 	currencyID, ok := notification[1].(float64)
 	if !ok {
@@ -923,9 +909,6 @@ func (p *Poloniex) processAccountBalanceUpdate(notification []interface{}) error
 		return errNotEnoughData
 	}
 
-	// Notification Data Example:
-	// ["b",243,"e","-1.00000000"]
-
 	currencyID, ok := notification[1].(float64)
 	if !ok {
 		return fmt.Errorf("%w currency ID not float64", errTypeAssertionFailure)
@@ -979,9 +962,6 @@ func (p *Poloniex) processAccountTrades(notification []interface{}) error {
 	if len(notification) < 11 {
 		return errNotEnoughData
 	}
-
-	// Notification Data Example:
-	// ["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345", "0.015"]
 
 	tradeID, ok := notification[1].(float64)
 	if !ok {
@@ -1068,9 +1048,6 @@ func (p *Poloniex) processAccountKilledOrder(notification []interface{}) error {
 	if len(notification) < 3 {
 		return errNotEnoughData
 	}
-
-	// Notification Data Example:
-	// ["k", <order number>, "<clientOrderId>"]
 
 	orderID, ok := notification[1].(float64)
 	if !ok {

@@ -17,7 +17,7 @@ type CurrencyDetails struct {
 	m sync.RWMutex
 }
 
-// CodeSummaryInfo defines currency information
+// PairSummaryInfo defines currency pair information
 type PairSummaryInfo struct {
 	Pair     currency.Pair
 	IsFrozen bool
@@ -133,6 +133,7 @@ func (w *CurrencyDetails) GetCode(id float64) (currency.Code, error) {
 	return currency.Code{}, errIDNotFoundInCodeMap
 }
 
+// GetWithdrawalTXFee returns withdrawal transaction fee for the currency
 func (w *CurrencyDetails) GetWithdrawalTXFee(c currency.Code) (float64, error) {
 	w.m.RLock()
 	defer w.m.RUnlock()
@@ -147,6 +148,7 @@ func (w *CurrencyDetails) GetWithdrawalTXFee(c currency.Code) (float64, error) {
 	return 0, errCurrencyNotFoundInMap
 }
 
+// GetDepositAddress returns the public deposit address details for the currency
 func (w *CurrencyDetails) GetDepositAddress(c currency.Code) (string, error) {
 	w.m.RLock()
 	defer w.m.RUnlock()
@@ -164,6 +166,7 @@ func (w *CurrencyDetails) GetDepositAddress(c currency.Code) (string, error) {
 	return "", errCurrencyNotFoundInMap
 }
 
+// IsWithdrawAndDepositsEnabled returns if withdrawals or deposits are enabled
 func (w *CurrencyDetails) IsWithdrawAndDepositsEnabled(c currency.Code) (bool, error) {
 	w.m.RLock()
 	defer w.m.RUnlock()
@@ -178,6 +181,7 @@ func (w *CurrencyDetails) IsWithdrawAndDepositsEnabled(c currency.Code) (bool, e
 	return false, errCurrencyNotFoundInMap
 }
 
+// IsTradingEnabledForCurrency returns if the currency is allowed to be traded
 func (w *CurrencyDetails) IsTradingEnabledForCurrency(c currency.Code) (bool, error) {
 	w.m.RLock()
 	defer w.m.RUnlock()
@@ -192,6 +196,7 @@ func (w *CurrencyDetails) IsTradingEnabledForCurrency(c currency.Code) (bool, er
 	return false, errCurrencyNotFoundInMap
 }
 
+// IsTradingEnabledForPair returns if the currency pair is allowed to be traded
 func (w *CurrencyDetails) IsTradingEnabledForPair(pair currency.Pair) (bool, error) {
 	w.m.RLock()
 	defer w.m.RUnlock()
@@ -206,6 +211,8 @@ func (w *CurrencyDetails) IsTradingEnabledForPair(pair currency.Pair) (bool, err
 	return false, errCurrencyNotFoundInMap
 }
 
+// IsPostOnlyForPair returns if an order is allowed to take liquidity from the
+// books or reduce positions
 func (w *CurrencyDetails) IsPostOnlyForPair(pair currency.Pair) (bool, error) {
 	w.m.RLock()
 	defer w.m.RUnlock()

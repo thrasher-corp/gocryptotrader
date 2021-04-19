@@ -1011,3 +1011,13 @@ func TestProcessAccountKilledOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGetCompleteBalances(t *testing.T) {
+	if !mockTests && !areTestAPIKeysSet() {
+		t.Skip("API keys not set, mockTests false, skipping test")
+	}
+	_, err := p.GetCompleteBalances()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
