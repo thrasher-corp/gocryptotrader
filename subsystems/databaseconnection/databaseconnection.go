@@ -12,7 +12,6 @@ import (
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
-	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 const Name = "database"
@@ -33,6 +32,7 @@ type Manager struct {
 	password string
 	database string
 	driver   string
+	wg       sync.WaitGroup
 	dbConn   *database.Instance
 }
 
@@ -57,16 +57,13 @@ func Setup(cfg *database.Config) (*Manager, error) {
 		password: cfg.Password,
 		database: cfg.Database,
 		driver:   cfg.Driver,
+		dbConn:   database.DB,
 	}
-	// bad code practice means we have to populate a global too to prevent panics
-	database.DB.Config = cfg
+	err := m.dbConn.SetConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
 
-	if m.verbose {
-		boil.DebugMode = true
-		boil.DebugWriter = database.Logger{}
-	} else {
-		boil.DebugMode = false
-	}
 	return m, nil
 }
 
@@ -86,9 +83,8 @@ func (m *Manager) Start(wg *sync.WaitGroup) (err error) {
 
 	log.Debugln(log.DatabaseMgr, "Database manager starting...")
 
-	m.shutdown = make(chan struct{})
-
 	if m.enabled {
+		m.shutdown = make(chan struct{})
 		switch m.driver {
 		case database.DBPostgreSQL:
 			log.Debugf(log.DatabaseMgr,
@@ -110,8 +106,9 @@ func (m *Manager) Start(wg *sync.WaitGroup) (err error) {
 		if err != nil {
 			return fmt.Errorf("%w: %v Some features that utilise a database will be unavailable", database.ErrFailedToConnect, err)
 		}
-		m.dbConn.Connected = true
+		m.dbConn.SetConnected(true)
 		wg.Add(1)
+		m.wg.Add(1)
 		go m.run(wg)
 		return nil
 	}
@@ -131,12 +128,13 @@ func (m *Manager) Stop() error {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
 
-	err := m.dbConn.SQL.Close()
+	err := m.dbConn.CloseConnection()
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Failed to close database: %v", err)
 	}
 
 	close(m.shutdown)
+	m.wg.Wait()
 	return nil
 }
 
@@ -146,6 +144,7 @@ func (m *Manager) run(wg *sync.WaitGroup) {
 
 	defer func() {
 		t.Stop()
+		m.wg.Done()
 		wg.Done()
 		log.Debugln(log.DatabaseMgr, "Database manager shutdown.")
 	}()
@@ -155,12 +154,10 @@ func (m *Manager) run(wg *sync.WaitGroup) {
 		case <-m.shutdown:
 			return
 		case <-t.C:
-			go func() {
-				err := m.checkConnection()
-				if err != nil {
-					log.Error(log.DatabaseMgr, "Database connection error:", err)
-				}
-			}()
+			err := m.checkConnection()
+			if err != nil {
+				log.Error(log.DatabaseMgr, "Database connection error:", err)
+			}
 		}
 	}
 }
@@ -178,18 +175,16 @@ func (m *Manager) checkConnection() error {
 	if m.dbConn == nil {
 		return database.ErrNoDatabaseProvided
 	}
-	m.dbConn.Mu.Lock()
-	defer m.dbConn.Mu.Unlock()
 
-	err := m.dbConn.SQL.Ping()
+	err := m.dbConn.Ping()
 	if err != nil {
-		m.dbConn.Connected = false
+		m.dbConn.SetConnected(false)
 		return err
 	}
 
-	if !m.dbConn.Connected {
+	if !m.dbConn.IsConnected() {
 		log.Info(log.DatabaseMgr, "Database connection reestablished")
-		m.dbConn.Connected = true
+		m.dbConn.SetConnected(true)
 	}
 	return nil
 }

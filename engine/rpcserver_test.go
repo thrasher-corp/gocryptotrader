@@ -86,7 +86,6 @@ func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
 
 // Sets up everything required to run any function inside rpcserver
 func RPCTestSetup(t *testing.T) *Engine {
-	database.DB.Mu.Lock()
 	var err error
 	dbConf := database.Config{
 		Enabled: true,
@@ -127,14 +126,11 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)
 	}
-	database.DB.Mu.Unlock()
 
 	return engerino
 }
 
 func CleanRPCTest(t *testing.T, engerino *Engine) {
-	database.DB.Mu.Lock()
-	defer database.DB.Mu.Unlock()
 	err := engerino.DatabaseManager.Stop()
 	if err != nil {
 		t.Error(err)

@@ -11,19 +11,19 @@ import (
 
 // Connect opens a connection to sqlite database and returns a pointer to database.DB
 func Connect() (*database.Instance, error) {
-	if database.DB.Config.Database == "" {
+	cfg := database.DB.GetConfig()
+	if cfg.Database == "" {
 		return nil, database.ErrNoDatabaseProvided
 	}
 
-	databaseFullLocation := filepath.Join(database.DB.DataPath, database.DB.Config.Database)
+	databaseFullLocation := filepath.Join(database.DB.DataPath, cfg.Database)
 
 	dbConn, err := sql.Open("sqlite3", databaseFullLocation)
 	if err != nil {
 		return nil, err
 	}
 
-	database.DB.SQL = dbConn
-	database.DB.SQL.SetMaxOpenConns(1)
+	database.DB.SetSQliteConnection(dbConn)
 
 	return database.DB, nil
 }

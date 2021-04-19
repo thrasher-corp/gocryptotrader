@@ -1343,9 +1343,7 @@ func (c *Config) checkDatabaseConfig() error {
 		database.DB.DataPath = databaseDir
 	}
 
-	database.DB.Config = &c.Database
-
-	return nil
+	return database.DB.SetConfig(&c.Database)
 }
 
 // CheckNTPConfig checks for missing or incorrectly configured NTPClient and recreates with known safe defaults

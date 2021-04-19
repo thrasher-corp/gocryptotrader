@@ -30,7 +30,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestSetup(t *testing.T) {
-	t.Parallel()
 	_, err := Setup(nil)
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
@@ -46,7 +45,6 @@ func TestSetup(t *testing.T) {
 }
 
 func TestStartSQLite(t *testing.T) {
-	t.Parallel()
 	m, err := Setup(&database.Config{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -56,7 +54,10 @@ func TestStartSQLite(t *testing.T) {
 	if !errors.Is(err, errDatabaseDisabled) {
 		t.Errorf("error '%v', expected '%v'", err, errDatabaseDisabled)
 	}
-	m.enabled = true
+	m, err = Setup(&database.Config{Enabled: true})
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
 	err = m.Start(&wg)
 	if !errors.Is(err, database.ErrNoDatabaseProvided) {
 		t.Errorf("error '%v', expected '%v'", err, database.ErrNoDatabaseProvided)
@@ -81,7 +82,6 @@ func TestStartSQLite(t *testing.T) {
 
 // This test does not care for a successful connection
 func TestStartPostgres(t *testing.T) {
-	t.Parallel()
 	m, err := Setup(&database.Config{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -104,7 +104,6 @@ func TestStartPostgres(t *testing.T) {
 }
 
 func TestIsRunning(t *testing.T) {
-	t.Parallel()
 	m, err := Setup(&database.Config{
 		Enabled: true,
 		Driver:  database.DBSQLite,
@@ -134,7 +133,6 @@ func TestIsRunning(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
-	t.Parallel()
 	m, err := Setup(&database.Config{
 		Enabled: true,
 		Driver:  database.DBSQLite,
@@ -170,7 +168,6 @@ func TestStop(t *testing.T) {
 }
 
 func TestCheckConnection(t *testing.T) {
-	t.Parallel()
 	var m *Manager
 	err := m.checkConnection()
 	if !errors.Is(err, subsystems.ErrNilSubsystem) {
@@ -191,19 +188,22 @@ func TestCheckConnection(t *testing.T) {
 	if !errors.Is(err, subsystems.ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemNotStarted)
 	}
-	m.started = 1
-	err = m.checkConnection()
-	if !errors.Is(err, database.ErrNoDatabaseProvided) {
-		t.Errorf("error '%v', expected '%v'", err, database.ErrNoDatabaseProvided)
-	}
-	m.enabled = false
-	err = m.checkConnection()
-	if !errors.Is(err, database.ErrDatabaseSupportDisabled) {
-		t.Errorf("error '%v', expected '%v'", err, database.ErrDatabaseSupportDisabled)
-	}
-	m.started = 0
-	m.enabled = true
 	var wg sync.WaitGroup
+	err = m.Start(&wg)
+	err = m.checkConnection()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+
+	err = m.Stop()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	err = m.checkConnection()
+	if !errors.Is(err, subsystems.ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemNotStarted)
+	}
+
 	err = m.Start(&wg)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -213,7 +213,7 @@ func TestCheckConnection(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	m.dbConn.Connected = false
+	m.dbConn.SetConnected(false)
 	err = m.checkConnection()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

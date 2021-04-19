@@ -486,9 +486,12 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if cfg.DataSettings.DatabaseData.ConfigOverride != nil {
 			bt.Bot.Config.Database = *cfg.DataSettings.DatabaseData.ConfigOverride
 			gctdatabase.DB.DataPath = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
-			gctdatabase.DB.Config = cfg.DataSettings.DatabaseData.ConfigOverride
+			err = gctdatabase.DB.SetConfig(cfg.DataSettings.DatabaseData.ConfigOverride)
+			if err != nil {
+				return nil, err
+			}
 		}
-		bt.Bot.DatabaseManager, err = databaseconnection.Setup(gctdatabase.DB.Config)
+		bt.Bot.DatabaseManager, err = databaseconnection.Setup(gctdatabase.DB.GetConfig())
 		err = bt.Bot.DatabaseManager.Start(&bt.Bot.ServicesWG)
 		if err != nil {
 			return nil, err
