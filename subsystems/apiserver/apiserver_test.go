@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -88,10 +87,8 @@ func TestStartWebsocketServer(t *testing.T) {
 	}
 	m.remoteConfig.WebsocketRPC.Enabled = true
 	err = m.StartWebsocketServer()
-	if err != nil && !strings.Contains(err.Error(), "invalid port") {
-		t.Error(err)
-	} else if err == nil {
-		t.Error("expected invalid port error")
+	if !errors.Is(err, errInvalidListenAddress) {
+		t.Errorf("error '%v', expected '%v'", err, errInvalidListenAddress)
 	}
 	m.websocketListenAddress = "localhost:9051"
 	var wg sync.WaitGroup

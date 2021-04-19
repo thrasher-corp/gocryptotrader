@@ -30,7 +30,8 @@ var (
 	errNilBot                     = errors.New("received nil engine bot")
 	errEmptyConfigPath            = errors.New("received empty config path")
 	errServerDisabled             = errors.New("server disabled")
-	errAlreadyRuning              = errors.New("already running")
+	errInvalidListenAddress       = errors.New("invalid listen address")
+	errAlreadyRunning             = errors.New("already running")
 	ErrWebsocketServiceNotRunning = errors.New("websocket service not started")
 )
 

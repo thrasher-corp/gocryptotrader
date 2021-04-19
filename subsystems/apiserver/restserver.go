@@ -16,7 +16,7 @@ import (
 // StartRESTServer starts a REST handler
 func (m *Manager) StartRESTServer() error {
 	if !atomic.CompareAndSwapInt32(&m.restStarted, 0, 1) {
-		return fmt.Errorf("rest server %w", errAlreadyRuning)
+		return fmt.Errorf("rest server %w", errAlreadyRunning)
 	}
 	if !m.remoteConfig.DeprecatedRPC.Enabled {
 		atomic.StoreInt32(&m.restStarted, 0)

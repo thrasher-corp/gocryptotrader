@@ -29,6 +29,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestSubmitWithdrawal(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(em, false)
 	if err != nil {
 		t.Fatal(err)
@@ -91,6 +92,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 }
 
 func TestWithdrawEventByID(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(em, false)
 	if err != nil {
 		t.Fatal(err)
@@ -114,6 +116,7 @@ func TestWithdrawEventByID(t *testing.T) {
 }
 
 func TestWithdrawalEventByExchange(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(em, false)
 	if err != nil {
 		t.Fatal(err)
@@ -125,6 +128,7 @@ func TestWithdrawalEventByExchange(t *testing.T) {
 }
 
 func TestWithdrawEventByDate(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(em, false)
 	if err != nil {
 		t.Fatal(err)
@@ -136,6 +140,7 @@ func TestWithdrawEventByDate(t *testing.T) {
 }
 
 func TestWithdrawalEventByExchangeID(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(em, false)
 	if err != nil {
 		t.Fatal(err)

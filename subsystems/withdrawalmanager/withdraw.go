@@ -80,7 +80,6 @@ func (m *Manager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, e
 				resp.Exchange.ID = ret.ID
 			}
 		}
-		// withdrawDataStore.Event(resp)
 	}
 	if err == nil {
 		withdraw.Cache.Add(resp.ID, resp)

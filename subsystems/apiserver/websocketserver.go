@@ -21,7 +21,7 @@ import (
 // StartWebsocketServer starts a Websocket handler
 func (m *Manager) StartWebsocketServer() error {
 	if !atomic.CompareAndSwapInt32(&m.websocketStarted, 0, 1) {
-		return fmt.Errorf("websocket server %w", errAlreadyRuning)
+		return fmt.Errorf("websocket server %w", errAlreadyRunning)
 	}
 	if !m.remoteConfig.WebsocketRPC.Enabled {
 		atomic.StoreInt32(&m.websocketStarted, 0)
@@ -32,15 +32,20 @@ func (m *Manager) StartWebsocketServer() error {
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
 		common.ExtractHost(m.websocketListenAddress), common.ExtractPort(m.websocketListenAddress))
 	m.websocketRouter = m.newRouter(false)
+	if m.websocketListenAddress == "localhost:-1" {
+		atomic.StoreInt32(&m.websocketStarted, 0)
+		return errInvalidListenAddress
+	}
+
 	m.websocketHttpServer = &http.Server{
 		Addr:    m.websocketListenAddress,
 		Handler: m.websocketRouter,
 	}
+
 	go func() {
 		err := m.websocketHttpServer.ListenAndServe()
 		if err != nil {
 			atomic.StoreInt32(&m.websocketStarted, 0)
-			atomic.StoreInt32(&m.started, 0)
 			log.Error(log.GRPCSys, err)
 		}
 	}()
