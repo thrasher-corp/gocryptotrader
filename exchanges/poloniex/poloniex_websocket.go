@@ -241,7 +241,8 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 				return fmt.Errorf("websocket process orderbook snapshot: %w", err)
 			}
 		case orderbookUpdate:
-			pair, err := p.details.GetPair(channelID)
+			var pair currency.Pair
+			pair, err = p.details.GetPair(channelID)
 			if err != nil {
 				return err
 			}
