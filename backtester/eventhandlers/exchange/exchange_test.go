@@ -278,6 +278,152 @@ func TestExecuteOrder(t *testing.T) {
 	}
 }
 
+func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
+	t.Parallel()
+	bot, err := engine.NewFromSettings(&engine.Settings{
+		ConfigFile:   filepath.Join("..", "..", "..", "testdata", "configtest.json"),
+		EnableDryRun: true,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = bot.OrderManager.Start(bot)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bot.LoadExchange(testExchange, false, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	b := bot.GetExchangeByName(testExchange)
+
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	a := asset.Spot
+	_, err = b.FetchOrderbook(p, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	limits, err := b.GetOrderExecutionLimits(a, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cs := Settings{
+		ExchangeName:  testExchange,
+		UseRealOrders: false,
+		InitialFunds:  1337,
+		CurrencyPair:  p,
+		AssetType:     a,
+		ExchangeFee:   0.01,
+		MakerFee:      0.01,
+		TakerFee:      0.01,
+		BuySide: config.MinMax{
+			MaximumSize: 0.01,
+			MinimumSize: 0,
+		},
+		SellSide: config.MinMax{
+			MaximumSize: 0.1,
+			MinimumSize: 0,
+		},
+		Leverage:            config.Leverage{},
+		MinimumSlippageRate: 0,
+		MaximumSlippageRate: 1,
+		Limits:              limits,
+	}
+	e := Exchange{
+		CurrencySettings: []Settings{cs},
+	}
+	ev := event.Base{
+		Exchange:     testExchange,
+		Time:         time.Now(),
+		Interval:     gctkline.FifteenMin,
+		CurrencyPair: p,
+		AssetType:    a,
+	}
+	o := &order.Order{
+		Base:      ev,
+		Direction: gctorder.Buy,
+		Amount:    10,
+		Funds:     1337,
+	}
+
+	d := &kline.DataFromKline{
+		Item: gctkline.Item{
+			Exchange: "",
+			Pair:     currency.Pair{},
+			Asset:    "",
+			Interval: 0,
+			Candles: []gctkline.Candle{
+				{
+					Close:  1,
+					High:   1,
+					Low:    1,
+					Volume: 1,
+				},
+			},
+		},
+	}
+	err = d.Load()
+	if err != nil {
+		t.Error(err)
+	}
+	d.Next()
+	_, err = e.ExecuteOrder(o, d, bot)
+	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
+		t.Error(err)
+	}
+
+	o = &order.Order{
+		Base:      ev,
+		Direction: gctorder.Buy,
+		Amount:    10,
+		Funds:     1337,
+	}
+	cs.BuySide.MaximumSize = 1
+	cs.BuySide.MinimumSize = 0.01
+	_, err = e.ExecuteOrder(o, d, bot)
+	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
+		t.Error(err)
+	}
+
+	o = &order.Order{
+		Base:      ev,
+		Direction: gctorder.Buy,
+		Amount:    10,
+		Funds:     1337,
+	}
+	cs.BuySide.MaximumSize = 0
+	cs.BuySide.MinimumSize = 0.01
+	_, err = e.ExecuteOrder(o, d, bot)
+	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
+		t.Error(err)
+	}
+
+	o = &order.Order{
+		Base:      ev,
+		Direction: gctorder.Sell,
+		Amount:    10,
+		Funds:     1337,
+	}
+	cs.SellSide.MaximumSize = 0
+	cs.SellSide.MinimumSize = 0.01
+	_, err = e.ExecuteOrder(o, d, bot)
+	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
+		t.Error(err)
+	}
+
+	cs.UseRealOrders = true
+	cs.CanUseExchangeLimits = true
+	o.Direction = gctorder.Sell
+	e.CurrencySettings = []Settings{cs}
+	_, err = e.ExecuteOrder(o, d, bot)
+	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
+		t.Error(err)
+	}
+}
+
 func TestApplySlippageToPrice(t *testing.T) {
 	t.Parallel()
 	resp := applySlippageToPrice(gctorder.Buy, 1, 0.9)

@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Reset returns the exchange to initial settings
@@ -103,10 +104,12 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	} else {
 		limitReducedAmount = reducedAmount
 	}
+
+	log.Infof(log.BackTester, "limitReducedAmount %v, direction %v,  buyside %+v, sell size %+v", limitReducedAmount, f.GetDirection(), cs.BuySide, cs.SellSide)
 	// Conforms the amount to fall into the minimum size and maximum size limit after reduced
 	switch f.GetDirection() {
 	case gctorder.Buy:
-		if (limitReducedAmount < cs.BuySide.MinimumSize || limitReducedAmount > cs.BuySide.MaximumSize) && (cs.BuySide.MinimumSize > 0 && cs.BuySide.MaximumSize > 0) {
+		if (limitReducedAmount < cs.BuySide.MinimumSize || limitReducedAmount > cs.BuySide.MaximumSize) && cs.BuySide.MaximumSize > 0 {
 			f.SetDirection(common.CouldNotBuy)
 			e := fmt.Sprintf("Order size  %.8f exceed minimum size %.8f or maximum size %.8f ", limitReducedAmount, cs.BuySide.MinimumSize, cs.BuySide.MaximumSize)
 			f.AppendReason(e)
@@ -114,7 +117,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		}
 
 	case gctorder.Sell:
-		if (limitReducedAmount < cs.SellSide.MinimumSize || limitReducedAmount > cs.SellSide.MaximumSize) && (cs.SellSide.MinimumSize > 0 && cs.SellSide.MaximumSize > 0) {
+		if (limitReducedAmount < cs.SellSide.MinimumSize || limitReducedAmount > cs.SellSide.MaximumSize) && cs.SellSide.MaximumSize > 0 {
 			f.SetDirection(common.CouldNotSell)
 			e := fmt.Sprintf("Order size  %.8f exceed minimum size %.8f or maximum size %.8f ", limitReducedAmount, cs.SellSide.MinimumSize, cs.SellSide.MaximumSize)
 			f.AppendReason(e)
