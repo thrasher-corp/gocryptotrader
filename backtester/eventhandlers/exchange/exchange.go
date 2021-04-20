@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Reset returns the exchange to initial settings
@@ -105,7 +104,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		limitReducedAmount = reducedAmount
 	}
 
-	log.Infof(log.BackTester, "limitReducedAmount %v, direction %v,  buyside %+v, sell size %+v", limitReducedAmount, f.GetDirection(), cs.BuySide, cs.SellSide)
+	// log.Infof(log.BackTester, "limitReducedAmount %v, direction %v,  buyside %+v, sell size %+v", limitReducedAmount, f.GetDirection(), cs.BuySide, cs.SellSide)
 	// Conforms the amount to fall into the minimum size and maximum size limit after reduced
 	switch f.GetDirection() {
 	case gctorder.Buy:
