@@ -6,39 +6,29 @@ import (
 	"time"
 
 	dbwithdraw "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/subsystems"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
-var (
-	// ErrWithdrawRequestNotFound message to display when no record is found
-	ErrWithdrawRequestNotFound = errors.New("request not found")
-)
-
-type Manager struct {
-	exchangeManager iExchangeManager
-	isDryRun        bool
-}
-
-type iExchangeManager interface {
-	GetExchangeByName(string) exchange.IBotExchange
-}
-
-func Setup(manager iExchangeManager, isDryRun bool) (*Manager, error) {
-	if manager == nil {
+func Setup(em iExchangeManager, pm iPortfolioManager, isDryRun bool) (*Manager, error) {
+	if em == nil {
 		return nil, errors.New("nil manager")
 	}
 	return &Manager{
-		exchangeManager: manager,
-		isDryRun:        isDryRun,
+		exchangeManager:  em,
+		portfolioManager: pm,
+		isDryRun:         isDryRun,
 	}, nil
 }
 
 // SubmitWithdrawal performs validation and submits a new withdraw request to
 // exchange
 func (m *Manager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
+	if m == nil {
+		return nil, subsystems.ErrNilSubsystem
+	}
 	if req == nil {
 		return nil, withdraw.ErrRequestCannotBeNil
 	}
@@ -63,6 +53,18 @@ func (m *Manager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, e
 		resp.Exchange.ID = withdraw.DryRunID.String()
 	} else {
 		var ret *withdraw.ExchangeResponse
+		if req.Type == withdraw.Crypto {
+			if !m.portfolioManager.IsWhiteListed(req.Crypto.Address) {
+				return nil, withdraw.ErrStrAddressNotWhiteListed
+			}
+			if !m.portfolioManager.IsExchangeSupported(req.Exchange, req.Crypto.Address) {
+				return nil, withdraw.ErrStrExchangeNotSupportedByAddress
+			}
+		}
+		err = req.Validate()
+		if err != nil {
+			return nil, err
+		}
 		if req.Type == withdraw.Fiat {
 			ret, err = exch.WithdrawFiatFunds(req)
 			if err != nil {
@@ -84,11 +86,14 @@ func (m *Manager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, e
 	if err == nil {
 		withdraw.Cache.Add(resp.ID, resp)
 	}
-	return resp, nil
+	return resp, err
 }
 
 // WithdrawalEventByID returns a withdrawal request by ID
 func (m *Manager) WithdrawalEventByID(id string) (*withdraw.Response, error) {
+	if m == nil {
+		return nil, subsystems.ErrNilSubsystem
+	}
 	v := withdraw.Cache.Get(id)
 	if v != nil {
 		return v.(*withdraw.Response), nil
@@ -104,6 +109,9 @@ func (m *Manager) WithdrawalEventByID(id string) (*withdraw.Response, error) {
 
 // WithdrawalEventByExchange returns a withdrawal request by ID
 func (m *Manager) WithdrawalEventByExchange(exchange string, limit int) ([]*withdraw.Response, error) {
+	if m == nil {
+		return nil, subsystems.ErrNilSubsystem
+	}
 	exch := m.exchangeManager.GetExchangeByName(exchange)
 	if exch == nil {
 		return nil, exchangemanager.ErrExchangeNotFound
@@ -114,6 +122,9 @@ func (m *Manager) WithdrawalEventByExchange(exchange string, limit int) ([]*with
 
 // WithdrawEventByDate returns a withdrawal request by ID
 func (m *Manager) WithdrawEventByDate(exchange string, start, end time.Time, limit int) ([]*withdraw.Response, error) {
+	if m == nil {
+		return nil, subsystems.ErrNilSubsystem
+	}
 	exch := m.exchangeManager.GetExchangeByName(exchange)
 	if exch == nil {
 		return nil, exchangemanager.ErrExchangeNotFound
@@ -124,6 +135,9 @@ func (m *Manager) WithdrawEventByDate(exchange string, start, end time.Time, lim
 
 // WithdrawalEventByExchangeID returns a withdrawal request by Exchange ID
 func (m *Manager) WithdrawalEventByExchangeID(exchange, id string) (*withdraw.Response, error) {
+	if m == nil {
+		return nil, subsystems.ErrNilSubsystem
+	}
 	exch := m.exchangeManager.GetExchangeByName(exchange)
 	if exch == nil {
 		return nil, exchangemanager.ErrExchangeNotFound

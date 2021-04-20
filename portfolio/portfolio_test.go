@@ -2,7 +2,6 @@ package portfolio
 
 import (
 	"errors"
-	"reflect"
 	"testing"
 	"time"
 
@@ -14,15 +13,12 @@ const (
 	testBTCAddress = "0x1D01TH0R53"
 )
 
-var (
-	portfolioSeeded bool
-)
-
 func TestGetEthereumBalance(t *testing.T) {
+	b := Base{}
 	address := "0xb794f5ea0ba39494ce839613fffba74279579268"
 	nonsenseAddress := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
-	response, err := GetEthereumBalance(address)
+	response, err := b.GetEthereumBalance(address)
 	if err != nil {
 		t.Errorf("Portfolio GetEthereumBalance() Error: %s", err)
 	}
@@ -31,15 +27,16 @@ func TestGetEthereumBalance(t *testing.T) {
 		t.Error("Portfolio GetEthereumBalance() address invalid")
 	}
 
-	response, err = GetEthereumBalance(nonsenseAddress)
+	response, err = b.GetEthereumBalance(nonsenseAddress)
 	if !errors.Is(err, errNotEthAddress) {
 		t.Errorf("received '%v', expected '%v'", err, errNotEthAddress)
 	}
 }
 
 func TestGetCryptoIDBalance(t *testing.T) {
+	b := Base{}
 	ltcAddress := "LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1"
-	_, err := GetCryptoIDAddress(ltcAddress, currency.LTC)
+	_, err := b.GetCryptoIDAddress(ltcAddress, currency.LTC)
 	if err != nil {
 		t.Fatalf("TestGetCryptoIDBalance error: %s", err)
 	}
@@ -51,13 +48,13 @@ func TestGetAddressBalance(t *testing.T) {
 	description := "Description of Wallet"
 	balance := float64(1000)
 
-	portfolio := Base{}
-	err := portfolio.AddAddress(ltcAddress, description, ltc, balance)
+	b := Base{}
+	err := b.AddAddress(ltcAddress, description, ltc, balance)
 	if err != nil {
 		t.Error(err)
 	}
 
-	addBalance, _ := portfolio.GetAddressBalance("LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL",
+	addBalance, _ := b.GetAddressBalance("LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL",
 		description,
 		ltc)
 
@@ -65,7 +62,7 @@ func TestGetAddressBalance(t *testing.T) {
 		t.Error("Incorrect value")
 	}
 
-	addBalance, found := portfolio.GetAddressBalance("WigWham",
+	addBalance, found := b.GetAddressBalance("WigWham",
 		description,
 		ltc)
 
@@ -78,14 +75,15 @@ func TestGetAddressBalance(t *testing.T) {
 }
 
 func TestGetRippleBalance(t *testing.T) {
+	b := Base{}
 	nonsenseAddress := "Wigwham"
-	_, err := GetRippleBalance(nonsenseAddress)
+	_, err := b.GetRippleBalance(nonsenseAddress)
 	if err == nil {
 		t.Error("error cannot be nil on a bad address")
 	}
 
 	rippleAddress := "r962iS5subzbVeXZN8MTzyEuuaQKo5qksh"
-	_, err = GetRippleBalance(rippleAddress)
+	_, err = b.GetRippleBalance(rippleAddress)
 	if err != nil {
 		t.Error(err)
 	}
@@ -231,11 +229,11 @@ func TestRemoveExchangeAddress(t *testing.T) {
 func TestUpdateExchangeAddressBalance(t *testing.T) {
 	newBase := Base{}
 	newBase.AddExchangeAddress("someaddress", currency.LTC, 0.02)
-	portfolio := GetPortfolio()
-	portfolio.Seed(newBase)
-	portfolio.UpdateExchangeAddressBalance("someaddress", currency.LTC, 0.04)
+	b := Base{}
+	b.Seed(newBase)
+	b.UpdateExchangeAddressBalance("someaddress", currency.LTC, 0.04)
 
-	value := portfolio.GetPortfolioSummary()
+	value := b.GetPortfolioSummary()
 	if value.Totals[0].Coin != currency.LTC && value.Totals[0].Balance != 0.04 {
 		t.Error("incorrect portfolio balance")
 	}
@@ -252,7 +250,7 @@ func TestAddAddress(t *testing.T) {
 	}
 
 	// test adding an exchange address
-	err := newBase.AddAddress("COINUT", PortfolioAddressExchange, currency.LTC, 0)
+	err := newBase.AddAddress("COINUT", ExchangeAddress, currency.LTC, 0)
 	if err != nil {
 		t.Errorf("failed to add address: %v", err)
 	}
@@ -278,9 +276,9 @@ func TestAddAddress(t *testing.T) {
 		t.Error("invalid portfolio amount")
 	}
 
-	portfolio := GetPortfolio()
-	portfolio.Seed(newBase)
-	if !portfolio.AddressExists("Gibson") {
+	nb := Base{}
+	nb.Seed(newBase)
+	if !nb.AddressExists("Gibson") {
 		t.Error("AddAddress error")
 	}
 
@@ -309,20 +307,17 @@ func TestUpdatePortfolio(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	portfolio := GetPortfolio()
-	portfolio.Seed(newBase)
-
-	err = portfolio.UpdatePortfolio(
+	err = newBase.UpdatePortfolio(
 		[]string{"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL"},
 		currency.LTC)
 	if err != nil {
 		t.Error("UpdatePortfolio error", err)
 	}
-	err = portfolio.UpdatePortfolio([]string{"Testy"}, currency.LTC)
+	err = newBase.UpdatePortfolio([]string{"Testy"}, currency.LTC)
 	if err == nil {
 		t.Error("UpdatePortfolio error cannot be nil")
 	}
-	err = portfolio.UpdatePortfolio([]string{
+	err = newBase.UpdatePortfolio([]string{
 		"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL",
 		"LVa8wZ983PvWtdwXZ8viK6SocMENLCXkEy"},
 		currency.LTC,
@@ -330,7 +325,7 @@ func TestUpdatePortfolio(t *testing.T) {
 	if err != nil {
 		t.Error("UpdatePortfolio error", err)
 	}
-	err = portfolio.UpdatePortfolio(
+	err = newBase.UpdatePortfolio(
 		[]string{"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL", "Testy"}, currency.LTC,
 	)
 	if err == nil {
@@ -338,14 +333,14 @@ func TestUpdatePortfolio(t *testing.T) {
 	}
 
 	time.Sleep(time.Second * 5)
-	err = portfolio.UpdatePortfolio([]string{
+	err = newBase.UpdatePortfolio([]string{
 		"0xb794f5ea0ba39494ce839613fffba74279579268",
 		"0xe853c56864a2ebe4576a807d26fdc4a0ada51919"},
 		currency.ETH)
 	if err != nil {
 		t.Error(err)
 	}
-	err = portfolio.UpdatePortfolio([]string{
+	err = newBase.UpdatePortfolio([]string{
 		"0xb794f5ea0ba39494ce839613fffba74279579268",
 		"TESTY"},
 		currency.ETH)
@@ -353,21 +348,21 @@ func TestUpdatePortfolio(t *testing.T) {
 		t.Error("UpdatePortfolio error cannot be nil")
 	}
 
-	err = portfolio.UpdatePortfolio([]string{PortfolioAddressExchange,
-		PortfolioAddressPersonal},
+	err = newBase.UpdatePortfolio([]string{ExchangeAddress,
+		PersonalAddress},
 		currency.LTC)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = portfolio.UpdatePortfolio([]string{
+	err = newBase.UpdatePortfolio([]string{
 		"r962iS5subzbVeXZN8MTzyEuuaQKo5qksh"},
 		currency.XRP)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = portfolio.UpdatePortfolio([]string{
+	err = newBase.UpdatePortfolio([]string{
 		"r962iS5subzbVeXZN8MTzyEuuaQKo5qksh",
 		"TESTY"},
 		currency.XRP)
@@ -380,13 +375,11 @@ func TestGetPortfolioByExchange(t *testing.T) {
 	newBase := Base{}
 	newBase.AddExchangeAddress("OKEX", currency.LTC, 0.07)
 	newBase.AddExchangeAddress("Bitfinex", currency.LTC, 0.05)
-	err := newBase.AddAddress("someaddress", "LTC", currency.NewCode(PortfolioAddressPersonal), 0.03)
+	err := newBase.AddAddress("someaddress", "LTC", currency.NewCode(PersonalAddress), 0.03)
 	if err != nil {
 		t.Fatal(err)
 	}
-	portfolio := GetPortfolio()
-	portfolio.Seed(newBase)
-	value := portfolio.GetPortfolioByExchange("OKEX")
+	value := newBase.GetPortfolioByExchange("OKEX")
 	result, ok := value[currency.LTC]
 	if !ok {
 		t.Error("missing portfolio entry")
@@ -396,7 +389,7 @@ func TestGetPortfolioByExchange(t *testing.T) {
 		t.Error("incorrect result")
 	}
 
-	value = portfolio.GetPortfolioByExchange("Bitfinex")
+	value = newBase.GetPortfolioByExchange("Bitfinex")
 	result, ok = value[currency.LTC]
 	if !ok {
 		t.Error("missing portfolio entry")
@@ -409,21 +402,20 @@ func TestGetPortfolioByExchange(t *testing.T) {
 
 func TestGetExchangePortfolio(t *testing.T) {
 	newBase := Base{}
-	err := newBase.AddAddress("OKEX", PortfolioAddressExchange, currency.LTC, 0.03)
+	err := newBase.AddAddress("OKEX", ExchangeAddress, currency.LTC, 0.03)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = newBase.AddAddress("Bitfinex", PortfolioAddressExchange, currency.LTC, 0.05)
+	err = newBase.AddAddress("Bitfinex", ExchangeAddress, currency.LTC, 0.05)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = newBase.AddAddress("someaddress", PortfolioAddressPersonal, currency.LTC, 0.03)
+	err = newBase.AddAddress("someaddress", PersonalAddress, currency.LTC, 0.03)
 	if err != nil {
 		t.Fatal(err)
 	}
-	portfolio := GetPortfolio()
-	portfolio.Seed(newBase)
-	value := portfolio.GetExchangePortfolio()
+
+	value := newBase.GetExchangePortfolio()
 
 	result, ok := value[currency.LTC]
 	if !ok {
@@ -437,21 +429,20 @@ func TestGetExchangePortfolio(t *testing.T) {
 
 func TestGetPersonalPortfolio(t *testing.T) {
 	newBase := Base{}
-	err := newBase.AddAddress("someaddress", PortfolioAddressPersonal, currency.N2O, 0.02)
+	err := newBase.AddAddress("someaddress", PersonalAddress, currency.N2O, 0.02)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = newBase.AddAddress("anotheraddress", PortfolioAddressPersonal, currency.N2O, 0.03)
+	err = newBase.AddAddress("anotheraddress", PersonalAddress, currency.N2O, 0.03)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = newBase.AddAddress("Exchange", PortfolioAddressExchange, currency.N2O, 0.01)
+	err = newBase.AddAddress("Exchange", ExchangeAddress, currency.N2O, 0.01)
 	if err != nil {
 		t.Fatal(err)
 	}
-	portfolio := GetPortfolio()
-	portfolio.Seed(newBase)
-	value := portfolio.GetPersonalPortfolio()
+
+	value := newBase.GetPersonalPortfolio()
 	result, ok := value[currency.N2O]
 	if !ok {
 		t.Error("GetPersonalPortfolio error")
@@ -465,25 +456,25 @@ func TestGetPersonalPortfolio(t *testing.T) {
 func TestGetPortfolioSummary(t *testing.T) {
 	newBase := Base{}
 	// Personal holdings
-	err := newBase.AddAddress("someaddress", PortfolioAddressPersonal, currency.LTC, 1)
+	err := newBase.AddAddress("someaddress", PersonalAddress, currency.LTC, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = newBase.AddAddress("someaddress2", PortfolioAddressPersonal, currency.LTC, 2)
+	err = newBase.AddAddress("someaddress2", PersonalAddress, currency.LTC, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = newBase.AddAddress("someaddress3", PortfolioAddressPersonal, currency.BTC, 100)
+	err = newBase.AddAddress("someaddress3", PersonalAddress, currency.BTC, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = newBase.AddAddress("0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae",
-		PortfolioAddressPersonal, currency.ETH, 865346880000000000)
+		PersonalAddress, currency.ETH, 865346880000000000)
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = newBase.AddAddress("0x9edc81c813b26165f607a8d1b8db87a02f34307f",
-		PortfolioAddressPersonal, currency.ETH, 165346880000000000)
+		PersonalAddress, currency.ETH, 165346880000000000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -493,9 +484,7 @@ func TestGetPortfolioSummary(t *testing.T) {
 	newBase.AddExchangeAddress("Bitfinex", currency.BTC, 100)
 	newBase.AddExchangeAddress("OKEX", currency.ETH, 42)
 
-	portfolio := GetPortfolio()
-	portfolio.Seed(newBase)
-	value := portfolio.GetPortfolioSummary()
+	value := newBase.GetPortfolioSummary()
 
 	getTotalsVal := func(c currency.Code) Coin {
 		for x := range value.Totals {
@@ -529,13 +518,12 @@ func TestGetPortfolioGroupedCoin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = newBase.AddAddress("Exchange", PortfolioAddressExchange, currency.LTC, 0.05)
+	err = newBase.AddAddress("Exchange", ExchangeAddress, currency.LTC, 0.05)
 	if err != nil {
 		t.Fatal(err)
 	}
-	portfolio := GetPortfolio()
-	portfolio.Seed(newBase)
-	value := portfolio.GetPortfolioGroupedCoin()
+
+	value := newBase.GetPortfolioGroupedCoin()
 	if value[currency.LTC][0] != "someaddress" && len(value[currency.LTC][0]) != 1 {
 		t.Error("incorrect balance")
 	}
@@ -547,53 +535,50 @@ func TestSeed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	portfolio := GetPortfolio()
-	portfolio.Seed(newBase)
-
-	if !portfolio.AddressExists("someaddress") {
+	if !newBase.AddressExists("someaddress") {
 		t.Error("Seed error")
 	}
 }
 
 func TestIsExchangeSupported(t *testing.T) {
-	seedPortFolioForTest(t)
-	ret := IsExchangeSupported("BTC Markets", core.BitcoinDonationAddress)
+	newBase := seedPortFolioForTest(t)
+	ret := newBase.IsExchangeSupported("BTC Markets", core.BitcoinDonationAddress)
 	if !ret {
 		t.Fatal("expected IsExchangeSupported() to return true")
 	}
-	ret = IsExchangeSupported("Kraken", core.BitcoinDonationAddress)
+	ret = newBase.IsExchangeSupported("Kraken", core.BitcoinDonationAddress)
 	if ret {
 		t.Fatal("expected IsExchangeSupported() to return false")
 	}
 }
 
 func TestIsColdStorage(t *testing.T) {
-	seedPortFolioForTest(t)
-	ret := IsColdStorage(core.BitcoinDonationAddress)
+	newBase := seedPortFolioForTest(t)
+	ret := newBase.IsColdStorage(core.BitcoinDonationAddress)
 	if !ret {
 		t.Fatal("expected IsColdStorage() to return true")
 	}
-	ret = IsColdStorage(testBTCAddress)
+	ret = newBase.IsColdStorage(testBTCAddress)
 	if ret {
 		t.Fatal("expected IsColdStorage() to return false")
 	}
-	ret = IsColdStorage("hello")
+	ret = newBase.IsColdStorage("hello")
 	if ret {
 		t.Fatal("expected IsColdStorage() to return false")
 	}
 }
 
 func TestIsWhiteListed(t *testing.T) {
-	seedPortFolioForTest(t)
-	ret := IsWhiteListed(core.BitcoinDonationAddress)
+	b := seedPortFolioForTest(t)
+	ret := b.IsWhiteListed(core.BitcoinDonationAddress)
 	if !ret {
 		t.Fatal("expected IsWhiteListed() to return true")
 	}
-	ret = IsWhiteListed(testBTCAddress)
+	ret = b.IsWhiteListed(testBTCAddress)
 	if ret {
 		t.Fatal("expected IsWhiteListed() to return false")
 	}
-	ret = IsWhiteListed("hello")
+	ret = b.IsWhiteListed("hello")
 	if ret {
 		t.Fatal("expected IsWhiteListed() to return false")
 	}
@@ -603,7 +588,7 @@ func TestStartPortfolioWatcher(t *testing.T) {
 	newBase := Base{}
 	err := newBase.AddAddress("LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1",
 		currency.LTC.String(),
-		currency.NewCode(PortfolioAddressPersonal),
+		currency.NewCode(PersonalAddress),
 		0.02)
 	if err != nil {
 		t.Error(err)
@@ -611,34 +596,21 @@ func TestStartPortfolioWatcher(t *testing.T) {
 
 	err = newBase.AddAddress("Testy",
 		currency.LTC.String(),
-		currency.NewCode(PortfolioAddressPersonal),
+		currency.NewCode(PersonalAddress),
 		0.02)
 	if err != nil {
 		t.Error(err)
 	}
 
-	portfolio := GetPortfolio()
-	portfolio.Seed(newBase)
-
-	if !portfolio.AddressExists("LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1") {
+	if !newBase.AddressExists("LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1") {
 		t.Error("address does nto exist")
 	}
 
-	go StartPortfolioWatcher()
+	go newBase.StartPortfolioWatcher()
 }
 
-func TestGetPortfolio(t *testing.T) {
-	ptrBASE := GetPortfolio()
-	if reflect.TypeOf(ptrBASE).String() != "*portfolio.Base" {
-		t.Error("incorrect type")
-	}
-}
-
-func seedPortFolioForTest(t *testing.T) {
+func seedPortFolioForTest(t *testing.T) *Base {
 	t.Helper()
-	if portfolioSeeded {
-		return
-	}
 	newBase := Base{}
 
 	err := newBase.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)
@@ -654,6 +626,10 @@ func seedPortFolioForTest(t *testing.T) {
 		t.Fatalf("failed to add portfolio address with reason: %v, unable to continue tests", err)
 	}
 	newBase.Addresses[1].SupportedExchanges = "BTC Markets,Binance"
-	portfolio := GetPortfolio()
-	portfolio.Seed(newBase)
+	b := Base{}
+	b.Seed(newBase)
+	if len(b.Addresses) == 0 {
+		t.Error("failed to seed")
+	}
+	return &b
 }

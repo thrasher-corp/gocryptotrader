@@ -31,7 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
-const testExchange = "binance"
+const testExchange = "Bitstamp"
 
 func newBotWithExchange() (*engine.Engine, gctexchange.IBotExchange) {
 	bot, err := engine.NewFromSettings(&engine.Settings{
@@ -105,7 +105,7 @@ func TestNewFromConfig(t *testing.T) {
 	}
 
 	cfg.CurrencySettings[0].Base = "BTC"
-	cfg.CurrencySettings[0].Quote = "USDT"
+	cfg.CurrencySettings[0].Quote = "USD"
 
 	cfg.DataSettings.APIData = &config.APIData{
 		StartDate: time.Time{},
@@ -164,7 +164,7 @@ func TestLoadData(t *testing.T) {
 			Quote:        "test",
 		},
 	}
-	cfg.CurrencySettings[0].ExchangeName = testExchange
+	cfg.CurrencySettings[0].ExchangeName = "binance"
 	cfg.CurrencySettings[0].Asset = asset.Spot.String()
 	cfg.CurrencySettings[0].Base = "BTC"
 	cfg.CurrencySettings[0].Quote = "USDT"
@@ -195,7 +195,7 @@ func TestLoadData(t *testing.T) {
 		Reports: &report.Data{},
 	}
 
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewPair(currency.BTC, currency.USD)
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -241,7 +241,7 @@ func TestLoadData(t *testing.T) {
 
 func TestLoadDatabaseData(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewPair(currency.BTC, currency.USD)
 	_, err := loadDatabaseData(nil, "", cp, "", -1)
 	if err != nil && !strings.Contains(err.Error(), "nil config data received") {
 		t.Error(err)

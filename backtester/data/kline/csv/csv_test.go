@@ -1,8 +1,8 @@
 package csv
 
 import (
+	"errors"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -56,7 +56,7 @@ func TestLoadDataInvalid(t *testing.T) {
 		gctkline.FifteenMin.Duration(),
 		p,
 		a)
-	if err != nil && !strings.Contains(err.Error(), "could not process csv data for binance spot BTCUSDT, invalid data type received") {
-		t.Error(err)
+	if !errors.Is(err, common.ErrInvalidDataType) {
+		t.Errorf("expected '%v' received '%v'", err, common.ErrInvalidDataType)
 	}
 }

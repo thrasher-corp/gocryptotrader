@@ -5,23 +5,17 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 func TestSetup(t *testing.T) {
-	_, err := Setup(nil, nil, 0, false)
-	if !errors.Is(err, errNilBase) {
-		t.Errorf("error '%v', expected '%v'", err, errNilBase)
-	}
-
-	_, err = Setup(&portfolio.Base{}, nil, 0, false)
+	_, err := Setup(nil, 0, nil)
 	if !errors.Is(err, errNilExchangeManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
 
-	m, err := Setup(&portfolio.Base{}, exchangemanager.Setup(), 0, false)
+	m, err := Setup(exchangemanager.Setup(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -36,7 +30,7 @@ func TestIsRunning(t *testing.T) {
 		t.Error("expected false")
 	}
 
-	m, err := Setup(&portfolio.Base{}, exchangemanager.Setup(), 0, false)
+	m, err := Setup(exchangemanager.Setup(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -61,7 +55,7 @@ func TestStart(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrNilSubsystem)
 	}
 
-	m, err = Setup(&portfolio.Base{}, exchangemanager.Setup(), 0, false)
+	m, err = Setup(exchangemanager.Setup(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -90,7 +84,7 @@ func TestStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrNilSubsystem)
 	}
 
-	m, err = Setup(&portfolio.Base{}, exchangemanager.Setup(), 0, false)
+	m, err = Setup(exchangemanager.Setup(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -117,9 +111,10 @@ func TestProcessPortfolio(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	m, err := Setup(&portfolio.Base{}, em, 0, false)
+	m, err := Setup(em, 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
+
 	m.processPortfolio()
 }

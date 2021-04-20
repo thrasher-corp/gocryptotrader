@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
 // StartRESTServer starts a REST handler
@@ -119,8 +118,7 @@ func (m *Manager) restGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Requ
 
 // restGetPortfolio returns the Bot portfolio manager
 func (m *Manager) restGetPortfolio(w http.ResponseWriter, r *http.Request) {
-	p := portfolio.GetPortfolio()
-	result := p.GetPortfolioSummary()
+	result := m.portfolioManager.GetPortfolioSummary()
 	err := writeResponse(w, result)
 	if err != nil {
 		handleError(r.Method, err)

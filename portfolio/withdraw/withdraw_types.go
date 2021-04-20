@@ -38,9 +38,7 @@ const (
 	// ErrStrFeeCannotBeNegative message to return when fee amount is negative
 	ErrStrFeeCannotBeNegative = "fee amount cannot be negative"
 	// ErrStrAddressNotWhiteListed message to return when attempting to withdraw to non-whitelisted address
-	ErrStrAddressNotWhiteListed = "address is not whitelisted for withdrawals"
-	// ErrStrExchangeNotSupportedByAddress message to return when attemptign to withdraw to an unsupported exchange
-	ErrStrExchangeNotSupportedByAddress = "address is not supported by exchange"
+
 )
 
 var (
@@ -49,7 +47,10 @@ var (
 	// ErrExchangeNameUnset message to return when an exchange name is unset
 	ErrExchangeNameUnset = errors.New("exchange name unset")
 	// ErrInvalidRequest message to return when a request type is invalid
-	ErrInvalidRequest = errors.New("invalid request type")
+	ErrInvalidRequest           = errors.New("invalid request type")
+	ErrStrAddressNotWhiteListed = errors.New("address is not whitelisted for withdrawals")
+	// ErrStrExchangeNotSupportedByAddress message to return when attemptign to withdraw to an unsupported exchange
+	ErrStrExchangeNotSupportedByAddress = errors.New("address is not supported by exchange")
 	// CacheSize cache size to use for withdrawal request history
 	CacheSize uint64 = 25
 	// Cache LRU cache for recent requests

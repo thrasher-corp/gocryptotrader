@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 	exch.SetDefaults()
 	em.Add(exch)
 	engine.Bot.ExchangeManager = em
-	engine.Bot.WithdrawalManager, err = withdrawalmanager.Setup(em, true)
+	engine.Bot.WithdrawalManager, err = withdrawalmanager.Setup(em, nil, true)
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)

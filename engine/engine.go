@@ -22,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
@@ -50,7 +49,6 @@ type Engine struct {
 	DatabaseManager             *databaseconnection.Manager
 	GctScriptManager            *gctscript.GctScriptManager
 	OrderManager                *ordermanager.Manager
-	portfolio                   *portfolio.Base
 	portfolioManager            *portfoliomanager.Manager
 	ExchangeManager             *exchangemanager.Manager
 	CommunicationsManager       *communicationmanager.Manager
@@ -436,7 +434,7 @@ func (bot *Engine) Start() error {
 		return err
 	}
 
-	bot.WithdrawalManager, err = withdrawalmanager.Setup(bot.ExchangeManager, bot.Settings.EnableDryRun)
+	bot.WithdrawalManager, err = withdrawalmanager.Setup(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
 	if err != nil {
 		return err
 	}
@@ -486,6 +484,20 @@ func (bot *Engine) Start() error {
 		go StartRPCServer(bot)
 	}
 
+	if bot.Settings.EnablePortfolioManager {
+		if bot.portfolioManager == nil {
+			bot.portfolioManager, err = portfoliomanager.Setup(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
+			if err != nil {
+				gctlog.Errorf(gctlog.Global, "portfolio manager unable to setup: %s", err)
+			} else {
+				err = bot.portfolioManager.Start(&bot.ServicesWG)
+				if err != nil {
+					gctlog.Errorf(gctlog.Global, "portfolio manager unable to start: %s", err)
+				}
+			}
+		}
+	}
+
 	if bot.Settings.EnableGRPCProxy &&
 		(bot.Settings.EnableDeprecatedRPC ||
 			bot.Settings.EnableWebsocketRPC) {
@@ -493,12 +505,7 @@ func (bot *Engine) Start() error {
 		if err != nil {
 			return err
 		}
-		bot.apiServer, err = apiserver.Setup(
-			&bot.Config.RemoteControl,
-			&bot.Config.Profiler,
-			bot.ExchangeManager,
-			bot,
-			filePath)
+		bot.apiServer, err = apiserver.Setup(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "API Server unable to start: %s", err)
 		} else {
@@ -512,23 +519,6 @@ func (bot *Engine) Start() error {
 				err = bot.apiServer.StartWebsocketServer()
 				if err != nil {
 					gctlog.Errorf(gctlog.Global, "could not start websocket API server: %s", err)
-				}
-			}
-		}
-	}
-
-	if bot.Settings.EnablePortfolioManager {
-		if bot.portfolioManager == nil {
-			bot.portfolioManager, err = portfoliomanager.Setup(&bot.Config.Portfolio,
-				bot.ExchangeManager,
-				bot.Settings.PortfolioManagerDelay,
-				bot.Settings.Verbose)
-			if err != nil {
-				gctlog.Errorf(gctlog.Global, "Fund manager unable to setup: %s", err)
-			} else {
-				err = bot.portfolioManager.Start(&bot.ServicesWG)
-				if err != nil {
-					gctlog.Errorf(gctlog.Global, "Fund manager unable to start: %s", err)
 				}
 			}
 		}
@@ -632,11 +622,11 @@ func (bot *Engine) Stop() {
 
 	gctlog.Debugln(gctlog.Global, "Engine shutting down..")
 
-	if len(portfolio.Portfolio.Addresses) != 0 {
-		bot.Config.Portfolio = portfolio.Portfolio
+	if len(bot.portfolioManager.GetAddresses()) != 0 {
+		bot.Config.Portfolio = *bot.portfolioManager.GetPortfolio()
 	}
 
-	if bot.GctScriptManager.Started() {
+	if bot.GctScriptManager.IsRunning() {
 		if err := bot.GctScriptManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to stop. Error: %v", err)
 		}

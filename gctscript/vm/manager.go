@@ -35,7 +35,7 @@ func NewManager(config *Config) (*GctScriptManager, error) {
 }
 
 // Started returns if gctscript manager subsystem is started
-func (g *GctScriptManager) Started() bool {
+func (g *GctScriptManager) IsRunning() bool {
 	if g == nil {
 		return false
 	}

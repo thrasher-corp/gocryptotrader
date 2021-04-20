@@ -644,10 +644,6 @@ func (b *Bitmex) GetDepositAddress(cryptocurrency currency.Code, _ string) (stri
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
-
 	var request = UserRequestWithdrawalParams{
 		Address:  withdrawRequest.Crypto.Address,
 		Amount:   withdrawRequest.Amount,

@@ -1171,9 +1171,7 @@ func (h *HUOBI) GetDepositAddress(cryptocurrency currency.Code, accountID string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (h *HUOBI) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
+
 	resp, err := h.Withdraw(withdrawRequest.Currency,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,

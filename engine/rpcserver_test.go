@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -91,6 +90,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 		Enabled: true,
 		Driver:  database.DBSQLite3,
 		ConnectionDetails: drivers.ConnectionDetails{
+			Host:     "localhost",
 			Database: databaseName,
 		},
 	}
@@ -101,11 +101,9 @@ func RPCTestSetup(t *testing.T) *Engine {
 		t.Fatalf("SetupTest: Failed to load config: %s", err)
 	}
 	engerino.ExchangeManager = exchangemanager.Setup()
-	if engerino.GetExchangeByName(testExchange) == nil {
-		err = engerino.LoadExchange(testExchange, false, nil)
-		if err != nil {
-			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
-		}
+	err = engerino.LoadExchange(testExchange, false, nil)
+	if err != nil {
+		log.Fatal(err)
 	}
 	engerino.Config.Database = dbConf
 	engerino.DatabaseManager, err = databaseconnection.Setup(&engerino.Config.Database)
@@ -147,9 +145,6 @@ func TestGetSavedTrades(t *testing.T) {
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
 	_, err := s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
-	if err == nil {
-		t.Fatal(unexpectedLackOfError)
-	}
 	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
@@ -164,10 +159,6 @@ func TestGetSavedTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	})
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
 	}
@@ -225,10 +216,6 @@ func TestConvertTradesToCandles(t *testing.T) {
 	s := RPCServer{Engine: engerino}
 	// bad param test
 	_, err := s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{})
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
@@ -246,10 +233,6 @@ func TestConvertTradesToCandles(t *testing.T) {
 		End:          time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
 	}
@@ -267,17 +250,13 @@ func TestConvertTradesToCandles(t *testing.T) {
 		End:          time.Date(2020, 2, 2, 2, 2, 2, 2, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
-	if err.Error() != "no trades returned from supplied params" {
-		t.Error(err)
+	if !errors.Is(err, errNoTrades) {
+		t.Errorf("received '%v' expected '%v'", err, errNoTrades)
 	}
 
 	// add a trade
 	err = sqltrade.Insert(sqltrade.Data{
-		Timestamp: time.Date(2020, 1, 1, 1, 1, 2, 1, time.UTC),
+		Timestamp: time.Date(2020, 1, 1, 1, 2, 2, 1, time.UTC),
 		Exchange:  testExchange,
 		Base:      currency.BTC.String(),
 		Quote:     currency.USD.String(),
@@ -287,8 +266,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		Side:      order.Buy.String(),
 	})
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	// get candle from one trade
@@ -302,7 +280,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		},
 		AssetType:    asset.Spot.String(),
 		Start:        time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 2, 2, 2, 2, 2, 2, time.UTC).Format(common.SimpleTimeFormat),
+		End:          time.Date(2020, 3, 2, 2, 2, 2, 2, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
 	if err != nil {
@@ -759,10 +737,6 @@ func TestGetRecentTrades(t *testing.T) {
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
 	_, err := s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
@@ -777,10 +751,6 @@ func TestGetRecentTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	})
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
 	}
@@ -803,10 +773,6 @@ func TestGetHistoricTrades(t *testing.T) {
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
 	err := s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{}, nil)
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
@@ -821,10 +787,6 @@ func TestGetHistoricTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	}, nil)
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
 	}
@@ -839,10 +801,6 @@ func TestGetHistoricTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	}, nil)
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
@@ -959,11 +917,8 @@ func TestGetOrders(t *testing.T) {
 		StartDate: time.Now().Format(common.SimpleTimeFormat),
 		EndDate:   time.Now().Add(time.Hour).Format(common.SimpleTimeFormat),
 	})
-	if err != nil && !strings.Contains(err.Error(), "not supported due to unset/default API keys") {
-		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expected error")
+	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
+		t.Errorf("received '%v', expected '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	exch := engerino.GetExchangeByName(exchName)
@@ -1063,8 +1018,8 @@ func TestGetOrder(t *testing.T) {
 		Pair:     p,
 		Asset:    asset.Spot.String(),
 	})
-	if err == nil {
-		t.Error("expected error")
+	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
+		t.Errorf("expected '%v' received '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 }
 

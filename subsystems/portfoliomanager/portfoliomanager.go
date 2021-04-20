@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
@@ -20,7 +21,6 @@ const Name = "portfolio"
 
 var (
 	PortfolioSleepDelay   = time.Minute
-	errNilBase            = errors.New("nil portfolio base received")
 	errNilExchangeManager = errors.New("nil exchange manager base received")
 	errNilWaitGroup       = errors.New("nil wait group received")
 )
@@ -31,28 +31,25 @@ type Manager struct {
 	portfolioManagerDelay time.Duration
 	exchangeManager       *exchangemanager.Manager
 	shutdown              chan struct{}
-	verbose               bool
 	base                  *portfolio.Base
 }
 
-func Setup(b *portfolio.Base, e *exchangemanager.Manager, portfolioManagerDelay time.Duration, verbose bool) (*Manager, error) {
-	if b == nil {
-		return nil, errNilBase
-	}
+func Setup(e *exchangemanager.Manager, portfolioManagerDelay time.Duration, cfg *portfolio.Base) (*Manager, error) {
 	if e == nil {
 		return nil, errNilExchangeManager
 	}
 	if portfolioManagerDelay <= 0 {
 		portfolioManagerDelay = PortfolioSleepDelay
 	}
+	if cfg == nil {
+		cfg = &portfolio.Base{Addresses: []portfolio.Address{}}
+	}
 	m := &Manager{
 		portfolioManagerDelay: portfolioManagerDelay,
 		exchangeManager:       e,
 		shutdown:              make(chan struct{}),
-		verbose:               verbose,
-		base:                  b,
+		base:                  cfg,
 	}
-	portfolio.Verbose = verbose
 	return m, nil
 }
 
@@ -76,7 +73,6 @@ func (m *Manager) Start(wg *sync.WaitGroup) error {
 
 	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", subsystems.MsgSubSystemStarting)
 	m.shutdown = make(chan struct{})
-	m.base.Seed(*m.base)
 	go m.run(wg)
 	return nil
 }
@@ -122,10 +118,9 @@ func (m *Manager) processPortfolio() {
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
 		return
 	}
-	pf := portfolio.GetPortfolio()
-	data := pf.GetPortfolioGroupedCoin()
+	data := m.base.GetPortfolioGroupedCoin()
 	for key, value := range data {
-		err := pf.UpdatePortfolio(value, key)
+		err := m.base.UpdatePortfolio(value, key)
 		if err != nil {
 			log.Errorf(log.PortfolioMgr,
 				"PortfolioWatcher error %s for currency %s\n",
@@ -150,7 +145,6 @@ func (m *Manager) seedExchangeAccountInfo(accounts []account.Holdings) {
 	if len(accounts) == 0 {
 		return
 	}
-	port := portfolio.GetPortfolio()
 	for x := range accounts {
 		exchangeName := accounts[x].Exchange
 		var currencies []account.Balance
@@ -181,7 +175,7 @@ func (m *Manager) seedExchangeAccountInfo(accounts []account.Holdings) {
 			currencyName := currencies[x].CurrencyName
 			total := currencies[x].TotalValue
 
-			if !port.ExchangeAddressExists(exchangeName, currencyName) {
+			if !m.base.ExchangeAddressExists(exchangeName, currencyName) {
 				if total <= 0 {
 					continue
 				}
@@ -190,23 +184,23 @@ func (m *Manager) seedExchangeAccountInfo(accounts []account.Holdings) {
 					exchangeName,
 					currencyName,
 					total,
-					portfolio.PortfolioAddressExchange)
+					portfolio.ExchangeAddress)
 
-				port.Addresses = append(
-					port.Addresses,
+				m.base.Addresses = append(
+					m.base.Addresses,
 					portfolio.Address{Address: exchangeName,
 						CoinType:    currencyName,
 						Balance:     total,
-						Description: portfolio.PortfolioAddressExchange})
+						Description: portfolio.ExchangeAddress})
 			} else {
 				if total <= 0 {
 					log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry.\n",
 						exchangeName,
 						currencyName)
-					port.RemoveExchangeAddress(exchangeName, currencyName)
+					m.base.RemoveExchangeAddress(exchangeName, currencyName)
 				} else {
-					balance, ok := port.GetAddressBalance(exchangeName,
-						portfolio.PortfolioAddressExchange,
+					balance, ok := m.base.GetAddressBalance(exchangeName,
+						portfolio.ExchangeAddress,
 						currencyName)
 					if !ok {
 						continue
@@ -217,7 +211,7 @@ func (m *Manager) seedExchangeAccountInfo(accounts []account.Holdings) {
 							exchangeName,
 							currencyName,
 							total)
-						port.UpdateExchangeAddressBalance(exchangeName,
+						m.base.UpdateExchangeAddressBalance(exchangeName,
 							currencyName,
 							total)
 					}
@@ -235,7 +229,7 @@ func (m *Manager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []ac
 			continue
 		}
 		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-			if m.verbose {
+			if m.base.Verbose {
 				log.Debugf(log.ExchangeSys,
 					"GetAllEnabledExchangeAccountInfo: Skipping %s due to disabled authenticated API support.\n",
 					exchanges[x].GetName())
@@ -262,4 +256,59 @@ func (m *Manager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []ac
 		response = append(response, exchangeHoldings)
 	}
 	return response
+}
+
+func (m *Manager) AddAddress(address, description string, coinType currency.Code, balance float64) error {
+	if m == nil {
+		return fmt.Errorf("portfolio manager %w", subsystems.ErrNilSubsystem)
+	}
+	if !m.IsRunning() {
+		return fmt.Errorf("portfolio manager %w", subsystems.ErrSubSystemNotStarted)
+	}
+	return m.base.AddAddress(address, description, coinType, balance)
+}
+
+func (m *Manager) RemoveAddress(address, description string, coinType currency.Code) error {
+	if m == nil {
+		return fmt.Errorf("portfolio manager %w", subsystems.ErrNilSubsystem)
+	}
+	if !m.IsRunning() {
+		return fmt.Errorf("portfolio manager %w", subsystems.ErrSubSystemNotStarted)
+	}
+	return m.base.RemoveAddress(address, description, coinType)
+}
+
+func (m *Manager) GetPortfolioSummary() portfolio.Summary {
+	if m == nil || !m.IsRunning() {
+		return portfolio.Summary{}
+	}
+	return m.base.GetPortfolioSummary()
+}
+
+func (m *Manager) GetAddresses() []portfolio.Address {
+	if m == nil || !m.IsRunning() {
+		return nil
+	}
+	return m.base.Addresses
+}
+
+func (m *Manager) GetPortfolio() *portfolio.Base {
+	if m == nil || !m.IsRunning() {
+		return nil
+	}
+	return m.base
+}
+
+func (m *Manager) IsWhiteListed(address string) bool {
+	if m == nil || !m.IsRunning() {
+		return false
+	}
+	return m.base.IsWhiteListed(address)
+}
+
+func (m *Manager) IsExchangeSupported(exchange, address string) bool {
+	if m == nil || !m.IsRunning() {
+		return false
+	}
+	return m.base.IsExchangeSupported(exchange, address)
 }

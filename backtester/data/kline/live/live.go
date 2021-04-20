@@ -58,7 +58,7 @@ func LoadData(exch exchange.IBotExchange, dataType int64, interval time.Duration
 			}
 		}
 	default:
-		return nil, fmt.Errorf("could not retrieve live data for %v %v %v, invalid data type received", exch.GetName(), a, fPair)
+		return nil, fmt.Errorf("could not retrieve live data for %v %v %v, %w", exch.GetName(), a, fPair, common.ErrInvalidDataType)
 	}
 	candles.Exchange = strings.ToLower(exch.GetName())
 	return &candles, nil

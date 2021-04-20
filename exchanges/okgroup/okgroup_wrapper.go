@@ -434,10 +434,6 @@ func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (string, 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
-
 	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
 		Amount:      withdrawRequest.Amount,
 		Currency:    withdrawRequest.Currency.Lower().String(),

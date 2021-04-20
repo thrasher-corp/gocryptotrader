@@ -84,6 +84,7 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	botOne.Settings.EnableGRPCProxy = false
 	if err = botOne.Start(); err != nil {
 		t.Error(err)
 	}
@@ -127,11 +128,9 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	botOne.Settings.EnableGRPCProxy = false
 
 	botTwo, err := NewFromSettings(&Settings{
-		ConfigFile:          config.TestFile,
-		EnableDryRun:        true,
-		DataDir:             tempDir2,
-		EnableWebsocketRPC:  false,
-		EnableDeprecatedRPC: false,
+		ConfigFile:   config.TestFile,
+		EnableDryRun: true,
+		DataDir:      tempDir2,
 	}, nil)
 	if err != nil {
 		t.Error(err)

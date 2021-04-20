@@ -44,7 +44,7 @@ func LoadData(dataType int64, startDate, endDate time.Time, interval time.Durati
 			return nil, fmt.Errorf("could not convert trade data to candles for %v %v %v, %v", exch.GetName(), a, fPair, err)
 		}
 	default:
-		return nil, fmt.Errorf("could not retrieve data for %v %v %v, invalid data type received", exch.GetName(), a, fPair)
+		return nil, fmt.Errorf("could not retrieve data for %v %v %v, %w", exch.GetName(), a, fPair, common.ErrInvalidDataType)
 	}
 	candles.Exchange = strings.ToLower(candles.Exchange)
 

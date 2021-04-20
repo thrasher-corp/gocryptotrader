@@ -648,9 +648,7 @@ func (c *CoinbasePro) GetDepositAddress(cryptocurrency currency.Code, accountID 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (c *CoinbasePro) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
+
 	resp, err := c.WithdrawCrypto(withdrawRequest.Amount, withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address)
 	if err != nil {
 		return nil, err
@@ -663,9 +661,7 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Requ
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
+
 	paymentMethods, err := c.GetPayMethods()
 	if err != nil {
 		return nil, err
@@ -695,9 +691,7 @@ func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*wit
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
+
 	v, err := c.WithdrawFiatFunds(withdrawRequest)
 	if err != nil {
 		return nil, err

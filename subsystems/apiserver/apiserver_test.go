@@ -19,33 +19,33 @@ import (
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
-	_, err := Setup(nil, nil, nil, nil, "")
+	_, err := Setup(nil, nil, nil, nil, nil, "")
 	if !errors.Is(err, errNilRemoteConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilRemoteConfig)
 	}
 
-	_, err = Setup(&config.RemoteControlConfig{}, nil, nil, nil, "")
+	_, err = Setup(&config.RemoteControlConfig{}, nil, nil, nil, nil, "")
 	if !errors.Is(err, errNilPProfConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilPProfConfig)
 	}
 
-	_, err = Setup(&config.RemoteControlConfig{}, &config.Profiler{}, nil, nil, "")
+	_, err = Setup(&config.RemoteControlConfig{}, &config.Profiler{}, nil, nil, nil, "")
 	if !errors.Is(err, errNilExchangeManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
 
-	_, err = Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, nil, "")
+	_, err = Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, nil, nil, "")
 	if !errors.Is(err, errNilBot) {
 		t.Errorf("error '%v', expected '%v'", err, errNilBot)
 	}
 
-	_, err = Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, "")
+	_, err = Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, nil, "")
 	if !errors.Is(err, errEmptyConfigPath) {
 		t.Errorf("error '%v', expected '%v'", err, errEmptyConfigPath)
 	}
 
 	wd, _ := os.Getwd()
-	_, err = Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, wd)
+	_, err = Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, nil, wd)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -54,7 +54,7 @@ func TestSetup(t *testing.T) {
 func TestStartRESTServer(t *testing.T) {
 	t.Parallel()
 	wd, _ := os.Getwd()
-	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, wd)
+	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, nil, wd)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -77,7 +77,7 @@ func TestStartRESTServer(t *testing.T) {
 func TestStartWebsocketServer(t *testing.T) {
 	t.Parallel()
 	wd, _ := os.Getwd()
-	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, wd)
+	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, nil, wd)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -105,7 +105,7 @@ func TestStartWebsocketServer(t *testing.T) {
 func TestStop(t *testing.T) {
 	t.Parallel()
 	wd, _ := os.Getwd()
-	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, wd)
+	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, nil, wd)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

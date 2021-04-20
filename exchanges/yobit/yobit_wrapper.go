@@ -497,10 +497,6 @@ func (y *Yobit) GetDepositAddress(cryptocurrency currency.Code, _ string) (strin
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (y *Yobit) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
-
 	resp, err := y.WithdrawCoinsToAddress(withdrawRequest.Currency.String(),
 		withdrawRequest.Amount,
 		withdrawRequest.Crypto.Address)

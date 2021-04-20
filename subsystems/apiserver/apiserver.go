@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
-func Setup(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager iExchangeManager, bot iBot, configPath string) (*Manager, error) {
+func Setup(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager iExchangeManager, bot iBot, portfolioManager iPortfolioManager, configPath string) (*Manager, error) {
 	if remoteConfig == nil {
 		return nil, errNilRemoteConfig
 	}
@@ -41,6 +41,7 @@ func Setup(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profile
 		exchangeManager:        exchangeManager,
 		bot:                    bot,
 		gctConfigPath:          configPath,
+		portfolioManager:       portfolioManager,
 	}, nil
 }
 

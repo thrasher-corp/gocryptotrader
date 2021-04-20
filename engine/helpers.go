@@ -59,7 +59,7 @@ func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 	systems[currencypairsyncer.Name] = bot.Settings.EnableExchangeSyncManager
 	systems[grpcName] = bot.Settings.EnableGRPC
 	systems[grpcProxyName] = bot.Settings.EnableGRPCProxy
-	systems[vm.Name] = bot.GctScriptManager.Started()
+	systems[vm.Name] = bot.GctScriptManager.IsRunning()
 	systems[apiserver.DeprecatedName] = bot.Settings.EnableDeprecatedRPC
 	systems[apiserver.WebsocketName] = bot.Settings.EnableWebsocketRPC
 	systems[dispatch.Name] = dispatch.IsRunning()
@@ -136,10 +136,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case portfoliomanager.Name:
 		if enable {
 			if bot.portfolioManager == nil {
-				bot.portfolioManager, err = portfoliomanager.Setup(&bot.Config.Portfolio,
-					bot.ExchangeManager,
-					bot.Settings.PortfolioManagerDelay,
-					bot.Settings.Verbose)
+				bot.portfolioManager, err = portfoliomanager.Setup(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
 				if err != nil {
 					return err
 				}

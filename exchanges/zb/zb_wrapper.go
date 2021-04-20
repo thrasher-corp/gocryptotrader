@@ -625,10 +625,6 @@ func (z *ZB) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
-
 	v, err := z.Withdraw(withdrawRequest.Currency.Lower().String(),
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.TradePassword,

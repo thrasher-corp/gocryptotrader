@@ -641,10 +641,6 @@ func (h *HitBTC) GetDepositAddress(currency currency.Code, _ string) (string, er
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (h *HitBTC) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
-
 	v, err := h.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, withdrawRequest.Amount)
 	if err != nil {
 		return nil, err

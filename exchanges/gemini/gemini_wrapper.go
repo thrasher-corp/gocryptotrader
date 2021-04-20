@@ -610,10 +610,6 @@ func (g *Gemini) GetDepositAddress(cryptocurrency currency.Code, _ string) (stri
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (g *Gemini) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
-
 	resp, err := g.WithdrawCrypto(withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(), withdrawRequest.Amount)
 	if err != nil {
 		return nil, err

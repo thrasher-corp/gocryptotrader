@@ -112,21 +112,22 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	err := portfolio.Portfolio.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)
+	var p portfolio.Base
+	err := p.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)
 	if err != nil {
 		fmt.Printf("failed to add portfolio address with reason: %v, unable to continue tests", err)
 		os.Exit(0)
 	}
-	portfolio.Portfolio.Addresses[0].WhiteListed = true
-	portfolio.Portfolio.Addresses[0].ColdStorage = true
-	portfolio.Portfolio.Addresses[0].SupportedExchanges = "BTC Markets,Binance"
+	p.Addresses[0].WhiteListed = true
+	p.Addresses[0].ColdStorage = true
+	p.Addresses[0].SupportedExchanges = "BTC Markets,Binance"
 
-	err = portfolio.Portfolio.AddAddress(testBTCAddress, "test", currency.BTC, 1500)
+	err = p.AddAddress(testBTCAddress, "test", currency.BTC, 1500)
 	if err != nil {
 		fmt.Printf("failed to add portfolio address with reason: %v, unable to continue tests", err)
 		os.Exit(0)
 	}
-	portfolio.Portfolio.Addresses[1].SupportedExchanges = "BTC Markets,Binance"
+	p.Addresses[1].SupportedExchanges = "BTC Markets,Binance"
 
 	banking.Accounts = append(banking.Accounts,
 		banking.Account{
@@ -286,9 +287,7 @@ func TestValidateCrypto(t *testing.T) {
 		{
 			"Invalid-Nil",
 			invalidCryptoNilRequest,
-			errors.New(ErrStrAddressNotWhiteListed + ", " +
-				ErrStrExchangeNotSupportedByAddress + ", " +
-				ErrStrAddressNotSet),
+			errors.New(ErrStrAddressNotSet),
 		},
 		{
 			"NoRequest",
@@ -304,14 +303,8 @@ func TestValidateCrypto(t *testing.T) {
 		{
 			"NoAddress",
 			invalidCryptoNoAddressRequest,
-			errors.New(ErrStrAddressNotWhiteListed + ", " +
-				ErrStrExchangeNotSupportedByAddress + ", " +
+			errors.New(
 				ErrStrAddressNotSet),
-		},
-		{
-			"NonWhiteListed",
-			invalidCryptoNonWhiteListedAddressRequest,
-			errors.New(ErrStrAddressNotWhiteListed),
 		},
 		{
 			"NegativeFee",

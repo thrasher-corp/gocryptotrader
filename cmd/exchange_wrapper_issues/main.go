@@ -731,10 +731,15 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			},
 			Amount: config.OrderSubmission.Amount,
 		}
-		withdrawCryptocurrencyFundsResponse, err := e.WithdrawCryptocurrencyFunds(&withdrawRequest)
 		msg = ""
+		err = withdrawRequest.Validate()
 		if err != nil {
 			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		withdrawCryptocurrencyFundsResponse, err := e.WithdrawCryptocurrencyFunds(&withdrawRequest)
+		if err != nil {
+			msg += ", " + err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{

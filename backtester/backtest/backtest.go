@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
 
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
@@ -286,7 +287,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		sellRule.Validate()
 
 		limits, err := exch.GetOrderExecutionLimits(a, pair)
-		if err != nil {
+		if !errors.Is(err, gctorder.ErrExchangeLimitNotLoaded) {
 			return resp, err
 		}
 

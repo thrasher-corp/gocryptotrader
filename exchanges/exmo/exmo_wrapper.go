@@ -535,10 +535,6 @@ func (e *EXMO) GetDepositAddress(cryptocurrency currency.Code, _ string) (string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (e *EXMO) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
-
 	resp, err := e.WithdrawCryptocurrency(withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,

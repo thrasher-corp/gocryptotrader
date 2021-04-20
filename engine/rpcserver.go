@@ -68,6 +68,7 @@ var (
 	errDispatchSystem       = errors.New("dispatch system offline")
 	errCurrencyNotEnabled   = errors.New("currency not enabled")
 	errCurrencyPairInvalid  = errors.New("currency provided is not found in the available pairs list")
+	errNoTrades             = errors.New("no trades returned from supplied params")
 )
 
 // RPCServer struct
@@ -626,8 +627,7 @@ func (s *RPCServer) GetConfig(_ context.Context, _ *gctrpc.GetConfigRequest) (*g
 // GetPortfolio returns the portfoliomanager details
 func (s *RPCServer) GetPortfolio(_ context.Context, _ *gctrpc.GetPortfolioRequest) (*gctrpc.GetPortfolioResponse, error) {
 	var addrs []*gctrpc.PortfolioAddress
-	botAddrs := s.portfolio.Addresses
-
+	botAddrs := s.portfolioManager.GetAddresses()
 	for x := range botAddrs {
 		addrs = append(addrs, &gctrpc.PortfolioAddress{
 			Address:     botAddrs[x].Address,
@@ -646,7 +646,7 @@ func (s *RPCServer) GetPortfolio(_ context.Context, _ *gctrpc.GetPortfolioReques
 
 // GetPortfolioSummary returns the portfoliomanager summary
 func (s *RPCServer) GetPortfolioSummary(_ context.Context, _ *gctrpc.GetPortfolioSummaryRequest) (*gctrpc.GetPortfolioSummaryResponse, error) {
-	result := s.portfolio.GetPortfolioSummary()
+	result := s.portfolioManager.GetPortfolioSummary()
 	var resp gctrpc.GetPortfolioSummaryResponse
 
 	p := func(coins []portfolio.Coin) []*gctrpc.Coin {
@@ -702,7 +702,7 @@ func (s *RPCServer) GetPortfolioSummary(_ context.Context, _ *gctrpc.GetPortfoli
 
 // AddPortfolioAddress adds an address to the portfoliomanager manager
 func (s *RPCServer) AddPortfolioAddress(_ context.Context, r *gctrpc.AddPortfolioAddressRequest) (*gctrpc.GenericResponse, error) {
-	err := s.portfolio.AddAddress(r.Address,
+	err := s.portfolioManager.AddAddress(r.Address,
 		r.Description,
 		currency.NewCode(r.CoinType),
 		r.Balance)
@@ -714,7 +714,7 @@ func (s *RPCServer) AddPortfolioAddress(_ context.Context, r *gctrpc.AddPortfoli
 
 // RemovePortfolioAddress removes an address from the portfoliomanager manager
 func (s *RPCServer) RemovePortfolioAddress(_ context.Context, r *gctrpc.RemovePortfolioAddressRequest) (*gctrpc.GenericResponse, error) {
-	err := s.portfolio.RemoveAddress(r.Address,
+	err := s.portfolioManager.RemoveAddress(r.Address,
 		r.Description,
 		currency.NewCode(r.CoinType))
 	if err != nil {
@@ -2065,7 +2065,7 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 
 // GCTScriptStatus returns a slice of current running scripts that includes next run time and uuid
 func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatusRequest) (*gctrpc.GCTScriptStatusResponse, error) {
-	if !s.GctScriptManager.Started() {
+	if !s.GctScriptManager.IsRunning() {
 		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -2093,7 +2093,7 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatus
 
 // GCTScriptQuery queries a running script and returns script running information
 func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRequest) (*gctrpc.GCTScriptQueryResponse, error) {
-	if !s.GctScriptManager.Started() {
+	if !s.GctScriptManager.IsRunning() {
 		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -2124,7 +2124,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 
 // GCTScriptExecute execute a script
 func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GenericResponse, error) {
-	if !s.GctScriptManager.Started() {
+	if !s.GctScriptManager.IsRunning() {
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -2156,7 +2156,7 @@ func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecu
 
 // GCTScriptStop terminate a running script
 func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GenericResponse, error) {
-	if !s.GctScriptManager.Started() {
+	if !s.GctScriptManager.IsRunning() {
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -2178,7 +2178,7 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 
 // GCTScriptUpload upload a new script to ScriptPath
 func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GenericResponse, error) {
-	if !s.GctScriptManager.Started() {
+	if !s.GctScriptManager.IsRunning() {
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -2269,7 +2269,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 
 // GCTScriptReadScript read a script and return contents
 func (s *RPCServer) GCTScriptReadScript(_ context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptQueryResponse, error) {
-	if !s.GctScriptManager.Started() {
+	if !s.GctScriptManager.IsRunning() {
 		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -2294,7 +2294,7 @@ func (s *RPCServer) GCTScriptReadScript(_ context.Context, r *gctrpc.GCTScriptRe
 
 // GCTScriptListAll lists all scripts inside the default script path
 func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRequest) (*gctrpc.GCTScriptStatusResponse, error) {
-	if !s.GctScriptManager.Started() {
+	if !s.GctScriptManager.IsRunning() {
 		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -2320,7 +2320,7 @@ func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRe
 
 // GCTScriptStopAll stops all running scripts
 func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRequest) (*gctrpc.GenericResponse, error) {
-	if !s.GctScriptManager.Started() {
+	if !s.GctScriptManager.IsRunning() {
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -2337,7 +2337,7 @@ func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRe
 
 // GCTScriptAutoLoadToggle adds or removes an entry to the autoload list
 func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScriptAutoLoadRequest) (*gctrpc.GenericResponse, error) {
-	if !s.GctScriptManager.Started() {
+	if !s.GctScriptManager.IsRunning() {
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -2712,7 +2712,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 		return nil, err
 	}
 	if len(trades) == 0 {
-		return nil, fmt.Errorf("no trades returned from supplied params")
+		return nil, errNoTrades
 	}
 	interval := kline.Interval(r.TimeInterval)
 	var klineItem kline.Item

@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
 // StartWebsocketServer starts a Websocket handler
@@ -270,15 +269,16 @@ func (m *Manager) WebsocketClientHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	client := &WebsocketClient{
-		Hub:             wsHub,
-		Conn:            conn,
-		Send:            make(chan []byte, 1024),
-		maxAuthFailures: m.remoteConfig.WebsocketRPC.MaxAuthFailures,
-		username:        m.remoteConfig.Username,
-		password:        m.remoteConfig.Password,
-		bot:             m.bot,
-		configPath:      m.gctConfigPath,
-		exchangeManager: m.exchangeManager,
+		Hub:              wsHub,
+		Conn:             conn,
+		Send:             make(chan []byte, 1024),
+		maxAuthFailures:  m.remoteConfig.WebsocketRPC.MaxAuthFailures,
+		username:         m.remoteConfig.Username,
+		password:         m.remoteConfig.Password,
+		configPath:       m.gctConfigPath,
+		exchangeManager:  m.exchangeManager,
+		bot:              m.bot,
+		portfolioManager: m.portfolioManager,
 	}
 
 	client.Hub.Register <- client
@@ -520,6 +520,6 @@ func wsGetPortfolio(client *WebsocketClient, data interface{}) error {
 		Event: "GetPortfolio",
 	}
 
-	wsResp.Data = portfolio.Portfolio.GetPortfolioSummary()
+	wsResp.Data = client.portfolioManager.GetPortfolioSummary()
 	return client.SendWebsocketMessage(wsResp)
 }

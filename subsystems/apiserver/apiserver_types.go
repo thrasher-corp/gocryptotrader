@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
 // Const vars for websocket
@@ -46,6 +47,10 @@ type iBot interface {
 	SetupExchanges() error
 }
 
+type iPortfolioManager interface {
+	GetPortfolioSummary() portfolio.Summary
+}
+
 // Manager holds all relevant fields to manage both REST and websocket
 // api servers
 type Manager struct {
@@ -62,25 +67,27 @@ type Manager struct {
 	websocketRouter *mux.Router
 	websocketHub    *WebsocketHub
 
-	remoteConfig    *config.RemoteControlConfig
-	pprofConfig     *config.Profiler
-	exchangeManager iExchangeManager
-	bot             iBot
+	remoteConfig     *config.RemoteControlConfig
+	pprofConfig      *config.Profiler
+	exchangeManager  iExchangeManager
+	bot              iBot
+	portfolioManager iPortfolioManager
 }
 
 // WebsocketClient stores information related to the websocket client
 type WebsocketClient struct {
-	Hub             *WebsocketHub
-	Conn            *websocket.Conn
-	Authenticated   bool
-	authFailures    int
-	Send            chan []byte
-	username        string
-	password        string
-	maxAuthFailures int
-	exchangeManager iExchangeManager
-	bot             iBot
-	configPath      string
+	Hub              *WebsocketHub
+	Conn             *websocket.Conn
+	Authenticated    bool
+	authFailures     int
+	Send             chan []byte
+	username         string
+	password         string
+	maxAuthFailures  int
+	exchangeManager  iExchangeManager
+	bot              iBot
+	portfolioManager iPortfolioManager
+	configPath       string
 }
 
 // WebsocketHub stores the data for managing websocket clients

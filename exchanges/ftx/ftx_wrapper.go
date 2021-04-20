@@ -746,10 +746,6 @@ func (f *FTX) GetDepositAddress(cryptocurrency currency.Code, _ string) (string,
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (f *FTX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
-
 	resp, err := f.Withdraw(withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,

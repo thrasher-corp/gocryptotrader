@@ -505,10 +505,6 @@ func (l *LakeBTC) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
-
 	if withdrawRequest.Currency != currency.BTC {
 		return nil, errors.New("only BTC supported for withdrawals")
 	}

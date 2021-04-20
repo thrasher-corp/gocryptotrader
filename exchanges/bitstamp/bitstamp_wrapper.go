@@ -539,10 +539,6 @@ func (b *Bitstamp) GetDepositAddress(cryptocurrency currency.Code, _ string) (st
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
-
 	resp, err := b.CryptoWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Currency.String(),
@@ -567,10 +563,6 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
-
 	resp, err := b.OpenBankWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Fiat.Bank.AccountName,
@@ -602,10 +594,6 @@ func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdr
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
-	}
-
 	resp, err := b.OpenInternationalBankWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Fiat.Bank.AccountName,

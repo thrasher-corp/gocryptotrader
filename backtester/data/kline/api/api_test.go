@@ -1,10 +1,10 @@
 package api
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -64,8 +64,8 @@ func TestLoadCandles(t *testing.T) {
 	}
 
 	_, err = LoadData(-1, tt1, tt2, interval.Duration(), exch, p, a)
-	if err != nil && !strings.Contains(err.Error(), "could not retrieve data for Binance spot BTCUSDT, invalid data type received") {
-		t.Error(err)
+	if !errors.Is(err, common.ErrInvalidDataType) {
+		t.Errorf("expected '%v' received '%v'", err, common.ErrInvalidDataType)
 	}
 }
 

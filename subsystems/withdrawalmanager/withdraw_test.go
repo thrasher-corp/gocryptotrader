@@ -2,15 +2,21 @@ package withdrawalmanager
 
 import (
 	"errors"
+	"log"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
 )
 
 const (
@@ -19,18 +25,29 @@ const (
 )
 
 var em *exchangemanager.Manager
+var pm *portfoliomanager.Manager
 
 func TestMain(m *testing.M) {
 	em = exchangemanager.Setup()
 	b := new(binance.Binance)
 	b.SetDefaults()
 	em.Add(b)
+	var err error
+	pm, err = portfoliomanager.Setup(em, 0, &portfolio.Base{Addresses: []portfolio.Address{}})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	var wg sync.WaitGroup
+	err = pm.Start(&wg)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	os.Exit(m.Run())
 }
 
 func TestSubmitWithdrawal(t *testing.T) {
 	t.Parallel()
-	m, err := Setup(em, false)
+	m, err := Setup(em, pm, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,21 +79,38 @@ func TestSubmitWithdrawal(t *testing.T) {
 		Currency:    currency.AUD,
 		Description: exchangeName,
 		Amount:      1.0,
-		Type:        1,
+		Type:        withdraw.Fiat,
 		Fiat: withdraw.FiatRequest{
 			Bank: *bank,
 		},
 	}
 	_, err = m.SubmitWithdrawal(req)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Errorf("received %v, expected %v", err, common.ErrFunctionNotSupported)
 	}
 
 	req.Type = withdraw.Crypto
 	req.Currency = currency.BTC
+	req.Crypto.Address = "1337"
 	_, err = m.SubmitWithdrawal(req)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
+	if !errors.Is(err, withdraw.ErrStrAddressNotWhiteListed) {
+		t.Errorf("received %v, expected %v", err, withdraw.ErrStrAddressNotWhiteListed)
+	}
+	err = pm.AddAddress("1337", "", req.Currency, 1337)
+	if err != nil {
+		t.Error(err)
+	}
+	adds := pm.GetAddresses()
+	adds[0].WhiteListed = true
+	_, err = m.SubmitWithdrawal(req)
+	if !errors.Is(err, withdraw.ErrStrExchangeNotSupportedByAddress) {
+		t.Errorf("received %v, expected %v", err, withdraw.ErrStrExchangeNotSupportedByAddress)
+	}
+
+	adds[0].SupportedExchanges = exchangeName
+	_, err = m.SubmitWithdrawal(req)
+	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
+		t.Errorf("received %v, expected %v", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	_, err = m.SubmitWithdrawal(nil)
@@ -93,7 +127,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 
 func TestWithdrawEventByID(t *testing.T) {
 	t.Parallel()
-	m, err := Setup(em, false)
+	m, err := Setup(em, pm, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +151,7 @@ func TestWithdrawEventByID(t *testing.T) {
 
 func TestWithdrawalEventByExchange(t *testing.T) {
 	t.Parallel()
-	m, err := Setup(em, false)
+	m, err := Setup(em, pm, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +163,7 @@ func TestWithdrawalEventByExchange(t *testing.T) {
 
 func TestWithdrawEventByDate(t *testing.T) {
 	t.Parallel()
-	m, err := Setup(em, false)
+	m, err := Setup(em, pm, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +175,7 @@ func TestWithdrawEventByDate(t *testing.T) {
 
 func TestWithdrawalEventByExchangeID(t *testing.T) {
 	t.Parallel()
-	m, err := Setup(em, false)
+	m, err := Setup(em, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
