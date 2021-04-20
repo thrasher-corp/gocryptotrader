@@ -603,7 +603,7 @@ func TestStartPortfolioWatcher(t *testing.T) {
 	}
 
 	if !newBase.AddressExists("LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1") {
-		t.Error("address does nto exist")
+		t.Error("address does not exist")
 	}
 
 	go newBase.StartPortfolioWatcher()

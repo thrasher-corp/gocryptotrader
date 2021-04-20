@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -21,6 +20,7 @@ import (
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer"
 )
 
 func main() {

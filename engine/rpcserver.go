@@ -14,22 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-
-	"github.com/thrasher-corp/gocryptotrader/subsystems/eventmanager"
-
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"google.golang.org/grpc/metadata"
-
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/ptypes"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/common/file/archive"
 	"github.com/thrasher-corp/gocryptotrader/common/timeperiods"
@@ -53,7 +43,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/eventmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 	"github.com/thrasher-corp/gocryptotrader/utils"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -466,7 +462,6 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 // GetOrderbooks returns a list of orderbooks for all enabled exchanges and all
 // enabled currency pairs
 func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequest) (*gctrpc.GetOrderbooksResponse, error) {
-
 	return nil, nil
 }
 

@@ -19,14 +19,13 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer func(path string) {
-		err := os.RemoveAll(path)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}(tmp)
 	database.DB.DataPath = tmp
-	os.Exit(m.Run())
+	code := m.Run()
+	err = os.RemoveAll(tmp)
+	if err != nil {
+		log.Fatal(err)
+	}
+	os.Exit(code)
 }
 
 func TestSetup(t *testing.T) {

@@ -8,11 +8,6 @@ import (
 	"strings"
 	"time"
 
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
-
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -45,8 +40,11 @@ import (
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
 )
 
 // New returns a new BackTest instance

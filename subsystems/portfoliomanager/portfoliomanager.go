@@ -10,11 +10,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 const Name = "portfolio"

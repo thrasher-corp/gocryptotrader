@@ -98,10 +98,8 @@ func (m *Manager) executeEvent(i int) {
 			log.Infoln(log.EventMgr, msg)
 			m.comms.PushEvent(base.Event{Type: "event", Message: msg})
 			m.events[i].Executed = true
-		} else {
-			if m.verbose {
-				log.Debugf(log.EventMgr, "%v", err)
-			}
+		} else if m.verbose {
+			log.Debugf(log.EventMgr, "%v", err)
 		}
 	}
 }

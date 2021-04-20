@@ -2,6 +2,7 @@ package eventmanager
 
 import (
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -264,65 +265,63 @@ func TestCheckEventCondition(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errNilEvent)
 	}
 	m.m.Unlock()
-	/*
 
-			action := ActionSMSNotify + "," + ActionTest
-		cond := EventConditionParams{
-			Condition:       ConditionGreaterThan,
-			Price:           1337,
-			OrderbookAmount: 1337,
-		}
-		exch, err := em.NewExchangeByName(testExchange)
-		if err != nil {
-			t.Error(err)
-		}
-		exch.SetDefaults()
-		em.Add(exch)
-			_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USD), asset.Spot, action)
-			if !errors.Is(err, nil) {
-				t.Errorf("error '%v', expected '%v'", err, nil)
-			}
-			m.m.Lock()
-			err = m.checkEventCondition(&m.events[0])
-			if err != nil && !strings.Contains(err.Error(), "no tickers for") {
-				t.Error(err)
-			} else if err == nil {
-				t.Error("expected error")
-			}
-			m.m.Unlock()
-			_, err = exch.FetchTicker(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
-			if !errors.Is(err, nil) {
-				t.Errorf("error '%v', expected '%v'", err, nil)
-			}
-			m.m.Lock()
-			err = m.checkEventCondition(&m.events[0])
-			if !errors.Is(err, nil) {
-				t.Errorf("error '%v', expected '%v'", err, nil)
-			}
-			m.m.Unlock()
+	action := ActionSMSNotify + "," + ActionTest
+	cond := EventConditionParams{
+		Condition:       ConditionGreaterThan,
+		Price:           1337,
+		OrderbookAmount: 1337,
+	}
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Error(err)
+	}
+	exch.SetDefaults()
+	em.Add(exch)
+	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USD), asset.Spot, action)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	m.m.Lock()
+	err = m.checkEventCondition(&m.events[0])
+	if err != nil && !strings.Contains(err.Error(), "no tickers for") {
+		t.Error(err)
+	} else if err == nil {
+		t.Error("expected error")
+	}
+	m.m.Unlock()
+	_, err = exch.FetchTicker(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	m.m.Lock()
+	err = m.checkEventCondition(&m.events[0])
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	m.m.Unlock()
 
-			m.events[0].Item = ItemOrderbook
-			m.events[0].Executed = false
-			m.events[0].Condition.CheckBidsAndAsks = true
-			m.m.Lock()
-			err = m.checkEventCondition(&m.events[0])
-			if err != nil && !strings.Contains(err.Error(), "no orderbooks for") {
-				t.Error(err)
-			} else if err == nil {
-				t.Error("expected error")
-			}
-			m.m.Unlock()
+	m.events[0].Item = ItemOrderbook
+	m.events[0].Executed = false
+	m.events[0].Condition.CheckBidsAndAsks = true
+	m.m.Lock()
+	err = m.checkEventCondition(&m.events[0])
+	if err != nil && !strings.Contains(err.Error(), "no orderbooks for") {
+		t.Error(err)
+	} else if err == nil {
+		t.Error("expected error")
+	}
+	m.m.Unlock()
 
-			_, err = exch.FetchOrderbook(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
-			if !errors.Is(err, nil) {
-				t.Errorf("error '%v', expected '%v'", err, nil)
-			}
-			m.m.Lock()
-			err = m.checkEventCondition(&m.events[0])
-			if !errors.Is(err, nil) {
-				t.Errorf("error '%v', expected '%v'", err, nil)
-			}
-			m.m.Unlock()
+	_, err = exch.FetchOrderbook(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	m.m.Lock()
+	err = m.checkEventCondition(&m.events[0])
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	m.m.Unlock()
 
-	*/
 }
