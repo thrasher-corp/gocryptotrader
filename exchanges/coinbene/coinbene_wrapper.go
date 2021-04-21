@@ -267,10 +267,13 @@ func (c *Coinbene) FetchTradablePairs(a asset.Item) ([]string, error) {
 			return nil, err
 		}
 		for t := range tickers {
+			// Coinbene doesn't support a delimiter, so we need to index USD/USDT first
 			idx := strings.Index(t, currency.USDT.String())
-			if idx == 0 {
-				return nil,
-					fmt.Errorf("%s SWAP currency does not contain USDT", c.Name)
+			if idx == -1 {
+				if idx = strings.Index(t, currency.USD.String()); idx == -1 {
+					return nil,
+						fmt.Errorf("%s SWAP currency does not contain USDT or USD", c.Name)
+				}
 			}
 			currencies = append(currencies,
 				t[0:idx]+format.Delimiter+t[idx:])
