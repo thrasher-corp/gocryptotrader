@@ -166,7 +166,7 @@ func (ll *linkedList) retrieve() Items {
 }
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
-// updates for a bif or ask depth.
+// updates
 func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, compare func(float64, float64) bool, tn now) {
 	for x := range updts {
 		for tip := &ll.head; ; tip = &(*tip).next {
