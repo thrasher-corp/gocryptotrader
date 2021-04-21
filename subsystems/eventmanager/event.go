@@ -65,7 +65,7 @@ func (e *Event) processOrderbook() error {
 	if e.Condition.CheckBids || e.Condition.CheckBidsAndAsks {
 		for x := range ob.Bids {
 			subtotal := ob.Bids[x].Amount * ob.Bids[x].Price
-			err := e.shouldProcessEvent(subtotal, e.Condition.OrderbookAmount)
+			err = e.shouldProcessEvent(subtotal, e.Condition.OrderbookAmount)
 			if err == nil {
 				log.Debugf(log.EventMgr, "Events: Bid Amount: %f Price: %v Subtotal: %v\n", ob.Bids[x].Amount, ob.Bids[x].Price, subtotal)
 			}
@@ -75,7 +75,7 @@ func (e *Event) processOrderbook() error {
 	if !e.Condition.CheckBids || e.Condition.CheckBidsAndAsks {
 		for x := range ob.Asks {
 			subtotal := ob.Asks[x].Amount * ob.Asks[x].Price
-			err := e.shouldProcessEvent(subtotal, e.Condition.OrderbookAmount)
+			err = e.shouldProcessEvent(subtotal, e.Condition.OrderbookAmount)
 			if err == nil {
 				log.Debugf(log.EventMgr, "Events: Ask Amount: %f Price: %v Subtotal: %v\n", ob.Asks[x].Amount, ob.Asks[x].Price, subtotal)
 			}

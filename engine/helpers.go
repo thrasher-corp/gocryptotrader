@@ -103,6 +103,9 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			if bot.CommunicationsManager == nil {
 				communicationsConfig := bot.Config.GetCommunicationsConfig()
 				bot.CommunicationsManager, err = communicationmanager.Setup(&communicationsConfig)
+				if err != nil {
+					return err
+				}
 			}
 			return bot.CommunicationsManager.Start()
 		}
@@ -150,6 +153,9 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 				bot.ntpManager, err = ntpmanager.Setup(
 					&bot.Config.NTPClient,
 					*bot.Config.Logging.Enabled)
+				if err != nil {
+					return err
+				}
 			}
 			return bot.ntpManager.Start()
 		}
@@ -158,6 +164,9 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 		if enable {
 			if bot.DatabaseManager == nil {
 				bot.DatabaseManager, err = databaseconnection.Setup(&bot.Config.Database)
+				if err != nil {
+					return err
+				}
 			}
 			return bot.DatabaseManager.Start(&bot.ServicesWG)
 		}
@@ -178,6 +187,9 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					bot.ExchangeManager,
 					bot.websocketRoutineManager,
 					&bot.Config.RemoteControl)
+				if err != nil {
+					return err
+				}
 			}
 			return bot.ExchangeCurrencyPairManager.Start()
 		}

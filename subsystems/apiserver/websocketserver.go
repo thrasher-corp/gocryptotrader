@@ -36,13 +36,13 @@ func (m *Manager) StartWebsocketServer() error {
 		return errInvalidListenAddress
 	}
 
-	m.websocketHttpServer = &http.Server{
+	m.websocketHTTPServer = &http.Server{
 		Addr:    m.websocketListenAddress,
 		Handler: m.websocketRouter,
 	}
 
 	go func() {
-		err := m.websocketHttpServer.ListenAndServe()
+		err := m.websocketHTTPServer.ListenAndServe()
 		if err != nil {
 			atomic.StoreInt32(&m.websocketStarted, 0)
 			log.Error(log.GRPCSys, err)

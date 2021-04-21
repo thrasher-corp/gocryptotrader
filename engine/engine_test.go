@@ -108,7 +108,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
 	}
 	defer func() {
-		err := os.RemoveAll(tempDir)
+		err = os.RemoveAll(tempDir)
 		if err != nil {
 			t.Error(err)
 		}

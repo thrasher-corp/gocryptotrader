@@ -357,7 +357,6 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 			d.LastUpdated = m.LastUpdated
 		}
 	}
-
 }
 
 // String implements the stringer interface

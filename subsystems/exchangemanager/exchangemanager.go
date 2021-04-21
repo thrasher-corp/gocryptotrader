@@ -187,5 +187,4 @@ func (m *Manager) NewExchangeByName(name string) (exchange.IBotExchange, error) 
 	}
 
 	return exch, nil
-
 }

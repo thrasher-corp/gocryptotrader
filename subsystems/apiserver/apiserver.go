@@ -62,19 +62,19 @@ func (m *Manager) Stop() error {
 	m.restRouter = nil
 	m.websocketRouter = nil
 	m.websocketHub = nil
-	if m.restHttpServer != nil {
-		err := m.restHttpServer.Shutdown(context.Background())
+	if m.restHTTPServer != nil {
+		err := m.restHTTPServer.Shutdown(context.Background())
 		if err != nil {
 			return err
 		}
-		m.restHttpServer = nil
+		m.restHTTPServer = nil
 	}
-	if m.websocketHttpServer != nil {
-		err := m.websocketHttpServer.Shutdown(context.Background())
+	if m.websocketHTTPServer != nil {
+		err := m.websocketHTTPServer.Shutdown(context.Background())
 		if err != nil {
 			return err
 		}
-		m.websocketHttpServer = nil
+		m.websocketHTTPServer = nil
 	}
 	atomic.StoreInt32(&m.websocketStarted, 0)
 	atomic.StoreInt32(&m.restStarted, 0)

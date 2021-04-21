@@ -370,7 +370,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableDispatcher {
-		if err := dispatch.Start(bot.Settings.DispatchMaxWorkerAmount, bot.Settings.DispatchJobsLimit); err != nil {
+		if err = dispatch.Start(bot.Settings.DispatchMaxWorkerAmount, bot.Settings.DispatchJobsLimit); err != nil {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatcher unable to start: %v", err)
 		}
 	}
@@ -390,7 +390,8 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableNTPClient {
 		if bot.Config.NTPClient.Level == 0 {
-			responseMessage, err := bot.Config.SetNTPCheck(os.Stdin)
+			var responseMessage string
+			responseMessage, err = bot.Config.SetNTPCheck(os.Stdin)
 			if err != nil {
 				return fmt.Errorf("unable to set NTP check: %w", err)
 			}
@@ -501,7 +502,8 @@ func (bot *Engine) Start() error {
 	if bot.Settings.EnableGRPCProxy &&
 		(bot.Settings.EnableDeprecatedRPC ||
 			bot.Settings.EnableWebsocketRPC) {
-		filePath, err := config.GetAndMigrateDefaultPath(bot.Settings.ConfigFile)
+		var filePath string
+		filePath, err = config.GetAndMigrateDefaultPath(bot.Settings.ConfigFile)
 		if err != nil {
 			return err
 		}
@@ -570,7 +572,7 @@ func (bot *Engine) Start() error {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {
 			go func() {
-				err := bot.ExchangeCurrencyPairManager.Start()
+				err = bot.ExchangeCurrencyPairManager.Start()
 				if err != nil {
 					gctlog.Errorf(gctlog.Global, "failed to start exchange currency pair manager. Err: %s", err)
 				}

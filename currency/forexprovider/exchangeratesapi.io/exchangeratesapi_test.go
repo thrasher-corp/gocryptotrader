@@ -1,6 +1,7 @@
 package exchangerates
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -105,19 +106,18 @@ func TestGetTimeSeriesRates(t *testing.T) {
 	if !initialSetup {
 		setup()
 	}
-	_, err := e.GetTimeSeriesRates("", "", "USD", []string{"EUR", "USD"})
-	if err == nil {
-		t.Fatal("unexpected result. Empty startDate endDate params should throw an error")
+	_, err := e.GetTimeSeriesRates("2018-01-01", "2018-09-01", "USD", []string{"EUR,USD"})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	resp, err := e.GetTimeSeriesRates("2018-01-01", "2018-09-01", "USD", []string{"EUR,USD"})
-	t.Log(resp)
-	if err != nil {
-		t.Fatalf("failed to TestGetTimeSeriesRates. Err: %s", err)
+	_, err = e.GetTimeSeriesRates("", "", "USD", []string{"EUR,USD"})
+	if !errors.Is(err, errStartEndDatesInvalid) {
+		t.Errorf("received '%v' expected '%v'", err, errStartEndDatesInvalid)
 	}
 
-	resp, err = e.GetTimeSeriesRates("-1", "-1", "USD", []string{"EUR,USD"})
-	if err == nil {
-		t.Fatal("unexpected result. Invalid date params should throw an error")
+	_, err = e.GetTimeSeriesRates("-1", "-1", "USD", []string{"EUR,USD"})
+	if !errors.Is(err, errStartEndDatesInvalid) {
+		t.Errorf("received '%v' expected '%v'", err, errStartEndDatesInvalid)
 	}
 }

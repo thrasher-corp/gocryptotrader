@@ -29,10 +29,10 @@ func TestSetup(t *testing.T) {
 
 	m, err := Setup(&communicationmanager.Manager{}, &exchangemanager.Manager{}, 0, false)
 	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
+		t.Fatalf("error '%v', expected '%v'", err, nil)
 	}
 	if m == nil {
-		t.Error("expected manager")
+		t.Fatal("expected manager")
 	}
 	if m.sleepDelay == 0 {
 		t.Error("expected default set")
@@ -323,5 +323,4 @@ func TestCheckEventCondition(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	m.m.Unlock()
-
 }

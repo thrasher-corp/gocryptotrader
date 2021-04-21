@@ -6,9 +6,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 

@@ -66,7 +66,7 @@ func TestStartSQLite(t *testing.T) {
 	if !errors.Is(err, database.ErrFailedToConnect) {
 		t.Errorf("error '%v', expected '%v'", err, database.ErrFailedToConnect)
 	}
-	m, err = Setup(&database.Config{
+	_, err = Setup(&database.Config{
 		Enabled: true,
 		Driver:  database.DBSQLite,
 		ConnectionDetails: drivers.ConnectionDetails{
@@ -189,6 +189,9 @@ func TestCheckConnection(t *testing.T) {
 	}
 	var wg sync.WaitGroup
 	err = m.Start(&wg)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
 	err = m.checkConnection()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

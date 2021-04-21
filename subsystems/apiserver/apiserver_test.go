@@ -115,13 +115,13 @@ func TestStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemNotStarted)
 	}
 	m.started = 1
-	m.websocketHttpServer = &http.Server{}
-	m.restHttpServer = &http.Server{}
+	m.websocketHTTPServer = &http.Server{}
+	m.restHTTPServer = &http.Server{}
 	err = m.Stop()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	if m.restHttpServer != nil {
+	if m.restHTTPServer != nil {
 		t.Error("expected nil")
 	}
 }
@@ -201,17 +201,23 @@ func TestConfigAllJsonResponse(t *testing.T) {
 	t.Parallel()
 	var c config.Config
 	err := c.LoadConfig(config.TestFile, true)
+	if err != nil {
+		t.Error(err)
+	}
 	resp := makeHTTPGetRequest(t, c)
 	body, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		t.Error("Body not readable", err)
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		t.Error("Body not closable", err)
 	}
 
 	var responseConfig config.Config
 	jsonErr := json.Unmarshal(body, &responseConfig)
 	if jsonErr != nil {
-		t.Error("Response not parseable as json", err)
+		t.Error("Response not parse-able as json", err)
 	}
 
 	if reflect.DeepEqual(responseConfig, c) {

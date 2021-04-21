@@ -284,7 +284,7 @@ func (m *Manager) validate(newOrder *order.Submit) error {
 
 // Submit will take in an order struct, send it to the exchange and
 // populate it in the OrderManager if successful
-func (m *Manager) Submit(newOrder *order.Submit) (*orderSubmitResponse, error) {
+func (m *Manager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, error) {
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", subsystems.ErrNilSubsystem)
 	}
@@ -324,12 +324,14 @@ func (m *Manager) Submit(newOrder *order.Submit) (*orderSubmitResponse, error) {
 
 // SubmitFakeOrder runs through the same process as order submission
 // but does not touch live endpoints
-func (m *Manager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse, checkExchangeLimits bool) (*orderSubmitResponse, error) {
+func (m *Manager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse, checkExchangeLimits bool) (*OrderSubmitResponse, error) {
 	if m == nil {
+		return nil, fmt.Errorf("order manager %w", subsystems.ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", subsystems.ErrSubSystemNotStarted)
 	}
+
 	err := m.validate(newOrder)
 	if err != nil {
 		return nil, err
@@ -384,7 +386,7 @@ func (m *Manager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.Time) 
 	return os, latestUpdate
 }
 
-func (m *Manager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse) (*orderSubmitResponse, error) {
+func (m *Manager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse) (*OrderSubmitResponse, error) {
 	if !result.IsOrderPlaced {
 		return nil, errors.New("order unable to be placed")
 	}
@@ -448,7 +450,7 @@ func (m *Manager) processSubmittedOrder(newOrder *order.Submit, result order.Sub
 		return nil, fmt.Errorf("unable to add %v order %v to orderStore: %s", newOrder.Exchange, result.OrderID, err)
 	}
 
-	return &orderSubmitResponse{
+	return &OrderSubmitResponse{
 		SubmitResponse: order.SubmitResponse{
 			IsOrderPlaced: result.IsOrderPlaced,
 			OrderID:       result.OrderID,

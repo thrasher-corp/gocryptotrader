@@ -88,6 +88,9 @@ func TestLoadDataCandles(t *testing.T) {
 	}
 
 	bot.DatabaseManager, err = databaseconnection.Setup(&bot.Config.Database)
+	if err != nil {
+		t.Error(err)
+	}
 	err = bot.DatabaseManager.Start(&bot.ServicesWG)
 	if err != nil {
 		t.Error(err)

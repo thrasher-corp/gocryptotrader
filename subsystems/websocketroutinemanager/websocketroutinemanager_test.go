@@ -52,7 +52,6 @@ func TestSetup(t *testing.T) {
 	if m == nil {
 		t.Error("expecting manager")
 	}
-
 }
 
 func TestStart(t *testing.T) {

@@ -155,7 +155,7 @@ func checkTimeInPools(pool []string) time.Time {
 			continue
 		}
 
-		if err := con.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		if err = con.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
 			log.Warnf(log.TimeMgr, "Unable to SetDeadline. Error: %s\n", err)
 			err = con.Close()
 			if err != nil {
@@ -165,7 +165,7 @@ func checkTimeInPools(pool []string) time.Time {
 		}
 
 		req := &ntpPacket{Settings: 0x1B}
-		if err := binary.Write(con, binary.BigEndian, req); err != nil {
+		if err = binary.Write(con, binary.BigEndian, req); err != nil {
 			log.Warnf(log.TimeMgr, "Unable to write. Error: %s\n", err)
 			err = con.Close()
 			if err != nil {
@@ -175,7 +175,7 @@ func checkTimeInPools(pool []string) time.Time {
 		}
 
 		rsp := &ntpPacket{}
-		if err := binary.Read(con, binary.BigEndian, rsp); err != nil {
+		if err = binary.Read(con, binary.BigEndian, rsp); err != nil {
 			log.Warnf(log.TimeMgr, "Unable to read. Error: %s\n", err)
 			err = con.Close()
 			if err != nil {

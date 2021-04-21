@@ -86,7 +86,7 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 		}
 	}
 	if init.Error.Message != "" || init.Error.Code != 0 {
-		return "", fmt.Errorf("Code: %d, Message: %s",
+		return "", fmt.Errorf("code: %d, Message: %s",
 			init.Error.Code,
 			init.Error.Message)
 	}

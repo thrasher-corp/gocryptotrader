@@ -61,7 +61,8 @@ type Manager struct {
 	verbose    bool
 }
 
-type orderSubmitResponse struct {
+// OrderSubmitResponse contains the order response along with an internal order ID
+type OrderSubmitResponse struct {
 	order.SubmitResponse
 	InternalOrderID string
 }

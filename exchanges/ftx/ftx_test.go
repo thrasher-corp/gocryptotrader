@@ -961,17 +961,17 @@ func TestGetFee(t *testing.T) {
 	}
 	x.IsMaker = false
 	if areTestAPIKeysSet() {
-		if _, err := f.GetFee(&x); err != nil {
+		if _, err = f.GetFee(&x); err != nil {
 			t.Error(err)
 		}
 	}
 	x.FeeType = exchange.OfflineTradeFee
-	a, err = f.GetFee(&x)
+	_, err = f.GetFee(&x)
 	if err != nil {
 		t.Error(err)
 	}
 	x.IsMaker = true
-	a, err = f.GetFee(&x)
+	_, err = f.GetFee(&x)
 	if err != nil {
 		t.Error(err)
 	}

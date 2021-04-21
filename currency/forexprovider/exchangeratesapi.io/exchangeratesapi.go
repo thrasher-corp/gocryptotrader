@@ -2,11 +2,11 @@ package exchangerates
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -109,7 +109,13 @@ func (e *ExchangeRates) GetHistoricalRates(date, baseCurrency string, symbols []
 func (e *ExchangeRates) GetTimeSeriesRates(startDate, endDate, baseCurrency string, symbols []string) (TimeSeriesRates, error) {
 	var resp TimeSeriesRates
 	if startDate == "" || endDate == "" {
-		return resp, errors.New("startDate and endDate params must be set")
+		return resp, errStartEndDatesInvalid
+	}
+	if _, err := time.Parse("2006-01-02", startDate); err != nil {
+		return resp, errStartEndDatesInvalid
+	}
+	if _, err := time.Parse("2006-01-02", endDate); err != nil {
+		return resp, errStartEndDatesInvalid
 	}
 
 	v := url.Values{}

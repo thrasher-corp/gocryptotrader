@@ -60,8 +60,8 @@ type Manager struct {
 	restListenAddress      string
 	websocketListenAddress string
 	gctConfigPath          string
-	restHttpServer         *http.Server
-	websocketHttpServer    *http.Server
+	restHTTPServer         *http.Server
+	websocketHTTPServer    *http.Server
 
 	restRouter      *mux.Router
 	websocketRouter *mux.Router

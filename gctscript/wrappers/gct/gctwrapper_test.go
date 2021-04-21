@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 
 	engine.Bot.DepositAddressManager = depositaddress.Setup()
 	go func() {
-		err := engine.Bot.DepositAddressManager.Sync(engine.Bot.GetExchangeCryptocurrencyDepositAddresses())
+		err = engine.Bot.DepositAddressManager.Sync(engine.Bot.GetExchangeCryptocurrencyDepositAddresses())
 		if err != nil {
 			log.Print(err)
 			os.Exit(1)

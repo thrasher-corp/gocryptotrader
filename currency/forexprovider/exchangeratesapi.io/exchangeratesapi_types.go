@@ -1,6 +1,7 @@
 package exchangerates
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -18,6 +19,8 @@ const (
 	rateLimitInterval = time.Second * 10
 	requestRate       = 10
 )
+
+var errStartEndDatesInvalid = errors.New("startDate and endDate params must be set")
 
 // ExchangeRates stores the struct for the ExchangeRatesAPI API
 type ExchangeRates struct {

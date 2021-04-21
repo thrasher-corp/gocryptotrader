@@ -58,7 +58,6 @@ func TestSync(t *testing.T) {
 	if !errors.Is(err, subsystems.ErrNilSubsystem) {
 		t.Errorf("received %v, expected %v", err, subsystems.ErrNilSubsystem)
 	}
-
 }
 
 func TestGetDepositAddressByExchangeAndCurrency(t *testing.T) {
