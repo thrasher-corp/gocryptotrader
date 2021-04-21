@@ -379,7 +379,6 @@ type APIConfig struct {
 	CredentialsValidator *APICredentialsValidatorConfig `json:"credentialsValidator,omitempty"`
 	OldEndPoints         *APIEndpointsConfig            `json:"endpoints,omitempty"`
 	Endpoints            map[string]string              `json:"urlEndpoints"`
-	HttpProxy            string                         `json:"httpProxy"`
 }
 
 // OrderbookConfig stores the orderbook configuration variables
