@@ -64,6 +64,7 @@ func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
 		// could potentially slow macOS reconnection when there is a sudden
 		// network disconnection/issue
 		IdleConnTimeout: t,
+		Proxy:           http.ProxyFromEnvironment,
 	}
 	h := &http.Client{
 		Transport: tr,
