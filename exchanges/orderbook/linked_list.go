@@ -11,12 +11,14 @@ var errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less or eq
 
 // linkedList defines a linked list for a depth level, reutilisation of nodes
 // to and from a stack.
-// TODO: Test cross link between bid and ask head nodes **node ref to head for
-// future strategy asymmetric traversal between two books
 type linkedList struct {
 	length int
 	head   *node
 }
+
+// comparison defines expected functionality to compare between two reference
+// price levels
+type comparison func(float64, float64) bool
 
 // load iterates across new items and refreshes linked list. It creates a linked
 // list exactly the same as the item slice that is supplied, if items is of nil
@@ -163,37 +165,31 @@ func (ll *linkedList) retrieve() Items {
 	return depth
 }
 
-// bids embed a linked list to attach methods for bid depth specific
-// functionality
-type bids struct {
-	linkedList
-}
-
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
-// updates in bid linked list
-func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength int) {
+// updates for a bif or ask depth.
+func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, compare func(float64, float64) bool, tn now) {
 	for x := range updts {
 		for tip := &ll.head; ; tip = &(*tip).next {
 			if *tip == nil {
-				insertHeadSpecific(&ll.linkedList, updts[x], stack)
+				insertHeadSpecific(ll, updts[x], stack)
 				break
 			}
 			if (*tip).value.Price == updts[x].Price { // Match check
 				if updts[x].Amount <= 0 { // Capture delete update
-					stack.Push(deleteAtTip(&ll.linkedList, tip), getNow())
+					stack.Push(deleteAtTip(ll, tip), tn)
 				} else { // Amend current amount value
 					(*tip).value.Amount = updts[x].Amount
 				}
 				break // Continue updates
 			}
 
-			if (*tip).value.Price < updts[x].Price { // Insert
+			if compare((*tip).value.Price, updts[x].Price) { // Insert
 				// This check below filters zero values and provides an
 				// optimisation for when select exchanges send a delete update
 				// to a non-existent price level (OTC/Hidden order) so we can
 				// break instantly and reduce the traversal of the entire chain.
 				if updts[x].Amount > 0 {
-					insertAtTip(&ll.linkedList, tip, updts[x], stack)
+					insertAtTip(ll, tip, updts[x], stack)
 				}
 				break // Continue updates
 			}
@@ -202,7 +198,7 @@ func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 				// This check below is just a catch all in the event the above
 				// zero value check fails
 				if updts[x].Amount > 0 {
-					insertAtTail(&ll.linkedList, tip, updts[x], stack)
+					insertAtTail(ll, tip, updts[x], stack)
 				}
 				break
 			}
@@ -214,14 +210,14 @@ func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 	}
 }
 
-// updateInsertByID updates or inserts if not found
+// updateInsertByID updates or inserts if not found for a bir or ask depth
 // 1) node ID found amount amended (best case)
 // 2) node ID found amount and price amended and node moved to correct position
 // (medium case)
 // 3) Update price exceeds traversal node price before ID found, save node
 // address for either; node ID matches then re-address node or end of depth pop
 // a node from the stack (worst case)
-func (ll *bids) updateInsertByID(updts Items, stack *stack) error {
+func (ll *linkedList) updateInsertByID(updts Items, stack *stack, compare comparison) error {
 updates:
 	for x := range updts {
 		if updts[x].Amount <= 0 {
@@ -252,7 +248,7 @@ updates:
 				continue updates // continue to next update
 			}
 
-			if tip.value.Price < updts[x].Price {
+			if compare(tip.value.Price, updts[x].Price) {
 				if bookmark != nil { // shift bookmarked node to current tip
 					bookmark.value = updts[x]
 					move(&ll.head, bookmark, tip)
@@ -297,13 +293,13 @@ updates:
 		}
 		n := stack.Pop()
 		n.value = updts[x]
-		insertNodeAtBookmark(&ll.linkedList, bookmark, n) // Won't inline with stack
+		insertNodeAtBookmark(ll, bookmark, n) // Won't inline with stack
 	}
 	return nil
 }
 
-// insertUpdates inserts new updates for bids based on price level
-func (ll *bids) insertUpdates(updts Items, stack *stack) error {
+// insertUpdates inserts new updates for bids or asks based on price level
+func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) error {
 	for x := range updts {
 		var prev *node
 		for tip := &ll.head; ; tip = &(*tip).next {
@@ -322,7 +318,7 @@ func (ll *bids) insertUpdates(updts Items, stack *stack) error {
 					updts[x].Price)
 			}
 
-			if (*tip).value.Price < updts[x].Price { // Alignment
+			if comp((*tip).value.Price, updts[x].Price) { // Alignment
 				n := stack.Pop()
 				n.value = updts[x]
 				n.prev = prev
@@ -337,13 +333,40 @@ func (ll *bids) insertUpdates(updts Items, stack *stack) error {
 			}
 
 			if (*tip).next == nil { // Tail
-				insertAtTail(&ll.linkedList, tip, updts[x], stack)
+				insertAtTail(ll, tip, updts[x], stack)
 				break // Continue updates
 			}
 			prev = *tip
 		}
 	}
 	return nil
+}
+
+// bids embed a linked list to attach methods for bid depth specific
+// functionality
+type bids struct {
+	linkedList
+}
+
+// bidCompare ensures price is in correct descending alignment (can inline)
+func bidCompare(left, right float64) bool {
+	return left < right
+}
+
+// updateInsertByPrice amends, inserts, moves and cleaves length of depth by
+// updates
+func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, tn now) {
+	ll.linkedList.updateInsertByPrice(updts, stack, maxChainLength, bidCompare, tn)
+}
+
+// updateInsertByID updates or inserts if not found
+func (ll *bids) updateInsertByID(updts Items, stack *stack) error {
+	return ll.linkedList.updateInsertByID(updts, stack, bidCompare)
+}
+
+// insertUpdates inserts new updates for bids based on price level
+func (ll *bids) insertUpdates(updts Items, stack *stack) error {
+	return ll.linkedList.insertUpdates(updts, stack, bidCompare)
 }
 
 // asks embed a linked list to attach methods for ask depth specific
@@ -352,184 +375,25 @@ type asks struct {
 	linkedList
 }
 
+// askCompare ensures price is in correct ascending alignment (can inline)
+func askCompare(left, right float64) bool {
+	return left > right
+}
+
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
-// updates in an ask linked list
-func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength int) {
-	for x := range updts {
-		for tip := &ll.head; ; tip = &(*tip).next {
-			if *tip == nil {
-				insertHeadSpecific(&ll.linkedList, updts[x], stack)
-				break
-			}
-			if (*tip).value.Price == updts[x].Price { // Match check
-				if updts[x].Amount <= 0 { // Capture delete update
-					stack.Push(deleteAtTip(&ll.linkedList, tip), getNow())
-				} else { // Amend current amount value
-					(*tip).value.Amount = updts[x].Amount
-				}
-				break // Continue updates
-			}
-
-			if (*tip).value.Price > updts[x].Price { // Insert
-				// This check below filters zero values and provides an
-				// optimisation for when select exchanges send a delete update
-				// to a non-existent price level (OTC/Hidden order) so we can
-				// break instantly and reduce the traversal of the entire chain.
-				if updts[x].Amount > 0 {
-					insertAtTip(&ll.linkedList, tip, updts[x], stack)
-				}
-				break // Continue updates
-			}
-
-			if (*tip).next == nil { // Tip is at tail
-				// This check below is just a catch all in the event the above
-				// zero value check fails
-				if updts[x].Amount > 0 {
-					insertAtTail(&ll.linkedList, tip, updts[x], stack)
-				}
-				break
-			}
-		}
-	}
-	// Reduces length of total linked list chain to a maxChainLength value
-	if maxChainLength != 0 && ll.length > maxChainLength {
-		ll.cleanup(maxChainLength, stack)
-	}
+// updates
+func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, tn now) {
+	ll.linkedList.updateInsertByPrice(updts, stack, maxChainLength, askCompare, tn)
 }
 
 // updateInsertByID updates or inserts if not found
-// 1) node ID found amount amended (best case)
-// 2) node ID found amount and price amended and node moved to correct position
-// (medium case)
-// 3) Update price exceeds traversal node price before ID found, save node
-// address for either; node ID matches then re-address node or end of depth pop
-// a node from the stack (worst case)
 func (ll *asks) updateInsertByID(updts Items, stack *stack) error {
-updates:
-	for x := range updts {
-		if updts[x].Amount <= 0 {
-			return errAmountCannotBeLessOrEqualToZero
-		}
-		// bookmark allows for saving of a position of a node in the event that
-		// an update price exceeds the current node price. We can then match an
-		// ID and re-assign that ID's node to that positioning without popping
-		// from the stack and then pushing to the stack later for cleanup.
-		// If the ID is not found we can pop from stack then insert into that
-		// price level
-		var bookmark *node
-		for tip := ll.head; tip != nil; tip = tip.next {
-			if tip.value.ID == updts[x].ID {
-				if tip.value.Price != updts[x].Price { // Price level change
-					if tip.next == nil {
-						// no movement needed just a re-adjustment
-						tip.value.Price = updts[x].Price
-						tip.value.Amount = updts[x].Amount
-						continue updates
-					}
-					// bookmark tip to move this node to correct price level
-					bookmark = tip
-					continue // continue through node depth
-				}
-				// no price change, amend amount and continue updates
-				tip.value.Amount = updts[x].Amount
-				continue updates // continue to next update
-			}
-
-			if tip.value.Price > updts[x].Price {
-				if bookmark != nil { // shift bookmarked node to current tip
-					bookmark.value = updts[x]
-					move(&ll.head, bookmark, tip)
-					continue updates
-				}
-
-				// search for ID
-				for n := tip.next; n != nil; n = n.next {
-					if n.value.ID == updts[x].ID {
-						n.value = updts[x]
-						// inserting before the tip
-						move(&ll.head, n, tip)
-						continue updates
-					}
-				}
-				// ID not matched in depth so add correct level for insert
-				if tip.next == nil {
-					n := stack.Pop()
-					n.value = updts[x]
-					ll.length++
-					if tip.prev == nil {
-						tip.prev = n
-						n.next = tip
-						ll.head = n
-						continue updates
-					}
-					tip.prev.next = n
-					n.prev = tip.prev
-					tip.prev = n
-					n.next = tip
-					continue updates
-				}
-				bookmark = tip
-				break
-			}
-
-			if tip.next == nil {
-				if shiftBookmark(tip, &bookmark, &ll.head, updts[x]) {
-					continue updates
-				}
-			}
-		}
-		n := stack.Pop()
-		n.value = updts[x]
-		insertNodeAtBookmark(&ll.linkedList, bookmark, n) // Won't inline with stack
-	}
-	return nil
+	return ll.linkedList.updateInsertByID(updts, stack, askCompare)
 }
 
 // insertUpdates inserts new updates for asks based on price level
 func (ll *asks) insertUpdates(updts Items, stack *stack) error {
-	for x := range updts {
-		var prev *node
-		for tip := &ll.head; ; tip = &(*tip).next {
-			if *tip == nil { // Head is empty
-				insertHeadSpecific(&ll.linkedList, updts[x], stack)
-				break // Continue updates
-			}
-
-			if (*tip).value.Price == updts[x].Price { // Price already found
-				return fmt.Errorf("%w for price %f",
-					errCollisionDetected,
-					updts[x].Price)
-			}
-
-			// Correct position/alignment found for price level
-			if (*tip).value.Price > updts[x].Price {
-				n := stack.Pop()
-				n.value = updts[x]
-				n.prev = prev
-				ll.length++
-				if prev == nil {
-					// Place new node in front of current node
-					(*tip).prev = n
-					n.next = *tip
-					// Replace head entry
-					*tip = n
-				} else {
-					old := *tip
-					prev.next = n
-					n.next = old
-					old.prev = n
-				}
-				break // Continue updates
-			}
-
-			if (*tip).next == nil { // Tail
-				insertAtTail(&ll.linkedList, tip, updts[x], stack)
-				break // Continue updates
-			}
-			prev = *tip
-		}
-	}
-	return nil
+	return ll.linkedList.insertUpdates(updts, stack, askCompare)
 }
 
 // move moves a node from a point in a node chain to another node position,

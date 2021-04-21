@@ -118,11 +118,12 @@ func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int) {
 		return
 	}
 	d.m.Lock()
+	tn := getNow()
 	if len(bidUpdts) != 0 {
-		d.bids.updateInsertByPrice(bidUpdts, d.stack, maxDepth)
+		d.bids.updateInsertByPrice(bidUpdts, d.stack, maxDepth, tn)
 	}
 	if len(askUpdts) != 0 {
-		d.asks.updateInsertByPrice(askUpdts, d.stack, maxDepth)
+		d.asks.updateInsertByPrice(askUpdts, d.stack, maxDepth, tn)
 	}
 	d.alert()
 	d.m.Unlock()

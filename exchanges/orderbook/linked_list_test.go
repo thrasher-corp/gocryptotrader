@@ -119,7 +119,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Update one instance with matching price
 	a.updateInsertByPrice(Items{
 		{Price: 1, Amount: 2},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(a, 7, 37, 6, t)
 
@@ -130,7 +130,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Insert at head
 	a.updateInsertByPrice(Items{
 		{Price: 0.5, Amount: 2},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(a, 9, 38, 7, t)
 
@@ -141,7 +141,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Insert at tail
 	a.updateInsertByPrice(Items{
 		{Price: 12, Amount: 2},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(a, 11, 62, 8, t)
 
@@ -154,7 +154,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 11.5, Amount: 2},
 		{Price: 10.5, Amount: 2},
 		{Price: 13, Amount: 2},
-	}, stack, 10)
+	}, stack, 10, getNow())
 
 	Check(a, 15, 106, 10, t)
 
@@ -165,7 +165,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// delete at tail
 	a.updateInsertByPrice(Items{
 		{Price: 12, Amount: 0},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(a, 13, 82, 9, t)
 
@@ -176,7 +176,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// delete at mid
 	a.updateInsertByPrice(Items{
 		{Price: 7, Amount: 0},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(a, 12, 75, 8, t)
 
@@ -187,7 +187,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// delete at head
 	a.updateInsertByPrice(Items{
 		{Price: 0.5, Amount: 0},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(a, 10, 74, 7, t)
 
@@ -206,7 +206,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 7, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 11, Amount: 1},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(a, 6, 36, 6, t)
 
@@ -228,7 +228,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Update one instance with matching price
 	b.updateInsertByPrice(Items{
 		{Price: 11, Amount: 2},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(b, 7, 47, 6, t)
 
@@ -239,7 +239,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Insert at head
 	b.updateInsertByPrice(Items{
 		{Price: 12, Amount: 2},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(b, 9, 71, 7, t)
 
@@ -250,7 +250,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Insert at tail
 	b.updateInsertByPrice(Items{
 		{Price: 0.5, Amount: 2},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(b, 11, 72, 8, t)
 
@@ -263,7 +263,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 11.5, Amount: 2},
 		{Price: 10.5, Amount: 2},
 		{Price: 13, Amount: 2},
-	}, stack, 10)
+	}, stack, 10, getNow())
 
 	Check(b, 15, 141, 10, t)
 
@@ -274,7 +274,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Insert between price and up to and beyond max allowable depth level
 	b.updateInsertByPrice(Items{
 		{Price: 1, Amount: 0},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(b, 14, 140, 9, t)
 
@@ -285,7 +285,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// delete at mid
 	b.updateInsertByPrice(Items{
 		{Price: 10.5, Amount: 0},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(b, 12, 119, 8, t)
 
@@ -296,7 +296,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// delete at head
 	b.updateInsertByPrice(Items{
 		{Price: 13, Amount: 0},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(b, 10, 93, 7, t)
 
@@ -315,7 +315,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 7, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 11, Amount: 1},
-	}, stack, 0)
+	}, stack, 0, getNow())
 
 	Check(b, 6, 36, 6, t)
 
@@ -369,7 +369,7 @@ func BenchmarkUpdateInsertByPrice_Amend(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		a.updateInsertByPrice(updates, stack, 0)
+		a.updateInsertByPrice(updates, stack, 0, getNow())
 	}
 }
 
@@ -392,7 +392,7 @@ func BenchmarkUpdateInsertByPrice_Insert_Delete(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		a.updateInsertByPrice(updates, stack, 0)
+		a.updateInsertByPrice(updates, stack, 0, getNow())
 	}
 }
 
