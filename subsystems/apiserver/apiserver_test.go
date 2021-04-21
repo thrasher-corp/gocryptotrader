@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"testing"
@@ -200,7 +201,7 @@ func makeHTTPGetRequest(t *testing.T, response interface{}) *http.Response {
 func TestConfigAllJsonResponse(t *testing.T) {
 	t.Parallel()
 	var c config.Config
-	err := c.LoadConfig(config.TestFile, true)
+	err := c.LoadConfig(filepath.Join("..", "..", "testdata", "configtest.json"), true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -220,7 +221,7 @@ func TestConfigAllJsonResponse(t *testing.T) {
 		t.Error("Response not parse-able as json", err)
 	}
 
-	if reflect.DeepEqual(responseConfig, c) {
+	if !reflect.DeepEqual(responseConfig, c) {
 		t.Error("Json not equal to config")
 	}
 }

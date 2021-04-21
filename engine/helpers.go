@@ -59,7 +59,7 @@ func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 	systems[currencypairsyncer.Name] = bot.Settings.EnableExchangeSyncManager
 	systems[grpcName] = bot.Settings.EnableGRPC
 	systems[grpcProxyName] = bot.Settings.EnableGRPCProxy
-	systems[vm.Name] = bot.GctScriptManager.IsRunning()
+	systems[vm.Name] = bot.gctScriptManager.IsRunning()
 	systems[apiserver.DeprecatedName] = bot.Settings.EnableDeprecatedRPC
 	systems[apiserver.WebsocketName] = bot.Settings.EnableWebsocketRPC
 	systems[dispatch.Name] = dispatch.IsRunning()
@@ -173,7 +173,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 		return bot.DatabaseManager.Stop()
 	case currencypairsyncer.Name:
 		if enable {
-			if bot.ExchangeCurrencyPairManager == nil {
+			if bot.currencyPairSyncer == nil {
 				exchangeSyncCfg := &currencypairsyncer.Config{
 					SyncTicker:       bot.Settings.EnableTickerSyncing,
 					SyncOrderbook:    bot.Settings.EnableOrderbookSyncing,
@@ -183,7 +183,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					Verbose:          bot.Settings.Verbose,
 					SyncTimeout:      bot.Settings.SyncTimeout,
 				}
-				bot.ExchangeCurrencyPairManager, err = currencypairsyncer.Setup(exchangeSyncCfg,
+				bot.currencyPairSyncer, err = currencypairsyncer.Setup(exchangeSyncCfg,
 					bot.ExchangeManager,
 					bot.websocketRoutineManager,
 					&bot.Config.RemoteControl)
@@ -191,9 +191,9 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					return err
 				}
 			}
-			return bot.ExchangeCurrencyPairManager.Start()
+			return bot.currencyPairSyncer.Start()
 		}
-		return bot.ExchangeCurrencyPairManager.Stop()
+		return bot.currencyPairSyncer.Stop()
 	case dispatch.Name:
 		if enable {
 			return dispatch.Start(bot.Settings.DispatchMaxWorkerAmount, bot.Settings.DispatchJobsLimit)
@@ -201,15 +201,15 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 		return dispatch.Stop()
 	case vm.Name:
 		if enable {
-			if bot.GctScriptManager == nil {
-				bot.GctScriptManager, err = vm.NewManager(&bot.Config.GCTScript)
+			if bot.gctScriptManager == nil {
+				bot.gctScriptManager, err = vm.NewManager(&bot.Config.GCTScript)
 				if err != nil {
 					return err
 				}
 			}
-			return bot.GctScriptManager.Start(&bot.ServicesWG)
+			return bot.gctScriptManager.Start(&bot.ServicesWG)
 		}
-		return bot.GctScriptManager.Stop()
+		return bot.gctScriptManager.Stop()
 	}
 
 	return errors.New("subsystem not found")

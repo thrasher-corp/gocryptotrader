@@ -1,16 +1,16 @@
-# GoCryptoTrader package Kraken
+# GoCryptoTrader package Currencypairsyncer
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/kraken)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This kraken package is part of the GoCryptoTrader codebase.
+This currencypairsyncer package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,97 +18,23 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Kraken Exchange
+## Current Features for Currencypairsyncer
++ The currency pair syncer subsystem is used to keep all trades, tickers and orderbooks up to date for all enabled exchange asset currency pairs
++ It can sync data via a websocket connection or REST and will switch between them if there has been no updates
++ In order to modify the behaviour of the currency pair syncer subsystem, you can change runtime parameters as detailed below:
 
-### Current Features
+### connectionMonitor
 
-+ REST Support
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| syncmanager | Determines whether the subsystem is enabled | `true` |
+| tickersync |  Enables ticker syncing for all enabled exchanges |   `true`|
+| orderbooksync | Enables orderbook syncing for all enabled exchanges |  `true` |
+| tradesync | Enables trade syncing for all enabled exchanges |  `true` |
+| syncworkers | The amount of workers (goroutines) to use for syncing exchange data | `15` |
+| synccontinuously | Whether to sync exchange data continuously (ticker, orderbook and trades) | `true` |
+| synctimeout | The amount of time in golang `time.Duration` format before the syncer will switch from one protocol to the other (e.g. from REST to websocket) | `15000000000` |
 
-### How to enable
-
-+ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
-
-+ Individual package example below:
-
-```go
-	// Exchanges will be abstracted out in further updates and examples will be
-	// supplied then
-```
-
-### How to do REST public/private calls
-
-+ If enabled via "configuration".json file the exchange will be added to the
-IBotExchange array in the ```go var bot Bot``` and you will only be able to use
-the wrapper interface functions for accessing exchange data. View routines.go
-for an example of integration usage with GoCryptoTrader. Rudimentary example
-below:
-
-main.go
-```go
-var k exchange.IBotExchange
-
-for i := range bot.Exchanges {
-	if bot.Exchanges[i].GetName() == "Kraken" {
-		k = bot.Exchanges[i]
-	}
-}
-
-// Public calls - wrapper functions
-
-// Fetches current ticker information
-tick, err := k.FetchTicker()
-if err != nil {
-	// Handle error
-}
-
-// Fetches current orderbook information
-ob, err := k.FetchOrderbook()
-if err != nil {
-	// Handle error
-}
-
-// Private calls - wrapper functions - make sure your APIKEY and APISECRET are
-// set and AuthenticatedAPISupport is set to true
-
-// Fetches current account information
-accountInfo, err := k.GetAccountInfo()
-if err != nil {
-	// Handle error
-}
-```
-
-+ If enabled via individually importing package, rudimentary example below:
-
-```go
-// Public calls
-
-// Fetches current ticker information
-ticker, err := k.GetTicker()
-if err != nil {
-	// Handle error
-}
-
-// Fetches current orderbook information
-ob, err := k.GetOrderBook()
-if err != nil {
-	// Handle error
-}
-
-// Private calls - make sure your APIKEY and APISECRET are set and
-// AuthenticatedAPISupport is set to true
-
-// GetUserInfo returns account info
-accountInfo, err := k.GetUserInfo(...)
-if err != nil {
-	// Handle error
-}
-
-// Submits an order and the exchange and returns its tradeID
-tradeID, err := k.Trade(...)
-if err != nil {
-	// Handle error
-}
-```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

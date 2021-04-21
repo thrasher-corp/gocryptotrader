@@ -42,27 +42,28 @@ import (
 // Engine contains configuration, portfolio manager, exchange & ticker data and is the
 // overarching type across this code base.
 type Engine struct {
-	Config                      *config.Config
-	ExchangeCurrencyPairManager *currencypairsyncer.Manager
-	ntpManager                  *ntpmanager.Manager
-	connectionManager           *connectionmanager.Manager
-	DatabaseManager             *databaseconnection.Manager
-	GctScriptManager            *gctscript.GctScriptManager
-	OrderManager                *ordermanager.Manager
-	portfolioManager            *portfoliomanager.Manager
-	ExchangeManager             *exchangemanager.Manager
-	CommunicationsManager       *communicationmanager.Manager
-	eventManager                *eventmanager.Manager
-	websocketRoutineManager     *websocketroutinemanager.Manager
-	DepositAddressManager       *depositaddress.Manager
-	WithdrawalManager           *withdrawmanager.Manager
-	Settings                    Settings
-	uptime                      time.Time
-	apiServer                   *apiserver.Manager
-	ServicesWG                  sync.WaitGroup
+	Config                  *config.Config
+	apiServer               *apiserver.Manager
+	CommunicationsManager   *communicationmanager.Manager
+	connectionManager       *connectionmanager.Manager
+	currencyPairSyncer      *currencypairsyncer.Manager
+	DatabaseManager         *databaseconnection.Manager
+	DepositAddressManager   *depositaddress.Manager
+	eventManager            *eventmanager.Manager
+	ExchangeManager         *exchangemanager.Manager
+	ntpManager              *ntpmanager.Manager
+	OrderManager            *ordermanager.Manager
+	portfolioManager        *portfoliomanager.Manager
+	gctScriptManager        *gctscript.GctScriptManager
+	websocketRoutineManager *websocketroutinemanager.Manager
+	WithdrawManager         *withdrawmanager.Manager
+	Settings                Settings
+	uptime                  time.Time
+	ServicesWG              sync.WaitGroup
 }
 
-// Bot is a happy global for the engine
+// Bot is a happy global engine to allow various areas of the application
+// to access its setup services and functions
 var Bot *Engine
 
 // New starts a new engine
@@ -111,7 +112,7 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %s", err)
 	}
 
-	b.GctScriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
+	b.gctScriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create script manager. Err: %s", err)
 	}
@@ -194,7 +195,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 
 	if flagSet["maxvirtualmachines"] {
 		maxMachines := uint8(s.MaxVirtualMachines)
-		b.GctScriptManager.MaxVirtualMachines = &maxMachines
+		b.gctScriptManager.MaxVirtualMachines = &maxMachines
 	}
 
 	if flagSet["withdrawcachesize"] {
@@ -435,7 +436,7 @@ func (bot *Engine) Start() error {
 		return err
 	}
 
-	bot.WithdrawalManager, err = withdrawmanager.Setup(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
+	bot.WithdrawManager, err = withdrawmanager.Setup(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
 	if err != nil {
 		return err
 	}
@@ -563,7 +564,7 @@ func (bot *Engine) Start() error {
 			SyncTimeout:      bot.Settings.SyncTimeout,
 		}
 
-		bot.ExchangeCurrencyPairManager, err = currencypairsyncer.Setup(
+		bot.currencyPairSyncer, err = currencypairsyncer.Setup(
 			exchangeSyncCfg,
 			bot.ExchangeManager,
 			bot.websocketRoutineManager,
@@ -572,7 +573,7 @@ func (bot *Engine) Start() error {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {
 			go func() {
-				err = bot.ExchangeCurrencyPairManager.Start()
+				err = bot.currencyPairSyncer.Start()
 				if err != nil {
 					gctlog.Errorf(gctlog.Global, "failed to start exchange currency pair manager. Err: %s", err)
 				}
@@ -593,7 +594,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
-		bot.websocketRoutineManager, err = websocketroutinemanager.Setup(bot.ExchangeManager, bot.OrderManager, bot.ExchangeCurrencyPairManager, &bot.Config.Currency, bot.Settings.Verbose)
+		bot.websocketRoutineManager, err = websocketroutinemanager.Setup(bot.ExchangeManager, bot.OrderManager, bot.currencyPairSyncer, &bot.Config.Currency, bot.Settings.Verbose)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise websocket routine manager. Err: %s", err)
 		} else {
@@ -605,11 +606,11 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableGCTScriptManager {
-		bot.GctScriptManager, err = gctscript.NewManager(&bot.Config.GCTScript)
+		bot.gctScriptManager, err = gctscript.NewManager(&bot.Config.GCTScript)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "failed to create script manager. Err: %s", err)
 		}
-		if err := bot.GctScriptManager.Start(&bot.ServicesWG); err != nil {
+		if err := bot.gctScriptManager.Start(&bot.ServicesWG); err != nil {
 			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %s", err)
 		}
 	}
@@ -628,8 +629,8 @@ func (bot *Engine) Stop() {
 		bot.Config.Portfolio = *bot.portfolioManager.GetPortfolio()
 	}
 
-	if bot.GctScriptManager.IsRunning() {
-		if err := bot.GctScriptManager.Stop(); err != nil {
+	if bot.gctScriptManager.IsRunning() {
+		if err := bot.gctScriptManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to stop. Error: %v", err)
 		}
 	}
@@ -684,6 +685,11 @@ func (bot *Engine) Stop() {
 	if dispatch.IsRunning() {
 		if err := dispatch.Stop(); err != nil {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatch system unable to stop. Error: %v", err)
+		}
+	}
+	if bot.websocketRoutineManager.IsRunning() {
+		if err := bot.websocketRoutineManager.Stop(); err != nil {
+			gctlog.Errorf(gctlog.Global, "websocket routine manager unable to stop. Error: %v", err)
 		}
 	}
 

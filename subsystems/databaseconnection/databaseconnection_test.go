@@ -21,6 +21,10 @@ func TestMain(m *testing.M) {
 	}
 	database.DB.DataPath = tmp
 	code := m.Run()
+	err = database.DB.CloseConnection()
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = os.RemoveAll(tmp)
 	if err != nil {
 		log.Fatal(err)
