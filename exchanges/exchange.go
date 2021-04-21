@@ -584,6 +584,16 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 		e.API.Endpoints = e.NewEndpoints()
 	}
 
+	if exch.API.HttpProxy != "" {
+		transport := http.Transport{}
+		urlProxy, err := url.Parse(exch.API.HttpProxy)
+		if err != nil {
+			return fmt.Errorf("cannot parse proxy url string to URL. Err: %s", err)
+		}
+		transport.Proxy = http.ProxyURL(urlProxy)
+		e.HTTPClient.Transport = &transport
+	}
+
 	err = e.SetAPIURL()
 	if err != nil {
 		return err
