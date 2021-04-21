@@ -1087,9 +1087,6 @@ func (p *Poloniex) processTrades(currencyID float64, subData []interface{}) erro
 		tradeID = tradeIDData
 	case float64:
 		tradeID = strconv.FormatFloat(tradeIDData, 'f', -1, 64)
-		if err != nil {
-			return err
-		}
 	default:
 		return fmt.Errorf("unhandled type for websocket trade update: %v",
 			tradeIDData)

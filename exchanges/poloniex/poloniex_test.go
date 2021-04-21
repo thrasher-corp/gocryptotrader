@@ -590,6 +590,7 @@ func TestWsExchangeVolume(t *testing.T) {
 }
 
 func TestWsTrades(t *testing.T) {
+	p.SetSaveTradeDataStatus(true)
 	err := p.loadCurrencyDetails()
 	if err != nil {
 		t.Error(err)
