@@ -44,7 +44,7 @@ func Setup(exchangeManager iExchangeManager, communicationsManager iCommsManager
 	}, nil
 }
 
-// IsRunning returns the status of the OrderManager
+// IsRunning safely checks whether the subsystem is running
 func (m *Manager) IsRunning() bool {
 	if m == nil {
 		return false
@@ -52,6 +52,7 @@ func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+// Start runs the subsystem
 func (m *Manager) Start() error {
 	if m == nil {
 		return fmt.Errorf("order manager %w", subsystems.ErrNilSubsystem)
@@ -59,13 +60,13 @@ func (m *Manager) Start() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("order manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
-	log.Debugln(log.OrderBook, "Order manager starting...")
+	log.Debugln(log.OrderMgr, "Order manager starting...")
 
 	go m.run()
 	return nil
 }
 
-// Stop will attempt to shutdown the OrderManager
+// Stop attempts to shutdown the subsystem
 func (m *Manager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("order manager %w", subsystems.ErrNilSubsystem)
@@ -78,11 +79,12 @@ func (m *Manager) Stop() error {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
 
-	log.Debugln(log.OrderBook, "Order manager shutting down...")
+	log.Debugln(log.OrderMgr, "Order manager shutting down...")
 	close(m.shutdown)
 	return nil
 }
 
+// gracefulShutdown cancels all orders (if enabled) before shutting down
 func (m *Manager) gracefulShutdown() {
 	if m.cfg.CancelOrdersOnShutdown {
 		log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
@@ -90,8 +92,9 @@ func (m *Manager) gracefulShutdown() {
 	}
 }
 
+// run will periodically process orders
 func (m *Manager) run() {
-	log.Debugln(log.OrderBook, "Order manager started.")
+	log.Debugln(log.OrderMgr, "Order manager started.")
 	tick := time.NewTicker(orderManagerDelay)
 	m.orderStore.wg.Add(1)
 	defer func() {
@@ -248,6 +251,7 @@ func (m *Manager) GetOrderInfo(exchangeName, orderID string, cp currency.Pair, a
 	return result, nil
 }
 
+// validate ensures a submitted order is valid before adding to the manager
 func (m *Manager) validate(newOrder *order.Submit) error {
 	if newOrder == nil {
 		return errors.New("order cannot be nil")
@@ -386,6 +390,7 @@ func (m *Manager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.Time) 
 	return os, latestUpdate
 }
 
+// processSubmittedOrder adds a new order to the manager
 func (m *Manager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse) (*OrderSubmitResponse, error) {
 	if !result.IsOrderPlaced {
 		return nil, errors.New("order unable to be placed")
@@ -459,6 +464,8 @@ func (m *Manager) processSubmittedOrder(newOrder *order.Submit, result order.Sub
 	}, nil
 }
 
+// processOrders iterates over all exchange orders via API
+// and adds them to the internal order store
 func (m *Manager) processOrders() {
 	exchanges := m.orderStore.exchangeManager.GetExchanges()
 	for i := range exchanges {
@@ -564,6 +571,7 @@ func (m *Manager) GetByExchangeAndID(exchangeName, id string) (*order.Detail, er
 	return &cpy, nil
 }
 
+// UpdateExistingOrder will update an existing order in the orderstore
 func (m *Manager) UpdateExistingOrder(od *order.Detail) error {
 	if m == nil {
 		return fmt.Errorf("order manager %w", subsystems.ErrNilSubsystem)
@@ -572,4 +580,15 @@ func (m *Manager) UpdateExistingOrder(od *order.Detail) error {
 		return fmt.Errorf("order manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	return m.orderStore.updateExisting(od)
+}
+
+// UpsertOrder updates an existing order or adds a new one to the orderstore
+func (m *Manager) UpsertOrder(od *order.Detail) error {
+	if m == nil {
+		return fmt.Errorf("order manager %w", subsystems.ErrNilSubsystem)
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return fmt.Errorf("order manager %w", subsystems.ErrSubSystemNotStarted)
+	}
+	return m.orderStore.upsert(od)
 }

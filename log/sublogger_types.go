@@ -10,6 +10,7 @@ var (
 	BackTester       *subLogger
 	ConnectionMgr    *subLogger
 	CommunicationMgr *subLogger
+	APIServerMgr     *subLogger
 	ConfigMgr        *subLogger
 	DatabaseMgr      *subLogger
 	GCTScriptMgr     *subLogger

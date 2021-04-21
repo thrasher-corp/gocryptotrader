@@ -11,12 +11,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
+// iWebsocketDataReceiver limits exposure of accessible functions to websocket data receiver
 type iWebsocketDataReceiver interface {
 	IsRunning() bool
 	WebsocketDataReceiver(ws *stream.Websocket)
 	WebsocketDataHandler(string, interface{}) error
 }
 
+// iExchangeManager limits exposure of accessible functions to exchange manager
 type iExchangeManager interface {
 	GetExchanges() []exchange.IBotExchange
 	GetExchangeByName(string) exchange.IBotExchange
@@ -43,7 +45,7 @@ type currencyPairSyncAgent struct {
 	Trade     syncBase
 }
 
-// CurrencyPairSyncerConfig stores the currency pair config
+// Config stores the currency pair config
 type Config struct {
 	SyncTicker       bool
 	SyncOrderbook    bool

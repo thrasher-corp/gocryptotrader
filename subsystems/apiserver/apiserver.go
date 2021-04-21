@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
+// Setup checks and creates an api server manager
 func Setup(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager iExchangeManager, bot iBot, portfolioManager iPortfolioManager, configPath string) (*Manager, error) {
 	if remoteConfig == nil {
 		return nil, errNilRemoteConfig
@@ -45,6 +46,7 @@ func Setup(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profile
 	}, nil
 }
 
+// IsRunning safely checks whether the subsystem is running
 func (m *Manager) IsRunning() bool {
 	if m == nil {
 		return false
@@ -52,6 +54,7 @@ func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+// Stop attempts to shutdown the subsystem
 func (m *Manager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("api server %w", subsystems.ErrNilSubsystem)

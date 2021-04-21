@@ -7,6 +7,8 @@ import (
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
+// SetConfig safely sets the global database instance's config with some
+// basic locks and checks
 func (i *Instance) SetConfig(cfg *Config) error {
 	if i == nil {
 		return errNilInstance
@@ -26,13 +28,17 @@ func (i *Instance) SetConfig(cfg *Config) error {
 	return nil
 }
 
-func (i *Instance) SetSQliteConnection(con *sql.DB) {
+// SetSQLiteConnection safely sets the global database instance's connection
+// to use SQLite
+func (i *Instance) SetSQLiteConnection(con *sql.DB) {
 	i.m.Lock()
 	defer i.m.Unlock()
 	i.SQL = con
 	i.SQL.SetMaxOpenConns(1)
 }
 
+// SetPostgresConnection safely sets the global database instance's connection
+// to use Postgres
 func (i *Instance) SetPostgresConnection(con *sql.DB) error {
 	if err := con.Ping(); err != nil {
 		return err
@@ -46,24 +52,29 @@ func (i *Instance) SetPostgresConnection(con *sql.DB) error {
 	return nil
 }
 
+// SetConnected safely sets the global database instance's connected
+// status
 func (i *Instance) SetConnected(v bool) {
 	i.m.Lock()
 	i.connected = v
 	i.m.Unlock()
 }
 
+// CloseConnection safely disconnects the global database instance
 func (i *Instance) CloseConnection() error {
 	i.m.Lock()
 	defer i.m.Unlock()
 	return i.SQL.Close()
 }
 
+// IsConnected safely checks the SQL connection status
 func (i *Instance) IsConnected() bool {
 	i.m.RLock()
 	defer i.m.RUnlock()
 	return i.connected
 }
 
+// GetConfig safely returns a copy of the config
 func (i *Instance) GetConfig() *Config {
 	i.m.RLock()
 	defer i.m.RUnlock()
@@ -71,6 +82,7 @@ func (i *Instance) GetConfig() *Config {
 	return cpy
 }
 
+// Ping pings the database
 func (i *Instance) Ping() error {
 	if i == nil {
 		return errNilInstance

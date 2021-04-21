@@ -1,4 +1,4 @@
-package withdrawalmanager
+package withdrawmanager
 
 import (
 	"errors"

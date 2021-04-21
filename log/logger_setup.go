@@ -141,6 +141,7 @@ func init() {
 	ConnectionMgr = registerNewSubLogger("CONNECTION")
 	BackTester = registerNewSubLogger("BACKTESTER")
 	CommunicationMgr = registerNewSubLogger("COMMS")
+	APIServerMgr = registerNewSubLogger("API")
 	ConfigMgr = registerNewSubLogger("CONFIG")
 	DatabaseMgr = registerNewSubLogger("DATABASE")
 	OrderMgr = registerNewSubLogger("ORDER")

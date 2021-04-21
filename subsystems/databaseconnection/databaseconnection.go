@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
+// Name is an exported subsystem name
 const Name = "database"
 
 var (
@@ -36,7 +37,7 @@ type Manager struct {
 	dbConn   *database.Instance
 }
 
-// IsRunning returns whether the database connection manager is running
+// IsRunning safely checks whether the subsystem is running
 func (m *Manager) IsRunning() bool {
 	if m == nil {
 		return false
@@ -44,6 +45,7 @@ func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+// Setup creates a new database manager
 func Setup(cfg *database.Config) (*Manager, error) {
 	if cfg == nil {
 		return nil, errNilConfig
@@ -117,6 +119,7 @@ func (m *Manager) Start(wg *sync.WaitGroup) (err error) {
 }
 
 // Stop stops the database manager and closes the connection
+// Stop attempts to shutdown the subsystem
 func (m *Manager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("%s %w", Name, subsystems.ErrNilSubsystem)

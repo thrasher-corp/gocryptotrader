@@ -47,7 +47,8 @@ var (
 	// ErrExchangeNameUnset message to return when an exchange name is unset
 	ErrExchangeNameUnset = errors.New("exchange name unset")
 	// ErrInvalidRequest message to return when a request type is invalid
-	ErrInvalidRequest           = errors.New("invalid request type")
+	ErrInvalidRequest = errors.New("invalid request type")
+	// ErrStrAddressNotWhiteListed occurs when a withdrawal attempts to withdraw from a non-whitelisted address
 	ErrStrAddressNotWhiteListed = errors.New("address is not whitelisted for withdrawals")
 	// ErrStrExchangeNotSupportedByAddress message to return when attemptign to withdraw to an unsupported exchange
 	ErrStrExchangeNotSupportedByAddress = errors.New("address is not supported by exchange")

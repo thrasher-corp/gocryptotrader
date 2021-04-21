@@ -35,7 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/websocketroutinemanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawmanager"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
 
@@ -55,7 +55,7 @@ type Engine struct {
 	eventManager                *eventmanager.Manager
 	websocketRoutineManager     *websocketroutinemanager.Manager
 	DepositAddressManager       *depositaddress.Manager
-	WithdrawalManager           *withdrawalmanager.Manager
+	WithdrawalManager           *withdrawmanager.Manager
 	Settings                    Settings
 	uptime                      time.Time
 	apiServer                   *apiserver.Manager
@@ -435,7 +435,7 @@ func (bot *Engine) Start() error {
 		return err
 	}
 
-	bot.WithdrawalManager, err = withdrawalmanager.Setup(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
+	bot.WithdrawalManager, err = withdrawmanager.Setup(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
 	if err != nil {
 		return err
 	}

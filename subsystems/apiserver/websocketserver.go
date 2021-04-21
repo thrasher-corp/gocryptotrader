@@ -27,7 +27,7 @@ func (m *Manager) StartWebsocketServer() error {
 		return fmt.Errorf("websocket %w", errServerDisabled)
 	}
 	atomic.StoreInt32(&m.started, 1)
-	log.Debugf(log.CommunicationMgr,
+	log.Debugf(log.APIServerMgr,
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
 		common.ExtractHost(m.websocketListenAddress), common.ExtractPort(m.websocketListenAddress))
 	m.websocketRouter = m.newRouter(false)
@@ -45,7 +45,7 @@ func (m *Manager) StartWebsocketServer() error {
 		err := m.websocketHTTPServer.ListenAndServe()
 		if err != nil {
 			atomic.StoreInt32(&m.websocketStarted, 0)
-			log.Error(log.GRPCSys, err)
+			log.Error(log.APIServerMgr, err)
 		}
 	}()
 	return nil
@@ -68,7 +68,7 @@ func (h *WebsocketHub) run() {
 			h.Clients[client] = true
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client]; ok {
-				log.Debugln(log.WebsocketMgr, "websocket: disconnected client")
+				log.Debugln(log.APIServerMgr, "websocket: disconnected client")
 				delete(h.Clients, client)
 				close(client.Send)
 			}
@@ -77,7 +77,7 @@ func (h *WebsocketHub) run() {
 				select {
 				case client.Send <- message:
 				default:
-					log.Debugln(log.WebsocketMgr, "websocket: disconnected client")
+					log.Debugln(log.APIServerMgr, "websocket: disconnected client")
 					close(client.Send)
 					delete(h.Clients, client)
 				}
@@ -90,7 +90,7 @@ func (h *WebsocketHub) run() {
 func (c *WebsocketClient) SendWebsocketMessage(evt interface{}) error {
 	data, err := json.Marshal(evt)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr, "websocket: failed to send message: %s\n", err)
+		log.Errorf(log.APIServerMgr, "websocket: failed to send message: %s\n", err)
 		return err
 	}
 
@@ -103,7 +103,7 @@ func (c *WebsocketClient) read() {
 		c.Hub.Unregister <- c
 		conErr := c.Conn.Close()
 		if conErr != nil {
-			log.Error(log.WebsocketMgr, conErr)
+			log.Error(log.APIServerMgr, conErr)
 		}
 	}()
 
@@ -111,7 +111,7 @@ func (c *WebsocketClient) read() {
 		msgType, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Errorf(log.WebsocketMgr, "websocket: client disconnected, err: %s\n", err)
+				log.Errorf(log.APIServerMgr, "websocket: client disconnected, err: %s\n", err)
 			}
 			break
 		}
@@ -120,42 +120,42 @@ func (c *WebsocketClient) read() {
 			var evt WebsocketEvent
 			err := json.Unmarshal(message, &evt)
 			if err != nil {
-				log.Errorf(log.WebsocketMgr, "websocket: failed to decode JSON sent from client %s\n", err)
+				log.Errorf(log.APIServerMgr, "websocket: failed to decode JSON sent from client %s\n", err)
 				continue
 			}
 
 			if evt.Event == "" {
-				log.Warnln(log.WebsocketMgr, "websocket: client sent a blank event, disconnecting")
+				log.Warnln(log.APIServerMgr, "websocket: client sent a blank event, disconnecting")
 				continue
 			}
 
 			dataJSON, err := json.Marshal(evt.Data)
 			if err != nil {
-				log.Errorln(log.WebsocketMgr, "websocket: client sent data we couldn't JSON decode")
+				log.Errorln(log.APIServerMgr, "websocket: client sent data we couldn't JSON decode")
 				break
 			}
 
 			req := strings.ToLower(evt.Event)
-			log.Debugf(log.WebsocketMgr, "websocket: request received: %s\n", req)
+			log.Debugf(log.APIServerMgr, "websocket: request received: %s\n", req)
 
 			result, ok := wsHandlers[req]
 			if !ok {
-				log.Debugln(log.WebsocketMgr, "websocket: unsupported event")
+				log.Debugln(log.APIServerMgr, "websocket: unsupported event")
 				continue
 			}
 
 			if result.authRequired && !c.Authenticated {
-				log.Warnf(log.WebsocketMgr, "Websocket: request %s failed due to unauthenticated request on an authenticated API\n", evt.Event)
+				log.Warnf(log.APIServerMgr, "Websocket: request %s failed due to unauthenticated request on an authenticated API\n", evt.Event)
 				err = c.SendWebsocketMessage(WebsocketEventResponse{Event: evt.Event, Error: "unauthorised request on authenticated API"})
 				if err != nil {
-					log.Error(log.WebsocketMgr, err)
+					log.Error(log.APIServerMgr, err)
 				}
 				continue
 			}
 
 			err = result.handler(c, dataJSON)
 			if err != nil {
-				log.Errorf(log.WebsocketMgr, "websocket: request %s failed. Error %s\n", evt.Event, err)
+				log.Errorf(log.APIServerMgr, "websocket: request %s failed. Error %s\n", evt.Event, err)
 				continue
 			}
 		}
@@ -166,7 +166,7 @@ func (c *WebsocketClient) write() {
 	defer func() {
 		err := c.Conn.Close()
 		if err != nil {
-			log.Error(log.WebsocketMgr, err)
+			log.Error(log.APIServerMgr, err)
 		}
 	}()
 	for { // nolint // ws client write routine loop
@@ -175,20 +175,20 @@ func (c *WebsocketClient) write() {
 			if !ok {
 				err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				if err != nil {
-					log.Error(log.WebsocketMgr, err)
+					log.Error(log.APIServerMgr, err)
 				}
-				log.Debugln(log.WebsocketMgr, "websocket: hub closed the channel")
+				log.Debugln(log.APIServerMgr, "websocket: hub closed the channel")
 				return
 			}
 
 			w, err := c.Conn.NextWriter(websocket.TextMessage)
 			if err != nil {
-				log.Errorf(log.WebsocketMgr, "websocket: failed to create new io.writeCloser: %s\n", err)
+				log.Errorf(log.APIServerMgr, "websocket: failed to create new io.writeCloser: %s\n", err)
 				return
 			}
 			_, err = w.Write(message)
 			if err != nil {
-				log.Error(log.WebsocketMgr, err)
+				log.Error(log.APIServerMgr, err)
 			}
 
 			// Add queued chat messages to the current websocket message
@@ -196,12 +196,12 @@ func (c *WebsocketClient) write() {
 			for i := 0; i < n; i++ {
 				_, err = w.Write(<-c.Send)
 				if err != nil {
-					log.Error(log.WebsocketMgr, err)
+					log.Error(log.APIServerMgr, err)
 				}
 			}
 
 			if err := w.Close(); err != nil {
-				log.Errorf(log.WebsocketMgr, "websocket: failed to close io.WriteCloser: %s\n", err)
+				log.Errorf(log.APIServerMgr, "websocket: failed to close io.WriteCloser: %s\n", err)
 				return
 			}
 		}
@@ -244,7 +244,7 @@ func (m *Manager) WebsocketClientHandler(w http.ResponseWriter, r *http.Request)
 	numClients := len(wsHub.Clients)
 
 	if numClients >= connectionLimit {
-		log.Warnf(log.WebsocketMgr,
+		log.Warnf(log.APIServerMgr,
 			"websocket: client rejected due to websocket client limit reached. Number of clients %d. Limit %d.\n",
 			numClients, connectionLimit)
 		w.WriteHeader(http.StatusForbidden)
@@ -264,7 +264,7 @@ func (m *Manager) WebsocketClientHandler(w http.ResponseWriter, r *http.Request)
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Error(log.WebsocketMgr, err)
+		log.Error(log.APIServerMgr, err)
 		return
 	}
 
@@ -282,7 +282,7 @@ func (m *Manager) WebsocketClientHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	client.Hub.Register <- client
-	log.Debugf(log.WebsocketMgr,
+	log.Debugf(log.APIServerMgr,
 		"websocket: client connected. Connected clients: %d. Limit %d.\n",
 		numClients+1, connectionLimit)
 
@@ -301,7 +301,7 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.WebsocketMgr, sendErr)
+			log.Error(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -310,7 +310,7 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 	if auth.Username == client.username && auth.Password == hashPW {
 		client.Authenticated = true
 		wsResp.Data = WebsocketResponseSuccess
-		log.Debugln(log.WebsocketMgr,
+		log.Debugln(log.APIServerMgr,
 			"websocket: client authenticated successfully")
 		return client.SendWebsocketMessage(wsResp)
 	}
@@ -319,17 +319,17 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 	client.authFailures++
 	sendErr := client.SendWebsocketMessage(wsResp)
 	if sendErr != nil {
-		log.Error(log.WebsocketMgr, sendErr)
+		log.Error(log.APIServerMgr, sendErr)
 	}
 	if client.authFailures >= client.maxAuthFailures {
-		log.Debugf(log.WebsocketMgr,
+		log.Debugf(log.APIServerMgr,
 			"websocket: disconnecting client, maximum auth failures threshold reached (failures: %d limit: %d)\n",
 			client.authFailures, client.maxAuthFailures)
 		wsHub.Unregister <- client
 		return nil
 	}
 
-	log.Debugf(log.WebsocketMgr,
+	log.Debugf(log.APIServerMgr,
 		"websocket: client sent wrong username/password (failures: %d limit: %d)\n",
 		client.authFailures, client.maxAuthFailures)
 	return nil
@@ -353,7 +353,7 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.WebsocketMgr, sendErr)
+			log.Error(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -364,7 +364,7 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.WebsocketMgr, sendErr)
+			log.Error(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -374,7 +374,7 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.WebsocketMgr, sendErr)
+			log.Error(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -409,7 +409,7 @@ func wsGetTicker(client *WebsocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.WebsocketMgr, sendErr)
+			log.Error(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -429,7 +429,7 @@ func wsGetTicker(client *WebsocketClient, data interface{}) error {
 		wsResp.Error = exchange.ErrNoExchangeFound.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.WebsocketMgr, sendErr)
+			log.Error(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -438,7 +438,7 @@ func wsGetTicker(client *WebsocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.WebsocketMgr, sendErr)
+			log.Error(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -464,7 +464,7 @@ func wsGetOrderbook(client *WebsocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.WebsocketMgr, sendErr)
+			log.Error(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -484,7 +484,7 @@ func wsGetOrderbook(client *WebsocketClient, data interface{}) error {
 		wsResp.Error = exchange.ErrNoExchangeFound.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.WebsocketMgr, sendErr)
+			log.Error(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -493,7 +493,7 @@ func wsGetOrderbook(client *WebsocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.WebsocketMgr, sendErr)
+			log.Error(log.APIServerMgr, sendErr)
 		}
 		return err
 	}

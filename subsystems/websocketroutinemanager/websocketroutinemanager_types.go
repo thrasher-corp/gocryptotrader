@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
+// Manager is used to process websocket updates from a unified location
 type Manager struct {
 	started         int32
 	verbose         bool
@@ -24,10 +25,12 @@ type Manager struct {
 	wg              sync.WaitGroup
 }
 
+// iExchangeManager defines a limited scoped exchange manager
 type iExchangeManager interface {
 	GetExchanges() []exchange.IBotExchange
 }
 
+// iCurrencyPairSyncer defines a limited scoped currency pair syncer
 type iCurrencyPairSyncer interface {
 	IsRunning() bool
 	PrintTickerSummary(*ticker.Price, string, error)
@@ -35,6 +38,7 @@ type iCurrencyPairSyncer interface {
 	Update(string, currency.Pair, asset.Item, int, error) error
 }
 
+// iOrderManager defines a limited scoped order manager
 type iOrderManager interface {
 	Exists(*order.Detail) bool
 	Add(*order.Detail) error

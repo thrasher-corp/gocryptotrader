@@ -36,6 +36,8 @@ func (s *store) getByExchangeAndID(exchange, id string) (*order.Detail, error) {
 	return nil, ErrOrderNotFound
 }
 
+// updateExisting checks if an order exists in the orderstore
+// and then updates it
 func (s *store) updateExisting(od *order.Detail) error {
 	s.m.RLock()
 	defer s.m.RUnlock()
@@ -51,6 +53,29 @@ func (s *store) updateExisting(od *order.Detail) error {
 	}
 
 	return ErrOrderNotFound
+}
+
+func (s *store) upsert(od *order.Detail) error {
+	lName := strings.ToLower(od.Exchange)
+	exch := s.exchangeManager.GetExchangeByName(lName)
+	if exch == nil {
+		return exchangemanager.ErrExchangeNotFound
+	}
+	s.m.Lock()
+	defer s.m.Unlock()
+	r, ok := s.Orders[lName]
+	if !ok {
+		s.Orders[lName] = []*order.Detail{od}
+		return nil
+	}
+	for x := range r {
+		if r[x].ID == od.ID {
+			r[x] = od
+			return nil
+		}
+	}
+	s.Orders[lName] = append(s.Orders[lName], od)
+	return nil
 }
 
 // getByExchange returns orders by exchange
@@ -79,6 +104,7 @@ func (s *store) getByInternalOrderID(internalOrderID string) (*order.Detail, err
 	return nil, ErrOrderNotFound
 }
 
+// exists verifies if the orderstore contains the provided order
 func (s *store) exists(det *order.Detail) bool {
 	if det == nil {
 		return false

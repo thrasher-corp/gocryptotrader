@@ -23,7 +23,7 @@ func Connect() (*database.Instance, error) {
 		return nil, err
 	}
 
-	database.DB.SetSQliteConnection(dbConn)
+	database.DB.SetSQLiteConnection(dbConn)
 
 	return database.DB, nil
 }

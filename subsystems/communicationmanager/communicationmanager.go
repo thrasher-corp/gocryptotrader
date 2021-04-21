@@ -12,9 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
+// Name is an exported subsystem name
 const Name = "communications"
 
-// Manager starts the communications manager
+// Manager ensures operations of communications
 type Manager struct {
 	started  int32
 	shutdown chan struct{}
@@ -24,6 +25,7 @@ type Manager struct {
 
 var errNilConfig = errors.New("received nil communications config")
 
+// Setup creates a communications manager
 func Setup(cfg *config.CommunicationsConfig) (*Manager, error) {
 	if cfg == nil {
 		return nil, errNilConfig
@@ -40,6 +42,7 @@ func Setup(cfg *config.CommunicationsConfig) (*Manager, error) {
 	return manager, nil
 }
 
+// IsRunning safely checks whether the subsystem is running
 func (m *Manager) IsRunning() bool {
 	if m == nil {
 		return false
@@ -47,6 +50,7 @@ func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+// Start runs the subsystem
 func (m *Manager) Start() error {
 	if m == nil {
 		return fmt.Errorf("communications manager server %w", subsystems.ErrNilSubsystem)
@@ -54,12 +58,13 @@ func (m *Manager) Start() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("communications manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
-	log.Debugf(log.Global, "Communications manager %s", subsystems.MsgSubSystemStarting)
+	log.Debugf(log.CommunicationMgr, "Communications manager %s", subsystems.MsgSubSystemStarting)
 	m.shutdown = make(chan struct{})
 	go m.run()
 	return nil
 }
 
+// GetStatus returns the status of communications
 func (m *Manager) GetStatus() (map[string]base.CommsStatus, error) {
 	if !m.IsRunning() {
 		return nil, fmt.Errorf("communications manager %w", subsystems.ErrSubSystemNotStarted)
@@ -67,6 +72,7 @@ func (m *Manager) GetStatus() (map[string]base.CommsStatus, error) {
 	return m.comms.GetStatus(), nil
 }
 
+// Stop attempts to shutdown the subsystem
 func (m *Manager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("communications manager server %w", subsystems.ErrNilSubsystem)
@@ -82,6 +88,7 @@ func (m *Manager) Stop() error {
 	return nil
 }
 
+// PushEvent pushes an event to the communications relay
 func (m *Manager) PushEvent(evt base.Event) {
 	if !m.IsRunning() {
 		return
@@ -93,6 +100,7 @@ func (m *Manager) PushEvent(evt base.Event) {
 	}
 }
 
+// run takes awaiting messages and pushes them to be handled by communications
 func (m *Manager) run() {
 	log.Debugf(log.Global, "Communications manager %s", subsystems.MsgSubSystemStarted)
 	defer func() {

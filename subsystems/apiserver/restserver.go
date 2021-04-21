@@ -35,7 +35,7 @@ func (m *Manager) StartRESTServer() error {
 		if err != nil {
 			atomic.StoreInt32(&m.restStarted, 0)
 			atomic.StoreInt32(&m.started, 0)
-			log.Error(log.GRPCSys, err)
+			log.Error(log.APIServerMgr, err)
 		}
 	}()
 	return nil
@@ -66,7 +66,7 @@ func writeResponse(w http.ResponseWriter, response interface{}) error {
 
 // handleError prints the REST method and error
 func handleError(method string, err error) {
-	log.Errorf(log.RESTSys, "RESTful %s: handler failed to send JSON response. Error %s\n",
+	log.Errorf(log.APIServerMgr, "RESTful %s: handler failed to send JSON response. Error %s\n",
 		method, err)
 }
 
@@ -145,10 +145,11 @@ func (m *Manager) restGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// getInfex
 func (m *Manager) getIndex(w http.ResponseWriter, _ *http.Request) {
 	_, err := fmt.Fprint(w, restIndexResponse)
 	if err != nil {
-		log.Error(log.CommunicationMgr, err)
+		log.Error(log.APIServerMgr, err)
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -166,7 +167,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 		for y := range assets {
 			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
 			if err != nil {
-				log.Errorf(log.RESTSys,
+				log.Errorf(log.APIServerMgr,
 					"Exchange %s could not retrieve enabled currencies. Err: %h\n",
 					exchName,
 					err)
@@ -175,7 +176,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 			for z := range currencies {
 				ob, err := exchanges[x].FetchOrderbook(currencies[z], assets[y])
 				if err != nil {
-					log.Errorf(log.RESTSys,
+					log.Errorf(log.APIServerMgr,
 						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
 						currencies[z].String(),
 						err)
@@ -203,7 +204,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 		for y := range assets {
 			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
 			if err != nil {
-				log.Errorf(log.RESTSys,
+				log.Errorf(log.APIServerMgr,
 					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
 					exchName,
 					err)
@@ -212,7 +213,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 			for z := range currencies {
 				t, err := exchanges[x].FetchTicker(currencies[z], assets[y])
 				if err != nil {
-					log.Errorf(log.RESTSys,
+					log.Errorf(log.APIServerMgr,
 						"Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),
 						err)
@@ -238,7 +239,7 @@ func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
 		for y := range assets {
 			a, err := exchanges[x].FetchAccountInfo(assets[y])
 			if err != nil {
-				log.Errorf(log.RESTSys,
+				log.Errorf(log.APIServerMgr,
 					"Exchange %s failed to retrieve %s ticker. Err: %s\n",
 					exchName,
 					assets[y],

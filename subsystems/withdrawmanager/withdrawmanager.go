@@ -1,4 +1,4 @@
-package withdrawalmanager
+package withdrawmanager
 
 import (
 	"errors"
@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
+// Setup creates a new withdraw manager
 func Setup(em iExchangeManager, pm iPortfolioManager, isDryRun bool) (*Manager, error) {
 	if em == nil {
 		return nil, errors.New("nil manager")

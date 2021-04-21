@@ -29,9 +29,11 @@ const (
 )
 
 var (
-	createdCounter        = 0
-	removedCounter        = 0
-	DefaultSyncerWorkers  = 15
+	createdCounter = 0
+	removedCounter = 0
+	// DefaultSyncerWorkers limits the number of sync workers
+	DefaultSyncerWorkers = 15
+	// DefaultSyncerTimeout the default time to switch from REST to websocket protocols without a response
 	DefaultSyncerTimeout  = time.Second * 15
 	errNoSyncItemsEnabled = errors.New("no sync items enabled")
 	errNilExchangeManager = errors.New("nil exchange manager received")
@@ -83,6 +85,7 @@ func Setup(c *Config, exchangeManager iExchangeManager, websocketDataReceiver iW
 	return s, nil
 }
 
+// IsRunning safely checks whether the subsystem is running
 func (m *Manager) IsRunning() bool {
 	if m == nil {
 		return false
@@ -90,7 +93,7 @@ func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
-// Start starts an exchange currency pair syncer
+// Start runs the subsystem
 func (m *Manager) Start() error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystems.ErrNilSubsystem)
@@ -241,6 +244,7 @@ func (m *Manager) Start() error {
 }
 
 // Stop shuts down the exchange currency pair syncer
+// Stop attempts to shutdown the subsystem
 func (m *Manager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystems.ErrNilSubsystem)
@@ -709,7 +713,7 @@ func (m *Manager) worker() {
 func printCurrencyFormat(price float64, displayCurrency currency.Code) string {
 	displaySymbol, err := currency.GetSymbolByCurrencyName(displayCurrency)
 	if err != nil {
-		log.Errorf(log.Global, "Failed to get display symbol: %s\n", err)
+		log.Errorf(log.SyncMgr, "Failed to get display symbol: %s\n", err)
 	}
 
 	return fmt.Sprintf("%s%.8f", displaySymbol, price)
@@ -720,17 +724,17 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64, d
 		origCurrency,
 		displayCurrency)
 	if err != nil {
-		log.Errorf(log.Global, "Failed to convert currency: %s\n", err)
+		log.Errorf(log.SyncMgr, "Failed to convert currency: %s\n", err)
 	}
 
 	displaySymbol, err := currency.GetSymbolByCurrencyName(displayCurrency)
 	if err != nil {
-		log.Errorf(log.Global, "Failed to get display symbol: %s\n", err)
+		log.Errorf(log.SyncMgr, "Failed to get display symbol: %s\n", err)
 	}
 
 	origSymbol, err := currency.GetSymbolByCurrencyName(origCurrency)
 	if err != nil {
-		log.Errorf(log.Global, "Failed to get original currency symbol for %s: %s\n",
+		log.Errorf(log.SyncMgr, "Failed to get original currency symbol for %s: %s\n",
 			origCurrency,
 			err)
 	}
@@ -752,12 +756,12 @@ func (m *Manager) PrintTickerSummary(result *ticker.Price, protocol string, err 
 	}
 	if err != nil {
 		if err == common.ErrNotYetImplemented {
-			log.Warnf(log.Ticker, "Failed to get %s ticker. Error: %s\n",
+			log.Warnf(log.SyncMgr, "Failed to get %s ticker. Error: %s\n",
 				protocol,
 				err)
 			return
 		}
-		log.Errorf(log.Ticker, "Failed to get %s ticker. Error: %s\n",
+		log.Errorf(log.SyncMgr, "Failed to get %s ticker. Error: %s\n",
 			protocol,
 			err)
 		return
@@ -899,7 +903,7 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 	}
 	err := apiserver.BroadcastWebsocketMessage(evt)
 	if !errors.Is(err, apiserver.ErrWebsocketServiceNotRunning) {
-		log.Errorf(log.WebsocketMgr, "Failed to broadcast websocket event %v. Error: %s\n",
+		log.Errorf(log.APIServerMgr, "Failed to broadcast websocket event %v. Error: %s\n",
 			event, err)
 	}
 }

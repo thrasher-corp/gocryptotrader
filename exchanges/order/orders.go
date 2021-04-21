@@ -716,6 +716,8 @@ func (c *Cancel) StandardCancel() validate.Checker {
 	})
 }
 
+// PairAssetRequired is a validation check for when a cancel request
+// requires an asset type and currency pair to be present
 func (c *Cancel) PairAssetRequired() validate.Checker {
 	return validate.Check(func() error {
 		if c.Pair.IsEmpty() {

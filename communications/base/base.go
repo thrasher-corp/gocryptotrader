@@ -48,6 +48,7 @@ func (b *Base) GetStatus() string {
 	Service Started: ` + b.ServiceStarted.String()
 }
 
+// SetServiceStarted sets the time the service started
 func (b *Base) SetServiceStarted(t time.Time) {
 	b.ServiceStarted = t
 }

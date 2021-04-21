@@ -11,17 +11,21 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// Name is an exported subsystem name
 const Name = "orders"
 
 // vars for the fund manager package
 var (
-	orderManagerDelay           = time.Second * 10
-	ErrOrdersAlreadyExists      = errors.New("order already exists")
+	orderManagerDelay = time.Second * 10
+	// ErrOrdersAlreadyExists occurs when the order already exists in the manager
+	ErrOrdersAlreadyExists = errors.New("order already exists")
+	// ErrOrderNotFound occurs when an order is not found in the orderstore
 	ErrOrderNotFound            = errors.New("order does not exist")
 	errNilExchangeManager       = errors.New("cannot start with nil exchange manager")
 	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
 	errNilWaitGroup             = errors.New("cannot start with nil waitgroup")
-	ErrOrderIDCannotBeEmpty     = errors.New("orderID cannot be empty")
+	// ErrOrderIDCannotBeEmpty occurs when an order does not have an ID
+	ErrOrderIDCannotBeEmpty = errors.New("orderID cannot be empty")
 )
 
 // iExchangeManager limits exposure of accessible functions to order manager
@@ -45,6 +49,7 @@ type orderManagerConfig struct {
 	OrderSubmissionRetries int64
 }
 
+// store holds all orders by exchange
 type store struct {
 	m               sync.RWMutex
 	Orders          map[string][]*order.Detail
@@ -53,6 +58,7 @@ type store struct {
 	wg              *sync.WaitGroup
 }
 
+// Manager processes and stores orders across enabled exchanges
 type Manager struct {
 	started    int32
 	shutdown   chan struct{}

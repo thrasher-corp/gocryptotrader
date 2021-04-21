@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
+// Name is an exported subsystem name
 const Name = "dispatch"
 
 func init() {

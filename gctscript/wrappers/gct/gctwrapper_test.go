@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/depositaddress"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawmanager"
 )
 
 func TestMain(m *testing.M) {
@@ -44,20 +44,18 @@ func TestMain(m *testing.M) {
 	exch.SetDefaults()
 	em.Add(exch)
 	engine.Bot.ExchangeManager = em
-	engine.Bot.WithdrawalManager, err = withdrawalmanager.Setup(em, nil, true)
+	engine.Bot.WithdrawalManager, err = withdrawmanager.Setup(em, nil, true)
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
 	}
 
 	engine.Bot.DepositAddressManager = depositaddress.Setup()
-	go func() {
-		err = engine.Bot.DepositAddressManager.Sync(engine.Bot.GetExchangeCryptocurrencyDepositAddresses())
-		if err != nil {
-			log.Print(err)
-			os.Exit(1)
-		}
-	}()
+	err = engine.Bot.DepositAddressManager.Sync(engine.Bot.GetExchangeCryptocurrencyDepositAddresses())
+	if err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
 
 	engine.Bot.OrderManager, err = ordermanager.Setup(em, &communicationmanager.Manager{}, &engine.Bot.ServicesWG, false)
 	if err != nil {

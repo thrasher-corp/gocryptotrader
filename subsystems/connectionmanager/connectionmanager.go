@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
+// Name is an exported subsystem name
 const Name = "internet_monitor"
 
 // Manager manages the connchecker
@@ -22,7 +23,7 @@ type Manager struct {
 
 var errNilConfig = errors.New("nil config")
 
-// IsRunning returns if the connection manager has started
+// IsRunning safely checks whether the subsystem is running
 func (m *Manager) IsRunning() bool {
 	if m == nil {
 		return false
@@ -30,6 +31,7 @@ func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+// Setup creates a database connection manager
 func Setup(cfg *config.ConnectionMonitorConfig) (*Manager, error) {
 	if cfg == nil {
 		return nil, errNilConfig
@@ -48,7 +50,7 @@ func Setup(cfg *config.ConnectionMonitorConfig) (*Manager, error) {
 	}, nil
 }
 
-// Start starts an instance of the connection manager
+// Start runs the subsystem
 func (m *Manager) Start() error {
 	if m == nil {
 		return fmt.Errorf("connection manager %w", subsystems.ErrNilSubsystem)
@@ -72,6 +74,7 @@ func (m *Manager) Start() error {
 }
 
 // Stop stops the connection manager
+// Stop attempts to shutdown the subsystem
 func (m *Manager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("connection manager %w", subsystems.ErrNilSubsystem)

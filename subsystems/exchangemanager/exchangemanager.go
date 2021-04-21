@@ -47,17 +47,20 @@ var (
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
 )
 
+// Manager manages what exchanges are loaded
 type Manager struct {
 	m         sync.Mutex
 	exchanges map[string]exchange.IBotExchange
 }
 
+// Setup creates a new exchange manager
 func Setup() *Manager {
 	return &Manager{
 		exchanges: make(map[string]exchange.IBotExchange),
 	}
 }
 
+// Add adds or replaces an exchange
 func (m *Manager) Add(exch exchange.IBotExchange) {
 	if exch == nil {
 		return
@@ -67,6 +70,7 @@ func (m *Manager) Add(exch exchange.IBotExchange) {
 	m.m.Unlock()
 }
 
+// GetExchanges returns all stored exchanges
 func (m *Manager) GetExchanges() []exchange.IBotExchange {
 	if m.Len() == 0 {
 		return nil
@@ -81,6 +85,7 @@ func (m *Manager) GetExchanges() []exchange.IBotExchange {
 	return exchs
 }
 
+// RemoveExchange removes an exchange from the manager
 func (m *Manager) RemoveExchange(exchName string) error {
 	if m.Len() == 0 {
 		return ErrNoExchangesLoaded
@@ -96,6 +101,7 @@ func (m *Manager) RemoveExchange(exchName string) error {
 	return nil
 }
 
+// GetExchangeByName returns an exchange by its name if it exists
 func (m *Manager) GetExchangeByName(exchangeName string) exchange.IBotExchange {
 	if m.Len() == 0 {
 		return nil
@@ -109,12 +115,14 @@ func (m *Manager) GetExchangeByName(exchangeName string) exchange.IBotExchange {
 	return exch
 }
 
+// Len says how many exchanges are loaded
 func (m *Manager) Len() int {
 	m.m.Lock()
 	defer m.m.Unlock()
 	return len(m.exchanges)
 }
 
+// NewExchangeByName helps create a new exchange to be loaded
 func (m *Manager) NewExchangeByName(name string) (exchange.IBotExchange, error) {
 	if m == nil {
 		return nil, fmt.Errorf("exchange manager %w", subsystems.ErrNilSubsystem)

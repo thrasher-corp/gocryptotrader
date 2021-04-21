@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
+// Setup creates a new NTP manager
 func Setup(cfg *config.NTPClientConfig, loggingEnabled bool) (*Manager, error) {
 	if cfg == nil {
 		return nil, errNilConfig
@@ -32,6 +33,7 @@ func Setup(cfg *config.NTPClientConfig, loggingEnabled bool) (*Manager, error) {
 	}, nil
 }
 
+// IsRunning safely checks whether the subsystem is running
 func (m *Manager) IsRunning() bool {
 	if m == nil {
 		return false
@@ -39,6 +41,7 @@ func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+// Start runs the subsystem
 func (m *Manager) Start() error {
 	if m == nil {
 		return fmt.Errorf("ntp manager %w", subsystems.ErrNilSubsystem)
@@ -76,6 +79,7 @@ func (m *Manager) Start() error {
 	return nil
 }
 
+// Stop attempts to shutdown the subsystem
 func (m *Manager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("ntp manager %w", subsystems.ErrNilSubsystem)
@@ -92,6 +96,7 @@ func (m *Manager) Stop() error {
 	return nil
 }
 
+// continuously checks the internet connection at intervals
 func (m *Manager) run() {
 	t := time.NewTicker(m.checkInterval)
 	defer func() {
@@ -111,6 +116,7 @@ func (m *Manager) run() {
 	}
 }
 
+// FetchNTPTime returns the time from defined NTP pools
 func (m *Manager) FetchNTPTime() (time.Time, error) {
 	if m == nil {
 		return time.Time{}, fmt.Errorf("ntp manager %w", subsystems.ErrNilSubsystem)
@@ -121,6 +127,8 @@ func (m *Manager) FetchNTPTime() (time.Time, error) {
 	return checkTimeInPools(m.pools), nil
 }
 
+// processTime determines the difference between system time and NTP time
+// to discover discrepancies
 func (m *Manager) processTime() error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("NTP manager %w", subsystems.ErrSubSystemNotStarted)

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer"
 )
 
+// Setup creates a new websocket routine manager
 func Setup(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *config.CurrencyConfig, verbose bool) (*Manager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
@@ -42,6 +43,7 @@ func Setup(exchangeManager iExchangeManager, orderManager iOrderManager, syncer 
 	}, nil
 }
 
+// Start runs the subsystem
 func (m *Manager) Start() error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", subsystems.ErrNilSubsystem)
@@ -54,6 +56,7 @@ func (m *Manager) Start() error {
 	return nil
 }
 
+// IsRunning safely checks whether the subsystem is running
 func (m *Manager) IsRunning() bool {
 	if m == nil {
 		return false
@@ -61,6 +64,7 @@ func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+// Stop attempts to shutdown the subsystem
 func (m *Manager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", subsystems.ErrNilSubsystem)

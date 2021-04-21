@@ -33,8 +33,7 @@ func Setup(comManager iCommsManager, exchangeManager iExchangeManager, sleepDela
 	}, nil
 }
 
-// Start is the overarching routine that will iterate through the Events
-// chain
+// Start runs the subsystem
 func (m *Manager) Start() error {
 	if m == nil {
 		return fmt.Errorf("event manager %w", subsystems.ErrNilSubsystem)
@@ -48,6 +47,7 @@ func (m *Manager) Start() error {
 	return nil
 }
 
+// IsRunning safely checks whether the subsystem is running
 func (m *Manager) IsRunning() bool {
 	if m == nil {
 		return false
@@ -55,6 +55,7 @@ func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+// Stop attempts to shutdown the subsystem
 func (m *Manager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("event manager %w", subsystems.ErrNilSubsystem)

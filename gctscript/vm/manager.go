@@ -12,7 +12,8 @@ import (
 
 const (
 	caseName = "GCTScript"
-	Name     = "gctscript"
+	// Name is an exported subsystem name
+	Name = "gctscript"
 )
 
 // GctScriptManager loads and runs GCT Tengo scripts
@@ -34,7 +35,7 @@ func NewManager(config *Config) (*GctScriptManager, error) {
 	}, nil
 }
 
-// Started returns if gctscript manager subsystem is started
+// IsRunning returns if gctscript manager subsystem is started
 func (g *GctScriptManager) IsRunning() bool {
 	if g == nil {
 		return false

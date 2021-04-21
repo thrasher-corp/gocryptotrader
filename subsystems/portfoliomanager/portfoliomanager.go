@@ -16,14 +16,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
+// Name is an exported subsystem name
 const Name = "portfolio"
 
 var (
+	// PortfolioSleepDelay defines the default sleep time between portfolio manager runs
 	PortfolioSleepDelay   = time.Minute
 	errNilExchangeManager = errors.New("nil exchange manager base received")
 	errNilWaitGroup       = errors.New("nil wait group received")
 )
 
+// Manager routinely retrieves a user's holdings through exchange APIs as well
+// as through addresses provided in the config
 type Manager struct {
 	started               int32
 	processing            int32
@@ -33,6 +37,7 @@ type Manager struct {
 	base                  *portfolio.Base
 }
 
+// Setup creates a new portfolio manager
 func Setup(e *exchangemanager.Manager, portfolioManagerDelay time.Duration, cfg *portfolio.Base) (*Manager, error) {
 	if e == nil {
 		return nil, errNilExchangeManager
@@ -52,6 +57,7 @@ func Setup(e *exchangemanager.Manager, portfolioManagerDelay time.Duration, cfg 
 	return m, nil
 }
 
+// IsRunning safely checks whether the subsystem is running
 func (m *Manager) IsRunning() bool {
 	if m == nil {
 		return false
@@ -59,6 +65,7 @@ func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+// Start runs the subsystem
 func (m *Manager) Start(wg *sync.WaitGroup) error {
 	if m == nil {
 		return fmt.Errorf("portfolio manager %w", subsystems.ErrNilSubsystem)
@@ -76,6 +83,7 @@ func (m *Manager) Start(wg *sync.WaitGroup) error {
 	return nil
 }
 
+// Stop attempts to shutdown the subsystem
 func (m *Manager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("portfolio manager %w", subsystems.ErrNilSubsystem)
@@ -92,6 +100,7 @@ func (m *Manager) Stop() error {
 	return nil
 }
 
+// run periodically will check and update portfolio holdings
 func (m *Manager) run(wg *sync.WaitGroup) {
 	log.Debugln(log.PortfolioMgr, "Portfolio manager started.")
 	wg.Add(1)
@@ -113,6 +122,7 @@ func (m *Manager) run(wg *sync.WaitGroup) {
 	}
 }
 
+// processPortfolio updates an portfolio holdings
 func (m *Manager) processPortfolio() {
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
 		return
@@ -139,7 +149,7 @@ func (m *Manager) processPortfolio() {
 	atomic.CompareAndSwapInt32(&m.processing, 1, 0)
 }
 
-// SeedExchangeAccountInfo seeds account info
+// seedExchangeAccountInfo seeds account info
 func (m *Manager) seedExchangeAccountInfo(accounts []account.Holdings) {
 	if len(accounts) == 0 {
 		return
@@ -220,7 +230,7 @@ func (m *Manager) seedExchangeAccountInfo(accounts []account.Holdings) {
 	}
 }
 
-// GetAllEnabledExchangeAccountInfo returns all the current enabled exchanges
+// getAllEnabledExchangeAccountInfo returns all the current enabled exchanges
 func (m *Manager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []account.Holdings {
 	var response []account.Holdings
 	for x := range exchanges {
@@ -229,7 +239,7 @@ func (m *Manager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []ac
 		}
 		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 			if m.base.Verbose {
-				log.Debugf(log.ExchangeSys,
+				log.Debugf(log.PortfolioMgr,
 					"GetAllEnabledExchangeAccountInfo: Skipping %s due to disabled authenticated API support.\n",
 					exchanges[x].GetName())
 			}
@@ -240,7 +250,7 @@ func (m *Manager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []ac
 		for y := range assetTypes {
 			accountHoldings, err := exchanges[x].FetchAccountInfo(assetTypes[y])
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.Errorf(log.PortfolioMgr,
 					"Error encountered retrieving exchange account info for %s. Error %s\n",
 					exchanges[x].GetName(),
 					err)
@@ -257,6 +267,7 @@ func (m *Manager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []ac
 	return response
 }
 
+// AddAddress adds a new portfolio address for the portfolio manager to track
 func (m *Manager) AddAddress(address, description string, coinType currency.Code, balance float64) error {
 	if m == nil {
 		return fmt.Errorf("portfolio manager %w", subsystems.ErrNilSubsystem)
@@ -267,6 +278,7 @@ func (m *Manager) AddAddress(address, description string, coinType currency.Code
 	return m.base.AddAddress(address, description, coinType, balance)
 }
 
+// RemoveAddress removes a portfolio address
 func (m *Manager) RemoveAddress(address, description string, coinType currency.Code) error {
 	if m == nil {
 		return fmt.Errorf("portfolio manager %w", subsystems.ErrNilSubsystem)
@@ -277,6 +289,7 @@ func (m *Manager) RemoveAddress(address, description string, coinType currency.C
 	return m.base.RemoveAddress(address, description, coinType)
 }
 
+// GetPortfolioSummary returns a summary of all portfolio holdings
 func (m *Manager) GetPortfolioSummary() portfolio.Summary {
 	if m == nil || !m.IsRunning() {
 		return portfolio.Summary{}
@@ -284,6 +297,7 @@ func (m *Manager) GetPortfolioSummary() portfolio.Summary {
 	return m.base.GetPortfolioSummary()
 }
 
+// GetAddresses returns all addresses
 func (m *Manager) GetAddresses() []portfolio.Address {
 	if m == nil || !m.IsRunning() {
 		return nil
@@ -291,13 +305,17 @@ func (m *Manager) GetAddresses() []portfolio.Address {
 	return m.base.Addresses
 }
 
+// GetPortfolio returns a copy of the internal portfolio base for
+// saving addresses to the config
 func (m *Manager) GetPortfolio() *portfolio.Base {
 	if m == nil || !m.IsRunning() {
 		return nil
 	}
-	return m.base
+	resp := m.base
+	return resp
 }
 
+// IsWhiteListed checks if an address is whitelisted to withdraw to
 func (m *Manager) IsWhiteListed(address string) bool {
 	if m == nil || !m.IsRunning() {
 		return false
@@ -305,6 +323,7 @@ func (m *Manager) IsWhiteListed(address string) bool {
 	return m.base.IsWhiteListed(address)
 }
 
+// IsExchangeSupported checks if an exchange is supported
 func (m *Manager) IsExchangeSupported(exchange, address string) bool {
 	if m == nil || !m.IsRunning() {
 		return false
