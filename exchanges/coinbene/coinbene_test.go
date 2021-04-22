@@ -21,7 +21,7 @@ const (
 	testAPISecret           = ""
 	canManipulateRealOrders = false
 	spotTestPair            = "BTC/USDT"
-	swapTestPair            = "BTCUSDT"
+	swapTestPair            = "BTC-SWAP"
 )
 
 var c Coinbene
@@ -226,10 +226,17 @@ func TestCancelSpotOrders(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPairWithDelimiter("BTC", "USDT", "/")
-	_, err := c.UpdateTicker(cp, asset.Spot)
+	cp, err := currency.NewPairFromString(spotTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.UpdateTicker(cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+	cp, err = currency.NewPairFromString(swapTestPair)
+	if err != nil {
+		t.Fatal(err)
 	}
 	_, err = c.UpdateTicker(cp, asset.PerpetualSwap)
 	if err != nil {
@@ -250,8 +257,11 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPairWithDelimiter("BTC", "USDT", "/")
-	_, err := c.UpdateOrderbook(cp, asset.Spot)
+	cp, err := currency.NewPairFromString(swapTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.UpdateOrderbook(cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -314,6 +324,14 @@ func TestGetSwapKlines(t *testing.T) {
 func TestGetSwapTrades(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetSwapTrades(swapTestPair, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapInstruments(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetSwapInstruments()
 	if err != nil {
 		t.Error(err)
 	}

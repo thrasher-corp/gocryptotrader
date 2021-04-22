@@ -3,6 +3,7 @@ package coinbene
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -286,6 +287,16 @@ type SwapKlineItem struct {
 
 // SwapKlines stores an array of kline data
 type SwapKlines []SwapKlineItem
+
+// Instrument stores an individual tradable instrument
+type Instrument struct {
+	InstrumentID       currency.Pair `json:"instrumentId"`
+	Multiplier         float64       `json:"multiplier,string"`
+	MinimumAmount      float64       `json:"minAmount,string"`
+	MaximumAmount      float64       `json:"maxAmount,string"`
+	MinimumPriceChange float64       `json:"minPriceChange,string"`
+	PricePrecision     int64         `json:"pricePrecision,string"`
+}
 
 // SwapTrade stores an individual trade
 type SwapTrade struct {
