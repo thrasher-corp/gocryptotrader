@@ -180,7 +180,7 @@ func (s *Slack) NewConnection() error {
 			s.TargetChannel)
 		return s.WebsocketConnect()
 	}
-	return errors.New("slack.go NewConnection() Already Connected")
+	return errors.New("newConnection() Already Connected")
 }
 
 // WebsocketConnect creates a websocket dialer amd initiates a websocket

@@ -230,7 +230,7 @@ func (m *Manager) seedExchangeAccountInfo(accounts []account.Holdings) {
 	}
 }
 
-// getAllEnabledExchangeAccountInfo returns all the current enabled exchanges
+// getExchangeAccountInfo returns all the current enabled exchanges
 func (m *Manager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []account.Holdings {
 	var response []account.Holdings
 	for x := range exchanges {
@@ -240,7 +240,7 @@ func (m *Manager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []ac
 		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 			if m.base.Verbose {
 				log.Debugf(log.PortfolioMgr,
-					"GetAllEnabledExchangeAccountInfo: Skipping %s due to disabled authenticated API support.\n",
+					"skipping %s due to disabled authenticated API support.\n",
 					exchanges[x].GetName())
 			}
 			continue

@@ -147,7 +147,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				b.Websocket.DataHandler <- d
 				b.WsAddSubscriptionChannel(0, "account", "N/A")
 			} else if status == "fail" {
-				return fmt.Errorf("bitfinex.go error - Websocket unable to AUTH. Error code: %s",
+				return fmt.Errorf("websocket unable to AUTH. Error code: %s",
 					d["code"].(string))
 			}
 		}
@@ -190,7 +190,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 
 		chanInfo, ok := b.WebsocketSubdChannels[chanID]
 		if !ok && chanID != 0 {
-			return fmt.Errorf("bitfinex.go error - Unable to locate chanID: %d",
+			return fmt.Errorf("unable to locate chanID: %d",
 				chanID)
 		}
 
@@ -282,7 +282,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 				err := b.WsInsertSnapshot(pair, chanAsset, newOrderbook, fundingRate)
 				if err != nil {
-					return fmt.Errorf("bitfinex_websocket.go inserting snapshot error: %s",
+					return fmt.Errorf("inserting snapshot error: %s",
 						err)
 				}
 			case float64:
@@ -315,7 +315,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 
 				err := b.WsUpdateOrderbook(pair, chanAsset, newOrderbook, chanID, int64(sequenceNo), fundingRate)
 				if err != nil {
-					return fmt.Errorf("bitfinex_websocket.go updating orderbook error: %s",
+					return fmt.Errorf("updating orderbook error: %s",
 						err)
 				}
 			}
@@ -935,7 +935,7 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 // channel
 func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books []WebsocketBook, fundingRate bool) error {
 	if len(books) == 0 {
-		return errors.New("bitfinex.go error - no orderbooks submitted")
+		return errors.New("no orderbooks submitted")
 	}
 	var book orderbook.Base
 	for i := range books {

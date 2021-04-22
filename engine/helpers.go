@@ -831,10 +831,3 @@ func genCert(targetDir string) error {
 	log.Infof(log.Global, "gRPC TLS key.pem and cert.pem files written to %s\n", targetDir)
 	return nil
 }
-
-// EnabledExchangeOrderbooks is a sub type for singular exchanges and respective
-// orderbooks
-type EnabledExchangeOrderbooks struct {
-	ExchangeName   string
-	ExchangeValues []orderbook.Base
-}

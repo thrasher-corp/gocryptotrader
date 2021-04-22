@@ -22,7 +22,7 @@ const (
 )
 
 // Websocket defines a return type for websocket connections via the interface
-// wrapper for routine processing in routines.go
+// wrapper for routine processing
 type Websocket struct {
 	canUseAuthenticatedEndpoints bool
 	enabled                      bool
