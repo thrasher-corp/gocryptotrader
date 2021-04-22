@@ -256,17 +256,19 @@ type WsUserOrders struct {
 
 // SwapTicker stores the swap ticker info
 type SwapTicker struct {
-	LastPrice     float64   `json:"lastPrice,string"`
-	MarkPrice     float64   `json:"markPrice,string"`
-	BestAskPrice  float64   `json:"bestAskPrice,string"`
-	BestBidPrice  float64   `json:"bestBidPrice,string"`
-	High24Hour    float64   `json:"high24h,string"`
-	Low24Hour     float64   `json:"low24h,string"`
-	Volume24Hour  float64   `json:"volume24h,string"`
-	BestAskVolume float64   `json:"bestAskVolume,string"`
-	BestBidVolume float64   `json:"bestBidVolume,string"`
-	Turnover      float64   `json:"turnover,string"`
-	Timestamp     time.Time `json:"timeStamp"`
+	LastPrice      float64   `json:"lastPrice,string"`
+	MarkPrice      float64   `json:"markPrice,string"`
+	BestAskPrice   float64   `json:"bestAskPrice,string"`
+	BestBidPrice   float64   `json:"bestBidPrice,string"`
+	High24Hour     float64   `json:"high24h,string"`
+	Low24Hour      float64   `json:"low24h,string"`
+	Volume24Hour   float64   `json:"volume24h,string"`
+	BestAskVolume  float64   `json:"bestAskVolume,string"`
+	BestBidVolume  float64   `json:"bestBidVolume,string"`
+	Turnover       float64   `json:"turnover,string"`
+	Timestamp      time.Time `json:"timeStamp"`
+	Change24Hour   float64   `json:"chg24h,string"`
+	ChangeZeroHour float64   `json:"chg0h,string"`
 }
 
 // SwapTickers stores a map of swap tickers
