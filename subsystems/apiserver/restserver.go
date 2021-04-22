@@ -173,7 +173,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
 			if err != nil {
 				log.Errorf(log.APIServerMgr,
-					"Exchange %s could not retrieve enabled currencies. Err: %w\n",
+					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
 					exchName,
 					err)
 				continue
@@ -182,7 +182,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 				ob, err := exchanges[x].FetchOrderbook(currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.APIServerMgr,
-						"Exchange %s failed to retrieve %s orderbook. Err: %w\n", exchName,
+						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
 						currencies[z].String(),
 						err)
 					continue
