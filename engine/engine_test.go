@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
 )
 
 func TestLoadConfigWithSettings(t *testing.T) {

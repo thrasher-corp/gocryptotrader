@@ -37,14 +37,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/engine/databaseconnection"
+	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/ordermanager"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
 )
 
 // New returns a new BackTest instance

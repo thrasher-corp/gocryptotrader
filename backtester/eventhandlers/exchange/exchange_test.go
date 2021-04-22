@@ -15,12 +15,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/ordermanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
 )
 
 const testExchange = "binance"

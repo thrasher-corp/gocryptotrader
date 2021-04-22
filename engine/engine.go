@@ -16,6 +16,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/engine/apiserver"
+	"github.com/thrasher-corp/gocryptotrader/engine/currencypairsyncer"
+	"github.com/thrasher-corp/gocryptotrader/engine/databaseconnection"
+	"github.com/thrasher-corp/gocryptotrader/engine/depositaddress"
+	"github.com/thrasher-corp/gocryptotrader/engine/eventmanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/ntpmanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/ordermanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/portfoliomanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/websocketroutinemanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/withdrawmanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -23,19 +34,6 @@ import (
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/depositaddress"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/eventmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ntpmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/websocketroutinemanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawmanager"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
 
@@ -43,20 +41,20 @@ import (
 // overarching type across this code base.
 type Engine struct {
 	Config                  *config.Config
-	apiServer               *apiserver.Manager
-	CommunicationsManager   *communicationmanager.Manager
-	connectionManager       *connectionmanager.Manager
+	apiServer               *apiserver.ApiServerManager
+	CommunicationsManager   *CommunicationManager
+	connectionManager       *ConnectionManager
 	currencyPairSyncer      *currencypairsyncer.Manager
 	DatabaseManager         *databaseconnection.Manager
 	DepositAddressManager   *depositaddress.Manager
-	eventManager            *eventmanager.Manager
+	eventManager            *eventmanager.EventManager
 	ExchangeManager         *exchangemanager.Manager
 	ntpManager              *ntpmanager.Manager
 	OrderManager            *ordermanager.Manager
 	portfolioManager        *portfoliomanager.Manager
 	gctScriptManager        *gctscript.GctScriptManager
 	websocketRoutineManager *websocketroutinemanager.Manager
-	WithdrawManager         *withdrawmanager.Manager
+	WithdrawManager         *withdrawmanager.WithdrawManager
 	Settings                Settings
 	uptime                  time.Time
 	ServicesWG              sync.WaitGroup
@@ -378,7 +376,7 @@ func (bot *Engine) Start() error {
 
 	// Sets up internet connectivity monitor
 	if bot.Settings.EnableConnectivityMonitor {
-		bot.connectionManager, err = connectionmanager.Setup(&bot.Config.ConnectionMonitor)
+		bot.connectionManager, err = SetupConnectionManager(&bot.Config.ConnectionMonitor)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to setup: %v", err)
 		} else {
@@ -437,7 +435,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableCommsRelayer {
-		bot.CommunicationsManager, err = communicationmanager.Setup(&bot.Config.Communications)
+		bot.CommunicationsManager, err = SetupCommunicationManager(&bot.Config.Communications)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to setup: %s", err)
 		} else {
@@ -495,7 +493,7 @@ func (bot *Engine) Start() error {
 		}
 	}
 
-	bot.WithdrawManager, err = withdrawmanager.Setup(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
+	bot.WithdrawManager, err = withdrawmanager.SetupWithdrawManager(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
 	if err != nil {
 		return err
 	}
@@ -508,7 +506,7 @@ func (bot *Engine) Start() error {
 		if err != nil {
 			return err
 		}
-		bot.apiServer, err = apiserver.Setup(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath)
+		bot.apiServer, err = apiserver.SetupAPIServerManager(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "API Server unable to start: %s", err)
 		} else {

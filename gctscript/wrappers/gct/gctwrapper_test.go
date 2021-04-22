@@ -12,14 +12,14 @@ import (
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/engine/depositaddress"
+	exchangemanager "github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/ordermanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/withdrawmanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/depositaddress"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawmanager"
 )
 
 func TestMain(m *testing.M) {
@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 	exch.SetDefaults()
 	em.Add(exch)
 	engine.Bot.ExchangeManager = em
-	engine.Bot.WithdrawManager, err = withdrawmanager.Setup(em, nil, true)
+	engine.Bot.WithdrawManager, err = withdrawmanager.SetupWithdrawManager(em, nil, true)
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
@@ -75,7 +75,7 @@ func TestSetup(t *testing.T) {
 	x := Setup()
 	xType := reflect.TypeOf(x).String()
 	if xType != "*gct.Wrapper" {
-		t.Fatalf("Setup() should return pointer to Wrapper instead received: %v", x)
+		t.Fatalf("SetupCommunicationManager() should return pointer to Wrapper instead received: %v", x)
 	}
 }
 

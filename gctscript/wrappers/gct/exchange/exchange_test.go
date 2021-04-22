@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 // change these if you wish to test another exchange and/or currency pair
@@ -207,7 +206,7 @@ func setupEngine() (err error) {
 		return err
 	}
 
-	em := exchangemanager.Setup()
+	em := exchangemanager2.Setup()
 	engine.Bot.ExchangeManager = em
 
 	return engine.Bot.LoadExchange(exchName, false, nil)

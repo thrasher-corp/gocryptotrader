@@ -19,13 +19,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 var testExchange = "Bitstamp"
@@ -145,7 +144,7 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 func TestIsOnline(t *testing.T) {
 	e := CreateTestBot(t)
 	var err error
-	e.connectionManager, err = connectionmanager.Setup(&e.Config.ConnectionMonitor)
+	e.connectionManager, err = SetupConnectionManager(&e.Config.ConnectionMonitor)
 	if err != nil {
 		t.Fatal(err)
 	}

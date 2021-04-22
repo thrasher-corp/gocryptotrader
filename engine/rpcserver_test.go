@@ -21,6 +21,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
+	databaseconnection "github.com/thrasher-corp/gocryptotrader/engine/databaseconnection"
+	exchangemanager "github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
+	ordermanager "github.com/thrasher-corp/gocryptotrader/engine/ordermanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -31,9 +34,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
 	"github.com/thrasher-corp/goose"
 )
 

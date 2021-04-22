@@ -22,6 +22,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/engine/apiserver"
+	"github.com/thrasher-corp/gocryptotrader/engine/currencypairsyncer"
+	"github.com/thrasher-corp/gocryptotrader/engine/databaseconnection"
+	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/ntpmanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/ordermanager"
+	"github.com/thrasher-corp/gocryptotrader/engine/portfoliomanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -30,15 +37,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ntpmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
 )
 
 var (
@@ -50,8 +48,8 @@ var (
 // GetSubsystemsStatus returns the status of various subsystems
 func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 	systems := make(map[string]bool)
-	systems[communicationmanager.Name] = bot.CommunicationsManager.IsRunning()
-	systems[connectionmanager.Name] = bot.connectionManager.IsRunning()
+	systems[Name] = bot.CommunicationsManager.IsRunning()
+	systems[ConnectionManagerName] = bot.connectionManager.IsRunning()
 	systems[ordermanager.Name] = bot.OrderManager.IsRunning()
 	systems[portfoliomanager.Name] = bot.portfolioManager.IsRunning()
 	systems[ntpmanager.Name] = bot.ntpManager.IsRunning()
@@ -98,11 +96,11 @@ func GetRPCEndpoints() map[string]RPCEndpoint {
 func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	var err error
 	switch strings.ToLower(subSystemName) {
-	case communicationmanager.Name:
+	case Name:
 		if enable {
 			if bot.CommunicationsManager == nil {
 				communicationsConfig := bot.Config.GetCommunicationsConfig()
-				bot.CommunicationsManager, err = communicationmanager.Setup(&communicationsConfig)
+				bot.CommunicationsManager, err = SetupCommunicationManager(&communicationsConfig)
 				if err != nil {
 					return err
 				}
@@ -110,10 +108,10 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.CommunicationsManager.Start()
 		}
 		return bot.CommunicationsManager.Stop()
-	case connectionmanager.Name:
+	case ConnectionManagerName:
 		if enable {
 			if bot.connectionManager == nil {
-				bot.connectionManager, err = connectionmanager.Setup(&bot.Config.ConnectionMonitor)
+				bot.connectionManager, err = SetupConnectionManager(&bot.Config.ConnectionMonitor)
 				if err != nil {
 					return err
 				}
