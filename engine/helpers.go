@@ -120,7 +120,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			}
 			return bot.connectionManager.Start()
 		}
-		return bot.CommunicationsManager.Stop()
+		return bot.connectionManager.Stop()
 	case ordermanager.Name:
 		if enable {
 			if bot.OrderManager == nil {
@@ -146,7 +146,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			}
 			return bot.portfolioManager.Start(&bot.ServicesWG)
 		}
-		return bot.OrderManager.Stop()
+		return bot.portfolioManager.Stop()
 	case ntpmanager.Name:
 		if enable {
 			if bot.ntpManager == nil {
@@ -709,44 +709,6 @@ func (bot *Engine) GetAllActiveTickers() []apiserver.EnabledExchangeCurrencies {
 	return tickerData
 }
 
-// GetAllEnabledExchangeAccountInfo returns all the current enabled exchanges
-func (bot *Engine) GetAllEnabledExchangeAccountInfo() apiserver.AllEnabledExchangeAccounts {
-	var response apiserver.AllEnabledExchangeAccounts
-	exchanges := bot.GetExchanges()
-	for x := range exchanges {
-		if exchanges[x] == nil || !exchanges[x].IsEnabled() {
-			continue
-		}
-		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-			if bot.Settings.Verbose {
-				log.Debugf(log.ExchangeSys,
-					"GetAllEnabledExchangeAccountInfo: Skipping %s due to disabled authenticated API support.\n",
-					exchanges[x].GetName())
-			}
-			continue
-		}
-		assetTypes := exchanges[x].GetAssetTypes()
-		var exchangeHoldings account.Holdings
-		for y := range assetTypes {
-			accountHoldings, err := exchanges[x].FetchAccountInfo(assetTypes[y])
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"Error encountered retrieving exchange account info for %s. Error %s\n",
-					exchanges[x].GetName(),
-					err)
-				continue
-			}
-			for z := range accountHoldings.Accounts {
-				accountHoldings.Accounts[z].AssetType = assetTypes[y]
-			}
-			exchangeHoldings.Exchange = exchanges[x].GetName()
-			exchangeHoldings.Accounts = append(exchangeHoldings.Accounts, accountHoldings.Accounts...)
-		}
-		response.Data = append(response.Data, exchangeHoldings)
-	}
-	return response
-}
-
 func verifyCert(pemData []byte) error {
 	var pemBlock *pem.Block
 	pemBlock, _ = pem.Decode(pemData)
@@ -868,4 +830,11 @@ func genCert(targetDir string) error {
 
 	log.Infof(log.Global, "gRPC TLS key.pem and cert.pem files written to %s\n", targetDir)
 	return nil
+}
+
+// EnabledExchangeOrderbooks is a sub type for singular exchanges and respective
+// orderbooks
+type EnabledExchangeOrderbooks struct {
+	ExchangeName   string
+	ExchangeValues []orderbook.Base
 }

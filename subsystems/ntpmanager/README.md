@@ -28,7 +28,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 | Config | Description | Example |
 | ------ | ----------- | ------- |
-| enabled | An integer value representing whether the NTP manager is enabled. It will warn you of time sync discrepancies on startup with a value of 1 and will alert you periodically with a value of 0. A value of -1 will disable the manager  |  `1` |
+| enabled | An integer value representing whether the NTP manager is enabled. It will warn you of time sync discrepancies on startup with a value of 0 and will alert you periodically with a value of 1. A value of -1 will disable the manager  |  `1` |
 | pool | A string array of the NTP servers to check for time discrepancies |  `["0.pool.ntp.org:123","pool.ntp.org:123"]` |
 | allowedDifference | A Golang time.Duration representation of the allowable time discrepancy between NTP server and your system time. Any discrepancy greater than this allowance will display an alert to your logging output |  `50000000` |
 | allowedNegativeDifference | A Golang time.Duration representation of the allowable negative time discrepancy between NTP server and your system time. Any discrepancy greater than this allowance will display an alert to your logging output |  `50000000` |

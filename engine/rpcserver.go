@@ -106,6 +106,11 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 // StartRPCServer starts a gRPC server with TLS auth
 func StartRPCServer(engine *Engine) {
 	targetDir := utils.GetTLSDir(engine.Settings.DataDir)
+	err := checkCerts(targetDir)
+	if err != nil {
+		log.Errorf(log.GRPCSys, "gRPC checkCerts failed. err: %s\n", err)
+		return
+	}
 	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", engine.Config.RemoteControl.GRPC.ListenAddress)
 	lis, err := net.Listen("tcp", engine.Config.RemoteControl.GRPC.ListenAddress)
 	if err != nil {
@@ -462,7 +467,65 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 // GetOrderbooks returns a list of orderbooks for all enabled exchanges and all
 // enabled currency pairs
 func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequest) (*gctrpc.GetOrderbooksResponse, error) {
-	return nil, nil
+	exchanges := s.ExchangeManager.GetExchanges()
+	var obResponse []*gctrpc.Orderbooks
+	var obs []*gctrpc.OrderbookResponse
+	for x := range exchanges {
+		if !exchanges[x].IsEnabled() {
+			continue
+		}
+		assets := exchanges[x].GetAssetTypes()
+		exchName := exchanges[x].GetName()
+		for y := range assets {
+			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
+			if err != nil {
+				log.Errorf(log.RESTSys,
+					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
+					exchName,
+					err)
+				continue
+			}
+			for z := range currencies {
+				resp, err := exchanges[x].FetchOrderbook(currencies[z], assets[y])
+				if err != nil {
+					log.Errorf(log.RESTSys,
+						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
+						currencies[z].String(),
+						err)
+					continue
+				}
+				ob := &gctrpc.OrderbookResponse{
+					Pair: &gctrpc.CurrencyPair{
+						Delimiter: currencies[z].Delimiter,
+						Base:      currencies[z].Base.String(),
+						Quote:     currencies[z].Quote.String(),
+					},
+					AssetType:   assets[y].String(),
+					LastUpdated: resp.LastUpdated.Unix(),
+				}
+				for i := range resp.Bids {
+					ob.Bids = append(ob.Bids, &gctrpc.OrderbookItem{
+						Amount: resp.Bids[i].Amount,
+						Price:  resp.Bids[i].Price,
+					})
+				}
+
+				for i := range resp.Asks {
+					ob.Asks = append(ob.Asks, &gctrpc.OrderbookItem{
+						Amount: resp.Asks[i].Amount,
+						Price:  resp.Asks[i].Price,
+					})
+				}
+				obs = append(obs, ob)
+			}
+		}
+		obResponse = append(obResponse, &gctrpc.Orderbooks{
+			Exchange:   exchanges[x].GetName(),
+			Orderbooks: obs,
+		})
+	}
+
+	return &gctrpc.GetOrderbooksResponse{Orderbooks: obResponse}, nil
 }
 
 // GetAccountInfo returns an account balance for a specific exchange

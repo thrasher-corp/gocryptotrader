@@ -133,8 +133,14 @@ func TestStop(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	if m.restHTTPServer != nil {
-		t.Error("expected nil")
+	// do it again to ensure things have reset appropriately and no errors occur starting
+	err = m.StartRESTServer()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	err = m.Stop()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 }
 

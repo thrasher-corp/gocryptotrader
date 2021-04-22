@@ -37,9 +37,11 @@ func (m *Manager) StartWebsocketServer() error {
 		return errInvalidListenAddress
 	}
 
-	m.websocketHTTPServer = &http.Server{
-		Addr:    m.websocketListenAddress,
-		Handler: m.websocketRouter,
+	if m.websocketHTTPServer == nil {
+		m.websocketHTTPServer = &http.Server{
+			Addr:    m.websocketListenAddress,
+			Handler: m.websocketRouter,
+		}
 	}
 
 	go func() {

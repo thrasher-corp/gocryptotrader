@@ -27,9 +27,11 @@ func (m *Manager) StartRESTServer() error {
 		"Deprecated RPC handler support enabled. Listen URL: http://%s:%d\n",
 		common.ExtractHost(m.restListenAddress), common.ExtractPort(m.restListenAddress))
 	m.restRouter = m.newRouter(true)
-	m.restHTTPServer = &http.Server{
-		Addr:    m.restListenAddress,
-		Handler: m.restRouter,
+	if m.restHTTPServer == nil {
+		m.restHTTPServer = &http.Server{
+			Addr:    m.restListenAddress,
+			Handler: m.restRouter,
+		}
 	}
 	go func() {
 		err := m.restHTTPServer.ListenAndServe()

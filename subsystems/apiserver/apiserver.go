@@ -69,19 +69,17 @@ func (m *Manager) Stop() error {
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
-		m.restHTTPServer = nil
+		atomic.StoreInt32(&m.restStarted, 0)
 		m.restRouter = nil
 	}
-	atomic.StoreInt32(&m.websocketStarted, 0)
 	if atomic.LoadInt32(&m.websocketStarted) == 1 {
 		err := m.websocketHTTPServer.Shutdown(context.Background())
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
-		m.websocketHTTPServer = nil
 		m.websocketRouter = nil
 		m.websocketHub = nil
-		atomic.StoreInt32(&m.restStarted, 0)
+		atomic.StoreInt32(&m.websocketStarted, 0)
 	}
 	return nil
 }
