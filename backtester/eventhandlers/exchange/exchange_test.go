@@ -371,23 +371,13 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 	d.Next()
 	_, err = e.ExecuteOrder(o, d, bot)
+	t.Logf("err %v", err)
 	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
 		t.Error(err)
 	}
-
-	o = &order.Order{
-		Base:      ev,
-		Direction: gctorder.Buy,
-		Amount:    10,
-		Funds:     1337,
+	if err == nil {
+		t.Error("Order size  0.99999999 should exceed minimum size 0.00000000 or maximum size 0.01000000")
 	}
-	cs.BuySide.MaximumSize = 1
-	cs.BuySide.MinimumSize = 0.01
-	_, err = e.ExecuteOrder(o, d, bot)
-	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
-		t.Error(err)
-	}
-
 	o = &order.Order{
 		Base:      ev,
 		Direction: gctorder.Buy,
@@ -396,11 +386,14 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 	cs.BuySide.MaximumSize = 0
 	cs.BuySide.MinimumSize = 0.01
+	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot)
 	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
 		t.Error(err)
 	}
-
+	if err != nil {
+		t.Error("limitReducedAmount adjusted to 0.99999999, direction BUY, should fall in  buyside {MinimumSize:0.01 MaximumSize:0 MaximumTotal:0}")
+	}
 	o = &order.Order{
 		Base:      ev,
 		Direction: gctorder.Sell,
@@ -409,10 +402,41 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 	cs.SellSide.MaximumSize = 0
 	cs.SellSide.MinimumSize = 0.01
+	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot)
 	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
 		t.Error(err)
 	}
+	if err != nil {
+		t.Error("limitReducedAmount adjust to 0.99999999, should fall in sell size {MinimumSize:0.01 MaximumSize:0 MaximumTotal:0}")
+	}
+
+	o = &order.Order{
+		Base:      ev,
+		Direction: gctorder.Sell,
+		Amount:    0.5,
+		Funds:     1337,
+	}
+	cs.SellSide.MaximumSize = 0
+	cs.SellSide.MinimumSize = 1
+	e.CurrencySettings = []Settings{cs}
+	_, err = e.ExecuteOrder(o, d, bot)
+	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
+		t.Error(err)
+	}
+
+	if err == nil {
+		t.Error(" Order size  0.50000000 should exceed minimum size 1.00000000")
+	}
+
+	o = &order.Order{
+		Base:      ev,
+		Direction: gctorder.Sell,
+		Amount:    0.02,
+		Funds:     1337,
+	}
+	cs.SellSide.MaximumSize = 0
+	cs.SellSide.MinimumSize = 0.01
 
 	cs.UseRealOrders = true
 	cs.CanUseExchangeLimits = true
