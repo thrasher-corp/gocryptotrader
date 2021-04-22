@@ -1,0 +1,30 @@
+{{define "subsystems databaseconnection" -}}
+{{template "header" .}}
+## Current Features for {{.CapitalName}}
++ The database connection manager subsystem is used periodically check whether the application is connected to the database and will provide alerts of any changes
++ In order to modify the behaviour of the database connection manager subsystem, you can edit the following inside your config file under `database`:
+
+### database
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| enabled | Is a string array of DNS servers to periodically verify whether GoCryptoTrader is connected to the internet |  `true` |
+| verbose |  Is a string array of domains to periodically verify whether GoCryptoTrader is connected to the internet | `false` |
+| driver | A time period in golang `time.Duration` format to check whether GoCryptoTrader is connected to the internet | `sqlite` |
+| connectionDetails | See below |  |
+
+### connectionDetails
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| host | The host address of the database |  `localhost` |
+| port |  The port used to connect to the database |  `5432` |
+| username | An optional username to connect to the database | `username` |
+| password | An optional password to connect to the database | `password` |
+| database | The name of the database | `database.db` |
+| sslmode | The connection type of the database for Postgres databases only | `disable` |
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

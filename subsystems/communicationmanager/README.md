@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for Communicationmanager
 + The communication manager subsystem is used to push events raised in GoCryptoTrader to any enabled communication system such as a Slack server
-+ In order to modify the behaviour of the communication manager subsystem, you can edit the following inside your config file under `communications``:
++ In order to modify the behaviour of the communication manager subsystem, you can edit the following inside your config file under `communications`:
 
 ### slack
 

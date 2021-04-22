@@ -436,11 +436,6 @@ func (bot *Engine) Start() error {
 		return err
 	}
 
-	bot.WithdrawManager, err = withdrawmanager.Setup(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
-	if err != nil {
-		return err
-	}
-
 	if bot.Settings.EnableCommsRelayer {
 		bot.CommunicationsManager, err = communicationmanager.Setup(&bot.Config.Communications)
 		if err != nil {
@@ -498,6 +493,11 @@ func (bot *Engine) Start() error {
 				}
 			}
 		}
+	}
+
+	bot.WithdrawManager, err = withdrawmanager.Setup(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
+	if err != nil {
+		return err
 	}
 
 	if bot.Settings.EnableGRPCProxy &&

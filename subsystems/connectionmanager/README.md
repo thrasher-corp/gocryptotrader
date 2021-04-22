@@ -20,14 +20,14 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for Connectionmanager
 + The connection manager subsystem is used periodically check whether the application is connected to the internet and will provide alerts of any changes
-+ In order to modify the behaviour of the connection manager subsystem, you can edit the following inside your config file under `connectionMonitor``:
++ In order to modify the behaviour of the connection manager subsystem, you can edit the following inside your config file under `connectionMonitor`:
 
 ### connectionMonitor
 
 | Config | Description | Example |
 | ------ | ----------- | ------- |
-| perferredDNSList | Is a string array of DNS servers to periodically verify whether GoCryptoTrader is connected to the internet |  `["8.8.8.8","8.8.4.4","1.1.1.1","1.0.0.1"` |
-| preferredDomainList |  Is a string array of domains to periodically verify whether GoCryptoTrader is connected to the internet |  `["www.google.com","www.cloudflare.com","www.facebook.com"` |
+| perferredDNSList | Is a string array of DNS servers to periodically verify whether GoCryptoTrader is connected to the internet |  `["8.8.8.8","8.8.4.4","1.1.1.1","1.0.0.1"]` |
+| preferredDomainList |  Is a string array of domains to periodically verify whether GoCryptoTrader is connected to the internet |  `["www.google.com","www.cloudflare.com","www.facebook.com"]` |
 | checkInterval | A time period in golang `time.Duration` format to check whether GoCryptoTrader is connected to the internet | `1000000000` |
 
 

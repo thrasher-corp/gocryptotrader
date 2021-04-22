@@ -1,16 +1,16 @@
-# GoCryptoTrader package Currencypairsyncer
+# GoCryptoTrader package Exchangemanager
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This currencypairsyncer package is part of the GoCryptoTrader codebase.
+This exchangemanager package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,21 +18,10 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for Currencypairsyncer
-+ The currency pair syncer subsystem is used to keep all trades, tickers and orderbooks up to date for all enabled exchange asset currency pairs
-+ It can sync data via a websocket connection or REST and will switch between them if there has been no updates
-+ In order to modify the behaviour of the currency pair syncer subsystem, you can change runtime parameters as detailed below:
-
-| Config | Description | Example |
-| ------ | ----------- | ------- |
-| syncmanager | Determines whether the subsystem is enabled | `true` |
-| tickersync |  Enables ticker syncing for all enabled exchanges |   `true`|
-| orderbooksync | Enables orderbook syncing for all enabled exchanges |  `true` |
-| tradesync | Enables trade syncing for all enabled exchanges |  `true` |
-| syncworkers | The amount of workers (goroutines) to use for syncing exchange data | `15` |
-| synccontinuously | Whether to sync exchange data continuously (ticker, orderbook and trades) | `true` |
-| synctimeout | The amount of time in golang `time.Duration` format before the syncer will switch from one protocol to the other (e.g. from REST to websocket) | `15000000000` |
-
+## Current Features for Exchangemanager
++ The exchange manager subsystem is used load and store exchanges so that the engine Bot can use them to track orderbooks, submit orders etc etc
++ The exchange manager itself is not customisable, it is always enabled.
++ The exchange manager by default will load all exchanges that are enabled in your config, however, it will also load exchanges by request via GRPC commands
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

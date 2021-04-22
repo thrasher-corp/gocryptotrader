@@ -1,16 +1,16 @@
-# GoCryptoTrader package Currencypairsyncer
+# GoCryptoTrader package Databaseconnection
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This currencypairsyncer package is part of the GoCryptoTrader codebase.
+This databaseconnection package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,21 +18,29 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for Currencypairsyncer
-+ The currency pair syncer subsystem is used to keep all trades, tickers and orderbooks up to date for all enabled exchange asset currency pairs
-+ It can sync data via a websocket connection or REST and will switch between them if there has been no updates
-+ In order to modify the behaviour of the currency pair syncer subsystem, you can change runtime parameters as detailed below:
+## Current Features for Databaseconnection
++ The database connection manager subsystem is used periodically check whether the application is connected to the database and will provide alerts of any changes
++ In order to modify the behaviour of the database connection manager subsystem, you can edit the following inside your config file under `database`:
+
+### database
 
 | Config | Description | Example |
 | ------ | ----------- | ------- |
-| syncmanager | Determines whether the subsystem is enabled | `true` |
-| tickersync |  Enables ticker syncing for all enabled exchanges |   `true`|
-| orderbooksync | Enables orderbook syncing for all enabled exchanges |  `true` |
-| tradesync | Enables trade syncing for all enabled exchanges |  `true` |
-| syncworkers | The amount of workers (goroutines) to use for syncing exchange data | `15` |
-| synccontinuously | Whether to sync exchange data continuously (ticker, orderbook and trades) | `true` |
-| synctimeout | The amount of time in golang `time.Duration` format before the syncer will switch from one protocol to the other (e.g. from REST to websocket) | `15000000000` |
+| enabled | Is a string array of DNS servers to periodically verify whether GoCryptoTrader is connected to the internet |  `true` |
+| verbose |  Is a string array of domains to periodically verify whether GoCryptoTrader is connected to the internet | `false` |
+| driver | A time period in golang `time.Duration` format to check whether GoCryptoTrader is connected to the internet | `sqlite` |
+| connectionDetails | See below |  |
 
+### connectionDetails
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| host | The host address of the database |  `localhost` |
+| port |  The port used to connect to the database |  `5432` |
+| username | An optional username to connect to the database | `username` |
+| password | An optional password to connect to the database | `password` |
+| database | The name of the database | `database.db` |
+| sslmode | The connection type of the database for Postgres databases only | `disable` |
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
