@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
@@ -62,25 +63,26 @@ func (m *Manager) Stop() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("api server %w", subsystems.ErrSubSystemNotStarted)
 	}
-	m.restRouter = nil
-	m.websocketRouter = nil
-	m.websocketHub = nil
-	if m.restHTTPServer != nil {
+
+	if atomic.LoadInt32(&m.restStarted) == 1 {
 		err := m.restHTTPServer.Shutdown(context.Background())
-		if err != nil {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
 		m.restHTTPServer = nil
+		m.restRouter = nil
 	}
-	if m.websocketHTTPServer != nil {
+	atomic.StoreInt32(&m.websocketStarted, 0)
+	if atomic.LoadInt32(&m.websocketStarted) == 1 {
 		err := m.websocketHTTPServer.Shutdown(context.Background())
-		if err != nil {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
 		m.websocketHTTPServer = nil
+		m.websocketRouter = nil
+		m.websocketHub = nil
+		atomic.StoreInt32(&m.restStarted, 0)
 	}
-	atomic.StoreInt32(&m.websocketStarted, 0)
-	atomic.StoreInt32(&m.restStarted, 0)
 	return nil
 }
 

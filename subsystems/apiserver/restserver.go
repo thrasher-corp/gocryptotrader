@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync/atomic"
@@ -35,7 +36,9 @@ func (m *Manager) StartRESTServer() error {
 		if err != nil {
 			atomic.StoreInt32(&m.restStarted, 0)
 			atomic.StoreInt32(&m.started, 0)
-			log.Error(log.APIServerMgr, err)
+			if !errors.Is(err, http.ErrServerClosed) {
+				log.Error(log.APIServerMgr, err)
+			}
 		}
 	}()
 	return nil

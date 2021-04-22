@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -45,7 +46,9 @@ func (m *Manager) StartWebsocketServer() error {
 		err := m.websocketHTTPServer.ListenAndServe()
 		if err != nil {
 			atomic.StoreInt32(&m.websocketStarted, 0)
-			log.Error(log.APIServerMgr, err)
+			if !errors.Is(err, http.ErrServerClosed) {
+				log.Error(log.APIServerMgr, err)
+			}
 		}
 	}()
 	return nil

@@ -106,7 +106,16 @@ func TestStartWebsocketServer(t *testing.T) {
 func TestStop(t *testing.T) {
 	t.Parallel()
 	wd, _ := os.Getwd()
-	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, nil, wd)
+	m, err := Setup(&config.RemoteControlConfig{
+		DeprecatedRPC: config.DepcrecatedRPCConfig{
+			Enabled:       true,
+			ListenAddress: "localhost:9051",
+		},
+		WebsocketRPC: config.WebsocketRPCConfig{
+			Enabled:       true,
+			ListenAddress: "localhost:9052",
+		},
+	}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, nil, wd)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -115,9 +124,11 @@ func TestStop(t *testing.T) {
 	if !errors.Is(err, subsystems.ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemNotStarted)
 	}
-	m.started = 1
-	m.websocketHTTPServer = &http.Server{}
-	m.restHTTPServer = &http.Server{}
+
+	err = m.StartRESTServer()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
 	err = m.Stop()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

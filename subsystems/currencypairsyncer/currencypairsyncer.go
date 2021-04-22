@@ -767,11 +767,9 @@ func (m *Manager) PrintTickerSummary(result *ticker.Price, protocol string, err 
 		return
 	}
 
-	err = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
-	if err != nil && protocol != "websocket" {
-		// websocket does not always contain all fields
-		log.Error(log.SyncMgr, err)
-	}
+	// ignoring error as not all tickers have volume populated and error is not actionable
+	_ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
+
 	if result.Pair.Quote.IsFiatCurrency() &&
 		result.Pair.Quote != m.fiatDisplayCurrency &&
 		!m.fiatDisplayCurrency.IsEmpty() {

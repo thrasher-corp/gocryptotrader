@@ -285,7 +285,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		sellRule.Validate()
 
 		limits, err := exch.GetOrderExecutionLimits(a, pair)
-		if !errors.Is(err, gctorder.ErrExchangeLimitNotLoaded) {
+		if err != nil && !errors.Is(err, gctorder.ErrExchangeLimitNotLoaded) {
 			return resp, err
 		}
 
