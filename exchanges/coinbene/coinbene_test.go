@@ -257,13 +257,17 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString(swapTestPair)
+	cp, err := currency.NewPairFromString(spotTestPair)
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = c.UpdateOrderbook(cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+	cp, err = currency.NewPairFromString(swapTestPair)
+	if err != nil {
+		t.Fatal(err)
 	}
 	_, err = c.UpdateOrderbook(cp, asset.PerpetualSwap)
 	if err != nil {
@@ -634,7 +638,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	currencyPairSwap, err := currency.NewPairFromString(spotTestPair)
+	currencyPairSwap, err := currency.NewPairFromString(swapTestPair)
 	if err != nil {
 		t.Fatal(err)
 	}
