@@ -1190,6 +1190,7 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 		Verbose:       c.Verbose,
 		HTTPDebugging: c.HTTPDebugging,
 		HTTPRecording: c.HTTPRecording,
+		Endpoint:      f,
 	}); err != nil {
 		return err
 	}
