@@ -75,6 +75,7 @@ func (c *Coinbene) SetDefaults() {
 	err = c.StoreAssetPairFormat(asset.PerpetualSwap, currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -257,23 +258,17 @@ func (c *Coinbene) FetchTradablePairs(a asset.Item) ([]string, error) {
 			currencies = append(currencies, pairs[x].Symbol)
 		}
 	case asset.PerpetualSwap:
-		format, err := c.GetPairFormat(a, false)
+		instruments, err := c.GetSwapInstruments()
 		if err != nil {
 			return nil, err
 		}
-
-		tickers, err := c.GetSwapTickers()
+		pFmt, err := c.GetPairFormat(asset.PerpetualSwap, false)
 		if err != nil {
 			return nil, err
 		}
-		for t := range tickers {
-			idx := strings.Index(t, currency.USDT.String())
-			if idx == 0 {
-				return nil,
-					fmt.Errorf("%s SWAP currency does not contain USDT", c.Name)
-			}
+		for x := range instruments {
 			currencies = append(currencies,
-				t[0:idx]+format.Delimiter+t[idx:])
+				instruments[x].InstrumentID.Format(pFmt.Delimiter, pFmt.Uppercase).String())
 		}
 	}
 	return currencies, nil
