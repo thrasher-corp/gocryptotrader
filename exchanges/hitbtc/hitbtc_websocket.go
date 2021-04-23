@@ -327,10 +327,10 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		h.Websocket.DataHandler <- err
 		return err
 	}
-	newOrderBook.AssetType = asset.Spot
+	newOrderBook.Asset = asset.Spot
 	newOrderBook.Pair = p
-	newOrderBook.ExchangeName = h.Name
-	newOrderBook.VerificationBypass = h.OrderbookVerificationBypass
+	newOrderBook.Exchange = h.Name
+	newOrderBook.VerifyOrderbook = h.CanVerifyOrderbook
 
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

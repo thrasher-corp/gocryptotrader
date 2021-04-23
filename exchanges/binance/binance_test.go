@@ -2120,7 +2120,10 @@ func TestWsDepthUpdate(t *testing.T) {
 		t.Error(err)
 	}
 
-	ob := b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	ob, err := b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if exp, got := seedLastUpdateID, ob.LastUpdateID; got != exp {
 		t.Fatalf("Unexpected Last update id of orderbook for old update. Exp: %d, got: %d", exp, got)
 	}
@@ -2146,11 +2149,14 @@ func TestWsDepthUpdate(t *testing.T) {
 	  ]
 	}}`)
 
-	if err := b.wsHandleData(update2); err != nil {
+	if err = b.wsHandleData(update2); err != nil {
 		t.Error(err)
 	}
 
-	ob = b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	ob, err = b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if exp, got := int64(165), ob.LastUpdateID; got != exp {
 		t.Fatalf("Unexpected Last update id of orderbook for new update. Exp: %d, got: %d", exp, got)
 	}

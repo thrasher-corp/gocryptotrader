@@ -49,10 +49,10 @@ func (e *Base) checkAndInitRequester() {
 
 // SetHTTPClientTimeout sets the timeout value for the exchanges HTTP Client and
 // also the underlying transports idle connection timeout
-func (e *Base) SetHTTPClientTimeout(t time.Duration) error {
-	e.checkAndInitRequester()
-	e.Requester.HTTPClient.Timeout = t
-	tr, ok := e.Requester.HTTPClient.Transport.(*http.Transport)
+func (b *Base) SetHTTPClientTimeout(t time.Duration) error {
+	b.checkAndInitRequester()
+	b.Requester.HTTPClient.Timeout = t
+	tr, ok := b.Requester.HTTPClient.Transport.(*http.Transport)
 	if !ok {
 		return errors.New("transport not set, cannot set timeout")
 	}
@@ -61,31 +61,31 @@ func (e *Base) SetHTTPClientTimeout(t time.Duration) error {
 }
 
 // SetHTTPClient sets exchanges HTTP client
-func (e *Base) SetHTTPClient(h *http.Client) {
-	e.checkAndInitRequester()
-	e.Requester.HTTPClient = h
+func (b *Base) SetHTTPClient(h *http.Client) {
+	b.checkAndInitRequester()
+	b.Requester.HTTPClient = h
 }
 
 // GetHTTPClient gets the exchanges HTTP client
-func (e *Base) GetHTTPClient() *http.Client {
-	e.checkAndInitRequester()
-	return e.Requester.HTTPClient
+func (b *Base) GetHTTPClient() *http.Client {
+	b.checkAndInitRequester()
+	return b.Requester.HTTPClient
 }
 
 // SetHTTPClientUserAgent sets the exchanges HTTP user agent
-func (e *Base) SetHTTPClientUserAgent(ua string) {
-	e.checkAndInitRequester()
-	e.Requester.UserAgent = ua
-	e.HTTPUserAgent = ua
+func (b *Base) SetHTTPClientUserAgent(ua string) {
+	b.checkAndInitRequester()
+	b.Requester.UserAgent = ua
+	b.HTTPUserAgent = ua
 }
 
 // GetHTTPClientUserAgent gets the exchanges HTTP user agent
-func (e *Base) GetHTTPClientUserAgent() string {
-	return e.HTTPUserAgent
+func (b *Base) GetHTTPClientUserAgent() string {
+	return b.HTTPUserAgent
 }
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
-func (e *Base) SetClientProxyAddress(addr string) error {
+func (b *Base) SetClientProxyAddress(addr string) error {
 	if addr == "" {
 		return nil
 	}
@@ -95,13 +95,13 @@ func (e *Base) SetClientProxyAddress(addr string) error {
 			err)
 	}
 
-	err = e.Requester.SetProxy(proxy)
+	err = b.Requester.SetProxy(proxy)
 	if err != nil {
 		return err
 	}
 
-	if e.Websocket != nil {
-		err = e.Websocket.SetProxyAddress(addr)
+	if b.Websocket != nil {
+		err = b.Websocket.SetProxyAddress(addr)
 		if err != nil {
 			return err
 		}
@@ -111,98 +111,98 @@ func (e *Base) SetClientProxyAddress(addr string) error {
 
 // SetFeatureDefaults sets the exchanges default feature
 // support set
-func (e *Base) SetFeatureDefaults() {
-	if e.Config.Features == nil {
+func (b *Base) SetFeatureDefaults() {
+	if b.Config.Features == nil {
 		s := &config.FeaturesConfig{
 			Supports: config.FeaturesSupportedConfig{
-				Websocket: e.Features.Supports.Websocket,
-				REST:      e.Features.Supports.REST,
+				Websocket: b.Features.Supports.Websocket,
+				REST:      b.Features.Supports.REST,
 				RESTCapabilities: protocol.Features{
-					AutoPairUpdates: e.Features.Supports.RESTCapabilities.AutoPairUpdates,
+					AutoPairUpdates: b.Features.Supports.RESTCapabilities.AutoPairUpdates,
 				},
 			},
 		}
 
-		if e.Config.SupportsAutoPairUpdates != nil {
-			s.Supports.RESTCapabilities.AutoPairUpdates = *e.Config.SupportsAutoPairUpdates
-			s.Enabled.AutoPairUpdates = *e.Config.SupportsAutoPairUpdates
+		if b.Config.SupportsAutoPairUpdates != nil {
+			s.Supports.RESTCapabilities.AutoPairUpdates = *b.Config.SupportsAutoPairUpdates
+			s.Enabled.AutoPairUpdates = *b.Config.SupportsAutoPairUpdates
 		} else {
-			s.Supports.RESTCapabilities.AutoPairUpdates = e.Features.Supports.RESTCapabilities.AutoPairUpdates
-			s.Enabled.AutoPairUpdates = e.Features.Supports.RESTCapabilities.AutoPairUpdates
+			s.Supports.RESTCapabilities.AutoPairUpdates = b.Features.Supports.RESTCapabilities.AutoPairUpdates
+			s.Enabled.AutoPairUpdates = b.Features.Supports.RESTCapabilities.AutoPairUpdates
 			if !s.Supports.RESTCapabilities.AutoPairUpdates {
-				e.Config.CurrencyPairs.LastUpdated = time.Now().Unix()
-				e.CurrencyPairs.LastUpdated = e.Config.CurrencyPairs.LastUpdated
+				b.Config.CurrencyPairs.LastUpdated = time.Now().Unix()
+				b.CurrencyPairs.LastUpdated = b.Config.CurrencyPairs.LastUpdated
 			}
 		}
-		e.Config.Features = s
-		e.Config.SupportsAutoPairUpdates = nil
+		b.Config.Features = s
+		b.Config.SupportsAutoPairUpdates = nil
 	} else {
-		if e.Features.Supports.RESTCapabilities.AutoPairUpdates != e.Config.Features.Supports.RESTCapabilities.AutoPairUpdates {
-			e.Config.Features.Supports.RESTCapabilities.AutoPairUpdates = e.Features.Supports.RESTCapabilities.AutoPairUpdates
+		if b.Features.Supports.RESTCapabilities.AutoPairUpdates != b.Config.Features.Supports.RESTCapabilities.AutoPairUpdates {
+			b.Config.Features.Supports.RESTCapabilities.AutoPairUpdates = b.Features.Supports.RESTCapabilities.AutoPairUpdates
 
-			if !e.Config.Features.Supports.RESTCapabilities.AutoPairUpdates {
-				e.Config.CurrencyPairs.LastUpdated = time.Now().Unix()
+			if !b.Config.Features.Supports.RESTCapabilities.AutoPairUpdates {
+				b.Config.CurrencyPairs.LastUpdated = time.Now().Unix()
 			}
 		}
 
-		if e.Features.Supports.REST != e.Config.Features.Supports.REST {
-			e.Config.Features.Supports.REST = e.Features.Supports.REST
+		if b.Features.Supports.REST != b.Config.Features.Supports.REST {
+			b.Config.Features.Supports.REST = b.Features.Supports.REST
 		}
 
-		if e.Features.Supports.RESTCapabilities.TickerBatching != e.Config.Features.Supports.RESTCapabilities.TickerBatching {
-			e.Config.Features.Supports.RESTCapabilities.TickerBatching = e.Features.Supports.RESTCapabilities.TickerBatching
+		if b.Features.Supports.RESTCapabilities.TickerBatching != b.Config.Features.Supports.RESTCapabilities.TickerBatching {
+			b.Config.Features.Supports.RESTCapabilities.TickerBatching = b.Features.Supports.RESTCapabilities.TickerBatching
 		}
 
-		if e.Features.Supports.Websocket != e.Config.Features.Supports.Websocket {
-			e.Config.Features.Supports.Websocket = e.Features.Supports.Websocket
+		if b.Features.Supports.Websocket != b.Config.Features.Supports.Websocket {
+			b.Config.Features.Supports.Websocket = b.Features.Supports.Websocket
 		}
 
-		if e.IsSaveTradeDataEnabled() != e.Config.Features.Enabled.SaveTradeData {
-			e.SetSaveTradeDataStatus(e.Config.Features.Enabled.SaveTradeData)
+		if b.IsSaveTradeDataEnabled() != b.Config.Features.Enabled.SaveTradeData {
+			b.SetSaveTradeDataStatus(b.Config.Features.Enabled.SaveTradeData)
 		}
 
-		e.Features.Enabled.AutoPairUpdates = e.Config.Features.Enabled.AutoPairUpdates
+		b.Features.Enabled.AutoPairUpdates = b.Config.Features.Enabled.AutoPairUpdates
 	}
 }
 
 // SetAPICredentialDefaults sets the API Credential validator defaults
-func (e *Base) SetAPICredentialDefaults() {
+func (b *Base) SetAPICredentialDefaults() {
 	// Exchange hardcoded settings take precedence and overwrite the config settings
-	if e.Config.API.CredentialsValidator == nil {
-		e.Config.API.CredentialsValidator = new(config.APICredentialsValidatorConfig)
+	if b.Config.API.CredentialsValidator == nil {
+		b.Config.API.CredentialsValidator = new(config.APICredentialsValidatorConfig)
 	}
-	if e.Config.API.CredentialsValidator.RequiresKey != e.API.CredentialsValidator.RequiresKey {
-		e.Config.API.CredentialsValidator.RequiresKey = e.API.CredentialsValidator.RequiresKey
-	}
-
-	if e.Config.API.CredentialsValidator.RequiresSecret != e.API.CredentialsValidator.RequiresSecret {
-		e.Config.API.CredentialsValidator.RequiresSecret = e.API.CredentialsValidator.RequiresSecret
+	if b.Config.API.CredentialsValidator.RequiresKey != b.API.CredentialsValidator.RequiresKey {
+		b.Config.API.CredentialsValidator.RequiresKey = b.API.CredentialsValidator.RequiresKey
 	}
 
-	if e.Config.API.CredentialsValidator.RequiresBase64DecodeSecret != e.API.CredentialsValidator.RequiresBase64DecodeSecret {
-		e.Config.API.CredentialsValidator.RequiresBase64DecodeSecret = e.API.CredentialsValidator.RequiresBase64DecodeSecret
+	if b.Config.API.CredentialsValidator.RequiresSecret != b.API.CredentialsValidator.RequiresSecret {
+		b.Config.API.CredentialsValidator.RequiresSecret = b.API.CredentialsValidator.RequiresSecret
 	}
 
-	if e.Config.API.CredentialsValidator.RequiresClientID != e.API.CredentialsValidator.RequiresClientID {
-		e.Config.API.CredentialsValidator.RequiresClientID = e.API.CredentialsValidator.RequiresClientID
+	if b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret != b.API.CredentialsValidator.RequiresBase64DecodeSecret {
+		b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret = b.API.CredentialsValidator.RequiresBase64DecodeSecret
 	}
 
-	if e.Config.API.CredentialsValidator.RequiresPEM != e.API.CredentialsValidator.RequiresPEM {
-		e.Config.API.CredentialsValidator.RequiresPEM = e.API.CredentialsValidator.RequiresPEM
+	if b.Config.API.CredentialsValidator.RequiresClientID != b.API.CredentialsValidator.RequiresClientID {
+		b.Config.API.CredentialsValidator.RequiresClientID = b.API.CredentialsValidator.RequiresClientID
+	}
+
+	if b.Config.API.CredentialsValidator.RequiresPEM != b.API.CredentialsValidator.RequiresPEM {
+		b.Config.API.CredentialsValidator.RequiresPEM = b.API.CredentialsValidator.RequiresPEM
 	}
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
 // exhange supports REST batch ticker fetching
-func (e *Base) SupportsRESTTickerBatchUpdates() bool {
-	return e.Features.Supports.RESTCapabilities.TickerBatching
+func (b *Base) SupportsRESTTickerBatchUpdates() bool {
+	return b.Features.Supports.RESTCapabilities.TickerBatching
 }
 
 // SupportsAutoPairUpdates returns whether or not the exchange supports
 // auto currency pair updating
-func (e *Base) SupportsAutoPairUpdates() bool {
-	if e.Features.Supports.RESTCapabilities.AutoPairUpdates ||
-		e.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
+func (b *Base) SupportsAutoPairUpdates() bool {
+	if b.Features.Supports.RESTCapabilities.AutoPairUpdates ||
+		b.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
 		return true
 	}
 	return false
@@ -210,22 +210,22 @@ func (e *Base) SupportsAutoPairUpdates() bool {
 
 // GetLastPairsUpdateTime returns the unix timestamp of when the exchanges
 // currency pairs were last updated
-func (e *Base) GetLastPairsUpdateTime() int64 {
-	return e.CurrencyPairs.LastUpdated
+func (b *Base) GetLastPairsUpdateTime() int64 {
+	return b.CurrencyPairs.LastUpdated
 }
 
 // GetAssetTypes returns the available asset types for an individual exchange
-func (e *Base) GetAssetTypes() asset.Items {
-	return e.CurrencyPairs.GetAssetTypes()
+func (b *Base) GetAssetTypes() asset.Items {
+	return b.CurrencyPairs.GetAssetTypes()
 }
 
 // GetPairAssetType returns the associated asset type for the currency pair
 // This method is only useful for exchanges that have pair names with multiple delimiters (BTC-USD-0626)
 // Helpful if the exchange has only a single asset type but in that case the asset type can be hard coded
-func (e *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
-	assetTypes := e.GetAssetTypes()
+func (b *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
+	assetTypes := b.GetAssetTypes()
 	for i := range assetTypes {
-		avail, err := e.GetAvailablePairs(assetTypes[i])
+		avail, err := b.GetAvailablePairs(assetTypes[i])
 		if err != nil {
 			return "", err
 		}
@@ -238,137 +238,137 @@ func (e *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 
 // GetClientBankAccounts returns banking details associated with
 // a client for withdrawal purposes
-func (e *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (*banking.Account, error) {
+func (b *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (*banking.Account, error) {
 	cfg := config.GetConfig()
 	return cfg.GetClientBankAccounts(exchangeName, withdrawalCurrency)
 }
 
 // GetExchangeBankAccounts returns banking details associated with an
 // exchange for funding purposes
-func (e *Base) GetExchangeBankAccounts(id, depositCurrency string) (*banking.Account, error) {
+func (b *Base) GetExchangeBankAccounts(id, depositCurrency string) (*banking.Account, error) {
 	cfg := config.GetConfig()
-	return cfg.GetExchangeBankAccounts(e.Name, id, depositCurrency)
+	return cfg.GetExchangeBankAccounts(b.Name, id, depositCurrency)
 }
 
 // SetCurrencyPairFormat checks the exchange request and config currency pair
 // formats and syncs it with the exchanges SetDefault settings
-func (e *Base) SetCurrencyPairFormat() {
-	if e.Config.CurrencyPairs == nil {
-		e.Config.CurrencyPairs = new(currency.PairsManager)
+func (b *Base) SetCurrencyPairFormat() {
+	if b.Config.CurrencyPairs == nil {
+		b.Config.CurrencyPairs = new(currency.PairsManager)
 	}
 
-	e.Config.CurrencyPairs.UseGlobalFormat = e.CurrencyPairs.UseGlobalFormat
-	if e.Config.CurrencyPairs.UseGlobalFormat {
-		e.Config.CurrencyPairs.RequestFormat = e.CurrencyPairs.RequestFormat
-		e.Config.CurrencyPairs.ConfigFormat = e.CurrencyPairs.ConfigFormat
+	b.Config.CurrencyPairs.UseGlobalFormat = b.CurrencyPairs.UseGlobalFormat
+	if b.Config.CurrencyPairs.UseGlobalFormat {
+		b.Config.CurrencyPairs.RequestFormat = b.CurrencyPairs.RequestFormat
+		b.Config.CurrencyPairs.ConfigFormat = b.CurrencyPairs.ConfigFormat
 		return
 	}
 
-	if e.Config.CurrencyPairs.ConfigFormat != nil {
-		e.Config.CurrencyPairs.ConfigFormat = nil
+	if b.Config.CurrencyPairs.ConfigFormat != nil {
+		b.Config.CurrencyPairs.ConfigFormat = nil
 	}
-	if e.Config.CurrencyPairs.RequestFormat != nil {
-		e.Config.CurrencyPairs.RequestFormat = nil
+	if b.Config.CurrencyPairs.RequestFormat != nil {
+		b.Config.CurrencyPairs.RequestFormat = nil
 	}
 
-	assetTypes := e.GetAssetTypes()
+	assetTypes := b.GetAssetTypes()
 	for x := range assetTypes {
-		if _, err := e.Config.CurrencyPairs.Get(assetTypes[x]); err != nil {
-			ps, err := e.CurrencyPairs.Get(assetTypes[x])
+		if _, err := b.Config.CurrencyPairs.Get(assetTypes[x]); err != nil {
+			ps, err := b.CurrencyPairs.Get(assetTypes[x])
 			if err != nil {
 				continue
 			}
-			e.Config.CurrencyPairs.Store(assetTypes[x], *ps)
+			b.Config.CurrencyPairs.Store(assetTypes[x], *ps)
 		}
 	}
 }
 
 // SetConfigPairs sets the exchanges currency pairs to the pairs set in the config
-func (e *Base) SetConfigPairs() error {
-	assetTypes := e.Config.CurrencyPairs.GetAssetTypes()
-	exchangeAssets := e.CurrencyPairs.GetAssetTypes()
+func (b *Base) SetConfigPairs() error {
+	assetTypes := b.Config.CurrencyPairs.GetAssetTypes()
+	exchangeAssets := b.CurrencyPairs.GetAssetTypes()
 	for x := range assetTypes {
 		if !exchangeAssets.Contains(assetTypes[x]) {
 			log.Warnf(log.ExchangeSys,
 				"%s exchange asset type %s unsupported, please manually remove from configuration",
-				e.Name,
+				b.Name,
 				assetTypes[x])
 		}
-		cfgPS, err := e.Config.CurrencyPairs.Get(assetTypes[x])
+		cfgPS, err := b.Config.CurrencyPairs.Get(assetTypes[x])
 		if err != nil {
 			return err
 		}
 
 		var enabledAsset bool
-		if e.Config.CurrencyPairs.IsAssetEnabled(assetTypes[x]) == nil {
+		if b.Config.CurrencyPairs.IsAssetEnabled(assetTypes[x]) == nil {
 			enabledAsset = true
 		}
-		e.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
+		b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
 
-		if e.Config.CurrencyPairs.UseGlobalFormat {
-			e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
-			e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
+		if b.Config.CurrencyPairs.UseGlobalFormat {
+			b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
+			b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
 			continue
 		}
-		exchPS, err := e.CurrencyPairs.Get(assetTypes[x])
+		exchPS, err := b.CurrencyPairs.Get(assetTypes[x])
 		if err != nil {
 			return err
 		}
 		cfgPS.ConfigFormat = exchPS.ConfigFormat
 		cfgPS.RequestFormat = exchPS.RequestFormat
-		e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
-		e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
+		b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
+		b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
 	}
 	return nil
 }
 
 // GetAuthenticatedAPISupport returns whether the exchange supports
 // authenticated API requests
-func (e *Base) GetAuthenticatedAPISupport(endpoint uint8) bool {
+func (b *Base) GetAuthenticatedAPISupport(endpoint uint8) bool {
 	switch endpoint {
 	case RestAuthentication:
-		return e.API.AuthenticatedSupport
+		return b.API.AuthenticatedSupport
 	case WebsocketAuthentication:
-		return e.API.AuthenticatedWebsocketSupport
+		return b.API.AuthenticatedWebsocketSupport
 	}
 	return false
 }
 
 // GetName is a method that returns the name of the exchange base
-func (e *Base) GetName() string {
-	return e.Name
+func (b *Base) GetName() string {
+	return b.Name
 }
 
 // GetEnabledFeatures returns the exchanges enabled features
-func (e *Base) GetEnabledFeatures() FeaturesEnabled {
-	return e.Features.Enabled
+func (b *Base) GetEnabledFeatures() FeaturesEnabled {
+	return b.Features.Enabled
 }
 
 // GetSupportedFeatures returns the exchanges supported features
-func (e *Base) GetSupportedFeatures() FeaturesSupported {
-	return e.Features.Supports
+func (b *Base) GetSupportedFeatures() FeaturesSupported {
+	return b.Features.Supports
 }
 
 // GetPairFormat returns the pair format based on the exchange and
 // asset type
-func (e *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency.PairFormat, error) {
-	if e.CurrencyPairs.UseGlobalFormat {
+func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency.PairFormat, error) {
+	if b.CurrencyPairs.UseGlobalFormat {
 		if requestFormat {
-			if e.CurrencyPairs.RequestFormat == nil {
+			if b.CurrencyPairs.RequestFormat == nil {
 				return currency.PairFormat{},
 					errors.New("global request format is nil")
 			}
-			return *e.CurrencyPairs.RequestFormat, nil
+			return *b.CurrencyPairs.RequestFormat, nil
 		}
 
-		if e.CurrencyPairs.ConfigFormat == nil {
+		if b.CurrencyPairs.ConfigFormat == nil {
 			return currency.PairFormat{},
 				errors.New("global config format is nil")
 		}
-		return *e.CurrencyPairs.ConfigFormat, nil
+		return *b.CurrencyPairs.ConfigFormat, nil
 	}
 
-	ps, err := e.CurrencyPairs.Get(assetType)
+	ps, err := b.CurrencyPairs.Get(assetType)
 	if err != nil {
 		return currency.PairFormat{}, err
 	}
@@ -391,16 +391,16 @@ func (e *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 // GetEnabledPairs is a method that returns the enabled currency pairs of
 // the exchange by asset type, if the asset type is disabled this will return no
 // enabled pairs
-func (e *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
-	err := e.CurrencyPairs.IsAssetEnabled(a)
+func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
+	err := b.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
 		return nil, nil
 	}
-	format, err := e.GetPairFormat(a, false)
+	format, err := b.GetPairFormat(a, false)
 	if err != nil {
 		return nil, err
 	}
-	enabledpairs, err := e.CurrencyPairs.GetPairs(a, true)
+	enabledpairs, err := b.CurrencyPairs.GetPairs(a, true)
 	if err != nil {
 		return nil, err
 	}
@@ -412,16 +412,16 @@ func (e *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 
 // GetRequestFormattedPairAndAssetType is a method that returns the enabled currency pair of
 // along with its asset type. Only use when there is no chance of the same name crossing over
-func (e *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, asset.Item, error) {
-	assetTypes := e.GetAssetTypes()
+func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, asset.Item, error) {
+	assetTypes := b.GetAssetTypes()
 	var response currency.Pair
 	for i := range assetTypes {
-		format, err := e.GetPairFormat(assetTypes[i], true)
+		format, err := b.GetPairFormat(assetTypes[i], true)
 		if err != nil {
 			return response, assetTypes[i], err
 		}
 
-		pairs, err := e.CurrencyPairs.GetPairs(assetTypes[i], true)
+		pairs, err := b.CurrencyPairs.GetPairs(assetTypes[i], true)
 		if err != nil {
 			return response, assetTypes[i], err
 		}
@@ -438,12 +438,12 @@ func (e *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 
 // GetAvailablePairs is a method that returns the available currency pairs
 // of the exchange by asset type
-func (e *Base) GetAvailablePairs(assetType asset.Item) (currency.Pairs, error) {
-	format, err := e.GetPairFormat(assetType, false)
+func (b *Base) GetAvailablePairs(assetType asset.Item) (currency.Pairs, error) {
+	format, err := b.GetPairFormat(assetType, false)
 	if err != nil {
 		return nil, err
 	}
-	pairs, err := e.CurrencyPairs.GetPairs(assetType, false)
+	pairs, err := b.CurrencyPairs.GetPairs(assetType, false)
 	if err != nil {
 		return nil, err
 	}
@@ -452,9 +452,9 @@ func (e *Base) GetAvailablePairs(assetType asset.Item) (currency.Pairs, error) {
 
 // SupportsPair returns true or not whether a currency pair exists in the
 // exchange available currencies or not
-func (e *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.Item) error {
+func (b *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.Item) error {
 	if enabledPairs {
-		pairs, err := e.GetEnabledPairs(assetType)
+		pairs, err := b.GetEnabledPairs(assetType)
 		if err != nil {
 			return err
 		}
@@ -464,7 +464,7 @@ func (e *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.
 		return errors.New("pair not supported")
 	}
 
-	avail, err := e.GetAvailablePairs(assetType)
+	avail, err := b.GetAvailablePairs(assetType)
 	if err != nil {
 		return err
 	}
@@ -476,15 +476,15 @@ func (e *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.
 
 // FormatExchangeCurrencies returns a string containing
 // the exchanges formatted currency pairs
-func (e *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType asset.Item) (string, error) {
+func (b *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType asset.Item) (string, error) {
 	var currencyItems strings.Builder
-	pairFmt, err := e.GetPairFormat(assetType, true)
+	pairFmt, err := b.GetPairFormat(assetType, true)
 	if err != nil {
 		return "", err
 	}
 
 	for x := range pairs {
-		format, err := e.FormatExchangeCurrency(pairs[x], assetType)
+		format, err := b.FormatExchangeCurrency(pairs[x], assetType)
 		if err != nil {
 			return "", err
 		}
@@ -503,8 +503,8 @@ func (e *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType asset.I
 
 // FormatExchangeCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func (e *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (currency.Pair, error) {
-	pairFmt, err := e.GetPairFormat(assetType, true)
+func (b *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (currency.Pair, error) {
+	pairFmt, err := b.GetPairFormat(assetType, true)
 	if err != nil {
 		return currency.Pair{}, err
 	}
@@ -512,47 +512,47 @@ func (e *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (cu
 }
 
 // SetEnabled is a method that sets if the exchange is enabled
-func (e *Base) SetEnabled(enabled bool) {
-	e.Enabled = enabled
+func (b *Base) SetEnabled(enabled bool) {
+	b.Enabled = enabled
 }
 
 // IsEnabled is a method that returns if the current exchange is enabled
-func (e *Base) IsEnabled() bool {
-	return e.Enabled
+func (b *Base) IsEnabled() bool {
+	return b.Enabled
 }
 
 // SetAPIKeys is a method that sets the current API keys for the exchange
-func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
-	e.API.Credentials.Key = apiKey
-	e.API.Credentials.ClientID = clientID
+func (b *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
+	b.API.Credentials.Key = apiKey
+	b.API.Credentials.ClientID = clientID
 
-	if e.API.CredentialsValidator.RequiresBase64DecodeSecret {
+	if b.API.CredentialsValidator.RequiresBase64DecodeSecret {
 		result, err := crypto.Base64Decode(apiSecret)
 		if err != nil {
-			e.API.AuthenticatedSupport = false
-			e.API.AuthenticatedWebsocketSupport = false
+			b.API.AuthenticatedSupport = false
+			b.API.AuthenticatedWebsocketSupport = false
 			log.Warnf(log.ExchangeSys,
 				warningBase64DecryptSecretKeyFailed,
-				e.Name)
+				b.Name)
 			return
 		}
-		e.API.Credentials.Secret = string(result)
+		b.API.Credentials.Secret = string(result)
 	} else {
-		e.API.Credentials.Secret = apiSecret
+		b.API.Credentials.Secret = apiSecret
 	}
 }
 
 // SetupDefaults sets the exchange settings based on the supplied config
-func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
-	e.Enabled = true
-	e.LoadedByConfig = true
-	e.Config = exch
-	e.Verbose = exch.Verbose
+func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
+	b.Enabled = true
+	b.LoadedByConfig = true
+	b.Config = exch
+	b.Verbose = exch.Verbose
 
-	e.API.AuthenticatedSupport = exch.API.AuthenticatedSupport
-	e.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
-	if e.API.AuthenticatedSupport || e.API.AuthenticatedWebsocketSupport {
-		e.SetAPIKeys(exch.API.Credentials.Key,
+	b.API.AuthenticatedSupport = exch.API.AuthenticatedSupport
+	b.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
+	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
+		b.SetAPIKeys(exch.API.Credentials.Key,
 			exch.API.Credentials.Secret,
 			exch.API.Credentials.ClientID)
 	}
@@ -561,7 +561,7 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 		exch.HTTPTimeout = DefaultHTTPTimeout
 	}
 
-	err := e.SetHTTPClientTimeout(exch.HTTPTimeout)
+	err := b.SetHTTPClientTimeout(exch.HTTPTimeout)
 	if err != nil {
 		return err
 	}
@@ -570,109 +570,115 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 		exch.CurrencyPairs = new(currency.PairsManager)
 	}
 
-	e.HTTPDebugging = exch.HTTPDebugging
-	e.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-	e.SetCurrencyPairFormat()
+	b.HTTPDebugging = exch.HTTPDebugging
+	b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
+	b.SetCurrencyPairFormat()
 
-	err = e.SetConfigPairs()
+	err = b.SetConfigPairs()
 	if err != nil {
 		return err
 	}
 
-	e.SetFeatureDefaults()
+	b.SetFeatureDefaults()
 
-	if e.API.Endpoints == nil {
-		e.API.Endpoints = e.NewEndpoints()
+	if b.API.Endpoints == nil {
+		b.API.Endpoints = b.NewEndpoints()
 	}
 
-	err = e.SetAPIURL()
+	err = b.SetAPIURL()
 	if err != nil {
 		return err
 	}
 
-	e.SetAPICredentialDefaults()
+	b.SetAPICredentialDefaults()
 
-	err = e.SetClientProxyAddress(exch.ProxyAddress)
+	err = b.SetClientProxyAddress(exch.ProxyAddress)
 	if err != nil {
 		return err
 	}
-	e.BaseCurrencies = exch.BaseCurrencies
-	e.OrderbookVerificationBypass = exch.OrderbookConfig.VerificationBypass
+	b.BaseCurrencies = exch.BaseCurrencies
+
+	if exch.OrderbookConfig.VerificationBypass {
+		log.Warnf(log.ExchangeSys,
+			"%s orderbook verification has been bypassed via config.",
+			b.Name)
+	}
+	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
 	return nil
 }
 
 // AllowAuthenticatedRequest checks to see if the required fields have been set
 // before sending an authenticated API request
-func (e *Base) AllowAuthenticatedRequest() bool {
-	if e.SkipAuthCheck {
+func (b *Base) AllowAuthenticatedRequest() bool {
+	if b.SkipAuthCheck {
 		return true
 	}
 
 	// Individual package usage, allow request if API credentials are valid a
 	// and without needing to set AuthenticatedSupport to true
-	if !e.LoadedByConfig {
-		return e.ValidateAPICredentials()
+	if !b.LoadedByConfig {
+		return b.ValidateAPICredentials()
 	}
 
 	// Bot usage, AuthenticatedSupport can be disabled by user if desired, so
 	// don't allow authenticated requests.
-	if !e.API.AuthenticatedSupport && !e.API.AuthenticatedWebsocketSupport {
+	if !b.API.AuthenticatedSupport && !b.API.AuthenticatedWebsocketSupport {
 		return false
 	}
 
 	// Check to see if the user has enabled AuthenticatedSupport, but has
 	// invalid API credentials set and loaded by config
-	return e.ValidateAPICredentials()
+	return b.ValidateAPICredentials()
 }
 
 // ValidateAPICredentials validates the exchanges API credentials
-func (e *Base) ValidateAPICredentials() bool {
-	if e.API.CredentialsValidator.RequiresKey {
-		if e.API.Credentials.Key == "" ||
-			e.API.Credentials.Key == config.DefaultAPIKey {
+func (b *Base) ValidateAPICredentials() bool {
+	if b.API.CredentialsValidator.RequiresKey {
+		if b.API.Credentials.Key == "" ||
+			b.API.Credentials.Key == config.DefaultAPIKey {
 			log.Warnf(log.ExchangeSys,
 				"exchange %s requires API key but default/empty one set",
-				e.Name)
+				b.Name)
 			return false
 		}
 	}
 
-	if e.API.CredentialsValidator.RequiresSecret {
-		if e.API.Credentials.Secret == "" ||
-			e.API.Credentials.Secret == config.DefaultAPISecret {
+	if b.API.CredentialsValidator.RequiresSecret {
+		if b.API.Credentials.Secret == "" ||
+			b.API.Credentials.Secret == config.DefaultAPISecret {
 			log.Warnf(log.ExchangeSys,
 				"exchange %s requires API secret but default/empty one set",
-				e.Name)
+				b.Name)
 			return false
 		}
 	}
 
-	if e.API.CredentialsValidator.RequiresPEM {
-		if e.API.Credentials.PEMKey == "" ||
-			strings.Contains(e.API.Credentials.PEMKey, "JUSTADUMMY") {
+	if b.API.CredentialsValidator.RequiresPEM {
+		if b.API.Credentials.PEMKey == "" ||
+			strings.Contains(b.API.Credentials.PEMKey, "JUSTADUMMY") {
 			log.Warnf(log.ExchangeSys,
 				"exchange %s requires API PEM key but default/empty one set",
-				e.Name)
+				b.Name)
 			return false
 		}
 	}
 
-	if e.API.CredentialsValidator.RequiresClientID {
-		if e.API.Credentials.ClientID == "" ||
-			e.API.Credentials.ClientID == config.DefaultAPIClientID {
+	if b.API.CredentialsValidator.RequiresClientID {
+		if b.API.Credentials.ClientID == "" ||
+			b.API.Credentials.ClientID == config.DefaultAPIClientID {
 			log.Warnf(log.ExchangeSys,
 				"exchange %s requires API ClientID but default/empty one set",
-				e.Name)
+				b.Name)
 			return false
 		}
 	}
 
-	if e.API.CredentialsValidator.RequiresBase64DecodeSecret && !e.LoadedByConfig {
-		_, err := crypto.Base64Decode(e.API.Credentials.Secret)
+	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !b.LoadedByConfig {
+		_, err := crypto.Base64Decode(b.API.Credentials.Secret)
 		if err != nil {
 			log.Warnf(log.ExchangeSys,
 				"exchange %s API secret base64 decode failed: %s",
-				e.Name, err)
+				b.Name, err)
 			return false
 		}
 	}
@@ -681,12 +687,12 @@ func (e *Base) ValidateAPICredentials() bool {
 
 // SetPairs sets the exchange currency pairs for either enabledPairs or
 // availablePairs
-func (e *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool) error {
+func (b *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool) error {
 	if len(pairs) == 0 {
-		return fmt.Errorf("%s SetPairs error - pairs is empty", e.Name)
+		return fmt.Errorf("%s SetPairs error - pairs is empty", b.Name)
 	}
 
-	pairFmt, err := e.GetPairFormat(assetType, false)
+	pairFmt, err := b.GetPairFormat(assetType, false)
 	if err != nil {
 		return err
 	}
@@ -697,14 +703,14 @@ func (e *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool
 			pairFmt.Uppercase))
 	}
 
-	e.CurrencyPairs.StorePairs(assetType, newPairs, enabled)
-	e.Config.CurrencyPairs.StorePairs(assetType, newPairs, enabled)
+	b.CurrencyPairs.StorePairs(assetType, newPairs, enabled)
+	b.Config.CurrencyPairs.StorePairs(assetType, newPairs, enabled)
 	return nil
 }
 
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or
 // availablePairs
-func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item, enabled, force bool) error {
+func (b *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item, enabled, force bool) error {
 	exchangeProducts = exchangeProducts.Upper()
 	var products currency.Pairs
 	for x := range exchangeProducts {
@@ -715,7 +721,7 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 	}
 
 	var updateType string
-	targetPairs, err := e.CurrencyPairs.GetPairs(assetType, enabled)
+	targetPairs, err := b.CurrencyPairs.GetPairs(assetType, enabled)
 	if err != nil {
 		return err
 	}
@@ -731,14 +737,14 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 		if force {
 			log.Debugf(log.ExchangeSys,
 				"%s forced update of %s [%v] pairs.",
-				e.Name,
+				b.Name,
 				updateType,
 				strings.ToUpper(assetType.String()))
 		} else {
 			if len(newPairs) > 0 {
 				log.Debugf(log.ExchangeSys,
 					"%s Updating %s pairs [%v] - Added: %s.\n",
-					e.Name,
+					b.Name,
 					updateType,
 					strings.ToUpper(assetType.String()),
 					newPairs)
@@ -746,20 +752,20 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 			if len(removedPairs) > 0 {
 				log.Debugf(log.ExchangeSys,
 					"%s Updating %s pairs [%v] - Removed: %s.\n",
-					e.Name,
+					b.Name,
 					updateType,
 					strings.ToUpper(assetType.String()),
 					removedPairs)
 			}
 		}
 
-		e.Config.CurrencyPairs.StorePairs(assetType, products, enabled)
-		e.CurrencyPairs.StorePairs(assetType, products, enabled)
+		b.Config.CurrencyPairs.StorePairs(assetType, products, enabled)
+		b.CurrencyPairs.StorePairs(assetType, products, enabled)
 
 		if !enabled {
 			// If available pairs are changed we will remove currency pair items
 			// that are still included in the enabled pairs list.
-			enabledPairs, err := e.CurrencyPairs.GetPairs(assetType, true)
+			enabledPairs, err := b.CurrencyPairs.GetPairs(assetType, true)
 			if err == nil {
 				return nil
 			}
@@ -771,11 +777,11 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 			if len(remove) > 0 {
 				log.Debugf(log.ExchangeSys,
 					"%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
-					e.Name,
+					b.Name,
 					strings.ToUpper(assetType.String()),
 					remove)
-				e.Config.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
-				e.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
+				b.Config.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
+				b.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
 			}
 		}
 	}
@@ -783,7 +789,7 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 }
 
 // SetAPIURL sets configuration API URL for an exchange
-func (e *Base) SetAPIURL() error {
+func (b *Base) SetAPIURL() error {
 	checkInsecureEndpoint := func(endpoint string) {
 		if strings.Contains(endpoint, "https") || strings.Contains(endpoint, "wss") {
 			return
@@ -792,74 +798,74 @@ func (e *Base) SetAPIURL() error {
 			"%s is using HTTP instead of HTTPS or WS instead of WSS [%s] for API functionality, an"+
 				" attacker could eavesdrop on this connection. Use at your"+
 				" own risk.",
-			e.Name, endpoint)
+			b.Name, endpoint)
 	}
 	var err error
-	if e.Config.API.OldEndPoints != nil {
-		if e.Config.API.OldEndPoints.URL != "" && e.Config.API.OldEndPoints.URL != config.APIURLNonDefaultMessage {
-			err = e.API.Endpoints.SetRunning(RestSpot.String(), e.Config.API.OldEndPoints.URL)
+	if b.Config.API.OldEndPoints != nil {
+		if b.Config.API.OldEndPoints.URL != "" && b.Config.API.OldEndPoints.URL != config.APIURLNonDefaultMessage {
+			err = b.API.Endpoints.SetRunning(RestSpot.String(), b.Config.API.OldEndPoints.URL)
 			if err != nil {
 				return err
 			}
-			checkInsecureEndpoint(e.Config.API.OldEndPoints.URL)
+			checkInsecureEndpoint(b.Config.API.OldEndPoints.URL)
 		}
-		if e.Config.API.OldEndPoints.URLSecondary != "" && e.Config.API.OldEndPoints.URLSecondary != config.APIURLNonDefaultMessage {
-			err = e.API.Endpoints.SetRunning(RestSpotSupplementary.String(), e.Config.API.OldEndPoints.URLSecondary)
+		if b.Config.API.OldEndPoints.URLSecondary != "" && b.Config.API.OldEndPoints.URLSecondary != config.APIURLNonDefaultMessage {
+			err = b.API.Endpoints.SetRunning(RestSpotSupplementary.String(), b.Config.API.OldEndPoints.URLSecondary)
 			if err != nil {
 				return err
 			}
-			checkInsecureEndpoint(e.Config.API.OldEndPoints.URLSecondary)
+			checkInsecureEndpoint(b.Config.API.OldEndPoints.URLSecondary)
 		}
-		if e.Config.API.OldEndPoints.WebsocketURL != "" && e.Config.API.OldEndPoints.WebsocketURL != config.WebsocketURLNonDefaultMessage {
-			err = e.API.Endpoints.SetRunning(WebsocketSpot.String(), e.Config.API.OldEndPoints.WebsocketURL)
+		if b.Config.API.OldEndPoints.WebsocketURL != "" && b.Config.API.OldEndPoints.WebsocketURL != config.WebsocketURLNonDefaultMessage {
+			err = b.API.Endpoints.SetRunning(WebsocketSpot.String(), b.Config.API.OldEndPoints.WebsocketURL)
 			if err != nil {
 				return err
 			}
-			checkInsecureEndpoint(e.Config.API.OldEndPoints.WebsocketURL)
+			checkInsecureEndpoint(b.Config.API.OldEndPoints.WebsocketURL)
 		}
-		e.Config.API.OldEndPoints = nil
-	} else if e.Config.API.Endpoints != nil {
-		for key, val := range e.Config.API.Endpoints {
+		b.Config.API.OldEndPoints = nil
+	} else if b.Config.API.Endpoints != nil {
+		for key, val := range b.Config.API.Endpoints {
 			if val == "" ||
 				val == config.APIURLNonDefaultMessage ||
 				val == config.WebsocketURLNonDefaultMessage {
 				continue
 			}
 			checkInsecureEndpoint(val)
-			err = e.API.Endpoints.SetRunning(key, val)
+			err = b.API.Endpoints.SetRunning(key, val)
 			if err != nil {
 				return err
 			}
 		}
 	}
-	runningMap := e.API.Endpoints.GetURLMap()
-	e.Config.API.Endpoints = runningMap
+	runningMap := b.API.Endpoints.GetURLMap()
+	b.Config.API.Endpoints = runningMap
 	return nil
 }
 
 // SupportsREST returns whether or not the exchange supports
 // REST
-func (e *Base) SupportsREST() bool {
-	return e.Features.Supports.REST
+func (b *Base) SupportsREST() bool {
+	return b.Features.Supports.REST
 }
 
 // GetWithdrawPermissions passes through the exchange's withdraw permissions
-func (e *Base) GetWithdrawPermissions() uint32 {
-	return e.Features.Supports.WithdrawPermissions
+func (b *Base) GetWithdrawPermissions() uint32 {
+	return b.Features.Supports.WithdrawPermissions
 }
 
 // SupportsWithdrawPermissions compares the supplied permissions with the exchange's to verify they're supported
-func (e *Base) SupportsWithdrawPermissions(permissions uint32) bool {
-	exchangePermissions := e.GetWithdrawPermissions()
+func (b *Base) SupportsWithdrawPermissions(permissions uint32) bool {
+	exchangePermissions := b.GetWithdrawPermissions()
 	return permissions&exchangePermissions == permissions
 }
 
 // FormatWithdrawPermissions will return each of the exchange's compatible withdrawal methods in readable form
-func (e *Base) FormatWithdrawPermissions() string {
+func (b *Base) FormatWithdrawPermissions() string {
 	var services []string
 	for i := 0; i < 32; i++ {
 		var check uint32 = 1 << uint32(i)
-		if e.GetWithdrawPermissions()&check != 0 {
+		if b.GetWithdrawPermissions()&check != 0 {
 			switch check {
 			case AutoWithdrawCrypto:
 				services = append(services, AutoWithdrawCryptoText)
@@ -913,29 +919,29 @@ func (e *Base) FormatWithdrawPermissions() string {
 
 // SupportsAsset whether or not the supplied asset is supported
 // by the exchange
-func (e *Base) SupportsAsset(a asset.Item) bool {
-	_, ok := e.CurrencyPairs.Pairs[a]
+func (b *Base) SupportsAsset(a asset.Item) bool {
+	_, ok := b.CurrencyPairs.Pairs[a]
 	return ok
 }
 
 // PrintEnabledPairs prints the exchanges enabled asset pairs
-func (e *Base) PrintEnabledPairs() {
-	for k, v := range e.CurrencyPairs.Pairs {
+func (b *Base) PrintEnabledPairs() {
+	for k, v := range b.CurrencyPairs.Pairs {
 		log.Infof(log.ExchangeSys, "%s Asset type %v:\n\t Enabled pairs: %v",
-			e.Name, strings.ToUpper(k.String()), v.Enabled)
+			b.Name, strings.ToUpper(k.String()), v.Enabled)
 	}
 }
 
 // GetBase returns the exchange base
-func (e *Base) GetBase() *Base { return e }
+func (b *Base) GetBase() *Base { return b }
 
 // CheckTransientError catches transient errors and returns nil if found, used
 // for validation of API credentials
-func (e *Base) CheckTransientError(err error) error {
+func (b *Base) CheckTransientError(err error) error {
 	if _, ok := err.(net.Error); ok {
 		log.Warnf(log.ExchangeSys,
 			"%s net error captured, will not disable authentication %s",
-			e.Name,
+			b.Name,
 			err)
 		return nil
 	}
@@ -943,20 +949,20 @@ func (e *Base) CheckTransientError(err error) error {
 }
 
 // DisableRateLimiter disables the rate limiting system for the exchange
-func (e *Base) DisableRateLimiter() error {
-	return e.Requester.DisableRateLimiter()
+func (b *Base) DisableRateLimiter() error {
+	return b.Requester.DisableRateLimiter()
 }
 
 // EnableRateLimiter enables the rate limiting system for the exchange
-func (e *Base) EnableRateLimiter() error {
-	return e.Requester.EnableRateLimiter()
+func (b *Base) EnableRateLimiter() error {
+	return b.Requester.EnableRateLimiter()
 }
 
 // StoreAssetPairFormat initialises and stores a defined asset format
-func (e *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
+func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 	if a.String() == "" {
 		return fmt.Errorf("%s cannot add to pairs manager, no asset provided",
-			e.Name)
+			b.Name)
 	}
 
 	if f.AssetEnabled == nil {
@@ -965,152 +971,152 @@ func (e *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 
 	if f.RequestFormat == nil {
 		return fmt.Errorf("%s cannot add to pairs manager, request pair format not provided",
-			e.Name)
+			b.Name)
 	}
 
 	if f.ConfigFormat == nil {
 		return fmt.Errorf("%s cannot add to pairs manager, config pair format not provided",
-			e.Name)
+			b.Name)
 	}
 
-	if e.CurrencyPairs.Pairs == nil {
-		e.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	if b.CurrencyPairs.Pairs == nil {
+		b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	}
 
-	e.CurrencyPairs.Pairs[a] = &f
+	b.CurrencyPairs.Pairs[a] = &f
 	return nil
 }
 
 // SetGlobalPairsManager sets defined asset and pairs management system with
 // with global formatting
-func (e *Base) SetGlobalPairsManager(request, config *currency.PairFormat, assets ...asset.Item) error {
+func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, assets ...asset.Item) error {
 	if request == nil {
 		return fmt.Errorf("%s cannot set pairs manager, request pair format not provided",
-			e.Name)
+			b.Name)
 	}
 
 	if config == nil {
 		return fmt.Errorf("%s cannot set pairs manager, config pair format not provided",
-			e.Name)
+			b.Name)
 	}
 
 	if len(assets) == 0 {
 		return fmt.Errorf("%s cannot set pairs manager, no assets provided",
-			e.Name)
+			b.Name)
 	}
 
-	e.CurrencyPairs.UseGlobalFormat = true
-	e.CurrencyPairs.RequestFormat = request
-	e.CurrencyPairs.ConfigFormat = config
+	b.CurrencyPairs.UseGlobalFormat = true
+	b.CurrencyPairs.RequestFormat = request
+	b.CurrencyPairs.ConfigFormat = config
 
-	if e.CurrencyPairs.Pairs != nil {
+	if b.CurrencyPairs.Pairs != nil {
 		return fmt.Errorf("%s cannot set pairs manager, pairs already set",
-			e.Name)
+			b.Name)
 	}
 
-	e.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 
 	for i := range assets {
 		if assets[i].String() == "" {
-			e.CurrencyPairs.Pairs = nil
+			b.CurrencyPairs.Pairs = nil
 			return fmt.Errorf("%s cannot set pairs manager, asset is empty string",
-				e.Name)
+				b.Name)
 		}
-		e.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
-		e.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
-		e.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
+		b.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
+		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
+		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
 	}
 
 	return nil
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (e *Base) GetWebsocket() (*stream.Websocket, error) {
-	if e.Websocket == nil {
+func (b *Base) GetWebsocket() (*stream.Websocket, error) {
+	if b.Websocket == nil {
 		return nil, common.ErrFunctionNotSupported
 	}
-	return e.Websocket, nil
+	return b.Websocket, nil
 }
 
 // SupportsWebsocket returns whether or not the exchange supports
 // websocket
-func (e *Base) SupportsWebsocket() bool {
-	return e.Features.Supports.Websocket
+func (b *Base) SupportsWebsocket() bool {
+	return b.Features.Supports.Websocket
 }
 
 // IsWebsocketEnabled returns whether or not the exchange has its
 // websocket client enabled
-func (e *Base) IsWebsocketEnabled() bool {
-	if e.Websocket == nil {
+func (b *Base) IsWebsocketEnabled() bool {
+	if b.Websocket == nil {
 		return false
 	}
-	return e.Websocket.IsEnabled()
+	return b.Websocket.IsEnabled()
 }
 
 // FlushWebsocketChannels refreshes websocket channel subscriptions based on
 // websocket features. Used in the event of a pair/asset or subscription change.
-func (e *Base) FlushWebsocketChannels() error {
-	if e.Websocket == nil {
+func (b *Base) FlushWebsocketChannels() error {
+	if b.Websocket == nil {
 		return nil
 	}
-	return e.Websocket.FlushChannels()
+	return b.Websocket.FlushChannels()
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (e *Base) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	if e.Websocket == nil {
+func (b *Base) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return e.Websocket.SubscribeToChannels(channels)
+	return b.Websocket.SubscribeToChannels(channels)
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (e *Base) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	if e.Websocket == nil {
+func (b *Base) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return e.Websocket.UnsubscribeChannels(channels)
+	return b.Websocket.UnsubscribeChannels(channels)
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (e *Base) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	if e.Websocket == nil {
+func (b *Base) GetSubscriptions() ([]stream.ChannelSubscription, error) {
+	if b.Websocket == nil {
 		return nil, common.ErrFunctionNotSupported
 	}
-	return e.Websocket.GetSubscriptions(), nil
+	return b.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (e *Base) AuthenticateWebsocket() error {
+func (b *Base) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
 }
 
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
-func (e *Base) klineIntervalEnabled(in kline.Interval) bool {
-	return e.Features.Enabled.Kline.Intervals[in.Word()]
+func (b *Base) klineIntervalEnabled(in kline.Interval) bool {
+	return b.Features.Enabled.Kline.Intervals[in.Word()]
 }
 
 // FormatExchangeKlineInterval returns Interval to string
 // Exchanges can override this if they require custom formatting
-func (e *Base) FormatExchangeKlineInterval(in kline.Interval) string {
+func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }
 
 // ValidateKline confirms that the requested pair, asset & interval are supported and/or enabled by the requested exchange
-func (e *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
+func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
 	var errorList []string
 	var err kline.ErrorKline
-	if e.CurrencyPairs.IsAssetEnabled(a) != nil {
+	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
 		err.Asset = a
 		errorList = append(errorList, "asset not enabled")
-	} else if !e.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
+	} else if !b.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
 		err.Pair = pair
 		errorList = append(errorList, "pair not enabled")
 	}
 
-	if !e.klineIntervalEnabled(interval) {
+	if !b.klineIntervalEnabled(interval) {
 		err.Interval = interval
 		errorList = append(errorList, "interval not supported")
 	}
@@ -1125,39 +1131,38 @@ func (e *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.In
 
 // AddTradesToBuffer is a helper function that will only
 // add trades to the buffer if it is allowed
-func (e *Base) AddTradesToBuffer(trades ...trade.Data) error {
-	if !e.IsSaveTradeDataEnabled() {
+func (b *Base) AddTradesToBuffer(trades ...trade.Data) error {
+	if !b.IsSaveTradeDataEnabled() {
 		return nil
 	}
-
-	return trade.AddTradesToBuffer(e.Name, trades...)
+	return trade.AddTradesToBuffer(b.Name, trades...)
 }
 
 // IsSaveTradeDataEnabled checks the state of
 // SaveTradeData in a concurrent-friendly manner
-func (e *Base) IsSaveTradeDataEnabled() bool {
-	e.settingsMutex.RLock()
-	isEnabled := e.Features.Enabled.SaveTradeData
-	e.settingsMutex.RUnlock()
+func (b *Base) IsSaveTradeDataEnabled() bool {
+	b.settingsMutex.RLock()
+	isEnabled := b.Features.Enabled.SaveTradeData
+	b.settingsMutex.RUnlock()
 	return isEnabled
 }
 
 // SetSaveTradeDataStatus locks and sets the status of
 // the config and the exchange's setting for SaveTradeData
-func (e *Base) SetSaveTradeDataStatus(enabled bool) {
-	e.settingsMutex.Lock()
-	defer e.settingsMutex.Unlock()
-	e.Features.Enabled.SaveTradeData = enabled
-	e.Config.Features.Enabled.SaveTradeData = enabled
-	if e.Verbose {
-		log.Debugf(log.Trade, "Set %v 'SaveTradeData' to %v", e.Name, enabled)
+func (b *Base) SetSaveTradeDataStatus(enabled bool) {
+	b.settingsMutex.Lock()
+	defer b.settingsMutex.Unlock()
+	b.Features.Enabled.SaveTradeData = enabled
+	b.Config.Features.Enabled.SaveTradeData = enabled
+	if b.Verbose {
+		log.Debugf(log.Trade, "Set %v 'SaveTradeData' to %v", b.Name, enabled)
 	}
 }
 
 // NewEndpoints declares default and running URLs maps
-func (e *Base) NewEndpoints() *Endpoints {
+func (b *Base) NewEndpoints() *Endpoints {
 	return &Endpoints{
-		Exchange: e.Name,
+		Exchange: b.Name,
 		defaults: make(map[string]string),
 	}
 }
@@ -1183,7 +1188,11 @@ func (e *Endpoints) SetRunning(key, val string) error {
 	}
 	_, err = url.ParseRequestURI(val)
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "Could not set custom URL for %s to %s for exchange %s. invalid URI for request.", key, val, e.Exchange)
+		log.Warnf(log.ExchangeSys,
+			"Could not set custom URL for %s to %s for exchange %s. invalid URI for request.",
+			key,
+			val,
+			e.Exchange)
 		return nil
 	}
 	e.defaults[key] = val
@@ -1222,8 +1231,8 @@ func (e *Endpoints) GetURLMap() map[string]string {
 }
 
 // FormatSymbol formats the given pair to a string suitable for exchange API requests
-func (e *Base) FormatSymbol(pair currency.Pair, assetType asset.Item) (string, error) {
-	pairFmt, err := e.GetPairFormat(assetType, true)
+func (b *Base) FormatSymbol(pair currency.Pair, assetType asset.Item) (string, error) {
+	pairFmt, err := b.GetPairFormat(assetType, true)
 	if err != nil {
 		return pair.String(), err
 	}
@@ -1264,6 +1273,33 @@ func (u URL) String() string {
 }
 
 // UpdateOrderExecutionLimits updates order execution limits this is overridable
-func (e *Base) UpdateOrderExecutionLimits(a asset.Item) error {
+func (b *Base) UpdateOrderExecutionLimits(a asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// DisableAssetWebsocketSupport disables websocket functionality for the
+// supplied asset item. In the case that websocket functionality has not yet
+// been implemented for that specific asset type. This is a base method to
+// check availability of asset type.
+func (b *Base) DisableAssetWebsocketSupport(aType asset.Item) error {
+	if !b.SupportsAsset(aType) {
+		return fmt.Errorf("%s %w",
+			aType,
+			asset.ErrNotSupported)
+	}
+	b.AssetWebsocketSupport.m.Lock()
+	if b.AssetWebsocketSupport.unsupported == nil {
+		b.AssetWebsocketSupport.unsupported = make(map[asset.Item]bool)
+	}
+	b.AssetWebsocketSupport.unsupported[aType] = true
+	b.AssetWebsocketSupport.m.Unlock()
+	return nil
+}
+
+// IsAssetWebsocketSupported checks to see if the supplied asset type is
+// supported by websocket.
+func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool {
+	a.m.RLock()
+	defer a.m.RUnlock()
+	return a.unsupported == nil || !a.unsupported[aType]
 }

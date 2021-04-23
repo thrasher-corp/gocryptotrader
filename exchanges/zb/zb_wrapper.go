@@ -301,10 +301,10 @@ func (z *ZB) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.B
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       z.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: z.OrderbookVerificationBypass,
+		Exchange:        z.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: z.CanVerifyOrderbook,
 	}
 	currFormat, err := z.FormatExchangeCurrency(p, assetType)
 	if err != nil {

@@ -143,11 +143,11 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		orderbook.Reverse(book.Asks) // Reverse asks for correct alignment
-		book.AssetType = asset.Spot
+		book.Asks.Reverse() // Reverse asks for correct alignment
+		book.Asset = asset.Spot
 		book.Pair = cPair
-		book.ExchangeName = z.Name
-		book.VerificationBypass = z.OrderbookVerificationBypass
+		book.Exchange = z.Name
+		book.VerifyOrderbook = z.CanVerifyOrderbook
 
 		err = z.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {

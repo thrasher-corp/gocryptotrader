@@ -93,6 +93,11 @@ func (k *Kraken) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	err = k.DisableAssetWebsocketSupport(asset.Futures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	k.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -497,10 +502,10 @@ func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       k.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: k.OrderbookVerificationBypass,
+		Exchange:        k.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: k.CanVerifyOrderbook,
 	}
 	var err error
 	switch assetType {

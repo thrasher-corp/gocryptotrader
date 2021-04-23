@@ -947,7 +947,7 @@ func TestWSOrderbookHandling(t *testing.T) {
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)
-	if err != nil && err.Error() != "perpetualcontract ETHUSD update cannot be deleted id: 17999995000 not found" {
+	if err != nil && err.Error() != "delete error: cannot match ID on linked list 17999995000 not found" {
 		t.Error(err)
 	}
 	if err == nil {

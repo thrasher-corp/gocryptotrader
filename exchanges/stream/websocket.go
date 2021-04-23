@@ -113,6 +113,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		s.SortBuffer,
 		s.SortBufferByUpdateIDs,
 		s.UpdateEntriesByID,
+		s.Verbose,
 		w.exchangeName,
 		w.DataHandler)
 }

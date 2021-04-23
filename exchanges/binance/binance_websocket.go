@@ -463,10 +463,10 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 	}
 
 	newOrderBook.Pair = p
-	newOrderBook.AssetType = asset.Spot
-	newOrderBook.ExchangeName = b.Name
+	newOrderBook.Asset = asset.Spot
+	newOrderBook.Exchange = b.Name
 	newOrderBook.LastUpdateID = orderbookNew.LastUpdateID
-	newOrderBook.VerificationBypass = b.OrderbookVerificationBypass
+	newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
 
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
@@ -632,8 +632,8 @@ func (b *Binance) applyBufferUpdate(pair currency.Pair) error {
 		return nil
 	}
 
-	recent := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	if recent == nil || (recent.Asks == nil && recent.Bids == nil) {
+	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	if err != nil || (recent.Asks == nil && recent.Bids == nil) {
 		return b.obm.fetchBookViaREST(pair)
 	}
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -220,10 +221,15 @@ type Base struct {
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *stream.Websocket
 	*request.Requester
-	Config                      *config.ExchangeConfig
-	settingsMutex               sync.RWMutex
-	OrderbookVerificationBypass bool
+	Config        *config.ExchangeConfig
+	settingsMutex sync.RWMutex
+	// CanVerifyOrderbook determines if the orderbook verification can be bypassed,
+	// increasing potential update speed but decreasing confidence in orderbook
+	// integrity.
+	CanVerifyOrderbook bool
 	order.ExecutionLimits
+
+	AssetWebsocketSupport
 }
 
 // url lookup consts
@@ -259,3 +265,11 @@ var keyURLs = []URL{RestSpot,
 
 // URL stores uint conversions
 type URL uint16
+
+// AssetWebsocketSupport defines the availability of websocket functionality to
+// the specific asset type. TODO: Deprecate as this is a temp item to address
+// certain limitations quickly.
+type AssetWebsocketSupport struct {
+	unsupported map[asset.Item]bool
+	m           sync.RWMutex
+}

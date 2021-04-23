@@ -69,6 +69,11 @@ func (b *Bitmex) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	err = b.DisableAssetWebsocketSupport(asset.Index)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -346,10 +351,10 @@ func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       b.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: b.OrderbookVerificationBypass,
+		Exchange:        b.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: b.CanVerifyOrderbook,
 	}
 
 	if assetType == asset.Index {
@@ -384,7 +389,7 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 					orderbookNew[i].Side)
 		}
 	}
-	orderbook.Reverse(book.Asks)
+	book.Asks.Reverse() // Reverse order of asks to ascending
 
 	err = book.Process()
 	if err != nil {
