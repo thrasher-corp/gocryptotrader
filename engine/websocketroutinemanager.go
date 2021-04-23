@@ -203,7 +203,7 @@ func (m *WebsocketRoutineManager) WebsocketDataHandler(exchName string, data int
 		if m.syncer.IsRunning() {
 			err := m.syncer.Update(exchName,
 				d.Pair,
-				d.AssetType,
+				d.Asset,
 				SyncItemOrderbook,
 				nil)
 			if err != nil {

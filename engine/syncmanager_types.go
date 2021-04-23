@@ -32,13 +32,14 @@ type currencyPairSyncAgent struct {
 
 // Config stores the currency pair config
 type Config struct {
-	SyncTicker       bool
-	SyncOrderbook    bool
-	SyncTrades       bool
-	SyncContinuously bool
-	SyncTimeout      time.Duration
-	NumWorkers       int
-	Verbose          bool
+	SyncTicker           bool
+	SyncOrderbook        bool
+	SyncTrades           bool
+	SyncContinuously     bool
+	SyncTimeoutREST      time.Duration
+	SyncTimeoutWebsocket time.Duration
+	NumWorkers           int
+	Verbose              bool
 }
 
 // SyncManager stores the exchange currency pair syncer object
