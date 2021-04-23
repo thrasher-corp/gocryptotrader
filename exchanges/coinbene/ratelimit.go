@@ -15,6 +15,7 @@ const (
 	tickersContractReqRate               = 20
 	klineContractReqRate                 = 20
 	tradesContractReqRate                = 20
+	contractInstrumentsReqRate           = 20
 	contractAccountInfoContractReqRate   = 10
 	positionInfoContractReqRate          = 10
 	placeOrderContractReqRate            = 20
@@ -54,6 +55,7 @@ const (
 	contractTickers
 	contractKline
 	contractTrades
+	contractInstruments
 	contractAccountInfo
 	contractPositionInfo
 	contractPlaceOrder
@@ -93,6 +95,7 @@ type RateLimit struct {
 	ContractTickers               *rate.Limiter
 	ContractKline                 *rate.Limiter
 	ContractTrades                *rate.Limiter
+	ContractInstruments           *rate.Limiter
 	ContractAccountInfo           *rate.Limiter
 	ContractPositionInfo          *rate.Limiter
 	ContractPlaceOrder            *rate.Limiter
@@ -136,6 +139,8 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		time.Sleep(r.ContractKline.Reserve().Delay())
 	case contractTrades:
 		time.Sleep(r.ContractTrades.Reserve().Delay())
+	case contractInstruments:
+		time.Sleep(r.ContractInstruments.Reserve().Delay())
 	case contractAccountInfo:
 		time.Sleep(r.ContractAccountInfo.Reserve().Delay())
 	case contractPositionInfo:
@@ -209,6 +214,7 @@ func SetRateLimit() *RateLimit {
 		ContractTickers:               request.NewRateLimit(contractRateInterval, tickersContractReqRate),
 		ContractKline:                 request.NewRateLimit(contractRateInterval, klineContractReqRate),
 		ContractTrades:                request.NewRateLimit(contractRateInterval, tradesContractReqRate),
+		ContractInstruments:           request.NewRateLimit(contractRateInterval, contractInstrumentsReqRate),
 		ContractAccountInfo:           request.NewRateLimit(contractRateInterval, contractAccountInfoContractReqRate),
 		ContractPositionInfo:          request.NewRateLimit(contractRateInterval, positionInfoContractReqRate),
 		ContractPlaceOrder:            request.NewRateLimit(contractRateInterval, placeOrderContractReqRate),
