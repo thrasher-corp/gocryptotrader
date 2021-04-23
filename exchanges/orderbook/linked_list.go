@@ -210,7 +210,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 	}
 }
 
-// updateInsertByID updates or inserts if not found for a bir or ask depth
+// updateInsertByID updates or inserts if not found for a bid or ask depth
 // 1) node ID found amount amended (best case)
 // 2) node ID found amount and price amended and node moved to correct position
 // (medium case)
