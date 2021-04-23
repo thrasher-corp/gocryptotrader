@@ -104,7 +104,7 @@ func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit float64, 
 		return 0, nil
 	}
 	amount := baseAmount * (1 - feeRate)
-	if sellLimit != 0 && sellLimit >= minMaxSettings.MinimumSize && sellLimit <= minMaxSettings.MaximumSize && sellLimit <= amount {
+	if sellLimit != 0 && sellLimit >= minMaxSettings.MinimumSize && (sellLimit <= minMaxSettings.MaximumSize || minMaxSettings.MaximumSize == 0) && sellLimit <= amount {
 		amount = sellLimit
 	}
 	if minMaxSettings.MaximumSize > 0 && amount > minMaxSettings.MaximumSize {

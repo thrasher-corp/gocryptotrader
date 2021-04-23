@@ -101,6 +101,26 @@ func TestMaximumBuySizeEqualZero(t *testing.T) {
 		t.Errorf("expected: %v, received %v, err: %+v", buylimit, amount, err)
 	}
 }
+func TestMaximumSellSizeEqualZero(t *testing.T) {
+	t.Parallel()
+	globalMinMax := config.MinMax{
+		MinimumSize:  1,
+		MaximumSize:  0,
+		MaximumTotal: 1437,
+	}
+	sizer := Size{
+		BuySide:  globalMinMax,
+		SellSide: globalMinMax,
+	}
+	price := 1338.0
+	availableFunds := 13380.0
+	feeRate := 0.02
+	var selllimit float64 = 1
+	amount, err := sizer.calculateSellSize(price, availableFunds, feeRate, selllimit, globalMinMax)
+	if amount != selllimit || err != nil {
+		t.Errorf("expected: %v, received %v, err: %+v", selllimit, amount, err)
+	}
+}
 
 func TestSizingErrors(t *testing.T) {
 	t.Parallel()
