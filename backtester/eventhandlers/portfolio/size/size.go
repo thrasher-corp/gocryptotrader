@@ -75,10 +75,9 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit float64
 		return 0, nil
 	}
 	amount := availableFunds * (1 - feeRate) / price
-	if buyLimit != 0 && buyLimit >= minMaxSettings.MinimumSize && buyLimit <= minMaxSettings.MaximumSize && buyLimit <= amount {
+	if buyLimit != 0 && buyLimit >= minMaxSettings.MinimumSize && (buyLimit <= minMaxSettings.MaximumSize || minMaxSettings.MaximumSize == 0) && buyLimit <= amount {
 		amount = buyLimit
 	}
-
 	if minMaxSettings.MaximumSize > 0 && amount > minMaxSettings.MaximumSize {
 		amount = minMaxSettings.MaximumSize * (1 - feeRate)
 	}

@@ -371,7 +371,6 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 	d.Next()
 	_, err = e.ExecuteOrder(o, d, bot)
-	t.Logf("err %v", err)
 	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
 		t.Error(err)
 	}
