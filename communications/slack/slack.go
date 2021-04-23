@@ -15,7 +15,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -57,7 +56,7 @@ func (s *Slack) IsConnected() bool {
 
 // Setup takes in a slack configuration, sets bots target channel and
 // sets verification token to access workspace
-func (s *Slack) Setup(cfg *config.CommunicationsConfig) {
+func (s *Slack) Setup(cfg *base.CommunicationsConfig) {
 	s.Name = cfg.SlackConfig.Name
 	s.Enabled = cfg.SlackConfig.Enabled
 	s.Verbose = cfg.SlackConfig.Verbose

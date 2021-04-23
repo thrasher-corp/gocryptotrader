@@ -37,9 +37,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/engine/databaseconnection"
-	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/engine/ordermanager"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -329,7 +326,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 	var err error
 	e := bt.Bot.GetExchangeByName(exch)
 	if e == nil {
-		return nil, currency.Pair{}, "", exchangemanager.ErrExchangeNotFound
+		return nil, currency.Pair{}, "", engine.ErrExchangeNotFound
 	}
 
 	var cp, fPair currency.Pair
@@ -365,15 +362,15 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 	if err != nil {
 		return err
 	}
-	bt.Bot.ExchangeManager = exchangemanager.Setup()
+	bt.Bot.ExchangeManager = engine.SetupExchangeManager()
 	for i := range cfg.CurrencySettings {
 		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, false, nil)
-		if err != nil && !errors.Is(err, exchangemanager.ErrExchangeAlreadyLoaded) {
+		if err != nil && !errors.Is(err, engine.ErrExchangeAlreadyLoaded) {
 			return err
 		}
 	}
 	if !bt.Bot.OrderManager.IsRunning() {
-		bt.Bot.OrderManager, err = ordermanager.Setup(
+		bt.Bot.OrderManager, err = engine.SetupOrderManager(
 			bt.Bot.ExchangeManager,
 			bt.Bot.CommunicationsManager,
 			&bt.Bot.ServicesWG,
@@ -423,7 +420,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, take
 func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
 	log.Infof(log.BackTester, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
 	if exch == nil {
-		return nil, exchangemanager.ErrExchangeNotFound
+		return nil, engine.ErrExchangeNotFound
 	}
 	b := exch.GetBase()
 	if cfg.DataSettings.DatabaseData == nil &&
@@ -490,7 +487,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 				return nil, err
 			}
 		}
-		bt.Bot.DatabaseManager, err = databaseconnection.Setup(gctdatabase.DB.GetConfig())
+		bt.Bot.DatabaseManager, err = engine.SetupDatabaseConnectionManager(gctdatabase.DB.GetConfig())
 		err = bt.Bot.DatabaseManager.Start(&bt.Bot.ServicesWG)
 		if err != nil {
 			return nil, err

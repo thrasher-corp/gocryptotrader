@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
@@ -171,7 +172,7 @@ func (c *Config) PurgeExchangeAPICredentials() {
 }
 
 // GetCommunicationsConfig returns the communications configuration
-func (c *Config) GetCommunicationsConfig() CommunicationsConfig {
+func (c *Config) GetCommunicationsConfig() base.CommunicationsConfig {
 	m.Lock()
 	comms := c.Communications
 	m.Unlock()
@@ -180,7 +181,7 @@ func (c *Config) GetCommunicationsConfig() CommunicationsConfig {
 
 // UpdateCommunicationsConfig sets a new updated version of a Communications
 // configuration
-func (c *Config) UpdateCommunicationsConfig(config *CommunicationsConfig) {
+func (c *Config) UpdateCommunicationsConfig(config *base.CommunicationsConfig) {
 	m.Lock()
 	c.Communications = *config
 	m.Unlock()
@@ -211,7 +212,7 @@ func (c *Config) CheckCommunicationsConfig() {
 	// with example settings
 
 	if c.Communications.SlackConfig.Name == "" {
-		c.Communications.SlackConfig = SlackConfig{
+		c.Communications.SlackConfig = base.SlackConfig{
 			Name:              "Slack",
 			TargetChannel:     "general",
 			VerificationToken: "testtest",
@@ -221,7 +222,7 @@ func (c *Config) CheckCommunicationsConfig() {
 	if c.Communications.SMSGlobalConfig.Name == "" {
 		if c.SMS != nil {
 			if c.SMS.Contacts != nil {
-				c.Communications.SMSGlobalConfig = SMSGlobalConfig{
+				c.Communications.SMSGlobalConfig = base.SMSGlobalConfig{
 					Name:     "SMSGlobal",
 					Enabled:  c.SMS.Enabled,
 					Verbose:  c.SMS.Verbose,
@@ -232,13 +233,13 @@ func (c *Config) CheckCommunicationsConfig() {
 				// flush old SMS config
 				c.SMS = nil
 			} else {
-				c.Communications.SMSGlobalConfig = SMSGlobalConfig{
+				c.Communications.SMSGlobalConfig = base.SMSGlobalConfig{
 					Name:     "SMSGlobal",
 					From:     c.Name,
 					Username: "main",
 					Password: "test",
 
-					Contacts: []SMSContact{
+					Contacts: []base.SMSContact{
 						{
 							Name:    "bob",
 							Number:  "1234",
@@ -248,12 +249,12 @@ func (c *Config) CheckCommunicationsConfig() {
 				}
 			}
 		} else {
-			c.Communications.SMSGlobalConfig = SMSGlobalConfig{
+			c.Communications.SMSGlobalConfig = base.SMSGlobalConfig{
 				Name:     "SMSGlobal",
 				Username: "main",
 				Password: "test",
 
-				Contacts: []SMSContact{
+				Contacts: []base.SMSContact{
 					{
 						Name:    "bob",
 						Number:  "1234",
@@ -279,7 +280,7 @@ func (c *Config) CheckCommunicationsConfig() {
 	}
 
 	if c.Communications.SMTPConfig.Name == "" {
-		c.Communications.SMTPConfig = SMTPConfig{
+		c.Communications.SMTPConfig = base.SMTPConfig{
 			Name:            "SMTP",
 			Host:            "smtp.google.com",
 			Port:            "537",
@@ -290,7 +291,7 @@ func (c *Config) CheckCommunicationsConfig() {
 	}
 
 	if c.Communications.TelegramConfig.Name == "" {
-		c.Communications.TelegramConfig = TelegramConfig{
+		c.Communications.TelegramConfig = base.TelegramConfig{
 			Name:              "Telegram",
 			VerificationToken: "testest",
 		}

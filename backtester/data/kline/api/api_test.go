@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	exchangemanager "github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -34,7 +33,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	bot.ExchangeManager = exchangemanager.Setup()
+	bot.ExchangeManager = engine.SetupExchangeManager()
 	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {
 		log.Fatal(err)

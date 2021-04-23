@@ -16,17 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	"github.com/thrasher-corp/gocryptotrader/engine/apiserver"
-	"github.com/thrasher-corp/gocryptotrader/engine/currencypairsyncer"
-	"github.com/thrasher-corp/gocryptotrader/engine/databaseconnection"
-	"github.com/thrasher-corp/gocryptotrader/engine/depositaddress"
-	"github.com/thrasher-corp/gocryptotrader/engine/eventmanager"
-	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/engine/ntpmanager"
-	"github.com/thrasher-corp/gocryptotrader/engine/ordermanager"
-	"github.com/thrasher-corp/gocryptotrader/engine/portfoliomanager"
-	"github.com/thrasher-corp/gocryptotrader/engine/websocketroutinemanager"
-	"github.com/thrasher-corp/gocryptotrader/engine/withdrawmanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -41,20 +30,20 @@ import (
 // overarching type across this code base.
 type Engine struct {
 	Config                  *config.Config
-	apiServer               *apiserver.ApiServerManager
+	apiServer               *ApiServerManager
 	CommunicationsManager   *CommunicationManager
 	connectionManager       *ConnectionManager
-	currencyPairSyncer      *currencypairsyncer.Manager
-	DatabaseManager         *databaseconnection.Manager
-	DepositAddressManager   *depositaddress.Manager
-	eventManager            *eventmanager.EventManager
-	ExchangeManager         *exchangemanager.Manager
-	ntpManager              *ntpmanager.Manager
-	OrderManager            *ordermanager.Manager
-	portfolioManager        *portfoliomanager.Manager
+	currencyPairSyncer      *SyncManager
+	DatabaseManager         *DatabaseConnectionManager
+	DepositAddressManager   *DepositAddressManager
+	eventManager            *EventManager
+	ExchangeManager         *ExchangeManager
+	ntpManager              *NTPManager
+	OrderManager            *OrderManager
+	portfolioManager        *PortfolioManager
 	gctScriptManager        *gctscript.GctScriptManager
-	websocketRoutineManager *websocketroutinemanager.Manager
-	WithdrawManager         *withdrawmanager.WithdrawManager
+	websocketRoutineManager *WebsocketRoutineManager
+	WithdrawManager         *WithdrawManager
 	Settings                Settings
 	uptime                  time.Time
 	ServicesWG              sync.WaitGroup
@@ -163,7 +152,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		if b.Settings.PortfolioManagerDelay == time.Duration(0) && s.PortfolioManagerDelay > 0 {
 			b.Settings.PortfolioManagerDelay = s.PortfolioManagerDelay
 		} else {
-			b.Settings.PortfolioManagerDelay = portfoliomanager.PortfolioSleepDelay
+			b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
 		}
 	}
 
@@ -207,7 +196,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		if b.Settings.EventManagerDelay != time.Duration(0) && s.EventManagerDelay > 0 {
 			b.Settings.EventManagerDelay = s.EventManagerDelay
 		} else {
-			b.Settings.EventManagerDelay = eventmanager.EventSleepDelay
+			b.Settings.EventManagerDelay = EventSleepDelay
 		}
 	}
 
@@ -357,7 +346,7 @@ func (bot *Engine) Start() error {
 	defer newEngineMutex.Unlock()
 
 	if bot.Settings.EnableDatabaseManager {
-		bot.DatabaseManager, err = databaseconnection.Setup(&bot.Config.Database)
+		bot.DatabaseManager, err = SetupDatabaseConnectionManager(&bot.Config.Database)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to setup: %v", err)
 		} else {
@@ -396,7 +385,7 @@ func (bot *Engine) Start() error {
 			}
 			gctlog.Info(gctlog.TimeMgr, responseMessage)
 		}
-		bot.ntpManager, err = ntpmanager.Setup(&bot.Config.NTPClient, *bot.Config.Logging.Enabled)
+		bot.ntpManager, err = SetupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %s", err)
 		}
@@ -427,7 +416,7 @@ func (bot *Engine) Start() error {
 		bot.Config.PurgeExchangeAPICredentials()
 	}
 
-	bot.ExchangeManager = exchangemanager.Setup()
+	bot.ExchangeManager = SetupExchangeManager()
 	gctlog.Debugln(gctlog.Global, "Setting up exchanges..")
 	err = bot.SetupExchanges()
 	if err != nil {
@@ -481,7 +470,7 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnablePortfolioManager {
 		if bot.portfolioManager == nil {
-			bot.portfolioManager, err = portfoliomanager.Setup(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
+			bot.portfolioManager, err = SetupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
 			if err != nil {
 				gctlog.Errorf(gctlog.Global, "portfolio manager unable to setup: %s", err)
 			} else {
@@ -493,7 +482,7 @@ func (bot *Engine) Start() error {
 		}
 	}
 
-	bot.WithdrawManager, err = withdrawmanager.SetupWithdrawManager(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
+	bot.WithdrawManager, err = SetupWithdrawManager(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
 	if err != nil {
 		return err
 	}
@@ -506,7 +495,7 @@ func (bot *Engine) Start() error {
 		if err != nil {
 			return err
 		}
-		bot.apiServer, err = apiserver.SetupAPIServerManager(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath)
+		bot.apiServer, err = SetupAPIServerManager(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "API Server unable to start: %s", err)
 		} else {
@@ -526,7 +515,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableDepositAddressManager {
-		bot.DepositAddressManager = depositaddress.Setup()
+		bot.DepositAddressManager = SetupDepositAddressManager()
 		go func() {
 			err = bot.DepositAddressManager.Sync(bot.GetExchangeCryptocurrencyDepositAddresses())
 			if err != nil {
@@ -536,7 +525,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableOrderManager {
-		bot.OrderManager, err = ordermanager.Setup(
+		bot.OrderManager, err = SetupOrderManager(
 			bot.ExchangeManager,
 			bot.CommunicationsManager,
 			&bot.ServicesWG,
@@ -552,7 +541,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableExchangeSyncManager {
-		exchangeSyncCfg := &currencypairsyncer.Config{
+		exchangeSyncCfg := &Config{
 			SyncTicker:       bot.Settings.EnableTickerSyncing,
 			SyncOrderbook:    bot.Settings.EnableOrderbookSyncing,
 			SyncTrades:       bot.Settings.EnableTradeSyncing,
@@ -562,7 +551,7 @@ func (bot *Engine) Start() error {
 			SyncTimeout:      bot.Settings.SyncTimeout,
 		}
 
-		bot.currencyPairSyncer, err = currencypairsyncer.Setup(
+		bot.currencyPairSyncer, err = SetupSyncManager(
 			exchangeSyncCfg,
 			bot.ExchangeManager,
 			bot.websocketRoutineManager,
@@ -580,7 +569,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableEventManager {
-		bot.eventManager, err = eventmanager.Setup(bot.CommunicationsManager, bot.ExchangeManager, bot.Settings.EventManagerDelay, bot.Settings.EnableDryRun)
+		bot.eventManager, err = SetupEventManager(bot.CommunicationsManager, bot.ExchangeManager, bot.Settings.EventManagerDelay, bot.Settings.EnableDryRun)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise event manager. Err: %s", err)
 		} else {
@@ -592,7 +581,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
-		bot.websocketRoutineManager, err = websocketroutinemanager.Setup(bot.ExchangeManager, bot.OrderManager, bot.currencyPairSyncer, &bot.Config.Currency, bot.Settings.Verbose)
+		bot.websocketRoutineManager, err = SetupWebsocketRoutineManager(bot.ExchangeManager, bot.OrderManager, bot.currencyPairSyncer, &bot.Config.Currency, bot.Settings.Verbose)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise websocket routine manager. Err: %s", err)
 		} else {
@@ -751,7 +740,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 		return err
 	}
 	if exch.GetBase() == nil {
-		return exchangemanager.ErrExchangeFailedToLoad
+		return ErrExchangeFailedToLoad
 	}
 
 	var localWG sync.WaitGroup
@@ -943,7 +932,7 @@ func (bot *Engine) SetupExchanges() error {
 	}
 	wg.Wait()
 	if len(bot.ExchangeManager.GetExchanges()) == 0 {
-		return exchangemanager.ErrNoExchangesLoaded
+		return ErrNoExchangesLoaded
 	}
 	return nil
 }

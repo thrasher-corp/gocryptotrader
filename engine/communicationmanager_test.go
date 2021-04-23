@@ -7,8 +7,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystems"
 )
 
 func TestSetup(t *testing.T) {
@@ -18,13 +16,13 @@ func TestSetup(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
 
-	_, err = SetupCommunicationManager(&config.CommunicationsConfig{})
+	_, err = SetupCommunicationManager(&base.CommunicationsConfig{})
 	if !errors.Is(err, communications.ErrNoCommunicationRelayersEnabled) {
 		t.Errorf("error '%v', expected '%v'", err, communications.ErrNoCommunicationRelayersEnabled)
 	}
 
-	m, err := SetupCommunicationManager(&config.CommunicationsConfig{
-		SlackConfig: config.SlackConfig{
+	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
+		SlackConfig: base.SlackConfig{
 			Enabled: true,
 		},
 	})
@@ -38,8 +36,8 @@ func TestSetup(t *testing.T) {
 
 func TestIsRunning(t *testing.T) {
 	t.Parallel()
-	m, err := SetupCommunicationManager(&config.CommunicationsConfig{
-		SMSGlobalConfig: config.SMSGlobalConfig{
+	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
+		SMSGlobalConfig: base.SMSGlobalConfig{
 			Enabled: true,
 		},
 	})
@@ -65,8 +63,8 @@ func TestIsRunning(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	m, err := SetupCommunicationManager(&config.CommunicationsConfig{
-		SMTPConfig: config.SMTPConfig{
+	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
+		SMTPConfig: base.SMTPConfig{
 			Enabled: true,
 		},
 	})
@@ -79,15 +77,15 @@ func TestStart(t *testing.T) {
 	}
 	m.started = 1
 	err = m.Start()
-	if !errors.Is(err, subsystems.ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemAlreadyStarted)
+	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
+		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
 	}
 }
 
 func TestGetStatus(t *testing.T) {
 	t.Parallel()
-	m, err := SetupCommunicationManager(&config.CommunicationsConfig{
-		TelegramConfig: config.TelegramConfig{
+	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
+		TelegramConfig: base.TelegramConfig{
 			Enabled: true,
 		},
 	})
@@ -104,15 +102,15 @@ func TestGetStatus(t *testing.T) {
 	}
 	m.started = 0
 	_, err = m.GetStatus()
-	if !errors.Is(err, subsystems.ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemNotStarted)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 }
 
 func TestStop(t *testing.T) {
 	t.Parallel()
-	m, err := SetupCommunicationManager(&config.CommunicationsConfig{
-		SlackConfig: config.SlackConfig{
+	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
+		SlackConfig: base.SlackConfig{
 			Enabled: true,
 		},
 	})
@@ -128,20 +126,20 @@ func TestStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.Stop()
-	if !errors.Is(err, subsystems.ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemNotStarted)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 	m = nil
 	err = m.Stop()
-	if !errors.Is(err, subsystems.ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrNilSubsystem)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 }
 
 func TestPushEvent(t *testing.T) {
 	t.Parallel()
-	m, err := SetupCommunicationManager(&config.CommunicationsConfig{
-		SlackConfig: config.SlackConfig{
+	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
+		SlackConfig: base.SlackConfig{
 			Enabled: true,
 		},
 	})

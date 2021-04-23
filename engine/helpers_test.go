@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -39,7 +38,7 @@ func CreateTestBot(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("Failed to retrieve config currency pairs. %s", err)
 	}
-	bot.ExchangeManager = exchangemanager.Setup()
+	bot.ExchangeManager = SetupExchangeManager()
 	if bot.GetExchangeByName(testExchange) == nil {
 		err := bot.LoadExchange(testExchange, false, nil)
 		if err != nil {
@@ -789,7 +788,7 @@ func TestGetExchangeNames(t *testing.T) {
 
 	for i := range bot.Config.Exchanges {
 		exch, err := bot.ExchangeManager.NewExchangeByName(bot.Config.Exchanges[i].Name)
-		if err != nil && !errors.Is(err, exchangemanager.ErrExchangeAlreadyLoaded) {
+		if err != nil && !errors.Is(err, ErrExchangeAlreadyLoaded) {
 			t.Error(err)
 		}
 		if exch != nil {

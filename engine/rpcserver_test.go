@@ -21,9 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
-	databaseconnection "github.com/thrasher-corp/gocryptotrader/engine/databaseconnection"
-	exchangemanager "github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
-	ordermanager "github.com/thrasher-corp/gocryptotrader/engine/ordermanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -100,13 +97,13 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("SetupTest: Failed to load config: %s", err)
 	}
-	engerino.ExchangeManager = exchangemanager.Setup()
+	engerino.ExchangeManager = SetupExchangeManager()
 	err = engerino.LoadExchange(testExchange, false, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 	engerino.Config.Database = dbConf
-	engerino.DatabaseManager, err = databaseconnection.Setup(&engerino.Config.Database)
+	engerino.DatabaseManager, err = SetupDatabaseConnectionManager(&engerino.Config.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -993,7 +990,7 @@ func TestGetOrder(t *testing.T) {
 		t.Errorf("expected %v, received %v", asset.ErrNotSupported, err)
 	}
 
-	s.OrderManager, err = ordermanager.Setup(engerino.ExchangeManager, engerino.CommunicationsManager, &engerino.ServicesWG, engerino.Settings.Verbose)
+	s.OrderManager, err = SetupOrderManager(engerino.ExchangeManager, engerino.CommunicationsManager, &engerino.ServicesWG, engerino.Settings.Verbose)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1009,8 +1006,8 @@ func TestGetOrder(t *testing.T) {
 		Pair:     p,
 		Asset:    asset.Spot.String(),
 	})
-	if !errors.Is(err, ordermanager.ErrOrderIDCannotBeEmpty) {
-		t.Errorf("expected %v, received %v", ordermanager.ErrOrderIDCannotBeEmpty, err)
+	if !errors.Is(err, ErrOrderIDCannotBeEmpty) {
+		t.Errorf("expected %v, received %v", ErrOrderIDCannotBeEmpty, err)
 	}
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,
@@ -1038,8 +1035,8 @@ func TestCheckVars(t *testing.T) {
 	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, exchangemanager.ErrExchangeNotFound) {
-		t.Errorf("expected %v, got %v", exchangemanager.ErrExchangeNotFound, err)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("expected %v, got %v", ErrExchangeNotFound, err)
 	}
 
 	e.SetEnabled(true)

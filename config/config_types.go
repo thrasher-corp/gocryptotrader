@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -69,29 +70,29 @@ var (
 // prestart management of Portfolio, Communications, Webserver and Enabled
 // Exchanges
 type Config struct {
-	Name              string                  `json:"name"`
-	DataDirectory     string                  `json:"dataDirectory"`
-	EncryptConfig     int                     `json:"encryptConfig"`
-	GlobalHTTPTimeout time.Duration           `json:"globalHTTPTimeout"`
-	Database          database.Config         `json:"database"`
-	Logging           log.Config              `json:"logging"`
-	ConnectionMonitor ConnectionMonitorConfig `json:"connectionMonitor"`
-	Profiler          Profiler                `json:"profiler"`
-	NTPClient         NTPClientConfig         `json:"ntpclient"`
-	GCTScript         gctscript.Config        `json:"gctscript"`
-	Currency          CurrencyConfig          `json:"currencyConfig"`
-	Communications    CommunicationsConfig    `json:"communications"`
-	RemoteControl     RemoteControlConfig     `json:"remoteControl"`
-	Portfolio         portfolio.Base          `json:"portfolioAddresses"`
-	Exchanges         []ExchangeConfig        `json:"exchanges"`
-	BankAccounts      []banking.Account       `json:"bankAccounts"`
+	Name              string                    `json:"name"`
+	DataDirectory     string                    `json:"dataDirectory"`
+	EncryptConfig     int                       `json:"encryptConfig"`
+	GlobalHTTPTimeout time.Duration             `json:"globalHTTPTimeout"`
+	Database          database.Config           `json:"database"`
+	Logging           log.Config                `json:"logging"`
+	ConnectionMonitor ConnectionMonitorConfig   `json:"connectionMonitor"`
+	Profiler          Profiler                  `json:"profiler"`
+	NTPClient         NTPClientConfig           `json:"ntpclient"`
+	GCTScript         gctscript.Config          `json:"gctscript"`
+	Currency          CurrencyConfig            `json:"currencyConfig"`
+	Communications    base.CommunicationsConfig `json:"communications"`
+	RemoteControl     RemoteControlConfig       `json:"remoteControl"`
+	Portfolio         portfolio.Base            `json:"portfolioAddresses"`
+	Exchanges         []ExchangeConfig          `json:"exchanges"`
+	BankAccounts      []banking.Account         `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
 	Webserver           *WebserverConfig          `json:"webserver,omitempty"`
 	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"currencyPairFormat,omitempty"`
 	FiatDisplayCurrency *currency.Code            `json:"fiatDispayCurrency,omitempty"`
 	Cryptocurrencies    *currency.Currencies      `json:"cryptocurrencies,omitempty"`
-	SMS                 *SMSGlobalConfig          `json:"smsGlobal,omitempty"`
+	SMS                 *base.SMSGlobalConfig     `json:"smsGlobal,omitempty"`
 	// encryption session values
 	storedSalt []byte
 	sessionDK  []byte
@@ -243,76 +244,6 @@ type CryptocurrencyProvider struct {
 	Verbose     bool   `json:"verbose"`
 	APIkey      string `json:"apiKey"`
 	AccountPlan string `json:"accountPlan"`
-}
-
-// CommunicationsConfig holds all the information needed for each
-// enabled communication package
-type CommunicationsConfig struct {
-	SlackConfig     SlackConfig     `json:"slack"`
-	SMSGlobalConfig SMSGlobalConfig `json:"smsGlobal"`
-	SMTPConfig      SMTPConfig      `json:"smtp"`
-	TelegramConfig  TelegramConfig  `json:"telegram"`
-}
-
-// IsAnyEnabled returns whether or any any comms relayers
-// are enabled
-func (c *CommunicationsConfig) IsAnyEnabled() bool {
-	if c.SMSGlobalConfig.Enabled ||
-		c.SMTPConfig.Enabled ||
-		c.SlackConfig.Enabled ||
-		c.TelegramConfig.Enabled {
-		return true
-	}
-	return false
-}
-
-// SlackConfig holds all variables to start and run the Slack package
-type SlackConfig struct {
-	Name              string `json:"name"`
-	Enabled           bool   `json:"enabled"`
-	Verbose           bool   `json:"verbose"`
-	TargetChannel     string `json:"targetChannel"`
-	VerificationToken string `json:"verificationToken"`
-}
-
-// SMSContact stores the SMS contact info
-type SMSContact struct {
-	Name    string `json:"name"`
-	Number  string `json:"number"`
-	Enabled bool   `json:"enabled"`
-}
-
-// SMSGlobalConfig structure holds all the variables you need for instant
-// messaging and broadcast used by SMSGlobal
-type SMSGlobalConfig struct {
-	Name     string       `json:"name"`
-	From     string       `json:"from"`
-	Enabled  bool         `json:"enabled"`
-	Verbose  bool         `json:"verbose"`
-	Username string       `json:"username"`
-	Password string       `json:"password"`
-	Contacts []SMSContact `json:"contacts"`
-}
-
-// SMTPConfig holds all variables to start and run the SMTP package
-type SMTPConfig struct {
-	Name            string `json:"name"`
-	Enabled         bool   `json:"enabled"`
-	Verbose         bool   `json:"verbose"`
-	Host            string `json:"host"`
-	Port            string `json:"port"`
-	AccountName     string `json:"accountName"`
-	AccountPassword string `json:"accountPassword"`
-	From            string `json:"from"`
-	RecipientList   string `json:"recipientList"`
-}
-
-// TelegramConfig holds all variables to start and run the Telegram package
-type TelegramConfig struct {
-	Name              string `json:"name"`
-	Enabled           bool   `json:"enabled"`
-	Verbose           bool   `json:"verbose"`
-	VerificationToken string `json:"verificationToken"`
 }
 
 // FeaturesSupportedConfig stores the exchanges supported features

@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -301,7 +302,7 @@ func TestUpdateCommunicationsConfig(t *testing.T) {
 	if err != nil {
 		t.Error("UpdateCommunicationsConfig LoadConfig error", err)
 	}
-	cfg.UpdateCommunicationsConfig(&CommunicationsConfig{SlackConfig: SlackConfig{Name: testString}})
+	cfg.UpdateCommunicationsConfig(&base.CommunicationsConfig{SlackConfig: base.SlackConfig{Name: testString}})
 	if cfg.Communications.SlackConfig.Name != testString {
 		t.Error("UpdateCommunicationsConfig LoadConfig error")
 	}
@@ -339,7 +340,7 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 		t.Error("CheckCommunicationsConfig LoadConfig error", err)
 	}
 
-	cfg.Communications = CommunicationsConfig{}
+	cfg.Communications = base.CommunicationsConfig{}
 	cfg.CheckCommunicationsConfig()
 	if cfg.Communications.SlackConfig.Name != "Slack" ||
 		cfg.Communications.SMSGlobalConfig.Name != "SMSGlobal" ||
@@ -349,14 +350,14 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 			cfg.Communications)
 	}
 
-	cfg.SMS = &SMSGlobalConfig{}
+	cfg.SMS = &base.SMSGlobalConfig{}
 	cfg.Communications.SMSGlobalConfig.Name = ""
 	cfg.CheckCommunicationsConfig()
 	if cfg.Communications.SMSGlobalConfig.Password != testString {
 		t.Error("CheckCommunicationsConfig error:", err)
 	}
 
-	cfg.SMS.Contacts = append(cfg.SMS.Contacts, SMSContact{
+	cfg.SMS.Contacts = append(cfg.SMS.Contacts, base.SMSContact{
 		Name:    "Bobby",
 		Number:  "4321",
 		Enabled: false,
@@ -379,7 +380,7 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 		t.Error("CheckCommunicationsConfig From value should have been trimmed to 11 characters")
 	}
 
-	cfg.SMS = &SMSGlobalConfig{}
+	cfg.SMS = &base.SMSGlobalConfig{}
 	cfg.CheckCommunicationsConfig()
 	if cfg.SMS != nil {
 		t.Error("CheckCommunicationsConfig unexpected data:",

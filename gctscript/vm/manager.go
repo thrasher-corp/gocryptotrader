@@ -6,7 +6,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystems"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -46,14 +45,13 @@ func (g *GctScriptManager) IsRunning() bool {
 // Start starts gctscript subsystem and creates shutdown channel
 func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
 	if !atomic.CompareAndSwapInt32(&g.started, 0, 1) {
-		return fmt.Errorf("%s %w", caseName, subsystems.ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("%s %s", caseName, ErrScriptFailedValidation)
 	}
 	defer func() {
 		if err != nil {
 			atomic.CompareAndSwapInt32(&g.started, 1, 0)
 		}
 	}()
-	log.Debugln(log.Global, caseName, subsystems.MsgSubSystemStarting)
 
 	g.shutdown = make(chan struct{})
 	wg.Add(1)
@@ -64,13 +62,12 @@ func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
 // Stop stops gctscript subsystem along with all running Virtual Machines
 func (g *GctScriptManager) Stop() error {
 	if atomic.LoadInt32(&g.started) == 0 {
-		return fmt.Errorf("%s %w", caseName, subsystems.ErrSubSystemNotStarted)
+		return fmt.Errorf("%s", caseName)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&g.started, 1, 0)
 	}()
 
-	log.Debugln(log.GCTScriptMgr, caseName, subsystems.MsgSubSystemShuttingDown)
 	err := g.ShutdownAll()
 	if err != nil {
 		return err
@@ -80,13 +77,12 @@ func (g *GctScriptManager) Stop() error {
 }
 
 func (g *GctScriptManager) run(wg *sync.WaitGroup) {
-	log.Debugln(log.Global, caseName, subsystems.MsgSubSystemStarted)
+	log.Debugln(log.Global, caseName)
 
 	SetDefaultScriptOutput()
 	g.autoLoad()
 	defer func() {
 		wg.Done()
-		log.Debugln(log.GCTScriptMgr, caseName, subsystems.MsgSubSystemShutdown)
 	}()
 
 	<-g.shutdown

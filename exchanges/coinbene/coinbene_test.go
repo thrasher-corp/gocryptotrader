@@ -562,7 +562,7 @@ func TestWsUserAccount(t *testing.T) {
 	pressXToJSON := []byte(`{
     "topic": "btc/user.account",
     "data": [{
-        "asset": "LTC",
+        "asset": "BTC",
         "availableBalance": "20.3859", 
         "frozenBalance": "0.7413",
         "balance": "21.1272", 
@@ -739,7 +739,7 @@ func TestGetCurrencyFromWsTopic(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if p.Base.String() != "LTC" && p.Quote.String() != "USDT" {
+	if p.Base.String() != "BTC" && p.Quote.String() != "USDT" {
 		t.Errorf("unexpected currency, wanted BTCUSD, received %v", p.String())
 	}
 

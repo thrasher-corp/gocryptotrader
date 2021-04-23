@@ -6,7 +6,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystems"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -50,10 +49,10 @@ func SetupConnectionManager(cfg *config.ConnectionMonitorConfig) (*ConnectionMan
 // Start runs the subsystem
 func (m *ConnectionManager) Start() error {
 	if m == nil {
-		return fmt.Errorf("connection manager %w", subsystems.ErrNilSubsystem)
+		return fmt.Errorf("connection manager %w", ErrNilSubsystem)
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return fmt.Errorf("connection manager %w", subsystems.ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("connection manager %w", ErrSubSystemAlreadyStarted)
 	}
 
 	log.Debugln(log.ConnectionMgr, "Connection manager starting...")
@@ -73,10 +72,10 @@ func (m *ConnectionManager) Start() error {
 // Stop stops the connection manager
 func (m *ConnectionManager) Stop() error {
 	if m == nil {
-		return fmt.Errorf("connection manager %w", subsystems.ErrNilSubsystem)
+		return fmt.Errorf("connection manager %w", ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("connection manager %w", subsystems.ErrSubSystemNotStarted)
+		return fmt.Errorf("connection manager %w", ErrSubSystemNotStarted)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)

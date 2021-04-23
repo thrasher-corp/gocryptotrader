@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -13,7 +12,7 @@ type IComm []ICommunicate
 
 // ICommunicate enforces standard functions across communication packages
 type ICommunicate interface {
-	Setup(config *config.CommunicationsConfig)
+	Setup(config *CommunicationsConfig)
 	Connect() error
 	PushEvent(Event) error
 	IsEnabled() bool

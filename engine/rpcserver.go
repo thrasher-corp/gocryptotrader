@@ -29,8 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
-	"github.com/thrasher-corp/gocryptotrader/engine/eventmanager"
-	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1281,7 +1279,7 @@ func (s *RPCServer) GetEvents(_ context.Context, _ *gctrpc.GetEventsRequest) (*g
 
 // AddEvent adds an event
 func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gctrpc.AddEventResponse, error) {
-	evtCondition := eventmanager.EventConditionParams{
+	evtCondition := EventConditionParams{
 		CheckBids:        r.ConditionParams.CheckBids,
 		CheckBidsAndAsks: r.ConditionParams.CheckBidsAndAsks,
 		Condition:        r.ConditionParams.Condition,
@@ -3131,7 +3129,7 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 		return fmt.Errorf("%s %w", exchName, errExchangeNotLoaded)
 	}
 	if !e.IsEnabled() {
-		return fmt.Errorf("%s %w", exchName, exchangemanager.ErrExchangeNotFound)
+		return fmt.Errorf("%s %w", exchName, ErrExchangeNotFound)
 	}
 	if a.IsValid() {
 		b := e.GetBase()

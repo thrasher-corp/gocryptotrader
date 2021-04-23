@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	exchangemanager "github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -26,7 +25,7 @@ func TestLoadCandles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetupTest: Failed to load config: %s", err)
 	}
-	bot.ExchangeManager = exchangemanager.Setup()
+	bot.ExchangeManager = engine.SetupExchangeManager()
 	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -59,7 +58,7 @@ func TestLoadTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bot.ExchangeManager = exchangemanager.Setup()
+	bot.ExchangeManager = engine.SetupExchangeManager()
 
 	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {

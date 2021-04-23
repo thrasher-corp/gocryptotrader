@@ -15,12 +15,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/engine/ordermanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
 )
 
 const testExchange = "binance"
@@ -142,9 +139,9 @@ func TestPlaceOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	em := exchangemanager.Setup()
+	em := engine.SetupExchangeManager()
 	bot.ExchangeManager = em
-	bot.OrderManager, err = ordermanager.Setup(em, &communicationmanager.Manager{}, &bot.ServicesWG, false)
+	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -196,9 +193,9 @@ func TestExecuteOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	em := exchangemanager.Setup()
+	em := engine.SetupExchangeManager()
 	bot.ExchangeManager = em
-	bot.OrderManager, err = ordermanager.Setup(em, &communicationmanager.Manager{}, &bot.ServicesWG, false)
+	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false)
 	if err != nil {
 		t.Error(err)
 	}

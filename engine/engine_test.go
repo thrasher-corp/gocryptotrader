@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
 )
 
 func TestLoadConfigWithSettings(t *testing.T) {
@@ -203,8 +202,8 @@ func TestUnloadExchange(t *testing.T) {
 	}
 
 	err = e.UnloadExchange(testExchange)
-	if !errors.Is(err, exchangemanager.ErrNoExchangesLoaded) {
-		t.Errorf("error '%v', expected '%v'", err, exchangemanager.ErrNoExchangesLoaded)
+	if !errors.Is(err, ErrNoExchangesLoaded) {
+		t.Errorf("error '%v', expected '%v'", err, ErrNoExchangesLoaded)
 	}
 }
 

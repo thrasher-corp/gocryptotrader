@@ -52,3 +52,73 @@ func (b *Base) GetStatus() string {
 func (b *Base) SetServiceStarted(t time.Time) {
 	b.ServiceStarted = t
 }
+
+// CommunicationsConfig holds all the information needed for each
+// enabled communication package
+type CommunicationsConfig struct {
+	SlackConfig     SlackConfig     `json:"slack"`
+	SMSGlobalConfig SMSGlobalConfig `json:"smsGlobal"`
+	SMTPConfig      SMTPConfig      `json:"smtp"`
+	TelegramConfig  TelegramConfig  `json:"telegram"`
+}
+
+// IsAnyEnabled returns whether or any any comms relayers
+// are enabled
+func (c *CommunicationsConfig) IsAnyEnabled() bool {
+	if c.SMSGlobalConfig.Enabled ||
+		c.SMTPConfig.Enabled ||
+		c.SlackConfig.Enabled ||
+		c.TelegramConfig.Enabled {
+		return true
+	}
+	return false
+}
+
+// SlackConfig holds all variables to start and run the Slack package
+type SlackConfig struct {
+	Name              string `json:"name"`
+	Enabled           bool   `json:"enabled"`
+	Verbose           bool   `json:"verbose"`
+	TargetChannel     string `json:"targetChannel"`
+	VerificationToken string `json:"verificationToken"`
+}
+
+// SMSContact stores the SMS contact info
+type SMSContact struct {
+	Name    string `json:"name"`
+	Number  string `json:"number"`
+	Enabled bool   `json:"enabled"`
+}
+
+// SMSGlobalConfig structure holds all the variables you need for instant
+// messaging and broadcast used by SMSGlobal
+type SMSGlobalConfig struct {
+	Name     string       `json:"name"`
+	From     string       `json:"from"`
+	Enabled  bool         `json:"enabled"`
+	Verbose  bool         `json:"verbose"`
+	Username string       `json:"username"`
+	Password string       `json:"password"`
+	Contacts []SMSContact `json:"contacts"`
+}
+
+// SMTPConfig holds all variables to start and run the SMTP package
+type SMTPConfig struct {
+	Name            string `json:"name"`
+	Enabled         bool   `json:"enabled"`
+	Verbose         bool   `json:"verbose"`
+	Host            string `json:"host"`
+	Port            string `json:"port"`
+	AccountName     string `json:"accountName"`
+	AccountPassword string `json:"accountPassword"`
+	From            string `json:"from"`
+	RecipientList   string `json:"recipientList"`
+}
+
+// TelegramConfig holds all variables to start and run the Telegram package
+type TelegramConfig struct {
+	Name              string `json:"name"`
+	Enabled           bool   `json:"enabled"`
+	Verbose           bool   `json:"verbose"`
+	VerificationToken string `json:"verificationToken"`
+}

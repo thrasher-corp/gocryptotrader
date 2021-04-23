@@ -5,10 +5,9 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystems"
 )
 
-func TestSetup(t *testing.T) {
+func TestSetupConnectionManager(t *testing.T) {
 	t.Parallel()
 	_, err := SetupConnectionManager(nil)
 	if !errors.Is(err, errNilConfig) {
@@ -24,7 +23,7 @@ func TestSetup(t *testing.T) {
 	}
 }
 
-func TestIsRunning(t *testing.T) {
+func TestConnectionMonitorIsRunning(t *testing.T) {
 	t.Parallel()
 	m, err := SetupConnectionManager(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
@@ -47,7 +46,7 @@ func TestIsRunning(t *testing.T) {
 	}
 }
 
-func TestStart(t *testing.T) {
+func TestConnectionMonitorStart(t *testing.T) {
 	t.Parallel()
 	m, err := SetupConnectionManager(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
@@ -58,17 +57,17 @@ func TestStart(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.Start()
-	if !errors.Is(err, subsystems.ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemAlreadyStarted)
+	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
+		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
 	}
 	m = nil
 	err = m.Start()
-	if !errors.Is(err, subsystems.ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrNilSubsystem)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 }
 
-func TestStop(t *testing.T) {
+func TestConnectionMonitorStop(t *testing.T) {
 	t.Parallel()
 	m, err := SetupConnectionManager(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
@@ -83,17 +82,17 @@ func TestStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	err = m.Stop()
-	if !errors.Is(err, subsystems.ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemNotStarted)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 	m = nil
 	err = m.Stop()
-	if !errors.Is(err, subsystems.ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrNilSubsystem)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 }
 
-func TestIsOnline(t *testing.T) {
+func TestConnectionMonitorIsOnline(t *testing.T) {
 	t.Parallel()
 	m, err := SetupConnectionManager(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {

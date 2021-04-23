@@ -22,13 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	"github.com/thrasher-corp/gocryptotrader/engine/apiserver"
-	"github.com/thrasher-corp/gocryptotrader/engine/currencypairsyncer"
-	"github.com/thrasher-corp/gocryptotrader/engine/databaseconnection"
-	"github.com/thrasher-corp/gocryptotrader/engine/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/engine/ntpmanager"
-	"github.com/thrasher-corp/gocryptotrader/engine/ordermanager"
-	"github.com/thrasher-corp/gocryptotrader/engine/portfoliomanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -48,18 +41,18 @@ var (
 // GetSubsystemsStatus returns the status of various subsystems
 func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 	systems := make(map[string]bool)
-	systems[Name] = bot.CommunicationsManager.IsRunning()
+	systems[SyncManagerName] = bot.CommunicationsManager.IsRunning()
 	systems[ConnectionManagerName] = bot.connectionManager.IsRunning()
-	systems[ordermanager.Name] = bot.OrderManager.IsRunning()
-	systems[portfoliomanager.Name] = bot.portfolioManager.IsRunning()
-	systems[ntpmanager.Name] = bot.ntpManager.IsRunning()
-	systems[databaseconnection.Name] = bot.DatabaseManager.IsRunning()
-	systems[currencypairsyncer.Name] = bot.Settings.EnableExchangeSyncManager
+	systems[OrderManagerName] = bot.OrderManager.IsRunning()
+	systems[PortfolioManagerNAme] = bot.portfolioManager.IsRunning()
+	systems[NTPManagerName] = bot.ntpManager.IsRunning()
+	systems[DatabaseConnectionManagerName] = bot.DatabaseManager.IsRunning()
+	systems[SyncManagerName] = bot.Settings.EnableExchangeSyncManager
 	systems[grpcName] = bot.Settings.EnableGRPC
 	systems[grpcProxyName] = bot.Settings.EnableGRPCProxy
 	systems[vm.Name] = bot.gctScriptManager.IsRunning()
-	systems[apiserver.DeprecatedName] = bot.Settings.EnableDeprecatedRPC
-	systems[apiserver.WebsocketName] = bot.Settings.EnableWebsocketRPC
+	systems[DeprecatedName] = bot.Settings.EnableDeprecatedRPC
+	systems[WebsocketName] = bot.Settings.EnableWebsocketRPC
 	systems[dispatch.Name] = dispatch.IsRunning()
 	return systems
 }
@@ -96,7 +89,7 @@ func GetRPCEndpoints() map[string]RPCEndpoint {
 func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	var err error
 	switch strings.ToLower(subSystemName) {
-	case Name:
+	case CommunicationsManagerName:
 		if enable {
 			if bot.CommunicationsManager == nil {
 				communicationsConfig := bot.Config.GetCommunicationsConfig()
@@ -119,10 +112,10 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.connectionManager.Start()
 		}
 		return bot.connectionManager.Stop()
-	case ordermanager.Name:
+	case OrderManagerName:
 		if enable {
 			if bot.OrderManager == nil {
-				bot.OrderManager, err = ordermanager.Setup(
+				bot.OrderManager, err = SetupOrderManager(
 					bot.ExchangeManager,
 					bot.CommunicationsManager,
 					&bot.ServicesWG,
@@ -134,10 +127,10 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.OrderManager.Start()
 		}
 		return bot.OrderManager.Stop()
-	case portfoliomanager.Name:
+	case PortfolioManagerNAme:
 		if enable {
 			if bot.portfolioManager == nil {
-				bot.portfolioManager, err = portfoliomanager.Setup(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
+				bot.portfolioManager, err = SetupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
 				if err != nil {
 					return err
 				}
@@ -145,10 +138,10 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.portfolioManager.Start(&bot.ServicesWG)
 		}
 		return bot.portfolioManager.Stop()
-	case ntpmanager.Name:
+	case NTPManagerName:
 		if enable {
 			if bot.ntpManager == nil {
-				bot.ntpManager, err = ntpmanager.Setup(
+				bot.ntpManager, err = SetupNTPManager(
 					&bot.Config.NTPClient,
 					*bot.Config.Logging.Enabled)
 				if err != nil {
@@ -158,10 +151,10 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.ntpManager.Start()
 		}
 		return bot.ntpManager.Stop()
-	case databaseconnection.Name:
+	case DatabaseConnectionManagerName:
 		if enable {
 			if bot.DatabaseManager == nil {
-				bot.DatabaseManager, err = databaseconnection.Setup(&bot.Config.Database)
+				bot.DatabaseManager, err = SetupDatabaseConnectionManager(&bot.Config.Database)
 				if err != nil {
 					return err
 				}
@@ -169,10 +162,10 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.DatabaseManager.Start(&bot.ServicesWG)
 		}
 		return bot.DatabaseManager.Stop()
-	case currencypairsyncer.Name:
+	case SyncManagerName:
 		if enable {
 			if bot.currencyPairSyncer == nil {
-				exchangeSyncCfg := &currencypairsyncer.Config{
+				exchangeSyncCfg := &Config{
 					SyncTicker:       bot.Settings.EnableTickerSyncing,
 					SyncOrderbook:    bot.Settings.EnableOrderbookSyncing,
 					SyncTrades:       bot.Settings.EnableTradeSyncing,
@@ -181,7 +174,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					Verbose:          bot.Settings.Verbose,
 					SyncTimeout:      bot.Settings.SyncTimeout,
 				}
-				bot.currencyPairSyncer, err = currencypairsyncer.Setup(exchangeSyncCfg,
+				bot.currencyPairSyncer, err = SetupSyncManager(exchangeSyncCfg,
 					bot.ExchangeManager,
 					bot.websocketRoutineManager,
 					&bot.Config.RemoteControl)
@@ -491,7 +484,7 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 func (bot *Engine) GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
 	exch := bot.GetExchangeByName(exchangeName)
 	if exch == nil {
-		return nil, exchangemanager.ErrExchangeNotFound
+		return nil, ErrExchangeNotFound
 	}
 	return exch.FetchOrderbook(p, assetType)
 }
@@ -501,7 +494,7 @@ func (bot *Engine) GetSpecificOrderbook(p currency.Pair, exchangeName string, as
 func (bot *Engine) GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
 	exch := bot.GetExchangeByName(exchangeName)
 	if exch == nil {
-		return nil, exchangemanager.ErrExchangeNotFound
+		return nil, ErrExchangeNotFound
 	}
 	return exch.FetchTicker(p, assetType)
 }
@@ -607,7 +600,7 @@ func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) 
 	result := bot.GetExchangeCryptocurrencyDepositAddresses()
 	r, ok := result[exchName]
 	if !ok {
-		return nil, exchangemanager.ErrExchangeNotFound
+		return nil, ErrExchangeNotFound
 	}
 	return r, nil
 }
@@ -621,7 +614,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(exchName, accountID s
 
 	exch := bot.GetExchangeByName(exchName)
 	if exch == nil {
-		return "", exchangemanager.ErrExchangeNotFound
+		return "", ErrExchangeNotFound
 	}
 	return exch.GetDepositAddress(item, accountID)
 }
@@ -673,13 +666,13 @@ func (bot *Engine) GetExchangeNames(enabledOnly bool) []string {
 }
 
 // GetAllActiveTickers returns all enabled exchange tickers
-func (bot *Engine) GetAllActiveTickers() []apiserver.EnabledExchangeCurrencies {
-	var tickerData []apiserver.EnabledExchangeCurrencies
+func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
+	var tickerData []EnabledExchangeCurrencies
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes()
 		exchName := exchanges[x].GetName()
-		var exchangeTicker apiserver.EnabledExchangeCurrencies
+		var exchangeTicker EnabledExchangeCurrencies
 		exchangeTicker.ExchangeName = exchName
 
 		for y := range assets {
