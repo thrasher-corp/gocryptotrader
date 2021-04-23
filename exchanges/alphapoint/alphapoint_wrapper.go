@@ -187,8 +187,8 @@ func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = a.Name
-	orderBook.AssetType = assetType
+	orderBook.Exchange = a.Name
+	orderBook.Asset = assetType
 
 	err = orderBook.Process()
 	if err != nil {

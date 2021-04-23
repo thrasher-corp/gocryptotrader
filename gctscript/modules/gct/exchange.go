@@ -85,11 +85,11 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 	}
 
 	data := make(map[string]objects.Object, 5)
-	data["exchange"] = &objects.String{Value: ob.ExchangeName}
+	data["exchange"] = &objects.String{Value: ob.Exchange}
 	data["pair"] = &objects.String{Value: ob.Pair.String()}
 	data["asks"] = &asks
 	data["bids"] = &bids
-	data["asset"] = &objects.String{Value: ob.AssetType.String()}
+	data["asset"] = &objects.String{Value: ob.Asset.String()}
 
 	return &objects.Map{
 		Value: data,

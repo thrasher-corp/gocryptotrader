@@ -118,8 +118,8 @@ func TestHandleData(t *testing.T) {
 	}
 
 	err = b.WebsocketDataHandler(exchName, &orderbook.Base{
-		ExchangeName: fakePassExchange,
-		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Exchange: fakePassExchange,
+		Pair:     currency.NewPair(currency.BTC, currency.USD),
 	})
 	if err != nil {
 		t.Error(err)

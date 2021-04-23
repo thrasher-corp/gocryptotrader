@@ -8,8 +8,8 @@ import (
 
 func testSetup() Base {
 	return Base{
-		ExchangeName: "a",
-		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Exchange: "a",
+		Pair:     currency.NewPair(currency.BTC, currency.USD),
 		Asks: []Item{
 			{Price: 7000, Amount: 1},
 			{Price: 7001, Amount: 2},

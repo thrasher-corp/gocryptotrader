@@ -287,10 +287,10 @@ func (g *Gateio) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       g.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: g.OrderbookVerificationBypass,
+		Exchange:        g.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: g.CanVerifyOrderbook,
 	}
 	curr, err := g.FormatExchangeCurrency(p, assetType)
 	if err != nil {
