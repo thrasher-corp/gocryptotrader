@@ -456,17 +456,18 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 	}
 
 	// Both sides are completely out of order - sort needs to be used
-	book.Asks = orderbook.SortAsks(book.Asks)
-	book.Bids = orderbook.SortBids(book.Bids)
-	book.AssetType = asset.Spot
-	book.VerificationBypass = p.OrderbookVerificationBypass
+	book.Asks.SortAsks()
+	book.Bids.SortBids()
+	book.Asset = asset.Spot
+	book.VerifyOrderbook = p.CanVerifyOrderbook
 
 	var err error
 	book.Pair, err = currency.NewPairFromString(pair)
 	if err != nil {
 		return err
 	}
-	book.ExchangeName = p.Name
+	book.Exchange = p.Name
+
 	return p.Websocket.Orderbook.LoadSnapshot(&book)
 }
 

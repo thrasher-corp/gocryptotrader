@@ -403,10 +403,10 @@ func (g *Gemini) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       g.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: g.OrderbookVerificationBypass,
+		Exchange:        g.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: g.CanVerifyOrderbook,
 	}
 	fPair, err := g.FormatExchangeCurrency(p, assetType)
 	if err != nil {

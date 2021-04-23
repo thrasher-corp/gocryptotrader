@@ -311,10 +311,10 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		newOB.Pair = p
-		newOB.AssetType = a
-		newOB.ExchangeName = b.Name
-		orderbook.Reverse(newOB.Asks) // Reverse asks for correct alignment
-		newOB.VerificationBypass = b.OrderbookVerificationBypass
+		newOB.Asset = a
+		newOB.Exchange = b.Name
+		newOB.Asks.Reverse() // Reverse asks for correct alignment
+		newOB.VerifyOrderbook = b.CanVerifyOrderbook
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
 		if err != nil {
 			return err

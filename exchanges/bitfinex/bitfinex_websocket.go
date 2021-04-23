@@ -962,13 +962,12 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 		}
 	}
 
-	book.AssetType = assetType
+	book.Asset = assetType
 	book.Pair = p
-	book.ExchangeName = b.Name
-	book.NotAggregated = true
-	book.HasChecksumValidation = true
+	book.Exchange = b.Name
+	book.PriceDuplication = true
 	book.IsFundingRate = fundingRate
-	book.VerificationBypass = b.OrderbookVerificationBypass
+	book.VerifyOrderbook = b.CanVerifyOrderbook
 	return b.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
@@ -1036,14 +1035,15 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 	if checkme.Sequence+1 == sequenceNo {
 		// Sequence numbers get dropped, if checksum is not in line with
 		// sequence, do not check.
-		ob := b.Websocket.Orderbook.GetOrderbook(p, assetType)
-		if ob == nil {
-			return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s",
+		ob, err := b.Websocket.Orderbook.GetOrderbook(p, assetType)
+		if err != nil {
+			return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s %w",
 				p,
-				assetType)
+				assetType,
+				err)
 		}
 
-		err := validateCRC32(ob, checkme.Token)
+		err = validateCRC32(ob, checkme.Token)
 		if err != nil {
 			return err
 		}
@@ -1398,7 +1398,7 @@ func validateCRC32(book *orderbook.Base, token int) error {
 		return nil
 	}
 	return fmt.Errorf("invalid checksum for %s %s: calculated [%d] does not match [%d]",
-		book.AssetType,
+		book.Asset,
 		book.Pair,
 		checksum,
 		uint32(token))

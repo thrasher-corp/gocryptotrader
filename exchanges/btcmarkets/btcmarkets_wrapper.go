@@ -360,11 +360,11 @@ func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (*ord
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       b.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		NotAggregated:      true,
-		VerificationBypass: b.OrderbookVerificationBypass,
+		Exchange:         b.Name,
+		Pair:             p,
+		Asset:            assetType,
+		PriceDuplication: true,
+		VerifyOrderbook:  b.CanVerifyOrderbook,
 	}
 
 	fpair, err := b.FormatExchangeCurrency(p, assetType)

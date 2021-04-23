@@ -795,9 +795,9 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 // wsProcessOrderBookPartial creates a new orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, askData, bidData []interface{}) error {
 	base := orderbook.Base{
-		Pair:               channelData.Pair,
-		AssetType:          asset.Spot,
-		VerificationBypass: k.OrderbookVerificationBypass,
+		Pair:            channelData.Pair,
+		Asset:           asset.Spot,
+		VerifyOrderbook: k.CanVerifyOrderbook,
 	}
 	// Kraken ob data is timestamped per price, GCT orderbook data is
 	// timestamped per entry using the highest last update time, we can attempt
@@ -851,8 +851,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		}
 	}
 	base.LastUpdated = highestLastUpdate
-	base.ExchangeName = k.Name
-	base.HasChecksumValidation = true
+	base.Exchange = k.Name
 	return k.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
@@ -995,11 +994,12 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		return err
 	}
 
-	book := k.Websocket.Orderbook.GetOrderbook(channelData.Pair, asset.Spot)
-	if book == nil {
-		return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s",
+	book, err := k.Websocket.Orderbook.GetOrderbook(channelData.Pair, asset.Spot)
+	if err != nil {
+		return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s %w",
 			channelData.Pair,
-			asset.Spot)
+			asset.Spot,
+			err)
 	}
 
 	token, err := strconv.ParseInt(checksum, 10, 64)
@@ -1014,12 +1014,13 @@ func validateCRC32(b *orderbook.Base, token uint32, decPrice, decAmount int) err
 	if len(b.Asks) < 10 || len(b.Bids) < 10 {
 		return fmt.Errorf("%s %s insufficient bid and asks to calculate checksum",
 			b.Pair,
-			b.AssetType)
+			b.Asset)
 	}
 
 	if decPrice == 0 || decAmount == 0 {
-		return fmt.Errorf("%s %s trailing decimal count not calculated", b.Pair,
-			b.AssetType)
+		return fmt.Errorf("%s %s trailing decimal count not calculated",
+			b.Pair,
+			b.Asset)
 	}
 
 	var checkStr strings.Builder
@@ -1040,7 +1041,7 @@ func validateCRC32(b *orderbook.Base, token uint32, decPrice, decAmount int) err
 	if check := crc32.ChecksumIEEE([]byte(checkStr.String())); check != token {
 		return fmt.Errorf("%s %s invalid checksum %d, expected %d",
 			b.Pair,
-			b.AssetType,
+			b.Asset,
 			check,
 			token)
 	}

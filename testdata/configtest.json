@@ -2360,10 +2360,11 @@
     ],
     "pairs": {
      "perpetualswap": {
-      "enabled": "BTC/USDT",
-      "available": "EOS/USDT,LTC/USDT,ETH/USDT,BTC/USDT",
+      "enabled": "BTC/SWAP",
+      "available": "YFI/SWAP,SUSHI/SWAP,TRX/SWAP,ETC/SWAP,XRP/SWAP,LTC/SWAP,EOS/SWAP,FIL/SWAP,UNI/SWAP,DOT/SWAP,LINK/SWAP,BSV/SWAP,BCH/SWAP,ETH/SWAP,BTC/SWAP",
       "requestFormat": {
-       "uppercase": true
+       "uppercase": true,
+       "delimiter": "-"
       },
       "configFormat": {
        "uppercase": true,

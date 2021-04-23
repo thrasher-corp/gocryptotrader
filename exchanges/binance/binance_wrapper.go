@@ -92,11 +92,23 @@ func (b *Binance) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	err = b.DisableAssetWebsocketSupport(asset.Margin)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	err = b.StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	err = b.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	err = b.StoreAssetPairFormat(asset.USDTMarginedFutures, usdtFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = b.DisableAssetWebsocketSupport(asset.USDTMarginedFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -520,10 +532,10 @@ func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       b.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: b.OrderbookVerificationBypass,
+		Exchange:        b.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: b.CanVerifyOrderbook,
 	}
 	var orderbookNew OrderBook
 	var err error

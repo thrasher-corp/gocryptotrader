@@ -452,7 +452,10 @@ func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.
 		return err
 	}
 
-	updatedOb := f.Websocket.Orderbook.GetOrderbook(p, a)
+	updatedOb, err := f.Websocket.Orderbook.GetOrderbook(p, a)
+	if err != nil {
+		return err
+	}
 	checksum := f.CalcUpdateOBChecksum(updatedOb)
 
 	if checksum != data.Checksum {
@@ -506,14 +509,13 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 	}
 
 	newOrderBook := orderbook.Base{
-		Asks:                  asks,
-		Bids:                  bids,
-		AssetType:             a,
-		LastUpdated:           timestampFromFloat64(data.Time),
-		Pair:                  p,
-		ExchangeName:          f.Name,
-		HasChecksumValidation: true,
-		VerificationBypass:    f.OrderbookVerificationBypass,
+		Asks:            asks,
+		Bids:            bids,
+		Asset:           a,
+		LastUpdated:     timestampFromFloat64(data.Time),
+		Pair:            p,
+		Exchange:        f.Name,
+		VerifyOrderbook: f.CanVerifyOrderbook,
 	}
 	return f.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

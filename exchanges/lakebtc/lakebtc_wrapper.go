@@ -279,10 +279,10 @@ func (l *LakeBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       l.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: l.OrderbookVerificationBypass,
+		Exchange:        l.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: l.CanVerifyOrderbook,
 	}
 	fPair, err := l.FormatExchangeCurrency(p, assetType)
 	if err != nil {

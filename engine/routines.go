@@ -133,17 +133,17 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, bot *Engine,
 		if err == common.ErrNotYetImplemented {
 			log.Warnf(log.OrderBook, "Failed to get %s orderbook for %s %s %s. Error: %s\n",
 				protocol,
-				result.ExchangeName,
+				result.Exchange,
 				result.Pair,
-				result.AssetType,
+				result.Asset,
 				err)
 			return
 		}
 		log.Errorf(log.OrderBook, "Failed to get %s orderbook for %s %s %s. Error: %s\n",
 			protocol,
-			result.ExchangeName,
+			result.Exchange,
 			result.Pair,
-			result.AssetType,
+			result.Asset,
 			err)
 		return
 	}
@@ -166,10 +166,10 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, bot *Engine,
 	}
 
 	log.Infof(log.OrderBook, book,
-		result.ExchangeName,
+		result.Exchange,
 		protocol,
 		bot.FormatCurrency(result.Pair),
-		strings.ToUpper(result.AssetType.String()),
+		strings.ToUpper(result.Asset.String()),
 		len(result.Bids),
 		bidsAmount,
 		result.Pair.Base,
@@ -318,7 +318,7 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 		if bot.Settings.EnableExchangeSyncManager && bot.ExchangeCurrencyPairManager != nil {
 			bot.ExchangeCurrencyPairManager.update(exchName,
 				d.Pair,
-				d.AssetType,
+				d.Asset,
 				SyncItemOrderbook,
 				nil)
 		}

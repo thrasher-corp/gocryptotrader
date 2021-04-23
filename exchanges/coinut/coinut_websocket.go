@@ -530,7 +530,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
-	newOrderBook.VerificationBypass = c.OrderbookVerificationBypass
+	newOrderBook.VerifyOrderbook = c.CanVerifyOrderbook
 
 	pairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -550,8 +550,8 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 		return err
 	}
 
-	newOrderBook.AssetType = asset.Spot
-	newOrderBook.ExchangeName = c.Name
+	newOrderBook.Asset = asset.Spot
+	newOrderBook.Exchange = c.Name
 
 	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

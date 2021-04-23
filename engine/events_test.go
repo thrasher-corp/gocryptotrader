@@ -210,11 +210,11 @@ func TestProcessOrderbook(t *testing.T) {
 
 	// now populate it with a 0 entry
 	o := orderbook.Base{
-		Pair:         currency.NewPair(currency.BTC, currency.USD),
-		Bids:         []orderbook.Item{{Amount: 24, Price: 23}},
-		Asks:         []orderbook.Item{{Amount: 24, Price: 23}},
-		ExchangeName: e.Exchange,
-		AssetType:    e.Asset,
+		Pair:     currency.NewPair(currency.BTC, currency.USD),
+		Bids:     []orderbook.Item{{Amount: 24, Price: 23}},
+		Asks:     []orderbook.Item{{Amount: 24, Price: 23}},
+		Exchange: e.Exchange,
+		Asset:    e.Asset,
 	}
 	if err := o.Process(); err != nil {
 		t.Fatal("unexpected result:", err)
