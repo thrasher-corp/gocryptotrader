@@ -10120,19 +10120,19 @@
     },
     {
      "data": {
-      "result":{
-       "6071071":{
-        "status":"Open",
-        "rate":"0.40000000",
-        "amount":"1.00000000",
-        "currencyPair":"BTC_ETH",
-        "date":"2018-10-17 17:04:50",
-        "total":"0.40000000",
-        "type":"buy",
-        "startingAmount":"1.00000"
+      "result": {
+       "6071071": {
+        "status": "Open",
+        "rate": "0.40000000",
+        "amount": "1.00000000",
+        "currencyPair": "BTC_ETH",
+        "date": "2018-10-17 17:04:50",
+        "total": "0.40000000",
+        "type": "buy",
+        "startingAmount": "1.00000"
        }
       },
-      "success":1
+      "success": 1
      },
      "queryString": "",
      "bodyParams": "command=returnOrderStatus\u0026nonce=1594157624217368022\u0026orderNumber=96238912841",
@@ -10150,7 +10150,7 @@
     },
     {
      "data": {
-      "result":{
+      "result": {
        "error": "Order not found, or you are not the person who placed it."
       }
      },
@@ -10165,6 +10165,2408 @@
       ],
       "Sign": [
        "db30a451e3277242dd56ba0d0f73e1ca58b6b6891afbc8a5ae13c388a95ffd6ae6f6e63d0b6915e481f35bfcc84b3c73395666f28e76912c7178a440d46de43c"
+      ]
+     }
+    },
+    {
+     "data": {
+      "1CR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "AAVE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ABY": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "AC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ACH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ADABEAR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ADABULL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ADD": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ADEL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ADN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "AEON": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "AERO": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "AIR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "AKITA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "AKRO": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ALPHA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "AMP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "APH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "API3": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ARCH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ARDR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ATOM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "AUR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "AVA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "AXIS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BAC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BADGER": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BAL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BALLS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BAND": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BANK": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BAS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BAT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BBL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BBR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BCC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BCH": {
+       "available": "0.00000005",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BCHA": {
+       "available": "0.00000005",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BCHABC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BCHBEAR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BCHBULL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BCHC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BCHSV": {
+       "available": "0.00000005",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BCN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BCY": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BDC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BDG": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BDP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BEAR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BELA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BID": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BITCNY": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BITS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BITUSD": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BLK": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BLOCK": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BLU": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BLY": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BNB": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BNS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BNT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BOND": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BONES": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BOST": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BREE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BRG": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BSVBEAR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BSVBULL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BTC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BTCD": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BTCS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BTCST": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BTM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BTS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BTT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BULL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BURN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BURST": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BUSD": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BVOL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "BZRX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "C2": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CACH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CAI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CCN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CGA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CHA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CHR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CINNI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CLAM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CNL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CNMT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CNOTE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "COMBO": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "COMM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "COMP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CON": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CORG": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CORN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "COVER": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CREAM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CRT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CRV": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CRYPT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CUDOS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CURE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CUSDT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CVC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CVP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CVT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "CYC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DAI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DAO": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DASH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DCR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DEC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DEXT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DGB": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DHT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DIA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DICE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DIEM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DIME": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DIS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DMG": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DNS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DOGE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DOS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DOT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DRKC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DRM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DSH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "DVK": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "EAC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "EBT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ECC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "EFL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "EMC2": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "EMO": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ENC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "EOS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "EOSBEAR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "EOSBULL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ESD": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ETC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ETH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ETHBEAR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ETHBNT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ETHBULL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "EXE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "EXP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FAC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FARM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FCN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FCT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FCT2": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FIBRE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FIL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FLAP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FLDC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FLO": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FLT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FOAM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FOX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FRAC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FRK": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FRONT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FRQ": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FSW": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FTT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FUND": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FVZ": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FXC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FZ": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "FZN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GAME": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GAP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GAS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GDN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GEEQ": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GEMZ": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GEO": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GHST": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GIAR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GLB": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GLM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GML": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GNO": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GNS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GNT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GOLD": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GPC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GPUC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GRC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GRCX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GRIN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GRS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GRT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "GUE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "H2O": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "HEGIC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "HGET": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "HIRO": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "HOT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "HUC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "HUGE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "HVC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "HYP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "HZ": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "IBVOL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "IFC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "INDEX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "INJ": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "IOC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ITC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "IXC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "JFI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "JLH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "JPC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "JST": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "JUG": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "KDC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "KEY": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "KNC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "KP3R": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "KTON": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LBC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LCL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LEAF": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LEND": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LGC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LINK": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LINKBEAR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LINKBULL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LIVE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LOL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LON": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LOOM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LOVE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LPT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LQD": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LRC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LSK": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LTBC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LTC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LTCBEAR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LTCBULL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "LTCX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MAID": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MANA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MAST": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MATIC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MAX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MCB": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MCN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MDT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MEC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MEME": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "METH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MEXP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MIL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MIN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MINT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MKR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MMC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MMNXT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MMXIV": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MNTA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MON": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MPH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MRC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MRS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MTA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MTS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MUN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MYR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "MZC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "N5X": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NAS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NAUT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NAV": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NBT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NEO": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NEOS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NMC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NMR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NOBL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NOTE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NOXT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NRS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NSR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NTX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NU": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NXC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NXT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "NXTI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "OCEAN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "OM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "OMG": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "OMNI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ONEINCH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "OPAL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "OPT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PAND": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PASC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PAWN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PAX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PBTC35A": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PEARL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PERX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PIGGY": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PINK": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PLT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PLX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PMC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "POLS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "POLY": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "POT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PPC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PRC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PRQ": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PRT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "PTS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "Q2C": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "QBK": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "QCN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "QORA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "QTL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "QTUM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "RADS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "RARI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "RBY": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "RDD": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "REEF": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "REN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "REPV2": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "RFUEL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "RIC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "RING": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ROOK": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "RSR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "RZR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SAL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SAND": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SBD": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SBREE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SDC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SENSO": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SFI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SHIB": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SHIBE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SHOPX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SILK": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SJCX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SLR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SMC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SNT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SNX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SOC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SPA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SQL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SRCC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SRG": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SRM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SSD": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "STAKE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "STEEM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "STORJ": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "STPT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "STR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "STRAT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SUM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SUN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SUSHI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SWAP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SWARM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SWFTC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SWINGBY": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SWRV": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SXC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SXP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SYNC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "SYS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TAC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TAI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TEND": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TOR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TORN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TRADE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TRB": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TRU": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TRUMPWIN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TRUST": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TRX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TRXBEAR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TRXBULL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TUSD": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "TWE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "UIS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ULTC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "UMA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "UNI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "UNITY": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "URO": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "USDC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "USDE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "USDJ": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "USDT": {
+       "available": "5.81871750",
+       "btcValue": "0.00010159",
+       "onOrders": "0.00000000"
+      },
+      "UTC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "UTIL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "UVC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "VALUE": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "VIA": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "VOOT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "VOX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "VRC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "VSP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "VTC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "WBTC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "WC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "WDC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "WETH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "WIKI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "WIN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "WNXM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "WOLF": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "WRX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "X13": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XAI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XAP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XBC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XCH": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XCN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XCP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XCR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XDN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XDOT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XDP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XEM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XFLR": {
+       "available": "40.14000000",
+       "btcValue": "0.00022787",
+       "onOrders": "0.00000000"
+      },
+      "XHC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XLB": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XLMBEAR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XLMBULL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XMG": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XMR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XPB": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XPM": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XRP": {
+       "available": "40.14000000",
+       "btcValue": "0.00100470",
+       "onOrders": "0.00000000"
+      },
+      "XRPBEAR": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XRPBULL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XSI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XST": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XSV": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XTZ": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XUSD": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XVC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "XXC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "YACC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "YANG": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "YC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "YFI": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "YFII": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "YFL": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "YFV": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "YIN": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ZAP": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ZEC": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ZKS": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ZLOT": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "ZRX": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      },
+      "eTOK": {
+       "available": "0.00000000",
+       "btcValue": "0.00000000",
+       "onOrders": "0.00000000"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "account=all\u0026command=returnCompleteBalances\u0026nonce=1618799774231546400",
+     "headers": {
+      "Content-Type": [
+       "application/x-www-form-urlencoded"
+      ],
+      "Key": [
+       ""
+      ],
+      "Sign": [
+       "7673324ee69afb1ac1b9b55c4fa22a097624353e2a975977e09e8958cae1b17bcccf8beffd7791a197a9ce3f7059eb727d50c86031f43f921034263cd6ba2439"
       ]
      }
     }

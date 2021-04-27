@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -565,7 +566,7 @@ func TestWsSubAck(t *testing.T) {
 }
 
 func TestWsTicker(t *testing.T) {
-	err := p.getCurrencyIDMap()
+	err := p.loadCurrencyDetails()
 	if err != nil {
 		t.Error(err)
 	}
@@ -577,7 +578,7 @@ func TestWsTicker(t *testing.T) {
 }
 
 func TestWsExchangeVolume(t *testing.T) {
-	err := p.getCurrencyIDMap()
+	err := p.loadCurrencyDetails()
 	if err != nil {
 		t.Error(err)
 	}
@@ -589,7 +590,8 @@ func TestWsExchangeVolume(t *testing.T) {
 }
 
 func TestWsTrades(t *testing.T) {
-	err := p.getCurrencyIDMap()
+	p.SetSaveTradeDataStatus(true)
+	err := p.loadCurrencyDetails()
 	if err != nil {
 		t.Error(err)
 	}
@@ -601,7 +603,7 @@ func TestWsTrades(t *testing.T) {
 }
 
 func TestWsPriceAggregateOrderbook(t *testing.T) {
-	err := p.getCurrencyIDMap()
+	err := p.loadCurrencyDetails()
 	if err != nil {
 		t.Error(err)
 	}
@@ -615,25 +617,6 @@ func TestWsPriceAggregateOrderbook(t *testing.T) {
 	err = p.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
-	}
-}
-func TestWsHandleAccountData(t *testing.T) {
-	t.Parallel()
-	err := p.getCurrencyIDMap()
-	if err != nil {
-		t.Error(err)
-	}
-	jsons := []string{
-		`[1000,"",[["o",807230187,"0.00000000", "f"],["b",267,"e","0.10000000"]]]`,
-		`[1000,"",[["n",50,807230187,0,"1000.00000000","0.10000000","2018-11-07 16:42:42"],["b",267,"e","-0.10000000"]]]`,
-		`[1000,"",[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345"]]]`,
-		`[1000,"",[["k", 1337, ""]]]`,
-	}
-	for i := range jsons {
-		err := p.wsHandleData([]byte(jsons[i]))
-		if err != nil {
-			t.Error(err)
-		}
 	}
 }
 
@@ -710,5 +693,332 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err = p.GetHistoricTrades(currencyPair, asset.Spot, tStart, tEnd)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestProcessAccountMarginPosition(t *testing.T) {
+	err := p.loadCurrencyDetails()
+	if err != nil {
+		t.Error(err)
+	}
+
+	margin := []byte(`[1000,"",[["m", 23432933, 28, "-0.06000000"]]]`)
+	err = p.wsHandleData(margin)
+	if !errors.Is(err, errNotEnoughData) {
+		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
+	}
+
+	margin = []byte(`[1000,"",[["m", "23432933", 28, "-0.06000000", null]]]`)
+	err = p.wsHandleData(margin)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	margin = []byte(`[1000,"",[["m", 23432933, "28", "-0.06000000", null]]]`)
+	err = p.wsHandleData(margin)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	margin = []byte(`[1000,"",[["m", 23432933, 28, -0.06000000, null]]]`)
+	err = p.wsHandleData(margin)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	margin = []byte(`[1000,"",[["m", 23432933, 28, "-0.06000000", null]]]`)
+	err = p.wsHandleData(margin)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProcessAccountPendingOrder(t *testing.T) {
+	err := p.loadCurrencyDetails()
+	if err != nil {
+		t.Error(err)
+	}
+
+	pending := []byte(`[1000,"",[["p",431682155857,127,"1000.00000000","1.00000000","0"]]]`)
+	err = p.wsHandleData(pending)
+	if !errors.Is(err, errNotEnoughData) {
+		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
+	}
+
+	pending = []byte(`[1000,"",[["p","431682155857",127,"1000.00000000","1.00000000","0",null]]]`)
+	err = p.wsHandleData(pending)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	pending = []byte(`[1000,"",[["p",431682155857,"127","1000.00000000","1.00000000","0",null]]]`)
+	err = p.wsHandleData(pending)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	pending = []byte(`[1000,"",[["p",431682155857,127,1000.00000000,"1.00000000","0",null]]]`)
+	err = p.wsHandleData(pending)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	pending = []byte(`[1000,"",[["p",431682155857,127,"1000.00000000",1.00000000,"0",null]]]`)
+	err = p.wsHandleData(pending)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	pending = []byte(`[1000,"",[["p",431682155857,127,"1000.00000000","1.00000000",0,null]]]`)
+	err = p.wsHandleData(pending)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	pending = []byte(`[1000,"",[["p",431682155857,127,"1000.00000000","1.00000000","0",null]]]`)
+	err = p.wsHandleData(pending)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Unmatched pair in system
+	pending = []byte(`[1000,"",[["p",431682155857,666,"1000.00000000","1.00000000","0",null]]]`)
+	err = p.wsHandleData(pending)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProcessAccountOrderUpdate(t *testing.T) {
+	orderUpdate := []byte(`[1000,"",[["o",431682155857,"0.00000000","f"]]]`)
+	err := p.wsHandleData(orderUpdate)
+	if !errors.Is(err, errNotEnoughData) {
+		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
+	}
+
+	orderUpdate = []byte(`[1000,"",[["o","431682155857","0.00000000","f",null]]]`)
+	err = p.wsHandleData(orderUpdate)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	orderUpdate = []byte(`[1000,"",[["o",431682155857,0.00000000,"f",null]]]`)
+	err = p.wsHandleData(orderUpdate)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	orderUpdate = []byte(`[1000,"",[["o",431682155857,"0.00000000",123,null]]]`)
+	err = p.wsHandleData(orderUpdate)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	orderUpdate = []byte(`[1000,"",[["o",431682155857,"0.00000000","c",null]]]`)
+	err = p.wsHandleData(orderUpdate)
+	if !errors.Is(err, errNotEnoughData) {
+		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
+	}
+
+	orderUpdate = []byte(`[1000,"",[["o",431682155857,"0.50000000","c",null,"0.50000000"]]]`)
+	err = p.wsHandleData(orderUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	orderUpdate = []byte(`[1000,"",[["o",431682155857,"0.00000000","c",null,"1.00000000"]]]`)
+	err = p.wsHandleData(orderUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	orderUpdate = []byte(`[1000,"",[["o",431682155857,"0.50000000","f",null]]]`)
+	err = p.wsHandleData(orderUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	orderUpdate = []byte(`[1000,"",[["o",431682155857,"0.00000000","s",null]]]`)
+	err = p.wsHandleData(orderUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProcessAccountOrderLimit(t *testing.T) {
+	err := p.loadCurrencyDetails()
+	if err != nil {
+		t.Error(err)
+	}
+
+	accountTrade := []byte(`[1000,"",[["n",127,431682155857,"0","1000.00000000","1.00000000","2021-04-13 07:19:56","1.00000000"]]]`)
+	err = p.wsHandleData(accountTrade)
+	if !errors.Is(err, errNotEnoughData) {
+		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
+	}
+
+	accountTrade = []byte(`[1000,"",[["n","127",431682155857,"0","1000.00000000","1.00000000","2021-04-13 07:19:56","1.00000000",null]]]`)
+	err = p.wsHandleData(accountTrade)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrade = []byte(`[1000,"",[["n",127,"431682155857","0","1000.00000000","1.00000000","2021-04-13 07:19:56","1.00000000",null]]]`)
+	err = p.wsHandleData(accountTrade)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrade = []byte(`[1000,"",[["n",127,431682155857,0,"1000.00000000","1.00000000","2021-04-13 07:19:56","1.00000000",null]]]`)
+	err = p.wsHandleData(accountTrade)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrade = []byte(`[1000,"",[["n",127,431682155857,"0",1000.00000000,"1.00000000","2021-04-13 07:19:56","1.00000000",null]]]`)
+	err = p.wsHandleData(accountTrade)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrade = []byte(`[1000,"",[["n",127,431682155857,"0","1000.00000000",1.00000000,"2021-04-13 07:19:56","1.00000000",null]]]`)
+	err = p.wsHandleData(accountTrade)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrade = []byte(`[1000,"",[["n",127,431682155857,"0","1000.00000000","1.00000000",1234,"1.00000000",null]]]`)
+	err = p.wsHandleData(accountTrade)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrade = []byte(`[1000,"",[["n",127,431682155857,"0","1000.00000000","1.00000000","2021-04-13 07:19:56",1.00000000,null]]]`)
+	err = p.wsHandleData(accountTrade)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrade = []byte(`[1000,"",[["n",127,431682155857,"0","1000.00000000","1.00000000","2021-04-13 07:19:56","1.00000000",null]]]`)
+	err = p.wsHandleData(accountTrade)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProcessAccountBalanceUpdate(t *testing.T) {
+	err := p.loadCurrencyDetails()
+	if err != nil {
+		t.Error(err)
+	}
+
+	balance := []byte(`[1000,"",[["b",243,"e"]]]`)
+	err = p.wsHandleData(balance)
+	if !errors.Is(err, errNotEnoughData) {
+		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
+	}
+
+	balance = []byte(`[1000,"",[["b","243","e","-1.00000000"]]]`)
+	err = p.wsHandleData(balance)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	balance = []byte(`[1000,"",[["b",243,1234,"-1.00000000"]]]`)
+	err = p.wsHandleData(balance)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	balance = []byte(`[1000,"",[["b",243,"e",-1.00000000]]]`)
+	err = p.wsHandleData(balance)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	balance = []byte(`[1000,"",[["b",243,"e","-1.00000000"]]]`)
+	err = p.wsHandleData(balance)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProcessAccountTrades(t *testing.T) {
+	accountTrades := []byte(`[1000,"",[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345"]]]`)
+	err := p.wsHandleData(accountTrades)
+	if !errors.Is(err, errNotEnoughData) {
+		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
+	}
+
+	accountTrades = []byte(`[1000,"",[["t", "12345", "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345", "0.015"]]]`)
+	err = p.wsHandleData(accountTrades)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrades = []byte(`[1000,"",[["t", 12345, 0.03000000, "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345", "0.015"]]]`)
+	err = p.wsHandleData(accountTrades)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrades = []byte(`[1000,"",[["t", 12345, "0.03000000", 0.50000000, "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345", "0.015"]]]`)
+	err = p.wsHandleData(accountTrades)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrades = []byte(`[1000,"",[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, 0.00000375, "2018-09-08 05:54:09", "12345", "0.015"]]]`)
+	err = p.wsHandleData(accountTrades)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrades = []byte(`[1000,"",[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, 0.0000037, "2018-09-08 05:54:09", "12345", "0.015"]]]`)
+	err = p.wsHandleData(accountTrades)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrades = []byte(`[1000,"",[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", 12345, "12345", 0.015]]]`)
+	err = p.wsHandleData(accountTrades)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	accountTrades = []byte(`[1000,"",[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345", "0.015"]]]`)
+	err = p.wsHandleData(accountTrades)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProcessAccountKilledOrder(t *testing.T) {
+	kill := []byte(`[1000,"",[["k", 1337]]]`)
+	err := p.wsHandleData(kill)
+	if !errors.Is(err, errNotEnoughData) {
+		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
+	}
+
+	kill = []byte(`[1000,"",[["k", "1337", null]]]`)
+	err = p.wsHandleData(kill)
+	if !errors.Is(err, errTypeAssertionFailure) {
+		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
+	}
+
+	kill = []byte(`[1000,"",[["k", 1337, null]]]`)
+	err = p.wsHandleData(kill)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetCompleteBalances(t *testing.T) {
+	if !mockTests && !areTestAPIKeysSet() {
+		t.Skip("API keys not set, mockTests false, skipping test")
+	}
+	_, err := p.GetCompleteBalances()
+	if err != nil {
+		t.Fatal(err)
 	}
 }

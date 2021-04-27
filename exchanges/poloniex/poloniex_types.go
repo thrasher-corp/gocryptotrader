@@ -16,9 +16,10 @@ type Ticker struct {
 	PercentChange float64 `json:"percentChange,string"`
 	BaseVolume    float64 `json:"baseVolume,string"`
 	QuoteVolume   float64 `json:"quoteVolume,string"`
-	IsFrozen      int64   `json:"isFrozen,string"`
 	High24Hr      float64 `json:"high24hr,string"`
 	Low24Hr       float64 `json:"low24hr,string"`
+	IsFrozen      uint8   `json:"isFrozen,string"`
+	PostOnly      uint8   `json:"postOnly,string"`
 }
 
 // OrderbookResponseAll holds the full response type orderbook
@@ -27,9 +28,7 @@ type OrderbookResponseAll struct {
 }
 
 // CompleteBalances holds the full balance data
-type CompleteBalances struct {
-	Currency map[string]CompleteBalance
-}
+type CompleteBalances map[string]CompleteBalance
 
 // OrderbookResponse is a sub-type for orderbooks
 type OrderbookResponse struct {
@@ -116,15 +115,14 @@ type ChartData struct {
 
 // Currencies contains currency information
 type Currencies struct {
-	ID                 float64     `json:"id"`
-	Name               string      `json:"name"`
-	MaxDailyWithdrawal string      `json:"maxDailyWithdrawal"`
-	TxFee              float64     `json:"txFee,string"`
-	MinConfirmations   int64       `json:"minConf"`
-	DepositAddresses   interface{} `json:"depositAddress"`
-	Disabled           int64       `json:"disabled"`
-	Delisted           int64       `json:"delisted"`
-	Frozen             int64       `json:"frozen"`
+	ID                        float64 `json:"id"`
+	Name                      string  `json:"name"`
+	TxFee                     float64 `json:"txFee,string"`
+	MinConfirmations          int64   `json:"minConf"`
+	DepositAddress            string  `json:"depositAddress"`
+	WithdrawalDepositDisabled uint8   `json:"disabled"`
+	Delisted                  uint8   `json:"delisted"`
+	Frozen                    uint8   `json:"frozen"`
 }
 
 // LoanOrder holds loan order information
@@ -148,9 +146,9 @@ type Balance struct {
 
 // CompleteBalance contains the complete balance with a btcvalue
 type CompleteBalance struct {
-	Available float64
-	OnOrders  float64
-	BTCValue  float64
+	Available float64 `json:"available,string"`
+	OnOrders  float64 `json:"onOrders,string"`
+	BTCValue  float64 `json:"btcValue,string"`
 }
 
 // DepositAddresses holds the full address per crypto-currency
@@ -440,13 +438,6 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.VTC:   0.001,
 	currency.VIA:   0.01,
 	currency.ZEC:   0.001,
-}
-
-// WsAccountBalanceUpdateResponse Authenticated Ws Account data
-type WsAccountBalanceUpdateResponse struct {
-	currencyID float64
-	wallet     string
-	amount     float64
 }
 
 // WsOrderUpdateResponse Authenticated Ws Account data

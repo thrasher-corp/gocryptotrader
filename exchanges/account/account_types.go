@@ -47,3 +47,12 @@ type Balance struct {
 	TotalValue   float64
 	Hold         float64
 }
+
+// Change defines incoming balance change on currency holdings
+type Change struct {
+	Exchange string
+	Currency currency.Code
+	Asset    asset.Item
+	Amount   float64
+	Account  string
+}
