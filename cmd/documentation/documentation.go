@@ -493,7 +493,7 @@ func UpdateDocumentation(details DocumentationDetails) error {
 			continue
 		}
 		if name == engineFolder {
-			d, err := os.ReadDir(details.Directories[i])
+			d, err := ioutil.ReadDir(details.Directories[i])
 			if err != nil {
 				fmt.Println("Excluding file:", err)
 			}
