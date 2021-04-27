@@ -36,3 +36,8 @@ backup.json
 
 # Designated generated files dir
 target/
+
+
+# Binary file remove
+gctcli
+ohlcv.gct
