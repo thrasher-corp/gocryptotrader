@@ -7,7 +7,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -219,16 +218,6 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	}
 	if updated.Status != order.Active {
 		t.Error("Expected order to be modified to Active")
-	}
-
-	err = m.WebsocketDataHandler(exchName, &order.Cancel{
-		Exchange:  "Bitstamp",
-		ID:        orderID,
-		AssetType: origOrder.AssetType,
-		Pair:      origOrder.Pair,
-	})
-	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
-		t.Errorf("error '%v', expected '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	// Send some gibberish
