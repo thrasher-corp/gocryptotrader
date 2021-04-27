@@ -15,8 +15,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// SetupEventManager loads and validates the communications manager config
-func SetupEventManager(comManager iCommsManager, exchangeManager iExchangeManager, sleepDelay time.Duration, verbose bool) (*EventManager, error) {
+// setupEventManager loads and validates the communications manager config
+func setupEventManager(comManager iCommsManager, exchangeManager iExchangeManager, sleepDelay time.Duration, verbose bool) (*eventManager, error) {
 	if comManager == nil {
 		return nil, errNilComManager
 	}
@@ -26,7 +26,7 @@ func SetupEventManager(comManager iCommsManager, exchangeManager iExchangeManage
 	if sleepDelay <= 0 {
 		sleepDelay = EventSleepDelay
 	}
-	return &EventManager{
+	return &eventManager{
 		comms:           comManager,
 		exchangeManager: exchangeManager,
 		verbose:         verbose,
@@ -36,7 +36,7 @@ func SetupEventManager(comManager iCommsManager, exchangeManager iExchangeManage
 }
 
 // Start runs the subsystem
-func (m *EventManager) Start() error {
+func (m *eventManager) Start() error {
 	if m == nil {
 		return fmt.Errorf("event manager %w", ErrNilSubsystem)
 	}
@@ -50,7 +50,7 @@ func (m *EventManager) Start() error {
 }
 
 // IsRunning safely checks whether the subsystem is running
-func (m *EventManager) IsRunning() bool {
+func (m *eventManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
@@ -58,7 +58,7 @@ func (m *EventManager) IsRunning() bool {
 }
 
 // Stop attempts to shutdown the subsystem
-func (m *EventManager) Stop() error {
+func (m *eventManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("event manager %w", ErrNilSubsystem)
 	}
@@ -69,7 +69,7 @@ func (m *EventManager) Stop() error {
 	return nil
 }
 
-func (m *EventManager) run() {
+func (m *eventManager) run() {
 	ticker := time.NewTicker(m.sleepDelay)
 	select {
 	case <-m.shutdown:
@@ -86,7 +86,7 @@ func (m *EventManager) run() {
 	}
 }
 
-func (m *EventManager) executeEvent(i int) {
+func (m *eventManager) executeEvent(i int) {
 	if !m.events[i].Executed {
 		if m.verbose {
 			log.Debugf(log.EventMgr, "Events: Processing event %s.\n", m.events[i].String())
@@ -108,7 +108,7 @@ func (m *EventManager) executeEvent(i int) {
 
 // Add adds an event to the Events chain and returns an index/eventID
 // and an error
-func (m *EventManager) Add(exchange, item string, condition EventConditionParams, p currency.Pair, a asset.Item, action string) (int64, error) {
+func (m *eventManager) Add(exchange, item string, condition EventConditionParams, p currency.Pair, a asset.Item, action string) (int64, error) {
 	if m == nil {
 		return 0, fmt.Errorf("event manager %w", ErrNilSubsystem)
 	}
@@ -139,7 +139,7 @@ func (m *EventManager) Add(exchange, item string, condition EventConditionParams
 }
 
 // Remove deletes and event by its ID
-func (m *EventManager) Remove(eventID int64) bool {
+func (m *eventManager) Remove(eventID int64) bool {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return false
 	}
@@ -156,7 +156,7 @@ func (m *EventManager) Remove(eventID int64) bool {
 
 // getEventCounter displays the amount of total events on the chain and the
 // events that have been executed.
-func (m *EventManager) getEventCounter() (total, executed int) {
+func (m *eventManager) getEventCounter() (total, executed int) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return 0, 0
 	}
@@ -173,7 +173,7 @@ func (m *EventManager) getEventCounter() (total, executed int) {
 
 // checkEventCondition will check the event structure to see if there is a condition
 // met
-func (m *EventManager) checkEventCondition(e *Event) error {
+func (m *eventManager) checkEventCondition(e *Event) error {
 	if m == nil {
 		return fmt.Errorf("event manager %w", ErrNilSubsystem)
 	}
@@ -190,7 +190,7 @@ func (m *EventManager) checkEventCondition(e *Event) error {
 }
 
 // isValidEvent checks the actions to be taken and returns an error if incorrect
-func (m *EventManager) isValidEvent(exchange, item string, condition EventConditionParams, action string) error {
+func (m *eventManager) isValidEvent(exchange, item string, condition EventConditionParams, action string) error {
 	exchange = strings.ToUpper(exchange)
 	item = strings.ToUpper(item)
 	action = strings.ToUpper(action)
@@ -233,7 +233,7 @@ func (m *EventManager) isValidEvent(exchange, item string, condition EventCondit
 }
 
 // isValidExchange validates the exchange
-func (m *EventManager) isValidExchange(exchangeName string) bool {
+func (m *eventManager) isValidExchange(exchangeName string) bool {
 	return m.exchangeManager.GetExchangeByName(exchangeName) != nil
 }
 

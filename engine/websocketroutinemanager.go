@@ -14,8 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// SetupWebsocketRoutineManager creates a new websocket routine manager
-func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *config.CurrencyConfig, verbose bool) (*WebsocketRoutineManager, error) {
+// setupWebsocketRoutineManager creates a new websocket routine manager
+func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *config.CurrencyConfig, verbose bool) (*websocketRoutineManager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
 	}
@@ -31,7 +31,7 @@ func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 	if cfg.CurrencyPairFormat == nil && verbose {
 		return nil, errNilCurrencyPairFormat
 	}
-	return &WebsocketRoutineManager{
+	return &websocketRoutineManager{
 		verbose:         verbose,
 		exchangeManager: exchangeManager,
 		orderManager:    orderManager,
@@ -42,7 +42,7 @@ func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 }
 
 // Start runs the subsystem
-func (m *WebsocketRoutineManager) Start() error {
+func (m *websocketRoutineManager) Start() error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
@@ -55,7 +55,7 @@ func (m *WebsocketRoutineManager) Start() error {
 }
 
 // IsRunning safely checks whether the subsystem is running
-func (m *WebsocketRoutineManager) IsRunning() bool {
+func (m *websocketRoutineManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
@@ -63,7 +63,7 @@ func (m *WebsocketRoutineManager) IsRunning() bool {
 }
 
 // Stop attempts to shutdown the subsystem
-func (m *WebsocketRoutineManager) Stop() error {
+func (m *websocketRoutineManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
@@ -76,7 +76,7 @@ func (m *WebsocketRoutineManager) Stop() error {
 }
 
 // websocketRoutine Initial routine management system for websocket
-func (m *WebsocketRoutineManager) websocketRoutine() {
+func (m *websocketRoutineManager) websocketRoutine() {
 	if m.verbose {
 		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
@@ -134,7 +134,7 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func (m *WebsocketRoutineManager) WebsocketDataReceiver(ws *stream.Websocket) {
+func (m *websocketRoutineManager) WebsocketDataReceiver(ws *stream.Websocket) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
@@ -156,7 +156,7 @@ func (m *WebsocketRoutineManager) WebsocketDataReceiver(ws *stream.Websocket) {
 
 // WebsocketDataHandler is a central point for exchange websocket implementations to send
 // processed data. WebsocketDataHandler will then pass that to an appropriate handler
-func (m *WebsocketRoutineManager) WebsocketDataHandler(exchName string, data interface{}) error {
+func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data interface{}) error {
 	if data == nil {
 		return fmt.Errorf("exchange %s nil data sent to websocket",
 			exchName)
@@ -258,7 +258,7 @@ func (m *WebsocketRoutineManager) WebsocketDataHandler(exchName string, data int
 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func (m *WebsocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair {
+func (m *websocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return p
 	}

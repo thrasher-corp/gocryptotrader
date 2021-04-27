@@ -9,11 +9,11 @@ import (
 )
 
 func TestSetupNTPManager(t *testing.T) {
-	_, err := SetupNTPManager(nil, false)
+	_, err := setupNTPManager(nil, false)
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
-	_, err = SetupNTPManager(&config.NTPClientConfig{}, false)
+	_, err = setupNTPManager(&config.NTPClientConfig{}, false)
 	if !errors.Is(err, errNilConfigValues) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfigValues)
 	}
@@ -22,7 +22,7 @@ func TestSetupNTPManager(t *testing.T) {
 		AllowedDifference:         &sec,
 		AllowedNegativeDifference: &sec,
 	}
-	m, err := SetupNTPManager(cfg, false)
+	m, err := setupNTPManager(cfg, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -32,7 +32,7 @@ func TestSetupNTPManager(t *testing.T) {
 }
 
 func TestNTPManagerIsRunning(t *testing.T) {
-	var m *NTPManager
+	var m *ntpManager
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
@@ -43,7 +43,7 @@ func TestNTPManagerIsRunning(t *testing.T) {
 		AllowedNegativeDifference: &sec,
 		Level:                     1,
 	}
-	m, err := SetupNTPManager(cfg, false)
+	m, err := setupNTPManager(cfg, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -61,7 +61,7 @@ func TestNTPManagerIsRunning(t *testing.T) {
 }
 
 func TestNTPManagerStart(t *testing.T) {
-	var m *NTPManager
+	var m *ntpManager
 	err := m.Start()
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
@@ -72,7 +72,7 @@ func TestNTPManagerStart(t *testing.T) {
 		AllowedDifference:         &sec,
 		AllowedNegativeDifference: &sec,
 	}
-	m, err = SetupNTPManager(cfg, true)
+	m, err = setupNTPManager(cfg, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -95,7 +95,7 @@ func TestNTPManagerStart(t *testing.T) {
 }
 
 func TestNTPManagerStop(t *testing.T) {
-	var m *NTPManager
+	var m *ntpManager
 	err := m.Stop()
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
@@ -107,7 +107,7 @@ func TestNTPManagerStop(t *testing.T) {
 		AllowedNegativeDifference: &sec,
 		Level:                     1,
 	}
-	m, err = SetupNTPManager(cfg, true)
+	m, err = setupNTPManager(cfg, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -127,7 +127,7 @@ func TestNTPManagerStop(t *testing.T) {
 }
 
 func TestFetchNTPTime(t *testing.T) {
-	var m *NTPManager
+	var m *ntpManager
 	_, err := m.FetchNTPTime()
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
@@ -138,7 +138,7 @@ func TestFetchNTPTime(t *testing.T) {
 		AllowedNegativeDifference: &sec,
 		Level:                     1,
 	}
-	m, err = SetupNTPManager(cfg, true)
+	m, err = setupNTPManager(cfg, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -178,7 +178,7 @@ func TestProcessTime(t *testing.T) {
 		Level:                     1,
 		Pool:                      []string{"0.pool.ntp.org:123"},
 	}
-	m, err := SetupNTPManager(cfg, true)
+	m, err := setupNTPManager(cfg, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

@@ -17,8 +17,8 @@ var (
 	errNTPManagerDisabled = errors.New("NTP manager disabled")
 )
 
-// NTPManager starts the NTP manager
-type NTPManager struct {
+// ntpManager starts the NTP manager
+type ntpManager struct {
 	started                   int32
 	shutdown                  chan struct{}
 	level                     int64

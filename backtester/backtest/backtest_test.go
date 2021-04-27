@@ -40,7 +40,7 @@ func newBotWithExchange() (*engine.Engine, gctexchange.IBotExchange) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	bot.ExchangeManager = exchangemanager2.Setup()
+	bot.ExchangeManager = engine.SetupExchangeManager()
 	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -93,8 +93,8 @@ func TestNewFromConfig(t *testing.T) {
 
 	cfg.CurrencySettings[0].Asset = asset.Spot.String()
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, exchangemanager2.ErrExchangeNotFound) {
-		t.Errorf("expected: %v, received %v", exchangemanager2.ErrExchangeNotFound, err)
+	if !errors.Is(err, engine.ErrExchangeNotFound) {
+		t.Errorf("expected: %v, received %v", engine.ErrExchangeNotFound, err)
 	}
 
 	cfg.CurrencySettings[0].ExchangeName = testExchange

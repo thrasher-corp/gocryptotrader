@@ -104,7 +104,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case ConnectionManagerName:
 		if enable {
 			if bot.connectionManager == nil {
-				bot.connectionManager, err = SetupConnectionManager(&bot.Config.ConnectionMonitor)
+				bot.connectionManager, err = setupConnectionManager(&bot.Config.ConnectionMonitor)
 				if err != nil {
 					return err
 				}
@@ -130,7 +130,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case PortfolioManagerNAme:
 		if enable {
 			if bot.portfolioManager == nil {
-				bot.portfolioManager, err = SetupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
+				bot.portfolioManager, err = setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
 				if err != nil {
 					return err
 				}
@@ -141,7 +141,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case NTPManagerName:
 		if enable {
 			if bot.ntpManager == nil {
-				bot.ntpManager, err = SetupNTPManager(
+				bot.ntpManager, err = setupNTPManager(
 					&bot.Config.NTPClient,
 					*bot.Config.Logging.Enabled)
 				if err != nil {
@@ -175,7 +175,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					SyncTimeoutREST:      bot.Settings.SyncTimeoutREST,
 					SyncTimeoutWebsocket: bot.Settings.SyncTimeoutWebsocket,
 				}
-				bot.currencyPairSyncer, err = SetupSyncManager(exchangeSyncCfg,
+				bot.currencyPairSyncer, err = setupSyncManager(exchangeSyncCfg,
 					bot.ExchangeManager,
 					bot.websocketRoutineManager,
 					&bot.Config.RemoteControl)

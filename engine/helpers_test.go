@@ -143,7 +143,7 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 func TestIsOnline(t *testing.T) {
 	e := CreateTestBot(t)
 	var err error
-	e.connectionManager, err = SetupConnectionManager(&e.Config.ConnectionMonitor)
+	e.connectionManager, err = setupConnectionManager(&e.Config.ConnectionMonitor)
 	if err != nil {
 		t.Fatal(err)
 	}

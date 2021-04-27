@@ -11,8 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// SetupNTPManager creates a new NTP manager
-func SetupNTPManager(cfg *config.NTPClientConfig, loggingEnabled bool) (*NTPManager, error) {
+// setupNTPManager creates a new NTP manager
+func setupNTPManager(cfg *config.NTPClientConfig, loggingEnabled bool) (*ntpManager, error) {
 	if cfg == nil {
 		return nil, errNilConfig
 	}
@@ -20,7 +20,7 @@ func SetupNTPManager(cfg *config.NTPClientConfig, loggingEnabled bool) (*NTPMana
 		cfg.AllowedDifference == nil {
 		return nil, errNilConfigValues
 	}
-	return &NTPManager{
+	return &ntpManager{
 		shutdown:                  make(chan struct{}),
 		level:                     int64(cfg.Level),
 		allowedDifference:         *cfg.AllowedDifference,
@@ -33,7 +33,7 @@ func SetupNTPManager(cfg *config.NTPClientConfig, loggingEnabled bool) (*NTPMana
 }
 
 // IsRunning safely checks whether the subsystem is running
-func (m *NTPManager) IsRunning() bool {
+func (m *ntpManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
@@ -41,7 +41,7 @@ func (m *NTPManager) IsRunning() bool {
 }
 
 // Start runs the subsystem
-func (m *NTPManager) Start() error {
+func (m *ntpManager) Start() error {
 	if m == nil {
 		return fmt.Errorf("ntp manager %w", ErrNilSubsystem)
 	}
@@ -79,7 +79,7 @@ func (m *NTPManager) Start() error {
 }
 
 // Stop attempts to shutdown the subsystem
-func (m *NTPManager) Stop() error {
+func (m *ntpManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("ntp manager %w", ErrNilSubsystem)
 	}
@@ -96,7 +96,7 @@ func (m *NTPManager) Stop() error {
 }
 
 // continuously checks the internet connection at intervals
-func (m *NTPManager) run() {
+func (m *ntpManager) run() {
 	t := time.NewTicker(m.checkInterval)
 	defer func() {
 		t.Stop()
@@ -116,7 +116,7 @@ func (m *NTPManager) run() {
 }
 
 // FetchNTPTime returns the time from defined NTP pools
-func (m *NTPManager) FetchNTPTime() (time.Time, error) {
+func (m *ntpManager) FetchNTPTime() (time.Time, error) {
 	if m == nil {
 		return time.Time{}, fmt.Errorf("ntp manager %w", ErrNilSubsystem)
 	}
@@ -128,7 +128,7 @@ func (m *NTPManager) FetchNTPTime() (time.Time, error) {
 
 // processTime determines the difference between system time and NTP time
 // to discover discrepancies
-func (m *NTPManager) processTime() error {
+func (m *ntpManager) processTime() error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("NTP manager %w", ErrSubSystemNotStarted)
 	}

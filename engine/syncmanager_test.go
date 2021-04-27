@@ -13,22 +13,22 @@ import (
 )
 
 func TestSetupSyncManager(t *testing.T) {
-	_, err := SetupSyncManager(&Config{}, nil, nil, nil)
+	_, err := setupSyncManager(&Config{}, nil, nil, nil)
 	if !errors.Is(err, errNoSyncItemsEnabled) {
 		t.Errorf("error '%v', expected '%v'", err, errNoSyncItemsEnabled)
 	}
 
-	_, err = SetupSyncManager(&Config{SyncTrades: true}, nil, nil, nil)
+	_, err = setupSyncManager(&Config{SyncTrades: true}, nil, nil, nil)
 	if !errors.Is(err, errNilExchangeManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
 
-	_, err = SetupSyncManager(&Config{SyncTrades: true}, &ExchangeManager{}, nil, nil)
+	_, err = setupSyncManager(&Config{SyncTrades: true}, &ExchangeManager{}, nil, nil)
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
 
-	m, err := SetupSyncManager(&Config{SyncTrades: true}, &ExchangeManager{}, nil, &config.RemoteControlConfig{})
+	m, err := setupSyncManager(&Config{SyncTrades: true}, &ExchangeManager{}, nil, &config.RemoteControlConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -38,7 +38,7 @@ func TestSetupSyncManager(t *testing.T) {
 }
 
 func TestSyncManagerStart(t *testing.T) {
-	m, err := SetupSyncManager(&Config{SyncTrades: true}, &ExchangeManager{}, nil, &config.RemoteControlConfig{})
+	m, err := setupSyncManager(&Config{SyncTrades: true}, &ExchangeManager{}, nil, &config.RemoteControlConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -69,7 +69,7 @@ func TestSyncManagerStart(t *testing.T) {
 }
 
 func TestSyncManagerStop(t *testing.T) {
-	var m *SyncManager
+	var m *syncManager
 	err := m.Stop()
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
@@ -82,7 +82,7 @@ func TestSyncManagerStop(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	m, err = SetupSyncManager(&Config{SyncTrades: true, SyncContinuously: true}, em, nil, &config.RemoteControlConfig{})
+	m, err = setupSyncManager(&Config{SyncTrades: true, SyncContinuously: true}, em, nil, &config.RemoteControlConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -117,7 +117,7 @@ func TestPrintConvertCurrencyFormat(t *testing.T) {
 }
 
 func TestPrintTickerSummary(t *testing.T) {
-	var m *SyncManager
+	var m *syncManager
 	m.PrintTickerSummary(&ticker.Price{}, "REST", nil)
 
 	em := SetupExchangeManager()
@@ -127,7 +127,7 @@ func TestPrintTickerSummary(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	m, err = SetupSyncManager(&Config{SyncTrades: true, SyncContinuously: true}, em, nil, &config.RemoteControlConfig{})
+	m, err = setupSyncManager(&Config{SyncTrades: true, SyncContinuously: true}, em, nil, &config.RemoteControlConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -155,7 +155,7 @@ func TestPrintTickerSummary(t *testing.T) {
 }
 
 func TestPrintOrderbookSummary(t *testing.T) {
-	var m *SyncManager
+	var m *syncManager
 	m.PrintOrderbookSummary(nil, "REST", nil)
 
 	em := SetupExchangeManager()
@@ -165,7 +165,7 @@ func TestPrintOrderbookSummary(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	m, err = SetupSyncManager(&Config{SyncTrades: true, SyncContinuously: true}, em, nil, &config.RemoteControlConfig{})
+	m, err = setupSyncManager(&Config{SyncTrades: true, SyncContinuously: true}, em, nil, &config.RemoteControlConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

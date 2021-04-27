@@ -40,9 +40,9 @@ const (
 // ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
 var ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
 
-func (e *Base) checkAndInitRequester() {
-	if e.Requester == nil {
-		e.Requester = request.New(e.Name,
+func (b *Base) checkAndInitRequester() {
+	if b.Requester == nil {
+		b.Requester = request.New(b.Name,
 			&http.Client{Transport: new(http.Transport)})
 	}
 }

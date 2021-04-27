@@ -61,8 +61,8 @@ type Event struct {
 	Executed  bool
 }
 
-// EventManager holds communication manager data
-type EventManager struct {
+// eventManager holds communication manager data
+type eventManager struct {
 	started         int32
 	comms           iCommsManager
 	events          []Event

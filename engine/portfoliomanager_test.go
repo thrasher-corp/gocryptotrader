@@ -7,12 +7,12 @@ import (
 )
 
 func TestSetupPortfolioManager(t *testing.T) {
-	_, err := SetupPortfolioManager(nil, 0, nil)
-	if !errors.Is(err, subsystem.errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, subsystem.errNilExchangeManager)
+	_, err := setupPortfolioManager(nil, 0, nil)
+	if !errors.Is(err, errNilExchangeManager) {
+		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
 
-	m, err := SetupPortfolioManager(SetupExchangeManager(), 0, nil)
+	m, err := setupPortfolioManager(SetupExchangeManager(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -22,12 +22,12 @@ func TestSetupPortfolioManager(t *testing.T) {
 }
 
 func TestIsPortfolioManagerRunning(t *testing.T) {
-	var m *PortfolioManager
+	var m *portfolioManager
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
 
-	m, err := SetupPortfolioManager(SetupExchangeManager(), 0, nil)
+	m, err := setupPortfolioManager(SetupExchangeManager(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -45,21 +45,21 @@ func TestIsPortfolioManagerRunning(t *testing.T) {
 }
 
 func TestPortfolioManagerStart(t *testing.T) {
-	var m *PortfolioManager
+	var m *portfolioManager
 	var wg sync.WaitGroup
 	err := m.Start(nil)
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 
-	m, err = SetupPortfolioManager(SetupExchangeManager(), 0, nil)
+	m, err = setupPortfolioManager(SetupExchangeManager(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
 	err = m.Start(nil)
-	if !errors.Is(err, subsystem.errNilWaitGroup) {
-		t.Errorf("error '%v', expected '%v'", err, subsystem.errNilWaitGroup)
+	if !errors.Is(err, errNilWaitGroup) {
+		t.Errorf("error '%v', expected '%v'", err, errNilWaitGroup)
 	}
 
 	err = m.Start(&wg)
@@ -74,14 +74,14 @@ func TestPortfolioManagerStart(t *testing.T) {
 }
 
 func TestPortfolioManagerStop(t *testing.T) {
-	var m *PortfolioManager
+	var m *portfolioManager
 	var wg sync.WaitGroup
 	err := m.Stop()
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 
-	m, err = SetupPortfolioManager(SetupExchangeManager(), 0, nil)
+	m, err = setupPortfolioManager(SetupExchangeManager(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -108,7 +108,7 @@ func TestProcessPortfolio(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	m, err := SetupPortfolioManager(em, 0, nil)
+	m, err := setupPortfolioManager(em, 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

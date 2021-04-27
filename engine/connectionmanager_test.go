@@ -9,12 +9,12 @@ import (
 
 func TestSetupConnectionManager(t *testing.T) {
 	t.Parallel()
-	_, err := SetupConnectionManager(nil)
+	_, err := setupConnectionManager(nil)
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
 
-	m, err := SetupConnectionManager(&config.ConnectionMonitorConfig{})
+	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -25,7 +25,7 @@ func TestSetupConnectionManager(t *testing.T) {
 
 func TestConnectionMonitorIsRunning(t *testing.T) {
 	t.Parallel()
-	m, err := SetupConnectionManager(&config.ConnectionMonitorConfig{})
+	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -48,7 +48,7 @@ func TestConnectionMonitorIsRunning(t *testing.T) {
 
 func TestConnectionMonitorStart(t *testing.T) {
 	t.Parallel()
-	m, err := SetupConnectionManager(&config.ConnectionMonitorConfig{})
+	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -69,7 +69,7 @@ func TestConnectionMonitorStart(t *testing.T) {
 
 func TestConnectionMonitorStop(t *testing.T) {
 	t.Parallel()
-	m, err := SetupConnectionManager(&config.ConnectionMonitorConfig{})
+	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -94,7 +94,7 @@ func TestConnectionMonitorStop(t *testing.T) {
 
 func TestConnectionMonitorIsOnline(t *testing.T) {
 	t.Parallel()
-	m, err := SetupConnectionManager(&config.ConnectionMonitorConfig{})
+	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

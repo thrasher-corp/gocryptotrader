@@ -12,23 +12,23 @@ import (
 // ConnectionManagerName is an exported subsystem name
 const ConnectionManagerName = "internet_monitor"
 
-// ConnectionManager manages the connchecker
-type ConnectionManager struct {
+// connectionManager manages the connchecker
+type connectionManager struct {
 	started int32
 	conn    *connchecker.Checker
 	cfg     *config.ConnectionMonitorConfig
 }
 
 // IsRunning safely checks whether the subsystem is running
-func (m *ConnectionManager) IsRunning() bool {
+func (m *connectionManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
 	return atomic.LoadInt32(&m.started) == 1
 }
 
-// SetupConnectionManager creates a connection manager
-func SetupConnectionManager(cfg *config.ConnectionMonitorConfig) (*ConnectionManager, error) {
+// setupConnectionManager creates a connection manager
+func setupConnectionManager(cfg *config.ConnectionMonitorConfig) (*connectionManager, error) {
 	if cfg == nil {
 		return nil, errNilConfig
 	}
@@ -41,13 +41,13 @@ func SetupConnectionManager(cfg *config.ConnectionMonitorConfig) (*ConnectionMan
 	if cfg.CheckInterval == 0 {
 		cfg.CheckInterval = connchecker.DefaultCheckInterval
 	}
-	return &ConnectionManager{
+	return &connectionManager{
 		cfg: cfg,
 	}, nil
 }
 
 // Start runs the subsystem
-func (m *ConnectionManager) Start() error {
+func (m *connectionManager) Start() error {
 	if m == nil {
 		return fmt.Errorf("connection manager %w", ErrNilSubsystem)
 	}
@@ -70,7 +70,7 @@ func (m *ConnectionManager) Start() error {
 }
 
 // Stop stops the connection manager
-func (m *ConnectionManager) Stop() error {
+func (m *connectionManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("connection manager %w", ErrNilSubsystem)
 	}
@@ -87,7 +87,7 @@ func (m *ConnectionManager) Stop() error {
 }
 
 // IsOnline returns if the connection manager is online
-func (m *ConnectionManager) IsOnline() bool {
+func (m *connectionManager) IsOnline() bool {
 	if m == nil {
 		return false
 	}

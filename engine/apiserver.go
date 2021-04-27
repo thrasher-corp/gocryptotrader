@@ -24,8 +24,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// SetupAPIServerManager checks and creates an api server manager
-func SetupAPIServerManager(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager iExchangeManager, bot iBot, portfolioManager iPortfolioManager, configPath string) (*ApiServerManager, error) {
+// setupAPIServerManager checks and creates an api server manager
+func setupAPIServerManager(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager iExchangeManager, bot iBot, portfolioManager iPortfolioManager, configPath string) (*apiServerManager, error) {
 	if remoteConfig == nil {
 		return nil, errNilRemoteConfig
 	}
@@ -41,7 +41,7 @@ func SetupAPIServerManager(remoteConfig *config.RemoteControlConfig, pprofConfig
 	if configPath == "" {
 		return nil, errEmptyConfigPath
 	}
-	return &ApiServerManager{
+	return &apiServerManager{
 		remoteConfig:           remoteConfig,
 		pprofConfig:            pprofConfig,
 		restListenAddress:      remoteConfig.DeprecatedRPC.ListenAddress,
@@ -54,7 +54,7 @@ func SetupAPIServerManager(remoteConfig *config.RemoteControlConfig, pprofConfig
 }
 
 // IsRunning safely checks whether the subsystem is running
-func (m *ApiServerManager) IsRunning() bool {
+func (m *apiServerManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
@@ -62,7 +62,7 @@ func (m *ApiServerManager) IsRunning() bool {
 }
 
 // Stop attempts to shutdown the subsystem
-func (m *ApiServerManager) Stop() error {
+func (m *apiServerManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("api server %w", ErrNilSubsystem)
 	}
@@ -70,29 +70,34 @@ func (m *ApiServerManager) Stop() error {
 		return fmt.Errorf("api server %w", ErrSubSystemNotStarted)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
+	defer cancel()
 	if atomic.LoadInt32(&m.restStarted) == 1 {
-		err := m.restHTTPServer.Shutdown(context.Background())
+		atomic.StoreInt32(&m.restStarted, 0)
+		err := m.restHTTPServer.Shutdown(ctx)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
-		atomic.StoreInt32(&m.restStarted, 0)
+		m.wgRest.Wait()
 		m.restRouter = nil
 	}
 	if atomic.LoadInt32(&m.websocketStarted) == 1 {
-		err := m.websocketHTTPServer.Shutdown(context.Background())
+		atomic.StoreInt32(&m.websocketStarted, 0)
+		err := m.websocketHTTPServer.Shutdown(ctx)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
 		m.websocketRouter = nil
 		m.websocketHub = nil
-		atomic.StoreInt32(&m.websocketStarted, 0)
+		m.wgWebsocket.Wait()
+		m.websocketHTTPServer = nil
 	}
 	return nil
 }
 
 // newRouter takes in the exchange interfaces and returns a new multiplexor
 // router
-func (m *ApiServerManager) newRouter(isREST bool) *mux.Router {
+func (m *apiServerManager) newRouter(isREST bool) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	var routes []Route
 	if common.ExtractPort(m.websocketListenAddress) == 80 {
@@ -141,7 +146,7 @@ func (m *ApiServerManager) newRouter(isREST bool) *mux.Router {
 }
 
 // StartRESTServer starts a REST handler
-func (m *ApiServerManager) StartRESTServer() error {
+func (m *apiServerManager) StartRESTServer() error {
 	if !atomic.CompareAndSwapInt32(&m.restStarted, 0, 1) {
 		return fmt.Errorf("rest server %w", errAlreadyRunning)
 	}
@@ -160,7 +165,9 @@ func (m *ApiServerManager) StartRESTServer() error {
 			Handler: m.restRouter,
 		}
 	}
+	m.wgRest.Add(1)
 	go func() {
+		defer m.wgRest.Done()
 		err := m.restHTTPServer.ListenAndServe()
 		if err != nil {
 			atomic.StoreInt32(&m.restStarted, 0)
@@ -204,7 +211,7 @@ func handleError(method string, err error) {
 
 // restGetAllSettings replies to a request with an encoded JSON response about the
 // trading Bots configuration.
-func (m *ApiServerManager) restGetAllSettings(w http.ResponseWriter, r *http.Request) {
+func (m *apiServerManager) restGetAllSettings(w http.ResponseWriter, r *http.Request) {
 	err := writeResponse(w, config.GetConfig())
 	if err != nil {
 		handleError(r.Method, err)
@@ -213,7 +220,7 @@ func (m *ApiServerManager) restGetAllSettings(w http.ResponseWriter, r *http.Req
 
 // restSaveAllSettings saves all current settings from request body as a JSON
 // document then reloads state and returns the settings
-func (m *ApiServerManager) restSaveAllSettings(w http.ResponseWriter, r *http.Request) {
+func (m *apiServerManager) restSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	// Get the data from the request
 	decoder := json.NewDecoder(r.Body)
 	var responseData config.Post
@@ -239,7 +246,7 @@ func (m *ApiServerManager) restSaveAllSettings(w http.ResponseWriter, r *http.Re
 }
 
 // restGetAllActiveOrderbooks returns all enabled exchange orderbooks
-func (m *ApiServerManager) restGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
+func (m *apiServerManager) restGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeOrderbooks
 	response.Data = getAllActiveOrderbooks(m.exchangeManager)
 	err := writeResponse(w, response)
@@ -249,7 +256,7 @@ func (m *ApiServerManager) restGetAllActiveOrderbooks(w http.ResponseWriter, r *
 }
 
 // restGetPortfolio returns the Bot portfolio manager
-func (m *ApiServerManager) restGetPortfolio(w http.ResponseWriter, r *http.Request) {
+func (m *apiServerManager) restGetPortfolio(w http.ResponseWriter, r *http.Request) {
 	result := m.portfolioManager.GetPortfolioSummary()
 	err := writeResponse(w, result)
 	if err != nil {
@@ -258,7 +265,7 @@ func (m *ApiServerManager) restGetPortfolio(w http.ResponseWriter, r *http.Reque
 }
 
 // restGetAllActiveTickers returns all active tickers
-func (m *ApiServerManager) restGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
+func (m *apiServerManager) restGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeCurrencies
 	response.Data = getAllActiveTickers(m.exchangeManager)
 	err := writeResponse(w, response)
@@ -269,7 +276,7 @@ func (m *ApiServerManager) restGetAllActiveTickers(w http.ResponseWriter, r *htt
 
 // restGetAllEnabledAccountInfo via get request returns JSON response of account
 // info
-func (m *ApiServerManager) restGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
+func (m *apiServerManager) restGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
 	response := getAllActiveAccounts(m.exchangeManager)
 	err := writeResponse(w, response)
 	if err != nil {
@@ -278,7 +285,7 @@ func (m *ApiServerManager) restGetAllEnabledAccountInfo(w http.ResponseWriter, r
 }
 
 // getInfex
-func (m *ApiServerManager) getIndex(w http.ResponseWriter, _ *http.Request) {
+func (m *apiServerManager) getIndex(w http.ResponseWriter, _ *http.Request) {
 	_, err := fmt.Fprint(w, restIndexResponse)
 	if err != nil {
 		log.Error(log.APIServerMgr, err)
@@ -386,7 +393,7 @@ func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
 }
 
 // StartWebsocketServer starts a Websocket handler
-func (m *ApiServerManager) StartWebsocketServer() error {
+func (m *apiServerManager) StartWebsocketServer() error {
 	if !atomic.CompareAndSwapInt32(&m.websocketStarted, 0, 1) {
 		return fmt.Errorf("websocket server %w", errAlreadyRunning)
 	}
@@ -411,7 +418,9 @@ func (m *ApiServerManager) StartWebsocketServer() error {
 		}
 	}
 
+	m.wgWebsocket.Add(1)
 	go func() {
+		defer m.wgWebsocket.Done()
 		err := m.websocketHTTPServer.ListenAndServe()
 		if err != nil {
 			atomic.StoreInt32(&m.websocketStarted, 0)
@@ -423,17 +432,17 @@ func (m *ApiServerManager) StartWebsocketServer() error {
 	return nil
 }
 
-// NewWebsocketHub Creates a new websocket hub
-func NewWebsocketHub() *WebsocketHub {
-	return &WebsocketHub{
+// newWebsocketHub Creates a new websocket hub
+func newWebsocketHub() *websocketHub {
+	return &websocketHub{
 		Broadcast:  make(chan []byte),
-		Register:   make(chan *WebsocketClient),
-		Unregister: make(chan *WebsocketClient),
-		Clients:    make(map[*WebsocketClient]bool),
+		Register:   make(chan *websocketClient),
+		Unregister: make(chan *websocketClient),
+		Clients:    make(map[*websocketClient]bool),
 	}
 }
 
-func (h *WebsocketHub) run() {
+func (h *websocketHub) run() {
 	for {
 		select {
 		case client := <-h.Register:
@@ -459,7 +468,7 @@ func (h *WebsocketHub) run() {
 }
 
 // SendWebsocketMessage sends a websocket event to the client
-func (c *WebsocketClient) SendWebsocketMessage(evt interface{}) error {
+func (c *websocketClient) SendWebsocketMessage(evt interface{}) error {
 	data, err := json.Marshal(evt)
 	if err != nil {
 		log.Errorf(log.APIServerMgr, "websocket: failed to send message: %s\n", err)
@@ -470,7 +479,7 @@ func (c *WebsocketClient) SendWebsocketMessage(evt interface{}) error {
 	return nil
 }
 
-func (c *WebsocketClient) read() {
+func (c *websocketClient) read() {
 	defer func() {
 		c.Hub.Unregister <- c
 		conErr := c.Conn.Close()
@@ -534,7 +543,7 @@ func (c *WebsocketClient) read() {
 	}
 }
 
-func (c *WebsocketClient) write() {
+func (c *websocketClient) write() {
 	defer func() {
 		err := c.Conn.Close()
 		if err != nil {
@@ -585,7 +594,7 @@ func (c *WebsocketClient) write() {
 func StartWebsocketHandler() {
 	if !wsHubStarted {
 		wsHubStarted = true
-		wsHub = NewWebsocketHub()
+		wsHub = newWebsocketHub()
 		go wsHub.run()
 	}
 }
@@ -607,7 +616,7 @@ func BroadcastWebsocketMessage(evt WebsocketEvent) error {
 
 // WebsocketClientHandler upgrades the HTTP connection to a websocket
 // compatible one
-func (m *ApiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
+func (m *apiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 	if !wsHubStarted {
 		StartWebsocketHandler()
 	}
@@ -640,7 +649,7 @@ func (m *ApiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	client := &WebsocketClient{
+	client := &websocketClient{
 		Hub:              wsHub,
 		Conn:             conn,
 		Send:             make(chan []byte, 1024),
@@ -662,7 +671,7 @@ func (m *ApiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http
 	go client.write()
 }
 
-func wsAuth(client *WebsocketClient, data interface{}) error {
+func wsAuth(client *websocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "auth",
 	}
@@ -707,7 +716,7 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 	return nil
 }
 
-func wsGetConfig(client *WebsocketClient, _ interface{}) error {
+func wsGetConfig(client *websocketClient, _ interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetConfig",
 		Data:  config.GetConfig(),
@@ -715,7 +724,7 @@ func wsGetConfig(client *WebsocketClient, _ interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsSaveConfig(client *WebsocketClient, data interface{}) error {
+func wsSaveConfig(client *websocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "SaveConfig",
 	}
@@ -754,7 +763,7 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetAccountInfo(client *WebsocketClient, data interface{}) error {
+func wsGetAccountInfo(client *websocketClient, data interface{}) error {
 	accountInfo := getAllActiveAccounts(client.exchangeManager)
 	wsResp := WebsocketEventResponse{
 		Event: "GetAccountInfo",
@@ -763,7 +772,7 @@ func wsGetAccountInfo(client *WebsocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetTickers(client *WebsocketClient, data interface{}) error {
+func wsGetTickers(client *websocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetTickers",
 	}
@@ -771,7 +780,7 @@ func wsGetTickers(client *WebsocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetTicker(client *WebsocketClient, data interface{}) error {
+func wsGetTicker(client *websocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetTicker",
 	}
@@ -818,7 +827,7 @@ func wsGetTicker(client *WebsocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetOrderbooks(client *WebsocketClient, data interface{}) error {
+func wsGetOrderbooks(client *websocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetOrderbooks",
 	}
@@ -826,7 +835,7 @@ func wsGetOrderbooks(client *WebsocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetOrderbook(client *WebsocketClient, data interface{}) error {
+func wsGetOrderbook(client *websocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetOrderbook",
 	}
@@ -873,7 +882,7 @@ func wsGetOrderbook(client *WebsocketClient, data interface{}) error {
 	return nil
 }
 
-func wsGetExchangeRates(client *WebsocketClient, data interface{}) error {
+func wsGetExchangeRates(client *websocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetExchangeRates",
 	}
@@ -887,7 +896,7 @@ func wsGetExchangeRates(client *WebsocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetPortfolio(client *WebsocketClient, data interface{}) error {
+func wsGetPortfolio(client *websocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetPortfolio",
 	}

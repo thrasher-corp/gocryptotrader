@@ -7,8 +7,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
-// WebsocketRoutineManager is used to process websocket updates from a unified location
-type WebsocketRoutineManager struct {
+// websocketRoutineManager is used to process websocket updates from a unified location
+type websocketRoutineManager struct {
 	started         int32
 	verbose         bool
 	exchangeManager iExchangeManager

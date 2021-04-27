@@ -38,8 +38,8 @@ var (
 	errUnknownSyncItem            = errors.New("unknown sync item")
 )
 
-// SetupSyncManager starts a new CurrencyPairSyncer
-func SetupSyncManager(c *Config, exchangeManager iExchangeManager, websocketDataReceiver iWebsocketDataReceiver, remoteConfig *config.RemoteControlConfig) (*SyncManager, error) {
+// setupSyncManager starts a new CurrencyPairSyncer
+func setupSyncManager(c *Config, exchangeManager iExchangeManager, websocketDataReceiver iWebsocketDataReceiver, remoteConfig *config.RemoteControlConfig) (*syncManager, error) {
 	if !c.SyncOrderbook && !c.SyncTicker && !c.SyncTrades {
 		return nil, errNoSyncItemsEnabled
 	}
@@ -62,7 +62,7 @@ func SetupSyncManager(c *Config, exchangeManager iExchangeManager, websocketData
 		c.SyncTimeoutWebsocket = DefaultSyncerTimeoutWebsocket
 	}
 
-	s := &SyncManager{
+	s := &syncManager{
 		config:                *c,
 		remoteConfig:          remoteConfig,
 		exchangeManager:       exchangeManager,
@@ -82,7 +82,7 @@ func SetupSyncManager(c *Config, exchangeManager iExchangeManager, websocketData
 }
 
 // IsRunning safely checks whether the subsystem is running
-func (m *SyncManager) IsRunning() bool {
+func (m *syncManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
@@ -90,7 +90,7 @@ func (m *SyncManager) IsRunning() bool {
 }
 
 // Start runs the subsystem
-func (m *SyncManager) Start() error {
+func (m *syncManager) Start() error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
@@ -244,7 +244,7 @@ func (m *SyncManager) Start() error {
 
 // Stop shuts down the exchange currency pair syncer
 // Stop attempts to shutdown the subsystem
-func (m *SyncManager) Stop() error {
+func (m *syncManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
@@ -255,7 +255,7 @@ func (m *SyncManager) Stop() error {
 	return nil
 }
 
-func (m *SyncManager) get(exchangeName string, p currency.Pair, a asset.Item) (*currencyPairSyncAgent, error) {
+func (m *syncManager) get(exchangeName string, p currency.Pair, a asset.Item) (*currencyPairSyncAgent, error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -270,7 +270,7 @@ func (m *SyncManager) get(exchangeName string, p currency.Pair, a asset.Item) (*
 	return nil, errors.New("exchange currency pair syncer not found")
 }
 
-func (m *SyncManager) exists(exchangeName string, p currency.Pair, a asset.Item) bool {
+func (m *syncManager) exists(exchangeName string, p currency.Pair, a asset.Item) bool {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -284,7 +284,7 @@ func (m *SyncManager) exists(exchangeName string, p currency.Pair, a asset.Item)
 	return false
 }
 
-func (m *SyncManager) add(c *currencyPairSyncAgent) {
+func (m *syncManager) add(c *currencyPairSyncAgent) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -331,7 +331,7 @@ func (m *SyncManager) add(c *currencyPairSyncAgent) {
 	m.currencyPairs = append(m.currencyPairs, *c)
 }
 
-func (m *SyncManager) remove(c *currencyPairSyncAgent) {
+func (m *syncManager) remove(c *currencyPairSyncAgent) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -345,7 +345,7 @@ func (m *SyncManager) remove(c *currencyPairSyncAgent) {
 	}
 }
 
-func (m *SyncManager) isProcessing(exchangeName string, p currency.Pair, a asset.Item, syncType int) bool {
+func (m *syncManager) isProcessing(exchangeName string, p currency.Pair, a asset.Item, syncType int) bool {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -367,7 +367,7 @@ func (m *SyncManager) isProcessing(exchangeName string, p currency.Pair, a asset
 	return false
 }
 
-func (m *SyncManager) setProcessing(exchangeName string, p currency.Pair, a asset.Item, syncType int, processing bool) {
+func (m *syncManager) setProcessing(exchangeName string, p currency.Pair, a asset.Item, syncType int, processing bool) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -387,8 +387,8 @@ func (m *SyncManager) setProcessing(exchangeName string, p currency.Pair, a asse
 	}
 }
 
-// Update notifies the SyncManager to change the last updated time for a exchange asset pair
-func (m *SyncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, err error) error {
+// Update notifies the syncManager to change the last updated time for a exchange asset pair
+func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, err error) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
@@ -484,7 +484,7 @@ func (m *SyncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 	return nil
 }
 
-func (m *SyncManager) worker() {
+func (m *syncManager) worker() {
 	cleanup := func() {
 		log.Debugln(log.SyncMgr,
 			"Exchange CurrencyPairSyncer worker shutting down.")
@@ -750,7 +750,7 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64, d
 }
 
 // PrintTickerSummary outputs the ticker results
-func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, err error) {
+func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, err error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
@@ -818,7 +818,7 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func (m *SyncManager) FormatCurrency(p currency.Pair) currency.Pair {
+func (m *syncManager) FormatCurrency(p currency.Pair) currency.Pair {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return p
 	}
@@ -830,7 +830,7 @@ const (
 )
 
 // PrintOrderbookSummary outputs orderbook results
-func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Base, protocol string, err error) {
+func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}

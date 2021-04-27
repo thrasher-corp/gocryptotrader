@@ -42,8 +42,8 @@ func (f omfExchange) GetOrderInfo(orderID string, pair currency.Pair, assetType 
 
 func TestSetupOrderManager(t *testing.T) {
 	_, err := SetupOrderManager(nil, nil, nil, false)
-	if !errors.Is(err, subsystem.errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, subsystem.errNilExchangeManager)
+	if !errors.Is(err, errNilExchangeManager) {
+		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
 
 	_, err = SetupOrderManager(SetupExchangeManager(), nil, nil, false)
@@ -51,8 +51,8 @@ func TestSetupOrderManager(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errNilCommunicationsManager)
 	}
 	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, nil, false)
-	if !errors.Is(err, subsystem.errNilWaitGroup) {
-		t.Errorf("error '%v', expected '%v'", err, subsystem.errNilWaitGroup)
+	if !errors.Is(err, errNilWaitGroup) {
+		t.Errorf("error '%v', expected '%v'", err, errNilWaitGroup)
 	}
 	var wg sync.WaitGroup
 	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false)

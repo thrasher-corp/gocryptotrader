@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -21,7 +22,7 @@ const (
 )
 
 var (
-	wsHub                   *WebsocketHub
+	wsHub                   *websocketHub
 	wsHubStarted            bool
 	errNilRemoteConfig      = errors.New("received nil remote config")
 	errNilPProfConfig       = errors.New("received nil pprof config")
@@ -35,9 +36,9 @@ var (
 	ErrWebsocketServiceNotRunning = errors.New("websocket service not started")
 )
 
-// ApiServerManager holds all relevant fields to manage both REST and websocket
+// apiServerManager holds all relevant fields to manage both REST and websocket
 // api servers
-type ApiServerManager struct {
+type apiServerManager struct {
 	started                int32
 	restStarted            int32
 	websocketStarted       int32
@@ -46,10 +47,12 @@ type ApiServerManager struct {
 	gctConfigPath          string
 	restHTTPServer         *http.Server
 	websocketHTTPServer    *http.Server
+	wgRest                 sync.WaitGroup
+	wgWebsocket            sync.WaitGroup
 
 	restRouter      *mux.Router
 	websocketRouter *mux.Router
-	websocketHub    *WebsocketHub
+	websocketHub    *websocketHub
 
 	remoteConfig     *config.RemoteControlConfig
 	pprofConfig      *config.Profiler
@@ -58,9 +61,9 @@ type ApiServerManager struct {
 	portfolioManager iPortfolioManager
 }
 
-// WebsocketClient stores information related to the websocket client
-type WebsocketClient struct {
-	Hub              *WebsocketHub
+// websocketClient stores information related to the websocket client
+type websocketClient struct {
+	Hub              *websocketHub
 	Conn             *websocket.Conn
 	Authenticated    bool
 	authFailures     int
@@ -74,12 +77,12 @@ type WebsocketClient struct {
 	configPath       string
 }
 
-// WebsocketHub stores the data for managing websocket clients
-type WebsocketHub struct {
-	Clients    map[*WebsocketClient]bool
+// websocketHub stores the data for managing websocket clients
+type websocketHub struct {
+	Clients    map[*websocketClient]bool
 	Broadcast  chan []byte
-	Register   chan *WebsocketClient
-	Unregister chan *WebsocketClient
+	Register   chan *websocketClient
+	Unregister chan *websocketClient
 }
 
 // WebsocketEvent is the struct used for websocket events
@@ -163,5 +166,5 @@ var wsHandlers = map[string]wsCommandHandler{
 
 type wsCommandHandler struct {
 	authRequired bool
-	handler      func(client *WebsocketClient, data interface{}) error
+	handler      func(client *websocketClient, data interface{}) error
 }

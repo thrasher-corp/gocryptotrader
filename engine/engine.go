@@ -30,19 +30,19 @@ import (
 // overarching type across this code base.
 type Engine struct {
 	Config                  *config.Config
-	apiServer               *ApiServerManager
+	apiServer               *apiServerManager
 	CommunicationsManager   *CommunicationManager
-	connectionManager       *ConnectionManager
-	currencyPairSyncer      *SyncManager
+	connectionManager       *connectionManager
+	currencyPairSyncer      *syncManager
 	DatabaseManager         *DatabaseConnectionManager
 	DepositAddressManager   *DepositAddressManager
-	eventManager            *EventManager
+	eventManager            *eventManager
 	ExchangeManager         *ExchangeManager
-	ntpManager              *NTPManager
+	ntpManager              *ntpManager
 	OrderManager            *OrderManager
-	portfolioManager        *PortfolioManager
+	portfolioManager        *portfolioManager
 	gctScriptManager        *gctscript.GctScriptManager
-	websocketRoutineManager *WebsocketRoutineManager
+	websocketRoutineManager *websocketRoutineManager
 	WithdrawManager         *WithdrawManager
 	Settings                Settings
 	uptime                  time.Time
@@ -367,7 +367,7 @@ func (bot *Engine) Start() error {
 
 	// Sets up internet connectivity monitor
 	if bot.Settings.EnableConnectivityMonitor {
-		bot.connectionManager, err = SetupConnectionManager(&bot.Config.ConnectionMonitor)
+		bot.connectionManager, err = setupConnectionManager(&bot.Config.ConnectionMonitor)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to setup: %v", err)
 		} else {
@@ -387,7 +387,7 @@ func (bot *Engine) Start() error {
 			}
 			gctlog.Info(gctlog.TimeMgr, responseMessage)
 		}
-		bot.ntpManager, err = SetupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled)
+		bot.ntpManager, err = setupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %s", err)
 		}
@@ -472,7 +472,7 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnablePortfolioManager {
 		if bot.portfolioManager == nil {
-			bot.portfolioManager, err = SetupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
+			bot.portfolioManager, err = setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
 			if err != nil {
 				gctlog.Errorf(gctlog.Global, "portfolio manager unable to setup: %s", err)
 			} else {
@@ -497,7 +497,7 @@ func (bot *Engine) Start() error {
 		if err != nil {
 			return err
 		}
-		bot.apiServer, err = SetupAPIServerManager(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath)
+		bot.apiServer, err = setupAPIServerManager(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "API Server unable to start: %s", err)
 		} else {
@@ -554,7 +554,7 @@ func (bot *Engine) Start() error {
 			SyncTimeoutWebsocket: bot.Settings.SyncTimeoutWebsocket,
 		}
 
-		bot.currencyPairSyncer, err = SetupSyncManager(
+		bot.currencyPairSyncer, err = setupSyncManager(
 			exchangeSyncCfg,
 			bot.ExchangeManager,
 			bot.websocketRoutineManager,
@@ -572,7 +572,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableEventManager {
-		bot.eventManager, err = SetupEventManager(bot.CommunicationsManager, bot.ExchangeManager, bot.Settings.EventManagerDelay, bot.Settings.EnableDryRun)
+		bot.eventManager, err = setupEventManager(bot.CommunicationsManager, bot.ExchangeManager, bot.Settings.EventManagerDelay, bot.Settings.EnableDryRun)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise event manager. Err: %s", err)
 		} else {
@@ -584,7 +584,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
-		bot.websocketRoutineManager, err = SetupWebsocketRoutineManager(bot.ExchangeManager, bot.OrderManager, bot.currencyPairSyncer, &bot.Config.Currency, bot.Settings.Verbose)
+		bot.websocketRoutineManager, err = setupWebsocketRoutineManager(bot.ExchangeManager, bot.OrderManager, bot.currencyPairSyncer, &bot.Config.Currency, bot.Settings.Verbose)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise websocket routine manager. Err: %s", err)
 		} else {

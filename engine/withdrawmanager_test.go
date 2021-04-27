@@ -19,13 +19,13 @@ const (
 	exchangeName = "Binance"
 )
 
-func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *PortfolioManager) {
+func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManager) {
 	t.Helper()
 	em := SetupExchangeManager()
 	b := new(binance.Binance)
 	b.SetDefaults()
 	em.Add(b)
-	pm, err := SetupPortfolioManager(em, 0, &portfolio.Base{Addresses: []portfolio.Address{}})
+	pm, err := setupPortfolioManager(em, 0, &portfolio.Base{Addresses: []portfolio.Address{}})
 	if err != nil {
 		t.Fatal(err)
 	}

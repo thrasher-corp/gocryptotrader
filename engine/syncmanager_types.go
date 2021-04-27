@@ -42,8 +42,8 @@ type Config struct {
 	Verbose              bool
 }
 
-// SyncManager stores the exchange currency pair syncer object
-type SyncManager struct {
+// syncManager stores the exchange currency pair syncer object
+type syncManager struct {
 	initSyncCompleted   int32
 	initSyncStarted     int32
 	started             int32

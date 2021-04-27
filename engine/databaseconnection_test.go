@@ -12,23 +12,26 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 )
 
-func TestMain(m *testing.M) {
+func CreateDatabase(t *testing.T) {
+	t.Helper()
 	// fun workarounds to globals ruining testing
 	tmp, err := ioutil.TempDir("", "")
 	if err != nil {
 		log.Fatal(err)
 	}
 	database.DB.DataPath = tmp
-	code := m.Run()
-	err = database.DB.CloseConnection()
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = os.RemoveAll(tmp)
-	if err != nil {
-		log.Fatal(err)
-	}
-	os.Exit(code)
+	t.Cleanup(func() {
+		if database.DB.IsConnected() {
+			err := database.DB.CloseConnection()
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = os.RemoveAll(tmp)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	})
 }
 
 func TestSetupDatabaseConnectionManager(t *testing.T) {
@@ -47,6 +50,7 @@ func TestSetupDatabaseConnectionManager(t *testing.T) {
 }
 
 func TestStartSQLite(t *testing.T) {
+	CreateDatabase(t)
 	m, err := SetupDatabaseConnectionManager(&database.Config{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -84,6 +88,7 @@ func TestStartSQLite(t *testing.T) {
 
 // This test does not care for a successful connection
 func TestStartPostgres(t *testing.T) {
+	CreateDatabase(t)
 	m, err := SetupDatabaseConnectionManager(&database.Config{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -106,6 +111,7 @@ func TestStartPostgres(t *testing.T) {
 }
 
 func TestDatabaseConnectionManagerIsRunning(t *testing.T) {
+	CreateDatabase(t)
 	m, err := SetupDatabaseConnectionManager(&database.Config{
 		Enabled: true,
 		Driver:  database.DBSQLite,
@@ -135,6 +141,7 @@ func TestDatabaseConnectionManagerIsRunning(t *testing.T) {
 }
 
 func TestDatabaseConnectionManagerStop(t *testing.T) {
+	CreateDatabase(t)
 	m, err := SetupDatabaseConnectionManager(&database.Config{
 		Enabled: true,
 		Driver:  database.DBSQLite,
@@ -170,6 +177,7 @@ func TestDatabaseConnectionManagerStop(t *testing.T) {
 }
 
 func TestCheckConnection(t *testing.T) {
+	CreateDatabase(t)
 	var m *DatabaseConnectionManager
 	err := m.checkConnection()
 	if !errors.Is(err, ErrNilSubsystem) {
