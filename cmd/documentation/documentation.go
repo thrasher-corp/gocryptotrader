@@ -273,15 +273,11 @@ func main() {
 		fmt.Println("All core systems fetched, updating documentation...")
 	}
 
-	err = UpdateDocumentation(DocumentationDetails{
+	UpdateDocumentation(DocumentationDetails{
 		dirList,
 		tmpl,
 		contributors,
 		&config})
-	if err != nil {
-		log.Fatalf("Documentation Generation Tool - UpdateDocumentation error %s",
-			err)
-	}
 
 	fmt.Println("\nDocumentation Generation Tool - Finished")
 }
@@ -459,7 +455,7 @@ func GetGoDocURL(name string) string {
 
 // UpdateDocumentation generates or updates readme/documentation files across
 // the codebase
-func UpdateDocumentation(details DocumentationDetails) error {
+func UpdateDocumentation(details DocumentationDetails) {
 	for i := range details.Directories {
 		cutSet := details.Directories[i][len(repoDir):]
 		if cutSet != "" && cutSet[0] == os.PathSeparator {
@@ -533,10 +529,9 @@ func UpdateDocumentation(details DocumentationDetails) error {
 			continue
 		}
 	}
-	return nil
 }
 
-func runTemplate(details DocumentationDetails, mainPath string, name string) error {
+func runTemplate(details DocumentationDetails, mainPath, name string) error {
 	err := os.Remove(mainPath)
 	if err != nil && !(strings.Contains(err.Error(), "no such file or directory") ||
 		strings.Contains(err.Error(), "The system cannot find the file specified.")) {
