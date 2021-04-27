@@ -29,11 +29,7 @@ func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManage
 	if err != nil {
 		t.Fatal(err)
 	}
-	var wg sync.WaitGroup
-	err = pm.Start(&wg)
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	return em, pm
 }
 
@@ -89,12 +85,20 @@ func TestSubmitWithdrawal(t *testing.T) {
 	if !errors.Is(err, withdraw.ErrStrAddressNotWhiteListed) {
 		t.Errorf("received %v, expected %v", err, withdraw.ErrStrAddressNotWhiteListed)
 	}
+	var wg sync.WaitGroup
+	err = pm.Start(&wg)
+	if err != nil {
+		t.Error(err)
+	}
 	err = pm.AddAddress("1337", "", req.Currency, 1337)
 	if err != nil {
 		t.Error(err)
 	}
 	adds := pm.GetAddresses()
 	adds[0].WhiteListed = true
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
 	_, err = m.SubmitWithdrawal(req)
 	if !errors.Is(err, withdraw.ErrStrExchangeNotSupportedByAddress) {
 		t.Errorf("received %v, expected %v", err, withdraw.ErrStrExchangeNotSupportedByAddress)
