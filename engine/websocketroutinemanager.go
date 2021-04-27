@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -212,6 +213,7 @@ func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data int
 		}
 		m.syncer.PrintOrderbookSummary(d, "websocket", nil)
 	case *order.Detail:
+		m.printOrderSummary(d)
 		if !m.orderManager.Exists(d) {
 			err := m.orderManager.Add(d)
 			if err != nil {
@@ -229,9 +231,8 @@ func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data int
 				return err
 			}
 		}
-	case *order.Cancel:
-		return m.orderManager.Cancel(d)
 	case *order.Modify:
+		m.printOrderChangeSummary(d)
 		od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.ID)
 		if err != nil {
 			return err
@@ -245,6 +246,10 @@ func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data int
 		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case stream.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
+	case account.Change:
+		if m.verbose {
+			m.printAccountHoldingsChangeSummary(d)
+		}
 	default:
 		if m.verbose {
 			log.Warnf(log.WebsocketMgr,
@@ -264,4 +269,64 @@ func (m *websocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair 
 	}
 	return p.Format(m.currencyConfig.CurrencyPairFormat.Delimiter,
 		m.currencyConfig.CurrencyPairFormat.Uppercase)
+}
+
+// printOrderChangeSummary this function will be deprecated when a order manager
+// update is done.
+func (m *websocketRoutineManager) printOrderChangeSummary(o *order.Modify) {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 || o == nil {
+		return
+	}
+
+	log.Debugf(log.WebsocketMgr,
+		"Order Change: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
+		o.Exchange,
+		o.AssetType,
+		o.Pair,
+		o.Status,
+		o.Type,
+		o.Side,
+		o.ID,
+		o.ClientOrderID,
+		o.Price,
+		o.Amount,
+		o.ExecutedAmount,
+		o.RemainingAmount)
+}
+
+// printOrderSummary this function will be deprecated when a order manager
+// update is done.
+func (m *websocketRoutineManager) printOrderSummary(o *order.Detail) {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 || o == nil {
+		return
+	}
+	log.Debugf(log.WebsocketMgr,
+		"New Order: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
+		o.Exchange,
+		o.AssetType,
+		o.Pair,
+		o.Status,
+		o.Type,
+		o.Side,
+		o.ID,
+		o.ClientOrderID,
+		o.Price,
+		o.Amount,
+		o.ExecutedAmount,
+		o.RemainingAmount)
+}
+
+// printAccountHoldingsChangeSummary this function will be deprecated when a
+// account holdings update is done.
+func (m *websocketRoutineManager) printAccountHoldingsChangeSummary(o account.Change) {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return
+	}
+	log.Debugf(log.WebsocketMgr,
+		"Account Holdings Balance Changed: %s %s %s has changed balance by %f for account: %s",
+		o.Exchange,
+		o.Asset,
+		o.Currency,
+		o.Amount,
+		o.Account)
 }
