@@ -55,6 +55,7 @@ const (
 // Poloniex is the overarching type across the poloniex package
 type Poloniex struct {
 	exchange.Base
+	details CurrencyDetails
 }
 
 // GetTicker returns current ticker information
@@ -258,27 +259,15 @@ func (p *Poloniex) GetBalances() (Balance, error) {
 
 // GetCompleteBalances returns complete balances from your account.
 func (p *Poloniex) GetCompleteBalances() (CompleteBalances, error) {
-	var result interface{}
-
-	err := p.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, poloniexBalancesComplete, url.Values{}, &result)
-	if err != nil {
-		return CompleteBalances{}, err
-	}
-
-	data := result.(map[string]interface{})
-	balance := CompleteBalances{}
-	balance.Currency = make(map[string]CompleteBalance)
-
-	for x, y := range data {
-		dataVals := y.(map[string]interface{})
-		balancesData := CompleteBalance{}
-		balancesData.Available, _ = strconv.ParseFloat(dataVals["available"].(string), 64)
-		balancesData.OnOrders, _ = strconv.ParseFloat(dataVals["onOrders"].(string), 64)
-		balancesData.BTCValue, _ = strconv.ParseFloat(dataVals["btcValue"].(string), 64)
-		balance.Currency[x] = balancesData
-	}
-
-	return balance, nil
+	var result CompleteBalances
+	vals := url.Values{}
+	vals.Set("account", "all")
+	err := p.SendAuthenticatedHTTPRequest(exchange.RestSpot,
+		http.MethodPost,
+		poloniexBalancesComplete,
+		vals,
+		&result)
+	return result, err
 }
 
 // GetDepositAddresses returns deposit addresses for all enabled cryptos.
