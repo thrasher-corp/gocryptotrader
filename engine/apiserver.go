@@ -95,7 +95,7 @@ func (m *apiServerManager) Stop() error {
 	return nil
 }
 
-// newRouter takes in the exchange interfaces and returns a new multiplexor
+// newRouter takes in the exchange interfaces and returns a new multiplexer
 // router
 func (m *apiServerManager) newRouter(isREST bool) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)

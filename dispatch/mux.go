@@ -7,7 +7,7 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-// GetNewMux returns a new multiplexor to track subsystem updates
+// GetNewMux returns a new multiplexer to track subsystem updates
 func GetNewMux() *Mux {
 	return &Mux{d: dispatcher}
 }

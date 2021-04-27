@@ -143,8 +143,8 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 651 |
-| [shazbert](https://github.com/shazbert) | 204 |
+| [thrasher-](https://github.com/thrasher-) | 652 |
+| [shazbert](https://github.com/shazbert) | 205 |
 | [gloriousCode](https://github.com/gloriousCode) | 178 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 87 |
 | [xtda](https://github.com/xtda) | 47 |
