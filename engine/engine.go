@@ -44,6 +44,7 @@ type Engine struct {
 	gctScriptManager        *gctscript.GctScriptManager
 	websocketRoutineManager *websocketRoutineManager
 	WithdrawManager         *WithdrawManager
+	dataHistoryManager      *DataHistoryManager
 	Settings                Settings
 	uptime                  time.Time
 	ServicesWG              sync.WaitGroup
