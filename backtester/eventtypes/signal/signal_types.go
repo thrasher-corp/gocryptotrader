@@ -14,6 +14,8 @@ type Event interface {
 
 	GetPrice() float64
 	IsSignal() bool
+	GetSellLimit() float64
+	GetBuyLimit() float64
 }
 
 // Signal contains everything needed for a strategy to raise a signal event
@@ -24,5 +26,7 @@ type Signal struct {
 	LowPrice   float64
 	ClosePrice float64
 	Volume     float64
+	BuyLimit   float64
+	SellLimit  float64
 	Direction  order.Side
 }

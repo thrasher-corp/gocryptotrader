@@ -118,6 +118,8 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 
 	o.Price = signal.GetPrice()
 	o.OrderType = gctorder.Market
+	o.BuyLimit = signal.GetBuyLimit()
+	o.SellLimit = signal.GetSellLimit()
 	sizingFunds := prevHolding.RemainingFunds
 	if signal.GetDirection() == gctorder.Sell {
 		sizingFunds = prevHolding.PositionsSize

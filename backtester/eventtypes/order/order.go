@@ -30,6 +30,16 @@ func (o *Order) GetAmount() float64 {
 	return o.Amount
 }
 
+// GetBuyLimit returns the buy limit
+func (o *Order) GetBuyLimit() float64 {
+	return o.BuyLimit
+}
+
+// GetSellLimit returns the sell limit
+func (o *Order) GetSellLimit() float64 {
+	return o.SellLimit
+}
+
 // Pair returns the currency pair
 func (o *Order) Pair() currency.Pair {
 	return o.CurrencyPair

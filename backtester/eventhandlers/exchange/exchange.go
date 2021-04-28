@@ -45,7 +45,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	if err != nil {
 		return f, err
 	}
-
 	f.ExchangeFee = cs.ExchangeFee // defaulting to just using taker fee right now without orderbook
 	f.Direction = o.GetDirection()
 	if o.GetDirection() != gctorder.Buy && o.GetDirection() != gctorder.Sell {
@@ -60,6 +59,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	volStr := data.StreamVol()
 	volume := volStr[len(volStr)-1]
 	var adjustedPrice, amount float64
+
 	if cs.UseRealOrders {
 		// get current orderbook
 		var ob *orderbook.Base
@@ -102,6 +102,24 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		}
 	} else {
 		limitReducedAmount = reducedAmount
+	}
+	// Conforms the amount to fall into the minimum size and maximum size limit after reduced
+	switch f.GetDirection() {
+	case gctorder.Buy:
+		if ((limitReducedAmount < cs.BuySide.MinimumSize && cs.BuySide.MinimumSize > 0) || (limitReducedAmount > cs.BuySide.MaximumSize && cs.BuySide.MaximumSize > 0)) && (cs.BuySide.MaximumSize > 0 || cs.BuySide.MinimumSize > 0) {
+			f.SetDirection(common.CouldNotBuy)
+			e := fmt.Sprintf("Order size  %.8f exceed minimum size %.8f or maximum size %.8f ", limitReducedAmount, cs.BuySide.MinimumSize, cs.BuySide.MaximumSize)
+			f.AppendReason(e)
+			return f, fmt.Errorf(e)
+		}
+
+	case gctorder.Sell:
+		if ((limitReducedAmount < cs.SellSide.MinimumSize && cs.SellSide.MinimumSize > 0) || (limitReducedAmount > cs.SellSide.MaximumSize && cs.SellSide.MaximumSize > 0)) && (cs.SellSide.MaximumSize > 0 || cs.SellSide.MinimumSize > 0) {
+			f.SetDirection(common.CouldNotSell)
+			e := fmt.Sprintf("Order size  %.8f exceed minimum size %.8f or maximum size %.8f ", limitReducedAmount, cs.SellSide.MinimumSize, cs.SellSide.MaximumSize)
+			f.AppendReason(e)
+			return f, fmt.Errorf(e)
+		}
 	}
 
 	orderID, err := e.placeOrder(adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, bot)
