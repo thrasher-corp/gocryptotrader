@@ -224,6 +224,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable all pairs: %v", s.EnableAllPairs)
 	gctlog.Debugf(gctlog.Global, "\t Enable coinmarketcap analaysis: %v", s.EnableCoinmarketcapAnalysis)
 	gctlog.Debugf(gctlog.Global, "\t Enable portfolio manager: %v", s.EnablePortfolioManager)
+	gctlog.Debugf(gctlog.Global, "\t Enable data history manager: %v", s.EnableDataHistoryManager)
 	gctlog.Debugf(gctlog.Global, "\t Portfolio manager sleep delay: %v\n", s.PortfolioManagerDelay)
 	gctlog.Debugf(gctlog.Global, "\t Enable gPRC: %v", s.EnableGRPC)
 	gctlog.Debugf(gctlog.Global, "\t Enable gRPC Proxy: %v", s.EnableGRPCProxy)
@@ -424,6 +425,20 @@ func (bot *Engine) Start() error {
 		}
 	}
 
+	if bot.Settings.EnableDataHistoryManager {
+		if bot.dataHistoryManager == nil {
+			bot.dataHistoryManager, err = SetupDataHistoryManager(bot.ExchangeManager, bot.DatabaseManager, bot.Config.DataHistoryMonitor.CheckInterval)
+			if err != nil {
+				gctlog.Errorf(gctlog.Global, "database history manager unable to setup: %s", err)
+			} else {
+				err = bot.dataHistoryManager.Start()
+				if err != nil {
+					gctlog.Errorf(gctlog.Global, "database history manager unable to start: %s", err)
+				}
+			}
+		}
+	}
+
 	bot.WithdrawManager, err = SetupWithdrawManager(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
 	if err != nil {
 		return err
@@ -608,6 +623,12 @@ func (bot *Engine) Stop() {
 	if bot.apiServer.IsWebsocketServerRunning() {
 		if err := bot.apiServer.StopWebsocketServer(); err != nil {
 			gctlog.Errorf(gctlog.Global, "API Server unable to stop websocket server. Error: %s", err)
+		}
+	}
+
+	if bot.dataHistoryManager.IsRunning() {
+		if err := bot.dataHistoryManager.Stop(); err != nil {
+			gctlog.Errorf(gctlog.DataHistory, "data history manager unable to stop. Error: %v", err)
 		}
 	}
 

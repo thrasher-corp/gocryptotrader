@@ -31,9 +31,10 @@ var (
 	// ErrSubSystemNotStarted message to return when subsystem not started
 	ErrSubSystemNotStarted = errors.New("subsystem not started")
 	// ErrNilSubsystem is returned when a subsystem hasn't had its Setup() func run
-	ErrNilSubsystem       = errors.New("subsystem not setup")
-	errNilWaitGroup       = errors.New("nil wait group received")
-	errNilExchangeManager = errors.New("cannot start with nil exchange manager")
+	ErrNilSubsystem                 = errors.New("subsystem not setup")
+	errNilWaitGroup                 = errors.New("nil wait group received")
+	errNilExchangeManager           = errors.New("cannot start with nil exchange manager")
+	errNilDatabaseConnectionManager = errors.New("cannot start with nil database connection manager")
 )
 
 // iExchangeManager limits exposure of accessible functions to exchange manager
@@ -82,4 +83,8 @@ type iCurrencyPairSyncer interface {
 	PrintTickerSummary(*ticker.Price, string, error)
 	PrintOrderbookSummary(*orderbook.Base, string, error)
 	Update(string, currency.Pair, asset.Item, int, error) error
+}
+
+type iDatabaseConnectionManager interface {
+	IsConnected() bool
 }

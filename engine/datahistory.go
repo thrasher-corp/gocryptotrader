@@ -1,75 +1,40 @@
 package engine
 
 import (
+	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const (
-	CandleDataType = iota
-	TradeDataType
-)
-
-type DataHistoryManager struct {
-	exchangeManager           iExchangeManager
-	DatabaseConnectionManager *DatabaseConnectionManager
-	started                   int32
-	shutdown                  chan struct{}
-	interval                  *time.Ticker
-	jobs                      []DataHistoryJobConfig
-}
-
-type DataHistoryJobConfig struct {
-	Nickname         string         `json:"nickname"`
-	Exchange         string         `json:"exchange"`
-	Asset            asset.Item     `json:"asset"`
-	Pair             currency.Pair  `json:"pair"`
-	StartDate        time.Time      `json:"start-date"`
-	EndDate          time.Time      `json:"end-date"`
-	IsRolling        bool           `json:"is-rolling"`
-	Interval         kline.Interval `json:"interval"`
-	RequestSizeLimit uint32         `json:"request-size-limit"`
-	DataType         int            `json:"data-type"`
-	MaxRetryAttempts int            `json:"retry-attempts"`
-	failures         []dataHistoryFailure
-	continueFromData time.Time
-	ranges           kline.IntervalRangeHolder
-	running          bool
-}
-
-type dataHistoryFailure struct {
-	reason string
-}
-
-func SetupDataHistoryManager(em iExchangeManager, dcm *DatabaseConnectionManager, processInterval time.Duration, jobs []DataHistoryJobConfig) (*DataHistoryManager, error) {
+// SetupDataHistoryManager creates a data history manager subsystem
+func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager, processInterval time.Duration) (*DataHistoryManager, error) {
 	if em == nil {
-
+		return nil, errNilExchangeManager
 	}
 	if dcm == nil {
+		return nil, errNilDatabaseConnectionManager
+	}
 
+	jobs, err := retrieveJobs(dcm)
+	if err != nil {
+		return nil, err
 	}
 	return &DataHistoryManager{
 		exchangeManager:           em,
-		DatabaseConnectionManager: dcm,
+		databaseConnectionManager: dcm,
 		shutdown:                  make(chan struct{}),
 		interval:                  time.NewTicker(processInterval),
 		jobs:                      jobs,
 	}, nil
 }
 
-func (m *DataHistoryManager) IsRunning() bool {
-	if m == nil {
-		return false
-	}
-	return atomic.LoadInt32(&m.started) == 1
-}
-
+// Start runs the subsystem
 func (m *DataHistoryManager) Start() error {
 	if m == nil {
 		return ErrNilSubsystem
@@ -79,22 +44,85 @@ func (m *DataHistoryManager) Start() error {
 	}
 	m.shutdown = make(chan struct{})
 
-	go func() {
-		err := m.run()
-		if err != nil {
-			log.Error(log.DataHistory, err)
-		}
-	}()
+	validJobs := m.PrepareJobs()
+	m.m.Lock()
+	m.jobs = validJobs
+	m.m.Unlock()
+
+	m.wg.Add(1)
+	m.run()
 
 	return nil
 }
 
-func (m *DataHistoryManager) PrepareJobs() []DataHistoryJobConfig {
-	var validJobs []DataHistoryJobConfig
+// IsRunning checks whether the subsystem is running
+func (m *DataHistoryManager) IsRunning() bool {
+	if m == nil {
+		return false
+	}
+	return atomic.LoadInt32(&m.started) == 1
+}
+
+// Stop stops the subsystem
+func (m *DataHistoryManager) Stop() error {
+	if m == nil {
+		return ErrNilSubsystem
+	}
+	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
+		return ErrSubSystemNotStarted
+	}
+	close(m.shutdown)
+	m.wg.Wait()
+	return nil
+}
+
+// retrieveJobs will connect to the database and look for existing jobs
+func retrieveJobs(dcm iDatabaseConnectionManager) ([]*DataHistoryJob, error) {
+	if !dcm.IsConnected() {
+		return nil, errDatabaseConnectionRequired
+	}
+	var response []*DataHistoryJob
+
+	return response, nil
+}
+
+// UpsertJob allows for GRPC interaction to upsert a jobs to be processed
+func (m *DataHistoryManager) UpsertJob(cfg *DataHistoryJob) error {
+	m.m.Lock()
+	defer m.m.Unlock()
+	for i := range m.jobs {
+		if strings.EqualFold(m.jobs[i].Nickname, cfg.Nickname) {
+			m.jobs[i] = cfg
+		}
+	}
+	m.jobs = append(m.jobs, cfg)
+	return nil
+}
+
+// RemoveJob allows for GRPC interaction to remove a job to be processed
+// requires that the nickname field be set
+func (m *DataHistoryManager) RemoveJob(nickname string) error {
+	m.m.Lock()
+	defer m.m.Unlock()
+	for i := range m.jobs {
+		if strings.EqualFold(m.jobs[i].Nickname, nickname) {
+			m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
+			return nil
+		}
+	}
+	return fmt.Errorf("%v %w", nickname, errJobNotFound)
+}
+
+// PrepareJobs will validate the config jobs, verify their status with the database
+// and return all valid jobs to be processed
+func (m *DataHistoryManager) PrepareJobs() []*DataHistoryJob {
+	var validJobs []*DataHistoryJob
+	m.m.RLock()
+	defer m.m.RUnlock()
 	for i := range m.jobs {
 		exch := m.exchangeManager.GetExchangeByName(m.jobs[i].Exchange)
 		if exch == nil {
-			log.Errorf(log.DataHistory, "exchange not loaded, cannot process job")
+			log.Errorf(log.DataHistory, "exchange not loaded, cannot process jobs")
 			continue
 		}
 		m.jobs[i].ranges = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, m.jobs[i].RequestSizeLimit)
@@ -107,73 +135,102 @@ func (m *DataHistoryManager) PrepareJobs() []DataHistoryJobConfig {
 	return validJobs
 }
 
-func (m *DataHistoryManager) run() error {
-	for {
-		select {
-		case <-m.shutdown:
-			return nil
-		case <-m.interval.C:
-			var jobsToRemove []DataHistoryJobConfig
-			for i := range m.jobs {
-				if len(m.jobs[i].failures) > m.jobs[i].MaxRetryAttempts {
-					jobsToRemove = append(jobsToRemove, m.jobs[i])
-					continue
+func (m *DataHistoryManager) run() {
+	go func() {
+		for {
+			select {
+			case <-m.shutdown:
+				m.wg.Done()
+				return
+			case <-m.interval.C:
+				if m.databaseConnectionManager.IsConnected() {
+					go m.processJobs()
 				}
-				exch := m.exchangeManager.GetExchangeByName(m.jobs[i].Exchange)
-				if exch == nil {
-					fail := dataHistoryFailure{reason: "exchange not loaded, cannot process job"}
-					m.jobs[i].failures = append(m.jobs[i].failures, fail)
-					log.Errorf(log.DataHistory, fail.reason)
-					continue
-				}
-			ranges:
-				for j := range m.jobs[i].ranges.Ranges {
-					for x := range m.jobs[i].ranges.Ranges[j].Intervals {
-						if m.jobs[i].ranges.Ranges[j].Intervals[x].HasData {
-							continue ranges
-						}
-						switch m.jobs[i].DataType {
-						case CandleDataType:
-							niceCans, err := exch.GetHistoricCandles(m.jobs[i].Pair, m.jobs[i].Asset, m.jobs[i].ranges.Ranges[j].Start.Time, m.jobs[i].ranges.Ranges[j].End.Time, m.jobs[i].Interval)
-							if err != nil {
-								fail := dataHistoryFailure{reason: "could not get candles: " + err.Error()}
-								m.jobs[i].failures = append(m.jobs[i].failures, fail)
-								continue
-							}
-							err = m.jobs[i].ranges.VerifyResultsHaveData(niceCans.Candles)
-							if err != nil {
-								fail := dataHistoryFailure{reason: "could not verify results: " + err.Error()}
-								m.jobs[i].failures = append(m.jobs[i].failures, fail)
-								continue
-							}
-							// save the data
-						case TradeDataType:
-							trades, err := exch.GetHistoricTrades(m.jobs[i].Pair, m.jobs[i].Asset, m.jobs[i].ranges.Ranges[j].Start.Time, m.jobs[i].ranges.Ranges[j].End.Time)
-							if err != nil {
-								fail := dataHistoryFailure{reason: "could not get trades: " + err.Error()}
-								m.jobs[i].failures = append(m.jobs[i].failures, fail)
-								continue
-							}
-							bigCans, err := trade.ConvertTradesToCandles(m.jobs[i].Interval, trades...)
-							if err != nil {
-								fail := dataHistoryFailure{reason: "could not get convert candles to trades: " + err.Error()}
-								m.jobs[i].failures = append(m.jobs[i].failures, fail)
-								continue
-							}
-							err = m.jobs[i].ranges.VerifyResultsHaveData(bigCans.Candles)
-							if err != nil {
-								fail := dataHistoryFailure{reason: "could not verify results: " + err.Error()}
-								m.jobs[i].failures = append(m.jobs[i].failures, fail)
-								continue
-							}
-							// save the data
-						}
-					}
-				}
-
-				// if it doesn't have the data, increase failure rate and say why (eg exchange doesn't provide data)
 			}
+		}
+	}()
+}
 
+func (m *DataHistoryManager) processJobs() {
+	var jobsToRemove []*DataHistoryJob
+	m.m.RLock()
+	defer m.m.RUnlock()
+	for i := range m.jobs {
+		if len(m.jobs[i].failures) > m.jobs[i].MaxRetryAttempts {
+			jobsToRemove = append(jobsToRemove, m.jobs[i])
+			continue
+		}
+		exch := m.exchangeManager.GetExchangeByName(m.jobs[i].Exchange)
+		if exch == nil {
+			fail := dataHistoryFailure{reason: "exchange not loaded, cannot process job"}
+			m.jobs[i].failures = append(m.jobs[i].failures, fail)
+			log.Errorf(log.DataHistory, fail.reason)
+			continue
+		}
+		m.runJob(m.jobs[i], exch)
+	}
+}
+
+// runJob will process an individual job. It is either run as on a schedule
+// or specifically via RPC command on demand
+func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExchange) {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return
+	}
+ranges:
+	for j := range job.ranges.Ranges {
+		// what are you doing here?
+		for x := range job.ranges.Ranges[j].Intervals {
+			if job.ranges.Ranges[j].Intervals[x].HasData {
+				continue ranges
+			}
+		}
+		// processing the job
+		switch job.DataType {
+		case CandleDataType:
+			niceCans, err := exch.GetHistoricCandles(job.Pair, job.Asset, job.ranges.Ranges[j].Start.Time, job.ranges.Ranges[j].End.Time, job.Interval)
+			if err != nil {
+				fail := dataHistoryFailure{reason: "could not get candles: " + err.Error()}
+				job.failures = append(job.failures, fail)
+				continue
+			}
+			err = job.ranges.VerifyResultsHaveData(niceCans.Candles)
+			if err != nil {
+				fail := dataHistoryFailure{reason: "could not verify results: " + err.Error()}
+				job.failures = append(job.failures, fail)
+				continue
+			}
+			_, err = kline.StoreInDatabase(&niceCans, true)
+			if err != nil {
+				fail := dataHistoryFailure{reason: "could not save results: " + err.Error()}
+				job.failures = append(job.failures, fail)
+				continue
+			}
+		case TradeDataType:
+			trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.ranges.Ranges[j].Start.Time, job.ranges.Ranges[j].End.Time)
+			if err != nil {
+				fail := dataHistoryFailure{reason: "could not get trades: " + err.Error()}
+				job.failures = append(job.failures, fail)
+				continue
+			}
+			bigCans, err := trade.ConvertTradesToCandles(job.Interval, trades...)
+			if err != nil {
+				fail := dataHistoryFailure{reason: "could not get convert candles to trades: " + err.Error()}
+				job.failures = append(job.failures, fail)
+				continue
+			}
+			err = job.ranges.VerifyResultsHaveData(bigCans.Candles)
+			if err != nil {
+				fail := dataHistoryFailure{reason: "could not verify results: " + err.Error()}
+				job.failures = append(job.failures, fail)
+				continue
+			}
+			err = trade.SaveTradesToDatabase(trades...)
+			if err != nil {
+				fail := dataHistoryFailure{reason: "could not save results: " + err.Error()}
+				job.failures = append(job.failures, fail)
+				continue
+			}
 		}
 	}
 }

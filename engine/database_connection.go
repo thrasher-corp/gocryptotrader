@@ -67,6 +67,14 @@ func SetupDatabaseConnectionManager(cfg *database.Config) (*DatabaseConnectionMa
 	return m, nil
 }
 
+// IsConnected is an exported check to verify if the database is connected
+func (m *DatabaseConnectionManager) IsConnected() bool {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return false
+	}
+	return m.dbConn.IsConnected()
+}
+
 // Start sets up the database connection manager to maintain a SQL connection
 func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
 	if m == nil {
