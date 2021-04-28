@@ -257,6 +257,7 @@ var Exchanges = []string{
 	"poloniex",
 	"yobit",
     "zb",
+	"opendax"
 ```
 
 #### Increment the default number of supported exchanges in [config/config_test.go](../config/config_test.go):
