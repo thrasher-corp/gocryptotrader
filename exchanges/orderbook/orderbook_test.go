@@ -17,8 +17,8 @@ import (
 
 func TestMain(m *testing.M) {
 	// Sets up lower values for test environment
-	defaultInterval = time.Second
-	defaultAllowance = time.Millisecond * 500
+	defaultInterval = time.Millisecond * 250
+	defaultAllowance = time.Millisecond * 100
 	err := dispatch.Start(1, dispatch.DefaultJobsLimit)
 	if err != nil {
 		log.Fatal(err)
@@ -159,7 +159,7 @@ func TestCalculateTotalBids(t *testing.T) {
 	}
 }
 
-func TestCalculateTotaAsks(t *testing.T) {
+func TestCalculateTotalAsks(t *testing.T) {
 	t.Parallel()
 	curr, err := currency.NewPairFromStrings("BTC", "USD")
 	if err != nil {
@@ -204,14 +204,14 @@ func TestGetOrderbook(t *testing.T) {
 	}
 
 	_, err = Get("nonexistent", c, asset.Spot)
-	if err == nil {
-		t.Fatal("TestGetOrderbook retrieved non-existent orderbook")
+	if !errors.Is(err, errCannotFindOrderbook) {
+		t.Fatalf("received '%v', expected '%v'", err, errCannotFindOrderbook)
 	}
 
 	c.Base = currency.NewCode("blah")
 	_, err = Get("Exchange", c, asset.Spot)
-	if err == nil {
-		t.Fatal("TestGetOrderbook retrieved non-existent orderbook using invalid first currency")
+	if !errors.Is(err, errCannotFindOrderbook) {
+		t.Fatalf("received '%v', expected '%v', using invalid first currency", err, errCannotFindOrderbook)
 	}
 
 	newCurrency, err := currency.NewPairFromStrings("BTC", "AUD")
@@ -219,8 +219,8 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = Get("Exchange", newCurrency, asset.Spot)
-	if err == nil {
-		t.Fatal("TestGetOrderbook retrieved non-existent orderbook using invalid second currency")
+	if !errors.Is(err, errCannotFindOrderbook) {
+		t.Fatalf("received '%v', expected '%v', using invalid second currency", err, errCannotFindOrderbook)
 	}
 
 	base.Pair = newCurrency
@@ -273,7 +273,7 @@ func TestGetDepth(t *testing.T) {
 		t.Fatalf("expecting %s error but received %v", errCannotFindOrderbook, err)
 	}
 
-	newCurrency, err := currency.NewPairFromStrings("BTC", "AUD")
+	newCurrency, err := currency.NewPairFromStrings("BTC", "DOGE")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -484,10 +484,12 @@ func TestProcessOrderbook(t *testing.T) {
 	var catastrophicFailure bool
 
 	for i := 0; i < 500; i++ {
+		m.Lock()
 		if catastrophicFailure {
+			m.Unlock()
 			break
 		}
-
+		m.Unlock()
 		wg.Add(1)
 		go func() {
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10) // nolint:gosec // no need to import crypo/rand for testing
@@ -509,36 +511,36 @@ func TestProcessOrderbook(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 				catastrophicFailure = true
+				m.Unlock()
+				wg.Done()
 				return
 			}
-
 			testArray = append(testArray, quick{Name: newName, P: newPairs, Bids: bids, Asks: asks})
 			m.Unlock()
 			wg.Done()
 		}()
 	}
 
+	wg.Wait()
 	if catastrophicFailure {
 		t.Fatal("Process() error", err)
 	}
 
-	wg.Wait()
-
 	for _, test := range testArray {
 		wg.Add(1)
 		fatalErr := false
-		go func(test quick) {
-			result, err := Get(test.Name, test.P, asset.Spot)
+		go func(q quick) {
+			result, err := Get(q.Name, q.P, asset.Spot)
 			if err != nil {
 				fatalErr = true
 				return
 			}
 
-			if result.Asks[0] != test.Asks[0] {
+			if result.Asks[0] != q.Asks[0] {
 				t.Error("TestProcessOrderbook failed bad values")
 			}
 
-			if result.Bids[0] != test.Bids[0] {
+			if result.Bids[0] != q.Bids[0] {
 				t.Error("TestProcessOrderbook failed bad values")
 			}
 

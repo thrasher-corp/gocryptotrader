@@ -81,16 +81,6 @@ func TestHandleData(t *testing.T) {
 		t.Error("Expected order to be modified to Active")
 	}
 
-	err = b.WebsocketDataHandler(exchName, &order.Cancel{
-		Exchange: fakePassExchange,
-		ID:       orderID,
-	})
-	if err != nil {
-		t.Error(err)
-	}
-	if origOrder.Status != order.Cancelled {
-		t.Error("Expected order status to be cancelled")
-	}
 	// Send some gibberish
 	err = b.WebsocketDataHandler(exchName, order.Stop)
 	if err != nil {
