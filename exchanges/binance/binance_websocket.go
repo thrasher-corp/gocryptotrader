@@ -540,14 +540,23 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
-
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
+		if i%50 == 0 && i != 0 {
+			time.Sleep(time.Second)
+			err := b.Websocket.Conn.SendJSONMessage(payload)
+			if err != nil {
+				return err
+			}
+			payload.Params = []string{}
+		}
+
 	}
 	err := b.Websocket.Conn.SendJSONMessage(payload)
 	if err != nil {
 		return err
 	}
+
 	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }
