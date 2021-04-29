@@ -488,14 +488,18 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			}
 		}
 		bt.Bot.DatabaseManager, err = engine.SetupDatabaseConnectionManager(gctdatabase.DB.GetConfig())
+		if err != nil {
+			return nil, err
+		}
+
 		err = bt.Bot.DatabaseManager.Start(&bt.Bot.ServicesWG)
 		if err != nil {
 			return nil, err
 		}
 		defer func() {
-			err = bt.Bot.DatabaseManager.Stop()
-			if err != nil {
-				log.Error(log.BackTester, err)
+			stopErr := bt.Bot.DatabaseManager.Stop()
+			if stopErr != nil {
+				log.Error(log.BackTester, stopErr)
 			}
 		}()
 		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType)

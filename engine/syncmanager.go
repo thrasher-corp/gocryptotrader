@@ -331,20 +331,6 @@ func (m *syncManager) add(c *currencyPairSyncAgent) {
 	m.currencyPairs = append(m.currencyPairs, *c)
 }
 
-func (m *syncManager) remove(c *currencyPairSyncAgent) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-
-	for x := range m.currencyPairs {
-		if m.currencyPairs[x].Exchange == c.Exchange &&
-			m.currencyPairs[x].Pair.Equal(c.Pair) &&
-			m.currencyPairs[x].AssetType == c.AssetType {
-			m.currencyPairs = append(m.currencyPairs[:x], m.currencyPairs[x+1:]...)
-			return
-		}
-	}
-}
-
 func (m *syncManager) isProcessing(exchangeName string, p currency.Pair, a asset.Item, syncType int) bool {
 	m.mux.Lock()
 	defer m.mux.Unlock()

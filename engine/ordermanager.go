@@ -594,16 +594,16 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) error {
 // get returns all orders for all exchanges
 // should not be exported as it can have large impact if used improperly
 func (s *store) get() map[string][]*order.Detail {
-	s.m.RLock()
+	s.m.Lock()
 	orders := s.Orders
-	s.m.RUnlock()
+	s.m.Lock()
 	return orders
 }
 
 // getByExchangeAndID returns a specific order by exchange and id
 func (s *store) getByExchangeAndID(exchange, id string) (*order.Detail, error) {
-	s.m.RLock()
-	defer s.m.RUnlock()
+	s.m.Lock()
+	defer s.m.Lock()
 	r, ok := s.Orders[strings.ToLower(exchange)]
 	if !ok {
 		return nil, ErrExchangeNotFound
@@ -620,15 +620,15 @@ func (s *store) getByExchangeAndID(exchange, id string) (*order.Detail, error) {
 // updateExisting checks if an order exists in the orderstore
 // and then updates it
 func (s *store) updateExisting(od *order.Detail) error {
-	s.m.RLock()
-	defer s.m.RUnlock()
+	s.m.Lock()
+	defer s.m.Lock()
 	r, ok := s.Orders[strings.ToLower(od.Exchange)]
 	if !ok {
 		return ErrExchangeNotFound
 	}
 	for x := range r {
 		if r[x].ID == od.ID {
-			r[x] = od
+			r[x].UpdateOrderFromDetail(od)
 			return nil
 		}
 	}
@@ -661,8 +661,8 @@ func (s *store) upsert(od *order.Detail) error {
 
 // getByExchange returns orders by exchange
 func (s *store) getByExchange(exchange string) ([]*order.Detail, error) {
-	s.m.RLock()
-	defer s.m.RUnlock()
+	s.m.Lock()
+	defer s.m.Lock()
 	r, ok := s.Orders[strings.ToLower(exchange)]
 	if !ok {
 		return nil, ErrExchangeNotFound
@@ -673,8 +673,8 @@ func (s *store) getByExchange(exchange string) ([]*order.Detail, error) {
 // getByInternalOrderID will search all orders for our internal orderID
 // and return the order
 func (s *store) getByInternalOrderID(internalOrderID string) (*order.Detail, error) {
-	s.m.RLock()
-	defer s.m.RUnlock()
+	s.m.Lock()
+	defer s.m.Lock()
 	for _, v := range s.Orders {
 		for x := range v {
 			if v[x].InternalOrderID == internalOrderID {
@@ -690,8 +690,8 @@ func (s *store) exists(det *order.Detail) bool {
 	if det == nil {
 		return false
 	}
-	s.m.RLock()
-	defer s.m.RUnlock()
+	s.m.Lock()
+	defer s.m.Lock()
 	r, ok := s.Orders[strings.ToLower(det.Exchange)]
 	if !ok {
 		return false

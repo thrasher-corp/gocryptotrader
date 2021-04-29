@@ -505,7 +505,6 @@ func UpdateDocumentation(details DocumentationDetails) {
 				err = runTemplate(details, filepath.Join(details.Directories[i], nameSplit[0]+".md"), engineTemplateName)
 				if err != nil {
 					fmt.Println(err)
-					continue
 				}
 			}
 			continue
@@ -542,20 +541,13 @@ func runTemplate(details DocumentationDetails, mainPath, name string) error {
 	if err != nil {
 		return err
 	}
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			log.Printf("could not close file %s: %v", mainPath, err)
+		}
+	}(f)
 
 	attr := GetDocumentationAttributes(name, details.Contributors)
-
-	err = details.Tmpl.ExecuteTemplate(f, name, attr)
-	if err != nil {
-		errClose := f.Close()
-		if errClose != nil {
-			return errClose
-		}
-		return err
-	}
-	errClose := f.Close()
-	if errClose != nil {
-		return errClose
-	}
-	return nil
+	return details.Tmpl.ExecuteTemplate(f, name, attr)
 }

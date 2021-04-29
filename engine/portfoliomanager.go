@@ -13,8 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
-// PortfolioManagerNAme is an exported subsystem name
-const PortfolioManagerNAme = "portfolio"
+// PortfolioManagerName is an exported subsystem name
+const PortfolioManagerName = "portfolio"
 
 var (
 	// PortfolioSleepDelay defines the default sleep time between portfolio manager runs

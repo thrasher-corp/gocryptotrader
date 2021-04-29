@@ -138,7 +138,7 @@ func (m *eventManager) Add(exchange, item string, condition EventConditionParams
 	return evt.ID, nil
 }
 
-// Remove deletes and event by its ID
+// Remove deletes an event by its ID
 func (m *eventManager) Remove(eventID int64) bool {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return false

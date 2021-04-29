@@ -71,15 +71,11 @@ func (m *ExchangeManager) Add(exch exchange.IBotExchange) {
 
 // GetExchanges returns all stored exchanges
 func (m *ExchangeManager) GetExchanges() []exchange.IBotExchange {
-	if m.Len() == 0 {
-		return nil
-	}
-
 	m.m.Lock()
 	defer m.m.Unlock()
 	var exchs []exchange.IBotExchange
-	for x := range m.exchanges {
-		exchs = append(exchs, m.exchanges[x])
+	for _, x := range m.exchanges {
+		exchs = append(exchs, x)
 	}
 	return exchs
 }

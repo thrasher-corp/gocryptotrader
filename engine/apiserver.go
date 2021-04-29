@@ -284,7 +284,7 @@ func (m *apiServerManager) restGetAllEnabledAccountInfo(w http.ResponseWriter, r
 	}
 }
 
-// getInfex
+// getIndex returns an HTML snippet for when a user requests the index URL
 func (m *apiServerManager) getIndex(w http.ResponseWriter, _ *http.Request) {
 	_, err := fmt.Fprint(w, restIndexResponse)
 	if err != nil {
@@ -550,41 +550,39 @@ func (c *websocketClient) write() {
 			log.Error(log.APIServerMgr, err)
 		}
 	}()
-	for { // nolint // ws client write routine loop
-		select {
-		case message, ok := <-c.Send:
-			if !ok {
-				err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-				if err != nil {
-					log.Error(log.APIServerMgr, err)
-				}
-				log.Debugln(log.APIServerMgr, "websocket: hub closed the channel")
-				return
-			}
-
-			w, err := c.Conn.NextWriter(websocket.TextMessage)
-			if err != nil {
-				log.Errorf(log.APIServerMgr, "websocket: failed to create new io.writeCloser: %s\n", err)
-				return
-			}
-			_, err = w.Write(message)
+	for {
+		message, ok := <-c.Send
+		if !ok {
+			err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 			if err != nil {
 				log.Error(log.APIServerMgr, err)
 			}
+			log.Debugln(log.APIServerMgr, "websocket: hub closed the channel")
+			return
+		}
 
-			// Add queued chat messages to the current websocket message
-			n := len(c.Send)
-			for i := 0; i < n; i++ {
-				_, err = w.Write(<-c.Send)
-				if err != nil {
-					log.Error(log.APIServerMgr, err)
-				}
-			}
+		w, err := c.Conn.NextWriter(websocket.TextMessage)
+		if err != nil {
+			log.Errorf(log.APIServerMgr, "websocket: failed to create new io.writeCloser: %s\n", err)
+			return
+		}
+		_, err = w.Write(message)
+		if err != nil {
+			log.Error(log.APIServerMgr, err)
+		}
 
-			if err := w.Close(); err != nil {
-				log.Errorf(log.APIServerMgr, "websocket: failed to close io.WriteCloser: %s\n", err)
-				return
+		// Add queued chat messages to the current websocket message
+		n := len(c.Send)
+		for i := 0; i < n; i++ {
+			_, err = w.Write(<-c.Send)
+			if err != nil {
+				log.Error(log.APIServerMgr, err)
 			}
+		}
+
+		if err := w.Close(); err != nil {
+			log.Errorf(log.APIServerMgr, "websocket: failed to close io.WriteCloser: %s\n", err)
+			return
 		}
 	}
 }

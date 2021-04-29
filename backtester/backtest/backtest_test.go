@@ -2,6 +2,7 @@ package backtest
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"path/filepath"
 	"strings"

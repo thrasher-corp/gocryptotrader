@@ -44,7 +44,7 @@ func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 	systems[SyncManagerName] = bot.CommunicationsManager.IsRunning()
 	systems[ConnectionManagerName] = bot.connectionManager.IsRunning()
 	systems[OrderManagerName] = bot.OrderManager.IsRunning()
-	systems[PortfolioManagerNAme] = bot.portfolioManager.IsRunning()
+	systems[PortfolioManagerName] = bot.portfolioManager.IsRunning()
 	systems[NTPManagerName] = bot.ntpManager.IsRunning()
 	systems[DatabaseConnectionManagerName] = bot.DatabaseManager.IsRunning()
 	systems[SyncManagerName] = bot.Settings.EnableExchangeSyncManager
@@ -127,7 +127,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.OrderManager.Start()
 		}
 		return bot.OrderManager.Stop()
-	case PortfolioManagerNAme:
+	case PortfolioManagerName:
 		if enable {
 			if bot.portfolioManager == nil {
 				bot.portfolioManager, err = setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
