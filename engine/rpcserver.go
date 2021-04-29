@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/golang/protobuf/ptypes"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -48,6 +47,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -1414,17 +1414,13 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 			},
 		},
 	}
-	createdAtPtype, err := ptypes.TimestampProto(v.CreatedAt)
-	if err != nil {
-		log.Errorf(log.Global, "failed to convert time: %v", err)
-	}
-	resp.Event.CreatedAt = createdAtPtype
 
-	updatedAtPtype, err := ptypes.TimestampProto(v.UpdatedAt)
-	if err != nil {
-		log.Errorf(log.Global, "failed to convert time: %v", err)
+	if resp.Event.CreatedAt = timestamppb.New(v.CreatedAt); !resp.Event.CreatedAt.IsValid() {
+		log.Errorln(log.Global, "withdrawal event by id CreatedAt: failed to convert time")
 	}
-	resp.Event.UpdatedAt = updatedAtPtype
+	if resp.Event.UpdatedAt = timestamppb.New(v.UpdatedAt); !resp.Event.UpdatedAt.IsValid() {
+		log.Errorln(log.Global, "withdrawal event by id UpdatedAt: failed to convert time")
+	}
 
 	if v.RequestDetails.Type == withdraw.Crypto {
 		resp.Event.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
