@@ -544,6 +544,7 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
 	}
+
 	err := b.Websocket.Conn.SendJSONMessage(payload)
 	if err != nil {
 		return err

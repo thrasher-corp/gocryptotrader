@@ -30,3 +30,23 @@ func TestSetPrice(t *testing.T) {
 		t.Error("expected 1337")
 	}
 }
+
+func TestSetBuyLimit(t *testing.T) {
+	s := Signal{
+		BuyLimit: 10,
+	}
+	s.SetBuyLimit(20)
+	if s.GetBuyLimit() != 20 {
+		t.Errorf("expected 20, received %v", s.GetBuyLimit())
+	}
+}
+
+func TestSetSellLimit(t *testing.T) {
+	s := Signal{
+		SellLimit: 10,
+	}
+	s.SetSellLimit(20)
+	if s.GetSellLimit() != 20 {
+		t.Errorf("expected 20, received %v", s.GetSellLimit())
+	}
+}

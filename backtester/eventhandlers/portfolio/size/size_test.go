@@ -25,8 +25,8 @@ func TestSizingAccuracy(t *testing.T) {
 	price := 1338.0
 	availableFunds := 1338.0
 	feeRate := 0.02
-
-	amountWithoutFee, err := sizer.calculateBuySize(price, availableFunds, feeRate, globalMinMax)
+	var buylimit float64 = 1
+	amountWithoutFee, err := sizer.calculateBuySize(price, availableFunds, feeRate, buylimit, globalMinMax)
 	if err != nil {
 		t.Error(err)
 	}
@@ -50,8 +50,8 @@ func TestSizingOverMaxSize(t *testing.T) {
 	price := 1338.0
 	availableFunds := 1338.0
 	feeRate := 0.02
-
-	amount, err := sizer.calculateBuySize(price, availableFunds, feeRate, globalMinMax)
+	var buylimit float64 = 1
+	amount, err := sizer.calculateBuySize(price, availableFunds, feeRate, buylimit, globalMinMax)
 	if err != nil {
 		t.Error(err)
 	}
@@ -74,10 +74,51 @@ func TestSizingUnderMinSize(t *testing.T) {
 	price := 1338.0
 	availableFunds := 1338.0
 	feeRate := 0.02
-
-	_, err := sizer.calculateBuySize(price, availableFunds, feeRate, globalMinMax)
+	var buylimit float64 = 1
+	_, err := sizer.calculateBuySize(price, availableFunds, feeRate, buylimit, globalMinMax)
 	if !errors.Is(err, errLessThanMinimum) {
 		t.Errorf("expected: %v, received %v", errLessThanMinimum, err)
+	}
+}
+
+func TestMaximumBuySizeEqualZero(t *testing.T) {
+	t.Parallel()
+	globalMinMax := config.MinMax{
+		MinimumSize:  1,
+		MaximumSize:  0,
+		MaximumTotal: 1437,
+	}
+	sizer := Size{
+		BuySide:  globalMinMax,
+		SellSide: globalMinMax,
+	}
+	price := 1338.0
+	availableFunds := 13380.0
+	feeRate := 0.02
+	var buylimit float64 = 1
+	amount, err := sizer.calculateBuySize(price, availableFunds, feeRate, buylimit, globalMinMax)
+	if amount != buylimit || err != nil {
+		t.Errorf("expected: %v, received %v, err: %+v", buylimit, amount, err)
+	}
+}
+func TestMaximumSellSizeEqualZero(t *testing.T) {
+	t.Parallel()
+	globalMinMax := config.MinMax{
+		MinimumSize:  1,
+		MaximumSize:  0,
+		MaximumTotal: 1437,
+	}
+	sizer := Size{
+		BuySide:  globalMinMax,
+		SellSide: globalMinMax,
+	}
+	price := 1338.0
+	availableFunds := 13380.0
+	feeRate := 0.02
+	var selllimit float64 = 1
+	amount, err := sizer.calculateSellSize(price, availableFunds, feeRate, selllimit, globalMinMax)
+	if amount != selllimit || err != nil {
+		t.Errorf("expected: %v, received %v, err: %+v", selllimit, amount, err)
 	}
 }
 
@@ -95,8 +136,8 @@ func TestSizingErrors(t *testing.T) {
 	price := 1338.0
 	availableFunds := 0.0
 	feeRate := 0.02
-
-	_, err := sizer.calculateBuySize(price, availableFunds, feeRate, globalMinMax)
+	var buylimit float64 = 1
+	_, err := sizer.calculateBuySize(price, availableFunds, feeRate, buylimit, globalMinMax)
 	if !errors.Is(err, errNoFunds) {
 		t.Errorf("expected: %v, received %v", errNoFunds, err)
 	}
@@ -116,19 +157,19 @@ func TestCalculateSellSize(t *testing.T) {
 	price := 1338.0
 	availableFunds := 0.0
 	feeRate := 0.02
-
-	_, err := sizer.calculateSellSize(price, availableFunds, feeRate, globalMinMax)
+	var sellLimit float64 = 1
+	_, err := sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, globalMinMax)
 	if !errors.Is(err, errNoFunds) {
 		t.Errorf("expected: %v, received %v", errNoFunds, err)
 	}
 	availableFunds = 1337
-	_, err = sizer.calculateSellSize(price, availableFunds, feeRate, globalMinMax)
+	_, err = sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, globalMinMax)
 	if !errors.Is(err, errLessThanMinimum) {
 		t.Errorf("expected: %v, received %v", errLessThanMinimum, err)
 	}
 	price = 12
 	availableFunds = 1339
-	_, err = sizer.calculateSellSize(price, availableFunds, feeRate, globalMinMax)
+	_, err = sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, globalMinMax)
 	if err != nil {
 		t.Error(err)
 	}

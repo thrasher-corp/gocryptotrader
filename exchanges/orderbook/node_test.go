@@ -9,9 +9,9 @@ import (
 
 func TestPushPop(t *testing.T) {
 	s := newStack()
-	var nSlice []*node
+	var nSlice [100]*node
 	for i := 0; i < 100; i++ {
-		nSlice = append(nSlice, s.Pop())
+		nSlice[i] = s.Pop()
 	}
 
 	if s.getCount() != 0 {
@@ -29,9 +29,9 @@ func TestPushPop(t *testing.T) {
 
 func TestCleaner(t *testing.T) {
 	s := newStack()
-	var nSlice []*node
+	var nSlice [100]*node
 	for i := 0; i < 100; i++ {
-		nSlice = append(nSlice, s.Pop())
+		nSlice[i] = s.Pop()
 	}
 
 	tn := getNow()
@@ -39,16 +39,16 @@ func TestCleaner(t *testing.T) {
 		s.Push(nSlice[i], tn)
 	}
 	// Makes all the 50 pushed nodes invalid
-	time.Sleep(time.Millisecond * 550)
+	time.Sleep(time.Millisecond * 260)
 	tn = getNow()
 	for i := 50; i < 100; i++ {
 		s.Push(nSlice[i], tn)
 	}
-	time.Sleep(time.Millisecond * 550)
+	time.Sleep(time.Millisecond * 50)
 	if s.getCount() != 50 {
 		t.Fatalf("incorrect stack count expected %v but received %v", 50, s.getCount())
 	}
-	time.Sleep(time.Second)
+	time.Sleep(time.Millisecond * 350)
 	if s.getCount() != 0 {
 		t.Fatalf("incorrect stack count expected %v but received %v", 0, s.getCount())
 	}

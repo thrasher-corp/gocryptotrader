@@ -24,13 +24,13 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Se
 	switch retOrder.GetDirection() {
 	case gctorder.Buy:
 		// check size against currency specific settings
-		amount, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, cs.BuySide)
+		amount, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), cs.BuySide)
 		if err != nil {
 			return nil, err
 		}
 		// check size against portfolio specific settings
 		var portfolioSize float64
-		portfolioSize, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, s.BuySide)
+		portfolioSize, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), s.BuySide)
 		if err != nil {
 			return nil, err
 		}
@@ -41,12 +41,12 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Se
 
 	case gctorder.Sell:
 		// check size against currency specific settings
-		amount, err = s.calculateSellSize(retOrder.Price, amountAvailable, cs.ExchangeFee, cs.SellSide)
+		amount, err = s.calculateSellSize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), cs.SellSide)
 		if err != nil {
 			return nil, err
 		}
 		// check size against portfolio specific settings
-		portfolioSize, err := s.calculateSellSize(retOrder.Price, amountAvailable, cs.ExchangeFee, s.SellSide)
+		portfolioSize, err := s.calculateSellSize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), s.SellSide)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +67,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Se
 // that is allowed to be spent/sold for an event.
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
-func (s *Size) calculateBuySize(price, availableFunds, feeRate float64, minMaxSettings config.MinMax) (float64, error) {
+func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit float64, minMaxSettings config.MinMax) (float64, error) {
 	if availableFunds <= 0 {
 		return 0, errNoFunds
 	}
@@ -75,6 +75,9 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate float64, minMaxSe
 		return 0, nil
 	}
 	amount := availableFunds * (1 - feeRate) / price
+	if buyLimit != 0 && buyLimit >= minMaxSettings.MinimumSize && (buyLimit <= minMaxSettings.MaximumSize || minMaxSettings.MaximumSize == 0) && buyLimit <= amount {
+		amount = buyLimit
+	}
 	if minMaxSettings.MaximumSize > 0 && amount > minMaxSettings.MaximumSize {
 		amount = minMaxSettings.MaximumSize * (1 - feeRate)
 	}
@@ -84,7 +87,6 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate float64, minMaxSe
 	if amount < minMaxSettings.MinimumSize && minMaxSettings.MinimumSize > 0 {
 		return 0, fmt.Errorf("%w. Sized: '%.8f' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
 	}
-
 	return amount, nil
 }
 
@@ -94,7 +96,7 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate float64, minMaxSe
 // eg BTC-USD baseAmount will be BTC to be sold
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
-func (s *Size) calculateSellSize(price, baseAmount, feeRate float64, minMaxSettings config.MinMax) (float64, error) {
+func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit float64, minMaxSettings config.MinMax) (float64, error) {
 	if baseAmount <= 0 {
 		return 0, errNoFunds
 	}
@@ -102,6 +104,9 @@ func (s *Size) calculateSellSize(price, baseAmount, feeRate float64, minMaxSetti
 		return 0, nil
 	}
 	amount := baseAmount * (1 - feeRate)
+	if sellLimit != 0 && sellLimit >= minMaxSettings.MinimumSize && (sellLimit <= minMaxSettings.MaximumSize || minMaxSettings.MaximumSize == 0) && sellLimit <= amount {
+		amount = sellLimit
+	}
 	if minMaxSettings.MaximumSize > 0 && amount > minMaxSettings.MaximumSize {
 		amount = minMaxSettings.MaximumSize * (1 - feeRate)
 	}

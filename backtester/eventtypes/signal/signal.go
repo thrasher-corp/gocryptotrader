@@ -20,6 +20,26 @@ func (s *Signal) GetDirection() order.Side {
 	return s.Direction
 }
 
+// SetBuyLimit sets the buy limit
+func (s *Signal) SetBuyLimit(f float64) {
+	s.BuyLimit = f
+}
+
+// GetBuyLimit returns the buy limit
+func (s *Signal) GetBuyLimit() float64 {
+	return s.BuyLimit
+}
+
+// SetSellLimit sets the sell limit
+func (s *Signal) SetSellLimit(f float64) {
+	s.SellLimit = f
+}
+
+// GetSellLimit returns the sell limit
+func (s *Signal) GetSellLimit() float64 {
+	return s.SellLimit
+}
+
 // Pair returns the currency pair
 func (s *Signal) Pair() currency.Pair {
 	return s.CurrencyPair
