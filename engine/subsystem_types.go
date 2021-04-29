@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
@@ -87,4 +88,5 @@ type iCurrencyPairSyncer interface {
 
 type iDatabaseConnectionManager interface {
 	IsConnected() bool
+	GetSQL() *sql.DB
 }

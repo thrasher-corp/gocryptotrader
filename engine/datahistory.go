@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -25,12 +26,17 @@ func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager
 	if err != nil {
 		return nil, err
 	}
+
+	dcm.GetSQL()
+	dhj, err := datahistoryjob.Setup(dcm)
+
 	return &DataHistoryManager{
 		exchangeManager:           em,
 		databaseConnectionManager: dcm,
 		shutdown:                  make(chan struct{}),
 		interval:                  time.NewTicker(processInterval),
 		jobs:                      jobs,
+		dataHistoryDB:             dhj,
 	}, nil
 }
 
@@ -231,6 +237,11 @@ ranges:
 				job.failures = append(job.failures, fail)
 				continue
 			}
+		}
+		// insert the status of the job, is it a failure? etc etc
+		err := m.dataHistoryDB.Upsert()
+		if err != nil {
+			// woah nelly
 		}
 	}
 }

@@ -94,3 +94,13 @@ func (i *Instance) Ping() error {
 	}
 	return i.SQL.Ping()
 }
+
+func (i *Instance) GetSQL() *sql.DB {
+	if i == nil || !i.IsConnected() {
+		return nil
+	}
+	i.m.Lock()
+	defer i.m.Unlock()
+	resp := i.SQL
+	return resp
+}

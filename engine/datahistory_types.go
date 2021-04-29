@@ -5,14 +5,25 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+// Data type descriptors
 const (
 	CandleDataType = iota
 	TradeDataType
+)
+
+// Job status descriptors
+const (
+	StatusActive = iota
+	StatusFailed
+	StatusComplete
+	StatusRemoved
 )
 
 var (
@@ -29,20 +40,25 @@ type DataHistoryManager struct {
 	jobs                      []*DataHistoryJob
 	wg                        sync.WaitGroup
 	m                         sync.RWMutex
+	dataHistoryDB             *datahistoryjob.DataHistoryDB
 }
 
+// DataHistoryJob used to gather candle/trade history and save
+// to the database
 type DataHistoryJob struct {
-	Nickname         string         `json:"nickname"`
-	Exchange         string         `json:"exchange"`
-	Asset            asset.Item     `json:"asset"`
-	Pair             currency.Pair  `json:"pair"`
-	StartDate        time.Time      `json:"start-date"`
-	EndDate          time.Time      `json:"end-date"`
-	IsRolling        bool           `json:"is-rolling"`
-	Interval         kline.Interval `json:"interval"`
-	RequestSizeLimit uint32         `json:"request-size-limit"`
-	DataType         int            `json:"data-type"`
-	MaxRetryAttempts int            `json:"retry-attempts"`
+	ID               uuid.UUID
+	Nickname         string
+	Exchange         string
+	Asset            asset.Item
+	Pair             currency.Pair
+	StartDate        time.Time
+	EndDate          time.Time
+	IsRolling        bool
+	Interval         kline.Interval
+	RequestSizeLimit uint32
+	DataType         int
+	MaxRetryAttempts int
+	Status           int
 	failures         []dataHistoryFailure
 	continueFromData time.Time
 	ranges           kline.IntervalRangeHolder
@@ -51,4 +67,5 @@ type DataHistoryJob struct {
 
 type dataHistoryFailure struct {
 	reason string
+	time   time.Time
 }
