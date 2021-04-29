@@ -61,7 +61,7 @@ type DataHistoryJob struct {
 	Status           int
 	failures         []dataHistoryFailure
 	continueFromData time.Time
-	ranges           kline.IntervalRangeHolder
+	rangeHolder      kline.IntervalRangeHolder
 	running          bool
 }
 

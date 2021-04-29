@@ -131,11 +131,11 @@ func (m *DataHistoryManager) PrepareJobs() []*DataHistoryJob {
 			log.Errorf(log.DataHistory, "exchange not loaded, cannot process jobs")
 			continue
 		}
-		m.jobs[i].ranges = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, m.jobs[i].RequestSizeLimit)
+		m.jobs[i].rangeHolder = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, m.jobs[i].RequestSizeLimit)
 
 		// check the database to verify if you already have data in the range
 		// if blarg then
-		// m.jobs[i].ranges[x].HasData = true
+		// m.jobs[i].rangeHolder[x].HasData = true
 		validJobs = append(validJobs, m.jobs[i])
 	}
 	return validJobs
@@ -183,24 +183,38 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExcha
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
+	if job.Status == StatusComplete ||
+		job.Status == StatusFailed ||
+		job.Status == StatusRemoved {
+		// job doesn't need to be run. Log it?
+		return
+	}
 ranges:
-	for j := range job.ranges.Ranges {
+	for j := range job.rangeHolder.Ranges {
+
 		// what are you doing here?
-		for x := range job.ranges.Ranges[j].Intervals {
-			if job.ranges.Ranges[j].Intervals[x].HasData {
-				continue ranges
+		requiresProcessing := false
+		// by nature of the job system, this is an invalid way of discovering if a job requires data
+		// there needs to be a check for a jobResult for the time interval and whether it is completed or failed
+		// if neither, then process the job ?
+		for x := range job.rangeHolder.Ranges[j].Intervals {
+			if !job.rangeHolder.Ranges[j].Intervals[x].HasData {
+				requiresProcessing = true
 			}
+		}
+		if !requiresProcessing {
+			continue ranges
 		}
 		// processing the job
 		switch job.DataType {
 		case CandleDataType:
-			niceCans, err := exch.GetHistoricCandles(job.Pair, job.Asset, job.ranges.Ranges[j].Start.Time, job.ranges.Ranges[j].End.Time, job.Interval)
+			niceCans, err := exch.GetHistoricCandles(job.Pair, job.Asset, job.rangeHolder.Ranges[j].Start.Time, job.rangeHolder.Ranges[j].End.Time, job.Interval)
 			if err != nil {
 				fail := dataHistoryFailure{reason: "could not get candles: " + err.Error()}
 				job.failures = append(job.failures, fail)
 				continue
 			}
-			err = job.ranges.VerifyResultsHaveData(niceCans.Candles)
+			err = job.rangeHolder.VerifyResultsHaveData(niceCans.Candles)
 			if err != nil {
 				fail := dataHistoryFailure{reason: "could not verify results: " + err.Error()}
 				job.failures = append(job.failures, fail)
@@ -213,7 +227,7 @@ ranges:
 				continue
 			}
 		case TradeDataType:
-			trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.ranges.Ranges[j].Start.Time, job.ranges.Ranges[j].End.Time)
+			trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.rangeHolder.Ranges[j].Start.Time, job.rangeHolder.Ranges[j].End.Time)
 			if err != nil {
 				fail := dataHistoryFailure{reason: "could not get trades: " + err.Error()}
 				job.failures = append(job.failures, fail)
@@ -225,7 +239,7 @@ ranges:
 				job.failures = append(job.failures, fail)
 				continue
 			}
-			err = job.ranges.VerifyResultsHaveData(bigCans.Candles)
+			err = job.rangeHolder.VerifyResultsHaveData(bigCans.Candles)
 			if err != nil {
 				fail := dataHistoryFailure{reason: "could not verify results: " + err.Error()}
 				job.failures = append(job.failures, fail)
