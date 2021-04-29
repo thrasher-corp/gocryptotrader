@@ -1660,4 +1660,5 @@ var (
 	SNX        = NewCode("SNX")
 	CRV        = NewCode("CRV")
 	OXT        = NewCode("OXT")
+	BUSD       = NewCode("BUSD")
 )

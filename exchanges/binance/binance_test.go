@@ -3,6 +3,7 @@ package binance
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -1751,17 +1752,19 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := b.UpdateAccountInfo(asset.CoinMarginedFutures)
-	if err != nil {
-		t.Error(err)
+	items := asset.Items{
+		asset.CoinMarginedFutures,
+		asset.USDTMarginedFutures,
+		asset.Spot,
+		asset.Margin,
 	}
-	_, err = b.UpdateAccountInfo(asset.USDTMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.UpdateAccountInfo(asset.Spot)
-	if err != nil {
-		t.Error(err)
+	for _, assetType := range items {
+		t.Run(fmt.Sprintf("Update info of account [%s]", assetType.String()), func(t *testing.T) {
+			_, err := b.UpdateAccountInfo(assetType)
+			if err != nil {
+				t.Error(err)
+			}
+		})
 	}
 }
 
