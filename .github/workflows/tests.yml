@@ -1,12 +1,25 @@
 on: [push, pull_request]
 name: test
+env:
+  GO_VERSION: 1.16.x
 jobs:
-  test:
-    strategy:
-      matrix:
-        go-version: [1.x, 1.16.x]
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  runner-job:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: gct_dev_ci
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
     - name: Cancel previous workflow runs
       uses: styfle/cancel-workflow-action@0.8.0
@@ -19,7 +32,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v2
       with:
-        go-version: ${{ matrix.go-version }}
+        go-version: ${{ env.GO_VERSION }}
 
     - name: Cache go modules  
       uses: actions/cache@v2
@@ -27,13 +40,18 @@ jobs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-          ~/Library/Caches/go-build
-          %LocalAppData%\go-build
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: ${{ runner.os }}-go-
 
     - name: Test
-      run: go test -v -race -coverprofile coverage.txt -covermode atomic ./...
+      run: go test -race -coverprofile coverage.txt -covermode atomic ./...
+      env:
+        PSQL_USER: postgres
+        PSQL_PASS: postgres
+        PSQL_HOST: localhost
+        PSQL_DBNAME: gct_dev_ci
+        PSQL_SKIPSQLCMD: true
+        PSQL_TESTDBNAME: gct_dev_ci
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
