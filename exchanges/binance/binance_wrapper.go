@@ -625,6 +625,21 @@ func (b *Binance) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 		}
 
 		acc.Currencies = currencyDetails
+	case asset.Margin:
+		accData, err := b.GetMarginAccount()
+		if err != nil {
+			return info, err
+		}
+		var currencyDetails []account.Balance
+		for i := range accData.UserAssets {
+			currencyDetails = append(currencyDetails, account.Balance{
+				CurrencyName: currency.NewCode(accData.UserAssets[i].Asset),
+				TotalValue:   accData.UserAssets[i].Free + accData.UserAssets[i].Borrowed,
+				Hold:         accData.UserAssets[i].Free,
+			})
+		}
+
+		acc.Currencies = currencyDetails
 
 	default:
 		return info, fmt.Errorf("%v assetType not supported", assetType)

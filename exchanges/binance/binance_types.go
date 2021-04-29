@@ -407,6 +407,21 @@ type Account struct {
 	Balances         []Balance `json:"balances"`
 }
 
+type MarginAccount struct {
+	BorrowEnabled bool                 `json:"borrow_Enabled"`
+	MarginLevel   float64              `json:"marginLevel,string"`
+	UserAssets    []MarginAccountAsset `json:"userAssets"`
+}
+
+type MarginAccountAsset struct {
+	Asset    string  `json:"asset"`
+	Borrowed float64 `json:"borrowed,string"`
+	Free     float64 `json:"free,string"`
+	Interest float64 `json:"interest,string"`
+	Locked   float64 `json:"locked,string"`
+	NetAsset float64 `json:"netAsset,string"`
+}
+
 // RequestParamsTimeForceType Time in force
 type RequestParamsTimeForceType string
 

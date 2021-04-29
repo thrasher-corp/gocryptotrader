@@ -47,15 +47,17 @@ const (
 	priceChange       = "/api/v3/ticker/24hr"
 	symbolPrice       = "/api/v3/ticker/price"
 	bestPrice         = "/api/v3/ticker/bookTicker"
-	accountInfo       = "/api/v3/account"
 	userAccountStream = "/api/v3/userDataStream"
 	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
 
 	// Authenticated endpoints
-	newOrderTest  = "/api/v3/order/test"
-	orderEndpoint = "/api/v3/order"
-	openOrders    = "/api/v3/openOrders"
-	allOrders     = "/api/v3/allOrders"
+	newOrderTest      = "/api/v3/order/test"
+	orderEndpoint     = "/api/v3/order"
+	openOrders        = "/api/v3/openOrders"
+	allOrders         = "/api/v3/allOrders"
+	accountInfo       = "/api/v3/account"
+	myTrades          = "/api/v3/myTrades" // todo: user historical trades
+	marginAccountInfo = "/sapi/v1/margin/account"
 
 	// Withdraw API endpoints
 	withdrawEndpoint                       = "/wapi/v3/withdraw.html"
@@ -650,6 +652,17 @@ func (b *Binance) GetAccount() (*Account, error) {
 	}
 
 	return &resp.Account, nil
+}
+
+func (b *Binance) GetMarginAccount() (*MarginAccount, error) {
+	var resp MarginAccount
+	params := url.Values{}
+
+	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, marginAccountInfo, params, spotAccountInformationRate, &resp); err != nil {
+		return &resp, err
+	}
+
+	return &resp, nil
 }
 
 // SendHTTPRequest sends an unauthenticated request
