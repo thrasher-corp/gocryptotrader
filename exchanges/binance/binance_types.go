@@ -408,9 +408,14 @@ type Account struct {
 }
 
 type MarginAccount struct {
-	BorrowEnabled bool                 `json:"borrow_Enabled"`
-	MarginLevel   float64              `json:"marginLevel,string"`
-	UserAssets    []MarginAccountAsset `json:"userAssets"`
+	BorrowEnabled       bool                 `json:"borrowEnabled"`
+	MarginLevel         float64              `json:"marginLevel,string"`
+	TotalAssetOfBtc     float64              `json:"totalAssetOfBtc,string"`
+	TotalLiabilityOfBtc float64              `json:"totalLiabilityOfBtc,string"`
+	TotalNetAssetOfBtc  float64              `json:"totalNetAssetOfBtc,string"`
+	TradeEnabled        bool                 `json:"tradeEnabled"`
+	TransferEnabled     bool                 `json:"transferEnabled"`
+	UserAssets          []MarginAccountAsset `json:"userAssets"`
 }
 
 type MarginAccountAsset struct {
