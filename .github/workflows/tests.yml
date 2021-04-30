@@ -112,7 +112,7 @@ jobs:
         PSQL_SSLMODE: disable
         GOARCH: 386
         CGO_ENABLED: 1
-        
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
 
@@ -140,5 +140,5 @@ jobs:
       run: | 
         cd web/
         npm install
-        npm lint
-        npm build
+        npm run lint
+        npm run build
