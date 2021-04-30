@@ -1,0 +1,21 @@
+NAME
+    darwin-debug -- posix spawn a process that is stopped at the entry point
+                    for debugging.
+
+SYNOPSIS
+    darwin-debug --unix-socket=<SOCKET> [--arch=<ARCH>] [--working-dir=<PATH>] [--disable-aslr] [--no-env] [--setsid] [--help] -- <PROGRAM> [<PROGRAM-ARG> <PROGRAM-ARG> ....]
+
+DESCRIPTION
+    darwin-debug will exec itself into a child process <PROGRAM> that is
+    halted for debugging. It does this by using posix_spawn() along with
+    darwin specific posix_spawn flags that allows exec only (no fork), and
+    stop at the program entry point. Any program arguments <PROGRAM-ARG> are
+    passed on to the exec as the arguments for the new process. The current
+    environment will be passed to the new process unless the "--no-env"
+    option is used. A unix socket must be supplied using the
+    --unix-socket=<SOCKET> option so the calling program can handshake with
+    this process and get its process id.
+
+EXAMPLE
+   darwin-debug --arch=i386 -- /bin/ls -al /tmp
+
