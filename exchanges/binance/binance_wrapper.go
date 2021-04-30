@@ -646,8 +646,8 @@ func (b *Binance) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 		for i := range accData.UserAssets {
 			currencyDetails = append(currencyDetails, account.Balance{
 				CurrencyName: currency.NewCode(accData.UserAssets[i].Asset),
-				TotalValue:   accData.UserAssets[i].Free + accData.UserAssets[i].Borrowed,
-				Hold:         accData.UserAssets[i].Free,
+				TotalValue:   accData.UserAssets[i].Free + accData.UserAssets[i].Locked,
+				Hold:         accData.UserAssets[i].NetAsset,
 			})
 		}
 
