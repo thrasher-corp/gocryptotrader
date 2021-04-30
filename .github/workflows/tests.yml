@@ -97,10 +97,12 @@ jobs:
         key: ${{ runner.os }}-go-386-${{ hashFiles('**/go.sum') }}
         restore-keys: ${{ runner.os }}-go-386-
 
+    - name: Install gcc-multilib
+      run: sudo apt-get install gcc-multilib
+
     - name: Test
-      run: go test -race -coverprofile coverage.txt -covermode atomic ./...
+      run: go test -coverprofile coverage.txt -covermode atomic ./...
       env:
-        GOARCH: 
         PSQL_USER: postgres
         PSQL_PASS: postgres
         PSQL_HOST: localhost
@@ -110,12 +112,12 @@ jobs:
         PSQL_SSLMODE: disable
         GOARCH: 386
         CGO_ENABLED: 1
-
+        
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
 
   frontend:
-    names: GoCryptoTrader frontend
+    name: GoCryptoTrader frontend
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -140,4 +142,3 @@ jobs:
         npm install
         npm lint
         npm build
-        
