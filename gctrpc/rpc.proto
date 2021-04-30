@@ -426,7 +426,7 @@ message ConditionParams {
     string condition = 1;
     double price = 2;
     bool check_bids = 3;
-    bool check_bids_and_asks = 4;
+    bool check_asks = 4;
     double orderbook_amount = 5;
 }
 

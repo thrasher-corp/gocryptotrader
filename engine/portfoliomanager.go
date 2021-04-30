@@ -117,7 +117,7 @@ func (m *portfolioManager) run(wg *sync.WaitGroup) {
 	}
 }
 
-// processPortfolio updates an portfolio holdings
+// processPortfolio updates portfolio holdings
 func (m *portfolioManager) processPortfolio() {
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
 		return

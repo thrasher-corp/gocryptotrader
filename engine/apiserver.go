@@ -70,11 +70,9 @@ func (m *apiServerManager) Stop() error {
 		return fmt.Errorf("api server %w", ErrSubSystemNotStarted)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
-	defer cancel()
 	if atomic.LoadInt32(&m.restStarted) == 1 {
 		atomic.StoreInt32(&m.restStarted, 0)
-		err := m.restHTTPServer.Shutdown(ctx)
+		err := m.restHTTPServer.Shutdown(context.Background())
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
@@ -83,7 +81,7 @@ func (m *apiServerManager) Stop() error {
 	}
 	if atomic.LoadInt32(&m.websocketStarted) == 1 {
 		atomic.StoreInt32(&m.websocketStarted, 0)
-		err := m.websocketHTTPServer.Shutdown(ctx)
+		err := m.websocketHTTPServer.Shutdown(context.Background())
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
@@ -406,11 +404,6 @@ func (m *apiServerManager) StartWebsocketServer() error {
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
 		common.ExtractHost(m.websocketListenAddress), common.ExtractPort(m.websocketListenAddress))
 	m.websocketRouter = m.newRouter(false)
-	if m.websocketListenAddress == "localhost:-1" {
-		atomic.StoreInt32(&m.websocketStarted, 0)
-		return errInvalidListenAddress
-	}
-
 	if m.websocketHTTPServer == nil {
 		m.websocketHTTPServer = &http.Server{
 			Addr:    m.websocketListenAddress,

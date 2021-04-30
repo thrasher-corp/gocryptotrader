@@ -1280,11 +1280,11 @@ func (s *RPCServer) GetEvents(_ context.Context, _ *gctrpc.GetEventsRequest) (*g
 // AddEvent adds an event
 func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gctrpc.AddEventResponse, error) {
 	evtCondition := EventConditionParams{
-		CheckBids:        r.ConditionParams.CheckBids,
-		CheckBidsAndAsks: r.ConditionParams.CheckBidsAndAsks,
-		Condition:        r.ConditionParams.Condition,
-		OrderbookAmount:  r.ConditionParams.OrderbookAmount,
-		Price:            r.ConditionParams.Price,
+		CheckBids:       r.ConditionParams.CheckBids,
+		CheckAsks:       r.ConditionParams.CheckAsks,
+		Condition:       r.ConditionParams.Condition,
+		OrderbookAmount: r.ConditionParams.OrderbookAmount,
+		Price:           r.ConditionParams.Price,
 	}
 
 	p := currency.NewPairWithDelimiter(r.Pair.Base,

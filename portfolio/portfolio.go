@@ -291,15 +291,15 @@ func (b *Base) GetPortfolioByExchange(exchangeName string) map[currency.Code]flo
 // GetExchangePortfolio returns current portfolio base information
 func (b *Base) GetExchangePortfolio() map[currency.Code]float64 {
 	result := make(map[currency.Code]float64)
-	for _, x := range b.Addresses {
-		if x.Description != ExchangeAddress {
+	for i := range b.Addresses {
+		if b.Addresses[i].Description != ExchangeAddress {
 			continue
 		}
-		balance, ok := result[x.CoinType]
+		balance, ok := result[b.Addresses[i].CoinType]
 		if !ok {
-			result[x.CoinType] = x.Balance
+			result[b.Addresses[i].CoinType] = b.Addresses[i].Balance
 		} else {
-			result[x.CoinType] = x.Balance + balance
+			result[b.Addresses[i].CoinType] = b.Addresses[i].Balance + balance
 		}
 	}
 	return result
@@ -308,15 +308,15 @@ func (b *Base) GetExchangePortfolio() map[currency.Code]float64 {
 // GetPersonalPortfolio returns current portfolio base information
 func (b *Base) GetPersonalPortfolio() map[currency.Code]float64 {
 	result := make(map[currency.Code]float64)
-	for _, x := range b.Addresses {
-		if x.Description == ExchangeAddress {
+	for i := range b.Addresses {
+		if strings.EqualFold(b.Addresses[i].Description, ExchangeAddress) {
 			continue
 		}
-		balance, ok := result[x.CoinType]
+		balance, ok := result[b.Addresses[i].CoinType]
 		if !ok {
-			result[x.CoinType] = x.Balance
+			result[b.Addresses[i].CoinType] = b.Addresses[i].Balance
 		} else {
-			result[x.CoinType] = x.Balance + balance
+			result[b.Addresses[i].CoinType] = b.Addresses[i].Balance + balance
 		}
 	}
 	return result
@@ -384,10 +384,10 @@ func (b *Base) GetPortfolioSummary() Summary {
 	}
 
 	var portfolioExchanges []string
-	for _, x := range b.Addresses {
-		if x.Description == ExchangeAddress {
-			if !common.StringDataCompare(portfolioExchanges, x.Address) {
-				portfolioExchanges = append(portfolioExchanges, x.Address)
+	for i := range b.Addresses {
+		if strings.EqualFold(b.Addresses[i].Description, ExchangeAddress) {
+			if !common.StringDataCompare(portfolioExchanges, b.Addresses[i].Address) {
+				portfolioExchanges = append(portfolioExchanges, b.Addresses[i].Address)
 			}
 		}
 	}
@@ -410,21 +410,21 @@ func (b *Base) GetPortfolioSummary() Summary {
 	portfolioOutput.OnlineSummary = exchangeSummary
 
 	offlineSummary := make(map[currency.Code][]OfflineCoinSummary)
-	for _, x := range b.Addresses {
-		if x.Description != ExchangeAddress {
+	for i := range b.Addresses {
+		if !strings.EqualFold(b.Addresses[i].Description, ExchangeAddress) {
 			coinSummary := OfflineCoinSummary{
-				Address: x.Address,
-				Balance: x.Balance,
-				Percentage: getPercentageSpecific(x.Balance, x.CoinType,
+				Address: b.Addresses[i].Address,
+				Balance: b.Addresses[i].Balance,
+				Percentage: getPercentageSpecific(b.Addresses[i].Balance, b.Addresses[i].CoinType,
 					totalCoins),
 			}
-			result, ok := offlineSummary[x.CoinType]
+			result, ok := offlineSummary[b.Addresses[i].CoinType]
 			if !ok {
-				offlineSummary[x.CoinType] = append(offlineSummary[x.CoinType],
+				offlineSummary[b.Addresses[i].CoinType] = append(offlineSummary[b.Addresses[i].CoinType],
 					coinSummary)
 			} else {
 				result = append(result, coinSummary)
-				offlineSummary[x.CoinType] = result
+				offlineSummary[b.Addresses[i].CoinType] = result
 			}
 		}
 	}
@@ -435,11 +435,11 @@ func (b *Base) GetPortfolioSummary() Summary {
 // GetPortfolioGroupedCoin returns portfolio base information grouped by coin
 func (b *Base) GetPortfolioGroupedCoin() map[currency.Code][]string {
 	result := make(map[currency.Code][]string)
-	for _, x := range b.Addresses {
-		if strings.Contains(x.Description, ExchangeAddress) {
+	for i := range b.Addresses {
+		if strings.EqualFold(b.Addresses[i].Description, ExchangeAddress) {
 			continue
 		}
-		result[x.CoinType] = append(result[x.CoinType], x.Address)
+		result[b.Addresses[i].CoinType] = append(result[b.Addresses[i].CoinType], b.Addresses[i].Address)
 	}
 	return result
 }

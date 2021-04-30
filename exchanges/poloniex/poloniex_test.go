@@ -454,7 +454,7 @@ func TestWithdraw(t *testing.T) {
 			Address:   core.BitcoinDonationAddress,
 			FeeAmount: 1,
 		},
-		Amount:        0,
+		Amount:        0.00001337,
 		Currency:      currency.LTC,
 		Description:   "WITHDRAW IT ALL",
 		TradePassword: "Password",

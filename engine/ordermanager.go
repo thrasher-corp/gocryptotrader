@@ -131,7 +131,7 @@ func (m *OrderManager) CancelAllOrders(exchangeNames []exchange.IBotExchange) {
 		for j := range exchangeOrders {
 			log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", exchangeNames[i].GetName())
 			err := m.Cancel(&order.Cancel{
-				Exchange:      exchangeNames[i].GetName(),
+				Exchange:      exchangeOrders[j].Exchange,
 				ID:            exchangeOrders[j].ID,
 				AccountID:     exchangeOrders[j].AccountID,
 				ClientID:      exchangeOrders[j].ClientID,
@@ -596,14 +596,14 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) error {
 func (s *store) get() map[string][]*order.Detail {
 	s.m.Lock()
 	orders := s.Orders
-	s.m.Lock()
+	s.m.Unlock()
 	return orders
 }
 
 // getByExchangeAndID returns a specific order by exchange and id
 func (s *store) getByExchangeAndID(exchange, id string) (*order.Detail, error) {
 	s.m.Lock()
-	defer s.m.Lock()
+	defer s.m.Unlock()
 	r, ok := s.Orders[strings.ToLower(exchange)]
 	if !ok {
 		return nil, ErrExchangeNotFound
@@ -621,7 +621,7 @@ func (s *store) getByExchangeAndID(exchange, id string) (*order.Detail, error) {
 // and then updates it
 func (s *store) updateExisting(od *order.Detail) error {
 	s.m.Lock()
-	defer s.m.Lock()
+	defer s.m.Unlock()
 	r, ok := s.Orders[strings.ToLower(od.Exchange)]
 	if !ok {
 		return ErrExchangeNotFound
@@ -662,7 +662,7 @@ func (s *store) upsert(od *order.Detail) error {
 // getByExchange returns orders by exchange
 func (s *store) getByExchange(exchange string) ([]*order.Detail, error) {
 	s.m.Lock()
-	defer s.m.Lock()
+	defer s.m.Unlock()
 	r, ok := s.Orders[strings.ToLower(exchange)]
 	if !ok {
 		return nil, ErrExchangeNotFound
@@ -674,7 +674,7 @@ func (s *store) getByExchange(exchange string) ([]*order.Detail, error) {
 // and return the order
 func (s *store) getByInternalOrderID(internalOrderID string) (*order.Detail, error) {
 	s.m.Lock()
-	defer s.m.Lock()
+	defer s.m.Unlock()
 	for _, v := range s.Orders {
 		for x := range v {
 			if v[x].InternalOrderID == internalOrderID {
@@ -691,7 +691,7 @@ func (s *store) exists(det *order.Detail) bool {
 		return false
 	}
 	s.m.Lock()
-	defer s.m.Lock()
+	defer s.m.Unlock()
 	r, ok := s.Orders[strings.ToLower(det.Exchange)]
 	if !ok {
 		return false

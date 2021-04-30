@@ -44,9 +44,9 @@ type EventConditionParams struct {
 	Condition string
 	Price     float64
 
-	CheckBids        bool
-	CheckBidsAndAsks bool
-	OrderbookAmount  float64
+	CheckBids       bool
+	CheckAsks       bool
+	OrderbookAmount float64
 }
 
 // Event struct holds the event variables

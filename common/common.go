@@ -276,7 +276,7 @@ func ExtractHost(address string) string {
 func ExtractPort(host string) int {
 	portStrs := strings.Split(host, ":")
 	if len(portStrs) == 1 {
-		return -1
+		return 80
 	}
 	port, _ := strconv.Atoi(portStrs[1])
 	return port

@@ -70,11 +70,11 @@ func (m *eventManager) Stop() error {
 }
 
 func (m *eventManager) run() {
-	ticker := time.NewTicker(m.sleepDelay)
+	t := time.NewTicker(m.sleepDelay)
 	select {
 	case <-m.shutdown:
 		return
-	case <-ticker.C:
+	case <-t.C:
 		total, executed := m.getEventCounter()
 		if total > 0 && executed != total {
 			m.m.Lock()
@@ -307,8 +307,11 @@ func (e *Event) processOrderbook() error {
 	if err != nil {
 		return fmt.Errorf("events: Failed to get orderbook. Err: %w", err)
 	}
+	if !e.Condition.CheckBids && !e.Condition.CheckAsks {
+		return nil
+	}
 
-	if e.Condition.CheckBids || e.Condition.CheckBidsAndAsks {
+	if e.Condition.CheckBids {
 		for x := range ob.Bids {
 			subtotal := ob.Bids[x].Amount * ob.Bids[x].Price
 			err = e.shouldProcessEvent(subtotal, e.Condition.OrderbookAmount)
@@ -318,7 +321,7 @@ func (e *Event) processOrderbook() error {
 		}
 	}
 
-	if !e.Condition.CheckBids || e.Condition.CheckBidsAndAsks {
+	if e.Condition.CheckAsks {
 		for x := range ob.Asks {
 			subtotal := ob.Asks[x].Amount * ob.Asks[x].Price
 			err = e.shouldProcessEvent(subtotal, e.Condition.OrderbookAmount)

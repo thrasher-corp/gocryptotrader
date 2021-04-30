@@ -563,3 +563,8 @@ func TestErrors(t *testing.T) {
 		t.Fatal("does not match error")
 	}
 }
+
+func TestSplit(t *testing.T) {
+	hi := strings.Split("", ":")
+	t.Log(len(hi))
+}

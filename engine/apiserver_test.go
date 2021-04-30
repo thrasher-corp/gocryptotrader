@@ -85,19 +85,9 @@ func TestStartWebsocketServer(t *testing.T) {
 	}
 	m.remoteConfig.WebsocketRPC.Enabled = true
 	err = m.StartWebsocketServer()
-	if !errors.Is(err, errInvalidListenAddress) {
-		t.Errorf("error '%v', expected '%v'", err, errInvalidListenAddress)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	m.websocketListenAddress = "localhost:9051"
-	var wg sync.WaitGroup
-	wg.Add(1)
-	// this is difficult to test as a webserver actually starts, so quit if an immediate error is not received
-	err = m.StartWebsocketServer()
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(time.Second)
-	wg.Done()
 }
 
 func TestAPIServerManagerStop(t *testing.T) {

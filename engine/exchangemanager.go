@@ -98,7 +98,7 @@ func (m *ExchangeManager) RemoveExchange(exchName string) error {
 
 // GetExchangeByName returns an exchange by its name if it exists
 func (m *ExchangeManager) GetExchangeByName(exchangeName string) exchange.IBotExchange {
-	if m.Len() == 0 {
+	if m == nil {
 		return nil
 	}
 	m.m.Lock()

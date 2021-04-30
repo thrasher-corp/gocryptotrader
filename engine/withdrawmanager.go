@@ -60,10 +60,6 @@ func (m *WithdrawManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Res
 				return nil, withdraw.ErrStrExchangeNotSupportedByAddress
 			}
 		}
-		err = req.Validate()
-		if err != nil {
-			return nil, err
-		}
 		if req.Type == withdraw.Fiat {
 			ret, err = exch.WithdrawFiatFunds(req)
 			if err != nil {
