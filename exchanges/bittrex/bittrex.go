@@ -118,7 +118,7 @@ func (b *Bittrex) GetOrderbook(marketName string, depth int64) (OrderbookData, i
 	if err != nil {
 		return OrderbookData{}, 0, err
 	}
-	sequence, err = strconv.ParseInt(resultHeader.Get("sequence"), 10, 0)
+	sequence, err = strconv.ParseInt(resultHeader.Get("sequence"), 10, 64)
 	if err != nil {
 		return OrderbookData{}, 0, err
 	}
@@ -170,7 +170,7 @@ func (b *Bittrex) GetOpenOrders(marketName string) ([]OrderData, int64, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	sequence, err = strconv.ParseInt(resultHeader.Get("sequence"), 10, 0)
+	sequence, err = strconv.ParseInt(resultHeader.Get("sequence"), 10, 64)
 	if err != nil {
 		return nil, 0, err
 	}
