@@ -308,26 +308,26 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
-// ConstructTicker constructs a ticker price from the underlyihng data
+// ConstructTicker constructs a ticker price from the underlying data
 func (b *Bittrex) ConstructTicker(t TickerData, s MarketSummaryData, pair currency.Pair, assetType asset.Item) *ticker.Price {
-	var resp ticker.Price
-	resp.Pair = pair
-
 	lastUpdated, err := parseTime(s.UpdatedAt)
 	if err != nil {
 		lastUpdated = time.Now()
 	}
-	resp.Last = t.LastTradeRate
-	resp.Bid = t.BidRate
-	resp.Ask = t.AskRate
-	resp.High = s.High
-	resp.Low = s.Low
-	resp.Volume = s.Volume
-	resp.QuoteVolume = s.QuoteVolume
-	resp.LastUpdated = lastUpdated
-	resp.AssetType = assetType
-	resp.ExchangeName = b.Name
-	return &resp
+
+	return &ticker.Price{
+		Pair:         pair,
+		Last:         t.LastTradeRate,
+		Bid:          t.BidRate,
+		Ask:          t.AskRate,
+		High:         s.High,
+		Low:          s.Low,
+		Volume:       s.Volume,
+		QuoteVolume:  s.QuoteVolume,
+		LastUpdated:  lastUpdated,
+		AssetType:    assetType,
+		ExchangeName: b.Name,
+	}
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -449,17 +449,17 @@ func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {
 		if err != nil {
 			timestamp = time.Now()
 		}
-		var tempData exchange.FundHistory
-		tempData.ExchangeName = b.Name
-		tempData.Status = depositData[x].Status
-		tempData.Description = depositData[x].CryptoAddressTag
-		tempData.Timestamp = timestamp
-		tempData.Currency = depositData[x].CurrencySymbol
-		tempData.Amount = depositData[x].Quantity
-		tempData.TransferType = "deposit"
-		tempData.CryptoToAddress = depositData[x].CryptoAddress
-		tempData.CryptoTxID = depositData[x].TxID
-		resp = append(resp, tempData)
+		resp = append(resp, exchange.FundHistory{
+			ExchangeName:    b.Name,
+			Status:          depositData[x].Status,
+			Description:     depositData[x].CryptoAddressTag,
+			Timestamp:       timestamp,
+			Currency:        depositData[x].CurrencySymbol,
+			Amount:          depositData[x].Quantity,
+			TransferType:    "deposit",
+			CryptoToAddress: depositData[x].CryptoAddress,
+			CryptoTxID:      depositData[x].TxID,
+		})
 	}
 	closedWithdrawalData, err := b.GetClosedWithdrawals()
 	if err != nil {
@@ -476,19 +476,19 @@ func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {
 		if err != nil {
 			timestamp = time.Now()
 		}
-		var tempData exchange.FundHistory
-		tempData.ExchangeName = b.Name
-		tempData.Status = withdrawalData[x].Status
-		tempData.Description = withdrawalData[x].CryptoAddressTag
-		tempData.Timestamp = timestamp
-		tempData.Currency = withdrawalData[x].CurrencySymbol
-		tempData.Amount = withdrawalData[x].Quantity
-		tempData.Fee = withdrawalData[x].TxCost
-		tempData.TransferType = "withdrawal"
-		tempData.CryptoToAddress = withdrawalData[x].CryptoAddress
-		tempData.CryptoTxID = withdrawalData[x].TxID
-		tempData.TransferID = withdrawalData[x].ID
-		resp = append(resp, tempData)
+		resp = append(resp, exchange.FundHistory{
+			ExchangeName:    b.Name,
+			Status:          withdrawalData[x].Status,
+			Description:     withdrawalData[x].CryptoAddressTag,
+			Timestamp:       timestamp,
+			Currency:        withdrawalData[x].CurrencySymbol,
+			Amount:          withdrawalData[x].Quantity,
+			Fee:             withdrawalData[x].TxCost,
+			TransferType:    "withdrawal",
+			CryptoToAddress: withdrawalData[x].CryptoAddress,
+			CryptoTxID:      withdrawalData[x].TxID,
+			TransferID:      withdrawalData[x].ID,
+		})
 	}
 	return resp, nil
 }
@@ -550,9 +550,8 @@ func (b *Bittrex) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Tim
 
 // SubmitOrder submits a new order
 func (b *Bittrex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	var resp order.SubmitResponse
 	if err := s.Validate(); err != nil {
-		return resp, err
+		return order.SubmitResponse{}, err
 	}
 
 	if s.Side == order.Ask {
@@ -565,7 +564,7 @@ func (b *Bittrex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 	formattedPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return resp, err
+		return order.SubmitResponse{}, err
 	}
 
 	orderData, err := b.Order(formattedPair.String(),
@@ -576,11 +575,13 @@ func (b *Bittrex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.Amount,
 		0.0)
 	if err != nil {
-		return resp, err
+		return order.SubmitResponse{}, err
 	}
-	resp.IsOrderPlaced = true
-	resp.OrderID = orderData.ID
-	return resp, nil
+
+	return order.SubmitResponse{
+		IsOrderPlaced: true,
+		OrderID:       orderData.ID,
+	}, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -606,19 +607,17 @@ func (b *Bittrex) CancelBatchOrders(orders []order.Cancel) (order.CancelBatchRes
 // CancelAllOrders cancels all orders associated with a currency pair, or cancels all orders for all
 // pairs if no pair was specified
 func (b *Bittrex) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
-	var resp order.CancelAllResponse
-
 	var pair string
 	if orderCancellation != nil {
 		formattedPair, err := b.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
 		if err != nil {
-			return resp, err
+			return order.CancelAllResponse{}, err
 		}
 		pair = formattedPair.String()
 	}
 	orderData, err := b.CancelOpenOrders(pair)
 	if err != nil {
-		return resp, err
+		return order.CancelAllResponse{}, err
 	}
 
 	tempMap := make(map[string]string)
@@ -627,8 +626,10 @@ func (b *Bittrex) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 			tempMap[orderData[x].ID] = "Success"
 		}
 	}
-	resp.Status = tempMap
-	resp.Count = int64(len(tempMap))
+	resp := order.CancelAllResponse{
+		Status: tempMap,
+		Count:  int64(len(tempMap)),
+	}
 	return resp, nil
 }
 

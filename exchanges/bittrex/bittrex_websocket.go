@@ -480,8 +480,6 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 
 // WsProcessUpdateTicker processes an update on the ticker
 func (b *Bittrex) WsProcessUpdateTicker(tickerData TickerData) error {
-	var pair currency.Pair
-
 	pair, err := currency.NewPairFromString(tickerData.Symbol)
 	if err != nil {
 		return err
@@ -512,8 +510,6 @@ func (b *Bittrex) WsProcessUpdateTicker(tickerData TickerData) error {
 
 // WsProcessUpdateMarketSummary processes an update on the ticker
 func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData MarketSummaryData) error {
-	var pair currency.Pair
-
 	pair, err := currency.NewPairFromString(marketSummaryData.Symbol)
 	if err != nil {
 		return err
