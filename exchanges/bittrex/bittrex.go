@@ -195,8 +195,9 @@ func (b *Bittrex) CancelOpenOrders(market string) ([]BulkCancelResultData, error
 	return resp, b.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, cancelOpenOrders, params, nil, &resp, nil)
 }
 
-// GetRecentCandles retrieves recent candles; either a full year, month or day
-// types of candle are: TRADE, MIDPOINT
+// GetRecentCandles retrieves recent candles;
+// Interval: MINUTE_1, MINUTE_5, HOUR_1, or DAY_1
+// Type: TRADE or MIDPOINT
 func (b *Bittrex) GetRecentCandles(marketName, candleInterval, candleType string) ([]CandleData, error) {
 	var resp []CandleData
 
@@ -204,7 +205,7 @@ func (b *Bittrex) GetRecentCandles(marketName, candleInterval, candleType string
 }
 
 // GetHistoricalCandles retrieves recent candles
-// types of candle are: TRADE, MIDPOINT
+// Type: TRADE or MIDPOINT
 func (b *Bittrex) GetHistoricalCandles(marketName, candleInterval, candleType string, year, month, day int) ([]CandleData, error) {
 	var resp []CandleData
 
