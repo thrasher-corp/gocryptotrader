@@ -531,16 +531,11 @@ func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData MarketSummaryDa
 		return nil
 	}
 
-	lastUpdated, err := parseTime(marketSummaryData.UpdatedAt)
-	if err != nil {
-		lastUpdated = time.Now()
-	}
-
 	tickerPrice.High = marketSummaryData.High
 	tickerPrice.Low = marketSummaryData.Low
 	tickerPrice.Volume = marketSummaryData.Volume
 	tickerPrice.QuoteVolume = marketSummaryData.QuoteVolume
-	tickerPrice.LastUpdated = lastUpdated
+	tickerPrice.LastUpdated = marketSummaryData.UpdatedAt
 
 	b.Websocket.DataHandler <- tickerPrice
 
@@ -549,17 +544,11 @@ func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData MarketSummaryDa
 
 // WsProcessUpdateOrder processes an update on the open orders
 func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
-	var orderType order.Type
 	var orderSide order.Side
 	var orderStatus order.Status
 	var pair currency.Pair
 
-	orderDate, err := parseTime(data.Delta.CreatedAt)
-	if err != nil {
-		return err
-	}
-
-	orderType, err = order.StringToOrderType(data.Delta.Type)
+	orderType, err := order.StringToOrderType(data.Delta.Type)
 	if err != nil {
 		b.Websocket.DataHandler <- order.ClassificationError{
 			Exchange: b.Name,
@@ -607,7 +596,7 @@ func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 		Side:              orderSide,
 		Status:            orderStatus,
 		AssetType:         asset.Spot,
-		Date:              orderDate,
+		Date:              data.Delta.CreatedAt,
 		Pair:              pair,
 	}
 	return nil

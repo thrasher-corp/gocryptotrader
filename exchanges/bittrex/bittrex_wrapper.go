@@ -310,11 +310,6 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 
 // constructTicker constructs a ticker price from the underlying data
 func (b *Bittrex) constructTicker(t TickerData, s MarketSummaryData, pair currency.Pair, assetType asset.Item) *ticker.Price {
-	lastUpdated, err := parseTime(s.UpdatedAt)
-	if err != nil {
-		lastUpdated = time.Now()
-	}
-
 	return &ticker.Price{
 		Pair:         pair,
 		Last:         t.LastTradeRate,
@@ -324,7 +319,7 @@ func (b *Bittrex) constructTicker(t TickerData, s MarketSummaryData, pair curren
 		Low:          s.Low,
 		Volume:       s.Volume,
 		QuoteVolume:  s.QuoteVolume,
-		LastUpdated:  lastUpdated,
+		LastUpdated:  s.UpdatedAt,
 		AssetType:    assetType,
 		ExchangeName: b.Name,
 	}
@@ -444,16 +439,11 @@ func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	depositData := append(closedDepositData, openDepositData...)
 
 	for x := range depositData {
-		var timestamp time.Time
-		timestamp, err = parseTime(depositData[x].UpdatedAt)
-		if err != nil {
-			timestamp = time.Now()
-		}
 		resp = append(resp, exchange.FundHistory{
 			ExchangeName:    b.Name,
 			Status:          depositData[x].Status,
 			Description:     depositData[x].CryptoAddressTag,
-			Timestamp:       timestamp,
+			Timestamp:       depositData[x].UpdatedAt,
 			Currency:        depositData[x].CurrencySymbol,
 			Amount:          depositData[x].Quantity,
 			TransferType:    "deposit",
@@ -472,15 +462,11 @@ func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	withdrawalData := append(closedWithdrawalData, openWithdrawalData...)
 
 	for x := range withdrawalData {
-		timestamp, err := parseTime(depositData[x].UpdatedAt)
-		if err != nil {
-			timestamp = time.Now()
-		}
 		resp = append(resp, exchange.FundHistory{
 			ExchangeName:    b.Name,
 			Status:          withdrawalData[x].Status,
 			Description:     withdrawalData[x].CryptoAddressTag,
-			Timestamp:       timestamp,
+			Timestamp:       depositData[x].UpdatedAt,
 			Currency:        withdrawalData[x].CurrencySymbol,
 			Amount:          withdrawalData[x].Quantity,
 			Fee:             withdrawalData[x].TxCost,
@@ -516,11 +502,6 @@ func (b *Bittrex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 		if err != nil {
 			return nil, err
 		}
-		var timestamp time.Time
-		timestamp, err = parseTime(tradeData[i].ExecutedAt)
-		if err != nil {
-			return nil, err
-		}
 		resp = append(resp, trade.Data{
 			Exchange:     b.Name,
 			TID:          tradeData[i].ID,
@@ -529,7 +510,7 @@ func (b *Bittrex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 			Side:         side,
 			Price:        tradeData[i].Rate,
 			Amount:       tradeData[i].Quantity,
-			Timestamp:    timestamp,
+			Timestamp:    tradeData[i].ExecutedAt,
 		})
 	}
 
@@ -650,17 +631,6 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 		immediateOrCancel = true
 	}
 
-	orderDate, err := parseTime(orderData.CreatedAt)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-			b.Name,
-			"GetActiveOrders",
-			orderData.ID,
-			orderData.CreatedAt)
-		return order.Detail{}, err
-	}
-
 	format, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		return order.Detail{}, err
@@ -704,7 +674,7 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 		ExecutedAmount:    orderData.FillQuantity,
 		RemainingAmount:   orderData.Quantity - orderData.FillQuantity,
 		Price:             orderData.Limit,
-		Date:              orderDate,
+		Date:              orderData.CreatedAt,
 		ID:                orderData.ID,
 		Exchange:          b.Name,
 		Type:              orderType,
@@ -787,16 +757,6 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var resp []order.Detail
 	for i := range orderData {
-		orderDate, err := parseTime(orderData[i].CreatedAt)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				b.Name,
-				"GetActiveOrders",
-				orderData[i].ID,
-				orderData[i].CreatedAt)
-		}
-
 		pair, err := currency.NewPairDelimiter(orderData[i].MarketSymbol,
 			format.Delimiter)
 		if err != nil {
@@ -820,7 +780,7 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			RemainingAmount: orderData[i].Quantity - orderData[i].FillQuantity,
 			ExecutedAmount:  orderData[i].FillQuantity,
 			Price:           orderData[i].Limit,
-			Date:            orderDate,
+			Date:            orderData[i].CreatedAt,
 			ID:              orderData[i].ID,
 			Exchange:        b.Name,
 			Type:            orderType,
@@ -863,16 +823,6 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		}
 
 		for i := range orderData {
-			orderDate, err := parseTime(orderData[i].CreatedAt)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-					b.Name,
-					"GetOrderHistory",
-					orderData[i].ID,
-					orderData[i].CreatedAt)
-			}
-
 			pair, err := currency.NewPairDelimiter(orderData[i].MarketSymbol,
 				format.Delimiter)
 			if err != nil {
@@ -901,7 +851,7 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				RemainingAmount: orderData[i].Quantity - orderData[i].FillQuantity,
 				ExecutedAmount:  orderData[i].FillQuantity,
 				Price:           orderData[i].Limit,
-				Date:            orderDate,
+				Date:            orderData[i].CreatedAt,
 				ID:              orderData[i].ID,
 				Exchange:        b.Name,
 				Type:            orderType,
@@ -987,10 +937,7 @@ func (b *Bittrex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 	}
 
 	for x := range ohlcData {
-		timestamp, err := parseTime(ohlcData[x].StartsAt)
-		if err != nil {
-			return kline.Item{}, err
-		}
+		timestamp := ohlcData[x].StartsAt
 		if timestamp.Before(start) {
 			continue
 		}

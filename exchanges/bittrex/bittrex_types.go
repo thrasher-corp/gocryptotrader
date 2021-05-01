@@ -2,6 +2,7 @@ package bittrex
 
 import (
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -27,22 +28,22 @@ const (
 
 // OrderData holds order data
 type OrderData struct {
-	ID            string  `json:"id"`
-	MarketSymbol  string  `json:"marketSymbol"`
-	Direction     string  `json:"direction"`
-	Type          string  `json:"type"`
-	Quantity      float64 `json:"quantity,string"`
-	Limit         float64 `json:"limit,string"`
-	Ceiling       float64 `json:"ceiling,string"`
-	TimeInForce   string  `json:"timeInForce"`
-	ClientOrderID string  `json:"clientOrderId"`
-	FillQuantity  float64 `json:"fillQuantity,string"`
-	Commission    float64 `json:"commission,string"`
-	Proceeds      float64 `json:"proceeds,string"`
-	Status        string  `json:"status"`
-	CreatedAt     string  `json:"createdAt"`
-	UpdatedAt     string  `json:"updatedAt"`
-	ClosedAt      string  `json:"closedAt"`
+	ID            string    `json:"id"`
+	MarketSymbol  string    `json:"marketSymbol"`
+	Direction     string    `json:"direction"`
+	Type          string    `json:"type"`
+	Quantity      float64   `json:"quantity,string"`
+	Limit         float64   `json:"limit,string"`
+	Ceiling       float64   `json:"ceiling,string"`
+	TimeInForce   string    `json:"timeInForce"`
+	ClientOrderID string    `json:"clientOrderId"`
+	FillQuantity  float64   `json:"fillQuantity,string"`
+	Commission    float64   `json:"commission,string"`
+	Proceeds      float64   `json:"proceeds,string"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+	ClosedAt      string    `json:"closedAt"`
 	OrderToCancel struct {
 		Type string `json:"type,string"`
 		ID   string `json:"id,string"`
@@ -92,22 +93,22 @@ type TickerData struct {
 
 // TradeData stores trades data
 type TradeData struct {
-	ID         string  `json:"id"`
-	ExecutedAt string  `json:"executedAt"`
-	Quantity   float64 `json:"quantity,string"`
-	Rate       float64 `json:"rate,string"`
-	TakerSide  string  `json:"takerSide"`
+	ID         string    `json:"id"`
+	ExecutedAt time.Time `json:"executedAt"`
+	Quantity   float64   `json:"quantity,string"`
+	Rate       float64   `json:"rate,string"`
+	TakerSide  string    `json:"takerSide"`
 }
 
 // MarketSummaryData stores market summary data
 type MarketSummaryData struct {
-	Symbol        string  `json:"symbol"`
-	High          float64 `json:"high,string"`
-	Low           float64 `json:"low,string"`
-	Volume        float64 `json:"volume,string"`
-	QuoteVolume   float64 `json:"quoteVolume,string"`
-	PercentChange float64 `json:"percentChange,string"`
-	UpdatedAt     string  `json:"updatedAt"`
+	Symbol        string    `json:"symbol"`
+	High          float64   `json:"high,string"`
+	Low           float64   `json:"low,string"`
+	Volume        float64   `json:"volume,string"`
+	QuoteVolume   float64   `json:"quoteVolume,string"`
+	PercentChange float64   `json:"percentChange,string"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 // OrderbookData holds the order book data
@@ -170,28 +171,28 @@ type WithdrawalData struct {
 
 // DepositData holds deposit data
 type DepositData struct {
-	ID               string  `json:"id"`
-	CurrencySymbol   string  `json:"currencySymbol"`
-	Quantity         float64 `json:"quantity,string"`
-	CryptoAddress    string  `json:"cryptoAddress"`
-	CryptoAddressTag string  `json:"cryptoAddressTag"`
-	TxID             string  `json:"txId"`
-	Confirmations    int32   `json:"confirmations"`
-	UpdatedAt        string  `json:"updatedAt"`
-	CompletedAt      string  `json:"completedAt"`
-	Status           string  `json:"status"`
-	Source           string  `json:"source"`
+	ID               string    `json:"id"`
+	CurrencySymbol   string    `json:"currencySymbol"`
+	Quantity         float64   `json:"quantity,string"`
+	CryptoAddress    string    `json:"cryptoAddress"`
+	CryptoAddressTag string    `json:"cryptoAddressTag"`
+	TxID             string    `json:"txId"`
+	Confirmations    int32     `json:"confirmations"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+	CompletedAt      time.Time `json:"completedAt"`
+	Status           string    `json:"status"`
+	Source           string    `json:"source"`
 }
 
 // CandleData holds candle data
 type CandleData struct {
-	StartsAt    string  `json:"startsAt"`
-	Open        float64 `json:"open,string"`
-	High        float64 `json:"high,string"`
-	Low         float64 `json:"low,string"`
-	Close       float64 `json:"close,string"`
-	Volume      float64 `json:"volume,string"`
-	QuoteVolume float64 `json:"quoteVolume,string"`
+	StartsAt    time.Time `json:"startsAt"`
+	Open        float64   `json:"open,string"`
+	High        float64   `json:"high,string"`
+	Low         float64   `json:"low,string"`
+	Close       float64   `json:"close,string"`
+	Volume      float64   `json:"volume,string"`
+	QuoteVolume float64   `json:"quoteVolume,string"`
 }
 
 // WsSignalRHandshakeData holds data for the SignalR websocket wrapper handshake

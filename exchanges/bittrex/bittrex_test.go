@@ -628,25 +628,6 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-func TestParseTime(t *testing.T) {
-	t.Parallel()
-
-	tm, err := parseTime("2015-12-11T06:31:40.633Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if tm.Year() != 2015 ||
-		tm.Month() != 12 ||
-		tm.Day() != 11 ||
-		tm.Hour() != 6 ||
-		tm.Minute() != 31 ||
-		tm.Second() != 40 ||
-		tm.Nanosecond() != 633*1000000 {
-		t.Error("invalid time values")
-	}
-}
-
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString(currPair)

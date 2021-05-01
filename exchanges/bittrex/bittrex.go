@@ -67,7 +67,6 @@ const (
 
 	ratePeriod     = time.Minute
 	rateLimit      = 60
-	timeLayout     = "2006-01-02T15:04:05.999Z07:00"
 	orderbookDepth = 500 // ws uses REST snapshots and needs identical depths
 )
 
@@ -455,8 +454,4 @@ func (b *Bittrex) GetWithdrawalFee(c currency.Code) (float64, error) {
 // calculateTradingFee returns the fee for trading any currency on Bittrex
 func calculateTradingFee(price, amount float64) float64 {
 	return 0.0025 * price * amount
-}
-
-func parseTime(t string) (time.Time, error) {
-	return time.Parse(timeLayout, t)
 }
