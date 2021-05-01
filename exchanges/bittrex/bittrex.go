@@ -28,7 +28,8 @@ type Bittrex struct {
 }
 
 const (
-	bittrexAPIRestURL = "https://api.bittrex.com/v3"
+	bittrexAPIRestURL       = "https://api.bittrex.com/v3"
+	bittrexAPIDeprecatedURL = "https://bittrex.com/api/v1.1"
 
 	// Public endpoints
 	getMarkets           = "/markets"

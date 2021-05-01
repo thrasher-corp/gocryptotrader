@@ -217,6 +217,25 @@ func (b *Bittrex) Run() {
 			b.Name,
 			err)
 	}
+	restURL, err := b.API.Endpoints.GetURL(exchange.RestSpot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to check REST Spot URL. Err: %s",
+			b.Name,
+			err)
+	}
+	if restURL == bittrexAPIDeprecatedURL {
+		err = b.API.Endpoints.SetRunning(exchange.RestSpot.String(), bittrexAPIRestURL)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update deprecated REST Spot URL. Err: %s",
+				b.Name,
+				err)
+		}
+		b.Config.API.Endpoints[exchange.RestSpot.String()] = bittrexAPIRestURL
+		log.Warnf(log.ExchangeSys,
+			"Deprecated %s REST URL updated from %s to %s", b.Name, bittrexAPIDeprecatedURL, bittrexAPIRestURL)
+	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
