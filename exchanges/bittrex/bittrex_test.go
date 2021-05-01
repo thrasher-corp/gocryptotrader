@@ -113,6 +113,28 @@ func TestGetMarketHistory(t *testing.T) {
 	}
 }
 
+func TestGetRecentCandles(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetRecentCandles(currPair, "HOUR_1", "MIDPOINT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricalCandles(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetHistoricalCandles(currPair, "MINUTE_5", "MIDPOINT", 2020, 12, 31)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetHistoricalCandles(currPair, "MINUTE_5", "MIDPOINT", 2020, 12, 32)
+	if err == nil {
+		t.Error("invalid date should give an error")
+	}
+}
+
 func TestOrder(t *testing.T) {
 	t.Parallel()
 
@@ -269,6 +291,39 @@ func TestGetClosedDepositsPaginated(t *testing.T) {
 		t.Error(err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expected error")
+	}
+}
+
+func TestGetOpenDeposits(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetOpenDeposits()
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expected error")
+	}
+}
+
+func TestGetOpenDepositsForCurrency(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetOpenDepositsForCurrency(curr)
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expected error")
+	}
+}
+
+func TestWithdraw(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
+	_, err := b.Withdraw(curr, "", core.BitcoinDonationAddress, 0.0009)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -510,7 +565,7 @@ func TestModifyOrder(t *testing.T) {
 	}
 }
 
-func TestWithdraw(t *testing.T) {
+func WithdrawCryptocurrencyFunds(t *testing.T) {
 	withdrawCryptoRequest := withdraw.Request{
 		Amount:      -1,
 		Currency:    currency.BTC,
