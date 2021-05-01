@@ -494,7 +494,7 @@ func (b *Bittrex) WsProcessUpdateTicker(tickerData TickerData) error {
 			return err
 		}
 
-		tickerPrice = b.ConstructTicker(tickerData, marketSummaryData, pair, asset.Spot)
+		tickerPrice = b.constructTicker(tickerData, marketSummaryData, pair, asset.Spot)
 		b.Websocket.DataHandler <- tickerPrice
 
 		return nil
@@ -525,7 +525,7 @@ func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData MarketSummaryDa
 			return err
 		}
 
-		tickerPrice = b.ConstructTicker(tickerData, marketSummaryData, pair, asset.Spot)
+		tickerPrice = b.constructTicker(tickerData, marketSummaryData, pair, asset.Spot)
 		b.Websocket.DataHandler <- tickerPrice
 
 		return nil

@@ -298,7 +298,7 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 		return nil, err
 	}
 
-	tickerPrice := b.ConstructTicker(t, s, pair, assetType)
+	tickerPrice := b.constructTicker(t, s, pair, assetType)
 
 	err = ticker.ProcessTicker(tickerPrice)
 	if err != nil {
@@ -308,8 +308,8 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
-// ConstructTicker constructs a ticker price from the underlying data
-func (b *Bittrex) ConstructTicker(t TickerData, s MarketSummaryData, pair currency.Pair, assetType asset.Item) *ticker.Price {
+// constructTicker constructs a ticker price from the underlying data
+func (b *Bittrex) constructTicker(t TickerData, s MarketSummaryData, pair currency.Pair, assetType asset.Item) *ticker.Price {
 	lastUpdated, err := parseTime(s.UpdatedAt)
 	if err != nil {
 		lastUpdated = time.Now()
