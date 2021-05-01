@@ -37,6 +37,7 @@ const (
 	wsMarketSummary       = "market_summary"
 	wsOrders              = "order"
 	wsHeartbeat           = "heartbeat"
+	authenticate          = "Authenticate"
 	subscribe             = "subscribe"
 	unsubscribe           = "unsubscribe"
 )
@@ -149,7 +150,7 @@ func (b *Bittrex) WsAuth() error {
 	invocationIDCounter++
 	request := WsEventRequest{
 		Hub:          "c3",
-		Method:       "Authenticate",
+		Method:       authenticate,
 		InvocationID: invocationIDCounter,
 	}
 
@@ -223,7 +224,7 @@ func (b *Bittrex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	invocationIDCounter++
 	request := WsEventRequest{
 		Hub:          "c3",
-		Method:       "subscribe",
+		Method:       subscribe,
 		InvocationID: invocationIDCounter,
 	}
 
@@ -260,7 +261,7 @@ func (b *Bittrex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 	invocationIDCounter++
 	request := WsEventRequest{
 		Hub:          "c3",
-		Method:       "unsubscribe",
+		Method:       unsubscribe,
 		InvocationID: invocationIDCounter,
 	}
 
