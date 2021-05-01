@@ -413,7 +413,8 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				init, err := b.UpdateLocalOBBuffer(&orderbookUpdate)
+				var init bool
+				init, err = b.UpdateLocalOBBuffer(&orderbookUpdate)
 				if err != nil {
 					if init {
 						return nil
@@ -550,6 +551,8 @@ func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData MarketSummaryDa
 func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 	var orderType order.Type
 	var orderSide order.Side
+	var orderStatus order.Status
+	var pair currency.Pair
 
 	orderDate, err := parseTime(data.Delta.CreatedAt)
 	if err != nil {
@@ -572,7 +575,7 @@ func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 			Err:      err,
 		}
 	}
-	orderStatus, err := order.StringToOrderStatus(data.Delta.Status)
+	orderStatus, err = order.StringToOrderStatus(data.Delta.Status)
 	if err != nil {
 		b.Websocket.DataHandler <- order.ClassificationError{
 			Exchange: b.Name,
@@ -581,7 +584,7 @@ func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 		}
 	}
 
-	pair, err := currency.NewPairFromString(data.Delta.MarketSymbol)
+	pair, err = currency.NewPairFromString(data.Delta.MarketSymbol)
 	if err != nil {
 		b.Websocket.DataHandler <- order.ClassificationError{
 			Exchange: b.Name,
