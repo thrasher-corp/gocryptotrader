@@ -915,16 +915,12 @@ func (b *Bittrex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 	if err := b.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
-
-	formattedPair, err := b.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return kline.Item{}, err
+	candleInterval := b.FormatExchangeKlineInterval(interval)
+	if candleInterval == "notfound" {
+		return kline.Item{}, errors.New("invalid interval")
 	}
 
-	year, month, day := start.Date()
-
-	ohlcData, err := b.GetHistoricalCandles(formattedPair.String(),
-		b.FormatExchangeKlineInterval(interval), "TRADE", year, int(month), day)
+	formattedPair, err := b.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -936,13 +932,62 @@ func (b *Bittrex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		Interval: interval,
 	}
 
+	year, month, day := start.Date()
+	curYear, curMonth, curDay := time.Now().Date()
+
+	getHistoric := false
+	getRecent := false
+
+	switch interval {
+	case kline.OneMin:
+		fallthrough
+	case kline.FiveMin:
+		if time.Now().Sub(start) > 24*time.Hour {
+			getHistoric = true
+		}
+		if year >= curYear && month >= curMonth && day >= curDay {
+			getRecent = true
+		}
+	case kline.OneHour:
+		if time.Now().Sub(start) > 31*24*time.Hour {
+			getHistoric = true
+		}
+		if year >= curYear && month >= curMonth {
+			getRecent = true
+		}
+	case kline.OneDay:
+		if time.Now().Sub(start) > 366*24*time.Hour {
+			getHistoric = true
+		}
+		if year >= curYear {
+			getRecent = true
+		}
+	}
+
+	var ohlcData []CandleData
+	if getHistoric {
+		var historicData []CandleData
+		historicData, err = b.GetHistoricalCandles(formattedPair.String(),
+			b.FormatExchangeKlineInterval(interval), "TRADE", year, int(month), day)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		ohlcData = append(ohlcData, historicData...)
+	}
+	if getRecent {
+		var recentData []CandleData
+		recentData, err = b.GetRecentCandles(formattedPair.String(),
+			b.FormatExchangeKlineInterval(interval), "TRADE")
+		if err != nil {
+			return kline.Item{}, err
+		}
+		ohlcData = append(ohlcData, recentData...)
+	}
+
 	for x := range ohlcData {
 		timestamp := ohlcData[x].StartsAt
-		if timestamp.Before(start) {
+		if timestamp.Before(start) || timestamp.After(end) {
 			continue
-		}
-		if timestamp.After(end) {
-			break
 		}
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   timestamp,
@@ -953,6 +998,8 @@ func (b *Bittrex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 			Volume: ohlcData[x].Volume,
 		})
 	}
+	ret.SortCandlesByTimestamp(false)
+	ret.RemoveDuplicates()
 	return ret, nil
 }
 
