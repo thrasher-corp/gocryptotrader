@@ -939,24 +939,22 @@ func (b *Bittrex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 	getRecent := false
 
 	switch interval {
-	case kline.OneMin:
-		fallthrough
-	case kline.FiveMin:
-		if time.Now().Sub(start) > 24*time.Hour {
+	case kline.OneMin, kline.FiveMin:
+		if time.Since(start) > 24*time.Hour {
 			getHistoric = true
 		}
 		if year >= curYear && month >= curMonth && day >= curDay {
 			getRecent = true
 		}
 	case kline.OneHour:
-		if time.Now().Sub(start) > 31*24*time.Hour {
+		if time.Since(start) > 31*24*time.Hour {
 			getHistoric = true
 		}
 		if year >= curYear && month >= curMonth {
 			getRecent = true
 		}
 	case kline.OneDay:
-		if time.Now().Sub(start) > 366*24*time.Hour {
+		if time.Since(start) > 366*24*time.Hour {
 			getHistoric = true
 		}
 		if year >= curYear {

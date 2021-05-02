@@ -444,7 +444,7 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 					return err
 				}
 
-				err = b.WsProcessUpdateMarketSummary(marketSummaryUpdate)
+				err = b.WsProcessUpdateMarketSummary(&marketSummaryUpdate)
 				if err != nil {
 					return err
 				}
@@ -510,7 +510,7 @@ func (b *Bittrex) WsProcessUpdateTicker(tickerData TickerData) error {
 }
 
 // WsProcessUpdateMarketSummary processes an update on the ticker
-func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData MarketSummaryData) error {
+func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData *MarketSummaryData) error {
 	pair, err := currency.NewPairFromString(marketSummaryData.Symbol)
 	if err != nil {
 		return err
@@ -525,7 +525,7 @@ func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData MarketSummaryDa
 			return err
 		}
 
-		tickerPrice = b.constructTicker(tickerData, marketSummaryData, pair, asset.Spot)
+		tickerPrice = b.constructTicker(tickerData, *marketSummaryData, pair, asset.Spot)
 		b.Websocket.DataHandler <- tickerPrice
 
 		return nil
