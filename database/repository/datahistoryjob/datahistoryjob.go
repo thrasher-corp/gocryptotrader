@@ -10,7 +10,9 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
+	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
@@ -43,7 +45,7 @@ func (db *DataHistoryDB) Upsert(jobs ...DataHistoryJob) error {
 		}
 	}()
 	if repository.GetSQLDialect() == database.DBSQLite3 || repository.GetSQLDialect() == database.DBSQLite {
-		err = insertSQLite(ctx, tx, jobs...)
+		err = upsertSqlite(ctx, tx, jobs...)
 	} else {
 		err = insertPostgres(ctx, tx, jobs...)
 	}
@@ -58,7 +60,7 @@ func (db *DataHistoryDB) GetByNickName(nickname string) (*DataHistoryJob, error)
 	return nil, nil
 }
 
-func insertSQLite(ctx context.Context, tx *sql.Tx, jobs ...DataHistoryJob) error {
+func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...DataHistoryJob) error {
 	for i := range jobs {
 		if jobs[i].ID == "" {
 			freshUUID, err := uuid.NewV4()
@@ -67,23 +69,26 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, jobs ...DataHistoryJob) error
 			}
 			jobs[i].ID = freshUUID.String()
 		}
-		var tempEvent = DataHistoryJob{
+		exchangeUUID, err := exchange.UUIDByName(jobs[i].Exchange)
+		if err != nil {
+			return err
+		}
+		var tempEvent = sqlite3.Datahistoryjob{
 			ID:             jobs[i].ID,
-			ExchangeNameID: jobs[i].ExchangeNameID,
+			Nickname:       jobs[i].NickName,
+			ExchangeNameID: exchangeUUID.String(),
+			Asset:          strings.ToLower(jobs[i].Asset),
 			Base:           strings.ToUpper(jobs[i].Base),
 			Quote:          strings.ToUpper(jobs[i].Quote),
-			Asset:          strings.ToLower(jobs[i].AssetType),
-			Price:          jobs[i].Price,
-			Amount:         jobs[i].Amount,
-			Timestamp:      jobs[i].Timestamp.UTC().Format(time.RFC3339),
+			StartTime:      jobs[i].StartDate.UTC().Format(time.RFC3339),
+			EndTime:        jobs[i].EndDate.UTC().Format(time.RFC3339),
+			Interval:       float64(jobs[i].Interval),
+			DataType:       jobs[i].DataType,
+			RequestSize:    float64(jobs[i].RequestSizeLimit),
+			MaxRetries:     float64(jobs[i].MaxRetryAttempts),
+			Status:         float64(jobs[i].Status),
 		}
-		if jobs[i].Side != "" {
-			tempEvent.Side.SetValid(strings.ToUpper(jobs[i].Side))
-		}
-		if jobs[i].TID != "" {
-			tempEvent.Tid.SetValid(jobs[i].TID)
-		}
-		err := tempEvent.Insert(ctx, tx, boil.Infer())
+		err = tempEvent.Insert(ctx, tx, boil.Infer())
 		if err != nil {
 			return err
 		}

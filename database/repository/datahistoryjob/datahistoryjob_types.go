@@ -11,7 +11,8 @@ type DataHistoryJob struct {
 	NickName         string
 	Exchange         string
 	Asset            string
-	Pair             string
+	Base             string
+	Quote            string
 	StartDate        time.Time
 	EndDate          time.Time
 	IsRolling        bool
