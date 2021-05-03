@@ -40,6 +40,8 @@ const (
 	authenticate          = "Authenticate"
 	subscribe             = "subscribe"
 	unsubscribe           = "unsubscribe"
+	wsRateLimit           = 50
+	wsMessageRateLimit    = 500
 )
 
 var defaultSpotSubscribedChannels = []string{
@@ -224,6 +226,16 @@ func (b *Bittrex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bittrex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	var x int
+	for x = 0; x+wsMessageRateLimit < len(channelsToSubscribe); x += wsMessageRateLimit {
+		b.subscribeSlice(channelsToSubscribe[x : x+wsMessageRateLimit])
+		time.Sleep(time.Second)
+	}
+	b.subscribeSlice(channelsToSubscribe[x:])
+	return nil
+}
+
+func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscription) error {
 	req := WsEventRequest{
 		Hub:          "c3",
 		Method:       subscribe,
@@ -267,6 +279,16 @@ func (b *Bittrex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bittrex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	var x int
+	for x = 0; x+wsMessageRateLimit < len(channelsToUnsubscribe); x += wsMessageRateLimit {
+		b.unsubscribeSlice(channelsToUnsubscribe[x : x+wsMessageRateLimit])
+		time.Sleep(time.Second)
+	}
+	b.unsubscribeSlice(channelsToUnsubscribe[x:])
+	return nil
+}
+
+func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	req := WsEventRequest{
 		Hub:          "c3",
 		Method:       unsubscribe,

@@ -181,7 +181,7 @@ func (b *Bittrex) Setup(exch *config.ExchangeConfig) error {
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		// RateLimit            int64  rudimentary rate limit that sleeps connection in milliseconds before sending designated payload
+		RateLimit:            wsRateLimit,
 		// Authenticated        bool  sets if the connection is dedicated for an authenticated websocket stream which can be accessed from the Websocket field variable AuthConn e.g. f.Websocket.AuthConn
 	})
 }
