@@ -31,6 +31,8 @@ var (
 	errDatabaseConnectionRequired = errors.New("data history manager requires access to the database")
 )
 
+// DataHistoryManager is responsible for synchronising,
+// retrieving and saving candle and trade data from loaded jobs
 type DataHistoryManager struct {
 	exchangeManager           iExchangeManager
 	databaseConnectionManager iDatabaseConnectionManager
