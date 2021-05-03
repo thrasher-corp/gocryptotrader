@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/golang/protobuf/ptypes"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -48,6 +47,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -1442,17 +1442,15 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 			},
 		},
 	}
-	createdAtPtype, err := ptypes.TimestampProto(v.CreatedAt)
-	if err != nil {
-		log.Errorf(log.Global, "failed to convert time: %v", err)
-	}
-	resp.Event.CreatedAt = createdAtPtype
 
-	updatedAtPtype, err := ptypes.TimestampProto(v.UpdatedAt)
-	if err != nil {
-		log.Errorf(log.Global, "failed to convert time: %v", err)
+	resp.Event.CreatedAt = timestamppb.New(v.CreatedAt)
+	if err := resp.Event.CreatedAt.CheckValid(); err != nil {
+		log.Errorf(log.GRPCSys, "withdrawal event by id CreatedAt: %s", err)
 	}
-	resp.Event.UpdatedAt = updatedAtPtype
+	resp.Event.UpdatedAt = timestamppb.New(v.UpdatedAt)
+	if err := resp.Event.UpdatedAt.CheckValid(); err != nil {
+		log.Errorf(log.GRPCSys, "withdrawal event by id UpdatedAt: %s", err)
+	}
 
 	if v.RequestDetails.Type == withdraw.Crypto {
 		resp.Event.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
@@ -3165,17 +3163,14 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 			},
 		}
 
-		createdAtPtype, err := ptypes.TimestampProto(ret[x].CreatedAt)
-		if err != nil {
-			log.Errorf(log.Global, "failed to convert time: %v", err)
+		tempEvent.CreatedAt = timestamppb.New(ret[x].CreatedAt)
+		if err := tempEvent.CreatedAt.CheckValid(); err != nil {
+			log.Errorf(log.Global, "withdrawal parseMultipleEvents CreatedAt: %s", err)
 		}
-		tempEvent.CreatedAt = createdAtPtype
-
-		updatedAtPtype, err := ptypes.TimestampProto(ret[x].UpdatedAt)
-		if err != nil {
-			log.Errorf(log.Global, "failed to convert time: %v", err)
+		tempEvent.UpdatedAt = timestamppb.New(ret[x].UpdatedAt)
+		if err := tempEvent.UpdatedAt.CheckValid(); err != nil {
+			log.Errorf(log.Global, "withdrawal parseMultipleEvents UpdatedAt: %s", err)
 		}
-		tempEvent.UpdatedAt = updatedAtPtype
 
 		if ret[x].RequestDetails.Type == withdraw.Crypto {
 			tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
@@ -3222,12 +3217,11 @@ func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, 
 			},
 		}
 
-		updatedAtPType, err := ptypes.TimestampProto(ret[x].Timestamp)
-		if err != nil {
-			log.Errorf(log.Global, "failed to convert time: %v", err)
+		tempEvent.UpdatedAt = timestamppb.New(ret[x].Timestamp)
+		if err := tempEvent.UpdatedAt.CheckValid(); err != nil {
+			log.Errorf(log.Global, "withdrawal parseWithdrawalsHistory UpdatedAt: %s", err)
 		}
 
-		tempEvent.UpdatedAt = updatedAtPType
 		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
 			Address: ret[x].CryptoToAddress,
 			Fee:     ret[x].Fee,
@@ -3254,17 +3248,14 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 			Type:        int32(ret.RequestDetails.Type),
 		},
 	}
-	createdAtPType, err := ptypes.TimestampProto(ret.CreatedAt)
-	if err != nil {
-		log.Errorf(log.Global, "failed to convert time: %v", err)
+	tempEvent.CreatedAt = timestamppb.New(ret.CreatedAt)
+	if err := tempEvent.CreatedAt.CheckValid(); err != nil {
+		log.Errorf(log.Global, "withdrawal parseSingleEvents CreatedAt %s", err)
 	}
-	tempEvent.CreatedAt = createdAtPType
-
-	updatedAtPType, err := ptypes.TimestampProto(ret.UpdatedAt)
-	if err != nil {
-		log.Errorf(log.Global, "failed to convert time: %v", err)
+	tempEvent.UpdatedAt = timestamppb.New(ret.UpdatedAt)
+	if err := tempEvent.UpdatedAt.CheckValid(); err != nil {
+		log.Errorf(log.Global, "withdrawal parseSingleEvents UpdatedAt: %s", err)
 	}
-	tempEvent.UpdatedAt = updatedAtPType
 
 	if ret.RequestDetails.Type == withdraw.Crypto {
 		tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
