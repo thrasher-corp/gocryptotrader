@@ -13,6 +13,39 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// GetAveragePrice calculates the average price for a buy of a specified amount
+func (b *Base) GetAveragePrice(buy bool, amount float64) (float64, error) {
+	remainingAmount := amount
+	var aggNominalAmount float64
+	if buy {
+		for x := range b.Asks {
+			if remainingAmount <= b.Asks[x].Amount {
+				aggNominalAmount += b.Asks[x].Price * remainingAmount
+				remainingAmount = 0
+				break
+			} else {
+				aggNominalAmount += b.Asks[x].Price * b.Asks[x].Amount
+				remainingAmount -= b.Asks[x].Amount
+			}
+		}
+	} else {
+		for x := range b.Bids {
+			if remainingAmount <= b.Bids[x].Amount {
+				aggNominalAmount += b.Bids[x].Price * remainingAmount
+				remainingAmount = 0
+				break
+			} else {
+				aggNominalAmount += b.Bids[x].Price * b.Bids[x].Amount
+				remainingAmount -= b.Bids[x].Amount
+			}
+		}
+	}
+	if remainingAmount != 0 {
+		return 0, fmt.Errorf("orderbook for %v on exchange %v not liquid enough to support a buy amount of %v", b.Pair, b.ExchangeName, amount)
+	}
+	return aggNominalAmount / amount, nil
+}
+
 // Get checks and returns the orderbook given an exchange name and currency pair
 func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
 	return service.Retrieve(exchange, p, a)
