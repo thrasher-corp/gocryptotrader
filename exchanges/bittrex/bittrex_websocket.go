@@ -268,7 +268,7 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 	}
 	for i := range response.Response {
 		if !response.Response[i].Success {
-			log.Warnf(log.WebsocketMgr, "%s - Unable to subscribe to %s (%s)", b.Name, channels[0][i], response.Response[i].ErrorCode)
+			log.Warnf(log.WebsocketMgr, "%s - Unable to subscribe to %s (%s)", b.Name, channels[i], response.Response[i].ErrorCode)
 			continue
 		}
 		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
@@ -320,7 +320,7 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 	}
 	for i := range response.Response {
 		if !response.Response[i].Success {
-			log.Warnf(log.WebsocketMgr, "%s - Unable to subscribe to %s (%s)", b.Name, channels[0][i], response.Response[i].ErrorCode)
+			log.Warnf(log.WebsocketMgr, "%s - Unable to subscribe to %s (%s)", b.Name, channels[i], response.Response[i].ErrorCode)
 			continue
 		}
 		b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
