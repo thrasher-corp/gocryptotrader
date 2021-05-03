@@ -130,7 +130,6 @@ func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]interface{}, error) {
 	if err != nil {
 		return resp, err
 	}
-	fmt.Println(resp)
 	return resp, nil
 }
 

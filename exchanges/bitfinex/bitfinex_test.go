@@ -1,7 +1,6 @@
 package bitfinex
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -116,8 +115,7 @@ func TestGetV2Balances(t *testing.T) {
 
 func TestGetDerivativeData(t *testing.T) {
 	t.Parallel()
-	a, err := b.GetDerivativeData("ALL", "", "", 0, 0)
-	fmt.Printf("%+v", a)
+	_, err := b.GetDerivativeData("ALL", "", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}

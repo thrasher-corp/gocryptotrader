@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -24,6 +25,15 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())
+}
+
+func TestGetAveragePrice(t *testing.T) {
+	var b *Base
+	avgPrice, err := b.GetAveragePrice(false, 5)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(avgPrice)
 }
 
 func TestSubscribeToExchangeOrderbooks(t *testing.T) {

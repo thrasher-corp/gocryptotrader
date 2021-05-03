@@ -41,7 +41,7 @@ func (b *Base) GetAveragePrice(buy bool, amount float64) (float64, error) {
 		}
 	}
 	if remainingAmount != 0 {
-		return 0, fmt.Errorf("orderbook for %v on exchange %v not liquid enough to support a buy amount of %v", b.Pair, b.ExchangeName, amount)
+		return 0, fmt.Errorf("orderbook for %v on exchange %v not liquid enough to support a buy amount of %v", b.Pair, b.Exchange, amount)
 	}
 	return aggNominalAmount / amount, nil
 }
