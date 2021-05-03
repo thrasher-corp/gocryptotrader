@@ -123,11 +123,13 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 			},
 		}
 
-		if tempEvent.CreatedAt = timestamppb.New(ret[x].CreatedAt); !tempEvent.CreatedAt.IsValid() {
-			log.Errorln(log.Global, "withdrawal parseMultipleEvents CreatedAt: failed to convert time")
+		tempEvent.CreatedAt = timestamppb.New(ret[x].CreatedAt)
+		if err := tempEvent.CreatedAt.CheckValid(); err != nil {
+			log.Errorf(log.Global, "withdrawal parseMultipleEvents CreatedAt: %w", err)
 		}
-		if tempEvent.UpdatedAt = timestamppb.New(ret[x].UpdatedAt); !tempEvent.UpdatedAt.IsValid() {
-			log.Errorln(log.Global, "withdrawal parseMultipleEvents UpdatedAt: failed to convert time")
+		tempEvent.UpdatedAt = timestamppb.New(ret[x].UpdatedAt)
+		if err := tempEvent.UpdatedAt.CheckValid(); err != nil {
+			log.Errorf(log.Global, "withdrawal parseMultipleEvents UpdatedAt: %w", err)
 		}
 
 		if ret[x].RequestDetails.Type == withdraw.Crypto {
@@ -175,8 +177,9 @@ func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, 
 			},
 		}
 
-		if tempEvent.UpdatedAt = timestamppb.New(ret[x].Timestamp); !tempEvent.UpdatedAt.IsValid() {
-			log.Errorln(log.Global, "withdrawal parseSingleEvents UpdatedAt: failed to convert time")
+		tempEvent.UpdatedAt = timestamppb.New(ret[x].Timestamp)
+		if err := tempEvent.UpdatedAt.CheckValid(); err != nil {
+			log.Errorf(log.Global, "withdrawal parseWithdrawalsHistory UpdatedAt: %w", err)
 		}
 
 		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
@@ -206,11 +209,13 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 		},
 	}
 
-	if tempEvent.CreatedAt = timestamppb.New(ret.CreatedAt); !tempEvent.CreatedAt.IsValid() {
-		log.Errorln(log.Global, "withdrawal parseSingleEvents CreatedAt: failed to convert time")
+	tempEvent.CreatedAt = timestamppb.New(ret.CreatedAt)
+	if err := tempEvent.CreatedAt.CheckValid(); err != nil {
+		log.Errorf(log.Global, "withdrawal parseSingleEvents CreatedAt %w", err)
 	}
-	if tempEvent.UpdatedAt = timestamppb.New(ret.UpdatedAt); !tempEvent.UpdatedAt.IsValid() {
-		log.Errorln(log.Global, "withdrawal parseSingleEvents UpdatedAt: failed to convert time")
+	tempEvent.UpdatedAt = timestamppb.New(ret.UpdatedAt)
+	if err := tempEvent.UpdatedAt.CheckValid(); err != nil {
+		log.Errorf(log.Global, "withdrawal parseSingleEvents UpdatedAt: %w", err)
 	}
 
 	if ret.RequestDetails.Type == withdraw.Crypto {

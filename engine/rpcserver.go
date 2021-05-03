@@ -1415,11 +1415,13 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 		},
 	}
 
-	if resp.Event.CreatedAt = timestamppb.New(v.CreatedAt); !resp.Event.CreatedAt.IsValid() {
-		log.Errorln(log.Global, "withdrawal event by id CreatedAt: failed to convert time")
+	resp.Event.CreatedAt = timestamppb.New(v.CreatedAt)
+	if err := resp.Event.CreatedAt.CheckValid(); err != nil {
+		log.Errorf(log.GRPCSys, "withdrawal event by id CreatedAt: %w", err)
 	}
-	if resp.Event.UpdatedAt = timestamppb.New(v.UpdatedAt); !resp.Event.UpdatedAt.IsValid() {
-		log.Errorln(log.Global, "withdrawal event by id UpdatedAt: failed to convert time")
+	resp.Event.UpdatedAt = timestamppb.New(v.UpdatedAt)
+	if err := resp.Event.UpdatedAt.CheckValid(); err != nil {
+		log.Errorf(log.GRPCSys, "withdrawal event by id UpdatedAt: %w", err)
 	}
 
 	if v.RequestDetails.Type == withdraw.Crypto {
