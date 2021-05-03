@@ -11,6 +11,7 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
+// Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
 // GoCryptoTraderClient is the client API for GoCryptoTrader service.
@@ -269,7 +270,7 @@ func (c *goCryptoTraderClient) UpdateAccountInfo(ctx context.Context, in *GetAcc
 }
 
 func (c *goCryptoTraderClient) GetAccountInfoStream(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (GoCryptoTrader_GetAccountInfoStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_GoCryptoTrader_serviceDesc.Streams[0], "/gctrpc.GoCryptoTrader/GetAccountInfoStream", opts...)
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTrader_ServiceDesc.Streams[0], "/gctrpc.GoCryptoTrader/GetAccountInfoStream", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +563,7 @@ func (c *goCryptoTraderClient) SetExchangePair(ctx context.Context, in *SetExcha
 }
 
 func (c *goCryptoTraderClient) GetOrderbookStream(ctx context.Context, in *GetOrderbookStreamRequest, opts ...grpc.CallOption) (GoCryptoTrader_GetOrderbookStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_GoCryptoTrader_serviceDesc.Streams[1], "/gctrpc.GoCryptoTrader/GetOrderbookStream", opts...)
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTrader_ServiceDesc.Streams[1], "/gctrpc.GoCryptoTrader/GetOrderbookStream", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -594,7 +595,7 @@ func (x *goCryptoTraderGetOrderbookStreamClient) Recv() (*OrderbookResponse, err
 }
 
 func (c *goCryptoTraderClient) GetExchangeOrderbookStream(ctx context.Context, in *GetExchangeOrderbookStreamRequest, opts ...grpc.CallOption) (GoCryptoTrader_GetExchangeOrderbookStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_GoCryptoTrader_serviceDesc.Streams[2], "/gctrpc.GoCryptoTrader/GetExchangeOrderbookStream", opts...)
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTrader_ServiceDesc.Streams[2], "/gctrpc.GoCryptoTrader/GetExchangeOrderbookStream", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -626,7 +627,7 @@ func (x *goCryptoTraderGetExchangeOrderbookStreamClient) Recv() (*OrderbookRespo
 }
 
 func (c *goCryptoTraderClient) GetTickerStream(ctx context.Context, in *GetTickerStreamRequest, opts ...grpc.CallOption) (GoCryptoTrader_GetTickerStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_GoCryptoTrader_serviceDesc.Streams[3], "/gctrpc.GoCryptoTrader/GetTickerStream", opts...)
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTrader_ServiceDesc.Streams[3], "/gctrpc.GoCryptoTrader/GetTickerStream", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -658,7 +659,7 @@ func (x *goCryptoTraderGetTickerStreamClient) Recv() (*TickerResponse, error) {
 }
 
 func (c *goCryptoTraderClient) GetExchangeTickerStream(ctx context.Context, in *GetExchangeTickerStreamRequest, opts ...grpc.CallOption) (GoCryptoTrader_GetExchangeTickerStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_GoCryptoTrader_serviceDesc.Streams[4], "/gctrpc.GoCryptoTrader/GetExchangeTickerStream", opts...)
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTrader_ServiceDesc.Streams[4], "/gctrpc.GoCryptoTrader/GetExchangeTickerStream", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -879,7 +880,7 @@ func (c *goCryptoTraderClient) GetRecentTrades(ctx context.Context, in *GetSaved
 }
 
 func (c *goCryptoTraderClient) GetHistoricTrades(ctx context.Context, in *GetSavedTradesRequest, opts ...grpc.CallOption) (GoCryptoTrader_GetHistoricTradesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_GoCryptoTrader_serviceDesc.Streams[5], "/gctrpc.GoCryptoTrader/GetHistoricTrades", opts...)
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTrader_ServiceDesc.Streams[5], "/gctrpc.GoCryptoTrader/GetHistoricTrades", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1291,8 +1292,8 @@ type UnsafeGoCryptoTraderServer interface {
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
-func RegisterGoCryptoTraderServer(s *grpc.Server, srv GoCryptoTraderServer) {
-	s.RegisterService(&_GoCryptoTrader_serviceDesc, srv)
+func RegisterGoCryptoTraderServer(s grpc.ServiceRegistrar, srv GoCryptoTraderServer) {
+	s.RegisterService(&GoCryptoTrader_ServiceDesc, srv)
 }
 
 func _GoCryptoTrader_GetInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -2735,7 +2736,10 @@ func _GoCryptoTrader_SetExchangeTradeProcessing_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
-var _GoCryptoTrader_serviceDesc = grpc.ServiceDesc{
+// GoCryptoTrader_ServiceDesc is the grpc.ServiceDesc for GoCryptoTrader service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "gctrpc.GoCryptoTrader",
 	HandlerType: (*GoCryptoTraderServer)(nil),
 	Methods: []grpc.MethodDesc{

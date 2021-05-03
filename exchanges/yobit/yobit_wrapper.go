@@ -240,10 +240,10 @@ func (y *Yobit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       y.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: y.OrderbookVerificationBypass,
+		Exchange:        y.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: y.CanVerifyOrderbook,
 	}
 	fpair, err := y.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -577,7 +577,7 @@ func (y *Yobit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		}
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -598,8 +598,8 @@ func (y *Yobit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		resp, err := y.GetTradeHistory(0,
 			10000,
 			math.MaxInt64,
-			req.StartTicks.Unix(),
-			req.EndTicks.Unix(),
+			req.StartTime.Unix(),
+			req.EndTime.Unix(),
 			"DESC",
 			fpair.String())
 		if err != nil {

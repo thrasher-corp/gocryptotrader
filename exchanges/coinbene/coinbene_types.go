@@ -3,6 +3,7 @@ package coinbene
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -255,17 +256,19 @@ type WsUserOrders struct {
 
 // SwapTicker stores the swap ticker info
 type SwapTicker struct {
-	LastPrice     float64   `json:"lastPrice,string"`
-	MarkPrice     float64   `json:"markPrice,string"`
-	BestAskPrice  float64   `json:"bestAskPrice,string"`
-	BestBidPrice  float64   `json:"bestBidPrice,string"`
-	High24Hour    float64   `json:"high24h,string"`
-	Low24Hour     float64   `json:"low24h,string"`
-	Volume24Hour  float64   `json:"volume24h,string"`
-	BestAskVolume float64   `json:"bestAskVolume,string"`
-	BestBidVolume float64   `json:"bestBidVolume,string"`
-	Turnover      float64   `json:"turnover,string"`
-	Timestamp     time.Time `json:"timeStamp"`
+	LastPrice      float64   `json:"lastPrice,string"`
+	MarkPrice      float64   `json:"markPrice,string"`
+	BestAskPrice   float64   `json:"bestAskPrice,string"`
+	BestBidPrice   float64   `json:"bestBidPrice,string"`
+	High24Hour     float64   `json:"high24h,string"`
+	Low24Hour      float64   `json:"low24h,string"`
+	Volume24Hour   float64   `json:"volume24h,string"`
+	BestAskVolume  float64   `json:"bestAskVolume,string"`
+	BestBidVolume  float64   `json:"bestBidVolume,string"`
+	Turnover       float64   `json:"turnover,string"`
+	Timestamp      time.Time `json:"timeStamp"`
+	Change24Hour   float64   `json:"chg24h,string"`
+	ChangeZeroHour float64   `json:"chg0h,string"`
 }
 
 // SwapTickers stores a map of swap tickers
@@ -286,6 +289,16 @@ type SwapKlineItem struct {
 
 // SwapKlines stores an array of kline data
 type SwapKlines []SwapKlineItem
+
+// Instrument stores an individual tradable instrument
+type Instrument struct {
+	InstrumentID       currency.Pair `json:"instrumentId"`
+	Multiplier         float64       `json:"multiplier,string"`
+	MinimumAmount      float64       `json:"minAmount,string"`
+	MaximumAmount      float64       `json:"maxAmount,string"`
+	MinimumPriceChange float64       `json:"minPriceChange,string"`
+	PricePrecision     int64         `json:"pricePrecision,string"`
+}
 
 // SwapTrade stores an individual trade
 type SwapTrade struct {

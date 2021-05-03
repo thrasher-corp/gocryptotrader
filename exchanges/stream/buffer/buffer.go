@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const packageError = "websocket orderbook buffer error: %w"
@@ -18,6 +20,8 @@ var (
 	errIssueBufferEnabledButNoLimit = errors.New("buffer enabled but no limit set")
 	errUpdateIsNil                  = errors.New("update is nil")
 	errUpdateNoTargets              = errors.New("update bid/ask targets cannot be nil")
+	errDepthNotFound                = errors.New("orderbook depth not found")
+	errRESTOverwrite                = errors.New("orderbook has been overwritten by REST protocol")
 )
 
 // Setup sets private variables
@@ -25,7 +29,10 @@ func (w *Orderbook) Setup(obBufferLimit int,
 	bufferEnabled,
 	sortBuffer,
 	sortBufferByUpdateIDs,
-	updateEntriesByID bool, exchangeName string, dataHandler chan interface{}) error {
+	updateEntriesByID,
+	verbose bool,
+	exchangeName string,
+	dataHandler chan interface{}) error {
 	if exchangeName == "" {
 		return fmt.Errorf(packageError, errUnsetExchangeName)
 	}
@@ -43,6 +50,7 @@ func (w *Orderbook) Setup(obBufferLimit int,
 	w.exchangeName = exchangeName
 	w.dataHandler = dataHandler
 	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
+	w.verbose = verbose
 	return nil
 }
 
@@ -57,27 +65,48 @@ func (w *Orderbook) validate(u *Update) error {
 	return nil
 }
 
-// Update updates a local buffer using bid targets and ask targets then updates
-// main orderbook
-// Volume == 0; deletion at price target
-// Price target not found; append of price target
-// Price target found; amend volume of price target
+// Update updates a stored pointer to an orderbook.Depth struct containing a
+// linked list, this switches between the usage of a buffered update
 func (w *Orderbook) Update(u *Update) error {
 	if err := w.validate(u); err != nil {
 		return err
 	}
 	w.m.Lock()
 	defer w.m.Unlock()
-	obLookup, ok := w.ob[u.Pair.Base][u.Pair.Quote][u.Asset]
+	book, ok := w.ob[u.Pair.Base][u.Pair.Quote][u.Asset]
 	if !ok {
-		return fmt.Errorf("ob.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
+		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
+			errDepthNotFound,
 			w.exchangeName,
 			u.Pair,
 			u.Asset)
 	}
 
+	// Checks for when the rest protocol overwrites a streaming dominated book
+	// will stop updating book via incremental updates. This occurs because our
+	// sync manager (engine/sync.go) timer has elapsed for streaming. Usually
+	// because the book is highly illiquid. TODO: Book resubscribe on websocket.
+	if book.ob.IsRestSnapshot() {
+		if w.verbose {
+			log.Warnf(log.WebsocketMgr,
+				"%s for Exchange %s CurrencyPair: %s AssetType: %s consider extending synctimeoutwebsocket",
+				errRESTOverwrite,
+				w.exchangeName,
+				u.Pair,
+				u.Asset)
+		}
+		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
+			errRESTOverwrite,
+			w.exchangeName,
+			u.Pair,
+			u.Asset)
+	}
+
+	// Apply new update information
+	book.ob.SetLastUpdate(u.UpdateTime, u.UpdateID, false)
+
 	if w.bufferEnabled {
-		processed, err := w.processBufferUpdate(obLookup, u)
+		processed, err := w.processBufferUpdate(book, u)
 		if err != nil {
 			return err
 		}
@@ -86,21 +115,36 @@ func (w *Orderbook) Update(u *Update) error {
 			return nil
 		}
 	} else {
-		err := w.processObUpdate(obLookup, u)
+		err := w.processObUpdate(book, u)
 		if err != nil {
 			return err
 		}
 	}
 
-	err := obLookup.ob.Process()
-	if err != nil {
-		return err
+	if book.ob.VerifyOrderbook { // This is used here so as to not retrieve
+		// book if verification is off.
+		// On every update, this will retrieve and verify orderbook depths
+		err := book.ob.Retrieve().Verify()
+		if err != nil {
+			return err
+		}
 	}
 
-	// Process in data handler
 	select {
-	case w.dataHandler <- obLookup.ob:
+	case <-book.ticker.C:
+		// Opted to wait for receiver because we are limiting here and the sync
+		// manager requires update
+		go func() {
+			w.dataHandler <- book.ob.Retrieve()
+			book.ob.Publish()
+		}()
 	default:
+		// We do not need to send an update to the sync manager within this time
+		// window unless verbose is turned on
+		if w.verbose {
+			w.dataHandler <- book.ob.Retrieve()
+			book.ob.Publish()
+		}
 	}
 	return nil
 }
@@ -139,230 +183,42 @@ func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *Update) (bool, er
 // processObUpdate processes updates either by its corresponding id or by
 // price level
 func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
-	o.ob.LastUpdateID = u.UpdateID
 	if w.updateEntriesByID {
 		return o.updateByIDAndAction(u)
 	}
-	return o.updateByPrice(u)
+	o.updateByPrice(u)
+	return nil
 }
 
 // updateByPrice ammends amount if match occurs by price, deletes if amount is
 // zero or less and inserts if not found.
-func (o *orderbookHolder) updateByPrice(updts *Update) error {
-askUpdates:
-	for j := range updts.Asks {
-		for target := range o.ob.Asks {
-			if o.ob.Asks[target].Price == updts.Asks[j].Price {
-				if updts.Asks[j].Amount == 0 {
-					o.ob.Asks = append(o.ob.Asks[:target], o.ob.Asks[target+1:]...)
-					continue askUpdates
-				}
-				o.ob.Asks[target].Amount = updts.Asks[j].Amount
-				continue askUpdates
-			}
-		}
-		if updts.Asks[j].Amount <= 0 {
-			continue
-		}
-		insertAsk(updts.Asks[j], &o.ob.Asks)
-		if updts.MaxDepth != 0 && len(o.ob.Asks) > updts.MaxDepth {
-			o.ob.Asks = o.ob.Asks[:updts.MaxDepth]
-		}
-	}
-bidUpdates:
-	for j := range updts.Bids {
-		for target := range o.ob.Bids {
-			if o.ob.Bids[target].Price == updts.Bids[j].Price {
-				if updts.Bids[j].Amount == 0 {
-					o.ob.Bids = append(o.ob.Bids[:target], o.ob.Bids[target+1:]...)
-					continue bidUpdates
-				}
-				o.ob.Bids[target].Amount = updts.Bids[j].Amount
-				continue bidUpdates
-			}
-		}
-		if updts.Bids[j].Amount <= 0 {
-			continue
-		}
-		insertBid(updts.Bids[j], &o.ob.Bids)
-		if updts.MaxDepth != 0 && len(o.ob.Bids) > updts.MaxDepth {
-			o.ob.Bids = o.ob.Bids[:updts.MaxDepth]
-		}
-	}
-	return nil
+func (o *orderbookHolder) updateByPrice(updts *Update) {
+	o.ob.UpdateBidAskByPrice(updts.Bids, updts.Asks, updts.MaxDepth)
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
 // it will then match by IDs instead of price to perform the action
-func (o *orderbookHolder) updateByIDAndAction(updts *Update) (err error) {
+func (o *orderbookHolder) updateByIDAndAction(updts *Update) error {
 	switch updts.Action {
 	case Amend:
-		err = applyUpdates(updts.Bids, o.ob.Bids)
-		if err != nil {
-			return err
-		}
-		err = applyUpdates(updts.Asks, o.ob.Asks)
-		if err != nil {
-			return err
-		}
+		return o.ob.UpdateBidAskByID(updts.Bids, updts.Asks)
 	case Delete:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
-		bypassErr := o.ob.ExchangeName == "Bitfinex" && o.ob.IsFundingRate
-		err = deleteUpdates(updts.Bids, &o.ob.Bids, bypassErr)
-		if err != nil {
-			return fmt.Errorf("%s %s %v", o.ob.AssetType, o.ob.Pair, err)
-		}
-		err = deleteUpdates(updts.Asks, &o.ob.Asks, bypassErr)
-		if err != nil {
-			return fmt.Errorf("%s %s %v", o.ob.AssetType, o.ob.Pair, err)
-		}
+		bypassErr := o.ob.GetName() == "Bitfinex" && o.ob.IsFundingRate()
+		return o.ob.DeleteBidAskByID(updts.Bids, updts.Asks, bypassErr)
 	case Insert:
-		insertUpdatesBid(updts.Bids, &o.ob.Bids)
-		insertUpdatesAsk(updts.Asks, &o.ob.Asks)
+		return o.ob.InsertBidAskByID(updts.Bids, updts.Asks)
 	case UpdateInsert:
-	updateBids:
-		for x := range updts.Bids {
-			for target := range o.ob.Bids { // First iteration finds ID matches
-				if o.ob.Bids[target].ID == updts.Bids[x].ID {
-					if o.ob.Bids[target].Price != updts.Bids[x].Price {
-						// Price change occurred so correct bid alignment is
-						// needed - delete instance and insert into correct
-						// price level
-						o.ob.Bids = append(o.ob.Bids[:target], o.ob.Bids[target+1:]...)
-						break
-					}
-					o.ob.Bids[target].Amount = updts.Bids[x].Amount
-					continue updateBids
-				}
-			}
-			insertBid(updts.Bids[x], &o.ob.Bids)
-		}
-	updateAsks:
-		for x := range updts.Asks {
-			for target := range o.ob.Asks {
-				if o.ob.Asks[target].ID == updts.Asks[x].ID {
-					if o.ob.Asks[target].Price != updts.Asks[x].Price {
-						// Price change occurred so correct ask alignment is
-						// needed - delete instance and insert into correct
-						// price level
-						o.ob.Asks = append(o.ob.Asks[:target], o.ob.Asks[target+1:]...)
-						break
-					}
-					o.ob.Asks[target].Amount = updts.Asks[x].Amount
-					continue updateAsks
-				}
-			}
-			insertAsk(updts.Asks[x], &o.ob.Asks)
-		}
+		return o.ob.UpdateInsertByID(updts.Bids, updts.Asks)
 	default:
 		return fmt.Errorf("invalid action [%s]", updts.Action)
 	}
-	return nil
 }
 
-// applyUpdates amends amount by ID and returns an error if not found
-func applyUpdates(updts, book []orderbook.Item) error {
-updates:
-	for x := range updts {
-		for y := range book {
-			if book[y].ID == updts[x].ID {
-				book[y].Amount = updts[x].Amount
-				continue updates
-			}
-		}
-		return fmt.Errorf("update cannot be applied id: %d not found",
-			updts[x].ID)
-	}
-	return nil
-}
-
-// deleteUpdates removes updates from orderbook and returns an error if not
-// found
-func deleteUpdates(updt []orderbook.Item, book *[]orderbook.Item, bypassErr bool) error {
-updates:
-	for x := range updt {
-		for y := range *book {
-			if (*book)[y].ID == updt[x].ID {
-				*book = append((*book)[:y], (*book)[y+1:]...) // nolint:gocritic
-				continue updates
-			}
-		}
-		// bypassErr is for expected duplication from endpoint.
-		if !bypassErr {
-			return fmt.Errorf("update cannot be deleted id: %d not found",
-				updt[x].ID)
-		}
-	}
-	return nil
-}
-
-func insertAsk(updt orderbook.Item, book *[]orderbook.Item) {
-	for target := range *book {
-		if updt.Price < (*book)[target].Price {
-			insertItem(updt, book, target)
-			return
-		}
-	}
-	*book = append(*book, updt)
-}
-
-func insertBid(updt orderbook.Item, book *[]orderbook.Item) {
-	for target := range *book {
-		if updt.Price > (*book)[target].Price {
-			insertItem(updt, book, target)
-			return
-		}
-	}
-	*book = append(*book, updt)
-}
-
-// insertUpdatesBid inserts on **correctly aligned** book at price level
-func insertUpdatesBid(updt []orderbook.Item, book *[]orderbook.Item) {
-updates:
-	for x := range updt {
-		for target := range *book {
-			if updt[x].Price > (*book)[target].Price {
-				insertItem(updt[x], book, target)
-				continue updates
-			}
-		}
-		*book = append(*book, updt[x])
-	}
-}
-
-// insertUpdatesBid inserts on **correctly aligned** book at price level
-func insertUpdatesAsk(updt []orderbook.Item, book *[]orderbook.Item) {
-updates:
-	for x := range updt {
-		for target := range *book {
-			if updt[x].Price < (*book)[target].Price {
-				insertItem(updt[x], book, target)
-				continue updates
-			}
-		}
-		*book = append(*book, updt[x])
-	}
-}
-
-// insertItem inserts item in slice by target element this is an optimization
-// to reduce the need for sorting algorithms
-func insertItem(update orderbook.Item, book *[]orderbook.Item, target int) {
-	// TODO: extend slice by incoming update length before this gets hit
-	*book = append(*book, orderbook.Item{})
-	copy((*book)[target+1:], (*book)[target:])
-	(*book)[target] = update
-}
-
-// LoadSnapshot loads initial snapshot of ob data from websocket
+// LoadSnapshot loads initial snapshot of orderbook data from websocket
 func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	w.m.Lock()
 	defer w.m.Unlock()
-
-	err := book.Process()
-	if err != nil {
-		return err
-	}
-
 	m1, ok := w.ob[book.Pair.Base]
 	if !ok {
 		m1 = make(map[currency.Code]map[asset.Item]*orderbookHolder)
@@ -373,30 +229,60 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		m2 = make(map[asset.Item]*orderbookHolder)
 		m1[book.Pair.Quote] = m2
 	}
-	m3, ok := m2[book.AssetType]
+	holder, ok := m2[book.Asset]
 	if !ok {
-		m3 = &orderbookHolder{ob: book, buffer: &[]Update{}}
-		m2[book.AssetType] = m3
-	} else {
-		m3.ob.Bids = book.Bids
-		m3.ob.Asks = book.Asks
+		// Associate orderbook pointer with local exchange depth map
+		depth, err := orderbook.DeployDepth(book.Exchange, book.Pair, book.Asset)
+		if err != nil {
+			return err
+		}
+		depth.AssignOptions(book)
+		buffer := make([]Update, w.obBufferLimit)
+		ticker := time.NewTicker(timerDefault)
+		holder = &orderbookHolder{
+			ob:     depth,
+			buffer: &buffer,
+			ticker: ticker,
+		}
+		m2[book.Asset] = holder
 	}
-	w.dataHandler <- book
+
+	// Checks if book can deploy to linked list
+	err := book.Verify()
+	if err != nil {
+		return err
+	}
+
+	holder.ob.LoadSnapshot(book.Bids, book.Asks)
+
+	if holder.ob.VerifyOrderbook { // This is used here so as to not retrieve
+		// book if verification is off.
+		// Checks to see if orderbook snapshot that was deployed has not been
+		// altered in any way
+		err = holder.ob.Retrieve().Verify()
+		if err != nil {
+			return err
+		}
+	}
+
+	w.dataHandler <- holder.ob.Retrieve()
+	holder.ob.Publish()
 	return nil
 }
 
-// GetOrderbook returns orderbook stored in current buffer
-func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base {
+// GetOrderbook returns an orderbook copy as orderbook.Base
+func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	w.m.Lock()
 	defer w.m.Unlock()
-	ptr, ok := w.ob[p.Base][p.Quote][a]
+	book, ok := w.ob[p.Base][p.Quote][a]
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("%s %s %s %w",
+			w.exchangeName,
+			p,
+			a,
+			errDepthNotFound)
 	}
-	cpy := *ptr.ob
-	cpy.Asks = append(cpy.Asks[:0:0], cpy.Asks...)
-	cpy.Bids = append(cpy.Bids[:0:0], cpy.Bids...)
-	return &cpy
+	return book.ob.Retrieve(), nil
 }
 
 // FlushBuffer flushes w.ob data to be garbage collected and refreshed when a
@@ -413,9 +299,12 @@ func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 	defer w.m.Unlock()
 	book, ok := w.ob[p.Base][p.Quote][a]
 	if !ok {
-		return fmt.Errorf("orderbook not associated with pair: [%s] and asset [%s]", p, a)
+		return fmt.Errorf("cannot flush orderbook %s %s %s %w",
+			w.exchangeName,
+			p,
+			a,
+			errDepthNotFound)
 	}
-	book.ob.Bids = nil
-	book.ob.Asks = nil
+	book.ob.Flush()
 	return nil
 }

@@ -51,6 +51,8 @@ var (
 
 // New starts a new engine
 func New() (*Engine, error) {
+	newEngineMutex.Lock()
+	defer newEngineMutex.Unlock()
 	var b Engine
 	b.Config = &config.Cfg
 
@@ -68,6 +70,8 @@ func New() (*Engine, error) {
 
 // NewFromSettings starts a new engine based on supplied settings
 func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, error) {
+	newEngineMutex.Lock()
+	defer newEngineMutex.Unlock()
 	if settings == nil {
 		return nil, errors.New("engine: settings is nil")
 	}
@@ -113,7 +117,7 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 	}
 	log.Printf("Loading config file %s..\n", filePath)
 
-	conf := &config.Cfg
+	conf := &config.Config{}
 	err = conf.ReadConfigFromFile(filePath, settings.EnableDryRun)
 	if err != nil {
 		return nil, fmt.Errorf(config.ErrFailureOpeningConfig, filePath, err)
@@ -204,7 +208,8 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	b.Settings.EnableOrderbookSyncing = s.EnableOrderbookSyncing
 	b.Settings.EnableTradeSyncing = s.EnableTradeSyncing
 	b.Settings.SyncWorkers = s.SyncWorkers
-	b.Settings.SyncTimeout = s.SyncTimeout
+	b.Settings.SyncTimeoutREST = s.SyncTimeoutREST
+	b.Settings.SyncTimeoutWebsocket = s.SyncTimeoutWebsocket
 	b.Settings.SyncContinuously = s.SyncContinuously
 	b.Settings.EnableDepositAddressManager = s.EnableDepositAddressManager
 	b.Settings.EnableExchangeAutoPairUpdates = s.EnableExchangeAutoPairUpdates
@@ -301,7 +306,8 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable ticker syncing: %v\n", s.EnableTickerSyncing)
 	gctlog.Debugf(gctlog.Global, "\t Enable orderbook syncing: %v\n", s.EnableOrderbookSyncing)
 	gctlog.Debugf(gctlog.Global, "\t Enable trade syncing: %v\n", s.EnableTradeSyncing)
-	gctlog.Debugf(gctlog.Global, "\t Exchange sync timeout: %v\n", s.SyncTimeout)
+	gctlog.Debugf(gctlog.Global, "\t Exchange REST sync timeout: %v\n", s.SyncTimeoutREST)
+	gctlog.Debugf(gctlog.Global, "\t Exchange Websocket sync timeout: %v\n", s.SyncTimeoutWebsocket)
 	gctlog.Debugf(gctlog.Global, "- FOREX SETTINGS:")
 	gctlog.Debugf(gctlog.Global, "\t Enable currency conveter: %v", s.EnableCurrencyConverter)
 	gctlog.Debugf(gctlog.Global, "\t Enable currency layer: %v", s.EnableCurrencyLayer)
@@ -337,6 +343,9 @@ func (bot *Engine) Start() error {
 	if bot == nil {
 		return errors.New("engine instance is nil")
 	}
+
+	newEngineMutex.Lock()
+	defer newEngineMutex.Unlock()
 
 	if bot.Settings.EnableDatabaseManager {
 		if err := bot.DatabaseManager.Start(bot); err != nil {
@@ -389,35 +398,40 @@ func (bot *Engine) Start() error {
 	}
 
 	gctlog.Debugln(gctlog.Global, "Setting up exchanges..")
-	bot.SetupExchanges()
-	if bot.exchangeManager.Len() == 0 {
-		return errors.New("no exchanges are loaded")
+	err := bot.SetupExchanges()
+	if err != nil {
+		return err
 	}
 
 	if bot.Settings.EnableCommsRelayer {
-		if err := bot.CommsManager.Start(); err != nil {
+		if err = bot.CommsManager.Start(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %v\n", err)
 		}
 	}
-
-	err := currency.RunStorageUpdater(currency.BotOverrides{
-		Coinmarketcap:       bot.Settings.EnableCoinmarketcapAnalysis,
-		FxCurrencyConverter: bot.Settings.EnableCurrencyConverter,
-		FxCurrencyLayer:     bot.Settings.EnableCurrencyLayer,
-		FxFixer:             bot.Settings.EnableFixer,
-		FxOpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
-	},
-		&currency.MainConfiguration{
-			ForexProviders:         bot.Config.GetForexProviders(),
-			CryptocurrencyProvider: coinmarketcap.Settings(bot.Config.Currency.CryptocurrencyProvider),
-			Cryptocurrencies:       bot.Config.Currency.Cryptocurrencies,
-			FiatDisplayCurrency:    bot.Config.Currency.FiatDisplayCurrency,
-			CurrencyDelay:          bot.Config.Currency.CurrencyFileUpdateDuration,
-			FxRateDelay:            bot.Config.Currency.ForeignExchangeUpdateDuration,
+	if bot.Settings.EnableCoinmarketcapAnalysis ||
+		bot.Settings.EnableCurrencyConverter ||
+		bot.Settings.EnableCurrencyLayer ||
+		bot.Settings.EnableFixer ||
+		bot.Settings.EnableOpenExchangeRates {
+		err = currency.RunStorageUpdater(currency.BotOverrides{
+			Coinmarketcap:       bot.Settings.EnableCoinmarketcapAnalysis,
+			FxCurrencyConverter: bot.Settings.EnableCurrencyConverter,
+			FxCurrencyLayer:     bot.Settings.EnableCurrencyLayer,
+			FxFixer:             bot.Settings.EnableFixer,
+			FxOpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
 		},
-		bot.Settings.DataDir)
-	if err != nil {
-		gctlog.Errorf(gctlog.Global, "Currency updater system failed to start %v", err)
+			&currency.MainConfiguration{
+				ForexProviders:         bot.Config.GetForexProviders(),
+				CryptocurrencyProvider: coinmarketcap.Settings(bot.Config.Currency.CryptocurrencyProvider),
+				Cryptocurrencies:       bot.Config.Currency.Cryptocurrencies,
+				FiatDisplayCurrency:    bot.Config.Currency.FiatDisplayCurrency,
+				CurrencyDelay:          bot.Config.Currency.CurrencyFileUpdateDuration,
+				FxRateDelay:            bot.Config.Currency.ForeignExchangeUpdateDuration,
+			},
+			bot.Settings.DataDir)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "ExchangeSettings updater system failed to start %v", err)
+		}
 	}
 
 	if bot.Settings.EnableGRPC {
@@ -445,20 +459,21 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableOrderManager {
-		if err = bot.OrderManager.Start(); err != nil {
+		if err = bot.OrderManager.Start(bot); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to start: %v", err)
 		}
 	}
 
 	if bot.Settings.EnableExchangeSyncManager {
 		exchangeSyncCfg := CurrencyPairSyncerConfig{
-			SyncTicker:       bot.Settings.EnableTickerSyncing,
-			SyncOrderbook:    bot.Settings.EnableOrderbookSyncing,
-			SyncTrades:       bot.Settings.EnableTradeSyncing,
-			SyncContinuously: bot.Settings.SyncContinuously,
-			NumWorkers:       bot.Settings.SyncWorkers,
-			Verbose:          bot.Settings.Verbose,
-			SyncTimeout:      bot.Settings.SyncTimeout,
+			SyncTicker:           bot.Settings.EnableTickerSyncing,
+			SyncOrderbook:        bot.Settings.EnableOrderbookSyncing,
+			SyncTrades:           bot.Settings.EnableTradeSyncing,
+			SyncContinuously:     bot.Settings.SyncContinuously,
+			NumWorkers:           bot.Settings.SyncWorkers,
+			Verbose:              bot.Settings.Verbose,
+			SyncTimeoutREST:      bot.Settings.SyncTimeoutREST,
+			SyncTimeoutWebsocket: bot.Settings.SyncTimeoutWebsocket,
 		}
 
 		bot.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(exchangeSyncCfg)
@@ -470,7 +485,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableEventManager {
-		go EventManger()
+		go EventManger(bot.Settings.Verbose, &bot.CommsManager)
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
@@ -488,6 +503,9 @@ func (bot *Engine) Start() error {
 
 // Stop correctly shuts down engine saving configuration files
 func (bot *Engine) Stop() {
+	newEngineMutex.Lock()
+	defer newEngineMutex.Unlock()
+
 	gctlog.Debugln(gctlog.Global, "Engine shutting down..")
 
 	if len(portfolio.Portfolio.Addresses) != 0 {
@@ -541,8 +559,14 @@ func (bot *Engine) Stop() {
 		}
 	}
 
-	if err := currency.ShutdownStorageUpdater(); err != nil {
-		gctlog.Errorf(gctlog.Global, "Currency storage system. Error: %v", err)
+	if bot.Settings.EnableCoinmarketcapAnalysis ||
+		bot.Settings.EnableCurrencyConverter ||
+		bot.Settings.EnableCurrencyLayer ||
+		bot.Settings.EnableFixer ||
+		bot.Settings.EnableOpenExchangeRates {
+		if err := currency.ShutdownStorageUpdater(); err != nil {
+			gctlog.Errorf(gctlog.Global, "ExchangeSettings storage system. Error: %v", err)
+		}
 	}
 
 	if !bot.Settings.EnableDryRun {

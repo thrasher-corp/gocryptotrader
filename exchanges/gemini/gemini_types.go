@@ -2,6 +2,17 @@ package gemini
 
 import "github.com/thrasher-corp/gocryptotrader/currency"
 
+const (
+	marketDataLevel2 = "l2"
+	candles1m        = "candles_1m"
+	candles5m        = "candles_5m"
+	candles15m       = "candles_15m"
+	candles30m       = "candles_30m"
+	candles1hr       = "candles_1h"
+	candles6hr       = "candles_6h"
+	candles1d        = "candles_1d"
+)
+
 // Ticker holds returned ticker data from the exchange
 type Ticker struct {
 	Ask    float64 `json:"ask,string"`
@@ -217,40 +228,6 @@ type ErrorCapture struct {
 	Message string `json:"message"`
 }
 
-// WsResponse generic response
-type WsResponse struct {
-	Type string `json:"type"`
-}
-
-// WsMarketUpdateResponse defines the main response type
-type WsMarketUpdateResponse struct {
-	Type           string  `json:"type"`
-	EventID        int64   `json:"eventId"`
-	Timestamp      int64   `json:"timestamp"`
-	TimestampMS    int64   `json:"timestampms"`
-	SocketSequence int64   `json:"socket_sequence"`
-	Events         []Event `json:"events"`
-}
-
-// Event defines orderbook and trade data
-type Event struct {
-	Type      string  `json:"type"`
-	Reason    string  `json:"reason"`
-	Price     float64 `json:"price,string"`
-	Delta     float64 `json:"delta,string"`
-	Remaining float64 `json:"remaining,string"`
-	Side      string  `json:"side"`
-	MakerSide string  `json:"makerSide"`
-	ID        int64   `json:"tid"`
-	Amount    float64 `json:"amount,string"`
-}
-
-// ReadData defines read data from the websocket connection
-type ReadData struct {
-	Raw      []byte
-	Currency currency.Pair
-}
-
 // WsRequestPayload Request info to subscribe to a WS enpoint
 type WsRequestPayload struct {
 	Request string `json:"request"`
@@ -311,16 +288,48 @@ type WsOrderFilledData struct {
 	FeeCurrency string  `json:"fee_currency"`
 }
 
-type wsUnsubscribeResponse struct {
-	Type          string `json:"type"`
-	Subscriptions []struct {
-		Name    string   `json:"name"`
-		Symbols []string `json:"symbols"`
-	} `json:"subscriptions"`
-}
-
 type wsCandleResponse struct {
 	Type    string      `json:"type"`
 	Symbol  string      `json:"symbol"`
 	Changes [][]float64 `json:"changes"`
+}
+
+type wsSubscriptions struct {
+	Name    string   `json:"name"`
+	Symbols []string `json:"symbols"`
+}
+
+type wsSubscribeRequest struct {
+	Type          string            `json:"type"`
+	Subscriptions []wsSubscriptions `json:"subscriptions"`
+}
+
+type wsTrade struct {
+	Type      string  `json:"type"`
+	Symbol    string  `json:"symbol"`
+	EventID   int64   `json:"event_id"`
+	Timestamp int64   `json:"timestamp"`
+	Price     float64 `json:"price,string"`
+	Quantity  float64 `json:"quantity,string"`
+	Side      string  `json:"side"`
+}
+
+type wsAuctionResult struct {
+	Type             string  `json:"type"`
+	Symbol           string  `json:"symbol"`
+	Result           string  `json:"result"`
+	TimeMilliseconds int64   `json:"time_ms"`
+	HighestBidPrice  float64 `json:"highest_bid_price,string"`
+	LowestBidPrice   float64 `json:"lowest_ask_price,string"`
+	CollarPrice      float64 `json:"collar_price,string"`
+	AuctionPrice     float64 `json:"auction_price,string"`
+	AuctionQuantity  float64 `json:"auction_quantity,string"`
+}
+
+type wsL2MarketData struct {
+	Type          string            `json:"type"`
+	Symbol        string            `json:"symbol"`
+	Changes       [][3]string       `json:"changes"`
+	Trades        []wsTrade         `json:"trades"`
+	AuctionEvents []wsAuctionResult `json:"auction_events"`
 }

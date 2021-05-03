@@ -16,7 +16,6 @@ const gctscriptManagerName = "GCTScript"
 type GctScriptManager struct {
 	config   *Config
 	started  int32
-	stopped  int32
 	shutdown chan struct{}
 	// Optional values to override stored config ('nil' if not overridden)
 	MaxVirtualMachines *uint8
@@ -39,10 +38,9 @@ func (g *GctScriptManager) Started() bool {
 
 // Start starts gctscript subsystem and creates shutdown channel
 func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
-	if atomic.AddInt32(&g.started, 1) != 1 {
-		return fmt.Errorf("%s %s", gctscriptManagerName, subsystem.ErrSubSystemAlreadyStarted)
+	if !atomic.CompareAndSwapInt32(&g.started, 0, 1) {
+		return fmt.Errorf("%s %w", gctscriptManagerName, subsystem.ErrSubSystemAlreadyStarted)
 	}
-
 	defer func() {
 		if err != nil {
 			atomic.CompareAndSwapInt32(&g.started, 1, 0)
@@ -59,19 +57,18 @@ func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
 // Stop stops gctscript subsystem along with all running Virtual Machines
 func (g *GctScriptManager) Stop() error {
 	if atomic.LoadInt32(&g.started) == 0 {
-		return fmt.Errorf("%s %s", gctscriptManagerName, subsystem.ErrSubSystemNotStarted)
+		return fmt.Errorf("%s %w", gctscriptManagerName, subsystem.ErrSubSystemNotStarted)
 	}
-
-	if atomic.AddInt32(&g.stopped, 1) != 1 {
-		return fmt.Errorf("%s %s", gctscriptManagerName, subsystem.ErrSubSystemAlreadyStopped)
-	}
+	defer func() {
+		atomic.CompareAndSwapInt32(&g.started, 1, 0)
+	}()
 
 	log.Debugln(log.GCTScriptMgr, gctscriptManagerName, subsystem.MsgSubSystemShuttingDown)
-	close(g.shutdown)
 	err := g.ShutdownAll()
 	if err != nil {
 		return err
 	}
+	close(g.shutdown)
 	return nil
 }
 
@@ -81,8 +78,6 @@ func (g *GctScriptManager) run(wg *sync.WaitGroup) {
 	SetDefaultScriptOutput()
 	g.autoLoad()
 	defer func() {
-		atomic.CompareAndSwapInt32(&g.stopped, 1, 0)
-		atomic.CompareAndSwapInt32(&g.started, 1, 0)
 		wg.Done()
 		log.Debugln(log.GCTScriptMgr, gctscriptManagerName, subsystem.MsgSubSystemShutdown)
 	}()

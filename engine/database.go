@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
@@ -19,7 +20,6 @@ var (
 
 type databaseManager struct {
 	started  int32
-	stopped  int32
 	shutdown chan struct{}
 }
 
@@ -28,8 +28,8 @@ func (a *databaseManager) Started() bool {
 }
 
 func (a *databaseManager) Start(bot *Engine) (err error) {
-	if atomic.AddInt32(&a.started, 1) != 1 {
-		return errors.New("database manager already started")
+	if !atomic.CompareAndSwapInt32(&a.started, 0, 1) {
+		return fmt.Errorf("database manager %w", subsystem.ErrSubSystemAlreadyStarted)
 	}
 
 	defer func() {
@@ -78,12 +78,11 @@ func (a *databaseManager) Start(bot *Engine) (err error) {
 
 func (a *databaseManager) Stop() error {
 	if atomic.LoadInt32(&a.started) == 0 {
-		return errors.New("database manager not started")
+		return fmt.Errorf("database manager %w", subsystem.ErrSubSystemNotStarted)
 	}
-
-	if atomic.AddInt32(&a.stopped, 1) != 1 {
-		return errors.New("database manager is already stopping")
-	}
+	defer func() {
+		atomic.CompareAndSwapInt32(&a.started, 1, 0)
+	}()
 
 	err := dbConn.SQL.Close()
 	if err != nil {
@@ -97,16 +96,11 @@ func (a *databaseManager) Stop() error {
 func (a *databaseManager) run(bot *Engine) {
 	log.Debugln(log.DatabaseMgr, "Database manager started.")
 	bot.ServicesWG.Add(1)
-
 	t := time.NewTicker(time.Second * 2)
 
 	defer func() {
 		t.Stop()
-		atomic.CompareAndSwapInt32(&a.stopped, 1, 0)
-		atomic.CompareAndSwapInt32(&a.started, 1, 0)
-
 		bot.ServicesWG.Done()
-
 		log.Debugln(log.DatabaseMgr, "Database manager shutdown.")
 	}()
 
@@ -115,7 +109,7 @@ func (a *databaseManager) run(bot *Engine) {
 		case <-a.shutdown:
 			return
 		case <-t.C:
-			a.checkConnection()
+			go a.checkConnection()
 		}
 	}
 }

@@ -420,14 +420,14 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 
 			var getHistoricTradesResponse []trade.Data
-			getHistoricTradesResponse, err = e.GetHistoricTrades(p, assetTypes[i], time.Now().Add(-time.Hour*24), time.Now())
+			getHistoricTradesResponse, err = e.GetHistoricTrades(p, assetTypes[i], time.Now().Add(-time.Hour), time.Now())
 			msg = ""
 			if err != nil {
 				msg = err.Error()
 				responseContainer.ErrorCount++
 			}
 			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], time.Now().Add(-time.Hour * 24), time.Now()}),
+				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], time.Now().Add(-time.Hour), time.Now()}),
 				Function:   "GetHistoricTrades",
 				Error:      msg,
 				Response:   jsonifyInterface([]interface{}{getHistoricTradesResponse}),
@@ -448,7 +448,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 
 			var getHistoricCandlesResponse kline.Item
-			startTime, endTime := time.Now().AddDate(0, -1, 0), time.Now()
+			startTime, endTime := time.Now().AddDate(0, 0, -1), time.Now()
 			getHistoricCandlesResponse, err = e.GetHistoricCandles(p, assetTypes[i], startTime, endTime, kline.OneDay)
 			msg = ""
 			if err != nil {
@@ -474,6 +474,20 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Error:      msg,
 				Response:   getHisotirCandlesExtendedResponse,
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
+			})
+
+			err = e.UpdateOrderExecutionLimits(assetTypes[i])
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				SentParams: jsonifyInterface([]interface{}{assetTypes[i]}),
+				Function:   "UpdateOrderExecutionLimits",
+				Error:      msg,
+				Response:   jsonifyInterface([]interface{}{""}),
 			})
 		}
 

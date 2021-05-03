@@ -360,11 +360,11 @@ func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (*ord
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       b.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		NotAggregated:      true,
-		VerificationBypass: b.OrderbookVerificationBypass,
+		Exchange:         b.Name,
+		Pair:             p,
+		Asset:            assetType,
+		PriceDuplication: true,
+		VerifyOrderbook:  b.CanVerifyOrderbook,
 	}
 
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
@@ -780,7 +780,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 		}
 	}
 	order.FilterOrdersByType(&resp, req.Type)
-	order.FilterOrdersByTickRange(&resp, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&resp, req.Side)
 	return resp, nil
 }
@@ -897,7 +897,7 @@ func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start,
 		return kline.Item{}, err
 	}
 
-	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+	if kline.TotalCandlesPerInterval(start, end, interval) > float64(b.Features.Enabled.Kline.ResultLimit) {
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
@@ -977,11 +977,12 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, s
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
-	for x := range dates {
-		candles, err := b.GetMarketCandles(fPair.String(),
+	dates := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	for x := range dates.Ranges {
+		var candles CandleResponse
+		candles, err = b.GetMarketCandles(fPair.String(),
 			b.FormatExchangeKlineInterval(interval),
-			dates[x].Start, dates[x].End, -1, -1, -1)
+			dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time, -1, -1, -1)
 		if err != nil {
 			return kline.Item{}, err
 		}
@@ -1018,6 +1019,12 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, s
 		}
 	}
 
+	err = dates.VerifyResultsHaveData(ret.Candles)
+	if err != nil {
+		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+	}
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

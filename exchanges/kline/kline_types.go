@@ -1,6 +1,7 @@
 package kline
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -37,6 +38,35 @@ const (
 	ErrRequestExceedsExchangeLimits = "requested data would exceed exchange limits please lower range or use GetHistoricCandlesEx"
 )
 
+var (
+	// ErrMissingCandleData is an error for missing candle data
+	ErrMissingCandleData = errors.New("missing candle data")
+	// SupportedIntervals is a list of all supported intervals
+	SupportedIntervals = []Interval{
+		FifteenSecond,
+		OneMin,
+		ThreeMin,
+		FiveMin,
+		TenMin,
+		FifteenMin,
+		ThirtyMin,
+		OneHour,
+		TwoHour,
+		FourHour,
+		SixHour,
+		EightHour,
+		TwelveHour,
+		OneDay,
+		ThreeDay,
+		SevenDay,
+		FifteenDay,
+		OneWeek,
+		TwoWeek,
+		OneMonth,
+		OneYear,
+	}
+)
+
 // Item holds all the relevant information for internal kline elements
 type Item struct {
 	Exchange string
@@ -56,7 +86,7 @@ type Candle struct {
 	Volume float64
 }
 
-// By Date allows for sorting candle entries by date
+// ByDate allows for sorting candle entries by date
 type ByDate []Candle
 
 func (b ByDate) Len() int {
@@ -104,8 +134,33 @@ func (k *ErrorKline) Unwrap() error {
 	return k.Err
 }
 
-// DateRange holds a start and end date for kline usage
-type DateRange struct {
-	Start time.Time
-	End   time.Time
+// IntervalRangeHolder holds the entire range of intervals
+// and the start end dates of everything
+type IntervalRangeHolder struct {
+	Start  IntervalTime
+	End    IntervalTime
+	Ranges []IntervalRange
+}
+
+// IntervalRange is a subset of candles based on exchange API request limits
+type IntervalRange struct {
+	Start     IntervalTime
+	End       IntervalTime
+	Intervals []IntervalData
+}
+
+// IntervalData is used to monitor which candles contain data
+// to determine if any data is missing
+type IntervalData struct {
+	Start   IntervalTime
+	End     IntervalTime
+	HasData bool
+}
+
+// IntervalTime benchmarks demonstrate, see
+// BenchmarkJustifyIntervalTimeStoringUnixValues1 &&
+// BenchmarkJustifyIntervalTimeStoringUnixValues2
+type IntervalTime struct {
+	Time  time.Time
+	Ticks int64
 }

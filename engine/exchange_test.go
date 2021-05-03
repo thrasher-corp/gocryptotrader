@@ -6,23 +6,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 )
 
-func CleanupTest(t *testing.T) {
-	if Bot.GetExchangeByName(testExchange) != nil {
-		err := Bot.UnloadExchange(testExchange)
-		if err != nil {
-			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
-				err)
-		}
-	}
-	if Bot.GetExchangeByName(fakePassExchange) != nil {
-		err := Bot.UnloadExchange(fakePassExchange)
-		if err != nil {
-			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
-				err)
-		}
-	}
-}
-
 func TestExchangeManagerAdd(t *testing.T) {
 	t.Parallel()
 	var e exchangeManager
@@ -69,7 +52,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 }
 
 func TestCheckExchangeExists(t *testing.T) {
-	e := SetupTestHelpers(t)
+	e := CreateTestBot(t)
 
 	if e.GetExchangeByName(testExchange) == nil {
 		t.Errorf("TestGetExchangeExists: Unable to find exchange")
@@ -78,12 +61,10 @@ func TestCheckExchangeExists(t *testing.T) {
 	if e.GetExchangeByName("Asdsad") != nil {
 		t.Errorf("TestGetExchangeExists: Non-existent exchange found")
 	}
-
-	CleanupTest(t)
 }
 
 func TestGetExchangeByName(t *testing.T) {
-	e := SetupTestHelpers(t)
+	e := CreateTestBot(t)
 
 	exch := e.GetExchangeByName(testExchange)
 	if exch == nil {
@@ -108,12 +89,10 @@ func TestGetExchangeByName(t *testing.T) {
 	if exch != nil {
 		t.Errorf("TestGetExchangeByName: Non-existent exchange found")
 	}
-
-	CleanupTest(t)
 }
 
 func TestUnloadExchange(t *testing.T) {
-	e := SetupTestHelpers(t)
+	e := CreateTestBot(t)
 
 	err := e.UnloadExchange("asdf")
 	if err == nil || err.Error() != "exchange asdf not found" {
@@ -138,45 +117,31 @@ func TestUnloadExchange(t *testing.T) {
 		t.Errorf("TestUnloadExchange: Incorrect result: %s",
 			err)
 	}
-
-	CleanupTest(t)
 }
 
 func TestDryRunParamInteraction(t *testing.T) {
-	bot := SetupTestHelpers(t)
+	bot := CreateTestBot(t)
 
-	// Load bot as per normal, dry run and verbose for Bitfinex should be
-	// disabled
+	// Simulate overiding default settings and ensure that enabling exchange
+	// verbose mode will be set on Bitfinex
+	var err error
+	if err = bot.UnloadExchange(testExchange); err != nil {
+		t.Error(err)
+	}
+
+	bot.Settings.CheckParamInteraction = false
+	bot.Settings.EnableExchangeVerbose = false
+	if err = bot.LoadExchange(testExchange, false, nil); err != nil {
+		t.Error(err)
+	}
+
 	exchCfg, err := bot.Config.GetExchangeConfig(testExchange)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if bot.Settings.EnableDryRun ||
-		exchCfg.Verbose {
-		t.Error("dryrun and verbose should have been disabled")
-	}
-
-	// Simulate overiding default settings and ensure that enabling exchange
-	// verbose mode will be set on Bitfinex
-	if err = bot.UnloadExchange(testExchange); err != nil {
-		t.Error(err)
-	}
-
-	bot.Settings.CheckParamInteraction = true
-	bot.Settings.EnableExchangeVerbose = true
-	if err = bot.LoadExchange(testExchange, false, nil); err != nil {
-		t.Error(err)
-	}
-
-	exchCfg, err = bot.Config.GetExchangeConfig(testExchange)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if !bot.Settings.EnableDryRun ||
-		!exchCfg.Verbose {
-		t.Error("dryrun and verbose should have been enabled")
+	if exchCfg.Verbose {
+		t.Error("verbose should have been disabled")
 	}
 
 	if err = bot.UnloadExchange(testExchange); err != nil {

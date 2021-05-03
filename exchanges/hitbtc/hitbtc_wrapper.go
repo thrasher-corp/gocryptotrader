@@ -376,10 +376,10 @@ func (h *HitBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HitBTC) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       h.Name,
-		Pair:               c,
-		AssetType:          assetType,
-		VerificationBypass: h.OrderbookVerificationBypass,
+		Exchange:        h.Name,
+		Pair:            c,
+		Asset:           assetType,
+		VerifyOrderbook: h.CanVerifyOrderbook,
 	}
 	fpair, err := h.FormatExchangeCurrency(c, assetType)
 	if err != nil {
@@ -719,7 +719,7 @@ func (h *HitBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -769,7 +769,7 @@ func (h *HitBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -852,17 +852,18 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, h.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalculateCandleDateRanges(start, end, interval, h.Features.Enabled.Kline.ResultLimit)
 	formattedPair, err := h.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	for y := range dates {
-		data, err := h.GetCandles(formattedPair.String(),
+	for y := range dates.Ranges {
+		var data []ChartData
+		data, err = h.GetCandles(formattedPair.String(),
 			strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
 			h.FormatExchangeKlineInterval(interval),
-			dates[y].Start, dates[y].End)
+			dates.Ranges[y].Start.Time, dates.Ranges[y].End.Time)
 		if err != nil {
 			return kline.Item{}, err
 		}
@@ -878,7 +879,12 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 			})
 		}
 	}
-
+	err = dates.VerifyResultsHaveData(ret.Candles)
+	if err != nil {
+		log.Warnf(log.ExchangeSys, "%s - %s", h.Name, err)
+	}
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

@@ -344,10 +344,10 @@ func (f *FTX) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*ord
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       f.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: f.OrderbookVerificationBypass,
+		Exchange:        f.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: f.CanVerifyOrderbook,
 	}
 	formattedPair, err := f.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -901,7 +901,7 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 		}
 
 		orderData, err := f.FetchOrderHistory(formattedPair.String(),
-			getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, "")
+			getOrdersRequest.StartTime, getOrdersRequest.EndTime, "")
 		if err != nil {
 			return resp, err
 		}
@@ -938,8 +938,8 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			resp = append(resp, tempResp)
 		}
 		triggerOrderData, err := f.GetTriggerOrderHistory(formattedPair.String(),
-			getOrdersRequest.StartTicks,
-			getOrdersRequest.EndTicks,
+			getOrdersRequest.StartTime,
+			getOrdersRequest.EndTime,
 			strings.ToLower(getOrdersRequest.Side.String()),
 			strings.ToLower(getOrdersRequest.Type.String()),
 			"")
@@ -1062,18 +1062,19 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalculateCandleDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
 
 	formattedPair, err := f.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	for x := range dates {
-		ohlcData, err := f.GetHistoricalData(formattedPair.String(),
+	for x := range dates.Ranges {
+		var ohlcData []OHLCVData
+		ohlcData, err = f.GetHistoricalData(formattedPair.String(),
 			f.FormatExchangeKlineInterval(interval),
 			strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
-			dates[x].Start, dates[x].End)
+			dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
 		if err != nil {
 			return kline.Item{}, err
 		}
@@ -1089,5 +1090,12 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 			})
 		}
 	}
+	err = dates.VerifyResultsHaveData(ret.Candles)
+	if err != nil {
+		log.Warnf(log.ExchangeSys, "%s - %s", f.Name, err)
+	}
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

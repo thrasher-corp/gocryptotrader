@@ -1,0 +1,82 @@
+{
+ "nickname": "TestGenerateConfigForDCADatabaseCandles",
+ "goal": "To demonstrate the DCA strategy using database candle data",
+ "strategy-settings": {
+  "name": "dollarcostaverage",
+  "use-simultaneous-signal-processing": false,
+  "custom-settings": null
+ },
+ "currency-settings": [
+  {
+   "exchange-name": "binance",
+   "asset": "spot",
+   "base": "BTC",
+   "quote": "USDT",
+   "initial-funds": 100000,
+   "leverage": {
+    "can-use-leverage": false,
+    "maximum-orders-with-leverage-ratio": 0,
+    "maximum-leverage-rate": 0
+   },
+   "buy-side": {
+    "minimum-size": 0.1,
+    "maximum-size": 1,
+    "maximum-total": 10000
+   },
+   "sell-side": {
+    "minimum-size": 0.1,
+    "maximum-size": 1,
+    "maximum-total": 10000
+   },
+   "min-slippage-percent": 0,
+   "max-slippage-percent": 0,
+   "maker-fee-override": 0.001,
+   "taker-fee-override": 0.002,
+   "maximum-holdings-ratio": 0,
+   "use-exchange-order-limits": false
+  }
+ ],
+ "data-settings": {
+  "interval": 86400000000000,
+  "data-type": "candle",
+  "database-data": {
+   "start-date": "2020-11-01T00:00:00+11:00",
+   "end-date": "2020-12-01T00:00:00+11:00",
+   "config-override": {
+    "enabled": true,
+    "verbose": false,
+    "driver": "sqlite",
+    "connectionDetails": {
+     "host": "localhost",
+     "port": 0,
+     "username": "",
+     "password": "",
+     "database": "testsqlite.db",
+     "sslmode": ""
+    }
+   },
+   "inclusive-end-date": false
+  }
+ },
+ "portfolio-settings": {
+  "leverage": {
+   "can-use-leverage": false,
+   "maximum-orders-with-leverage-ratio": 0,
+   "maximum-leverage-rate": 0
+  },
+  "buy-side": {
+   "minimum-size": 0.1,
+   "maximum-size": 1,
+   "maximum-total": 10000
+  },
+  "sell-side": {
+   "minimum-size": 0.1,
+   "maximum-size": 1,
+   "maximum-total": 10000
+  }
+ },
+ "statistic-settings": {
+  "risk-free-rate": 0.03
+ },
+ "gocryptotrader-config-path": ""
+}

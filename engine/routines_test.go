@@ -15,7 +15,8 @@ import (
 
 func TestWebsocketDataHandlerProcess(t *testing.T) {
 	ws := sharedtestvalues.NewTestWebsocket()
-	go Bot.WebsocketDataReceiver(ws)
+	b := OrdersSetup(t)
+	go b.WebsocketDataReceiver(ws)
 	ws.DataHandler <- "string"
 	time.Sleep(time.Second)
 	close(shutdowner)
@@ -80,16 +81,6 @@ func TestHandleData(t *testing.T) {
 		t.Error("Expected order to be modified to Active")
 	}
 
-	err = b.WebsocketDataHandler(exchName, &order.Cancel{
-		Exchange: fakePassExchange,
-		ID:       orderID,
-	})
-	if err != nil {
-		t.Error(err)
-	}
-	if origOrder.Status != order.Cancelled {
-		t.Error("Expected order status to be cancelled")
-	}
 	// Send some gibberish
 	err = b.WebsocketDataHandler(exchName, order.Stop)
 	if err != nil {
@@ -112,13 +103,13 @@ func TestHandleData(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error")
 	}
-	if err.Error() != classificationError.Error() {
+	if err != nil && err.Error() != classificationError.Error() {
 		t.Errorf("Problem formatting error. Expected %v Received %v", classificationError.Error(), err.Error())
 	}
 
 	err = b.WebsocketDataHandler(exchName, &orderbook.Base{
-		ExchangeName: fakePassExchange,
-		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Exchange: fakePassExchange,
+		Pair:     currency.NewPair(currency.BTC, currency.USD),
 	})
 	if err != nil {
 		t.Error(err)

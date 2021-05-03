@@ -218,11 +218,12 @@ func (l *LocalBitcoins) FetchOrderbook(p currency.Pair, assetType asset.Item) (*
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       l.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: l.OrderbookVerificationBypass,
+		Exchange:        l.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: l.CanVerifyOrderbook,
 	}
+
 	orderbookNew, err := l.GetOrderbook(p.Quote.String())
 	if err != nil {
 		return book, err
@@ -242,7 +243,7 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 		})
 	}
 
-	book.NotAggregated = true
+	book.PriceDuplication = true
 	err = book.Process()
 	if err != nil {
 		return book, err
@@ -552,8 +553,8 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
+		getOrdersRequest.EndTime)
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 
 	return orders, nil
@@ -638,8 +639,8 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
+		getOrdersRequest.EndTime)
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 
 	return orders, nil

@@ -1,0 +1,8 @@
+version: 2
+updates:
+- package-ecosystem: gomod
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "19:30"
+  open-pull-requests-limit: 10

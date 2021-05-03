@@ -395,11 +395,11 @@ func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*order
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	o := &orderbook.Base{
-		ExchangeName:       b.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		NotAggregated:      true,
-		VerificationBypass: b.OrderbookVerificationBypass,
+		Exchange:         b.Name,
+		Pair:             p,
+		Asset:            assetType,
+		PriceDuplication: true,
+		VerifyOrderbook:  b.CanVerifyOrderbook,
 	}
 
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
@@ -862,7 +862,7 @@ func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
@@ -930,7 +930,7 @@ func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	for i := range req.Pairs {
 		b.appendOptionalDelimiter(&req.Pairs[i])
 	}
@@ -978,7 +978,7 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		return kline.Item{}, err
 	}
 
-	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+	if kline.TotalCandlesPerInterval(start, end, interval) > float64(b.Features.Enabled.Kline.ResultLimit) {
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
@@ -1028,15 +1028,16 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	cf, err := b.fixCasing(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	for x := range dates {
-		candles, err := b.GetCandles(cf, b.FormatExchangeKlineInterval(interval),
-			dates[x].Start.Unix()*1000, dates[x].End.Unix()*1000,
+	for x := range dates.Ranges {
+		var candles []Candle
+		candles, err = b.GetCandles(cf, b.FormatExchangeKlineInterval(interval),
+			dates.Ranges[x].Start.Ticks*1000, dates.Ranges[x].End.Ticks*1000,
 			b.Features.Enabled.Kline.ResultLimit, true)
 		if err != nil {
 			return kline.Item{}, err
@@ -1053,7 +1054,12 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			})
 		}
 	}
-
+	err = dates.VerifyResultsHaveData(ret.Candles)
+	if err != nil {
+		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+	}
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

@@ -93,6 +93,11 @@ func (k *Kraken) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	err = k.DisableAssetWebsocketSupport(asset.Futures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	k.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -497,10 +502,10 @@ func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       k.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: k.OrderbookVerificationBypass,
+		Exchange:        k.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: k.CanVerifyOrderbook,
 	}
 	var err error
 	switch assetType {
@@ -792,6 +797,9 @@ func (k *Kraken) CancelBatchOrders(orders []order.Cancel) (order.CancelBatchResp
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (k *Kraken) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, error) {
+	if err := req.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
@@ -1124,7 +1132,7 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 	default:
 		return nil, fmt.Errorf("%s assetType not supported", req.AssetType)
 	}
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
@@ -1140,11 +1148,11 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 	switch getOrdersRequest.AssetType {
 	case asset.Spot:
 		req := GetClosedOrdersOptions{}
-		if getOrdersRequest.StartTicks.Unix() > 0 {
-			req.Start = strconv.FormatInt(getOrdersRequest.StartTicks.Unix(), 10)
+		if getOrdersRequest.StartTime.Unix() > 0 {
+			req.Start = strconv.FormatInt(getOrdersRequest.StartTime.Unix(), 10)
 		}
-		if getOrdersRequest.EndTicks.Unix() > 0 {
-			req.End = strconv.FormatInt(getOrdersRequest.EndTicks.Unix(), 10)
+		if getOrdersRequest.EndTime.Unix() > 0 {
+			req.End = strconv.FormatInt(getOrdersRequest.EndTime.Unix(), 10)
 		}
 
 		assetType := getOrdersRequest.AssetType

@@ -336,10 +336,10 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       b.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: b.OrderbookVerificationBypass,
+		Exchange:        b.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: b.CanVerifyOrderbook,
 	}
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -366,10 +366,10 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 			Price:  a.SellQuote[x].Price,
 			Amount: a.SellQuote[x].Size})
 	}
-	orderbook.Reverse(book.Asks) // Reverse asks for correct alignment
+	book.Asks.Reverse() // Reverse asks for correct alignment
 	book.Pair = p
-	book.ExchangeName = b.Name
-	book.AssetType = assetType
+	book.Exchange = b.Name
+	book.Asset = assetType
 	err = book.Process()
 	if err != nil {
 		return book, err
@@ -821,7 +821,7 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -964,7 +964,7 @@ func (b *BTSE) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 		return kline.Item{}, err
 	}
 
-	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+	if kline.TotalCandlesPerInterval(start, end, interval) > float64(b.Features.Enabled.Kline.ResultLimit) {
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 

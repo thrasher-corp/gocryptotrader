@@ -18,7 +18,7 @@ var (
 	ErrAssetNotSet                = errors.New("order asset type is not set")
 	ErrSideIsInvalid              = errors.New("order side is invalid")
 	ErrTypeIsInvalid              = errors.New("order type is invalid")
-	ErrAmountIsInvalid            = errors.New("order amount is invalid")
+	ErrAmountIsInvalid            = errors.New("order amount is equal or less than zero")
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
 )
@@ -205,11 +205,11 @@ type TradeHistory struct {
 
 // GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
 type GetOrdersRequest struct {
-	Type       Type
-	Side       Side
-	StartTicks time.Time
-	EndTicks   time.Time
-	OrderID    string
+	Type      Type
+	Side      Side
+	StartTime time.Time
+	EndTime   time.Time
+	OrderID   string
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
 	Pairs     currency.Pairs
@@ -238,6 +238,7 @@ const (
 	Open                Status = "OPEN"
 	AutoDeleverage      Status = "ADL"
 	Closed              Status = "CLOSED"
+	Pending             Status = "PENDING"
 )
 
 // Type enforces a standard for order types across the code base

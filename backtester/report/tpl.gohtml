@@ -1,0 +1,760 @@
+<html>
+<head>
+	<!-- Font Awesome -->
+	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
+	<!-- Google Fonts -->
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap">
+	<!-- Bootstrap core CSS -->
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
+	<!-- Material Design Bootstrap -->
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css" rel="stylesheet">
+	<!-- JQuery -->
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<!-- Bootstrap tooltips -->
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
+	<!-- Bootstrap core JavaScript -->
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/js/bootstrap.min.js"></script>
+	<!-- MDB core JavaScript -->
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/js/mdb.min.js"></script>
+	<!-- Tradingview lightweight charts -->
+	<script type="application/javascript" src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+{{- /*gotype: github.com/thrasher-corp/gocryptotrader/backtester/report.Data*/ -}}
+<header style="margin-bottom: 120px">
+	<nav class="navbar fixed-top navbar-expand-lg navbar-dark black scrolling-navbar">
+		<a class="navbar-brand" href="#">
+			<svg id="logo" width="50" height="50" viewBox="3 3 120.678 129.678">
+				<g inkscape:label="grey" inkscape:groupmode="layer" id="layer1" transform="translate(0,-164.70834)"
+				   style="display:inline">
+					<path style="fill:#ffffff;fill-opacity:1;stroke-width:0.99999994"
+						  d="M 253.41406 41.076172 A 209.10157 209.10157 0 0 0 44.3125 250.17773 A 209.10157 209.10157 0 0 0 253.41406 459.2793 A 209.10157 209.10157 0 0 0 462.51562 250.17773 A 209.10157 209.10157 0 0 0 253.41406 41.076172 z M 252.54102 77.480469 C 271.92311 77.480469 289.75419 81.666003 306.03516 90.039062 C 322.47117 98.257074 336.19409 109.9646 347.20312 125.16016 C 358.21216 140.35571 365.6548 157.95471 369.53125 177.95703 L 318.13086 177.95703 C 315.33984 166.63788 310.6108 156.94771 303.94336 148.88477 C 297.27593 140.66675 289.44446 134.46387 280.45117 130.27734 C 271.45788 125.93575 262.15453 123.76367 252.54102 123.76367 C 238.5859 123.76367 226.33683 127.09818 215.79297 133.76562 C 205.24912 140.43306 197.10819 149.81377 191.37109 161.9082 C 185.63399 173.84757 182.76562 187.8026 182.76562 203.77344 L 182.76562 303.55273 C 182.76562 318.12807 185.71137 330.92066 191.60352 341.92969 C 197.49568 352.78366 205.79131 361.23404 216.49023 367.28125 C 227.3442 373.32846 239.82733 376.35156 253.9375 376.35156 C 267.8926 376.35156 280.14169 373.2511 290.68555 367.04883 C 301.2294 360.69151 309.37032 351.54288 315.10742 339.60352 C 320.84452 327.66415 323.71289 313.47702 323.71289 297.04102 L 323.71289 286.66992 C 323.89983 286.87379 324.06617 287.05176 324.24219 287.24414 C 325.94197 289.1017 328.2438 291.59726 329.35742 292.78906 C 330.47106 293.98083 332.86855 296.56485 334.68555 298.53125 C 344.34302 308.98266 344.23405 308.87695 345.61133 308.87695 C 346.37547 308.87695 347.07126 308.45851 351.09766 305.57422 C 351.50795 305.28029 352.17955 304.80001 352.58984 304.50781 C 353.00012 304.21561 353.67174 303.73726 354.08203 303.44336 C 354.49231 303.14944 355.16392 302.66915 355.57422 302.37695 C 355.98451 302.08473 356.61878 301.62942 356.98438 301.36523 C 357.34992 301.10106 358.34584 300.40449 359.19727 299.81836 C 360.04868 299.23223 361.0446 298.53763 361.41016 298.27344 C 361.77572 298.00926 362.41002 297.55395 362.82031 297.26172 C 363.2306 296.96949 363.90221 296.48921 364.3125 296.19531 C 364.72278 295.90138 365.39441 295.42305 365.80469 295.13086 C 366.21498 294.83865 366.88659 294.35835 367.29688 294.06445 C 367.70716 293.77052 368.37877 293.29024 368.78906 292.99805 C 369.19934 292.70585 369.87094 292.22749 370.28125 291.93359 C 370.69153 291.63969 371.36118 291.15942 371.77148 290.86719 C 371.92588 290.75724 372.11107 290.6236 372.30273 290.48633 L 372.32227 296.10938 C 372.40834 321.22843 367.43849 343.40188 357.66992 362.62891 C 347.90134 381.70084 334.02369 396.50887 316.03711 407.05273 C 298.20558 417.44156 277.50612 422.63672 253.9375 422.63672 C 230.05876 422.63672 209.04788 417.75294 190.90625 407.98438 C 172.91965 398.0607 158.96465 384.1057 149.04102 366.11914 C 139.11727 348.13256 134.1543 327.27642 134.1543 303.55273 L 134.1543 203.77344 C 134.1543 178.65425 139.04002 156.55831 148.80859 137.48633 C 158.57716 118.41436 172.37745 103.68567 190.20898 93.296875 C 208.19556 82.753021 228.97238 77.480469 252.54102 77.480469 z M 383.875 201.94336 C 384.77233 201.9818 385.97257 202.16095 387.54492 202.48633 C 388.07243 202.59556 389.6558 202.89548 391.0625 203.15234 C 392.46924 203.4092 394.00377 203.69584 394.47266 203.79102 C 394.94158 203.88615 395.90015 204.07788 396.60352 204.2168 C 397.30685 204.35577 398.26545 204.54742 398.73438 204.64258 C 399.20325 204.73771 400.73787 205.02634 402.14453 205.2832 C 403.55123 205.54006 405.0858 205.8267 405.55469 205.92188 C 406.02361 206.017 406.98413 206.20918 407.6875 206.34766 C 409.2927 206.66366 410.84775 206.97439 411.94922 207.19922 C 412.41814 207.29488 413.95267 207.583 415.35938 207.83984 C 416.76607 208.0967 418.30064 208.38529 418.76953 208.48047 C 419.23842 208.5756 420.19698 208.76734 420.90039 208.90625 C 421.60369 209.04522 422.56428 209.23689 423.0332 209.33203 C 423.50209 209.42716 424.98789 209.70333 426.33594 209.94531 C 427.68402 210.18728 428.97845 210.42815 429.21289 210.48047 C 429.44722 210.53282 430.2146 210.68751 430.91797 210.82422 C 431.6213 210.96092 432.58189 211.15183 433.05078 211.25 C 433.51967 211.34812 434.47831 211.54471 435.18164 211.68555 C 437.14662 212.07905 438.23941 212.53518 438.79492 213.19531 C 439.73807 214.31619 439.72276 214.67705 438.48633 220.73438 C 438.39071 221.20326 438.10256 222.73783 437.8457 224.14453 C 437.58907 225.55125 437.30025 227.08577 437.20508 227.55469 C 437.10983 228.02358 436.91808 228.98414 436.7793 229.6875 C 436.64021 230.39084 436.44842 231.34946 436.35352 231.81836 C 436.25827 232.28726 435.97174 233.82181 435.71484 235.22852 C 435.45821 236.63522 435.16939 238.16977 435.07422 238.63867 C 434.97897 239.10757 434.78722 240.06617 434.64844 240.76953 C 434.50935 241.47287 434.31756 242.43344 434.22266 242.90234 C 434.12741 243.37124 433.83889 244.9058 433.58203 246.3125 C 433.3254 247.7192 433.03853 249.25375 432.94336 249.72266 C 432.84812 250.19156 432.65636 251.15018 432.51758 251.85352 C 432.37849 252.55688 432.1867 253.51547 432.0918 253.98438 C 431.99655 254.45327 431.72041 255.94096 431.47852 257.28906 C 431.23663 258.63715 430.99567 259.93157 430.94336 260.16602 C 430.8912 260.40046 430.73643 261.16773 430.59961 261.87109 C 430.46279 262.57444 430.27013 263.53305 430.17188 264.00195 C 430.07399 264.47085 429.8825 265.42947 429.74609 266.13281 C 429.24062 268.742 429.03258 269.34405 428.40234 270.01562 C 427.60021 270.87034 426.28867 271.13638 425.32617 270.63867 C 424.55844 270.24166 423.45246 268.92614 421.74219 266.37695 C 421.04551 265.33849 420.28327 264.22261 420.04883 263.89648 C 419.65118 263.34342 414.49103 255.73979 413.74219 254.60352 C 413.55623 254.32122 413.05948 253.70704 412.63867 253.23828 C 411.51029 251.98135 411.04305 252.04431 408.64648 253.76953 C 408.23618 254.06486 407.5646 254.54569 407.1543 254.83789 C 406.74403 255.13009 406.07241 255.60842 405.66211 255.90234 C 405.2518 256.19624 404.58023 256.67652 404.16992 256.96875 C 403.75962 257.26095 403.088 257.74125 402.67773 258.03516 C 402.26743 258.32905 401.59585 258.80739 401.18555 259.09961 C 400.77524 259.3918 400.10363 259.8721 399.69336 260.16602 C 399.28305 260.45991 398.61339 260.93826 398.20312 261.23047 C 397.79283 261.52266 397.15661 261.978 396.79102 262.24219 C 396.42554 262.50638 395.4295 263.20293 394.57812 263.78906 C 393.72668 264.37519 392.73079 265.07175 392.36523 265.33594 C 391.99975 265.60013 391.36535 266.0535 390.95508 266.3457 C 390.54481 266.63794 389.8732 267.11819 389.46289 267.41211 C 389.05259 267.70601 388.38101 268.18629 387.9707 268.47852 C 387.5604 268.77071 386.89074 269.24905 386.48047 269.54297 C 386.07016 269.83686 385.39855 270.31715 384.98828 270.60938 C 384.57798 270.90156 383.90636 271.38185 383.49609 271.67578 C 383.08579 271.96968 382.41417 272.44803 382.00391 272.74023 C 381.5936 273.03243 380.92202 273.51271 380.51172 273.80664 C 380.10145 274.10054 379.4298 274.58083 379.01953 274.87305 C 378.60923 275.16524 377.97497 275.61863 377.60938 275.88281 C 377.24389 276.147 376.24789 276.84356 375.39648 277.42969 C 374.54506 278.01582 373.54914 278.71238 373.18359 278.97656 C 372.818 279.24075 372.18372 279.69606 371.77344 279.98828 C 371.36314 280.28051 370.69154 280.75883 370.28125 281.05273 C 369.87095 281.34663 369.19935 281.82694 368.78906 282.11914 C 368.37878 282.41134 367.70716 282.88967 367.29688 283.18359 C 366.88659 283.47749 366.21497 283.9578 365.80469 284.25 C 365.3944 284.5422 364.72279 285.02248 364.3125 285.31641 C 363.90221 285.6103 363.23255 286.08864 362.82227 286.38086 C 362.41198 286.67309 361.77572 287.1284 361.41016 287.39258 C 361.0446 287.65677 360.04868 288.35333 359.19727 288.93945 C 358.34584 289.52559 357.35188 290.22019 356.98633 290.48438 C 356.62073 290.74855 355.98451 291.20387 355.57422 291.49609 C 355.16392 291.78829 354.49231 292.26859 354.08203 292.5625 C 353.67174 292.8564 353.00013 293.3367 352.58984 293.62891 C 352.17956 293.9211 351.5099 294.39943 351.09961 294.69336 C 347.07321 297.57766 346.37546 297.99805 345.61133 297.99805 C 344.23404 297.99805 344.34496 298.10181 334.6875 287.65039 C 332.8705 285.684 330.47301 283.09998 329.35938 281.9082 C 328.24575 280.71641 325.94392 278.22084 324.24414 276.36328 C 322.54439 274.50573 320.24255 272.01257 319.12891 270.82227 C 318.01528 269.63195 315.71345 267.1388 314.01367 265.28125 C 306.70509 257.29423 305.97933 256.63926 304.79102 256.9375 C 304.51556 257.00674 298.32552 261.02232 291.03516 265.86133 C 278.37552 274.26419 258.46652 287.44051 245.32617 296.11328 C 239.68248 299.83818 239.10682 300.16869 238.08008 300.25781 C 237.38972 300.31779 236.78768 300.25045 236.50195 300.08203 C 235.58577 299.54135 235.07031 298.63089 235.07031 297.55664 C 235.07031 296.20864 235.20818 296.0514 242.92383 288.51367 C 246.40359 285.11412 260.93556 270.72727 275.2168 256.54297 C 289.49804 242.35869 303.9666 228.04405 307.36914 224.73242 C 313.42906 218.83449 313.57311 218.71094 314.42773 218.71094 C 315.62228 218.71094 316.61649 219.38775 318.38672 221.40625 C 319.19394 222.32666 320.91422 224.19007 322.20898 225.54688 C 323.50373 226.90367 326.14584 229.72366 328.08008 231.81445 C 330.0143 233.90522 332.69879 236.78577 334.04688 238.21484 C 335.39497 239.64393 338.17707 242.61692 340.22852 244.82227 C 348.70674 253.93647 349.2689 254.42525 350.52148 253.77539 C 351.04476 253.50391 351.94975 252.95924 366.44531 244.17969 C 370.95851 241.44619 378.24661 237.0364 382.64258 234.37891 C 394.90552 226.96546 394.15234 227.48837 394.15234 226.375 C 394.15234 225.89723 391.66581 221.92177 389.35742 218.70898 C 388.48012 217.48791 380.98623 206.22236 380.75391 205.77539 C 380.08221 204.48301 380.85066 202.65859 382.29883 202.10742 C 382.50716 202.02814 382.76362 201.97581 383.07617 201.95117 C 383.31058 201.9327 383.57589 201.93055 383.875 201.94336 z "
+						  transform="matrix(0.26458333,0,0,0.26458333,0,164.70834)" id="path12" />
+				</g>
+				<g inkscape:groupmode="layer" id="layer2" inkscape:label="G" />
+				<g inkscape:groupmode="layer" id="layer3" inkscape:label="gocryptotrader" />
+				<g inkscape:groupmode="layer" id="layer4" inkscape:label="uparrow" style="display:inline" />
+				<g style="display:inline" inkscape:label="uparrow copy" id="g5342" inkscape:groupmode="layer" />
+			</svg>
+			<strong>GoCryptoTrader Backtester Report</strong></a>
+		<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+				aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+			<span class="navbar-toggler-icon"></span>
+		</button>
+		<div class="collapse navbar-collapse" id="navbarSupportedContent">
+			<ul class="navbar-nav nav-flex-icons">
+				<li class="nav-item">
+					<a href="https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk" target="_blank" class="nav-link">
+						<i class="fab fa-slack"></i>
+					</a>
+				</li>
+				<li class="nav-item">
+					<a href="https://github.com/thrasher-corp/gocryptotrader/" target="_blank" class="nav-link"><i class="fab fa-github"></i></a>
+				</li>
+			</ul>
+		</div>
+	</nav>
+</header>
+<div class="container" style="max-width: 90%">
+	<div >
+		<h1>{{.Statistics.StrategyName}}</h1>
+		<h2 >{{.Config.Nickname }}</h2>
+		<h3>Results</h3>
+	</div>
+	<div >
+		<div class="card card-cascade narrower">
+			<div class="view view-cascade bg-dark">
+				<h2  class="px-4 card-header-title white-text">Executive Summary</h2>
+			</div>
+			<div class="card-body card-body-cascade">
+				<h4>Goal</h4>
+				<p>{{.Config.Goal}}</p>
+				<h5>Strategy Description</h5>
+				<p>{{.Statistics.StrategyDescription}}</p>
+                {{ if or .Config.DataSettings.APIData .Config.DataSettings.DatabaseData }}
+					<table class="table table-hover table-bordered table-striped">
+						<tbody>
+                        {{ if .Config.DataSettings.APIData}}
+							<tr>
+								<td><b>Start Date</b></td>
+								<td>
+                                    {{.Config.DataSettings.APIData.StartDate}}
+								</td>
+							</tr>
+							<tr>
+								<td ><b>End Date</b></td>
+
+								<td>
+                                    {{.Config.DataSettings.APIData.EndDate}}
+								</td>
+							</tr>
+							<tr>
+								<td ><b>Interval</b></td>
+								<td>
+                                    {{.Config.DataSettings.Interval}}
+								</td>
+							</tr>
+                        {{end}}
+                        {{ if .Config.DataSettings.DatabaseData}}
+							<tr>
+								<td ><b>Start Date</b></td>
+								<td>
+                                    {{.Config.DataSettings.DatabaseData.StartDate}}
+								</td>
+							</tr>
+							<tr>
+								<td ><b>End Date</b></td>
+
+								<td>
+                                    {{.Config.DataSettings.DatabaseData.EndDate}}
+								</td>
+							</tr>
+							<tr>
+								<td ><b>Interval</b></td>
+								<td>
+                                    {{.Config.DataSettings.Interval}}
+								</td>
+							</tr>
+                            {{if .Statistics.WasAnyDataMissing}}
+							<tr>
+								<td ><b>Was any data missing?</b></td>
+								<td  class="bg-warn" >{{ .Statistics.WasAnyDataMissing}}</td>
+							</tr>
+                            {{end}}
+
+                        {{end}}
+						</tr>
+						</tbody>
+					</table>
+                {{ end }}
+                {{ if or .Config.DataSettings.CSVData .Config.DataSettings.LiveData }}
+					<table class="table table-hover table-bordered table-striped">
+						<tbody>
+						<tr>
+							<td ><b>Interval</b></td>
+							<td>
+                                {{.Config.DataSettings.Interval}}
+							</td>
+						</tr>
+						</tbody>
+					</table>
+                {{ end }}
+				<table class="table table-hover table-bordered table-striped">
+					<thead>
+					<th>Exchange</th>
+					<th>Asset</th>
+					<th>Currency</th>
+					<th>Starting funds</th>
+					<th>Resulting funds</th>
+					<th>Did it make profit?</th>
+					<th>Did it beat the market?</th>
+					<th>Strategy Movement</th>
+					<th>Market Movement</th>
+					</thead>
+					<tbody>
+                    {{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
+                        {{ range $asset, $unused := .}}
+                            {{ range $pair, $unused := .}}
+								<tr>
+									<td>{{ $exchange}}</td>
+									<td>{{ $asset}}</td>
+									<td>{{ $pair}}</td>
+									<td>${{ printf "%.8f" .FinalHoldings.InitialFunds }} {{.FinalHoldings.Pair.Quote}}</td>
+									<td>${{ printf "%.8f" .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>
+									<td>{{ gt  .FinalHoldings.TotalValue .FinalHoldings.InitialFunds }}</td>
+									<td> {{ gt .StrategyMovement  .MarketMovement }}</td>
+									<td>{{ printf "%.2f" .StrategyMovement }}%</td>
+									<td>{{ printf "%.2f" .MarketMovement }}%</td>
+								</tr>
+                            {{end}}
+                        {{end}}
+                    {{end}}
+					</tbody>
+				</table>
+			</div>
+
+		</div>
+	</div>
+	<div >
+		<div class="card card-cascade narrower">
+			<div class="view view-cascade bg-primary">
+				<h2  class="px-4 card-header-title white-text">Config</h2>
+			</div>
+		</div>
+	</div>
+	<div >
+		<div class="card card-cascade narrower">
+			<div class="view view-cascade bg-secondary">
+				<h2  class="px-4 card-header-title white-text">Strategy Settings</h2>
+			</div>
+			<div class="card-body card-body-cascade ">
+				<table class="table table-hover table-bordered table-striped">
+					<tbody>
+					<tr>
+						<td><b>Strategy name</b></td>
+						<td>{{.Config.StrategySettings.Name}}</td>
+					</tr>
+					<tr>
+						<td><b>Is multi currency</b></td>
+						<td>{{.Config.StrategySettings.SimultaneousSignalProcessing}}</td>
+					</tr>
+					<tr>
+						<td><b>Custom settings</b></td>
+						<td>{{.Config.StrategySettings.CustomSettings}}</td>
+					</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+	<div >
+		<div class="card card-cascade narrower">
+			<div class="view view-cascade bg-info">
+				<h2  class="px-4 card-header-title white-text">Currency Settings</h2>
+			</div>
+			<div class="card-body card-body-cascade ">
+				<table class="table table-hover table-bordered table-striped">
+					<thead>
+					<th>Exchange Name</th>
+					<th>Asset</th>
+					<th>Currency Base</th>
+					<th>Currency Quote</th>
+					<th>Initial Funds</th>
+					<th>Buy side Min Amount</th>
+					<th>Buy side Max Amount</th>
+					<th>Buy side Max Total</th>
+					<th>Sell side Min Amount</th>
+					<th>Sell side Max Amount</th>
+					<th>Sell side Max Total</th>
+					<th>Min Slippage Percent</th>
+					<th>Max Slippage Percent</th>
+					<th>Taker Fee</th>
+					<th>Maximum Holdings Ratio</th>
+					</thead>
+					<tbody>
+                    {{ range .Config.CurrencySettings}}
+						<tr>
+							<td>{{.ExchangeName}}</td>
+							<td>{{.Asset}}</td>
+							<td>{{.Base}}</td>
+							<td>{{.Quote}}</td>
+							<td>{{ printf "$%.8f" .InitialFunds}} {{.Quote}}</td>
+							<td>{{.BuySide.MinimumSize}} {{.Base}}</td>
+							<td>{{.BuySide.MaximumSize}} {{.Base}}</td>
+							<td>${{printf "%.8f" .BuySide.MaximumTotal}} {{.Quote}}</td>
+							<td>{{.SellSide.MinimumSize}} {{.Base}}</td>
+							<td>{{.SellSide.MaximumSize}} {{.Base}}</td>
+							<td>${{printf "%.8f" .SellSide.MaximumTotal}} {{.Quote}}</td>
+							<td>{{.MinimumSlippagePercent}}%</td>
+							<td>{{.MaximumSlippagePercent}}%</td>
+							<td>{{.TakerFee}}</td>
+							<td>{{.MaximumHoldingsRatio}}</td>
+						</tr>
+                    {{end}}
+					</tbody>
+				</table>
+			</div>
+			<div class="view view-cascade bg-warning">
+				<h2  class="px-4 card-header-title white-text">Warnings</h2>
+			</div>
+			<div class="card-body card-body-cascade ">
+				<table class="table table-hover table-bordered table-striped">
+					<thead>
+					<th>Exchange Name</th>
+					<th>Asset</th>
+					<th>Currency Base</th>
+					<th>Currency Quote</th>
+					<th>Warning</th>
+					</thead>
+					<tbody>
+                    {{ range .Config.CurrencySettings}}
+						{{if  .ShowExchangeOrderLimitWarning}}
+							<tr>
+								<td>{{.ExchangeName}}</td>
+								<td>{{.Asset}}</td>
+								<td>{{.Base}}</td>
+								<td>{{.Quote}}</td>
+								<td>order execution limits supported but disabled, results may not work when in production</td>
+							</tr>
+						{{end}}
+                    {{end}}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+	<div >
+		<div class="card card-cascade narrower">
+			<div class="view view-cascade bg-secondary">
+				<h2  class="px-4 card-header-title white-text">Portfolio Settings</h2>
+			</div>
+			<div class="card-body card-body-cascade ">
+				<table class="table table-hover table-bordered table-striped">
+					<thead>
+					<th>Can Use Leverage</th>
+					<th>Max Leverage Rate</th>
+					<th>Max Orders With Leverage Ratio</th>
+					<th>Buy side Min Amount</th>
+					<th>Buy side Max Amount</th>
+					<th>Buy side Max Total</th>
+					<th>Sell side Min Amount</th>
+					<th>Sell side Max Amount</th>
+					<th>Sell side Max Total</th>
+					</thead>
+					<tbody>
+					<tr>
+						<td>{{.Config.PortfolioSettings.Leverage.CanUseLeverage}}</td>
+						<td>{{.Config.PortfolioSettings.Leverage.MaximumLeverageRate}}</td>
+						<td>{{.Config.PortfolioSettings.Leverage.MaximumOrdersWithLeverageRatio}}</td>
+						<td>{{.Config.PortfolioSettings.BuySide.MinimumSize}}</td>
+						<td>{{.Config.PortfolioSettings.BuySide.MaximumSize}}</td>
+						<td>${{printf "%.8f" .Config.PortfolioSettings.BuySide.MaximumTotal}}</td>
+						<td>{{.Config.PortfolioSettings.SellSide.MinimumSize}}</td>
+						<td>{{.Config.PortfolioSettings.SellSide.MaximumSize}}</td>
+						<td>${{printf "%.8f" .Config.PortfolioSettings.SellSide.MaximumTotal}}</td>
+					</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+	<div >
+		<div class="card card-cascade narrower">
+			<div class="view view-cascade bg-info">
+				<h2  class="px-4 card-header-title white-text">Statistics Settings</h2>
+			</div>
+			<div class="card-body card-body-cascade ">
+				<table class="table table-hover table-bordered table-striped">
+					<thead>
+					<th>Risk-Free Rate</th>
+					</thead>
+					<tbody>
+					<tr>
+						<td>{{.Config.StatisticSettings.RiskFreeRate}}</td>
+					</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+	<div>
+		<div class="card card-cascade narrower">
+			<div class="view view-cascade bg-success">
+				<h2  class="px-4 card-header-title white-text">Charts</h2>
+			</div>
+			<div class="card-body card-body-cascade ">
+                {{ range .EnhancedCandles}}
+                    {{ if .IsOverLimit}}
+						<p>Note: Number of candles processed is higher than chart can render. Only showing the first 1,100</p>
+                    {{end}}
+					<div id="{{.Exchange}}{{.Asset}}{{.Pair}}" >
+						<h3>{{.Exchange}} {{.Asset}} {{.Pair}}</h3>
+						<script>
+                            var chart = LightweightCharts.createChart(document.getElementById("{{.Exchange}}{{.Asset}}{{.Pair}}"), {
+                                width: 1200,
+                                height: 800,
+                                layout: {
+                                    backgroundColor: '#000',
+                                    textColor: 'rgba(255, 255, 255, 0.9)',
+                                },
+                                grid: {
+                                    vertLines: {
+                                        color: 'rgba(197, 203, 206, 0)',
+                                    },
+                                    horzLines: {
+                                        color: 'rgba(197, 203, 206, 0)',
+                                    },
+                                },
+                                crosshair: {
+                                    mode: LightweightCharts.CrosshairMode.Normal,
+                                },
+                                rightPriceScale: {
+                                    borderColor: 'rgba(197, 203, 206, 0.8)',
+                                },
+                                timeScale: {
+                                    borderColor: 'rgba(197, 203, 206, 0.8)',
+                                    timeVisible: true,
+                                },
+                                watermark: {
+                                    color: 'rgba(11, 94, 29, 0.4)',
+                                    visible: true,
+                                    text: {{.Watermark}},
+                                    fontSize: 72,
+                                    horzAlign: 'center',
+                                    vertAlign: 'center',
+                                },
+                                priceScale: {
+                                    autoScale: true,
+                                }
+                            });
+
+                            var candleSeries = chart.addCandlestickSeries({
+                                upColor: 'rgba(47, 194, 27, 0)',
+                                downColor: 'rgba(252, 3, 3, 1)',
+                                borderDownColor: 'rgba(252, 3, 3, 1)',
+                                borderUpColor: 'rgba(47, 194, 27, 1)',
+                                wickDownColor: 'rgba(252, 3, 3, 1)',
+                                wickUpColor: 'rgba(47, 194, 27, 1)',
+                            });
+
+                            candleSeries.setData([
+                                {{ range .Candles}}
+                                { time: {{.Time }}, open: {{.Open}}, high: {{.High}}, low: {{.Low}}, close: {{.Close}} },
+                                {{ end }}
+                            ])
+
+                            candleSeries.setMarkers([
+                                {{ range .Candles}}
+                                { time: {{.Time }}, position: {{printf "%s" .Position }}, color: {{printf "%s" .Colour }}, shape: {{printf "%s" .Shape }}, text: {{printf "%s" .Text }} },
+                                {{end}}
+                            ])
+
+                            var volumeSeries = chart.addHistogramSeries({
+                                priceFormat: {
+                                    type: 'volume',
+                                },
+                                priceScaleId: '',
+                                scaleMargins: {
+                                    top: 0.8,
+                                    bottom: 0,
+                                }})
+
+                            volumeSeries.setData([
+                                {{ range .Candles}}
+                                { time: {{.Time }}, value: {{.Volume}}, color: {{printf "%s" .VolumeColour}} },
+                                {{end}}
+                            ])
+
+                            chart.timeScale().fitContent();
+						</script>
+					</div>
+                {{end}}
+			</div>
+		</div>
+	</div>
+	<div >
+		<div class="card card-cascade narrower">
+			<div class="view view-cascade bg-primary">
+				<h2  class="px-4 card-header-title white-text">Statistics</h2>
+			</div>
+			<div class="card-body card-body-cascade ">
+				<table class="table table-hover table-bordered table-striped">
+					<tbody>
+					<tr>
+						<td><b>Strategy Name</b></td>
+						<td>{{.Statistics.StrategyName}}</td>
+					</tr>
+					<tr>
+						<td><b>Risk Free Rate</b></td>
+						<td>{{.Statistics.RiskFreeRate}}%</td>
+					</tr>
+					<tr>
+						<td><b>Total Buy Orders</b></td>
+						<td>{{.Statistics.TotalBuyOrders}}</td>
+					</tr>
+					<tr>
+						<td><b>Total Sell Orders</b></td>
+						<td>{{.Statistics.TotalSellOrders}}</td>
+					</tr>
+					<tr>
+						<td><b>Total Orders</b></td>
+						<td>{{.Statistics.TotalOrders}}</td>
+					</tr>
+                    {{ if .Statistics.BiggestDrawdown}}
+						<tr>
+							<td><b>Biggest Drawdown</b></td>
+							<td><b>Start:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Highest.Time }} <b>End:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.DrawdownPercent}}%</td>
+						</tr>
+                    {{end}}
+                    {{ if .Statistics.BestMarketMovement}}
+						<tr>
+							<td><b>Best performing market movement</b></td>
+							<td>{{.Statistics.BestMarketMovement.Exchange }} {{.Statistics.BestMarketMovement.Asset}} {{.Statistics.BestMarketMovement.Pair}} {{.Statistics.BestMarketMovement.MarketMovement}}%</td>
+						</tr>
+                    {{end}}
+                    {{ if .Statistics.BestStrategyResults}}
+						<tr>
+							<td><b>Best performing strategy movement</b></td>
+							<td>{{.Statistics.BestStrategyResults.Exchange }} {{.Statistics.BestStrategyResults.Asset}} {{.Statistics.BestStrategyResults.Pair}} {{.Statistics.BestStrategyResults.StrategyMovement}}%</td>
+						</tr>
+                    {{ end}}
+					</tbody>
+				</table>
+			</div>
+		</div>
+        {{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
+            {{ range $asset, $unused := .}}
+                {{ range $pair, $val := .}}
+					<div class="card card-cascade narrower">
+						<div class="view view-cascade bg-info">
+							<h2  class="px-4 card-header-title white-text">Statistics for {{$exchange}} {{ $asset}} {{ $pair}}</h2>
+						</div>
+						<div class="card-body card-body-cascade ">
+							<table class="table table-hover table-bordered table-striped">
+								<tbody>
+								<tr>
+									<td><b>Initial Funds</b></td>
+									<td>${{printf "%.8f" $val.FinalHoldings.InitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
+								</tr>
+								<tr>
+									<td><b>Buy Orders</b></td>
+									<td>{{$val.BuyOrders}}</td>
+								</tr>
+								<tr>
+									<td><b>Buy Value</b></td>
+									<td>${{printf "%.8f" $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+								</tr>
+								<tr>
+									<td><b>Buy Amount</b></td>
+									<td>{{printf "%.8f" $val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
+								</tr>
+								<tr>
+									<td><b>Sell Orders</b></td>
+									<td>{{$val.SellOrders}}</td>
+								</tr>
+								<tr>
+									<td><b>Sell Value</b></td>
+									<td>${{printf "%.8f" $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+								</tr>
+								<tr>
+									<td><b>Sell Amount</b></td>
+									<td>{{printf "%.8f" $val.FinalHoldings.SoldAmount}} {{$val.FinalHoldings.Pair.Base}}</td>
+								</tr>
+								<tr>
+									<td><b>Total Orders</b></td>
+									<td>{{$val.TotalOrders}}</td>
+								</tr>
+                                {{ if gt $val.MaxDrawdown.Highest.Price 0.0 }}
+									<tr>
+										<td><b>Biggest Drawdown</b></td>
+										<td><b>Start:</b> {{ $val.MaxDrawdown.Highest.Time }} <b>End:</b> {{ $val.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{printf "%.2f" $val.MaxDrawdown.DrawdownPercent}}%</td>
+									</tr>
+                                {{ end }}
+								<tr>
+									<td><b>Starting Close Price</b></td>
+									<td>${{printf "%.8f" $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+								</tr>
+								<tr>
+									<td><b>Ending Close Price</b></td>
+									<td>${{printf "%.8f" $val.EndingClosePrice}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+								</tr>
+								<tr>
+									<td><b>Lowest Close Price</b></td>
+									<td>${{printf "%.8f" $val.LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+								</tr>
+								<tr>
+									<td><b>Highest Close Price</b></td>
+									<td>${{printf "%.8f" $val.HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+								</tr>
+								<tr>
+									<td><b>Highest Committed Funds</b></td>
+									<td>${{printf "%.8f" $val.HighestCommittedFunds.Value}} at {{ $val.HighestCommittedFunds.Time}}</td>
+								</tr>
+								<tr>
+									<td><b>Market Movement</b></td>
+									<td>{{printf "%.2f" $val.MarketMovement}}%</td>
+								</tr>
+								<tr>
+									<td><b>Strategy Movement</b></td>
+									<td>{{ printf "%.2f" $val.StrategyMovement}}%</td>
+								</tr>
+								<tr>
+									<td><b>Did it beat the market?</b></td>
+									<td>{{ gt .StrategyMovement $val.MarketMovement}}</td>
+								</tr>
+								<tr>
+									<td><b>Total Value Lost to Volume Sizing</b></td>
+									<td>${{printf "%.8f" $val.FinalHoldings.TotalValueLostToVolumeSizing}} {{$val.FinalHoldings.Pair.Quote}}</td>
+								</tr>
+								<tr>
+									<td><b>Total Value Lost to Slippage</b></td>
+									<td>${{printf "%.8f" $val.FinalHoldings.TotalValueLostToSlippage}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+								</tr>
+								<tr>
+									<td><b>Total Value Lost</b></td>
+									<td>${{printf "%.8f" $val.FinalHoldings.TotalValueLost}} {{$val.FinalHoldings.Pair.Quote}}</td>
+								</tr>
+								<tr>
+									<td><b>Total Fees</b></td>
+									<td>${{printf "%.8f" $val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+								</tr>
+								<tr>
+									<td><b>Final Funds</b></td>
+									<td>${{printf "%.8f" $val.FinalHoldings.RemainingFunds}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+								</tr>
+								<tr>
+									<td><b>Final Holdings</b></td>
+									<td>{{printf "%.8f" $val.FinalHoldings.PositionsSize}} {{$val.FinalHoldings.Pair.Base}}</td>
+								</tr>
+								<tr>
+									<td><b>Final Holdings Value</b></td>
+									<td>${{printf "%.8f" $val.FinalHoldings.PositionsValue}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+								</tr>
+								<tr>
+									<td><b>Total Value</b></td>
+									<td><b>${{printf "%.8f" $val.FinalHoldings.TotalValue}} {{ $val.FinalHoldings.Pair.Quote}}</b></td>
+								</tr>
+								</tbody>
+							</table>
+							Rates
+							<table class="table table-hover table-bordered table-striped">
+								<tbody>
+								<tr>
+									<td><b>Risk Free Rate</b></td>
+									<td>{{$val.RiskFreeRate}}%</td>
+								</tr>
+								<tr>
+									<td><b>Compound Annual Growth Rate</b></td>
+									<td>{{$val.CompoundAnnualGrowthRate}}%</td>
+								</tr>
+								</tbody>
+							</table>
+							{{if  $val.ShowMissingDataWarning}}
+								<h3 class="bg-warning">Missing data was detected during this backtesting run<br />
+									Ratio calculations will be skewed</h3>
+							{{end}}
+							Arithmetic Ratios
+							<table class="table table-hover table-bordered table-striped">
+								<tbody>
+								<tr>
+									<td><b>Sharpe Ratio</b></td>
+									<td>{{$val.ArithmeticRatios.SharpeRatio}}</td>
+								</tr>
+								<tr>
+									<td><b>Sortino Ratio</b></td>
+									<td>{{$val.ArithmeticRatios.SortinoRatio}}</td>
+								</tr>
+								<tr>
+									<td><b>Information Ratio</b></td>
+									<td>{{$val.ArithmeticRatios.InformationRatio}}</td>
+								</tr>
+								<tr>
+									<td><b>Calmar Ratio</b></td>
+									<td>{{$val.ArithmeticRatios.CalmarRatio}}</td>
+								</tr>
+								</tbody>
+							</table>
+							Geometric Ratios
+							<table class="table table-hover table-bordered table-striped">
+								<tbody>
+								<tr>
+									<td><b>Sharpe Ratio</b></td>
+									<td>{{$val.GeometricRatios.SharpeRatio}}</td>
+								</tr>
+								<tr>
+									<td><b>Sortino Ratio</b></td>
+									<td>{{$val.GeometricRatios.SortinoRatio}}</td>
+								</tr>
+								<tr>
+									<td><b>Information Ratio</b></td>
+									<td>{{$val.GeometricRatios.InformationRatio}}</td>
+								</tr>
+								<tr>
+									<td><b>Calmar Ratio</b></td>
+									<td>{{$val.GeometricRatios.CalmarRatio}}</td>
+								</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+                {{end}}
+            {{end}}
+        {{end}}
+	</div>
+	<div >
+		<div class="card card-cascade narrower">
+			<div class="view view-cascade bg-danger">
+				<h2  class="px-4 card-header-title white-text">Orders</h2>
+			</div>
+			<div class="card-body card-body-cascade ">
+
+                {{ range $exchange, $unused :=  .Statistics.ExchangeAssetPairStatistics}}
+                    {{ range $asset, $unused := .}}
+                        {{ range $pair, $val := .}}
+							<div  >
+								<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
+							</div>
+							<div >
+								<table class="table table-hover table-bordered table-striped">
+									<thead>
+									<th>Date</th>
+									<th>Close Price</th>
+									<th>Side</th>
+									<th>Purchase Price</th>
+									<th>Slippage Rate</th>
+									<th>Amount</th>
+									<th>Fees</th>
+									<th>Cost Basis</th>
+									</thead>
+									<tbody >
+                                    {{range $val.FinalOrders.Orders}}
+										<tr>
+											<td>{{ .Detail.Date }}</td>
+											<td>${{ .ClosePrice}} {{$pair.Quote}}</td>
+											<td>{{ .Detail.Side }}</td>
+											<td>${{ .Detail.Price }} {{$pair.Quote}}</td>
+											<td>{{ .SlippageRate }}%</td>
+											<td>{{printf "%.8f" .Detail.Amount }} {{$pair.Base}}</td>
+											<td>${{printf "%.8f" .Detail.Fee }} {{$pair.Quote}}</td>
+											<td>${{printf "%.8f" .CostBasis }} {{$pair.Quote}}</td>
+										</tr>
+                                    {{end}}
+									</tbody>
+								</table>
+							</div>
+                        {{end}}
+                    {{end}}
+                {{end}}
+			</div>
+		</div>
+	</div>
+	<div >
+		<div class="card card-cascade narrower">
+			<div class="view view-cascade bg-warning">
+				<h2  class="px-4 card-header-title white-text">Events</h2>
+			</div>
+			<div class="card-body card-body-cascade ">
+                {{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
+                    {{ range $asset, $unused :=.}}
+                        {{ range $pair, $data := .}}
+							<div >
+								<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
+							</div>
+							<div >
+								<table class="table table-hover table-bordered table-striped">
+									<thead>
+									<th>Date</th>
+									<th>Price</th>
+									<th>Action</th>
+									<th>Why</th>
+									<th>Committed Funds</th>
+									</thead>
+									<tbody >
+                                    {{range $ev := $data.Events}}
+										<tr>
+                                            {{ if ne $ev.FillEvent nil }}
+												<td><b>{{$ev.FillEvent.GetTime}}</b></td>
+												<td>${{$ev.FillEvent.GetClosePrice}} {{$pair.Quote}}</td>
+												<td>{{$ev.FillEvent.GetDirection}}</td>
+												<td>{{$ev.FillEvent.GetReason}}</td>
+                                            {{ else if ne $ev.SignalEvent nil}}
+												<td>{{$ev.SignalEvent.GetTime}}</td>
+												<td>${{ printf "%f" $ev.SignalEvent.Price}} {{$pair.Quote}}</td>
+												<td>{{$ev.SignalEvent.GetDirection}}</td>
+												<td>{{$ev.SignalEvent.GetReason}}</td>
+                                            {{ end }}
+											<td>${{printf "%.8f" $ev.Holdings.CommittedFunds}} {{$pair.Quote}}</td>
+										</tr>
+                                    {{end}}
+									</tbody>
+								</table>
+							</div>
+                        {{end}}
+                    {{end}}
+                {{end}}
+			</div>
+		</div>
+	</div>
+</div>
+</body>
+</html>

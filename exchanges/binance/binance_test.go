@@ -2,7 +2,7 @@ package binance
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
@@ -43,7 +43,6 @@ func TestUServerTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Printf("noo\n\n")
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -1277,16 +1276,18 @@ func TestQueryOrder(t *testing.T) {
 
 func TestOpenOrders(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := b.OpenOrders(currency.Pair{})
+	if err != nil {
+		t.Error(err)
+	}
 
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	_, err := b.OpenOrders(&p)
-	switch {
-	case areTestAPIKeysSet() && err != nil:
-		t.Error("OpenOrders() error", err)
-	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("OpenOrders() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock OpenOrders() error", err)
+	_, err = b.OpenOrders(p)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -2018,68 +2019,6 @@ func TestWSUnsubscriptionHandling(t *testing.T) {
 	}
 }
 
-func TestWsOrderUpdateHandling(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{
-	  "e": "executionReport",        
-	  "E": 1499405658658,            
-	  "s": "BTCUSDT",                 
-	  "c": "mUvoqJxFIILMdfAW5iGSOW", 
-	  "S": "BUY",                    
-	  "o": "LIMIT",                  
-	  "f": "GTC",                    
-	  "q": "1.00000000",             
-	  "p": "0.10264410",             
-	  "P": "0.00000000",             
-	  "F": "0.00000000",             
-	  "g": -1,                       
-	  "C": null,                     
-	  "x": "NEW",                    
-	  "X": "NEW",                    
-	  "r": "NONE",                   
-	  "i": 4293153,                  
-	  "l": "0.00000000",             
-	  "z": "0.00000000",             
-	  "L": "0.00000000",             
-	  "n": "0",                      
-	  "N": null,                     
-	  "T": 1499405658657,            
-	  "t": -1,                       
-	  "I": 8641984,                  
-	  "w": true,                     
-	  "m": false,                    
-	  "M": false,                    
-	  "O": 1499405658657,            
-	  "Z": "0.00000000",             
-	  "Y": "0.00000000",              
-	  "Q": "0.00000000"              
-	}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWsOutboundAccountPosition(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{
-  "e": "outboundAccountPosition", 
-  "E": 1564034571105,             
-  "u": 1564034571073,             
-  "B": [                          
-    {
-      "a": "ETH",                 
-      "f": "10000.000000",        
-      "l": "0.000000"             
-    }
-  ]
-}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestWsTickerUpdate(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"BTCUSDT","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
@@ -2196,7 +2135,10 @@ func TestWsDepthUpdate(t *testing.T) {
 		t.Error(err)
 	}
 
-	ob := b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	ob, err := b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if exp, got := seedLastUpdateID, ob.LastUpdateID; got != exp {
 		t.Fatalf("Unexpected Last update id of orderbook for old update. Exp: %d, got: %d", exp, got)
 	}
@@ -2222,11 +2164,14 @@ func TestWsDepthUpdate(t *testing.T) {
 	  ]
 	}}`)
 
-	if err := b.wsHandleData(update2); err != nil {
+	if err = b.wsHandleData(update2); err != nil {
 		t.Error(err)
 	}
 
-	ob = b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	ob, err = b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if exp, got := int64(165), ob.LastUpdateID; got != exp {
 		t.Fatalf("Unexpected Last update id of orderbook for new update. Exp: %d, got: %d", exp, got)
 	}
@@ -2243,13 +2188,13 @@ func TestWsDepthUpdate(t *testing.T) {
 
 func TestWsBalanceUpdate(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
+	pressXToJSON := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{
   "e": "balanceUpdate",         
   "E": 1573200697110,           
   "a": "BTC",                   
   "d": "100.00000000",          
   "T": 1573200697068            
-}`)
+}}`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -2258,7 +2203,7 @@ func TestWsBalanceUpdate(t *testing.T) {
 
 func TestWsOCO(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
+	pressXToJSON := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{
   "e": "listStatus",                
   "E": 1564035303637,               
   "s": "ETHBTC",                    
@@ -2281,7 +2226,7 @@ func TestWsOCO(t *testing.T) {
       "c": "bfYPSQdLoqAJeNrOr9adzq"
     }
   ]
-}`)
+}}`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -2344,7 +2289,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	end := time.Unix(1577836799, 0)
 	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.OneDay)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
 	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
@@ -2358,15 +2303,17 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
+
+	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.OneDay)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
+
 	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
 	if err == nil {
-		t.Fatal("unexpected result")
+		t.Error("unexpected result")
 	}
 }
 
@@ -2385,6 +2332,11 @@ func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
 			"OneDay",
 			kline.OneDay,
 			"1d",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"1w",
 		},
 		{
 			"OneMonth",
@@ -2480,5 +2432,75 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 	_, err = b.UFuturesHistoricalTrades(cp, "", 0)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestSetExchangeOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateOrderExecutionLimits(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.UpdateOrderExecutionLimits(asset.CoinMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.UpdateOrderExecutionLimits(asset.USDTMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.UpdateOrderExecutionLimits(asset.Binary)
+	if err == nil {
+		t.Fatal("expected unhandled case")
+	}
+
+	cmfCP, err := currency.NewPairFromStrings("BTCUSD", "PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	limit, err := b.GetOrderExecutionLimits(asset.CoinMarginedFutures, cmfCP)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if limit == nil {
+		t.Fatal("exchange limit should be loaded")
+	}
+
+	err = limit.Conforms(0.000001, 0.1, order.Limit)
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Fatalf("expected %v, but received %v", order.ErrAmountBelowMin, err)
+	}
+
+	err = limit.Conforms(0.01, 1, order.Limit)
+	if !errors.Is(err, order.ErrPriceBelowMin) {
+		t.Fatalf("expected %v, but received %v", order.ErrPriceBelowMin, err)
+	}
+}
+
+func TestWsOrderExecutionReport(t *testing.T) {
+	t.Parallel()
+	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616627567900,"s":"BTCUSDT","c":"c4wyKsIhoAaittTYlIVLqk","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028400","p":"52789.10000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":5340845958,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1616627567900,"t":-1,"I":11388173160,"w":true,"m":false,"M":false,"O":1616627567900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}}`)
+	err := b.wsHandleData(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041556,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Mob","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028600","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783271,"l":"0.00028600","z":"0.00028600","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041555,"t":726946523,"I":11390206312,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"14.99693910","Y":"14.99693910","Q":"0.00000000"}}`)
+	err = b.wsHandleData(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsOutboundAccountPosition(t *testing.T) {
+	t.Parallel()
+	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
+	err := b.wsHandleData(payload)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

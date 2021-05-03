@@ -191,11 +191,11 @@ func (i *ItBit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       i.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		NotAggregated:      true,
-		VerificationBypass: i.OrderbookVerificationBypass,
+		Exchange:         i.Name,
+		Pair:             p,
+		Asset:            assetType,
+		PriceDuplication: true,
+		VerifyOrderbook:  i.CanVerifyOrderbook,
 	}
 	fpair, err := i.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -553,7 +553,7 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
@@ -621,7 +621,7 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil

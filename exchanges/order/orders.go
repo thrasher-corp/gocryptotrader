@@ -38,23 +38,18 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 	}
 
 	if s.Amount <= 0 {
-		return ErrAmountIsInvalid
+		return fmt.Errorf("submit validation error %w, suppled: %.8f", ErrAmountIsInvalid, s.Amount)
 	}
 
 	if s.Type == Limit && s.Price <= 0 {
 		return ErrPriceMustBeSetIfLimitOrder
 	}
 
-	var errs common.Errors
 	for _, o := range opt {
 		err := o.Check()
 		if err != nil {
-			errs = append(errs, err)
+			return err
 		}
-	}
-
-	if errs != nil {
-		return errs
 	}
 
 	return nil
@@ -427,20 +422,20 @@ func FilterOrdersByType(orders *[]Detail, orderType Type) {
 	*orders = filteredOrders
 }
 
-// FilterOrdersByTickRange removes any OrderDetails outside of the tick range
-func FilterOrdersByTickRange(orders *[]Detail, startTicks, endTicks time.Time) {
-	if startTicks.IsZero() ||
-		endTicks.IsZero() ||
-		startTicks.Unix() == 0 ||
-		endTicks.Unix() == 0 ||
-		endTicks.Before(startTicks) {
+// FilterOrdersByTimeRange removes any OrderDetails outside of the time range
+func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) {
+	if startTime.IsZero() ||
+		endTime.IsZero() ||
+		startTime.Unix() == 0 ||
+		endTime.Unix() == 0 ||
+		endTime.Before(startTime) {
 		return
 	}
 
 	var filteredOrders []Detail
 	for i := range *orders {
-		if (*orders)[i].Date.Unix() >= startTicks.Unix() &&
-			(*orders)[i].Date.Unix() <= endTicks.Unix() {
+		if ((*orders)[i].Date.Unix() >= startTime.Unix() && (*orders)[i].Date.Unix() <= endTime.Unix()) ||
+			(*orders)[i].Date.IsZero() {
 			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
@@ -453,6 +448,9 @@ func FilterOrdersByTickRange(orders *[]Detail, startTicks, endTicks time.Time) {
 // match quote or base currencies
 func FilterOrdersByCurrencies(orders *[]Detail, currencies []currency.Pair) {
 	if len(currencies) == 0 {
+		return
+	}
+	if len(currencies) == 1 && currencies[0].IsEmpty() {
 		return
 	}
 

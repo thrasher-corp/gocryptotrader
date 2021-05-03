@@ -7,12 +7,15 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -66,7 +69,7 @@ const (
 // FuturesExchangeInfo stores CoinMarginedFutures, data
 func (b *Binance) FuturesExchangeInfo() (CExchangeInfo, error) {
 	var resp CExchangeInfo
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesExchangeInfo, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesExchangeInfo, cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesOrderbook gets orderbook data for CoinMarginedFutures,
@@ -74,6 +77,17 @@ func (b *Binance) GetFuturesOrderbook(symbol currency.Pair, limit int64) (OrderB
 	var resp OrderBook
 	var data OrderbookData
 	params := url.Values{}
+	rateBudget := cFuturesDefaultRate
+	switch {
+	case limit == 5, limit == 10, limit == 20, limit == 50:
+		rateBudget = cFuturesOrderbook50Rate
+	case limit >= 100 && limit < 500:
+		rateBudget = cFuturesOrderbook100Rate
+	case limit >= 500 && limit < 1000:
+		rateBudget = cFuturesOrderbook500Rate
+	case limit == 1000:
+		rateBudget = cFuturesOrderbook1000Rate
+	}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -82,7 +96,7 @@ func (b *Binance) GetFuturesOrderbook(symbol currency.Pair, limit int64) (OrderB
 	if limit > 0 && limit <= 1000 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	err = b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesOrderbook+params.Encode(), limitDefault, &data)
+	err = b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesOrderbook+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return resp, err
 	}
@@ -130,7 +144,7 @@ func (b *Binance) GetFuturesPublicTrades(symbol currency.Pair, limit int64) ([]F
 	if limit > 0 && limit <= 1000 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesRecentTrades+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesRecentTrades+params.Encode(), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesHistoricalTrades gets historical public trades for CoinMarginedFutures,
@@ -148,7 +162,7 @@ func (b *Binance) GetFuturesHistoricalTrades(symbol currency.Pair, fromID string
 	if limit > 0 && limit < 1000 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesHistoricalTrades, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesHistoricalTrades, params, cFuturesHistoricalTradesRate, &resp)
 }
 
 // GetPastPublicTrades gets past public trades for CoinMarginedFutures,
@@ -166,7 +180,7 @@ func (b *Binance) GetPastPublicTrades(symbol currency.Pair, limit, fromID int64)
 	if fromID != 0 {
 		params.Set("fromID", strconv.FormatInt(fromID, 10))
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesRecentTrades+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesRecentTrades+params.Encode(), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesAggregatedTradesList gets aggregated trades list for CoinMarginedFutures,
@@ -191,7 +205,7 @@ func (b *Binance) GetFuturesAggregatedTradesList(symbol currency.Pair, fromID, l
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesCompressedTrades+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesCompressedTrades+params.Encode(), cFuturesHistoricalTradesRate, &resp)
 }
 
 // GetIndexAndMarkPrice gets index and mark prices  for CoinMarginedFutures,
@@ -204,7 +218,7 @@ func (b *Binance) GetIndexAndMarkPrice(symbol, pair string) ([]IndexMarkPrice, e
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesMarkPrice+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesMarkPrice+params.Encode(), cFuturesIndexMarkPriceRate, &resp)
 }
 
 // GetFuturesKlineData gets futures kline data for CoinMarginedFutures,
@@ -212,14 +226,14 @@ func (b *Binance) GetFuturesKlineData(symbol currency.Pair, interval string, lim
 	var data [][10]interface{}
 	var resp []FuturesCandleStick
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
 		params.Set("symbol", symbolValue)
 	}
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 && limit <= 1500 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -233,7 +247,8 @@ func (b *Binance) GetFuturesKlineData(symbol currency.Pair, interval string, lim
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	err := b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesKlineData+params.Encode(), limitDefault, &data)
+	rateBudget := getKlineRateBudget(limit)
+	err := b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesKlineData+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return resp, err
 	}
@@ -335,7 +350,7 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 		return resp, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 && limit <= 1500 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -349,7 +364,9 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	err := b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesContinuousKline+params.Encode(), limitDefault, &data)
+
+	rateBudget := getKlineRateBudget(limit)
+	err := b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesContinuousKline+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return resp, err
 	}
@@ -447,7 +464,7 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 	var resp []FuturesCandleStick
 	params := url.Values{}
 	params.Set("pair", pair)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 && limit <= 1500 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -461,7 +478,8 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	err := b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesIndexKline+params.Encode(), limitDefault, &data)
+	rateBudget := getKlineRateBudget(limit)
+	err := b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesIndexKline+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return resp, err
 	}
@@ -563,7 +581,7 @@ func (b *Binance) GetMarkPriceKline(symbol currency.Pair, interval string, limit
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 && limit <= 1500 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -577,7 +595,8 @@ func (b *Binance) GetMarkPriceKline(symbol currency.Pair, interval string, limit
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	err = b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesMarkPriceKline+params.Encode(), limitDefault, &data)
+	rateBudget := getKlineRateBudget(limit)
+	err = b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesMarkPriceKline+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return resp, err
 	}
@@ -669,11 +688,28 @@ func (b *Binance) GetMarkPriceKline(symbol currency.Pair, interval string, limit
 	return resp, nil
 }
 
+func getKlineRateBudget(limit int64) request.EndpointLimit {
+	rateBudget := cFuturesDefaultRate
+	switch {
+	case limit > 0 && limit < 100:
+		rateBudget = cFuturesKline100Rate
+	case limit >= 100 && limit < 500:
+		rateBudget = cFuturesKline500Rate
+	case limit >= 500 && limit < 1000:
+		rateBudget = cFuturesKline1000Rate
+	case limit >= 1000:
+		rateBudget = cFuturesKlineMaxRate
+	}
+	return rateBudget
+}
+
 // GetFuturesSwapTickerChangeStats gets 24hr ticker change stats for CoinMarginedFutures,
 func (b *Binance) GetFuturesSwapTickerChangeStats(symbol currency.Pair, pair string) ([]PriceChangeStats, error) {
 	var resp []PriceChangeStats
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	rateLimit := cFuturesTickerPriceHistoryRate
+	if !symbol.IsEmpty() {
+		rateLimit = cFuturesDefaultRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -683,14 +719,14 @@ func (b *Binance) GetFuturesSwapTickerChangeStats(symbol currency.Pair, pair str
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesTickerPriceStats+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesTickerPriceStats+params.Encode(), rateLimit, &resp)
 }
 
 // FuturesGetFundingHistory gets funding history for CoinMarginedFutures,
 func (b *Binance) FuturesGetFundingHistory(symbol currency.Pair, limit int64, startTime, endTime time.Time) ([]FundingRateHistory, error) {
 	var resp []FundingRateHistory
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -707,14 +743,16 @@ func (b *Binance) FuturesGetFundingHistory(symbol currency.Pair, limit int64, st
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesFundingRateHistory+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesFundingRateHistory+params.Encode(), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesSymbolPriceTicker gets price ticker for symbol
 func (b *Binance) GetFuturesSymbolPriceTicker(symbol currency.Pair, pair string) ([]SymbolPriceTicker, error) {
 	var resp []SymbolPriceTicker
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	rateLimit := cFuturesOrderbookTickerAllRate
+	if !symbol.IsEmpty() {
+		rateLimit = cFuturesDefaultRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -724,14 +762,16 @@ func (b *Binance) GetFuturesSymbolPriceTicker(symbol currency.Pair, pair string)
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesSymbolPriceTicker+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesSymbolPriceTicker+params.Encode(), rateLimit, &resp)
 }
 
 // GetFuturesOrderbookTicker gets orderbook ticker for symbol
 func (b *Binance) GetFuturesOrderbookTicker(symbol currency.Pair, pair string) ([]SymbolOrderBookTicker, error) {
 	var resp []SymbolOrderBookTicker
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	rateLimit := cFuturesOrderbookTickerAllRate
+	if !symbol.IsEmpty() {
+		rateLimit = cFuturesDefaultRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -741,14 +781,16 @@ func (b *Binance) GetFuturesOrderbookTicker(symbol currency.Pair, pair string) (
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesSymbolOrderbook+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesSymbolOrderbook+params.Encode(), rateLimit, &resp)
 }
 
-// GetFuturesLiquidationOrders gets orderbook ticker for symbol
+// GetFuturesLiquidationOrders gets forced liquidation orders
 func (b *Binance) GetFuturesLiquidationOrders(symbol currency.Pair, pair string, limit int64, startTime, endTime time.Time) ([]AllLiquidationOrders, error) {
 	var resp []AllLiquidationOrders
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	rateLimit := cFuturesAllForceOrdersRate
+	if !symbol.IsEmpty() {
+		rateLimit = cFuturesCurrencyForceOrdersRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -768,7 +810,7 @@ func (b *Binance) GetFuturesLiquidationOrders(symbol currency.Pair, pair string,
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesLiquidationOrders+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesLiquidationOrders+params.Encode(), rateLimit, &resp)
 }
 
 // GetOpenInterest gets open interest data for a symbol
@@ -780,7 +822,7 @@ func (b *Binance) GetOpenInterest(symbol currency.Pair) (OpenInterestData, error
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesOpenInterest+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesOpenInterest+params.Encode(), cFuturesDefaultRate, &resp)
 }
 
 // GetOpenInterestStats gets open interest stats for a symbol
@@ -808,7 +850,7 @@ func (b *Binance) GetOpenInterestStats(pair, contractType, period string, limit 
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesOpenInterestStats+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesOpenInterestStats+params.Encode(), cFuturesDefaultRate, &resp)
 }
 
 // GetTraderFuturesAccountRatio gets a traders futures account long/short ratio
@@ -830,7 +872,7 @@ func (b *Binance) GetTraderFuturesAccountRatio(pair, period string, limit int64,
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesTopAccountsRatio+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesTopAccountsRatio+params.Encode(), cFuturesDefaultRate, &resp)
 }
 
 // GetTraderFuturesPositionsRatio gets a traders futures positions' long/short ratio
@@ -852,7 +894,7 @@ func (b *Binance) GetTraderFuturesPositionsRatio(pair, period string, limit int6
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesTopPositionsRatio+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesTopPositionsRatio+params.Encode(), cFuturesDefaultRate, &resp)
 }
 
 // GetMarketRatio gets global long/short ratio
@@ -874,7 +916,7 @@ func (b *Binance) GetMarketRatio(pair, period string, limit int64, startTime, en
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesLongShortRatio+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesLongShortRatio+params.Encode(), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesTakerVolume gets futures taker buy/sell volumes
@@ -900,7 +942,7 @@ func (b *Binance) GetFuturesTakerVolume(pair, contractType, period string, limit
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesBuySellVolume+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesBuySellVolume+params.Encode(), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesBasisData gets futures basis data
@@ -926,7 +968,7 @@ func (b *Binance) GetFuturesBasisData(pair, contractType, period string, limit i
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesBasis+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesBasis+params.Encode(), cFuturesDefaultRate, &resp)
 }
 
 // FuturesNewOrder sends a new futures order to the exchange
@@ -985,7 +1027,7 @@ func (b *Binance) FuturesNewOrder(symbol currency.Pair, side, positionSide, orde
 	if callbackRate != 0 {
 		params.Set("callbackRate", strconv.FormatFloat(callbackRate, 'f', -1, 64))
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesOrder, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesOrder, params, cFuturesOrdersDefaultRate, &resp)
 }
 
 // FuturesBatchOrder sends a batch order request
@@ -1023,7 +1065,7 @@ func (b *Binance) FuturesBatchOrder(data []PlaceBatchOrderData) ([]FuturesOrderP
 		return resp, err
 	}
 	params.Set("batchOrders", string(jsonData))
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesBatchOrder, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesBatchOrder, params, cFuturesBatchOrdersRate, &resp)
 }
 
 // FuturesBatchCancelOrders sends a batch request to cancel orders
@@ -1049,7 +1091,7 @@ func (b *Binance) FuturesBatchCancelOrders(symbol currency.Pair, orderList, orig
 		}
 		params.Set("origClientOrderIdList", string(jsonCliOrdIDList))
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodDelete, cfuturesBatchOrder, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodDelete, cfuturesBatchOrder, params, cFuturesOrdersDefaultRate, &resp)
 }
 
 // FuturesGetOrderData gets futures order data
@@ -1067,7 +1109,7 @@ func (b *Binance) FuturesGetOrderData(symbol currency.Pair, orderID, origClientO
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesOrder, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesOrder, params, cFuturesOrdersDefaultRate, &resp)
 }
 
 // FuturesCancelOrder cancels a futures order
@@ -1085,7 +1127,7 @@ func (b *Binance) FuturesCancelOrder(symbol currency.Pair, orderID, origClientOr
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodDelete, cfuturesOrder, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodDelete, cfuturesOrder, params, cFuturesOrdersDefaultRate, &resp)
 }
 
 // FuturesCancelAllOpenOrders cancels a futures order
@@ -1097,7 +1139,7 @@ func (b *Binance) FuturesCancelAllOpenOrders(symbol currency.Pair) (GenericAuthR
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodDelete, cfuturesCancelAllOrders, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodDelete, cfuturesCancelAllOrders, params, cFuturesOrdersDefaultRate, &resp)
 }
 
 // AutoCancelAllOpenOrders cancels all open futures orders
@@ -1111,7 +1153,7 @@ func (b *Binance) AutoCancelAllOpenOrders(symbol currency.Pair, countdownTime in
 	}
 	params.Set("symbol", symbolValue)
 	params.Set("countdownTime", strconv.FormatInt(countdownTime, 10))
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesCountdownCancel, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesCountdownCancel, params, cFuturesCancelAllOrdersRate, &resp)
 }
 
 // FuturesOpenOrderData gets open order data for CoinMarginedFutures,
@@ -1129,31 +1171,40 @@ func (b *Binance) FuturesOpenOrderData(symbol currency.Pair, orderID, origClient
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesOpenOrder, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesOpenOrder, params, cFuturesOrdersDefaultRate, &resp)
 }
 
 // GetFuturesAllOpenOrders gets all open orders data for CoinMarginedFutures,
 func (b *Binance) GetFuturesAllOpenOrders(symbol currency.Pair, pair string) ([]FuturesOrderData, error) {
 	var resp []FuturesOrderData
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	var p string
+	var err error
+	rateLimit := cFuturesGetAllOpenOrdersRate
+	if !symbol.IsEmpty() {
+		rateLimit = cFuturesOrdersDefaultRate
+		p, err = b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
-		params.Set("symbol", symbolValue)
+		params.Set("symbol", p)
+	} else {
+		// extend the receive window when all currencies to prevent "recvwindow" error
+		params.Set("recvWindow", "10000")
 	}
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesAllOpenOrders, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesAllOpenOrders, params, rateLimit, &resp)
 }
 
 // GetAllFuturesOrders gets all orders active cancelled or filled
 func (b *Binance) GetAllFuturesOrders(symbol currency.Pair, pair string, startTime, endTime time.Time, orderID, limit int64) ([]FuturesOrderData, error) {
 	var resp []FuturesOrderData
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	rateLimit := cFuturesPairOrdersRate
+	if !symbol.IsEmpty() {
+		rateLimit = cFuturesSymbolOrdersRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -1176,19 +1227,19 @@ func (b *Binance) GetAllFuturesOrders(symbol currency.Pair, pair string, startTi
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesAllOrders, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesAllOrders, params, rateLimit, &resp)
 }
 
 // GetFuturesAccountBalance gets account balance data for CoinMarginedFutures, account
 func (b *Binance) GetFuturesAccountBalance() ([]FuturesAccountBalanceData, error) {
 	var resp []FuturesAccountBalanceData
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesAccountBalance, nil, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesAccountBalance, nil, cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesAccountInfo gets account info data for CoinMarginedFutures, account
 func (b *Binance) GetFuturesAccountInfo() (FuturesAccountInformation, error) {
 	var resp FuturesAccountInformation
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesAccountInfo, nil, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesAccountInfo, nil, cFuturesAccountInformationRate, &resp)
 }
 
 // FuturesChangeInitialLeverage changes initial leverage for the account
@@ -1204,7 +1255,7 @@ func (b *Binance) FuturesChangeInitialLeverage(symbol currency.Pair, leverage in
 		return resp, errors.New("invalid leverage")
 	}
 	params.Set("leverage", strconv.FormatInt(leverage, 10))
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesChangeInitialLeverage, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesChangeInitialLeverage, params, cFuturesDefaultRate, &resp)
 }
 
 // FuturesChangeMarginType changes margin type
@@ -1220,7 +1271,7 @@ func (b *Binance) FuturesChangeMarginType(symbol currency.Pair, marginType strin
 		return resp, errors.New("invalid marginType")
 	}
 	params.Set("marginType", marginType)
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesChangeMarginType, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesChangeMarginType, params, cFuturesDefaultRate, &resp)
 }
 
 // ModifyIsolatedPositionMargin changes margin for an isolated position
@@ -1242,7 +1293,7 @@ func (b *Binance) ModifyIsolatedPositionMargin(symbol currency.Pair, positionSid
 	}
 	params.Set("type", strconv.FormatInt(cType, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesModifyMargin, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesModifyMargin, params, cFuturesDefaultRate, &resp)
 }
 
 // FuturesMarginChangeHistory gets past margin changes for positions
@@ -1269,7 +1320,7 @@ func (b *Binance) FuturesMarginChangeHistory(symbol currency.Pair, changeType st
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesMarginChangeHistory, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesMarginChangeHistory, params, cFuturesDefaultRate, &resp)
 }
 
 // FuturesPositionsInfo gets futures positions info
@@ -1282,14 +1333,16 @@ func (b *Binance) FuturesPositionsInfo(marginAsset, pair string) ([]FuturesPosit
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesPositionInfo, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesPositionInfo, params, cFuturesDefaultRate, &resp)
 }
 
 // FuturesTradeHistory gets trade history for CoinMarginedFutures, account
 func (b *Binance) FuturesTradeHistory(symbol currency.Pair, pair string, startTime, endTime time.Time, limit, fromID int64) ([]FuturesAccountTradeList, error) {
 	var resp []FuturesAccountTradeList
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	rateLimit := cFuturesPairOrdersRate
+	if !symbol.IsEmpty() {
+		rateLimit = cFuturesSymbolOrdersRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -1312,14 +1365,14 @@ func (b *Binance) FuturesTradeHistory(symbol currency.Pair, pair string, startTi
 	if fromID != 0 {
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesAccountTradeList, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesAccountTradeList, params, rateLimit, &resp)
 }
 
 // FuturesIncomeHistory gets income history for CoinMarginedFutures,
 func (b *Binance) FuturesIncomeHistory(symbol currency.Pair, incomeType string, startTime, endTime time.Time, limit int64) ([]FuturesIncomeHistoryData, error) {
 	var resp []FuturesIncomeHistoryData
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -1342,7 +1395,7 @@ func (b *Binance) FuturesIncomeHistory(symbol currency.Pair, incomeType string, 
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesIncomeHistory, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesIncomeHistory, params, cFuturesIncomeHistoryRate, &resp)
 }
 
 // FuturesNotionalBracket gets futures notional bracket
@@ -1352,14 +1405,14 @@ func (b *Binance) FuturesNotionalBracket(pair string) ([]NotionalBracketData, er
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesNotionalBracket, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesNotionalBracket, params, cFuturesDefaultRate, &resp)
 }
 
 // FuturesForceOrders gets futures forced orders
 func (b *Binance) FuturesForceOrders(symbol currency.Pair, autoCloseType string, startTime, endTime time.Time) ([]ForcedOrdersData, error) {
 	var resp []ForcedOrdersData
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -1379,19 +1432,61 @@ func (b *Binance) FuturesForceOrders(symbol currency.Pair, autoCloseType string,
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesUsersForceOrders, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesUsersForceOrders, params, cFuturesDefaultRate, &resp)
 }
 
 // FuturesPositionsADLEstimate estimates ADL on positions
 func (b *Binance) FuturesPositionsADLEstimate(symbol currency.Pair) ([]ADLEstimateData, error) {
 	var resp []ADLEstimateData
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
 		params.Set("symbol", symbolValue)
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesADLQuantile, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesADLQuantile, params, cFuturesAccountInformationRate, &resp)
+}
+
+// FetchCoinMarginExchangeLimits fetches coin margined order execution limits
+func (b *Binance) FetchCoinMarginExchangeLimits() ([]order.MinMaxLevel, error) {
+	var limits []order.MinMaxLevel
+	coinFutures, err := b.FuturesExchangeInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	for x := range coinFutures.Symbols {
+		symbol := strings.Split(coinFutures.Symbols[x].Symbol, currency.UnderscoreDelimiter)
+		var cp currency.Pair
+		cp, err = currency.NewPairFromStrings(symbol[0], symbol[1])
+		if err != nil {
+			return nil, err
+		}
+
+		if len(coinFutures.Symbols[x].Filters) < 6 {
+			continue
+		}
+
+		limits = append(limits, order.MinMaxLevel{
+			Pair:              cp,
+			Asset:             asset.CoinMarginedFutures,
+			MinPrice:          coinFutures.Symbols[x].Filters[0].MinPrice,
+			MaxPrice:          coinFutures.Symbols[x].Filters[0].MaxPrice,
+			StepPrice:         coinFutures.Symbols[x].Filters[0].TickSize,
+			MaxAmount:         coinFutures.Symbols[x].Filters[1].MaxQty,
+			MinAmount:         coinFutures.Symbols[x].Filters[1].MinQty,
+			StepAmount:        coinFutures.Symbols[x].Filters[1].StepSize,
+			MarketMinQty:      coinFutures.Symbols[x].Filters[2].MinQty,
+			MarketMaxQty:      coinFutures.Symbols[x].Filters[2].MaxQty,
+			MarketStepSize:    coinFutures.Symbols[x].Filters[2].StepSize,
+			MaxTotalOrders:    coinFutures.Symbols[x].Filters[3].Limit,
+			MaxAlgoOrders:     coinFutures.Symbols[x].Filters[4].Limit,
+			MultiplierUp:      coinFutures.Symbols[x].Filters[5].MultiplierUp,
+			MultiplierDown:    coinFutures.Symbols[x].Filters[5].MultiplierDown,
+			MultiplierDecimal: coinFutures.Symbols[x].Filters[5].MultiplierDecimal,
+		})
+	}
+	return limits, nil
 }

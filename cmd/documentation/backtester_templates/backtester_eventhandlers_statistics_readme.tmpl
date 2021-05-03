@@ -1,0 +1,13 @@
+{{define "backtester eventhandlers statistics" -}}
+{{template "backtester-header" .}}
+## {{.CapitalName}} package overview
+
+The statistics package is used for storing all relevant data over the course of a GoCryptoTrader Backtesting run. All types of events are tracked by exchange, asset and currency pair.
+When multiple currencies are included in your strategy, the statistics package will be able to calculate which exchange asset currency pair has performed the best, along with the biggest drop downs in the market.
+
+
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

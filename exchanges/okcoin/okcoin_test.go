@@ -859,7 +859,7 @@ func TestOrderBookPartialChecksumCalculator(t *testing.T) {
 
 	calculatedChecksum := o.CalculatePartialOrderbookChecksum(&dataResponse)
 	if calculatedChecksum != dataResponse.Checksum {
-		t.Errorf("Expected %v, Receieved %v", dataResponse.Checksum, calculatedChecksum)
+		t.Errorf("Expected %v, received %v", dataResponse.Checksum, calculatedChecksum)
 	}
 }
 
@@ -1107,7 +1107,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Unix(1588636800, 0)
-	_, err = o.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	_, err = o.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneWeek)
 	if err != nil {
 		t.Fatal(err)
 	}

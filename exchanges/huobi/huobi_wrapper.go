@@ -522,10 +522,10 @@ func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       h.Name,
-		Pair:               p,
-		AssetType:          assetType,
-		VerificationBypass: h.OrderbookVerificationBypass,
+		Exchange:        h.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: h.CanVerifyOrderbook,
 	}
 	var err error
 	switch assetType {
@@ -1384,7 +1384,7 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 	}
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 
@@ -1435,7 +1435,7 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		for x := range req.Pairs {
 			var currentPage int64 = 0
 			for done := false; !done; {
-				orderHistory, err := h.GetSwapOrderHistory(req.Pairs[x], "all", "all", []order.Status{order.AnyStatus}, int64(req.EndTicks.Sub(req.StartTicks).Hours()/24), currentPage, 50)
+				orderHistory, err := h.GetSwapOrderHistory(req.Pairs[x], "all", "all", []order.Status{order.AnyStatus}, int64(req.EndTime.Sub(req.StartTime).Hours()/24), currentPage, 50)
 				if err != nil {
 					return orders, err
 				}
@@ -1479,7 +1479,7 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		for x := range req.Pairs {
 			var currentPage int64 = 0
 			for done := false; !done; {
-				openOrders, err := h.FGetOrderHistory(req.Pairs[x], "", "all", "all", "limit", []order.Status{order.AnyStatus}, int64(req.EndTicks.Sub(req.StartTicks).Hours()/24), currentPage, 50)
+				openOrders, err := h.FGetOrderHistory(req.Pairs[x], "", "all", "all", "limit", []order.Status{order.AnyStatus}, int64(req.EndTime.Sub(req.StartTime).Hours()/24), currentPage, 50)
 				if err != nil {
 					return orders, err
 				}
@@ -1528,7 +1528,7 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 			}
 		}
 	}
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 

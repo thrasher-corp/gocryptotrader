@@ -22,10 +22,9 @@ func TestNewCurrencyPairSyncer(t *testing.T) {
 	Bot.Settings.DisableExchangeAutoPairUpdates = true
 	Bot.Settings.EnableExchangeWebsocketSupport = true
 
-	Bot.SetupExchanges()
-
+	err = Bot.SetupExchanges()
 	if err != nil {
-		t.Log("failed to start exchange syncer")
+		t.Log(err)
 	}
 
 	Bot.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(CurrencyPairSyncerConfig{

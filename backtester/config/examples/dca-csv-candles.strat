@@ -1,0 +1,67 @@
+{
+ "nickname": "TestGenerateConfigForDCACSVCandles",
+ "goal": "To demonstrate the DCA strategy using CSV candle data",
+ "strategy-settings": {
+  "name": "dollarcostaverage",
+  "use-simultaneous-signal-processing": false,
+  "custom-settings": null
+ },
+ "currency-settings": [
+  {
+   "exchange-name": "binance",
+   "asset": "spot",
+   "base": "BTC",
+   "quote": "USDT",
+   "initial-funds": 100000,
+   "leverage": {
+    "can-use-leverage": false,
+    "maximum-orders-with-leverage-ratio": 0,
+    "maximum-leverage-rate": 0
+   },
+   "buy-side": {
+    "minimum-size": 0.1,
+    "maximum-size": 1,
+    "maximum-total": 10000
+   },
+   "sell-side": {
+    "minimum-size": 0.1,
+    "maximum-size": 1,
+    "maximum-total": 10000
+   },
+   "min-slippage-percent": 0,
+   "max-slippage-percent": 0,
+   "maker-fee-override": 0.001,
+   "taker-fee-override": 0.002,
+   "maximum-holdings-ratio": 0,
+   "use-exchange-order-limits": false
+  }
+ ],
+ "data-settings": {
+  "interval": 86400000000000,
+  "data-type": "candle",
+  "csv-data": {
+   "full-path": "..\\testdata\\binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv"
+  }
+ },
+ "portfolio-settings": {
+  "leverage": {
+   "can-use-leverage": false,
+   "maximum-orders-with-leverage-ratio": 0,
+   "maximum-leverage-rate": 0
+  },
+  "buy-side": {
+   "minimum-size": 0.1,
+   "maximum-size": 1,
+   "maximum-total": 10000
+  },
+  "sell-side": {
+   "minimum-size": 0.1,
+   "maximum-size": 1,
+   "maximum-total": 10000
+  }
+ },
+ "statistic-settings": {
+  "risk-free-rate": 0.03
+ },
+ "gocryptotrader-config-path": ""
+}

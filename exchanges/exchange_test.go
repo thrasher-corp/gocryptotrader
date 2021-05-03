@@ -2323,3 +2323,49 @@ func TestSetRunning(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestAssetWebsocketFunctionality(t *testing.T) {
+	b := Base{}
+	if !b.IsAssetWebsocketSupported(asset.Spot) {
+		t.Fatal("error asset is not turned off, unexpected response")
+	}
+
+	err := b.DisableAssetWebsocketSupport(asset.Spot)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("expected error: %v but received: %v", asset.ErrNotSupported, err)
+	}
+
+	err = b.StoreAssetPairFormat(asset.Spot, currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = b.DisableAssetWebsocketSupport(asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected error: %v but received: %v", nil, err)
+	}
+
+	if b.IsAssetWebsocketSupported(asset.Spot) {
+		t.Fatal("error asset is not turned off, unexpected response")
+	}
+
+	// Edge case
+	b.AssetWebsocketSupport.unsupported = make(map[asset.Item]bool)
+	b.AssetWebsocketSupport.unsupported[asset.Spot] = true
+	b.AssetWebsocketSupport.unsupported[asset.Futures] = false
+
+	if b.IsAssetWebsocketSupported(asset.Spot) {
+		t.Fatal("error asset is turned off, unexpected response")
+	}
+
+	if !b.IsAssetWebsocketSupported(asset.Futures) {
+		t.Fatal("error asset is not turned off, unexpected response")
+	}
+}

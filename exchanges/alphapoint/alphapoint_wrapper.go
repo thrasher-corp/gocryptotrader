@@ -187,8 +187,8 @@ func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = a.Name
-	orderBook.AssetType = assetType
+	orderBook.Exchange = a.Name
+	orderBook.Asset = assetType
 
 	err = orderBook.Process()
 	if err != nil {
@@ -388,7 +388,7 @@ func (a *Alphapoint) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 
@@ -434,7 +434,7 @@ func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 

@@ -238,7 +238,7 @@ func (b *Bithumb) GetWalletAddress(currency string) (WalletAddressRes, error) {
 
 	if response.Data.WalletAddress == "" {
 		return response,
-			fmt.Errorf("deposit address needs to be created via the Bithumb website before retreival for currency %s",
+			fmt.Errorf("deposit address needs to be created via the Bithumb website before retrieval for currency %s",
 				currency)
 	}
 

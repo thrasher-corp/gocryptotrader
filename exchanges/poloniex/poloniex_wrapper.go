@@ -330,10 +330,10 @@ func (p *Poloniex) FetchOrderbook(currencyPair currency.Pair, assetType asset.It
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (p *Poloniex) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	callingBook := &orderbook.Base{
-		ExchangeName:       p.Name,
-		Pair:               c,
-		AssetType:          assetType,
-		VerificationBypass: p.OrderbookVerificationBypass,
+		Exchange:        p.Name,
+		Pair:            c,
+		Asset:           assetType,
+		VerifyOrderbook: p.CanVerifyOrderbook,
 	}
 	orderbookNew, err := p.GetOrderbook("", poloniexMaxOrderbookDepth)
 	if err != nil {
@@ -346,10 +346,10 @@ func (p *Poloniex) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orde
 	}
 	for i := range enabledPairs {
 		book := &orderbook.Base{
-			ExchangeName:       p.Name,
-			Pair:               enabledPairs[i],
-			AssetType:          assetType,
-			VerificationBypass: p.OrderbookVerificationBypass,
+			Exchange:        p.Name,
+			Pair:            enabledPairs[i],
+			Asset:           assetType,
+			VerifyOrderbook: p.CanVerifyOrderbook,
 		}
 
 		fpair, err := p.FormatExchangeCurrency(enabledPairs[i], assetType)
@@ -767,7 +767,7 @@ func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 		}
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	order.FilterOrdersBySide(&orders, req.Side)
 
@@ -781,8 +781,8 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 		return nil, err
 	}
 
-	resp, err := p.GetAuthenticatedTradeHistory(req.StartTicks.Unix(),
-		req.EndTicks.Unix(),
+	resp, err := p.GetAuthenticatedTradeHistory(req.StartTime.Unix(),
+		req.EndTime.Unix(),
 		10000)
 	if err != nil {
 		return nil, err

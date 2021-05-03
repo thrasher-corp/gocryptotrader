@@ -27,9 +27,9 @@ type Coinbene struct {
 
 const (
 	coinbeneAPIURL       = "https://openapi-exchange.coinbene.com/api/exchange/"
-	coinbeneSwapAPIURL   = "https://openapi-contract.coinbene.com/api/swap/"
+	coinbeneSwapAPIURL   = "https://openapi-contract.coinbene.com/api/usdt/"
 	coinbeneAuthPath     = "/api/exchange/v2"
-	coinbeneSwapAuthPath = "/api/swap/v2"
+	coinbeneSwapAuthPath = "/api/usdt/v2"
 	coinbeneAPIVersion   = "v2"
 
 	// Public endpoints
@@ -38,6 +38,7 @@ const (
 	coinbeneGetTickers     = "/market/tickers"
 	coinbeneGetOrderBook   = "/market/orderBook"
 	coinbeneGetKlines      = "/market/klines"
+	coinbeneGetInstruments = "/market/instruments"
 	// TODO: Implement function ---
 	coinbeneSpotKlines       = "/market/instruments/candles"
 	coinbeneSpotExchangeRate = "/market/rate/list"
@@ -553,6 +554,15 @@ func (c *Coinbene) GetSwapTicker(symbol string) (SwapTicker, error) {
 			fmt.Errorf("symbol %s not found in tickers map", symbol)
 	}
 	return t, nil
+}
+
+// GetSwapInstruments returns a list of tradable instruments
+func (c *Coinbene) GetSwapInstruments() ([]Instrument, error) {
+	resp := struct {
+		Data []Instrument `json:"data"`
+	}{}
+	return resp.Data, c.SendHTTPRequest(exchange.RestSwap,
+		coinbeneAPIVersion+coinbeneGetInstruments, contractInstruments, &resp)
 }
 
 // GetSwapOrderbook returns an orderbook for the specified currency
@@ -1180,6 +1190,7 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 		Verbose:       c.Verbose,
 		HTTPDebugging: c.HTTPDebugging,
 		HTTPRecording: c.HTTPRecording,
+		Endpoint:      f,
 	}); err != nil {
 		return err
 	}
