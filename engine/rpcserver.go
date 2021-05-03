@@ -1417,11 +1417,11 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 
 	resp.Event.CreatedAt = timestamppb.New(v.CreatedAt)
 	if err := resp.Event.CreatedAt.CheckValid(); err != nil {
-		log.Errorf(log.GRPCSys, "withdrawal event by id CreatedAt: %w", err)
+		log.Errorf(log.GRPCSys, "withdrawal event by id CreatedAt: %s", err)
 	}
 	resp.Event.UpdatedAt = timestamppb.New(v.UpdatedAt)
 	if err := resp.Event.UpdatedAt.CheckValid(); err != nil {
-		log.Errorf(log.GRPCSys, "withdrawal event by id UpdatedAt: %w", err)
+		log.Errorf(log.GRPCSys, "withdrawal event by id UpdatedAt: %s", err)
 	}
 
 	if v.RequestDetails.Type == withdraw.Crypto {

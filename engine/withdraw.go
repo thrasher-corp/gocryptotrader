@@ -125,11 +125,11 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 
 		tempEvent.CreatedAt = timestamppb.New(ret[x].CreatedAt)
 		if err := tempEvent.CreatedAt.CheckValid(); err != nil {
-			log.Errorf(log.Global, "withdrawal parseMultipleEvents CreatedAt: %w", err)
+			log.Errorf(log.Global, "withdrawal parseMultipleEvents CreatedAt: %s", err)
 		}
 		tempEvent.UpdatedAt = timestamppb.New(ret[x].UpdatedAt)
 		if err := tempEvent.UpdatedAt.CheckValid(); err != nil {
-			log.Errorf(log.Global, "withdrawal parseMultipleEvents UpdatedAt: %w", err)
+			log.Errorf(log.Global, "withdrawal parseMultipleEvents UpdatedAt: %s", err)
 		}
 
 		if ret[x].RequestDetails.Type == withdraw.Crypto {
@@ -179,7 +179,7 @@ func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, 
 
 		tempEvent.UpdatedAt = timestamppb.New(ret[x].Timestamp)
 		if err := tempEvent.UpdatedAt.CheckValid(); err != nil {
-			log.Errorf(log.Global, "withdrawal parseWithdrawalsHistory UpdatedAt: %w", err)
+			log.Errorf(log.Global, "withdrawal parseWithdrawalsHistory UpdatedAt: %s", err)
 		}
 
 		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
@@ -211,11 +211,11 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 
 	tempEvent.CreatedAt = timestamppb.New(ret.CreatedAt)
 	if err := tempEvent.CreatedAt.CheckValid(); err != nil {
-		log.Errorf(log.Global, "withdrawal parseSingleEvents CreatedAt %w", err)
+		log.Errorf(log.Global, "withdrawal parseSingleEvents CreatedAt %s", err)
 	}
 	tempEvent.UpdatedAt = timestamppb.New(ret.UpdatedAt)
 	if err := tempEvent.UpdatedAt.CheckValid(); err != nil {
-		log.Errorf(log.Global, "withdrawal parseSingleEvents UpdatedAt: %w", err)
+		log.Errorf(log.Global, "withdrawal parseSingleEvents UpdatedAt: %s", err)
 	}
 
 	if ret.RequestDetails.Type == withdraw.Crypto {
