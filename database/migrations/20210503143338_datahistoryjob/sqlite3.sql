@@ -25,7 +25,10 @@ CREATE TABLE IF NOT EXISTS datahistoryjobresult
 (
     id text not null primary key,
     job_id uuid REFERENCES datahistoryjob(id) NOT NULL,
-    result TEXT not null,
+    result TEXT NULL,
+    status REAL NOT NULL,
+    interval_start_time TIMESTAMP NOT NULL,
+    interval_end_time TIMESTAMP NOT NULL,
     run_time TIMESTAMP NOT NULL
 );
 -- +goose Down
