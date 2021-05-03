@@ -228,10 +228,9 @@ func (b *Bittrex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 func (b *Bittrex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var x int
 	for x = 0; x+wsMessageRateLimit < len(channelsToSubscribe); x += wsMessageRateLimit {
-		b.subscribeSlice(channelsToSubscribe[x : x+wsMessageRateLimit])
-		time.Sleep(time.Second)
+		go b.subscribeSlice(channelsToSubscribe[x : x+wsMessageRateLimit])
 	}
-	b.subscribeSlice(channelsToSubscribe[x:])
+	go b.subscribeSlice(channelsToSubscribe[x:])
 	return nil
 }
 
@@ -281,10 +280,9 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 func (b *Bittrex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var x int
 	for x = 0; x+wsMessageRateLimit < len(channelsToUnsubscribe); x += wsMessageRateLimit {
-		b.unsubscribeSlice(channelsToUnsubscribe[x : x+wsMessageRateLimit])
-		time.Sleep(time.Second)
+		go b.unsubscribeSlice(channelsToUnsubscribe[x : x+wsMessageRateLimit])
 	}
-	b.unsubscribeSlice(channelsToUnsubscribe[x:])
+	go b.unsubscribeSlice(channelsToUnsubscribe[x:])
 	return nil
 }
 
