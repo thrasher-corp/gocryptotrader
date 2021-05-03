@@ -21,8 +21,7 @@ import (
 // Bittrex is the overaching type across the bittrex methods
 type Bittrex struct {
 	exchange.Base
-	WsPendingRequests map[int]WsPendingRequest
-	WsSequenceOrders  int64
+	WsSequenceOrders int64
 
 	obm *orderbookManager
 }

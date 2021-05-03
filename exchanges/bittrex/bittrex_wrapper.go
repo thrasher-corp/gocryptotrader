@@ -51,7 +51,6 @@ func (b *Bittrex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 // SetDefaults sets the basic defaults for Bittrex
 func (b *Bittrex) SetDefaults() {
 	b.Name = "Bittrex"
-	b.WsPendingRequests = make(map[int]WsPendingRequest)
 	b.Enabled = true
 	b.Verbose = true
 	b.API.CredentialsValidator.RequiresKey = true

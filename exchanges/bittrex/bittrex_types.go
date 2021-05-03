@@ -214,7 +214,7 @@ type WsEventRequest struct {
 	Hub          string      `json:"H"`
 	Method       string      `json:"M"`
 	Arguments    interface{} `json:"A"`
-	InvocationID int         `json:"I"`
+	InvocationID int64       `json:"I"`
 }
 
 // WsEventStatus holds data on the websocket event status
@@ -229,7 +229,7 @@ type WsEventResponse struct {
 	S            int         `json:"S"`
 	G            string      `json:"G"`
 	Response     interface{} `json:"R"`
-	InvocationID int         `json:"I,string"`
+	InvocationID int64       `json:"I,string"`
 	Message      []struct {
 		Hub       string   `json:"H"`
 		Method    string   `json:"M"`
@@ -243,7 +243,7 @@ type WsSubscriptionResponse struct {
 	S            int             `json:"S"`
 	G            string          `json:"G"`
 	Response     []WsEventStatus `json:"R"`
-	InvocationID int             `json:"I,string"`
+	InvocationID int64           `json:"I,string"`
 	Message      []struct {
 		Hub       string   `json:"H"`
 		Method    string   `json:"M"`
@@ -257,7 +257,7 @@ type WsAuthResponse struct {
 	S            int           `json:"S"`
 	G            string        `json:"G"`
 	Response     WsEventStatus `json:"R"`
-	InvocationID int           `json:"I,string"`
+	InvocationID int64         `json:"I,string"`
 	Message      []struct {
 		Hub       string   `json:"H"`
 		Method    string   `json:"M"`

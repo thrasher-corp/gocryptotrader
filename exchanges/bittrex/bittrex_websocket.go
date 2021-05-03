@@ -53,15 +53,12 @@ var defaultSpotSubscribedChannelsAuth = []string{
 	wsOrders,
 }
 
-var invocationIDCounter int
-
 // WsConnect connects to a websocket feed
 func (b *Bittrex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 
-	invocationIDCounter = 0
 	var wsHandshakeData WsSignalRHandshakeData
 	err := b.WsSignalRHandshake(&wsHandshakeData)
 	if err != nil {
@@ -147,11 +144,10 @@ func (b *Bittrex) WsAuth() error {
 	)
 	signature := crypto.HexEncodeToString(hmac)
 
-	invocationIDCounter++
 	req := WsEventRequest{
 		Hub:          "c3",
 		Method:       authenticate,
-		InvocationID: invocationIDCounter,
+		InvocationID: b.Websocket.Conn.GenerateMessageID(false),
 	}
 
 	arguments := make([]string, 0)
@@ -165,13 +161,20 @@ func (b *Bittrex) WsAuth() error {
 	if b.Verbose {
 		log.Debugf(log.WebsocketMgr, "%s Sending JSON message - %s\n", b.Name, requestString)
 	}
-	err = b.Websocket.Conn.SendJSONMessage(req)
+
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
 		return err
 	}
-
-	b.WsPendingRequests[req.InvocationID] = WsPendingRequest{
-		WsEventRequest: req,
+	var response WsAuthResponse
+	err = json.Unmarshal(respRaw, &response)
+	if err != nil {
+		log.Warnf(log.WebsocketMgr, "%s - Cannot unmarshal into WsAuthResponse (%s)\n", b.Name, string(respRaw))
+		return err
+	}
+	if !response.Response.Success {
+		log.Warnf(log.WebsocketMgr, "%s - Unable to authenticate (%s)", b.Name, response.Response.ErrorCode)
+		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	return nil
 }
@@ -221,11 +224,10 @@ func (b *Bittrex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bittrex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	invocationIDCounter++
 	req := WsEventRequest{
 		Hub:          "c3",
 		Method:       subscribe,
-		InvocationID: invocationIDCounter,
+		InvocationID: b.Websocket.Conn.GenerateMessageID(false),
 	}
 
 	var channels []string
@@ -243,26 +245,32 @@ func (b *Bittrex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	if b.Verbose {
 		log.Debugf(log.WebsocketMgr, "%s Sending JSON message - %s\n", b.Name, requestString)
 	}
-	err = b.Websocket.Conn.SendJSONMessage(req)
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
 		return err
 	}
-
-	b.WsPendingRequests[req.InvocationID] = WsPendingRequest{
-		req,
-		&channelsToSubscribe,
+	var response WsSubscriptionResponse
+	err = json.Unmarshal(respRaw, &response)
+	if err != nil {
+		log.Warnf(log.WebsocketMgr, "%s - Cannot unmarshal into WsSubscriptionResponse (%s)\n", b.Name, string(respRaw))
+		return err
 	}
-
+	for i := range response.Response {
+		if !response.Response[i].Success {
+			log.Warnf(log.WebsocketMgr, "%s - Unable to subscribe to %s (%s)", b.Name, channels[0][i], response.Response[i].ErrorCode)
+			continue
+		}
+		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+	}
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bittrex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	invocationIDCounter++
 	req := WsEventRequest{
 		Hub:          "c3",
 		Method:       unsubscribe,
-		InvocationID: invocationIDCounter,
+		InvocationID: b.Websocket.Conn.GenerateMessageID(false),
 	}
 
 	var channels []string
@@ -280,12 +288,23 @@ func (b *Bittrex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 	if b.Verbose {
 		log.Debugf(log.WebsocketMgr, "%s Sending JSON message - %s\n", b.Name, requestString)
 	}
-	err = b.Websocket.Conn.SendJSONMessage(req)
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
 		return err
 	}
-
-	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	var response WsSubscriptionResponse
+	err = json.Unmarshal(respRaw, &response)
+	if err != nil {
+		log.Warnf(log.WebsocketMgr, "%s - Cannot unmarshal into WsSubscriptionResponse (%s)\n", b.Name, string(respRaw))
+		return err
+	}
+	for i := range response.Response {
+		if !response.Response[i].Success {
+			log.Warnf(log.WebsocketMgr, "%s - Unable to subscribe to %s (%s)", b.Name, channels[0][i], response.Response[i].ErrorCode)
+			continue
+		}
+		b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+	}
 	return nil
 }
 
@@ -326,62 +345,6 @@ func (b *Bittrex) wsDecodeMessage(encodedMessage string, v interface{}) error {
 	return json.Unmarshal(message, v)
 }
 
-func (b *Bittrex) wsHandleResponseData(req WsPendingRequest, respRaw []byte) error {
-	switch req.Method {
-	case "Authenticate":
-		var response WsAuthResponse
-		err := json.Unmarshal(respRaw, &response)
-		if err != nil {
-			log.Warnf(log.WebsocketMgr, "%s - wsHandleResponseData - Cannot unmarshal into WsAuthResponse (%s)\n", b.Name, string(respRaw))
-			return err
-		}
-		if !response.Response.Success {
-			log.Warnf(log.WebsocketMgr, "%s - Unable to authenticate (%s)", b.Name, response.Response.ErrorCode)
-			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-		return nil
-	case "subscribe":
-		var response WsSubscriptionResponse
-		err := json.Unmarshal(respRaw, &response)
-		if err != nil {
-			log.Warnf(log.WebsocketMgr, "%s - wsHandleResponseData - Cannot unmarshal into WsSubscriptionResponse (%s)\n", b.Name, string(respRaw))
-			return err
-		}
-		channels, ok := req.Arguments.([][]string)
-		if !ok {
-			log.Warnf(log.WebsocketMgr, "%s - wsHandleResponseData - Cannot get channel list\n", b.Name)
-		}
-		for i := range response.Response {
-			if !response.Response[i].Success {
-				log.Warnf(log.WebsocketMgr, "%s - Unable to subscribe to %s (%s)", b.Name, channels[0][i], response.Response[i].ErrorCode)
-				continue
-			}
-			b.Websocket.AddSuccessfulSubscriptions((*req.ChannelsToSubscribe)[i])
-		}
-	case "unsubscribe":
-		var response WsSubscriptionResponse
-		err := json.Unmarshal(respRaw, &response)
-		if err != nil {
-			log.Warnf(log.WebsocketMgr, "%s - wsHandleResponseData - Cannot unmarshal into WsSubscriptionResponse (%s)\n", b.Name, string(respRaw))
-			return err
-		}
-		channels, ok := req.Arguments.([][]string)
-		if !ok {
-			log.Warnf(log.WebsocketMgr, "%s - wsHandleResponseData - Cannot get channel list\n", b.Name)
-		}
-		for i := range response.Response {
-			if !response.Response[i].Success {
-				log.Warnf(log.WebsocketMgr, "%s - Unable to subscribe to %s (%s)", b.Name, channels[0][i], response.Response[i].ErrorCode)
-				continue
-			}
-			b.Websocket.RemoveSuccessfulUnsubscriptions((*req.ChannelsToSubscribe)[i])
-		}
-	default:
-		return errors.New("unrecognized response message")
-	}
-	return nil
-}
-
 func (b *Bittrex) wsHandleData(respRaw []byte) error {
 	var response WsEventResponse
 	err := json.Unmarshal(respRaw, &response)
@@ -390,14 +353,12 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	if response.Response != nil && response.InvocationID > 0 {
-		req, hasRequest := b.WsPendingRequests[response.InvocationID]
-		if !hasRequest {
-			return errors.New("received response to unknown request")
+		if b.Websocket.Match.IncomingWithData(response.InvocationID, respRaw) {
+			return nil
 		}
-		delete(b.WsPendingRequests, req.InvocationID)
-
-		return b.wsHandleResponseData(req, respRaw)
+		return errors.New("received response to unknown request")
 	}
+
 	if response.Response == nil && len(response.Message) == 0 && response.C == "" {
 		if b.Verbose {
 			log.Warnf(log.WebsocketMgr, "%s Received keep-alive (%s)\n", b.Name, string(respRaw))
