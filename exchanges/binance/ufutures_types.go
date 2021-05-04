@@ -30,8 +30,6 @@ var (
 		"reduce": 2,
 	}
 
-	uValidOBLimits = []string{"5", "10", "20", "50", "100", "500", "1000"}
-
 	uValidPeriods = []string{"5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"}
 )
 
