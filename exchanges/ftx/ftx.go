@@ -126,12 +126,26 @@ var (
 	errCoinMustBeSpecified                               = errors.New("a coin must be specified")
 	errSubaccountTransferSizeGreaterThanZero             = errors.New("transfer size must be greater than 0")
 	errSubaccountTransferSourceDestinationMustNotBeEqual = errors.New("subaccount transfer source and destination must not be the same value")
+
+	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
 
 // GetHistoricalIndexData gets historical index data
 func (f *FTX) GetHistoricalIndex(indexName string, resolution, limit int64, startTime, endTime time.Time) ([]OHLCVData, error) {
 	params := url.Values{}
+	if indexName == "" {
+		return nil, errors.New("indexName is a mandatory field")
+	}
 	params.Set("index_name", indexName)
+	var valid bool
+	for x := range validResolutionData {
+		if validResolutionData[x] == resolution {
+			valid = true
+		}
+	}
+	if !valid {
+		return nil, errors.New("resolution data is a mandatory field and the data provided is invalid")
+	}
 	params.Set("resolution", strconv.FormatInt(resolution, 10))
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))

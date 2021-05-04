@@ -89,6 +89,8 @@ const (
 
 	bitfinexChecksumFlag   = 131072
 	bitfinexWsSequenceFlag = 65536
+
+	ErrTypeAssert = "type assertion failed %s"
 )
 
 // Bitfinex is the overarching type across the bitfinex package
@@ -154,11 +156,11 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 	}
 	avgRate, ok := resp[0].(float64)
 	if !ok {
-		return response, errors.New("failed type assertion for rate")
+		return response, fmt.Errorf(ErrTypeAssert, "for rate")
 	}
 	avgAmount, ok := resp[1].(float64)
 	if !ok {
-		return response, errors.New("failed type assertion for amount")
+		return response, fmt.Errorf(ErrTypeAssert, "for amount")
 	}
 	response.Symbol = symbol
 	response.RateAverage = avgRate
@@ -183,15 +185,15 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginFundingDataV2, error) {
 	}
 	sym, ok := resp[0].(string)
 	if !ok {
-		return response, errors.New("failed type assertion for sym")
+		return response, fmt.Errorf(ErrTypeAssert, "for sym")
 	}
 	symbol, ok := resp[1].(string)
 	if !ok {
-		return response, errors.New("failed type assertion for symbol")
+		return response, fmt.Errorf(ErrTypeAssert, "for symbol")
 	}
 	fundingData, ok := resp[2].([]interface{})
 	if !ok {
-		return response, errors.New("failed type assertion for fundingData")
+		return response, fmt.Errorf(ErrTypeAssert, "for fundingData")
 	}
 	response.Sym = sym
 	response.Symbol = symbol
@@ -230,27 +232,27 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 	var tempString string
 	var tempFloat float64
 	if tempFloat, ok = data[0].(float64); !ok {
-		return resp, errors.New("type assertion failed for id, check for api updates")
+		return resp, fmt.Errorf(ErrTypeAssert, "for id, check for api updates")
 	}
 	resp.ID = int64(tempFloat)
 	if tempString, ok = data[1].(string); !ok {
-		return resp, errors.New("type assertion failed for email, check for api updates")
+		return resp, fmt.Errorf(ErrTypeAssert, "for email, check for api updates")
 	}
 	resp.Email = tempString
 	if tempString, ok = data[2].(string); !ok {
-		return resp, errors.New("type assertion failed for username, check for api updates")
+		return resp, fmt.Errorf(ErrTypeAssert, "for username, check for api updates")
 	}
 	resp.Username = tempString
 	if tempFloat, ok = data[3].(float64); !ok {
-		return resp, errors.New("type assertion failed for accountcreate, check for api updates")
+		return resp, fmt.Errorf(ErrTypeAssert, "for accountcreate, check for api updates")
 	}
 	resp.MTSAccountCreate = int64(tempFloat)
 	if tempFloat, ok = data[4].(float64); !ok {
-		return resp, errors.New("type assertion failed for verified, check for api updates")
+		return resp, fmt.Errorf(ErrTypeAssert, "failed for verified, check for api updates")
 	}
 	resp.Verified = int64(tempFloat)
 	if tempString, ok = data[7].(string); !ok {
-		return resp, errors.New("type assertion failed for timezone, check for api updates")
+		return resp, fmt.Errorf(ErrTypeAssert, "for timezone, check for api updates")
 	}
 	resp.Timezone = tempString
 	return resp, nil
@@ -271,19 +273,19 @@ func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
 	for x := range data {
 		wType, ok := data[x][0].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for walletType, check for api updates")
+			return resp, fmt.Errorf(ErrTypeAssert, "for walletType, check for api updates")
 		}
 		curr, ok := data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for currency, check for api updates")
+			return resp, fmt.Errorf(ErrTypeAssert, "for currency, check for api updates")
 		}
 		bal, ok := data[x][2].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for balance, check for api updates")
+			return resp, fmt.Errorf(ErrTypeAssert, "for balance, check for api updates")
 		}
 		unsettledInterest, ok := data[x][3].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for unsettledInterest, check for api updates")
+			return resp, fmt.Errorf(ErrTypeAssert, "for unsettledInterest, check for api updates")
 		}
 		resp = append(resp, WalletDataV2{
 			WalletType:        wType,
@@ -312,7 +314,6 @@ func (b *Bitfinex) GetMarginPairs() ([]string, error) {
 // GetDerivativeData gets data for the queried derivative
 func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limit int64) ([]DerivativeDataResponse, error) {
 	var result [][19]interface{}
-	var response DerivativeDataResponse
 	var finalResp []DerivativeDataResponse
 
 	params := url.Values{}
@@ -336,56 +337,45 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 		return finalResp, err
 	}
 	for z := range result {
-		if len(result[0]) < 19 {
+		if len(result[z]) < 19 {
 			return finalResp, errors.New("invalid response, array length too small, check api docs for updates")
 		}
-		var floatData float64
-		var stringData string
+		var response DerivativeDataResponse
 		var ok bool
-		if stringData, ok = result[z][0].(string); !ok {
-			return finalResp, errors.New("type assertion failed, check for api updates")
+		if response.Key, ok = result[z][0].(string); !ok {
+			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
 		}
-		response.Key = stringData
-		if floatData, ok = result[z][1].(float64); !ok {
-			return finalResp, errors.New("type assertion failed, check for api updates")
+		if response.MTS, ok = result[z][1].(float64); !ok {
+			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
 		}
-		response.MTS = floatData
-		if floatData, ok = result[z][3].(float64); !ok {
-			return finalResp, errors.New("type assertion failed, check for api updates")
+		if response.DerivPrice, ok = result[z][3].(float64); !ok {
+			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
 		}
-		response.DerivPrice = floatData
-		if floatData, ok = result[z][4].(float64); !ok {
-			return finalResp, errors.New("type assertion failed, check for api updates")
+		if response.SpotPrice, ok = result[z][4].(float64); !ok {
+			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
 		}
-		response.SpotPrice = floatData
-		if floatData, ok = result[z][6].(float64); !ok {
-			return finalResp, errors.New("type assertion failed, check for api updates")
+		if response.InsuranceFundBalance, ok = result[z][6].(float64); !ok {
+			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
 		}
-		response.InsuranceFundBalance = floatData
-		if floatData, ok = result[z][8].(float64); !ok {
-			return finalResp, errors.New("type assertion failed, check for api updates")
+		if response.NextFundingEventTS, ok = result[z][8].(float64); !ok {
+			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
 		}
-		response.NextFundingEventTS = floatData
-		if floatData, ok = result[z][9].(float64); !ok {
-			return finalResp, errors.New("type assertion failed, check for api updates")
+		if response.NextFundingAccured, ok = result[z][9].(float64); !ok {
+			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
 		}
-		response.NextFundingAccured = floatData
-		if floatData, ok = result[z][10].(float64); !ok {
-			return finalResp, errors.New("type assertion failed, check for api updates")
+		if response.NextFundingStep, ok = result[z][10].(float64); !ok {
+			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
 		}
-		response.NextFundingStep = floatData
-		if floatData, ok = result[z][12].(float64); !ok {
-			return finalResp, errors.New("type assertion failed, check for api updates")
+		if response.CurrentFunding, ok = result[z][12].(float64); !ok {
+			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
 		}
-		response.CurrentFunding = floatData
-		if floatData, ok = result[z][15].(float64); !ok {
-			return finalResp, errors.New("type assertion failed, check for api updates")
+		if response.MarkPrice, ok = result[z][15].(float64); !ok {
+			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
 		}
-		response.MarkPrice = floatData
-		if floatData, ok = result[z][18].(float64); !ok {
-			return finalResp, errors.New("type assertion failed, check for api updates")
+
+		if response.OpenInterest, ok = result[z][18].(float64); !ok {
+			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
 		}
-		response.OpenInterest = floatData
 		finalResp = append(finalResp, response)
 	}
 	return finalResp, nil
