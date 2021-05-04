@@ -129,7 +129,7 @@ func (e *ExchangeRates) GetHistoricalRates(date time.Time, baseCurrency string, 
 		v.Set("symbols", s)
 	}
 
-	return &resp, e.SendHTTPRequest(date.Format(timeLayout), v, &resp)
+	return &resp, e.SendHTTPRequest(date.UTC().Format(timeLayout), v, &resp)
 }
 
 // ConvertCurrency converts a currency based on the supplied params
@@ -147,7 +147,7 @@ func (e *ExchangeRates) ConvertCurrency(from, to string, amount float64, date ti
 	vals.Set("amount", strconv.FormatFloat(amount, 'e', -1, 64))
 
 	if !date.IsZero() {
-		vals.Set("date", date.Format(timeLayout))
+		vals.Set("date", date.UTC().Format(timeLayout))
 	}
 
 	var cc ConvertCurrency
@@ -175,8 +175,8 @@ func (e *ExchangeRates) GetTimeSeriesRates(startDate, endDate time.Time, baseCur
 	}
 
 	v := url.Values{}
-	v.Set("start_date", startDate.Format(timeLayout))
-	v.Set("end_date", endDate.Format(timeLayout))
+	v.Set("start_date", startDate.UTC().Format(timeLayout))
+	v.Set("end_date", endDate.UTC().Format(timeLayout))
 
 	if baseCurrency != "" {
 		v.Set("base", baseCurrency)
@@ -206,8 +206,8 @@ func (e *ExchangeRates) GetFluctuations(startDate, endDate time.Time, baseCurren
 	}
 
 	v := url.Values{}
-	v.Set("start_date", startDate.Format(timeLayout))
-	v.Set("end_date", endDate.Format(timeLayout))
+	v.Set("start_date", startDate.UTC().Format(timeLayout))
+	v.Set("end_date", endDate.UTC().Format(timeLayout))
 
 	if baseCurrency != "" {
 		v.Set("base", baseCurrency)

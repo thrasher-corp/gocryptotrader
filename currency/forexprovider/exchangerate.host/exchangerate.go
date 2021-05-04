@@ -78,7 +78,7 @@ func (e *ExchangeRateHost) ConvertCurrency(from, to string, date time.Time, base
 		v.Set("to", to)
 	}
 	if !date.IsZero() {
-		v.Set("date", date.Format(timeLayout))
+		v.Set("date", date.UTC().Format(timeLayout))
 	}
 	if baseCurrency != "" {
 		v.Set("base", baseCurrency)
@@ -108,7 +108,7 @@ func (e *ExchangeRateHost) GetHistoricalRates(date time.Time, baseCurrency, symb
 	if date.IsZero() {
 		date = time.Now()
 	}
-	fmtDate := date.Format(timeLayout)
+	fmtDate := date.UTC().Format(timeLayout)
 	v.Set("date", fmtDate)
 	if baseCurrency != "" {
 		v.Set("base", baseCurrency)
@@ -147,8 +147,8 @@ func (e *ExchangeRateHost) GetTimeSeries(startDate, endDate time.Time, baseCurre
 	}
 
 	v := url.Values{}
-	v.Set("start_date", startDate.Format(timeLayout))
-	v.Set("end_date", endDate.Format(timeLayout))
+	v.Set("start_date", startDate.UTC().Format(timeLayout))
+	v.Set("end_date", endDate.UTC().Format(timeLayout))
 
 	if baseCurrency != "" {
 		v.Set("base", baseCurrency)
@@ -187,8 +187,8 @@ func (e *ExchangeRateHost) GetFluctuations(startDate, endDate time.Time, baseCur
 	}
 
 	v := url.Values{}
-	v.Set("start_date", startDate.Format(timeLayout))
-	v.Set("end_date", endDate.Format(timeLayout))
+	v.Set("start_date", startDate.UTC().Format(timeLayout))
+	v.Set("end_date", endDate.UTC().Format(timeLayout))
 
 	if baseCurrency != "" {
 		v.Set("base", baseCurrency)
