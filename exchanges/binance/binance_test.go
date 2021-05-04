@@ -39,6 +39,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 }
 
 func TestUServerTime(t *testing.T) {
+	t.Parallel()
 	_, err := b.UServerTime()
 	if err != nil {
 		t.Error(err)
