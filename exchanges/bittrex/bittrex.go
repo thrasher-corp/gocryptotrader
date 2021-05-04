@@ -59,11 +59,6 @@ const (
 	submitOrder          = "/orders"
 
 	// Other Consts
-	trailingStopOrderType = "trailingStop"
-	takeProfitOrderType   = "takeProfit"
-	spotString            = "spot"
-	futuresString         = "future"
-
 	ratePeriod     = time.Minute
 	rateLimit      = 60
 	orderbookDepth = 500 // ws uses REST snapshots and needs identical depths

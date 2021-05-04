@@ -43,7 +43,7 @@ type OrderData struct {
 	Status        string    `json:"status"`
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
-	ClosedAt      string    `json:"closedAt"`
+	ClosedAt      time.Time `json:"closedAt"`
 	OrderToCancel struct {
 		Type string `json:"type,string"`
 		ID   string `json:"id,string"`
@@ -57,30 +57,17 @@ type BulkCancelResultData struct {
 	Result     OrderData `json:"result"`
 }
 
-// NewOrder holds response data for CancelOrder
-type NewOrder struct {
-	MarketSymbol  string  `json:"marketSymbol"`
-	Direction     string  `json:"direction"`
-	Type          string  `json:"type"`
-	Quantity      float64 `json:"quantity,string"`
-	Ceiling       float64 `json:"ceiling,string"`
-	Limit         float64 `json:"limit,string"`
-	TimeInForce   string  `json:"timeInForce"`
-	ClientOrderID string  `json:"clientOrderId"`
-	UseAwards     bool    `json:"useAwards"`
-}
-
 // MarketData stores market data
 type MarketData struct {
-	Symbol              string   `json:"symbol"`
-	BaseCurrencySymbol  string   `json:"baseCurrencySymbol"`
-	QuoteCurrencySymbol string   `json:"quoteCurrencySymbol"`
-	MinTradeSize        float64  `json:"minTradeSize,string"`
-	Precision           int32    `json:"precision"`
-	Status              string   `json:"status"`
-	CreatedAt           string   `json:"createdAt"`
-	Notice              string   `json:"notice"`
-	ProhibitedIn        []string `json:"prohibitedIn"`
+	Symbol              string    `json:"symbol"`
+	BaseCurrencySymbol  string    `json:"baseCurrencySymbol"`
+	QuoteCurrencySymbol string    `json:"quoteCurrencySymbol"`
+	MinTradeSize        float64   `json:"minTradeSize,string"`
+	Precision           int32     `json:"precision"`
+	Status              string    `json:"status"`
+	CreatedAt           time.Time `json:"createdAt"`
+	Notice              string    `json:"notice"`
+	ProhibitedIn        []string  `json:"prohibitedIn"`
 }
 
 // TickerData stores ticker data
@@ -125,10 +112,10 @@ type OrderbookEntryData struct {
 
 // BalanceData holds balance data
 type BalanceData struct {
-	CurrencySymbol string  `json:"currencySymbol"`
-	Total          float64 `json:"total,string"`
-	Available      float64 `json:"available,string"`
-	UpdatedAt      string  `json:"updatedAt"`
+	CurrencySymbol string    `json:"currencySymbol"`
+	Total          float64   `json:"total,string"`
+	Available      float64   `json:"available,string"`
+	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
 // AddressData holds address data
@@ -156,17 +143,17 @@ type CurrencyData struct {
 
 // WithdrawalData holds withdrawal data
 type WithdrawalData struct {
-	ID                 string  `json:"id"`
-	CurrencySymbol     string  `json:"currencySymbol"`
-	Quantity           float64 `json:"quantity,string"`
-	CryptoAddress      string  `json:"cryptoAddress"`
-	CryptoAddressTag   string  `json:"cryptoAddressTag"`
-	TxCost             float64 `json:"txCost,string"`
-	TxID               string  `json:"txId"`
-	Status             string  `json:"status"`
-	CreatedAt          string  `json:"createdAt"`
-	CompletedAt        string  `json:"completedAt"`
-	ClientWithdrawalID string  `json:"clientWithdrawalId"`
+	ID                 string    `json:"id"`
+	CurrencySymbol     string    `json:"currencySymbol"`
+	Quantity           float64   `json:"quantity,string"`
+	CryptoAddress      string    `json:"cryptoAddress"`
+	CryptoAddressTag   string    `json:"cryptoAddressTag"`
+	TxCost             float64   `json:"txCost,string"`
+	TxID               string    `json:"txId"`
+	Status             string    `json:"status"`
+	CreatedAt          time.Time `json:"createdAt"`
+	CompletedAt        time.Time `json:"completedAt"`
+	ClientWithdrawalID string    `json:"clientWithdrawalId"`
 }
 
 // DepositData holds deposit data
@@ -267,17 +254,11 @@ type WsAuthResponse struct {
 
 // OrderbookUpdateMessage holds websocket orderbook update messages
 type OrderbookUpdateMessage struct {
-	MarketSymbol string `json:"marketSymbol"`
-	Depth        int    `json:"depth"`
-	Sequence     int64  `json:"sequence"`
-	BidDeltas    []struct {
-		Quantity float64 `json:"quantity,string"`
-		Rate     float64 `json:"rate,string"`
-	} `json:"bidDeltas"`
-	AskDeltas []struct {
-		Quantity float64 `json:"quantity,string"`
-		Rate     float64 `json:"rate,string"`
-	} `json:"askDeltas"`
+	MarketSymbol string               `json:"marketSymbol"`
+	Depth        int                  `json:"depth"`
+	Sequence     int64                `json:"sequence"`
+	BidDeltas    []OrderbookEntryData `json:"bidDeltas"`
+	AskDeltas    []OrderbookEntryData `json:"askDeltas"`
 }
 
 // OrderUpdateMessage holds websocket order update messages

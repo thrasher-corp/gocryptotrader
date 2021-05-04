@@ -59,11 +59,11 @@ func (b *Bittrex) SetDefaults() {
 	spot := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
+			Delimiter: currency.DashDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 
@@ -690,7 +690,7 @@ func (b *Bittrex) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 		return "", err
 	}
 	if depositAddr.Status != "PROVISIONED" {
-		return "", nil
+		return "", errors.New("no deposit address found for currency" + cryptocurrency.String())
 	}
 
 	return depositAddr.CryptoAddress, nil

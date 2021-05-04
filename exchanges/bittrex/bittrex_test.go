@@ -439,7 +439,7 @@ func TestGetActiveOrders(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
-	getOrdersRequest.Pairs[0].Delimiter = "-"
+	getOrdersRequest.Pairs[0].Delimiter = currency.DashDelimiter
 
 	_, err = b.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
@@ -485,7 +485,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
-			Delimiter: "-",
+			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC,
 			Quote:     currency.LTC,
 		},

@@ -525,10 +525,6 @@ func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData *MarketSummaryD
 
 // WsProcessUpdateOrder processes an update on the open orders
 func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
-	var orderSide order.Side
-	var orderStatus order.Status
-	var pair currency.Pair
-
 	orderType, err := order.StringToOrderType(data.Delta.Type)
 	if err != nil {
 		b.Websocket.DataHandler <- order.ClassificationError{
@@ -537,7 +533,7 @@ func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 			Err:      err,
 		}
 	}
-	orderSide, err = order.StringToOrderSide(data.Delta.Direction)
+	orderSide, err := order.StringToOrderSide(data.Delta.Direction)
 	if err != nil {
 		b.Websocket.DataHandler <- order.ClassificationError{
 			Exchange: b.Name,
@@ -545,7 +541,7 @@ func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 			Err:      err,
 		}
 	}
-	orderStatus, err = order.StringToOrderStatus(data.Delta.Status)
+	orderStatus, err := order.StringToOrderStatus(data.Delta.Status)
 	if err != nil {
 		b.Websocket.DataHandler <- order.ClassificationError{
 			Exchange: b.Name,
@@ -554,7 +550,7 @@ func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 		}
 	}
 
-	pair, err = currency.NewPairFromString(data.Delta.MarketSymbol)
+	pair, err := currency.NewPairFromString(data.Delta.MarketSymbol)
 	if err != nil {
 		b.Websocket.DataHandler <- order.ClassificationError{
 			Exchange: b.Name,
