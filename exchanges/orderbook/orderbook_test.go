@@ -28,12 +28,41 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetAveragePrice(t *testing.T) {
-	var b *Base
-	avgPrice, err := b.GetAveragePrice(false, 5)
+	var b Base
+	b.Exchange = "Binance"
+	cp, err := currency.NewPairFromString("ETH-USDT")
 	if err != nil {
 		t.Error(err)
 	}
+	b.Pair = cp
+	b.Bids = []Item{}
+	_, err = b.GetAveragePrice(false, 5)
+	if err == nil {
+		t.Error("expected an error since bids are empty")
+	}
+	b = Base{}
+	b.Pair = cp
+	b.Asks = []Item{
+		{Amount: 5, Price: 4},
+		{Amount: 5, Price: 3},
+		{Amount: 5, Price: 2},
+		{Amount: 5, Price: 1},
+	}
+	avgPrice, err := b.GetAveragePrice(true, 15)
+	if err != nil {
+		t.Error(err)
+	}
+	if avgPrice != 3 {
+		t.Error("avg price calculation failed")
+	}
 	fmt.Println(avgPrice)
+	avgPrice, err = b.GetAveragePrice(true, 18)
+	if err != nil {
+		t.Error(err)
+	}
+	if fmt.Sprintf("%.3f", avgPrice) != "2.667" {
+		t.Error("avg price calculation failed")
+	}
 }
 
 func TestSubscribeToExchangeOrderbooks(t *testing.T) {
