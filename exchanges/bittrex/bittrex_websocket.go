@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -53,6 +54,12 @@ var defaultSpotSubscribedChannels = []string{
 
 var defaultSpotSubscribedChannelsAuth = []string{
 	wsOrders,
+}
+
+type TickerCache struct {
+	MarketSummaries map[string]*MarketSummaryData
+	Tickers         map[string]*TickerData
+	sync.RWMutex
 }
 
 // WsConnect connects to a websocket feed
@@ -101,6 +108,10 @@ func (b *Bittrex) WsConnect() error {
 	// efficient processing.
 	go b.wsReadData()
 	b.setupOrderbookManager()
+	b.tickerCache = &TickerCache{
+		MarketSummaries: make(map[string]*MarketSummaryData),
+		Tickers:         make(map[string]*TickerData),
+	}
 
 	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = b.WsAuth()
@@ -497,16 +508,17 @@ func (b *Bittrex) WsProcessUpdateTicker(tickerData TickerData) error {
 
 	tickerPrice, err := ticker.GetTicker(b.Name, pair, asset.Spot)
 	if err != nil {
-		// Received partial data for a ticker: request the missing data through REST
-		marketSummaryData, err := b.GetMarketSummary(tickerData.Symbol)
-		if err != nil {
-			return err
+		b.tickerCache.Lock()
+		defer b.tickerCache.Unlock()
+		if b.tickerCache.MarketSummaries[tickerData.Symbol] != nil {
+			marketSummaryData := b.tickerCache.MarketSummaries[tickerData.Symbol]
+			tickerPrice = b.constructTicker(tickerData, marketSummaryData, pair, asset.Spot)
+			b.Websocket.DataHandler <- tickerPrice
+			return nil
+		} else {
+			b.tickerCache.Tickers[tickerData.Symbol] = &tickerData
+			return nil
 		}
-
-		tickerPrice = b.constructTicker(tickerData, &marketSummaryData, pair, asset.Spot)
-		b.Websocket.DataHandler <- tickerPrice
-
-		return nil
 	}
 
 	tickerPrice.Last = tickerData.LastTradeRate
@@ -527,17 +539,17 @@ func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData *MarketSummaryD
 
 	tickerPrice, err := ticker.GetTicker(b.Name, pair, asset.Spot)
 	if err != nil {
-		// Received partial data for a ticker: request the missing data through REST
-		var tickerData TickerData
-		tickerData, err = b.GetTicker(marketSummaryData.Symbol)
-		if err != nil {
-			return err
+		b.tickerCache.Lock()
+		defer b.tickerCache.Unlock()
+		if b.tickerCache.Tickers[marketSummaryData.Symbol] != nil {
+			tickerData := b.tickerCache.Tickers[marketSummaryData.Symbol]
+			tickerPrice = b.constructTicker(*tickerData, marketSummaryData, pair, asset.Spot)
+			b.Websocket.DataHandler <- tickerPrice
+			return nil
+		} else {
+			b.tickerCache.MarketSummaries[marketSummaryData.Symbol] = marketSummaryData
+			return nil
 		}
-
-		tickerPrice = b.constructTicker(tickerData, marketSummaryData, pair, asset.Spot)
-		b.Websocket.DataHandler <- tickerPrice
-
-		return nil
 	}
 
 	tickerPrice.High = marketSummaryData.High

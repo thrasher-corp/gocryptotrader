@@ -23,7 +23,8 @@ type Bittrex struct {
 	exchange.Base
 	WsSequenceOrders int64
 
-	obm *orderbookManager
+	obm         *orderbookManager
+	tickerCache *TickerCache
 }
 
 const (
