@@ -62,7 +62,7 @@ const (
 	DefaultUnsetAPIKey                   = "Key"
 	DefaultUnsetAPISecret                = "Secret"
 	DefaultUnsetAccountPlan              = "accountPlan"
-	DefaultForexProviderExchangeRatesAPI = "ExchangeRates"
+	DefaultForexProviderExchangeRatesAPI = "ExchangeRatesHost"
 )
 
 // Variables here are used for configuration

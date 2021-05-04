@@ -1086,11 +1086,12 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	count := 0
 	for i := range c.Currency.ForexProviders {
 		if c.Currency.ForexProviders[i].Enabled {
-			if c.Currency.ForexProviders[i].Name == "CurrencyConverter" &&
+			if (c.Currency.ForexProviders[i].Name == "CurrencyConverter" || c.Currency.ForexProviders[i].Name == "ExchangeRates") &&
 				c.Currency.ForexProviders[i].PrimaryProvider &&
 				(c.Currency.ForexProviders[i].APIKey == "" ||
 					c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
-				log.Warnln(log.Global, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..")
+				log.Warnf(log.Global, "%s forex provider no longer supports unset API key requests. Switching to %s FX provider..",
+					c.Currency.ForexProviders[i].Name, DefaultForexProviderExchangeRatesAPI)
 				c.Currency.ForexProviders[i].Enabled = false
 				c.Currency.ForexProviders[i].PrimaryProvider = false
 				c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey

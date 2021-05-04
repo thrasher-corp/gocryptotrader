@@ -1209,7 +1209,7 @@ func TestGetForexProviders(t *testing.T) {
 		t.Error(err)
 	}
 
-	if r := cfg.GetForexProviders(); len(r) != 5 {
+	if r := cfg.GetForexProviders(); len(r) != 6 {
 		t.Error("unexpected length of forex providers")
 	}
 }
