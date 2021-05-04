@@ -41,13 +41,13 @@ const (
 	subscribe             = "subscribe"
 	unsubscribe           = "unsubscribe"
 	wsRateLimit           = 50
-	wsMessageRateLimit    = 500
+	wsMessageRateLimit    = 60
 )
 
 var defaultSpotSubscribedChannels = []string{
-	wsHeartbeat,
-	wsTicker,
+	//wsHeartbeat,
 	wsOrderbook,
+	wsTicker,
 	wsMarketSummary,
 }
 
@@ -227,10 +227,21 @@ func (b *Bittrex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bittrex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var x int
+	var errs common.Errors
 	for x = 0; x+wsMessageRateLimit < len(channelsToSubscribe); x += wsMessageRateLimit {
-		go b.subscribeSlice(channelsToSubscribe[x : x+wsMessageRateLimit])
+		err := b.subscribeSlice(channelsToSubscribe[x : x+wsMessageRateLimit])
+		if err != nil {
+			errs = append(errs, err)
+		}
+		time.Sleep(time.Second)
 	}
-	go b.subscribeSlice(channelsToSubscribe[x:])
+	err := b.subscribeSlice(channelsToSubscribe[x:])
+	if err != nil {
+		errs = append(errs, err)
+	}
+	if errs != nil {
+		return errs
+	}
 	return nil
 }
 
@@ -254,7 +265,7 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.WebsocketMgr, "%s Sending JSON message - %s\n", b.Name, requestString)
+		log.Debugf(log.WebsocketMgr, "%s - Sending JSON message - %s\n", b.Name, requestString)
 	}
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
@@ -263,26 +274,40 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 	var response WsSubscriptionResponse
 	err = json.Unmarshal(respRaw, &response)
 	if err != nil {
-		log.Warnf(log.WebsocketMgr, "%s - Cannot unmarshal into WsSubscriptionResponse (%s)\n", b.Name, string(respRaw))
 		return err
 	}
+	var errs common.Errors
 	for i := range response.Response {
 		if !response.Response[i].Success {
-			log.Warnf(log.WebsocketMgr, "%s - Unable to subscribe to %s (%s)", b.Name, channels[i], response.Response[i].ErrorCode)
+			errs = append(errs, errors.New("unable to subscribe to "+channels[i]+" - error code "+response.Response[i].ErrorCode))
 			continue
 		}
 		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
+	if errs != nil {
+		return errs
+	}
 	return nil
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
+// Unsubscribe sends a websocket message to receive data from the channel
 func (b *Bittrex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var x int
+	var errs common.Errors
 	for x = 0; x+wsMessageRateLimit < len(channelsToUnsubscribe); x += wsMessageRateLimit {
-		go b.unsubscribeSlice(channelsToUnsubscribe[x : x+wsMessageRateLimit])
+		err := b.unsubscribeSlice(channelsToUnsubscribe[x : x+wsMessageRateLimit])
+		if err != nil {
+			errs = append(errs, err)
+		}
+		time.Sleep(time.Second)
 	}
-	go b.unsubscribeSlice(channelsToUnsubscribe[x:])
+	err := b.unsubscribeSlice(channelsToUnsubscribe[x:])
+	if err != nil {
+		errs = append(errs, err)
+	}
+	if errs != nil {
+		return errs
+	}
 	return nil
 }
 
@@ -306,7 +331,7 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.WebsocketMgr, "%s Sending JSON message - %s\n", b.Name, requestString)
+		log.Debugf(log.WebsocketMgr, "%s - Sending JSON message - %s\n", b.Name, requestString)
 	}
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
@@ -315,15 +340,18 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 	var response WsSubscriptionResponse
 	err = json.Unmarshal(respRaw, &response)
 	if err != nil {
-		log.Warnf(log.WebsocketMgr, "%s - Cannot unmarshal into WsSubscriptionResponse (%s)\n", b.Name, string(respRaw))
 		return err
 	}
+	var errs common.Errors
 	for i := range response.Response {
 		if !response.Response[i].Success {
-			log.Warnf(log.WebsocketMgr, "%s - Unable to subscribe to %s (%s)", b.Name, channels[i], response.Response[i].ErrorCode)
+			errs = append(errs, errors.New("unable to unsubscribe from "+channels[i]+" - error code "+response.Response[i].ErrorCode))
 			continue
 		}
 		b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }
