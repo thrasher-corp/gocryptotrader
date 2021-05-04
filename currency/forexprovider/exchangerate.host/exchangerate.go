@@ -237,7 +237,7 @@ func (e *ExchangeRateHost) GetSupportedCurrencies() ([]string, error) {
 }
 
 // GetRates returns the forex rates based on the supplied base currency and symbols
-func (e *ExchangeRateHost) GetRates(baseCurrency string, symbols string) (map[string]float64, error) {
+func (e *ExchangeRateHost) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
 	l, err := e.GetLatestRates(baseCurrency, symbols, 0, 0, "")
 	if err != nil {
 		return nil, err
