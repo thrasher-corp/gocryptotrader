@@ -830,7 +830,7 @@ func testDatahistoryjobsSelect(t *testing.T) {
 }
 
 var (
-	datahistoryjobDBTypes = map[string]string{`ID`: `TEXT`, `Nickname`: `TEXT`, `ExchangeNameID`: `UUID`, `Asset`: `TEXT`, `Base`: `TEXT`, `Quote`: `TEXT`, `StartTime`: `TIMESTAMP`, `EndTime`: `TIMESTAMP`, `Interval`: `REAL`, `DataType`: `TEXT`, `RequestSize`: `TEXT`, `MaxRetries`: `REAL`, `Status`: `TEXT`}
+	datahistoryjobDBTypes = map[string]string{`ID`: `TEXT`, `Nickname`: `TEXT`, `ExchangeNameID`: `UUID`, `Asset`: `TEXT`, `Base`: `TEXT`, `Quote`: `TEXT`, `StartTime`: `TIMESTAMP`, `EndTime`: `TIMESTAMP`, `Interval`: `REAL`, `DataType`: `REAL`, `RequestSize`: `REAL`, `MaxRetries`: `REAL`, `Status`: `REAL`, `Created`: `TIMESTAMP`}
 	_                     = bytes.MinRead
 )
 

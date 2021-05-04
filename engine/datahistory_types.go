@@ -8,6 +8,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -29,6 +30,7 @@ const (
 var (
 	errJobNotFound                = errors.New("job not found")
 	errDatabaseConnectionRequired = errors.New("data history manager requires access to the database")
+	defaultTicker                 = time.Minute
 )
 
 // DataHistoryManager is responsible for synchronising,
@@ -42,7 +44,8 @@ type DataHistoryManager struct {
 	jobs                      []*DataHistoryJob
 	wg                        sync.WaitGroup
 	m                         sync.RWMutex
-	dataHistoryDB             *datahistoryjob.DataHistoryDB
+	dataHistoryDB             *datahistoryjob.DBService
+	dataHistoryJobDB          *datahistoryjobresult.DBService
 }
 
 // DataHistoryJob used to gather candle/trade history and save
@@ -61,6 +64,7 @@ type DataHistoryJob struct {
 	DataType         int
 	MaxRetryAttempts int
 	Status           int
+	CreatedDate      time.Time
 	failures         []dataHistoryFailure
 	continueFromData time.Time
 	rangeHolder      kline.IntervalRangeHolder

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -21,22 +22,22 @@ func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager
 	if dcm == nil {
 		return nil, errNilDatabaseConnectionManager
 	}
+	if processInterval <= 0 {
+		processInterval = defaultTicker
+	}
 
-	jobs, err := retrieveJobs(dcm)
+	dhj, err := datahistoryjob.Setup(dcm)
+	dhjr, err := datahistoryjobresult.Setup(dcm)
 	if err != nil {
 		return nil, err
 	}
-
-	dcm.GetSQL()
-	dhj, err := datahistoryjob.Setup(dcm)
-
 	return &DataHistoryManager{
 		exchangeManager:           em,
 		databaseConnectionManager: dcm,
 		shutdown:                  make(chan struct{}),
 		interval:                  time.NewTicker(processInterval),
-		jobs:                      jobs,
 		dataHistoryDB:             dhj,
+		dataHistoryJobDB:          dhjr,
 	}, nil
 }
 
@@ -49,7 +50,6 @@ func (m *DataHistoryManager) Start() error {
 		return ErrSubSystemAlreadyStarted
 	}
 	m.shutdown = make(chan struct{})
-
 	validJobs := m.PrepareJobs()
 	m.m.Lock()
 	m.jobs = validJobs
@@ -96,13 +96,34 @@ func retrieveJobs(dcm iDatabaseConnectionManager) ([]*DataHistoryJob, error) {
 func (m *DataHistoryManager) UpsertJob(cfg *DataHistoryJob) error {
 	m.m.Lock()
 	defer m.m.Unlock()
+	updated := false
 	for i := range m.jobs {
 		if strings.EqualFold(m.jobs[i].Nickname, cfg.Nickname) {
+			updated = true
 			m.jobs[i] = cfg
+			break
 		}
 	}
-	m.jobs = append(m.jobs, cfg)
-	return nil
+	if !updated {
+		m.jobs = append(m.jobs, cfg)
+	}
+
+	return m.dataHistoryDB.Upsert(&datahistoryjob.DataHistoryJob{
+		ID:               cfg.ID.String(),
+		NickName:         cfg.Nickname,
+		Exchange:         cfg.Exchange,
+		Asset:            cfg.Asset.String(),
+		Base:             cfg.Pair.Base.String(),
+		Quote:            cfg.Pair.Quote.String(),
+		StartDate:        cfg.StartDate,
+		EndDate:          cfg.EndDate,
+		Interval:         int64(cfg.Interval.Duration()),
+		RequestSizeLimit: int64(cfg.RequestSizeLimit),
+		DataType:         int64(cfg.DataType),
+		MaxRetryAttempts: int64(cfg.MaxRetryAttempts),
+		Status:           int64(cfg.Status),
+		CreatedDate:      cfg.CreatedDate,
+	})
 }
 
 // RemoveJob allows for GRPC interaction to remove a job to be processed

@@ -10,10 +10,11 @@ CREATE TABLE IF NOT EXISTS datahistoryjob
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
     interval REAL NOT NULL,
-    data_type TEXT NOT NULL,
-    request_size TEXT NOT NULL,
+    data_type REAL NOT NULL,
+    request_size REAL NOT NULL,
     max_retries REAL NOT NULL,
-    status TEXT NOT NULL,
+    status REAL NOT NULL,
+    created TIMESTAMP NOT NULL,
 
     CONSTRAINT uniquenickname
         unique(nickname) ON CONFLICT REPLACE,
@@ -29,7 +30,9 @@ CREATE TABLE IF NOT EXISTS datahistoryjobresult
     status REAL NOT NULL,
     interval_start_time TIMESTAMP NOT NULL,
     interval_end_time TIMESTAMP NOT NULL,
-    run_time TIMESTAMP NOT NULL
+    run_time TIMESTAMP NOT NULL,
+    CONSTRAINT uniquejobtimestamp
+        unique(job_id, interval_start_time, interval_end_time) ON CONFLICT REPLACE
 );
 -- +goose Down
 DROP TABLE datahistoryjob;

@@ -31,10 +31,11 @@ type Datahistoryjob struct {
 	StartTime      string  `boil:"start_time" json:"start_time" toml:"start_time" yaml:"start_time"`
 	EndTime        string  `boil:"end_time" json:"end_time" toml:"end_time" yaml:"end_time"`
 	Interval       float64 `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
-	DataType       string  `boil:"data_type" json:"data_type" toml:"data_type" yaml:"data_type"`
-	RequestSize    string  `boil:"request_size" json:"request_size" toml:"request_size" yaml:"request_size"`
+	DataType       float64 `boil:"data_type" json:"data_type" toml:"data_type" yaml:"data_type"`
+	RequestSize    float64 `boil:"request_size" json:"request_size" toml:"request_size" yaml:"request_size"`
 	MaxRetries     float64 `boil:"max_retries" json:"max_retries" toml:"max_retries" yaml:"max_retries"`
-	Status         string  `boil:"status" json:"status" toml:"status" yaml:"status"`
+	Status         float64 `boil:"status" json:"status" toml:"status" yaml:"status"`
+	Created        string  `boil:"created" json:"created" toml:"created" yaml:"created"`
 
 	R *datahistoryjobR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L datahistoryjobL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -54,6 +55,7 @@ var DatahistoryjobColumns = struct {
 	RequestSize    string
 	MaxRetries     string
 	Status         string
+	Created        string
 }{
 	ID:             "id",
 	Nickname:       "nickname",
@@ -68,6 +70,7 @@ var DatahistoryjobColumns = struct {
 	RequestSize:    "request_size",
 	MaxRetries:     "max_retries",
 	Status:         "status",
+	Created:        "created",
 }
 
 // Generated where
@@ -82,10 +85,11 @@ var DatahistoryjobWhere = struct {
 	StartTime      whereHelperstring
 	EndTime        whereHelperstring
 	Interval       whereHelperfloat64
-	DataType       whereHelperstring
-	RequestSize    whereHelperstring
+	DataType       whereHelperfloat64
+	RequestSize    whereHelperfloat64
 	MaxRetries     whereHelperfloat64
-	Status         whereHelperstring
+	Status         whereHelperfloat64
+	Created        whereHelperstring
 }{
 	ID:             whereHelperstring{field: "\"datahistoryjob\".\"id\""},
 	Nickname:       whereHelperstring{field: "\"datahistoryjob\".\"nickname\""},
@@ -96,10 +100,11 @@ var DatahistoryjobWhere = struct {
 	StartTime:      whereHelperstring{field: "\"datahistoryjob\".\"start_time\""},
 	EndTime:        whereHelperstring{field: "\"datahistoryjob\".\"end_time\""},
 	Interval:       whereHelperfloat64{field: "\"datahistoryjob\".\"interval\""},
-	DataType:       whereHelperstring{field: "\"datahistoryjob\".\"data_type\""},
-	RequestSize:    whereHelperstring{field: "\"datahistoryjob\".\"request_size\""},
+	DataType:       whereHelperfloat64{field: "\"datahistoryjob\".\"data_type\""},
+	RequestSize:    whereHelperfloat64{field: "\"datahistoryjob\".\"request_size\""},
 	MaxRetries:     whereHelperfloat64{field: "\"datahistoryjob\".\"max_retries\""},
-	Status:         whereHelperstring{field: "\"datahistoryjob\".\"status\""},
+	Status:         whereHelperfloat64{field: "\"datahistoryjob\".\"status\""},
+	Created:        whereHelperstring{field: "\"datahistoryjob\".\"created\""},
 }
 
 // DatahistoryjobRels is where relationship names are stored.
@@ -126,8 +131,8 @@ func (*datahistoryjobR) NewStruct() *datahistoryjobR {
 type datahistoryjobL struct{}
 
 var (
-	datahistoryjobAllColumns            = []string{"id", "nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "interval", "data_type", "request_size", "max_retries", "status"}
-	datahistoryjobColumnsWithoutDefault = []string{"id", "nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "interval", "data_type", "request_size", "max_retries", "status"}
+	datahistoryjobAllColumns            = []string{"id", "nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "interval", "data_type", "request_size", "max_retries", "status", "created"}
+	datahistoryjobColumnsWithoutDefault = []string{"id", "nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "interval", "data_type", "request_size", "max_retries", "status", "created"}
 	datahistoryjobColumnsWithDefault    = []string{}
 	datahistoryjobPrimaryKeyColumns     = []string{"id"}
 )

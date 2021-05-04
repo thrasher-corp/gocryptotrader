@@ -24,6 +24,11 @@ func One(in string) (Details, error) {
 	return one(in, "name")
 }
 
+// OneByUUIDString returns one exchange by UUID string
+func OneByUUIDString(in string) (Details, error) {
+	return one(in, "id")
+}
+
 // OneByUUID returns one exchange by UUID
 func OneByUUID(in uuid.UUID) (Details, error) {
 	return one(in.String(), "id")

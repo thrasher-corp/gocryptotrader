@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -89,4 +90,5 @@ type iCurrencyPairSyncer interface {
 type iDatabaseConnectionManager interface {
 	IsConnected() bool
 	GetSQL() *sql.DB
+	GetConfig() *database.Config
 }

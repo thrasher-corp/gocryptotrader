@@ -1,6 +1,10 @@
 package datahistoryjobresult
 
-import "time"
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/database"
+)
 
 type DataHistoryJobResult struct {
 	ID                string
@@ -8,6 +12,11 @@ type DataHistoryJobResult struct {
 	IntervalStartDate time.Time
 	IntervalEndDate   time.Time
 	Status            int64
-	Error             string
+	Result            string
 	Date              time.Time
+}
+
+type DBService struct {
+	sql    database.ISQL
+	driver string
 }

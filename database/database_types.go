@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"path/filepath"
@@ -56,3 +57,19 @@ const (
 	// DBInvalidDriver const string for invalid driver
 	DBInvalidDriver = "invalid driver"
 )
+
+type IDatabase interface {
+	IsConnected() bool
+	GetSQL() *sql.DB
+	GetConfig() *Config
+}
+
+type ISQL interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	Exec(string, ...interface{}) (sql.Result, error)
+	Query(string, ...interface{}) (*sql.Rows, error)
+	QueryRow(string, ...interface{}) *sql.Row
+	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
+	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
+}
