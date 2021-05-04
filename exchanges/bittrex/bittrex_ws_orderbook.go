@@ -377,6 +377,7 @@ buffer:
 					return fmt.Errorf("%s %s processing update error: %w",
 						pair, asset.Spot, err)
 				}
+				recent.LastUpdateID = d.Sequence
 			}
 		default:
 			break buffer
