@@ -52,6 +52,7 @@ type Settings struct {
 	EnableCurrencyLayer     bool
 	EnableFixer             bool
 	EnableOpenExchangeRates bool
+	EnableExchangeRateHost  bool
 
 	// Exchange tuning settings
 	EnableExchangeHTTPRateLimiter  bool
