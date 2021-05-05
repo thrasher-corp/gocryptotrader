@@ -139,6 +139,13 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 				fxSettings = append(fxSettings,
 					base.Settings(settings.ForexProviders[i]))
 			}
+
+		case "ExchangeRateHost":
+			if overrides.FxExchangeRateHost || settings.ForexProviders[i].Enabled {
+				settings.ForexProviders[i].Enabled = true
+				fxSettings = append(fxSettings,
+					base.Settings(settings.ForexProviders[i]))
+			}
 		}
 	}
 

@@ -313,6 +313,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable currency layer: %v", s.EnableCurrencyLayer)
 	gctlog.Debugf(gctlog.Global, "\t Enable fixer: %v", s.EnableFixer)
 	gctlog.Debugf(gctlog.Global, "\t Enable OpenExchangeRates: %v", s.EnableOpenExchangeRates)
+	gctlog.Debugf(gctlog.Global, "\t Enable ExchangeRateHost: %v", s.EnableExchangeRateHost)
 	gctlog.Debugf(gctlog.Global, "- EXCHANGE SETTINGS:")
 	gctlog.Debugf(gctlog.Global, "\t Enable exchange auto pair updates: %v", s.EnableExchangeAutoPairUpdates)
 	gctlog.Debugf(gctlog.Global, "\t Disable all exchange auto pair updates: %v", s.DisableExchangeAutoPairUpdates)
@@ -440,13 +441,15 @@ func (bot *Engine) Start() error {
 		bot.Settings.EnableCurrencyConverter ||
 		bot.Settings.EnableCurrencyLayer ||
 		bot.Settings.EnableFixer ||
-		bot.Settings.EnableOpenExchangeRates {
+		bot.Settings.EnableOpenExchangeRates ||
+		bot.Settings.EnableExchangeRateHost {
 		err = currency.RunStorageUpdater(currency.BotOverrides{
 			Coinmarketcap:       bot.Settings.EnableCoinmarketcapAnalysis,
 			FxCurrencyConverter: bot.Settings.EnableCurrencyConverter,
 			FxCurrencyLayer:     bot.Settings.EnableCurrencyLayer,
 			FxFixer:             bot.Settings.EnableFixer,
 			FxOpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
+			FxExchangeRateHost:  bot.Settings.EnableExchangeRateHost,
 		},
 			&currency.MainConfiguration{
 				ForexProviders:         bot.Config.GetForexProviders(),
@@ -693,7 +696,8 @@ func (bot *Engine) Stop() {
 		bot.Settings.EnableCurrencyConverter ||
 		bot.Settings.EnableCurrencyLayer ||
 		bot.Settings.EnableFixer ||
-		bot.Settings.EnableOpenExchangeRates {
+		bot.Settings.EnableOpenExchangeRates ||
+		bot.Settings.EnableExchangeRateHost {
 		if err := currency.ShutdownStorageUpdater(); err != nil {
 			gctlog.Errorf(gctlog.Global, "ExchangeSettings storage system. Error: %v", err)
 		}

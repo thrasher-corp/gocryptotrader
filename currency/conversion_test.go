@@ -182,7 +182,7 @@ func TestGetRate(t *testing.T) {
 
 	c, err := NewConversion(from, to)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	rate, err := c.GetRate()
 	if err != nil {
