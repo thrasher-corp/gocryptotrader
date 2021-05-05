@@ -101,7 +101,7 @@ jobs:
       run: sudo apt-get install gcc-multilib
 
     - name: Test
-      run: go test -race -coverprofile coverage.txt -covermode atomic ./...
+      run: go test -coverprofile coverage.txt -covermode atomic ./...
       env:
         PSQL_USER: postgres
         PSQL_PASS: postgres
