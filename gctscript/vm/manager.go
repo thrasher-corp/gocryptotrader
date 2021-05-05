@@ -62,7 +62,7 @@ func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
 // Stop stops gctscript subsystem along with all running Virtual Machines
 func (g *GctScriptManager) Stop() error {
 	if atomic.LoadInt32(&g.started) == 0 {
-		return fmt.Errorf("%s", caseName)
+		return fmt.Errorf("%s not running", caseName)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&g.started, 1, 0)
@@ -77,7 +77,7 @@ func (g *GctScriptManager) Stop() error {
 }
 
 func (g *GctScriptManager) run(wg *sync.WaitGroup) {
-	log.Debugln(log.Global, caseName)
+	log.Debugf(log.Global, "%s starting", caseName)
 
 	SetDefaultScriptOutput()
 	g.autoLoad()

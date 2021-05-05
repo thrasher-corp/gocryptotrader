@@ -59,7 +59,7 @@ func (m *OrderManager) Start() error {
 		return fmt.Errorf("order manager %w", ErrSubSystemAlreadyStarted)
 	}
 	log.Debugln(log.OrderMgr, "Order manager starting...")
-
+	m.shutdown = make(chan struct{})
 	go m.run()
 	return nil
 }

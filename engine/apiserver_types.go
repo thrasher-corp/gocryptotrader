@@ -39,7 +39,6 @@ var (
 // apiServerManager holds all relevant fields to manage both REST and websocket
 // api servers
 type apiServerManager struct {
-	started                int32
 	restStarted            int32
 	websocketStarted       int32
 	restListenAddress      string

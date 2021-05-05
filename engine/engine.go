@@ -660,9 +660,15 @@ func (bot *Engine) Stop() {
 		}
 	}
 
-	if bot.apiServer.IsRunning() {
-		if err := bot.apiServer.Stop(); err != nil {
-			gctlog.Errorf(gctlog.Global, "API Server unable to stop. Error: %s", err)
+	if bot.apiServer.IsRESTServerRunning() {
+		if err := bot.apiServer.StopRESTServer(); err != nil {
+			gctlog.Errorf(gctlog.Global, "API Server unable to stop REST server. Error: %s", err)
+		}
+	}
+
+	if bot.apiServer.IsWebsocketServerRunning() {
+		if err := bot.apiServer.StopWebsocketServer(); err != nil {
+			gctlog.Errorf(gctlog.Global, "API Server unable to stop websocket server. Error: %s", err)
 		}
 	}
 

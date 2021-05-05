@@ -53,43 +53,55 @@ func setupAPIServerManager(remoteConfig *config.RemoteControlConfig, pprofConfig
 	}, nil
 }
 
-// IsRunning safely checks whether the subsystem is running
-func (m *apiServerManager) IsRunning() bool {
+// IsRESTServerRunning safely checks whether the subsystem is running
+func (m *apiServerManager) IsRESTServerRunning() bool {
 	if m == nil {
 		return false
 	}
-	return atomic.LoadInt32(&m.started) == 1
+	return atomic.LoadInt32(&m.restStarted) == 1
 }
 
-// Stop attempts to shutdown the subsystem
-func (m *apiServerManager) Stop() error {
+// IsWebsocketServerRunning safely checks whether the subsystem is running
+func (m *apiServerManager) IsWebsocketServerRunning() bool {
+	if m == nil {
+		return false
+	}
+	return atomic.LoadInt32(&m.websocketStarted) == 1
+}
+
+// StopRESTServer attempts to shutdown the subsystem
+func (m *apiServerManager) StopRESTServer() error {
 	if m == nil {
 		return fmt.Errorf("api server %w", ErrNilSubsystem)
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
-		return fmt.Errorf("api server %w", ErrSubSystemNotStarted)
+	if !atomic.CompareAndSwapInt32(&m.restStarted, 1, 0) {
+		return fmt.Errorf("apiserver deprecated server %w", ErrSubSystemNotStarted)
+	}
+	err := m.restHTTPServer.Shutdown(context.Background())
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	m.wgRest.Wait()
+	m.restRouter = nil
+	return nil
+}
+
+func (m *apiServerManager) StopWebsocketServer() error {
+	if m == nil {
+		return fmt.Errorf("api server %w", ErrNilSubsystem)
+	}
+	if !atomic.CompareAndSwapInt32(&m.websocketStarted, 1, 0) {
+		return fmt.Errorf("apiserver websocket server %w", ErrSubSystemNotStarted)
 	}
 
-	if atomic.LoadInt32(&m.restStarted) == 1 {
-		atomic.StoreInt32(&m.restStarted, 0)
-		err := m.restHTTPServer.Shutdown(context.Background())
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			return err
-		}
-		m.wgRest.Wait()
-		m.restRouter = nil
+	err := m.websocketHTTPServer.Shutdown(context.Background())
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
 	}
-	if atomic.LoadInt32(&m.websocketStarted) == 1 {
-		atomic.StoreInt32(&m.websocketStarted, 0)
-		err := m.websocketHTTPServer.Shutdown(context.Background())
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			return err
-		}
-		m.websocketRouter = nil
-		m.websocketHub = nil
-		m.wgWebsocket.Wait()
-		m.websocketHTTPServer = nil
-	}
+	m.websocketRouter = nil
+	m.websocketHub = nil
+	m.wgWebsocket.Wait()
+	m.websocketHTTPServer = nil
 	return nil
 }
 
@@ -152,7 +164,6 @@ func (m *apiServerManager) StartRESTServer() error {
 		atomic.StoreInt32(&m.restStarted, 0)
 		return fmt.Errorf("rest %w", errServerDisabled)
 	}
-	atomic.StoreInt32(&m.started, 1)
 	log.Debugf(log.RESTSys,
 		"Deprecated RPC handler support enabled. Listen URL: http://%s:%d\n",
 		common.ExtractHost(m.restListenAddress), common.ExtractPort(m.restListenAddress))
@@ -169,7 +180,6 @@ func (m *apiServerManager) StartRESTServer() error {
 		err := m.restHTTPServer.ListenAndServe()
 		if err != nil {
 			atomic.StoreInt32(&m.restStarted, 0)
-			atomic.StoreInt32(&m.started, 0)
 			if !errors.Is(err, http.ErrServerClosed) {
 				log.Error(log.APIServerMgr, err)
 			}
@@ -399,7 +409,6 @@ func (m *apiServerManager) StartWebsocketServer() error {
 		atomic.StoreInt32(&m.websocketStarted, 0)
 		return fmt.Errorf("websocket %w", errServerDisabled)
 	}
-	atomic.StoreInt32(&m.started, 1)
 	log.Debugf(log.APIServerMgr,
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
 		common.ExtractHost(m.websocketListenAddress), common.ExtractPort(m.websocketListenAddress))

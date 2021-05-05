@@ -37,7 +37,6 @@ func (r *Request) Validate(opt ...validate.Checker) (err error) {
 		if (r.Currency != currency.Code{}) && !r.Currency.IsCryptocurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotCrypto)
 		}
-		r.validateCrypto()
 		allErrors = append(allErrors, r.validateCrypto()...)
 	default:
 		allErrors = append(allErrors, "invalid request type")

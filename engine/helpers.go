@@ -20,6 +20,7 @@ import (
 	"github.com/pquerna/otp/totp"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -66,19 +67,19 @@ type RPCEndpoint struct {
 // GetRPCEndpoints returns a list of RPC endpoints and their listen addrs
 func GetRPCEndpoints() map[string]RPCEndpoint {
 	endpoints := make(map[string]RPCEndpoint)
-	endpoints["grpc"] = RPCEndpoint{
+	endpoints[grpcName] = RPCEndpoint{
 		Started:    Bot.Settings.EnableGRPC,
 		ListenAddr: "grpc://" + Bot.Config.RemoteControl.GRPC.ListenAddress,
 	}
-	endpoints["grpc_proxy"] = RPCEndpoint{
+	endpoints[grpcProxyName] = RPCEndpoint{
 		Started:    Bot.Settings.EnableGRPCProxy,
 		ListenAddr: "http://" + Bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
 	}
-	endpoints["deprecated_rpc"] = RPCEndpoint{
+	endpoints[DeprecatedName] = RPCEndpoint{
 		Started:    Bot.Settings.EnableDeprecatedRPC,
 		ListenAddr: "http://" + Bot.Config.RemoteControl.DeprecatedRPC.ListenAddress,
 	}
-	endpoints["websocket_rpc"] = RPCEndpoint{
+	endpoints[WebsocketName] = RPCEndpoint{
 		Started:    Bot.Settings.EnableWebsocketRPC,
 		ListenAddr: "ws://" + Bot.Config.RemoteControl.WebsocketRPC.ListenAddress,
 	}
@@ -191,6 +192,41 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return dispatch.Start(bot.Settings.DispatchMaxWorkerAmount, bot.Settings.DispatchJobsLimit)
 		}
 		return dispatch.Stop()
+	case DeprecatedName:
+		if enable {
+			if bot.apiServer == nil {
+				var filePath string
+				filePath, err = config.GetAndMigrateDefaultPath(bot.Settings.ConfigFile)
+				if err != nil {
+					return err
+				}
+				bot.apiServer, err = setupAPIServerManager(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath)
+				if err != nil {
+					return err
+				}
+			}
+			return bot.apiServer.StartRESTServer()
+		}
+		return bot.apiServer.StopRESTServer()
+	case WebsocketName:
+		if enable {
+			if bot.apiServer == nil {
+				var filePath string
+				filePath, err = config.GetAndMigrateDefaultPath(bot.Settings.ConfigFile)
+				if err != nil {
+					return err
+				}
+				bot.apiServer, err = setupAPIServerManager(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath)
+				if err != nil {
+					return err
+				}
+			}
+			return bot.apiServer.StartWebsocketServer()
+		}
+		return bot.apiServer.StopWebsocketServer()
+	case grpcName, grpcProxyName:
+		return errors.New("cannot manage GRPC subsystem via GRPC. Please manually change your config")
+
 	case vm.Name:
 		if enable {
 			if bot.gctScriptManager == nil {

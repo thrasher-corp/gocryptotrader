@@ -90,7 +90,7 @@ func TestStartWebsocketServer(t *testing.T) {
 	}
 }
 
-func TestAPIServerManagerStop(t *testing.T) {
+func TestStopRESTServer(t *testing.T) {
 	t.Parallel()
 	wd, _ := os.Getwd()
 	m, err := setupAPIServerManager(&config.RemoteControlConfig{
@@ -98,6 +98,39 @@ func TestAPIServerManagerStop(t *testing.T) {
 			Enabled:       true,
 			ListenAddress: "localhost:9051",
 		},
+	}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+
+	err = m.StopRESTServer()
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	}
+
+	err = m.StartRESTServer()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	err = m.StopRESTServer()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	// do it again to ensure things have reset appropriately and no errors occur starting
+	err = m.StartRESTServer()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	err = m.StopRESTServer()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+}
+
+func TestWebsocketStop(t *testing.T) {
+	t.Parallel()
+	wd, _ := os.Getwd()
+	m, err := setupAPIServerManager(&config.RemoteControlConfig{
 		WebsocketRPC: config.WebsocketRPCConfig{
 			Enabled:       true,
 			ListenAddress: "localhost:9052",
@@ -107,42 +140,58 @@ func TestAPIServerManagerStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	err = m.Stop()
+	err = m.StopWebsocketServer()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 
-	err = m.StartRESTServer()
+	err = m.StartWebsocketServer()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.Stop()
+	err = m.StopWebsocketServer()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	// do it again to ensure things have reset appropriately and no errors occur starting
-	err = m.StartRESTServer()
+	err = m.StartWebsocketServer()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.Stop()
+	err = m.StopWebsocketServer()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 }
 
-func TestAPIServerManagerIsRunning(t *testing.T) {
+func TestIsRESTServerRunning(t *testing.T) {
 	t.Parallel()
 	m := &apiServerManager{}
-	if m.IsRunning() {
+	if m.IsRESTServerRunning() {
 		t.Error("expected false")
 	}
-	m.started = 1
-	if !m.IsRunning() {
+	m.restStarted = 1
+	if !m.IsRESTServerRunning() {
 		t.Error("expected true")
 	}
 	m = nil
-	if m.IsRunning() {
+	if m.IsRESTServerRunning() {
+		t.Error("expected false")
+	}
+}
+
+func TestIsWebsocketServerRunning(t *testing.T) {
+	t.Parallel()
+	m := &apiServerManager{}
+	if m.IsWebsocketServerRunning() {
+		t.Error("expected false")
+	}
+	m.websocketStarted = 1
+	if !m.IsWebsocketServerRunning() {
+		t.Error("expected true")
+	}
+	m = nil
+	if m.IsWebsocketServerRunning() {
 		t.Error("expected false")
 	}
 }
