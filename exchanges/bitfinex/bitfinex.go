@@ -89,9 +89,9 @@ const (
 
 	bitfinexChecksumFlag   = 131072
 	bitfinexWsSequenceFlag = 65536
-
-	ErrTypeAssert = "type assertion failed %s"
 )
+
+var ErrTypeAssert = errors.New("type assertion failed")
 
 // Bitfinex is the overarching type across the bitfinex package
 type Bitfinex struct {
@@ -122,15 +122,32 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 }
 
 // GetV2MarginInfo gets margin info
-func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]interface{}, error) {
-	var resp []interface{}
+func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoData, error) {
+	var resp []MarginInfoData
+	var data []interface{}
 	err := b.SendAuthenticatedHTTPRequestV2(exchange.RestSpot, http.MethodPost,
 		bitfinexV2MarginInfo+symbol,
 		nil,
-		&resp,
+		&data,
 		tradeRateLimit)
 	if err != nil {
 		return resp, err
+	}
+	switch symbol {
+	case "base":
+		var tempResp MarginInfoData
+		tempData, ok := data[1].([5]float64)
+		if !ok {
+			return nil, fmt.Errorf("%w", ErrTypeAssert)
+		}
+		tempResp.UserPNL = tempData[0]
+		tempResp.UserSwaps = tempData[1]
+		tempResp.MarginBalance = tempData[2]
+		tempResp.MarginNet = tempData[3]
+		tempResp.MarginMin = tempData[4]
+	case "sym_all":
+		
+	default:
 	}
 	return resp, nil
 }
@@ -156,11 +173,11 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 	}
 	avgRate, ok := resp[0].(float64)
 	if !ok {
-		return response, fmt.Errorf(ErrTypeAssert, "for rate")
+		return response, fmt.Errorf("%w for rate", ErrTypeAssert)
 	}
 	avgAmount, ok := resp[1].(float64)
 	if !ok {
-		return response, fmt.Errorf(ErrTypeAssert, "for amount")
+		return response, fmt.Errorf("%w for amount", ErrTypeAssert)
 	}
 	response.Symbol = symbol
 	response.RateAverage = avgRate
@@ -185,15 +202,15 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginFundingDataV2, error) {
 	}
 	sym, ok := resp[0].(string)
 	if !ok {
-		return response, fmt.Errorf(ErrTypeAssert, "for sym")
+		return response, fmt.Errorf("%w for sym", ErrTypeAssert)
 	}
 	symbol, ok := resp[1].(string)
 	if !ok {
-		return response, fmt.Errorf(ErrTypeAssert, "for symbol")
+		return response, fmt.Errorf("%w for symbol", ErrTypeAssert)
 	}
 	fundingData, ok := resp[2].([]interface{})
 	if !ok {
-		return response, fmt.Errorf(ErrTypeAssert, "for fundingData")
+		return response, fmt.Errorf("%w for fundingData", ErrTypeAssert)
 	}
 	response.Sym = sym
 	response.Symbol = symbol
@@ -232,27 +249,27 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 	var tempString string
 	var tempFloat float64
 	if tempFloat, ok = data[0].(float64); !ok {
-		return resp, fmt.Errorf(ErrTypeAssert, "for id, check for api updates")
+		return resp, fmt.Errorf("%w for id", ErrTypeAssert)
 	}
 	resp.ID = int64(tempFloat)
 	if tempString, ok = data[1].(string); !ok {
-		return resp, fmt.Errorf(ErrTypeAssert, "for email, check for api updates")
+		return resp, fmt.Errorf("%w for email", ErrTypeAssert)
 	}
 	resp.Email = tempString
 	if tempString, ok = data[2].(string); !ok {
-		return resp, fmt.Errorf(ErrTypeAssert, "for username, check for api updates")
+		return resp, fmt.Errorf("%w for username", ErrTypeAssert)
 	}
 	resp.Username = tempString
 	if tempFloat, ok = data[3].(float64); !ok {
-		return resp, fmt.Errorf(ErrTypeAssert, "for accountcreate, check for api updates")
+		return resp, fmt.Errorf("%w for accountcreate", ErrTypeAssert)
 	}
 	resp.MTSAccountCreate = int64(tempFloat)
 	if tempFloat, ok = data[4].(float64); !ok {
-		return resp, fmt.Errorf(ErrTypeAssert, "failed for verified, check for api updates")
+		return resp, fmt.Errorf("%w failed for verified", ErrTypeAssert)
 	}
 	resp.Verified = int64(tempFloat)
 	if tempString, ok = data[7].(string); !ok {
-		return resp, fmt.Errorf(ErrTypeAssert, "for timezone, check for api updates")
+		return resp, fmt.Errorf("%w for timezone", ErrTypeAssert)
 	}
 	resp.Timezone = tempString
 	return resp, nil
@@ -273,19 +290,19 @@ func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
 	for x := range data {
 		wType, ok := data[x][0].(string)
 		if !ok {
-			return resp, fmt.Errorf(ErrTypeAssert, "for walletType, check for api updates")
+			return resp, fmt.Errorf("%w for walletType", ErrTypeAssert)
 		}
 		curr, ok := data[x][1].(string)
 		if !ok {
-			return resp, fmt.Errorf(ErrTypeAssert, "for currency, check for api updates")
+			return resp, fmt.Errorf("%w for currency", ErrTypeAssert)
 		}
 		bal, ok := data[x][2].(float64)
 		if !ok {
-			return resp, fmt.Errorf(ErrTypeAssert, "for balance, check for api updates")
+			return resp, fmt.Errorf("%w for balance", ErrTypeAssert)
 		}
 		unsettledInterest, ok := data[x][3].(float64)
 		if !ok {
-			return resp, fmt.Errorf(ErrTypeAssert, "for unsettledInterest, check for api updates")
+			return resp, fmt.Errorf("%w for unsettledInterest", ErrTypeAssert)
 		}
 		resp = append(resp, WalletDataV2{
 			WalletType:        wType,
@@ -343,38 +360,38 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 		var response DerivativeDataResponse
 		var ok bool
 		if response.Key, ok = result[z][0].(string); !ok {
-			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
+			return finalResp, fmt.Errorf("%w for Key", ErrTypeAssert)
 		}
 		if response.MTS, ok = result[z][1].(float64); !ok {
-			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
+			return finalResp, fmt.Errorf("%w for MTS", ErrTypeAssert)
 		}
 		if response.DerivPrice, ok = result[z][3].(float64); !ok {
-			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
+			return finalResp, fmt.Errorf("%w for DerivPrice", ErrTypeAssert)
 		}
 		if response.SpotPrice, ok = result[z][4].(float64); !ok {
-			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
+			return finalResp, fmt.Errorf("%w for SpotPrice", ErrTypeAssert)
 		}
 		if response.InsuranceFundBalance, ok = result[z][6].(float64); !ok {
-			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
+			return finalResp, fmt.Errorf("%w for Insurance fund balance", ErrTypeAssert)
 		}
 		if response.NextFundingEventTS, ok = result[z][8].(float64); !ok {
-			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
+			return finalResp, fmt.Errorf("%w for NextFundingEventTS", ErrTypeAssert)
 		}
 		if response.NextFundingAccured, ok = result[z][9].(float64); !ok {
-			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
+			return finalResp, fmt.Errorf("%w for NextFundingAccrued", ErrTypeAssert)
 		}
 		if response.NextFundingStep, ok = result[z][10].(float64); !ok {
-			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
+			return finalResp, fmt.Errorf("%w for NextFundingStep", ErrTypeAssert)
 		}
 		if response.CurrentFunding, ok = result[z][12].(float64); !ok {
-			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
+			return finalResp, fmt.Errorf("%w for CurrentFunding", ErrTypeAssert)
 		}
 		if response.MarkPrice, ok = result[z][15].(float64); !ok {
-			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
+			return finalResp, fmt.Errorf("%w for MarkPrice", ErrTypeAssert)
 		}
 
 		if response.OpenInterest, ok = result[z][18].(float64); !ok {
-			return finalResp, fmt.Errorf(ErrTypeAssert, ", check for api updates")
+			return finalResp, fmt.Errorf("%w for OpenInterest", ErrTypeAssert)
 		}
 		finalResp = append(finalResp, response)
 	}

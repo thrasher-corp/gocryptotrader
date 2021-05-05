@@ -16,6 +16,20 @@ type AccountV2Data struct {
 	Timezone         string
 }
 
+// MarginInfoData stores margin data
+type MarginInfoData struct {
+	Symbol          string
+	UserPNL         float64
+	UserSwaps       float64
+	MarginBalance   float64
+	MarginNet       float64
+	MarginMin       float64
+	TradableBalance float64
+	GrossBalance    float64
+	BestAskAmount   float64
+	BestBidAmount   float64
+}
+
 // WalletDataV2 stores wallet data for v2
 type WalletDataV2 struct {
 	WalletType        string
