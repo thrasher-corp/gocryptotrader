@@ -19,7 +19,7 @@ func TestMain(m *testing.M) {
 	// Sets up lower values for test environment
 	defaultInterval = time.Millisecond * 250
 	defaultAllowance = time.Millisecond * 100
-	err := dispatch.Start(1, dispatch.DefaultJobsLimit)
+	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -551,7 +551,7 @@ func TestProcessOrderbook(t *testing.T) {
 			t.Fatal("TestProcessOrderbook failed to retrieve new orderbook")
 		}
 	}
-
+	// //
 	wg.Wait()
 }
 
