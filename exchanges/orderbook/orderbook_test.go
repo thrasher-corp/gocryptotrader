@@ -551,7 +551,6 @@ func TestProcessOrderbook(t *testing.T) {
 			t.Fatal("TestProcessOrderbook failed to retrieve new orderbook")
 		}
 	}
-	// //
 	wg.Wait()
 }
 
