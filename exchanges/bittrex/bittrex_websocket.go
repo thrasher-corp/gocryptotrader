@@ -46,7 +46,7 @@ const (
 )
 
 var defaultSpotSubscribedChannels = []string{
-	//wsHeartbeat,
+	// wsHeartbeat,
 	wsOrderbook,
 	wsTicker,
 	wsMarketSummary,
@@ -515,10 +515,9 @@ func (b *Bittrex) WsProcessUpdateTicker(tickerData TickerData) error {
 			tickerPrice = b.constructTicker(tickerData, marketSummaryData, pair, asset.Spot)
 			b.Websocket.DataHandler <- tickerPrice
 			return nil
-		} else {
-			b.tickerCache.Tickers[tickerData.Symbol] = &tickerData
-			return nil
 		}
+		b.tickerCache.Tickers[tickerData.Symbol] = &tickerData
+		return nil
 	}
 
 	tickerPrice.Last = tickerData.LastTradeRate
@@ -546,10 +545,9 @@ func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData *MarketSummaryD
 			tickerPrice = b.constructTicker(*tickerData, marketSummaryData, pair, asset.Spot)
 			b.Websocket.DataHandler <- tickerPrice
 			return nil
-		} else {
-			b.tickerCache.MarketSummaries[marketSummaryData.Symbol] = marketSummaryData
-			return nil
 		}
+		b.tickerCache.MarketSummaries[marketSummaryData.Symbol] = marketSummaryData
+		return nil
 	}
 
 	tickerPrice.High = marketSummaryData.High
