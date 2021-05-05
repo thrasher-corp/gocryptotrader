@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -72,13 +73,25 @@ func TestGetV2MarginFunding(t *testing.T) {
 }
 
 func TestGetV2MarginInfo(t *testing.T) {
+	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	_, err := b.GetV2MarginInfo("sym_all")
+	data1, err := b.GetV2MarginInfo("base")
+	fmt.Println(data1)
 	if err != nil {
 		t.Error(err)
 	}
+	data2, err := b.GetV2MarginInfo("tBTCUSD")
+	fmt.Println(data2)
+	if err != nil {
+		t.Error(err)
+	}
+	data3, err := b.GetV2MarginInfo("sym_all")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(data3)
 }
 
 func TestGetAccountInfoV2(t *testing.T) {

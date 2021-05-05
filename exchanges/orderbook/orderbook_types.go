@@ -31,6 +31,7 @@ var (
 	errDuplication         = errors.New("price duplication")
 	errIDDuplication       = errors.New("id duplication")
 	errPeriodUnset         = errors.New("funding rate period is unset")
+	errNotEnoughLiquidity  = errors.New("not enough liquidity")
 )
 
 var service = Service{

@@ -37,8 +37,8 @@ func TestGetAveragePrice(t *testing.T) {
 	b.Pair = cp
 	b.Bids = []Item{}
 	_, err = b.GetAveragePrice(false, 5)
-	if err == nil {
-		t.Error("expected an error since bids are empty")
+	if errors.Is(errNotEnoughLiquidity, err) {
+		t.Error("expected: %w, received %w", errNotEnoughLiquidity, err)
 	}
 	b = Base{}
 	b.Pair = cp
@@ -55,7 +55,6 @@ func TestGetAveragePrice(t *testing.T) {
 	if avgPrice != 3 {
 		t.Error("avg price calculation failed")
 	}
-	fmt.Println(avgPrice)
 	avgPrice, err = b.GetAveragePrice(true, 18)
 	if err != nil {
 		t.Error(err)
