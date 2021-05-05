@@ -413,7 +413,8 @@ func (bot *Engine) Start() error {
 		bot.Settings.EnableCurrencyConverter ||
 		bot.Settings.EnableCurrencyLayer ||
 		bot.Settings.EnableFixer ||
-		bot.Settings.EnableOpenExchangeRates {
+		bot.Settings.EnableOpenExchangeRates ||
+		bot.Settings.EnableExchangeRateHost {
 		err = currency.RunStorageUpdater(currency.BotOverrides{
 			Coinmarketcap:       bot.Settings.EnableCoinmarketcapAnalysis,
 			FxCurrencyConverter: bot.Settings.EnableCurrencyConverter,

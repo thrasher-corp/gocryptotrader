@@ -22,7 +22,7 @@ func GetSupportedForexProviders() []string {
 		"ExchangeRates",
 		"Fixer",
 		"OpenExchangeRates",
-		"ExchangeRatesHost",
+		"ExchangeRateHost",
 	}
 }
 
@@ -33,7 +33,7 @@ func NewDefaultFXProvider() *ForexProviders {
 	err := provider.Setup(base.Settings{
 		PrimaryProvider: true,
 		Enabled:         true,
-		Name:            "ExchangeRatesHost",
+		Name:            "ExchangeRateHost",
 	})
 	if err != nil {
 		panic(err)
