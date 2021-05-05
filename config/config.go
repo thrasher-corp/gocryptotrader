@@ -1119,7 +1119,8 @@ func (c *Config) CheckCurrencyConfigValues() error {
 			if c.Currency.ForexProviders[x].Name == DefaultForexProviderExchangeRatesAPI {
 				c.Currency.ForexProviders[x].Enabled = true
 				c.Currency.ForexProviders[x].PrimaryProvider = true
-				log.Warnln(log.ConfigMgr, "Using ExchangeRatesAPI for default forex provider.")
+				log.Warnf(log.ConfigMgr, "No valid forex providers configured. Defaulting to %s.",
+					DefaultForexProviderExchangeRatesAPI)
 			}
 		}
 	}

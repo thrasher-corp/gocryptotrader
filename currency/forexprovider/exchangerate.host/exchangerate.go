@@ -69,7 +69,7 @@ func (e *ExchangeRateHost) GetLatestRates(baseCurrency, symbols string, amount f
 }
 
 // ConvertCurrency converts a currency based on the supplied params
-func (e *ExchangeRateHost) ConvertCurrency(from, to string, date time.Time, baseCurrency, symbols string, amount float64, places int64, source string) (*ConvertCurrency, error) {
+func (e *ExchangeRateHost) ConvertCurrency(from, to, baseCurrency, symbols, source string, date time.Time, amount float64, places int64) (*ConvertCurrency, error) {
 	v := url.Values{}
 	if from != "" {
 		v.Set("from", from)

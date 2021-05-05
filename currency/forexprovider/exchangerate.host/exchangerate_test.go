@@ -28,7 +28,7 @@ func TestGetLatestRates(t *testing.T) {
 }
 
 func TestConvertCurrency(t *testing.T) {
-	_, err := e.ConvertCurrency("USD", "EUR", time.Now(), "", testCurrencies, 1200, 2, "")
+	_, err := e.ConvertCurrency("USD", "EUR", "", testCurrencies, "", time.Now(), 1200, 2)
 	if err != nil {
 		t.Error(err)
 	}

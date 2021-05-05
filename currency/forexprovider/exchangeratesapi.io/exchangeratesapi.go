@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -89,7 +88,7 @@ func (e *ExchangeRates) GetSymbols() (map[string]string, error) {
 // all supported currencies
 func (e *ExchangeRates) GetLatestRates(baseCurrency, symbols string) (*Rates, error) {
 	vals := url.Values{}
-	if len(baseCurrency) > 0 && e.APIKeyLvl <= apiKeyFree && !reflect.DeepEqual("EUR", baseCurrency) {
+	if len(baseCurrency) > 0 && e.APIKeyLvl <= apiKeyFree && !strings.EqualFold("EUR", baseCurrency) {
 		return nil, errCannotSetBaseCurrencyOnFreePlan
 	} else if len(baseCurrency) > 0 {
 		vals.Set("base", baseCurrency)
@@ -118,7 +117,7 @@ func (e *ExchangeRates) GetHistoricalRates(date time.Time, baseCurrency string, 
 	var resp HistoricalRates
 	v := url.Values{}
 
-	if len(baseCurrency) > 0 && e.APIKeyLvl <= apiKeyFree && !reflect.DeepEqual("EUR", baseCurrency) {
+	if len(baseCurrency) > 0 && e.APIKeyLvl <= apiKeyFree && !strings.EqualFold("EUR", baseCurrency) {
 		return nil, errCannotSetBaseCurrencyOnFreePlan
 	} else if len(baseCurrency) > 0 {
 		v.Set("base", baseCurrency)
