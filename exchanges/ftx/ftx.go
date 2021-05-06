@@ -137,14 +137,9 @@ func (f *FTX) GetHistoricalIndex(indexName string, resolution, limit int64, star
 		return nil, errors.New("indexName is a mandatory field")
 	}
 	params.Set("index_name", indexName)
-	var valid bool
-	for x := range validResolutionData {
-		if validResolutionData[x] == resolution {
-			valid = true
-		}
-	}
-	if !valid {
-		return nil, errors.New("resolution data is a mandatory field and the data provided is invalid")
+	err := checkResolution(resolution)
+	if err != nil {
+		return nil, err
 	}
 	params.Set("resolution", strconv.FormatInt(resolution, 10))
 	if limit > 0 {
@@ -162,6 +157,15 @@ func (f *FTX) GetHistoricalIndex(indexName string, resolution, limit int64, star
 	}{}
 	endpoint := common.EncodeURLValues(fmt.Sprintf(getIndexCandles, indexName), params)
 	return resp.Data, f.SendHTTPRequest(exchange.RestSpot, endpoint, &resp)
+}
+
+func checkResolution(res int64) error {
+	for x := range validResolutionData {
+		if validResolutionData[x] == res {
+			return nil
+		}
+	}
+	return errors.New("resolution data is a mandatory field and the data provided is invalid")
 }
 
 // GetMarkets gets market data
@@ -239,19 +243,20 @@ func (f *FTX) GetTrades(marketName string, startTime, endTime, limit int64) ([]T
 }
 
 // GetHistoricalData gets historical OHLCV data for a given market pair
-func (f *FTX) GetHistoricalData(marketName, timeInterval, limit string, startTime, endTime time.Time) ([]OHLCVData, error) {
+func (f *FTX) GetHistoricalData(marketName string, timeInterval, limit int64, startTime, endTime time.Time) ([]OHLCVData, error) {
 	if marketName == "" {
 		return nil, errors.New("a market pair must be specified")
 	}
 
-	if timeInterval == "" {
-		return nil, errors.New("a time interval must be specified")
+	err := checkResolution(timeInterval)
+	if err != nil {
+		return nil, err
 	}
 
 	params := url.Values{}
-	params.Set("resolution", timeInterval)
-	if limit != "" {
-		params.Set("limit", limit)
+	params.Set("resolution", strconv.FormatInt(timeInterval, 10))
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {

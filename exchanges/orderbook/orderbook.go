@@ -18,32 +18,29 @@ func (b *Base) GetAveragePrice(buy bool, amount float64) (float64, error) {
 	remainingAmount := amount
 	var aggNominalAmount float64
 	if buy {
-		for x := range b.Asks {
-			if remainingAmount <= b.Asks[x].Amount {
-				aggNominalAmount += b.Asks[x].Price * remainingAmount
-				remainingAmount = 0
-				break
-			} else {
-				aggNominalAmount += b.Asks[x].Price * b.Asks[x].Amount
-				remainingAmount -= b.Asks[x].Amount
-			}
-		}
+		aggNominalAmount = findNominalAmount(b.Asks, amount)
 	} else {
-		for x := range b.Bids {
-			if remainingAmount <= b.Bids[x].Amount {
-				aggNominalAmount += b.Bids[x].Price * remainingAmount
-				remainingAmount = 0
-				break
-			} else {
-				aggNominalAmount += b.Bids[x].Price * b.Bids[x].Amount
-				remainingAmount -= b.Bids[x].Amount
-			}
-		}
+		aggNominalAmount = findNominalAmount(b.Bids, amount)
 	}
 	if remainingAmount != 0 {
 		return 0, fmt.Errorf("%w for %v on exchange %v to support a buy amount of %v", errNotEnoughLiquidity, b.Pair, b.Exchange, amount)
 	}
 	return aggNominalAmount / amount, nil
+}
+
+func findNominalAmount(data Items, amount float64) float64 {
+	var aggNominalAmount float64
+	for x := range data {
+		if amount <= data[x].Amount {
+			aggNominalAmount += data[x].Price * amount
+			amount = 0
+			break
+		} else {
+			aggNominalAmount += data[x].Price * data[x].Amount
+			amount -= data[x].Amount
+		}
+	}
+	return aggNominalAmount
 }
 
 // Get checks and returns the orderbook given an exchange name and currency pair

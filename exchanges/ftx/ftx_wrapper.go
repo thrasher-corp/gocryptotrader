@@ -1022,8 +1022,8 @@ func (f *FTX) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.
 	}
 
 	ohlcData, err := f.GetHistoricalData(formattedPair.String(),
-		f.FormatExchangeKlineInterval(interval),
-		strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
+		int64(interval.Duration().Seconds()),
+		int64(f.Features.Enabled.Kline.ResultLimit),
 		start, end)
 	if err != nil {
 		return kline.Item{}, err
@@ -1072,8 +1072,8 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 	for x := range dates.Ranges {
 		var ohlcData []OHLCVData
 		ohlcData, err = f.GetHistoricalData(formattedPair.String(),
-			f.FormatExchangeKlineInterval(interval),
-			strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
+			int64(interval.Duration().Seconds()),
+			int64(f.Features.Enabled.Kline.ResultLimit),
 			dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
 		if err != nil {
 			return kline.Item{}, err

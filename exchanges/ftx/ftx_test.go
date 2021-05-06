@@ -146,28 +146,28 @@ func TestGetTrades(t *testing.T) {
 func TestGetHistoricalData(t *testing.T) {
 	t.Parallel()
 	// test empty market
-	_, err := f.GetHistoricalData("", "86400", "5", time.Time{}, time.Time{})
+	_, err := f.GetHistoricalData("", 86400, 5, time.Time{}, time.Time{})
 	if err == nil {
 		t.Error("empty market should return an error")
 	}
 	// test empty resolution
-	_, err = f.GetHistoricalData(spotPair, "", "5", time.Time{}, time.Time{})
+	_, err = f.GetHistoricalData(spotPair, 0, 5, time.Time{}, time.Time{})
 	if err == nil {
 		t.Error("empty resolution should return an error")
 	}
-	_, err = f.GetHistoricalData(spotPair, "86400", "5", time.Unix(validFTTBTCEndTime, 0), time.Unix(validFTTBTCStartTime, 0))
+	_, err = f.GetHistoricalData(spotPair, 86400, 5, time.Unix(validFTTBTCEndTime, 0), time.Unix(validFTTBTCStartTime, 0))
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 	var o []OHLCVData
-	o, err = f.GetHistoricalData(spotPair, "86400", "5", time.Time{}, time.Time{})
+	o, err = f.GetHistoricalData(spotPair, 86400, 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
 	if len(o) != 5 {
 		t.Error("limit of 5 should return 5 items")
 	}
-	o, err = f.GetHistoricalData(spotPair, "86400", "5", time.Unix(invalidFTTBTCStartTime, 0), time.Unix(invalidFTTBTCEndTime, 0))
+	o, err = f.GetHistoricalData(spotPair, 86400, 5, time.Unix(invalidFTTBTCStartTime, 0), time.Unix(invalidFTTBTCEndTime, 0))
 	if err != nil {
 		t.Error(err)
 	}
