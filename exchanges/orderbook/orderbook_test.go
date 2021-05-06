@@ -19,7 +19,7 @@ func TestMain(m *testing.M) {
 	// Sets up lower values for test environment
 	defaultInterval = time.Millisecond * 250
 	defaultAllowance = time.Millisecond * 100
-	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
+	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit*10)
 	if err != nil {
 		log.Fatal(err)
 	}
