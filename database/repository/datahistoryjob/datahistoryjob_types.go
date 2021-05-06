@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 )
 
 type DataHistoryJob struct {
@@ -21,6 +22,7 @@ type DataHistoryJob struct {
 	MaxRetryAttempts int64
 	Status           int64
 	CreatedDate      time.Time
+	Results          []datahistoryjobresult.DataHistoryJobResult
 }
 
 type DBService struct {

@@ -41,16 +41,16 @@ type DataHistoryManager struct {
 	started                   int32
 	shutdown                  chan struct{}
 	interval                  *time.Ticker
-	jobs                      []*DataHistoryJob
+	jobs                      []*Job
 	wg                        sync.WaitGroup
 	m                         sync.RWMutex
-	dataHistoryDB             *datahistoryjob.DBService
-	dataHistoryJobDB          *datahistoryjobresult.DBService
+	jobDB                     *datahistoryjob.DBService
+	jobResultDB               *datahistoryjobresult.DBService
 }
 
-// DataHistoryJob used to gather candle/trade history and save
+// Job used to gather candle/trade history and save
 // to the database
-type DataHistoryJob struct {
+type Job struct {
 	ID               uuid.UUID
 	Nickname         string
 	Exchange         string
@@ -58,20 +58,19 @@ type DataHistoryJob struct {
 	Pair             currency.Pair
 	StartDate        time.Time
 	EndDate          time.Time
-	IsRolling        bool
 	Interval         kline.Interval
-	RequestSizeLimit uint32
-	DataType         int
-	MaxRetryAttempts int
-	Status           int
+	RequestSizeLimit int64
+	DataType         int64
+	MaxRetryAttempts int64
+	Status           int64
 	CreatedDate      time.Time
-	failures         []dataHistoryFailure
+	Results          []JobResults
 	continueFromData time.Time
 	rangeHolder      kline.IntervalRangeHolder
 	running          bool
 }
 
-type dataHistoryFailure struct {
+type JobResults struct {
 	reason string
 	time   time.Time
 }

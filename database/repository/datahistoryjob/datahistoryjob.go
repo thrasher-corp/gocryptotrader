@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
@@ -67,38 +68,49 @@ func (db *DBService) Upsert(jobs ...*DataHistoryJob) error {
 
 // GetByNickName returns a job by its nickname
 func (db *DBService) GetByNickName(nickname string) (*DataHistoryJob, error) {
-	var err error
-	var job *DataHistoryJob
 	switch db.driver {
 	case database.DBSQLite3, database.DBSQLite:
-		job, err = db.getByNicknameSQLite(nickname)
+		return db.getByNicknameSQLite(nickname)
 	case database.DBPostgreSQL:
-		job, err = db.getByNicknamePostgres(nickname)
+		return db.getByNicknamePostgres(nickname)
 	default:
 		return nil, database.ErrNoDatabaseProvided
 	}
-	if err != nil {
-		return nil, err
-	}
-	return job, nil
 }
 
 // GetJobsBetween will return all jobs between two dates
 func (db *DBService) GetJobsBetween(startDate, endDate time.Time) ([]DataHistoryJob, error) {
-	var err error
-	var jobs []DataHistoryJob
 	switch db.driver {
 	case database.DBSQLite3, database.DBSQLite:
-		jobs, err = db.getJobsBetweenSQLite(startDate, endDate)
+		return db.getJobsBetweenSQLite(startDate, endDate)
 	case database.DBPostgreSQL:
-		jobs, err = db.getJobsBetweenPostgres(startDate, endDate)
+		return db.getJobsBetweenPostgres(startDate, endDate)
 	default:
 		return nil, database.ErrNoDatabaseProvided
 	}
-	if err != nil {
-		return nil, err
+}
+
+func (db *DBService) GetAllIncompleteJobsAndResults() ([]DataHistoryJob, error) {
+	switch db.driver {
+	case database.DBSQLite3, database.DBSQLite:
+		return db.getAllIncompleteJobsAndResultsSQLite()
+	case database.DBPostgreSQL:
+		return db.getAllIncompleteJobsAndResultsPostgres()
+	default:
+		return nil, database.ErrNoDatabaseProvided
 	}
-	return jobs, nil
+}
+
+// GetJobAndAllResults returns a job and joins all job results
+func (db *DBService) GetJobAndAllResults(jobID string) (*DataHistoryJob, error) {
+	switch db.driver {
+	case database.DBSQLite3, database.DBSQLite:
+		return db.getJobAndAllResultsSQLite(jobID)
+	case database.DBPostgreSQL:
+		return db.getJobAndAllResultsPostgres(jobID)
+	default:
+		return nil, database.ErrNoDatabaseProvided
+	}
 }
 
 func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) error {
@@ -338,6 +350,250 @@ func (db *DBService) getJobsBetweenPostgres(startDate, endDate time.Time) ([]Dat
 			MaxRetryAttempts: int64(results[i].MaxRetries),
 			Status:           int64(results[i].Status),
 			CreatedDate:      results[i].Created,
+		})
+	}
+
+	return jobs, nil
+}
+
+func (db *DBService) getJobAndAllResultsSQLite(jobID string) (*DataHistoryJob, error) {
+	var job *DataHistoryJob
+	query := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("job_id = ?", jobID))
+	result, err := query.One(context.Background(), db.sql)
+	if err != nil {
+		return nil, err
+	}
+
+	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
+	if err != nil {
+		return nil, err
+	}
+
+	var jobResults []datahistoryjobresult.DataHistoryJobResult
+	for i := range result.R.JobDatahistoryjobresults {
+		start, err := time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].IntervalStartTime)
+		if err != nil {
+			return nil, err
+		}
+		end, err := time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].IntervalEndTime)
+		if err != nil {
+			return nil, err
+		}
+		ran, err := time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].RunTime)
+		if err != nil {
+			return nil, err
+		}
+
+		jobResults = append(jobResults, datahistoryjobresult.DataHistoryJobResult{
+			ID:                result.R.JobDatahistoryjobresults[i].ID,
+			JobID:             result.R.JobDatahistoryjobresults[i].JobID,
+			IntervalStartDate: start,
+			IntervalEndDate:   end,
+			Status:            int64(result.R.JobDatahistoryjobresults[i].Status),
+			Result:            result.R.JobDatahistoryjobresults[i].Result.String,
+			Date:              ran,
+		})
+	}
+
+	start, err := time.Parse(time.RFC3339, result.StartTime)
+	if err != nil {
+		return nil, err
+	}
+	end, err := time.Parse(time.RFC3339, result.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	created, err := time.Parse(time.RFC3339, result.Created)
+	if err != nil {
+		return nil, err
+	}
+
+	job = &DataHistoryJob{
+		ID:               result.ID,
+		NickName:         result.Nickname,
+		Exchange:         exch.Name,
+		Asset:            result.Asset,
+		Base:             result.Base,
+		Quote:            result.Quote,
+		StartDate:        start,
+		EndDate:          end,
+		Interval:         int64(result.Interval),
+		RequestSizeLimit: int64(result.RequestSize),
+		DataType:         int64(result.DataType),
+		MaxRetryAttempts: int64(result.MaxRetries),
+		Status:           int64(result.Status),
+		CreatedDate:      created,
+		Results:          jobResults,
+	}
+
+	return job, nil
+}
+
+func (db *DBService) getJobAndAllResultsPostgres(jobID string) (*DataHistoryJob, error) {
+	var job *DataHistoryJob
+	query := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("job_id = ?", jobID))
+	result, err := query.One(context.Background(), db.sql)
+	if err != nil {
+		return job, err
+	}
+
+	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
+	if err != nil {
+		return nil, err
+	}
+
+	var jobResults []datahistoryjobresult.DataHistoryJobResult
+	for i := range result.R.JobDatahistoryjobresults {
+		jobResults = append(jobResults, datahistoryjobresult.DataHistoryJobResult{
+			ID:                result.R.JobDatahistoryjobresults[i].ID,
+			JobID:             result.R.JobDatahistoryjobresults[i].JobID,
+			IntervalStartDate: result.R.JobDatahistoryjobresults[i].IntervalStartTime,
+			IntervalEndDate:   result.R.JobDatahistoryjobresults[i].IntervalEndTime,
+			Status:            int64(result.R.JobDatahistoryjobresults[i].Status),
+			Result:            result.R.JobDatahistoryjobresults[i].Result.String,
+			Date:              result.R.JobDatahistoryjobresults[i].RunTime,
+		})
+	}
+
+	job = &DataHistoryJob{
+		ID:               result.ID,
+		NickName:         result.Nickname,
+		Exchange:         exch.Name,
+		Asset:            result.Asset,
+		Base:             result.Base,
+		Quote:            result.Quote,
+		StartDate:        result.StartTime,
+		EndDate:          result.EndTime,
+		Interval:         int64(result.Interval),
+		RequestSizeLimit: int64(result.RequestSize),
+		DataType:         int64(result.DataType),
+		MaxRetryAttempts: int64(result.MaxRetries),
+		Status:           int64(result.Status),
+		CreatedDate:      result.Created,
+		Results:          jobResults,
+	}
+
+	return job, nil
+}
+
+func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, error) {
+	var jobs []DataHistoryJob
+	query := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("status = ?", 0))
+	results, err := query.All(context.Background(), db.sql)
+	if err != nil {
+		return jobs, err
+	}
+
+	for i := range results {
+		exch, err := exchange.OneByUUIDString(results[i].ExchangeNameID)
+		if err != nil {
+			return nil, err
+		}
+
+		var jobResults []datahistoryjobresult.DataHistoryJobResult
+		for j := range results[i].R.JobDatahistoryjobresults {
+			start, err := time.Parse(time.RFC3339, results[i].R.JobDatahistoryjobresults[j].IntervalStartTime)
+			if err != nil {
+				return nil, err
+			}
+			end, err := time.Parse(time.RFC3339, results[i].R.JobDatahistoryjobresults[j].IntervalEndTime)
+			if err != nil {
+				return nil, err
+			}
+			ran, err := time.Parse(time.RFC3339, results[i].R.JobDatahistoryjobresults[j].RunTime)
+			if err != nil {
+				return nil, err
+			}
+
+			jobResults = append(jobResults, datahistoryjobresult.DataHistoryJobResult{
+				ID:                results[i].R.JobDatahistoryjobresults[j].ID,
+				JobID:             results[i].R.JobDatahistoryjobresults[j].JobID,
+				IntervalStartDate: start,
+				IntervalEndDate:   end,
+				Status:            int64(results[i].R.JobDatahistoryjobresults[j].Status),
+				Result:            results[i].R.JobDatahistoryjobresults[j].Result.String,
+				Date:              ran,
+			})
+		}
+
+		start, err := time.Parse(time.RFC3339, results[i].StartTime)
+		if err != nil {
+			return nil, err
+		}
+		end, err := time.Parse(time.RFC3339, results[i].EndTime)
+		if err != nil {
+			return nil, err
+		}
+		created, err := time.Parse(time.RFC3339, results[i].Created)
+		if err != nil {
+			return nil, err
+		}
+
+		jobs = append(jobs, DataHistoryJob{
+			ID:               results[i].ID,
+			NickName:         results[i].Nickname,
+			Exchange:         exch.Name,
+			Asset:            results[i].Asset,
+			Base:             results[i].Base,
+			Quote:            results[i].Quote,
+			StartDate:        start,
+			EndDate:          end,
+			Interval:         int64(results[i].Interval),
+			RequestSizeLimit: int64(results[i].RequestSize),
+			DataType:         int64(results[i].DataType),
+			MaxRetryAttempts: int64(results[i].MaxRetries),
+			Status:           int64(results[i].Status),
+			CreatedDate:      created,
+			Results:          jobResults,
+		})
+	}
+
+	return jobs, nil
+}
+
+func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob, error) {
+	var jobs []DataHistoryJob
+	query := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("status = ?", 0))
+	results, err := query.All(context.Background(), db.sql)
+	if err != nil {
+		return jobs, err
+	}
+
+	for i := range results {
+		exch, err := exchange.OneByUUIDString(results[i].ExchangeNameID)
+		if err != nil {
+			return nil, err
+		}
+
+		var jobResults []datahistoryjobresult.DataHistoryJobResult
+		for j := range results[i].R.JobDatahistoryjobresults {
+			jobResults = append(jobResults, datahistoryjobresult.DataHistoryJobResult{
+				ID:                results[i].R.JobDatahistoryjobresults[j].ID,
+				JobID:             results[i].R.JobDatahistoryjobresults[j].JobID,
+				IntervalStartDate: results[i].R.JobDatahistoryjobresults[j].IntervalStartTime,
+				IntervalEndDate:   results[i].R.JobDatahistoryjobresults[j].IntervalEndTime,
+				Status:            int64(results[i].R.JobDatahistoryjobresults[j].Status),
+				Result:            results[i].R.JobDatahistoryjobresults[j].Result.String,
+				Date:              results[i].R.JobDatahistoryjobresults[j].RunTime,
+			})
+		}
+
+		jobs = append(jobs, DataHistoryJob{
+			ID:               results[i].ID,
+			NickName:         results[i].Nickname,
+			Exchange:         exch.Name,
+			Asset:            results[i].Asset,
+			Base:             results[i].Base,
+			Quote:            results[i].Quote,
+			StartDate:        results[i].StartTime,
+			EndDate:          results[i].EndTime,
+			Interval:         int64(results[i].Interval),
+			RequestSizeLimit: int64(results[i].RequestSize),
+			DataType:         int64(results[i].DataType),
+			MaxRetryAttempts: int64(results[i].MaxRetries),
+			Status:           int64(results[i].Status),
+			CreatedDate:      results[i].Created,
+			Results:          jobResults,
 		})
 	}
 
