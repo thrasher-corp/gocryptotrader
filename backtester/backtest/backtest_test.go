@@ -221,7 +221,9 @@ func TestLoadData(t *testing.T) {
 		FullPath: "test",
 	}
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
-	if err != nil && !strings.Contains(err.Error(), "The system cannot find the file specified.") {
+	if err != nil &&
+		!strings.Contains(err.Error(), "The system cannot find the file specified.") &&
+		!strings.Contains(err.Error(), "no such file or directory") {
 		t.Error(err)
 	}
 	cfg.DataSettings.CSVData = nil
