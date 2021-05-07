@@ -128,7 +128,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 		}
 		var tempEvent = sqlite3.Datahistoryjob{
 			ID:             jobs[i].ID,
-			Nickname:       jobs[i].NickName,
+			Nickname:       jobs[i].Nickname,
 			ExchangeNameID: exchangeUUID.String(),
 			Asset:          strings.ToLower(jobs[i].Asset),
 			Base:           strings.ToUpper(jobs[i].Base),
@@ -168,7 +168,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 		}
 		var tempEvent = postgres.Datahistoryjob{
 			ID:             jobs[i].ID,
-			Nickname:       jobs[i].NickName,
+			Nickname:       jobs[i].Nickname,
 			ExchangeNameID: exchangeUUID.String(),
 			Asset:          strings.ToLower(jobs[i].Asset),
 			Base:           strings.ToUpper(jobs[i].Base),
@@ -220,7 +220,7 @@ func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, erro
 
 	job = &DataHistoryJob{
 		ID:               result.ID,
-		NickName:         result.Nickname,
+		Nickname:         result.Nickname,
 		Exchange:         exch.Name,
 		Asset:            result.Asset,
 		Base:             result.Base,
@@ -253,7 +253,7 @@ func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, er
 
 	job = &DataHistoryJob{
 		ID:               result.ID,
-		NickName:         result.Nickname,
+		Nickname:         result.Nickname,
 		Exchange:         exch.Name,
 		Asset:            result.Asset,
 		Base:             result.Base,
@@ -302,7 +302,7 @@ func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataH
 
 		jobs = append(jobs, DataHistoryJob{
 			ID:               results[i].ID,
-			NickName:         results[i].Nickname,
+			Nickname:         results[i].Nickname,
 			Exchange:         exch.Name,
 			Asset:            results[i].Asset,
 			Base:             results[i].Base,
@@ -337,7 +337,7 @@ func (db *DBService) getJobsBetweenPostgres(startDate, endDate time.Time) ([]Dat
 
 		jobs = append(jobs, DataHistoryJob{
 			ID:               results[i].ID,
-			NickName:         results[i].Nickname,
+			Nickname:         results[i].Nickname,
 			Exchange:         exch.Name,
 			Asset:            results[i].Asset,
 			Base:             results[i].Base,
@@ -410,7 +410,7 @@ func (db *DBService) getJobAndAllResultsSQLite(jobID string) (*DataHistoryJob, e
 
 	job = &DataHistoryJob{
 		ID:               result.ID,
-		NickName:         result.Nickname,
+		Nickname:         result.Nickname,
 		Exchange:         exch.Name,
 		Asset:            result.Asset,
 		Base:             result.Base,
@@ -457,7 +457,7 @@ func (db *DBService) getJobAndAllResultsPostgres(jobID string) (*DataHistoryJob,
 
 	job = &DataHistoryJob{
 		ID:               result.ID,
-		NickName:         result.Nickname,
+		Nickname:         result.Nickname,
 		Exchange:         exch.Name,
 		Asset:            result.Asset,
 		Base:             result.Base,
@@ -531,7 +531,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 
 		jobs = append(jobs, DataHistoryJob{
 			ID:               results[i].ID,
-			NickName:         results[i].Nickname,
+			Nickname:         results[i].Nickname,
 			Exchange:         exch.Name,
 			Asset:            results[i].Asset,
 			Base:             results[i].Base,
@@ -580,7 +580,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob,
 
 		jobs = append(jobs, DataHistoryJob{
 			ID:               results[i].ID,
-			NickName:         results[i].Nickname,
+			Nickname:         results[i].Nickname,
 			Exchange:         exch.Name,
 			Asset:            results[i].Asset,
 			Base:             results[i].Base,

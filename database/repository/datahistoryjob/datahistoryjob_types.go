@@ -9,7 +9,7 @@ import (
 
 type DataHistoryJob struct {
 	ID               string
-	NickName         string
+	Nickname         string
 	Exchange         string
 	Asset            string
 	Base             string

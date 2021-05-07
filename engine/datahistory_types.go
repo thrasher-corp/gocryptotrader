@@ -64,13 +64,18 @@ type Job struct {
 	MaxRetryAttempts int64
 	Status           int64
 	CreatedDate      time.Time
-	Results          []JobResults
+	Results          []JobResult
 	continueFromData time.Time
 	rangeHolder      kline.IntervalRangeHolder
 	running          bool
 }
 
-type JobResults struct {
-	reason string
-	time   time.Time
+type JobResult struct {
+	ID                uuid.UUID
+	JobID             uuid.UUID
+	IntervalStartDate time.Time
+	IntervalEndDate   time.Time
+	Status            int64
+	Result            string
+	Date              time.Time
 }
