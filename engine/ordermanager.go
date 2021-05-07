@@ -651,7 +651,7 @@ func (s *store) upsert(od *order.Detail) error {
 	}
 	for x := range r {
 		if r[x].ID == od.ID {
-			r[x] = od
+			r[x].UpdateOrderFromDetail(od)
 			return nil
 		}
 	}
