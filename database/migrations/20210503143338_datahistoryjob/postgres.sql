@@ -13,13 +13,14 @@ CREATE TABLE IF NOT EXISTS datahistoryjob
     interval DOUBLE PRECISION NOT NULL,
     request_size DOUBLE PRECISION NOT NULL,
     max_retries DOUBLE PRECISION NOT NULL,
+    batch_count DOUBLE PRECISION NOT NULL,
     status DOUBLE PRECISION NOT NULL,
     created TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT uniquenickname
         unique(nickname),
     CONSTRAINT uniquejob
-        unique(exchange_name_id, asset, base, quote, start_time, end_time, interval, data_type, request_size)
+        unique(exchange_name_id, asset, base, quote, start_time, end_time, interval, data_type)
 );
 
 CREATE TABLE IF NOT EXISTS datahistoryjobresult

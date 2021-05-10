@@ -493,7 +493,7 @@ func (datahistoryjobresultL) LoadJob(ctx context.Context, e boil.ContextExecutor
 		if foreign.R == nil {
 			foreign.R = &datahistoryjobR{}
 		}
-		foreign.R.JobDatahistoryjobresults = append(foreign.R.JobDatahistoryjobresults, object)
+		foreign.R.JobDatahistoryjobresult = object
 		return nil
 	}
 
@@ -504,7 +504,7 @@ func (datahistoryjobresultL) LoadJob(ctx context.Context, e boil.ContextExecutor
 				if foreign.R == nil {
 					foreign.R = &datahistoryjobR{}
 				}
-				foreign.R.JobDatahistoryjobresults = append(foreign.R.JobDatahistoryjobresults, local)
+				foreign.R.JobDatahistoryjobresult = local
 				break
 			}
 		}
@@ -515,7 +515,7 @@ func (datahistoryjobresultL) LoadJob(ctx context.Context, e boil.ContextExecutor
 
 // SetJob of the datahistoryjobresult to the related item.
 // Sets o.R.Job to related.
-// Adds o to related.R.JobDatahistoryjobresults.
+// Adds o to related.R.JobDatahistoryjobresult.
 func (o *Datahistoryjobresult) SetJob(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Datahistoryjob) error {
 	var err error
 	if insert {
@@ -551,10 +551,10 @@ func (o *Datahistoryjobresult) SetJob(ctx context.Context, exec boil.ContextExec
 
 	if related.R == nil {
 		related.R = &datahistoryjobR{
-			JobDatahistoryjobresults: DatahistoryjobresultSlice{o},
+			JobDatahistoryjobresult: o,
 		}
 	} else {
-		related.R.JobDatahistoryjobresults = append(related.R.JobDatahistoryjobresults, o)
+		related.R.JobDatahistoryjobresult = o
 	}
 
 	return nil

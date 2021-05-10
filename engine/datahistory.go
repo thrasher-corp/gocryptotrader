@@ -89,13 +89,16 @@ func (m *DataHistoryManager) Stop() error {
 }
 
 // retrieveJobs will connect to the database and look for existing jobs
-func retrieveJobs(dcm iDatabaseConnectionManager) ([]*Job, error) {
-	if !dcm.IsConnected() {
+func (m *DataHistoryManager) retrieveJobs() ([]*Job, error) {
+	if !m.databaseConnectionManager.IsConnected() {
 		return nil, errDatabaseConnectionRequired
 	}
-	var response []*Job
+	dbJobs, err := m.jobDB.GetAllIncompleteJobsAndResults()
+	if err != nil {
+		return nil, err
+	}
 
-	return response, nil
+	return convertDBModelToJob(dbJobs...)
 }
 
 // UpsertJob allows for GRPC interaction to upsert a jobs to be processed
@@ -127,6 +130,7 @@ func (m *DataHistoryManager) UpsertJob(cfg *Job) error {
 		RequestSizeLimit: cfg.RequestSizeLimit,
 		DataType:         cfg.DataType,
 		MaxRetryAttempts: cfg.MaxRetryAttempts,
+		BatchSize:        cfg.BatchSize,
 		Status:           cfg.Status,
 		CreatedDate:      cfg.CreatedDate,
 	})
@@ -150,31 +154,64 @@ func (m *DataHistoryManager) RemoveJob(nickname string) error {
 // and return all valid jobs to be processed
 // m.jobs will be overridden by this function
 func (m *DataHistoryManager) PrepareJobs() ([]*Job, error) {
-	var validJobs []*Job
 	m.m.Lock()
 	defer m.m.Unlock()
-	// get the db jobs
-	dbJobs, err := m.jobDB.GetAllIncompleteJobsAndResults()
+	jobs, err := m.retrieveJobs()
 	if err != nil {
 		return nil, err
 	}
-
-	jobs, err := convertDBModelToJob(dbJobs...)
-
 	for i := range jobs {
+		if jobs[i].DataType == TradeDataType &&
+			jobs[i].Interval <= 0 {
+			jobs[i].Interval = defaultTradeInterval
+		}
 		exch := m.exchangeManager.GetExchangeByName(jobs[i].Exchange)
 		if exch == nil {
 			log.Errorf(log.DataHistory, "exchange not loaded, cannot process jobs")
 			continue
 		}
-		m.jobs[i].rangeHolder = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, uint32(m.jobs[i].RequestSizeLimit))
-
-		// check the database to verify if you already have data in the range
-		// if blarg then
-		// m.jobs[i].rangeHolder[x].HasData = true
-		validJobs = append(validJobs, m.jobs[i])
 	}
-	return validJobs, nil
+	err = m.compareJobsToData(jobs...)
+	if err != nil {
+		return nil, err
+	}
+
+	return jobs, nil
+}
+
+func (m *DataHistoryManager) compareJobsToData(jobs ...*Job) error {
+	for i := range jobs {
+		jobs[i].rangeHolder = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, uint32(m.jobs[i].RequestSizeLimit))
+
+		switch jobs[i].DataType {
+		case CandleDataType:
+			candles, err := kline.LoadFromDatabase(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].Interval, jobs[i].StartDate, jobs[i].EndDate)
+			if err != nil {
+				return err
+			}
+			err = jobs[i].rangeHolder.VerifyResultsHaveData(candles.Candles)
+			if err != nil {
+				return err
+			}
+		case TradeDataType:
+			trades, err := trade.GetTradesInRange(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].StartDate, jobs[i].EndDate)
+			if err != nil {
+				return err
+			}
+			candles, err := trade.ConvertTradesToCandles(jobs[i].Interval, trades...)
+			if err != nil {
+				return err
+			}
+			err = jobs[i].rangeHolder.VerifyResultsHaveData(candles.Candles)
+			if err != nil {
+				return err
+			}
+		default:
+			return errUnknownDataType
+		}
+
+	}
+	return nil
 }
 
 func (m *DataHistoryManager) run() {
@@ -190,6 +227,14 @@ func (m *DataHistoryManager) run() {
 						if err := m.processJobs(); err != nil {
 							log.Error(log.DataHistory, err)
 						}
+						validJobs, err := m.PrepareJobs()
+						if err != nil {
+							log.Error(log.DataHistory, err)
+							return
+						}
+						m.m.Lock()
+						m.jobs = validJobs
+						m.m.Unlock()
 					}()
 				}
 			}
@@ -198,25 +243,30 @@ func (m *DataHistoryManager) run() {
 }
 
 func (m *DataHistoryManager) processJobs() error {
-	var jobsToRemove []*Job
-	m.m.RLock()
-	defer m.m.RUnlock()
+	m.m.Lock()
+	defer m.m.Unlock()
 	var results []JobResult
 	for i := range m.jobs {
-		if len(m.jobs[i].Results) > int(m.jobs[i].MaxRetryAttempts) {
-			jobsToRemove = append(jobsToRemove, m.jobs[i])
-			continue
-		}
 		exch := m.exchangeManager.GetExchangeByName(m.jobs[i].Exchange)
 		if exch == nil {
-			fail := JobResult{Result: "exchange not loaded, cannot process job"}
-			// m.jobs[i].failures = append(m.jobs[i].failures, fail)
+			id, err := uuid.NewV4()
+			if err != nil {
+				return err
+			}
+			fail := JobResult{
+				ID:     id,
+				JobID:  m.jobs[i].ID,
+				Status: StatusFailed,
+				Result: "exchange not loaded, cannot process job",
+				Date:   time.Now(),
+			}
+			results = append(results, fail)
 			log.Errorf(log.DataHistory, fail.Result)
 			continue
 		}
 		result, err := m.runJob(m.jobs[i], exch)
 		if err != nil {
-			// blerg
+			log.Error(log.DataHistory, err)
 		}
 		results = append(results, result...)
 	}
@@ -238,79 +288,71 @@ func (m *DataHistoryManager) runJob(job *Job, exch exchange.IBotExchange) ([]Job
 		return nil, nil
 	}
 	var jobResults []JobResult
-ranges:
-	for j := range job.rangeHolder.Ranges {
-		// what are you doing here?
-		requiresProcessing := false
-		// by nature of the job system, this is an invalid way of discovering if a job requires data
-		// there needs to be a check for a jobResult for the time interval and whether it is completed or failed
-		// if neither, then process the job ?
-		for x := range job.rangeHolder.Ranges[j].Intervals {
-			if !job.rangeHolder.Ranges[j].Intervals[x].HasData {
-				requiresProcessing = true
+	var intervalsProcessed int64
+processing:
+	for i := range job.rangeHolder.Ranges {
+		for j := range job.rangeHolder.Ranges[i].Intervals {
+			if job.rangeHolder.Ranges[i].Intervals[j].HasData {
+				continue
 			}
+			if intervalsProcessed >= job.BatchSize {
+				job.Status = StatusFailed
+				break processing
+			}
+			intervalsProcessed++
+			status := StatusComplete
+			id, err := uuid.NewV4()
+			if err != nil {
+				return nil, err
+			}
+			result := JobResult{
+				ID:                id,
+				JobID:             job.ID,
+				IntervalStartDate: job.rangeHolder.Ranges[i].Intervals[j].Start.Time,
+				IntervalEndDate:   job.rangeHolder.Ranges[i].Intervals[j].End.Time,
+				Status:            int64(status),
+			}
+			// processing the job
+			switch job.DataType {
+			case CandleDataType:
+				candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Intervals[j].Start.Time, job.rangeHolder.Ranges[i].Intervals[j].End.Time, job.Interval)
+				if err != nil {
+					result.Result = "could not get candles: " + err.Error()
+					result.Status = StatusFailed
+					break
+				}
+				_ = job.rangeHolder.VerifyResultsHaveData(candles.Candles)
+				_, err = kline.StoreInDatabase(&candles, true)
+				if err != nil {
+					result.Result = "could not save results: " + err.Error()
+					result.Status = StatusFailed
+				}
+			case TradeDataType:
+				trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+				if err != nil {
+					result.Result = "could not get trades: " + err.Error()
+					result.Status = StatusFailed
+					break
+				}
+				candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
+				if err != nil {
+					result.Result = "could not convert candles to trades: " + err.Error()
+					result.Status = StatusFailed
+					break
+				}
+				_ = job.rangeHolder.VerifyResultsHaveData(candles.Candles)
+				err = trade.SaveTradesToDatabase(trades...)
+				if err != nil {
+					result.Result = "could not save results: " + err.Error()
+					result.Status = StatusFailed
+				}
+			default:
+				return nil, errUnknownDataType
+			}
+
+			job.Results = append(job.Results, result)
+			jobResults = append(jobResults, result)
 		}
-		if !requiresProcessing {
-			continue ranges
-		}
-		// processing the job
-		switch job.DataType {
-		case CandleDataType:
-			niceCans, err := exch.GetHistoricCandles(job.Pair, job.Asset, job.rangeHolder.Ranges[j].Start.Time, job.rangeHolder.Ranges[j].End.Time, job.Interval)
-			if err != nil {
-				fail := JobResult{Result: "could not get candles: " + err.Error()}
-				job.Results = append(job.Results, fail)
-				continue
-			}
-			err = job.rangeHolder.VerifyResultsHaveData(niceCans.Candles)
-			if err != nil {
-				fail := JobResult{Result: "could not verify results: " + err.Error()}
-				job.Results = append(job.Results, fail)
-				continue
-			}
-			_, err = kline.StoreInDatabase(&niceCans, true)
-			if err != nil {
-				fail := JobResult{Result: "could not save results: " + err.Error()}
-				job.Results = append(job.Results, fail)
-				continue
-			}
-		case TradeDataType:
-			trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.rangeHolder.Ranges[j].Start.Time, job.rangeHolder.Ranges[j].End.Time)
-			if err != nil {
-				fail := JobResult{Result: "could not get trades: " + err.Error()}
-				job.Results = append(job.Results, fail)
-				continue
-			}
-			bigCans, err := trade.ConvertTradesToCandles(job.Interval, trades...)
-			if err != nil {
-				fail := JobResult{Result: "could not get convert candles to trades: " + err.Error()}
-				job.Results = append(job.Results, fail)
-				continue
-			}
-			err = job.rangeHolder.VerifyResultsHaveData(bigCans.Candles)
-			if err != nil {
-				fail := JobResult{Result: "could not verify results: " + err.Error()}
-				job.Results = append(job.Results, fail)
-				continue
-			}
-			err = trade.SaveTradesToDatabase(trades...)
-			if err != nil {
-				fail := JobResult{Result: "could not save results: " + err.Error()}
-				job.Results = append(job.Results, fail)
-				continue
-			}
-		}
-		result := JobResult{
-			ID:                uuid.UUID{},
-			JobID:             uuid.UUID{},
-			IntervalStartDate: time.Time{},
-			IntervalEndDate:   time.Time{},
-			Status:            0,
-			Result:            "",
-			Date:              time.Time{},
-		}
-		job.Results = append(job.Results, result)
-		jobResults = append(jobResults, result)
 	}
 
 	dbJob, err := convertJobToDBModel(job)
@@ -323,6 +365,8 @@ ranges:
 		return nil, err
 	}
 
+	// we return the jobs for when we process multiple jobs in sequence,
+	// so that we only write to the database once for many job results
 	return jobResults, nil
 }
 
@@ -426,6 +470,7 @@ func convertJobToDBModel(models ...*Job) ([]datahistoryjob.DataHistoryJob, error
 			MaxRetryAttempts: models[i].MaxRetryAttempts,
 			Status:           models[i].Status,
 			CreatedDate:      models[i].CreatedDate,
+			BatchSize:        models[i].BatchSize,
 			Results:          convertJobResultToDBResult(models[i].Results...),
 		})
 

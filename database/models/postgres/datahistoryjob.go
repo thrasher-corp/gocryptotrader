@@ -35,6 +35,7 @@ type Datahistoryjob struct {
 	Interval       float64   `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
 	RequestSize    float64   `boil:"request_size" json:"request_size" toml:"request_size" yaml:"request_size"`
 	MaxRetries     float64   `boil:"max_retries" json:"max_retries" toml:"max_retries" yaml:"max_retries"`
+	BatchCount     float64   `boil:"batch_count" json:"batch_count" toml:"batch_count" yaml:"batch_count"`
 	Status         float64   `boil:"status" json:"status" toml:"status" yaml:"status"`
 	Created        time.Time `boil:"created" json:"created" toml:"created" yaml:"created"`
 
@@ -55,6 +56,7 @@ var DatahistoryjobColumns = struct {
 	Interval       string
 	RequestSize    string
 	MaxRetries     string
+	BatchCount     string
 	Status         string
 	Created        string
 }{
@@ -70,6 +72,7 @@ var DatahistoryjobColumns = struct {
 	Interval:       "interval",
 	RequestSize:    "request_size",
 	MaxRetries:     "max_retries",
+	BatchCount:     "batch_count",
 	Status:         "status",
 	Created:        "created",
 }
@@ -89,6 +92,7 @@ var DatahistoryjobWhere = struct {
 	Interval       whereHelperfloat64
 	RequestSize    whereHelperfloat64
 	MaxRetries     whereHelperfloat64
+	BatchCount     whereHelperfloat64
 	Status         whereHelperfloat64
 	Created        whereHelpertime_Time
 }{
@@ -104,6 +108,7 @@ var DatahistoryjobWhere = struct {
 	Interval:       whereHelperfloat64{field: "\"datahistoryjob\".\"interval\""},
 	RequestSize:    whereHelperfloat64{field: "\"datahistoryjob\".\"request_size\""},
 	MaxRetries:     whereHelperfloat64{field: "\"datahistoryjob\".\"max_retries\""},
+	BatchCount:     whereHelperfloat64{field: "\"datahistoryjob\".\"batch_count\""},
 	Status:         whereHelperfloat64{field: "\"datahistoryjob\".\"status\""},
 	Created:        whereHelpertime_Time{field: "\"datahistoryjob\".\"created\""},
 }
@@ -132,8 +137,8 @@ func (*datahistoryjobR) NewStruct() *datahistoryjobR {
 type datahistoryjobL struct{}
 
 var (
-	datahistoryjobAllColumns            = []string{"id", "nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "data_type", "interval", "request_size", "max_retries", "status", "created"}
-	datahistoryjobColumnsWithoutDefault = []string{"nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "data_type", "interval", "request_size", "max_retries", "status", "created"}
+	datahistoryjobAllColumns            = []string{"id", "nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "data_type", "interval", "request_size", "max_retries", "batch_count", "status", "created"}
+	datahistoryjobColumnsWithoutDefault = []string{"nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "data_type", "interval", "request_size", "max_retries", "batch_count", "status", "created"}
 	datahistoryjobColumnsWithDefault    = []string{"id"}
 	datahistoryjobPrimaryKeyColumns     = []string{"id"}
 )

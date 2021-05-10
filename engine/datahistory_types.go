@@ -30,7 +30,11 @@ const (
 var (
 	errJobNotFound                = errors.New("job not found")
 	errDatabaseConnectionRequired = errors.New("data history manager requires access to the database")
+	errUnknownDataType            = errors.New("job has invalid datatype set and cannot be processed")
 	defaultTicker                 = time.Minute
+	// defaultTradeInterval is the default interval size used to verify whether there is any database data
+	// for a trade job
+	defaultTradeInterval = kline.FifteenMin
 )
 
 // DataHistoryManager is responsible for synchronising,
@@ -43,7 +47,7 @@ type DataHistoryManager struct {
 	interval                  *time.Ticker
 	jobs                      []*Job
 	wg                        sync.WaitGroup
-	m                         sync.RWMutex
+	m                         sync.Mutex
 	jobDB                     *datahistoryjob.DBService
 	jobResultDB               *datahistoryjobresult.DBService
 }
@@ -59,6 +63,7 @@ type Job struct {
 	StartDate        time.Time
 	EndDate          time.Time
 	Interval         kline.Interval
+	BatchSize        int64
 	RequestSizeLimit int64
 	DataType         int64
 	MaxRetryAttempts int64

@@ -20,6 +20,7 @@ type DataHistoryJob struct {
 	RequestSizeLimit int64
 	DataType         int64
 	MaxRetryAttempts int64
+	BatchSize        int64
 	Status           int64
 	CreatedDate      time.Time
 	Results          []datahistoryjobresult.DataHistoryJobResult
