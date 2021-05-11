@@ -97,6 +97,7 @@ type GoCryptoTraderClient interface {
 	FindMissingSavedCandleIntervals(ctx context.Context, in *FindMissingCandlePeriodsRequest, opts ...grpc.CallOption) (*FindMissingIntervalsResponse, error)
 	FindMissingSavedTradeIntervals(ctx context.Context, in *FindMissingTradePeriodsRequest, opts ...grpc.CallOption) (*FindMissingIntervalsResponse, error)
 	SetExchangeTradeProcessing(ctx context.Context, in *SetExchangeTradeProcessingRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	UpsertDataHistoryJob(ctx context.Context, in *UpsertDataHistoryJobRequest, opts ...grpc.CallOption) (*UpsertDataHistoryJobResponse, error)
 }
 
 type goCryptoTraderClient struct {
@@ -956,6 +957,15 @@ func (c *goCryptoTraderClient) SetExchangeTradeProcessing(ctx context.Context, i
 	return out, nil
 }
 
+func (c *goCryptoTraderClient) UpsertDataHistoryJob(ctx context.Context, in *UpsertDataHistoryJobRequest, opts ...grpc.CallOption) (*UpsertDataHistoryJobResponse, error) {
+	out := new(UpsertDataHistoryJobResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/UpsertDataHistoryJob", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServer is the server API for GoCryptoTrader service.
 // All implementations must embed UnimplementedGoCryptoTraderServer
 // for forward compatibility
@@ -1039,6 +1049,7 @@ type GoCryptoTraderServer interface {
 	FindMissingSavedCandleIntervals(context.Context, *FindMissingCandlePeriodsRequest) (*FindMissingIntervalsResponse, error)
 	FindMissingSavedTradeIntervals(context.Context, *FindMissingTradePeriodsRequest) (*FindMissingIntervalsResponse, error)
 	SetExchangeTradeProcessing(context.Context, *SetExchangeTradeProcessingRequest) (*GenericResponse, error)
+	UpsertDataHistoryJob(context.Context, *UpsertDataHistoryJobRequest) (*UpsertDataHistoryJobResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
@@ -1282,6 +1293,9 @@ func (UnimplementedGoCryptoTraderServer) FindMissingSavedTradeIntervals(context.
 }
 func (UnimplementedGoCryptoTraderServer) SetExchangeTradeProcessing(context.Context, *SetExchangeTradeProcessingRequest) (*GenericResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetExchangeTradeProcessing not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) UpsertDataHistoryJob(context.Context, *UpsertDataHistoryJobRequest) (*UpsertDataHistoryJobResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpsertDataHistoryJob not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) mustEmbedUnimplementedGoCryptoTraderServer() {}
 
@@ -2736,6 +2750,24 @@ func _GoCryptoTrader_SetExchangeTradeProcessing_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTrader_UpsertDataHistoryJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertDataHistoryJobRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).UpsertDataHistoryJob(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/UpsertDataHistoryJob",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).UpsertDataHistoryJob(ctx, req.(*UpsertDataHistoryJobRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoCryptoTrader_ServiceDesc is the grpc.ServiceDesc for GoCryptoTrader service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3034,6 +3066,10 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetExchangeTradeProcessing",
 			Handler:    _GoCryptoTrader_SetExchangeTradeProcessing_Handler,
+		},
+		{
+			MethodName: "UpsertDataHistoryJob",
+			Handler:    _GoCryptoTrader_UpsertDataHistoryJob_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

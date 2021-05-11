@@ -3282,3 +3282,62 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 		Event: []*gctrpc.WithdrawalEventResponse{tempEvent},
 	}
 }
+
+// UpsertDataHistoryJob adds or updates a data history job for the data history manager
+// It will upsert the entry in the database and allow for the processing of the job
+func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertDataHistoryJobRequest) (*gctrpc.UpsertDataHistoryJobResponse, error) {
+	a, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	p := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+	e := s.GetExchangeByName(r.Exchange)
+	err = checkParams(r.Exchange, e, a, p)
+	if err != nil {
+		return nil, err
+	}
+
+	var UTCStartTime, UTCEndTime time.Time
+	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+	if err != nil {
+		return nil, err
+	}
+	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	job := DataHistoryJob{
+		Nickname:         r.Nickname,
+		Exchange:         r.Exchange,
+		Asset:            a,
+		Pair:             p,
+		StartDate:        UTCStartTime,
+		EndDate:          UTCEndTime,
+		Interval:         kline.Interval(r.Interval),
+		BatchSize:        r.BatchSize,
+		RequestSizeLimit: r.RequestSizeLimit,
+		DataType:         r.DataType,
+		MaxRetryAttempts: r.MaxRetryAttempts,
+	}
+
+	err = s.dataHistoryManager.UpsertJob(&job)
+	if err != nil {
+		return nil, err
+	}
+
+	result := s.dataHistoryManager.GetByNickname(r.Nickname)
+	if result == nil {
+		return nil, errors.New("something went wrong")
+	}
+
+	return &gctrpc.UpsertDataHistoryJobResponse{
+		JobId:   result.ID.String(),
+		Message: "successfully upserted job: " + result.Nickname,
+	}, nil
+}

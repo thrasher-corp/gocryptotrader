@@ -853,6 +853,25 @@ message SetExchangeTradeProcessingRequest {
     bool status = 2;
 }
 
+message UpsertDataHistoryJobRequest {
+    string	Nickname = 1;
+    string	Exchange = 2;
+    string	Asset = 3;
+    CurrencyPair Pair = 4;
+    string	StartDate = 5;
+    string	EndDate = 6;
+    int64	Interval = 7;
+    int64	RequestSizeLimit = 8;
+    int64	DataType = 9;
+    int64	MaxRetryAttempts = 10;
+    int64	BatchSize = 11;
+}
+
+message UpsertDataHistoryJobResponse {
+   string message = 1;
+   string job_id = 2;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -1358,6 +1377,13 @@ service GoCryptoTrader {
     rpc SetExchangeTradeProcessing (SetExchangeTradeProcessingRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/setexchangetradeprocessing"
+        };
+    }
+
+    rpc UpsertDataHistoryJob (UpsertDataHistoryJobRequest) returns (UpsertDataHistoryJobResponse) {
+        option (google.api.http) = {
+            post: "/v1/upsertdatahistoryjob"
+                 body: "*"
         };
     }
 }

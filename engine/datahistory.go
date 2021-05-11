@@ -89,7 +89,7 @@ func (m *DataHistoryManager) Stop() error {
 }
 
 // retrieveJobs will connect to the database and look for existing jobs
-func (m *DataHistoryManager) retrieveJobs() ([]*Job, error) {
+func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 	if !m.databaseConnectionManager.IsConnected() {
 		return nil, errDatabaseConnectionRequired
 	}
@@ -101,38 +101,52 @@ func (m *DataHistoryManager) retrieveJobs() ([]*Job, error) {
 	return convertDBModelToJob(dbJobs...)
 }
 
+// GetByNickname searches for jobs by name and returns it if found
+// returns nil if not
+func (m *DataHistoryManager) GetByNickname(nickname string) *DataHistoryJob {
+	m.m.Lock()
+	defer m.m.Unlock()
+	for i := range m.jobs {
+		if strings.EqualFold(m.jobs[i].Nickname, nickname) {
+			cpy := m.jobs[i]
+			return cpy
+		}
+	}
+	return nil
+}
+
 // UpsertJob allows for GRPC interaction to upsert a jobs to be processed
-func (m *DataHistoryManager) UpsertJob(cfg *Job) error {
+func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob) error {
 	m.m.Lock()
 	defer m.m.Unlock()
 	updated := false
 	for i := range m.jobs {
-		if strings.EqualFold(m.jobs[i].Nickname, cfg.Nickname) {
+		if strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
 			updated = true
-			m.jobs[i] = cfg
+			m.jobs[i] = job
 			break
 		}
 	}
 	if !updated {
-		m.jobs = append(m.jobs, cfg)
+		m.jobs = append(m.jobs, job)
 	}
 
 	return m.jobDB.Upsert(&datahistoryjob.DataHistoryJob{
-		ID:               cfg.ID.String(),
-		Nickname:         cfg.Nickname,
-		Exchange:         cfg.Exchange,
-		Asset:            cfg.Asset.String(),
-		Base:             cfg.Pair.Base.String(),
-		Quote:            cfg.Pair.Quote.String(),
-		StartDate:        cfg.StartDate,
-		EndDate:          cfg.EndDate,
-		Interval:         int64(cfg.Interval.Duration()),
-		RequestSizeLimit: cfg.RequestSizeLimit,
-		DataType:         cfg.DataType,
-		MaxRetryAttempts: cfg.MaxRetryAttempts,
-		BatchSize:        cfg.BatchSize,
-		Status:           cfg.Status,
-		CreatedDate:      cfg.CreatedDate,
+		ID:               job.ID.String(),
+		Nickname:         job.Nickname,
+		Exchange:         job.Exchange,
+		Asset:            job.Asset.String(),
+		Base:             job.Pair.Base.String(),
+		Quote:            job.Pair.Quote.String(),
+		StartDate:        job.StartDate,
+		EndDate:          job.EndDate,
+		Interval:         int64(job.Interval.Duration()),
+		RequestSizeLimit: job.RequestSizeLimit,
+		DataType:         job.DataType,
+		MaxRetryAttempts: job.MaxRetryAttempts,
+		BatchSize:        job.BatchSize,
+		Status:           job.Status,
+		CreatedDate:      job.CreatedDate,
 	})
 }
 
@@ -153,7 +167,7 @@ func (m *DataHistoryManager) RemoveJob(nickname string) error {
 // PrepareJobs will validate the config jobs, verify their status with the database
 // and return all valid jobs to be processed
 // m.jobs will be overridden by this function
-func (m *DataHistoryManager) PrepareJobs() ([]*Job, error) {
+func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 	m.m.Lock()
 	defer m.m.Unlock()
 	jobs, err := m.retrieveJobs()
@@ -179,7 +193,7 @@ func (m *DataHistoryManager) PrepareJobs() ([]*Job, error) {
 	return jobs, nil
 }
 
-func (m *DataHistoryManager) compareJobsToData(jobs ...*Job) error {
+func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	for i := range jobs {
 		jobs[i].rangeHolder = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, uint32(m.jobs[i].RequestSizeLimit))
 
@@ -245,7 +259,7 @@ func (m *DataHistoryManager) run() {
 func (m *DataHistoryManager) processJobs() error {
 	m.m.Lock()
 	defer m.m.Unlock()
-	var results []JobResult
+	var results []DataHistoryJobResult
 	for i := range m.jobs {
 		exch := m.exchangeManager.GetExchangeByName(m.jobs[i].Exchange)
 		if exch == nil {
@@ -253,7 +267,7 @@ func (m *DataHistoryManager) processJobs() error {
 			if err != nil {
 				return err
 			}
-			fail := JobResult{
+			fail := DataHistoryJobResult{
 				ID:     id,
 				JobID:  m.jobs[i].ID,
 				Status: StatusFailed,
@@ -277,7 +291,7 @@ func (m *DataHistoryManager) processJobs() error {
 
 // runJob will process an individual job. It is either run as on a schedule
 // or specifically via RPC command on demand
-func (m *DataHistoryManager) runJob(job *Job, exch exchange.IBotExchange) ([]JobResult, error) {
+func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExchange) ([]DataHistoryJobResult, error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return nil, nil
 	}
@@ -287,7 +301,7 @@ func (m *DataHistoryManager) runJob(job *Job, exch exchange.IBotExchange) ([]Job
 		// job doesn't need to be run. Log it?
 		return nil, nil
 	}
-	var jobResults []JobResult
+	var jobResults []DataHistoryJobResult
 	var intervalsProcessed int64
 processing:
 	for i := range job.rangeHolder.Ranges {
@@ -305,7 +319,7 @@ processing:
 			if err != nil {
 				return nil, err
 			}
-			result := JobResult{
+			result := DataHistoryJobResult{
 				ID:                id,
 				JobID:             job.ID,
 				IntervalStartDate: job.rangeHolder.Ranges[i].Intervals[j].Start.Time,
@@ -372,8 +386,8 @@ processing:
 
 //-----------------------------------------------------------------------
 
-func convertDBModelToJob(dbModels ...datahistoryjob.DataHistoryJob) ([]*Job, error) {
-	var resp []*Job
+func convertDBModelToJob(dbModels ...datahistoryjob.DataHistoryJob) ([]*DataHistoryJob, error) {
+	var resp []*DataHistoryJob
 	for i := range dbModels {
 		id, err := uuid.FromString(dbModels[i].ID)
 		if err != nil {
@@ -389,7 +403,7 @@ func convertDBModelToJob(dbModels ...datahistoryjob.DataHistoryJob) ([]*Job, err
 			return nil, err
 		}
 
-		resp = append(resp, &Job{
+		resp = append(resp, &DataHistoryJob{
 			ID:               id,
 			Nickname:         dbModels[i].Nickname,
 			Exchange:         dbModels[i].Exchange,
@@ -410,8 +424,8 @@ func convertDBModelToJob(dbModels ...datahistoryjob.DataHistoryJob) ([]*Job, err
 	return resp, nil
 }
 
-func convertDBResultToJobResult(dbModels []datahistoryjobresult.DataHistoryJobResult) ([]JobResult, error) {
-	var result []JobResult
+func convertDBResultToJobResult(dbModels []datahistoryjobresult.DataHistoryJobResult) ([]DataHistoryJobResult, error) {
+	var result []DataHistoryJobResult
 	for i := range dbModels {
 		id, err := uuid.FromString(dbModels[i].ID)
 		if err != nil {
@@ -422,7 +436,7 @@ func convertDBResultToJobResult(dbModels []datahistoryjobresult.DataHistoryJobRe
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, JobResult{
+		result = append(result, DataHistoryJobResult{
 			ID:                id,
 			JobID:             jobID,
 			IntervalStartDate: dbModels[i].IntervalStartDate,
@@ -436,7 +450,7 @@ func convertDBResultToJobResult(dbModels []datahistoryjobresult.DataHistoryJobRe
 	return result, nil
 }
 
-func convertJobResultToDBResult(results ...JobResult) []datahistoryjobresult.DataHistoryJobResult {
+func convertJobResultToDBResult(results ...DataHistoryJobResult) []datahistoryjobresult.DataHistoryJobResult {
 	var response []datahistoryjobresult.DataHistoryJobResult
 	for i := range results {
 		response = append(response, datahistoryjobresult.DataHistoryJobResult{
@@ -452,7 +466,7 @@ func convertJobResultToDBResult(results ...JobResult) []datahistoryjobresult.Dat
 	return response
 }
 
-func convertJobToDBModel(models ...*Job) ([]datahistoryjob.DataHistoryJob, error) {
+func convertJobToDBModel(models ...*DataHistoryJob) ([]datahistoryjob.DataHistoryJob, error) {
 	var resp []datahistoryjob.DataHistoryJob
 	for i := range models {
 		resp = append(resp, datahistoryjob.DataHistoryJob{

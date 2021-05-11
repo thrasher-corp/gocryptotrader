@@ -2307,6 +2307,38 @@
         ]
       }
     },
+    "/v1/upsertdatahistoryjob": {
+      "post": {
+        "operationId": "GoCryptoTrader_UpsertDataHistoryJob",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcUpsertDataHistoryJobResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcUpsertDataHistoryJobRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/websocketgetinfo": {
       "get": {
         "operationId": "GoCryptoTrader_WebsocketGetInfo",
@@ -4163,6 +4195,60 @@
           "format": "double"
         },
         "fee_asset": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcUpsertDataHistoryJobRequest": {
+      "type": "object",
+      "properties": {
+        "Nickname": {
+          "type": "string"
+        },
+        "Exchange": {
+          "type": "string"
+        },
+        "Asset": {
+          "type": "string"
+        },
+        "Pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "StartDate": {
+          "type": "string"
+        },
+        "EndDate": {
+          "type": "string"
+        },
+        "Interval": {
+          "type": "string",
+          "format": "int64"
+        },
+        "RequestSizeLimit": {
+          "type": "string",
+          "format": "int64"
+        },
+        "DataType": {
+          "type": "string",
+          "format": "int64"
+        },
+        "MaxRetryAttempts": {
+          "type": "string",
+          "format": "int64"
+        },
+        "BatchSize": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "gctrpcUpsertDataHistoryJobResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "job_id": {
           "type": "string"
         }
       }

@@ -19,7 +19,7 @@ const (
 	TradeDataType
 )
 
-// Job status descriptors
+// DataHistoryJob status descriptors
 const (
 	StatusActive = iota
 	StatusFailed
@@ -45,16 +45,16 @@ type DataHistoryManager struct {
 	started                   int32
 	shutdown                  chan struct{}
 	interval                  *time.Ticker
-	jobs                      []*Job
+	jobs                      []*DataHistoryJob
 	wg                        sync.WaitGroup
 	m                         sync.Mutex
 	jobDB                     *datahistoryjob.DBService
 	jobResultDB               *datahistoryjobresult.DBService
 }
 
-// Job used to gather candle/trade history and save
+// DataHistoryJob used to gather candle/trade history and save
 // to the database
-type Job struct {
+type DataHistoryJob struct {
 	ID               uuid.UUID
 	Nickname         string
 	Exchange         string
@@ -69,13 +69,15 @@ type Job struct {
 	MaxRetryAttempts int64
 	Status           int64
 	CreatedDate      time.Time
-	Results          []JobResult
+	Results          []DataHistoryJobResult
 	continueFromData time.Time
 	rangeHolder      kline.IntervalRangeHolder
 	running          bool
 }
 
-type JobResult struct {
+// DataHistoryJobResult contains details on
+// the result of a history request
+type DataHistoryJobResult struct {
 	ID                uuid.UUID
 	JobID             uuid.UUID
 	IntervalStartDate time.Time
