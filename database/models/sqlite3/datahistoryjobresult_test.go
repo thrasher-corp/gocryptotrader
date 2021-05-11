@@ -583,7 +583,7 @@ func testDatahistoryjobresultToOneSetOpDatahistoryjobUsingJob(t *testing.T) {
 			t.Error("relationship struct not set to correct value")
 		}
 
-		if x.R.JobDatahistoryjobresult != &a {
+		if x.R.JobDatahistoryjobresults[0] != &a {
 			t.Error("failed to append to foreign relationship struct")
 		}
 		if a.JobID != x.ID {
@@ -677,7 +677,7 @@ func testDatahistoryjobresultsSelect(t *testing.T) {
 }
 
 var (
-	datahistoryjobresultDBTypes = map[string]string{`ID`: `TEXT`, `JobID`: `UUID`, `Result`: `TEXT`, `Status`: `REAL`, `IntervalStartTime`: `TIMESTAMP`, `IntervalEndTime`: `TIMESTAMP`, `RunTime`: `TIMESTAMP`}
+	datahistoryjobresultDBTypes = map[string]string{`ID`: `TEXT`, `JobID`: `TEXT`, `Result`: `TEXT`, `Status`: `REAL`, `IntervalStartTime`: `REAL`, `IntervalEndTime`: `REAL`, `RunTime`: `REAL`}
 	_                           = bytes.MinRead
 )
 

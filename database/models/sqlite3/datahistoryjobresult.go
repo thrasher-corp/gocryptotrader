@@ -27,9 +27,9 @@ type Datahistoryjobresult struct {
 	JobID             string      `boil:"job_id" json:"job_id" toml:"job_id" yaml:"job_id"`
 	Result            null.String `boil:"result" json:"result,omitempty" toml:"result" yaml:"result,omitempty"`
 	Status            float64     `boil:"status" json:"status" toml:"status" yaml:"status"`
-	IntervalStartTime string      `boil:"interval_start_time" json:"interval_start_time" toml:"interval_start_time" yaml:"interval_start_time"`
-	IntervalEndTime   string      `boil:"interval_end_time" json:"interval_end_time" toml:"interval_end_time" yaml:"interval_end_time"`
-	RunTime           string      `boil:"run_time" json:"run_time" toml:"run_time" yaml:"run_time"`
+	IntervalStartTime float64     `boil:"interval_start_time" json:"interval_start_time" toml:"interval_start_time" yaml:"interval_start_time"`
+	IntervalEndTime   float64     `boil:"interval_end_time" json:"interval_end_time" toml:"interval_end_time" yaml:"interval_end_time"`
+	RunTime           float64     `boil:"run_time" json:"run_time" toml:"run_time" yaml:"run_time"`
 
 	R *datahistoryjobresultR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L datahistoryjobresultL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -83,17 +83,17 @@ var DatahistoryjobresultWhere = struct {
 	JobID             whereHelperstring
 	Result            whereHelpernull_String
 	Status            whereHelperfloat64
-	IntervalStartTime whereHelperstring
-	IntervalEndTime   whereHelperstring
-	RunTime           whereHelperstring
+	IntervalStartTime whereHelperfloat64
+	IntervalEndTime   whereHelperfloat64
+	RunTime           whereHelperfloat64
 }{
 	ID:                whereHelperstring{field: "\"datahistoryjobresult\".\"id\""},
 	JobID:             whereHelperstring{field: "\"datahistoryjobresult\".\"job_id\""},
 	Result:            whereHelpernull_String{field: "\"datahistoryjobresult\".\"result\""},
 	Status:            whereHelperfloat64{field: "\"datahistoryjobresult\".\"status\""},
-	IntervalStartTime: whereHelperstring{field: "\"datahistoryjobresult\".\"interval_start_time\""},
-	IntervalEndTime:   whereHelperstring{field: "\"datahistoryjobresult\".\"interval_end_time\""},
-	RunTime:           whereHelperstring{field: "\"datahistoryjobresult\".\"run_time\""},
+	IntervalStartTime: whereHelperfloat64{field: "\"datahistoryjobresult\".\"interval_start_time\""},
+	IntervalEndTime:   whereHelperfloat64{field: "\"datahistoryjobresult\".\"interval_end_time\""},
+	RunTime:           whereHelperfloat64{field: "\"datahistoryjobresult\".\"run_time\""},
 }
 
 // DatahistoryjobresultRels is where relationship names are stored.
@@ -118,8 +118,8 @@ type datahistoryjobresultL struct{}
 
 var (
 	datahistoryjobresultAllColumns            = []string{"id", "job_id", "result", "status", "interval_start_time", "interval_end_time", "run_time"}
-	datahistoryjobresultColumnsWithoutDefault = []string{"id", "job_id", "result", "status", "interval_start_time", "interval_end_time", "run_time"}
-	datahistoryjobresultColumnsWithDefault    = []string{}
+	datahistoryjobresultColumnsWithoutDefault = []string{"id", "job_id", "result", "status", "interval_start_time", "interval_end_time"}
+	datahistoryjobresultColumnsWithDefault    = []string{"run_time"}
 	datahistoryjobresultPrimaryKeyColumns     = []string{"id"}
 )
 
@@ -493,7 +493,7 @@ func (datahistoryjobresultL) LoadJob(ctx context.Context, e boil.ContextExecutor
 		if foreign.R == nil {
 			foreign.R = &datahistoryjobR{}
 		}
-		foreign.R.JobDatahistoryjobresult = object
+		foreign.R.JobDatahistoryjobresults = append(foreign.R.JobDatahistoryjobresults, object)
 		return nil
 	}
 
@@ -504,7 +504,7 @@ func (datahistoryjobresultL) LoadJob(ctx context.Context, e boil.ContextExecutor
 				if foreign.R == nil {
 					foreign.R = &datahistoryjobR{}
 				}
-				foreign.R.JobDatahistoryjobresult = local
+				foreign.R.JobDatahistoryjobresults = append(foreign.R.JobDatahistoryjobresults, local)
 				break
 			}
 		}
@@ -515,7 +515,7 @@ func (datahistoryjobresultL) LoadJob(ctx context.Context, e boil.ContextExecutor
 
 // SetJob of the datahistoryjobresult to the related item.
 // Sets o.R.Job to related.
-// Adds o to related.R.JobDatahistoryjobresult.
+// Adds o to related.R.JobDatahistoryjobresults.
 func (o *Datahistoryjobresult) SetJob(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Datahistoryjob) error {
 	var err error
 	if insert {
@@ -551,10 +551,10 @@ func (o *Datahistoryjobresult) SetJob(ctx context.Context, exec boil.ContextExec
 
 	if related.R == nil {
 		related.R = &datahistoryjobR{
-			JobDatahistoryjobresult: o,
+			JobDatahistoryjobresults: DatahistoryjobresultSlice{o},
 		}
 	} else {
-		related.R.JobDatahistoryjobresult = o
+		related.R.JobDatahistoryjobresults = append(related.R.JobDatahistoryjobresults, o)
 	}
 
 	return nil

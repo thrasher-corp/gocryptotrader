@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -371,18 +372,10 @@ func (db *DBService) getJobAndAllResultsSQLite(jobID string) (*DataHistoryJob, e
 
 	var jobResults []datahistoryjobresult.DataHistoryJobResult
 	for i := range result.R.JobDatahistoryjobresults {
-		start, err := time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].IntervalStartTime)
-		if err != nil {
-			return nil, err
-		}
-		end, err := time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].IntervalEndTime)
-		if err != nil {
-			return nil, err
-		}
-		ran, err := time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].RunTime)
-		if err != nil {
-			return nil, err
-		}
+
+		start := convert.TimeFromUnixTimestampDecimal(result.R.JobDatahistoryjobresults[i].IntervalStartTime)
+		end := convert.TimeFromUnixTimestampDecimal(result.R.JobDatahistoryjobresults[i].IntervalEndTime)
+		ran := convert.TimeFromUnixTimestampDecimal(result.R.JobDatahistoryjobresults[i].RunTime)
 
 		jobResults = append(jobResults, datahistoryjobresult.DataHistoryJobResult{
 			ID:                result.R.JobDatahistoryjobresults[i].ID,
@@ -492,18 +485,9 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 
 		var jobResults []datahistoryjobresult.DataHistoryJobResult
 		for j := range results[i].R.JobDatahistoryjobresults {
-			start, err := time.Parse(time.RFC3339, results[i].R.JobDatahistoryjobresults[j].IntervalStartTime)
-			if err != nil {
-				return nil, err
-			}
-			end, err := time.Parse(time.RFC3339, results[i].R.JobDatahistoryjobresults[j].IntervalEndTime)
-			if err != nil {
-				return nil, err
-			}
-			ran, err := time.Parse(time.RFC3339, results[i].R.JobDatahistoryjobresults[j].RunTime)
-			if err != nil {
-				return nil, err
-			}
+			start := convert.TimeFromUnixTimestampDecimal(results[i].R.JobDatahistoryjobresults[j].IntervalStartTime)
+			end := convert.TimeFromUnixTimestampDecimal(results[i].R.JobDatahistoryjobresults[j].IntervalEndTime)
+			ran := convert.TimeFromUnixTimestampDecimal(results[i].R.JobDatahistoryjobresults[j].RunTime)
 
 			jobResults = append(jobResults, datahistoryjobresult.DataHistoryJobResult{
 				ID:                results[i].R.JobDatahistoryjobresults[j].ID,

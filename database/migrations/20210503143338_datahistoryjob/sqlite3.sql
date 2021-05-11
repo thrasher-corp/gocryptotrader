@@ -1,7 +1,8 @@
 -- +goose Up
+
 CREATE TABLE datahistoryjob
 (
-    id text not null UNIQUE primary key,
+    id text NOT NULL primary key,
     nickname text NOT NULL,
     exchange_name_id text NOT NULL,
     asset text NOT NULL,
@@ -19,11 +20,12 @@ CREATE TABLE datahistoryjob
     FOREIGN KEY(exchange_name_id) REFERENCES exchange(id) ON DELETE RESTRICT,
     UNIQUE(nickname),
     UNIQUE(exchange_name_id, asset, base, quote, start_time, end_time, interval, data_type)
+
 );
 
 CREATE TABLE datahistoryjobresult
 (
-    id text not null UNIQUE primary key,
+    id text not null primary key,
     job_id text NOT NULL,
     result text NULL,
     status real NOT NULL,
@@ -32,6 +34,7 @@ CREATE TABLE datahistoryjobresult
     run_time real NOT NULL default CURRENT_TIMESTAMP,
     FOREIGN KEY(job_id) REFERENCES datahistoryjob(id) ON DELETE RESTRICT
 );
+
 -- +goose Down
 DROP TABLE datahistoryjob;
 DROP TABLE datahistoryjobresult;
