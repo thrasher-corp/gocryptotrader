@@ -3,8 +3,6 @@ package binance
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -38,19 +36,6 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
 	}
-}
-
-func TestExchangeInfoData(t *testing.T) {
-	var wg sync.WaitGroup
-	for x := 1; x < 100; x++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			_, err := b.GetExchangeInfo()
-			fmt.Println(err)
-		}()
-	}
-	wg.Wait()
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -1131,7 +1116,6 @@ func TestGetMarginExchangeInfo(t *testing.T) {
 }
 
 func TestGetExchangeInfo(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
 	info, err := b.GetExchangeInfo()
 	if err != nil {
@@ -1146,7 +1130,6 @@ func TestGetExchangeInfo(t *testing.T) {
 }
 
 func TestFetchTradablePairs(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
 	_, err := b.FetchTradablePairs(asset.Spot)
 	if err != nil {

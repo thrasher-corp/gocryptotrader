@@ -99,7 +99,6 @@ func (b *Binance) GetMarginMarkets() (PerpsExchangeInfo, error) {
 // information
 func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 	var resp ExchangeInfo
-	fmt.Println(exchangeInfo)
 	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, exchangeInfo, spotExchangeInfo, &resp)
 }
 
