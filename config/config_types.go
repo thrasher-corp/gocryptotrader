@@ -100,6 +100,7 @@ type Config struct {
 	sessionDK  []byte
 }
 
+//
 type DataHistoryMonitorConfig struct {
 	Enabled       bool          `json:"enabled"`
 	CheckInterval time.Duration `json:"checkInterval"`

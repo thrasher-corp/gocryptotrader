@@ -175,7 +175,7 @@ func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 		return nil, err
 	}
 	for i := range jobs {
-		if jobs[i].DataType == TradeDataType &&
+		if jobs[i].DataType == dataHistoryTradeDataType &&
 			jobs[i].Interval <= 0 {
 			jobs[i].Interval = defaultTradeInterval
 		}
@@ -198,7 +198,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 		jobs[i].rangeHolder = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, uint32(m.jobs[i].RequestSizeLimit))
 
 		switch jobs[i].DataType {
-		case CandleDataType:
+		case dataHistoryCandleDataType:
 			candles, err := kline.LoadFromDatabase(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].Interval, jobs[i].StartDate, jobs[i].EndDate)
 			if err != nil {
 				return err
@@ -207,7 +207,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			if err != nil {
 				return err
 			}
-		case TradeDataType:
+		case dataHistoryTradeDataType:
 			trades, err := trade.GetTradesInRange(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].StartDate, jobs[i].EndDate)
 			if err != nil {
 				return err
@@ -270,7 +270,7 @@ func (m *DataHistoryManager) processJobs() error {
 			fail := DataHistoryJobResult{
 				ID:     id,
 				JobID:  m.jobs[i].ID,
-				Status: StatusFailed,
+				Status: dataHistoryStatusFailed,
 				Result: "exchange not loaded, cannot process job",
 				Date:   time.Now(),
 			}
@@ -295,9 +295,9 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExcha
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return nil, nil
 	}
-	if job.Status == StatusComplete ||
-		job.Status == StatusFailed ||
-		job.Status == StatusRemoved {
+	if job.Status == dataHistoryStatusComplete ||
+		job.Status == dataHistoryStatusFailed ||
+		job.Status == dataHistoryStatusRemoved {
 		// job doesn't need to be run. Log it?
 		return nil, nil
 	}
@@ -310,11 +310,11 @@ processing:
 				continue
 			}
 			if intervalsProcessed >= job.BatchSize {
-				job.Status = StatusFailed
+				job.Status = dataHistoryStatusFailed
 				break processing
 			}
 			intervalsProcessed++
-			status := StatusComplete
+			status := dataHistoryStatusComplete
 			id, err := uuid.NewV4()
 			if err != nil {
 				return nil, err
@@ -328,37 +328,37 @@ processing:
 			}
 			// processing the job
 			switch job.DataType {
-			case CandleDataType:
+			case dataHistoryCandleDataType:
 				candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Intervals[j].Start.Time, job.rangeHolder.Ranges[i].Intervals[j].End.Time, job.Interval)
 				if err != nil {
 					result.Result = "could not get candles: " + err.Error()
-					result.Status = StatusFailed
+					result.Status = dataHistoryStatusFailed
 					break
 				}
 				_ = job.rangeHolder.VerifyResultsHaveData(candles.Candles)
 				_, err = kline.StoreInDatabase(&candles, true)
 				if err != nil {
 					result.Result = "could not save results: " + err.Error()
-					result.Status = StatusFailed
+					result.Status = dataHistoryStatusFailed
 				}
-			case TradeDataType:
+			case dataHistoryTradeDataType:
 				trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 				if err != nil {
 					result.Result = "could not get trades: " + err.Error()
-					result.Status = StatusFailed
+					result.Status = dataHistoryStatusFailed
 					break
 				}
 				candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
 				if err != nil {
 					result.Result = "could not convert candles to trades: " + err.Error()
-					result.Status = StatusFailed
+					result.Status = dataHistoryStatusFailed
 					break
 				}
 				_ = job.rangeHolder.VerifyResultsHaveData(candles.Candles)
 				err = trade.SaveTradesToDatabase(trades...)
 				if err != nil {
 					result.Result = "could not save results: " + err.Error()
-					result.Status = StatusFailed
+					result.Status = dataHistoryStatusFailed
 				}
 			default:
 				return nil, errUnknownDataType

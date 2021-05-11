@@ -15,16 +15,16 @@ import (
 
 // Data type descriptors
 const (
-	CandleDataType = iota
-	TradeDataType
+	dataHistoryCandleDataType = iota
+	dataHistoryTradeDataType
 )
 
 // DataHistoryJob status descriptors
 const (
-	StatusActive = iota
-	StatusFailed
-	StatusComplete
-	StatusRemoved
+	dataHistoryStatusActive = iota
+	dataHistoryStatusFailed
+	dataHistoryStatusComplete
+	dataHistoryStatusRemoved
 )
 
 var (

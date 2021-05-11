@@ -58,12 +58,16 @@ const (
 	DBInvalidDriver = "invalid driver"
 )
 
+// IDatabase allows for the passing of a database struct
+// without giving the receiver access to all functionality
 type IDatabase interface {
 	IsConnected() bool
 	GetSQL() *sql.DB
 	GetConfig() *Config
 }
 
+// ISQL allows for the passing of a SQL connection
+// without giving the receiver access to all functionality
 type ISQL interface {
 	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 	Exec(string, ...interface{}) (sql.Result, error)

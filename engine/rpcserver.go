@@ -3323,6 +3323,7 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		BatchSize:        r.BatchSize,
 		RequestSizeLimit: r.RequestSizeLimit,
 		DataType:         r.DataType,
+		Status:           dataHistoryStatusActive,
 		MaxRetryAttempts: r.MaxRetryAttempts,
 	}
 
