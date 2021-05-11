@@ -3,6 +3,8 @@ package binance
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -35,6 +37,23 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		FeeType:       exchange.CryptocurrencyTradeFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
+	}
+}
+
+func TestExchangeInfoData(t *testing.T) {
+	b.Verbose = true
+	var wg sync.WaitGroup
+	for x := 1; x < 100; x++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			fmt.Println(x)
+			_, err := b.GetExchangeInfo()
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+		wg.Wait()
 	}
 }
 
@@ -1116,6 +1135,7 @@ func TestGetMarginExchangeInfo(t *testing.T) {
 }
 
 func TestGetExchangeInfo(t *testing.T) {
+	b.Verbose = true
 	t.Parallel()
 	info, err := b.GetExchangeInfo()
 	if err != nil {

@@ -15,7 +15,7 @@ func TestRateLimit_Limit(t *testing.T) {
 	}{
 		"All Orderbooks Ticker": {Expected: spotOrderbookTickerAllRate, Limit: bestPriceLimit("")},
 		"Orderbook Ticker":      {Expected: spotDefaultRate, Limit: bestPriceLimit(symbol)},
-		"Open Orders":           {Expected: spotOrderRate, Limit: openOrdersLimit(symbol)},
+		"Open Orders":           {Expected: spotOpenOrdersSpecificRate, Limit: openOrdersLimit(symbol)},
 		"Orderbook Depth 5":     {Expected: spotDefaultRate, Limit: orderbookLimit(5)},
 		"Orderbook Depth 10":    {Expected: spotDefaultRate, Limit: orderbookLimit(10)},
 		"Orderbook Depth 20":    {Expected: spotDefaultRate, Limit: orderbookLimit(20)},

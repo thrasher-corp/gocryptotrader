@@ -30,6 +30,7 @@ const (
 // Binance Spot rate limits
 const (
 	spotDefaultRate request.EndpointLimit = iota
+	spotExchangeInfo
 	spotHistoricalTradesRate
 	spotOrderbookDepth500Rate
 	spotOrderbookDepth1000Rate
@@ -38,8 +39,10 @@ const (
 	spotPriceChangeAllRate
 	spotSymbolPriceAllRate
 	spotOpenOrdersAllRate
-	spotOrderRate
+	spotOpenOrdersSpecificRate
 	spotOrdersAllRate
+	spotOrderRate
+	spotAllOrdersRate
 	spotAccountInformationRate
 	uFuturesDefaultRate
 	uFuturesHistoricalTradesRate
@@ -110,10 +113,12 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		spotSymbolPriceAllRate:
 		limiter, tokens = r.SpotRate, 2
 	case spotHistoricalTradesRate,
-		spotAccountInformationRate,
 		spotOrderbookDepth500Rate:
 		limiter, tokens = r.SpotRate, 5
-	case spotOrderbookDepth1000Rate:
+	case spotOrderbookDepth1000Rate,
+		spotAccountInformationRate,
+		spotAllOrdersRate,
+		spotExchangeInfo:
 		limiter, tokens = r.SpotRate, 10
 	case spotPriceChangeAllRate:
 		limiter, tokens = r.SpotRate, 40
@@ -121,6 +126,8 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 50
 	case spotOrderRate:
 		limiter, tokens = r.SpotOrdersRate, 1
+	case spotOpenOrdersSpecificRate:
+		limiter, tokens = r.SpotOrdersRate, 3
 	case spotOrdersAllRate:
 		limiter, tokens = r.SpotOrdersRate, 5
 	case spotOpenOrdersAllRate:
@@ -240,7 +247,7 @@ func openOrdersLimit(symbol string) request.EndpointLimit {
 		return spotOpenOrdersAllRate
 	}
 
-	return spotOrderRate
+	return spotOpenOrdersSpecificRate
 }
 
 func orderbookLimit(depth int) request.EndpointLimit {
