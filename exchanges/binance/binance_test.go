@@ -41,20 +41,16 @@ func setFeeBuilder() *exchange.FeeBuilder {
 }
 
 func TestExchangeInfoData(t *testing.T) {
-	b.Verbose = true
 	var wg sync.WaitGroup
 	for x := 1; x < 100; x++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			fmt.Println(x)
 			_, err := b.GetExchangeInfo()
-			if err != nil {
-				t.Error(err)
-			}
+			fmt.Println(err)
 		}()
-		wg.Wait()
 	}
+	wg.Wait()
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -1150,6 +1146,7 @@ func TestGetExchangeInfo(t *testing.T) {
 }
 
 func TestFetchTradablePairs(t *testing.T) {
+	b.Verbose = true
 	t.Parallel()
 	_, err := b.FetchTradablePairs(asset.Spot)
 	if err != nil {

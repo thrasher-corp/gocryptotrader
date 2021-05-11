@@ -107,7 +107,8 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 	var limiter *rate.Limiter
 	var tokens int
 	switch f {
-	case spotDefaultRate:
+	case spotDefaultRate,
+		spotExchangeInfo:
 		limiter, tokens = r.SpotRate, 1
 	case spotOrderbookTickerAllRate,
 		spotSymbolPriceAllRate:
@@ -117,8 +118,8 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 5
 	case spotOrderbookDepth1000Rate,
 		spotAccountInformationRate,
-		spotAllOrdersRate,
-		spotExchangeInfo:
+		spotAllOrdersRate:
+		// spotExchangeInfo:
 		limiter, tokens = r.SpotRate, 10
 	case spotPriceChangeAllRate:
 		limiter, tokens = r.SpotRate, 40
