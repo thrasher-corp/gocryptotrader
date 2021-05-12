@@ -2,7 +2,7 @@ package huobi
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/openware/irix/order"
 )
 
 type errorCapture struct {

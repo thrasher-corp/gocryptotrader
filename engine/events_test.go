@@ -5,9 +5,9 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/openware/irix/asset"
+	"github.com/openware/irix/orderbook"
+	"github.com/openware/irix/ticker"
 )
 
 const (

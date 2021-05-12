@@ -3,8 +3,8 @@ package slippage
 import (
 	"math/rand"
 
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	gctorder "github.com/openware/irix/order"
+	"github.com/openware/irix/orderbook"
 )
 
 // EstimateSlippagePercentage takes in an int range of numbers

@@ -3,7 +3,7 @@ package fill
 import (
 	"testing"
 
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctorder "github.com/openware/irix/order"
 )
 
 func TestSetDirection(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/openware/irix/order"
+	"github.com/openware/irix/stream"
 )
 
 const (

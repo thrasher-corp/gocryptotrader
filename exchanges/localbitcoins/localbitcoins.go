@@ -12,8 +12,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	exchange "github.com/openware/irix"
+	"github.com/openware/irix/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

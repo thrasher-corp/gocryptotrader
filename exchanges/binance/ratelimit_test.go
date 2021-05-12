@@ -3,7 +3,7 @@ package binance
 import (
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/openware/irix/request"
 )
 
 func TestRateLimit_Limit(t *testing.T) {

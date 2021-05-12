@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strings"
 
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	exchange "github.com/openware/irix"
+	"github.com/openware/irix/asset"
 )
 
 var (

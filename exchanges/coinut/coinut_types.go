@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/openware/irix/order"
 )
 
 // GenericResponse is the generic response you will get from coinut

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/openware/irix/asset"
 )
 
 // GetAssetTypes returns a list of stored asset types

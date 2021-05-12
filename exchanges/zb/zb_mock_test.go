@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/openware/irix/mock"
+	"github.com/openware/irix/sharedtestvalues"
 )
 
 const mockfile = "../../testdata/http_mock/zb/zb.json"

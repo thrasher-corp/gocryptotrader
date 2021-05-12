@@ -3,7 +3,7 @@ package bitfinex
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/openware/irix/order"
 )
 
 // AccountV2Data stores account v2 data

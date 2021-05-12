@@ -37,9 +37,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctexchange "github.com/openware/irix"
+	"github.com/openware/irix/asset"
+	gctkline "github.com/openware/irix/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

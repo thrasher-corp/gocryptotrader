@@ -1,7 +1,7 @@
 package alphapoint
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/openware/irix/order"
 )
 
 // Response contains general responses from the exchange

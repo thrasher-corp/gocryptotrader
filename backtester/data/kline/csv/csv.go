@@ -12,10 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctkline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/openware/irix/asset"
+	"github.com/openware/irix/kline"
+	"github.com/openware/irix/order"
+	"github.com/openware/irix/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

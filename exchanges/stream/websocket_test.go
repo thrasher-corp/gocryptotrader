@@ -17,7 +17,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/openware/irix/protocol"
 )
 
 const (

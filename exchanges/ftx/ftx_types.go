@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/openware/irix/order"
 )
 
 // MarginFundingData stores borrowing/lending data for margin trading

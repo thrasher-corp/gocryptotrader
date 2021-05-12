@@ -11,8 +11,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
+	exchange "github.com/openware/irix"
+	"github.com/openware/irix/okgroup"
 )
 
 const (

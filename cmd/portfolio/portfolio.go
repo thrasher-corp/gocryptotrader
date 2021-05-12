@@ -8,8 +8,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
+	"github.com/openware/irix/asset"
+	"github.com/openware/irix/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 

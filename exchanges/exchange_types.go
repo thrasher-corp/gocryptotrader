@@ -6,12 +6,12 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/openware/irix/asset"
+	"github.com/openware/irix/kline"
+	"github.com/openware/irix/order"
+	"github.com/openware/irix/protocol"
+	"github.com/openware/irix/request"
+	"github.com/openware/irix/stream"
 )
 
 // Endpoint authentication types

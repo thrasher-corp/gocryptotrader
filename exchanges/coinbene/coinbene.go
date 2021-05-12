@@ -15,9 +15,9 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	exchange "github.com/openware/irix"
+	"github.com/openware/irix/order"
+	"github.com/openware/irix/request"
 )
 
 // Coinbene is the overarching type across this package

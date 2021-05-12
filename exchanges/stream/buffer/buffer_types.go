@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/openware/irix/asset"
+	"github.com/openware/irix/orderbook"
 )
 
 // timerDefault defines the amount of time between alerting the sync manager of

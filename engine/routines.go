@@ -9,12 +9,12 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/openware/irix/account"
+	"github.com/openware/irix/order"
+	"github.com/openware/irix/orderbook"
+	"github.com/openware/irix/stats"
+	"github.com/openware/irix/stream"
+	"github.com/openware/irix/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

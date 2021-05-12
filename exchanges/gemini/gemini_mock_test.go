@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/openware/irix/mock"
+	"github.com/openware/irix/sharedtestvalues"
 )
 
 const mockFile = "../../testdata/http_mock/gemini/gemini.json"

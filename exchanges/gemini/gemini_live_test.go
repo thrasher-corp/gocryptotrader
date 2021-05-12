@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	exchange "github.com/openware/irix"
+	"github.com/openware/irix/sharedtestvalues"
 )
 
 var mockTests = false

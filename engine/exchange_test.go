@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
+	"github.com/openware/irix/bitfinex"
 )
 
 func TestExchangeManagerAdd(t *testing.T) {

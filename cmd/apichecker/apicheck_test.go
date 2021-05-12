@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	exchange "github.com/openware/irix"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
+	"github.com/openware/irix/mock"
+	"github.com/openware/irix/nonce"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

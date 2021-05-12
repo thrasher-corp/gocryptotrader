@@ -3,7 +3,7 @@ package sharedtestvalues
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/openware/irix/stream"
 )
 
 // This package is only to be referenced in test files

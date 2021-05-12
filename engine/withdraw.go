@@ -5,7 +5,7 @@ import (
 	"time"
 
 	withdrawDataStore "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	exchange "github.com/openware/irix"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"

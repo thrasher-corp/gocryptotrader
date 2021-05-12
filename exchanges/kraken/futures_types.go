@@ -3,7 +3,7 @@ package kraken
 import (
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/openware/irix/order"
 )
 
 var (

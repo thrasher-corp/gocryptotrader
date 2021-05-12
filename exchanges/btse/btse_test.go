@@ -12,11 +12,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	exchange "github.com/openware/irix"
+	"github.com/openware/irix/asset"
+	"github.com/openware/irix/kline"
+	"github.com/openware/irix/order"
+	"github.com/openware/irix/sharedtestvalues"
 )
 
 // Please supply your own keys here to do better tests

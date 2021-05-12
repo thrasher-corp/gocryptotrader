@@ -5,7 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctorder "github.com/openware/irix/order"
 )
 
 func TestIsOrder(t *testing.T) {

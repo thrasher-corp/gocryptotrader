@@ -3,9 +3,9 @@ package engine
 import (
 	"net/http"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/openware/irix/account"
+	"github.com/openware/irix/orderbook"
+	"github.com/openware/irix/ticker"
 )
 
 // Route is a sub type that holds the request routes

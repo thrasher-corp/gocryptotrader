@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
+	"github.com/openware/irix/asset"
+	"github.com/openware/irix/bitstamp"
 )
 
 func TestSimulate(t *testing.T) {
