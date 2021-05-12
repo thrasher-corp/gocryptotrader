@@ -103,16 +103,27 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 
 // GetByNickname searches for jobs by name and returns it if found
 // returns nil if not
-func (m *DataHistoryManager) GetByNickname(nickname string) *DataHistoryJob {
+func (m *DataHistoryManager) GetByNickname(nickname string) (*DataHistoryJob, error) {
 	m.m.Lock()
-	defer m.m.Unlock()
 	for i := range m.jobs {
 		if strings.EqualFold(m.jobs[i].Nickname, nickname) {
 			cpy := m.jobs[i]
-			return cpy
+			m.m.Unlock()
+			return cpy, nil
 		}
 	}
-	return nil
+	m.m.Unlock()
+	// now try the database
+	j, err := m.jobDB.GetByNickName(nickname)
+	if err != nil {
+		return nil, err
+	}
+	job, err := convertDBModelToJob(*j)
+	if err != nil {
+		return nil, err
+	}
+
+	return job[0], nil
 }
 
 // UpsertJob allows for GRPC interaction to upsert a jobs to be processed

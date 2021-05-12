@@ -105,6 +105,8 @@ message CurrencyPair {
     string quote = 3;
 }
 
+
+
 message TickerResponse {
     CurrencyPair pair = 1;
     int64 last_updated = 2;
@@ -872,6 +874,35 @@ message UpsertDataHistoryJobResponse {
    string job_id = 2;
 }
 
+message GetDataHistoryJobDetailsRequest {
+    string Nickname = 1;
+}
+
+message GetDataHistoryJobDetailsResponse {
+    string	Nickname = 1;
+    string	Exchange = 2;
+    string	Asset = 3;
+    CurrencyPair Pair = 4;
+    string	StartDate = 5;
+    string	EndDate = 6;
+    int64	Interval = 7;
+    int64	RequestSizeLimit = 8;
+    int64	DataType = 9;
+    int64	MaxRetryAttempts = 10;
+    int64	BatchSize = 11;
+    repeated JobResult JobResults = 12;
+}
+
+message JobResult {
+    string	StartDate = 1;
+    string	EndDate = 2;
+    bool HasData = 3;
+    string Message = 4;
+    string RunDate = 5;
+}
+
+
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -1384,6 +1415,13 @@ service GoCryptoTrader {
         option (google.api.http) = {
             post: "/v1/upsertdatahistoryjob"
                  body: "*"
+        };
+    }
+
+    rpc GetDataHistoryJobDetails (GetDataHistoryJobDetailsRequest) returns (GetDataHistoryJobDetailsResponse) {
+        option (google.api.http) = {
+            post: "/v1/getdatahistoryjobdetails"
+            body: "*"
         };
     }
 }

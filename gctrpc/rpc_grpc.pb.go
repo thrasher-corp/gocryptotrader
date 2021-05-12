@@ -98,6 +98,7 @@ type GoCryptoTraderClient interface {
 	FindMissingSavedTradeIntervals(ctx context.Context, in *FindMissingTradePeriodsRequest, opts ...grpc.CallOption) (*FindMissingIntervalsResponse, error)
 	SetExchangeTradeProcessing(ctx context.Context, in *SetExchangeTradeProcessingRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	UpsertDataHistoryJob(ctx context.Context, in *UpsertDataHistoryJobRequest, opts ...grpc.CallOption) (*UpsertDataHistoryJobResponse, error)
+	GetDataHistoryJobDetails(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*GetDataHistoryJobDetailsResponse, error)
 }
 
 type goCryptoTraderClient struct {
@@ -966,6 +967,15 @@ func (c *goCryptoTraderClient) UpsertDataHistoryJob(ctx context.Context, in *Ups
 	return out, nil
 }
 
+func (c *goCryptoTraderClient) GetDataHistoryJobDetails(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*GetDataHistoryJobDetailsResponse, error) {
+	out := new(GetDataHistoryJobDetailsResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetDataHistoryJobDetails", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServer is the server API for GoCryptoTrader service.
 // All implementations must embed UnimplementedGoCryptoTraderServer
 // for forward compatibility
@@ -1050,6 +1060,7 @@ type GoCryptoTraderServer interface {
 	FindMissingSavedTradeIntervals(context.Context, *FindMissingTradePeriodsRequest) (*FindMissingIntervalsResponse, error)
 	SetExchangeTradeProcessing(context.Context, *SetExchangeTradeProcessingRequest) (*GenericResponse, error)
 	UpsertDataHistoryJob(context.Context, *UpsertDataHistoryJobRequest) (*UpsertDataHistoryJobResponse, error)
+	GetDataHistoryJobDetails(context.Context, *GetDataHistoryJobDetailsRequest) (*GetDataHistoryJobDetailsResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
@@ -1296,6 +1307,9 @@ func (UnimplementedGoCryptoTraderServer) SetExchangeTradeProcessing(context.Cont
 }
 func (UnimplementedGoCryptoTraderServer) UpsertDataHistoryJob(context.Context, *UpsertDataHistoryJobRequest) (*UpsertDataHistoryJobResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpsertDataHistoryJob not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) GetDataHistoryJobDetails(context.Context, *GetDataHistoryJobDetailsRequest) (*GetDataHistoryJobDetailsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDataHistoryJobDetails not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) mustEmbedUnimplementedGoCryptoTraderServer() {}
 
@@ -2768,6 +2782,24 @@ func _GoCryptoTrader_UpsertDataHistoryJob_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTrader_GetDataHistoryJobDetails_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDataHistoryJobDetailsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).GetDataHistoryJobDetails(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/GetDataHistoryJobDetails",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).GetDataHistoryJobDetails(ctx, req.(*GetDataHistoryJobDetailsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoCryptoTrader_ServiceDesc is the grpc.ServiceDesc for GoCryptoTrader service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3070,6 +3102,10 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpsertDataHistoryJob",
 			Handler:    _GoCryptoTrader_UpsertDataHistoryJob_Handler,
+		},
+		{
+			MethodName: "GetDataHistoryJobDetails",
+			Handler:    _GoCryptoTrader_GetDataHistoryJobDetails_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

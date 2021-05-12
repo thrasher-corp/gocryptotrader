@@ -1010,6 +1010,38 @@
         ]
       }
     },
+    "/v1/getdatahistoryjobdetails": {
+      "post": {
+        "operationId": "GoCryptoTrader_GetDataHistoryJobDetails",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetDataHistoryJobDetailsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetDataHistoryJobDetailsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getevents": {
       "get": {
         "operationId": "GoCryptoTrader_GetEvents",
@@ -3288,6 +3320,63 @@
         }
       }
     },
+    "gctrpcGetDataHistoryJobDetailsRequest": {
+      "type": "object",
+      "properties": {
+        "Nickname": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetDataHistoryJobDetailsResponse": {
+      "type": "object",
+      "properties": {
+        "Nickname": {
+          "type": "string"
+        },
+        "Exchange": {
+          "type": "string"
+        },
+        "Asset": {
+          "type": "string"
+        },
+        "Pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "StartDate": {
+          "type": "string"
+        },
+        "EndDate": {
+          "type": "string"
+        },
+        "Interval": {
+          "type": "string",
+          "format": "int64"
+        },
+        "RequestSizeLimit": {
+          "type": "string",
+          "format": "int64"
+        },
+        "DataType": {
+          "type": "string",
+          "format": "int64"
+        },
+        "MaxRetryAttempts": {
+          "type": "string",
+          "format": "int64"
+        },
+        "BatchSize": {
+          "type": "string",
+          "format": "int64"
+        },
+        "JobResults": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcJobResult"
+          }
+        }
+      }
+    },
     "gctrpcGetEventsResponse": {
       "type": "object",
       "properties": {
@@ -3672,6 +3761,26 @@
           "items": {
             "$ref": "#/definitions/gctrpcTickers"
           }
+        }
+      }
+    },
+    "gctrpcJobResult": {
+      "type": "object",
+      "properties": {
+        "StartDate": {
+          "type": "string"
+        },
+        "EndDate": {
+          "type": "string"
+        },
+        "HasData": {
+          "type": "boolean"
+        },
+        "Message": {
+          "type": "string"
+        },
+        "RunDate": {
+          "type": "string"
         }
       }
     },

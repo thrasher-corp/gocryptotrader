@@ -3332,13 +3332,50 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		return nil, err
 	}
 
-	result := s.dataHistoryManager.GetByNickname(r.Nickname)
-	if result == nil {
-		return nil, errors.New("something went wrong")
+	result, err := s.dataHistoryManager.GetByNickname(r.Nickname)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w", r.Nickname, err)
 	}
 
 	return &gctrpc.UpsertDataHistoryJobResponse{
 		JobId:   result.ID.String(),
 		Message: "successfully upserted job: " + result.Nickname,
+	}, nil
+}
+
+func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDataHistoryJobDetailsRequest) (*gctrpc.GetDataHistoryJobDetailsResponse, error) {
+	result, err := s.dataHistoryManager.GetByNickname(r.Nickname)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w", r.Nickname, err)
+	}
+
+	var jobResults []*gctrpc.JobResult
+	for i := range result.Results {
+		jobResults = append(jobResults, &gctrpc.JobResult{
+			StartDate: result.Results[i].IntervalStartDate.Format(common.SimpleTimeFormat),
+			EndDate:   result.Results[i].IntervalEndDate.Format(common.SimpleTimeFormat),
+			HasData:   result.Results[i].Status == dataHistoryStatusComplete,
+			Message:   result.Results[i].Result,
+			RunDate:   result.Results[i].Date.Format(common.SimpleTimeFormat),
+		})
+	}
+
+	return &gctrpc.GetDataHistoryJobDetailsResponse{
+		Nickname: result.Nickname,
+		Exchange: result.Exchange,
+		Asset:    result.Asset.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: result.Pair.Delimiter,
+			Base:      result.Pair.Base.String(),
+			Quote:     result.Pair.Quote.String(),
+		},
+		StartDate:        result.StartDate.Format(common.SimpleTimeFormat),
+		EndDate:          result.EndDate.Format(common.SimpleTimeFormat),
+		Interval:         int64(result.Interval.Duration()),
+		RequestSizeLimit: result.RequestSizeLimit,
+		DataType:         result.DataType,
+		MaxRetryAttempts: result.MaxRetryAttempts,
+		BatchSize:        result.BatchSize,
+		JobResults:       jobResults,
 	}, nil
 }
