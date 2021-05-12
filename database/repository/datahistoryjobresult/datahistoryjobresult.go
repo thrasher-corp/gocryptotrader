@@ -99,6 +99,7 @@ func (db *DBService) GetJobResultsBetween(jobID string, startDate, endDate time.
 	}
 	return jobs, nil
 }
+
 func upsertSqlite(ctx context.Context, tx *sql.Tx, results ...DataHistoryJobResult) error {
 	for i := range results {
 		if results[i].ID == "" {
@@ -113,9 +114,9 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, results ...DataHistoryJobResu
 			JobID:             results[i].JobID,
 			Result:            null.String{},
 			Status:            float64(results[i].Status),
-			IntervalStartTime: results[i].IntervalStartDate.UTC().Format(time.RFC3339),
-			IntervalEndTime:   results[i].IntervalEndDate.UTC().Format(time.RFC3339),
-			RunTime:           results[i].Date.UTC().Format(time.RFC3339),
+			IntervalStartTime: float64(results[i].IntervalStartDate.UTC().Unix()),
+			IntervalEndTime:   float64(results[i].IntervalEndDate.UTC().Unix()),
+			RunTime:           float64(results[i].Date.UTC().Unix()),
 		}
 		err := tempEvent.Insert(ctx, tx, boil.Infer())
 		if err != nil {
@@ -163,18 +164,9 @@ func (db *DBService) getByJobIDSQLite(jobID string) ([]DataHistoryJobResult, err
 	}
 	var resp []DataHistoryJobResult
 	for i := range results {
-		start, err := time.Parse(time.RFC3339, results[i].IntervalStartTime)
-		if err != nil {
-			return nil, err
-		}
-		end, err := time.Parse(time.RFC3339, results[i].IntervalEndTime)
-		if err != nil {
-			return nil, err
-		}
-		ran, err := time.Parse(time.RFC3339, results[i].RunTime)
-		if err != nil {
-			return nil, err
-		}
+		start := time.Unix(int64(results[i].IntervalStartTime), 0)
+		end := time.Unix(int64(results[i].IntervalEndTime), 0)
+		run := time.Unix(int64(results[i].RunTime), 0)
 		resp = append(resp, DataHistoryJobResult{
 			ID:                results[i].ID,
 			JobID:             results[i].JobID,
@@ -182,7 +174,7 @@ func (db *DBService) getByJobIDSQLite(jobID string) ([]DataHistoryJobResult, err
 			IntervalEndDate:   end,
 			Status:            int64(results[i].Status),
 			Result:            results[i].Result.String,
-			Date:              ran,
+			Date:              run,
 		})
 	}
 
@@ -220,18 +212,9 @@ func (db *DBService) getJobResultsBetweenSQLite(jobID string, startDate, endDate
 	}
 
 	for i := range resp {
-		start, err := time.Parse(time.RFC3339, resp[i].IntervalStartTime)
-		if err != nil {
-			return nil, err
-		}
-		end, err := time.Parse(time.RFC3339, resp[i].IntervalEndTime)
-		if err != nil {
-			return nil, err
-		}
-		ran, err := time.Parse(time.RFC3339, resp[i].RunTime)
-		if err != nil {
-			return nil, err
-		}
+		start := time.Unix(int64(resp[i].IntervalStartTime), 0)
+		end := time.Unix(int64(resp[i].IntervalEndTime), 0)
+		run := time.Unix(int64(resp[i].RunTime), 0)
 		results = append(results, DataHistoryJobResult{
 			ID:                resp[i].ID,
 			JobID:             resp[i].JobID,
@@ -239,7 +222,7 @@ func (db *DBService) getJobResultsBetweenSQLite(jobID string, startDate, endDate
 			IntervalEndDate:   end,
 			Status:            int64(resp[i].Status),
 			Result:            resp[i].Result.String,
-			Date:              ran,
+			Date:              run,
 		})
 	}
 

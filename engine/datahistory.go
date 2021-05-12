@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
+	exchangedb "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -128,6 +129,12 @@ func (m *DataHistoryManager) GetByNickname(nickname string) (*DataHistoryJob, er
 
 // UpsertJob allows for GRPC interaction to upsert a jobs to be processed
 func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob) error {
+	if m == nil {
+		return ErrNilSubsystem
+	}
+	if !m.IsRunning() {
+		return ErrSubSystemNotStarted
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	updated := false
@@ -142,10 +149,15 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob) error {
 		m.jobs = append(m.jobs, job)
 	}
 
+	exchangeID, err := exchangedb.One(job.Exchange)
+	if err != nil {
+		return err
+	}
+
 	return m.jobDB.Upsert(&datahistoryjob.DataHistoryJob{
 		ID:               job.ID.String(),
 		Nickname:         job.Nickname,
-		Exchange:         job.Exchange,
+		ExchangeID:       exchangeID.UUID.String(),
 		Asset:            job.Asset.String(),
 		Base:             job.Pair.Base.String(),
 		Quote:            job.Pair.Quote.String(),
@@ -417,7 +429,7 @@ func convertDBModelToJob(dbModels ...datahistoryjob.DataHistoryJob) ([]*DataHist
 		resp = append(resp, &DataHistoryJob{
 			ID:               id,
 			Nickname:         dbModels[i].Nickname,
-			Exchange:         dbModels[i].Exchange,
+			Exchange:         dbModels[i].ExchangeName,
 			Asset:            asset.Item(dbModels[i].Asset),
 			Pair:             cp,
 			StartDate:        dbModels[i].StartDate,
@@ -483,7 +495,7 @@ func convertJobToDBModel(models ...*DataHistoryJob) ([]datahistoryjob.DataHistor
 		resp = append(resp, datahistoryjob.DataHistoryJob{
 			ID:               models[i].ID.String(),
 			Nickname:         models[i].Nickname,
-			Exchange:         models[i].Exchange,
+			ExchangeName:     models[i].Exchange,
 			Asset:            models[i].Asset.String(),
 			Base:             models[i].Pair.Base.String(),
 			Quote:            models[i].Pair.Quote.String(),

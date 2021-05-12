@@ -63,6 +63,7 @@ var (
 	errCurrencyNotEnabled   = errors.New("currency not enabled")
 	errCurrencyPairInvalid  = errors.New("currency provided is not found in the available pairs list")
 	errNoTrades             = errors.New("no trades returned from supplied params")
+	errNilRequestData       = errors.New("nil request data received, cannot continue")
 )
 
 // RPCServer struct
@@ -3286,6 +3287,9 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 // UpsertDataHistoryJob adds or updates a data history job for the data history manager
 // It will upsert the entry in the database and allow for the processing of the job
 func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertDataHistoryJobRequest) (*gctrpc.UpsertDataHistoryJobResponse, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
 	a, err := asset.New(r.Asset)
 	if err != nil {
 		return nil, err
@@ -3344,6 +3348,10 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 }
 
 func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDataHistoryJobDetailsRequest) (*gctrpc.GetDataHistoryJobDetailsResponse, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+
 	result, err := s.dataHistoryManager.GetByNickname(r.Nickname)
 	if err != nil {
 		return nil, fmt.Errorf("%s %w", r.Nickname, err)

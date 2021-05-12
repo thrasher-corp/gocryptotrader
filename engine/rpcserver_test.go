@@ -1178,3 +1178,56 @@ func TestParseEvents(t *testing.T) {
 		t.Fatal("Expected second entry in slice to return a Request.Type of Crypto")
 	}
 }
+
+func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
+	engerino := RPCTestSetup(t)
+	var err error
+
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer CleanRPCTest(t, engerino)
+	s := RPCServer{Engine: engerino}
+	_, err = s.UpsertDataHistoryJob(context.Background(), nil)
+	if !errors.Is(err, errNilRequestData) {
+		t.Errorf("received %v, expected %v", err, errNilRequestData)
+	}
+
+	_, err = s.UpsertDataHistoryJob(context.Background(), &gctrpc.UpsertDataHistoryJobRequest{})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received %v, expected %v", err, asset.ErrNotSupported)
+	}
+
+	job := &gctrpc.UpsertDataHistoryJobRequest{
+		Nickname: "hellomoto",
+		Exchange: testExchange,
+		Asset:    asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: "-",
+			Base:      "BTC",
+			Quote:     "USD",
+		},
+		StartDate:        time.Now().Add(-time.Hour).Format(common.SimpleTimeFormat),
+		EndDate:          time.Now().Format(common.SimpleTimeFormat),
+		Interval:         int64(kline.OneHour.Duration()),
+		RequestSizeLimit: 10,
+		DataType:         dataHistoryCandleDataType,
+		MaxRetryAttempts: 3,
+		BatchSize:        500,
+	}
+	_, err = s.UpsertDataHistoryJob(nil, job)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("received %v, expected %v", err, ErrSubSystemNotStarted)
+	}
+
+	err = s.dataHistoryManager.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+
+	_, err = s.UpsertDataHistoryJob(nil, job)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("received %v, expected %v", err, ErrSubSystemNotStarted)
+	}
+}
