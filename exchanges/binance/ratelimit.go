@@ -42,6 +42,7 @@ const (
 	spotOpenOrdersSpecificRate
 	spotOrdersAllRate
 	spotOrderRate
+	spotOrderQueryRate
 	spotAllOrdersRate
 	spotAccountInformationRate
 	uFuturesDefaultRate
@@ -117,7 +118,6 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 5
 	case spotOrderbookDepth1000Rate,
 		spotAccountInformationRate,
-		spotAllOrdersRate,
 		spotExchangeInfo:
 		limiter, tokens = r.SpotRate, 10
 	case spotPriceChangeAllRate:
@@ -126,10 +126,14 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 50
 	case spotOrderRate:
 		limiter, tokens = r.SpotOrdersRate, 1
+	case spotOrderQueryRate:
+		limiter, tokens = r.SpotOrdersRate, 2
 	case spotOpenOrdersSpecificRate:
 		limiter, tokens = r.SpotOrdersRate, 3
 	case spotOrdersAllRate:
 		limiter, tokens = r.SpotOrdersRate, 5
+	case spotAllOrdersRate:
+		limiter, tokens = r.SpotOrdersRate, 10
 	case spotOpenOrdersAllRate:
 		limiter, tokens = r.SpotOrdersRate, 40
 	case uFuturesDefaultRate,
