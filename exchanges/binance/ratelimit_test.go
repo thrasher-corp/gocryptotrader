@@ -48,7 +48,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"Default":           spotDefaultRate,
 		"Historical Trades": spotHistoricalTradesRate,
 		"All Price Changes": spotPriceChangeAllRate,
-		"All Orders":        spotOrdersAllRate,
+		"All Orders":        spotAllOrdersRate,
 	}
 	for name, tt := range testTable {
 		tt := tt
