@@ -614,11 +614,12 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 	}
 
 	return b.Websocket.Orderbook.Update(&buffer.Update{
-		Bids:     updateBid,
-		Asks:     updateAsk,
-		Pair:     cp,
-		UpdateID: ws.LastUpdateID,
-		Asset:    a,
+		Bids:       updateBid,
+		Asks:       updateAsk,
+		Pair:       cp,
+		UpdateID:   ws.LastUpdateID,
+		UpdateTime: ws.Timestamp,
+		Asset:      a,
 	})
 }
 
