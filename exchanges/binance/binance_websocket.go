@@ -258,6 +258,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Date:            data.Data.OrderCreationTime,
 					Pair:            p,
 					ClientOrderID:   clientOrderID,
+					Cost:            data.Data.Commission,
 				}
 				return nil
 			case "listStatus":
