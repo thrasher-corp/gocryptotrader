@@ -203,14 +203,13 @@ type TickerStream struct {
 
 // HistoricalTrade holds recent trade data
 type HistoricalTrade struct {
-	Code         int       `json:"code"`
-	Msg          string    `json:"msg"`
-	ID           int64     `json:"id"`
-	Price        float64   `json:"price,string"`
-	Quantity     float64   `json:"qty,string"`
-	Time         time.Time `json:"time"`
-	IsBuyerMaker bool      `json:"isBuyerMaker"`
-	IsBestMatch  bool      `json:"isBestMatch"`
+	ID            int64     `json:"id"`
+	Price         float64   `json:"price,string"`
+	Quantity      float64   `json:"qty,string"`
+	QuoteQuantity float64   `json:"quoteQty,string"`
+	Time          time.Time `json:"time"`
+	IsBuyerMaker  bool      `json:"isBuyerMaker"`
+	IsBestMatch   bool      `json:"isBestMatch"`
 }
 
 // AggregatedTradeRequestParams holds request params
