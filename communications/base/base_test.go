@@ -145,5 +145,3 @@ func TestPushEvent(t *testing.T) {
 		}
 	}
 }
-
-//func Test
