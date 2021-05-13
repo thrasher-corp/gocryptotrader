@@ -1,16 +1,16 @@
-# GoCryptoTrader package Portfoliomanager
+# GoCryptoTrader package Database_connection
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/engine/portfoliomanager)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/engine/database_connection)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This portfoliomanager package is part of the GoCryptoTrader codebase.
+This database_connection package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,31 +18,29 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for Portfoliomanager
-+ The portfolio manager subsystem is used to synchronise and monitor wallet addresses
-+ It can read addresses specified in your config file
-+ If you have set API keys for an enabled exchange and enabled `authenticatedSupport`, it will store your exchange addresses
-+ In order to modify the behaviour of the portfolio manager subsystem, you can edit the following inside your config file under `portfolioAddresses`:
+## Current Features for Database_connection
++ The database connection manager subsystem is used to periodically check whether the application is connected to the database and will provide alerts of any changes
++ In order to modify the behaviour of the database connection manager subsystem, you can edit the following inside your config file under `database`:
 
-### portfolioAddresses
+### database
 
 | Config | Description | Example |
 | ------ | ----------- | ------- |
-| Verbose | Enabling this will output more detailed logs to your logging output  |  `false` |
-| addresses | An array of portfolio wallet addresses to monitor, see below table |   |
+| enabled | Enabled or disables the database connection subsystem |  `true` |
+| verbose | Displays more information to the logger which can be helpful for debugging | `false` |
+| driver | The SQL driver to use. Can be `postgres` or `sqlite`. | `sqlite` |
+| connectionDetails | See below |  |
 
-### addresses
+### connectionDetails
 
 | Config | Description | Example |
 | ------ | ----------- | ------- |
-| Address | The wallet address  |  `bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc` |
-| CoinType | The coin for the wallet address | `BTC` |
-| Balance | The balance of the wallet |   |
-| Description | A customisable description  | `My secret billion stash`  |
-| WhiteListed | Determines whether GoCryptoTrader withdraw manager subsystem can make withdrawals from this address | `true` |
-| ColdStorage | Describes whether the wallet address is a cold storage wallet eg Ledger | `false`  |
-| SupportedExchanges | A comma delimited string of which exchanges are allowed to interact with this wallet | `"Binance"`  |
-
+| host | The host address of the database |  `localhost` |
+| port |  The port used to connect to the database |  `5432` |
+| username | An optional username to connect to the database | `username` |
+| password | An optional password to connect to the database | `password` |
+| database | The name of the database | `database.db` |
+| sslmode | The connection type of the database for Postgres databases only | `disable` |
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

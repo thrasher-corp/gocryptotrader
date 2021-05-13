@@ -466,10 +466,6 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableGRPC {
-		err = checkCerts(utils.GetTLSDir(bot.Settings.DataDir))
-		if err != nil {
-			return err
-		}
 		go StartRPCServer(bot)
 	}
 
@@ -492,9 +488,8 @@ func (bot *Engine) Start() error {
 		return err
 	}
 
-	if bot.Settings.EnableGRPCProxy &&
-		(bot.Settings.EnableDeprecatedRPC ||
-			bot.Settings.EnableWebsocketRPC) {
+	if bot.Settings.EnableDeprecatedRPC ||
+		bot.Settings.EnableWebsocketRPC {
 		var filePath string
 		filePath, err = config.GetAndMigrateDefaultPath(bot.Settings.ConfigFile)
 		if err != nil {

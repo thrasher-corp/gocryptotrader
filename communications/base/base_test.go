@@ -36,6 +36,18 @@ func TestGetName(t *testing.T) {
 	}
 }
 
+func TestSetServiceStarted(t *testing.T) {
+	b = Base{}
+	tt := time.Now()
+	if b.ServiceStarted.Equal(tt) {
+		t.Errorf("expected '%v', received '%v'", time.Time{}, tt)
+	}
+	b.SetServiceStarted(tt)
+	if !b.ServiceStarted.Equal(tt) {
+		t.Errorf("expected '%v', received '%v'", tt, b.ServiceStarted)
+	}
+}
+
 type CommunicationProvider struct {
 	ICommunicate
 
@@ -133,3 +145,5 @@ func TestPushEvent(t *testing.T) {
 		}
 	}
 }
+
+//func Test

@@ -1,16 +1,16 @@
-# GoCryptoTrader package Databaseconnection
+# GoCryptoTrader package Event_manager
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/engine/databaseconnection)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/engine/event_manager)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This databaseconnection package is part of the GoCryptoTrader codebase.
+This event_manager package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,29 +18,17 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for Databaseconnection
-+ The database connection manager subsystem is used to periodically check whether the application is connected to the database and will provide alerts of any changes
-+ In order to modify the behaviour of the database connection manager subsystem, you can edit the following inside your config file under `database`:
+## Current Features for Event_manager
++ The event manager subsystem is used to push events to communication systems such as Slack
++ The only configurable aspects of the event manager are the delays between receiving an event and pushing it and enabling verbose:
 
-### database
-
-| Config | Description | Example |
-| ------ | ----------- | ------- |
-| enabled | Is a string array of DNS servers to periodically verify whether GoCryptoTrader is connected to the internet |  `true` |
-| verbose |  Is a string array of domains to periodically verify whether GoCryptoTrader is connected to the internet | `false` |
-| driver | A time period in golang `time.Duration` format to check whether GoCryptoTrader is connected to the internet | `sqlite` |
-| connectionDetails | See below |  |
-
-### connectionDetails
+### connectionMonitor
 
 | Config | Description | Example |
 | ------ | ----------- | ------- |
-| host | The host address of the database |  `localhost` |
-| port |  The port used to connect to the database |  `5432` |
-| username | An optional username to connect to the database | `username` |
-| password | An optional password to connect to the database | `password` |
-| database | The name of the database | `database.db` |
-| sslmode | The connection type of the database for Postgres databases only | `disable` |
+| eventmanagerdelay | Sets the event managers sleep delay between event checking by a Golang `time.Duration` |  `0` |
+| verbose | Outputs debug messaging allowing for greater transparency for what the event manager is doing |  `false` |
+
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

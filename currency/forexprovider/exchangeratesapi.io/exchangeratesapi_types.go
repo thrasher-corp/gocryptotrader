@@ -28,9 +28,9 @@ const (
 var (
 	errCannotSetBaseCurrencyOnFreePlan = errors.New("base currency cannot be set on the free plan")
 	errAPIKeyLevelRestrictedAccess     = errors.New("apiKey level function access denied")
+	errStartEndDatesInvalid            = errors.New("startDate and endDate params must be set")
+	errStartAfterEnd                   = errors.New("startDate must be before endDate")
 )
-
-var errStartEndDatesInvalid = errors.New("startDate and endDate params must be set")
 
 // ExchangeRates stores the struct for the ExchangeRatesAPI API
 type ExchangeRates struct {
