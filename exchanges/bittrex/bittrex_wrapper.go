@@ -814,9 +814,12 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var resp []order.Detail
 	for x := range req.Pairs {
-		currPair := req.Pairs[x].String()
+		formattedPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.AssetType)
+		if err != nil {
+			return nil, err
+		}
 
-		orderData, err := b.GetOrderHistoryForCurrency(currPair)
+		orderData, err := b.GetOrderHistoryForCurrency(formattedPair.String())
 		if err != nil {
 			return nil, err
 		}

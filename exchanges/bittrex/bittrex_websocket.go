@@ -244,7 +244,6 @@ func (b *Bittrex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 		if err != nil {
 			errs = append(errs, err)
 		}
-		time.Sleep(time.Second)
 	}
 	err := b.subscribeSlice(channelsToSubscribe[x:])
 	if err != nil {
@@ -310,7 +309,6 @@ func (b *Bittrex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 		if err != nil {
 			errs = append(errs, err)
 		}
-		time.Sleep(time.Second)
 	}
 	err := b.unsubscribeSlice(channelsToUnsubscribe[x:])
 	if err != nil {
@@ -597,7 +595,7 @@ func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 		}
 	}
 
-	b.Websocket.DataHandler <- &order.Detail{
+	b.Websocket.DataHandler <- &order.Modify{
 		ImmediateOrCancel: data.Delta.TimeInForce == string(ImmediateOrCancel),
 		FillOrKill:        data.Delta.TimeInForce == string(GoodTilCancelled),
 		PostOnly:          data.Delta.TimeInForce == string(PostOnlyGoodTilCancelled),
