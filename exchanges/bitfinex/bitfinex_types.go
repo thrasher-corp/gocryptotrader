@@ -17,7 +17,7 @@ type AccountV2Data struct {
 }
 
 // MarginInfoData stores margin data
-type MarginInfoData struct {
+type MarginInfoV2 struct {
 	Symbol          string
 	UserPNL         float64
 	UserSwaps       float64

@@ -49,6 +49,7 @@ func TestGetAveragePrice(t *testing.T) {
 		{Amount: 5, Price: 1},
 	}
 	avgPrice, err := b.GetAveragePrice(true, 15)
+	fmt.Println(avgPrice)
 	if err != nil {
 		t.Error(err)
 	}

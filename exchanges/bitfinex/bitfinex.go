@@ -91,7 +91,7 @@ const (
 	bitfinexWsSequenceFlag = 65536
 )
 
-var ErrTypeAssert = errors.New("type assertion failed")
+var errTypeAssert = errors.New("type assertion failed")
 
 // Bitfinex is the overarching type across the bitfinex package
 type Bitfinex struct {
@@ -122,7 +122,7 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 }
 
 // GetV2MarginInfo gets margin info
-func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoData, error) {
+func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoV2, error) {
 	var data []interface{}
 	err := b.SendAuthenticatedHTTPRequestV2(exchange.RestSpot, http.MethodPost,
 		bitfinexV2MarginInfo+symbol,
@@ -132,101 +132,101 @@ func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoData, error) {
 	if err != nil {
 		return nil, err
 	}
-	var resp []MarginInfoData
+	var resp []MarginInfoV2
 	switch symbol {
 	case "base":
-		var tempResp MarginInfoData
+		var tempResp MarginInfoV2
 		tempData, ok := data[1].([]interface{})
 		if !ok {
-			return nil, fmt.Errorf("%w", ErrTypeAssert)
+			return nil, fmt.Errorf("%w", errTypeAssert)
 		}
 		tempResp.UserPNL, ok = tempData[0].(float64)
 		if !ok {
-			return nil, fmt.Errorf("%w for UserPNL", ErrTypeAssert)
+			return nil, fmt.Errorf("%w for UserPNL", errTypeAssert)
 		}
 		tempResp.UserSwaps, ok = tempData[1].(float64)
 		if !ok {
-			return nil, fmt.Errorf("%w for UserSwaps", ErrTypeAssert)
+			return nil, fmt.Errorf("%w for UserSwaps", errTypeAssert)
 		}
 		tempResp.MarginBalance, ok = tempData[2].(float64)
 		if !ok {
-			return nil, fmt.Errorf("%w for MarginBalance", ErrTypeAssert)
+			return nil, fmt.Errorf("%w for MarginBalance", errTypeAssert)
 		}
 		tempResp.MarginNet, ok = tempData[3].(float64)
 		if !ok {
-			return nil, fmt.Errorf("%w for MarginNet", ErrTypeAssert)
+			return nil, fmt.Errorf("%w for MarginNet", errTypeAssert)
 		}
 		tempResp.MarginMin, ok = tempData[4].(float64)
 		if !ok {
-			return nil, fmt.Errorf("%w for MarginMin", ErrTypeAssert)
+			return nil, fmt.Errorf("%w for MarginMin", errTypeAssert)
 		}
 		resp = append(resp, tempResp)
 	case "sym_all":
 		for x := range data {
-			var tempResp MarginInfoData
+			var tempResp MarginInfoV2
 			tempData, ok := data[x].([]interface{})
 			if !ok {
-				return nil, fmt.Errorf("%w for all sym", ErrTypeAssert)
+				return nil, fmt.Errorf("%w for all sym", errTypeAssert)
 			}
 			var check bool
 			tempResp.Symbol, check = tempData[1].(string)
 			if !check {
-				return nil, fmt.Errorf("%w for symbol data", ErrTypeAssert)
+				return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
 			}
 			tempFloatData, check := tempData[2].([]interface{})
 			if !check {
-				return nil, fmt.Errorf("%w for symbol data", ErrTypeAssert)
+				return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
 			}
 			if len(tempFloatData) < 4 {
 				return nil, errors.New("invalid data received")
 			}
 			tempResp.TradableBalance, ok = tempFloatData[0].(float64)
 			if !ok {
-				return nil, fmt.Errorf("%w for TradableBalance", ErrTypeAssert)
+				return nil, fmt.Errorf("%w for TradableBalance", errTypeAssert)
 			}
 			tempResp.GrossBalance, ok = tempFloatData[1].(float64)
 			if !ok {
-				return nil, fmt.Errorf("%w for GrossBalance", ErrTypeAssert)
+				return nil, fmt.Errorf("%w for GrossBalance", errTypeAssert)
 			}
 			tempResp.BestAskAmount, ok = tempFloatData[2].(float64)
 			if !ok {
-				return nil, fmt.Errorf("%w for BestAskAmount", ErrTypeAssert)
+				return nil, fmt.Errorf("%w for BestAskAmount", errTypeAssert)
 			}
 			tempResp.BestBidAmount, ok = tempFloatData[3].(float64)
 			if !ok {
-				return nil, fmt.Errorf("%w for BestBidAmount", ErrTypeAssert)
+				return nil, fmt.Errorf("%w for BestBidAmount", errTypeAssert)
 			}
 			resp = append(resp, tempResp)
 		}
 	default:
-		var tempResp MarginInfoData
+		var tempResp MarginInfoV2
 		var ok bool
 		tempResp.Symbol, ok = data[1].(string)
 		if !ok {
-			return nil, fmt.Errorf("%w for symbol", ErrTypeAssert)
+			return nil, fmt.Errorf("%w for symbol", errTypeAssert)
 		}
 		tempData, check := data[2].([]interface{})
 		if !check {
-			return nil, fmt.Errorf("%w for symbol data", ErrTypeAssert)
+			return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
 		}
 		if len(tempData) < 4 {
 			return nil, errors.New("invalid data received")
 		}
 		tempResp.TradableBalance, ok = tempData[0].(float64)
 		if !ok {
-			return nil, fmt.Errorf("%w for TradableBalance", ErrTypeAssert)
+			return nil, fmt.Errorf("%w for TradableBalance", errTypeAssert)
 		}
 		tempResp.GrossBalance, ok = tempData[1].(float64)
 		if !ok {
-			return nil, fmt.Errorf("%w for GrossBalance", ErrTypeAssert)
+			return nil, fmt.Errorf("%w for GrossBalance", errTypeAssert)
 		}
 		tempResp.BestAskAmount, ok = tempData[2].(float64)
 		if !ok {
-			return nil, fmt.Errorf("%w for BestAskAmount", ErrTypeAssert)
+			return nil, fmt.Errorf("%w for BestAskAmount", errTypeAssert)
 		}
 		tempResp.BestBidAmount, ok = tempData[3].(float64)
 		if !ok {
-			return nil, fmt.Errorf("%w for BestBidAmount", ErrTypeAssert)
+			return nil, fmt.Errorf("%w for BestBidAmount", errTypeAssert)
 		}
 		resp = append(resp, tempResp)
 	}
@@ -254,11 +254,11 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 	}
 	avgRate, ok := resp[0].(float64)
 	if !ok {
-		return response, fmt.Errorf("%w for rate", ErrTypeAssert)
+		return response, fmt.Errorf("%w for rate", errTypeAssert)
 	}
 	avgAmount, ok := resp[1].(float64)
 	if !ok {
-		return response, fmt.Errorf("%w for amount", ErrTypeAssert)
+		return response, fmt.Errorf("%w for amount", errTypeAssert)
 	}
 	response.Symbol = symbol
 	response.RateAverage = avgRate
@@ -283,15 +283,15 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginFundingDataV2, error) {
 	}
 	sym, ok := resp[0].(string)
 	if !ok {
-		return response, fmt.Errorf("%w for sym", ErrTypeAssert)
+		return response, fmt.Errorf("%w for sym", errTypeAssert)
 	}
 	symbol, ok := resp[1].(string)
 	if !ok {
-		return response, fmt.Errorf("%w for symbol", ErrTypeAssert)
+		return response, fmt.Errorf("%w for symbol", errTypeAssert)
 	}
 	fundingData, ok := resp[2].([]interface{})
 	if !ok {
-		return response, fmt.Errorf("%w for fundingData", ErrTypeAssert)
+		return response, fmt.Errorf("%w for fundingData", errTypeAssert)
 	}
 	response.Sym = sym
 	response.Symbol = symbol
@@ -330,27 +330,27 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 	var tempString string
 	var tempFloat float64
 	if tempFloat, ok = data[0].(float64); !ok {
-		return resp, fmt.Errorf("%w for id", ErrTypeAssert)
+		return resp, fmt.Errorf("%w for id", errTypeAssert)
 	}
 	resp.ID = int64(tempFloat)
 	if tempString, ok = data[1].(string); !ok {
-		return resp, fmt.Errorf("%w for email", ErrTypeAssert)
+		return resp, fmt.Errorf("%w for email", errTypeAssert)
 	}
 	resp.Email = tempString
 	if tempString, ok = data[2].(string); !ok {
-		return resp, fmt.Errorf("%w for username", ErrTypeAssert)
+		return resp, fmt.Errorf("%w for username", errTypeAssert)
 	}
 	resp.Username = tempString
 	if tempFloat, ok = data[3].(float64); !ok {
-		return resp, fmt.Errorf("%w for accountcreate", ErrTypeAssert)
+		return resp, fmt.Errorf("%w for accountcreate", errTypeAssert)
 	}
 	resp.MTSAccountCreate = int64(tempFloat)
 	if tempFloat, ok = data[4].(float64); !ok {
-		return resp, fmt.Errorf("%w failed for verified", ErrTypeAssert)
+		return resp, fmt.Errorf("%w failed for verified", errTypeAssert)
 	}
 	resp.Verified = int64(tempFloat)
 	if tempString, ok = data[7].(string); !ok {
-		return resp, fmt.Errorf("%w for timezone", ErrTypeAssert)
+		return resp, fmt.Errorf("%w for timezone", errTypeAssert)
 	}
 	resp.Timezone = tempString
 	return resp, nil
@@ -371,19 +371,19 @@ func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
 	for x := range data {
 		wType, ok := data[x][0].(string)
 		if !ok {
-			return resp, fmt.Errorf("%w for walletType", ErrTypeAssert)
+			return resp, fmt.Errorf("%w for walletType", errTypeAssert)
 		}
 		curr, ok := data[x][1].(string)
 		if !ok {
-			return resp, fmt.Errorf("%w for currency", ErrTypeAssert)
+			return resp, fmt.Errorf("%w for currency", errTypeAssert)
 		}
 		bal, ok := data[x][2].(float64)
 		if !ok {
-			return resp, fmt.Errorf("%w for balance", ErrTypeAssert)
+			return resp, fmt.Errorf("%w for balance", errTypeAssert)
 		}
 		unsettledInterest, ok := data[x][3].(float64)
 		if !ok {
-			return resp, fmt.Errorf("%w for unsettledInterest", ErrTypeAssert)
+			return resp, fmt.Errorf("%w for unsettledInterest", errTypeAssert)
 		}
 		resp = append(resp, WalletDataV2{
 			WalletType:        wType,
@@ -441,38 +441,38 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 		var response DerivativeDataResponse
 		var ok bool
 		if response.Key, ok = result[z][0].(string); !ok {
-			return finalResp, fmt.Errorf("%w for Key", ErrTypeAssert)
+			return finalResp, fmt.Errorf("%w for Key", errTypeAssert)
 		}
 		if response.MTS, ok = result[z][1].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for MTS", ErrTypeAssert)
+			return finalResp, fmt.Errorf("%w for MTS", errTypeAssert)
 		}
 		if response.DerivPrice, ok = result[z][3].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for DerivPrice", ErrTypeAssert)
+			return finalResp, fmt.Errorf("%w for DerivPrice", errTypeAssert)
 		}
 		if response.SpotPrice, ok = result[z][4].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for SpotPrice", ErrTypeAssert)
+			return finalResp, fmt.Errorf("%w for SpotPrice", errTypeAssert)
 		}
 		if response.InsuranceFundBalance, ok = result[z][6].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for Insurance fund balance", ErrTypeAssert)
+			return finalResp, fmt.Errorf("%w for Insurance fund balance", errTypeAssert)
 		}
 		if response.NextFundingEventTS, ok = result[z][8].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for NextFundingEventTS", ErrTypeAssert)
+			return finalResp, fmt.Errorf("%w for NextFundingEventTS", errTypeAssert)
 		}
 		if response.NextFundingAccured, ok = result[z][9].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for NextFundingAccrued", ErrTypeAssert)
+			return finalResp, fmt.Errorf("%w for NextFundingAccrued", errTypeAssert)
 		}
 		if response.NextFundingStep, ok = result[z][10].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for NextFundingStep", ErrTypeAssert)
+			return finalResp, fmt.Errorf("%w for NextFundingStep", errTypeAssert)
 		}
 		if response.CurrentFunding, ok = result[z][12].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for CurrentFunding", ErrTypeAssert)
+			return finalResp, fmt.Errorf("%w for CurrentFunding", errTypeAssert)
 		}
 		if response.MarkPrice, ok = result[z][15].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for MarkPrice", ErrTypeAssert)
+			return finalResp, fmt.Errorf("%w for MarkPrice", errTypeAssert)
 		}
 
 		if response.OpenInterest, ok = result[z][18].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for OpenInterest", ErrTypeAssert)
+			return finalResp, fmt.Errorf("%w for OpenInterest", errTypeAssert)
 		}
 		finalResp = append(finalResp, response)
 	}
