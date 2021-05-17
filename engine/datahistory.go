@@ -56,6 +56,7 @@ func (m *DataHistoryManager) Start() error {
 	m.shutdown = make(chan struct{})
 	validJobs, err := m.PrepareJobs()
 	if err != nil {
+		atomic.StoreInt32(&m.started, 0)
 		return err
 	}
 	m.m.Lock()
@@ -135,29 +136,38 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob) error {
 	if !m.IsRunning() {
 		return ErrSubSystemNotStarted
 	}
+	if job == nil {
+		return errNilJob
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
-	updated := false
+
+	dbExchange, err := m.validateJob(job)
+	if err != nil {
+		return err
+	}
+	toUpdate := false
 	for i := range m.jobs {
 		if strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
-			updated = true
+			toUpdate = true
 			m.jobs[i] = job
 			break
 		}
 	}
-	if !updated {
+	if !toUpdate {
 		m.jobs = append(m.jobs, job)
 	}
-
-	exchangeID, err := exchangedb.One(job.Exchange)
-	if err != nil {
-		return err
+	if job.ID == uuid.Nil {
+		job.ID, err = uuid.NewV4()
+		if err != nil {
+			return err
+		}
 	}
 
 	return m.jobDB.Upsert(&datahistoryjob.DataHistoryJob{
 		ID:               job.ID.String(),
 		Nickname:         job.Nickname,
-		ExchangeID:       exchangeID.UUID.String(),
+		ExchangeID:       dbExchange.UUID.String(),
 		Asset:            job.Asset.String(),
 		Base:             job.Pair.Base.String(),
 		Quote:            job.Pair.Quote.String(),
@@ -169,8 +179,25 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob) error {
 		MaxRetryAttempts: job.MaxRetryAttempts,
 		BatchSize:        job.BatchSize,
 		Status:           job.Status,
-		CreatedDate:      job.CreatedDate,
 	})
+}
+
+func (m *DataHistoryManager) validateJob(job *DataHistoryJob) (*exchangedb.Details, error) {
+	if !job.Asset.IsValid() {
+		return nil, asset.ErrNotSupported
+	}
+	if job.Pair.IsEmpty() {
+		return nil, errCurrencyPairUnset
+	}
+	if job.StartDate.After(job.EndDate) || job.StartDate.IsZero() || job.EndDate.IsZero() {
+		return nil, errInvalidTimes
+	}
+	exchangeID, err := exchangedb.One(strings.ToLower(job.Exchange))
+	if err != nil {
+		return nil, fmt.Errorf("%s %w. %s", job.Exchange, err, "please ensure exchange table setup")
+	}
+
+	return &exchangeID, nil
 }
 
 // RemoveJob allows for GRPC interaction to remove a job to be processed
@@ -180,6 +207,15 @@ func (m *DataHistoryManager) RemoveJob(nickname string) error {
 	defer m.m.Unlock()
 	for i := range m.jobs {
 		if strings.EqualFold(m.jobs[i].Nickname, nickname) {
+			m.jobs[i].Status = dataHistoryStatusRemoved
+			dbJobs, err := convertJobToDBModel(m.jobs[i])
+			if err != nil {
+				return err
+			}
+			err = m.jobDB.Upsert(&dbJobs[0])
+			if err != nil {
+				return err
+			}
 			m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
 			return nil
 		}

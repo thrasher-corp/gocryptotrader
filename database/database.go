@@ -11,7 +11,7 @@ import (
 // basic locks and checks
 func (i *Instance) SetConfig(cfg *Config) error {
 	if i == nil {
-		return errNilInstance
+		return ErrNilInstance
 	}
 	if cfg == nil {
 		return errNilConfig
@@ -85,7 +85,7 @@ func (i *Instance) GetConfig() *Config {
 // Ping pings the database
 func (i *Instance) Ping() error {
 	if i == nil {
-		return errNilInstance
+		return ErrNilInstance
 	}
 	i.m.RLock()
 	defer i.m.RUnlock()

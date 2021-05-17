@@ -23,10 +23,10 @@ import (
 // so you don't need to interact with globals in any fashion
 func Setup(db database.IDatabase) (*DBService, error) {
 	if db == nil {
-		return nil, nil
+		return nil, database.ErrNilInstance
 	}
 	if !db.IsConnected() {
-		return nil, nil
+		return nil, database.ErrDatabaseNotConnected
 	}
 	cfg := db.GetConfig()
 	return &DBService{
@@ -185,13 +185,48 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 	return nil
 }
 
+func GetAll() (interface{}, error) {
+	query := sqlite3.Datahistoryjobs()
+	a, err := query.All(context.Background(), database.DB.SQL)
+	if err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+func (db *DBService) GetAll() ([]*DataHistoryJob, error) {
+	whereQM := qm.Where("nickname = ?", "TestDataHistoryJob0")
+	a, err := sqlite3.Datahistoryjobs(whereQM).All(context.Background(), db.sql)
+	if err != nil {
+		return nil, err
+	}
+	var result []*DataHistoryJob
+	for i := range a {
+		result = append(result, &DataHistoryJob{
+			ID:               a[i].ID,
+			Nickname:         a[i].Nickname,
+			ExchangeID:       a[i].ExchangeNameID,
+			Asset:            a[i].Asset,
+			Base:             a[i].Base,
+			Quote:            a[i].Quote,
+			Interval:         int64(a[i].Interval),
+			RequestSizeLimit: int64(a[i].RequestSize),
+			DataType:         int64(a[i].DataType),
+			MaxRetryAttempts: int64(a[i].MaxRetries),
+			Status:           int64(a[i].Status),
+		})
+	}
+	return result, nil
+}
+
 func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	query := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", nickname))
-	result, err := query.One(context.Background(), db.sql)
+	whereQM := qm.Where("nickname = ?", nickname)
+	result, err := sqlite3.Datahistoryjobs(whereQM).One(context.Background(), db.sql)
 	if err != nil {
 		return job, err
 	}
+	log.Infof(log.DatabaseMgr, "%v", result)
 	ts, err := time.Parse(time.RFC3339, result.StartTime)
 	if err != nil {
 		return nil, err
@@ -269,7 +304,7 @@ func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, er
 
 func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataHistoryJob, error) {
 	var jobs []DataHistoryJob
-	query := sqlite3.Datahistoryjobs(qm.Where("created BETWEEN ? AND  ? ", startDate, endDate))
+	query := sqlite3.Datahistoryjobs(qm.Where("created BETWEEN ? AND ? ", startDate.UTC().Format(time.RFC3339), endDate.UTC().Format(time.RFC3339)))
 	results, err := query.All(context.Background(), db.sql)
 	if err != nil {
 		return jobs, err
@@ -356,7 +391,7 @@ func (db *DBService) getJobsBetweenPostgres(startDate, endDate time.Time) ([]Dat
 
 func (db *DBService) getJobAndAllResultsSQLite(jobID string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	query := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("job_id = ?", jobID))
+	query := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("id = ?", jobID))
 	result, err := query.One(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
@@ -422,7 +457,7 @@ func (db *DBService) getJobAndAllResultsSQLite(jobID string) (*DataHistoryJob, e
 
 func (db *DBService) getJobAndAllResultsPostgres(jobID string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	query := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("job_id = ?", jobID))
+	query := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("id = ?", jobID))
 	result, err := query.One(context.Background(), db.sql)
 	if err != nil {
 		return job, err

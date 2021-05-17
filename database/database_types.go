@@ -40,11 +40,14 @@ var (
 	SupportedDrivers = []string{DBSQLite, DBSQLite3, DBPostgreSQL}
 	// ErrFailedToConnect for when a database fails to connect
 	ErrFailedToConnect = errors.New("database failed to connect")
+	// ErrDatabaseNotConnected for when a database is not connected
+	ErrDatabaseNotConnected = errors.New("database is not connected")
 	// DefaultSQLiteDatabase is the default sqlite3 database name to use
 	DefaultSQLiteDatabase = "gocryptotrader.db"
-	errNilConfig          = errors.New("received nil config")
-	errNilInstance        = errors.New("database instance is nil")
-	errNilSQL             = errors.New("database SQL connection is nil")
+	// ErrNilInstance for when a database is nil
+	ErrNilInstance = errors.New("database instance is nil")
+	errNilConfig   = errors.New("received nil config")
+	errNilSQL      = errors.New("database SQL connection is nil")
 )
 
 const (

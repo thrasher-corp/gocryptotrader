@@ -96,7 +96,7 @@ func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err er
 	if err != nil {
 		return nil, err
 	}
-
+	database.DB.SetConnected(true)
 	return
 }
 

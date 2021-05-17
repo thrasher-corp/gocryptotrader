@@ -11,7 +11,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
-	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
+	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -70,7 +70,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			}
 			trades[i].ID = freshUUID.String()
 		}
-		var tempEvent = modelSQLite.Trade{
+		var tempEvent = sqlite3.Trade{
 			ID:             trades[i].ID,
 			ExchangeNameID: trades[i].ExchangeNameID,
 			Base:           strings.ToUpper(trades[i].Base),
@@ -152,7 +152,7 @@ func GetByUUID(uuid string) (td Data, err error) {
 func getByUUIDSQLite(uuid string) (Data, error) {
 	var td Data
 	var ts time.Time
-	query := modelSQLite.Trades(qm.Where("id = ?", uuid))
+	query := sqlite3.Trades(qm.Where("id = ?", uuid))
 	result, err := query.One(context.Background(), database.DB.SQL)
 	if err != nil {
 		return td, err
@@ -232,8 +232,8 @@ func getInRangeSQLite(exchangeName, assetType, base, quote string, startDate, en
 		"quote":            strings.ToUpper(quote),
 	}
 	q := generateQuery(wheres, startDate, endDate)
-	query := modelSQLite.Trades(q...)
-	var result []*modelSQLite.Trade
+	query := sqlite3.Trades(q...)
+	var result []*sqlite3.Trade
 	result, err = query.All(context.Background(), database.DB.SQL)
 	if err != nil {
 		return td, err
@@ -333,7 +333,7 @@ func deleteTradesSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	for i := range trades {
 		tradeIDs = append(tradeIDs, trades[i].ID)
 	}
-	query := modelSQLite.Trades(qm.WhereIn(`id in ?`, tradeIDs...))
+	query := sqlite3.Trades(qm.WhereIn(`id in ?`, tradeIDs...))
 	_, err := query.DeleteAll(ctx, tx)
 	return err
 }

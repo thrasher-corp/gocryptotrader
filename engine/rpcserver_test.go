@@ -126,6 +126,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 }
 
 func CleanRPCTest(t *testing.T, engerino *Engine) {
+	t.Helper()
 	err := engerino.DatabaseManager.Stop()
 	if err != nil {
 		t.Error(err)
