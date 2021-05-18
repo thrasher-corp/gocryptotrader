@@ -202,7 +202,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Bithumb | Yes  | NA       | NA  |
 | BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
-| Bittrex | Yes | No | NA |
+| Bittrex | Yes | Yes | NA |
 | BTCMarkets | Yes | No       | NA  |
 | BTSE | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
