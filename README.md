@@ -151,11 +151,11 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
-| [MadCozBadd](https://github.com/MadCozBadd) | 11 |
+| [MadCozBadd](https://github.com/MadCozBadd) | 12 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 8 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
