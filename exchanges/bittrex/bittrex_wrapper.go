@@ -2,8 +2,8 @@ package bittrex
 
 import (
 	"errors"
+	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -44,11 +45,10 @@ func (b *Bittrex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 			return nil, err
 		}
 	}
-
 	return exchCfg, nil
 }
 
-// SetDefaults method assignes the default values for Bittrex
+// SetDefaults sets the basic defaults for Bittrex
 func (b *Bittrex) SetDefaults() {
 	b.Name = "Bittrex"
 	b.Enabled = true
@@ -56,9 +56,18 @@ func (b *Bittrex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
-	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
-	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	spot := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
+		},
+	}
+
+	err := b.StoreAssetPairFormat(asset.Spot, spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -66,7 +75,7 @@ func (b *Bittrex) SetDefaults() {
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
-			Websocket: false,
+			Websocket: true,
 			RESTCapabilities: protocol.Features{
 				TickerBatching:      true,
 				TickerFetching:      true,
@@ -76,6 +85,7 @@ func (b *Bittrex) SetDefaults() {
 				AutoPairUpdates:     true,
 				GetOrders:           true,
 				CancelOrder:         true,
+				CancelOrders:        true,
 				SubmitOrder:         true,
 				DepositHistory:      true,
 				WithdrawalHistory:   true,
@@ -85,33 +95,95 @@ func (b *Bittrex) SetDefaults() {
 				TradeFee:            true,
 				CryptoWithdrawalFee: true,
 			},
+			WebsocketCapabilities: protocol.Features{
+				TickerFetching:    true,
+				OrderbookFetching: true,
+				Subscribe:         true,
+				Unsubscribe:       true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.NoFiatWithdrawals,
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():  true,
+					kline.FiveMin.Word(): true,
+					kline.OneHour.Word(): true,
+					kline.OneDay.Word():  true,
+				},
+			},
 		},
 	}
 
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(request.NewBasicRateLimit(bittrexRateInterval, bittrexRequestRate)))
+		request.WithLimiter(request.NewBasicRateLimit(ratePeriod, rateLimit)))
+
 	b.API.Endpoints = b.NewEndpoints()
+
 	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot: bittrexAPIURL,
+		exchange.RestSpot:                   bittrexAPIRestURL,
+		exchange.WebsocketSpot:              bittrexAPIWSURL,
+		exchange.WebsocketSpotSupplementary: bittrexAPIWSNegotiationsURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	b.Websocket = stream.New()
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
-// Setup method sets current configuration details if enabled
+// Setup takes in the supplied exchange configuration details and sets params
 func (b *Bittrex) Setup(exch *config.ExchangeConfig) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
 	}
-	return b.SetupDefaults(exch)
+
+	b.SetupDefaults(exch)
+
+	wsRunningEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
+	// Websocket details setup below
+	err = b.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       bittrexAPIWSURL, // Default ws endpoint so we can roll back via CLI if needed.
+		ExchangeName:                     exch.Name,       // Sets websocket name to the exchange name.
+		RunningURL:                       wsRunningEndpoint,
+		Connector:                        b.WsConnect,                                // Connector function outlined above.
+		Subscriber:                       b.Subscribe,                                // Subscriber function outlined above.
+		UnSubscriber:                     b.Unsubscribe,                              // Unsubscriber function outlined above.
+		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,             // GenerateDefaultSubscriptions function outlined above.
+		Features:                         &b.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
+
+		// Orderbook buffer specific variables for processing orderbook updates via websocket feed.
+		// Other orderbook buffer vars:
+		// UpdateEntriesByID     bool
+		OrderbookBufferLimit:  exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:         exch.OrderbookConfig.WebsocketBufferEnabled,
+		SortBuffer:            true,
+		SortBufferByUpdateIDs: true,
+	})
+	if err != nil {
+		return err
+	}
+	// Sets up a new connection for the websocket, there are two separate connections denoted by the ConnectionSetup struct auth bool.
+	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            wsRateLimit,
+		// Authenticated        bool  sets if the connection is dedicated for an authenticated websocket stream which can be accessed from the Websocket field variable AuthConn e.g. f.Websocket.AuthConn
+	})
 }
 
 // Start starts the Bittrex go routine
@@ -126,89 +198,65 @@ func (b *Bittrex) Start(wg *sync.WaitGroup) {
 // Run implements the Bittrex wrapper
 func (b *Bittrex) Run() {
 	if b.Verbose {
+		log.Debugf(log.ExchangeSys,
+			"%s Websocket: %s.",
+			b.Name,
+			common.IsEnabled(b.Websocket.IsEnabled()))
 		b.PrintEnabledPairs()
 	}
 
-	forceUpdate := false
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update currencies. Err: %s\n",
-			b.Name,
-			err)
+	if !b.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
 
-	pairs, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update currencies. Err: %s\n",
-			b.Name,
-			err)
-		return
-	}
-
-	avail, err := b.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update currencies. Err: %s\n",
-			b.Name,
-			err)
-		return
-	}
-
-	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		forceUpdate = true
-		log.Warn(log.ExchangeSys, "Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
-		pairs, err = currency.NewPairsFromStrings([]string{currency.USDT.String() +
-			format.Delimiter +
-			currency.BTC.String()})
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				b.Name,
-				err)
-		} else {
-			err = b.UpdatePairs(pairs, asset.Spot, true, true)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					b.Name,
-					err)
-			}
-		}
-	}
-
-	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err = b.UpdateTradablePairs(forceUpdate)
+	err := b.UpdateTradablePairs(false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
 			b.Name,
 			err)
 	}
+	restURL, err := b.API.Endpoints.GetURL(exchange.RestSpot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to check REST Spot URL. Err: %s",
+			b.Name,
+			err)
+	}
+	if restURL == bittrexAPIDeprecatedURL {
+		err = b.API.Endpoints.SetRunning(exchange.RestSpot.String(), bittrexAPIRestURL)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update deprecated REST Spot URL. Err: %s",
+				b.Name,
+				err)
+		}
+		b.Config.API.Endpoints[exchange.RestSpot.String()] = bittrexAPIRestURL
+		log.Warnf(log.ExchangeSys,
+			"Deprecated %s REST URL updated from %s to %s", b.Name, bittrexAPIDeprecatedURL, bittrexAPIRestURL)
+	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *Bittrex) FetchTradablePairs(asset asset.Item) ([]string, error) {
+	// Bittrex only supports spot trading
+	if !b.SupportsAsset(asset) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", asset, b.Name)
+	}
 	markets, err := b.GetMarkets()
 	if err != nil {
 		return nil, err
 	}
 
-	var pairs []string
-	for x := range markets.Result {
-		if !markets.Result[x].IsActive || markets.Result[x].MarketName == "" {
+	var resp []string
+	for x := range markets {
+		if markets[x].Status != "ONLINE" {
 			continue
 		}
-		pairs = append(pairs, markets.Result[x].MarketName)
+		resp = append(resp, markets[x].Symbol)
 	}
 
-	return pairs, nil
+	return resp, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -218,6 +266,7 @@ func (b *Bittrex) UpdateTradablePairs(forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
+
 	p, err := currency.NewPairsFromStrings(pairs)
 	if err != nil {
 		return err
@@ -226,142 +275,108 @@ func (b *Bittrex) UpdateTradablePairs(forceUpdate bool) error {
 	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
-// UpdateAccountInfo Retrieves balances for all enabled currencies for the
-// Bittrex exchange
-func (b *Bittrex) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
-	response.Exchange = b.Name
-	accountBalance, err := b.GetAccountBalances()
-	if err != nil {
-		return response, err
-	}
-
-	var currencies []account.Balance
-	for i := range accountBalance.Result {
-		var exchangeCurrency account.Balance
-		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance.Result[i].Currency)
-		exchangeCurrency.TotalValue = accountBalance.Result[i].Balance
-		exchangeCurrency.Hold = accountBalance.Result[i].Balance - accountBalance.Result[i].Available
-		currencies = append(currencies, exchangeCurrency)
-	}
-
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currencies: currencies,
-	})
-
-	err = account.Process(&response)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return response, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bittrex) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
-	if err != nil {
-		return b.UpdateAccountInfo(assetType)
-	}
-
-	return acc, nil
-}
-
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	ticks, err := b.GetMarketSummaries()
+	formattedPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	pairs, err := b.GetEnabledPairs(assetType)
+	t, err := b.GetTicker(formattedPair.String())
 	if err != nil {
 		return nil, err
 	}
 
-	for j := range ticks.Result {
-		cp, err := currency.NewPairFromString(ticks.Result[j].MarketName)
-		if err != nil {
-			return nil, err
-		}
-		if !pairs.Contains(cp, true) {
-			continue
-		}
-		tickerTime, err := parseTime(ticks.Result[j].TimeStamp)
-		if err != nil {
-			return nil, err
-		}
-
-		err = ticker.ProcessTicker(&ticker.Price{
-			Last:         ticks.Result[j].Last,
-			High:         ticks.Result[j].High,
-			Low:          ticks.Result[j].Low,
-			Bid:          ticks.Result[j].Bid,
-			Ask:          ticks.Result[j].Ask,
-			Volume:       ticks.Result[j].BaseVolume,
-			QuoteVolume:  ticks.Result[j].Volume,
-			Close:        ticks.Result[j].PrevDay,
-			Pair:         cp,
-			LastUpdated:  tickerTime,
-			ExchangeName: b.Name,
-			AssetType:    assetType})
-		if err != nil {
-			return nil, err
-		}
+	s, err := b.GetMarketSummary(formattedPair.String())
+	if err != nil {
+		return nil, err
 	}
+
+	pair, err := currency.NewPairFromString(t.Symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	tickerPrice := b.constructTicker(t, &s, pair, assetType)
+
+	err = ticker.ProcessTicker(tickerPrice)
+	if err != nil {
+		return nil, err
+	}
+
 	return ticker.GetTicker(b.Name, p, assetType)
+}
+
+// constructTicker constructs a ticker price from the underlying data
+func (b *Bittrex) constructTicker(t TickerData, s *MarketSummaryData, pair currency.Pair, assetType asset.Item) *ticker.Price {
+	return &ticker.Price{
+		Pair:         pair,
+		Last:         t.LastTradeRate,
+		Bid:          t.BidRate,
+		Ask:          t.AskRate,
+		High:         s.High,
+		Low:          s.Low,
+		Volume:       s.Volume,
+		QuoteVolume:  s.QuoteVolume,
+		LastUpdated:  s.UpdatedAt,
+		AssetType:    assetType,
+		ExchangeName: b.Name,
+	}
 }
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Bittrex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := ticker.GetTicker(b.Name, p, assetType)
+	resp, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
-	return tick, nil
+	return resp, nil
 }
 
-// FetchOrderbook returns the orderbook for a currency pair
-func (b *Bittrex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
+// FetchOrderbook returns orderbook base on the currency pair
+func (b *Bittrex) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	resp, err := orderbook.Get(b.Name, currency, assetType)
 	if err != nil {
-		return b.UpdateOrderbook(p, assetType)
+		return b.UpdateOrderbook(currency, assetType)
 	}
-	return ob, nil
+	return resp, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	formattedPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Valid order book depths are 1, 25 and 500
+	orderbookData, sequence, err := b.GetOrderbook(formattedPair.String(), orderbookDepth)
+	if err != nil {
+		return nil, err
+	}
+
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
 		Asset:           assetType,
 		VerifyOrderbook: b.CanVerifyOrderbook,
-	}
-	fpair, err := b.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return book, err
+		LastUpdateID:    sequence,
 	}
 
-	orderbookNew, err := b.GetOrderbook(fpair.String())
-	if err != nil {
-		return nil, err
-	}
-
-	for x := range orderbookNew.Result.Buy {
+	for x := range orderbookData.Bid {
 		book.Bids = append(book.Bids,
 			orderbook.Item{
-				Amount: orderbookNew.Result.Buy[x].Quantity,
-				Price:  orderbookNew.Result.Buy[x].Rate,
+				Amount: orderbookData.Bid[x].Quantity,
+				Price:  orderbookData.Bid[x].Rate,
 			},
 		)
 	}
 
-	for x := range orderbookNew.Result.Sell {
+	for x := range orderbookData.Ask {
 		book.Asks = append(book.Asks,
 			orderbook.Item{
-				Amount: orderbookNew.Result.Sell[x].Quantity,
-				Price:  orderbookNew.Result.Sell[x].Rate,
+				Amount: orderbookData.Ask[x].Quantity,
+				Price:  orderbookData.Ask[x].Rate,
 			},
 		)
 	}
@@ -369,13 +384,98 @@ func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	if err != nil {
 		return book, err
 	}
+
 	return orderbook.Get(b.Name, p, assetType)
+}
+
+// UpdateAccountInfo retrieves balances for all enabled currencies
+func (b *Bittrex) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	var resp account.Holdings
+	balanceData, err := b.GetBalances()
+	if err != nil {
+		return resp, err
+	}
+
+	var currencies []account.Balance
+	for i := range balanceData {
+		currencies = append(currencies, account.Balance{
+			CurrencyName: currency.NewCode(balanceData[i].CurrencySymbol),
+			TotalValue:   balanceData[i].Total,
+			Hold:         balanceData[i].Total - balanceData[i].Available,
+		})
+	}
+
+	resp.Accounts = append(resp.Accounts, account.SubAccount{
+		Currencies: currencies,
+	})
+	resp.Exchange = b.Name
+
+	return resp, account.Process(&resp)
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (b *Bittrex) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	resp, err := account.GetHoldings(b.Name, assetType)
+	if err != nil {
+		return b.UpdateAccountInfo(assetType)
+	}
+
+	return resp, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {
-	return nil, common.ErrFunctionNotSupported
+	var resp []exchange.FundHistory
+	closedDepositData, err := b.GetClosedDeposits()
+	if err != nil {
+		return resp, err
+	}
+	openDepositData, err := b.GetOpenDeposits()
+	if err != nil {
+		return resp, err
+	}
+	depositData := append(closedDepositData, openDepositData...)
+
+	for x := range depositData {
+		resp = append(resp, exchange.FundHistory{
+			ExchangeName:    b.Name,
+			Status:          depositData[x].Status,
+			Description:     depositData[x].CryptoAddressTag,
+			Timestamp:       depositData[x].UpdatedAt,
+			Currency:        depositData[x].CurrencySymbol,
+			Amount:          depositData[x].Quantity,
+			TransferType:    "deposit",
+			CryptoToAddress: depositData[x].CryptoAddress,
+			CryptoTxID:      depositData[x].TxID,
+		})
+	}
+	closedWithdrawalData, err := b.GetClosedWithdrawals()
+	if err != nil {
+		return resp, err
+	}
+	openWithdrawalData, err := b.GetOpenWithdrawals()
+	if err != nil {
+		return resp, err
+	}
+	withdrawalData := append(closedWithdrawalData, openWithdrawalData...)
+
+	for x := range withdrawalData {
+		resp = append(resp, exchange.FundHistory{
+			ExchangeName:    b.Name,
+			Status:          withdrawalData[x].Status,
+			Description:     withdrawalData[x].CryptoAddressTag,
+			Timestamp:       depositData[x].UpdatedAt,
+			Currency:        withdrawalData[x].CurrencySymbol,
+			Amount:          withdrawalData[x].Quantity,
+			Fee:             withdrawalData[x].TxCost,
+			TransferType:    "withdrawal",
+			CryptoToAddress: withdrawalData[x].CryptoAddress,
+			CryptoTxID:      withdrawalData[x].TxID,
+			TransferID:      withdrawalData[x].ID,
+		})
+	}
+	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
@@ -386,35 +486,30 @@ func (b *Bittrex) GetWithdrawalsHistory(c currency.Code) (resp []exchange.Withdr
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bittrex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
-	p, err = b.FormatExchangeCurrency(p, assetType)
+	formattedPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	tradeData, err := b.GetMarketHistory(p.String())
+	tradeData, err := b.GetMarketHistory(formattedPair.String())
 	if err != nil {
 		return nil, err
 	}
 	var resp []trade.Data
-	for i := range tradeData.Result {
+	for i := range tradeData {
 		var side order.Side
-		side, err = order.StringToOrderSide(tradeData.Result[i].OrderType)
-		if err != nil {
-			return nil, err
-		}
-		var ts time.Time
-		ts, err = time.Parse("2006-01-02T15:04:05.999999999", tradeData.Result[i].Timestamp)
+		side, err = order.StringToOrderSide(tradeData[i].TakerSide)
 		if err != nil {
 			return nil, err
 		}
 		resp = append(resp, trade.Data{
 			Exchange:     b.Name,
-			TID:          strconv.FormatInt(tradeData.Result[i].ID, 10),
-			CurrencyPair: p,
+			TID:          tradeData[i].ID,
+			CurrencyPair: formattedPair,
 			AssetType:    assetType,
 			Side:         side,
-			Price:        tradeData.Result[i].Price,
-			Amount:       tradeData.Result[i].Quantity,
-			Timestamp:    ts,
+			Price:        tradeData[i].Rate,
+			Amount:       tradeData[i].Quantity,
+			Timestamp:    tradeData[i].ExecutedAt,
 		})
 	}
 
@@ -428,48 +523,45 @@ func (b *Bittrex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
+// Bittrex only reports recent trades
 func (b *Bittrex) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
 func (b *Bittrex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return order.SubmitResponse{}, err
 	}
 
-	buy := s.Side == order.Buy
-	if s.Type != order.Limit {
-		return submitOrderResponse,
-			errors.New("limit orders only supported on exchange")
+	if s.Side == order.Ask {
+		s.Side = order.Sell
 	}
 
-	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if s.Side == order.Bid {
+		s.Side = order.Buy
+	}
+
+	formattedPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return order.SubmitResponse{}, err
 	}
 
-	var response UUID
-	if buy {
-		response, err = b.PlaceBuyLimit(fPair.String(),
-			s.Amount,
-			s.Price)
-	} else {
-		response, err = b.PlaceSellLimit(fPair.String(),
-			s.Amount,
-			s.Price)
-	}
+	orderData, err := b.Order(formattedPair.String(),
+		s.Side.String(),
+		s.Type.String(),
+		GoodTilCancelled,
+		s.Price,
+		s.Amount,
+		0.0)
 	if err != nil {
-		return submitOrderResponse, err
-	}
-	if response.Result.ID != "" {
-		submitOrderResponse.OrderID = response.Result.ID
+		return order.SubmitResponse{}, err
 	}
 
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return order.SubmitResponse{
+		IsOrderPlaced: true,
+		OrderID:       orderData.ID,
+	}, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -479,43 +571,116 @@ func (b *Bittrex) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bittrex) CancelOrder(o *order.Cancel) error {
-	if err := o.Validate(o.StandardCancel()); err != nil {
+func (b *Bittrex) CancelOrder(ord *order.Cancel) error {
+	if err := ord.Validate(ord.StandardCancel()); err != nil {
 		return err
 	}
-	_, err := b.CancelExistingOrder(o.ID)
+	_, err := b.CancelExistingOrder(ord.ID)
 	return err
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bittrex) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+func (b *Bittrex) CancelBatchOrders(orders []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
-// CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bittrex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
-	cancelAllOrdersResponse := order.CancelAllResponse{
-		Status: make(map[string]string),
+// CancelAllOrders cancels all orders associated with a currency pair, or cancels all orders for all
+// pairs if no pair was specified
+func (b *Bittrex) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	var pair string
+	if orderCancellation != nil {
+		formattedPair, err := b.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
+		if err != nil {
+			return order.CancelAllResponse{}, err
+		}
+		pair = formattedPair.String()
 	}
-	openOrders, err := b.GetOpenOrders("")
+	orderData, err := b.CancelOpenOrders(pair)
 	if err != nil {
-		return cancelAllOrdersResponse, err
+		return order.CancelAllResponse{}, err
 	}
 
-	for i := range openOrders.Result {
-		_, err := b.CancelExistingOrder(openOrders.Result[i].OrderUUID)
-		if err != nil {
-			cancelAllOrdersResponse.Status[openOrders.Result[i].OrderUUID] = err.Error()
+	tempMap := make(map[string]string)
+	for x := range orderData {
+		if orderData[x].Result.Status == "CLOSED" {
+			tempMap[orderData[x].ID] = "Success"
+		}
+	}
+	resp := order.CancelAllResponse{
+		Status: tempMap,
+		Count:  int64(len(tempMap)),
+	}
+	return resp, nil
+}
+
+// GetOrderInfo returns information on a current open order
+func (b *Bittrex) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+	orderData, err := b.GetOrder(orderID)
+	if err != nil {
+		return order.Detail{}, err
+	}
+
+	return b.ConstructOrderDetail(&orderData)
+}
+
+// ConstructOrderDetail constructs an order detail item from the underlying data
+func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, error) {
+	immediateOrCancel := false
+	if orderData.TimeInForce == string(ImmediateOrCancel) {
+		immediateOrCancel = true
+	}
+
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	orderPair, err := currency.NewPairDelimiter(orderData.MarketSymbol,
+		format.Delimiter)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"Exchange %v Func %v Order %v Could not parse currency pair %v",
+			b.Name,
+			"GetActiveOrders",
+			orderData.ID,
+			err)
+	}
+	orderType := order.Type(strings.ToUpper(orderData.Type))
+
+	var orderStatus order.Status
+
+	switch orderData.Status {
+	case order.Open.String():
+		switch orderData.FillQuantity {
+		case 0:
+			orderStatus = order.Open
+		default:
+			orderStatus = order.PartiallyFilled
+		}
+	case order.Closed.String():
+		switch orderData.FillQuantity {
+		case 0:
+			orderStatus = order.Cancelled
+		case orderData.Quantity:
+			orderStatus = order.Filled
+		default:
+			orderStatus = order.PartiallyCancelled
 		}
 	}
 
-	return cancelAllOrdersResponse, nil
-}
-
-// GetOrderInfo returns order information based on order ID
-func (b *Bittrex) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	resp := order.Detail{
+		ImmediateOrCancel: immediateOrCancel,
+		Amount:            orderData.Quantity,
+		ExecutedAmount:    orderData.FillQuantity,
+		RemainingAmount:   orderData.Quantity - orderData.FillQuantity,
+		Price:             orderData.Limit,
+		Date:              orderData.CreatedAt,
+		ID:                orderData.ID,
+		Exchange:          b.Name,
+		Type:              orderType,
+		Pair:              orderPair,
+		Status:            orderStatus,
+	}
+	return resp, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -524,8 +689,11 @@ func (b *Bittrex) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 	if err != nil {
 		return "", err
 	}
+	if depositAddr.Status != "PROVISIONED" {
+		return "", errors.New("no deposit address found for currency" + cryptocurrency.String())
+	}
 
-	return depositAddr.Result.Address, nil
+	return depositAddr.CryptoAddress, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -534,7 +702,7 @@ func (b *Bittrex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	uuid, err := b.Withdraw(withdrawRequest.Currency.String(),
+	result, err := b.Withdraw(withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Amount)
@@ -542,7 +710,9 @@ func (b *Bittrex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 		return nil, err
 	}
 	return &withdraw.ExchangeResponse{
-		ID: uuid.Result.ID,
+		Name:   b.Name,
+		ID:     result.ID,
+		Status: result.Status,
 	}, err
 }
 
@@ -558,6 +728,149 @@ func (b *Bittrex) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*wi
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetActiveOrders retrieves any orders that are active/open
+func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
+	var currPair string
+	if len(req.Pairs) == 1 {
+		formattedPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		currPair = formattedPair.String()
+	}
+
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
+	orderData, sequence, err := b.GetOpenOrders(currPair)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []order.Detail
+	for i := range orderData {
+		pair, err := currency.NewPairDelimiter(orderData[i].MarketSymbol,
+			format.Delimiter)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"Exchange %v Func %v Order %v Could not parse currency pair %v",
+				b.Name,
+				"GetActiveOrders",
+				orderData[i].ID,
+				err)
+		}
+		orderType := order.Type(strings.ToUpper(orderData[i].Type))
+
+		orderSide, err := order.StringToOrderSide(orderData[i].Direction)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order side - %s\n", b.Name, err.Error())
+			continue
+		}
+
+		resp = append(resp, order.Detail{
+			Amount:          orderData[i].Quantity,
+			RemainingAmount: orderData[i].Quantity - orderData[i].FillQuantity,
+			ExecutedAmount:  orderData[i].FillQuantity,
+			Price:           orderData[i].Limit,
+			Date:            orderData[i].CreatedAt,
+			ID:              orderData[i].ID,
+			Exchange:        b.Name,
+			Type:            orderType,
+			Side:            orderSide,
+			Status:          order.Active,
+			Pair:            pair,
+		})
+	}
+
+	order.FilterOrdersByType(&resp, req.Type)
+	order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+	order.FilterOrdersByCurrencies(&resp, req.Pairs)
+
+	b.WsSequenceOrders = sequence
+	return resp, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	if len(req.Pairs) == 0 {
+		return nil, errors.New("at least one currency is required to fetch order history")
+	}
+
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []order.Detail
+	for x := range req.Pairs {
+		formattedPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.AssetType)
+		if err != nil {
+			return nil, err
+		}
+
+		orderData, err := b.GetOrderHistoryForCurrency(formattedPair.String())
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range orderData {
+			pair, err := currency.NewPairDelimiter(orderData[i].MarketSymbol,
+				format.Delimiter)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"Exchange %v Func %v Order %v Could not parse currency pair %v",
+					b.Name,
+					"GetOrderHistory",
+					orderData[i].ID,
+					err)
+			}
+			orderType := order.Type(strings.ToUpper(orderData[i].Type))
+
+			orderSide, err := order.StringToOrderSide(orderData[i].Direction)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order side - %s\n", b.Name, err.Error())
+				continue
+			}
+			orderStatus, err := order.StringToOrderStatus(orderData[i].Status)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order status - %s\n", b.Name, err.Error())
+				continue
+			}
+
+			resp = append(resp, order.Detail{
+				Amount:          orderData[i].Quantity,
+				RemainingAmount: orderData[i].Quantity - orderData[i].FillQuantity,
+				ExecutedAmount:  orderData[i].FillQuantity,
+				Price:           orderData[i].Limit,
+				Date:            orderData[i].CreatedAt,
+				ID:              orderData[i].ID,
+				Exchange:        b.Name,
+				Type:            orderType,
+				Side:            orderSide,
+				Status:          orderStatus,
+				Fee:             orderData[i].Commission,
+				Pair:            pair,
+			})
+		}
+
+		order.FilterOrdersByType(&resp, req.Type)
+		order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+		order.FilterOrdersByCurrencies(&resp, req.Pairs)
+	}
+
+	return resp, nil
+}
+
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bittrex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !b.AllowAuthenticatedRequest() && // Todo check connection status
@@ -567,142 +880,6 @@ func (b *Bittrex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 	return b.GetFee(feeBuilder)
 }
 
-// GetActiveOrders retrieves any orders that are active/open
-func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
-		return nil, err
-	}
-
-	var currPair string
-	if len(req.Pairs) == 1 {
-		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
-		if err != nil {
-			return nil, err
-		}
-		currPair = fPair.String()
-	}
-
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := b.GetOpenOrders(currPair)
-	if err != nil {
-		return nil, err
-	}
-
-	var orders []order.Detail
-	for i := range resp.Result {
-		orderDate, err := parseTime(resp.Result[i].Opened)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				b.Name,
-				"GetActiveOrders",
-				resp.Result[i].OrderUUID,
-				resp.Result[i].Opened)
-		}
-
-		pair, err := currency.NewPairDelimiter(resp.Result[i].Exchange,
-			format.Delimiter)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"Exchange %v Func %v Order %v Could not parse currency pair %v",
-				b.Name,
-				"GetActiveOrders",
-				resp.Result[i].OrderUUID,
-				err)
-		}
-		orderType := order.Type(strings.ToUpper(resp.Result[i].Type))
-
-		orders = append(orders, order.Detail{
-			Amount:          resp.Result[i].Quantity,
-			RemainingAmount: resp.Result[i].QuantityRemaining,
-			Price:           resp.Result[i].Price,
-			Date:            orderDate,
-			ID:              resp.Result[i].OrderUUID,
-			Exchange:        b.Name,
-			Type:            orderType,
-			Pair:            pair,
-		})
-	}
-
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
-	return orders, nil
-}
-
-// GetOrderHistory retrieves account order information
-// Can Limit response to specific order status
-func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := req.Validate(); err != nil {
-		return nil, err
-	}
-
-	var currPair string
-	if len(req.Pairs) == 1 {
-		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
-		if err != nil {
-			return nil, err
-		}
-		currPair = fPair.String()
-	}
-
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := b.GetOrderHistoryForCurrency(currPair)
-	if err != nil {
-		return nil, err
-	}
-
-	var orders []order.Detail
-	for i := range resp.Result {
-		orderDate, err := parseTime(resp.Result[i].TimeStamp)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				b.Name,
-				"GetOrderHistory",
-				resp.Result[i].OrderUUID,
-				resp.Result[i].Opened)
-		}
-
-		pair, err := currency.NewPairDelimiter(resp.Result[i].Exchange,
-			format.Delimiter)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"Exchange %v Func %v Order %v Could not parse currency pair %v",
-				b.Name,
-				"GetOrderHistory",
-				resp.Result[i].OrderUUID,
-				err)
-		}
-		orderType := order.Type(strings.ToUpper(resp.Result[i].Type))
-
-		orders = append(orders, order.Detail{
-			Amount:          resp.Result[i].Quantity,
-			RemainingAmount: resp.Result[i].QuantityRemaining,
-			Price:           resp.Result[i].Price,
-			Date:            orderDate,
-			ID:              resp.Result[i].OrderUUID,
-			Exchange:        b.Name,
-			Type:            orderType,
-			Fee:             resp.Result[i].Commission,
-			Pair:            pair,
-		})
-	}
-
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
-	return orders, nil
-}
-
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (b *Bittrex) ValidateCredentials(assetType asset.Item) error {
@@ -710,12 +887,122 @@ func (b *Bittrex) ValidateCredentials(assetType asset.Item) error {
 	return b.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to string
+// Overrides Base function
+func (b *Bittrex) FormatExchangeKlineInterval(in kline.Interval) string {
+	switch in {
+	case kline.OneMin:
+		return "MINUTE_1"
+	case kline.FiveMin:
+		return "MINUTE_5"
+	case kline.OneHour:
+		return "HOUR_1"
+	case kline.OneDay:
+		return "DAY_1"
+	default:
+		return "notfound"
+	}
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
+// Candles set size returned by Bittrex depends on interval length:
+// - 1m interval: candles for 1 day (0:00 - 23:59)
+// - 5m interval: candles for 1 day (0:00 - 23:55)
+// - 1 hour interval: candles for 31 days
+// - 1 day interval: candles for 366 days
+// This implementation rounds returns candles up to the next interval or to the end
+// time (whichever comes first)
 func (b *Bittrex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+	if err := b.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+	candleInterval := b.FormatExchangeKlineInterval(interval)
+	if candleInterval == "notfound" {
+		return kline.Item{}, errors.New("invalid interval")
+	}
+
+	formattedPair, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	year, month, day := start.Date()
+	curYear, curMonth, curDay := time.Now().Date()
+
+	getHistoric := false
+	getRecent := false
+
+	switch interval {
+	case kline.OneMin, kline.FiveMin:
+		if time.Since(start) > 24*time.Hour {
+			getHistoric = true
+		}
+		if year >= curYear && month >= curMonth && day >= curDay {
+			getRecent = true
+		}
+	case kline.OneHour:
+		if time.Since(start) > 31*24*time.Hour {
+			getHistoric = true
+		}
+		if year >= curYear && month >= curMonth {
+			getRecent = true
+		}
+	case kline.OneDay:
+		if time.Since(start) > 366*24*time.Hour {
+			getHistoric = true
+		}
+		if year >= curYear {
+			getRecent = true
+		}
+	}
+
+	var ohlcData []CandleData
+	if getHistoric {
+		var historicData []CandleData
+		historicData, err = b.GetHistoricalCandles(formattedPair.String(),
+			b.FormatExchangeKlineInterval(interval), "TRADE", year, int(month), day)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		ohlcData = append(ohlcData, historicData...)
+	}
+	if getRecent {
+		var recentData []CandleData
+		recentData, err = b.GetRecentCandles(formattedPair.String(),
+			b.FormatExchangeKlineInterval(interval), "TRADE")
+		if err != nil {
+			return kline.Item{}, err
+		}
+		ohlcData = append(ohlcData, recentData...)
+	}
+
+	for x := range ohlcData {
+		timestamp := ohlcData[x].StartsAt
+		if timestamp.Before(start) || timestamp.After(end) {
+			continue
+		}
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   timestamp,
+			Open:   ohlcData[x].Open,
+			High:   ohlcData[x].High,
+			Low:    ohlcData[x].Low,
+			Close:  ohlcData[x].Close,
+			Volume: ohlcData[x].Volume,
+		})
+	}
+	ret.SortCandlesByTimestamp(false)
+	ret.RemoveDuplicates()
+	return ret, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bittrex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+	return kline.Item{}, common.ErrNotYetImplemented
 }
