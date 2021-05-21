@@ -24,7 +24,7 @@ type DataHistoryJob struct {
 	BatchSize        int64
 	Status           int64
 	CreatedDate      time.Time
-	Results          []datahistoryjobresult.DataHistoryJobResult
+	Results          []*datahistoryjobresult.DataHistoryJobResult
 }
 
 type DBService struct {

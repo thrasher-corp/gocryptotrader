@@ -851,34 +851,36 @@ message FindMissingIntervalsResponse {
 }
 
 message SetExchangeTradeProcessingRequest {
-    string exchange = 1;
-    bool status = 2;
+    string Exchange = 1;
+    bool Status = 2;
 }
 
 message UpsertDataHistoryJobRequest {
-    string	Nickname = 1;
-    string	Exchange = 2;
-    string	Asset = 3;
-    CurrencyPair Pair = 4;
-    string	StartDate = 5;
-    string	EndDate = 6;
-    int64	Interval = 7;
-    int64	RequestSizeLimit = 8;
-    int64	DataType = 9;
-    int64	MaxRetryAttempts = 10;
-    int64	BatchSize = 11;
+    string	nickname = 1;
+    string	exchange = 2;
+    string	asset = 3;
+    CurrencyPair pair = 4;
+    string	start_date = 5;
+    string	end_date = 6;
+    int64	interval = 7;
+    int64	request_size_limit = 8;
+    int64	data_type = 9;
+    int64	max_retry_attempts = 10;
+    int64	batch_size = 11;
+    bool insert_only = 12;
 }
 
 message UpsertDataHistoryJobResponse {
-   string message = 1;
-   string job_id = 2;
+   string Message = 1;
+   string JobID = 2;
 }
 
 message GetDataHistoryJobDetailsRequest {
-    string Nickname = 1;
+    string id = 1;
+    string nickname = 2;
 }
 
-message GetDataHistoryJobDetailsResponse {
+message DataHistoryJob {
     string	Nickname = 1;
     string	Exchange = 2;
     string	Asset = 3;
@@ -890,10 +892,10 @@ message GetDataHistoryJobDetailsResponse {
     int64	DataType = 9;
     int64	MaxRetryAttempts = 10;
     int64	BatchSize = 11;
-    repeated JobResult JobResults = 12;
+    repeated DataHistoryJobResult JobResults = 12;
 }
 
-message JobResult {
+message DataHistoryJobResult {
     string	StartDate = 1;
     string	EndDate = 2;
     bool HasData = 3;

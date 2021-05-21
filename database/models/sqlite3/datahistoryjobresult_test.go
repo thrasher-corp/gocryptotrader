@@ -677,7 +677,7 @@ func testDatahistoryjobresultsSelect(t *testing.T) {
 }
 
 var (
-	datahistoryjobresultDBTypes = map[string]string{`ID`: `TEXT`, `JobID`: `TEXT`, `Result`: `TEXT`, `Status`: `REAL`, `IntervalStartTime`: `REAL`, `IntervalEndTime`: `REAL`, `RunTime`: `REAL`}
+	datahistoryjobresultDBTypes = map[string]string{`ID`: `TEXT`, `JobID`: `TEXT`, `Result`: `TEXT`, `Status`: `REAL`, `IntervalStartTime`: `TIMESTAMP`, `IntervalEndTime`: `TIMESTAMP`, `RunTime`: `TIMESTAMP`}
 	_                           = bytes.MinRead
 )
 

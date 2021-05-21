@@ -70,7 +70,7 @@ type DataHistoryJob struct {
 	MaxRetryAttempts int64
 	Status           int64
 	CreatedDate      time.Time
-	Results          []DataHistoryJobResult
+	Results          map[time.Time][]DataHistoryJobResult
 	continueFromData time.Time
 	rangeHolder      kline.IntervalRangeHolder
 	running          bool

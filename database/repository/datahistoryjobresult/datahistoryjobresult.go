@@ -33,7 +33,7 @@ func Setup(db database.IDatabase) (*DBService, error) {
 }
 
 // Upsert inserts or updates jobs into the database
-func (db *DBService) Upsert(jobs ...DataHistoryJobResult) error {
+func (db *DBService) Upsert(jobs ...*DataHistoryJobResult) error {
 	ctx := context.Background()
 
 	tx, err := db.sql.BeginTx(ctx, nil)
@@ -100,7 +100,7 @@ func (db *DBService) GetJobResultsBetween(jobID string, startDate, endDate time.
 	return jobs, nil
 }
 
-func upsertSqlite(ctx context.Context, tx *sql.Tx, results ...DataHistoryJobResult) error {
+func upsertSqlite(ctx context.Context, tx *sql.Tx, results ...*DataHistoryJobResult) error {
 	for i := range results {
 		if results[i].ID == "" {
 			freshUUID, err := uuid.NewV4()
@@ -114,9 +114,9 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, results ...DataHistoryJobResu
 			JobID:             results[i].JobID,
 			Result:            null.String{},
 			Status:            float64(results[i].Status),
-			IntervalStartTime: float64(results[i].IntervalStartDate.UTC().Unix()),
-			IntervalEndTime:   float64(results[i].IntervalEndDate.UTC().Unix()),
-			RunTime:           float64(results[i].Date.UTC().Unix()),
+			IntervalStartTime: results[i].IntervalStartDate.UTC().Format(time.RFC3339),
+			IntervalEndTime:   results[i].IntervalEndDate.UTC().Format(time.RFC3339),
+			RunTime:           results[i].Date.UTC().Format(time.RFC3339),
 		}
 		err := tempEvent.Insert(ctx, tx, boil.Infer())
 		if err != nil {
@@ -127,7 +127,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, results ...DataHistoryJobResu
 	return nil
 }
 
-func upsertPostgres(ctx context.Context, tx *sql.Tx, results ...DataHistoryJobResult) error {
+func upsertPostgres(ctx context.Context, tx *sql.Tx, results ...*DataHistoryJobResult) error {
 	var err error
 	for i := range results {
 		if results[i].ID == "" {
@@ -164,9 +164,19 @@ func (db *DBService) getByJobIDSQLite(jobID string) ([]DataHistoryJobResult, err
 	}
 	var resp []DataHistoryJobResult
 	for i := range results {
-		start := time.Unix(int64(results[i].IntervalStartTime), 0)
-		end := time.Unix(int64(results[i].IntervalEndTime), 0)
-		run := time.Unix(int64(results[i].RunTime), 0)
+		var start, end, run time.Time
+		start, err = time.Parse(time.RFC3339, results[i].IntervalStartTime)
+		if err != nil {
+			return nil, err
+		}
+		end, err = time.Parse(time.RFC3339, results[i].IntervalEndTime)
+		if err != nil {
+			return nil, err
+		}
+		run, err = time.Parse(time.RFC3339, results[i].RunTime)
+		if err != nil {
+			return nil, err
+		}
 		resp = append(resp, DataHistoryJobResult{
 			ID:                results[i].ID,
 			JobID:             results[i].JobID,
@@ -205,16 +215,26 @@ func (db *DBService) getByJobIDPostgres(jobID string) ([]DataHistoryJobResult, e
 
 func (db *DBService) getJobResultsBetweenSQLite(jobID string, startDate, endDate time.Time) ([]DataHistoryJobResult, error) {
 	var results []DataHistoryJobResult
-	query := sqlite3.Datahistoryjobresults(qm.Where("job_id = ? AND created BETWEEN ? AND  ? ", jobID, startDate, endDate))
+	query := sqlite3.Datahistoryjobresults(qm.Where("job_id = ? AND run_time BETWEEN ? AND ? ", jobID, startDate.UTC().Format(time.RFC3339), endDate.UTC().Format(time.RFC3339)))
 	resp, err := query.All(context.Background(), db.sql)
 	if err != nil {
 		return results, err
 	}
 
 	for i := range resp {
-		start := time.Unix(int64(resp[i].IntervalStartTime), 0)
-		end := time.Unix(int64(resp[i].IntervalEndTime), 0)
-		run := time.Unix(int64(resp[i].RunTime), 0)
+		var start, end, run time.Time
+		start, err = time.Parse(time.RFC3339, resp[i].IntervalStartTime)
+		if err != nil {
+			return nil, err
+		}
+		end, err = time.Parse(time.RFC3339, resp[i].IntervalEndTime)
+		if err != nil {
+			return nil, err
+		}
+		run, err = time.Parse(time.RFC3339, resp[i].RunTime)
+		if err != nil {
+			return nil, err
+		}
 		results = append(results, DataHistoryJobResult{
 			ID:                resp[i].ID,
 			JobID:             resp[i].JobID,

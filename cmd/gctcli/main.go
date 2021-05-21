@@ -147,6 +147,7 @@ func main() {
 		gctScriptCommand,
 		websocketManagerCommand,
 		tradeCommand,
+		dataHistoryCommands,
 	}
 
 	err := app.Run(os.Args)

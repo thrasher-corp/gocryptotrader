@@ -318,23 +318,15 @@ func (m *DataHistoryManager) run() {
 func (m *DataHistoryManager) processJobs() error {
 	m.m.Lock()
 	defer m.m.Unlock()
-	var results []DataHistoryJobResult
+	var results []*DataHistoryJobResult
 	for i := range m.jobs {
 		exch := m.exchangeManager.GetExchangeByName(m.jobs[i].Exchange)
 		if exch == nil {
-			id, err := uuid.NewV4()
-			if err != nil {
-				return err
-			}
-			fail := DataHistoryJobResult{
-				ID:     id,
-				JobID:  m.jobs[i].ID,
-				Status: dataHistoryStatusFailed,
-				Result: "exchange not loaded, cannot process job",
-				Date:   time.Now(),
-			}
-			results = append(results, fail)
-			log.Errorf(log.DataHistory, fail.Result)
+			log.Errorf(log.DataHistory, "exchange %s not loaded, cannot process job %s for %s %s",
+				m.jobs[i].Exchange,
+				m.jobs[i].Nickname,
+				m.jobs[i].Asset,
+				m.jobs[i].Pair)
 			continue
 		}
 		result, err := m.runJob(m.jobs[i], exch)
@@ -343,14 +335,24 @@ func (m *DataHistoryManager) processJobs() error {
 		}
 		results = append(results, result...)
 	}
-
-	dbResults := convertJobResultToDBResult(results...)
+	var dbResults []*datahistoryjobresult.DataHistoryJobResult
+	for i := range results {
+		dbResults = append(dbResults, &datahistoryjobresult.DataHistoryJobResult{
+			ID:                results[i].ID.String(),
+			JobID:             results[i].JobID.String(),
+			IntervalStartDate: results[i].IntervalStartDate,
+			IntervalEndDate:   results[i].IntervalEndDate,
+			Status:            results[i].Status,
+			Result:            results[i].Result,
+			Date:              results[i].Date,
+		})
+	}
 	return m.jobResultDB.Upsert(dbResults...)
 }
 
 // runJob will process an individual job. It is either run as on a schedule
 // or specifically via RPC command on demand
-func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExchange) ([]DataHistoryJobResult, error) {
+func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExchange) ([]*DataHistoryJobResult, error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return nil, nil
 	}
@@ -360,7 +362,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExcha
 		// job doesn't need to be run. Log it?
 		return nil, nil
 	}
-	var jobResults []DataHistoryJobResult
+	var jobResults []*DataHistoryJobResult
 	var intervalsProcessed int64
 processing:
 	for i := range job.rangeHolder.Ranges {
@@ -369,6 +371,16 @@ processing:
 				continue
 			}
 			if intervalsProcessed >= job.BatchSize {
+				break processing
+			}
+			var failures int64
+			resultLookup := job.Results[job.rangeHolder.Ranges[i].Intervals[j].Start.Time]
+			for x := range resultLookup {
+				if resultLookup[x].Status == dataHistoryStatusFailed {
+					failures++
+				}
+			}
+			if failures >= job.MaxRetryAttempts {
 				job.Status = dataHistoryStatusFailed
 				break processing
 			}
@@ -423,8 +435,11 @@ processing:
 				return nil, errUnknownDataType
 			}
 
-			job.Results = append(job.Results, result)
-			jobResults = append(jobResults, result)
+			lookup := job.Results[result.IntervalStartDate]
+			lookup = append(lookup, result)
+			job.Results[result.IntervalStartDate] = lookup
+
+			jobResults = append(jobResults, &result)
 		}
 	}
 
@@ -443,7 +458,7 @@ processing:
 	return jobResults, nil
 }
 
-//-----------------------------------------------------------------------
+// ----------------------------Lovely-converters----------------------------
 
 func convertDBModelToJob(dbModels ...datahistoryjob.DataHistoryJob) ([]*DataHistoryJob, error) {
 	var resp []*DataHistoryJob
@@ -483,8 +498,8 @@ func convertDBModelToJob(dbModels ...datahistoryjob.DataHistoryJob) ([]*DataHist
 	return resp, nil
 }
 
-func convertDBResultToJobResult(dbModels []datahistoryjobresult.DataHistoryJobResult) ([]DataHistoryJobResult, error) {
-	var result []DataHistoryJobResult
+func convertDBResultToJobResult(dbModels []*datahistoryjobresult.DataHistoryJobResult) (map[time.Time][]DataHistoryJobResult, error) {
+	result := make(map[time.Time][]DataHistoryJobResult)
 	for i := range dbModels {
 		id, err := uuid.FromString(dbModels[i].ID)
 		if err != nil {
@@ -495,7 +510,8 @@ func convertDBResultToJobResult(dbModels []datahistoryjobresult.DataHistoryJobRe
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, DataHistoryJobResult{
+		lookup := result[dbModels[i].IntervalStartDate]
+		lookup = append(lookup, DataHistoryJobResult{
 			ID:                id,
 			JobID:             jobID,
 			IntervalStartDate: dbModels[i].IntervalStartDate,
@@ -504,23 +520,27 @@ func convertDBResultToJobResult(dbModels []datahistoryjobresult.DataHistoryJobRe
 			Result:            dbModels[i].Result,
 			Date:              dbModels[i].Date,
 		})
+		// double check
+		result[dbModels[i].IntervalStartDate] = lookup
 	}
 
 	return result, nil
 }
 
-func convertJobResultToDBResult(results ...DataHistoryJobResult) []datahistoryjobresult.DataHistoryJobResult {
-	var response []datahistoryjobresult.DataHistoryJobResult
-	for i := range results {
-		response = append(response, datahistoryjobresult.DataHistoryJobResult{
-			ID:                results[i].ID.String(),
-			JobID:             results[i].JobID.String(),
-			IntervalStartDate: results[i].IntervalStartDate,
-			IntervalEndDate:   results[i].IntervalEndDate,
-			Status:            results[i].Status,
-			Result:            results[i].Result,
-			Date:              results[i].Date,
-		})
+func convertJobResultToDBResult(results map[time.Time][]DataHistoryJobResult) []*datahistoryjobresult.DataHistoryJobResult {
+	var response []*datahistoryjobresult.DataHistoryJobResult
+	for _, v := range results {
+		for i := range v {
+			response = append(response, &datahistoryjobresult.DataHistoryJobResult{
+				ID:                v[i].ID.String(),
+				JobID:             v[i].JobID.String(),
+				IntervalStartDate: v[i].IntervalStartDate,
+				IntervalEndDate:   v[i].IntervalEndDate,
+				Status:            v[i].Status,
+				Result:            v[i].Result,
+				Date:              v[i].Date,
+			})
+		}
 	}
 	return response
 }
@@ -544,7 +564,7 @@ func convertJobToDBModel(models ...*DataHistoryJob) ([]datahistoryjob.DataHistor
 			Status:           models[i].Status,
 			CreatedDate:      models[i].CreatedDate,
 			BatchSize:        models[i].BatchSize,
-			Results:          convertJobResultToDBResult(models[i].Results...),
+			Results:          convertJobResultToDBResult(models[i].Results),
 		})
 
 	}

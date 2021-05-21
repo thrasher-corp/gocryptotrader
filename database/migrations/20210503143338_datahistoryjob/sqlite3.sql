@@ -16,7 +16,7 @@ CREATE TABLE datahistoryjob
     max_retries real NOT NULL,
     batch_count real NOT NULL,
     status real NOT NULL,
-    created TIMESTAMP NOT NULL default CURRENT_TIMESTAMP,
+    created timestamp NOT NULL default CURRENT_TIMESTAMP,
     FOREIGN KEY(exchange_name_id) REFERENCES exchange(id) ON DELETE RESTRICT,
     UNIQUE(id) ON CONFLICT REPLACE,
     UNIQUE(nickname) ON CONFLICT REPLACE,
@@ -30,9 +30,9 @@ CREATE TABLE datahistoryjobresult
     job_id text NOT NULL,
     result text NULL,
     status real NOT NULL,
-    interval_start_time real NOT NULL,
-    interval_end_time real NOT NULL,
-    run_time real NOT NULL default CURRENT_TIMESTAMP,
+    interval_start_time timestamp NOT NULL,
+    interval_end_time timestamp NOT NULL,
+    run_time timestamp NOT NULL default CURRENT_TIMESTAMP,
     FOREIGN KEY(job_id) REFERENCES datahistoryjob(id) ON DELETE RESTRICT
 );
 
