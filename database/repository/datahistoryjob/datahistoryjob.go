@@ -78,6 +78,18 @@ func (db *DBService) GetByNickName(nickname string) (*DataHistoryJob, error) {
 	}
 }
 
+// GetByID returns a job by its id
+func (db *DBService) GetByID(id string) (*DataHistoryJob, error) {
+	switch db.driver {
+	case database.DBSQLite3, database.DBSQLite:
+		return db.getByIDSQLite(id)
+	case database.DBPostgreSQL:
+		return db.getByIDPostgres(id)
+	default:
+		return nil, database.ErrNoDatabaseProvided
+	}
+}
+
 // GetJobsBetween will return all jobs between two dates
 func (db *DBService) GetJobsBetween(startDate, endDate time.Time) ([]DataHistoryJob, error) {
 	switch db.driver {
@@ -102,12 +114,12 @@ func (db *DBService) GetAllIncompleteJobsAndResults() ([]DataHistoryJob, error) 
 }
 
 // GetJobAndAllResults returns a job and joins all job results
-func (db *DBService) GetJobAndAllResults(jobID string) (*DataHistoryJob, error) {
+func (db *DBService) GetJobAndAllResults(nickname string) (*DataHistoryJob, error) {
 	switch db.driver {
 	case database.DBSQLite3, database.DBSQLite:
-		return db.getJobAndAllResultsSQLite(jobID)
+		return db.getJobAndAllResultsSQLite(nickname)
 	case database.DBPostgreSQL:
-		return db.getJobAndAllResultsPostgres(jobID)
+		return db.getJobAndAllResultsPostgres(nickname)
 	default:
 		return nil, database.ErrNoDatabaseProvided
 	}
@@ -301,6 +313,89 @@ func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, er
 	return job, nil
 }
 
+func (db *DBService) getByIDSQLite(id string) (*DataHistoryJob, error) {
+	var job *DataHistoryJob
+	whereQM := qm.Where("id = ?", id)
+	result, err := sqlite3.Datahistoryjobs(whereQM).One(context.Background(), db.sql)
+	if err != nil {
+		return job, err
+	}
+	log.Infof(log.DatabaseMgr, "%v", result)
+	ts, err := time.Parse(time.RFC3339, result.StartTime)
+	if err != nil {
+		return nil, err
+	}
+
+	te, err := time.Parse(time.RFC3339, result.EndTime)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := time.Parse(time.RFC3339, result.Created)
+	if err != nil {
+		return nil, err
+	}
+
+	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
+	if err != nil {
+		return nil, err
+	}
+
+	job = &DataHistoryJob{
+		ID:               result.ID,
+		Nickname:         result.Nickname,
+		ExchangeID:       result.ExchangeNameID,
+		ExchangeName:     exch.Name,
+		Asset:            result.Asset,
+		Base:             result.Base,
+		Quote:            result.Quote,
+		StartDate:        ts,
+		EndDate:          te,
+		Interval:         int64(result.Interval),
+		RequestSizeLimit: int64(result.RequestSize),
+		DataType:         int64(result.DataType),
+		MaxRetryAttempts: int64(result.MaxRetries),
+		Status:           int64(result.Status),
+		CreatedDate:      c,
+	}
+
+	return job, nil
+}
+
+func (db *DBService) getByIDPostgres(id string) (*DataHistoryJob, error) {
+	var job *DataHistoryJob
+	query := postgres.Datahistoryjobs(qm.Where("id = ?", id))
+	result, err := query.One(context.Background(), db.sql)
+	if err != nil {
+		return job, err
+	}
+
+	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
+	if err != nil {
+		return nil, err
+	}
+
+	job = &DataHistoryJob{
+		ID:               result.ID,
+		Nickname:         result.Nickname,
+		ExchangeID:       result.ExchangeNameID,
+		ExchangeName:     exch.Name,
+		Asset:            result.Asset,
+		Base:             result.Base,
+		Quote:            result.Quote,
+		StartDate:        result.StartTime,
+		EndDate:          result.EndTime,
+		Interval:         int64(result.Interval),
+		RequestSizeLimit: int64(result.RequestSize),
+		DataType:         int64(result.DataType),
+		MaxRetryAttempts: int64(result.MaxRetries),
+		Status:           int64(result.Status),
+		CreatedDate:      result.Created,
+	}
+
+	return job, nil
+}
+
 func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataHistoryJob, error) {
 	var jobs []DataHistoryJob
 	query := sqlite3.Datahistoryjobs(qm.Where("created BETWEEN ? AND ? ", startDate.UTC().Format(time.RFC3339), endDate.UTC().Format(time.RFC3339)))
@@ -388,9 +483,9 @@ func (db *DBService) getJobsBetweenPostgres(startDate, endDate time.Time) ([]Dat
 	return jobs, nil
 }
 
-func (db *DBService) getJobAndAllResultsSQLite(jobID string) (*DataHistoryJob, error) {
+func (db *DBService) getJobAndAllResultsSQLite(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	query := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("id = ?", jobID))
+	query := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("nickname = ?", nickname))
 	result, err := query.One(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
@@ -401,7 +496,7 @@ func (db *DBService) getJobAndAllResultsSQLite(jobID string) (*DataHistoryJob, e
 		return nil, err
 	}
 
-	var jobResults []datahistoryjobresult.DataHistoryJobResult
+	var jobResults []*datahistoryjobresult.DataHistoryJobResult
 	for i := range result.R.JobDatahistoryjobresults {
 		var start, end, run time.Time
 		start, err = time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].IntervalStartTime)
@@ -417,7 +512,7 @@ func (db *DBService) getJobAndAllResultsSQLite(jobID string) (*DataHistoryJob, e
 			return nil, err
 		}
 
-		jobResults = append(jobResults, datahistoryjobresult.DataHistoryJobResult{
+		jobResults = append(jobResults, &datahistoryjobresult.DataHistoryJobResult{
 			ID:                result.R.JobDatahistoryjobresults[i].ID,
 			JobID:             result.R.JobDatahistoryjobresults[i].JobID,
 			IntervalStartDate: start,
@@ -463,9 +558,9 @@ func (db *DBService) getJobAndAllResultsSQLite(jobID string) (*DataHistoryJob, e
 	return job, nil
 }
 
-func (db *DBService) getJobAndAllResultsPostgres(jobID string) (*DataHistoryJob, error) {
+func (db *DBService) getJobAndAllResultsPostgres(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	query := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("id = ?", jobID))
+	query := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("nickname = ?", nickname))
 	result, err := query.One(context.Background(), db.sql)
 	if err != nil {
 		return job, err
@@ -476,9 +571,9 @@ func (db *DBService) getJobAndAllResultsPostgres(jobID string) (*DataHistoryJob,
 		return nil, err
 	}
 
-	var jobResults []datahistoryjobresult.DataHistoryJobResult
+	var jobResults []*datahistoryjobresult.DataHistoryJobResult
 	for i := range result.R.JobDatahistoryjobresults {
-		jobResults = append(jobResults, datahistoryjobresult.DataHistoryJobResult{
+		jobResults = append(jobResults, &datahistoryjobresult.DataHistoryJobResult{
 			ID:                result.R.JobDatahistoryjobresults[i].ID,
 			JobID:             result.R.JobDatahistoryjobresults[i].JobID,
 			IntervalStartDate: result.R.JobDatahistoryjobresults[i].IntervalStartTime,
@@ -525,7 +620,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 			return nil, err
 		}
 
-		var jobResults []datahistoryjobresult.DataHistoryJobResult
+		var jobResults []*datahistoryjobresult.DataHistoryJobResult
 		for j := range results[i].R.JobDatahistoryjobresults {
 			var start, end, run time.Time
 			start, err = time.Parse(time.RFC3339, results[i].R.JobDatahistoryjobresults[j].IntervalStartTime)
@@ -541,7 +636,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 				return nil, err
 			}
 
-			jobResults = append(jobResults, datahistoryjobresult.DataHistoryJobResult{
+			jobResults = append(jobResults, &datahistoryjobresult.DataHistoryJobResult{
 				ID:                results[i].R.JobDatahistoryjobresults[j].ID,
 				JobID:             results[i].R.JobDatahistoryjobresults[j].JobID,
 				IntervalStartDate: start,
@@ -602,9 +697,9 @@ func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob,
 			return nil, err
 		}
 
-		var jobResults []datahistoryjobresult.DataHistoryJobResult
+		var jobResults []*datahistoryjobresult.DataHistoryJobResult
 		for j := range results[i].R.JobDatahistoryjobresults {
-			jobResults = append(jobResults, datahistoryjobresult.DataHistoryJobResult{
+			jobResults = append(jobResults, &datahistoryjobresult.DataHistoryJobResult{
 				ID:                results[i].R.JobDatahistoryjobresults[j].ID,
 				JobID:             results[i].R.JobDatahistoryjobresults[j].JobID,
 				IntervalStartDate: results[i].R.JobDatahistoryjobresults[j].IntervalStartTime,

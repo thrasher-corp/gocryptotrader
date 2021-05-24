@@ -3331,12 +3331,12 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		MaxRetryAttempts: r.MaxRetryAttempts,
 	}
 
-	err = s.dataHistoryManager.UpsertJob(&job)
+	err = s.dataHistoryManager.UpsertJob(&job, r.InsertOnly)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := s.dataHistoryManager.GetByNickname(r.Nickname)
+	result, err := s.dataHistoryManager.GetByNickname(r.Nickname, false)
 	if err != nil {
 		return nil, fmt.Errorf("%s %w", r.Nickname, err)
 	}
@@ -3347,28 +3347,45 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 	}, nil
 }
 
-func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDataHistoryJobDetailsRequest) (*gctrpc.GetDataHistoryJobDetailsResponse, error) {
+// GetDataHistoryJobDetails returns a data history job's details
+// can request all data history results with r.FullDetails
+func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDataHistoryJobDetailsRequest) (*gctrpc.DataHistoryJob, error) {
 	if r == nil {
 		return nil, errNilRequestData
 	}
-
-	result, err := s.dataHistoryManager.GetByNickname(r.Nickname)
-	if err != nil {
-		return nil, fmt.Errorf("%s %w", r.Nickname, err)
+	if r.Id == "" && r.Nickname == "" {
+		return nil, errNicknameIDUnset
 	}
+	var (
+		result     *DataHistoryJob
+		err        error
+		jobResults []*gctrpc.DataHistoryJobResult
+	)
 
-	var jobResults []*gctrpc.JobResult
-	for i := range result.Results {
-		jobResults = append(jobResults, &gctrpc.JobResult{
-			StartDate: result.Results[i].IntervalStartDate.Format(common.SimpleTimeFormat),
-			EndDate:   result.Results[i].IntervalEndDate.Format(common.SimpleTimeFormat),
-			HasData:   result.Results[i].Status == dataHistoryStatusComplete,
-			Message:   result.Results[i].Result,
-			RunDate:   result.Results[i].Date.Format(common.SimpleTimeFormat),
-		})
+	if r.Id != "" {
+		result, err = s.dataHistoryManager.GetByID(r.Id)
+		if err != nil {
+			return nil, fmt.Errorf("%s %w", r.Nickname, err)
+		}
+	} else {
+		result, err = s.dataHistoryManager.GetByNickname(r.Nickname, r.FullDetails)
+		if err != nil {
+			return nil, fmt.Errorf("%s %w", r.Nickname, err)
+		}
+
+		for i := range result.Results {
+			for _, v := range result.Results[i] {
+				jobResults = append(jobResults, &gctrpc.DataHistoryJobResult{
+					StartDate: v.IntervalStartDate.Format(common.SimpleTimeFormat),
+					EndDate:   v.IntervalEndDate.Format(common.SimpleTimeFormat),
+					HasData:   v.Status == dataHistoryStatusComplete,
+					Message:   v.Result,
+					RunDate:   v.Date.Format(common.SimpleTimeFormat),
+				})
+			}
+		}
 	}
-
-	return &gctrpc.GetDataHistoryJobDetailsResponse{
+	return &gctrpc.DataHistoryJob{
 		Nickname: result.Nickname,
 		Exchange: result.Exchange,
 		Asset:    result.Asset.String(),
@@ -3386,4 +3403,51 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 		BatchSize:        result.BatchSize,
 		JobResults:       jobResults,
 	}, nil
+}
+
+// DeleteDataHistoryJob deletes a data history job from the database
+func (s *RPCServer) DeleteDataHistoryJob(_ context.Context, r *gctrpc.GetDataHistoryJobDetailsRequest) (*gctrpc.GenericResponse, error) {
+	if r.Nickname == "" && r.Id == "" {
+		return nil, errNicknameIDUnset
+	}
+	if r.Nickname != "" && r.Id != "" {
+		return nil, errOnlyNicknameOrID
+	}
+	status := "success"
+	err := s.dataHistoryManager.DeleteJob(r.Nickname, r.Id)
+	if err != nil {
+		status = "failed"
+	}
+
+	return &gctrpc.GenericResponse{Status: status}, err
+}
+
+// GetActiveDataHistoryJobs returns any active data history job details
+func (s *RPCServer) GetActiveDataHistoryJobs(_ context.Context, r *gctrpc.GetInfoRequest) (*gctrpc.DataHistoryJobs, error) {
+	jobs, err := s.dataHistoryManager.GetActiveJobs()
+	if err != nil {
+		return nil, err
+	}
+
+	var response []*gctrpc.DataHistoryJob
+	for i := range jobs {
+		response = append(response, &gctrpc.DataHistoryJob{
+			Nickname: jobs[i].Nickname,
+			Exchange: jobs[i].Exchange,
+			Asset:    jobs[i].Asset.String(),
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: jobs[i].Pair.Delimiter,
+				Base:      jobs[i].Pair.Base.String(),
+				Quote:     jobs[i].Pair.Quote.String(),
+			},
+			StartDate:        jobs[i].StartDate.Format(common.SimpleTimeFormat),
+			EndDate:          jobs[i].EndDate.Format(common.SimpleTimeFormat),
+			Interval:         int64(jobs[i].Interval.Duration()),
+			RequestSizeLimit: jobs[i].RequestSizeLimit,
+			DataType:         jobs[i].DataType,
+			MaxRetryAttempts: jobs[i].MaxRetryAttempts,
+			BatchSize:        jobs[i].BatchSize,
+		})
+	}
+	return &gctrpc.DataHistoryJobs{Results: response}, nil
 }

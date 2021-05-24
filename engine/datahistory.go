@@ -92,6 +92,12 @@ func (m *DataHistoryManager) Stop() error {
 
 // retrieveJobs will connect to the database and look for existing jobs
 func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
+	if m == nil {
+		return nil, ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, ErrSubSystemNotStarted
+	}
 	if !m.databaseConnectionManager.IsConnected() {
 		return nil, errDatabaseConnectionRequired
 	}
@@ -103,9 +109,41 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 	return convertDBModelToJob(dbJobs...)
 }
 
+// GetByID returns a job's details from its ID,
+// also allowing to retrieve all related job results
+func (m *DataHistoryManager) GetByID(id string) (*DataHistoryJob, error) {
+	dbJ, err := m.jobDB.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	results, err := convertDBModelToJob(*dbJ)
+	if len(results) != 1 {
+		return nil, nil
+	}
+	return results[0], nil
+}
+
 // GetByNickname searches for jobs by name and returns it if found
 // returns nil if not
-func (m *DataHistoryManager) GetByNickname(nickname string) (*DataHistoryJob, error) {
+// if fullDetails is enabled, it will retrieve all job history results from the database
+func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*DataHistoryJob, error) {
+	if m == nil {
+		return nil, ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, ErrSubSystemNotStarted
+	}
+	if fullDetails {
+		dbJ, err := m.jobDB.GetJobAndAllResults(nickname)
+		if err != nil {
+			return nil, err
+		}
+		results, err := convertDBModelToJob(*dbJ)
+		if len(results) != 1 {
+			return nil, nil
+		}
+		return results[0], nil
+	}
 	m.m.Lock()
 	for i := range m.jobs {
 		if strings.EqualFold(m.jobs[i].Nickname, nickname) {
@@ -128,8 +166,69 @@ func (m *DataHistoryManager) GetByNickname(nickname string) (*DataHistoryJob, er
 	return job[0], nil
 }
 
+// DeleteJob helper function to assist in setting a job to deleted
+func (m *DataHistoryManager) DeleteJob(nickname string, id string) error {
+	if m == nil {
+		return ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return ErrSubSystemNotStarted
+	}
+	if nickname == "" && id == "" {
+		return errNicknameIDUnset
+	}
+	if nickname != "" && id != "" {
+		return errOnlyNicknameOrID
+	}
+	var dbJob *datahistoryjob.DataHistoryJob
+	var err error
+	if nickname != "" {
+		dbJob, err = m.jobDB.GetByNickName(nickname)
+		if err != nil {
+			return err
+		}
+	} else {
+		dbJob, err = m.jobDB.GetByID(id)
+		if err != nil {
+			return err
+		}
+	}
+
+	dbJob.Status = dataHistoryStatusRemoved
+	err = m.jobDB.Upsert(dbJob)
+	if err != nil {
+		return err
+	}
+	// remove from existing list if present
+	m.m.Lock()
+	defer m.m.Unlock()
+	for i := range m.jobs {
+		if strings.EqualFold(m.jobs[i].Nickname, nickname) {
+			m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
+		}
+	}
+	return nil
+}
+
+func (m *DataHistoryManager) GetActiveJobs() ([]DataHistoryJob, error) {
+	if m == nil {
+		return nil, ErrNilSubsystem
+	}
+	if !m.IsRunning() {
+		return nil, ErrSubSystemNotStarted
+	}
+
+	m.m.Lock()
+	defer m.m.Unlock()
+	var results []DataHistoryJob
+	for i := range m.jobs {
+		results = append(results, *m.jobs[i])
+	}
+	return results, nil
+}
+
 // UpsertJob allows for GRPC interaction to upsert a jobs to be processed
-func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob) error {
+func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
@@ -139,18 +238,42 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob) error {
 	if job == nil {
 		return errNilJob
 	}
+	if insertOnly {
+		j, err := m.GetByNickname(job.Nickname, false)
+		if err != nil {
+			return err
+		}
+		if j != nil {
+			return fmt.Errorf("cannot insert job %s as nickname already in use", job.Nickname)
+		}
+	}
+
 	m.m.Lock()
 	defer m.m.Unlock()
 
-	dbExchange, err := m.validateJob(job)
+	dbExchange, err := validateJob(job)
 	if err != nil {
 		return err
 	}
 	toUpdate := false
+
 	for i := range m.jobs {
 		if strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
 			toUpdate = true
-			m.jobs[i] = job
+			m.jobs[i].Exchange = job.Exchange
+			m.jobs[i].Asset = job.Asset
+			m.jobs[i].Pair = job.Pair
+			m.jobs[i].StartDate = job.StartDate
+			m.jobs[i].EndDate = job.EndDate
+			m.jobs[i].Interval = job.Interval
+			m.jobs[i].BatchSize = job.BatchSize
+			m.jobs[i].RequestSizeLimit = job.RequestSizeLimit
+			m.jobs[i].DataType = job.DataType
+			m.jobs[i].MaxRetryAttempts = job.MaxRetryAttempts
+			m.jobs[i].Status = job.Status
+			m.jobs[i].continueFromData = time.Time{}
+			m.jobs[i].rangeHolder = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, uint32(m.jobs[i].RequestSizeLimit))
+
 			break
 		}
 	}
@@ -182,7 +305,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob) error {
 	})
 }
 
-func (m *DataHistoryManager) validateJob(job *DataHistoryJob) (*exchangedb.Details, error) {
+func validateJob(job *DataHistoryJob) (*exchangedb.Details, error) {
 	if !job.Asset.IsValid() {
 		return nil, asset.ErrNotSupported
 	}
@@ -203,6 +326,12 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) (*exchangedb.Detai
 // RemoveJob allows for GRPC interaction to remove a job to be processed
 // requires that the nickname field be set
 func (m *DataHistoryManager) RemoveJob(nickname string) error {
+	if m == nil {
+		return ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return ErrSubSystemNotStarted
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	for i := range m.jobs {
@@ -227,6 +356,12 @@ func (m *DataHistoryManager) RemoveJob(nickname string) error {
 // and return all valid jobs to be processed
 // m.jobs will be overridden by this function
 func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
+	if m == nil {
+		return nil, ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, ErrSubSystemNotStarted
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	jobs, err := m.retrieveJobs()
@@ -253,6 +388,12 @@ func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 }
 
 func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
+	if m == nil {
+		return ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return ErrSubSystemNotStarted
+	}
 	for i := range jobs {
 		jobs[i].rangeHolder = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, uint32(m.jobs[i].RequestSizeLimit))
 
@@ -316,6 +457,12 @@ func (m *DataHistoryManager) run() {
 }
 
 func (m *DataHistoryManager) processJobs() error {
+	if m == nil {
+		return ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return ErrSubSystemNotStarted
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	var results []*DataHistoryJobResult
@@ -353,8 +500,11 @@ func (m *DataHistoryManager) processJobs() error {
 // runJob will process an individual job. It is either run as on a schedule
 // or specifically via RPC command on demand
 func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExchange) ([]*DataHistoryJobResult, error) {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
-		return nil, nil
+	if m == nil {
+		return nil, ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, ErrSubSystemNotStarted
 	}
 	if job.Status == dataHistoryStatusComplete ||
 		job.Status == dataHistoryStatusFailed ||

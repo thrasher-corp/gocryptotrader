@@ -32,6 +32,8 @@ var (
 	errDatabaseConnectionRequired = errors.New("data history manager requires access to the database")
 	errUnknownDataType            = errors.New("job has invalid datatype set and cannot be processed")
 	errNilJob                     = errors.New("nil job received")
+	errNicknameIDUnset            = errors.New("must set 'id' OR 'nickname'")
+	errOnlyNicknameOrID           = errors.New("can only set 'id' OR 'nickname'")
 	defaultTicker                 = time.Minute
 	// defaultTradeInterval is the default interval size used to verify whether there is any database data
 	// for a trade job

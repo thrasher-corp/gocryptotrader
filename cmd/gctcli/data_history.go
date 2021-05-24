@@ -96,12 +96,15 @@ var dataHistoryCommands = cli.Command{
 		},
 		{
 			Name:        "getjobwithdetailedresults",
-			Usage:       "returns a job by either its id or nickname along with all its data retrieval results",
+			Usage:       "returns a job by either its nickname along with all its data retrieval results",
 			Description: "results may be large",
-			ArgsUsage:   "<id> or <nickname>",
+			ArgsUsage:   "<nickname>",
 			Action:      getDataHistoryJob,
-			Flags:       specificJobSubCommands,
-		},
+			Flags: []cli.Flag{cli.StringFlag{
+				Name:  "nickname",
+				Usage: "binance-spot-btc-usdt-2019-trades",
+			},
+			}},
 		{
 			Name:   "addnewjob",
 			Usage:  "creates a new data history job",
@@ -192,22 +195,14 @@ func getActiveDataHistoryJobs(_ *cli.Context) error {
 	return nil
 }
 
-func deleteDataHistoryJob(c *cli.Context) error {
+func getDataHistoryFullDetails(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowCommandHelp(c, c.Command.Name)
 	}
 
-	var id string
-	if c.IsSet("id") {
-		id = c.String("id")
-	}
 	var nickname string
 	if c.IsSet("nickname") {
 		nickname = c.String("nickname")
-	}
-
-	if nickname != "" && id != "" {
-		return errors.New("can only set 'id' OR 'nickname'")
 	}
 
 	conn, err := setupClient()
@@ -222,7 +217,6 @@ func deleteDataHistoryJob(c *cli.Context) error {
 	}()
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	request := &gctrpc.GetDataHistoryJobDetailsRequest{
-		Id:       id,
 		Nickname: nickname,
 	}
 	result, err := client.DeleteJob(context.Background(), request)
