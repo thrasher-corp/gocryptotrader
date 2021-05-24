@@ -256,6 +256,48 @@
         ]
       }
     },
+    "/v1/deletedatahistoryjob": {
+      "delete": {
+        "operationId": "GoCryptoTrader_DeleteJob",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "nickname",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "fullDetails",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/disableexchange": {
       "post": {
         "operationId": "GoCryptoTrader_DisableExchange",
@@ -846,6 +888,28 @@
         ]
       }
     },
+    "/v1/getactivedatahistoryjobs": {
+      "get": {
+        "operationId": "GoCryptoTrader_GetActiveDataHistoryJobs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcDataHistoryJobs"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getauditevent": {
       "get": {
         "operationId": "GoCryptoTrader_GetAuditEvent",
@@ -1011,13 +1075,13 @@
       }
     },
     "/v1/getdatahistoryjobdetails": {
-      "post": {
+      "get": {
         "operationId": "GoCryptoTrader_GetDataHistoryJobDetails",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGetDataHistoryJobDetailsResponse"
+              "$ref": "#/definitions/gctrpcDataHistoryJob"
             }
           },
           "default": {
@@ -1029,12 +1093,22 @@
         },
         "parameters": [
           {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcGetDataHistoryJobDetailsRequest"
-            }
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "nickname",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "fullDetails",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2160,13 +2234,13 @@
         },
         "parameters": [
           {
-            "name": "exchange",
+            "name": "Exchange",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "status",
+            "name": "Status",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -3027,6 +3101,86 @@
         }
       }
     },
+    "gctrpcDataHistoryJob": {
+      "type": "object",
+      "properties": {
+        "nickname": {
+          "type": "string"
+        },
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "start_date": {
+          "type": "string"
+        },
+        "end_date": {
+          "type": "string"
+        },
+        "interval": {
+          "type": "string",
+          "format": "int64"
+        },
+        "request_size_limit": {
+          "type": "string",
+          "format": "int64"
+        },
+        "data_type": {
+          "type": "string",
+          "format": "int64"
+        },
+        "max_retry_attempts": {
+          "type": "string",
+          "format": "int64"
+        },
+        "batch_size": {
+          "type": "string",
+          "format": "int64"
+        },
+        "job_results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcDataHistoryJobResult"
+          }
+        }
+      }
+    },
+    "gctrpcDataHistoryJobResult": {
+      "type": "object",
+      "properties": {
+        "start_date": {
+          "type": "string"
+        },
+        "end_date": {
+          "type": "string"
+        },
+        "has_data": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "run_date": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcDataHistoryJobs": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcDataHistoryJob"
+          }
+        }
+      }
+    },
     "gctrpcFiatWithdrawalEvent": {
       "type": "object",
       "properties": {
@@ -3316,63 +3470,6 @@
           "type": "object",
           "additionalProperties": {
             "type": "string"
-          }
-        }
-      }
-    },
-    "gctrpcGetDataHistoryJobDetailsRequest": {
-      "type": "object",
-      "properties": {
-        "Nickname": {
-          "type": "string"
-        }
-      }
-    },
-    "gctrpcGetDataHistoryJobDetailsResponse": {
-      "type": "object",
-      "properties": {
-        "Nickname": {
-          "type": "string"
-        },
-        "Exchange": {
-          "type": "string"
-        },
-        "Asset": {
-          "type": "string"
-        },
-        "Pair": {
-          "$ref": "#/definitions/gctrpcCurrencyPair"
-        },
-        "StartDate": {
-          "type": "string"
-        },
-        "EndDate": {
-          "type": "string"
-        },
-        "Interval": {
-          "type": "string",
-          "format": "int64"
-        },
-        "RequestSizeLimit": {
-          "type": "string",
-          "format": "int64"
-        },
-        "DataType": {
-          "type": "string",
-          "format": "int64"
-        },
-        "MaxRetryAttempts": {
-          "type": "string",
-          "format": "int64"
-        },
-        "BatchSize": {
-          "type": "string",
-          "format": "int64"
-        },
-        "JobResults": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/gctrpcJobResult"
           }
         }
       }
@@ -3761,26 +3858,6 @@
           "items": {
             "$ref": "#/definitions/gctrpcTickers"
           }
-        }
-      }
-    },
-    "gctrpcJobResult": {
-      "type": "object",
-      "properties": {
-        "StartDate": {
-          "type": "string"
-        },
-        "EndDate": {
-          "type": "string"
-        },
-        "HasData": {
-          "type": "boolean"
-        },
-        "Message": {
-          "type": "string"
-        },
-        "RunDate": {
-          "type": "string"
         }
       }
     },
@@ -4311,43 +4388,46 @@
     "gctrpcUpsertDataHistoryJobRequest": {
       "type": "object",
       "properties": {
-        "Nickname": {
+        "nickname": {
           "type": "string"
         },
-        "Exchange": {
+        "exchange": {
           "type": "string"
         },
-        "Asset": {
+        "asset": {
           "type": "string"
         },
-        "Pair": {
+        "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "StartDate": {
+        "start_date": {
           "type": "string"
         },
-        "EndDate": {
+        "end_date": {
           "type": "string"
         },
-        "Interval": {
+        "interval": {
           "type": "string",
           "format": "int64"
         },
-        "RequestSizeLimit": {
+        "request_size_limit": {
           "type": "string",
           "format": "int64"
         },
-        "DataType": {
+        "data_type": {
           "type": "string",
           "format": "int64"
         },
-        "MaxRetryAttempts": {
+        "max_retry_attempts": {
           "type": "string",
           "format": "int64"
         },
-        "BatchSize": {
+        "batch_size": {
           "type": "string",
           "format": "int64"
+        },
+        "insert_only": {
+          "type": "boolean"
         }
       }
     },

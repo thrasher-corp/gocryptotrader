@@ -871,36 +871,41 @@ message UpsertDataHistoryJobRequest {
 }
 
 message UpsertDataHistoryJobResponse {
-   string Message = 1;
-   string JobID = 2;
+   string message = 1;
+   string job_id = 2;
 }
 
 message GetDataHistoryJobDetailsRequest {
     string id = 1;
     string nickname = 2;
+    bool fullDetails = 3;
+}
+
+message DataHistoryJobs {
+    repeated DataHistoryJob results = 1;
 }
 
 message DataHistoryJob {
-    string	Nickname = 1;
-    string	Exchange = 2;
-    string	Asset = 3;
-    CurrencyPair Pair = 4;
-    string	StartDate = 5;
-    string	EndDate = 6;
-    int64	Interval = 7;
-    int64	RequestSizeLimit = 8;
-    int64	DataType = 9;
-    int64	MaxRetryAttempts = 10;
-    int64	BatchSize = 11;
-    repeated DataHistoryJobResult JobResults = 12;
+    string	nickname = 1;
+    string	exchange = 2;
+    string	asset = 3;
+    CurrencyPair pair = 4;
+    string	start_date = 5;
+    string	end_date = 6;
+    int64	interval = 7;
+    int64	request_size_limit = 8;
+    int64	data_type = 9;
+    int64	max_retry_attempts = 10;
+    int64	batch_size = 11;
+    repeated DataHistoryJobResult job_results = 12;
 }
 
 message DataHistoryJobResult {
-    string	StartDate = 1;
-    string	EndDate = 2;
-    bool HasData = 3;
-    string Message = 4;
-    string RunDate = 5;
+    string	start_date = 1;
+    string	end_date = 2;
+    bool has_data = 3;
+    string message = 4;
+    string run_date = 5;
 }
 
 
@@ -1406,7 +1411,6 @@ service GoCryptoTrader {
             get: "/v1/findmissingsavedtradeintervals"
         };
     }
-
     rpc SetExchangeTradeProcessing (SetExchangeTradeProcessingRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/setexchangetradeprocessing"
@@ -1420,10 +1424,19 @@ service GoCryptoTrader {
         };
     }
 
-    rpc GetDataHistoryJobDetails (GetDataHistoryJobDetailsRequest) returns (GetDataHistoryJobDetailsResponse) {
+    rpc GetDataHistoryJobDetails (GetDataHistoryJobDetailsRequest) returns (DataHistoryJob) {
         option (google.api.http) = {
-            post: "/v1/getdatahistoryjobdetails"
-            body: "*"
+            get: "/v1/getdatahistoryjobdetails"
+        };
+    }
+    rpc GetActiveDataHistoryJobs (GetInfoRequest) returns (DataHistoryJobs) {
+        option (google.api.http) = {
+            get: "/v1/getactivedatahistoryjobs"
+        };
+    }
+    rpc DeleteJob (GetDataHistoryJobDetailsRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            delete: "/v1/deletedatahistoryjob"
         };
     }
 }
