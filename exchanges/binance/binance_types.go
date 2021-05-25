@@ -406,6 +406,7 @@ type Account struct {
 	Balances         []Balance `json:"balances"`
 }
 
+// MarginAccount holds the margin account data
 type MarginAccount struct {
 	BorrowEnabled       bool                 `json:"borrowEnabled"`
 	MarginLevel         float64              `json:"marginLevel,string"`
@@ -417,6 +418,7 @@ type MarginAccount struct {
 	UserAssets          []MarginAccountAsset `json:"userAssets"`
 }
 
+// MarginAccountAsset holds each individual margin account asset
 type MarginAccountAsset struct {
 	Asset    string  `json:"asset"`
 	Borrowed float64 `json:"borrowed,string"`

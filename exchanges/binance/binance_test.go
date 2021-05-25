@@ -1176,11 +1176,8 @@ func TestGetHistoricalTrades(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.GetHistoricalTrades("BTCUSDT", 5, -1)
-	if !mockTests && err != nil {
-		t.Error("Binance GetHistoricalTrades() unexpected error")
-	}
-	if mockTests && err == nil {
-		t.Error("Binance GetHistoricalTrades() error", err)
+	if err != nil {
+		t.Errorf("Binance GetHistoricalTrades() error: %v", err)
 	}
 }
 
