@@ -32,9 +32,10 @@ func TestGetSQLDialect(t *testing.T) {
 		test := testCases[x]
 
 		t.Run(test.driver, func(t *testing.T) {
-			err := database.DB.SetConfig(&database.Config{
+			cfg := &database.Config{
 				Driver: test.driver,
-			})
+			}
+			err := database.DB.SetConfig(cfg)
 			if err != nil {
 				t.Error(err)
 			}

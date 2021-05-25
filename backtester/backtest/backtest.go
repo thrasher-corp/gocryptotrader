@@ -461,12 +461,15 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		}
 		resp.Item.RemoveDuplicates()
 		resp.Item.SortCandlesByTimestamp(false)
-		resp.Range = gctkline.CalculateCandleDateRanges(
+		resp.Range, err = gctkline.CalculateCandleDateRanges(
 			resp.Item.Candles[0].Time,
 			resp.Item.Candles[len(resp.Item.Candles)-1].Time.Add(cfg.DataSettings.Interval),
 			gctkline.Interval(cfg.DataSettings.Interval),
 			0,
 		)
+		if err != nil {
+			return nil, err
+		}
 		err = resp.Range.VerifyResultsHaveData(resp.Item.Candles)
 		if err != nil {
 			if strings.Contains(err.Error(), "missing candles data between") {
@@ -509,12 +512,15 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 
 		resp.Item.RemoveDuplicates()
 		resp.Item.SortCandlesByTimestamp(false)
-		resp.Range = gctkline.CalculateCandleDateRanges(
+		resp.Range, err = gctkline.CalculateCandleDateRanges(
 			cfg.DataSettings.DatabaseData.StartDate,
 			cfg.DataSettings.DatabaseData.EndDate,
 			gctkline.Interval(cfg.DataSettings.Interval),
 			0,
 		)
+		if err != nil {
+			return nil, err
+		}
 		err = resp.Range.VerifyResultsHaveData(resp.Item.Candles)
 		if err != nil {
 			if strings.Contains(err.Error(), "missing candles data between") {
@@ -601,11 +607,14 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}
-	dates := gctkline.CalculateCandleDateRanges(
+	dates, err := gctkline.CalculateCandleDateRanges(
 		cfg.DataSettings.APIData.StartDate,
 		cfg.DataSettings.APIData.EndDate,
 		gctkline.Interval(cfg.DataSettings.Interval),
 		resultLimit)
+	if err != nil {
+		return nil, err
+	}
 	candles, err := api.LoadData(
 		dataType,
 		cfg.DataSettings.APIData.StartDate,
@@ -624,7 +633,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 		return nil, err
 	}
 
-	candles.FillMissingDataWithEmptyEntries(&dates)
+	candles.FillMissingDataWithEmptyEntries(dates)
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
 	return &kline.DataFromKline{
 		Item:  *candles,
@@ -983,13 +992,16 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 	}
 	endDate := candles.Candles[len(candles.Candles)-1].Time.Add(cfg.DataSettings.Interval)
 	if resp.Range.Ranges == nil {
-		dataRange := gctkline.CalculateCandleDateRanges(
+		dataRange, err := gctkline.CalculateCandleDateRanges(
 			startDate,
 			endDate,
 			gctkline.Interval(cfg.DataSettings.Interval),
 			0,
 		)
-		resp.Range = gctkline.IntervalRangeHolder{
+		if err != nil {
+			return err
+		}
+		resp.Range = &gctkline.IntervalRangeHolder{
 			Start:  gctkline.CreateIntervalTime(startDate),
 			End:    gctkline.CreateIntervalTime(endDate),
 			Ranges: dataRange.Ranges,

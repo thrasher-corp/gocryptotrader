@@ -38,7 +38,7 @@ const (
 	unexpectedLackOfError = "unexpected lack of error"
 	migrationsFolder      = "migrations"
 	databaseFolder        = "database"
-	databaseName          = "rpctestdb"
+	databaseName          = "rpctestdb.db"
 )
 
 // fExchange is a fake exchange with function overrides
@@ -1228,7 +1228,7 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	}
 
 	_, err = s.UpsertDataHistoryJob(nil, job)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received %v, expected %v", err, ErrSubSystemNotStarted)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
 	}
 }

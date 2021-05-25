@@ -177,9 +177,9 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Errorf("expected 19, received %v", len(results))
 			}
 
-			jerb, err := db.getJobAndAllResultsPostgres(jerberoos[0].ID)
+			jerb, err := db.getJobAndAllResultsPostgres(jerberoos[0].Nickname)
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 			if !strings.EqualFold(jerb.Nickname, jerberoos[0].Nickname) {
 				t.Errorf("expected %v, received %v", jerb.Nickname, jerberoos[0].Nickname)
@@ -193,7 +193,7 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Errorf("expected 20, received %v", len(results))
 			}
 
-			jerb, err = db.GetJobAndAllResults(jerberoos[0].ID)
+			jerb, err = db.GetJobAndAllResults(jerberoos[0].Nickname)
 			if err != nil {
 				t.Error(err)
 			}

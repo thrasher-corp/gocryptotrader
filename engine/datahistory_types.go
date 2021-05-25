@@ -34,6 +34,8 @@ var (
 	errNilJob                     = errors.New("nil job received")
 	errNicknameIDUnset            = errors.New("must set 'id' OR 'nickname'")
 	errOnlyNicknameOrID           = errors.New("can only set 'id' OR 'nickname'")
+	errNicknameInUse              = errors.New("cannot insert job as nickname already in use")
+	errNicknameUnset              = errors.New("cannot insert job as nickname unset")
 	defaultTicker                 = time.Minute
 	// defaultTradeInterval is the default interval size used to verify whether there is any database data
 	// for a trade job
@@ -74,7 +76,7 @@ type DataHistoryJob struct {
 	CreatedDate      time.Time
 	Results          map[time.Time][]DataHistoryJobResult
 	continueFromData time.Time
-	rangeHolder      kline.IntervalRangeHolder
+	rangeHolder      *kline.IntervalRangeHolder
 	running          bool
 }
 

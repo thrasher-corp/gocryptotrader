@@ -15,7 +15,7 @@ var errNoCandleData = errors.New("no candle data provided")
 type DataFromKline struct {
 	Item gctkline.Item
 	data.Base
-	Range gctkline.IntervalRangeHolder
+	Range *gctkline.IntervalRangeHolder
 
 	addedTimes map[time.Time]bool
 }

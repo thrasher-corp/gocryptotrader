@@ -2,26 +2,17 @@ package engine
 
 import (
 	"errors"
-	"log"
-	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
-	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/goose"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 func TestSetupDataHistoryManager(t *testing.T) {
-	t.Parallel()
 	_, err := SetupDataHistoryManager(nil, nil, 0)
 	if !errors.Is(err, errNilExchangeManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
@@ -47,7 +38,6 @@ func TestSetupDataHistoryManager(t *testing.T) {
 }
 
 func TestDataHistoryManagerIsRunning(t *testing.T) {
-	t.Parallel()
 	m, err := SetupDataHistoryManager(SetupExchangeManager(), &database.Instance{}, time.Second)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -73,53 +63,10 @@ func TestDataHistoryManagerIsRunning(t *testing.T) {
 
 }
 
-func setuptDataConnectionManagerTest(t *testing.T) (*DatabaseConnectionManager, error) {
-	dcm, err := SetupDatabaseConnectionManager(&database.Config{
-		Enabled: true,
-		Driver:  database.DBSQLite3,
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: databaseName,
-		},
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	var wg sync.WaitGroup
-	err = dcm.Start(&wg)
-	if err != nil {
-		log.Fatal(err)
-	}
-	path := filepath.Join("..", databaseFolder, migrationsFolder)
-	err = goose.Run("up", database.DB.SQL, repository.GetSQLDialect(), path, "")
-	if err != nil {
-		t.Fatalf("failed to run migrations %v", err)
-	}
-	uuider, _ := uuid.NewV4()
-	err = dbexchange.Insert(dbexchange.Details{Name: testExchange, UUID: uuider})
-	if err != nil {
-		t.Fatalf("failed to insert exchange %v", err)
-	}
-	return dcm, err
-}
-
-func cleanupDataHistoryTest(dcm *DatabaseConnectionManager, t *testing.T) {
-	err := dcm.Stop()
-	if err != nil {
-		t.Error(err)
-	}
-	cfg := dcm.dbConn.GetConfig()
-	err = os.Remove(cfg.Database)
-	if err != nil {
-		t.Error(err)
-	}
-
-}
-
 func TestDataHistoryManagerStart(t *testing.T) {
-	dcm, err := setuptDataConnectionManagerTest(t)
-	defer cleanupDataHistoryTest(dcm, t)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), dcm.dbConn, time.Second)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, time.Second)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -141,17 +88,12 @@ func TestDataHistoryManagerStart(t *testing.T) {
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
-
-	err = dcm.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
 }
 
 func TestDataHistoryManagerStop(t *testing.T) {
-	dcm, err := setuptDataConnectionManagerTest(t)
-	defer cleanupDataHistoryTest(dcm, t)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), dcm.dbConn, time.Second)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, time.Second)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -178,9 +120,9 @@ func TestDataHistoryManagerStop(t *testing.T) {
 }
 
 func TestUpsertJob(t *testing.T) {
-	dcm, err := setuptDataConnectionManagerTest(t)
-	defer cleanupDataHistoryTest(dcm, t)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), dcm.dbConn, time.Second)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, time.Second)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -191,24 +133,29 @@ func TestUpsertJob(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.UpsertJob(nil)
+	err = m.UpsertJob(nil, false)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("error '%v', expected '%v'", err, errNilJob)
 	}
 	dhj := &DataHistoryJob{}
-	err = m.UpsertJob(dhj)
+	err = m.UpsertJob(dhj, false)
+	if !errors.Is(err, errNicknameUnset) {
+		t.Errorf("error '%v', expected '%v'", err, errNicknameUnset)
+	}
+	dhj.Nickname = "test1337"
+	err = m.UpsertJob(dhj, false)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("error '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 
 	dhj.Asset = asset.Spot
-	err = m.UpsertJob(dhj)
+	err = m.UpsertJob(dhj, false)
 	if !errors.Is(err, errCurrencyPairUnset) {
 		t.Errorf("error '%v', expected '%v'", err, errCurrencyPairUnset)
 	}
 
 	dhj.Pair = currency.NewPair(currency.BTC, currency.USDT)
-	err = m.UpsertJob(dhj)
+	err = m.UpsertJob(dhj, false)
 	if !errors.Is(err, errInvalidTimes) {
 		t.Errorf("error '%v', expected '%v'", err, errInvalidTimes)
 	}
@@ -216,13 +163,18 @@ func TestUpsertJob(t *testing.T) {
 	dhj.StartDate = time.Now().Add(-time.Hour)
 	dhj.EndDate = time.Now()
 
-	err = m.UpsertJob(dhj)
+	err = m.UpsertJob(dhj, false)
 	if err == nil {
 		t.Error("expected error")
 	}
 
 	dhj.Exchange = strings.ToLower(testExchange)
-	err = m.UpsertJob(dhj)
+	err = m.UpsertJob(dhj, false)
+	if !errors.Is(err, kline.ErrUnsetInterval) {
+		t.Errorf("error '%v', expected '%v'", err, kline.ErrUnsetInterval)
+	}
+	dhj.Interval = kline.OneHour
+	err = m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -232,7 +184,7 @@ func TestUpsertJob(t *testing.T) {
 
 	startDate := time.Date(1980, 1, 1, 1, 1, 1, 1, time.UTC)
 	dhj.StartDate = startDate
-	err = m.UpsertJob(dhj)
+	err = m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -242,15 +194,35 @@ func TestUpsertJob(t *testing.T) {
 	if !m.jobs[0].StartDate.Equal(startDate) {
 		t.Errorf("received '%v', expected '%v'", m.jobs[0].StartDate, startDate)
 	}
+
+	err = m.UpsertJob(dhj, true)
+	if !errors.Is(err, errNicknameInUse) {
+		t.Errorf("error '%v', expected '%v'", err, errNicknameInUse)
+	}
+
+	newJob := &DataHistoryJob{
+		Nickname:         "test123",
+		Exchange:         testExchange,
+		Asset:            asset.Spot,
+		Pair:             currency.NewPair(currency.BTC, currency.USDT),
+		StartDate:        time.Now(),
+		EndDate:          time.Now().Add(time.Second),
+		Interval:         kline.OneMin,
+		BatchSize:        1337,
+		RequestSizeLimit: 100,
+		DataType:         1,
+		MaxRetryAttempts: 1,
+	}
+	err = m.UpsertJob(newJob, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
 }
 
 func TestDeleteJob(t *testing.T) {
-	dcm, err := setuptDataConnectionManagerTest(t)
-	if !errors.Is(err, nil) {
-		t.Fatalf("error '%v', expected '%v'", err, nil)
-	}
-	//defer cleanupDataHistoryTest(dcm, t)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), dcm.dbConn, time.Second)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, time.Second)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -268,8 +240,9 @@ func TestDeleteJob(t *testing.T) {
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 		StartDate: time.Now().Add(-time.Second),
 		EndDate:   time.Now(),
+		Interval:  kline.OneMin,
 	}
-	err = m.UpsertJob(dhj)
+	err = m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -285,7 +258,7 @@ func TestDeleteJob(t *testing.T) {
 		t.Error("expected removed")
 	}
 
-	jerb, err := m.jobDB.GetJobAndAllResults(dhj.ID.String())
+	jerb, err := m.jobDB.GetJobAndAllResults(dhj.Nickname)
 	if err != nil {
 		t.Fatal(err)
 	}

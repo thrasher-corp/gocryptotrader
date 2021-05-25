@@ -671,7 +671,10 @@ func (o *OKGroup) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		Interval: interval,
 	}
 
-	dates := kline.CalculateCandleDateRanges(start, end, interval, o.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, o.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
 	formattedPair, err := o.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err

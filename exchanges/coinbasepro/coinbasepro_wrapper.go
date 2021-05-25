@@ -910,7 +910,10 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 	if err != nil {
 		return kline.Item{}, err
 	}
-	dates := kline.CalculateCandleDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
 
 	formattedPair, err := c.FormatExchangeCurrency(p, a)
 	if err != nil {

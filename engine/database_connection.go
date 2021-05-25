@@ -16,9 +16,7 @@ import (
 // DatabaseConnectionManagerName is an exported subsystem name
 const DatabaseConnectionManagerName = "database"
 
-var (
-	errDatabaseDisabled = errors.New("database support disabled")
-)
+var errDatabaseDisabled = errors.New("database support disabled")
 
 // DatabaseConnectionManager holds the database connection and its status
 type DatabaseConnectionManager struct {
@@ -100,14 +98,14 @@ func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
 				m.host,
 				m.database,
 				m.driver)
-			m.dbConn, err = dbpsql.Connect()
+			m.dbConn, err = dbpsql.Connect(m.dbConn.GetConfig())
 		case database.DBSQLite,
 			database.DBSQLite3:
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to %s utilising %s driver\n",
 				m.database,
 				m.driver)
-			m.dbConn, err = dbsqlite3.Connect()
+			m.dbConn, err = dbsqlite3.Connect(m.database)
 		default:
 			return database.ErrNoDatabaseProvided
 		}

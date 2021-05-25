@@ -255,7 +255,7 @@ func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, erro
 
 	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
 	}
 
 	job = &DataHistoryJob{
@@ -289,7 +289,7 @@ func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, er
 
 	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
 	}
 
 	job = &DataHistoryJob{
@@ -338,7 +338,7 @@ func (db *DBService) getByIDSQLite(id string) (*DataHistoryJob, error) {
 
 	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
 	}
 
 	job = &DataHistoryJob{
@@ -372,7 +372,7 @@ func (db *DBService) getByIDPostgres(id string) (*DataHistoryJob, error) {
 
 	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
 	}
 
 	job = &DataHistoryJob{
@@ -422,7 +422,7 @@ func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataH
 
 		exch, err := exchange.OneByUUIDString(results[i].ExchangeNameID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
 		}
 
 		jobs = append(jobs, DataHistoryJob{
@@ -493,7 +493,7 @@ func (db *DBService) getJobAndAllResultsSQLite(nickname string) (*DataHistoryJob
 
 	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
 	}
 
 	var jobResults []*datahistoryjobresult.DataHistoryJobResult
@@ -568,7 +568,7 @@ func (db *DBService) getJobAndAllResultsPostgres(nickname string) (*DataHistoryJ
 
 	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
 	}
 
 	var jobResults []*datahistoryjobresult.DataHistoryJobResult
@@ -617,7 +617,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 	for i := range results {
 		exch, err := exchange.OneByUUIDString(results[i].ExchangeNameID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
 		}
 
 		var jobResults []*datahistoryjobresult.DataHistoryJobResult
@@ -694,7 +694,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob,
 	for i := range results {
 		exch, err := exchange.OneByUUIDString(results[i].ExchangeNameID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
 		}
 
 		var jobResults []*datahistoryjobresult.DataHistoryJobResult

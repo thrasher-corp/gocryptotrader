@@ -335,10 +335,19 @@ func (i *Interval) IntervalsPerYear() float64 {
 // CalculateCandleDateRanges will calculate the expected candle data in intervals in a date range
 // If an API is limited in the amount of candles it can make in a request, it will automatically separate
 // ranges into the limit
-func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit uint32) IntervalRangeHolder {
+func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit uint32) (*IntervalRangeHolder, error) {
+	if start.IsZero() || end.IsZero() {
+		return nil, ErrDateUnset
+	}
+	if start.After(end) {
+		return nil, ErrStartAfterEnd
+	}
+	if interval <= 0 {
+		return nil, ErrUnsetInterval
+	}
 	start = start.Round(interval.Duration())
 	end = end.Round(interval.Duration())
-	resp := IntervalRangeHolder{
+	resp := &IntervalRangeHolder{
 		Start: CreateIntervalTime(start),
 		End:   CreateIntervalTime(end),
 	}
@@ -355,7 +364,7 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 			End:       CreateIntervalTime(end),
 			Intervals: intervalsInWholePeriod,
 		}}
-		return resp
+		return resp, nil
 	}
 
 	var intervals []IntervalData
@@ -376,7 +385,7 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 		})
 	}
 
-	return resp
+	return resp, nil
 }
 
 // HasDataAtDate determines whether a there is any data at a set

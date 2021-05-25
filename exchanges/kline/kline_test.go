@@ -401,13 +401,34 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	v := CalculateCandleDateRanges(start, end, OneMin, 300)
+	_, err := CalculateCandleDateRanges(time.Time{}, time.Time{}, OneMin, 300)
+	if !errors.Is(err, ErrDateUnset) {
+		t.Errorf("received %v expected %v", err, ErrDateUnset)
+	}
+
+	_, err = CalculateCandleDateRanges(time.Now().Add(time.Second), time.Now(), OneMin, 300)
+	if !errors.Is(err, ErrStartAfterEnd) {
+		t.Errorf("received %v expected %v", err, ErrStartAfterEnd)
+	}
+
+	_, err = CalculateCandleDateRanges(time.Now(), time.Now().Add(time.Second), 0, 300)
+	if !errors.Is(err, ErrUnsetInterval) {
+		t.Errorf("received %v expected %v", err, ErrUnsetInterval)
+	}
+
+	v, err := CalculateCandleDateRanges(start, end, OneMin, 300)
+	if err != nil {
+		t.Error(err)
+	}
 
 	if v.Ranges[0].Start.Ticks != time.Unix(1546300800, 0).Unix() {
 		t.Errorf("expected %v received %v", 1546300800, v.Ranges[0].Start.Ticks)
 	}
 
-	v = CalculateCandleDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
+	v, err = CalculateCandleDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
+	if err != nil {
+		t.Error(err)
+	}
 	if len(v.Ranges) != 1 {
 		t.Fatalf("expected %v received %v", 1, len(v.Ranges))
 	}
@@ -416,7 +437,10 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	}
 	start = time.Now()
 	end = time.Now().AddDate(0, 0, 10)
-	v = CalculateCandleDateRanges(start, end, OneDay, 5)
+	v, err = CalculateCandleDateRanges(start, end, OneDay, 5)
+	if err != nil {
+		t.Error(err)
+	}
 	if len(v.Ranges) != 2 {
 		t.Errorf("expected %v received %v", 2, len(v.Ranges))
 	}
@@ -712,12 +736,15 @@ func TestLoadCSV(t *testing.T) {
 func TestVerifyResultsHaveData(t *testing.T) {
 	tt2 := time.Now().Round(OneDay.Duration())
 	tt1 := time.Now().Add(-time.Hour * 24).Round(OneDay.Duration())
-	dateRanges := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
+	dateRanges, err := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
+	if err != nil {
+		t.Error(err)
+	}
 	if dateRanges.HasDataAtDate(tt1) {
 		t.Error("unexpected true value")
 	}
 
-	err := dateRanges.VerifyResultsHaveData(nil)
+	err = dateRanges.VerifyResultsHaveData(nil)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -738,7 +765,10 @@ func TestVerifyResultsHaveData(t *testing.T) {
 func TestHasDataAtDate(t *testing.T) {
 	tt2 := time.Now().Round(OneDay.Duration())
 	tt1 := time.Now().Add(-time.Hour * 24 * 30).Round(OneDay.Duration())
-	dateRanges := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
+	dateRanges, err := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
+	if err != nil {
+		t.Error(err)
+	}
 	if dateRanges.HasDataAtDate(tt1) {
 		t.Error("unexpected true value")
 	}
