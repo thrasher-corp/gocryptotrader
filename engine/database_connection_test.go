@@ -23,7 +23,7 @@ func CreateDatabase(t *testing.T) string {
 	return tmpDir
 }
 
-func Cleanup(t *testing.T, tmpDir string) {
+func Cleanup(tmpDir string) {
 	if database.DB.IsConnected() {
 		err := database.DB.CloseConnection()
 		if err != nil {
@@ -53,7 +53,7 @@ func TestSetupDatabaseConnectionManager(t *testing.T) {
 
 func TestStartSQLite(t *testing.T) {
 	tmpDir := CreateDatabase(t)
-	defer Cleanup(t, tmpDir)
+	defer Cleanup(tmpDir)
 	m, err := SetupDatabaseConnectionManager(&database.Config{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -92,7 +92,7 @@ func TestStartSQLite(t *testing.T) {
 // This test does not care for a successful connection
 func TestStartPostgres(t *testing.T) {
 	tmpDir := CreateDatabase(t)
-	defer Cleanup(t, tmpDir)
+	defer Cleanup(tmpDir)
 	m, err := SetupDatabaseConnectionManager(&database.Config{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -116,7 +116,7 @@ func TestStartPostgres(t *testing.T) {
 
 func TestDatabaseConnectionManagerIsRunning(t *testing.T) {
 	tmpDir := CreateDatabase(t)
-	defer Cleanup(t, tmpDir)
+	defer Cleanup(tmpDir)
 	m, err := SetupDatabaseConnectionManager(&database.Config{
 		Enabled: true,
 		Driver:  database.DBSQLite,
@@ -147,7 +147,7 @@ func TestDatabaseConnectionManagerIsRunning(t *testing.T) {
 
 func TestDatabaseConnectionManagerStop(t *testing.T) {
 	tmpDir := CreateDatabase(t)
-	defer Cleanup(t, tmpDir)
+	defer Cleanup(tmpDir)
 	m, err := SetupDatabaseConnectionManager(&database.Config{
 		Enabled: true,
 		Driver:  database.DBSQLite,
@@ -184,7 +184,7 @@ func TestDatabaseConnectionManagerStop(t *testing.T) {
 
 func TestCheckConnection(t *testing.T) {
 	tmpDir := CreateDatabase(t)
-	defer Cleanup(t, tmpDir)
+	defer Cleanup(tmpDir)
 	var m *DatabaseConnectionManager
 	err := m.checkConnection()
 	if !errors.Is(err, ErrNilSubsystem) {

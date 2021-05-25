@@ -247,17 +247,13 @@ func TestDeleteJob(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	err = m.RemoveJob(dhj.Nickname)
+	err = m.DeleteJob(dhj.Nickname, "")
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	if len(m.jobs) != 0 {
 		t.Error("expected 0")
 	}
-	if dhj.Status != dataHistoryStatusRemoved {
-		t.Error("expected removed")
-	}
-
 	jerb, err := m.jobDB.GetJobAndAllResults(dhj.Nickname)
 	if err != nil {
 		t.Fatal(err)

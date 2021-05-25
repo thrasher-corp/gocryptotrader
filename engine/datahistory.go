@@ -111,15 +111,29 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 }
 
 // GetByID returns a job's details from its ID,
-// also allowing to retrieve all related job results
 func (m *DataHistoryManager) GetByID(id string) (*DataHistoryJob, error) {
+	if m == nil {
+		return nil, ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, ErrSubSystemNotStarted
+	}
+	m.m.Lock()
+	for i := range m.jobs {
+		if m.jobs[i].ID.String() == id {
+			cpy := m.jobs[i]
+			m.m.Unlock()
+			return cpy, nil
+		}
+	}
+	m.m.Unlock()
 	dbJ, err := m.jobDB.GetByID(id)
 	if err != nil {
 		return nil, err
 	}
 	results, err := convertDBModelToJob(*dbJ)
 	if len(results) != 1 {
-		return nil, nil
+		return nil, fmt.Errorf("%w with id %s", errJobNotFound, id)
 	}
 	return results[0], nil
 }
@@ -183,31 +197,38 @@ func (m *DataHistoryManager) DeleteJob(nickname string, id string) error {
 	}
 	var dbJob *datahistoryjob.DataHistoryJob
 	var err error
-	if nickname != "" {
-		dbJob, err = m.jobDB.GetByNickName(nickname)
-		if err != nil {
-			return err
-		}
-	} else {
-		dbJob, err = m.jobDB.GetByID(id)
-		if err != nil {
-			return err
+	m.m.Lock()
+	defer m.m.Unlock()
+	for i := range m.jobs {
+		if strings.EqualFold(m.jobs[i].Nickname, nickname) ||
+			m.jobs[i].ID.String() == id {
+			results, err := convertJobToDBModel(m.jobs[i])
+			if err != nil {
+				return err
+			}
+			dbJob = results[0]
+			m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
 		}
 	}
-
+	if dbJob == nil {
+		if nickname != "" {
+			dbJob, err = m.jobDB.GetByNickName(nickname)
+			if err != nil {
+				return err
+			}
+		} else {
+			dbJob, err = m.jobDB.GetByID(id)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	dbJob.Status = dataHistoryStatusRemoved
 	err = m.jobDB.Upsert(dbJob)
 	if err != nil {
 		return err
 	}
-	// remove from existing list if present
-	m.m.Lock()
-	defer m.m.Unlock()
-	for i := range m.jobs {
-		if strings.EqualFold(m.jobs[i].Nickname, nickname) {
-			m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
-		}
-	}
+
 	return nil
 }
 
@@ -338,35 +359,6 @@ func validateJob(job *DataHistoryJob) error {
 	return nil
 }
 
-// RemoveJob allows for GRPC interaction to remove a job to be processed
-// requires that the nickname field be set
-func (m *DataHistoryManager) RemoveJob(nickname string) error {
-	if m == nil {
-		return ErrNilSubsystem
-	}
-	if atomic.LoadInt32(&m.started) == 0 {
-		return ErrSubSystemNotStarted
-	}
-	m.m.Lock()
-	defer m.m.Unlock()
-	for i := range m.jobs {
-		if strings.EqualFold(m.jobs[i].Nickname, nickname) {
-			m.jobs[i].Status = dataHistoryStatusRemoved
-			dbJobs, err := convertJobToDBModel(m.jobs[i])
-			if err != nil {
-				return err
-			}
-			err = m.jobDB.Upsert(dbJobs[0])
-			if err != nil {
-				return err
-			}
-			m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
-			return nil
-		}
-	}
-	return fmt.Errorf("%v %w", nickname, errJobNotFound)
-}
-
 // PrepareJobs will validate the config jobs, verify their status with the database
 // and return all valid jobs to be processed
 // m.jobs will be overridden by this function
@@ -409,12 +401,9 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return ErrSubSystemNotStarted
 	}
-	var err error
 	for i := range jobs {
-		jobs[i].rangeHolder, err = kline.CalculateCandleDateRanges(jobs[i].StartDate, jobs[i].EndDate, jobs[i].Interval, uint32(jobs[i].RequestSizeLimit))
-		if err != nil {
-			return err
-		}
+		jobs[i].rangeHolder, _ = kline.CalculateCandleDateRanges(jobs[i].StartDate, jobs[i].EndDate, jobs[i].Interval, uint32(jobs[i].RequestSizeLimit))
+
 		switch jobs[i].DataType {
 		case dataHistoryCandleDataType:
 			candles, err := kline.LoadFromDatabase(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].Interval, jobs[i].StartDate, jobs[i].EndDate)
@@ -696,6 +685,24 @@ func convertDBResultToJobResult(dbModels []*datahistoryjobresult.DataHistoryJobR
 	return result, nil
 }
 
+func convertJobResultToDBResult(results map[time.Time][]DataHistoryJobResult) []*datahistoryjobresult.DataHistoryJobResult {
+	var response []*datahistoryjobresult.DataHistoryJobResult
+	for _, v := range results {
+		for i := range v {
+			response = append(response, &datahistoryjobresult.DataHistoryJobResult{
+				ID:                v[i].ID.String(),
+				JobID:             v[i].JobID.String(),
+				IntervalStartDate: v[i].IntervalStartDate,
+				IntervalEndDate:   v[i].IntervalEndDate,
+				Status:            v[i].Status,
+				Result:            v[i].Result,
+				Date:              v[i].Date,
+			})
+		}
+	}
+	return response
+}
+
 func convertJobToDBModel(models ...*DataHistoryJob) ([]*datahistoryjob.DataHistoryJob, error) {
 	var resp []*datahistoryjob.DataHistoryJob
 	for i := range models {
@@ -725,22 +732,4 @@ func convertJobToDBModel(models ...*DataHistoryJob) ([]*datahistoryjob.DataHisto
 
 	}
 	return resp, nil
-}
-
-func convertJobResultToDBResult(results map[time.Time][]DataHistoryJobResult) []*datahistoryjobresult.DataHistoryJobResult {
-	var response []*datahistoryjobresult.DataHistoryJobResult
-	for _, v := range results {
-		for i := range v {
-			response = append(response, &datahistoryjobresult.DataHistoryJobResult{
-				ID:                v[i].ID.String(),
-				JobID:             v[i].JobID.String(),
-				IntervalStartDate: v[i].IntervalStartDate,
-				IntervalEndDate:   v[i].IntervalEndDate,
-				Status:            v[i].Status,
-				Result:            v[i].Result,
-				Date:              v[i].Date,
-			})
-		}
-	}
-	return response
 }
