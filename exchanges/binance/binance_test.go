@@ -1755,7 +1755,8 @@ func TestGetAccountInfo(t *testing.T) {
 		asset.Spot,
 		asset.Margin,
 	}
-	for _, assetType := range items {
+	for i := range items {
+		assetType := items[i]
 		t.Run(fmt.Sprintf("Update info of account [%s]", assetType.String()), func(t *testing.T) {
 			_, err := b.UpdateAccountInfo(assetType)
 			if err != nil {
