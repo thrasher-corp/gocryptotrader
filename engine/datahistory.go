@@ -9,6 +9,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 	exchangedb "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
@@ -107,7 +108,7 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 		return nil, err
 	}
 
-	return convertDBModelToJob(dbJobs...)
+	return m.convertDBModelToJob(dbJobs...)
 }
 
 // GetByID returns a job's details from its ID,
@@ -129,9 +130,9 @@ func (m *DataHistoryManager) GetByID(id string) (*DataHistoryJob, error) {
 	m.m.Unlock()
 	dbJ, err := m.jobDB.GetByID(id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w with id %s %s", errJobNotFound, id, err)
 	}
-	results, err := convertDBModelToJob(*dbJ)
+	results, err := m.convertDBModelToJob(*dbJ)
 	if len(results) != 1 {
 		return nil, fmt.Errorf("%w with id %s", errJobNotFound, id)
 	}
@@ -153,7 +154,7 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 		if err != nil {
 			return nil, err
 		}
-		results, err := convertDBModelToJob(*dbJ)
+		results, err := m.convertDBModelToJob(*dbJ)
 		if len(results) != 1 {
 			return nil, nil
 		}
@@ -173,7 +174,7 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 	if err != nil {
 		return nil, fmt.Errorf("%w, %s", errJobNotFound, err)
 	}
-	job, err := convertDBModelToJob(*j)
+	job, err := m.convertDBModelToJob(*j)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +203,7 @@ func (m *DataHistoryManager) DeleteJob(nickname string, id string) error {
 	for i := range m.jobs {
 		if strings.EqualFold(m.jobs[i].Nickname, nickname) ||
 			m.jobs[i].ID.String() == id {
-			results, err := convertJobToDBModel(m.jobs[i])
+			results, err := m.convertJobToDBModel(m.jobs[i])
 			if err != nil {
 				return err
 			}
@@ -244,7 +245,9 @@ func (m *DataHistoryManager) GetActiveJobs() ([]DataHistoryJob, error) {
 	defer m.m.Unlock()
 	var results []DataHistoryJob
 	for i := range m.jobs {
-		results = append(results, *m.jobs[i])
+		if m.jobs[i].Status == dataHistoryStatusActive {
+			results = append(results, *m.jobs[i])
+		}
 	}
 	return results, nil
 }
@@ -276,7 +279,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	m.m.Lock()
 	defer m.m.Unlock()
 
-	err := validateJob(job)
+	err := m.validateJob(job)
 	if err != nil {
 		return err
 	}
@@ -303,8 +306,8 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 			if job.Interval != 0 && m.jobs[i].Interval != job.Interval {
 				m.jobs[i].Interval = job.Interval
 			}
-			if job.BatchSize != 0 && m.jobs[i].BatchSize != job.BatchSize {
-				m.jobs[i].BatchSize = job.BatchSize
+			if job.RunBatchLimit != 0 && m.jobs[i].RunBatchLimit != job.RunBatchLimit {
+				m.jobs[i].RunBatchLimit = job.RunBatchLimit
 			}
 			if job.RequestSizeLimit != 0 && m.jobs[i].RequestSizeLimit != job.RequestSizeLimit {
 				m.jobs[i].RequestSizeLimit = job.RequestSizeLimit
@@ -338,24 +341,52 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		}
 	}
 
-	dbJob, err := convertJobToDBModel(job)
+	dbJob, err := m.convertJobToDBModel(job)
 	if err != nil {
 		return err
 	}
 	return m.jobDB.Upsert(dbJob[0])
 }
 
-func validateJob(job *DataHistoryJob) error {
+func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
+	if job == nil {
+		return errNilJob
+	}
 	if !job.Asset.IsValid() {
 		return asset.ErrNotSupported
 	}
 	if job.Pair.IsEmpty() {
 		return errCurrencyPairUnset
 	}
-	if job.StartDate.After(job.EndDate) || job.StartDate.IsZero() || job.EndDate.IsZero() {
+	exch := m.exchangeManager.GetExchangeByName(job.Exchange)
+	if exch == nil {
+		return errExchangeNotLoaded
+	}
+	pairs, err := exch.GetAvailablePairs(job.Asset)
+	if err != nil {
+		return err
+	}
+	if !pairs.Contains(job.Pair, false) {
+		return errCurrencyPairInvalid
+	}
+	if job.StartDate.After(job.EndDate) ||
+		job.StartDate.IsZero() ||
+		job.EndDate.IsZero() ||
+		job.StartDate.After(time.Now()) {
 		return errInvalidTimes
 	}
+	if job.Results == nil {
+		job.Results = make(map[time.Time][]DataHistoryJobResult)
+	}
 
+	if job.RunBatchLimit <= 0 {
+		log.Warnf(log.DataHistory, "job %s has unset batch limit, defaulting to %v", job.Nickname, defaultBatchLimit)
+		job.RunBatchLimit = defaultBatchLimit
+	}
+	if job.MaxRetryAttempts <= 0 {
+		log.Warnf(log.DataHistory, "job %s has unset max retry limit, defaulting to %v", job.Nickname, defaultRetryAttempts)
+		job.MaxRetryAttempts = defaultRetryAttempts
+	}
 	return nil
 }
 
@@ -401,30 +432,35 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return ErrSubSystemNotStarted
 	}
+	var err error
 	for i := range jobs {
-		jobs[i].rangeHolder, _ = kline.CalculateCandleDateRanges(jobs[i].StartDate, jobs[i].EndDate, jobs[i].Interval, uint32(jobs[i].RequestSizeLimit))
+		jobs[i].rangeHolder, err = kline.CalculateCandleDateRanges(jobs[i].StartDate, jobs[i].EndDate, jobs[i].Interval, uint32(jobs[i].RequestSizeLimit))
+		if err != nil {
+			return err
+		}
 
+		var candles kline.Item
 		switch jobs[i].DataType {
 		case dataHistoryCandleDataType:
-			candles, err := kline.LoadFromDatabase(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].Interval, jobs[i].StartDate, jobs[i].EndDate)
-			if err != nil {
+			candles, err = kline.LoadFromDatabase(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].Interval, jobs[i].StartDate, jobs[i].EndDate)
+			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return err
 			}
 			err = jobs[i].rangeHolder.VerifyResultsHaveData(candles.Candles)
-			if err != nil {
+			if err != nil && !errors.Is(err, kline.ErrMissingCandleData) {
 				return err
 			}
 		case dataHistoryTradeDataType:
 			trades, err := trade.GetTradesInRange(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].StartDate, jobs[i].EndDate)
-			if err != nil {
+			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return err
 			}
-			candles, err := trade.ConvertTradesToCandles(jobs[i].Interval, trades...)
-			if err != nil {
+			candles, err = trade.ConvertTradesToCandles(jobs[i].Interval, trades...)
+			if err != nil && !errors.Is(err, trade.ErrNoTradesSupplied) {
 				return err
 			}
 			err = jobs[i].rangeHolder.VerifyResultsHaveData(candles.Candles)
-			if err != nil {
+			if err != nil && !errors.Is(err, kline.ErrMissingCandleData) {
 				return err
 			}
 		default:
@@ -469,9 +505,16 @@ func (m *DataHistoryManager) processJobs() error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return ErrSubSystemNotStarted
 	}
-	m.m.Lock()
-	defer m.m.Unlock()
+
 	var results []*DataHistoryJobResult
+	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
+		return fmt.Errorf("processJobs %w", errAlreadyRunning)
+	}
+	m.m.Lock()
+	defer func() {
+		m.m.Unlock()
+		atomic.StoreInt32(&m.processing, 0)
+	}()
 	for i := range m.jobs {
 		exch := m.exchangeManager.GetExchangeByName(m.jobs[i].Exchange)
 		if exch == nil {
@@ -503,8 +546,6 @@ func (m *DataHistoryManager) processJobs() error {
 	return m.jobResultDB.Upsert(dbResults...)
 }
 
-// runJob will process an individual job. It is either run as on a schedule
-// or specifically via RPC command on demand
 func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExchange) ([]*DataHistoryJobResult, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
@@ -520,6 +561,9 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExcha
 	}
 	var jobResults []*DataHistoryJobResult
 	var intervalsProcessed int64
+	if job.rangeHolder == nil || len(job.rangeHolder.Ranges) == 0 {
+		return nil, errJobInvalid
+	}
 processing:
 	for i := range job.rangeHolder.Ranges {
 		for j := range job.rangeHolder.Ranges[i].Intervals {
@@ -527,7 +571,7 @@ processing:
 				job.rangeHolder.Ranges[i].Intervals[j].Start.Time.Before(job.continueFromData) {
 				continue
 			}
-			if intervalsProcessed >= job.BatchSize {
+			if intervalsProcessed >= job.RunBatchLimit {
 				break processing
 			}
 			var failures int64
@@ -601,7 +645,7 @@ processing:
 		}
 	}
 
-	dbJob, err := convertJobToDBModel(job)
+	dbJob, err := m.convertJobToDBModel(job)
 	if err != nil {
 		return nil, err
 	}
@@ -618,7 +662,7 @@ processing:
 
 // ----------------------------Lovely-converters----------------------------
 
-func convertDBModelToJob(dbModels ...datahistoryjob.DataHistoryJob) ([]*DataHistoryJob, error) {
+func (m *DataHistoryManager) convertDBModelToJob(dbModels ...datahistoryjob.DataHistoryJob) ([]*DataHistoryJob, error) {
 	var resp []*DataHistoryJob
 	for i := range dbModels {
 		id, err := uuid.FromString(dbModels[i].ID)
@@ -630,7 +674,7 @@ func convertDBModelToJob(dbModels ...datahistoryjob.DataHistoryJob) ([]*DataHist
 			return nil, err
 		}
 
-		jobResults, err := convertDBResultToJobResult(dbModels[i].Results)
+		jobResults, err := m.convertDBResultToJobResult(dbModels[i].Results)
 		if err != nil {
 			return nil, err
 		}
@@ -656,7 +700,7 @@ func convertDBModelToJob(dbModels ...datahistoryjob.DataHistoryJob) ([]*DataHist
 	return resp, nil
 }
 
-func convertDBResultToJobResult(dbModels []*datahistoryjobresult.DataHistoryJobResult) (map[time.Time][]DataHistoryJobResult, error) {
+func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryjobresult.DataHistoryJobResult) (map[time.Time][]DataHistoryJobResult, error) {
 	result := make(map[time.Time][]DataHistoryJobResult)
 	for i := range dbModels {
 		id, err := uuid.FromString(dbModels[i].ID)
@@ -685,7 +729,7 @@ func convertDBResultToJobResult(dbModels []*datahistoryjobresult.DataHistoryJobR
 	return result, nil
 }
 
-func convertJobResultToDBResult(results map[time.Time][]DataHistoryJobResult) []*datahistoryjobresult.DataHistoryJobResult {
+func (m *DataHistoryManager) convertJobResultToDBResult(results map[time.Time][]DataHistoryJobResult) []*datahistoryjobresult.DataHistoryJobResult {
 	var response []*datahistoryjobresult.DataHistoryJobResult
 	for _, v := range results {
 		for i := range v {
@@ -703,7 +747,7 @@ func convertJobResultToDBResult(results map[time.Time][]DataHistoryJobResult) []
 	return response
 }
 
-func convertJobToDBModel(models ...*DataHistoryJob) ([]*datahistoryjob.DataHistoryJob, error) {
+func (m *DataHistoryManager) convertJobToDBModel(models ...*DataHistoryJob) ([]*datahistoryjob.DataHistoryJob, error) {
 	var resp []*datahistoryjob.DataHistoryJob
 	for i := range models {
 		exchangeID, err := exchangedb.One(strings.ToLower(models[i].Exchange))
@@ -726,8 +770,8 @@ func convertJobToDBModel(models ...*DataHistoryJob) ([]*datahistoryjob.DataHisto
 			MaxRetryAttempts: models[i].MaxRetryAttempts,
 			Status:           models[i].Status,
 			CreatedDate:      models[i].CreatedDate,
-			BatchSize:        models[i].BatchSize,
-			Results:          convertJobResultToDBResult(models[i].Results),
+			BatchSize:        models[i].RunBatchLimit,
+			Results:          m.convertJobResultToDBResult(models[i].Results),
 		})
 
 	}

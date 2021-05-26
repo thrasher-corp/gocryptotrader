@@ -31,6 +31,9 @@ func (i *Instance) SetConfig(cfg *Config) error {
 // SetSQLiteConnection safely sets the global database instance's connection
 // to use SQLite
 func (i *Instance) SetSQLiteConnection(con *sql.DB) {
+	if i == nil {
+		return
+	}
 	i.m.Lock()
 	defer i.m.Unlock()
 	i.SQL = con
@@ -40,6 +43,9 @@ func (i *Instance) SetSQLiteConnection(con *sql.DB) {
 // SetPostgresConnection safely sets the global database instance's connection
 // to use Postgres
 func (i *Instance) SetPostgresConnection(con *sql.DB) error {
+	if i == nil {
+		return ErrNilInstance
+	}
 	if err := con.Ping(); err != nil {
 		return err
 	}
@@ -55,6 +61,9 @@ func (i *Instance) SetPostgresConnection(con *sql.DB) error {
 // SetConnected safely sets the global database instance's connected
 // status
 func (i *Instance) SetConnected(v bool) {
+	if i == nil {
+		return
+	}
 	i.m.Lock()
 	i.connected = v
 	i.m.Unlock()
@@ -62,6 +71,9 @@ func (i *Instance) SetConnected(v bool) {
 
 // CloseConnection safely disconnects the global database instance
 func (i *Instance) CloseConnection() error {
+	if i == nil {
+		return ErrNilInstance
+	}
 	i.m.Lock()
 	defer i.m.Unlock()
 	return i.SQL.Close()
@@ -69,6 +81,9 @@ func (i *Instance) CloseConnection() error {
 
 // IsConnected safely checks the SQL connection status
 func (i *Instance) IsConnected() bool {
+	if i == nil {
+		return false
+	}
 	i.m.RLock()
 	defer i.m.RUnlock()
 	return i.connected
@@ -76,6 +91,10 @@ func (i *Instance) IsConnected() bool {
 
 // GetConfig safely returns a copy of the config
 func (i *Instance) GetConfig() *Config {
+	if i == nil {
+		return nil
+	}
+
 	i.m.RLock()
 	defer i.m.RUnlock()
 	cpy := i.config

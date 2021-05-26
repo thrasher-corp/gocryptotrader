@@ -3324,7 +3324,7 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		StartDate:        UTCStartTime,
 		EndDate:          UTCEndTime,
 		Interval:         kline.Interval(r.Interval),
-		BatchSize:        r.BatchSize,
+		RunBatchLimit:    r.BatchSize,
 		RequestSizeLimit: r.RequestSizeLimit,
 		DataType:         r.DataType,
 		Status:           dataHistoryStatusActive,
@@ -3400,7 +3400,7 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 		RequestSizeLimit: result.RequestSizeLimit,
 		DataType:         result.DataType,
 		MaxRetryAttempts: result.MaxRetryAttempts,
-		BatchSize:        result.BatchSize,
+		BatchSize:        result.RunBatchLimit,
 		JobResults:       jobResults,
 	}, nil
 }
@@ -3446,7 +3446,7 @@ func (s *RPCServer) GetActiveDataHistoryJobs(_ context.Context, r *gctrpc.GetInf
 			RequestSizeLimit: jobs[i].RequestSizeLimit,
 			DataType:         jobs[i].DataType,
 			MaxRetryAttempts: jobs[i].MaxRetryAttempts,
-			BatchSize:        jobs[i].BatchSize,
+			BatchSize:        jobs[i].RunBatchLimit,
 		})
 	}
 	return &gctrpc.DataHistoryJobs{Results: response}, nil

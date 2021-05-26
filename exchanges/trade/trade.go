@@ -195,7 +195,7 @@ func SQLDataToTrade(dbTrades ...tradesql.Data) (result []Data, err error) {
 // ConvertTradesToCandles turns trade data into kline.Items
 func ConvertTradesToCandles(interval kline.Interval, trades ...Data) (kline.Item, error) {
 	if len(trades) == 0 {
-		return kline.Item{}, errors.New("no trades supplied")
+		return kline.Item{}, ErrNoTradesSupplied
 	}
 	groupedData := groupTradesToInterval(interval, trades...)
 	candles := kline.Item{

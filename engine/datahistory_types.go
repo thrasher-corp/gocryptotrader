@@ -36,10 +36,14 @@ var (
 	errOnlyNicknameOrID           = errors.New("can only set 'id' OR 'nickname'")
 	errNicknameInUse              = errors.New("cannot insert job as nickname already in use")
 	errNicknameUnset              = errors.New("cannot insert job as nickname unset")
+	errJobInvalid                 = errors.New("job has not been setup properly and cannot be processed")
 	defaultTicker                 = time.Minute
 	// defaultTradeInterval is the default interval size used to verify whether there is any database data
 	// for a trade job
 	defaultTradeInterval = kline.FifteenMin
+
+	defaultBatchLimit    int64 = 3
+	defaultRetryAttempts int64 = 3
 )
 
 // DataHistoryManager is responsible for synchronising,
@@ -48,6 +52,7 @@ type DataHistoryManager struct {
 	exchangeManager           iExchangeManager
 	databaseConnectionManager iDatabaseConnectionManager
 	started                   int32
+	processing                int32
 	shutdown                  chan struct{}
 	interval                  *time.Ticker
 	jobs                      []*DataHistoryJob
@@ -68,7 +73,7 @@ type DataHistoryJob struct {
 	StartDate        time.Time
 	EndDate          time.Time
 	Interval         kline.Interval
-	BatchSize        int64
+	RunBatchLimit    int64
 	RequestSizeLimit int64
 	DataType         int64
 	MaxRetryAttempts int64

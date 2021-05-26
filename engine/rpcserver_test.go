@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -102,6 +103,10 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = engerino.LoadExchange("Binance", false, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	engerino.Config.Database = dbConf
 	engerino.DatabaseManager, err = SetupDatabaseConnectionManager(&engerino.Config.Database)
 	if err != nil {
@@ -118,6 +123,11 @@ func RPCTestSetup(t *testing.T) *Engine {
 	}
 	uuider, _ := uuid.NewV4()
 	err = dbexchange.Insert(dbexchange.Details{Name: testExchange, UUID: uuider})
+	if err != nil {
+		t.Fatalf("failed to insert exchange %v", err)
+	}
+	uuider2, _ := uuid.NewV4()
+	err = dbexchange.Insert(dbexchange.Details{Name: "Binance", UUID: uuider2})
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)
 	}
@@ -876,11 +886,6 @@ func TestGetOrders(t *testing.T) {
 		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
 	}
 
-	err = engerino.LoadExchange(exchName, false, nil)
-	if err != nil {
-		t.Error(err)
-	}
-
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
 		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
@@ -939,10 +944,16 @@ func TestGetOrders(t *testing.T) {
 }
 
 func TestGetOrder(t *testing.T) {
-	exchName := "binance"
+	exchName := "Binance"
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
+	var wg sync.WaitGroup
+	var err error
+	engerino.OrderManager, err = SetupOrderManager(engerino.ExchangeManager, engerino.CommunicationsManager, &wg, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("expected %v, received %v", errInvalidArguments, nil)
+	}
 
 	p := &gctrpc.CurrencyPair{
 		Delimiter: "-",
@@ -950,25 +961,19 @@ func TestGetOrder(t *testing.T) {
 		Quote:     "USDT",
 	}
 
-	_, err := s.GetOrder(context.Background(), nil)
+	_, err = s.GetOrder(context.Background(), nil)
 	if !errors.Is(err, errInvalidArguments) {
 		t.Errorf("expected %v, received %v", errInvalidArguments, err)
 	}
 
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
-		Exchange: exchName,
+		Exchange: "test123",
 		OrderId:  "",
 		Pair:     p,
 		Asset:    "spot",
 	})
-
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
-	}
-
-	err = engerino.LoadExchange(exchName, false, nil)
-	if err != nil {
-		t.Error(err)
 	}
 
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
@@ -1209,7 +1214,7 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 			Base:      "BTC",
 			Quote:     "USD",
 		},
-		StartDate:        time.Now().Add(-time.Hour).Format(common.SimpleTimeFormat),
+		StartDate:        time.Now().Add(-time.Hour * 24).Format(common.SimpleTimeFormat),
 		EndDate:          time.Now().Format(common.SimpleTimeFormat),
 		Interval:         int64(kline.OneHour.Duration()),
 		RequestSizeLimit: 10,

@@ -1,6 +1,7 @@
 package trade
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -19,6 +20,8 @@ var (
 	// BufferProcessorIntervalTime is the interval to save trade buffer data to the database.
 	// Change this by changing the runtime param `-tradeprocessinginterval=15s`
 	BufferProcessorIntervalTime = DefaultProcessorIntervalTime
+	// ErrNoTradesSupplied
+	ErrNoTradesSupplied = errors.New("no trades supplied")
 )
 
 // Data defines trade data
