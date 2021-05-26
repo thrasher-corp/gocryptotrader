@@ -702,7 +702,6 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModels ...datahistoryjob.Data
 			CreatedDate:      dbModels[i].CreatedDate,
 			Results:          jobResults,
 		})
-
 	}
 	return resp, nil
 }
@@ -780,7 +779,6 @@ func (m *DataHistoryManager) convertJobToDBModel(models ...*DataHistoryJob) ([]*
 			BatchSize:        models[i].RunBatchLimit,
 			Results:          m.convertJobResultToDBResult(models[i].Results),
 		})
-
 	}
 	return resp, nil
 }

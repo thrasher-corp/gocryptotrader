@@ -1409,7 +1409,7 @@ func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 	return resp, nil
 }
 
-// CheckDataHistoryMonitorConfig ensures the data history config is 
+// CheckDataHistoryMonitorConfig ensures the data history config is
 // valid, or sets default values
 func (c *Config) CheckDataHistoryMonitorConfig() {
 	m.Lock()

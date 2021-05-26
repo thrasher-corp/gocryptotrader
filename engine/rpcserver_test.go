@@ -1222,7 +1222,7 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 		MaxRetryAttempts: 3,
 		BatchSize:        500,
 	}
-	_, err = s.UpsertDataHistoryJob(nil, job)
+	_, err = s.UpsertDataHistoryJob(context.Background(), job)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("received %v, expected %v", err, ErrSubSystemNotStarted)
 	}
@@ -1232,7 +1232,7 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
 
-	_, err = s.UpsertDataHistoryJob(nil, job)
+	_, err = s.UpsertDataHistoryJob(context.Background(), job)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}

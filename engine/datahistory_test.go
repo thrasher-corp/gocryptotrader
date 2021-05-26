@@ -46,7 +46,7 @@ func TestDataHistoryManagerIsRunning(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	if m == nil {
-		t.Error("expected manager")
+		t.Fatal("expected manager")
 	}
 	if m.IsRunning() {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -63,7 +63,6 @@ func TestDataHistoryManagerIsRunning(t *testing.T) {
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
-
 }
 
 func TestDataHistoryManagerStart(t *testing.T) {
@@ -74,7 +73,7 @@ func TestDataHistoryManagerStart(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	if m == nil {
-		t.Error("expected manager")
+		t.Fatal("expected manager")
 	}
 
 	err = m.Start()
@@ -101,7 +100,7 @@ func TestDataHistoryManagerStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	if m == nil {
-		t.Error("expected manager")
+		t.Fatal("expected manager")
 	}
 	err = m.Start()
 	if !errors.Is(err, nil) {
@@ -142,8 +141,8 @@ func setupDataHistoryManagerTest(t *testing.T) (*DataHistoryManager, *Engine) {
 
 func TestUpsertJob(t *testing.T) {
 	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil {
-		t.Error("expected manager")
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
 
@@ -236,8 +235,8 @@ func TestUpsertJob(t *testing.T) {
 
 func TestDeleteJob(t *testing.T) {
 	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil {
-		t.Error("expected manager")
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
 
@@ -310,8 +309,8 @@ func TestDeleteJob(t *testing.T) {
 
 func TestGetByNickname(t *testing.T) {
 	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil {
-		t.Error("expected manager")
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
 
@@ -363,8 +362,8 @@ func TestGetByNickname(t *testing.T) {
 
 func TestGetByID(t *testing.T) {
 	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil {
-		t.Error("expected manager")
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
 
@@ -408,13 +407,12 @@ func TestGetByID(t *testing.T) {
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
-
 }
 
 func TestRetrieveJobs(t *testing.T) {
 	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil {
-		t.Error("expected manager")
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
 
@@ -469,8 +467,8 @@ func TestRetrieveJobs(t *testing.T) {
 
 func TestGetActiveJobs(t *testing.T) {
 	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil {
-		t.Error("expected manager")
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
 
@@ -528,8 +526,8 @@ func TestGetActiveJobs(t *testing.T) {
 
 func TestValidateJob(t *testing.T) {
 	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil {
-		t.Error("expected manager")
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
 	err := m.validateJob(nil)
@@ -578,8 +576,8 @@ func TestValidateJob(t *testing.T) {
 
 func TestPrepareJobs(t *testing.T) {
 	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil {
-		t.Error("expected manager")
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
 
@@ -620,8 +618,8 @@ func TestPrepareJobs(t *testing.T) {
 
 func TestCompareJobsToData(t *testing.T) {
 	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil {
-		t.Error("expected manager")
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
 
@@ -671,8 +669,8 @@ func TestCompareJobsToData(t *testing.T) {
 
 func TestRunJob(t *testing.T) {
 	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil {
-		t.Error("expected manager")
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
 	exch := engerino.ExchangeManager.GetExchangeByName("Binance")
@@ -733,8 +731,8 @@ func TestRunJob(t *testing.T) {
 
 func TestProcessJobs(t *testing.T) {
 	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil {
-		t.Error("expected manager")
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
 	dhj := &DataHistoryJob{
@@ -855,5 +853,4 @@ func TestConverters(t *testing.T) {
 		jr.Status != andBackAgain[dhj.StartDate][0].Status {
 		t.Error("expected matching job")
 	}
-
 }

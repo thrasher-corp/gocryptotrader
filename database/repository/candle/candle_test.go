@@ -254,9 +254,7 @@ func TestSeries(t *testing.T) {
 				start, end)
 			if err != nil {
 				if !errors.Is(err, errInvalidInput) {
-					if err.Error() != fmt.Errorf(errNoCandleDataFound, testExchanges[0].Name,
-						"BTC", "MOON",
-						"864000", "spot").Error() {
+					if !errors.Is(err, ErrNoCandleDataFound) {
 						t.Fatal(err)
 					}
 				}
