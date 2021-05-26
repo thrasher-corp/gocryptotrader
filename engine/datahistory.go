@@ -546,6 +546,7 @@ func (m *DataHistoryManager) processJobs() error {
 	return m.jobResultDB.Upsert(dbResults...)
 }
 
+// runJob will iterate
 func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExchange) ([]*DataHistoryJobResult, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
@@ -605,6 +606,7 @@ processing:
 				if err != nil {
 					result.Result = "could not get candles: " + err.Error()
 					result.Status = dataHistoryStatusFailed
+					job.continueFromData = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
 					break
 				}
 				_ = job.rangeHolder.VerifyResultsHaveData(candles.Candles)
@@ -612,18 +614,21 @@ processing:
 				if err != nil {
 					result.Result = "could not save results: " + err.Error()
 					result.Status = dataHistoryStatusFailed
+					job.continueFromData = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
 				}
 			case dataHistoryTradeDataType:
 				trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 				if err != nil {
 					result.Result = "could not get trades: " + err.Error()
 					result.Status = dataHistoryStatusFailed
+					job.continueFromData = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
 					break
 				}
 				candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
 				if err != nil {
 					result.Result = "could not convert candles to trades: " + err.Error()
 					result.Status = dataHistoryStatusFailed
+					job.continueFromData = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
 					break
 				}
 				_ = job.rangeHolder.VerifyResultsHaveData(candles.Candles)
@@ -631,6 +636,7 @@ processing:
 				if err != nil {
 					result.Result = "could not save results: " + err.Error()
 					result.Status = dataHistoryStatusFailed
+					job.continueFromData = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
 				}
 			default:
 				return nil, errUnknownDataType
@@ -640,8 +646,9 @@ processing:
 			lookup = append(lookup, result)
 			job.Results[result.IntervalStartDate] = lookup
 			jobResults = append(jobResults, &result)
-
-			job.continueFromData = result.IntervalEndDate
+			if result.Status != dataHistoryStatusFailed {
+				job.continueFromData = result.IntervalEndDate
+			}
 		}
 	}
 
