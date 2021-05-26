@@ -122,30 +122,32 @@ func TestDataHistoryManagerStop(t *testing.T) {
 	}
 }
 
-func TestUpsertJob(t *testing.T) {
+func setupDataHistoryManagerTest(t *testing.T) (*DataHistoryManager, *Engine) {
+	t.Helper()
 	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	exch := engerino.ExchangeManager.GetExchangeByName(testExchange)
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	exch.SetDefaults()
 	b := exch.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}}
-	em.Add(exch)
-	m, err := SetupDataHistoryManager(em, engerino.DatabaseManager.dbConn, time.Second)
+	engerino.ExchangeManager.Add(exch)
+	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, time.Second)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
+	atomic.StoreInt32(&m.started, 1)
+	return m, engerino
+}
+
+func TestUpsertJob(t *testing.T) {
+	m, engerino := setupDataHistoryManagerTest(t)
 	if m == nil {
 		t.Error("expected manager")
 	}
-	atomic.StoreInt32(&m.started, 1)
+	defer CleanRPCTest(t, engerino)
 
-	err = m.UpsertJob(nil, false)
+	err := m.UpsertJob(nil, false)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("error '%v', expected '%v'", err, errNilJob)
 	}
@@ -233,27 +235,11 @@ func TestUpsertJob(t *testing.T) {
 }
 
 func TestDeleteJob(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	exch.SetDefaults()
-	b := exch.GetBase()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}}
-	em.Add(exch)
-	m, err := SetupDataHistoryManager(em, engerino.DatabaseManager.dbConn, time.Second)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	m, engerino := setupDataHistoryManagerTest(t)
 	if m == nil {
 		t.Error("expected manager")
 	}
-	atomic.StoreInt32(&m.started, 1)
+	defer CleanRPCTest(t, engerino)
 
 	dhj := &DataHistoryJob{
 		Nickname:  "TestDeleteJob",
@@ -264,7 +250,7 @@ func TestDeleteJob(t *testing.T) {
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
-	err = m.UpsertJob(dhj, false)
+	err := m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -323,27 +309,11 @@ func TestDeleteJob(t *testing.T) {
 }
 
 func TestGetByNickname(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	exch.SetDefaults()
-	b := exch.GetBase()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}}
-	em.Add(exch)
-	m, err := SetupDataHistoryManager(em, engerino.DatabaseManager.dbConn, time.Second)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	m, engerino := setupDataHistoryManagerTest(t)
 	if m == nil {
 		t.Error("expected manager")
 	}
-	atomic.StoreInt32(&m.started, 1)
+	defer CleanRPCTest(t, engerino)
 
 	dhj := &DataHistoryJob{
 		Nickname:  "TestGetByNickname",
@@ -354,7 +324,7 @@ func TestGetByNickname(t *testing.T) {
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
-	err = m.UpsertJob(dhj, false)
+	err := m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -392,27 +362,11 @@ func TestGetByNickname(t *testing.T) {
 }
 
 func TestGetByID(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	exch.SetDefaults()
-	b := exch.GetBase()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}}
-	em.Add(exch)
-	m, err := SetupDataHistoryManager(em, engerino.DatabaseManager.dbConn, time.Second)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	m, engerino := setupDataHistoryManagerTest(t)
 	if m == nil {
 		t.Error("expected manager")
 	}
-	atomic.StoreInt32(&m.started, 1)
+	defer CleanRPCTest(t, engerino)
 
 	dhj := &DataHistoryJob{
 		Nickname:  "TestGetByID",
@@ -423,7 +377,7 @@ func TestGetByID(t *testing.T) {
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
-	err = m.UpsertJob(dhj, false)
+	err := m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -458,27 +412,11 @@ func TestGetByID(t *testing.T) {
 }
 
 func TestRetrieveJobs(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	exch.SetDefaults()
-	b := exch.GetBase()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}}
-	em.Add(exch)
-	m, err := SetupDataHistoryManager(em, engerino.DatabaseManager.dbConn, time.Second)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	m, engerino := setupDataHistoryManagerTest(t)
 	if m == nil {
 		t.Error("expected manager")
 	}
-	atomic.StoreInt32(&m.started, 1)
+	defer CleanRPCTest(t, engerino)
 
 	jobs, err := m.retrieveJobs()
 	if !errors.Is(err, nil) {
@@ -530,27 +468,11 @@ func TestRetrieveJobs(t *testing.T) {
 }
 
 func TestGetActiveJobs(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	exch.SetDefaults()
-	b := exch.GetBase()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}}
-	em.Add(exch)
-	m, err := SetupDataHistoryManager(em, engerino.DatabaseManager.dbConn, time.Second)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	m, engerino := setupDataHistoryManagerTest(t)
 	if m == nil {
 		t.Error("expected manager")
 	}
-	atomic.StoreInt32(&m.started, 1)
+	defer CleanRPCTest(t, engerino)
 
 	jobs, err := m.GetActiveJobs()
 	if !errors.Is(err, nil) {
@@ -605,17 +527,12 @@ func TestGetActiveJobs(t *testing.T) {
 }
 
 func TestValidateJob(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	em := SetupExchangeManager()
-	m, err := SetupDataHistoryManager(em, engerino.DatabaseManager.dbConn, time.Second)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	m, engerino := setupDataHistoryManagerTest(t)
 	if m == nil {
 		t.Error("expected manager")
 	}
-	err = m.validateJob(nil)
+	defer CleanRPCTest(t, engerino)
+	err := m.validateJob(nil)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("error '%v', expected '%v'", err, errNilJob)
 	}
@@ -632,14 +549,6 @@ func TestValidateJob(t *testing.T) {
 	}
 
 	dhj.Exchange = testExchange
-	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	exch.SetDefaults()
-
-	em.Add(exch)
-
 	dhj.Pair = currency.NewPair(currency.BTC, currency.USDT)
 	err = m.validateJob(dhj)
 	if !errors.Is(err, errCurrencyPairInvalid) {
@@ -647,9 +556,6 @@ func TestValidateJob(t *testing.T) {
 	}
 
 	dhj.Pair = currency.NewPair(currency.BTC, currency.USD)
-	b := exch.GetBase()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{dhj.Pair}}
 	err = m.validateJob(dhj)
 	if !errors.Is(err, errInvalidTimes) {
 		t.Errorf("error '%v', expected '%v'", err, errInvalidTimes)
@@ -671,38 +577,22 @@ func TestValidateJob(t *testing.T) {
 }
 
 func TestPrepareJobs(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	exch.SetDefaults()
-	b := exch.GetBase()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}}
-	em.Add(exch)
-	m, err := SetupDataHistoryManager(em, engerino.DatabaseManager.dbConn, time.Second)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	m, engerino := setupDataHistoryManagerTest(t)
 	if m == nil {
 		t.Error("expected manager")
 	}
-	atomic.StoreInt32(&m.started, 1)
+	defer CleanRPCTest(t, engerino)
 
 	dhj := &DataHistoryJob{
 		Nickname:  "TestPrepareJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      cp,
+		Pair:      currency.NewPair(currency.BTC, currency.USD),
 		StartDate: time.Now().Add(-time.Second),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
-	err = m.UpsertJob(dhj, false)
+	err := m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -729,38 +619,22 @@ func TestPrepareJobs(t *testing.T) {
 }
 
 func TestCompareJobsToData(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	exch.SetDefaults()
-	b := exch.GetBase()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}}
-	em.Add(exch)
-	m, err := SetupDataHistoryManager(em, engerino.DatabaseManager.dbConn, time.Second)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	m, engerino := setupDataHistoryManagerTest(t)
 	if m == nil {
 		t.Error("expected manager")
 	}
-	atomic.StoreInt32(&m.started, 1)
+	defer CleanRPCTest(t, engerino)
 
 	dhj := &DataHistoryJob{
 		Nickname:  "TestCompareJobsToData",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      cp,
+		Pair:      currency.NewPair(currency.BTC, currency.USD),
 		StartDate: time.Now().Add(-time.Second),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
-	err = m.UpsertJob(dhj, false)
+	err := m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -796,13 +670,12 @@ func TestCompareJobsToData(t *testing.T) {
 }
 
 func TestRunJob(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("Binance")
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
+	m, engerino := setupDataHistoryManagerTest(t)
+	if m == nil {
+		t.Error("expected manager")
 	}
+	defer CleanRPCTest(t, engerino)
+	exch := engerino.ExchangeManager.GetExchangeByName("Binance")
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	exch.SetDefaults()
 	b := exch.GetBase()
@@ -815,15 +688,7 @@ func TestRunJob(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot].RequestFormat = &currency.PairFormat{
 		Uppercase: true,
 	}
-	em.Add(exch)
-	m, err := SetupDataHistoryManager(em, engerino.DatabaseManager.dbConn, time.Second)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	if m == nil {
-		t.Error("expected manager")
-	}
-	atomic.StoreInt32(&m.started, 1)
+	engerino.ExchangeManager.Add(exch)
 
 	dhj := &DataHistoryJob{
 		Nickname:  "TestProcessJobs",
@@ -834,7 +699,7 @@ func TestRunJob(t *testing.T) {
 		EndDate:   time.Now(),
 		Interval:  kline.OneDay,
 	}
-	err = m.UpsertJob(dhj, false)
+	err := m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -867,37 +732,21 @@ func TestRunJob(t *testing.T) {
 }
 
 func TestProcessJobs(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	exch.SetDefaults()
-	b := exch.GetBase()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}}
-	em.Add(exch)
-	m, err := SetupDataHistoryManager(em, engerino.DatabaseManager.dbConn, time.Second)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	m, engerino := setupDataHistoryManagerTest(t)
 	if m == nil {
 		t.Error("expected manager")
 	}
-	atomic.StoreInt32(&m.started, 1)
+	defer CleanRPCTest(t, engerino)
 	dhj := &DataHistoryJob{
 		Nickname:  "TestProcessJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      cp,
+		Pair:      currency.NewPair(currency.BTC, currency.USD),
 		StartDate: time.Now().Add(-time.Hour * 24),
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
 	}
-	err = m.UpsertJob(dhj, false)
+	err := m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
