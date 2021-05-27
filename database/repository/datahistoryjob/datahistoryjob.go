@@ -196,40 +196,6 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 	return nil
 }
 
-func GetAll() (interface{}, error) {
-	query := sqlite3.Datahistoryjobs()
-	a, err := query.All(context.Background(), database.DB.SQL)
-	if err != nil {
-		return nil, err
-	}
-	return a, nil
-}
-
-func (db *DBService) GetAll() ([]*DataHistoryJob, error) {
-	whereQM := qm.Where("nickname = ?", "TestDataHistoryJob0")
-	a, err := sqlite3.Datahistoryjobs(whereQM).All(context.Background(), db.sql)
-	if err != nil {
-		return nil, err
-	}
-	var result []*DataHistoryJob
-	for i := range a {
-		result = append(result, &DataHistoryJob{
-			ID:               a[i].ID,
-			Nickname:         a[i].Nickname,
-			ExchangeID:       a[i].ExchangeNameID,
-			Asset:            a[i].Asset,
-			Base:             a[i].Base,
-			Quote:            a[i].Quote,
-			Interval:         int64(a[i].Interval),
-			RequestSizeLimit: int64(a[i].RequestSize),
-			DataType:         int64(a[i].DataType),
-			MaxRetryAttempts: int64(a[i].MaxRetries),
-			Status:           int64(a[i].Status),
-		})
-	}
-	return result, nil
-}
-
 func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
 	whereQM := qm.Where("nickname = ?", nickname)

@@ -1518,6 +1518,7 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 	if err != nil {
 		return kline.Item{}, err
 	}
+	var candles []CandleStick
 	for x := range dates.Ranges {
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),
@@ -1527,7 +1528,7 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 		}
 
-		candles, err := b.GetSpotKline(&req)
+		candles, err = b.GetSpotKline(&req)
 		if err != nil {
 			return kline.Item{}, err
 		}

@@ -15,17 +15,46 @@ import (
 
 // Data type descriptors
 const (
-	dataHistoryCandleDataType = iota
+	dataHistoryCandleDataType dataHistoryDataType = iota
 	dataHistoryTradeDataType
 )
 
 // DataHistoryJob status descriptors
 const (
-	dataHistoryStatusActive = iota
+	dataHistoryStatusActive dataHistoryStatus = iota
 	dataHistoryStatusFailed
 	dataHistoryStatusComplete
 	dataHistoryStatusRemoved
 )
+
+type dataHistoryStatus int64
+type dataHistoryDataType int64
+
+// String stringifies iotas to readable
+func (d dataHistoryStatus) String() string {
+	switch {
+	case int64(d) == 0:
+		return "active"
+	case int64(d) == 1:
+		return "failed"
+	case int64(d) == 2:
+		return "complete"
+	case int64(d) == 3:
+		return "removed"
+	}
+	return ""
+}
+
+// String stringifies iotas to readable
+func (d dataHistoryDataType) String() string {
+	switch {
+	case int64(d) == 0:
+		return "candles"
+	case int64(d) == 1:
+		return "trade"
+	}
+	return ""
+}
 
 var (
 	errJobNotFound                = errors.New("job not found")
@@ -75,14 +104,13 @@ type DataHistoryJob struct {
 	Interval         kline.Interval
 	RunBatchLimit    int64
 	RequestSizeLimit int64
-	DataType         int64
+	DataType         dataHistoryDataType
 	MaxRetryAttempts int64
-	Status           int64
+	Status           dataHistoryStatus
 	CreatedDate      time.Time
 	Results          map[time.Time][]DataHistoryJobResult
 	continueFromData time.Time
 	rangeHolder      *kline.IntervalRangeHolder
-	running          bool
 }
 
 // DataHistoryJobResult contains details on
@@ -92,7 +120,22 @@ type DataHistoryJobResult struct {
 	JobID             uuid.UUID
 	IntervalStartDate time.Time
 	IntervalEndDate   time.Time
-	Status            int64
+	Status            dataHistoryStatus
 	Result            string
 	Date              time.Time
+}
+
+// DataHistoryJobSummary is a human readable summary of the job
+// for quickly understanding the status of a given job
+type DataHistoryJobSummary struct {
+	Nickname     string
+	Exchange     string
+	Asset        asset.Item
+	Pair         currency.Pair
+	StartDate    time.Time
+	EndDate      time.Time
+	Interval     kline.Interval
+	Status       dataHistoryStatus
+	DataType     dataHistoryDataType
+	ResultRanges []string
 }

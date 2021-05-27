@@ -159,7 +159,7 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			_, err = db.GetAll()
+			_, err = db.GetJobsBetween(time.Now(), time.Now().Add(time.Hour))
 			if err != nil {
 				t.Fatal(err)
 			}

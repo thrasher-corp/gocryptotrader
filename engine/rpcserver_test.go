@@ -1218,7 +1218,7 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 		EndDate:          time.Now().Format(common.SimpleTimeFormat),
 		Interval:         int64(kline.OneHour.Duration()),
 		RequestSizeLimit: 10,
-		DataType:         dataHistoryCandleDataType,
+		DataType:         int64(dataHistoryCandleDataType),
 		MaxRetryAttempts: 3,
 		BatchSize:        500,
 	}

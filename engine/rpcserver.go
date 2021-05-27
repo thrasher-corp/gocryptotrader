@@ -3326,7 +3326,7 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		Interval:         kline.Interval(r.Interval),
 		RunBatchLimit:    r.BatchSize,
 		RequestSizeLimit: r.RequestSizeLimit,
-		DataType:         r.DataType,
+		DataType:         dataHistoryDataType(r.DataType),
 		Status:           dataHistoryStatusActive,
 		MaxRetryAttempts: r.MaxRetryAttempts,
 	}
@@ -3373,14 +3373,14 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 			return nil, fmt.Errorf("%s %w", r.Nickname, err)
 		}
 
-		for i := range result.Results {
-			for _, v := range result.Results[i] {
+		for _, v := range result.Results {
+			for i := range v {
 				jobResults = append(jobResults, &gctrpc.DataHistoryJobResult{
-					StartDate: v.IntervalStartDate.Format(common.SimpleTimeFormat),
-					EndDate:   v.IntervalEndDate.Format(common.SimpleTimeFormat),
-					HasData:   v.Status == dataHistoryStatusComplete,
-					Message:   v.Result,
-					RunDate:   v.Date.Format(common.SimpleTimeFormat),
+					StartDate: v[i].IntervalStartDate.Format(common.SimpleTimeFormat),
+					EndDate:   v[i].IntervalEndDate.Format(common.SimpleTimeFormat),
+					HasData:   v[i].Status == dataHistoryStatusComplete,
+					Message:   v[i].Result,
+					RunDate:   v[i].Date.Format(common.SimpleTimeFormat),
 				})
 			}
 		}
@@ -3398,10 +3398,11 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 		EndDate:          result.EndDate.Format(common.SimpleTimeFormat),
 		Interval:         int64(result.Interval.Duration()),
 		RequestSizeLimit: result.RequestSizeLimit,
-		DataType:         result.DataType,
+		DataType:         result.DataType.String(),
 		MaxRetryAttempts: result.MaxRetryAttempts,
 		BatchSize:        result.RunBatchLimit,
 		JobResults:       jobResults,
+		Status:           result.Status.String(),
 	}, nil
 }
 
@@ -3444,10 +3445,77 @@ func (s *RPCServer) GetActiveDataHistoryJobs(_ context.Context, r *gctrpc.GetInf
 			EndDate:          jobs[i].EndDate.Format(common.SimpleTimeFormat),
 			Interval:         int64(jobs[i].Interval.Duration()),
 			RequestSizeLimit: jobs[i].RequestSizeLimit,
-			DataType:         jobs[i].DataType,
+			DataType:         jobs[i].DataType.String(),
 			MaxRetryAttempts: jobs[i].MaxRetryAttempts,
 			BatchSize:        jobs[i].RunBatchLimit,
+			Status:           jobs[i].Status.String(),
 		})
 	}
 	return &gctrpc.DataHistoryJobs{Results: response}, nil
+}
+
+// GetDataHistoryJobsBetween returns all jobs created between supplied dates
+func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDataHistoryJobsBetweenRequest) (*gctrpc.DataHistoryJobs, error) {
+	var UTCStartTime, UTCEndTime time.Time
+	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	if err != nil {
+		return nil, err
+	}
+
+	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+	if err != nil {
+		return nil, err
+	}
+	jobs, err := s.dataHistoryManager.GetAllJobStatusBetween(UTCStartTime, UTCEndTime)
+	if err != nil {
+		return nil, err
+	}
+	var respJobs []*gctrpc.DataHistoryJob
+	for i := range jobs {
+		respJobs = append(respJobs, &gctrpc.DataHistoryJob{
+			Nickname: jobs[i].Nickname,
+			Exchange: jobs[i].Exchange,
+			Asset:    jobs[i].Asset.String(),
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: jobs[i].Pair.Delimiter,
+				Base:      jobs[i].Pair.Base.String(),
+				Quote:     jobs[i].Pair.Quote.String(),
+			},
+			StartDate:        jobs[i].StartDate.Format(common.SimpleTimeFormat),
+			EndDate:          jobs[i].EndDate.Format(common.SimpleTimeFormat),
+			Interval:         int64(jobs[i].Interval.Duration()),
+			RequestSizeLimit: jobs[i].RequestSizeLimit,
+			DataType:         jobs[i].DataType.String(),
+			MaxRetryAttempts: jobs[i].MaxRetryAttempts,
+			BatchSize:        jobs[i].RunBatchLimit,
+			Status:           jobs[i].Status.String(),
+		})
+	}
+	return &gctrpc.DataHistoryJobs{
+		Results: respJobs,
+	}, nil
+}
+
+// GetDataHistoryJobSummary provides a general look at how a data history job is going with the "resultSummaries" property
+func (s *RPCServer) GetDataHistoryJobSummary(_ context.Context, r *gctrpc.GetDataHistoryJobDetailsRequest) (*gctrpc.DataHistoryJob, error) {
+	job, err := s.dataHistoryManager.GenerateJobSummary(r.Nickname)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.DataHistoryJob{
+		Nickname: job.Nickname,
+		Exchange: job.Exchange,
+		Asset:    job.Asset.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: job.Pair.Delimiter,
+			Base:      job.Pair.Base.String(),
+			Quote:     job.Pair.Quote.String(),
+		},
+		StartDate:       job.StartDate.Format(common.SimpleTimeFormat),
+		EndDate:         job.EndDate.Format(common.SimpleTimeFormat),
+		Interval:        int64(job.Interval.Duration()),
+		DataType:        job.DataType.String(),
+		Status:          job.Status.String(),
+		ResultSummaries: job.ResultRanges,
+	}, nil
 }

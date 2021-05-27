@@ -881,10 +881,6 @@ message GetDataHistoryJobDetailsRequest {
     bool fullDetails = 3;
 }
 
-message DataHistoryJobs {
-    repeated DataHistoryJob results = 1;
-}
-
 message DataHistoryJob {
     string	nickname = 1;
     string	exchange = 2;
@@ -894,11 +890,14 @@ message DataHistoryJob {
     string	end_date = 6;
     int64	interval = 7;
     int64	request_size_limit = 8;
-    int64	data_type = 9;
-    int64	max_retry_attempts = 10;
-    int64	batch_size = 11;
-    repeated DataHistoryJobResult job_results = 12;
+    int64	max_retry_attempts = 9;
+    int64	batch_size = 10;
+    string status = 11;
+    string data_type = 12;
+    repeated DataHistoryJobResult job_results = 13;
+    repeated string result_summaries = 14;
 }
+
 
 message DataHistoryJobResult {
     string	start_date = 1;
@@ -908,7 +907,14 @@ message DataHistoryJobResult {
     string run_date = 5;
 }
 
+message DataHistoryJobs {
+    repeated DataHistoryJob results = 1;
+}
 
+message GetDataHistoryJobsBetweenRequest {
+    string start_date = 1;
+    string end_date = 2;
+}
 
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
@@ -1437,6 +1443,16 @@ service GoCryptoTrader {
     rpc DeleteJob (GetDataHistoryJobDetailsRequest) returns (GenericResponse) {
         option (google.api.http) = {
             delete: "/v1/deletedatahistoryjob"
+        };
+    }
+    rpc GetDataHistoryJobsBetween (GetDataHistoryJobsBetweenRequest) returns (DataHistoryJobs) {
+        option (google.api.http) = {
+            get: "/v1/getdatahistoryjobsbetween"
+        };
+    }
+    rpc GetDataHistoryJobSummary (GetDataHistoryJobDetailsRequest) returns (DataHistoryJob) {
+        option (google.api.http) = {
+            get: "/v1/getdatahistoryjobsummary"
         };
     }
 }

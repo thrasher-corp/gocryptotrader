@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
@@ -33,6 +34,10 @@ func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager
 	}
 
 	dhj, err := datahistoryjob.Setup(dcm)
+	if err != nil {
+		return nil, err
+	}
+
 	dhjr, err := datahistoryjobresult.Setup(dcm)
 	if err != nil {
 		return nil, err
@@ -108,7 +113,16 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 		return nil, err
 	}
 
-	return m.convertDBModelToJob(dbJobs...)
+	var response []*DataHistoryJob
+	for i := range dbJobs {
+		dbJob, err := m.convertDBModelToJob(&dbJobs[i])
+		if err != nil {
+			return nil, err
+		}
+		response = append(response, dbJob)
+	}
+
+	return response, nil
 }
 
 // GetByID returns a job's details from its ID,
@@ -132,11 +146,11 @@ func (m *DataHistoryManager) GetByID(id string) (*DataHistoryJob, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w with id %s %s", errJobNotFound, id, err)
 	}
-	results, err := m.convertDBModelToJob(*dbJ)
-	if len(results) != 1 {
-		return nil, fmt.Errorf("%w with id %s", errJobNotFound, id)
+	result, err := m.convertDBModelToJob(dbJ)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert model with id %s %w", id, err)
 	}
-	return results[0], nil
+	return result, nil
 }
 
 // GetByNickname searches for jobs by name and returns it if found
@@ -154,11 +168,11 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 		if err != nil {
 			return nil, err
 		}
-		results, err := m.convertDBModelToJob(*dbJ)
-		if len(results) != 1 {
-			return nil, nil
+		result, err := m.convertDBModelToJob(dbJ)
+		if err != nil {
+			return nil, fmt.Errorf("could not convert model with nickname %s %w", nickname, err)
 		}
-		return results[0], nil
+		return result, nil
 	}
 	m.m.Lock()
 	for i := range m.jobs {
@@ -174,16 +188,33 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 	if err != nil {
 		return nil, fmt.Errorf("%w, %s", errJobNotFound, err)
 	}
-	job, err := m.convertDBModelToJob(*j)
+	job, err := m.convertDBModelToJob(j)
 	if err != nil {
 		return nil, err
 	}
 
-	return job[0], nil
+	return job, nil
+}
+
+// GetAllJobStatusBetween will return all jobs between two ferns
+func (m *DataHistoryManager) GetAllJobStatusBetween(start, end time.Time) ([]*DataHistoryJob, error) {
+	dbJobs, err := m.jobDB.GetJobsBetween(start, end)
+	if err != nil {
+		return nil, err
+	}
+	var results []*DataHistoryJob
+	for i := range dbJobs {
+		dbJob, err := m.convertDBModelToJob(&dbJobs[i])
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, dbJob)
+	}
+	return results, nil
 }
 
 // DeleteJob helper function to assist in setting a job to deleted
-func (m *DataHistoryManager) DeleteJob(nickname string, id string) error {
+func (m *DataHistoryManager) DeleteJob(nickname, id string) error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
@@ -203,11 +234,10 @@ func (m *DataHistoryManager) DeleteJob(nickname string, id string) error {
 	for i := range m.jobs {
 		if strings.EqualFold(m.jobs[i].Nickname, nickname) ||
 			m.jobs[i].ID.String() == id {
-			results, err := m.convertJobToDBModel(m.jobs[i])
+			dbJob, err = m.convertJobToDBModel(m.jobs[i])
 			if err != nil {
 				return err
 			}
-			dbJob = results[0]
 			m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
 		}
 	}
@@ -224,7 +254,7 @@ func (m *DataHistoryManager) DeleteJob(nickname string, id string) error {
 			}
 		}
 	}
-	dbJob.Status = dataHistoryStatusRemoved
+	dbJob.Status = int64(dataHistoryStatusRemoved)
 	err = m.jobDB.Upsert(dbJob)
 	if err != nil {
 		return err
@@ -286,46 +316,47 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	toUpdate := false
 
 	for i := range m.jobs {
-		if strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
-			toUpdate = true
-			if job.Exchange != "" && m.jobs[i].Exchange != job.Exchange {
-				m.jobs[i].Exchange = job.Exchange
-			}
-			if job.Asset != "" && m.jobs[i].Asset != job.Asset {
-				m.jobs[i].Asset = job.Asset
-			}
-			if !job.Pair.IsEmpty() && !m.jobs[i].Pair.Equal(job.Pair) {
-				m.jobs[i].Pair = job.Pair
-			}
-			if !job.StartDate.IsZero() && !m.jobs[i].StartDate.Equal(job.StartDate) {
-				m.jobs[i].StartDate = job.StartDate
-			}
-			if !job.EndDate.IsZero() && !m.jobs[i].EndDate.Equal(job.EndDate) {
-				m.jobs[i].EndDate = job.EndDate
-			}
-			if job.Interval != 0 && m.jobs[i].Interval != job.Interval {
-				m.jobs[i].Interval = job.Interval
-			}
-			if job.RunBatchLimit != 0 && m.jobs[i].RunBatchLimit != job.RunBatchLimit {
-				m.jobs[i].RunBatchLimit = job.RunBatchLimit
-			}
-			if job.RequestSizeLimit != 0 && m.jobs[i].RequestSizeLimit != job.RequestSizeLimit {
-				m.jobs[i].RequestSizeLimit = job.RequestSizeLimit
-			}
-			if job.MaxRetryAttempts != 0 && m.jobs[i].MaxRetryAttempts != job.MaxRetryAttempts {
-				m.jobs[i].MaxRetryAttempts = job.MaxRetryAttempts
-			}
-
-			m.jobs[i].DataType = job.DataType
-			m.jobs[i].Status = job.Status
-			m.jobs[i].continueFromData = time.Time{}
-			m.jobs[i].rangeHolder, err = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, uint32(m.jobs[i].RequestSizeLimit))
-			if err != nil {
-				return err
-			}
-
-			break
+		if !strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
+			continue
 		}
+		toUpdate = true
+		if job.Exchange != "" && m.jobs[i].Exchange != job.Exchange {
+			m.jobs[i].Exchange = job.Exchange
+		}
+		if job.Asset != "" && m.jobs[i].Asset != job.Asset {
+			m.jobs[i].Asset = job.Asset
+		}
+		if !job.Pair.IsEmpty() && !m.jobs[i].Pair.Equal(job.Pair) {
+			m.jobs[i].Pair = job.Pair
+		}
+		if !job.StartDate.IsZero() && !m.jobs[i].StartDate.Equal(job.StartDate) {
+			m.jobs[i].StartDate = job.StartDate
+		}
+		if !job.EndDate.IsZero() && !m.jobs[i].EndDate.Equal(job.EndDate) {
+			m.jobs[i].EndDate = job.EndDate
+		}
+		if job.Interval != 0 && m.jobs[i].Interval != job.Interval {
+			m.jobs[i].Interval = job.Interval
+		}
+		if job.RunBatchLimit != 0 && m.jobs[i].RunBatchLimit != job.RunBatchLimit {
+			m.jobs[i].RunBatchLimit = job.RunBatchLimit
+		}
+		if job.RequestSizeLimit != 0 && m.jobs[i].RequestSizeLimit != job.RequestSizeLimit {
+			m.jobs[i].RequestSizeLimit = job.RequestSizeLimit
+		}
+		if job.MaxRetryAttempts != 0 && m.jobs[i].MaxRetryAttempts != job.MaxRetryAttempts {
+			m.jobs[i].MaxRetryAttempts = job.MaxRetryAttempts
+		}
+
+		m.jobs[i].DataType = job.DataType
+		m.jobs[i].Status = job.Status
+		m.jobs[i].continueFromData = time.Time{}
+		m.jobs[i].rangeHolder, err = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, uint32(m.jobs[i].RequestSizeLimit))
+		if err != nil {
+			return err
+		}
+
+		break
 	}
 	if !toUpdate {
 		job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.Interval, uint32(job.RequestSizeLimit))
@@ -345,7 +376,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	if err != nil {
 		return err
 	}
-	return m.jobDB.Upsert(dbJob[0])
+	return m.jobDB.Upsert(dbJob)
 }
 
 func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
@@ -387,6 +418,10 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		log.Warnf(log.DataHistory, "job %s has unset max retry limit, defaulting to %v", job.Nickname, defaultRetryAttempts)
 		job.MaxRetryAttempts = defaultRetryAttempts
 	}
+
+	job.StartDate = job.StartDate.Round(job.Interval.Duration())
+	job.EndDate = job.EndDate.Round(job.Interval.Duration())
+
 	return nil
 }
 
@@ -438,7 +473,6 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 		if err != nil {
 			return err
 		}
-
 		var candles kline.Item
 		switch jobs[i].DataType {
 		case dataHistoryCandleDataType:
@@ -506,7 +540,6 @@ func (m *DataHistoryManager) processJobs() error {
 		return ErrSubSystemNotStarted
 	}
 
-	var results []*DataHistoryJobResult
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
 		return fmt.Errorf("processJobs %w", errAlreadyRunning)
 	}
@@ -525,45 +558,31 @@ func (m *DataHistoryManager) processJobs() error {
 				m.jobs[i].Pair)
 			continue
 		}
-		result, err := m.runJob(m.jobs[i], exch)
+		err := m.runJob(m.jobs[i], exch)
 		if err != nil {
 			log.Error(log.DataHistory, err)
 		}
-		results = append(results, result...)
 	}
-	var dbResults []*datahistoryjobresult.DataHistoryJobResult
-	for i := range results {
-		dbResults = append(dbResults, &datahistoryjobresult.DataHistoryJobResult{
-			ID:                results[i].ID.String(),
-			JobID:             results[i].JobID.String(),
-			IntervalStartDate: results[i].IntervalStartDate,
-			IntervalEndDate:   results[i].IntervalEndDate,
-			Status:            results[i].Status,
-			Result:            results[i].Result,
-			Date:              results[i].Date,
-		})
-	}
-	return m.jobResultDB.Upsert(dbResults...)
+	return nil
 }
 
 // runJob will iterate
-func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExchange) ([]*DataHistoryJobResult, error) {
+func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
 	if m == nil {
-		return nil, ErrNilSubsystem
+		return ErrNilSubsystem
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, ErrSubSystemNotStarted
+		return ErrSubSystemNotStarted
 	}
 	if job.Status == dataHistoryStatusComplete ||
 		job.Status == dataHistoryStatusFailed ||
 		job.Status == dataHistoryStatusRemoved {
 		// job doesn't need to be run. Log it?
-		return nil, nil
+		return nil
 	}
-	var jobResults []*DataHistoryJobResult
 	var intervalsProcessed int64
 	if job.rangeHolder == nil || len(job.rangeHolder.Ranges) == 0 {
-		return nil, errJobInvalid
+		return errJobInvalid
 	}
 processing:
 	for i := range job.rangeHolder.Ranges {
@@ -590,14 +609,14 @@ processing:
 			status := dataHistoryStatusComplete
 			id, err := uuid.NewV4()
 			if err != nil {
-				return nil, err
+				return err
 			}
 			result := DataHistoryJobResult{
 				ID:                id,
 				JobID:             job.ID,
 				IntervalStartDate: job.rangeHolder.Ranges[i].Intervals[j].Start.Time,
 				IntervalEndDate:   job.rangeHolder.Ranges[i].Intervals[j].End.Time,
-				Status:            int64(status),
+				Status:            status,
 			}
 			// processing the job
 			switch job.DataType {
@@ -639,71 +658,146 @@ processing:
 					job.continueFromData = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
 				}
 			default:
-				return nil, errUnknownDataType
+				return errUnknownDataType
 			}
 
 			lookup := job.Results[result.IntervalStartDate]
 			lookup = append(lookup, result)
 			job.Results[result.IntervalStartDate] = lookup
-			jobResults = append(jobResults, &result)
 			if result.Status != dataHistoryStatusFailed {
 				job.continueFromData = result.IntervalEndDate
 			}
 		}
 	}
 
+	completed := true
+	for i := range job.rangeHolder.Ranges {
+		for j := range job.rangeHolder.Ranges[i].Intervals {
+			if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
+				completed = false
+			}
+		}
+	}
+	if completed {
+		job.Status = dataHistoryStatusComplete
+	}
+
 	dbJob, err := m.convertJobToDBModel(job)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = m.jobDB.Upsert(dbJob[0])
+	err = m.jobDB.Upsert(dbJob)
+	if err != nil {
+		return err
+	}
+
+	dbJobResults := m.convertJobResultToDBResult(job.Results)
+	return m.jobResultDB.Upsert(dbJobResults...)
+}
+
+// GenerateJobSummary returns a human readable summary of a job's status
+func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJobSummary, error) {
+	job, err := m.GetByNickname(nickname, true)
 	if err != nil {
 		return nil, err
 	}
 
-	// we return the jobs for when we process multiple jobs in sequence,
-	// so that we only write to the database once for many job results
-	return jobResults, nil
+	err = m.compareJobsToData(job)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		rangeStart, rangeEnd, prevStart, prevEnd time.Time
+		rangeHasData                             bool
+		rangeTexts                               []string
+	)
+	rangeStart = job.StartDate
+	for i := range job.rangeHolder.Ranges {
+		for j := range job.rangeHolder.Ranges[i].Intervals {
+			if job.rangeHolder.Ranges[i].Intervals[j].HasData {
+				if !rangeHasData && !rangeEnd.IsZero() {
+					rangeTexts = append(rangeTexts, m.createDateSummaryRange(rangeStart, rangeEnd, rangeHasData))
+					prevStart = rangeStart
+					prevEnd = rangeEnd
+					rangeStart = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
+				}
+				rangeHasData = true
+			} else {
+				if rangeHasData && !rangeEnd.IsZero() {
+					rangeTexts = append(rangeTexts, m.createDateSummaryRange(rangeStart, rangeEnd, rangeHasData))
+					prevStart = rangeStart
+					prevEnd = rangeEnd
+					rangeStart = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
+				}
+				rangeHasData = false
+			}
+			rangeEnd = job.rangeHolder.Ranges[i].Intervals[j].End.Time
+		}
+	}
+	if !rangeStart.Equal(prevStart) || !rangeEnd.Equal(prevEnd) {
+		rangeTexts = append(rangeTexts, m.createDateSummaryRange(rangeStart, rangeEnd, rangeHasData))
+	}
+
+	return &DataHistoryJobSummary{
+		Nickname:     job.Nickname,
+		Exchange:     job.Exchange,
+		Asset:        job.Asset,
+		Pair:         job.Pair,
+		StartDate:    job.StartDate,
+		EndDate:      job.EndDate,
+		Interval:     job.Interval,
+		Status:       job.Status,
+		DataType:     job.DataType,
+		ResultRanges: rangeTexts,
+	}, nil
+}
+
+func (m *DataHistoryManager) createDateSummaryRange(start, end time.Time, hasData bool) string {
+	dataString := "missing"
+	if hasData {
+		dataString = "has"
+	}
+
+	return fmt.Sprintf("%s data between %s and %s",
+		dataString,
+		start.Format(common.SimpleTimeFormat),
+		end.Format(common.SimpleTimeFormat))
 }
 
 // ----------------------------Lovely-converters----------------------------
-
-func (m *DataHistoryManager) convertDBModelToJob(dbModels ...datahistoryjob.DataHistoryJob) ([]*DataHistoryJob, error) {
-	var resp []*DataHistoryJob
-	for i := range dbModels {
-		id, err := uuid.FromString(dbModels[i].ID)
-		if err != nil {
-			return nil, err
-		}
-		cp, err := currency.NewPairFromString(fmt.Sprintf("%s-%s", dbModels[i].Base, dbModels[i].Quote))
-		if err != nil {
-			return nil, err
-		}
-
-		jobResults, err := m.convertDBResultToJobResult(dbModels[i].Results)
-		if err != nil {
-			return nil, err
-		}
-
-		resp = append(resp, &DataHistoryJob{
-			ID:               id,
-			Nickname:         dbModels[i].Nickname,
-			Exchange:         dbModels[i].ExchangeName,
-			Asset:            asset.Item(dbModels[i].Asset),
-			Pair:             cp,
-			StartDate:        dbModels[i].StartDate,
-			EndDate:          dbModels[i].EndDate,
-			Interval:         kline.Interval(dbModels[i].Interval),
-			RequestSizeLimit: dbModels[i].RequestSizeLimit,
-			DataType:         dbModels[i].DataType,
-			MaxRetryAttempts: dbModels[i].MaxRetryAttempts,
-			Status:           dbModels[i].Status,
-			CreatedDate:      dbModels[i].CreatedDate,
-			Results:          jobResults,
-		})
+func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHistoryJob) (*DataHistoryJob, error) {
+	id, err := uuid.FromString(dbModel.ID)
+	if err != nil {
+		return nil, err
 	}
-	return resp, nil
+	cp, err := currency.NewPairFromString(fmt.Sprintf("%s-%s", dbModel.Base, dbModel.Quote))
+	if err != nil {
+		return nil, err
+	}
+
+	jobResults, err := m.convertDBResultToJobResult(dbModel.Results)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DataHistoryJob{
+		ID:               id,
+		Nickname:         dbModel.Nickname,
+		Exchange:         dbModel.ExchangeName,
+		Asset:            asset.Item(dbModel.Asset),
+		Pair:             cp,
+		StartDate:        dbModel.StartDate,
+		EndDate:          dbModel.EndDate,
+		Interval:         kline.Interval(dbModel.Interval),
+		RequestSizeLimit: dbModel.RequestSizeLimit,
+		DataType:         dataHistoryDataType(dbModel.DataType),
+		MaxRetryAttempts: dbModel.MaxRetryAttempts,
+		Status:           dataHistoryStatus(dbModel.Status),
+		CreatedDate:      dbModel.CreatedDate,
+		Results:          jobResults,
+	}, nil
 }
 
 func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryjobresult.DataHistoryJobResult) (map[time.Time][]DataHistoryJobResult, error) {
@@ -724,7 +818,7 @@ func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryj
 			JobID:             jobID,
 			IntervalStartDate: dbModels[i].IntervalStartDate,
 			IntervalEndDate:   dbModels[i].IntervalEndDate,
-			Status:            dbModels[i].Status,
+			Status:            dataHistoryStatus(dbModels[i].Status),
 			Result:            dbModels[i].Result,
 			Date:              dbModels[i].Date,
 		})
@@ -744,7 +838,7 @@ func (m *DataHistoryManager) convertJobResultToDBResult(results map[time.Time][]
 				JobID:             v[i].JobID.String(),
 				IntervalStartDate: v[i].IntervalStartDate,
 				IntervalEndDate:   v[i].IntervalEndDate,
-				Status:            v[i].Status,
+				Status:            int64(v[i].Status),
 				Result:            v[i].Result,
 				Date:              v[i].Date,
 			})
@@ -753,32 +847,28 @@ func (m *DataHistoryManager) convertJobResultToDBResult(results map[time.Time][]
 	return response
 }
 
-func (m *DataHistoryManager) convertJobToDBModel(models ...*DataHistoryJob) ([]*datahistoryjob.DataHistoryJob, error) {
-	var resp []*datahistoryjob.DataHistoryJob
-	for i := range models {
-		exchangeID, err := exchangedb.One(strings.ToLower(models[i].Exchange))
-		if err != nil {
-			return nil, fmt.Errorf("%s %w. %s", models[i].Exchange, err, "please ensure exchange table setup")
-		}
-		resp = append(resp, &datahistoryjob.DataHistoryJob{
-			ID:               models[i].ID.String(),
-			Nickname:         models[i].Nickname,
-			ExchangeName:     models[i].Exchange,
-			ExchangeID:       exchangeID.UUID.String(),
-			Asset:            models[i].Asset.String(),
-			Base:             models[i].Pair.Base.String(),
-			Quote:            models[i].Pair.Quote.String(),
-			StartDate:        models[i].StartDate,
-			EndDate:          models[i].EndDate,
-			Interval:         int64(models[i].Interval.Duration()),
-			RequestSizeLimit: models[i].RequestSizeLimit,
-			DataType:         models[i].DataType,
-			MaxRetryAttempts: models[i].MaxRetryAttempts,
-			Status:           models[i].Status,
-			CreatedDate:      models[i].CreatedDate,
-			BatchSize:        models[i].RunBatchLimit,
-			Results:          m.convertJobResultToDBResult(models[i].Results),
-		})
+func (m *DataHistoryManager) convertJobToDBModel(models *DataHistoryJob) (*datahistoryjob.DataHistoryJob, error) {
+	exchangeID, err := exchangedb.One(strings.ToLower(models.Exchange))
+	if err != nil {
+		return nil, fmt.Errorf("%s %w. %s", models.Exchange, err, "please ensure exchange table setup")
 	}
-	return resp, nil
+	return &datahistoryjob.DataHistoryJob{
+		ID:               models.ID.String(),
+		Nickname:         models.Nickname,
+		ExchangeName:     models.Exchange,
+		ExchangeID:       exchangeID.UUID.String(),
+		Asset:            models.Asset.String(),
+		Base:             models.Pair.Base.String(),
+		Quote:            models.Pair.Quote.String(),
+		StartDate:        models.StartDate,
+		EndDate:          models.EndDate,
+		Interval:         int64(models.Interval.Duration()),
+		RequestSizeLimit: models.RequestSizeLimit,
+		DataType:         int64(models.DataType),
+		MaxRetryAttempts: models.MaxRetryAttempts,
+		Status:           int64(models.Status),
+		CreatedDate:      models.CreatedDate,
+		BatchSize:        models.RunBatchLimit,
+		Results:          m.convertJobResultToDBResult(models.Results),
+	}, nil
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -275,7 +276,7 @@ func TestDeleteJob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if jerb.Status != dataHistoryStatusRemoved {
+	if jerb.Status != int64(dataHistoryStatusRemoved) {
 		t.Error("expected removed")
 	}
 
@@ -702,13 +703,13 @@ func TestRunJob(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	_, err = m.runJob(dhj, exch)
+	err = m.runJob(dhj, exch)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
 	dhj.Pair = currency.NewPair(currency.DOGE, currency.USDT)
-	_, err = m.runJob(dhj, exch)
+	err = m.runJob(dhj, exch)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -723,7 +724,7 @@ func TestRunJob(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	_, err = m.runJob(dhj, exch)
+	err = m.runJob(dhj, exch)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -797,24 +798,24 @@ func TestConverters(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	if dhj.ID.String() != dbJob[0].ID ||
-		dhj.Nickname != dbJob[0].Nickname ||
-		!dhj.StartDate.Equal(dbJob[0].StartDate) ||
-		int64(dhj.Interval.Duration()) != dbJob[0].Interval ||
-		dhj.Pair.Base.String() != dbJob[0].Base ||
-		dhj.Pair.Quote.String() != dbJob[0].Quote {
+	if dhj.ID.String() != dbJob.ID ||
+		dhj.Nickname != dbJob.Nickname ||
+		!dhj.StartDate.Equal(dbJob.StartDate) ||
+		int64(dhj.Interval.Duration()) != dbJob.Interval ||
+		dhj.Pair.Base.String() != dbJob.Base ||
+		dhj.Pair.Quote.String() != dbJob.Quote {
 		t.Error("expected matching job")
 	}
 
-	convertBack, err := m.convertDBModelToJob(*dbJob[0])
+	convertBack, err := m.convertDBModelToJob(dbJob)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	if dhj.ID != convertBack[0].ID ||
-		dhj.Nickname != convertBack[0].Nickname ||
-		!dhj.StartDate.Equal(convertBack[0].StartDate) ||
-		dhj.Interval != convertBack[0].Interval ||
-		!dhj.Pair.Equal(convertBack[0].Pair) {
+	if dhj.ID != convertBack.ID ||
+		dhj.Nickname != convertBack.Nickname ||
+		!dhj.StartDate.Equal(convertBack.StartDate) ||
+		dhj.Interval != convertBack.Interval ||
+		!dhj.Pair.Equal(convertBack.Pair) {
 		t.Error("expected matching job")
 	}
 
@@ -836,7 +837,7 @@ func TestConverters(t *testing.T) {
 		!jr.Date.Equal(result[0].Date) ||
 		!jr.IntervalStartDate.Equal(result[0].IntervalStartDate) ||
 		!jr.IntervalEndDate.Equal(result[0].IntervalEndDate) ||
-		jr.Status != result[0].Status {
+		jr.Status != dataHistoryStatus(result[0].Status) {
 		t.Error("expected matching job")
 	}
 
@@ -852,5 +853,62 @@ func TestConverters(t *testing.T) {
 		!jr.IntervalEndDate.Equal(andBackAgain[dhj.StartDate][0].IntervalEndDate) ||
 		jr.Status != andBackAgain[dhj.StartDate][0].Status {
 		t.Error("expected matching job")
+	}
+}
+
+func TestButts(t *testing.T) {
+	tt := time.Unix(1622084400, 0)
+	t.Log(tt.Local().Format(common.SimpleTimeFormat))
+}
+
+func TestGenerateJobSummary(t *testing.T) {
+	m, engerino := setupDataHistoryManagerTest(t)
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
+	}
+	defer CleanRPCTest(t, engerino)
+	exch := engerino.ExchangeManager.GetExchangeByName(testExchange)
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}, Enabled: currency.Pairs{cp}}
+	b.CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
+	b.CurrencyPairs.Pairs[asset.Spot].ConfigFormat = &currency.PairFormat{
+		Uppercase: true,
+	}
+	b.CurrencyPairs.Pairs[asset.Spot].RequestFormat = &currency.PairFormat{
+		Uppercase: true,
+	}
+	engerino.ExchangeManager.Add(exch)
+
+	dhj := &DataHistoryJob{
+		Nickname:  "TestGenerateJobSummary",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		StartDate: time.Now().Add(-time.Minute * 90),
+		EndDate:   time.Now().Add(-time.Minute * 45),
+		Interval:  kline.FifteenMin,
+	}
+	err := m.UpsertJob(dhj, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	m.jobs, err = m.PrepareJobs()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	err = m.runJob(dhj, exch)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+
+	summary, err := m.GenerateJobSummary("TestGenerateJobSummary")
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	if len(summary.ResultRanges) == 0 {
+		t.Error("expected result ranges")
 	}
 }

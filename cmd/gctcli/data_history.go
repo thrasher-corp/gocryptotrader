@@ -239,9 +239,6 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	)
 	if c.IsSet("nickname") {
 		nickname = c.String("nickname")
-	}
-	if nickname != "" {
-		return errors.New("nickname required")
 	} else {
 		nickname = c.Args().First()
 	}
@@ -324,28 +321,19 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		}
 	}
 
-	if c.IsSet("data_type") {
-		dataType = c.Int64("data_type")
-	} else {
-		dataType, err = convert.Int64FromString(c.Args().Get(9))
-		if err != nil {
-			return err
-		}
-	}
-
 	if c.IsSet("max_retry_attempts") {
 		maxRetryAttempts = c.Int64("max_retry_attempts")
 	} else {
-		maxRetryAttempts, err = convert.Int64FromString(c.Args().Get(10))
+		maxRetryAttempts, err = convert.Int64FromString(c.Args().Get(9))
 		if err != nil {
 			return err
 		}
 	}
 
 	if c.IsSet("batch_size") {
-		maxRetryAttempts = c.Int64("batch_size")
+		batchSize = c.Int64("batch_size")
 	} else {
-		maxRetryAttempts, err = convert.Int64FromString(c.Args().Get(11))
+		batchSize, err = convert.Int64FromString(c.Args().Get(10))
 		if err != nil {
 			return err
 		}

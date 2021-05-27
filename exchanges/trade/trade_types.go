@@ -20,7 +20,7 @@ var (
 	// BufferProcessorIntervalTime is the interval to save trade buffer data to the database.
 	// Change this by changing the runtime param `-tradeprocessinginterval=15s`
 	BufferProcessorIntervalTime = DefaultProcessorIntervalTime
-	// ErrNoTradesSupplied
+	// ErrNoTradesSupplied is returned when an attempt is made to process trades, but is an empty slice
 	ErrNoTradesSupplied = errors.New("no trades supplied")
 )
 

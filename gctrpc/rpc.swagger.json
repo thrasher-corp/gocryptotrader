@@ -1116,6 +1116,84 @@
         ]
       }
     },
+    "/v1/getdatahistoryjobsbetween": {
+      "get": {
+        "operationId": "GoCryptoTrader_GetDataHistoryJobsBetween",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcDataHistoryJobs"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getdatahistoryjobsummary": {
+      "get": {
+        "operationId": "GoCryptoTrader_GetDataHistoryJobSummary",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcDataHistoryJob"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "nickname",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "fullDetails",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getevents": {
       "get": {
         "operationId": "GoCryptoTrader_GetEvents",
@@ -3130,10 +3208,6 @@
           "type": "string",
           "format": "int64"
         },
-        "data_type": {
-          "type": "string",
-          "format": "int64"
-        },
         "max_retry_attempts": {
           "type": "string",
           "format": "int64"
@@ -3142,10 +3216,22 @@
           "type": "string",
           "format": "int64"
         },
+        "status": {
+          "type": "string"
+        },
+        "data_type": {
+          "type": "string"
+        },
         "job_results": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcDataHistoryJobResult"
+          }
+        },
+        "result_summaries": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       }

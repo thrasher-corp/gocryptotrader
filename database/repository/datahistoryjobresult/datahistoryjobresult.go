@@ -34,7 +34,7 @@ func Setup(db database.IDatabase) (*DBService, error) {
 
 // Upsert inserts or updates jobs into the database
 func (db *DBService) Upsert(jobs ...*DataHistoryJobResult) error {
-	if jobs == nil || len(jobs) == 0 {
+	if len(jobs) == 0 {
 		return nil
 	}
 	ctx := context.Background()
