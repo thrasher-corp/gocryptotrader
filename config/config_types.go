@@ -78,7 +78,7 @@ type Config struct {
 	Database           database.Config           `json:"database"`
 	Logging            log.Config                `json:"logging"`
 	ConnectionMonitor  ConnectionMonitorConfig   `json:"connectionMonitor"`
-	DataHistoryMonitor DataHistoryMonitorConfig  `json:"dataHistoryMonitor"`
+	DataHistoryMonitor DataHistoryManager        `json:"dataHistoryManager"`
 	Profiler           Profiler                  `json:"profiler"`
 	NTPClient          NTPClientConfig           `json:"ntpclient"`
 	GCTScript          gctscript.Config          `json:"gctscript"`
@@ -101,7 +101,7 @@ type Config struct {
 }
 
 //
-type DataHistoryMonitorConfig struct {
+type DataHistoryManager struct {
 	Enabled       bool          `json:"enabled"`
 	CheckInterval time.Duration `json:"checkInterval"`
 }

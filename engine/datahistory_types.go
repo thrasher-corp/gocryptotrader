@@ -51,7 +51,7 @@ func (d dataHistoryDataType) String() string {
 	case int64(d) == 0:
 		return "candles"
 	case int64(d) == 1:
-		return "trade"
+		return "trades"
 	}
 	return ""
 }
@@ -109,7 +109,6 @@ type DataHistoryJob struct {
 	Status           dataHistoryStatus
 	CreatedDate      time.Time
 	Results          map[time.Time][]DataHistoryJobResult
-	continueFromData time.Time
 	rangeHolder      *kline.IntervalRangeHolder
 }
 

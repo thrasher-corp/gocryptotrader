@@ -350,7 +350,6 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 
 		m.jobs[i].DataType = job.DataType
 		m.jobs[i].Status = job.Status
-		m.jobs[i].continueFromData = time.Time{}
 		m.jobs[i].rangeHolder, err = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, uint32(m.jobs[i].RequestSizeLimit))
 		if err != nil {
 			return err
@@ -587,8 +586,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExcha
 processing:
 	for i := range job.rangeHolder.Ranges {
 		for j := range job.rangeHolder.Ranges[i].Intervals {
-			if job.rangeHolder.Ranges[i].Intervals[j].HasData ||
-				job.rangeHolder.Ranges[i].Intervals[j].Start.Time.Before(job.continueFromData) {
+			if job.rangeHolder.Ranges[i].Intervals[j].HasData {
 				continue
 			}
 			if intervalsProcessed >= job.RunBatchLimit {
@@ -625,7 +623,6 @@ processing:
 				if err != nil {
 					result.Result = "could not get candles: " + err.Error()
 					result.Status = dataHistoryStatusFailed
-					job.continueFromData = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
 					break
 				}
 				_ = job.rangeHolder.VerifyResultsHaveData(candles.Candles)
@@ -633,21 +630,18 @@ processing:
 				if err != nil {
 					result.Result = "could not save results: " + err.Error()
 					result.Status = dataHistoryStatusFailed
-					job.continueFromData = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
 				}
 			case dataHistoryTradeDataType:
 				trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 				if err != nil {
 					result.Result = "could not get trades: " + err.Error()
 					result.Status = dataHistoryStatusFailed
-					job.continueFromData = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
 					break
 				}
 				candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
 				if err != nil {
 					result.Result = "could not convert candles to trades: " + err.Error()
 					result.Status = dataHistoryStatusFailed
-					job.continueFromData = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
 					break
 				}
 				_ = job.rangeHolder.VerifyResultsHaveData(candles.Candles)
@@ -655,7 +649,6 @@ processing:
 				if err != nil {
 					result.Result = "could not save results: " + err.Error()
 					result.Status = dataHistoryStatusFailed
-					job.continueFromData = job.rangeHolder.Ranges[i].Intervals[j].Start.Time
 				}
 			default:
 				return errUnknownDataType
@@ -664,9 +657,6 @@ processing:
 			lookup := job.Results[result.IntervalStartDate]
 			lookup = append(lookup, result)
 			job.Results[result.IntervalStartDate] = lookup
-			if result.Status != dataHistoryStatusFailed {
-				job.continueFromData = result.IntervalEndDate
-			}
 		}
 	}
 
