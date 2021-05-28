@@ -83,6 +83,7 @@ func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
 
 // Sets up everything required to run any function inside rpcserver
 func RPCTestSetup(t *testing.T) *Engine {
+	t.Helper()
 	var err error
 	dbConf := database.Config{
 		Enabled: true,

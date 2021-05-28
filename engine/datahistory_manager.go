@@ -286,6 +286,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExcha
 	}
 processing:
 	for i := range job.rangeHolder.Ranges {
+	processingInterval:
 		for j := range job.rangeHolder.Ranges[i].Intervals {
 			if job.rangeHolder.Ranges[i].Intervals[j].HasData {
 				continue
@@ -296,6 +297,9 @@ processing:
 			var failures int64
 			resultLookup := job.Results[job.rangeHolder.Ranges[i].Intervals[j].Start.Time]
 			for x := range resultLookup {
+				if resultLookup[x].Status == dataHistoryStatusComplete {
+					continue processingInterval
+				}
 				if resultLookup[x].Status == dataHistoryStatusFailed {
 					failures++
 				}
@@ -316,6 +320,7 @@ processing:
 				IntervalStartDate: job.rangeHolder.Ranges[i].Intervals[j].Start.Time,
 				IntervalEndDate:   job.rangeHolder.Ranges[i].Intervals[j].End.Time,
 				Status:            status,
+				Date:              time.Now(),
 			}
 			// processing the job
 			switch job.DataType {
@@ -331,6 +336,7 @@ processing:
 				if err != nil {
 					result.Result = "could not save results: " + err.Error()
 					result.Status = dataHistoryStatusFailed
+					break
 				}
 			case dataHistoryTradeDataType:
 				trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -28,21 +27,25 @@ func TestSetupDataHistoryManager(t *testing.T) {
 	}
 
 	_, err = SetupDataHistoryManager(SetupExchangeManager(), &database.Instance{}, 0)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, errDatabaseConnectionRequired)
+	if !errors.Is(err, database.ErrDatabaseNotConnected) {
+		t.Errorf("error '%v', expected '%v'", err, database.ErrDatabaseNotConnected)
 	}
 
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), &database.Instance{}, time.Second)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, time.Second)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	if m == nil {
-		t.Error("expected manager")
+		t.Fatal("expected manager")
 	}
 }
 
 func TestDataHistoryManagerIsRunning(t *testing.T) {
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), &database.Instance{}, time.Second)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, time.Second)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -197,18 +200,7 @@ func TestUpsertJob(t *testing.T) {
 		t.Error("unexpected jerrb")
 	}
 
-	startDate := time.Date(1980, 1, 1, 1, 1, 1, 1, time.UTC)
-	dhj.StartDate = startDate
-	err = m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	if len(m.jobs) != 1 {
-		t.Fatal("unexpected jerrb")
-	}
-	if !m.jobs[0].StartDate.Equal(startDate) {
-		t.Errorf("received '%v', expected '%v'", m.jobs[0].StartDate, startDate)
-	}
+	startDate := time.Date(1980, 1, 1, 1, 0, 0, 0, time.UTC)
 
 	err = m.UpsertJob(dhj, true)
 	if !errors.Is(err, errNicknameInUse) {
@@ -220,7 +212,7 @@ func TestUpsertJob(t *testing.T) {
 		Exchange:         testExchange,
 		Asset:            asset.Spot,
 		Pair:             currency.NewPair(currency.BTC, currency.USD),
-		StartDate:        time.Now().Add(-time.Hour),
+		StartDate:        startDate,
 		EndDate:          time.Now().Add(-time.Minute),
 		Interval:         kline.FifteenMin,
 		RunBatchLimit:    1338,
@@ -231,6 +223,9 @@ func TestUpsertJob(t *testing.T) {
 	err = m.UpsertJob(newJob, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	if !m.jobs[0].StartDate.Equal(startDate) {
+		t.Error(err)
 	}
 }
 
@@ -669,11 +664,15 @@ func TestCompareJobsToData(t *testing.T) {
 }
 
 func TestRunJob(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
+	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
+	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, time.Second)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	if m == nil {
+		t.Fatal("expected manager")
+	}
 	exch := engerino.ExchangeManager.GetExchangeByName("Binance")
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	exch.SetDefaults()
@@ -688,6 +687,7 @@ func TestRunJob(t *testing.T) {
 		Uppercase: true,
 	}
 	engerino.ExchangeManager.Add(exch)
+	atomic.StoreInt32(&m.started, 1)
 
 	dhj := &DataHistoryJob{
 		Nickname:  "TestProcessJobs",
@@ -698,7 +698,7 @@ func TestRunJob(t *testing.T) {
 		EndDate:   time.Now(),
 		Interval:  kline.OneDay,
 	}
-	err := m.UpsertJob(dhj, false)
+	err = m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -854,11 +854,6 @@ func TestConverters(t *testing.T) {
 		jr.Status != andBackAgain[dhj.StartDate][0].Status {
 		t.Error("expected matching job")
 	}
-}
-
-func TestButts(t *testing.T) {
-	tt := time.Unix(1622084400, 0)
-	t.Log(tt.Local().Format(common.SimpleTimeFormat))
 }
 
 func TestGenerateJobSummary(t *testing.T) {

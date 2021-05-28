@@ -33,6 +33,7 @@ CREATE TABLE datahistoryjobresult
     interval_start_time timestamp NOT NULL,
     interval_end_time timestamp NOT NULL,
     run_time timestamp NOT NULL default CURRENT_TIMESTAMP,
+    UNIQUE(id) ON CONFLICT REPLACE,
     FOREIGN KEY(job_id) REFERENCES datahistoryjob(id) ON DELETE RESTRICT
 );
 
