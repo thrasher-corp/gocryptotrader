@@ -258,7 +258,7 @@
     },
     "/v1/deletedatahistoryjob": {
       "delete": {
-        "operationId": "GoCryptoTrader_DeleteJob",
+        "operationId": "GoCryptoTrader_DeleteDataHistoryJob",
         "responses": {
           "200": {
             "description": "A successful response.",

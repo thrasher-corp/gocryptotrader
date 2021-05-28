@@ -125,305 +125,6 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 	return response, nil
 }
 
-// GetByID returns a job's details from its ID,
-func (m *DataHistoryManager) GetByID(id string) (*DataHistoryJob, error) {
-	if m == nil {
-		return nil, ErrNilSubsystem
-	}
-	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, ErrSubSystemNotStarted
-	}
-	m.m.Lock()
-	for i := range m.jobs {
-		if m.jobs[i].ID.String() == id {
-			cpy := m.jobs[i]
-			m.m.Unlock()
-			return cpy, nil
-		}
-	}
-	m.m.Unlock()
-	dbJ, err := m.jobDB.GetByID(id)
-	if err != nil {
-		return nil, fmt.Errorf("%w with id %s %s", errJobNotFound, id, err)
-	}
-	result, err := m.convertDBModelToJob(dbJ)
-	if err != nil {
-		return nil, fmt.Errorf("could not convert model with id %s %w", id, err)
-	}
-	return result, nil
-}
-
-// GetByNickname searches for jobs by name and returns it if found
-// returns nil if not
-// if fullDetails is enabled, it will retrieve all job history results from the database
-func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*DataHistoryJob, error) {
-	if m == nil {
-		return nil, ErrNilSubsystem
-	}
-	if atomic.LoadInt32(&m.started) == 0 {
-		return nil, ErrSubSystemNotStarted
-	}
-	if fullDetails {
-		dbJ, err := m.jobDB.GetJobAndAllResults(nickname)
-		if err != nil {
-			return nil, err
-		}
-		result, err := m.convertDBModelToJob(dbJ)
-		if err != nil {
-			return nil, fmt.Errorf("could not convert model with nickname %s %w", nickname, err)
-		}
-		return result, nil
-	}
-	m.m.Lock()
-	for i := range m.jobs {
-		if strings.EqualFold(m.jobs[i].Nickname, nickname) {
-			cpy := m.jobs[i]
-			m.m.Unlock()
-			return cpy, nil
-		}
-	}
-	m.m.Unlock()
-	// now try the database
-	j, err := m.jobDB.GetByNickName(nickname)
-	if err != nil {
-		return nil, fmt.Errorf("%w, %s", errJobNotFound, err)
-	}
-	job, err := m.convertDBModelToJob(j)
-	if err != nil {
-		return nil, err
-	}
-
-	return job, nil
-}
-
-// GetAllJobStatusBetween will return all jobs between two ferns
-func (m *DataHistoryManager) GetAllJobStatusBetween(start, end time.Time) ([]*DataHistoryJob, error) {
-	dbJobs, err := m.jobDB.GetJobsBetween(start, end)
-	if err != nil {
-		return nil, err
-	}
-	var results []*DataHistoryJob
-	for i := range dbJobs {
-		dbJob, err := m.convertDBModelToJob(&dbJobs[i])
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, dbJob)
-	}
-	return results, nil
-}
-
-// DeleteJob helper function to assist in setting a job to deleted
-func (m *DataHistoryManager) DeleteJob(nickname, id string) error {
-	if m == nil {
-		return ErrNilSubsystem
-	}
-	if atomic.LoadInt32(&m.started) == 0 {
-		return ErrSubSystemNotStarted
-	}
-	if nickname == "" && id == "" {
-		return errNicknameIDUnset
-	}
-	if nickname != "" && id != "" {
-		return errOnlyNicknameOrID
-	}
-	var dbJob *datahistoryjob.DataHistoryJob
-	var err error
-	m.m.Lock()
-	defer m.m.Unlock()
-	for i := range m.jobs {
-		if strings.EqualFold(m.jobs[i].Nickname, nickname) ||
-			m.jobs[i].ID.String() == id {
-			dbJob, err = m.convertJobToDBModel(m.jobs[i])
-			if err != nil {
-				return err
-			}
-			m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
-		}
-	}
-	if dbJob == nil {
-		if nickname != "" {
-			dbJob, err = m.jobDB.GetByNickName(nickname)
-			if err != nil {
-				return err
-			}
-		} else {
-			dbJob, err = m.jobDB.GetByID(id)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	dbJob.Status = int64(dataHistoryStatusRemoved)
-	err = m.jobDB.Upsert(dbJob)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *DataHistoryManager) GetActiveJobs() ([]DataHistoryJob, error) {
-	if m == nil {
-		return nil, ErrNilSubsystem
-	}
-	if !m.IsRunning() {
-		return nil, ErrSubSystemNotStarted
-	}
-
-	m.m.Lock()
-	defer m.m.Unlock()
-	var results []DataHistoryJob
-	for i := range m.jobs {
-		if m.jobs[i].Status == dataHistoryStatusActive {
-			results = append(results, *m.jobs[i])
-		}
-	}
-	return results, nil
-}
-
-// UpsertJob allows for GRPC interaction to upsert a jobs to be processed
-func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) error {
-	if m == nil {
-		return ErrNilSubsystem
-	}
-	if !m.IsRunning() {
-		return ErrSubSystemNotStarted
-	}
-	if job == nil {
-		return errNilJob
-	}
-	if job.Nickname == "" {
-		return errNicknameUnset
-	}
-	if insertOnly {
-		j, err := m.GetByNickname(job.Nickname, false)
-		if err != nil && !errors.Is(err, errJobNotFound) {
-			return err
-		}
-		if j != nil {
-			return fmt.Errorf("%s %w", job.Nickname, errNicknameInUse)
-		}
-	}
-
-	m.m.Lock()
-	defer m.m.Unlock()
-
-	err := m.validateJob(job)
-	if err != nil {
-		return err
-	}
-	toUpdate := false
-
-	for i := range m.jobs {
-		if !strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
-			continue
-		}
-		toUpdate = true
-		if job.Exchange != "" && m.jobs[i].Exchange != job.Exchange {
-			m.jobs[i].Exchange = job.Exchange
-		}
-		if job.Asset != "" && m.jobs[i].Asset != job.Asset {
-			m.jobs[i].Asset = job.Asset
-		}
-		if !job.Pair.IsEmpty() && !m.jobs[i].Pair.Equal(job.Pair) {
-			m.jobs[i].Pair = job.Pair
-		}
-		if !job.StartDate.IsZero() && !m.jobs[i].StartDate.Equal(job.StartDate) {
-			m.jobs[i].StartDate = job.StartDate
-		}
-		if !job.EndDate.IsZero() && !m.jobs[i].EndDate.Equal(job.EndDate) {
-			m.jobs[i].EndDate = job.EndDate
-		}
-		if job.Interval != 0 && m.jobs[i].Interval != job.Interval {
-			m.jobs[i].Interval = job.Interval
-		}
-		if job.RunBatchLimit != 0 && m.jobs[i].RunBatchLimit != job.RunBatchLimit {
-			m.jobs[i].RunBatchLimit = job.RunBatchLimit
-		}
-		if job.RequestSizeLimit != 0 && m.jobs[i].RequestSizeLimit != job.RequestSizeLimit {
-			m.jobs[i].RequestSizeLimit = job.RequestSizeLimit
-		}
-		if job.MaxRetryAttempts != 0 && m.jobs[i].MaxRetryAttempts != job.MaxRetryAttempts {
-			m.jobs[i].MaxRetryAttempts = job.MaxRetryAttempts
-		}
-
-		m.jobs[i].DataType = job.DataType
-		m.jobs[i].Status = job.Status
-		m.jobs[i].rangeHolder, err = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, uint32(m.jobs[i].RequestSizeLimit))
-		if err != nil {
-			return err
-		}
-
-		break
-	}
-	if !toUpdate {
-		job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.Interval, uint32(job.RequestSizeLimit))
-		if err != nil {
-			return err
-		}
-		m.jobs = append(m.jobs, job)
-	}
-	if job.ID == uuid.Nil {
-		job.ID, err = uuid.NewV4()
-		if err != nil {
-			return err
-		}
-	}
-
-	dbJob, err := m.convertJobToDBModel(job)
-	if err != nil {
-		return err
-	}
-	return m.jobDB.Upsert(dbJob)
-}
-
-func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
-	if job == nil {
-		return errNilJob
-	}
-	if !job.Asset.IsValid() {
-		return asset.ErrNotSupported
-	}
-	if job.Pair.IsEmpty() {
-		return errCurrencyPairUnset
-	}
-	exch := m.exchangeManager.GetExchangeByName(job.Exchange)
-	if exch == nil {
-		return errExchangeNotLoaded
-	}
-	pairs, err := exch.GetAvailablePairs(job.Asset)
-	if err != nil {
-		return err
-	}
-	if !pairs.Contains(job.Pair, false) {
-		return errCurrencyPairInvalid
-	}
-	if job.StartDate.After(job.EndDate) ||
-		job.StartDate.IsZero() ||
-		job.EndDate.IsZero() ||
-		job.StartDate.After(time.Now()) {
-		return errInvalidTimes
-	}
-	if job.Results == nil {
-		job.Results = make(map[time.Time][]DataHistoryJobResult)
-	}
-
-	if job.RunBatchLimit <= 0 {
-		log.Warnf(log.DataHistory, "job %s has unset batch limit, defaulting to %v", job.Nickname, defaultBatchLimit)
-		job.RunBatchLimit = defaultBatchLimit
-	}
-	if job.MaxRetryAttempts <= 0 {
-		log.Warnf(log.DataHistory, "job %s has unset max retry limit, defaulting to %v", job.Nickname, defaultRetryAttempts)
-		job.MaxRetryAttempts = defaultRetryAttempts
-	}
-
-	job.StartDate = job.StartDate.Round(job.Interval.Duration())
-	job.EndDate = job.EndDate.Round(job.Interval.Duration())
-
-	return nil
-}
-
 // PrepareJobs will validate the config jobs, verify their status with the database
 // and return all valid jobs to be processed
 // m.jobs will be overridden by this function
@@ -684,6 +385,306 @@ processing:
 
 	dbJobResults := m.convertJobResultToDBResult(job.Results)
 	return m.jobResultDB.Upsert(dbJobResults...)
+}
+
+// UpsertJob allows for GRPC interaction to upsert a jobs to be processed
+func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) error {
+	if m == nil {
+		return ErrNilSubsystem
+	}
+	if !m.IsRunning() {
+		return ErrSubSystemNotStarted
+	}
+	if job == nil {
+		return errNilJob
+	}
+	if job.Nickname == "" {
+		return errNicknameUnset
+	}
+	if insertOnly {
+		j, err := m.GetByNickname(job.Nickname, false)
+		if err != nil && !errors.Is(err, errJobNotFound) {
+			return err
+		}
+		if j != nil {
+			return fmt.Errorf("%s %w", job.Nickname, errNicknameInUse)
+		}
+	}
+
+	m.m.Lock()
+	defer m.m.Unlock()
+
+	err := m.validateJob(job)
+	if err != nil {
+		return err
+	}
+	toUpdate := false
+
+	for i := range m.jobs {
+		if !strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
+			continue
+		}
+		toUpdate = true
+		if job.Exchange != "" && m.jobs[i].Exchange != job.Exchange {
+			m.jobs[i].Exchange = job.Exchange
+		}
+		if job.Asset != "" && m.jobs[i].Asset != job.Asset {
+			m.jobs[i].Asset = job.Asset
+		}
+		if !job.Pair.IsEmpty() && !m.jobs[i].Pair.Equal(job.Pair) {
+			m.jobs[i].Pair = job.Pair
+		}
+		if !job.StartDate.IsZero() && !m.jobs[i].StartDate.Equal(job.StartDate) {
+			m.jobs[i].StartDate = job.StartDate
+		}
+		if !job.EndDate.IsZero() && !m.jobs[i].EndDate.Equal(job.EndDate) {
+			m.jobs[i].EndDate = job.EndDate
+		}
+		if job.Interval != 0 && m.jobs[i].Interval != job.Interval {
+			m.jobs[i].Interval = job.Interval
+		}
+		if job.RunBatchLimit != 0 && m.jobs[i].RunBatchLimit != job.RunBatchLimit {
+			m.jobs[i].RunBatchLimit = job.RunBatchLimit
+		}
+		if job.RequestSizeLimit != 0 && m.jobs[i].RequestSizeLimit != job.RequestSizeLimit {
+			m.jobs[i].RequestSizeLimit = job.RequestSizeLimit
+		}
+		if job.MaxRetryAttempts != 0 && m.jobs[i].MaxRetryAttempts != job.MaxRetryAttempts {
+			m.jobs[i].MaxRetryAttempts = job.MaxRetryAttempts
+		}
+
+		m.jobs[i].DataType = job.DataType
+		m.jobs[i].Status = job.Status
+		m.jobs[i].rangeHolder, err = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, uint32(m.jobs[i].RequestSizeLimit))
+		if err != nil {
+			return err
+		}
+
+		break
+	}
+	if !toUpdate {
+		job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.Interval, uint32(job.RequestSizeLimit))
+		if err != nil {
+			return err
+		}
+		m.jobs = append(m.jobs, job)
+	}
+	if job.ID == uuid.Nil {
+		job.ID, err = uuid.NewV4()
+		if err != nil {
+			return err
+		}
+	}
+
+	dbJob, err := m.convertJobToDBModel(job)
+	if err != nil {
+		return err
+	}
+	return m.jobDB.Upsert(dbJob)
+}
+
+func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
+	if job == nil {
+		return errNilJob
+	}
+	if !job.Asset.IsValid() {
+		return asset.ErrNotSupported
+	}
+	if job.Pair.IsEmpty() {
+		return errCurrencyPairUnset
+	}
+	exch := m.exchangeManager.GetExchangeByName(job.Exchange)
+	if exch == nil {
+		return errExchangeNotLoaded
+	}
+	pairs, err := exch.GetAvailablePairs(job.Asset)
+	if err != nil {
+		return err
+	}
+	if !pairs.Contains(job.Pair, false) {
+		return errCurrencyPairInvalid
+	}
+	if job.StartDate.After(job.EndDate) ||
+		job.StartDate.IsZero() ||
+		job.EndDate.IsZero() ||
+		job.StartDate.After(time.Now()) {
+		return errInvalidTimes
+	}
+	if job.Results == nil {
+		job.Results = make(map[time.Time][]DataHistoryJobResult)
+	}
+
+	if job.RunBatchLimit <= 0 {
+		log.Warnf(log.DataHistory, "job %s has unset batch limit, defaulting to %v", job.Nickname, defaultBatchLimit)
+		job.RunBatchLimit = defaultBatchLimit
+	}
+	if job.MaxRetryAttempts <= 0 {
+		log.Warnf(log.DataHistory, "job %s has unset max retry limit, defaulting to %v", job.Nickname, defaultRetryAttempts)
+		job.MaxRetryAttempts = defaultRetryAttempts
+	}
+
+	job.StartDate = job.StartDate.Round(job.Interval.Duration())
+	job.EndDate = job.EndDate.Round(job.Interval.Duration())
+
+	return nil
+}
+
+// GetByID returns a job's details from its ID,
+func (m *DataHistoryManager) GetByID(id string) (*DataHistoryJob, error) {
+	if m == nil {
+		return nil, ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, ErrSubSystemNotStarted
+	}
+	m.m.Lock()
+	for i := range m.jobs {
+		if m.jobs[i].ID.String() == id {
+			cpy := m.jobs[i]
+			m.m.Unlock()
+			return cpy, nil
+		}
+	}
+	m.m.Unlock()
+	dbJ, err := m.jobDB.GetByID(id)
+	if err != nil {
+		return nil, fmt.Errorf("%w with id %s %s", errJobNotFound, id, err)
+	}
+	result, err := m.convertDBModelToJob(dbJ)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert model with id %s %w", id, err)
+	}
+	return result, nil
+}
+
+// GetByNickname searches for jobs by name and returns it if found
+// returns nil if not
+// if fullDetails is enabled, it will retrieve all job history results from the database
+func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*DataHistoryJob, error) {
+	if m == nil {
+		return nil, ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, ErrSubSystemNotStarted
+	}
+	if fullDetails {
+		dbJ, err := m.jobDB.GetJobAndAllResults(nickname)
+		if err != nil {
+			return nil, err
+		}
+		result, err := m.convertDBModelToJob(dbJ)
+		if err != nil {
+			return nil, fmt.Errorf("could not convert model with nickname %s %w", nickname, err)
+		}
+		return result, nil
+	}
+	m.m.Lock()
+	for i := range m.jobs {
+		if strings.EqualFold(m.jobs[i].Nickname, nickname) {
+			cpy := m.jobs[i]
+			m.m.Unlock()
+			return cpy, nil
+		}
+	}
+	m.m.Unlock()
+	// now try the database
+	j, err := m.jobDB.GetByNickName(nickname)
+	if err != nil {
+		return nil, fmt.Errorf("%w, %s", errJobNotFound, err)
+	}
+	job, err := m.convertDBModelToJob(j)
+	if err != nil {
+		return nil, err
+	}
+
+	return job, nil
+}
+
+// GetAllJobStatusBetween will return all jobs between two ferns
+func (m *DataHistoryManager) GetAllJobStatusBetween(start, end time.Time) ([]*DataHistoryJob, error) {
+	dbJobs, err := m.jobDB.GetJobsBetween(start, end)
+	if err != nil {
+		return nil, err
+	}
+	var results []*DataHistoryJob
+	for i := range dbJobs {
+		dbJob, err := m.convertDBModelToJob(&dbJobs[i])
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, dbJob)
+	}
+	return results, nil
+}
+
+// DeleteJob helper function to assist in setting a job to deleted
+func (m *DataHistoryManager) DeleteJob(nickname, id string) error {
+	if m == nil {
+		return ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return ErrSubSystemNotStarted
+	}
+	if nickname == "" && id == "" {
+		return errNicknameIDUnset
+	}
+	if nickname != "" && id != "" {
+		return errOnlyNicknameOrID
+	}
+	var dbJob *datahistoryjob.DataHistoryJob
+	var err error
+	m.m.Lock()
+	defer m.m.Unlock()
+	for i := range m.jobs {
+		if strings.EqualFold(m.jobs[i].Nickname, nickname) ||
+			m.jobs[i].ID.String() == id {
+			dbJob, err = m.convertJobToDBModel(m.jobs[i])
+			if err != nil {
+				return err
+			}
+			m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
+		}
+	}
+	if dbJob == nil {
+		if nickname != "" {
+			dbJob, err = m.jobDB.GetByNickName(nickname)
+			if err != nil {
+				return err
+			}
+		} else {
+			dbJob, err = m.jobDB.GetByID(id)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	dbJob.Status = int64(dataHistoryStatusRemoved)
+	err = m.jobDB.Upsert(dbJob)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetActiveJobs returns all jobs with the status `dataHistoryStatusActive`
+func (m *DataHistoryManager) GetActiveJobs() ([]DataHistoryJob, error) {
+	if m == nil {
+		return nil, ErrNilSubsystem
+	}
+	if !m.IsRunning() {
+		return nil, ErrSubSystemNotStarted
+	}
+
+	m.m.Lock()
+	defer m.m.Unlock()
+	var results []DataHistoryJob
+	for i := range m.jobs {
+		if m.jobs[i].Status == dataHistoryStatusActive {
+			results = append(results, *m.jobs[i])
+		}
+	}
+	return results, nil
 }
 
 // GenerateJobSummary returns a human readable summary of a job's status

@@ -58,7 +58,7 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "request_size_limit",
-			Usage: "500 - will only retrieve 500 candles per request",
+			Usage: "500 - will only retrieve 500 candles per API request",
 		},
 		cli.StringFlag{
 			Name:  "data_type",
@@ -66,11 +66,11 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "max_retry_attempts",
-			Usage: "3 - the maximum retry attempts for an interval period before giving up for a given interval",
+			Usage: "3 - the maximum retry attempts for an interval period before giving up",
 		},
 		cli.StringFlag{
 			Name:  "batch_size",
-			Usage: "500 - will only retrieve 500 candles in a run",
+			Usage: "3 - the amount of API calls to make per run",
 		},
 	}
 )
@@ -85,6 +85,25 @@ var dataHistoryCommands = cli.Command{
 			Usage:  "returns all jobs that are currently active",
 			Flags:  []cli.Flag{},
 			Action: getActiveDataHistoryJobs,
+		},
+		{
+			Name:  "getjobsbetweendates",
+			Usage: "returns all jobs with creation dates between the two provided dates",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:        "start",
+					Usage:       "2006-01-02 15:04:05",
+					Value:       time.Now().Add(-time.Hour * 6).Format(common.SimpleTimeFormat),
+					Destination: &startTime,
+				},
+				cli.StringFlag{
+					Name:        "end",
+					Usage:       "2006-01-02 15:04:05",
+					Value:       time.Now().Format(common.SimpleTimeFormat),
+					Destination: &endTime,
+				},
+			},
+			Action: getDataHistoryJobsBetween,
 		},
 		{
 			Name:        "getajob",
@@ -106,6 +125,16 @@ var dataHistoryCommands = cli.Command{
 			},
 			}},
 		{
+			Name:      "getjobstatussummary",
+			Usage:     "returns a job with human readable summary of its status",
+			ArgsUsage: "<nickname>",
+			Action:    getDataHistoryJobSummary,
+			Flags: []cli.Flag{cli.StringFlag{
+				Name:  "nickname",
+				Usage: "binance-spot-btc-usdt-2019-trades",
+			}},
+		},
+		{
 			Name:   "addnewjob",
 			Usage:  "creates a new data history job",
 			Flags:  fullJobSubCommands,
@@ -122,7 +151,7 @@ var dataHistoryCommands = cli.Command{
 			Usage:     "sets a jobs status to deleted so it no longer is processed",
 			ArgsUsage: "<id> or <nickname>",
 			Flags:     specificJobSubCommands,
-			Action:    getActiveDataHistoryJobs,
+			Action:    deleteDataHistoryJob,
 		},
 	},
 }
@@ -191,38 +220,6 @@ func getActiveDataHistoryJobs(_ *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
-	return nil
-}
-
-func getDataHistoryFullDetails(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, c.Command.Name)
-	}
-
-	var nickname string
-	if c.IsSet("nickname") {
-		nickname = c.String("nickname")
-	}
-
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
-	client := gctrpc.NewGoCryptoTraderClient(conn)
-	request := &gctrpc.GetDataHistoryJobDetailsRequest{
-		Nickname: nickname,
-	}
-	result, err := client.DeleteJob(context.Background(), request)
-	if err != nil {
-		return err
-	}
 	jsonOutput(result)
 	return nil
 }
@@ -372,6 +369,134 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	}
 
 	result, err := client.UpsertDataHistoryJob(context.Background(), request)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func getDataHistoryJobsBetween(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "gethistoric")
+	}
+
+	if !c.IsSet("start") {
+		if c.Args().Get(3) != "" {
+			startTime = c.Args().Get(3)
+		}
+	}
+
+	if !c.IsSet("end") {
+		if c.Args().Get(4) != "" {
+			endTime = c.Args().Get(4)
+		}
+	}
+	s, err := time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	e, err := time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after end")
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			fmt.Print(err)
+		}
+	}()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetDataHistoryJobsBetween(context.Background(),
+		&gctrpc.GetDataHistoryJobsBetweenRequest{
+			StartDate: negateLocalOffset(s),
+			EndDate:   negateLocalOffset(e),
+		})
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func deleteDataHistoryJob(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
+	var id string
+	if c.IsSet("id") {
+		id = c.String("id")
+	}
+	var nickname string
+	if c.IsSet("nickname") {
+		nickname = c.String("nickname")
+	}
+
+	if nickname != "" && id != "" {
+		return errors.New("can only set 'id' OR 'nickname'")
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			fmt.Print(err)
+		}
+	}()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	request := &gctrpc.GetDataHistoryJobDetailsRequest{
+		Id:       id,
+		Nickname: nickname,
+	}
+
+	result, err := client.DeleteDataHistoryJob(context.Background(), request)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func getDataHistoryJobSummary(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
+	var nickname string
+	if c.IsSet("nickname") {
+		nickname = c.String("nickname")
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			fmt.Print(err)
+		}
+	}()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	request := &gctrpc.GetDataHistoryJobDetailsRequest{
+		Nickname: nickname,
+	}
+
+	result, err := client.GetDataHistoryJobSummary(context.Background(), request)
 	if err != nil {
 		return err
 	}
