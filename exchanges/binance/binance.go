@@ -47,15 +47,17 @@ const (
 	priceChange       = "/api/v3/ticker/24hr"
 	symbolPrice       = "/api/v3/ticker/price"
 	bestPrice         = "/api/v3/ticker/bookTicker"
-	accountInfo       = "/api/v3/account"
 	userAccountStream = "/api/v3/userDataStream"
 	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
+	historicalTrades  = "/api/v3/historicalTrades"
 
 	// Authenticated endpoints
-	newOrderTest  = "/api/v3/order/test"
-	orderEndpoint = "/api/v3/order"
-	openOrders    = "/api/v3/openOrders"
-	allOrders     = "/api/v3/allOrders"
+	newOrderTest      = "/api/v3/order/test"
+	orderEndpoint     = "/api/v3/order"
+	openOrders        = "/api/v3/openOrders"
+	allOrders         = "/api/v3/allOrders"
+	accountInfo       = "/api/v3/account"
+	marginAccountInfo = "/sapi/v1/margin/account"
 
 	// Withdraw API endpoints
 	withdrawEndpoint                       = "/wapi/v3/withdraw.html"
@@ -188,10 +190,18 @@ func (b *Binance) GetMostRecentTrades(rtr RecentTradeRequestParams) ([]RecentTra
 // limit: Optional. Default 500; max 1000.
 // fromID:
 func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([]HistoricalTrade, error) {
-	// Dropping support due to response for market data is always
-	// {"code":-2014,"msg":"API-key format invalid."}
-	// TODO: replace with newer API vs REST endpoint
-	return nil, common.ErrFunctionNotSupported
+	var resp []HistoricalTrade
+	params := url.Values{}
+
+	params.Set("symbol", symbol)
+	params.Set("limit", fmt.Sprintf("%d", limit))
+	// else return most recent trades
+	if fromID > 0 {
+		params.Set("fromId", fmt.Sprintf("%d", fromID))
+	}
+
+	path := historicalTrades + "?" + params.Encode()
+	return resp, b.SendAPIKeyHTTPRequest(exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // GetAggregatedTrades returns aggregated trade activity.
@@ -651,6 +661,17 @@ func (b *Binance) GetAccount() (*Account, error) {
 	return &resp.Account, nil
 }
 
+func (b *Binance) GetMarginAccount() (*MarginAccount, error) {
+	var resp MarginAccount
+	params := url.Values{}
+
+	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, marginAccountInfo, params, spotAccountInformationRate, &resp); err != nil {
+		return &resp, err
+	}
+
+	return &resp, nil
+}
+
 // SendHTTPRequest sends an unauthenticated request
 func (b *Binance) SendHTTPRequest(ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
 	endpointPath, err := b.API.Endpoints.GetURL(ePath)
@@ -660,6 +681,24 @@ func (b *Binance) SendHTTPRequest(ePath exchange.URL, path string, f request.End
 	return b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpointPath + path,
+		Result:        result,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+		Endpoint:      f})
+}
+
+func (b *Binance) SendAPIKeyHTTPRequest(ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+	endpointPath, err := b.API.Endpoints.GetURL(ePath)
+	if err != nil {
+		return err
+	}
+	headers := make(map[string]string)
+	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
+	return b.SendPayload(context.Background(), &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpointPath + path,
+		Headers:       headers,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,

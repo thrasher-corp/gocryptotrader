@@ -203,14 +203,13 @@ type TickerStream struct {
 
 // HistoricalTrade holds recent trade data
 type HistoricalTrade struct {
-	Code         int       `json:"code"`
-	Msg          string    `json:"msg"`
-	ID           int64     `json:"id"`
-	Price        float64   `json:"price,string"`
-	Quantity     float64   `json:"qty,string"`
-	Time         time.Time `json:"time"`
-	IsBuyerMaker bool      `json:"isBuyerMaker"`
-	IsBestMatch  bool      `json:"isBestMatch"`
+	ID            int64     `json:"id"`
+	Price         float64   `json:"price,string"`
+	Quantity      float64   `json:"qty,string"`
+	QuoteQuantity float64   `json:"quoteQty,string"`
+	Time          time.Time `json:"time"`
+	IsBuyerMaker  bool      `json:"isBuyerMaker"`
+	IsBestMatch   bool      `json:"isBestMatch"`
 }
 
 // AggregatedTradeRequestParams holds request params
@@ -405,6 +404,28 @@ type Account struct {
 	CanDeposit       bool      `json:"canDeposit"`
 	UpdateTime       time.Time `json:"updateTime"`
 	Balances         []Balance `json:"balances"`
+}
+
+// MarginAccount holds the margin account data
+type MarginAccount struct {
+	BorrowEnabled       bool                 `json:"borrowEnabled"`
+	MarginLevel         float64              `json:"marginLevel,string"`
+	TotalAssetOfBtc     float64              `json:"totalAssetOfBtc,string"`
+	TotalLiabilityOfBtc float64              `json:"totalLiabilityOfBtc,string"`
+	TotalNetAssetOfBtc  float64              `json:"totalNetAssetOfBtc,string"`
+	TradeEnabled        bool                 `json:"tradeEnabled"`
+	TransferEnabled     bool                 `json:"transferEnabled"`
+	UserAssets          []MarginAccountAsset `json:"userAssets"`
+}
+
+// MarginAccountAsset holds each individual margin account asset
+type MarginAccountAsset struct {
+	Asset    string  `json:"asset"`
+	Borrowed float64 `json:"borrowed,string"`
+	Free     float64 `json:"free,string"`
+	Interest float64 `json:"interest,string"`
+	Locked   float64 `json:"locked,string"`
+	NetAsset float64 `json:"netAsset,string"`
 }
 
 // RequestParamsTimeForceType Time in force
@@ -805,6 +826,7 @@ type update struct {
 	buffer       chan *WebsocketDepthStream
 	fetchingBook bool
 	initialSync  bool
+	lastUpdateID int64
 }
 
 // job defines a synchonisation job that tells a go routine to fetch an

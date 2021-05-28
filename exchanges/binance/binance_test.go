@@ -3,6 +3,8 @@ package binance
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -24,6 +26,9 @@ const (
 )
 
 var b Binance
+
+// this lock guards against orderbook tests race
+var binanceOrderBookLock = &sync.Mutex{}
 
 func areTestAPIKeysSet() bool {
 	return b.ValidateAPICredentials()
@@ -1174,12 +1179,9 @@ func TestGetMostRecentTrades(t *testing.T) {
 func TestGetHistoricalTrades(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetHistoricalTrades("BTCUSDT", 5, 0)
-	if !mockTests && err == nil {
-		t.Error("Binance GetHistoricalTrades() expecting error")
-	}
-	if mockTests && err == nil {
-		t.Error("Binance GetHistoricalTrades() error", err)
+	_, err := b.GetHistoricalTrades("BTCUSDT", 5, -1)
+	if err != nil {
+		t.Errorf("Binance GetHistoricalTrades() error: %v", err)
 	}
 }
 
@@ -1751,17 +1753,20 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := b.UpdateAccountInfo(asset.CoinMarginedFutures)
-	if err != nil {
-		t.Error(err)
+	items := asset.Items{
+		asset.CoinMarginedFutures,
+		asset.USDTMarginedFutures,
+		asset.Spot,
+		asset.Margin,
 	}
-	_, err = b.UpdateAccountInfo(asset.USDTMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.UpdateAccountInfo(asset.Spot)
-	if err != nil {
-		t.Error(err)
+	for i := range items {
+		assetType := items[i]
+		t.Run(fmt.Sprintf("Update info of account [%s]", assetType.String()), func(t *testing.T) {
+			_, err := b.UpdateAccountInfo(assetType)
+			if err != nil {
+				t.Error(err)
+			}
+		})
 	}
 }
 
@@ -2075,6 +2080,8 @@ func TestWsTradeUpdate(t *testing.T) {
 }
 
 func TestWsDepthUpdate(t *testing.T) {
+	binanceOrderBookLock.Lock()
+	defer binanceOrderBookLock.Unlock()
 	b.setupOrderbookManager()
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
@@ -2177,6 +2184,9 @@ func TestWsDepthUpdate(t *testing.T) {
 	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
 		t.Fatalf("Unexpected Bid amount. Exp: %f, got %f", exp, got)
 	}
+
+	// reset order book sync status
+	b.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
 }
 
 func TestWsBalanceUpdate(t *testing.T) {
@@ -2386,6 +2396,8 @@ var websocketDepthUpdate = []byte(`{"E":1608001030784,"U":7145637266,"a":[["1945
 
 func TestProcessUpdate(t *testing.T) {
 	t.Parallel()
+	binanceOrderBookLock.Lock()
+	defer binanceOrderBookLock.Unlock()
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	var depth WebsocketDepthStream
 	err := json.Unmarshal(websocketDepthUpdate, &depth)
@@ -2407,6 +2419,9 @@ func TestProcessUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// reset order book sync status
+	b.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
 }
 
 func TestUFuturesHistoricalTrades(t *testing.T) {
