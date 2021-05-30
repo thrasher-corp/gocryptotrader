@@ -34,7 +34,7 @@ func TestIsValidCryptoAddress(t *testing.T) {
 	if err != nil && !b {
 		t.Errorf("Common IsValidCryptoAddress error: %s", err)
 	}
-	b, err = IsValidCryptoAddress("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", "bTC")
+	b, err = IsValidCryptoAddress("bc1qw508d6qejxtdg4y5r3zarvaly0c5xw7kv8f3t4", "bTC")
 	if err != nil && !b {
 		t.Errorf("Common IsValidCryptoAddress error: %s", err)
 	}
