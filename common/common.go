@@ -149,7 +149,7 @@ func IsEnabled(isEnabled bool) string {
 func IsValidCryptoAddress(address, crypto string) (bool, error) {
 	switch strings.ToLower(crypto) {
 	case "btc":
-		return regexp.MatchString("^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$", address)
+		return regexp.MatchString("^(bc1|[13])[a-km-zA-HJ-NP-Z1-9]{25,39}$", address)
 	case "ltc":
 		return regexp.MatchString("^[L3M][a-km-zA-HJ-NP-Z1-9]{25,34}$", address)
 	case "eth":
