@@ -147,7 +147,6 @@ func IsEnabled(isEnabled bool) string {
 // regexp package // Validation issues occurring because "3" is contained in
 // litecoin and Bitcoin addresses - non-fatal
 func IsValidCryptoAddress(address, crypto string) (bool, error) {
-	fmt.Println("Checking address: ", address, " crypto: ", crypto)
 	switch strings.ToLower(crypto) {
 	case "btc":
 		return regexp.MatchString("^(bc1|[13])[a-zA-HJ-NP-Z1-9]{25,39}$", address)
