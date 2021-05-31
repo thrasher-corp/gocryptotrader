@@ -23,7 +23,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	subAccount              = ""
+	subaccount              = ""
 	canManipulateRealOrders = false
 	spotPair                = "FTT/BTC"
 	futuresPair             = "DOGE-PERP"
@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
-	exchCfg.API.Credentials.Subaccount = subAccount
+	exchCfg.API.Credentials.Subaccount = subaccount
 	f.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = f.Setup(exchCfg)
 	if err != nil {

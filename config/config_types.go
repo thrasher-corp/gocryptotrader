@@ -279,7 +279,7 @@ type APICredentialsConfig struct {
 	Key        string `json:"key,omitempty"`
 	Secret     string `json:"secret,omitempty"`
 	ClientID   string `json:"clientID,omitempty"`
-	Subaccount string `json:"subAccount,omitempty"`
+	Subaccount string `json:"subaccount,omitempty"`
 	PEMKey     string `json:"pemKey,omitempty"`
 	OTPSecret  string `json:"otpSecret,omitempty"`
 }

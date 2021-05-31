@@ -41,7 +41,7 @@ type Key struct {
 	APISecret  string `json:"apiSecret,omitempty"`
 	ClientID   string `json:"clientId,omitempty"`
 	OTPSecret  string `json:"otpSecret,omitempty"`
-	SubAccount string `json:"subAccount,omitempty"`
+	Subaccount string `json:"subaccount,omitempty"`
 }
 
 // ExchangeResponses contains all responses

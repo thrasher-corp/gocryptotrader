@@ -135,6 +135,6 @@ type LiveData struct {
 	APISecretOverride     string `json:"api-secret-override"`
 	APIClientIDOverride   string `json:"api-client-id-override"`
 	API2FAOverride        string `json:"api-2fa-override"`
-	APISubAccountOverride string `json:"api-subaccount-override"`
+	APISubaccountOverride string `json:"api-subaccount-override"`
 	RealOrders            bool   `json:"real-orders"`
 }

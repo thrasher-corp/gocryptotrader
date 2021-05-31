@@ -232,7 +232,7 @@ func TestLoadData(t *testing.T) {
 		APISecretOverride:     "test",
 		APIClientIDOverride:   "test",
 		API2FAOverride:        "test",
-		APISubAccountOverride: "test",
+		APISubaccountOverride: "test",
 		RealOrders:            true,
 	}
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
@@ -346,7 +346,7 @@ func TestLoadLiveData(t *testing.T) {
 	cfg.DataSettings.LiveData.APISecretOverride = "1234"
 	cfg.DataSettings.LiveData.APIClientIDOverride = "1234"
 	cfg.DataSettings.LiveData.API2FAOverride = "1234"
-	cfg.DataSettings.LiveData.APISubAccountOverride = "1234"
+	cfg.DataSettings.LiveData.APISubaccountOverride = "1234"
 	err = loadLiveData(cfg, b)
 	if err != nil {
 		t.Error(err)

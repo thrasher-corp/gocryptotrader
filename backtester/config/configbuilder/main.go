@@ -434,7 +434,7 @@ func parseLive(reader *bufio.Reader, cfg *config.Config) {
 			fmt.Println("What is the 2FA seed?")
 			cfg.DataSettings.LiveData.API2FAOverride = quickParse(reader)
 			fmt.Println("What is the subaccount to use?")
-			cfg.DataSettings.LiveData.APISubAccountOverride = quickParse(reader)
+			cfg.DataSettings.LiveData.APISubaccountOverride = quickParse(reader)
 		}
 	}
 }
