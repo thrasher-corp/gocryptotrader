@@ -37,10 +37,11 @@ type Config struct {
 
 // Key is the format for wrapperconfig.json to store API credentials
 type Key struct {
-	APIKey    string `json:"apiKey"`
-	APISecret string `json:"apiSecret,omitempty"`
-	ClientID  string `json:"clientId,omitempty"`
-	OTPSecret string `json:"otpSecret,omitempty"`
+	APIKey     string `json:"apiKey"`
+	APISecret  string `json:"apiSecret,omitempty"`
+	ClientID   string `json:"clientId,omitempty"`
+	OTPSecret  string `json:"otpSecret,omitempty"`
+	SubAccount string `json:"subAccount,omitempty"`
 }
 
 // ExchangeResponses contains all responses

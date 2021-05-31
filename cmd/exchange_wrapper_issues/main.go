@@ -227,6 +227,10 @@ func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfi
 	if keys[lowerExchangeName].OTPSecret != "-" {
 		base.Config.API.Credentials.OTPSecret = keys[lowerExchangeName].OTPSecret
 	}
+	if keys[lowerExchangeName].Subaccount != "" {
+		base.API.Credentials.Subaccount = keys[lowerExchangeName].Subaccount
+		base.Config.API.Credentials.Subaccount = keys[lowerExchangeName].Subaccount
+	}
 
 	base.API.AuthenticatedSupport = true
 	base.API.AuthenticatedWebsocketSupport = true

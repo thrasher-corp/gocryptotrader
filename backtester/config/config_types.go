@@ -131,9 +131,10 @@ type DatabaseData struct {
 
 // LiveData defines all fields to configure live data
 type LiveData struct {
-	APIKeyOverride      string `json:"api-key-override"`
-	APISecretOverride   string `json:"api-secret-override"`
-	APIClientIDOverride string `json:"api-client-id-override"`
-	API2FAOverride      string `json:"api-2fa-override"`
-	RealOrders          bool   `json:"real-orders"`
+	APIKeyOverride        string `json:"api-key-override"`
+	APISecretOverride     string `json:"api-secret-override"`
+	APIClientIDOverride   string `json:"api-client-id-override"`
+	API2FAOverride        string `json:"api-2fa-override"`
+	APISubAccountOverride string `json:"api-subaccount-override"`
+	RealOrders            bool   `json:"real-orders"`
 }

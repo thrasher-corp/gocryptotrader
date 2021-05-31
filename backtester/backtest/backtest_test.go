@@ -228,11 +228,12 @@ func TestLoadData(t *testing.T) {
 	}
 	cfg.DataSettings.CSVData = nil
 	cfg.DataSettings.LiveData = &config.LiveData{
-		APIKeyOverride:      "test",
-		APISecretOverride:   "test",
-		APIClientIDOverride: "test",
-		API2FAOverride:      "test",
-		RealOrders:          true,
+		APIKeyOverride:        "test",
+		APISecretOverride:     "test",
+		APIClientIDOverride:   "test",
+		API2FAOverride:        "test",
+		APISubAccountOverride: "test",
+		RealOrders:            true,
 	}
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
 	if err != nil {
@@ -305,10 +306,11 @@ func TestLoadLiveData(t *testing.T) {
 			AuthenticatedWebsocketSupport: false,
 			PEMKeySupport:                 false,
 			Credentials: struct {
-				Key      string
-				Secret   string
-				ClientID string
-				PEMKey   string
+				Key        string
+				Secret     string
+				ClientID   string
+				PEMKey     string
+				Subaccount string
 			}{},
 			CredentialsValidator: struct {
 				RequiresPEM                bool
@@ -344,6 +346,7 @@ func TestLoadLiveData(t *testing.T) {
 	cfg.DataSettings.LiveData.APISecretOverride = "1234"
 	cfg.DataSettings.LiveData.APIClientIDOverride = "1234"
 	cfg.DataSettings.LiveData.API2FAOverride = "1234"
+	cfg.DataSettings.LiveData.APISubAccountOverride = "1234"
 	err = loadLiveData(cfg, b)
 	if err != nil {
 		t.Error(err)
