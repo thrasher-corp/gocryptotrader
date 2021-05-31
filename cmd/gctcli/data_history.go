@@ -45,12 +45,16 @@ var (
 			Usage: "btc-usdt",
 		},
 		cli.StringFlag{
-			Name:  "start_date",
-			Usage: "2006-01-02 15:04:05",
+			Name:        "start_date",
+			Usage:       "formatted as: 2006-01-02 15:04:05",
+			Value:       time.Now().AddDate(-1, 0, 0).Format(common.SimpleTimeFormat),
+			Destination: &startTime,
 		},
 		cli.StringFlag{
-			Name:  "end_date",
-			Usage: "2006-01-02 15:04:05",
+			Name:        "end_date",
+			Usage:       "formatted as: 2006-01-02 15:04:05",
+			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+			Destination: &endTime,
 		},
 		cli.StringFlag{
 			Name:  "interval",
@@ -231,7 +235,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 
 	var (
 		err                                                               error
-		nickname, exchange, assetType, pair, startDate, endDate           string
+		nickname, exchange, assetType, pair                               string
 		interval, requestSizeLimit, dataType, maxRetryAttempts, batchSize int64
 	)
 	if c.IsSet("nickname") {
@@ -272,21 +276,18 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	}
 
 	if c.IsSet("start_date") {
-		startDate = c.String("start_date")
-	} else {
-		startDate = c.Args().Get(4)
+		startTime = c.String("start_date")
 	}
 	if c.IsSet("end_date") {
-		endDate = c.String("end_date")
-	} else {
-		endDate = c.Args().Get(5)
+		endTime = c.String("end_date")
 	}
+
 	var s, e time.Time
-	s, err = time.Parse(common.SimpleTimeFormat, startDate)
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.Parse(common.SimpleTimeFormat, endDate)
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -299,6 +300,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 			return err
 		}
 	}
+	candleInterval := time.Duration(interval) * time.Second
 
 	if c.IsSet("request_size_limit") {
 		requestSizeLimit = c.Int64("request_size_limit")
@@ -358,7 +360,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		},
 		StartDate:        negateLocalOffset(s),
 		EndDate:          negateLocalOffset(e),
-		Interval:         interval,
+		Interval:         int64(candleInterval),
 		RequestSizeLimit: requestSizeLimit,
 		DataType:         dataType,
 		MaxRetryAttempts: maxRetryAttempts,

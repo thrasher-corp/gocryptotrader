@@ -571,6 +571,12 @@ func TestValidateJob(t *testing.T) {
 	dhj.StartDate = time.Now().Add(-time.Hour)
 	dhj.EndDate = time.Now().Add(-time.Minute)
 	err = m.validateJob(dhj)
+	if !errors.Is(err, kline.ErrUnsupportedInterval) {
+		t.Errorf("error '%v', expected '%v'", err, kline.ErrUnsupportedInterval)
+	}
+
+	dhj.Interval = kline.OneDay
+	err = m.validateJob(dhj)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

@@ -192,6 +192,9 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 
 func (m *DataHistoryManager) run() {
 	go func() {
+		if err := m.runJobs(); err != nil {
+			log.Error(log.DataHistory, err)
+		}
 		for {
 			select {
 			case <-m.shutdown:
@@ -199,6 +202,7 @@ func (m *DataHistoryManager) run() {
 				return
 			case <-m.interval.C:
 				if m.databaseConnectionManager.IsConnected() {
+					log.Infof(log.DataHistory, "processing data history jobs")
 					go func() {
 						if err := m.runJobs(); err != nil {
 							log.Error(log.DataHistory, err)
@@ -239,6 +243,7 @@ func (m *DataHistoryManager) runJobs() error {
 		if err != nil {
 			log.Error(log.DataHistory, err)
 		}
+		log.Infof(log.DataHistory, "completed run of data history job %v", m.jobs[i].Nickname)
 	}
 	return nil
 }
@@ -271,7 +276,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			job.Asset,
 			job.Pair)
 	}
-
+	log.Infof(log.DataHistory, "running data history job %v", job.Nickname)
 processing:
 	for i := range job.rangeHolder.Ranges {
 	processingInterval:
@@ -485,7 +490,7 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	}
 	exch := m.exchangeManager.GetExchangeByName(job.Exchange)
 	if exch == nil {
-		return errExchangeNotLoaded
+		return fmt.Errorf("%s %w", job.Exchange, errExchangeNotLoaded)
 	}
 	pairs, err := exch.GetAvailablePairs(job.Asset)
 	if err != nil {
@@ -516,6 +521,11 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	if job.DataType == dataHistoryTradeDataType &&
 		job.Interval <= 0 {
 		job.Interval = defaultTradeInterval
+	}
+
+	b := exch.GetBase()
+	if !b.Features.Enabled.Kline.Intervals[job.Interval.Word()] {
+		return fmt.Errorf("%s %w unsupported by exchange %s", job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 
 	job.StartDate = job.StartDate.Round(job.Interval.Duration())
@@ -777,6 +787,7 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 		StartDate:        dbModel.StartDate,
 		EndDate:          dbModel.EndDate,
 		Interval:         kline.Interval(dbModel.Interval),
+		RunBatchLimit:    dbModel.BatchSize,
 		RequestSizeLimit: dbModel.RequestSizeLimit,
 		DataType:         dataHistoryDataType(dbModel.DataType),
 		MaxRetryAttempts: dbModel.MaxRetryAttempts,

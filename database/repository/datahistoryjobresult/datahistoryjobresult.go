@@ -112,10 +112,14 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, results ...*DataHistoryJobRes
 			}
 			results[i].ID = freshUUID.String()
 		}
+		ns := null.String{}
+		if results[i].Result != "" {
+			ns = null.StringFrom(results[i].Result)
+		}
 		var tempEvent = sqlite3.Datahistoryjobresult{
 			ID:                results[i].ID,
 			JobID:             results[i].JobID,
-			Result:            null.String{},
+			Result:            ns,
 			Status:            float64(results[i].Status),
 			IntervalStartTime: results[i].IntervalStartDate.UTC().Format(time.RFC3339),
 			IntervalEndTime:   results[i].IntervalEndDate.UTC().Format(time.RFC3339),
@@ -141,10 +145,14 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, results ...*DataHistoryJobR
 			}
 			results[i].ID = freshUUID.String()
 		}
+		ns := null.String{}
+		if results[i].Result != "" {
+			ns = null.StringFrom(results[i].Result)
+		}
 		var tempEvent = postgres.Datahistoryjobresult{
 			ID:                results[i].ID,
 			JobID:             results[i].JobID,
-			Result:            null.String{},
+			Result:            ns,
 			Status:            float64(results[i].Status),
 			IntervalStartTime: results[i].IntervalStartDate.UTC(),
 			IntervalEndTime:   results[i].IntervalEndDate.UTC(),
