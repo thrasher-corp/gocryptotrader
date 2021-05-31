@@ -79,6 +79,7 @@ type Checker struct {
 
 // Shutdown cleanly shutsdown monitor routine
 func (c *Checker) Shutdown() {
+	c.connected = false
 	close(c.shutdown)
 	c.wg.Wait()
 }

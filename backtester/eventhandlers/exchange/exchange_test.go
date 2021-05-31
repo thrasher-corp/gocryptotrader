@@ -139,7 +139,13 @@ func TestPlaceOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = bot.OrderManager.Start(bot)
+	em := engine.SetupExchangeManager()
+	bot.ExchangeManager = em
+	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bot.OrderManager.Start()
 	if err != nil {
 		t.Error(err)
 	}
@@ -187,7 +193,13 @@ func TestExecuteOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = bot.OrderManager.Start(bot)
+	em := engine.SetupExchangeManager()
+	bot.ExchangeManager = em
+	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bot.OrderManager.Start()
 	if err != nil {
 		t.Error(err)
 	}
@@ -287,8 +299,14 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	em := engine.SetupExchangeManager()
+	bot.ExchangeManager = em
+	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false)
+	if err != nil {
+		t.Error(err)
+	}
 
-	err = bot.OrderManager.Start(bot)
+	err = bot.OrderManager.Start()
 	if err != nil {
 		t.Error(err)
 	}

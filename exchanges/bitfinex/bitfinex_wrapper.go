@@ -730,7 +730,6 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
 	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
@@ -756,7 +755,6 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdr
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	withdrawalType := "wire"
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
@@ -779,7 +777,6 @@ func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	v, err := b.WithdrawFiatFunds(withdrawRequest)
 	if err != nil {
 		return nil, err

@@ -807,7 +807,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		ExecutedAmount:    0,
 		RemainingAmount:   0,
 		Fee:               0,
-		Exchange:          "",
+		Exchange:          "test",
 		ID:                "1",
 		AccountID:         "",
 		ClientID:          "",
@@ -904,7 +904,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if od.Fee != 1 {
 		t.Error("Failed to update")
 	}
-	if od.Exchange != "" {
+	if od.Exchange != "test" {
 		t.Error("Should not be able to update exchange via modify")
 	}
 	if od.ID != "1" {
@@ -1000,18 +1000,26 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	}
 
 	cancelMe = new(Cancel)
-	if cancelMe.Validate() != ErrPairIsEmpty {
-		t.Fatal("unexpected error")
+	err := cancelMe.Validate()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	err = cancelMe.Validate(cancelMe.PairAssetRequired())
+	if err == nil || err.Error() != ErrPairIsEmpty.Error() {
+		t.Errorf("received '%v' expected '%v'", err, ErrPairIsEmpty)
 	}
 
 	cancelMe.Pair = currency.NewPair(currency.BTC, currency.USDT)
-	if cancelMe.Validate() != ErrAssetNotSet {
-		t.Fatal("unexpected error")
+	err = cancelMe.Validate(cancelMe.PairAssetRequired())
+	if err == nil || err.Error() != ErrAssetNotSet.Error() {
+		t.Errorf("received '%v' expected '%v'", err, ErrAssetNotSet)
 	}
 
 	cancelMe.AssetType = asset.Spot
-	if cancelMe.Validate() != nil {
-		t.Fatal("should not error")
+	err = cancelMe.Validate(cancelMe.PairAssetRequired())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	if cancelMe.Validate(cancelMe.StandardCancel()) == nil {

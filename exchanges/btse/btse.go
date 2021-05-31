@@ -452,8 +452,7 @@ func (b *BTSE) SendHTTPRequest(ep exchange.URL, method, endpoint string, result 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
 func (b *BTSE) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint string, isSpot bool, values url.Values, req map[string]interface{}, result interface{}, f request.EndpointLimit) error {
 	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
-			b.Name)
+		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	ePoint, err := b.API.Endpoints.GetURL(ep)

@@ -423,7 +423,7 @@ func (o *OKGroup) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (string, error) {
+func (o *OKGroup) GetDepositAddress(p currency.Code, _ string) (string, error) {
 	wallet, err := o.GetAccountDepositAddressForCurrency(p.Lower().String())
 	if err != nil || len(wallet) == 0 {
 		return "", err
@@ -437,7 +437,6 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
 		Amount:      withdrawRequest.Amount,
 		Currency:    withdrawRequest.Currency.Lower().String(),
@@ -463,13 +462,13 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (o *OKGroup) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (o *OKGroup) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

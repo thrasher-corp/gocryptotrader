@@ -549,7 +549,7 @@ func (a *Alphapoint) SendHTTPRequest(ep exchange.URL, method, path string, data 
 // SendAuthenticatedHTTPRequest sends an authenticated request
 func (a *Alphapoint) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path string, data map[string]interface{}, result interface{}) error {
 	if !a.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, a.Name)
+		return fmt.Errorf("%s %w", a.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	endpoint, err := a.API.Endpoints.GetURL(ep)

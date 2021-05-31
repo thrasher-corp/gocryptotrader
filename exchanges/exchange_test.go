@@ -477,7 +477,7 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	}
 	b.SetCurrencyPairFormat()
 	if b.Config.CurrencyPairs == nil {
-		t.Error("CurrencyPairs shouldn't be nil")
+		t.Error("currencyPairs shouldn't be nil")
 	}
 
 	// Test global format logic

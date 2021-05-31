@@ -63,7 +63,8 @@ var (
 	repoDir string
 	// is a broken down version of the documentation tool dir for cross platform
 	// checking
-	ref = []string{"gocryptotrader", "cmd", "documentation"}
+	ref          = []string{"gocryptotrader", "cmd", "documentation"}
+	engineFolder = "engine"
 )
 
 // Contributor defines an account associated with this code base by doing
@@ -121,8 +122,8 @@ func main() {
 	}
 
 	if strings.Contains(wd, filepath.Join(ref...)) {
-		rootdir := filepath.Dir(filepath.Dir(wd))
-		repoDir = rootdir
+		rootDir := filepath.Dir(filepath.Dir(wd))
+		repoDir = rootDir
 		toolDir = wd
 	} else {
 		if toolDir == "" {
@@ -132,7 +133,7 @@ func main() {
 		repoDir = wd
 	}
 
-	fmt.Println(core.Banner)
+	fmt.Print(core.Banner)
 	fmt.Println("This will update and regenerate documentation for the different packages in your repo.")
 	fmt.Println()
 
@@ -272,15 +273,11 @@ func main() {
 		fmt.Println("All core systems fetched, updating documentation...")
 	}
 
-	err = UpdateDocumentation(DocumentationDetails{
+	UpdateDocumentation(DocumentationDetails{
 		dirList,
 		tmpl,
 		contributors,
 		&config})
-	if err != nil {
-		log.Fatalf("Documentation Generation Tool - UpdateDocumentation error %s",
-			err)
-	}
 
 	fmt.Println("\nDocumentation Generation Tool - Finished")
 }
@@ -355,7 +352,7 @@ func GetProjectDirectoryTree(c *Config) ([]string, error) {
 		directoryData = append(directoryData, filepath.Join(repoDir, ContributorFile))
 	}
 
-	walkfn := func(path string, info os.FileInfo, err error) error {
+	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -376,7 +373,7 @@ func GetProjectDirectoryTree(c *Config) ([]string, error) {
 		return nil
 	}
 
-	return directoryData, filepath.Walk(repoDir, walkfn)
+	return directoryData, filepath.Walk(repoDir, walkFn)
 }
 
 // GetTemplateFiles parses and returns all template files in the documentation
@@ -384,7 +381,7 @@ func GetProjectDirectoryTree(c *Config) ([]string, error) {
 func GetTemplateFiles() (*template.Template, error) {
 	tmpl := template.New("")
 
-	walkfn := func(path string, info os.FileInfo, err error) error {
+	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -406,7 +403,7 @@ func GetTemplateFiles() (*template.Template, error) {
 		return nil
 	}
 
-	return tmpl, filepath.Walk(toolDir, walkfn)
+	return tmpl, filepath.Walk(toolDir, walkFn)
 }
 
 // GetContributorList fetches a list of contributors from the github api
@@ -458,14 +455,14 @@ func GetGoDocURL(name string) string {
 
 // UpdateDocumentation generates or updates readme/documentation files across
 // the codebase
-func UpdateDocumentation(details DocumentationDetails) error {
+func UpdateDocumentation(details DocumentationDetails) {
 	for i := range details.Directories {
-		cutset := details.Directories[i][len(repoDir):]
-		if cutset != "" && cutset[0] == os.PathSeparator {
-			cutset = cutset[1:]
+		cutSet := details.Directories[i][len(repoDir):]
+		if cutSet != "" && cutSet[0] == os.PathSeparator {
+			cutSet = cutSet[1:]
 		}
 
-		data := strings.Split(cutset, string(os.PathSeparator))
+		data := strings.Split(cutSet, string(os.PathSeparator))
 
 		var temp []string
 		for x := range data {
@@ -491,40 +488,66 @@ func UpdateDocumentation(details DocumentationDetails) error {
 			}
 			continue
 		}
-
+		if name == engineFolder {
+			d, err := ioutil.ReadDir(details.Directories[i])
+			if err != nil {
+				fmt.Println("Excluding file:", err)
+			}
+			for x := range d {
+				nameSplit := strings.Split(d[x].Name(), ".go")
+				engineTemplateName := engineFolder + " " + nameSplit[0]
+				if details.Tmpl.Lookup(engineTemplateName) == nil {
+					fmt.Printf("Template not found for path %s create new template with {{define \"%s\" -}} TEMPLATE HERE {{end}}\n",
+						details.Directories[i],
+						name)
+					continue
+				}
+				err = runTemplate(details, filepath.Join(details.Directories[i], nameSplit[0]+".md"), engineTemplateName)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
+			continue
+		}
 		if details.Tmpl.Lookup(name) == nil {
 			fmt.Printf("Template not found for path %s create new template with {{define \"%s\" -}} TEMPLATE HERE {{end}}\n",
 				details.Directories[i],
 				name)
 			continue
 		}
-
 		var mainPath string
-		if name == LicenseFile || name == ContributorFile {
+		switch {
+		case name == LicenseFile || name == ContributorFile:
 			mainPath = details.Directories[i]
-		} else {
+		default:
 			mainPath = filepath.Join(details.Directories[i], "README.md")
 		}
 
-		err := os.Remove(mainPath)
-		if err != nil && !(strings.Contains(err.Error(), "no such file or directory") ||
-			strings.Contains(err.Error(), "The system cannot find the file specified.")) {
-			return err
+		if err := runTemplate(details, mainPath, name); err != nil {
+			log.Println(err)
+			continue
 		}
-
-		file, err := os.Create(mainPath)
-		if err != nil {
-			return err
-		}
-
-		attr := GetDocumentationAttributes(name, details.Contributors)
-
-		err = details.Tmpl.ExecuteTemplate(file, name, attr)
-		if err != nil {
-			file.Close()
-			return err
-		}
-		file.Close()
 	}
-	return nil
+}
+
+func runTemplate(details DocumentationDetails, mainPath, name string) error {
+	err := os.Remove(mainPath)
+	if err != nil && !(strings.Contains(err.Error(), "no such file or directory") ||
+		strings.Contains(err.Error(), "The system cannot find the file specified.")) {
+		return err
+	}
+
+	f, err := os.Create(mainPath)
+	if err != nil {
+		return err
+	}
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			log.Printf("could not close file %s: %v", mainPath, err)
+		}
+	}(f)
+
+	attr := GetDocumentationAttributes(name, details.Contributors)
+	return details.Tmpl.ExecuteTemplate(f, name, attr)
 }

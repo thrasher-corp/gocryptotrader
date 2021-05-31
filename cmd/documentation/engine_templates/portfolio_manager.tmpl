@@ -1,0 +1,32 @@
+{{define "engine portfolio_manager" -}}
+{{template "header" .}}
+## Current Features for {{.CapitalName}}
++ The portfolio manager subsystem is used to synchronise and monitor wallet addresses
++ It can read addresses specified in your config file
++ If you have set API keys for an enabled exchange and enabled `authenticatedSupport`, it will store your exchange addresses
++ In order to modify the behaviour of the portfolio manager subsystem, you can edit the following inside your config file under `portfolioAddresses`:
+
+### portfolioAddresses
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| Verbose | Enabling this will output more detailed logs to your logging output  |  `false` |
+| addresses | An array of portfolio wallet addresses to monitor, see below table |   |
+
+### addresses
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| Address | The wallet address  |  `{{.DonationAddress}}` |
+| CoinType | The coin for the wallet address | `BTC` |
+| Balance | The balance of the wallet |   |
+| Description | A customisable description  | `My secret billion stash`  |
+| WhiteListed | Determines whether GoCryptoTrader withdraw manager subsystem can make withdrawals from this address | `true` |
+| ColdStorage | Describes whether the wallet address is a cold storage wallet eg Ledger | `false`  |
+| SupportedExchanges | A comma delimited string of which exchanges are allowed to interact with this wallet | `"Binance"`  |
+
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

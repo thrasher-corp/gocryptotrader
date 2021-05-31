@@ -628,7 +628,6 @@ func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*wi
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	v, err := z.Withdraw(withdrawRequest.Currency.Lower().String(),
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.TradePassword,
@@ -645,13 +644,13 @@ func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*wi
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (z *ZB) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (z *ZB) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (z *ZB) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (z *ZB) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

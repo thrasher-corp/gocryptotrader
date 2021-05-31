@@ -1,0 +1,22 @@
+{{define "engine ntp_manager" -}}
+{{template "header" .}}
+## Current Features for {{.CapitalName}}
++ The NTP manager subsystem is used highlight discrepancies between your system time and specified NTP server times
++ It is useful for debugging and understanding why a request to an exchange may be rejected
++ The NTP manager cannot update your system clock, so when it does alert you of issues, you must take it upon yourself to change your system time in the event your requests are being rejected for being too far out of sync
++ In order to modify the behaviour of the NTP manager subsystem, you can edit the following inside your config file under `ntpclient`:
+
+### ntpclient
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| enabled | An integer value representing whether the NTP manager is enabled. It will warn you of time sync discrepancies on startup with a value of 0 and will alert you periodically with a value of 1. A value of -1 will disable the manager  |  `1` |
+| pool | A string array of the NTP servers to check for time discrepancies |  `["0.pool.ntp.org:123","pool.ntp.org:123"]` |
+| allowedDifference | A Golang time.Duration representation of the allowable time discrepancy between NTP server and your system time. Any discrepancy greater than this allowance will display an alert to your logging output |  `50000000` |
+| allowedNegativeDifference | A Golang time.Duration representation of the allowable negative time discrepancy between NTP server and your system time. Any discrepancy greater than this allowance will display an alert to your logging output |  `50000000` |
+
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

@@ -156,15 +156,15 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 			// Can't currently regenerate nonce and signatures with fresh values for retries, so for now, we must not retry
 			if p.NonceEnabled {
 				if timeoutErr, ok := err.(net.Error); !ok || !timeoutErr.Timeout() {
-					return fmt.Errorf("request.go error - unable to retry request using nonce, err: %v", err)
+					return fmt.Errorf("unable to retry request using nonce, err: %v", err)
 				}
 			}
 
 			if attempt > r.maxRetries {
 				if err != nil {
-					return fmt.Errorf("request.go error - failed to retry request, err: %v", err)
+					return fmt.Errorf("failed to retry request, err: %v", err)
 				}
-				return fmt.Errorf("request.go error - failed to retry request, status: %s", resp.Status)
+				return fmt.Errorf("failed to retry request, status: %s", resp.Status)
 			}
 
 			after := RetryAfter(resp, time.Now())
@@ -176,9 +176,9 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 
 			if d, ok := req.Context().Deadline(); ok && d.After(time.Now()) && time.Now().Add(delay).After(d) {
 				if err != nil {
-					return fmt.Errorf("request.go error - deadline would be exceeded by retry, err: %v", err)
+					return fmt.Errorf("deadline would be exceeded by retry, err: %v", err)
 				}
-				return fmt.Errorf("request.go error - deadline would be exceeded by retry, status: %s", resp.Status)
+				return fmt.Errorf("deadline would be exceeded by retry, status: %s", resp.Status)
 			}
 
 			if p.Verbose {

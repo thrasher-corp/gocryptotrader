@@ -81,7 +81,7 @@ func GetTicker(exchange string, p currency.Pair, tickerType asset.Item) (*Price,
 // list
 func ProcessTicker(tickerNew *Price) error {
 	if tickerNew.ExchangeName == "" {
-		return fmt.Errorf(errExchangeNameUnset)
+		return fmt.Errorf(ErrExchangeNameUnset)
 	}
 
 	if tickerNew.Pair.IsEmpty() {

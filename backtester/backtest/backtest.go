@@ -40,6 +40,7 @@ import (
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -281,7 +282,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		sellRule.Validate()
 
 		limits, err := exch.GetOrderExecutionLimits(a, pair)
-		if err != nil {
+		if err != nil && !errors.Is(err, gctorder.ErrExchangeLimitNotLoaded) {
 			return resp, err
 		}
 
@@ -361,15 +362,26 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 	if err != nil {
 		return err
 	}
-
+	bt.Bot.ExchangeManager = engine.SetupExchangeManager()
 	for i := range cfg.CurrencySettings {
 		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, false, nil)
 		if err != nil && !errors.Is(err, engine.ErrExchangeAlreadyLoaded) {
 			return err
 		}
 	}
-	if !bt.Bot.OrderManager.Started() {
-		return bt.Bot.OrderManager.Start(bt.Bot)
+	if !bt.Bot.OrderManager.IsRunning() {
+		bt.Bot.OrderManager, err = engine.SetupOrderManager(
+			bt.Bot.ExchangeManager,
+			bt.Bot.CommunicationsManager,
+			&bt.Bot.ServicesWG,
+			bot.Settings.Verbose)
+		if err != nil {
+			return err
+		}
+		err = bt.Bot.OrderManager.Start()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -470,18 +482,26 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if cfg.DataSettings.DatabaseData.ConfigOverride != nil {
 			bt.Bot.Config.Database = *cfg.DataSettings.DatabaseData.ConfigOverride
 			gctdatabase.DB.DataPath = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
-			gctdatabase.DB.Config = cfg.DataSettings.DatabaseData.ConfigOverride
-			err = bt.Bot.DatabaseManager.Start(bt.Bot)
+			err = gctdatabase.DB.SetConfig(cfg.DataSettings.DatabaseData.ConfigOverride)
 			if err != nil {
 				return nil, err
 			}
-			defer func() {
-				err = bt.Bot.DatabaseManager.Stop()
-				if err != nil {
-					log.Error(log.BackTester, err)
-				}
-			}()
 		}
+		bt.Bot.DatabaseManager, err = engine.SetupDatabaseConnectionManager(gctdatabase.DB.GetConfig())
+		if err != nil {
+			return nil, err
+		}
+
+		err = bt.Bot.DatabaseManager.Start(&bt.Bot.ServicesWG)
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			stopErr := bt.Bot.DatabaseManager.Stop()
+			if stopErr != nil {
+				log.Error(log.BackTester, stopErr)
+			}
+		}()
 		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType)
 		if err != nil {
 			return nil, fmt.Errorf("unable to retrieve data from GoCryptoTrader database. Error: %v. Please ensure the database is setup correctly and has data before use", err)
@@ -768,7 +788,7 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
 // updateStatsForDataEvent makes various systems aware of price movements from
 // data events
 func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) {
-	// update portfolio with latest price
+	// update portfoliomanager with latest price
 	err := bt.Portfolio.Update(e)
 	if err != nil {
 		log.Error(log.BackTester, err)

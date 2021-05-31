@@ -96,6 +96,8 @@ const (
 	MsgStatusSuccess string = "success"
 	// MsgStatusError message to display when failure occurs
 	MsgStatusError string = "error"
+	grpcName       string = "grpc"
+	grpcProxyName  string = "grpc_proxy"
 )
 
 // newConfigMutex only locks and unlocks on engine creation functions

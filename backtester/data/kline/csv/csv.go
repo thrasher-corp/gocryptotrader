@@ -149,7 +149,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 			return nil, fmt.Errorf("could not read csv trade data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
 	default:
-		return nil, fmt.Errorf("could not process csv data for %v %v %v, invalid data type received", exchangeName, a, fPair)
+		return nil, fmt.Errorf("could not process csv data for %v %v %v, %w", exchangeName, a, fPair, common.ErrInvalidDataType)
 	}
 	resp.Item.Exchange = strings.ToLower(exchangeName)
 	resp.Item.Pair = fPair

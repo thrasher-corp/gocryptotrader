@@ -11,13 +11,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/ntpclient"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
@@ -302,7 +302,7 @@ func TestUpdateCommunicationsConfig(t *testing.T) {
 	if err != nil {
 		t.Error("UpdateCommunicationsConfig LoadConfig error", err)
 	}
-	cfg.UpdateCommunicationsConfig(&CommunicationsConfig{SlackConfig: SlackConfig{Name: testString}})
+	cfg.UpdateCommunicationsConfig(&base.CommunicationsConfig{SlackConfig: base.SlackConfig{Name: testString}})
 	if cfg.Communications.SlackConfig.Name != testString {
 		t.Error("UpdateCommunicationsConfig LoadConfig error")
 	}
@@ -340,7 +340,7 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 		t.Error("CheckCommunicationsConfig LoadConfig error", err)
 	}
 
-	cfg.Communications = CommunicationsConfig{}
+	cfg.Communications = base.CommunicationsConfig{}
 	cfg.CheckCommunicationsConfig()
 	if cfg.Communications.SlackConfig.Name != "Slack" ||
 		cfg.Communications.SMSGlobalConfig.Name != "SMSGlobal" ||
@@ -350,14 +350,14 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 			cfg.Communications)
 	}
 
-	cfg.SMS = &SMSGlobalConfig{}
+	cfg.SMS = &base.SMSGlobalConfig{}
 	cfg.Communications.SMSGlobalConfig.Name = ""
 	cfg.CheckCommunicationsConfig()
 	if cfg.Communications.SMSGlobalConfig.Password != testString {
 		t.Error("CheckCommunicationsConfig error:", err)
 	}
 
-	cfg.SMS.Contacts = append(cfg.SMS.Contacts, SMSContact{
+	cfg.SMS.Contacts = append(cfg.SMS.Contacts, base.SMSContact{
 		Name:    "Bobby",
 		Number:  "4321",
 		Enabled: false,
@@ -380,7 +380,7 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 		t.Error("CheckCommunicationsConfig From value should have been trimmed to 11 characters")
 	}
 
-	cfg.SMS = &SMSGlobalConfig{}
+	cfg.SMS = &base.SMSGlobalConfig{}
 	cfg.CheckCommunicationsConfig()
 	if cfg.SMS != nil {
 		t.Error("CheckCommunicationsConfig unexpected data:",
@@ -1883,7 +1883,7 @@ func TestDisableNTPCheck(t *testing.T) {
 
 	var c Config
 
-	warn, err := c.DisableNTPCheck(strings.NewReader("w\n"))
+	warn, err := c.SetNTPCheck(strings.NewReader("w\n"))
 	if err != nil {
 		t.Fatalf("to create ntpclient failed reason: %v", err)
 	}
@@ -1891,17 +1891,17 @@ func TestDisableNTPCheck(t *testing.T) {
 	if warn != "Time sync has been set to warn only" {
 		t.Errorf("failed expected %v got %v", "Time sync has been set to warn only", warn)
 	}
-	alert, _ := c.DisableNTPCheck(strings.NewReader("a\n"))
+	alert, _ := c.SetNTPCheck(strings.NewReader("a\n"))
 	if alert != "Time sync has been set to alert" {
 		t.Errorf("failed expected %v got %v", "Time sync has been set to alert", alert)
 	}
 
-	disable, _ := c.DisableNTPCheck(strings.NewReader("d\n"))
+	disable, _ := c.SetNTPCheck(strings.NewReader("d\n"))
 	if disable != "Future notifications for out of time sync has been disabled" {
 		t.Errorf("failed expected %v got %v", "Future notifications for out of time sync has been disabled", disable)
 	}
 
-	_, err = c.DisableNTPCheck(strings.NewReader(" "))
+	_, err = c.SetNTPCheck(strings.NewReader(" "))
 	if err.Error() != "EOF" {
 		t.Errorf("failed expected EOF got: %v", err)
 	}
@@ -1960,7 +1960,6 @@ func TestCheckNTPConfig(t *testing.T) {
 	c.NTPClient.AllowedDifference = nil
 
 	c.CheckNTPConfig()
-	_ = ntpclient.NTPClient(c.NTPClient.Pool)
 
 	if c.NTPClient.Pool[0] != "pool.ntp.org:123" {
 		t.Error("ntpclient with no valid pool should default to pool.ntp.org")

@@ -339,7 +339,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	}
 
 	if len(asks) == 0 && len(bids) == 0 {
-		return errors.New("coinbasepro_websocket.go error - no data in websocket update")
+		return errors.New("no data in websocket update")
 	}
 
 	p, err := currency.NewPairFromString(update.ProductID)

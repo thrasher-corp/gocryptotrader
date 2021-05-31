@@ -259,8 +259,7 @@ func (k *Kraken) signFuturesRequest(endpoint, nonce, data string) string {
 // SendFuturesAuthRequest will send an auth req
 func (k *Kraken) SendFuturesAuthRequest(method, path string, postData url.Values, data map[string]interface{}, result interface{}) error {
 	if !k.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
-			k.Name)
+		return fmt.Errorf("%s %w", k.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	if postData == nil {
 		postData = url.Values{}

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -29,7 +28,7 @@ type SMTPservice struct {
 
 // Setup takes in a SMTP configuration and sets SMTP server details and
 // recipient list
-func (s *SMTPservice) Setup(cfg *config.CommunicationsConfig) {
+func (s *SMTPservice) Setup(cfg *base.CommunicationsConfig) {
 	s.Name = cfg.SMTPConfig.Name
 	s.Enabled = cfg.SMTPConfig.Enabled
 	s.Verbose = cfg.SMTPConfig.Verbose

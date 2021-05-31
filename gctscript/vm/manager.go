@@ -6,11 +6,14 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const gctscriptManagerName = "GCTScript"
+const (
+	caseName = "GCTScript"
+	// Name is an exported subsystem name
+	Name = "gctscript"
+)
 
 // GctScriptManager loads and runs GCT Tengo scripts
 type GctScriptManager struct {
@@ -31,22 +34,24 @@ func NewManager(config *Config) (*GctScriptManager, error) {
 	}, nil
 }
 
-// Started returns if gctscript manager subsystem is started
-func (g *GctScriptManager) Started() bool {
+// IsRunning returns if gctscript manager subsystem is started
+func (g *GctScriptManager) IsRunning() bool {
+	if g == nil {
+		return false
+	}
 	return atomic.LoadInt32(&g.started) == 1
 }
 
 // Start starts gctscript subsystem and creates shutdown channel
 func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
 	if !atomic.CompareAndSwapInt32(&g.started, 0, 1) {
-		return fmt.Errorf("%s %w", gctscriptManagerName, subsystem.ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("%s %s", caseName, ErrScriptFailedValidation)
 	}
 	defer func() {
 		if err != nil {
 			atomic.CompareAndSwapInt32(&g.started, 1, 0)
 		}
 	}()
-	log.Debugln(log.Global, gctscriptManagerName, subsystem.MsgSubSystemStarting)
 
 	g.shutdown = make(chan struct{})
 	wg.Add(1)
@@ -57,13 +62,12 @@ func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
 // Stop stops gctscript subsystem along with all running Virtual Machines
 func (g *GctScriptManager) Stop() error {
 	if atomic.LoadInt32(&g.started) == 0 {
-		return fmt.Errorf("%s %w", gctscriptManagerName, subsystem.ErrSubSystemNotStarted)
+		return fmt.Errorf("%s not running", caseName)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&g.started, 1, 0)
 	}()
 
-	log.Debugln(log.GCTScriptMgr, gctscriptManagerName, subsystem.MsgSubSystemShuttingDown)
 	err := g.ShutdownAll()
 	if err != nil {
 		return err
@@ -73,13 +77,12 @@ func (g *GctScriptManager) Stop() error {
 }
 
 func (g *GctScriptManager) run(wg *sync.WaitGroup) {
-	log.Debugln(log.Global, gctscriptManagerName, subsystem.MsgSubSystemStarted)
+	log.Debugf(log.Global, "%s starting", caseName)
 
 	SetDefaultScriptOutput()
 	g.autoLoad()
 	defer func() {
 		wg.Done()
-		log.Debugln(log.GCTScriptMgr, gctscriptManagerName, subsystem.MsgSubSystemShutdown)
 	}()
 
 	<-g.shutdown

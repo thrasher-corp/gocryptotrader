@@ -1159,7 +1159,7 @@ func (f *FTX) UpdateSubaccountName(oldName, newName string) (*Subaccount, error)
 	return &resp.Data, nil
 }
 
-// DeleteSubaccountName deletes the specified subaccount name
+// DeleteSubaccount deletes the specified subaccount name
 func (f *FTX) DeleteSubaccount(name string) error {
 	if name == "" {
 		return errSubaccountNameMustBeSpecified

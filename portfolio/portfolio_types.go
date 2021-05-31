@@ -9,6 +9,7 @@ import (
 // Base holds the portfolio base addresses
 type Base struct {
 	Addresses []Address `json:"addresses"`
+	Verbose   bool
 }
 
 // Address sub type holding address information for portfolio

@@ -9754,7 +9754,7 @@
       "response": "Withdrew 0.0 LTC."
      },
      "queryString": "",
-     "bodyParams": "address=bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc\u0026amount=0\u0026command=withdraw\u0026currency=LTC\u0026nonce=1594157624217368003",
+     "bodyParams": "address=bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc\u0026amount=0.00001337\u0026command=withdraw\u0026currency=LTC\u0026nonce=1594157624217368003",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"

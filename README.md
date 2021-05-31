@@ -1,4 +1,4 @@
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -143,16 +143,17 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 650 |
-| [shazbert](https://github.com/shazbert) | 202 |
-| [gloriousCode](https://github.com/gloriousCode) | 176 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 87 |
+| [thrasher-](https://github.com/thrasher-) | 654 |
+| [shazbert](https://github.com/shazbert) | 207 |
+| [gloriousCode](https://github.com/gloriousCode) | 179 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
-| [MadCozBadd](https://github.com/MadCozBadd) | 10 |
+| [MadCozBadd](https://github.com/MadCozBadd) | 12 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
@@ -165,7 +166,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
