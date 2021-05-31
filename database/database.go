@@ -114,6 +114,7 @@ func (i *Instance) Ping() error {
 	return i.SQL.Ping()
 }
 
+// GetSQL returns the sql connection
 func (i *Instance) GetSQL() *sql.DB {
 	if i == nil || !i.IsConnected() {
 		return nil

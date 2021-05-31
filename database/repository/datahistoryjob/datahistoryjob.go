@@ -102,6 +102,7 @@ func (db *DBService) GetJobsBetween(startDate, endDate time.Time) ([]DataHistory
 	}
 }
 
+// GetAllIncompleteJobsAndResults returns all jobs that have the status "active"
 func (db *DBService) GetAllIncompleteJobsAndResults() ([]DataHistoryJob, error) {
 	switch db.driver {
 	case database.DBSQLite3, database.DBSQLite:

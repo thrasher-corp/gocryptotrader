@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
+// DataHistoryJobResult is a DTO for database data
 type DataHistoryJobResult struct {
 	ID                string
 	JobID             string
@@ -16,6 +17,8 @@ type DataHistoryJobResult struct {
 	Date              time.Time
 }
 
+// DBService is a service which allows the interaction with
+// the database without a direct reference to a global
 type DBService struct {
 	sql    database.ISQL
 	driver string

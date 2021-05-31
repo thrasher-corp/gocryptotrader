@@ -101,7 +101,7 @@ type Config struct {
 	sessionDK  []byte
 }
 
-//
+// DataHistoryManager holds all information required for the data history manager
 type DataHistoryManager struct {
 	Enabled         bool          `json:"enabled"`
 	CheckInterval   time.Duration `json:"checkInterval"`
