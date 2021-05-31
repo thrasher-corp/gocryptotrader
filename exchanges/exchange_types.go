@@ -184,10 +184,11 @@ type API struct {
 	Endpoints *Endpoints
 
 	Credentials struct {
-		Key      string
-		Secret   string
-		ClientID string
-		PEMKey   string
+		Key        string
+		Secret     string
+		ClientID   string
+		PEMKey     string
+		Subaccount string
 	}
 
 	CredentialsValidator struct {

@@ -551,6 +551,7 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 
 	b.API.AuthenticatedSupport = exch.API.AuthenticatedSupport
 	b.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
+	b.API.Credentials.Subaccount = exch.API.Credentials.Subaccount
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		b.SetAPIKeys(exch.API.Credentials.Key,
 			exch.API.Credentials.Secret,
