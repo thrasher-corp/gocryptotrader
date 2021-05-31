@@ -652,8 +652,8 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	if cfg.DataSettings.LiveData.API2FAOverride != "" {
 		base.API.Credentials.PEMKey = cfg.DataSettings.LiveData.API2FAOverride
 	}
-	if cfg.DataSettings.LiveData.APISubAccountOverride != "" {
-		base.API.Credentials.Subaccount = cfg.DataSettings.LiveData.APISubAccountOverride
+	if cfg.DataSettings.LiveData.APISubaccountOverride != "" {
+		base.API.Credentials.Subaccount = cfg.DataSettings.LiveData.APISubaccountOverride
 	}
 	validated := base.ValidateAPICredentials()
 	base.API.AuthenticatedSupport = validated
