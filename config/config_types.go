@@ -37,6 +37,7 @@ const (
 	DefaultAPISecret                     = "Secret"
 	DefaultAPIClientID                   = "ClientID"
 	defaultDataHistoryMonitorCheckTimer  = time.Minute
+	defaultMaxJobsPerCycle               = 5
 )
 
 // Constants here hold some messages
@@ -102,8 +103,9 @@ type Config struct {
 
 //
 type DataHistoryManager struct {
-	Enabled       bool          `json:"enabled"`
-	CheckInterval time.Duration `json:"checkInterval"`
+	Enabled         bool          `json:"enabled"`
+	CheckInterval   time.Duration `json:"checkInterval"`
+	MaxJobsPerCycle int64         `json:"maxJobsPerCycle"`
 }
 
 // ConnectionMonitorConfig defines the connection monitor variables to ensure

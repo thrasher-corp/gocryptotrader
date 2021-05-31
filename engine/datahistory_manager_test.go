@@ -9,6 +9,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -16,24 +17,29 @@ import (
 )
 
 func TestSetupDataHistoryManager(t *testing.T) {
-	_, err := SetupDataHistoryManager(nil, nil, 0)
+	_, err := SetupDataHistoryManager(nil, nil, nil)
 	if !errors.Is(err, errNilExchangeManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
 
-	_, err = SetupDataHistoryManager(SetupExchangeManager(), nil, 0)
+	_, err = SetupDataHistoryManager(SetupExchangeManager(), nil, nil)
 	if !errors.Is(err, errNilDatabaseConnectionManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilDatabaseConnectionManager)
 	}
 
-	_, err = SetupDataHistoryManager(SetupExchangeManager(), &database.Instance{}, 0)
+	_, err = SetupDataHistoryManager(SetupExchangeManager(), &database.Instance{}, nil)
+	if !errors.Is(err, errNilConfig) {
+		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
+	}
+
+	_, err = SetupDataHistoryManager(SetupExchangeManager(), &database.Instance{}, &config.DataHistoryManager{})
 	if !errors.Is(err, database.ErrDatabaseNotConnected) {
 		t.Errorf("error '%v', expected '%v'", err, database.ErrDatabaseNotConnected)
 	}
 
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, time.Second)
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -45,7 +51,7 @@ func TestSetupDataHistoryManager(t *testing.T) {
 func TestDataHistoryManagerIsRunning(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, time.Second)
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -72,7 +78,7 @@ func TestDataHistoryManagerIsRunning(t *testing.T) {
 func TestDataHistoryManagerStart(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, time.Second)
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -99,7 +105,7 @@ func TestDataHistoryManagerStart(t *testing.T) {
 func TestDataHistoryManagerStop(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, time.Second)
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -135,7 +141,7 @@ func setupDataHistoryManagerTest(t *testing.T) (*DataHistoryManager, *Engine) {
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}}
 	engerino.ExchangeManager.Add(exch)
-	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, time.Second)
+	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -666,7 +672,7 @@ func TestCompareJobsToData(t *testing.T) {
 func TestRunJob(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, time.Second)
+	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -694,7 +700,7 @@ func TestRunJob(t *testing.T) {
 		Exchange:  "Binance",
 		Asset:     asset.Spot,
 		Pair:      cp,
-		StartDate: time.Now().Add(-time.Hour * 24 * 7),
+		StartDate: time.Now().Add(-time.Hour * 24),
 		EndDate:   time.Now(),
 		Interval:  kline.OneDay,
 	}
@@ -703,13 +709,13 @@ func TestRunJob(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	err = m.runJob(dhj, exch)
+	err = m.runJob(dhj)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
 	dhj.Pair = currency.NewPair(currency.DOGE, currency.USDT)
-	err = m.runJob(dhj, exch)
+	err = m.runJob(dhj)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -724,13 +730,13 @@ func TestRunJob(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	err = m.runJob(dhj, exch)
+	err = m.runJob(dhj)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 }
 
-func TestProcessJobs(t *testing.T) {
+func TestRunJobs(t *testing.T) {
 	m, engerino := setupDataHistoryManagerTest(t)
 	if m == nil || engerino == nil {
 		t.Fatal("expected non nil setup")
@@ -750,13 +756,7 @@ func TestProcessJobs(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	err = m.processJobs()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-
-	dhj.Exchange = "Binance"
-	err = m.processJobs()
+	err = m.runJobs()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -765,7 +765,7 @@ func TestProcessJobs(t *testing.T) {
 func TestConverters(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, time.Second)
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -862,8 +862,9 @@ func TestGenerateJobSummary(t *testing.T) {
 		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
-	exch := engerino.ExchangeManager.GetExchangeByName(testExchange)
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	bn := "binance"
+	exch := engerino.ExchangeManager.GetExchangeByName(bn)
+	cp := currency.NewPair(currency.BTC, currency.USDT)
 	exch.SetDefaults()
 	b := exch.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
@@ -879,12 +880,12 @@ func TestGenerateJobSummary(t *testing.T) {
 
 	dhj := &DataHistoryJob{
 		Nickname:  "TestGenerateJobSummary",
-		Exchange:  testExchange,
+		Exchange:  bn,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Minute * 90),
-		EndDate:   time.Now().Add(-time.Minute * 45),
-		Interval:  kline.FifteenMin,
+		Pair:      cp,
+		StartDate: time.Now().Add(-time.Minute),
+		EndDate:   time.Now(),
+		Interval:  kline.OneMin,
 	}
 	err := m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
@@ -894,7 +895,7 @@ func TestGenerateJobSummary(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.runJob(dhj, exch)
+	err = m.runJob(dhj)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

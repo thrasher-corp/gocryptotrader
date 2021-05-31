@@ -9,12 +9,12 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 	exchangedb "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -22,33 +22,39 @@ import (
 )
 
 // SetupDataHistoryManager creates a data history manager subsystem
-func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager, processInterval time.Duration) (*DataHistoryManager, error) {
+func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager, cfg *config.DataHistoryManager) (*DataHistoryManager, error) {
 	if em == nil {
 		return nil, errNilExchangeManager
 	}
 	if dcm == nil {
 		return nil, errNilDatabaseConnectionManager
 	}
-	if processInterval <= 0 {
-		processInterval = defaultTicker
+	if cfg == nil {
+		return nil, errNilConfig
 	}
-
+	if cfg.CheckInterval <= 0 {
+		cfg.CheckInterval = defaultTicker
+	}
+	if cfg.MaxJobsPerCycle == 0 {
+		cfg.MaxJobsPerCycle = defaultMaxJobsPerCycle
+	}
 	dhj, err := datahistoryjob.Setup(dcm)
 	if err != nil {
 		return nil, err
 	}
-
 	dhjr, err := datahistoryjobresult.Setup(dcm)
 	if err != nil {
 		return nil, err
 	}
+
 	return &DataHistoryManager{
 		exchangeManager:           em,
 		databaseConnectionManager: dcm,
 		shutdown:                  make(chan struct{}),
-		interval:                  time.NewTicker(processInterval),
+		interval:                  time.NewTicker(cfg.CheckInterval),
 		jobDB:                     dhj,
 		jobResultDB:               dhjr,
+		maxJobsPerCycle:           cfg.MaxJobsPerCycle,
 	}, nil
 }
 
@@ -61,15 +67,6 @@ func (m *DataHistoryManager) Start() error {
 		return ErrSubSystemAlreadyStarted
 	}
 	m.shutdown = make(chan struct{})
-	validJobs, err := m.PrepareJobs()
-	if err != nil {
-		atomic.StoreInt32(&m.started, 0)
-		return err
-	}
-	m.m.Lock()
-	m.jobs = validJobs
-	m.m.Unlock()
-
 	m.wg.Add(1)
 	m.run()
 
@@ -141,17 +138,6 @@ func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 	if err != nil {
 		return nil, err
 	}
-	for i := range jobs {
-		if jobs[i].DataType == dataHistoryTradeDataType &&
-			jobs[i].Interval <= 0 {
-			jobs[i].Interval = defaultTradeInterval
-		}
-		exch := m.exchangeManager.GetExchangeByName(jobs[i].Exchange)
-		if exch == nil {
-			log.Errorf(log.DataHistory, "exchange not loaded, cannot process jobs")
-			continue
-		}
-	}
 	err = m.compareJobsToData(jobs...)
 	if err != nil {
 		return nil, err
@@ -214,17 +200,9 @@ func (m *DataHistoryManager) run() {
 			case <-m.interval.C:
 				if m.databaseConnectionManager.IsConnected() {
 					go func() {
-						if err := m.processJobs(); err != nil {
+						if err := m.runJobs(); err != nil {
 							log.Error(log.DataHistory, err)
 						}
-						validJobs, err := m.PrepareJobs()
-						if err != nil {
-							log.Error(log.DataHistory, err)
-							return
-						}
-						m.m.Lock()
-						m.jobs = validJobs
-						m.m.Unlock()
 					}()
 				}
 			}
@@ -232,7 +210,7 @@ func (m *DataHistoryManager) run() {
 	}()
 }
 
-func (m *DataHistoryManager) processJobs() error {
+func (m *DataHistoryManager) runJobs() error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
@@ -241,24 +219,23 @@ func (m *DataHistoryManager) processJobs() error {
 	}
 
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
-		return fmt.Errorf("processJobs %w", errAlreadyRunning)
+		return fmt.Errorf("runJobs %w", errAlreadyRunning)
 	}
+
+	validJobs, err := m.PrepareJobs()
+	if err != nil {
+		return err
+	}
+
 	m.m.Lock()
 	defer func() {
 		m.m.Unlock()
 		atomic.StoreInt32(&m.processing, 0)
 	}()
-	for i := range m.jobs {
-		exch := m.exchangeManager.GetExchangeByName(m.jobs[i].Exchange)
-		if exch == nil {
-			log.Errorf(log.DataHistory, "exchange %s not loaded, cannot process job %s for %s %s",
-				m.jobs[i].Exchange,
-				m.jobs[i].Nickname,
-				m.jobs[i].Asset,
-				m.jobs[i].Pair)
-			continue
-		}
-		err := m.runJob(m.jobs[i], exch)
+	m.jobs = validJobs
+
+	for i := 0; (i < int(m.maxJobsPerCycle) || m.maxJobsPerCycle == -1) && i < len(m.jobs); i++ {
+		err := m.runJob(m.jobs[i])
 		if err != nil {
 			log.Error(log.DataHistory, err)
 		}
@@ -267,7 +244,7 @@ func (m *DataHistoryManager) processJobs() error {
 }
 
 // runJob will iterate
-func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
+func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
@@ -284,6 +261,17 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob, exch exchange.IBotExcha
 	if job.rangeHolder == nil || len(job.rangeHolder.Ranges) == 0 {
 		return errJobInvalid
 	}
+
+	exch := m.exchangeManager.GetExchangeByName(job.Exchange)
+	if exch == nil {
+		return fmt.Errorf("%s %w, cannot process job %s for %s %s",
+			job.Exchange,
+			errExchangeNotLoaded,
+			job.Nickname,
+			job.Asset,
+			job.Pair)
+	}
+
 processing:
 	for i := range job.rangeHolder.Ranges {
 	processingInterval:
@@ -425,54 +413,50 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		return err
 	}
 	toUpdate := false
-
-	for i := range m.jobs {
-		if !strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
-			continue
+	if !insertOnly {
+		for i := range m.jobs {
+			if !strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
+				continue
+			}
+			toUpdate = true
+			if job.Exchange != "" && m.jobs[i].Exchange != job.Exchange {
+				m.jobs[i].Exchange = job.Exchange
+			}
+			if job.Asset != "" && m.jobs[i].Asset != job.Asset {
+				m.jobs[i].Asset = job.Asset
+			}
+			if !job.Pair.IsEmpty() && !m.jobs[i].Pair.Equal(job.Pair) {
+				m.jobs[i].Pair = job.Pair
+			}
+			if !job.StartDate.IsZero() && !m.jobs[i].StartDate.Equal(job.StartDate) {
+				m.jobs[i].StartDate = job.StartDate
+			}
+			if !job.EndDate.IsZero() && !m.jobs[i].EndDate.Equal(job.EndDate) {
+				m.jobs[i].EndDate = job.EndDate
+			}
+			if job.Interval != 0 && m.jobs[i].Interval != job.Interval {
+				m.jobs[i].Interval = job.Interval
+			}
+			if job.RunBatchLimit != 0 && m.jobs[i].RunBatchLimit != job.RunBatchLimit {
+				m.jobs[i].RunBatchLimit = job.RunBatchLimit
+			}
+			if job.RequestSizeLimit != 0 && m.jobs[i].RequestSizeLimit != job.RequestSizeLimit {
+				m.jobs[i].RequestSizeLimit = job.RequestSizeLimit
+			}
+			if job.MaxRetryAttempts != 0 && m.jobs[i].MaxRetryAttempts != job.MaxRetryAttempts {
+				m.jobs[i].MaxRetryAttempts = job.MaxRetryAttempts
+			}
+			m.jobs[i].DataType = job.DataType
+			m.jobs[i].Status = job.Status
+			break
 		}
-		toUpdate = true
-		if job.Exchange != "" && m.jobs[i].Exchange != job.Exchange {
-			m.jobs[i].Exchange = job.Exchange
-		}
-		if job.Asset != "" && m.jobs[i].Asset != job.Asset {
-			m.jobs[i].Asset = job.Asset
-		}
-		if !job.Pair.IsEmpty() && !m.jobs[i].Pair.Equal(job.Pair) {
-			m.jobs[i].Pair = job.Pair
-		}
-		if !job.StartDate.IsZero() && !m.jobs[i].StartDate.Equal(job.StartDate) {
-			m.jobs[i].StartDate = job.StartDate
-		}
-		if !job.EndDate.IsZero() && !m.jobs[i].EndDate.Equal(job.EndDate) {
-			m.jobs[i].EndDate = job.EndDate
-		}
-		if job.Interval != 0 && m.jobs[i].Interval != job.Interval {
-			m.jobs[i].Interval = job.Interval
-		}
-		if job.RunBatchLimit != 0 && m.jobs[i].RunBatchLimit != job.RunBatchLimit {
-			m.jobs[i].RunBatchLimit = job.RunBatchLimit
-		}
-		if job.RequestSizeLimit != 0 && m.jobs[i].RequestSizeLimit != job.RequestSizeLimit {
-			m.jobs[i].RequestSizeLimit = job.RequestSizeLimit
-		}
-		if job.MaxRetryAttempts != 0 && m.jobs[i].MaxRetryAttempts != job.MaxRetryAttempts {
-			m.jobs[i].MaxRetryAttempts = job.MaxRetryAttempts
-		}
-
-		m.jobs[i].DataType = job.DataType
-		m.jobs[i].Status = job.Status
-		m.jobs[i].rangeHolder, err = kline.CalculateCandleDateRanges(m.jobs[i].StartDate, m.jobs[i].EndDate, m.jobs[i].Interval, uint32(m.jobs[i].RequestSizeLimit))
-		if err != nil {
-			return err
-		}
-
-		break
 	}
+	job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.Interval, uint32(job.RequestSizeLimit))
+	if err != nil {
+		return err
+	}
+
 	if !toUpdate {
-		job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.Interval, uint32(job.RequestSizeLimit))
-		if err != nil {
-			return err
-		}
 		m.jobs = append(m.jobs, job)
 	}
 	if job.ID == uuid.Nil {
@@ -527,6 +511,11 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	if job.MaxRetryAttempts <= 0 {
 		log.Warnf(log.DataHistory, "job %s has unset max retry limit, defaulting to %v", job.Nickname, defaultRetryAttempts)
 		job.MaxRetryAttempts = defaultRetryAttempts
+	}
+
+	if job.DataType == dataHistoryTradeDataType &&
+		job.Interval <= 0 {
+		job.Interval = defaultTradeInterval
 	}
 
 	job.StartDate = job.StartDate.Round(job.Interval.Duration())
@@ -695,7 +684,7 @@ func (m *DataHistoryManager) GetActiveJobs() ([]DataHistoryJob, error) {
 
 // GenerateJobSummary returns a human readable summary of a job's status
 func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJobSummary, error) {
-	job, err := m.GetByNickname(nickname, true)
+	job, err := m.GetByNickname(nickname, false)
 	if err != nil {
 		return nil, err
 	}

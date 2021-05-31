@@ -1417,6 +1417,9 @@ func (c *Config) CheckDataHistoryMonitorConfig() {
 	if c.DataHistoryMonitor.CheckInterval <= 0 {
 		c.DataHistoryMonitor.CheckInterval = defaultDataHistoryMonitorCheckTimer
 	}
+	if c.DataHistoryMonitor.MaxJobsPerCycle == 0 {
+		c.DataHistoryMonitor.MaxJobsPerCycle = defaultMaxJobsPerCycle
+	}
 }
 
 // CheckConnectionMonitorConfig checks and if zero value assigns default values

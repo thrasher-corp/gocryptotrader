@@ -137,7 +137,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 
 		var tempEvent = sqlite3.Datahistoryjob{
 			ID:             jobs[i].ID,
-			Nickname:       jobs[i].Nickname,
+			Nickname:       strings.ToLower(jobs[i].Nickname),
 			ExchangeNameID: jobs[i].ExchangeID,
 			Asset:          strings.ToLower(jobs[i].Asset),
 			Base:           strings.ToUpper(jobs[i].Base),
@@ -173,7 +173,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 		}
 		var tempEvent = postgres.Datahistoryjob{
 			ID:             jobs[i].ID,
-			Nickname:       jobs[i].Nickname,
+			Nickname:       strings.ToLower(jobs[i].Nickname),
 			ExchangeNameID: jobs[i].ExchangeID,
 			Asset:          strings.ToLower(jobs[i].Asset),
 			Base:           strings.ToUpper(jobs[i].Base),
@@ -198,7 +198,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 
 func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	whereQM := qm.Where("nickname = ?", nickname)
+	whereQM := qm.Where("nickname = ?", strings.ToLower(nickname))
 	result, err := sqlite3.Datahistoryjobs(whereQM).One(context.Background(), db.sql)
 	if err != nil {
 		return job, err
@@ -451,7 +451,7 @@ func (db *DBService) getJobsBetweenPostgres(startDate, endDate time.Time) ([]Dat
 
 func (db *DBService) getJobAndAllResultsSQLite(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	query := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("nickname = ?", nickname))
+	query := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("nickname = ?", strings.ToLower(nickname)))
 	result, err := query.One(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
@@ -526,7 +526,7 @@ func (db *DBService) getJobAndAllResultsSQLite(nickname string) (*DataHistoryJob
 
 func (db *DBService) getJobAndAllResultsPostgres(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	query := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("nickname = ?", nickname))
+	query := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("nickname = ?", strings.ToLower(nickname)))
 	result, err := query.One(context.Background(), db.sql)
 	if err != nil {
 		return job, err

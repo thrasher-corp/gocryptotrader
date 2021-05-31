@@ -123,7 +123,7 @@ func (m *ntpManager) FetchNTPTime() (time.Time, error) {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return time.Time{}, fmt.Errorf("NTP manager %w", ErrSubSystemNotStarted)
 	}
-	return checkTimeInPools(m.pools), nil
+	return m.checkTimeInPools(m.pools), nil
 }
 
 // processTime determines the difference between system time and NTP time
@@ -154,7 +154,7 @@ func (m *ntpManager) processTime() error {
 
 // checkTimeInPools returns local based on ntp servers provided timestamp
 // if no server can be reached will return local time in UTC()
-func checkTimeInPools(pool []string) time.Time {
+func (m *ntpManager) checkTimeInPools(pool []string) time.Time {
 	for i := range pool {
 		con, err := net.DialTimeout("udp", pool[i], 5*time.Second)
 		if err != nil {

@@ -427,7 +427,7 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableDataHistoryManager {
 		if bot.dataHistoryManager == nil {
-			bot.dataHistoryManager, err = SetupDataHistoryManager(bot.ExchangeManager, bot.DatabaseManager.dbConn, bot.Config.DataHistoryMonitor.CheckInterval)
+			bot.dataHistoryManager, err = SetupDataHistoryManager(bot.ExchangeManager, bot.DatabaseManager.dbConn, &bot.Config.DataHistoryMonitor)
 			if err != nil {
 				gctlog.Errorf(gctlog.Global, "database history manager unable to setup: %s", err)
 			} else {

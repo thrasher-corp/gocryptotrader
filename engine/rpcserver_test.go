@@ -122,13 +122,15 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("failed to run migrations %v", err)
 	}
-	uuider, _ := uuid.NewV4()
-	err = dbexchange.Insert(dbexchange.Details{Name: testExchange, UUID: uuider})
+	uuider, err := uuid.NewV4()
 	if err != nil {
-		t.Fatalf("failed to insert exchange %v", err)
+		t.Fatal(err)
 	}
-	uuider2, _ := uuid.NewV4()
-	err = dbexchange.Insert(dbexchange.Details{Name: "Binance", UUID: uuider2})
+	uuider2, err := uuid.NewV4()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = dbexchange.InsertMany([]dbexchange.Details{{Name: testExchange, UUID: uuider}, {Name: "Binance", UUID: uuider2}})
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)
 	}
@@ -1188,13 +1190,12 @@ func TestParseEvents(t *testing.T) {
 
 func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
 	var err error
-
-	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, time.Minute)
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
 	_, err = s.UpsertDataHistoryJob(context.Background(), nil)
 	if !errors.Is(err, errNilRequestData) {
