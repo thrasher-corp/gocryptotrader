@@ -21,7 +21,10 @@ func Connect(db string) (*database.Instance, error) {
 		return nil, err
 	}
 
-	database.DB.SetSQLiteConnection(dbConn)
+	err = database.DB.SetSQLiteConnection(dbConn)
+	if err != nil {
+		return nil, err
+	}
 
 	return database.DB, nil
 }

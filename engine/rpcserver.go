@@ -3356,6 +3356,9 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 	if r.Id == "" && r.Nickname == "" {
 		return nil, errNicknameIDUnset
 	}
+	if r.Nickname != "" && r.Id != "" {
+		return nil, errOnlyNicknameOrID
+	}
 	var (
 		result     *DataHistoryJob
 		err        error
@@ -3387,6 +3390,7 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 		}
 	}
 	return &gctrpc.DataHistoryJob{
+		Id:       result.ID.String(),
 		Nickname: result.Nickname,
 		Exchange: result.Exchange,
 		Asset:    result.Asset.String(),
@@ -3409,6 +3413,9 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 
 // DeleteDataHistoryJob deletes a data history job from the database
 func (s *RPCServer) DeleteDataHistoryJob(_ context.Context, r *gctrpc.GetDataHistoryJobDetailsRequest) (*gctrpc.GenericResponse, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
 	if r.Nickname == "" && r.Id == "" {
 		return nil, errNicknameIDUnset
 	}
@@ -3425,7 +3432,7 @@ func (s *RPCServer) DeleteDataHistoryJob(_ context.Context, r *gctrpc.GetDataHis
 }
 
 // GetActiveDataHistoryJobs returns any active data history job details
-func (s *RPCServer) GetActiveDataHistoryJobs(_ context.Context, r *gctrpc.GetInfoRequest) (*gctrpc.DataHistoryJobs, error) {
+func (s *RPCServer) GetActiveDataHistoryJobs(_ context.Context, _ *gctrpc.GetInfoRequest) (*gctrpc.DataHistoryJobs, error) {
 	jobs, err := s.dataHistoryManager.GetActiveJobs()
 	if err != nil {
 		return nil, err
@@ -3434,6 +3441,7 @@ func (s *RPCServer) GetActiveDataHistoryJobs(_ context.Context, r *gctrpc.GetInf
 	var response []*gctrpc.DataHistoryJob
 	for i := range jobs {
 		response = append(response, &gctrpc.DataHistoryJob{
+			Id:       jobs[i].ID.String(),
 			Nickname: jobs[i].Nickname,
 			Exchange: jobs[i].Exchange,
 			Asset:    jobs[i].Asset.String(),
@@ -3457,6 +3465,9 @@ func (s *RPCServer) GetActiveDataHistoryJobs(_ context.Context, r *gctrpc.GetInf
 
 // GetDataHistoryJobsBetween returns all jobs created between supplied dates
 func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDataHistoryJobsBetweenRequest) (*gctrpc.DataHistoryJobs, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
 	var UTCStartTime, UTCEndTime time.Time
 	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
 	if err != nil {
@@ -3467,6 +3478,10 @@ func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDa
 	if err != nil {
 		return nil, err
 	}
+	if UTCStartTime.After(UTCEndTime) {
+		return nil, errInvalidTimes
+	}
+
 	jobs, err := s.dataHistoryManager.GetAllJobStatusBetween(UTCStartTime, UTCEndTime)
 	if err != nil {
 		return nil, err
@@ -3474,6 +3489,7 @@ func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDa
 	var respJobs []*gctrpc.DataHistoryJob
 	for i := range jobs {
 		respJobs = append(respJobs, &gctrpc.DataHistoryJob{
+			Id:       jobs[i].ID.String(),
 			Nickname: jobs[i].Nickname,
 			Exchange: jobs[i].Exchange,
 			Asset:    jobs[i].Asset.String(),
@@ -3499,6 +3515,12 @@ func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDa
 
 // GetDataHistoryJobSummary provides a general look at how a data history job is going with the "resultSummaries" property
 func (s *RPCServer) GetDataHistoryJobSummary(_ context.Context, r *gctrpc.GetDataHistoryJobDetailsRequest) (*gctrpc.DataHistoryJob, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+	if r.Nickname == "" {
+		return nil, errNicknameUnset
+	}
 	job, err := s.dataHistoryManager.GenerateJobSummary(r.Nickname)
 	if err != nil {
 		return nil, err

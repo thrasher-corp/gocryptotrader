@@ -26,8 +26,12 @@ func Setup(db database.IDatabase) (*DBService, error) {
 		return nil, nil
 	}
 	cfg := db.GetConfig()
+	dbCon, err := db.GetSQL()
+	if err != nil {
+		return nil, err
+	}
 	return &DBService{
-		sql:    db.GetSQL(),
+		sql:    dbCon,
 		driver: cfg.Driver,
 	}, nil
 }

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1237,5 +1238,310 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	_, err = s.UpsertDataHistoryJob(context.Background(), job)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
+	}
+}
+
+func TestGetDataHistoryJobDetails(t *testing.T) {
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	var err error
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+	s := RPCServer{Engine: engerino}
+
+	dhj := &DataHistoryJob{
+		Nickname:  "TestGetDataHistoryJobDetails",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		StartDate: time.Now().Add(-time.Second),
+		EndDate:   time.Now(),
+		Interval:  kline.OneMin,
+	}
+	err = s.dataHistoryManager.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+	err = engerino.dataHistoryManager.UpsertJob(dhj, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+
+	_, err = s.GetDataHistoryJobDetails(context.Background(), nil)
+	if !errors.Is(err, errNilRequestData) {
+		t.Errorf("received %v, expected %v", err, errNilRequestData)
+	}
+
+	_, err = s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{})
+	if !errors.Is(err, errNicknameIDUnset) {
+		t.Errorf("received %v, expected %v", err, errNicknameIDUnset)
+	}
+
+	_, err = s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: "123", Nickname: "123"})
+	if !errors.Is(err, errOnlyNicknameOrID) {
+		t.Errorf("received %v, expected %v", err, errOnlyNicknameOrID)
+	}
+
+	_, err = s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestGetDataHistoryJobDetails"})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+
+	_, err = s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: engerino.dataHistoryManager.jobs[0].ID.String()})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+
+	resp, err := s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestGetDataHistoryJobDetails", FullDetails: true})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+	if resp == nil {
+		t.Fatal("expected job")
+	}
+	if !strings.EqualFold(resp.Nickname, "TestGetDataHistoryJobDetails") {
+		t.Errorf("received %v, expected %v", "TestGetDataHistoryJobDetails", resp.Nickname)
+	}
+}
+
+func TestDeleteDataHistoryJob(t *testing.T) {
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	var err error
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+	s := RPCServer{Engine: engerino}
+
+	dhj := &DataHistoryJob{
+		Nickname:  "TestDeleteDataHistoryJob",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		StartDate: time.Now().Add(-time.Second),
+		EndDate:   time.Now(),
+		Interval:  kline.OneMin,
+	}
+	err = s.dataHistoryManager.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+	err = engerino.dataHistoryManager.UpsertJob(dhj, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+	_, err = s.DeleteDataHistoryJob(context.Background(), nil)
+	if !errors.Is(err, errNilRequestData) {
+		t.Errorf("received %v, expected %v", err, errNilRequestData)
+	}
+
+	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{})
+	if !errors.Is(err, errNicknameIDUnset) {
+		t.Errorf("received %v, expected %v", err, errNicknameIDUnset)
+	}
+
+	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: "123", Nickname: "123"})
+	if !errors.Is(err, errOnlyNicknameOrID) {
+		t.Errorf("received %v, expected %v", err, errOnlyNicknameOrID)
+	}
+
+	id := engerino.dataHistoryManager.jobs[0].ID.String()
+	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestDeleteDataHistoryJob"})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+
+	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: id})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+	if len(engerino.dataHistoryManager.jobs) != 0 {
+		t.Errorf("received %v, expected %v", len(engerino.dataHistoryManager.jobs), 0)
+	}
+}
+
+func TestGetActiveDataHistoryJobs(t *testing.T) {
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	var err error
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+	s := RPCServer{Engine: engerino}
+
+	dhj := &DataHistoryJob{
+		Nickname:  "TestGetActiveDataHistoryJobs",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		StartDate: time.Now().Add(-time.Second),
+		EndDate:   time.Now(),
+		Interval:  kline.OneMin,
+	}
+	err = s.dataHistoryManager.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+
+	r, err := s.GetActiveDataHistoryJobs(context.Background(), nil)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+	if len(r.Results) != 0 {
+		t.Fatalf("received %v, expected %v", len(r.Results), 0)
+	}
+
+	err = engerino.dataHistoryManager.UpsertJob(dhj, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+
+	r, err = s.GetActiveDataHistoryJobs(context.Background(), nil)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+	if len(r.Results) != 1 {
+		t.Fatalf("received %v, expected %v", len(r.Results), 1)
+	}
+
+	id := engerino.dataHistoryManager.jobs[0].ID.String()
+	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: id})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+
+	r, err = s.GetActiveDataHistoryJobs(context.Background(), nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+	if len(r.Results) != 0 {
+		t.Errorf("received %v, expected %v", len(r.Results), 0)
+	}
+}
+
+func TestGetDataHistoryJobsBetween(t *testing.T) {
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	var err error
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+	s := RPCServer{Engine: engerino}
+
+	dhj := &DataHistoryJob{
+		Nickname:  "GetDataHistoryJobsBetween",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		StartDate: time.Now().Add(-time.Second),
+		EndDate:   time.Now(),
+		Interval:  kline.OneMin,
+	}
+	err = s.dataHistoryManager.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+
+	_, err = s.GetDataHistoryJobsBetween(context.Background(), nil)
+	if !errors.Is(err, errNilRequestData) {
+		t.Fatalf("received %v, expected %v", err, errNilRequestData)
+	}
+
+	_, err = s.GetDataHistoryJobsBetween(context.Background(), &gctrpc.GetDataHistoryJobsBetweenRequest{
+		StartDate: time.Now().Add(time.Minute).Format(common.SimpleTimeFormat),
+		EndDate:   time.Now().Format(common.SimpleTimeFormat),
+	})
+	if !errors.Is(err, errInvalidTimes) {
+		t.Fatalf("received %v, expected %v", err, errInvalidTimes)
+	}
+
+	r, err := s.GetDataHistoryJobsBetween(context.Background(), &gctrpc.GetDataHistoryJobsBetweenRequest{
+		StartDate: time.Now().Add(-time.Minute).Format(common.SimpleTimeFormat),
+		EndDate:   time.Now().Format(common.SimpleTimeFormat),
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+	if len(r.Results) != 0 {
+		t.Fatalf("received %v, expected %v", len(r.Results), 0)
+	}
+
+	err = engerino.dataHistoryManager.UpsertJob(dhj, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+
+	r, err = s.GetDataHistoryJobsBetween(context.Background(), &gctrpc.GetDataHistoryJobsBetweenRequest{
+		StartDate: time.Now().Add(-time.Minute).UTC().Format(common.SimpleTimeFormat),
+		EndDate:   time.Now().Add(time.Minute).UTC().Format(common.SimpleTimeFormat),
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+	if len(r.Results) != 1 {
+		t.Errorf("received %v, expected %v", len(r.Results), 1)
+	}
+}
+
+func TestGetDataHistoryJobSummary(t *testing.T) {
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	var err error
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+	s := RPCServer{Engine: engerino}
+
+	dhj := &DataHistoryJob{
+		Nickname:  "TestGetDataHistoryJobSummary",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		StartDate: time.Now().Add(-time.Second),
+		EndDate:   time.Now(),
+		Interval:  kline.OneMin,
+	}
+	err = s.dataHistoryManager.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+	err = engerino.dataHistoryManager.UpsertJob(dhj, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+
+	_, err = s.GetDataHistoryJobSummary(context.Background(), nil)
+	if !errors.Is(err, errNilRequestData) {
+		t.Errorf("received %v, expected %v", err, errNilRequestData)
+	}
+
+	_, err = s.GetDataHistoryJobSummary(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{})
+	if !errors.Is(err, errNicknameUnset) {
+		t.Errorf("received %v, expected %v", err, errNicknameUnset)
+	}
+
+	_, err = s.GetDataHistoryJobSummary(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "123"})
+	if !errors.Is(err, errJobNotFound) {
+		t.Errorf("received %v, expected %v", err, errJobNotFound)
+	}
+
+	resp, err := s.GetDataHistoryJobSummary(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestGetDataHistoryJobSummary"})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+	if resp == nil {
+		t.Fatal("expected job")
+	}
+	if !strings.EqualFold(resp.Nickname, "TestGetDataHistoryJobSummary") {
+		t.Errorf("received %v, expected %v", "TestGetDataHistoryJobSummary", resp.Nickname)
+	}
+	if resp.ResultSummaries == nil {
+		t.Errorf("received %v, expected %v", nil, "result summaries slice")
 	}
 }

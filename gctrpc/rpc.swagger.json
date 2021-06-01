@@ -3182,6 +3182,9 @@
     "gctrpcDataHistoryJob": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string"
+        },
         "nickname": {
           "type": "string"
         },

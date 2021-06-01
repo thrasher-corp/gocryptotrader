@@ -90,6 +90,6 @@ type iCurrencyPairSyncer interface {
 
 type iDatabaseConnectionManager interface {
 	IsConnected() bool
-	GetSQL() *sql.DB
+	GetSQL() (*sql.DB, error)
 	GetConfig() *database.Config
 }

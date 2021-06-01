@@ -882,20 +882,21 @@ message GetDataHistoryJobDetailsRequest {
 }
 
 message DataHistoryJob {
-    string	nickname = 1;
-    string	exchange = 2;
-    string	asset = 3;
-    CurrencyPair pair = 4;
-    string	start_date = 5;
-    string	end_date = 6;
-    int64	interval = 7;
-    int64	request_size_limit = 8;
-    int64	max_retry_attempts = 9;
-    int64	batch_size = 10;
-    string status = 11;
-    string data_type = 12;
-    repeated DataHistoryJobResult job_results = 13;
-    repeated string result_summaries = 14;
+    string id = 1;
+    string	nickname = 2;
+    string	exchange =3;
+    string	asset = 4;
+    CurrencyPair pair = 5;
+    string	start_date = 6;
+    string	end_date = 7;
+    int64	interval = 8;
+    int64	request_size_limit = 9;
+    int64	max_retry_attempts = 10;
+    int64	batch_size = 11;
+    string status = 12;
+    string data_type = 13;
+    repeated DataHistoryJobResult job_results = 14;
+    repeated string result_summaries = 15;
 }
 
 

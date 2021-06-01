@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/sqlboiler/boil"
@@ -30,14 +31,18 @@ func (i *Instance) SetConfig(cfg *Config) error {
 
 // SetSQLiteConnection safely sets the global database instance's connection
 // to use SQLite
-func (i *Instance) SetSQLiteConnection(con *sql.DB) {
+func (i *Instance) SetSQLiteConnection(con *sql.DB) error {
 	if i == nil {
-		return
+		return ErrNilInstance
+	}
+	if con == nil {
+		return errNilSQL
 	}
 	i.m.Lock()
 	defer i.m.Unlock()
 	i.SQL = con
 	i.SQL.SetMaxOpenConns(1)
+	return nil
 }
 
 // SetPostgresConnection safely sets the global database instance's connection
@@ -46,8 +51,11 @@ func (i *Instance) SetPostgresConnection(con *sql.DB) error {
 	if i == nil {
 		return ErrNilInstance
 	}
+	if con == nil {
+		return errNilSQL
+	}
 	if err := con.Ping(); err != nil {
-		return err
+		return fmt.Errorf("%w %s", errFailedPing, err)
 	}
 	i.m.Lock()
 	defer i.m.Unlock()
@@ -74,8 +82,12 @@ func (i *Instance) CloseConnection() error {
 	if i == nil {
 		return ErrNilInstance
 	}
+	if i.SQL == nil {
+		return errNilSQL
+	}
 	i.m.Lock()
 	defer i.m.Unlock()
+
 	return i.SQL.Close()
 }
 
@@ -94,7 +106,6 @@ func (i *Instance) GetConfig() *Config {
 	if i == nil {
 		return nil
 	}
-
 	i.m.RLock()
 	defer i.m.RUnlock()
 	cpy := i.config
@@ -106,6 +117,9 @@ func (i *Instance) Ping() error {
 	if i == nil {
 		return ErrNilInstance
 	}
+	if !i.IsConnected() {
+		return ErrDatabaseNotConnected
+	}
 	i.m.RLock()
 	defer i.m.RUnlock()
 	if i.SQL == nil {
@@ -115,12 +129,15 @@ func (i *Instance) Ping() error {
 }
 
 // GetSQL returns the sql connection
-func (i *Instance) GetSQL() *sql.DB {
-	if i == nil || !i.IsConnected() {
-		return nil
+func (i *Instance) GetSQL() (*sql.DB, error) {
+	if i == nil {
+		return nil, ErrNilInstance
+	}
+	if i.SQL == nil {
+		return nil, errNilSQL
 	}
 	i.m.Lock()
 	defer i.m.Unlock()
 	resp := i.SQL
-	return resp
+	return resp, nil
 }

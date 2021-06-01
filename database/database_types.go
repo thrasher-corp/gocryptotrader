@@ -48,6 +48,7 @@ var (
 	ErrNilInstance = errors.New("database instance is nil")
 	errNilConfig   = errors.New("received nil config")
 	errNilSQL      = errors.New("database SQL connection is nil")
+	errFailedPing  = errors.New("unable to verify database is connected, failed ping")
 )
 
 const (
@@ -65,7 +66,7 @@ const (
 // without giving the receiver access to all functionality
 type IDatabase interface {
 	IsConnected() bool
-	GetSQL() *sql.DB
+	GetSQL() (*sql.DB, error)
 	GetConfig() *Config
 }
 

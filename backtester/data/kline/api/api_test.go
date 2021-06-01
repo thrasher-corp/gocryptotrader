@@ -71,7 +71,7 @@ func TestLoadCandles(t *testing.T) {
 func TestLoadTrades(t *testing.T) {
 	t.Parallel()
 	interval := gctkline.FifteenMin
-	tt1 := time.Now().Add(-time.Minute * 15).Round(interval.Duration())
+	tt1 := time.Now().Add(-time.Minute * 30).Round(interval.Duration())
 	tt2 := time.Now().Round(interval.Duration())
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
