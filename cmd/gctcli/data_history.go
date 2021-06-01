@@ -56,23 +56,23 @@ var (
 			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
-		cli.StringFlag{
+		cli.Int64Flag{
 			Name:  "interval",
 			Usage: klineMessage,
 		},
-		cli.StringFlag{
+		cli.Int64Flag{
 			Name:  "request_size_limit",
 			Usage: "500 - will only retrieve 500 candles per API request",
 		},
-		cli.StringFlag{
+		cli.Int64Flag{
 			Name:  "data_type",
-			Usage: "candles or trades",
+			Usage: "0 for candles, 1 for trades",
 		},
-		cli.StringFlag{
+		cli.Int64Flag{
 			Name:  "max_retry_attempts",
 			Usage: "3 - the maximum retry attempts for an interval period before giving up",
 		},
-		cli.StringFlag{
+		cli.Int64Flag{
 			Name:  "batch_size",
 			Usage: "3 - the amount of API calls to make per run",
 		},
@@ -95,14 +95,14 @@ var dataHistoryCommands = cli.Command{
 			Usage: "returns all jobs with creation dates between the two provided dates",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:        "start",
-					Usage:       "2006-01-02 15:04:05",
-					Value:       time.Now().Add(-time.Hour * 6).Format(common.SimpleTimeFormat),
+					Name:        "start_date",
+					Usage:       "formatted as: 2006-01-02 15:04:05",
+					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 					Destination: &startTime,
 				},
 				cli.StringFlag{
-					Name:        "end",
-					Usage:       "2006-01-02 15:04:05",
+					Name:        "end_date",
+					Usage:       "formatted as: 2006-01-02 15:04:05",
 					Value:       time.Now().Format(common.SimpleTimeFormat),
 					Destination: &endTime,
 				},
@@ -379,20 +379,11 @@ func upsertDataHistoryJob(c *cli.Context) error {
 }
 
 func getDataHistoryJobsBetween(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "gethistoric")
+	if c.IsSet("start_date") {
+		startTime = c.String("start_date")
 	}
-
-	if !c.IsSet("start") {
-		if c.Args().Get(3) != "" {
-			startTime = c.Args().Get(3)
-		}
-	}
-
-	if !c.IsSet("end") {
-		if c.Args().Get(4) != "" {
-			endTime = c.Args().Get(4)
-		}
+	if c.IsSet("end_date") {
+		endTime = c.String("end_date")
 	}
 	s, err := time.Parse(common.SimpleTimeFormat, startTime)
 	if err != nil {

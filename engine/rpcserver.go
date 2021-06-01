@@ -3372,16 +3372,17 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 		if err != nil {
 			return nil, fmt.Errorf("%s %w", r.Nickname, err)
 		}
-
-		for _, v := range result.Results {
-			for i := range v {
-				jobResults = append(jobResults, &gctrpc.DataHistoryJobResult{
-					StartDate: v[i].IntervalStartDate.Format(common.SimpleTimeFormat),
-					EndDate:   v[i].IntervalEndDate.Format(common.SimpleTimeFormat),
-					HasData:   v[i].Status == dataHistoryStatusComplete,
-					Message:   v[i].Result,
-					RunDate:   v[i].Date.Format(common.SimpleTimeFormat),
-				})
+		if r.FullDetails {
+			for _, v := range result.Results {
+				for i := range v {
+					jobResults = append(jobResults, &gctrpc.DataHistoryJobResult{
+						StartDate: v[i].IntervalStartDate.Format(common.SimpleTimeFormat),
+						EndDate:   v[i].IntervalEndDate.Format(common.SimpleTimeFormat),
+						HasData:   v[i].Status == dataHistoryStatusComplete,
+						Message:   v[i].Result,
+						RunDate:   v[i].Date.Format(common.SimpleTimeFormat),
+					})
+				}
 			}
 		}
 	}

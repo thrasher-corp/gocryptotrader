@@ -46,7 +46,8 @@ var (
 	// ErrStartAfterEnd is an error for date range calculation
 	ErrStartAfterEnd = errors.New("cannot calculate range, start date after end date")
 	// ErrUnsetInterval is an error for date range calculation
-	ErrUnsetInterval       = errors.New("cannot calculate range, interval unset")
+	ErrUnsetInterval = errors.New("cannot calculate range, interval unset")
+	// ErrUnsupportedInterval returns when the provided interval is not supported by an exchange
 	ErrUnsupportedInterval = errors.New("interval unsupported by exchange")
 
 	// SupportedIntervals is a list of all supported intervals

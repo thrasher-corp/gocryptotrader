@@ -202,7 +202,6 @@ func (m *DataHistoryManager) run() {
 				return
 			case <-m.interval.C:
 				if m.databaseConnectionManager.IsConnected() {
-					log.Infof(log.DataHistory, "processing data history jobs")
 					go func() {
 						if err := m.runJobs(); err != nil {
 							log.Error(log.DataHistory, err)
@@ -237,7 +236,7 @@ func (m *DataHistoryManager) runJobs() error {
 		atomic.StoreInt32(&m.processing, 0)
 	}()
 	m.jobs = validJobs
-
+	log.Infof(log.DataHistory, "processing data history jobs")
 	for i := 0; (i < int(m.maxJobsPerCycle) || m.maxJobsPerCycle == -1) && i < len(m.jobs); i++ {
 		err := m.runJob(m.jobs[i])
 		if err != nil {
@@ -245,6 +244,8 @@ func (m *DataHistoryManager) runJobs() error {
 		}
 		log.Infof(log.DataHistory, "completed run of data history job %v", m.jobs[i].Nickname)
 	}
+	log.Infof(log.DataHistory, "completed run of data history jobs")
+
 	return nil
 }
 
@@ -259,7 +260,6 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	if job.Status == dataHistoryStatusComplete ||
 		job.Status == dataHistoryStatusFailed ||
 		job.Status == dataHistoryStatusRemoved {
-		// job doesn't need to be run. Log it?
 		return nil
 	}
 	var intervalsProcessed int64
@@ -277,87 +277,86 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			job.Pair)
 	}
 	log.Infof(log.DataHistory, "running data history job %v", job.Nickname)
-processing:
 	for i := range job.rangeHolder.Ranges {
-	processingInterval:
+		isCompleted := true
 		for j := range job.rangeHolder.Ranges[i].Intervals {
-			if job.rangeHolder.Ranges[i].Intervals[j].HasData {
-				continue
+			if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
+				isCompleted = false
+				break
 			}
-			if intervalsProcessed >= job.RunBatchLimit {
-				break processing
-			}
-			var failures int64
-			resultLookup := job.Results[job.rangeHolder.Ranges[i].Intervals[j].Start.Time]
-			for x := range resultLookup {
-				if resultLookup[x].Status == dataHistoryStatusComplete {
-					continue processingInterval
-				}
-				if resultLookup[x].Status == dataHistoryStatusFailed {
-					failures++
-				}
-			}
-			if failures >= job.MaxRetryAttempts {
-				job.Status = dataHistoryStatusFailed
-				break processing
-			}
-			intervalsProcessed++
-			status := dataHistoryStatusComplete
-			id, err := uuid.NewV4()
-			if err != nil {
-				return err
-			}
-			result := DataHistoryJobResult{
-				ID:                id,
-				JobID:             job.ID,
-				IntervalStartDate: job.rangeHolder.Ranges[i].Intervals[j].Start.Time,
-				IntervalEndDate:   job.rangeHolder.Ranges[i].Intervals[j].End.Time,
-				Status:            status,
-				Date:              time.Now(),
-			}
-			// processing the job
-			switch job.DataType {
-			case dataHistoryCandleDataType:
-				candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Intervals[j].Start.Time, job.rangeHolder.Ranges[i].Intervals[j].End.Time, job.Interval)
-				if err != nil {
-					result.Result = "could not get candles: " + err.Error()
-					result.Status = dataHistoryStatusFailed
-					break
-				}
-				_ = job.rangeHolder.VerifyResultsHaveData(candles.Candles)
-				_, err = kline.StoreInDatabase(&candles, true)
-				if err != nil {
-					result.Result = "could not save results: " + err.Error()
-					result.Status = dataHistoryStatusFailed
-					break
-				}
-			case dataHistoryTradeDataType:
-				trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
-				if err != nil {
-					result.Result = "could not get trades: " + err.Error()
-					result.Status = dataHistoryStatusFailed
-					break
-				}
-				candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
-				if err != nil {
-					result.Result = "could not convert candles to trades: " + err.Error()
-					result.Status = dataHistoryStatusFailed
-					break
-				}
-				_ = job.rangeHolder.VerifyResultsHaveData(candles.Candles)
-				err = trade.SaveTradesToDatabase(trades...)
-				if err != nil {
-					result.Result = "could not save results: " + err.Error()
-					result.Status = dataHistoryStatusFailed
-				}
-			default:
-				return errUnknownDataType
-			}
-
-			lookup := job.Results[result.IntervalStartDate]
-			lookup = append(lookup, result)
-			job.Results[result.IntervalStartDate] = lookup
 		}
+		if isCompleted ||
+			intervalsProcessed >= job.RunBatchLimit {
+			continue
+		}
+
+		var failures int64
+		resultLookup := job.Results[job.rangeHolder.Ranges[i].Start.Time]
+		for x := range resultLookup {
+			if resultLookup[x].Status == dataHistoryStatusFailed {
+				failures++
+			}
+		}
+		if failures >= job.MaxRetryAttempts {
+			job.Status = dataHistoryStatusFailed
+			continue
+		}
+		intervalsProcessed++
+		status := dataHistoryStatusComplete
+		id, err := uuid.NewV4()
+		if err != nil {
+			return err
+		}
+		result := DataHistoryJobResult{
+			ID:                id,
+			JobID:             job.ID,
+			IntervalStartDate: job.rangeHolder.Ranges[i].Start.Time,
+			IntervalEndDate:   job.rangeHolder.Ranges[i].End.Time,
+			Status:            status,
+			Date:              time.Now(),
+		}
+		// processing the job
+		switch job.DataType {
+		case dataHistoryCandleDataType:
+			candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, job.Interval)
+			if err != nil {
+				result.Result = "could not get candles: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+				break
+			}
+			_ = job.rangeHolder.VerifyResultsHaveData(candles.Candles)
+			_, err = kline.StoreInDatabase(&candles, true)
+			if err != nil {
+				result.Result = "could not save results: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+				break
+			}
+		case dataHistoryTradeDataType:
+			trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+			if err != nil {
+				result.Result = "could not get trades: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+				break
+			}
+			candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
+			if err != nil {
+				result.Result = "could not convert candles to trades: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+				break
+			}
+			_ = job.rangeHolder.VerifyResultsHaveData(candles.Candles)
+			err = trade.SaveTradesToDatabase(trades...)
+			if err != nil {
+				result.Result = "could not save results: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+			}
+		default:
+			return errUnknownDataType
+		}
+
+		lookup := job.Results[result.IntervalStartDate]
+		lookup = append(lookup, result)
+		job.Results[result.IntervalStartDate] = lookup
 	}
 
 	completed := true
@@ -400,20 +399,23 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	if job.Nickname == "" {
 		return errNicknameUnset
 	}
-	if insertOnly {
-		j, err := m.GetByNickname(job.Nickname, false)
-		if err != nil && !errors.Is(err, errJobNotFound) {
-			return err
-		}
-		if j != nil {
-			return fmt.Errorf("%s %w", job.Nickname, errNicknameInUse)
-		}
+
+	j, err := m.GetByNickname(job.Nickname, false)
+	if err != nil && !errors.Is(err, errJobNotFound) {
+		return err
+	}
+
+	if insertOnly && j != nil {
+		return fmt.Errorf("%s %w", job.Nickname, errNicknameInUse)
+	}
+	if j != nil && j.Status == dataHistoryStatusComplete {
+		return fmt.Errorf("%s %w - job already completed", job.Nickname, errNicknameInUse)
 	}
 
 	m.m.Lock()
 	defer m.m.Unlock()
 
-	err := m.validateJob(job)
+	err = m.validateJob(job)
 	if err != nil {
 		return err
 	}
@@ -424,6 +426,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 				continue
 			}
 			toUpdate = true
+			job.ID = m.jobs[i].ID
 			if job.Exchange != "" && m.jobs[i].Exchange != job.Exchange {
 				m.jobs[i].Exchange = job.Exchange
 			}
@@ -461,14 +464,14 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		return err
 	}
 
-	if !toUpdate {
-		m.jobs = append(m.jobs, job)
-	}
-	if job.ID == uuid.Nil {
+	if job.ID.String() == "" {
 		job.ID, err = uuid.NewV4()
 		if err != nil {
 			return err
 		}
+	}
+	if !toUpdate {
+		m.jobs = append(m.jobs, job)
 	}
 
 	dbJob, err := m.convertJobToDBModel(job)

@@ -706,9 +706,9 @@ func TestRunJob(t *testing.T) {
 		Exchange:  "Binance",
 		Asset:     asset.Spot,
 		Pair:      cp,
-		StartDate: time.Now().Add(-time.Hour * 24),
+		StartDate: time.Now().Add(-time.Hour * 2),
 		EndDate:   time.Now(),
-		Interval:  kline.OneDay,
+		Interval:  kline.OneHour,
 	}
 	err = m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
@@ -726,17 +726,27 @@ func TestRunJob(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	dhj.DataType = dataHistoryTradeDataType
-	dhj.Interval = kline.OneMin
-	dhj.StartDate = time.Now().Add(-time.Minute)
-	dhj.EndDate = time.Now()
-	dhj.Pair = currency.NewPair(currency.BTC, currency.USDT)
-	err = m.compareJobsToData(dhj)
+	dhjt := &DataHistoryJob{
+		Nickname:  "TestProcessJobs2",
+		Exchange:  "Binance",
+		Asset:     asset.Spot,
+		Pair:      cp,
+		StartDate: time.Now().Add(-time.Minute * 5),
+		EndDate:   time.Now(),
+		Interval:  kline.OneHour,
+		DataType:  dataHistoryTradeDataType,
+	}
+	err = m.UpsertJob(dhjt, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	err = m.runJob(dhj)
+	err = m.compareJobsToData(dhjt)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+
+	err = m.runJob(dhjt)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -753,7 +763,7 @@ func TestRunJobs(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Hour * 24),
+		StartDate: time.Now().Add(-time.Hour * 2),
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
 	}
@@ -912,5 +922,43 @@ func TestGenerateJobSummary(t *testing.T) {
 	}
 	if len(summary.ResultRanges) == 0 {
 		t.Error("expected result ranges")
+	}
+}
+
+func TestGetAllJobStatusBetween(t *testing.T) {
+	m, engerino := setupDataHistoryManagerTest(t)
+	if m == nil || engerino == nil {
+		t.Fatal("expected non nil setup")
+	}
+	defer CleanRPCTest(t, engerino)
+
+	dhj := &DataHistoryJob{
+		Nickname:  "TestGetActiveJobs",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		StartDate: time.Now().Add(-time.Second),
+		EndDate:   time.Now(),
+		Interval:  kline.OneMin,
+	}
+	err := m.UpsertJob(dhj, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+
+	jobs, err := m.GetAllJobStatusBetween(time.Now().Add(-time.Minute), time.Now().Add(time.Minute))
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	if len(jobs) != 1 {
+		t.Error("expected 1 job")
+	}
+
+	jobs, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	if len(jobs) != 0 {
+		t.Error("expected 0 jobs")
 	}
 }
