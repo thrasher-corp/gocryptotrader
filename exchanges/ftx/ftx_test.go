@@ -312,10 +312,17 @@ func TestGetMarginMarketInfo(t *testing.T) {
 
 func TestGetMarginBorrowHistory(t *testing.T) {
 	t.Parallel()
+
+	tmNow := time.Now()
+	_, err := f.GetMarginBorrowHistory(tmNow.AddDate(0, 0, 1), tmNow)
+	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
+		t.Errorf("expected %s, got %s", errStartTimeCannotBeAfterEndTime, err)
+	}
+
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetMarginBorrowHistory(time.Now(), time.Now())
+	_, err = f.GetMarginBorrowHistory(tmNow.AddDate(0, 0, -1), tmNow)
 	if err != nil {
 		t.Error(err)
 	}
@@ -323,7 +330,14 @@ func TestGetMarginBorrowHistory(t *testing.T) {
 
 func TestGetMarginMarketLendingHistory(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetMarginMarketLendingHistory(currency.USD.String(), time.Time{}, time.Time{})
+
+	tmNow := time.Now()
+	_, err := f.GetMarginMarketLendingHistory(currency.USD.String(), tmNow.AddDate(0, 0, 1), tmNow)
+	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
+		t.Errorf("expected %s, got %s", errStartTimeCannotBeAfterEndTime, err)
+	}
+
+	_, err = f.GetMarginMarketLendingHistory(currency.USD.String(), tmNow.AddDate(0, 0, -1), tmNow)
 	if err != nil {
 		t.Error(err)
 	}
@@ -331,10 +345,17 @@ func TestGetMarginMarketLendingHistory(t *testing.T) {
 
 func TestGetMarginLendingHistory(t *testing.T) {
 	t.Parallel()
+
+	tmNow := time.Now()
+	_, err := f.GetMarginLendingHistory(currency.USD.String(), tmNow.AddDate(0, 0, 1), tmNow)
+	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
+		t.Errorf("expected %s, got %s", errStartTimeCannotBeAfterEndTime, err)
+	}
+
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetMarginLendingHistory("", time.Time{}, time.Time{})
+	_, err = f.GetMarginLendingHistory(currency.USD.String(), tmNow.AddDate(0, 0, -1), tmNow)
 	if err != nil {
 		t.Error(err)
 	}
