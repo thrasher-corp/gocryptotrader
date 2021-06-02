@@ -901,7 +901,7 @@ func (f *FTX) GetYourQuoteRequests() ([]PersonalQuotesData, error) {
 }
 
 // CreateQuoteRequest sends a request to create a quote
-func (f *FTX) CreateQuoteRequest(underlying currency.Code, optionType, side string, expiry int64, requestExpiry string, strike, size, limitPrice, counterParyID float64, hideLimitPrice bool) (CreateQuoteRequestData, error) {
+func (f *FTX) CreateQuoteRequest(underlying currency.Code, optionType, side string, expiry int64, requestExpiry string, strike, size, limitPrice, counterPartyID float64, hideLimitPrice bool) (CreateQuoteRequestData, error) {
 	req := make(map[string]interface{})
 	req["underlying"] = underlying.Upper().String()
 	req["type"] = optionType
@@ -915,8 +915,8 @@ func (f *FTX) CreateQuoteRequest(underlying currency.Code, optionType, side stri
 	if requestExpiry != "" {
 		req["requestExpiry"] = requestExpiry
 	}
-	if counterParyID != 0 {
-		req["counterParyID"] = counterParyID
+	if counterPartyID != 0 {
+		req["counterpartyId"] = counterPartyID
 	}
 	req["hideLimitPrice"] = hideLimitPrice
 	resp := struct {
@@ -1044,7 +1044,7 @@ func (f *FTX) GetUnstakeRequests() ([]UnstakeRequest, error) {
 	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, unstakeRequests, nil, &resp)
 }
 
-// GetStakeBlanaces returns a collection of staked coin balances
+// GetStakeBalances returns a collection of staked coin balances
 func (f *FTX) GetStakeBalances() ([]StakeBalance, error) {
 	resp := struct {
 		Data []StakeBalance `json:"result"`
