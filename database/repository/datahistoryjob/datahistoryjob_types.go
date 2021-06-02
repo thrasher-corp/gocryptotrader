@@ -34,3 +34,14 @@ type DBService struct {
 	sql    database.ISQL
 	driver string
 }
+
+// IDBService allows using data history job database service
+// without needing to care about implementation
+type IDBService interface {
+	Upsert(jobs ...*DataHistoryJob) error
+	GetByNickName(nickname string) (*DataHistoryJob, error)
+	GetByID(id string) (*DataHistoryJob, error)
+	GetJobsBetween(startDate, endDate time.Time) ([]DataHistoryJob, error)
+	GetAllIncompleteJobsAndResults() ([]DataHistoryJob, error)
+	GetJobAndAllResults(nickname string) (*DataHistoryJob, error)
+}

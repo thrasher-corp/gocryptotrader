@@ -90,8 +90,8 @@ type DataHistoryManager struct {
 	jobs                       []*DataHistoryJob
 	wg                         sync.WaitGroup
 	m                          sync.Mutex
-	jobDB                      *datahistoryjob.DBService
-	jobResultDB                *datahistoryjobresult.DBService
+	jobDB                      datahistoryjob.IDBService
+	jobResultDB                datahistoryjobresult.IDBService
 	maxJobsPerCycle            int64
 }
 

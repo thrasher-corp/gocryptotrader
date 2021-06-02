@@ -23,3 +23,11 @@ type DBService struct {
 	sql    database.ISQL
 	driver string
 }
+
+// IDBService allows using data history job result database service
+// without needing to care about implementation
+type IDBService interface {
+	Upsert(jobs ...*DataHistoryJobResult) error
+	GetByJobID(jobID string) ([]DataHistoryJobResult, error)
+	GetJobResultsBetween(jobID string, startDate, endDate time.Time) ([]DataHistoryJobResult, error)
+}

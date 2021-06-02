@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
-	exchangedb "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -102,9 +101,6 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, ErrSubSystemNotStarted
-	}
-	if !m.databaseConnectionInstance.IsConnected() {
-		return nil, errDatabaseConnectionRequired
 	}
 	dbJobs, err := m.jobDB.GetAllIncompleteJobsAndResults()
 	if err != nil {
@@ -372,12 +368,8 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 		job.Status = dataHistoryStatusComplete
 	}
 
-	dbJob, err := m.convertJobToDBModel(job)
-	if err != nil {
-		return err
-	}
-
-	err = m.jobDB.Upsert(dbJob)
+	dbJob := m.convertJobToDBModel(job)
+	err := m.jobDB.Upsert(dbJob)
 	if err != nil {
 		return err
 	}
@@ -465,7 +457,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		return err
 	}
 
-	if job.ID.String() == "" {
+	if job.ID == uuid.Nil {
 		job.ID, err = uuid.NewV4()
 		if err != nil {
 			return err
@@ -475,10 +467,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		m.jobs = append(m.jobs, job)
 	}
 
-	dbJob, err := m.convertJobToDBModel(job)
-	if err != nil {
-		return err
-	}
+	dbJob := m.convertJobToDBModel(job)
 	return m.jobDB.Upsert(dbJob)
 }
 
@@ -647,10 +636,7 @@ func (m *DataHistoryManager) DeleteJob(nickname, id string) error {
 	for i := range m.jobs {
 		if strings.EqualFold(m.jobs[i].Nickname, nickname) ||
 			m.jobs[i].ID.String() == id {
-			dbJob, err = m.convertJobToDBModel(m.jobs[i])
-			if err != nil {
-				return err
-			}
+			dbJob = m.convertJobToDBModel(m.jobs[i])
 			m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
 		}
 	}
@@ -848,16 +834,11 @@ func (m *DataHistoryManager) convertJobResultToDBResult(results map[time.Time][]
 	return response
 }
 
-func (m *DataHistoryManager) convertJobToDBModel(models *DataHistoryJob) (*datahistoryjob.DataHistoryJob, error) {
-	exchangeID, err := exchangedb.One(strings.ToLower(models.Exchange))
-	if err != nil {
-		return nil, fmt.Errorf("%s %w. %s", models.Exchange, err, "please ensure exchange table setup")
-	}
+func (m *DataHistoryManager) convertJobToDBModel(models *DataHistoryJob) *datahistoryjob.DataHistoryJob {
 	return &datahistoryjob.DataHistoryJob{
 		ID:               models.ID.String(),
 		Nickname:         models.Nickname,
 		ExchangeName:     models.Exchange,
-		ExchangeID:       exchangeID.UUID.String(),
 		Asset:            models.Asset.String(),
 		Base:             models.Pair.Base.String(),
 		Quote:            models.Pair.Quote.String(),
@@ -871,5 +852,5 @@ func (m *DataHistoryManager) convertJobToDBModel(models *DataHistoryJob) (*datah
 		CreatedDate:      models.CreatedDate,
 		BatchSize:        models.RunBatchLimit,
 		Results:          m.convertJobResultToDBResult(models.Results),
-	}, nil
+	}
 }

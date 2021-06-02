@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
@@ -140,10 +139,15 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 			jobs[i].ID = freshUUID.String()
 		}
 
+		r, err := sqlite3.Exchanges(
+			qm.Where("name = ?", strings.ToLower(jobs[i].ExchangeName))).One(ctx, tx)
+		if err != nil {
+			return err
+		}
 		var tempEvent = sqlite3.Datahistoryjob{
 			ID:             jobs[i].ID,
+			ExchangeNameID: r.ID,
 			Nickname:       strings.ToLower(jobs[i].Nickname),
-			ExchangeNameID: jobs[i].ExchangeID,
 			Asset:          strings.ToLower(jobs[i].Asset),
 			Base:           strings.ToUpper(jobs[i].Base),
 			Quote:          strings.ToUpper(jobs[i].Quote),
@@ -157,7 +161,8 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 			Status:         float64(jobs[i].Status),
 			Created:        time.Now().UTC().Format(time.RFC3339),
 		}
-		err := tempEvent.Insert(ctx, tx, boil.Infer())
+
+		err = tempEvent.Insert(ctx, tx, boil.Infer())
 		if err != nil {
 			return err
 		}
@@ -177,10 +182,15 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			}
 			jobs[i].ID = freshUUID.String()
 		}
+		r, err := sqlite3.Exchanges(
+			qm.Where("name = ?", strings.ToLower(jobs[i].ExchangeName))).One(ctx, tx)
+		if err != nil {
+			return err
+		}
 		var tempEvent = postgres.Datahistoryjob{
 			ID:             jobs[i].ID,
 			Nickname:       strings.ToLower(jobs[i].Nickname),
-			ExchangeNameID: jobs[i].ExchangeID,
+			ExchangeNameID: r.ID,
 			Asset:          strings.ToLower(jobs[i].Asset),
 			Base:           strings.ToUpper(jobs[i].Base),
 			Quote:          strings.ToUpper(jobs[i].Quote),
@@ -205,12 +215,16 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 
 func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	whereQM := qm.Where("nickname = ?", strings.ToLower(nickname))
-	result, err := sqlite3.Datahistoryjobs(whereQM).One(context.Background(), db.sql)
+	result, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", strings.ToLower(nickname))).One(context.Background(), db.sql)
 	if err != nil {
 		return job, err
 	}
-	log.Infof(log.DatabaseMgr, "%v", result)
+
+	exchangeResult, err := result.ExchangeName(qm.Where("id = ?", result.ExchangeNameID)).One(context.Background(), db.sql)
+	if err != nil {
+		return job, err
+	}
+
 	ts, err := time.Parse(time.RFC3339, result.StartTime)
 	if err != nil {
 		return nil, err
@@ -226,16 +240,11 @@ func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, erro
 		return nil, err
 	}
 
-	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
-	if err != nil {
-		return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
-	}
-
 	job = &DataHistoryJob{
 		ID:               result.ID,
 		Nickname:         result.Nickname,
 		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     exch.Name,
+		ExchangeName:     exchangeResult.Name,
 		Asset:            result.Asset,
 		Base:             result.Base,
 		Quote:            result.Quote,
@@ -261,16 +270,16 @@ func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, er
 		return job, err
 	}
 
-	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
+	exchangeResult, err := result.ExchangeName(qm.Where("id = ?", result.ExchangeNameID)).One(context.Background(), db.sql)
 	if err != nil {
-		return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
+		return job, err
 	}
 
 	job = &DataHistoryJob{
 		ID:               result.ID,
 		Nickname:         result.Nickname,
 		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     exch.Name,
+		ExchangeName:     exchangeResult.Name,
 		Asset:            result.Asset,
 		Base:             result.Base,
 		Quote:            result.Quote,
@@ -290,37 +299,34 @@ func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, er
 
 func (db *DBService) getByIDSQLite(id string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	whereQM := qm.Where("id = ?", id)
-	result, err := sqlite3.Datahistoryjobs(whereQM).One(context.Background(), db.sql)
+	result, err := sqlite3.Datahistoryjobs(qm.Where("id = ?", id)).One(context.Background(), db.sql)
 	if err != nil {
 		return job, err
 	}
-	log.Infof(log.DatabaseMgr, "%v", result)
+
+	exchangeResult, err := result.ExchangeName(qm.Where("id = ?", result.ExchangeNameID)).One(context.Background(), db.sql)
+	if err != nil {
+		return job, err
+	}
+
 	ts, err := time.Parse(time.RFC3339, result.StartTime)
 	if err != nil {
 		return nil, err
 	}
-
 	te, err := time.Parse(time.RFC3339, result.EndTime)
 	if err != nil {
 		return nil, err
 	}
-
 	c, err := time.Parse(time.RFC3339, result.Created)
 	if err != nil {
 		return nil, err
-	}
-
-	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
-	if err != nil {
-		return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
 	}
 
 	job = &DataHistoryJob{
 		ID:               result.ID,
 		Nickname:         result.Nickname,
 		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     exch.Name,
+		ExchangeName:     exchangeResult.Name,
 		Asset:            result.Asset,
 		Base:             result.Base,
 		Quote:            result.Quote,
@@ -346,16 +352,16 @@ func (db *DBService) getByIDPostgres(id string) (*DataHistoryJob, error) {
 		return job, err
 	}
 
-	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
+	exchangeResult, err := result.ExchangeName(qm.Where("id = ?", result.ExchangeNameID)).One(context.Background(), db.sql)
 	if err != nil {
-		return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
+		return job, err
 	}
 
 	job = &DataHistoryJob{
 		ID:               result.ID,
 		Nickname:         result.Nickname,
 		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     exch.Name,
+		ExchangeName:     exchangeResult.Name,
 		Asset:            result.Asset,
 		Base:             result.Base,
 		Quote:            result.Quote,
@@ -382,6 +388,10 @@ func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataH
 	}
 
 	for i := range results {
+		exchangeResult, err := results[i].ExchangeName(qm.Where("id = ?", results[i].ExchangeNameID)).One(context.Background(), db.sql)
+		if err != nil {
+			return nil, err
+		}
 		ts, err := time.Parse(time.RFC3339, results[i].StartTime)
 		if err != nil {
 			return nil, err
@@ -397,16 +407,11 @@ func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataH
 			return nil, err
 		}
 
-		exch, err := exchange.OneByUUIDString(results[i].ExchangeNameID)
-		if err != nil {
-			return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
-		}
-
 		jobs = append(jobs, DataHistoryJob{
 			ID:               results[i].ID,
 			Nickname:         results[i].Nickname,
 			ExchangeID:       results[i].ExchangeNameID,
-			ExchangeName:     exch.Name,
+			ExchangeName:     exchangeResult.Name,
 			Asset:            results[i].Asset,
 			Base:             results[i].Base,
 			Quote:            results[i].Quote,
@@ -434,16 +439,15 @@ func (db *DBService) getJobsBetweenPostgres(startDate, endDate time.Time) ([]Dat
 	}
 
 	for i := range results {
-		exch, err := exchange.OneByUUIDString(results[i].ExchangeNameID)
+		exchangeResult, err := results[i].ExchangeName(qm.Where("id = ?", results[i].ExchangeNameID)).One(context.Background(), db.sql)
 		if err != nil {
 			return nil, err
 		}
-
 		jobs = append(jobs, DataHistoryJob{
 			ID:               results[i].ID,
 			Nickname:         results[i].Nickname,
 			ExchangeID:       results[i].ExchangeNameID,
-			ExchangeName:     exch.Name,
+			ExchangeName:     exchangeResult.Name,
 			Asset:            results[i].Asset,
 			Base:             results[i].Base,
 			Quote:            results[i].Quote,
@@ -464,15 +468,13 @@ func (db *DBService) getJobsBetweenPostgres(startDate, endDate time.Time) ([]Dat
 
 func (db *DBService) getJobAndAllResultsSQLite(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	query := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("nickname = ?", strings.ToLower(nickname)))
+	query := sqlite3.Datahistoryjobs(
+		qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults),
+		qm.Load(sqlite3.DatahistoryjobRels.ExchangeName),
+		qm.Where("nickname = ?", strings.ToLower(nickname)))
 	result, err := query.One(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
-	}
-
-	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
-	if err != nil {
-		return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
 	}
 
 	var jobResults []*datahistoryjobresult.DataHistoryJobResult
@@ -519,7 +521,7 @@ func (db *DBService) getJobAndAllResultsSQLite(nickname string) (*DataHistoryJob
 		ID:               result.ID,
 		Nickname:         result.Nickname,
 		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     exch.Name,
+		ExchangeName:     result.R.ExchangeName.Name,
 		Asset:            result.Asset,
 		Base:             result.Base,
 		Quote:            result.Quote,
@@ -540,15 +542,13 @@ func (db *DBService) getJobAndAllResultsSQLite(nickname string) (*DataHistoryJob
 
 func (db *DBService) getJobAndAllResultsPostgres(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	query := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("nickname = ?", strings.ToLower(nickname)))
+	query := postgres.Datahistoryjobs(
+		qm.Load(postgres.DatahistoryjobRels.ExchangeName),
+		qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults),
+		qm.Where("nickname = ?", strings.ToLower(nickname)))
 	result, err := query.One(context.Background(), db.sql)
 	if err != nil {
 		return job, err
-	}
-
-	exch, err := exchange.OneByUUIDString(result.ExchangeNameID)
-	if err != nil {
-		return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
 	}
 
 	var jobResults []*datahistoryjobresult.DataHistoryJobResult
@@ -568,7 +568,7 @@ func (db *DBService) getJobAndAllResultsPostgres(nickname string) (*DataHistoryJ
 		ID:               result.ID,
 		Nickname:         result.Nickname,
 		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     exch.Name,
+		ExchangeName:     result.R.ExchangeName.Name,
 		Asset:            result.Asset,
 		Base:             result.Base,
 		Quote:            result.Quote,
@@ -589,18 +589,16 @@ func (db *DBService) getJobAndAllResultsPostgres(nickname string) (*DataHistoryJ
 
 func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, error) {
 	var jobs []DataHistoryJob
-	query := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("status = ?", 0))
+	query := sqlite3.Datahistoryjobs(
+		qm.Load(sqlite3.DatahistoryjobRels.ExchangeName),
+		qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults),
+		qm.Where("status = ?", 0))
 	results, err := query.All(context.Background(), db.sql)
 	if err != nil {
 		return jobs, err
 	}
 
 	for i := range results {
-		exch, err := exchange.OneByUUIDString(results[i].ExchangeNameID)
-		if err != nil {
-			return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
-		}
-
 		var jobResults []*datahistoryjobresult.DataHistoryJobResult
 		for j := range results[i].R.JobDatahistoryjobresults {
 			var start, end, run time.Time
@@ -645,7 +643,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 			ID:               results[i].ID,
 			Nickname:         results[i].Nickname,
 			ExchangeID:       results[i].ExchangeNameID,
-			ExchangeName:     exch.Name,
+			ExchangeName:     results[i].R.ExchangeName.Name,
 			Asset:            results[i].Asset,
 			Base:             results[i].Base,
 			Quote:            results[i].Quote,
@@ -667,18 +665,16 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 
 func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob, error) {
 	var jobs []DataHistoryJob
-	query := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults), qm.Where("status = ?", 0))
+	query := postgres.Datahistoryjobs(
+		qm.Load(postgres.DatahistoryjobRels.ExchangeName),
+		qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults),
+		qm.Where("status = ?", 0))
 	results, err := query.All(context.Background(), db.sql)
 	if err != nil {
 		return jobs, err
 	}
 
 	for i := range results {
-		exch, err := exchange.OneByUUIDString(results[i].ExchangeNameID)
-		if err != nil {
-			return nil, fmt.Errorf("unable to load exchange by ID, %w", err)
-		}
-
 		var jobResults []*datahistoryjobresult.DataHistoryJobResult
 		for j := range results[i].R.JobDatahistoryjobresults {
 			jobResults = append(jobResults, &datahistoryjobresult.DataHistoryJobResult{
@@ -696,7 +692,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob,
 			ID:               results[i].ID,
 			Nickname:         results[i].Nickname,
 			ExchangeID:       results[i].ExchangeNameID,
-			ExchangeName:     exch.Name,
+			ExchangeName:     results[i].R.ExchangeName.Name,
 			Asset:            results[i].Asset,
 			Base:             results[i].Base,
 			Quote:            results[i].Quote,

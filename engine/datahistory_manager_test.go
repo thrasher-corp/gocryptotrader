@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -131,31 +132,37 @@ func TestDataHistoryManagerStop(t *testing.T) {
 	}
 }
 
-func setupDataHistoryManagerTest(t *testing.T) (*DataHistoryManager, *Engine) {
-	t.Helper()
-	engerino := RPCTestSetup(t)
-	exch := engerino.ExchangeManager.GetExchangeByName(testExchange)
+func createDHM(t *testing.T) *DataHistoryManager {
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	exch.SetDefaults()
 	b := exch.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}}
-	engerino.ExchangeManager.Add(exch)
-	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager, &config.DataHistoryManager{})
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}, Enabled: currency.Pairs{cp}}
+	em.Add(exch)
+
+	exch2, err := em.NewExchangeByName("Binance")
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	atomic.StoreInt32(&m.started, 1)
-	return m, engerino
+	cp = currency.NewPair(currency.BTC, currency.USDT)
+	exch2.SetDefaults()
+	b = exch2.GetBase()
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}, Enabled: currency.Pairs{cp}}
+	em.Add(exch2)
+
+	m := &DataHistoryManager{jobDB: dataHistoryJobService{}, started: 1, exchangeManager: em}
+	return m
 }
 
 func TestUpsertJob(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
-	defer CleanRPCTest(t, engerino)
-
+	t.Parallel()
+	m := createDHM(t)
 	err := m.UpsertJob(nil, false)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("error '%v', expected '%v'", err, errNilJob)
@@ -206,8 +213,6 @@ func TestUpsertJob(t *testing.T) {
 		t.Error("unexpected jerrb")
 	}
 
-	startDate := time.Date(1980, 1, 1, 1, 0, 0, 0, time.UTC)
-
 	err = m.UpsertJob(dhj, true)
 	if !errors.Is(err, errNicknameInUse) {
 		t.Errorf("error '%v', expected '%v'", err, errNicknameInUse)
@@ -236,12 +241,8 @@ func TestUpsertJob(t *testing.T) {
 }
 
 func TestDeleteJob(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
-	defer CleanRPCTest(t, engerino)
-
+	t.Parallel()
+	m := createDHM(t)
 	dhj := &DataHistoryJob{
 		Nickname:  "TestDeleteJob",
 		Exchange:  testExchange,
@@ -273,27 +274,9 @@ func TestDeleteJob(t *testing.T) {
 	if len(m.jobs) != 0 {
 		t.Error("expected 0")
 	}
-	jerb, err := m.jobDB.GetJobAndAllResults(dhj.Nickname)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if jerb.Status != int64(dataHistoryStatusRemoved) {
-		t.Error("expected removed")
-	}
-
 	err = m.DeleteJob("", dhj.ID.String())
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-
-	err = m.DeleteJob("1337", "")
-	if err == nil {
-		t.Error("expected no results")
-	}
-
-	err = m.DeleteJob("", "1337")
-	if err == nil {
-		t.Error("expected no results")
 	}
 
 	atomic.StoreInt32(&m.started, 0)
@@ -310,11 +293,8 @@ func TestDeleteJob(t *testing.T) {
 }
 
 func TestGetByNickname(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
-	defer CleanRPCTest(t, engerino)
+	t.Parallel()
+	m := createDHM(t)
 	dhj := &DataHistoryJob{
 		Nickname:  "TestGetByNickname",
 		Exchange:  testExchange,
@@ -343,11 +323,6 @@ func TestGetByNickname(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	_, err = m.GetByNickname("test123", false)
-	if !errors.Is(err, errJobNotFound) {
-		t.Errorf("error '%v', expected '%v'", err, errJobNotFound)
-	}
-
 	atomic.StoreInt32(&m.started, 0)
 	_, err = m.GetByNickname("test123", false)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
@@ -362,12 +337,8 @@ func TestGetByNickname(t *testing.T) {
 }
 
 func TestGetByID(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
-	defer CleanRPCTest(t, engerino)
-
+	t.Parallel()
+	m := createDHM(t)
 	dhj := &DataHistoryJob{
 		Nickname:  "TestGetByID",
 		Exchange:  testExchange,
@@ -384,11 +355,6 @@ func TestGetByID(t *testing.T) {
 	_, err = m.GetByID(dhj.ID.String())
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-
-	_, err = m.GetByID(dhj.Nickname)
-	if !errors.Is(err, errJobNotFound) {
-		t.Errorf("error '%v', expected '%v'", err, errJobNotFound)
 	}
 
 	m.jobs = []*DataHistoryJob{}
@@ -411,20 +377,8 @@ func TestGetByID(t *testing.T) {
 }
 
 func TestRetrieveJobs(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
-	defer CleanRPCTest(t, engerino)
-
-	jobs, err := m.retrieveJobs()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	if len(jobs) != 0 {
-		t.Error("expected no jobs")
-	}
-
+	t.Parallel()
+	m := createDHM(t)
 	dhj := &DataHistoryJob{
 		Nickname:  "TestRetrieveJobs",
 		Exchange:  testExchange,
@@ -434,23 +388,17 @@ func TestRetrieveJobs(t *testing.T) {
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
-	err = m.UpsertJob(dhj, false)
+	err := m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	jobs, err = m.retrieveJobs()
+	jobs, err := m.retrieveJobs()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	if len(jobs) != 1 {
 		t.Error("expected a job")
-	}
-
-	engerino.DatabaseManager.dbConn.SetConnected(false)
-	_, err = m.retrieveJobs()
-	if !errors.Is(err, errDatabaseConnectionRequired) {
-		t.Errorf("error '%v', expected '%v'", err, errDatabaseConnectionRequired)
 	}
 
 	atomic.StoreInt32(&m.started, 0)
@@ -467,11 +415,8 @@ func TestRetrieveJobs(t *testing.T) {
 }
 
 func TestGetActiveJobs(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
-	defer CleanRPCTest(t, engerino)
+	t.Parallel()
+	m := createDHM(t)
 
 	jobs, err := m.GetActiveJobs()
 	if !errors.Is(err, nil) {
@@ -526,11 +471,8 @@ func TestGetActiveJobs(t *testing.T) {
 }
 
 func TestValidateJob(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
-	defer CleanRPCTest(t, engerino)
+	t.Parallel()
+	m := createDHM(t)
 	err := m.validateJob(nil)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("error '%v', expected '%v'", err, errNilJob)
@@ -581,15 +523,12 @@ func TestValidateJob(t *testing.T) {
 	}
 }
 
-func TestPrepareJobs(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
-	defer CleanRPCTest(t, engerino)
+func TestGetAllJobStatusBetween(t *testing.T) {
+	t.Parallel()
+	m := createDHM(t)
 
 	dhj := &DataHistoryJob{
-		Nickname:  "TestPrepareJobs",
+		Nickname:  "TestGetActiveJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
@@ -602,7 +541,7 @@ func TestPrepareJobs(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	jobs, err := m.PrepareJobs()
+	jobs, err := m.GetAllJobStatusBetween(time.Now().Add(-time.Minute), time.Now().Add(time.Minute))
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -610,41 +549,104 @@ func TestPrepareJobs(t *testing.T) {
 		t.Error("expected 1 job")
 	}
 
+	_, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+}
+
+func TestAllDBRequirements(t *testing.T) {
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager, &config.DataHistoryManager{})
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	if m == nil {
+		t.Fatal("expected manager")
+	}
+	m.started = 1
+	dhj := &DataHistoryJob{
+		Nickname:  "TestGenerateJobSummary",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		StartDate: time.Now().Add(-time.Minute),
+		EndDate:   time.Now(),
+		Interval:  kline.OneMin,
+	}
+	err = m.UpsertJob(dhj, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+
+	GenerateJobSummaryTest(t, m)
+	PrepareJobsTest(t, m)
+	ConvertersTest(t, m)
+	RunJobsTest(t, m)
+	RunJobTest(t, m)
+	CompareJobsToDataTest(t, m, dhj)
+
 	atomic.StoreInt32(&m.started, 0)
+	_, err = m.GenerateJobSummary(dhj.Nickname)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	}
+	err = m.runJobs()
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	}
+	err = m.runJob(dhj)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	}
+	err = m.compareJobsToData()
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	}
 	_, err = m.PrepareJobs()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
-
 	m = nil
+	err = m.compareJobsToData()
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	}
+	_, err = m.GenerateJobSummary(dhj.Nickname)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	}
+	err = m.runJobs()
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	}
+	err = m.runJob(dhj)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	}
+	err = m.compareJobsToData()
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+	}
 	_, err = m.PrepareJobs()
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 }
 
-func TestCompareJobsToData(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
-	defer CleanRPCTest(t, engerino)
-
-	dhj := &DataHistoryJob{
-		Nickname:  "TestCompareJobsToData",
-		Exchange:  testExchange,
-		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
-		EndDate:   time.Now(),
-		Interval:  kline.OneMin,
-	}
-	err := m.UpsertJob(dhj, false)
+func PrepareJobsTest(t *testing.T, m *DataHistoryManager) {
+	jobs, err := m.PrepareJobs()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
+	if len(jobs) != 1 {
+		t.Errorf("expected 1 job, received %v", len(jobs))
+	}
+}
 
-	err = m.compareJobsToData(dhj)
+func CompareJobsToDataTest(t *testing.T, m *DataHistoryManager, dhj *DataHistoryJob) {
+	err := m.compareJobsToData(dhj)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -660,56 +662,19 @@ func TestCompareJobsToData(t *testing.T) {
 	if !errors.Is(err, errUnknownDataType) {
 		t.Errorf("error '%v', expected '%v'", err, errUnknownDataType)
 	}
-
-	atomic.StoreInt32(&m.started, 0)
-	err = m.compareJobsToData()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
-
-	m = nil
-	err = m.compareJobsToData()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
 }
 
-func TestRunJob(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager, &config.DataHistoryManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	if m == nil {
-		t.Fatal("expected manager")
-	}
-	exch := engerino.ExchangeManager.GetExchangeByName("Binance")
-	cp := currency.NewPair(currency.BTC, currency.USDT)
-	exch.SetDefaults()
-	b := exch.GetBase()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}, Enabled: currency.Pairs{cp}}
-	b.CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
-	b.CurrencyPairs.Pairs[asset.Spot].ConfigFormat = &currency.PairFormat{
-		Uppercase: true,
-	}
-	b.CurrencyPairs.Pairs[asset.Spot].RequestFormat = &currency.PairFormat{
-		Uppercase: true,
-	}
-	engerino.ExchangeManager.Add(exch)
-	atomic.StoreInt32(&m.started, 1)
-
+func RunJobTest(t *testing.T, m *DataHistoryManager) {
 	dhj := &DataHistoryJob{
 		Nickname:  "TestProcessJobs",
 		Exchange:  "Binance",
 		Asset:     asset.Spot,
-		Pair:      cp,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 		StartDate: time.Now().Add(-time.Hour * 2),
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
 	}
-	err = m.UpsertJob(dhj, false)
+	err := m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -729,7 +694,7 @@ func TestRunJob(t *testing.T) {
 		Nickname:  "TestProcessJobs2",
 		Exchange:  "Binance",
 		Asset:     asset.Spot,
-		Pair:      cp,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
@@ -751,43 +716,24 @@ func TestRunJob(t *testing.T) {
 	}
 }
 
-func TestRunJobs(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
-	defer CleanRPCTest(t, engerino)
-	dhj := &DataHistoryJob{
-		Nickname:  "TestProcessJobs",
-		Exchange:  testExchange,
-		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Hour * 2),
-		EndDate:   time.Now(),
-		Interval:  kline.OneHour,
-	}
-	err := m.UpsertJob(dhj, false)
+func GenerateJobSummaryTest(t *testing.T, m *DataHistoryManager) {
+	summary, err := m.GenerateJobSummary("TestGenerateJobSummary")
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
+	if len(summary.ResultRanges) == 0 {
+		t.Error("expected result ranges")
+	}
+}
 
-	err = m.runJobs()
+func RunJobsTest(t *testing.T, m *DataHistoryManager) {
+	err := m.runJobs()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 }
 
-func TestConverters(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager, &config.DataHistoryManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	if m == nil {
-		t.Error("expected manager")
-	}
-
+func ConvertersTest(t *testing.T, m *DataHistoryManager) {
 	id, err := uuid.NewV4()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -808,11 +754,7 @@ func TestConverters(t *testing.T) {
 		Interval:  kline.OneHour,
 	}
 
-	dbJob, err := m.convertJobToDBModel(dhj)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-
+	dbJob := m.convertJobToDBModel(dhj)
 	if dhj.ID.String() != dbJob.ID ||
 		dhj.Nickname != dbJob.Nickname ||
 		!dhj.StartDate.Equal(dbJob.StartDate) ||
@@ -871,93 +813,66 @@ func TestConverters(t *testing.T) {
 	}
 }
 
-func TestGenerateJobSummary(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
-	defer CleanRPCTest(t, engerino)
-	bn := "binance"
-	exch := engerino.ExchangeManager.GetExchangeByName(bn)
-	cp := currency.NewPair(currency.BTC, currency.USDT)
-	exch.SetDefaults()
-	b := exch.GetBase()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}, Enabled: currency.Pairs{cp}}
-	b.CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
-	b.CurrencyPairs.Pairs[asset.Spot].ConfigFormat = &currency.PairFormat{
-		Uppercase: true,
-	}
-	b.CurrencyPairs.Pairs[asset.Spot].RequestFormat = &currency.PairFormat{
-		Uppercase: true,
-	}
-	engerino.ExchangeManager.Add(exch)
-
-	dhj := &DataHistoryJob{
-		Nickname:  "TestGenerateJobSummary",
-		Exchange:  bn,
-		Asset:     asset.Spot,
-		Pair:      cp,
-		StartDate: time.Now().Add(-time.Minute),
-		EndDate:   time.Now(),
-		Interval:  kline.OneMin,
-	}
-	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	m.jobs, err = m.PrepareJobs()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	err = m.runJob(dhj)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-
-	summary, err := m.GenerateJobSummary("TestGenerateJobSummary")
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	if len(summary.ResultRanges) == 0 {
-		t.Error("expected result ranges")
-	}
+// these structs and function implementations are used
+// to override database implementations as we are not testing those
+// results here. see tests in the database folder
+type dataHistoryJobService struct {
+	datahistoryjob.IDBService
 }
 
-func TestGetAllJobStatusBetween(t *testing.T) {
-	m, engerino := setupDataHistoryManagerTest(t)
-	if m == nil || engerino == nil {
-		t.Fatal("expected non nil setup")
-	}
-	defer CleanRPCTest(t, engerino)
+var (
+	jobID     = "00a434e2-8502-4d6b-865f-e4243fd8b5a7"
+	startDate = time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)
+	endDate   = time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
+)
 
-	dhj := &DataHistoryJob{
-		Nickname:  "TestGetActiveJobs",
-		Exchange:  testExchange,
-		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
-		EndDate:   time.Now(),
-		Interval:  kline.OneMin,
-	}
-	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+func (d dataHistoryJobService) Upsert(_ ...*datahistoryjob.DataHistoryJob) error {
+	return nil
+}
 
-	jobs, err := m.GetAllJobStatusBetween(time.Now().Add(-time.Minute), time.Now().Add(time.Minute))
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	if len(jobs) != 1 {
-		t.Error("expected 1 job")
-	}
+func (d dataHistoryJobService) GetByNickName(_ string) (*datahistoryjob.DataHistoryJob, error) {
+	jc := j
+	return &jc, nil
+}
 
-	jobs, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	if len(jobs) != 0 {
-		t.Error("expected 0 jobs")
-	}
+func (d dataHistoryJobService) GetJobsBetween(_, _ time.Time) ([]datahistoryjob.DataHistoryJob, error) {
+	jc := j
+	return []datahistoryjob.DataHistoryJob{jc}, nil
+}
+
+func (d dataHistoryJobService) GetByID(_ string) (*datahistoryjob.DataHistoryJob, error) {
+	jc := j
+	return &jc, nil
+}
+
+func (d dataHistoryJobService) GetAllIncompleteJobsAndResults() ([]datahistoryjob.DataHistoryJob, error) {
+	jc := j
+	return []datahistoryjob.DataHistoryJob{jc}, nil
+}
+
+func (d dataHistoryJobService) GetJobAndAllResults(nickname string) (*datahistoryjob.DataHistoryJob, error) {
+	jc := j
+	return &jc, nil
+}
+
+var j = datahistoryjob.DataHistoryJob{
+	ID:               jobID,
+	Nickname:         "datahistoryjob",
+	ExchangeName:     testExchange,
+	Asset:            "spot",
+	Base:             "xrp",
+	Quote:            "doge",
+	StartDate:        startDate,
+	EndDate:          endDate,
+	Interval:         int64(kline.OneHour.Duration()),
+	RequestSizeLimit: 3,
+	MaxRetryAttempts: 3,
+	BatchSize:        3,
+	CreatedDate:      endDate,
+	Results: []*datahistoryjobresult.DataHistoryJobResult{
+		{
+			ID:    jobID,
+			JobID: jobID,
+		},
+	},
 }
