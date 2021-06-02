@@ -41,6 +41,15 @@ func (m *DatabaseConnectionManager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+// GetInstance returns a limited scoped database instance
+func (m *DatabaseConnectionManager) GetInstance() database.IDatabase {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return nil
+	}
+
+	return m.dbConn
+}
+
 // SetupDatabaseConnectionManager creates a new database manager
 func SetupDatabaseConnectionManager(cfg *database.Config) (*DatabaseConnectionManager, error) {
 	if cfg == nil {

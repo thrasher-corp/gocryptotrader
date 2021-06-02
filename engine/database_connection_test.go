@@ -235,7 +235,42 @@ func TestCheckConnection(t *testing.T) {
 
 	m.dbConn.SetConnected(false)
 	err = m.checkConnection()
+	if !errors.Is(err, database.ErrDatabaseNotConnected) {
+		t.Errorf("error '%v', expected '%v'", err, database.ErrDatabaseNotConnected)
+	}
+}
+
+func TestGetInstance(t *testing.T) {
+	tmpDir := CreateDatabase(t)
+	defer Cleanup(tmpDir)
+	m, err := SetupDatabaseConnectionManager(&database.Config{
+		Enabled: true,
+		Driver:  database.DBSQLite,
+		ConnectionDetails: drivers.ConnectionDetails{
+			Host:     "localhost",
+			Database: "test.db",
+		},
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	db := m.GetInstance()
+	if db != nil {
+		t.Error("expected nil")
+	}
+	var wg sync.WaitGroup
+	err = m.Start(&wg)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	db = m.GetInstance()
+	if db == nil {
+		t.Error("expected not nil")
+	}
+
+	m = nil
+	db = m.GetInstance()
+	if db != nil {
+		t.Error("expected nil")
 	}
 }

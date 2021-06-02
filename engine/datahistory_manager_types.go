@@ -7,11 +7,17 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
+
+const dataHistoryManagerName = "data_history_manager"
+
+type dataHistoryStatus int64
+type dataHistoryDataType int64
 
 // Data type descriptors
 const (
@@ -26,9 +32,6 @@ const (
 	dataHistoryStatusComplete
 	dataHistoryStatusRemoved
 )
-
-type dataHistoryStatus int64
-type dataHistoryDataType int64
 
 // String stringifies iotas to readable
 func (d dataHistoryStatus) String() string {
@@ -78,18 +81,18 @@ var (
 // DataHistoryManager is responsible for synchronising,
 // retrieving and saving candle and trade data from loaded jobs
 type DataHistoryManager struct {
-	exchangeManager           iExchangeManager
-	databaseConnectionManager iDatabaseConnectionManager
-	started                   int32
-	processing                int32
-	shutdown                  chan struct{}
-	interval                  *time.Ticker
-	jobs                      []*DataHistoryJob
-	wg                        sync.WaitGroup
-	m                         sync.Mutex
-	jobDB                     *datahistoryjob.DBService
-	jobResultDB               *datahistoryjobresult.DBService
-	maxJobsPerCycle           int64
+	exchangeManager            iExchangeManager
+	databaseConnectionInstance database.IDatabase
+	started                    int32
+	processing                 int32
+	shutdown                   chan struct{}
+	interval                   *time.Ticker
+	jobs                       []*DataHistoryJob
+	wg                         sync.WaitGroup
+	m                          sync.Mutex
+	jobDB                      *datahistoryjob.DBService
+	jobResultDB                *datahistoryjobresult.DBService
+	maxJobsPerCycle            int64
 }
 
 // DataHistoryJob used to gather candle/trade history and save

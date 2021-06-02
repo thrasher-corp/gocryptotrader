@@ -737,43 +737,21 @@ func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (b *Binance) GetHistoricTrades(p currency.Pair, a asset.Item, from, to time.Time) ([]trade.Data, error) {
-	roundedDifference := to.Round(time.Hour).Sub(from.Round(time.Hour))
-	var result []trade.Data
-	if roundedDifference > time.Hour {
-		requestedHours := roundedDifference / time.Hour
-		st := from.Round(time.Hour)
-		for i := 0; i < int(requestedHours); i++ {
-			trades, err := b.GetAggregatedTrades(&AggregatedTradeRequestParams{
-				Symbol:    p,
-				StartTime: st,
-				EndTime:   st.Add(time.Hour),
-				Limit:     1000,
-			})
-			if err != nil {
-				return nil, err
-			}
-			for i := range trades {
-				t := trades[i].toTradeData(p, b.Name, a)
-				result = append(result, *t)
-			}
-			st = st.Add(time.Hour)
-		}
-	} else {
-		trades, err := b.GetAggregatedTrades(&AggregatedTradeRequestParams{
-			Symbol:    p,
-			StartTime: from,
-			EndTime:   to,
-			Limit:     1000,
-		})
-		if err != nil {
-			return nil, err
-		}
-		for i := range trades {
-			t := trades[i].toTradeData(p, b.Name, a)
-			result = append(result, *t)
-		}
+	req := AggregatedTradeRequestParams{
+		Symbol:    p,
+		StartTime: from,
+		EndTime:   to,
 	}
-
+	trades, err := b.GetAggregatedTrades(&req)
+	if err != nil {
+		return nil, err
+	}
+	var result []trade.Data
+	exName := b.GetName()
+	for i := range trades {
+		t := trades[i].toTradeData(p, exName, a)
+		result = append(result, *t)
+	}
 	return result, nil
 }
 

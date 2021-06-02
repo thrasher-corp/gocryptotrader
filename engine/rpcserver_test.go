@@ -1193,7 +1193,7 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
 	var err error
-	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager, &config.DataHistoryManager{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1245,7 +1245,7 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
 	var err error
-	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, expected %v", err, nil)
 	}
@@ -1310,7 +1310,7 @@ func TestDeleteDataHistoryJob(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
 	var err error
-	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, expected %v", err, nil)
 	}
@@ -1367,7 +1367,7 @@ func TestGetActiveDataHistoryJobs(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
 	var err error
-	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, expected %v", err, nil)
 	}
@@ -1427,7 +1427,7 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
 	var err error
-	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, expected %v", err, nil)
 	}
@@ -1492,7 +1492,7 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
 	var err error
-	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	engerino.dataHistoryManager, err = SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, expected %v", err, nil)
 	}

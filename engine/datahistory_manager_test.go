@@ -27,19 +27,19 @@ func TestSetupDataHistoryManager(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errNilDatabaseConnectionManager)
 	}
 
-	_, err = SetupDataHistoryManager(SetupExchangeManager(), &database.Instance{}, nil)
+	_, err = SetupDataHistoryManager(SetupExchangeManager(), &DatabaseConnectionManager{}, nil)
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
 
-	_, err = SetupDataHistoryManager(SetupExchangeManager(), &database.Instance{}, &config.DataHistoryManager{})
-	if !errors.Is(err, database.ErrDatabaseNotConnected) {
-		t.Errorf("error '%v', expected '%v'", err, database.ErrDatabaseNotConnected)
+	_, err = SetupDataHistoryManager(SetupExchangeManager(), &DatabaseConnectionManager{}, &config.DataHistoryManager{})
+	if !errors.Is(err, database.ErrNilInstance) {
+		t.Errorf("error '%v', expected '%v'", err, database.ErrNilInstance)
 	}
 
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -51,7 +51,7 @@ func TestSetupDataHistoryManager(t *testing.T) {
 func TestDataHistoryManagerIsRunning(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -78,7 +78,7 @@ func TestDataHistoryManagerIsRunning(t *testing.T) {
 func TestDataHistoryManagerStart(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -105,7 +105,7 @@ func TestDataHistoryManagerStart(t *testing.T) {
 func TestDataHistoryManagerStop(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -141,7 +141,7 @@ func setupDataHistoryManagerTest(t *testing.T) (*DataHistoryManager, *Engine) {
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}}
 	engerino.ExchangeManager.Add(exch)
-	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -315,7 +315,6 @@ func TestGetByNickname(t *testing.T) {
 		t.Fatal("expected non nil setup")
 	}
 	defer CleanRPCTest(t, engerino)
-
 	dhj := &DataHistoryJob{
 		Nickname:  "TestGetByNickname",
 		Exchange:  testExchange,
@@ -678,7 +677,7 @@ func TestCompareJobsToData(t *testing.T) {
 func TestRunJob(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	m, err := SetupDataHistoryManager(engerino.ExchangeManager, engerino.DatabaseManager, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -781,7 +780,7 @@ func TestRunJobs(t *testing.T) {
 func TestConverters(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager.dbConn, &config.DataHistoryManager{})
+	m, err := SetupDataHistoryManager(SetupExchangeManager(), engerino.DatabaseManager, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"database/sql"
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
@@ -88,8 +87,7 @@ type iCurrencyPairSyncer interface {
 	Update(string, currency.Pair, asset.Item, int, error) error
 }
 
+// iDatabaseConnectionManager defines a limited scoped databaseConnectionManager
 type iDatabaseConnectionManager interface {
-	IsConnected() bool
-	GetSQL() (*sql.DB, error)
-	GetConfig() *database.Config
+	GetInstance() database.IDatabase
 }

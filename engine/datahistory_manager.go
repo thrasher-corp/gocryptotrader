@@ -38,23 +38,24 @@ func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager
 	if cfg.MaxJobsPerCycle == 0 {
 		cfg.MaxJobsPerCycle = defaultMaxJobsPerCycle
 	}
-	dhj, err := datahistoryjob.Setup(dcm)
+	db := dcm.GetInstance()
+	dhj, err := datahistoryjob.Setup(db)
 	if err != nil {
 		return nil, err
 	}
-	dhjr, err := datahistoryjobresult.Setup(dcm)
+	dhjr, err := datahistoryjobresult.Setup(db)
 	if err != nil {
 		return nil, err
 	}
 
 	return &DataHistoryManager{
-		exchangeManager:           em,
-		databaseConnectionManager: dcm,
-		shutdown:                  make(chan struct{}),
-		interval:                  time.NewTicker(cfg.CheckInterval),
-		jobDB:                     dhj,
-		jobResultDB:               dhjr,
-		maxJobsPerCycle:           cfg.MaxJobsPerCycle,
+		exchangeManager:            em,
+		databaseConnectionInstance: db,
+		shutdown:                   make(chan struct{}),
+		interval:                   time.NewTicker(cfg.CheckInterval),
+		jobDB:                      dhj,
+		jobResultDB:                dhjr,
+		maxJobsPerCycle:            cfg.MaxJobsPerCycle,
 	}, nil
 }
 
@@ -102,7 +103,7 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, ErrSubSystemNotStarted
 	}
-	if !m.databaseConnectionManager.IsConnected() {
+	if !m.databaseConnectionInstance.IsConnected() {
 		return nil, errDatabaseConnectionRequired
 	}
 	dbJobs, err := m.jobDB.GetAllIncompleteJobsAndResults()
@@ -201,7 +202,7 @@ func (m *DataHistoryManager) run() {
 				m.wg.Done()
 				return
 			case <-m.interval.C:
-				if m.databaseConnectionManager.IsConnected() {
+				if m.databaseConnectionInstance.IsConnected() {
 					go func() {
 						if err := m.runJobs(); err != nil {
 							log.Error(log.DataHistory, err)

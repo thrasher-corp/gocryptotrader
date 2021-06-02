@@ -22,7 +22,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + The data history manager is an engine subsystem responsible for ensuring that the candle/trade history in the range you define is synchronised to your database
 + It is a long running synchronisation task designed to not overwhelm resources and ensure that all data requested is accounted for and saved to the database
 + The data history manager is disabled by default and requires a database connection to function
-  + It can be enabled either via a runtime param or a config modification
+  + It can be enabled either via a runtime param, config modification or via RPC command `enablesubsystem`
 + The data history manager accepts jobs from RPC commands
 + A job is defined in the `Database tables` section below
 + Jobs will be addressed by the data history manager at an interval defined in your config, this is detailed below in the `Application run time parameters` table below
@@ -30,20 +30,25 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Jobs are completed once all data has been fetched/attempted to be fetched in the time range
 
 ## What is a data history job?
-A job is a set of parameters which will allow GoCryptoTrader to periodically retrieve historical data. Its purpose is to break up the process of retrieving large sets of data into more manageable chunks in a "set and forget" style.
+A job is a set of parameters which will allow GoCryptoTrader to periodically retrieve historical data. Its purpose is to break up the process of retrieving large sets of data for multiple currencies and exchanges into more manageable chunks in a "set and forget" style.
 For a breakdown of what a job consists of and what each parameter does, please review the database tables and the cycle details below.
 
 ## What happens during a data history cycle?
 + Once the checkInterval ticker timer has finished, the data history manager will process all jobs considered `active`.
-+ A job's start and end time is broken down into intervals defined by the `interval`. For a job beginning `2020-01-01` to `2020-01-02` with an interval of one hour will create 24 chunks to retrieve
++ A job's start and end time is broken down into intervals defined by the `interval` variable of a job. For a job beginning `2020-01-01` to `2020-01-02` with an interval of one hour will create 24 chunks to retrieve
 + The number of intervals it will then request from an API is defined by the `RequestSizeLimit`. A `RequestSizeLimit` of 2 will mean when processing a job, the data history manager will fetch 2 hours worth of data
-+ When processing a job the `RunBatchLimit` defines how many `RequestSizeLimits` it will fetch. A `RunBatchLimit` of 3 means when processing a job, the history manager will fetch 3 lots of 2 hour chunks from the API
++ When processing a job the `RunBatchLimit` defines how many `RequestSizeLimits` it will fetch. A `RunBatchLimit` of 3 means when processing a job, the history manager will fetch 3 lots of 2 hour chunks from the API in a run of a job
 + If the data is successfully retrieved, that chunk will be considered `complete` and saved to the database
 + The `MaxRetryAttempts` defines how many times the data history manager will attempt to fetch a chunk of data before flagging it as `failed`.
   + A chunk is only attempted once per processing time.
   + If it fails, the next attempt will be after the `checkInterval` has finished again.
   + The errors for retrieval failures are stored in the database, allowing you to understand why a certain chunk of time is unavailable (eg exchange downtime and missing data)
 + All results are saved to the database, the data history manager will analyse all results and ready jobs for the next round of processing
+
+## How do I add one?
++ First ensure that the data history monitor is enabled, you can do this via the config (see table `dataHistoryManager` under Config parameters below), via run time parameter (see table Application run time parameters below) or via the RPC command `enablesubsystem --subsystemname="data_history_manager"`
++ The simplest way of adding a new data history job is via the GCTCLI under `/cmd/gctcli`.
+  + Modify the following example command to your needs: `.\gctcli.exe datahistory upsertjob --nickname=binance-spot-bnb-btc-1h-candles --exchange=binance --asset=spot --pair=BNB-BTC --interval=3600 --start_date="2020-06-02 12:00:00" --end_date="2020-12-02 12:00:00" --request_size_limit=10 --data_type=0 --max_retry_attempts=3 --batch_size=3`
 
 ### Candle intervals and trade fetching
 + A candle interval is required for a job, even when fetching trade data. This is to appropriately break down requests into time interval chunks. So an interval of 1 hour will then fetch an hour's worth of trade data
@@ -52,7 +57,7 @@ For a breakdown of what a job consists of and what each parameter does, please r
 
 | Parameter | Description | Example |
 | ------ | ----------- | ------- |
-| datahistorymanager | A boolean value which determines if the data history manager is enabled. Defaults to `false``| `-datahistorymanager=true` |
+| datahistorymanager | A boolean value which determines if the data history manager is enabled. Defaults to `false` | `-datahistorymanager=true` |
 
 
 ### Config parameters
@@ -62,6 +67,7 @@ For a breakdown of what a job consists of and what each parameter does, please r
 | ------ | ----------- | ------- |
 | enabled | If enabled will run the data history manager on startup | `true` |
 | checkInterval | A golang `time.Duration` interval of when to attempt to fetch all active jobs' data | `15000000000` |
+| maxJobsPerCycle | Allows you to control how many jobs are processed after the `checkInterval` timer finishes. Useful if you have many jobs, but don't wish to constantly be retrieving data | `5` |
 
 ### RPC commands
 The below table is a summary of commands. For more details, view the commands in `/cmd/gctcli` or `/gctrpc/rpc.swagger.json`
@@ -86,15 +92,15 @@ The below table is a summary of commands. For more details, view the commands in
 | asset | The asset type of the data to be fetching | `spot` |
 | base | The currency pair base of the data to be fetching | `xrp` |
 | quote | The currency pair quote of the data to be fetching | `doge` |
-| start_time | When to begin fetching data | `01-01-2017 13:37Z` |
-| end_time | When to finish fetching data | `01-01-2018 13:37Z`  |
+| start_time | When to begin fetching data | `01-01-2017T13:33:37Z` |
+| end_time | When to finish fetching data | `01-01-2018T13:33:37Z`  |
 | interval | A golang `time.Duration` representation of the candle interval to use. | `30000000000` |
 | data_type | The data type to fetch. `0` is candles and `1` is trades | `0` |
 | request_size | The number of candles to fetch. eg if `500`, the data history manager will break up the request into the appropriate timeframe to ensure the data history run interval will fetch 500 candles to save to the database | `500` |
 | max_retries | For an interval period, the amount of attempts the data history manager is allowed to attempt to fetch data before moving onto the next period. This can be useful for determining whether the exchange is missing the data in that time period or, if just one failure of three, just means that the data history manager couldn't finish one request | `3` |
 | batch_count | The number of requests to make when processing a job | `3` |
 | status | A numerical representation for the status. `0` is active, `1` is failed `2` is complete and `3` is removed | `0` |
-| created | The date the job was created. | `2020-01-01 13:37Z` |
+| created | The date the job was created. | `2020-01-01T13:33:37Z` |
 
 #### datahistoryjobresult
 | Field | Description | Example |
@@ -103,9 +109,9 @@ The below table is a summary of commands. For more details, view the commands in
 | job_id | The job ID being referenced | `deadbeef-dead-beef-dead-beef13371337` |
 | result | If there is an error, it will be detailed here | `exchange missing candle data for 2020-01-01 13:37Z` |
 | status | A numerical representation of the job result status. `1` is failed or `2` is complete | `2` |
-| interval_start_time | The start date of the period fetched | `2020-01-01 13:37Z` |
-| interval_end_time  | The end date of the period fetched | `2020-01-02 13:37Z` |
-| run_time | The time the job was ran | `2020-01-03 13:37Z` |
+| interval_start_time | The start date of the period fetched | `2020-01-01T13:33:37Z` |
+| interval_end_time  | The end date of the period fetched | `2020-01-02T13:33:37Z` |
+| run_time | The time the job was ran | `2020-01-03T13:33:37Z` |
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
