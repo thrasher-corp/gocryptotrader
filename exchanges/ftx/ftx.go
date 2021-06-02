@@ -355,13 +355,13 @@ func (f *FTX) GetMarginBorrowHistory(startTime, endTime time.Time) ([]MarginTran
 }
 
 // GetMarginMarketLendingHistory gets the markets margin lending rate history
-func (f *FTX) GetMarginMarketLendingHistory(coin string, startTime, endTime time.Time) ([]MarginTransactionHistoryData, error) {
+func (f *FTX) GetMarginMarketLendingHistory(coin currency.Code, startTime, endTime time.Time) ([]MarginTransactionHistoryData, error) {
 	r := struct {
 		Data []MarginTransactionHistoryData `json:"result"`
 	}{}
 	params := url.Values{}
-	if coin != "" {
-		params.Set("coin", coin)
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.Upper().String())
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
@@ -375,13 +375,13 @@ func (f *FTX) GetMarginMarketLendingHistory(coin string, startTime, endTime time
 }
 
 // GetMarginLendingHistory gets margin lending history
-func (f *FTX) GetMarginLendingHistory(coin string, startTime, endTime time.Time) ([]MarginTransactionHistoryData, error) {
+func (f *FTX) GetMarginLendingHistory(coin currency.Code, startTime, endTime time.Time) ([]MarginTransactionHistoryData, error) {
 	r := struct {
 		Data []MarginTransactionHistoryData `json:"result"`
 	}{}
 	params := url.Values{}
-	if coin != "" {
-		params.Set("coin", coin)
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.Upper().String())
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
@@ -411,13 +411,13 @@ func (f *FTX) GetLendingInfo() ([]LendingInfoData, error) {
 }
 
 // SubmitLendingOffer submits an offer for margin lending
-func (f *FTX) SubmitLendingOffer(coin string, size, rate float64) error {
+func (f *FTX) SubmitLendingOffer(coin currency.Code, size, rate float64) error {
 	resp := struct {
 		Result  string `json:"result"`
 		Success bool   `json:"success"`
 	}{}
 	req := make(map[string]interface{})
-	req["coin"] = strings.ToUpper(coin)
+	req["coin"] = coin.Upper().String()
 	req["size"] = size
 	req["rate"] = rate
 
@@ -479,11 +479,11 @@ func (f *FTX) GetAllWalletBalances() (AllWalletBalances, error) {
 }
 
 // FetchDepositAddress gets deposit address for a given coin
-func (f *FTX) FetchDepositAddress(coin string) (DepositData, error) {
+func (f *FTX) FetchDepositAddress(coin currency.Code) (DepositData, error) {
 	resp := struct {
 		Data DepositData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getDepositAddress+strings.ToUpper(coin), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getDepositAddress+coin.Upper().String(), nil, &resp)
 }
 
 // FetchDepositHistory gets deposit history
@@ -503,9 +503,9 @@ func (f *FTX) FetchWithdrawalHistory() ([]TransactionData, error) {
 }
 
 // Withdraw sends a withdrawal request
-func (f *FTX) Withdraw(coin, address, tag, password, code string, size float64) (TransactionData, error) {
+func (f *FTX) Withdraw(coin currency.Code, address, tag, password, code string, size float64) (TransactionData, error) {
 	req := make(map[string]interface{})
-	req["coin"] = strings.ToUpper(coin)
+	req["coin"] = coin.Upper().String()
 	req["address"] = address
 	req["size"] = size
 	if code != "" {
@@ -901,9 +901,9 @@ func (f *FTX) GetYourQuoteRequests() ([]PersonalQuotesData, error) {
 }
 
 // CreateQuoteRequest sends a request to create a quote
-func (f *FTX) CreateQuoteRequest(underlying, optionType, side string, expiry int64, requestExpiry string, strike, size, limitPrice, counterParyID float64, hideLimitPrice bool) (CreateQuoteRequestData, error) {
+func (f *FTX) CreateQuoteRequest(underlying currency.Code, optionType, side string, expiry int64, requestExpiry string, strike, size, limitPrice, counterParyID float64, hideLimitPrice bool) (CreateQuoteRequestData, error) {
 	req := make(map[string]interface{})
-	req["underlying"] = strings.ToUpper(underlying)
+	req["underlying"] = underlying.Upper().String()
 	req["type"] = optionType
 	req["side"] = side
 	req["strike"] = strike
@@ -1213,13 +1213,13 @@ func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amou
 }
 
 // RequestForQuotes requests for otc quotes
-func (f *FTX) RequestForQuotes(base, quote string, amount float64) (RequestQuoteData, error) {
+func (f *FTX) RequestForQuotes(base, quote currency.Code, amount float64) (RequestQuoteData, error) {
 	resp := struct {
 		Data RequestQuoteData `json:"result"`
 	}{}
 	req := make(map[string]interface{})
-	req["fromCoin"] = strings.ToUpper(base)
-	req["toCoin"] = strings.ToUpper(quote)
+	req["fromCoin"] = base.Upper().String()
+	req["toCoin"] = quote.Upper().String()
 	req["size"] = amount
 	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost, requestOTCQuote, req, &resp)
 }

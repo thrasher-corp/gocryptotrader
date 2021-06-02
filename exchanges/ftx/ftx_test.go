@@ -332,12 +332,12 @@ func TestGetMarginMarketLendingHistory(t *testing.T) {
 	t.Parallel()
 
 	tmNow := time.Now()
-	_, err := f.GetMarginMarketLendingHistory(currency.USD.String(), tmNow.AddDate(0, 0, 1), tmNow)
+	_, err := f.GetMarginMarketLendingHistory(currency.USD, tmNow.AddDate(0, 0, 1), tmNow)
 	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
 		t.Errorf("expected %s, got %s", errStartTimeCannotBeAfterEndTime, err)
 	}
 
-	_, err = f.GetMarginMarketLendingHistory(currency.USD.String(), tmNow.AddDate(0, 0, -1), tmNow)
+	_, err = f.GetMarginMarketLendingHistory(currency.USD, tmNow.AddDate(0, 0, -1), tmNow)
 	if err != nil {
 		t.Error(err)
 	}
@@ -347,7 +347,7 @@ func TestGetMarginLendingHistory(t *testing.T) {
 	t.Parallel()
 
 	tmNow := time.Now()
-	_, err := f.GetMarginLendingHistory(currency.USD.String(), tmNow.AddDate(0, 0, 1), tmNow)
+	_, err := f.GetMarginLendingHistory(currency.USD, tmNow.AddDate(0, 0, 1), tmNow)
 	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
 		t.Errorf("expected %s, got %s", errStartTimeCannotBeAfterEndTime, err)
 	}
@@ -355,7 +355,7 @@ func TestGetMarginLendingHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err = f.GetMarginLendingHistory(currency.USD.String(), tmNow.AddDate(0, 0, -1), tmNow)
+	_, err = f.GetMarginLendingHistory(currency.USD, tmNow.AddDate(0, 0, -1), tmNow)
 	if err != nil {
 		t.Error(err)
 	}
@@ -388,7 +388,7 @@ func TestSubmitLendingOffer(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
-	if err := f.SubmitLendingOffer("bTc", 0.1, 500); err != nil {
+	if err := f.SubmitLendingOffer(currency.NewCode("bTc"), 0.1, 500); err != nil {
 		t.Error(err)
 	}
 }
@@ -398,7 +398,7 @@ func TestFetchDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.FetchDepositAddress("tUsD")
+	_, err := f.FetchDepositAddress(currency.NewCode("tUsD"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -431,7 +431,7 @@ func TestWithdraw(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := f.Withdraw("BtC", core.BitcoinDonationAddress, "", "", "957378", 0.0009)
+	_, err := f.Withdraw(currency.NewCode("bTc"), core.BitcoinDonationAddress, "", "", "957378", 0.0009)
 	if err != nil {
 		t.Error(err)
 	}
@@ -766,7 +766,7 @@ func TestCreateQuoteRequest(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := f.CreateQuoteRequest(currency.BTC.String(), "call", order.Buy.Lower(), 1593140400, "", 10, 10, 5, 0, false)
+	_, err := f.CreateQuoteRequest(currency.BTC, "call", order.Buy.Lower(), 1593140400, "", 10, 10, 5, 0, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1327,7 +1327,7 @@ func TestRequestForQuotes(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := f.RequestForQuotes("BtC", "UsD", 0.5)
+	_, err := f.RequestForQuotes(currency.NewCode("BtC"), currency.NewCode("UsD"), 0.5)
 	if err != nil {
 		t.Error(err)
 	}
