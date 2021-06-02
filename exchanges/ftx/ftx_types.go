@@ -1,7 +1,6 @@
 package ftx
 
 import (
-	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -691,8 +690,6 @@ var (
 	TimeIntervalDay            = TimeInterval("86400")
 )
 
-var errInvalidInterval = errors.New("invalid interval")
-
 // OrderVars stores side, status and type for any order/trade
 type OrderVars struct {
 	Side      order.Side
@@ -781,6 +778,16 @@ type Subaccount struct {
 	Competition bool   `json:"competition"`
 }
 
+// SubaccountTransferStatus stores the subaccount transfer details
+type SubaccountTransferStatus struct {
+	ID     int64     `json:"id"`
+	Coin   string    `json:"coin"`
+	Size   float64   `json:"size"`
+	Time   time.Time `json:"time"`
+	Notes  string    `json:"notes"`
+	Status string    `json:"status"`
+}
+
 // SubaccountBalance stores the user's subaccount balance
 type SubaccountBalance struct {
 	Coin                   string  `json:"coin"`
@@ -790,12 +797,37 @@ type SubaccountBalance struct {
 	AvailableWithoutBorrow float64 `json:"availableWithoutBorrow"`
 }
 
-// SubaccountTransferStatus stores the subaccount transfer details
-type SubaccountTransferStatus struct {
-	ID     int64     `json:"id"`
+// Stake stores an individual coin stake
+type Stake struct {
+	Coin      string    `json:"coin"`
+	CreatedAt time.Time `json:"createdAt"`
+	ID        int64     `json:"id"`
+	Size      float64   `json:"size"`
+}
+
+// UnstakeRequest stores data for an unstake request
+type UnstakeRequest struct {
+	Stake
+	Status       string    `json:"status"`
+	UnlockAt     time.Time `json:"unlockAt"`
+	FractionToGo float64   `json:"fractionToGo"`
+	Fee          float64   `json:"fee"`
+}
+
+// StakeBalance stores an individual coin stake balance
+type StakeBalance struct {
+	Coin               string  `json:"coin"`
+	LifetimeRewards    float64 `json:"lifetimeRewards"`
+	ScheduledToUnstake float64 `json:"scheduledToUnstake"`
+	Staked             float64 `json:"staked"`
+}
+
+// StakeReward stores an individual staking reward
+type StakeReward struct {
 	Coin   string    `json:"coin"`
+	ID     int64     `json:"id"`
 	Size   float64   `json:"size"`
-	Time   time.Time `json:"time"`
 	Notes  string    `json:"notes"`
 	Status string    `json:"status"`
+	Time   time.Time `json:"time"`
 }
