@@ -1,7 +1,6 @@
 package ftx
 
 import (
-	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -690,8 +689,6 @@ var (
 	TimeIntervalFourHours      = TimeInterval("14400")
 	TimeIntervalDay            = TimeInterval("86400")
 )
-
-var errInvalidInterval = errors.New("invalid interval")
 
 // OrderVars stores side, status and type for any order/trade
 type OrderVars struct {
