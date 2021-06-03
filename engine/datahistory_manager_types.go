@@ -88,7 +88,6 @@ type DataHistoryManager struct {
 	shutdown                   chan struct{}
 	interval                   *time.Ticker
 	jobs                       []*DataHistoryJob
-	wg                         sync.WaitGroup
 	m                          sync.Mutex
 	jobDB                      datahistoryjob.IDBService
 	jobResultDB                datahistoryjobresult.IDBService

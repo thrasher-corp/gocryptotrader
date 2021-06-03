@@ -68,8 +68,8 @@ func (m *DataHistoryManager) Start() error {
 		return ErrSubSystemAlreadyStarted
 	}
 	m.shutdown = make(chan struct{})
-	m.wg.Add(1)
 	m.run()
+	log.Debugf(log.DataHistory, "Data history manager %v", MsgSubSystemStarted)
 
 	return nil
 }
@@ -91,7 +91,7 @@ func (m *DataHistoryManager) Stop() error {
 		return ErrSubSystemNotStarted
 	}
 	close(m.shutdown)
-	m.wg.Wait()
+	log.Debugf(log.DataHistory, "Data history manager %v", MsgSubSystemShutdown)
 	return nil
 }
 
@@ -193,7 +193,6 @@ func (m *DataHistoryManager) run() {
 		for {
 			select {
 			case <-m.shutdown:
-				m.wg.Done()
 				return
 			case <-m.interval.C:
 				if m.databaseConnectionInstance.IsConnected() {
