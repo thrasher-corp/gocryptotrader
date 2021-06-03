@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS datahistoryjob
 
     CONSTRAINT uniquenickname
         unique(nickname),
+    CONSTRAINT uniqueid
+        unique(id),
     CONSTRAINT uniquejob
         unique(exchange_name_id, asset, base, quote, start_time, end_time, interval, data_type)
 );
@@ -26,14 +28,12 @@ CREATE TABLE IF NOT EXISTS datahistoryjob
 CREATE TABLE IF NOT EXISTS datahistoryjobresult
 (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    job_id uuid REFERENCES datahistoryjob(id) NOT NULL,
+    job_id uuid NOT NULL REFERENCES datahistoryjob(id)  ON DELETE RESTRICT,
     result TEXT NULL,
     status DOUBLE PRECISION NOT NULL,
     interval_start_time TIMESTAMPTZ NOT NULL,
     interval_end_time TIMESTAMPTZ NOT NULL,
-    run_time TIMESTAMPTZ NOT NULL,
-        CONSTRAINT uniquejobtimestamp
-            unique(job_id, interval_start_time, interval_end_time)
+    run_time TIMESTAMPTZ NOT NULL
 );
 -- +goose Down
 DROP TABLE datahistoryjobresult;

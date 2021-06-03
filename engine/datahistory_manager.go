@@ -55,6 +55,7 @@ func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager
 		jobDB:                      dhj,
 		jobResultDB:                dhjr,
 		maxJobsPerCycle:            cfg.MaxJobsPerCycle,
+		verbose:                    cfg.Verbose,
 	}, nil
 }
 
@@ -189,9 +190,6 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 
 func (m *DataHistoryManager) run() {
 	go func() {
-		if err := m.runJobs(); err != nil {
-			log.Error(log.DataHistory, err)
-		}
 		for {
 			select {
 			case <-m.shutdown:
@@ -239,7 +237,9 @@ func (m *DataHistoryManager) runJobs() error {
 		if err != nil {
 			log.Error(log.DataHistory, err)
 		}
-		log.Infof(log.DataHistory, "completed run of data history job %v", m.jobs[i].Nickname)
+		if m.verbose {
+			log.Debugf(log.DataHistory, "completed run of data history job %v", m.jobs[i].Nickname)
+		}
 	}
 	log.Infof(log.DataHistory, "completed run of data history jobs")
 
@@ -273,7 +273,9 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			job.Asset,
 			job.Pair)
 	}
-	log.Infof(log.DataHistory, "running data history job %v", job.Nickname)
+	if m.verbose {
+		log.Debugf(log.DataHistory, "running data history job %v", job.Nickname)
+	}
 	for i := range job.rangeHolder.Ranges {
 		isCompleted := true
 		for j := range job.rangeHolder.Ranges[i].Intervals {
@@ -297,6 +299,9 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 		if failures >= job.MaxRetryAttempts {
 			job.Status = dataHistoryStatusFailed
 			continue
+		}
+		if m.verbose {
+			log.Debugf(log.BackTester, "%s processing range %v-%v", job.Nickname, job.rangeHolder.Ranges[i].Start, job.rangeHolder.Ranges[i].End)
 		}
 		intervalsProcessed++
 		status := dataHistoryStatusComplete
@@ -366,6 +371,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	}
 	if completed {
 		job.Status = dataHistoryStatusComplete
+		log.Infof(log.DataHistory, "job %s finished!", job.Nickname)
 	}
 
 	dbJob := m.convertJobToDBModel(job)

@@ -106,6 +106,7 @@ type DataHistoryManager struct {
 	Enabled         bool          `json:"enabled"`
 	CheckInterval   time.Duration `json:"checkInterval"`
 	MaxJobsPerCycle int64         `json:"maxJobsPerCycle"`
+	Verbose         bool          `json:"verbose"`
 }
 
 // ConnectionMonitorConfig defines the connection monitor variables to ensure

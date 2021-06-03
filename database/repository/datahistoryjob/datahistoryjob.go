@@ -182,7 +182,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			}
 			jobs[i].ID = freshUUID.String()
 		}
-		r, err := sqlite3.Exchanges(
+		r, err := postgres.Exchanges(
 			qm.Where("name = ?", strings.ToLower(jobs[i].ExchangeName))).One(ctx, tx)
 		if err != nil {
 			return err

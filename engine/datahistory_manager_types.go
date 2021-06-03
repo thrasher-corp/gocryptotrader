@@ -93,6 +93,7 @@ type DataHistoryManager struct {
 	jobDB                      datahistoryjob.IDBService
 	jobResultDB                datahistoryjobresult.IDBService
 	maxJobsPerCycle            int64
+	verbose                    bool
 }
 
 // DataHistoryJob used to gather candle/trade history and save
