@@ -11,6 +11,14 @@
 + Jobs will fetch data at sizes you request (which can cater to hardware limitations such as low RAM)
 + Jobs are completed once all data has been fetched/attempted to be fetched in the time range
 
+## What are the prerequisites?
++ Ensure you have a database setup, you can read about that [here](/database)
++ Ensure you have run dbmigrate under `/cmd/dbmigrate` via `dbmigrate -command=up`, you can read about that [here](/database#create-and-run-migrations)
++ Ensure you have seeded exchanges to the database via the application dbseed under `/cmd/dbseed`, you can read about it [here](/cmd/dbseed)
++ Ensure you have the database setup and enabled in your config, this can also be seen [here](/database)
++ Data retrieval can only be made on exchanges that support it, see the readmes for [candles](/docs/OHLCV.md) and [trades](/exchanges/trade#exchange-support-table)
++ Read below on how to enable the data history manager and add data history jobs
+
 ## What is a data history job?
 A job is a set of parameters which will allow GoCryptoTrader to periodically retrieve historical data. Its purpose is to break up the process of retrieving large sets of data for multiple currencies and exchanges into more manageable chunks in a "set and forget" style.
 For a breakdown of what a job consists of and what each parameter does, please review the database tables and the cycle details below.

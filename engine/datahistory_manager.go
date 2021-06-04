@@ -134,7 +134,13 @@ func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 	defer m.m.Unlock()
 	jobs, err := m.retrieveJobs()
 	if err != nil {
-		return nil, err
+		defer func() {
+			err = m.Stop()
+			if err != nil {
+				log.Error(log.DataHistory, err)
+			}
+		}()
+		return nil, fmt.Errorf("error retrieving jobs, has everything been setup? Data history manager will shut down. %w", err)
 	}
 	err = m.compareJobsToData(jobs...)
 	if err != nil {
@@ -190,6 +196,9 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 
 func (m *DataHistoryManager) run() {
 	go func() {
+		if err := m.runJobs(); err != nil {
+			log.Error(log.DataHistory, err)
+		}
 		for {
 			select {
 			case <-m.shutdown:
@@ -218,6 +227,7 @@ func (m *DataHistoryManager) runJobs() error {
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
 		return fmt.Errorf("runJobs %w", errAlreadyRunning)
 	}
+	defer atomic.StoreInt32(&m.processing, 0)
 
 	validJobs, err := m.PrepareJobs()
 	if err != nil {
@@ -227,7 +237,6 @@ func (m *DataHistoryManager) runJobs() error {
 	m.m.Lock()
 	defer func() {
 		m.m.Unlock()
-		atomic.StoreInt32(&m.processing, 0)
 	}()
 	m.jobs = validJobs
 	log.Infof(log.DataHistory, "processing data history jobs")
