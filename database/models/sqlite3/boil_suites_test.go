@@ -207,7 +207,6 @@ func TestToOne(t *testing.T) {
 // or deadlocks can occur.
 func TestOneToOne(t *testing.T) {
 	t.Run("ExchangeToCandleUsingExchangeNameCandle", testExchangeOneToOneCandleUsingExchangeNameCandle)
-	t.Run("ExchangeToDatahistoryjobUsingExchangeNameDatahistoryjob", testExchangeOneToOneDatahistoryjobUsingExchangeNameDatahistoryjob)
 	t.Run("ExchangeToTradeUsingExchangeNameTrade", testExchangeOneToOneTradeUsingExchangeNameTrade)
 }
 
@@ -215,6 +214,7 @@ func TestOneToOne(t *testing.T) {
 // or deadlocks can occur.
 func TestToMany(t *testing.T) {
 	t.Run("DatahistoryjobToJobDatahistoryjobresults", testDatahistoryjobToManyJobDatahistoryjobresults)
+	t.Run("ExchangeToExchangeNameDatahistoryjobs", testExchangeToManyExchangeNameDatahistoryjobs)
 	t.Run("ExchangeToExchangeNameWithdrawalHistories", testExchangeToManyExchangeNameWithdrawalHistories)
 	t.Run("ScriptToScriptExecutions", testScriptToManyScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptos", testWithdrawalHistoryToManyWithdrawalCryptos)
@@ -225,7 +225,7 @@ func TestToMany(t *testing.T) {
 // or deadlocks can occur.
 func TestToOneSet(t *testing.T) {
 	t.Run("CandleToExchangeUsingExchangeNameCandle", testCandleToOneSetOpExchangeUsingExchangeName)
-	t.Run("DatahistoryjobToExchangeUsingExchangeNameDatahistoryjob", testDatahistoryjobToOneSetOpExchangeUsingExchangeName)
+	t.Run("DatahistoryjobToExchangeUsingExchangeNameDatahistoryjobs", testDatahistoryjobToOneSetOpExchangeUsingExchangeName)
 	t.Run("DatahistoryjobresultToDatahistoryjobUsingJobDatahistoryjobresults", testDatahistoryjobresultToOneSetOpDatahistoryjobUsingJob)
 	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneSetOpScriptUsingScript)
 	t.Run("TradeToExchangeUsingExchangeNameTrade", testTradeToOneSetOpExchangeUsingExchangeName)
@@ -242,7 +242,6 @@ func TestToOneRemove(t *testing.T) {}
 // or deadlocks can occur.
 func TestOneToOneSet(t *testing.T) {
 	t.Run("ExchangeToCandleUsingExchangeNameCandle", testExchangeOneToOneSetOpCandleUsingExchangeNameCandle)
-	t.Run("ExchangeToDatahistoryjobUsingExchangeNameDatahistoryjob", testExchangeOneToOneSetOpDatahistoryjobUsingExchangeNameDatahistoryjob)
 	t.Run("ExchangeToTradeUsingExchangeNameTrade", testExchangeOneToOneSetOpTradeUsingExchangeNameTrade)
 }
 
@@ -254,6 +253,7 @@ func TestOneToOneRemove(t *testing.T) {}
 // or deadlocks can occur.
 func TestToManyAdd(t *testing.T) {
 	t.Run("DatahistoryjobToJobDatahistoryjobresults", testDatahistoryjobToManyAddOpJobDatahistoryjobresults)
+	t.Run("ExchangeToExchangeNameDatahistoryjobs", testExchangeToManyAddOpExchangeNameDatahistoryjobs)
 	t.Run("ExchangeToExchangeNameWithdrawalHistories", testExchangeToManyAddOpExchangeNameWithdrawalHistories)
 	t.Run("ScriptToScriptExecutions", testScriptToManyAddOpScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptos", testWithdrawalHistoryToManyAddOpWithdrawalCryptos)

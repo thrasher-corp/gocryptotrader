@@ -19,9 +19,7 @@ CREATE TABLE datahistoryjob
     created timestamp NOT NULL default CURRENT_TIMESTAMP,
     FOREIGN KEY(exchange_name_id) REFERENCES exchange(id) ON DELETE RESTRICT,
     UNIQUE(id) ON CONFLICT REPLACE,
-    UNIQUE(nickname) ON CONFLICT REPLACE,
-    UNIQUE(exchange_name_id, asset, base, quote, start_time, end_time, interval, data_type) ON CONFLICT REPLACE
-
+    UNIQUE(nickname) ON CONFLICT REPLACE
 );
 
 CREATE TABLE datahistoryjobresult

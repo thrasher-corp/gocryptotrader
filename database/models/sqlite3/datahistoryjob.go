@@ -533,7 +533,7 @@ func (datahistoryjobL) LoadExchangeName(ctx context.Context, e boil.ContextExecu
 		if foreign.R == nil {
 			foreign.R = &exchangeR{}
 		}
-		foreign.R.ExchangeNameDatahistoryjob = object
+		foreign.R.ExchangeNameDatahistoryjobs = append(foreign.R.ExchangeNameDatahistoryjobs, object)
 		return nil
 	}
 
@@ -544,7 +544,7 @@ func (datahistoryjobL) LoadExchangeName(ctx context.Context, e boil.ContextExecu
 				if foreign.R == nil {
 					foreign.R = &exchangeR{}
 				}
-				foreign.R.ExchangeNameDatahistoryjob = local
+				foreign.R.ExchangeNameDatahistoryjobs = append(foreign.R.ExchangeNameDatahistoryjobs, local)
 				break
 			}
 		}
@@ -650,7 +650,7 @@ func (datahistoryjobL) LoadJobDatahistoryjobresults(ctx context.Context, e boil.
 
 // SetExchangeName of the datahistoryjob to the related item.
 // Sets o.R.ExchangeName to related.
-// Adds o to related.R.ExchangeNameDatahistoryjob.
+// Adds o to related.R.ExchangeNameDatahistoryjobs.
 func (o *Datahistoryjob) SetExchangeName(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Exchange) error {
 	var err error
 	if insert {
@@ -686,10 +686,10 @@ func (o *Datahistoryjob) SetExchangeName(ctx context.Context, exec boil.ContextE
 
 	if related.R == nil {
 		related.R = &exchangeR{
-			ExchangeNameDatahistoryjob: o,
+			ExchangeNameDatahistoryjobs: DatahistoryjobSlice{o},
 		}
 	} else {
-		related.R.ExchangeNameDatahistoryjob = o
+		related.R.ExchangeNameDatahistoryjobs = append(related.R.ExchangeNameDatahistoryjobs, o)
 	}
 
 	return nil

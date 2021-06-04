@@ -4054,9 +4054,9 @@ func gctScriptUpload(c *cli.Context) error {
 	return nil
 }
 
-const klineMessage = "%v in seconds supported values are: 15, 60(1min), 180(3min), 300(5min), 600(10min), 900(15min), " +
-	"1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h), 86400(1d), 259200(3d) " +
-	"60480(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)"
+const klineMessage = `interval in seconds. supported values are: 15, 60(1min), 180(3min), 300(5min), 600(10min),
+		900(15min) 1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h),
+		86400(1d), 259200(3d) 604800(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)`
 
 var candleRangeSize, candleGranularity int64
 var getHistoricCandlesCommand = cli.Command{
@@ -4085,7 +4085,7 @@ var getHistoricCandlesCommand = cli.Command{
 		},
 		cli.Int64Flag{
 			Name:        "granularity, g",
-			Usage:       fmt.Sprintf(klineMessage, "granularity"),
+			Usage:       klineMessage,
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
@@ -4215,7 +4215,7 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 		},
 		cli.Int64Flag{
 			Name:        "interval, i",
-			Usage:       fmt.Sprintf(klineMessage, "interval"),
+			Usage:       klineMessage,
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
@@ -4406,7 +4406,7 @@ var findMissingSavedCandleIntervalsCommand = cli.Command{
 		},
 		cli.Int64Flag{
 			Name:        "interval, i",
-			Usage:       fmt.Sprintf(klineMessage, "interval"),
+			Usage:       klineMessage,
 			Value:       86400,
 			Destination: &candleGranularity,
 		},

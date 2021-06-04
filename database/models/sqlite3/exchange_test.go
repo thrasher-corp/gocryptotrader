@@ -545,57 +545,6 @@ func testExchangeOneToOneCandleUsingExchangeNameCandle(t *testing.T) {
 	}
 }
 
-func testExchangeOneToOneDatahistoryjobUsingExchangeNameDatahistoryjob(t *testing.T) {
-	ctx := context.Background()
-	tx := MustTx(boil.BeginTx(ctx, nil))
-	defer func() { _ = tx.Rollback() }()
-
-	var foreign Datahistoryjob
-	var local Exchange
-
-	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &foreign, datahistoryjobDBTypes, true, datahistoryjobColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Datahistoryjob struct: %s", err)
-	}
-	if err := randomize.Struct(seed, &local, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
-	}
-
-	if err := local.Insert(ctx, tx, boil.Infer()); err != nil {
-		t.Fatal(err)
-	}
-
-	foreign.ExchangeNameID = local.ID
-	if err := foreign.Insert(ctx, tx, boil.Infer()); err != nil {
-		t.Fatal(err)
-	}
-
-	check, err := local.ExchangeNameDatahistoryjob().One(ctx, tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if check.ExchangeNameID != foreign.ExchangeNameID {
-		t.Errorf("want: %v, got %v", foreign.ExchangeNameID, check.ExchangeNameID)
-	}
-
-	slice := ExchangeSlice{&local}
-	if err = local.L.LoadExchangeNameDatahistoryjob(ctx, tx, false, (*[]*Exchange)(&slice), nil); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.ExchangeNameDatahistoryjob == nil {
-		t.Error("struct should have been eager loaded")
-	}
-
-	local.R.ExchangeNameDatahistoryjob = nil
-	if err = local.L.LoadExchangeNameDatahistoryjob(ctx, tx, true, &local, nil); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.ExchangeNameDatahistoryjob == nil {
-		t.Error("struct should have been eager loaded")
-	}
-}
-
 func testExchangeOneToOneTradeUsingExchangeNameTrade(t *testing.T) {
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
@@ -708,67 +657,6 @@ func testExchangeOneToOneSetOpCandleUsingExchangeNameCandle(t *testing.T) {
 		}
 	}
 }
-func testExchangeOneToOneSetOpDatahistoryjobUsingExchangeNameDatahistoryjob(t *testing.T) {
-	var err error
-
-	ctx := context.Background()
-	tx := MustTx(boil.BeginTx(ctx, nil))
-	defer func() { _ = tx.Rollback() }()
-
-	var a Exchange
-	var b, c Datahistoryjob
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &b, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &c, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
-		t.Fatal(err)
-	}
-
-	for i, x := range []*Datahistoryjob{&b, &c} {
-		err = a.SetExchangeNameDatahistoryjob(ctx, tx, i != 0, x)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if a.R.ExchangeNameDatahistoryjob != x {
-			t.Error("relationship struct not set to correct value")
-		}
-		if x.R.ExchangeName != &a {
-			t.Error("failed to append to foreign relationship struct")
-		}
-
-		if a.ID != x.ExchangeNameID {
-			t.Error("foreign key was wrong value", a.ID)
-		}
-
-		zero := reflect.Zero(reflect.TypeOf(x.ExchangeNameID))
-		reflect.Indirect(reflect.ValueOf(&x.ExchangeNameID)).Set(zero)
-
-		if err = x.Reload(ctx, tx); err != nil {
-			t.Fatal("failed to reload", err)
-		}
-
-		if a.ID != x.ExchangeNameID {
-			t.Error("foreign key was wrong value", a.ID, x.ExchangeNameID)
-		}
-
-		if _, err = x.Delete(ctx, tx); err != nil {
-			t.Fatal("failed to delete x", err)
-		}
-	}
-}
 func testExchangeOneToOneSetOpTradeUsingExchangeNameTrade(t *testing.T) {
 	var err error
 
@@ -828,6 +716,84 @@ func testExchangeOneToOneSetOpTradeUsingExchangeNameTrade(t *testing.T) {
 		if _, err = x.Delete(ctx, tx); err != nil {
 			t.Fatal("failed to delete x", err)
 		}
+	}
+}
+
+func testExchangeToManyExchangeNameDatahistoryjobs(t *testing.T) {
+	var err error
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Exchange
+	var b, c Datahistoryjob
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = randomize.Struct(seed, &b, datahistoryjobDBTypes, false, datahistoryjobColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &c, datahistoryjobDBTypes, false, datahistoryjobColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+
+	b.ExchangeNameID = a.ID
+	c.ExchangeNameID = a.ID
+
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := a.ExchangeNameDatahistoryjobs().All(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range check {
+		if v.ExchangeNameID == b.ExchangeNameID {
+			bFound = true
+		}
+		if v.ExchangeNameID == c.ExchangeNameID {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := ExchangeSlice{&a}
+	if err = a.L.LoadExchangeNameDatahistoryjobs(ctx, tx, false, (*[]*Exchange)(&slice), nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.ExchangeNameDatahistoryjobs); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.ExchangeNameDatahistoryjobs = nil
+	if err = a.L.LoadExchangeNameDatahistoryjobs(ctx, tx, true, &a, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.ExchangeNameDatahistoryjobs); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", check)
 	}
 }
 
@@ -909,6 +875,81 @@ func testExchangeToManyExchangeNameWithdrawalHistories(t *testing.T) {
 	}
 }
 
+func testExchangeToManyAddOpExchangeNameDatahistoryjobs(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Exchange
+	var b, c, d, e Datahistoryjob
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Datahistoryjob{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*Datahistoryjob{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddExchangeNameDatahistoryjobs(ctx, tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.ExchangeNameID {
+			t.Error("foreign key was wrong value", a.ID, first.ExchangeNameID)
+		}
+		if a.ID != second.ExchangeNameID {
+			t.Error("foreign key was wrong value", a.ID, second.ExchangeNameID)
+		}
+
+		if first.R.ExchangeName != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.ExchangeName != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.ExchangeNameDatahistoryjobs[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.ExchangeNameDatahistoryjobs[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.ExchangeNameDatahistoryjobs().Count(ctx, tx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
 func testExchangeToManyAddOpExchangeNameWithdrawalHistories(t *testing.T) {
 	var err error
 

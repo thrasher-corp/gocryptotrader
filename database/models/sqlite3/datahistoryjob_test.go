@@ -736,7 +736,7 @@ func testDatahistoryjobToOneSetOpExchangeUsingExchangeName(t *testing.T) {
 			t.Error("relationship struct not set to correct value")
 		}
 
-		if x.R.ExchangeNameDatahistoryjob != &a {
+		if x.R.ExchangeNameDatahistoryjobs[0] != &a {
 			t.Error("failed to append to foreign relationship struct")
 		}
 		if a.ExchangeNameID != x.ID {

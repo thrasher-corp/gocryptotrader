@@ -20,9 +20,7 @@ CREATE TABLE IF NOT EXISTS datahistoryjob
     CONSTRAINT uniquenickname
         unique(nickname),
     CONSTRAINT uniqueid
-        unique(id),
-    CONSTRAINT uniquejob
-        unique(exchange_name_id, asset, base, quote, start_time, end_time, interval, data_type)
+        unique(id)
 );
 
 CREATE TABLE IF NOT EXISTS datahistoryjobresult

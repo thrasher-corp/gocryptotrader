@@ -56,23 +56,23 @@ var (
 			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
-		cli.Int64Flag{
+		cli.StringFlag{
 			Name:  "interval",
 			Usage: klineMessage,
 		},
-		cli.Int64Flag{
+		cli.StringFlag{
 			Name:  "request_size_limit",
 			Usage: "500 - will only retrieve 500 candles per API request",
 		},
-		cli.Int64Flag{
+		cli.StringFlag{
 			Name:  "data_type",
 			Usage: "0 for candles, 1 for trades",
 		},
-		cli.Int64Flag{
+		cli.StringFlag{
 			Name:  "max_retry_attempts",
 			Usage: "3 - the maximum retry attempts for an interval period before giving up",
 		},
-		cli.Int64Flag{
+		cli.StringFlag{
 			Name:  "batch_size",
 			Usage: "3 - the amount of API calls to make per run",
 		},
@@ -272,7 +272,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	}
 	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot process pair: %w", err)
 	}
 
 	if c.IsSet("start_date") {
@@ -297,7 +297,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	} else {
 		interval, err = convert.Int64FromString(c.Args().Get(6))
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot process interval: %w", err)
 		}
 	}
 	candleInterval := time.Duration(interval) * time.Second
@@ -307,7 +307,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	} else {
 		requestSizeLimit, err = convert.Int64FromString(c.Args().Get(7))
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot process request_size_limit: %w", err)
 		}
 	}
 
@@ -316,7 +316,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	} else {
 		dataType, err = convert.Int64FromString(c.Args().Get(8))
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot process data_type: %w", err)
 		}
 	}
 
@@ -325,7 +325,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	} else {
 		maxRetryAttempts, err = convert.Int64FromString(c.Args().Get(9))
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot process max_retry_attempts: %w", err)
 		}
 	}
 
@@ -334,7 +334,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	} else {
 		batchSize, err = convert.Int64FromString(c.Args().Get(10))
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot process batch_size: %w", err)
 		}
 	}
 

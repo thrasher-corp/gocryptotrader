@@ -170,7 +170,7 @@ var tradeCommand = cli.Command{
 				},
 				cli.Int64Flag{
 					Name:        "interval, i",
-					Usage:       fmt.Sprintf(klineMessage, "interval"),
+					Usage:       klineMessage,
 					Value:       86400,
 					Destination: &candleGranularity,
 				},
