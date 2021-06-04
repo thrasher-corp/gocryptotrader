@@ -266,7 +266,7 @@ func (db *DBService) getJobResultsBetweenSQLite(jobID string, startDate, endDate
 
 func (db *DBService) getJobResultsBetweenPostgres(jobID string, startDate, endDate time.Time) ([]DataHistoryJobResult, error) {
 	var jobs []DataHistoryJobResult
-	query := postgres.Datahistoryjobresults(qm.Where("job_id = ? AND created BETWEEN ? AND  ? ", jobID, startDate, endDate))
+	query := postgres.Datahistoryjobresults(qm.Where("job_id = ? AND run_time BETWEEN ? AND  ? ", jobID, startDate, endDate))
 	results, err := query.All(context.Background(), db.sql)
 	if err != nil {
 		return jobs, err

@@ -204,7 +204,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			Status:         float64(jobs[i].Status),
 			Created:        time.Now().UTC(),
 		}
-		err = tempEvent.Upsert(ctx, tx, true, nil, boil.Infer(), boil.Infer())
+		err = tempEvent.Upsert(ctx, tx, true, []string{"nickname"}, boil.Infer(), boil.Infer())
 		if err != nil {
 			return err
 		}
@@ -264,7 +264,7 @@ func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, erro
 
 func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
-	query := postgres.Datahistoryjobs(qm.Where("nickname = ?", nickname))
+	query := postgres.Datahistoryjobs(qm.Where("nickname = ?", strings.ToLower(nickname)))
 	result, err := query.One(context.Background(), db.sql)
 	if err != nil {
 		return job, err
