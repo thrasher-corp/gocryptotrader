@@ -26,7 +26,6 @@ var (
 			Name: "two",
 		},
 	}
-	db = &DBService{}
 )
 
 func TestMain(m *testing.M) {

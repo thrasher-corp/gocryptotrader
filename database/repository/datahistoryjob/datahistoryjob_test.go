@@ -28,7 +28,6 @@ var (
 			Name: "two",
 		},
 	}
-	db = &DBService{}
 )
 
 func TestMain(m *testing.M) {
@@ -164,9 +163,12 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			_, err = db.GetByNickName("TestDataHistoryJob19")
+			resp, err := db.GetByNickName("TestDataHistoryJob19")
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
+			}
+			if !strings.EqualFold(resp.Nickname, "TestDataHistoryJob19") {
+				t.Fatal("the database no longer functions")
 			}
 
 			results, err := db.GetAllIncompleteJobsAndResults()

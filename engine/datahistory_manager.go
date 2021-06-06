@@ -312,7 +312,6 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			log.Debugf(log.BackTester, "%s processing range %v-%v", job.Nickname, job.rangeHolder.Ranges[i].Start, job.rangeHolder.Ranges[i].End)
 		}
 		intervalsProcessed++
-		status := dataHistoryStatusComplete
 		id, err := uuid.NewV4()
 		if err != nil {
 			return err
@@ -322,7 +321,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			JobID:             job.ID,
 			IntervalStartDate: job.rangeHolder.Ranges[i].Start.Time,
 			IntervalEndDate:   job.rangeHolder.Ranges[i].End.Time,
-			Status:            status,
+			Status:            dataHistoryStatusComplete,
 			Date:              time.Now(),
 		}
 		// processing the job
@@ -339,7 +338,6 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			if err != nil {
 				result.Result = "could not save results: " + err.Error()
 				result.Status = dataHistoryStatusFailed
-				break
 			}
 		case dataHistoryTradeDataType:
 			trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
@@ -499,7 +497,7 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	if exch == nil {
 		return fmt.Errorf("%s %w", job.Exchange, errExchangeNotLoaded)
 	}
-	pairs, err := exch.GetAvailablePairs(job.Asset)
+	pairs, err := exch.GetEnabledPairs(job.Asset)
 	if err != nil {
 		return err
 	}
@@ -541,7 +539,7 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	return nil
 }
 
-// GetByID returns a job's details from its ID,
+// GetByID returns a job's details from its ID
 func (m *DataHistoryManager) GetByID(id string) (*DataHistoryJob, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
@@ -668,12 +666,7 @@ func (m *DataHistoryManager) DeleteJob(nickname, id string) error {
 		}
 	}
 	dbJob.Status = int64(dataHistoryStatusRemoved)
-	err = m.jobDB.Upsert(dbJob)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return m.jobDB.Upsert(dbJob)
 }
 
 // GetActiveJobs returns all jobs with the status `dataHistoryStatusActive`

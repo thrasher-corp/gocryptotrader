@@ -1,5 +1,4 @@
 -- +goose Up
-
 CREATE TABLE datahistoryjob
 (
     id text NOT NULL primary key,

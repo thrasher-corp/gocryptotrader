@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
-
-	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 // SetConfig safely sets the global database instance's config with some
@@ -19,12 +17,6 @@ func (i *Instance) SetConfig(cfg *Config) error {
 	}
 	i.m.Lock()
 	i.config = cfg
-	if i.config.Verbose {
-		boil.DebugMode = true
-		boil.DebugWriter = Logger{}
-	} else {
-		boil.DebugMode = false
-	}
 	i.m.Unlock()
 	return nil
 }

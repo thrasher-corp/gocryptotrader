@@ -142,6 +142,7 @@ func TestGetConfig(t *testing.T) {
 }
 
 func TestPing(t *testing.T) {
+	t.Parallel()
 	inst := &Instance{}
 	databaseFullLocation := filepath.Join(DB.DataPath, "TestPing")
 	con, err := sql.Open("sqlite3", databaseFullLocation)

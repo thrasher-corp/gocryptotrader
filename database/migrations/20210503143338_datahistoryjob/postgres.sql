@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS datahistoryjob
     batch_count DOUBLE PRECISION NOT NULL,
     status DOUBLE PRECISION NOT NULL,
     created TIMESTAMPTZ NOT NULL,
-
     CONSTRAINT uniquenickname
         unique(nickname),
     CONSTRAINT uniqueid

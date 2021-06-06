@@ -17,8 +17,7 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
-// Setup returns a usable DBService service
-// so you don't need to interact with globals in any fashion
+// Setup returns a DBService
 func Setup(db database.IDatabase) (*DBService, error) {
 	if db == nil {
 		return nil, database.ErrNilInstance
@@ -220,7 +219,7 @@ func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, erro
 		return job, err
 	}
 
-	exchangeResult, err := result.ExchangeName(qm.Where("id = ?", result.ExchangeNameID)).One(context.Background(), db.sql)
+	exchangeResult, err := result.ExchangeName().One(context.Background(), db.sql)
 	if err != nil {
 		return job, err
 	}
@@ -270,7 +269,7 @@ func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, er
 		return job, err
 	}
 
-	exchangeResult, err := result.ExchangeName(qm.Where("id = ?", result.ExchangeNameID)).One(context.Background(), db.sql)
+	exchangeResult, err := result.ExchangeName().One(context.Background(), db.sql)
 	if err != nil {
 		return job, err
 	}
@@ -304,7 +303,7 @@ func (db *DBService) getByIDSQLite(id string) (*DataHistoryJob, error) {
 		return job, err
 	}
 
-	exchangeResult, err := result.ExchangeName(qm.Where("id = ?", result.ExchangeNameID)).One(context.Background(), db.sql)
+	exchangeResult, err := result.ExchangeName().One(context.Background(), db.sql)
 	if err != nil {
 		return job, err
 	}
@@ -352,7 +351,7 @@ func (db *DBService) getByIDPostgres(id string) (*DataHistoryJob, error) {
 		return job, err
 	}
 
-	exchangeResult, err := result.ExchangeName(qm.Where("id = ?", result.ExchangeNameID)).One(context.Background(), db.sql)
+	exchangeResult, err := result.ExchangeName().One(context.Background(), db.sql)
 	if err != nil {
 		return job, err
 	}

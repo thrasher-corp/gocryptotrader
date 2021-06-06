@@ -3425,6 +3425,7 @@ func (s *RPCServer) DeleteDataHistoryJob(_ context.Context, r *gctrpc.GetDataHis
 	status := "success"
 	err := s.dataHistoryManager.DeleteJob(r.Nickname, r.Id)
 	if err != nil {
+		log.Error(log.GRPCSys, err)
 		status = "failed"
 	}
 
