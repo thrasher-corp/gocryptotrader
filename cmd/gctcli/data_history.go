@@ -91,8 +91,10 @@ var dataHistoryCommands = cli.Command{
 			Action: getActiveDataHistoryJobs,
 		},
 		{
-			Name:  "getjobsbetweendates",
-			Usage: "returns all jobs with creation dates between the two provided dates",
+			Name: "getjobsbetweendates",
+			Usage: fmt.Sprintf("returns all jobs with creation dates between the two provided dates, defaults to between %v & %v",
+				time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+				time.Now().Format(common.SimpleTimeFormat)),
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "start_date",
@@ -168,6 +170,8 @@ func getDataHistoryJob(c *cli.Context) error {
 	var id string
 	if c.IsSet("id") {
 		id = c.String("id")
+	} else {
+		id = c.Args().First()
 	}
 	var nickname string
 	if c.IsSet("nickname") {

@@ -1,4 +1,4 @@
-# GoCryptoTrader package Datahistory_manager
+# GoCryptoTrader package Datahistory manager
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
@@ -18,7 +18,7 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for Datahistory_manager
+## Current Features for Datahistory manager
 + The data history manager is an engine subsystem responsible for ensuring that the candle/trade history in the range you define is synchronised to your database
 + It is a long running synchronisation task designed to not overwhelm resources and ensure that all data requested is accounted for and saved to the database
 + The data history manager is disabled by default and requires a database connection to function

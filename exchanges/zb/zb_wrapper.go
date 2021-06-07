@@ -934,13 +934,8 @@ allKlines:
 }
 
 func (z *ZB) validateCandlesRequest(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if start.Equal(end) ||
-		end.After(time.Now()) ||
-		end.Before(start) ||
-		(start.IsZero() && !end.IsZero()) {
-		return kline.Item{}, fmt.Errorf("invalid time range supplied. Start: %v End %v",
-			start,
-			end)
+	if err := common.StartEndTimeCheck(start, end); err != nil {
+		return kline.Item{}, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", start, end, err)
 	}
 	if err := z.ValidateKline(p, a, interval); err != nil {
 		return kline.Item{}, err

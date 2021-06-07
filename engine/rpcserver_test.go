@@ -403,8 +403,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		Start: "2020-01-02 15:04:05",
 		End:   "2020-01-02 15:04:05",
 	})
-	if !errors.Is(err, errInvalidTimes) {
-		t.Errorf("expected %v, received %v", errInvalidTimes, err)
+	if !errors.Is(err, common.ErrStartEqualsEnd) {
+		t.Errorf("received %v, expected %v", err, common.ErrStartEqualsEnd)
 	}
 	var results *gctrpc.GetHistoricCandlesResponse
 	// default run
@@ -910,19 +910,19 @@ func TestGetOrders(t *testing.T) {
 		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
 		Pair:      p,
-		StartDate: time.Now().Format(common.SimpleTimeFormat),
-		EndDate:   time.Now().Add(-time.Hour).Format(common.SimpleTimeFormat),
+		StartDate: time.Now().UTC().Add(time.Second).Format(common.SimpleTimeFormat),
+		EndDate:   time.Now().UTC().Add(-time.Hour).Format(common.SimpleTimeFormat),
 	})
-	if !errors.Is(err, errInvalidTimes) {
-		t.Errorf("expected %v, received %v", errInvalidTimes, err)
+	if !errors.Is(err, common.ErrStartAfterTimeNow) {
+		t.Errorf("received %v, expected %v", err, common.ErrStartAfterTimeNow)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
 		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
 		Pair:      p,
-		StartDate: time.Now().Format(common.SimpleTimeFormat),
-		EndDate:   time.Now().Add(time.Hour).Format(common.SimpleTimeFormat),
+		StartDate: time.Now().UTC().Add(-time.Hour).Format(common.SimpleTimeFormat),
+		EndDate:   time.Now().UTC().Add(time.Hour).Format(common.SimpleTimeFormat),
 	})
 	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
 		t.Errorf("received '%v', expected '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
@@ -1256,8 +1256,8 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
-		EndDate:   time.Now(),
+		StartDate: time.Now().UTC().Add(-time.Minute * 2),
+		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
 	}
 	err = s.dataHistoryManager.Start()
@@ -1321,8 +1321,8 @@ func TestDeleteDataHistoryJob(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
-		EndDate:   time.Now(),
+		StartDate: time.Now().UTC().Add(-time.Minute * 2),
+		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
 	}
 	err = s.dataHistoryManager.Start()
@@ -1378,8 +1378,8 @@ func TestGetActiveDataHistoryJobs(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
-		EndDate:   time.Now(),
+		StartDate: time.Now().UTC().Add(-time.Minute * 2),
+		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
 	}
 	err = s.dataHistoryManager.Start()
@@ -1438,8 +1438,8 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
-		EndDate:   time.Now(),
+		StartDate: time.Now().UTC().Add(-time.Minute * 2),
+		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
 	}
 	err = s.dataHistoryManager.Start()
@@ -1453,16 +1453,16 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 	}
 
 	_, err = s.GetDataHistoryJobsBetween(context.Background(), &gctrpc.GetDataHistoryJobsBetweenRequest{
-		StartDate: time.Now().Add(time.Minute).Format(common.SimpleTimeFormat),
-		EndDate:   time.Now().Format(common.SimpleTimeFormat),
+		StartDate: time.Now().UTC().Add(time.Minute).Format(common.SimpleTimeFormat),
+		EndDate:   time.Now().UTC().Format(common.SimpleTimeFormat),
 	})
-	if !errors.Is(err, errInvalidTimes) {
-		t.Fatalf("received %v, expected %v", err, errInvalidTimes)
+	if !errors.Is(err, common.ErrStartAfterTimeNow) {
+		t.Fatalf("received %v, expected %v", err, common.ErrStartAfterTimeNow)
 	}
 
 	r, err := s.GetDataHistoryJobsBetween(context.Background(), &gctrpc.GetDataHistoryJobsBetweenRequest{
-		StartDate: time.Now().Add(-time.Minute).Format(common.SimpleTimeFormat),
-		EndDate:   time.Now().Format(common.SimpleTimeFormat),
+		StartDate: time.Now().UTC().Add(-time.Hour * 24 * 7).Format(common.SimpleTimeFormat),
+		EndDate:   time.Now().UTC().Format(common.SimpleTimeFormat),
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, expected %v", err, nil)
@@ -1503,8 +1503,8 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
-		EndDate:   time.Now(),
+		StartDate: time.Now().UTC().Add(-time.Minute * 2),
+		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
 	}
 	err = s.dataHistoryManager.Start()

@@ -336,15 +336,13 @@ func (i *Interval) IntervalsPerYear() float64 {
 // If an API is limited in the amount of candles it can make in a request, it will automatically separate
 // ranges into the limit
 func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit uint32) (*IntervalRangeHolder, error) {
-	if start.IsZero() || end.IsZero() {
-		return nil, ErrDateUnset
-	}
-	if start.After(end) {
-		return nil, ErrStartAfterEnd
+	if err := common.StartEndTimeCheck(start, end); err != nil && !errors.Is(err, common.ErrStartAfterTimeNow) {
+		return nil, err
 	}
 	if interval <= 0 {
 		return nil, ErrUnsetInterval
 	}
+
 	start = start.Round(interval.Duration())
 	end = end.Round(interval.Duration())
 	resp := &IntervalRangeHolder{

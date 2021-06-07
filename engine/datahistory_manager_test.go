@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -142,18 +144,24 @@ func createDHM(t *testing.T) *DataHistoryManager {
 	exch.SetDefaults()
 	b := exch.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}, Enabled: currency.Pairs{cp}}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+		AssetEnabled: convert.BoolPtr(true)}
 	em.Add(exch)
 
 	exch2, err := em.NewExchangeByName("Binance")
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	cp = currency.NewPair(currency.BTC, currency.USDT)
+	cp2 := currency.NewPair(currency.BTC, currency.USDT)
 	exch2.SetDefaults()
 	b = exch2.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{Available: currency.Pairs{cp}, Enabled: currency.Pairs{cp}}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Available:    currency.Pairs{cp2},
+		Enabled:      currency.Pairs{cp2},
+		AssetEnabled: convert.BoolPtr(true)}
 	em.Add(exch2)
 
 	m := &DataHistoryManager{jobDB: dataHistoryJobService{}, started: 1, exchangeManager: em}
@@ -184,27 +192,27 @@ func TestUpsertJob(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errCurrencyPairUnset)
 	}
 
-	dhj.Pair = currency.NewPair(currency.BTC, currency.USD)
+	dhj.Exchange = strings.ToLower(testExchange)
+	dhj.Pair = currency.NewPair(currency.BTC, currency.USDT)
 	err = m.UpsertJob(dhj, false)
-	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("error '%v', expected '%v'", err, errExchangeNotLoaded)
+	if !errors.Is(err, errCurrencyPairInvalid) {
+		t.Errorf("error '%v', expected '%v'", err, errCurrencyPairInvalid)
 	}
 
-	dhj.Exchange = strings.ToLower(testExchange)
+	dhj.Pair = currency.NewPair(currency.BTC, currency.USD)
 	err = m.UpsertJob(dhj, false)
-	if !errors.Is(err, errInvalidTimes) {
-		t.Errorf("error '%v', expected '%v'", err, errInvalidTimes)
+	if !errors.Is(err, kline.ErrUnsupportedInterval) {
+		t.Errorf("error '%v', expected '%v'", err, kline.ErrUnsupportedInterval)
+	}
+
+	dhj.Interval = kline.OneHour
+	err = m.UpsertJob(dhj, false)
+	if !errors.Is(err, common.ErrDateUnset) {
+		t.Errorf("error '%v', expected '%v'", err, common.ErrDateUnset)
 	}
 
 	dhj.StartDate = time.Now().Add(-time.Hour)
 	dhj.EndDate = time.Now()
-
-	err = m.UpsertJob(dhj, false)
-	if err == nil {
-		t.Error("expected error")
-	}
-
-	dhj.Interval = kline.OneHour
 	err = m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -248,7 +256,7 @@ func TestDeleteJob(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
+		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
@@ -300,7 +308,7 @@ func TestGetByNickname(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
+		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
@@ -344,7 +352,7 @@ func TestGetByID(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
+		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
@@ -384,7 +392,7 @@ func TestRetrieveJobs(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
+		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
@@ -431,7 +439,7 @@ func TestGetActiveJobs(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
+		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
@@ -498,29 +506,30 @@ func TestValidateJob(t *testing.T) {
 
 	dhj.Pair = currency.NewPair(currency.BTC, currency.USD)
 	err = m.validateJob(dhj)
-	if !errors.Is(err, errInvalidTimes) {
-		t.Errorf("error '%v', expected '%v'", err, errInvalidTimes)
+	if !errors.Is(err, kline.ErrUnsupportedInterval) {
+		t.Errorf("error '%v', expected '%v'", err, kline.ErrUnsupportedInterval)
+	}
+
+	dhj.Interval = kline.OneMin
+	err = m.validateJob(dhj)
+	if !errors.Is(err, common.ErrDateUnset) {
+		t.Errorf("error '%v', expected '%v'", err, common.ErrDateUnset)
 	}
 
 	dhj.StartDate = time.Now().Add(time.Minute)
 	dhj.EndDate = time.Now().Add(time.Hour)
 	err = m.validateJob(dhj)
-	if !errors.Is(err, errInvalidTimes) {
+	if !errors.Is(err, common.ErrStartAfterTimeNow) {
 		t.Errorf("error '%v', expected '%v'", err, errInvalidTimes)
 	}
 
 	dhj.StartDate = time.Now().Add(-time.Hour)
 	dhj.EndDate = time.Now().Add(-time.Minute)
 	err = m.validateJob(dhj)
-	if !errors.Is(err, kline.ErrUnsupportedInterval) {
-		t.Errorf("error '%v', expected '%v'", err, kline.ErrUnsupportedInterval)
-	}
-
-	dhj.Interval = kline.OneDay
-	err = m.validateJob(dhj)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
+
 }
 
 func TestGetAllJobStatusBetween(t *testing.T) {
@@ -532,7 +541,7 @@ func TestGetAllJobStatusBetween(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Second),
+		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
@@ -541,7 +550,7 @@ func TestGetAllJobStatusBetween(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	jobs, err := m.GetAllJobStatusBetween(time.Now().Add(-time.Minute), time.Now().Add(time.Minute))
+	jobs, err := m.GetAllJobStatusBetween(time.Now().Add(-time.Minute*5), time.Now().Add(time.Minute))
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -571,7 +580,7 @@ func TestAllDBRequirements(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Minute),
+		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
@@ -695,7 +704,7 @@ func RunJobTest(t *testing.T, m *DataHistoryManager) {
 		Exchange:  "Binance",
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
-		StartDate: time.Now().Add(-time.Minute * 5),
+		StartDate: time.Now().Add(-time.Hour * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
 		DataType:  dataHistoryTradeDataType,

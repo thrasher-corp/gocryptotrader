@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestIsEnabled(t *testing.T) {
@@ -624,5 +625,37 @@ func TestErrors(t *testing.T) {
 	test = append(test, errors.New("test2"))
 	if test.Error() != "test1, test2" {
 		t.Fatal("does not match error")
+	}
+}
+
+func TestParseStartEndDate(t *testing.T) {
+	err := StartEndTimeCheck(time.Time{}, time.Time{})
+	if !errors.Is(err, ErrDateUnset) {
+		t.Errorf("received %v, expected %v", err, ErrDateUnset)
+	}
+
+	err = StartEndTimeCheck(time.Now(), time.Time{})
+	if !errors.Is(err, ErrDateUnset) {
+		t.Errorf("received %v, expected %v", err, ErrDateUnset)
+	}
+
+	err = StartEndTimeCheck(time.Now(), time.Now())
+	if !errors.Is(err, ErrStartEqualsEnd) {
+		t.Errorf("received %v, expected %v", err, ErrStartEqualsEnd)
+	}
+
+	err = StartEndTimeCheck(time.Now().Add(time.Second), time.Now())
+	if !errors.Is(err, ErrStartAfterTimeNow) {
+		t.Errorf("received %v, expected %v", err, ErrStartAfterTimeNow)
+	}
+
+	err = StartEndTimeCheck(time.Now().Add(-time.Second), time.Now().Add(-time.Minute))
+	if !errors.Is(err, ErrStartAfterEnd) {
+		t.Errorf("received %v, expected %v", err, ErrStartAfterEnd)
+	}
+
+	err = StartEndTimeCheck(time.Now().Add(-time.Second), time.Now())
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
 	}
 }

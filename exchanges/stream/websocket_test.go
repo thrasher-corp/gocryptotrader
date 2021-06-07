@@ -696,7 +696,7 @@ func TestSendMessage(t *testing.T) {
 func TestSendMessageWithResponse(t *testing.T) {
 	wc := &WebsocketConnection{
 		Verbose:          true,
-		URL:              "wss://echo.websocket.org",
+		URL:              "wss://ws.kraken.com",
 		ResponseMaxLimit: time.Second * 5,
 		Match:            NewMatch(),
 	}

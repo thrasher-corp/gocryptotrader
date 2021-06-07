@@ -42,6 +42,14 @@ var (
 	// wrapper function by an API
 	ErrFunctionNotSupported  = errors.New("unsupported wrapper function")
 	errInvalidCryptoCurrency = errors.New("invalid crypto currency")
+	// ErrDateUnset is an error for start end check calculations
+	ErrDateUnset = errors.New("date unset")
+	// ErrStartAfterEnd is an error for start end check calculations
+	ErrStartAfterEnd = errors.New("start date after end date")
+	// ErrStartEqualsEnd is an error for start end check calculations
+	ErrStartEqualsEnd = errors.New("start date equals end date")
+	// ErrStartAfterTimeNow is an error for start end check calculations
+	ErrStartAfterTimeNow = errors.New("start date is after current time")
 )
 
 func initialiseHTTPClient() {
@@ -389,4 +397,26 @@ func (e Errors) Error() string {
 		r += e[i].Error() + ", "
 	}
 	return r[:len(r)-2]
+}
+
+// StartEndTimeCheck provides some basic checks which occur
+// frequently in the codebase
+func StartEndTimeCheck(start, end time.Time) error {
+	if start.IsZero() {
+		return fmt.Errorf("start %w", ErrDateUnset)
+	}
+	if end.IsZero() {
+		return fmt.Errorf("end %w", ErrDateUnset)
+	}
+	if start.After(time.Now()) {
+		return ErrStartAfterTimeNow
+	}
+	if start.After(end) {
+		return ErrStartAfterEnd
+	}
+	if start.Equal(end) {
+		return ErrStartEqualsEnd
+	}
+
+	return nil
 }

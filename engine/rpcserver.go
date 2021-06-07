@@ -874,8 +874,8 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 			return nil, err
 		}
 	}
-	if !start.IsZero() && !end.IsZero() && start.After(end) {
-		return nil, errInvalidTimes
+	if err := common.StartEndTimeCheck(start, end); err != nil {
+		return nil, err
 	}
 
 	request := &order.GetOrdersRequest{
@@ -1514,17 +1514,20 @@ func (s *RPCServer) WithdrawalEventsByExchange(_ context.Context, r *gctrpc.With
 
 // WithdrawalEventsByDate returns previous withdrawal request details by exchange
 func (s *RPCServer) WithdrawalEventsByDate(_ context.Context, r *gctrpc.WithdrawalEventsByDateRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
-	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	var UTCEndTime time.Time
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
 	var ret []*withdraw.Response
-	ret, err = s.WithdrawManager.WithdrawEventByDate(r.Exchange, UTCStartTime, UTCEndTime, int(r.Limit))
+	ret, err = s.WithdrawManager.WithdrawEventByDate(r.Exchange, start, end, int(r.Limit))
 	if err != nil {
 		return nil, err
 	}
@@ -1895,16 +1898,19 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 
 // GetAuditEvent returns matching audit events from database
 func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequest) (*gctrpc.GetAuditEventResponse, error) {
-	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	start, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
+	}
+	end, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
-
-	UTCEndTime, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
-	if err != nil {
-		return nil, err
-	}
-	events, err := audit.GetEvent(UTCStartTime, UTCEndTime, r.OrderBy, int(r.Limit))
+	events, err := audit.GetEvent(start, end, r.OrderBy, int(r.Limit))
 	if err != nil {
 		return nil, err
 	}
@@ -1940,19 +1946,18 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 
 // GetHistoricCandles returns historical candles for a given exchange
 func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
-	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
+	}
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
-	var UTCEndTime time.Time
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
-	if err != nil {
-		return nil, err
-	}
-	if UTCStartTime.After(UTCEndTime) || UTCStartTime.Equal(UTCEndTime) {
-		return nil, errInvalidTimes
-	}
-
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
@@ -1989,8 +1994,8 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 			pair,
 			a,
 			interval,
-			UTCStartTime,
-			UTCEndTime)
+			start,
+			end)
 		if err != nil {
 			return nil, err
 		}
@@ -1998,14 +2003,14 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 		if r.ExRequest {
 			klineItem, err = exch.GetHistoricCandlesExtended(pair,
 				a,
-				UTCStartTime,
-				UTCEndTime,
+				start,
+				end,
 				interval)
 		} else {
 			klineItem, err = exch.GetHistoricCandles(pair,
 				a,
-				UTCStartTime,
-				UTCEndTime,
+				start,
+				end,
 				interval)
 		}
 	}
@@ -2016,7 +2021,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 
 	if r.FillMissingWithTrades {
 		var tradeDataKline *kline.Item
-		tradeDataKline, err = fillMissingCandlesWithStoredTrades(UTCStartTime, UTCEndTime, &klineItem)
+		tradeDataKline, err = fillMissingCandlesWithStoredTrades(start, end, &klineItem)
 		if err != nil {
 			return nil, err
 		}
@@ -2681,17 +2686,20 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 		return nil, err
 	}
 
-	var UTCStartTime, UTCEndTime time.Time
-	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
 	var trades []trade.Data
-	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, UTCStartTime, UTCEndTime)
+	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -2721,12 +2729,15 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if r.End == "" || r.Start == "" || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.TimeInterval == 0 {
 		return nil, errInvalidArguments
 	}
-	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	var UTCEndTime time.Time
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -2748,7 +2759,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	}
 
 	var trades []trade.Data
-	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, UTCStartTime, UTCEndTime)
+	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -2815,12 +2826,15 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		return nil, err
 	}
 
-	var UTCStartTime, UTCEndTime time.Time
-	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -2829,8 +2843,8 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		p,
 		a,
 		kline.Interval(r.Interval),
-		UTCStartTime,
-		UTCEndTime,
+		start,
+		end,
 	)
 	if err != nil {
 		return nil, err
@@ -2846,7 +2860,7 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		candleTimes = append(candleTimes, klineItem.Candles[i].Time)
 	}
 	var ranges []timeperiods.TimeRange
-	ranges, err = timeperiods.FindTimeRangesContainingData(UTCStartTime, UTCEndTime, klineItem.Interval.Duration(), candleTimes)
+	ranges, err = timeperiods.FindTimeRangesContainingData(start, end, klineItem.Interval.Duration(), candleTimes)
 	if err != nil {
 		return nil, err
 	}
@@ -2871,8 +2885,8 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		resp.Status = fmt.Sprintf("Found %v candles. Missing %v candles in requested timeframe starting %v ending %v",
 			foundCount,
 			len(resp.MissingPeriods),
-			UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
-			UTCEndTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
+			start.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			end.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
 	}
 
 	return resp, nil
@@ -2899,22 +2913,24 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	if err != nil {
 		return nil, err
 	}
-	var UTCStartTime, UTCEndTime time.Time
-	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
+	}
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
-	UTCStartTime = UTCStartTime.Truncate(time.Hour)
-
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
-	if err != nil {
-		return nil, err
-	}
-	UTCEndTime = UTCEndTime.Truncate(time.Hour)
+	start = start.Truncate(time.Hour)
+	end = end.Truncate(time.Hour)
 
 	intervalMap := make(map[time.Time]bool)
-	iterationTime := UTCStartTime
-	for iterationTime.Before(UTCEndTime) {
+	iterationTime := start
+	for iterationTime.Before(end) {
 		intervalMap[iterationTime] = false
 		iterationTime = iterationTime.Add(time.Hour)
 	}
@@ -2925,8 +2941,8 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		r.AssetType,
 		r.Pair.Base,
 		r.Pair.Quote,
-		UTCStartTime,
-		UTCEndTime,
+		start,
+		end,
 	)
 	if err != nil {
 		return nil, err
@@ -2942,7 +2958,7 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		tradeTimes = append(tradeTimes, trades[i].Timestamp)
 	}
 	var ranges []timeperiods.TimeRange
-	ranges, err = timeperiods.FindTimeRangesContainingData(UTCStartTime, UTCEndTime, time.Hour, tradeTimes)
+	ranges, err = timeperiods.FindTimeRangesContainingData(start, end, time.Hour, tradeTimes)
 	if err != nil {
 		return nil, err
 	}
@@ -2967,8 +2983,8 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		resp.Status = fmt.Sprintf("Found %v periods. Missing %v periods between %v and %v",
 			foundCount,
 			len(resp.MissingPeriods),
-			UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
-			UTCEndTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
+			start.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			end.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
 	}
 
 	return resp, nil
@@ -3010,13 +3026,15 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 		return err
 	}
 	var trades []trade.Data
-	var UTCStartTime, UTCEndTime time.Time
-	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return err
 	}
@@ -3026,7 +3044,7 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 		Pair:         r.Pair,
 	}
 
-	for iterateStartTime := UTCStartTime; iterateStartTime.Before(UTCEndTime); iterateStartTime = iterateStartTime.Add(time.Hour) {
+	for iterateStartTime := start; iterateStartTime.Before(end); iterateStartTime = iterateStartTime.Add(time.Hour) {
 		iterateEndTime := iterateStartTime.Add(time.Hour)
 		trades, err = exch.GetHistoricTrades(cp, a, iterateStartTime, iterateEndTime)
 		if err != nil {
@@ -3042,7 +3060,7 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 		}
 		for i := range trades {
 			tradeTS := trades[i].Timestamp.In(time.UTC)
-			if tradeTS.After(UTCEndTime) {
+			if tradeTS.After(end) {
 				break
 			}
 			grpcTrades.Trades = append(grpcTrades.Trades, &gctrpc.SavedTrades{
@@ -3306,12 +3324,15 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		return nil, err
 	}
 
-	var UTCStartTime, UTCEndTime time.Time
-	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+	start, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+	end, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -3321,8 +3342,8 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		Exchange:         r.Exchange,
 		Asset:            a,
 		Pair:             p,
-		StartDate:        UTCStartTime,
-		EndDate:          UTCEndTime,
+		StartDate:        start,
+		EndDate:          end,
 		Interval:         kline.Interval(r.Interval),
 		RunBatchLimit:    r.BatchSize,
 		RequestSizeLimit: r.RequestSizeLimit,
@@ -3469,21 +3490,20 @@ func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDa
 	if r == nil {
 		return nil, errNilRequestData
 	}
-	var UTCStartTime, UTCEndTime time.Time
-	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	start, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
+	}
+	end, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start.Local(), end)
 	if err != nil {
 		return nil, err
 	}
 
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
-	if err != nil {
-		return nil, err
-	}
-	if UTCStartTime.After(UTCEndTime) {
-		return nil, errInvalidTimes
-	}
-
-	jobs, err := s.dataHistoryManager.GetAllJobStatusBetween(UTCStartTime, UTCEndTime)
+	jobs, err := s.dataHistoryManager.GetAllJobStatusBetween(start, end)
 	if err != nil {
 		return nil, err
 	}

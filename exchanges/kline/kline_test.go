@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -402,18 +403,23 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	end := time.Unix(1577836799, 0)
 
 	_, err := CalculateCandleDateRanges(time.Time{}, time.Time{}, OneMin, 300)
-	if !errors.Is(err, ErrDateUnset) {
-		t.Errorf("received %v expected %v", err, ErrDateUnset)
+	if !errors.Is(err, common.ErrDateUnset) {
+		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
 	}
 
-	_, err = CalculateCandleDateRanges(time.Now().Add(time.Second), time.Now(), OneMin, 300)
-	if !errors.Is(err, ErrStartAfterEnd) {
-		t.Errorf("received %v expected %v", err, ErrStartAfterEnd)
+	_, err = CalculateCandleDateRanges(time.Now().Add(-time.Minute), time.Now().Add(-time.Minute*5), OneMin, 300)
+	if !errors.Is(err, common.ErrStartAfterEnd) {
+		t.Errorf("received %v expected %v", err, common.ErrStartAfterEnd)
 	}
 
 	_, err = CalculateCandleDateRanges(time.Now(), time.Now().Add(time.Second), 0, 300)
 	if !errors.Is(err, ErrUnsetInterval) {
 		t.Errorf("received %v expected %v", err, ErrUnsetInterval)
+	}
+
+	_, err = CalculateCandleDateRanges(time.Now(), time.Now(), OneMin, 300)
+	if !errors.Is(err, common.ErrStartEqualsEnd) {
+		t.Errorf("received %v expected %v", err, common.ErrStartEqualsEnd)
 	}
 
 	v, err := CalculateCandleDateRanges(start, end, OneMin, 300)

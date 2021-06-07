@@ -504,16 +504,9 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	if !pairs.Contains(job.Pair, false) {
 		return errCurrencyPairInvalid
 	}
-	if job.StartDate.After(job.EndDate) ||
-		job.StartDate.IsZero() ||
-		job.EndDate.IsZero() ||
-		job.StartDate.After(time.Now()) {
-		return errInvalidTimes
-	}
 	if job.Results == nil {
 		job.Results = make(map[time.Time][]DataHistoryJobResult)
 	}
-
 	if job.RunBatchLimit <= 0 {
 		log.Warnf(log.DataHistory, "job %s has unset batch limit, defaulting to %v", job.Nickname, defaultBatchLimit)
 		job.RunBatchLimit = defaultBatchLimit
@@ -535,6 +528,10 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 
 	job.StartDate = job.StartDate.Round(job.Interval.Duration())
 	job.EndDate = job.EndDate.Round(job.Interval.Duration())
+	if err := common.StartEndTimeCheck(job.StartDate, job.EndDate); err != nil {
+		return fmt.Errorf("%w start: %v end %v", err, job.StartDate, job.EndDate)
+
+	}
 
 	return nil
 }
@@ -645,11 +642,12 @@ func (m *DataHistoryManager) DeleteJob(nickname, id string) error {
 	var err error
 	m.m.Lock()
 	defer m.m.Unlock()
-	for i := range m.jobs {
+	for i := 0; i < len(m.jobs); i++ {
 		if strings.EqualFold(m.jobs[i].Nickname, nickname) ||
 			m.jobs[i].ID.String() == id {
 			dbJob = m.convertJobToDBModel(m.jobs[i])
 			m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
+			i--
 		}
 	}
 	if dbJob == nil {
