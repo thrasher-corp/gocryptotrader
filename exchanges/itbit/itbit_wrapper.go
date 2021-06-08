@@ -248,7 +248,7 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (i *ItBit) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var info account.Holdings
 	info.Exchange = i.Name
 
@@ -297,7 +297,7 @@ func (i *ItBit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (i *ItBit) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(i.Name, assetType)
 	if err != nil {
 		return i.UpdateAccountInfo(assetType)

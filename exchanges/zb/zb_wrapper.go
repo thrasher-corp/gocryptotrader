@@ -338,62 +338,53 @@ func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
-func (z *ZB) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var balances []account.Balance
+func (z *ZB) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var coins []AccountsResponseCoin
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := z.wsGetAccountInfoRequest()
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 		coins = resp.Data.Coins
 	} else {
 		bal, err := z.GetAccountInformation()
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 		coins = bal.Result.Coins
 	}
 
+	m := make(account.HoldingsSnapshot)
 	for i := range coins {
 		hold, err := strconv.ParseFloat(coins[i].Freeze, 64)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 
 		avail, err := strconv.ParseFloat(coins[i].Available, 64)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 
-		balances = append(balances, account.Balance{
-			CurrencyName: currency.NewCode(coins[i].EnName),
-			TotalValue:   hold + avail,
-			Hold:         hold,
-		})
+		m[currency.NewCode(coins[i].EnName)] = account.Balance{
+			Total:  hold + avail,
+			Locked: hold,
+		}
 	}
 
-	info.Exchange = z.Name
-	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currencies: balances,
-	})
-
-	err := account.Process(&info)
+	err := z.LoadHoldings(account.Default, asset.Spot, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return info, nil
+	return z.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (z *ZB) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(z.Name, assetType)
+func (z *ZB) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+	acc, err := z.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return z.UpdateAccountInfo(assetType)
+		return z.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -808,13 +799,6 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (z *ZB) ValidateCredentials(assetType asset.Item) error {
-	_, err := z.UpdateAccountInfo(assetType)
-	return z.CheckTransientError(err)
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string

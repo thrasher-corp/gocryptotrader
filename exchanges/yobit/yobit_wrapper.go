@@ -278,48 +278,34 @@ func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Yobit exchange
-func (y *Yobit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
-	response.Exchange = y.Name
+func (y *Yobit) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	accountBalance, err := y.GetAccountInformation()
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
-	var currencies []account.Balance
-	for x, y := range accountBalance.FundsInclOrders {
-		var exchangeCurrency account.Balance
-		exchangeCurrency.CurrencyName = currency.NewCode(x)
-		exchangeCurrency.TotalValue = y
-		exchangeCurrency.Hold = 0
-		for z, w := range accountBalance.Funds {
-			if z == x {
-				exchangeCurrency.Hold = y - w
-			}
+	m := make(account.HoldingsSnapshot)
+	for code, total := range accountBalance.FundsInclOrders {
+		locked := accountBalance.Funds[code]
+		m[currency.NewCode(code)] = account.Balance{
+			Total:  total,
+			Locked: locked,
 		}
-
-		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currencies: currencies,
-	})
-
-	err = account.Process(&response)
+	err = y.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return response, nil
+	return y.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (y *Yobit) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(y.Name, assetType)
+func (y *Yobit) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+	acc, err := y.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return y.UpdateAccountInfo(assetType)
+		return y.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -638,13 +624,6 @@ func (y *Yobit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 	order.FilterOrdersBySide(&orders, req.Side)
 
 	return orders, nil
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (y *Yobit) ValidateCredentials(assetType asset.Item) error {
-	_, err := y.UpdateAccountInfo(assetType)
-	return y.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval

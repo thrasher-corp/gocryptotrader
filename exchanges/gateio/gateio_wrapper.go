@@ -324,7 +324,7 @@ func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
-func (g *Gateio) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (g *Gateio) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var info account.Holdings
 	var balances []account.Balance
 
@@ -409,7 +409,7 @@ func (g *Gateio) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (g *Gateio) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (g *Gateio) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(g.Name, assetType)
 	if err != nil {
 		return g.UpdateAccountInfo(assetType)

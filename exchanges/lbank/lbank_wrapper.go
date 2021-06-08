@@ -296,7 +296,7 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Lbank exchange
-func (l *Lbank) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (l *Lbank) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var info account.Holdings
 	data, err := l.GetUserInfo()
 	if err != nil {
@@ -334,7 +334,7 @@ func (l *Lbank) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (l *Lbank) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (l *Lbank) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(l.Name, assetType)
 	if err != nil {
 		return l.UpdateAccountInfo(assetType)

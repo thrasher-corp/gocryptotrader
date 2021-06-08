@@ -375,7 +375,7 @@ func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (f *FTX) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (f *FTX) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var resp account.Holdings
 	data, err := f.GetBalances()
 	if err != nil {
@@ -403,7 +403,7 @@ func (f *FTX) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) 
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (f *FTX) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (f *FTX) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(f.Name, assetType)
 	if err != nil {
 		return f.UpdateAccountInfo(assetType)

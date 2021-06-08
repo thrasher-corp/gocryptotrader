@@ -338,7 +338,6 @@ func (h *Holdings) GetFullSnapshot() (FullSnapshot, error) {
 	}
 
 	m := make(FullSnapshot)
-
 	h.m.Lock()
 	defer h.m.Unlock()
 	for account, m1 := range h.funds {

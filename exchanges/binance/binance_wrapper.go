@@ -574,7 +574,7 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Binance exchange
-func (b *Binance) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (b *Binance) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var info account.Holdings
 	var acc account.SubAccount
 	info.Exchange = b.Name
@@ -666,7 +666,7 @@ func (b *Binance) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Binance) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (b *Binance) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(assetType)

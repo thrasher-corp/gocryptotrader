@@ -34,9 +34,6 @@ const (
 	privateWithdrawCoinsToAddress = "WithdrawCoinsToAddress"
 	privateCreateCoupon           = "CreateYobicode"
 	privateRedeemCoupon           = "RedeemYobicode"
-
-	yobitAuthRate   = 0
-	yobitUnauthRate = 0
 )
 
 // Yobit is the overarching type across the Yobit package

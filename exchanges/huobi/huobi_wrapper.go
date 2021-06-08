@@ -616,7 +616,7 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
-func (h *HUOBI) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (h *HUOBI) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var info account.Holdings
 	var acc account.SubAccount
 	info.Exchange = h.Name
@@ -738,7 +738,7 @@ func (h *HUOBI) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (h *HUOBI) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (h *HUOBI) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(h.Name, assetType)
 	if err != nil {
 		return h.UpdateAccountInfo(assetType)

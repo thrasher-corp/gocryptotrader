@@ -395,7 +395,7 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (b *BTCMarkets) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (b *BTCMarkets) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var resp account.Holdings
 	data, err := b.GetAccountBalance()
 	if err != nil {
@@ -423,7 +423,7 @@ func (b *BTCMarkets) UpdateAccountInfo(assetType asset.Item) (account.Holdings, 
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *BTCMarkets) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (b *BTCMarkets) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(assetType)

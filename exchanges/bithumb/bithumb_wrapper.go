@@ -283,7 +283,7 @@ func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Bithumb exchange
-func (b *Bithumb) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (b *Bithumb) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var info account.Holdings
 	bal, err := b.GetAccountBalance("ALL")
 	if err != nil {
@@ -319,7 +319,7 @@ func (b *Bithumb) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bithumb) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (b *Bithumb) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(assetType)

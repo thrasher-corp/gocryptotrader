@@ -292,12 +292,12 @@ func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Bitflyer exchange
-func (b *Bitflyer) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (b *Bitflyer) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bitflyer) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (b *Bitflyer) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(assetType)

@@ -303,7 +303,7 @@ func (c *COINUT) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // COINUT exchange
-func (c *COINUT) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (c *COINUT) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var info account.Holdings
 	var bal *UserBalance
 	var err error
@@ -393,7 +393,7 @@ func (c *COINUT) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (c *COINUT) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (c *COINUT) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(c.Name, assetType)
 	if err != nil {
 		return c.UpdateAccountInfo(assetType)

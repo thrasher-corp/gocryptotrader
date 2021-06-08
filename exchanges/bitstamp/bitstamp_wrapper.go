@@ -361,7 +361,7 @@ func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Bitstamp exchange
-func (b *Bitstamp) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (b *Bitstamp) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var response account.Holdings
 	response.Exchange = b.Name
 	accountBalance, err := b.GetBalance()
@@ -390,7 +390,7 @@ func (b *Bitstamp) UpdateAccountInfo(assetType asset.Item) (account.Holdings, er
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bitstamp) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (b *Bitstamp) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(assetType)

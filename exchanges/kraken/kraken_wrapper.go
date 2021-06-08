@@ -557,7 +557,7 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Kraken exchange - to-do
-func (k *Kraken) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (k *Kraken) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var info account.Holdings
 	var balances []account.Balance
 	info.Exchange = k.Name
@@ -610,7 +610,7 @@ func (k *Kraken) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (k *Kraken) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (k *Kraken) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(k.Name, assetType)
 	if err != nil {
 		return k.UpdateAccountInfo(assetType)

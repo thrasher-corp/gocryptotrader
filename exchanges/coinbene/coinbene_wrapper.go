@@ -469,7 +469,7 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Coinbene exchange
-func (c *Coinbene) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (c *Coinbene) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var info account.Holdings
 	balance, err := c.GetAccountBalances()
 	if err != nil {
@@ -499,7 +499,7 @@ func (c *Coinbene) UpdateAccountInfo(assetType asset.Item) (account.Holdings, er
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (c *Coinbene) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (c *Coinbene) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(c.Name, assetType)
 	if err != nil {
 		return c.UpdateAccountInfo(assetType)

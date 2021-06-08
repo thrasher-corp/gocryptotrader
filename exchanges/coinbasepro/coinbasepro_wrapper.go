@@ -313,7 +313,7 @@ func (c *CoinbasePro) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // coinbasepro exchange
-func (c *CoinbasePro) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (c *CoinbasePro) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var response account.Holdings
 	response.Exchange = c.Name
 	accountBalance, err := c.GetAccounts()
@@ -344,7 +344,7 @@ func (c *CoinbasePro) UpdateAccountInfo(assetType asset.Item) (account.Holdings,
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (c *CoinbasePro) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (c *CoinbasePro) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(c.Name, assetType)
 	if err != nil {
 		return c.UpdateAccountInfo(assetType)

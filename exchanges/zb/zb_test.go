@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -354,12 +355,12 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	if z.ValidateAPICredentials() {
-		_, err := z.UpdateAccountInfo(asset.Spot)
+		_, err := z.UpdateAccountInfo(account.Default, asset.Spot)
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := z.UpdateAccountInfo(asset.Spot)
+		_, err := z.UpdateAccountInfo(account.Default, asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}

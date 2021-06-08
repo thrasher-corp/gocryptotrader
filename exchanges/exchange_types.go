@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -231,6 +232,9 @@ type Base struct {
 	order.ExecutionLimits
 
 	AssetWebsocketSupport
+
+	// Defines full holdings breakdown for the individual exchange accounts
+	*account.Holdings
 }
 
 // url lookup consts

@@ -384,41 +384,33 @@ func (p *Poloniex) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orde
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
-	response.Exchange = p.Name
-	accountBalance, err := p.GetBalances()
+func (p *Poloniex) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+	accountBalance, err := p.GetCompleteBalances()
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
-	var currencies []account.Balance
-	for x, y := range accountBalance.Currency {
-		var exchangeCurrency account.Balance
-		exchangeCurrency.CurrencyName = currency.NewCode(x)
-		exchangeCurrency.TotalValue = y
-		currencies = append(currencies, exchangeCurrency)
+	m := make(account.HoldingsSnapshot)
+	for code, balance := range accountBalance {
+		m[currency.NewCode(code)] = account.Balance{
+			Total:  balance.Available + balance.OnOrders,
+			Locked: balance.OnOrders,
+		}
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currencies: currencies,
-	})
-
-	err = account.Process(&response)
+	err = p.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return response, nil
+	return p.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (p *Poloniex) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(p.Name, assetType)
+func (p *Poloniex) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+	acc, err := p.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return p.UpdateAccountInfo(assetType)
+		return p.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -829,13 +821,6 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 	order.FilterOrdersBySide(&orders, req.Side)
 
 	return orders, nil
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (p *Poloniex) ValidateCredentials(assetType asset.Item) error {
-	_, err := p.UpdateAccountInfo(assetType)
-	return p.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval

@@ -314,7 +314,7 @@ func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // LakeBTC exchange
-func (l *LakeBTC) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (l *LakeBTC) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	var response account.Holdings
 	response.Exchange = l.Name
 	accountInfo, err := l.GetAccountInformation()
@@ -349,7 +349,7 @@ func (l *LakeBTC) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (l *LakeBTC) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (l *LakeBTC) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := account.GetHoldings(l.Name, assetType)
 	if err != nil {
 		return l.UpdateAccountInfo(assetType)
