@@ -297,49 +297,42 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Lbank exchange
 func (l *Lbank) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var info account.Holdings
 	data, err := l.GetUserInfo()
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	var acc account.SubAccount
-	for key, val := range data.Info.Asset {
-		c := currency.NewCode(key)
-		hold, ok := data.Info.Freeze[key]
+	m := make(account.HoldingsSnapshot)
+	for code, val := range data.Info.Asset {
+		hold, ok := data.Info.Freeze[code]
 		if !ok {
-			return info, fmt.Errorf("hold data not found with %s", key)
+			return nil, fmt.Errorf("hold data not found with %s", code)
 		}
 		totalVal, parseErr := strconv.ParseFloat(val, 64)
 		if parseErr != nil {
-			return info, parseErr
+			return nil, parseErr
 		}
 		totalHold, parseErr := strconv.ParseFloat(hold, 64)
 		if parseErr != nil {
-			return info, parseErr
+			return nil, parseErr
 		}
-		acc.Currencies = append(acc.Currencies, account.Balance{
-			CurrencyName: c,
-			TotalValue:   totalVal,
-			Hold:         totalHold})
+		m[currency.NewCode(code)] = account.Balance{
+			Total:  totalVal,
+			Locked: totalHold,
+		}
 	}
-
-	info.Accounts = append(info.Accounts, acc)
-	info.Exchange = l.Name
-
-	err = account.Process(&info)
+	err = l.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-	return info, nil
+	return l.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (l *Lbank) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(l.Name, assetType)
+	acc, err := l.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return l.UpdateAccountInfo(assetType)
+		return l.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
