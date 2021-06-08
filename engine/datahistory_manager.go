@@ -529,8 +529,8 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		job.RequestSizeLimit = defaultDataHistoryRequestSizeLimit
 	}
 	if job.DataType == dataHistoryTradeDataType &&
-		job.Interval >= kline.FourHour &&
-		job.Interval <= kline.TenMin {
+		(job.Interval >= kline.FourHour || job.Interval <= kline.TenMin) {
+		log.Warnf(log.DataHistory, "job %s interval %v outside limits, defaulting to %v", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
 		job.Interval = defaultDataHistoryTradeInterval
 	}
 

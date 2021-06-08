@@ -59,7 +59,7 @@ For a breakdown of what a job consists of and what each parameter does, please r
   + Modify the following example command to your needs: `.\gctcli.exe datahistory upsertjob --nickname=binance-spot-bnb-btc-1h-candles --exchange=binance --asset=spot --pair=BNB-BTC --interval=3600 --start_date="2020-06-02 12:00:00" --end_date="2020-12-02 12:00:00" --request_size_limit=10 --data_type=0 --max_retry_attempts=3 --batch_size=3`
 
 ### Candle intervals and trade fetching
-+ A candle interval is required for a job, even when fetching trade data. This is to appropriately break down requests into time interval chunks. So an interval of 1 hour will then fetch an hour's worth of trade data
++ A candle interval is required for a job, even when fetching trade data. This is to appropriately break down requests into time interval chunks. However, it is restricted to only a small range of times. This is to prevent fetching issues as fetching trades over a period of days or weeks will take a significant amount of time. When setting a job to fetch trades, the allowable range is less than 4 hours and greater than 10 minutes.
 
 ### Application run time parameters
 
