@@ -315,46 +315,43 @@ func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // LakeBTC exchange
 func (l *LakeBTC) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var response account.Holdings
-	response.Exchange = l.Name
 	accountInfo, err := l.GetAccountInformation()
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
-	var currencies []account.Balance
-	for x, y := range accountInfo.Balance {
-		for z, w := range accountInfo.Locked {
-			if z != x {
-				continue
-			}
-			var exchangeCurrency account.Balance
-			exchangeCurrency.CurrencyName = currency.NewCode(x)
-			exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
-			exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
-			currencies = append(currencies, exchangeCurrency)
+	m := make(account.HoldingsSnapshot)
+	for code, total := range accountInfo.Balance {
+		var totes float64
+		totes, err = strconv.ParseFloat(total, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		var locked float64
+		locked, err = strconv.ParseFloat(accountInfo.Locked[code], 64)
+		if err != nil {
+			return nil, err
+		}
+		m[currency.NewCode(code)] = account.Balance{
+			Total:  totes,
+			Locked: locked,
 		}
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currencies: currencies,
-	})
-
-	err = account.Process(&response)
+	err = l.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return response, nil
+	return l.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (l *LakeBTC) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(l.Name, assetType)
+	acc, err := l.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return l.UpdateAccountInfo(assetType)
+		return l.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -634,13 +631,6 @@ func (l *LakeBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 
 	return orders, nil
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (l *LakeBTC) ValidateCredentials(assetType asset.Item) error {
-	_, err := l.UpdateAccountInfo(assetType)
-	return l.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
