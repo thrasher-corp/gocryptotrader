@@ -562,9 +562,9 @@ func (m *DataHistoryManager) GetByID(id uuid.UUID) (*DataHistoryJob, error) {
 	m.m.Lock()
 	for i := range m.jobs {
 		if m.jobs[i].ID == id {
-			cpy := m.jobs[i]
+			cpy := *m.jobs[i]
 			m.m.Unlock()
-			return cpy, nil
+			return &cpy, nil
 		}
 	}
 	m.m.Unlock()

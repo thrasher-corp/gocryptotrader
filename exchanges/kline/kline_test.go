@@ -399,56 +399,56 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 }
 
 func TestCalculateCandleDateRanges(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
+	pt := time.Date(1999, 1, 1, 0, 0, 0, 0, time.Local)
+	ft := time.Date(2222, 1, 1, 0, 0, 0, 0, time.Local)
+	et := time.Date(2020, 1, 1, 1, 0, 0, 0, time.Local)
+	nt := time.Time{}
 
-	_, err := CalculateCandleDateRanges(time.Time{}, time.Time{}, OneMin, 300)
+	_, err := CalculateCandleDateRanges(nt, nt, OneMin, 300)
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
 	}
 
-	_, err = CalculateCandleDateRanges(time.Now().Add(-time.Minute), time.Now().Add(-time.Minute*5), OneMin, 300)
+	_, err = CalculateCandleDateRanges(et, pt, OneMin, 300)
 	if !errors.Is(err, common.ErrStartAfterEnd) {
 		t.Errorf("received %v expected %v", err, common.ErrStartAfterEnd)
 	}
 
-	_, err = CalculateCandleDateRanges(time.Now(), time.Now().Add(time.Second), 0, 300)
+	_, err = CalculateCandleDateRanges(et, ft, 0, 300)
 	if !errors.Is(err, ErrUnsetInterval) {
 		t.Errorf("received %v expected %v", err, ErrUnsetInterval)
 	}
 
-	_, err = CalculateCandleDateRanges(time.Now(), time.Now(), OneMin, 300)
+	_, err = CalculateCandleDateRanges(et, et, OneMin, 300)
 	if !errors.Is(err, common.ErrStartEqualsEnd) {
 		t.Errorf("received %v expected %v", err, common.ErrStartEqualsEnd)
 	}
 
-	v, err := CalculateCandleDateRanges(start, end, OneMin, 300)
+	v, err := CalculateCandleDateRanges(pt, et, OneMin, 300)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if v.Ranges[0].Start.Ticks != time.Unix(1546300800, 0).Unix() {
-		t.Errorf("expected %v received %v", 1546300800, v.Ranges[0].Start.Ticks)
+	if v.Ranges[0].Start.Ticks != time.Unix(915109200, 0).Unix() {
+		t.Errorf("expected %v received %v", 915109200, v.Ranges[0].Start.Ticks)
 	}
 
-	v, err = CalculateCandleDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
+	v, err = CalculateCandleDateRanges(pt, et, OneDay, 100)
 	if err != nil {
 		t.Error(err)
 	}
-	if len(v.Ranges) != 1 {
-		t.Fatalf("expected %v received %v", 1, len(v.Ranges))
+	if len(v.Ranges) != 77 {
+		t.Fatalf("expected %v received %v", 77, len(v.Ranges))
 	}
-	if len(v.Ranges[0].Intervals) != 1 {
-		t.Errorf("expected %v received %v", 1, len(v.Ranges[0].Intervals))
+	if len(v.Ranges[0].Intervals) != 100 {
+		t.Errorf("expected %v received %v", 100, len(v.Ranges[0].Intervals))
 	}
-	start = time.Now()
-	end = time.Now().AddDate(0, 0, 10)
-	v, err = CalculateCandleDateRanges(start, end, OneDay, 5)
+	v, err = CalculateCandleDateRanges(et, ft, OneDay, 5)
 	if err != nil {
 		t.Error(err)
 	}
-	if len(v.Ranges) != 2 {
-		t.Errorf("expected %v received %v", 2, len(v.Ranges))
+	if len(v.Ranges) != 14756 {
+		t.Errorf("expected %v received %v", 14756, len(v.Ranges))
 	}
 	if len(v.Ranges[0].Intervals) != 5 {
 		t.Errorf("expected %v received %v", 5, len(v.Ranges[0].Intervals))
@@ -456,8 +456,10 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	if len(v.Ranges[1].Intervals) != 5 {
 		t.Errorf("expected %v received %v", 5, len(v.Ranges[1].Intervals))
 	}
-	if !v.Ranges[1].Intervals[4].End.Equal(end.Round(OneDay.Duration())) {
-		t.Errorf("expected %v received %v", end.Round(OneDay.Duration()), v.Ranges[1].Intervals[4].End)
+	lenRanges := len(v.Ranges) - 1
+	lenIntervals := len(v.Ranges[lenRanges].Intervals) - 1
+	if !v.Ranges[lenRanges].Intervals[lenIntervals].End.Equal(ft.Round(OneDay.Duration())) {
+		t.Errorf("expected %v received %v", ft.Round(OneDay.Duration()), v.Ranges[lenRanges].Intervals[lenIntervals].End)
 	}
 }
 
