@@ -185,47 +185,38 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 func (o *OKGroup) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	currencies, err := o.GetSpotTradingAccounts()
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
 
-	var resp account.Holdings
-	resp.Exchange = o.Name
-	currencyAccount := account.SubAccount{}
-
+	m := make(account.HoldingsSnapshot)
 	for i := range currencies {
 		hold, parseErr := strconv.ParseFloat(currencies[i].Hold, 64)
 		if parseErr != nil {
-			return resp, parseErr
+			return nil, parseErr
 		}
 		totalValue, parseErr := strconv.ParseFloat(currencies[i].Balance, 64)
 		if parseErr != nil {
-			return resp, parseErr
+			return nil, parseErr
 		}
-		currencyAccount.Currencies = append(currencyAccount.Currencies,
-			account.Balance{
-				CurrencyName: currency.NewCode(currencies[i].Currency),
-				Hold:         hold,
-				TotalValue:   totalValue,
-			})
+		m[currency.NewCode(currencies[i].Currency)] = account.Balance{
+			Total:  totalValue,
+			Locked: hold,
+		}
 	}
 
-	resp.Accounts = append(resp.Accounts, currencyAccount)
-
-	err = account.Process(&resp)
+	err = o.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-
-	return resp, nil
+	return o.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (o *OKGroup) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(o.Name, assetType)
+	acc, err := o.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return o.UpdateAccountInfo(assetType)
+		return o.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -572,13 +563,6 @@ func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (o *OKGroup) AuthenticateWebsocket() error {
 	return o.WsLogin()
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (o *OKGroup) ValidateCredentials(assetType asset.Item) error {
-	_, err := o.UpdateAccountInfo(assetType)
-	return o.CheckTransientError(err)
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided

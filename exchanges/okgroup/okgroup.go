@@ -22,8 +22,6 @@ import (
 )
 
 const (
-	okGroupAuthRate   = 0
-	okGroupUnauthRate = 0
 	// OKGroupAPIPath const to help with api url formatting
 	OKGroupAPIPath = "api/"
 	// API subsections
@@ -82,8 +80,6 @@ const (
 	okGroupGetLoan               = "borrow"
 	okGroupGetRepayment          = "repayment"
 )
-
-var errMissValue = errors.New("warning - resp value is missing from exchange")
 
 // OKGroup is the overaching type across the all of OKEx's exchange methods
 type OKGroup struct {
