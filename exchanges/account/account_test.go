@@ -1,136 +1,72 @@
 package account
 
 import (
-	"sync"
+	"errors"
+	"fmt"
+	"os"
 	"testing"
-	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-func TestHoldings(t *testing.T) {
+func TestMain(m *testing.M) {
 	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
 	if err != nil {
-		t.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
-	err = Process(nil)
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	os.Exit(m.Run())
+}
 
-	err = Process(&Holdings{})
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
-
-	holdings := Holdings{
-		Exchange: "Test",
+func TestDeployHoldings(t *testing.T) {
+	_, err := DeployHoldings("", false)
+	if !errors.Is(err, errExchangeNameUnset) {
+		t.Fatalf("expected: %v but received: %v", errExchangeNameUnset, err)
 	}
 
-	err = Process(&holdings)
-	if err != nil {
-		t.Error(err)
+	h, err := DeployHoldings("test", false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected: %v but received: %v", nil, err)
+	}
+	if h == nil {
+		t.Fatal("holdings variable should not be nil")
+	}
+	if h.id.String() == "" {
+		t.Fatal("mux id should have been populated")
 	}
 
-	err = Process(&Holdings{
-		Exchange: "Test",
-		Accounts: []SubAccount{{
-			AssetType: asset.Spot,
-			ID:        "1337",
-			Currencies: []Balance{
-				{
-					CurrencyName: currency.BTC,
-					TotalValue:   100,
-					Hold:         20,
-				},
-			},
-		}},
-	})
-	if err != nil {
-		t.Error(err)
+	service.Lock()
+	h2, ok := service.accounts["test"]
+	service.Unlock()
+	if !ok {
+		t.Fatal("holdings should be populated in account services exchanges map")
 	}
 
-	_, err = GetHoldings("", asset.Spot)
-	if err == nil {
-		t.Error("error cannot be nil")
+	if h != h2 {
+		t.Fatal("these two instances should be the same")
 	}
 
-	_, err = GetHoldings("bla", asset.Spot)
-	if err == nil {
-		t.Error("error cannot be nil")
+	_, err = DeployHoldings("test", false)
+	if !errors.Is(err, errExchangeAlreadyDeployed) {
+		t.Fatalf("expected: %v but received: %v", errExchangeAlreadyDeployed, err)
+	}
+}
+
+func TestSubscribeToExchangeAccount(t *testing.T) {
+	_, err := SubscribeToExchangeAccount("")
+	if !errors.Is(err, errExchangeNameUnset) {
+		t.Fatalf("expected: %v but received: %v", errExchangeNameUnset, err)
 	}
 
-	_, err = GetHoldings("bla", asset.Item("hi"))
-	if err == nil {
-		t.Error("error cannot be nil since an invalid asset type is provided")
+	_, err = SubscribeToExchangeAccount("bro")
+	if !errors.Is(err, errExchangeHoldingsNotFound) {
+		t.Fatalf("expected: %v but received: %v", errExchangeHoldingsNotFound, err)
 	}
 
-	u, err := GetHoldings("Test", asset.Spot)
-	if err != nil {
-		t.Error(err)
+	DeployHoldings("test", false)
+
+	_, err = SubscribeToExchangeAccount("test")
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
-
-	if u.Accounts[0].ID != "1337" {
-		t.Errorf("expecting 1337 but received %s", u.Accounts[0].ID)
-	}
-
-	if u.Accounts[0].Currencies[0].CurrencyName != currency.BTC {
-		t.Errorf("expecting BTC but received %s",
-			u.Accounts[0].Currencies[0].CurrencyName)
-	}
-
-	if u.Accounts[0].Currencies[0].TotalValue != 100 {
-		t.Errorf("expecting 100 but received %f",
-			u.Accounts[0].Currencies[0].TotalValue)
-	}
-
-	if u.Accounts[0].Currencies[0].Hold != 20 {
-		t.Errorf("expecting 20 but received %f",
-			u.Accounts[0].Currencies[0].Hold)
-	}
-
-	_, err = SubscribeToExchangeAccount("nonsense")
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
-
-	p, err := SubscribeToExchangeAccount("Test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func(p dispatch.Pipe, wg *sync.WaitGroup) {
-		for i := 0; i < 2; i++ {
-			c := time.NewTimer(time.Second)
-			select {
-			case <-p.C:
-			case <-c.C:
-			}
-		}
-
-		wg.Done()
-	}(p, &wg)
-
-	err = Process(&Holdings{
-		Exchange: "Test",
-		Accounts: []SubAccount{{
-			ID: "1337",
-			Currencies: []Balance{
-				{
-					CurrencyName: currency.BTC,
-					TotalValue:   100000,
-					Hold:         20,
-				},
-			},
-		}},
-	})
-	if err != nil {
-		t.Error(err)
-	}
-
-	wg.Wait()
 }

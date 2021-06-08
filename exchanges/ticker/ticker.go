@@ -122,7 +122,7 @@ func (s *Service) Update(p *Price) error {
 		ticker.LastUpdated = p.LastUpdated
 		ids := append(ticker.Assoc, ticker.Main)
 		s.Unlock()
-		return s.mux.Publish(ids, p)
+		return s.mux.Publish(p, ids...)
 	}
 
 	switch {
