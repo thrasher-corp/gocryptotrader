@@ -629,32 +629,37 @@ func TestErrors(t *testing.T) {
 }
 
 func TestParseStartEndDate(t *testing.T) {
-	err := StartEndTimeCheck(time.Time{}, time.Time{})
+	pt := time.Date(1999, 1, 1, 0, 0, 0, 0, time.Local)
+	ft := time.Date(2222, 1, 1, 0, 0, 0, 0, time.Local)
+	et := time.Date(2020, 1, 1, 1, 0, 0, 0, time.Local)
+	nt := time.Time{}
+
+	err := StartEndTimeCheck(nt, nt)
 	if !errors.Is(err, ErrDateUnset) {
 		t.Errorf("received %v, expected %v", err, ErrDateUnset)
 	}
 
-	err = StartEndTimeCheck(time.Now(), time.Time{})
+	err = StartEndTimeCheck(et, nt)
 	if !errors.Is(err, ErrDateUnset) {
 		t.Errorf("received %v, expected %v", err, ErrDateUnset)
 	}
 
-	err = StartEndTimeCheck(time.Now(), time.Now())
+	err = StartEndTimeCheck(et, et)
 	if !errors.Is(err, ErrStartEqualsEnd) {
 		t.Errorf("received %v, expected %v", err, ErrStartEqualsEnd)
 	}
 
-	err = StartEndTimeCheck(time.Now().Add(time.Second), time.Now())
+	err = StartEndTimeCheck(ft, et)
 	if !errors.Is(err, ErrStartAfterTimeNow) {
 		t.Errorf("received %v, expected %v", err, ErrStartAfterTimeNow)
 	}
 
-	err = StartEndTimeCheck(time.Now().Add(-time.Second), time.Now().Add(-time.Minute))
+	err = StartEndTimeCheck(et, pt)
 	if !errors.Is(err, ErrStartAfterEnd) {
 		t.Errorf("received %v, expected %v", err, ErrStartAfterEnd)
 	}
 
-	err = StartEndTimeCheck(time.Now().Add(-time.Second), time.Now())
+	err = StartEndTimeCheck(pt, et)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
