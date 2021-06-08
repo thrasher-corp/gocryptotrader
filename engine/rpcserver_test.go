@@ -1348,13 +1348,14 @@ func TestDeleteDataHistoryJob(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, errOnlyNicknameOrID)
 	}
 
-	id := engerino.dataHistoryManager.jobs[0].ID.String()
+	id := engerino.dataHistoryManager.jobs[0].ID
 	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestDeleteDataHistoryJob"})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
-
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: id})
+	dhj.ID = id
+	engerino.dataHistoryManager.jobs = append(engerino.dataHistoryManager.jobs, dhj)
+	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: id.String()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}

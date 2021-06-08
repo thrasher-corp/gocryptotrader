@@ -56,23 +56,23 @@ var (
 			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
-		cli.StringFlag{
+		cli.Uint64Flag{
 			Name:  "interval",
 			Usage: klineMessage,
 		},
-		cli.StringFlag{
+		cli.Uint64Flag{
 			Name:  "request_size_limit",
 			Usage: "500 - will only retrieve 500 candles per API request",
 		},
-		cli.StringFlag{
+		cli.Uint64Flag{
 			Name:  "data_type",
 			Usage: "0 for candles, 1 for trades",
 		},
-		cli.StringFlag{
+		cli.Uint64Flag{
 			Name:  "max_retry_attempts",
 			Usage: "3 - the maximum retry attempts for an interval period before giving up",
 		},
-		cli.StringFlag{
+		cli.Uint64Flag{
 			Name:  "batch_size",
 			Usage: "3 - the amount of API calls to make per run",
 		},
@@ -434,7 +434,10 @@ func deleteDataHistoryJob(c *cli.Context) error {
 	var id string
 	if c.IsSet("id") {
 		id = c.String("id")
+	} else {
+		id = c.Args().First()
 	}
+
 	var nickname string
 	if c.IsSet("nickname") {
 		nickname = c.String("nickname")

@@ -1021,9 +1021,10 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, s
 		}
 	}
 
-	err = dates.VerifyResultsHaveData(ret.Candles)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

@@ -874,7 +874,8 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 			return nil, err
 		}
 	}
-	if err := common.StartEndTimeCheck(start, end); err != nil {
+	err = common.StartEndTimeCheck(start, end)
+	if err != nil {
 		return nil, err
 	}
 
@@ -3387,9 +3388,14 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 	)
 
 	if r.Id != "" {
-		result, err = s.dataHistoryManager.GetByID(r.Id)
+		var id uuid.UUID
+		id, err = uuid.FromString(r.Id)
 		if err != nil {
-			return nil, fmt.Errorf("%s %w", r.Nickname, err)
+			return nil, fmt.Errorf("%s %w", r.Id, err)
+		}
+		result, err = s.dataHistoryManager.GetByID(id)
+		if err != nil {
+			return nil, fmt.Errorf("%s %w", r.Id, err)
 		}
 	} else {
 		result, err = s.dataHistoryManager.GetByNickname(r.Nickname, r.FullDetails)

@@ -470,13 +470,10 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		err = resp.Range.VerifyResultsHaveData(resp.Item.Candles)
-		if err != nil {
-			if strings.Contains(err.Error(), "missing candles data between") {
-				log.Warn(log.BackTester, err.Error())
-			} else {
-				return nil, err
-			}
+		resp.Range.SetHasDataFromCandles(resp.Item.Candles)
+		summary := resp.Range.DataSummary(false)
+		if len(summary) > 0 {
+			log.Warnf(log.BackTester, "%v", summary)
 		}
 	case cfg.DataSettings.DatabaseData != nil:
 		if cfg.DataSettings.DatabaseData.InclusiveEndDate {
@@ -521,13 +518,10 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		err = resp.Range.VerifyResultsHaveData(resp.Item.Candles)
-		if err != nil {
-			if strings.Contains(err.Error(), "missing candles data between") {
-				log.Warn(log.BackTester, err.Error())
-			} else {
-				return nil, err
-			}
+		resp.Range.SetHasDataFromCandles(resp.Item.Candles)
+		summary := resp.Range.DataSummary(false)
+		if len(summary) > 0 {
+			log.Warnf(log.BackTester, "%v", summary)
 		}
 	case cfg.DataSettings.APIData != nil:
 		if cfg.DataSettings.APIData.InclusiveEndDate {
@@ -626,13 +620,11 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if err != nil {
 		return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 	}
-	err = dates.VerifyResultsHaveData(candles.Candles)
-	if err != nil && errors.Is(err, gctkline.ErrMissingCandleData) {
-		log.Warn(log.BackTester, err.Error())
-	} else if err != nil {
-		return nil, err
+	dates.SetHasDataFromCandles(candles.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.BackTester, "%v", summary)
 	}
-
 	candles.FillMissingDataWithEmptyEntries(dates)
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
 	return &kline.DataFromKline{

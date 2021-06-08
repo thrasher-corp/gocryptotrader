@@ -93,7 +93,7 @@ func TestHasDataAtTime(t *testing.T) {
 		t.Error(err)
 	}
 	d.Range = ranger
-	_ = d.Range.VerifyResultsHaveData(d.Item.Candles)
+	d.Range.SetHasDataFromCandles(d.Item.Candles)
 	has = d.HasDataAtTime(dInsert)
 	if !has {
 		t.Error("expected true")

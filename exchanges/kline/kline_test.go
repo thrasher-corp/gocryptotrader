@@ -749,22 +749,48 @@ func TestVerifyResultsHaveData(t *testing.T) {
 	if dateRanges.HasDataAtDate(tt1) {
 		t.Error("unexpected true value")
 	}
-
-	err = dateRanges.VerifyResultsHaveData(nil)
-	if err == nil {
-		t.Error("expected error")
-	}
-	if err != nil && !strings.Contains(err.Error(), ErrMissingCandleData.Error()) {
-		t.Errorf("expected %v", ErrMissingCandleData)
-	}
-
-	err = dateRanges.VerifyResultsHaveData([]Candle{
+	dateRanges.SetHasDataFromCandles([]Candle{
 		{
 			Time: tt1,
 		},
 	})
+	if !dateRanges.HasDataAtDate(tt1) {
+		t.Error("expected true")
+	}
+	dateRanges.SetHasDataFromCandles([]Candle{
+		{
+			Time: tt2,
+		},
+	})
+	if dateRanges.HasDataAtDate(tt1) {
+		t.Error("expected false")
+	}
+}
+
+func TestDataSummary(t *testing.T) {
+	tt1 := time.Now().Add(-time.Hour * 24).Round(OneDay.Duration())
+	tt2 := time.Now().Round(OneDay.Duration())
+	tt3 := time.Now().Add(time.Hour * 24).Round(OneDay.Duration())
+	dateRanges, err := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
 	if err != nil {
 		t.Error(err)
+	}
+	result := dateRanges.DataSummary(false)
+	if len(result) != 1 {
+		t.Errorf("expected %v received %v", 1, len(result))
+	}
+	dateRanges, err = CalculateCandleDateRanges(tt1, tt3, OneDay, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	dateRanges.Ranges[0].Intervals[0].HasData = true
+	result = dateRanges.DataSummary(true)
+	if len(result) != 2 {
+		t.Errorf("expected %v received %v", 2, len(result))
+	}
+	result = dateRanges.DataSummary(false)
+	if len(result) != 1 {
+		t.Errorf("expected %v received %v", 1, len(result))
 	}
 }
 
@@ -779,7 +805,7 @@ func TestHasDataAtDate(t *testing.T) {
 		t.Error("unexpected true value")
 	}
 
-	_ = dateRanges.VerifyResultsHaveData([]Candle{
+	dateRanges.SetHasDataFromCandles([]Candle{
 		{
 			Time: tt1,
 		},

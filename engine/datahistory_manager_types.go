@@ -48,6 +48,14 @@ func (d dataHistoryStatus) String() string {
 	return ""
 }
 
+// Valid ensures the value set is legitimate
+func (d dataHistoryStatus) Valid() bool {
+	if int64(d) == 0 || int64(d) == 1 || int64(d) == 2 || int64(d) == 3 {
+		return true
+	}
+	return false
+}
+
 // String stringifies iotas to readable
 func (d dataHistoryDataType) String() string {
 	switch {
@@ -59,23 +67,35 @@ func (d dataHistoryDataType) String() string {
 	return ""
 }
 
+// Valid ensures the value set is legitimate
+func (d dataHistoryDataType) Valid() bool {
+	if int64(d) == 0 || int64(d) == 1 {
+		return true
+	}
+	return false
+}
+
 var (
 	errJobNotFound                = errors.New("job not found")
-	errDatabaseConnectionRequired = errors.New("data history manager requires access to the database")
 	errUnknownDataType            = errors.New("job has invalid datatype set and cannot be processed")
 	errNilJob                     = errors.New("nil job received")
 	errNicknameIDUnset            = errors.New("must set 'id' OR 'nickname'")
+	errEmptyID                    = errors.New("id not set")
 	errOnlyNicknameOrID           = errors.New("can only set 'id' OR 'nickname'")
 	errNicknameInUse              = errors.New("cannot insert job as nickname already in use")
 	errNicknameUnset              = errors.New("cannot insert job as nickname unset")
 	errJobInvalid                 = errors.New("job has not been setup properly and cannot be processed")
-	// defaultTradeInterval is the default interval size used to verify whether there is any database data
+	errInvalidDataHistoryStatus   = errors.New("unsupported data history status received")
+	errInvalidDataHistoryDataType = errors.New("unsupported data history data type received")
+	errCanOnlyDeleteActiveJobs    = errors.New("can only delete active jobs")
+	// defaultDataHistoryTradeInterval is the default interval size used to verify whether there is any database data
 	// for a trade job
-	defaultTradeInterval         = kline.FifteenMin
-	defaultMaxJobsPerCycle int64 = 5
-	defaultBatchLimit      int64 = 3
-	defaultRetryAttempts   int64 = 3
-	defaultTicker                = time.Minute
+	defaultDataHistoryTradeInterval          = kline.FifteenMin
+	defaultDataHistoryMaxJobsPerCycle  int64 = 5
+	defaultDataHistoryBatchLimit       int64 = 3
+	defaultDataHistoryRetryAttempts    int64 = 3
+	defaultDataHistoryRequestSizeLimit int64 = 10
+	defaultDataHistoryTicker                 = time.Minute
 )
 
 // DataHistoryManager is responsible for synchronising,

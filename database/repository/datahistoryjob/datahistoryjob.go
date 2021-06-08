@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -130,14 +129,6 @@ func (db *DBService) GetJobAndAllResults(nickname string) (*DataHistoryJob, erro
 
 func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) error {
 	for i := range jobs {
-		if jobs[i].ID == "" {
-			freshUUID, err := uuid.NewV4()
-			if err != nil {
-				return err
-			}
-			jobs[i].ID = freshUUID.String()
-		}
-
 		r, err := sqlite3.Exchanges(
 			qm.Where("name = ?", strings.ToLower(jobs[i].ExchangeName))).One(ctx, tx)
 		if err != nil {
@@ -171,16 +162,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 }
 
 func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) error {
-	var err error
 	for i := range jobs {
-		if jobs[i].ID == "" {
-			var freshUUID uuid.UUID
-			freshUUID, err = uuid.NewV4()
-			if err != nil {
-				return err
-			}
-			jobs[i].ID = freshUUID.String()
-		}
 		r, err := postgres.Exchanges(
 			qm.Where("name = ?", strings.ToLower(jobs[i].ExchangeName))).One(ctx, tx)
 		if err != nil {

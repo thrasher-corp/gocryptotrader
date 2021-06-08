@@ -240,6 +240,12 @@ func TestUpsertJob(t *testing.T) {
 		MaxRetryAttempts: 1337,
 	}
 	err = m.UpsertJob(newJob, false)
+	if !errors.Is(err, errInvalidDataHistoryDataType) {
+		t.Errorf("error '%v', expected '%v'", err, errInvalidDataHistoryDataType)
+	}
+
+	newJob.DataType = dataHistoryTradeDataType
+	err = m.UpsertJob(newJob, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -360,25 +366,30 @@ func TestGetByID(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	_, err = m.GetByID(dhj.ID.String())
+	_, err = m.GetByID(dhj.ID)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
+	_, err = m.GetByID(uuid.UUID{})
+	if !errors.Is(err, errEmptyID) {
+		t.Errorf("error '%v', expected '%v'", err, errEmptyID)
+	}
+
 	m.jobs = []*DataHistoryJob{}
-	_, err = m.GetByID(dhj.ID.String())
+	_, err = m.GetByID(dhj.ID)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
 	atomic.StoreInt32(&m.started, 0)
-	_, err = m.GetByID(dhj.Nickname)
+	_, err = m.GetByID(dhj.ID)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 
 	m = nil
-	_, err = m.GetByID(dhj.Nickname)
+	_, err = m.GetByID(dhj.ID)
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
@@ -406,7 +417,7 @@ func TestRetrieveJobs(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	if len(jobs) != 1 {
-		t.Error("expected a job")
+		t.Error("expected job")
 	}
 
 	atomic.StoreInt32(&m.started, 0)
@@ -529,7 +540,6 @@ func TestValidateJob(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-
 }
 
 func TestGetAllJobStatusBetween(t *testing.T) {
@@ -869,8 +879,8 @@ var j = datahistoryjob.DataHistoryJob{
 	Nickname:         "datahistoryjob",
 	ExchangeName:     testExchange,
 	Asset:            "spot",
-	Base:             "xrp",
-	Quote:            "doge",
+	Base:             "btc",
+	Quote:            "usd",
 	StartDate:        startDate,
 	EndDate:          endDate,
 	Interval:         int64(kline.OneHour.Duration()),
@@ -878,6 +888,7 @@ var j = datahistoryjob.DataHistoryJob{
 	MaxRetryAttempts: 3,
 	BatchSize:        3,
 	CreatedDate:      endDate,
+	Status:           0,
 	Results: []*datahistoryjobresult.DataHistoryJobResult{
 		{
 			ID:    jobID,

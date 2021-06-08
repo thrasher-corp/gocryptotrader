@@ -110,7 +110,7 @@ func TestOnSignal(t *testing.T) {
 		t.Error(err)
 	}
 	da.Range = ranger
-	_ = da.Range.VerifyResultsHaveData(da.Item.Candles)
+	da.Range.SetHasDataFromCandles(da.Item.Candles)
 	resp, err = s.OnSignal(da, nil)
 	if err != nil {
 		t.Error(err)
@@ -192,7 +192,7 @@ func TestOnSignals(t *testing.T) {
 		t.Error(err)
 	}
 	da.Range = ranger
-	_ = da.Range.VerifyResultsHaveData(da.Item.Candles)
+	da.Range.SetHasDataFromCandles(da.Item.Candles)
 	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
 	if err != nil {
 		t.Error(err)
