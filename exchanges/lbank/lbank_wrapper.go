@@ -859,13 +859,6 @@ func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
 	return resp, nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (l *Lbank) ValidateCredentials(assetType asset.Item) error {
-	_, err := l.UpdateAccountInfo(assetType)
-	return l.CheckTransientError(err)
-}
-
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (l *Lbank) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {

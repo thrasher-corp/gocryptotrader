@@ -26,7 +26,7 @@ type IBotExchange interface {
 	GetName() string
 	IsEnabled() bool
 	SetEnabled(bool)
-	ValidateCredentials(a asset.Item) error
+
 	FetchTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
 	FetchOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error)

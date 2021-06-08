@@ -70,43 +70,8 @@ const (
 	localbitcoinsAPIOrderbook      = "/orderbook.json"
 	localbitcoinsAPITrades         = "/trades.json"
 
-	// Trade Types
-	tradeTypeLocalSell  = "LOCAL_SELL"
-	tradeTypeLocalBuy   = "LOCAL_BUY"
-	tradeTypeOnlineSell = "ONLINE_SELL"
-	tradeTypeOnlineBuy  = "ONLINE_BUY"
-
-	// Reference Types
-	refTypeShort   = "SHORT"
-	refTypeLong    = "LONG"
-	refTypeNumbers = "NUMBERS"
-	refTypeLetters = "LETTERS"
-
-	// Feedback Values
-	feedbackTrust                = "trust"
-	feedbackPositive             = "positive"
-	feedbackNeutral              = "neutral"
-	feedbackBlock                = "block"
-	feedbackBlockWithoutFeedback = "block_without_feedback"
-
-	// State Values
-	stateNotOpened           = "NOT_OPENED"
-	stateWaitingForPayment   = "WAITING_FOR_PAYMENT"
-	statePaid                = "PAID"
-	stateNotPaid             = "DIDNT_PAID"
-	statePaidLate            = "PAID_IN_LATE"
-	statePartlyPaid          = "PAID_PARTLY"
-	statePaidAndConfirmed    = "PAID_AND_CONFIRMED"
-	statePaidLateConfirmed   = "PAID_IN_LATE_AND_CONFIRMED"
-	statePaidPartlyConfirmed = "PAID_PARTLY_AND_CONFIRMED"
-
 	// String response used with order status
 	null = "null"
-)
-
-var (
-	// Payment Methods
-	paymentMethodOne string
 )
 
 // LocalBitcoins is the overarching type across the localbitcoins package
