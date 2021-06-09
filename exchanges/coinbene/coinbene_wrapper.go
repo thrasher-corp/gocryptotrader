@@ -470,41 +470,32 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Coinbene exchange
 func (c *Coinbene) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var info account.Holdings
 	balance, err := c.GetAccountBalances()
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	var acc account.SubAccount
+
+	m := make(account.HoldingsSnapshot)
 	for key := range balance {
-		c := currency.NewCode(balance[key].Asset)
-		hold := balance[key].Reserved
-		available := balance[key].Available
-		acc.Currencies = append(acc.Currencies,
-			account.Balance{
-				CurrencyName: c,
-				TotalValue:   hold + available,
-				Hold:         hold,
-			})
+		m[currency.NewCode(balance[key].Asset)] = account.Balance{
+			Total:  balance[key].Available + balance[key].Reserved,
+			Locked: balance[key].Reserved,
+		}
 	}
-	info.Accounts = append(info.Accounts, acc)
-	info.Exchange = c.Name
 
-	err = account.Process(&info)
+	err = c.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return info, nil
+	return c.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (c *Coinbene) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(c.Name, assetType)
+	acc, err := c.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return c.UpdateAccountInfo(assetType)
+		return c.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -821,13 +812,6 @@ func (c *Coinbene) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (c *Coinbene) AuthenticateWebsocket() error {
 	return c.Login()
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (c *Coinbene) ValidateCredentials(assetType asset.Item) error {
-	_, err := c.UpdateAccountInfo(assetType)
-	return c.CheckTransientError(err)
 }
 
 // FormatExchangeKlineInterval returns Interval to string
