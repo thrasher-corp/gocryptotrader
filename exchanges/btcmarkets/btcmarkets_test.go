@@ -1,7 +1,6 @@
 package btcmarkets
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -48,12 +48,6 @@ func TestMain(m *testing.M) {
 	err = b.Setup(bConfig)
 	if err != nil {
 		log.Fatal(err)
-	}
-	err = b.ValidateCredentials(asset.Spot)
-	if err != nil {
-		fmt.Println("API credentials are invalid:", err)
-		b.API.AuthenticatedSupport = false
-		b.API.AuthenticatedWebsocketSupport = false
 	}
 	os.Exit(m.Run())
 }
@@ -456,7 +450,7 @@ func TestFetchAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.FetchAccountInfo(asset.Spot)
+	_, err := b.FetchAccountInfo(account.Default, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

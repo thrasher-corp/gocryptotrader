@@ -396,39 +396,32 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (b *BTCMarkets) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var resp account.Holdings
 	data, err := b.GetAccountBalance()
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	var acc account.SubAccount
+
+	m := make(account.HoldingsSnapshot)
 	for key := range data {
-		c := currency.NewCode(data[key].AssetName)
-		hold := data[key].Locked
-		total := data[key].Balance
-		acc.Currencies = append(acc.Currencies,
-			account.Balance{CurrencyName: c,
-				TotalValue: total,
-				Hold:       hold})
+		m[currency.NewCode(data[key].AssetName)] = account.Balance{
+			Total:  data[key].Balance,
+			Locked: data[key].Locked,
+		}
 	}
-	resp.Accounts = append(resp.Accounts, acc)
-	resp.Exchange = b.Name
 
-	err = account.Process(&resp)
+	err = b.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return resp, nil
+	return b.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *BTCMarkets) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo(assetType)
+		return b.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -861,26 +854,26 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 	return resp, nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (b *BTCMarkets) ValidateCredentials(assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(assetType)
-	if err != nil {
-		if b.CheckTransientError(err) == nil {
-			return nil
-		}
-		// Check for specific auth errors; all other errors can be disregarded
-		// as this does not affect authenticated requests.
-		if strings.Contains(err.Error(), "InvalidAPIKey") ||
-			strings.Contains(err.Error(), "InvalidAuthTimestamp") ||
-			strings.Contains(err.Error(), "InvalidAuthSignature") ||
-			strings.Contains(err.Error(), "InsufficientAPIPermission") {
-			return err
-		}
-	}
+// // ValidateCredentials validates current credentials used for wrapper
+// // functionality
+// func (b *BTCMarkets) ValidateCredentials(assetType asset.Item) error {
+// 	_, err := b.UpdateAccountInfo(assetType)
+// 	if err != nil {
+// 		if b.CheckTransientError(err) == nil {
+// 			return nil
+// 		}
+// 		// Check for specific auth errors; all other errors can be disregarded
+// 		// as this does not affect authenticated requests.
+// 		if strings.Contains(err.Error(), "InvalidAPIKey") ||
+// 			strings.Contains(err.Error(), "InvalidAuthTimestamp") ||
+// 			strings.Contains(err.Error(), "InvalidAuthSignature") ||
+// 			strings.Contains(err.Error(), "InsufficientAPIPermission") {
+// 			return err
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
