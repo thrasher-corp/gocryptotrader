@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -111,17 +112,6 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = k.UpdateOrderbook(fp, asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestUpdateAccountInfo(t *testing.T) {
-	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
-	}
-	_, err := k.UpdateAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -931,13 +921,14 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 // TestGetAccountInfo wrapper test
 func TestGetAccountInfo(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := k.UpdateAccountInfo(asset.Spot)
+		_, err := k.UpdateAccountInfo(account.Default, asset.Spot)
 		if err != nil {
-			// Spot and Futures have separate api keys. Please ensure that the correct one is provided
+			// Spot and Futures have separate api keys. Please ensure that the
+			// correct one is provided
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := k.UpdateAccountInfo(asset.Spot)
+		_, err := k.UpdateAccountInfo(account.Default, asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
@@ -948,9 +939,10 @@ func TestUpdateFuturesAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set. Skipping the test")
 	}
-	_, err := k.UpdateAccountInfo(asset.Futures)
+	_, err := k.UpdateAccountInfo(account.Default, asset.Futures)
 	if err != nil {
-		// Spot and Futures have separate api keys. Please ensure that the correct one is provided
+		// Spot and Futures have separate api keys. Please ensure that the
+		// correct one is provided
 		t.Error(err)
 	}
 }

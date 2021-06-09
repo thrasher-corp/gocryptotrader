@@ -20,10 +20,6 @@ var (
 	validTriggerSignal = []string{"mark", "index", "last"}
 
 	validReduceOnly = []string{"true", "false"}
-
-	validBatchOrderType = []string{
-		"edit", "cancel", "send",
-	}
 )
 
 // WSFuturesTickerData stores ws ticker data for futures websocket
