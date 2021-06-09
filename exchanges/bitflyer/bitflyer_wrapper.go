@@ -292,17 +292,16 @@ func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Bitflyer exchange
-func (b *Bitflyer) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	return account.Holdings{}, common.ErrNotYetImplemented
+func (b *Bitflyer) UpdateAccountInfo(_ string, _ asset.Item) (account.HoldingsSnapshot, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitflyer) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo(assetType)
+		return b.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -441,13 +440,6 @@ func (b *Bitflyer) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	return b.GetFee(feeBuilder)
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (b *Bitflyer) ValidateCredentials(assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(assetType)
-	return b.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
