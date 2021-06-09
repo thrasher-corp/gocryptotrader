@@ -314,42 +314,34 @@ func (c *CoinbasePro) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // coinbasepro exchange
 func (c *CoinbasePro) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var response account.Holdings
-	response.Exchange = c.Name
 	accountBalance, err := c.GetAccounts()
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
-	var currencies []account.Balance
-	for i := range accountBalance {
-		var exchangeCurrency account.Balance
-		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
-		exchangeCurrency.TotalValue = accountBalance[i].Available
-		exchangeCurrency.Hold = accountBalance[i].Hold
-
-		currencies = append(currencies, exchangeCurrency)
+	for x := range accountBalance {
+		m := make(account.HoldingsSnapshot)
+		for i := range accountBalance {
+			m[currency.NewCode(accountBalance[i].Currency)] = account.Balance{
+				Total:  accountBalance[i].Balance,
+				Locked: accountBalance[i].Hold,
+			}
+		}
+		err = c.LoadHoldings(accountBalance[x].ID, assetType, m)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currencies: currencies,
-	})
-
-	err = account.Process(&response)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return response, nil
+	return c.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (c *CoinbasePro) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(c.Name, assetType)
+	acc, err := c.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return c.UpdateAccountInfo(assetType)
+		return c.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -946,11 +938,4 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (c *CoinbasePro) ValidateCredentials(assetType asset.Item) error {
-	_, err := c.UpdateAccountInfo(assetType)
-	return c.CheckTransientError(err)
 }
