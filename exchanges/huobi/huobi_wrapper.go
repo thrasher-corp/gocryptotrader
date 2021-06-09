@@ -617,131 +617,133 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
 func (h *HUOBI) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var info account.Holdings
-	var acc account.SubAccount
-	info.Exchange = h.Name
+	m := make(account.HoldingsSnapshot)
 	switch assetType {
 	case asset.Spot:
 		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			resp, err := h.wsGetAccountsList()
 			if err != nil {
-				return info, err
+				return nil, err
 			}
-			var currencyDetails []account.Balance
 			for i := range resp.Data {
 				if len(resp.Data[i].List) == 0 {
 					continue
 				}
-				currData := account.Balance{
-					CurrencyName: currency.NewCode(resp.Data[i].List[0].Currency),
-					TotalValue:   resp.Data[i].List[0].Balance,
-				}
+
+				var locked float64
 				if len(resp.Data[i].List) > 1 && resp.Data[i].List[1].Type == "frozen" {
-					currData.Hold = resp.Data[i].List[1].Balance
+					locked = resp.Data[i].List[1].Balance
 				}
-				currencyDetails = append(currencyDetails, currData)
+
+				m[currency.NewCode(resp.Data[i].List[0].Currency)] = account.Balance{
+					Total:  resp.Data[i].List[0].Balance,
+					Locked: locked,
+				}
 			}
-			acc.Currencies = currencyDetails
+
+			// TODO: Add in ID
+			err = h.LoadHoldings(account.Default, assetType, m)
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			accounts, err := h.GetAccountID()
 			if err != nil {
-				return info, err
+				return nil, err
 			}
-			for i := range accounts {
-				acc.ID = strconv.FormatInt(accounts[i].ID, 10)
-				balances, err := h.GetAccountBalance(acc.ID)
+			for x := range accounts {
+				m := make(account.HoldingsSnapshot)
+				accountID := strconv.FormatInt(accounts[x].ID, 10)
+				balances, err := h.GetAccountBalance(accountID)
 				if err != nil {
-					return info, err
+					return nil, err
 				}
 
-				var currencyDetails []account.Balance
-			balance:
-				for j := range balances {
-					frozen := balances[j].Type == "frozen"
-					for i := range currencyDetails {
-						if currencyDetails[i].CurrencyName.String() == balances[j].Currency {
-							if frozen {
-								currencyDetails[i].Hold = balances[j].Balance
-							} else {
-								currencyDetails[i].TotalValue = balances[j].Balance
-							}
-							continue balance
+				for y := range balances {
+					code := currency.NewCode(balances[y].Currency)
+					if balances[y].Type == "frozen" {
+						bal, ok := m[code]
+						if !ok {
+							m[code] = account.Balance{Locked: balances[y].Balance}
+							continue
 						}
+						bal.Locked = balances[y].Balance
+						m[code] = bal
+						continue
 					}
-
-					if frozen {
-						currencyDetails = append(currencyDetails,
-							account.Balance{
-								CurrencyName: currency.NewCode(balances[j].Currency),
-								Hold:         balances[j].Balance,
-							})
-					} else {
-						currencyDetails = append(currencyDetails,
-							account.Balance{
-								CurrencyName: currency.NewCode(balances[j].Currency),
-								TotalValue:   balances[j].Balance,
-							})
+					bal, ok := m[code]
+					if !ok {
+						m[code] = account.Balance{Total: balances[y].Balance}
+						continue
 					}
+					bal.Total = balances[y].Balance
+					m[code] = bal
 				}
-				acc.Currencies = currencyDetails
+
+				err = h.LoadHoldings(accountID, assetType, m)
+				if err != nil {
+					return nil, err
+				}
 			}
+		}
+	case asset.CoinMarginedFutures:
+		cmfSubAccsData, err := h.GetSwapAllSubAccAssets(currency.Pair{})
+		if err != nil {
+			return nil, err
 		}
 
-	case asset.CoinMarginedFutures:
-		subAccsData, err := h.GetSwapAllSubAccAssets(currency.Pair{})
-		if err != nil {
-			return info, err
-		}
-		var currencyDetails []account.Balance
-		for x := range subAccsData.Data {
-			a, err := h.SwapSingleSubAccAssets(currency.Pair{}, subAccsData.Data[x].SubUID)
+		for x := range cmfSubAccsData.Data {
+			m := make(account.HoldingsSnapshot)
+			swapAcc, err := h.SwapSingleSubAccAssets(currency.Pair{}, cmfSubAccsData.Data[x].SubUID)
 			if err != nil {
-				return info, err
+				return nil, err
 			}
-			for y := range a.Data {
-				currencyDetails = append(currencyDetails, account.Balance{
-					CurrencyName: currency.NewCode(a.Data[y].Symbol),
-					TotalValue:   a.Data[y].MarginBalance,
-					Hold:         a.Data[y].MarginFrozen,
-				})
+			for y := range swapAcc.Data {
+				m[currency.NewCode(swapAcc.Data[y].Symbol)] = account.Balance{
+					Total:  swapAcc.Data[y].MarginBalance + swapAcc.Data[y].MarginFrozen,
+					Locked: swapAcc.Data[y].MarginFrozen,
+				}
+			}
+
+			subAccID := strconv.FormatInt(cmfSubAccsData.Data[x].SubUID, 10)
+			err = h.LoadHoldings(subAccID, asset.CoinMarginedFutures, m)
+			if err != nil {
+				return nil, err
 			}
 		}
-		acc.Currencies = currencyDetails
 	case asset.Futures:
-		subAccsData, err := h.FGetAllSubAccountAssets(currency.Code{})
+		fsubAccsData, err := h.FGetAllSubAccountAssets(currency.Code{})
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		var currencyDetails []account.Balance
-		for x := range subAccsData.Data {
-			a, err := h.FGetSingleSubAccountInfo("", strconv.FormatInt(subAccsData.Data[x].SubUID, 10))
+
+		for x := range fsubAccsData.Data {
+			m := make(account.HoldingsSnapshot)
+			subAccID := strconv.FormatInt(fsubAccsData.Data[x].SubUID, 10)
+			subAcc, err := h.FGetSingleSubAccountInfo("", subAccID)
 			if err != nil {
-				return info, err
+				return nil, err
 			}
-			for y := range a.AssetsData {
-				currencyDetails = append(currencyDetails, account.Balance{
-					CurrencyName: currency.NewCode(a.AssetsData[y].Symbol),
-					TotalValue:   a.AssetsData[y].MarginBalance,
-					Hold:         a.AssetsData[y].MarginFrozen,
-				})
+			for y := range subAcc.AssetsData {
+				m[currency.NewCode(subAcc.AssetsData[y].Symbol)] = account.Balance{
+					Total:  subAcc.AssetsData[y].MarginBalance + subAcc.AssetsData[y].MarginFrozen,
+					Locked: subAcc.AssetsData[y].MarginFrozen,
+				}
+			}
+			err = h.LoadHoldings(subAccID, asset.Futures, m)
+			if err != nil {
+				return nil, err
 			}
 		}
-		acc.Currencies = currencyDetails
 	}
-	acc.AssetType = asset.Futures
-	info.Accounts = append(info.Accounts, acc)
-	err := account.Process(&info)
-	if err != nil {
-		return info, err
-	}
-	return info, nil
+	return h.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (h *HUOBI) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(h.Name, assetType)
+	acc, err := h.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return h.UpdateAccountInfo(assetType)
+		return h.UpdateAccountInfo(accountName, assetType)
 	}
 	return acc, nil
 }
@@ -1552,13 +1554,6 @@ func setOrderSideAndType(requestType string, orderDetail *order.Detail) {
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (h *HUOBI) AuthenticateWebsocket() error {
 	return h.wsLogin()
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (h *HUOBI) ValidateCredentials(assetType asset.Item) error {
-	_, err := h.UpdateAccountInfo(assetType)
-	return h.CheckTransientError(err)
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string

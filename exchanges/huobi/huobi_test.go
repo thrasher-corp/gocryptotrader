@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -718,17 +719,6 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = h.UpdateOrderbook(cp2, asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestUpdateAccountInfo(t *testing.T) {
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
-	}
-	t.Parallel()
-	_, err := h.UpdateAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1988,21 +1978,21 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		_, err := h.UpdateAccountInfo(asset.CoinMarginedFutures)
+		_, err := h.UpdateAccountInfo(account.Default, asset.CoinMarginedFutures)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
-		_, err = h.UpdateAccountInfo(asset.Futures)
+		_, err = h.UpdateAccountInfo(account.Default, asset.Futures)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
 	} else {
-		_, err := h.UpdateAccountInfo(asset.CoinMarginedFutures)
+		_, err := h.UpdateAccountInfo(account.Default, asset.CoinMarginedFutures)
 		if err != nil {
 			// Spot and Futures have separate api keys. Please ensure that the correct keys are provided
 			t.Error(err)
 		}
-		_, err = h.UpdateAccountInfo(asset.Futures)
+		_, err = h.UpdateAccountInfo(account.Default, asset.Futures)
 		if err != nil {
 			// Spot and Futures have separate api keys. Please ensure that the correct keys are provided
 			t.Error(err)
@@ -2015,7 +2005,7 @@ func TestGetSpotAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := h.UpdateAccountInfo(asset.Spot)
+	_, err := h.UpdateAccountInfo(account.Default, asset.Spot)
 	if err != nil {
 		// Spot and Futures have separate api keys. Please ensure that the correct keys are provided
 		t.Error(err)

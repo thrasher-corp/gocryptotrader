@@ -1023,21 +1023,6 @@ type WsPong struct {
 	Pong int64 `json:"pong"`
 }
 
-type wsKlineResponse struct {
-	Data []struct {
-		Amount float64 `json:"amount"`
-		Close  float64 `json:"close"`
-		Count  float64 `json:"count"`
-		High   float64 `json:"high"`
-		ID     int64   `json:"id"`
-		Low    float64 `json:"low"`
-		Open   float64 `json:"open"`
-		Volume float64 `json:"vol"`
-	} `json:"data"`
-	Rep    string `json:"rep"`
-	Status string `json:"status"`
-}
-
 type authenticationPing struct {
 	OP string `json:"op"`
 	TS int64  `json:"ts"`
