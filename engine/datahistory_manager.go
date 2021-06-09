@@ -288,7 +288,12 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			job.Pair)
 	}
 	if m.verbose {
-		log.Debugf(log.DataHistory, "running data history job %v", job.Nickname)
+		log.Debugf(log.DataHistory, "running data history job %v start: %s end: %s interval: %s datatype: %s",
+			job.Nickname,
+			job.StartDate,
+			job.EndDate,
+			job.Interval,
+			job.DataType)
 	}
 	for i := range job.rangeHolder.Ranges {
 		isCompleted := true
@@ -315,7 +320,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			continue
 		}
 		if m.verbose {
-			log.Debugf(log.BackTester, "%s processing range %v-%v", job.Nickname, job.rangeHolder.Ranges[i].Start, job.rangeHolder.Ranges[i].End)
+			log.Debugf(log.DataHistory, "%s processing range %v-%v", job.Nickname, job.rangeHolder.Ranges[i].Start, job.rangeHolder.Ranges[i].End)
 		}
 		intervalsProcessed++
 		id, err := uuid.NewV4()

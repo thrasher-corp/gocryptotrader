@@ -461,7 +461,9 @@ func (h *IntervalRangeHolder) DataSummary(includeHasData bool) []string {
 		}
 	}
 	if !rangeStart.Equal(prevStart) || !rangeEnd.Equal(prevEnd) {
-		rangeTexts = append(rangeTexts, h.createDateSummaryRange(rangeStart, rangeEnd, rangeHasData))
+		if (rangeHasData && includeHasData) || !rangeHasData {
+			rangeTexts = append(rangeTexts, h.createDateSummaryRange(rangeStart, rangeEnd, rangeHasData))
+		}
 	}
 	return rangeTexts
 }
