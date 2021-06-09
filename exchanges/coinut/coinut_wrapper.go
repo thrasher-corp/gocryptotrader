@@ -304,101 +304,52 @@ func (c *COINUT) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // COINUT exchange
 func (c *COINUT) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var info account.Holdings
 	var bal *UserBalance
 	var err error
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp *UserBalance
 		resp, err = c.wsGetAccountBalance()
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 		bal = resp
 	} else {
 		bal, err = c.GetUserBalance()
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 	}
 
-	var balances = []account.Balance{
-		{
-			CurrencyName: currency.BCH,
-			TotalValue:   bal.BCH,
-		},
-		{
-			CurrencyName: currency.BTC,
-			TotalValue:   bal.BTC,
-		},
-		{
-			CurrencyName: currency.BTG,
-			TotalValue:   bal.BTG,
-		},
-		{
-			CurrencyName: currency.CAD,
-			TotalValue:   bal.CAD,
-		},
-		{
-			CurrencyName: currency.ETC,
-			TotalValue:   bal.ETC,
-		},
-		{
-			CurrencyName: currency.ETH,
-			TotalValue:   bal.ETH,
-		},
-		{
-			CurrencyName: currency.LCH,
-			TotalValue:   bal.LCH,
-		},
-		{
-			CurrencyName: currency.LTC,
-			TotalValue:   bal.LTC,
-		},
-		{
-			CurrencyName: currency.MYR,
-			TotalValue:   bal.MYR,
-		},
-		{
-			CurrencyName: currency.SGD,
-			TotalValue:   bal.SGD,
-		},
-		{
-			CurrencyName: currency.USD,
-			TotalValue:   bal.USD,
-		},
-		{
-			CurrencyName: currency.USDT,
-			TotalValue:   bal.USDT,
-		},
-		{
-			CurrencyName: currency.XMR,
-			TotalValue:   bal.XMR,
-		},
-		{
-			CurrencyName: currency.ZEC,
-			TotalValue:   bal.ZEC,
-		},
+	m := account.HoldingsSnapshot{
+		currency.BCH:  {Total: bal.BCH},
+		currency.BTC:  {Total: bal.BTC},
+		currency.BTG:  {Total: bal.BTG},
+		currency.CAD:  {Total: bal.CAD},
+		currency.ETC:  {Total: bal.ETC},
+		currency.ETH:  {Total: bal.ETH},
+		currency.LCH:  {Total: bal.LCH},
+		currency.LTC:  {Total: bal.LTC},
+		currency.MYR:  {Total: bal.MYR},
+		currency.SGD:  {Total: bal.SGD},
+		currency.USD:  {Total: bal.USD},
+		currency.USDT: {Total: bal.USDT},
+		currency.XMR:  {Total: bal.XMR},
+		currency.ZEC:  {Total: bal.ZEC},
 	}
-	info.Exchange = c.Name
-	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currencies: balances,
-	})
 
-	err = account.Process(&info)
+	err = c.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return info, nil
+	return c.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (c *COINUT) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(c.Name, assetType)
+	acc, err := c.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return c.UpdateAccountInfo(assetType)
+		return c.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -1059,13 +1010,6 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 		}
 	}
 	return nil
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (c *COINUT) ValidateCredentials(assetType asset.Item) error {
-	_, err := c.UpdateAccountInfo(assetType)
-	return c.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval

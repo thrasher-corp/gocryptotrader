@@ -45,10 +45,7 @@ const (
 	wsRateLimitInMilliseconds = 33
 )
 
-var (
-	errLookupInstrumentID       = errors.New("unable to lookup instrument ID")
-	errLookupInstrumentCurrency = errors.New("unable to lookup instrument")
-)
+var errLookupInstrumentID = errors.New("unable to lookup instrument ID")
 
 // COINUT is the overarching type across the coinut package
 type COINUT struct {
@@ -174,16 +171,10 @@ func (c *COINUT) CancelExistingOrder(instrumentID, orderID int64) (bool, error) 
 // CancelOrders cancels multiple orders
 func (c *COINUT) CancelOrders(orders []CancelOrders) (CancelOrdersResponse, error) {
 	var result CancelOrdersResponse
-	params := make(map[string]interface{})
-	type Request struct {
-		InstrumentID int `json:"inst_id"`
-		OrderID      int `json:"order_id"`
-	}
-
 	var entries []CancelOrders
 	entries = append(entries, orders...)
+	params := make(map[string]interface{})
 	params["entries"] = entries
-
 	return result, c.SendHTTPRequest(exchange.RestSpot, coinutOrdersCancel, params, true, &result)
 }
 
