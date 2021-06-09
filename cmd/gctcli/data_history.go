@@ -97,16 +97,12 @@ var dataHistoryCommands = cli.Command{
 				time.Now().Format(common.SimpleTimeFormat)),
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:        "start_date",
-					Usage:       "formatted as: 2006-01-02 15:04:05",
-					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
-					Destination: &startTime,
+					Name:  "start_date",
+					Usage: "formatted as: 2006-01-02 15:04:05",
 				},
 				cli.StringFlag{
-					Name:        "end_date",
-					Usage:       "formatted as: 2006-01-02 15:04:05",
-					Value:       time.Now().Format(common.SimpleTimeFormat),
-					Destination: &endTime,
+					Name:  "end_date",
+					Usage: "formatted as: 2006-01-02 15:04:05",
 				},
 			},
 			Action: getDataHistoryJobsBetween,
@@ -385,9 +381,13 @@ func upsertDataHistoryJob(c *cli.Context) error {
 func getDataHistoryJobsBetween(c *cli.Context) error {
 	if c.IsSet("start_date") {
 		startTime = c.String("start_date")
+	} else {
+		startTime = c.Args().First()
 	}
 	if c.IsSet("end_date") {
 		endTime = c.String("end_date")
+	} else {
+		endTime = c.Args().Get(1)
 	}
 	s, err := time.Parse(common.SimpleTimeFormat, startTime)
 	if err != nil {
@@ -479,6 +479,8 @@ func getDataHistoryJobSummary(c *cli.Context) error {
 	var nickname string
 	if c.IsSet("nickname") {
 		nickname = c.String("nickname")
+	} else {
+		nickname = c.Args().First()
 	}
 
 	conn, err := setupClient()

@@ -3546,7 +3546,7 @@ func (s *RPCServer) GetDataHistoryJobSummary(_ context.Context, r *gctrpc.GetDat
 		return nil, errNilRequestData
 	}
 	if r.Nickname == "" {
-		return nil, errNicknameUnset
+		return nil, fmt.Errorf("get job summary %w", errNicknameUnset)
 	}
 	job, err := s.dataHistoryManager.GenerateJobSummary(r.Nickname)
 	if err != nil {

@@ -413,7 +413,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		return errNilJob
 	}
 	if job.Nickname == "" {
-		return errNicknameUnset
+		return fmt.Errorf("upsert job %w", errNicknameUnset)
 	}
 
 	j, err := m.GetByNickname(job.Nickname, false)
@@ -421,11 +421,9 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		return err
 	}
 
-	if insertOnly && j != nil {
-		return fmt.Errorf("%s %w", job.Nickname, errNicknameInUse)
-	}
-	if j != nil && j.Status != dataHistoryStatusActive {
-		return fmt.Errorf("%w '%s' - status '%s' ", errNicknameInUse, j.Nickname, j.Status)
+	if insertOnly && j != nil ||
+		(j != nil && j.Status != dataHistoryStatusActive) {
+		return fmt.Errorf("upsert job %w nickname: '%s' - status: '%s' ", errNicknameInUse, j.Nickname, j.Status)
 	}
 
 	m.m.Lock()
@@ -801,7 +799,6 @@ func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryj
 			Result:            dbModels[i].Result,
 			Date:              dbModels[i].Date,
 		})
-		// double check
 		result[dbModels[i].IntervalStartDate] = lookup
 	}
 
