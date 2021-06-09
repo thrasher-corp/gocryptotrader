@@ -401,42 +401,34 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Bitmex exchange
 func (b *Bitmex) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var info account.Holdings
-
 	bal, err := b.GetAllUserMargin()
 	if err != nil {
-		return info, err
+		return nil, err
 	}
 
-	// Need to update to add Margin/Liquidity availibilty
-	var balances []account.Balance
+	// TODO: Update account balance to add Margin/Liquidity availibilty
+	m := make(account.HoldingsSnapshot)
 	for i := range bal {
-		balances = append(balances, account.Balance{
-			CurrencyName: currency.NewCode(bal[i].Currency),
-			TotalValue:   float64(bal[i].WalletBalance),
-		})
+		m[currency.NewCode(bal[i].Currency)] = account.Balance{
+			// TODO: Check
+			Total:  float64(bal[i].WalletBalance),
+			Locked: float64(bal[i].AvailableMargin),
+		}
 	}
 
-	info.Exchange = b.Name
-	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currencies: balances,
-	})
-
-	err = account.Process(&info)
+	err = b.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return info, nil
+	return b.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitmex) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo(assetType)
+		return b.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -799,13 +791,6 @@ func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Bitmex) AuthenticateWebsocket() error {
 	return b.websocketSendAuth()
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (b *Bitmex) ValidateCredentials(assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(assetType)
-	return b.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
