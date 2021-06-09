@@ -323,98 +323,78 @@ func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
-// ZB exchange
+// exchange
 func (g *Gateio) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var info account.Holdings
-	var balances []account.Balance
-
+	m := make(account.HoldingsSnapshot)
 	if g.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := g.wsGetBalance([]string{})
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		var currData []account.Balance
+
 		for k := range resp.Result {
-			currData = append(currData, account.Balance{
-				CurrencyName: currency.NewCode(k),
-				TotalValue:   resp.Result[k].Available + resp.Result[k].Freeze,
-				Hold:         resp.Result[k].Freeze,
-			})
+			m[currency.NewCode(k)] = account.Balance{
+				Total:  resp.Result[k].Available + resp.Result[k].Freeze,
+				Locked: resp.Result[k].Freeze,
+			}
 		}
-		info.Accounts = append(info.Accounts, account.SubAccount{
-			Currencies: currData,
-		})
 	} else {
 		balance, err := g.GetBalances()
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 
-		switch l := balance.Locked.(type) {
-		case map[string]interface{}:
-			for x := range l {
-				lockedF, err := strconv.ParseFloat(l[x].(string), 64)
-				if err != nil {
-					return info, err
-				}
-
-				balances = append(balances, account.Balance{
-					CurrencyName: currency.NewCode(x),
-					Hold:         lockedF,
-				})
+		lockedBalances, _ := balance.Locked.(map[string]interface{})
+		for key, bal := range lockedBalances {
+			lStr, ok := bal.(string)
+			if !ok {
+				return nil, errors.New("type assertion failure expecting string")
 			}
-		default:
-			break
-		}
-
-		switch v := balance.Available.(type) {
-		case map[string]interface{}:
-			for x := range v {
-				availAmount, err := strconv.ParseFloat(v[x].(string), 64)
-				if err != nil {
-					return info, err
-				}
-
-				var updated bool
-				for i := range balances {
-					if balances[i].CurrencyName == currency.NewCode(x) {
-						balances[i].TotalValue = balances[i].Hold + availAmount
-						updated = true
-						break
-					}
-				}
-				if !updated {
-					balances = append(balances, account.Balance{
-						CurrencyName: currency.NewCode(x),
-						TotalValue:   availAmount,
-					})
-				}
+			locked, err := strconv.ParseFloat(lStr, 64)
+			if err != nil {
+				return nil, err
 			}
-		default:
-			break
+			m[currency.NewCode(key)] = account.Balance{
+				Locked: locked,
+			}
 		}
 
-		info.Accounts = append(info.Accounts, account.SubAccount{
-			Currencies: balances,
-		})
+		availBalances, _ := balance.Available.(map[string]interface{})
+		for key, bal := range availBalances {
+			aStr, ok := bal.(string)
+			if !ok {
+				return nil, errors.New("type assertion failure expecting string")
+			}
+
+			availAmount, err := strconv.ParseFloat(aStr, 64)
+			if err != nil {
+				return nil, err
+			}
+
+			code := currency.NewCode(key)
+			bal, ok := m[code]
+			if ok {
+				bal.Total = bal.Locked + availAmount
+				m[code] = bal
+				continue
+			}
+			m[code] = account.Balance{Total: availAmount}
+		}
 	}
 
-	info.Exchange = g.Name
-	err := account.Process(&info)
+	err := g.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return info, nil
+	return g.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (g *Gateio) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(g.Name, assetType)
+	acc, err := g.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return g.UpdateAccountInfo(assetType)
+		return g.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -806,13 +786,6 @@ func (g *Gateio) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (g *Gateio) AuthenticateWebsocket() error {
 	return g.wsServerSignIn()
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (g *Gateio) ValidateCredentials(assetType asset.Item) error {
-	_, err := g.UpdateAccountInfo(assetType)
-	return g.CheckTransientError(err)
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
