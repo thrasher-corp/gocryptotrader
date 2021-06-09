@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -371,9 +372,9 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := i.UpdateAccountInfo(asset.Spot)
-		if err == nil {
-			t.Error("GetAccountInfo() Expected error")
+		_, err := i.UpdateAccountInfo(account.Default, asset.Spot)
+		if err != nil {
+			t.Error(err)
 		}
 	}
 }
