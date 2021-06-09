@@ -42,13 +42,6 @@ const (
 	geminiWithdraw           = "withdraw/"
 	geminiHeartbeat          = "heartbeat"
 	geminiVolume             = "notionalvolume"
-
-	// Too many requests returns this
-	geminiRateError = "429"
-
-	// Assigned API key roles on creation
-	geminiRoleTrader      = "trader"
-	geminiRoleFundManager = "fundmanager"
 )
 
 // Gemini is the overarching type across the Gemini package, create multiple
