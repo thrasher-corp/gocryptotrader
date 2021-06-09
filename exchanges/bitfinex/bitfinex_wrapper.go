@@ -463,51 +463,48 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Bitfinex exchange
 func (b *Bitfinex) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var response account.Holdings
-	response.Exchange = b.Name
-
 	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
-	var Accounts = []account.SubAccount{
-		{ID: "deposit"},
-		{ID: "exchange"},
-		{ID: "trading"},
-		{ID: "margin"},
-		{ID: "funding "},
-	}
-
+	ss := make(account.FullSnapshot)
 	for x := range accountBalance {
-		for i := range Accounts {
-			if Accounts[i].ID == accountBalance[x].Type {
-				Accounts[i].Currencies = append(Accounts[i].Currencies,
-					account.Balance{
-						CurrencyName: currency.NewCode(accountBalance[x].Currency),
-						TotalValue:   accountBalance[x].Amount,
-						Hold:         accountBalance[x].Amount - accountBalance[x].Available,
-					})
-			}
+		m1, ok := ss[accountBalance[x].Type]
+		if !ok {
+			m1 = make(map[asset.Item]account.HoldingsSnapshot)
+			ss[accountBalance[x].Type] = m1
+		}
+
+		m2, ok := m1[asset.Spot]
+		if !ok {
+			m2 = make(account.HoldingsSnapshot)
+			m1[asset.Spot] = m2
+		}
+
+		m2[currency.NewCode(accountBalance[x].Currency)] = account.Balance{
+			Total:  accountBalance[x].Amount,
+			Locked: accountBalance[x].Amount - accountBalance[x].Available,
 		}
 	}
 
-	response.Accounts = Accounts
-	err = account.Process(&response)
-	if err != nil {
-		return account.Holdings{}, err
+	for acc, m1 := range ss {
+		for ai, m2 := range m1 {
+			err = b.LoadHoldings(acc, ai, m2)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
-
-	return response, nil
+	return b.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitfinex) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo(assetType)
+		return b.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -946,13 +943,6 @@ func (b *Bitfinex) appendOptionalDelimiter(p *currency.Pair) {
 		len(p.Base.String()) > 3 {
 		p.Delimiter = ":"
 	}
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (b *Bitfinex) ValidateCredentials(assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(assetType)
-	return b.CheckTransientError(err)
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
