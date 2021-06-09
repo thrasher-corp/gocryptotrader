@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -956,7 +957,7 @@ func TestUpdateAccountHoldings(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.UpdateAccountInfo(asset.Spot)
+	_, err := f.UpdateAccountInfo(account.Default, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -967,7 +968,7 @@ func TestFetchAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.FetchAccountInfo(asset.Spot)
+	_, err := f.FetchAccountInfo(account.Default, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

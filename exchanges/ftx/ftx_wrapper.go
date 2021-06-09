@@ -376,39 +376,32 @@ func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (f *FTX) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var resp account.Holdings
 	data, err := f.GetBalances()
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	var acc account.SubAccount
+
+	m := make(account.HoldingsSnapshot)
 	for i := range data {
-		c := currency.NewCode(data[i].Coin)
-		hold := data[i].Total - data[i].Free
-		total := data[i].Total
-		acc.Currencies = append(acc.Currencies,
-			account.Balance{CurrencyName: c,
-				TotalValue: total,
-				Hold:       hold})
+		m[currency.NewCode(data[i].Coin)] = account.Balance{
+			Total:  data[i].Total,
+			Locked: data[i].Total - data[i].Free,
+		}
 	}
-	resp.Accounts = append(resp.Accounts, acc)
-	resp.Exchange = f.Name
 
-	err = account.Process(&resp)
+	err = f.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return resp, nil
+	return f.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (f *FTX) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(f.Name, assetType)
+	acc, err := f.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return f.UpdateAccountInfo(assetType)
+		return f.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -1000,13 +993,6 @@ func (f *FTX) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscripti
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (f *FTX) AuthenticateWebsocket() error {
 	return f.WsAuth()
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (f *FTX) ValidateCredentials(assetType asset.Item) error {
-	_, err := f.UpdateAccountInfo(assetType)
-	return f.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
