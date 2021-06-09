@@ -28,11 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL   = "spotURL"
-	spotWSURL = "websocketURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (b *BTSE) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -380,44 +375,32 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // BTSE exchange
 func (b *BTSE) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var a account.Holdings
 	balance, err := b.GetWalletInformation()
 	if err != nil {
-		return a, err
+		return nil, err
 	}
 
-	var currencies []account.Balance
+	m := make(account.HoldingsSnapshot)
 	for b := range balance {
-		currencies = append(currencies,
-			account.Balance{
-				CurrencyName: currency.NewCode(balance[b].Currency),
-				TotalValue:   balance[b].Total,
-				Hold:         balance[b].Available,
-			},
-		)
-	}
-	a.Exchange = b.Name
-	a.Accounts = []account.SubAccount{
-		{
-			Currencies: currencies,
-		},
+		m[currency.NewCode(balance[b].Currency)] = account.Balance{
+			Total:  balance[b].Total,
+			Locked: balance[b].Total - balance[b].Available,
+		}
 	}
 
-	err = account.Process(&a)
+	err = b.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return a, nil
+	return b.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *BTSE) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo(assetType)
+		return b.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -892,13 +875,6 @@ func (b *BTSE) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	return b.GetFee(feeBuilder)
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (b *BTSE) ValidateCredentials(assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(assetType)
-	return b.CheckTransientError(err)
 }
 
 // FormatExchangeKlineInterval formats kline interval to exchange requested type
