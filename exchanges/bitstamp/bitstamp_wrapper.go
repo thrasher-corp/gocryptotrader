@@ -362,40 +362,32 @@ func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Bitstamp exchange
 func (b *Bitstamp) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var response account.Holdings
-	response.Exchange = b.Name
 	accountBalance, err := b.GetBalance()
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
-	var currencies []account.Balance
+	m := make(account.HoldingsSnapshot)
 	for k, v := range accountBalance {
-		currencies = append(currencies, account.Balance{
-			CurrencyName: currency.NewCode(k),
-			TotalValue:   v.Available,
-			Hold:         v.Reserved,
-		})
+		m[currency.NewCode(k)] = account.Balance{
+			Total:  v.Available,
+			Locked: v.Reserved,
+		}
 	}
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currencies: currencies,
-	})
 
-	err = account.Process(&response)
+	err = b.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return response, nil
+	return b.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitstamp) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo(assetType)
+		return b.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -775,13 +767,6 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (b *Bitstamp) ValidateCredentials(assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(assetType)
-	return b.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
