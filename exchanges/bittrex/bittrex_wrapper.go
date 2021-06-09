@@ -390,37 +390,33 @@ func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (b *Bittrex) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var resp account.Holdings
 	balanceData, err := b.GetBalances()
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
-	var currencies []account.Balance
+	m := make(account.HoldingsSnapshot)
 	for i := range balanceData {
-		currencies = append(currencies, account.Balance{
-			CurrencyName: currency.NewCode(balanceData[i].CurrencySymbol),
-			TotalValue:   balanceData[i].Total,
-			Hold:         balanceData[i].Total - balanceData[i].Available,
-		})
+		m[currency.NewCode(balanceData[i].CurrencySymbol)] = account.Balance{
+			Total:  balanceData[i].Total,
+			Locked: balanceData[i].Total - balanceData[i].Available,
+		}
 	}
 
-	resp.Accounts = append(resp.Accounts, account.SubAccount{
-		Currencies: currencies,
-	})
-	resp.Exchange = b.Name
-
-	return resp, account.Process(&resp)
+	err = b.LoadHoldings(accountName, assetType, m)
+	if err != nil {
+		return nil, err
+	}
+	return b.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bittrex) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	resp, err := account.GetHoldings(b.Name, assetType)
+	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo(assetType)
+		return b.UpdateAccountInfo(accountName, assetType)
 	}
-
-	return resp, nil
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -878,13 +874,6 @@ func (b *Bittrex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	return b.GetFee(feeBuilder)
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (b *Bittrex) ValidateCredentials(assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(assetType)
-	return b.CheckTransientError(err)
 }
 
 // FormatExchangeKlineInterval returns Interval to string
