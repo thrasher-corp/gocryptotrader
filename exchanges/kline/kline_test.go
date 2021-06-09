@@ -399,9 +399,9 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 }
 
 func TestCalculateCandleDateRanges(t *testing.T) {
-	pt := time.Date(1999, 1, 1, 0, 0, 0, 0, time.Local)
-	ft := time.Date(2222, 1, 1, 0, 0, 0, 0, time.Local)
-	et := time.Date(2020, 1, 1, 1, 0, 0, 0, time.Local)
+	pt := time.Date(1999, 1, 1, 0, 0, 0, 0, time.UTC)
+	ft := time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC)
+	et := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
 	nt := time.Time{}
 
 	_, err := CalculateCandleDateRanges(nt, nt, OneMin, 300)
@@ -429,8 +429,8 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 		t.Error(err)
 	}
 
-	if v.Ranges[0].Start.Ticks != time.Unix(915109200, 0).Unix() {
-		t.Errorf("expected %v received %v", 915109200, v.Ranges[0].Start.Ticks)
+	if v.Ranges[0].Start.Ticks != time.Unix(915148800, 0).Unix() {
+		t.Errorf("expected %v received %v", 915148800, v.Ranges[0].Start.Ticks)
 	}
 
 	v, err = CalculateCandleDateRanges(pt, et, OneDay, 100)

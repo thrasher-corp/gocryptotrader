@@ -163,7 +163,7 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ws.trafficTimeout = time.Second
+	ws.trafficTimeout = time.Millisecond * 100
 	ws.ShutdownC = make(chan struct{})
 	ws.trafficMonitor()
 	if !ws.IsTrafficMonitorRunning() {
@@ -177,7 +177,7 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 
 	// Deploy traffic alert
 	ws.TrafficAlert <- struct{}{}
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Millisecond * 200)
 	ws.Wg.Wait()
 	if ws.IsTrafficMonitorRunning() {
 		t.Error("should be ded")
@@ -547,7 +547,7 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
-	time.Sleep(time.Second)
+	time.Sleep(time.Millisecond * 100)
 	if ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should have exited")
 	}
@@ -557,7 +557,7 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
-	time.Sleep(time.Second)
+	time.Sleep(time.Millisecond * 100)
 	if ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should have exited")
 	}
@@ -756,7 +756,7 @@ func readMessages(wc *WebsocketConnection, t *testing.T) {
 // TestSetupPingHandler logic test
 func TestSetupPingHandler(t *testing.T) {
 	wc := &WebsocketConnection{
-		URL:              "wss://echo.websocket.org",
+		URL:              websocketTestURL,
 		ResponseMaxLimit: time.Second * 5,
 		Match:            NewMatch(),
 		Wg:               &sync.WaitGroup{},
@@ -774,7 +774,7 @@ func TestSetupPingHandler(t *testing.T) {
 	wc.SetupPingHandler(PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PingMessage,
-		Delay:             1000,
+		Delay:             100,
 	})
 
 	err = wc.Connection.Close()
@@ -791,7 +791,7 @@ func TestSetupPingHandler(t *testing.T) {
 		Message:     []byte(Ping),
 		Delay:       200,
 	})
-	time.Sleep(time.Millisecond * 500)
+	time.Sleep(time.Millisecond * 201)
 	close(wc.ShutdownC)
 	wc.Wg.Wait()
 }
@@ -799,7 +799,7 @@ func TestSetupPingHandler(t *testing.T) {
 // TestParseBinaryResponse logic test
 func TestParseBinaryResponse(t *testing.T) {
 	wc := &WebsocketConnection{
-		URL:              "wss://echo.websocket.org",
+		URL:              websocketTestURL,
 		ResponseMaxLimit: time.Second * 5,
 		Match:            NewMatch(),
 	}
@@ -1241,7 +1241,7 @@ func TestWebsocketConnectionShutdown(t *testing.T) {
 		t.Fatal("error cannot be nil")
 	}
 
-	wc.URL = "wss://echo.websocket.org"
+	wc.URL = websocketTestURL
 
 	err = wc.Dial(&websocket.Dialer{}, nil)
 	if err != nil {
