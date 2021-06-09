@@ -414,41 +414,32 @@ func (h *HitBTC) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orderb
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // HitBTC exchange
 func (h *HitBTC) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var response account.Holdings
-	response.Exchange = h.Name
 	accountBalance, err := h.GetBalances()
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
-	var currencies []account.Balance
+	m := make(account.HoldingsSnapshot)
 	for i := range accountBalance {
-		var exchangeCurrency account.Balance
-		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
-		exchangeCurrency.TotalValue = accountBalance[i].Available
-		exchangeCurrency.Hold = accountBalance[i].Reserved
-		currencies = append(currencies, exchangeCurrency)
+		m[currency.NewCode(accountBalance[i].Currency)] = account.Balance{
+			Total:  accountBalance[i].Available + accountBalance[i].Reserved,
+			Locked: accountBalance[i].Reserved,
+		}
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currencies: currencies,
-	})
-
-	err = account.Process(&response)
+	err = h.LoadHoldings(accountName, assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return response, nil
+	return h.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (h *HitBTC) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(h.Name, assetType)
+	acc, err := h.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return h.UpdateAccountInfo(assetType)
+		return h.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -776,13 +767,6 @@ func (h *HitBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (h *HitBTC) AuthenticateWebsocket() error {
 	return h.wsLogin()
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (h *HitBTC) ValidateCredentials(assetType asset.Item) error {
-	_, err := h.UpdateAccountInfo(assetType)
-	return h.CheckTransientError(err)
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
