@@ -284,47 +284,44 @@ func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Bithumb exchange
 func (b *Bithumb) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var info account.Holdings
 	bal, err := b.GetAccountBalance("ALL")
 	if err != nil {
-		return info, err
+		return nil, err
 	}
 
-	var exchangeBalances []account.Balance
+	m := make(account.HoldingsSnapshot)
 	for key, totalAmount := range bal.Total {
 		hold, ok := bal.InUse[key]
 		if !ok {
-			return info, fmt.Errorf("getAccountInfo error - in use item not found for currency %s",
+			return nil, fmt.Errorf("getAccountInfo error - in use item not found for currency %s",
 				key)
 		}
 
-		exchangeBalances = append(exchangeBalances, account.Balance{
-			CurrencyName: currency.NewCode(key),
-			TotalValue:   totalAmount,
-			Hold:         hold,
-		})
+		m[currency.NewCode(key)] = account.Balance{
+			Total:  totalAmount,
+			Locked: hold,
+		}
 	}
 
-	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currencies: exchangeBalances,
-	})
-
-	info.Exchange = b.Name
-	err = account.Process(&info)
+	acc, err := b.GetAccounts() // TODO: TEST REDO ? Do this first then retrieve account balance
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
 
-	return info, nil
+	err = b.LoadHoldings(acc[0], asset.Spot, m)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bithumb) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo(assetType)
+		return b.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -677,13 +674,6 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (b *Bithumb) ValidateCredentials(assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(assetType)
-	return b.CheckTransientError(err)
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
