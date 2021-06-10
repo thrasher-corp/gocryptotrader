@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -16,19 +15,11 @@ import (
 // DatabaseConnectionManagerName is an exported subsystem name
 const DatabaseConnectionManagerName = "database"
 
-var errDatabaseDisabled = errors.New("database support disabled")
-
 // DatabaseConnectionManager holds the database connection and its status
 type DatabaseConnectionManager struct {
 	started  int32
 	shutdown chan struct{}
-	enabled  bool
-	verbose  bool
-	host     string
-	username string
-	password string
-	database string
-	driver   string
+	cfg      database.Config
 	wg       sync.WaitGroup
 	dbConn   *database.Instance
 }
@@ -57,13 +48,7 @@ func SetupDatabaseConnectionManager(cfg *database.Config) (*DatabaseConnectionMa
 	}
 	m := &DatabaseConnectionManager{
 		shutdown: make(chan struct{}),
-		enabled:  cfg.Enabled,
-		verbose:  cfg.Verbose,
-		host:     cfg.Host,
-		username: cfg.Username,
-		password: cfg.Password,
-		database: cfg.Database,
-		driver:   cfg.Driver,
+		cfg:      *cfg,
 		dbConn:   database.DB,
 	}
 	err := m.dbConn.SetConfig(cfg)
@@ -98,23 +83,23 @@ func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
 
 	log.Debugln(log.DatabaseMgr, "Database manager starting...")
 
-	if m.enabled {
+	if m.cfg.Enabled {
 		m.shutdown = make(chan struct{})
-		switch m.driver {
+		switch m.cfg.Driver {
 		case database.DBPostgreSQL:
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to host %s/%s utilising %s driver\n",
-				m.host,
-				m.database,
-				m.driver)
-			m.dbConn, err = dbpsql.Connect(m.dbConn.GetConfig())
+				m.cfg.Host,
+				m.cfg.Database,
+				m.cfg.Driver)
+			m.dbConn, err = dbpsql.Connect(&m.cfg)
 		case database.DBSQLite,
 			database.DBSQLite3:
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to %s utilising %s driver\n",
-				m.database,
-				m.driver)
-			m.dbConn, err = dbsqlite3.Connect(m.database)
+				m.cfg.Database,
+				m.cfg.Driver)
+			m.dbConn, err = dbsqlite3.Connect(m.cfg.Database)
 		default:
 			return database.ErrNoDatabaseProvided
 		}
@@ -128,7 +113,7 @@ func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
 		return nil
 	}
 
-	return errDatabaseDisabled
+	return database.ErrDatabaseSupportDisabled
 }
 
 // Stop stops the database manager and closes the connection
@@ -185,7 +170,7 @@ func (m *DatabaseConnectionManager) checkConnection() error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrSubSystemNotStarted)
 	}
-	if !m.enabled {
+	if !m.cfg.Enabled {
 		return database.ErrDatabaseSupportDisabled
 	}
 	if m.dbConn == nil {

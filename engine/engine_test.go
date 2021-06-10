@@ -165,8 +165,15 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 }
 
 func TestCheckExchangeExists(t *testing.T) {
-	e := CreateTestBot(t)
-
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	exch.SetDefaults()
+	em.Add(exch)
+	e := &Engine{ExchangeManager: em}
 	if e.GetExchangeByName(testExchange) == nil {
 		t.Errorf("TestGetExchangeExists: Unable to find exchange")
 	}
@@ -177,12 +184,16 @@ func TestCheckExchangeExists(t *testing.T) {
 }
 
 func TestGetExchangeByName(t *testing.T) {
-	e := CreateTestBot(t)
-
-	exch := e.GetExchangeByName(testExchange)
-	if exch == nil {
-		t.Errorf("TestGetExchangeByName: Failed to get exchange")
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+	exch.SetDefaults()
+	exch.SetEnabled(true)
+	em.Add(exch)
+	e := &Engine{ExchangeManager: em}
 
 	if !exch.IsEnabled() {
 		t.Errorf("TestGetExchangeByName: Unexpected result")
@@ -205,9 +216,19 @@ func TestGetExchangeByName(t *testing.T) {
 }
 
 func TestUnloadExchange(t *testing.T) {
-	e := CreateTestBot(t)
-
-	err := e.UnloadExchange("asdf")
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	exch.SetDefaults()
+	exch.SetEnabled(true)
+	em.Add(exch)
+	e := &Engine{ExchangeManager: em,
+		Config: &config.Config{Exchanges: []config.ExchangeConfig{{Name: testExchange}}},
+	}
+	err = e.UnloadExchange("asdf")
 	if !errors.Is(err, config.ErrExchangeNotFound) {
 		t.Errorf("error '%v', expected '%v'", err, config.ErrExchangeNotFound)
 	}

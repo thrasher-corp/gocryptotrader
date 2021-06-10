@@ -50,6 +50,44 @@ type fExchange struct {
 	exchange.IBotExchange
 }
 
+func (f fExchange) GetHistoricCandles(p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
+	return kline.Item{
+		Exchange: "fake",
+		Pair:     p,
+		Asset:    a,
+		Interval: interval,
+		Candles: []kline.Candle{
+			{
+				Time:   timeStart,
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
+			},
+		},
+	}, nil
+}
+
+func (f fExchange) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
+	return kline.Item{
+		Exchange: "fake",
+		Pair:     p,
+		Asset:    a,
+		Interval: interval,
+		Candles: []kline.Candle{
+			{
+				Time:   timeStart,
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
+			},
+		},
+	}, nil
+}
+
 // FetchAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
 func (f fExchange) FetchAccountInfo(a asset.Item) (account.Holdings, error) {
@@ -84,6 +122,7 @@ func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
 }
 
 // Sets up everything required to run any function inside rpcserver
+// Only use if you require a database, this makes tests slow
 func RPCTestSetup(t *testing.T) *Engine {
 	t.Helper()
 	var err error
@@ -382,7 +421,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
+		t.Errorf("received '%v', expected '%v'", err, errExchangeNotLoaded)
 	}
 
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
@@ -393,7 +432,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, errCurrencyPairUnset) {
-		t.Errorf("expected %v, received %v", errCurrencyPairUnset, err)
+		t.Errorf("received '%v', expected '%v'", err, errCurrencyPairUnset)
 	}
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: testExchange,
@@ -719,28 +758,33 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 }
 
 func TestSetExchangeTradeProcessing(t *testing.T) {
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	s := RPCServer{Engine: engerino}
-	_, err := s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: true})
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Config = &config.ExchangeConfig{
+		Features: &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{SaveTradeData: false}},
+	}
+	em.Add(exch)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	_, err = s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: true})
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	exch := s.GetExchangeByName(testExchange)
-	base := exch.GetBase()
-	if !base.IsSaveTradeDataEnabled() {
+	if !b.IsSaveTradeDataEnabled() {
 		t.Error("expected true")
 	}
-
 	_, err = s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: false})
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	exch = s.GetExchangeByName(testExchange)
-	base = exch.GetBase()
-	if base.IsSaveTradeDataEnabled() {
+	if b.IsSaveTradeDataEnabled() {
 		t.Error("expected false")
 	}
 }
@@ -820,41 +864,58 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	bot := CreateTestBot(t)
-	exch := bot.ExchangeManager.GetExchangeByName(testExchange)
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b := exch.GetBase()
 	b.Name = "fake"
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+	}
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	bot.ExchangeManager.Add(fakeExchange)
-	s := RPCServer{Engine: bot}
-
-	_, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
 	if !errors.Is(err, nil) {
-		t.Errorf("expected %v, received %v", errAssetTypeDisabled, nil)
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
-	bot := CreateTestBot(t)
-	exch := bot.ExchangeManager.GetExchangeByName(testExchange)
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b := exch.GetBase()
 	b.Name = "fake"
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+	}
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	bot.ExchangeManager.Add(fakeExchange)
-	s := RPCServer{Engine: bot}
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
-	_, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
+	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
 	if !errors.Is(err, nil) {
-		t.Errorf("expected %v, received %v", nil, err)
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 
 	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Futures.String()})
 	if !errors.Is(err, errAssetTypeDisabled) {
-		t.Errorf("expected %v, received %v", errAssetTypeDisabled, err)
+		t.Errorf("received '%v', expected '%v'", err, errAssetTypeDisabled)
 	}
 
 	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{
@@ -862,15 +923,40 @@ func TestUpdateAccountInfo(t *testing.T) {
 		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, nil) {
-		t.Errorf("expected %v, received %v", nil, err)
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 }
 
 func TestGetOrders(t *testing.T) {
-	exchName := "binance"
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	s := RPCServer{Engine: engerino}
+	t.Parallel()
+	exchName := "Binance"
+	engerino := &Engine{}
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(exchName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true}}
+	em.Add(exch)
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	err = om.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
 		Delimiter: "-",
@@ -878,9 +964,9 @@ func TestGetOrders(t *testing.T) {
 		Quote:     currency.USDT.String(),
 	}
 
-	_, err := s.GetOrders(context.Background(), nil)
+	_, err = s.GetOrders(context.Background(), nil)
 	if !errors.Is(err, errInvalidArguments) {
-		t.Errorf("expected %v, received %v", errInvalidArguments, err)
+		t.Errorf("received '%v', expected '%v'", err, errInvalidArguments)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -888,7 +974,7 @@ func TestGetOrders(t *testing.T) {
 		Pair:      p,
 	})
 	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
+		t.Errorf("received '%v', expected '%v'", errExchangeNotLoaded, err)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -896,7 +982,7 @@ func TestGetOrders(t *testing.T) {
 		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, errCurrencyPairUnset) {
-		t.Errorf("expected %v, received %v", errCurrencyPairUnset, err)
+		t.Errorf("received '%v', expected '%v'", err, errCurrencyPairUnset)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -904,7 +990,7 @@ func TestGetOrders(t *testing.T) {
 		Pair:     p,
 	})
 	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("expected %v, received %v", asset.ErrNotSupported, err)
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -929,11 +1015,6 @@ func TestGetOrders(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
-	exch := engerino.GetExchangeByName(exchName)
-	if exch == nil {
-		t.Fatal("expected an exchange")
-	}
-	b := exch.GetBase()
 	b.API.Credentials.Key = "test"
 	b.API.Credentials.Secret = "test"
 	b.API.AuthenticatedSupport = true
@@ -949,16 +1030,35 @@ func TestGetOrders(t *testing.T) {
 }
 
 func TestGetOrder(t *testing.T) {
+	t.Parallel()
 	exchName := "Binance"
-	engerino := RPCTestSetup(t)
-	defer CleanRPCTest(t, engerino)
-	s := RPCServer{Engine: engerino}
-	var wg sync.WaitGroup
-	var err error
-	engerino.OrderManager, err = SetupOrderManager(engerino.ExchangeManager, engerino.CommunicationsManager, &wg, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("expected %v, received %v", errInvalidArguments, nil)
+	engerino := &Engine{}
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(exchName)
+	if err != nil {
+		t.Fatal(err)
 	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true}}
+	em.Add(exch)
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	err = om.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
 		Delimiter: "-",
@@ -968,7 +1068,7 @@ func TestGetOrder(t *testing.T) {
 
 	_, err = s.GetOrder(context.Background(), nil)
 	if !errors.Is(err, errInvalidArguments) {
-		t.Errorf("expected %v, received %v", errInvalidArguments, err)
+		t.Errorf("received '%v', expected '%v'", err, errInvalidArguments)
 	}
 
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
@@ -978,7 +1078,7 @@ func TestGetOrder(t *testing.T) {
 		Asset:    "spot",
 	})
 	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
+		t.Errorf("received '%v', expected '%v'", err, errExchangeNotLoaded)
 	}
 
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
@@ -988,7 +1088,7 @@ func TestGetOrder(t *testing.T) {
 		Asset:    "",
 	})
 	if !errors.Is(err, errCurrencyPairUnset) {
-		t.Errorf("expected %v, received %v", errCurrencyPairUnset, err)
+		t.Errorf("received '%v', expected '%v'", err, errCurrencyPairUnset)
 	}
 
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
@@ -998,17 +1098,7 @@ func TestGetOrder(t *testing.T) {
 		Asset:    "",
 	})
 	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("expected %v, received %v", asset.ErrNotSupported, err)
-	}
-
-	s.OrderManager, err = SetupOrderManager(engerino.ExchangeManager, engerino.CommunicationsManager, &engerino.ServicesWG, engerino.Settings.Verbose)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = s.OrderManager.Start()
-	if err != nil {
-		t.Fatal(err)
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
@@ -1018,7 +1108,7 @@ func TestGetOrder(t *testing.T) {
 		Asset:    asset.Spot.String(),
 	})
 	if !errors.Is(err, ErrOrderIDCannotBeEmpty) {
-		t.Errorf("expected %v, received %v", ErrOrderIDCannotBeEmpty, err)
+		t.Errorf("received '%v', expected '%v'", err, ErrOrderIDCannotBeEmpty)
 	}
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,
@@ -1032,8 +1122,8 @@ func TestGetOrder(t *testing.T) {
 }
 
 func TestCheckVars(t *testing.T) {
+	t.Parallel()
 	var e exchange.IBotExchange
-
 	err := checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Errorf("expected %v, got %v", errExchangeNotLoaded, err)
@@ -1130,6 +1220,7 @@ func TestCheckVars(t *testing.T) {
 }
 
 func TestParseEvents(t *testing.T) {
+	t.Parallel()
 	var exchangeName = "Binance"
 	var testData []*withdraw.Response
 	for x := 0; x < 5; x++ {
@@ -1294,7 +1385,7 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 		t.Fatal("expected job")
 	}
 	if !strings.EqualFold(resp.Nickname, "TestGetDataHistoryJobDetails") {
-		t.Errorf("received %v, expected %v", "TestGetDataHistoryJobDetails", resp.Nickname)
+		t.Errorf("received %v, expected %v", resp.Nickname, "TestGetDataHistoryJobDetails")
 	}
 }
 

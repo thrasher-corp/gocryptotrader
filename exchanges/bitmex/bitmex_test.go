@@ -64,17 +64,12 @@ func TestStart(t *testing.T) {
 
 func TestGetFullFundingHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFullFundingHistory("", "", "", "", "", true, time.Time{}, time.Time{})
+	_, err := b.GetFullFundingHistory("", "", "", "", "", true, time.Now().Add(-time.Minute), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetFullFundingHistory("", "", "", "", "", true, time.Now().Add(-time.Hour*8), time.Now())
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.GetFullFundingHistory("LTCUSD", "1", "", "", "", true, time.Now().Add(time.Hour*-24), time.Now())
+	_, err = b.GetFullFundingHistory("LTCUSD", "1", "", "", "", true, time.Now().Add(-time.Minute), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -122,7 +117,7 @@ func TestEnableAPIKey(t *testing.T) {
 
 func TestGetTrollboxMessages(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTrollboxMessages(ChatGetParams{Count: 5})
+	_, err := b.GetTrollboxMessages(ChatGetParams{Count: 1})
 	if err != nil {
 		t.Error("GetTrollboxMessages() error", err)
 	}
@@ -426,7 +421,7 @@ func TestGetTrade(t *testing.T) {
 	_, err := b.GetTrade(&GenericRequestParams{
 		Symbol:    "XBT",
 		Reverse:   false,
-		StartTime: time.Now().Add(-time.Hour).Format(time.RFC3339),
+		StartTime: time.Now().Add(-time.Minute).Format(time.RFC3339),
 	})
 	if err != nil {
 		t.Error("GetTrade() error", err)
@@ -437,7 +432,7 @@ func TestGetPreviousTrades(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetPreviousTrades(&TradeGetBucketedParams{
 		Symbol:  "XBTBTC",
-		Start:   int32(time.Now().Add(-time.Hour * 24).Unix()),
+		Start:   int32(time.Now().Add(-time.Hour).Unix()),
 		Columns: "open,high,low,close,volume",
 	})
 	if err == nil {
@@ -1043,7 +1038,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 	currencyPair := b.CurrencyPairs.Pairs[asset.Futures].Available[0]
-	_, err = b.GetHistoricTrades(currencyPair, asset.Futures, time.Now().Add(-time.Minute*15), time.Now())
+	_, err = b.GetHistoricTrades(currencyPair, asset.Futures, time.Now().Add(-time.Minute), time.Now())
 	if err != nil {
 		t.Error(err)
 	}

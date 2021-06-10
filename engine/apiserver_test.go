@@ -8,9 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
@@ -61,15 +59,10 @@ func TestStartRESTServer(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errServerDisabled)
 	}
 	m.remoteConfig.DeprecatedRPC.Enabled = true
-	var wg sync.WaitGroup
-	wg.Add(1)
-	// this is difficult to test as a webserver actually starts, so quit if an immediate error is not received
 	err = m.StartRESTServer()
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second)
-	wg.Done()
 }
 
 func TestStartWebsocketServer(t *testing.T) {

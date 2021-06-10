@@ -60,8 +60,8 @@ func TestStartSQLite(t *testing.T) {
 	}
 	var wg sync.WaitGroup
 	err = m.Start(&wg)
-	if !errors.Is(err, errDatabaseDisabled) {
-		t.Errorf("error '%v', expected '%v'", err, errDatabaseDisabled)
+	if !errors.Is(err, database.ErrDatabaseSupportDisabled) {
+		t.Errorf("error '%v', expected '%v'", err, database.ErrDatabaseSupportDisabled)
 	}
 	m, err = SetupDatabaseConnectionManager(&database.Config{Enabled: true})
 	if !errors.Is(err, nil) {
@@ -71,10 +71,10 @@ func TestStartSQLite(t *testing.T) {
 	if !errors.Is(err, database.ErrNoDatabaseProvided) {
 		t.Errorf("error '%v', expected '%v'", err, database.ErrNoDatabaseProvided)
 	}
-	m.driver = database.DBSQLite
+	m.cfg = database.Config{Driver: database.DBSQLite}
 	err = m.Start(&wg)
-	if !errors.Is(err, database.ErrFailedToConnect) {
-		t.Errorf("error '%v', expected '%v'", err, database.ErrFailedToConnect)
+	if !errors.Is(err, database.ErrDatabaseSupportDisabled) {
+		t.Errorf("error '%v', expected '%v'", err, database.ErrDatabaseSupportDisabled)
 	}
 	_, err = SetupDatabaseConnectionManager(&database.Config{
 		Enabled: true,
@@ -91,23 +91,21 @@ func TestStartSQLite(t *testing.T) {
 
 // This test does not care for a successful connection
 func TestStartPostgres(t *testing.T) {
-	tmpDir := CreateDatabase(t)
-	defer Cleanup(tmpDir)
 	m, err := SetupDatabaseConnectionManager(&database.Config{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	var wg sync.WaitGroup
 	err = m.Start(&wg)
-	if !errors.Is(err, errDatabaseDisabled) {
-		t.Errorf("error '%v', expected '%v'", err, errDatabaseDisabled)
+	if !errors.Is(err, database.ErrDatabaseSupportDisabled) {
+		t.Errorf("error '%v', expected '%v'", err, database.ErrDatabaseSupportDisabled)
 	}
-	m.enabled = true
+	m.cfg.Enabled = true
 	err = m.Start(&wg)
 	if !errors.Is(err, database.ErrNoDatabaseProvided) {
 		t.Errorf("error '%v', expected '%v'", err, database.ErrNoDatabaseProvided)
 	}
-	m.driver = database.DBPostgreSQL
+	m.cfg.Driver = database.DBPostgreSQL
 	err = m.Start(&wg)
 	if !errors.Is(err, database.ErrFailedToConnect) {
 		t.Errorf("error '%v', expected '%v'", err, database.ErrFailedToConnect)

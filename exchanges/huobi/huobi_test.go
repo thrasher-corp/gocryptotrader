@@ -135,7 +135,7 @@ func TestFGetKlineData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.FGetKlineData(cp, "5min", 5, time.Time{}, time.Time{})
+	_, err = h.FGetKlineData(cp, "5min", 5, time.Now().Add(-time.Minute*5), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -654,7 +654,8 @@ func TestFetchTradablePairs(t *testing.T) {
 	}
 }
 
-func TestUpdateTicker(t *testing.T) {
+func TestUpdateTickerSpot(t *testing.T) {
+	t.Parallel()
 	sp, err := currency.NewPairFromString("BTC_USDT")
 	if err != nil {
 		t.Error(err)
@@ -663,6 +664,10 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestUpdateTickerCMF(t *testing.T) {
+	t.Parallel()
 	cp1, err := currency.NewPairFromString("BTC-USD")
 	if err != nil {
 		t.Error(err)
@@ -671,6 +676,10 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestUpdateTickerFutures(t *testing.T) {
+	t.Parallel()
 	tradablePairs, err := h.FetchTradablePairs(asset.Futures)
 	if err != nil {
 		t.Error(err)
@@ -688,7 +697,7 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
-func TestUpdateOrderbook(t *testing.T) {
+func TestUpdateOrderbookSpot(t *testing.T) {
 	t.Parallel()
 	sp, err := currency.NewPairFromString("BTC_USDT")
 	if err != nil {
@@ -698,7 +707,11 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cp1, err := currency.NewPairFromString("BTC_USD")
+}
+
+func TestUpdateOrderbookCMF(t *testing.T) {
+	t.Parallel()
+	cp1, err := currency.NewPairFromString("BTC-USD")
 	if err != nil {
 		t.Error(err)
 	}
@@ -706,6 +719,10 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestUpdateOrderbookFuture(t *testing.T) {
+	t.Parallel()
 	tradablePairs, err := h.FetchTradablePairs(asset.Futures)
 	if err != nil {
 		t.Error(err)

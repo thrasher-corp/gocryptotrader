@@ -20,8 +20,8 @@ func TestSetConfig(t *testing.T) {
 	}
 
 	err = inst.SetConfig(nil)
-	if !errors.Is(err, errNilConfig) {
-		t.Errorf("received %v, expected %v", err, errNilConfig)
+	if !errors.Is(err, ErrNilConfig) {
+		t.Errorf("received %v, expected %v", err, ErrNilConfig)
 	}
 
 	inst = nil

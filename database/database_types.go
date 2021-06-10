@@ -46,9 +46,10 @@ var (
 	DefaultSQLiteDatabase = "gocryptotrader.db"
 	// ErrNilInstance for when a database is nil
 	ErrNilInstance = errors.New("database instance is nil")
-	errNilConfig   = errors.New("received nil config")
-	errNilSQL      = errors.New("database SQL connection is nil")
-	errFailedPing  = errors.New("unable to verify database is connected, failed ping")
+	// ErrNilConfig for when a config is nil
+	ErrNilConfig  = errors.New("received nil config")
+	errNilSQL     = errors.New("database SQL connection is nil")
+	errFailedPing = errors.New("unable to verify database is connected, failed ping")
 )
 
 const (
