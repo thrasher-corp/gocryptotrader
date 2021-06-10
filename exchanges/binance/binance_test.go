@@ -1755,9 +1755,12 @@ func TestGetAccountInfo(t *testing.T) {
 	for i := range items {
 		assetType := items[i]
 		t.Run(fmt.Sprintf("Update info of account [%s]", assetType.String()), func(t *testing.T) {
-			_, err := b.UpdateAccountInfo(account.Default, assetType)
+			h, err := b.UpdateAccountInfo(account.Default, assetType)
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
+			}
+			if h == nil {
+				t.Error("returned snapshot should never return a nil value")
 			}
 		})
 	}

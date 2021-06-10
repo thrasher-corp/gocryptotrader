@@ -575,11 +575,6 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Binance exchange
 func (b *Binance) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := b.GetAccounts()
-	if err != nil {
-		return nil, err
-	}
-
 	m := make(account.HoldingsSnapshot)
 	switch assetType {
 	case asset.Spot:
@@ -599,7 +594,6 @@ func (b *Binance) UpdateAccountInfo(accountName string, assetType asset.Item) (a
 				return nil, err
 			}
 
-			// TODO: CHECK THIS!!!
 			m[currency.NewCode(raw.Balances[i].Asset)] = account.Balance{
 				Total:  free + locked,
 				Locked: locked,
@@ -612,8 +606,7 @@ func (b *Binance) UpdateAccountInfo(accountName string, assetType asset.Item) (a
 		}
 		for i := range cmfData.Assets {
 			m[currency.NewCode(cmfData.Assets[i].Asset)] = account.Balance{
-				Total: cmfData.Assets[i].WalletBalance,
-				// TODO: CHECK THIS!!!
+				Total:  cmfData.Assets[i].WalletBalance,
 				Locked: cmfData.Assets[i].WalletBalance - cmfData.Assets[i].MarginBalance,
 			}
 		}
@@ -624,7 +617,6 @@ func (b *Binance) UpdateAccountInfo(accountName string, assetType asset.Item) (a
 		}
 		for i := range umfData {
 			m[currency.NewCode(umfData[i].Asset)] = account.Balance{
-				// TODO: CHECK THISS!!!!
 				Total:  umfData[i].AvailableBalance,
 				Locked: umfData[i].AvailableBalance - umfData[i].Balance,
 			}
@@ -636,7 +628,6 @@ func (b *Binance) UpdateAccountInfo(accountName string, assetType asset.Item) (a
 		}
 		for i := range marginData.UserAssets {
 			m[currency.NewCode(marginData.UserAssets[i].Asset)] = account.Balance{
-				// TODO: CHECK THISS!!!!
 				Total:  marginData.UserAssets[i].Free + marginData.UserAssets[i].Locked,
 				Locked: marginData.UserAssets[i].Locked,
 			}
@@ -645,7 +636,7 @@ func (b *Binance) UpdateAccountInfo(accountName string, assetType asset.Item) (a
 		return nil, fmt.Errorf("%v assetType not supported", assetType)
 	}
 
-	err = b.LoadHoldings(acc[0], assetType, m)
+	err := b.LoadHoldings(accountName, assetType, m)
 	if err != nil {
 		return nil, err
 	}
