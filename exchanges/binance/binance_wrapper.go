@@ -575,103 +575,90 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Binance exchange
 func (b *Binance) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var info account.Holdings
-	var acc account.SubAccount
-	info.Exchange = b.Name
+	acc, err := b.GetAccounts()
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(account.HoldingsSnapshot)
 	switch assetType {
 	case asset.Spot:
 		raw, err := b.GetAccount()
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-
-		var currencyBalance []account.Balance
+		var free, locked float64
 		for i := range raw.Balances {
-			freeCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Free, 64)
-			if parseErr != nil {
-				return info, parseErr
+			free, err = strconv.ParseFloat(raw.Balances[i].Free, 64)
+			if err != nil {
+				return nil, err
 			}
 
-			lockedCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Locked, 64)
-			if parseErr != nil {
-				return info, parseErr
+			locked, err = strconv.ParseFloat(raw.Balances[i].Locked, 64)
+			if err != nil {
+				return nil, err
 			}
 
-			currencyBalance = append(currencyBalance, account.Balance{
-				CurrencyName: currency.NewCode(raw.Balances[i].Asset),
-				TotalValue:   freeCurrency + lockedCurrency,
-				Hold:         freeCurrency,
-			})
+			// TODO: CHECK THIS!!!
+			m[currency.NewCode(raw.Balances[i].Asset)] = account.Balance{
+				Total:  free + locked,
+				Locked: locked,
+			}
 		}
-
-		acc.Currencies = currencyBalance
-
 	case asset.CoinMarginedFutures:
-		accData, err := b.GetFuturesAccountInfo()
+		cmfData, err := b.GetFuturesAccountInfo()
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		var currencyDetails []account.Balance
-		for i := range accData.Assets {
-			currencyDetails = append(currencyDetails, account.Balance{
-				CurrencyName: currency.NewCode(accData.Assets[i].Asset),
-				TotalValue:   accData.Assets[i].WalletBalance,
-				Hold:         accData.Assets[i].WalletBalance - accData.Assets[i].MarginBalance,
-			})
+		for i := range cmfData.Assets {
+			m[currency.NewCode(cmfData.Assets[i].Asset)] = account.Balance{
+				Total: cmfData.Assets[i].WalletBalance,
+				// TODO: CHECK THIS!!!
+				Locked: cmfData.Assets[i].WalletBalance - cmfData.Assets[i].MarginBalance,
+			}
 		}
-
-		acc.Currencies = currencyDetails
-
 	case asset.USDTMarginedFutures:
-		accData, err := b.UAccountBalanceV2()
+		umfData, err := b.UAccountBalanceV2()
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		var currencyDetails []account.Balance
-		for i := range accData {
-			currencyDetails = append(currencyDetails, account.Balance{
-				CurrencyName: currency.NewCode(accData[i].Asset),
-				TotalValue:   accData[i].Balance,
-				Hold:         accData[i].Balance - accData[i].AvailableBalance,
-			})
+		for i := range umfData {
+			m[currency.NewCode(umfData[i].Asset)] = account.Balance{
+				// TODO: CHECK THISS!!!!
+				Total:  umfData[i].AvailableBalance,
+				Locked: umfData[i].AvailableBalance - umfData[i].Balance,
+			}
 		}
-
-		acc.Currencies = currencyDetails
 	case asset.Margin:
-		accData, err := b.GetMarginAccount()
+		marginData, err := b.GetMarginAccount()
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		var currencyDetails []account.Balance
-		for i := range accData.UserAssets {
-			currencyDetails = append(currencyDetails, account.Balance{
-				CurrencyName: currency.NewCode(accData.UserAssets[i].Asset),
-				TotalValue:   accData.UserAssets[i].Free + accData.UserAssets[i].Locked,
-				Hold:         accData.UserAssets[i].Locked,
-			})
+		for i := range marginData.UserAssets {
+			m[currency.NewCode(marginData.UserAssets[i].Asset)] = account.Balance{
+				// TODO: CHECK THISS!!!!
+				Total:  marginData.UserAssets[i].Free + marginData.UserAssets[i].Locked,
+				Locked: marginData.UserAssets[i].Locked,
+			}
 		}
-
-		acc.Currencies = currencyDetails
-
 	default:
-		return info, fmt.Errorf("%v assetType not supported", assetType)
+		return nil, fmt.Errorf("%v assetType not supported", assetType)
 	}
-	acc.AssetType = assetType
-	info.Accounts = append(info.Accounts, acc)
-	err := account.Process(&info)
+
+	err = b.LoadHoldings(acc[0], assetType, m)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-	return info, nil
+
+	return b.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Binance) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo(assetType)
+		return b.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -1436,13 +1423,6 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (b *Binance) ValidateCredentials(assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(assetType)
-	return b.CheckTransientError(err)
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string

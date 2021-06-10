@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1754,7 +1755,7 @@ func TestGetAccountInfo(t *testing.T) {
 	for i := range items {
 		assetType := items[i]
 		t.Run(fmt.Sprintf("Update info of account [%s]", assetType.String()), func(t *testing.T) {
-			_, err := b.UpdateAccountInfo(assetType)
+			_, err := b.UpdateAccountInfo(account.Default, assetType)
 			if err != nil {
 				t.Error(err)
 			}
