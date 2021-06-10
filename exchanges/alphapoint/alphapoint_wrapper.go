@@ -90,43 +90,39 @@ func (a *Alphapoint) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
 func (a *Alphapoint) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	var response account.Holdings
-	response.Exchange = a.Name
 	acc, err := a.GetAccountInformation()
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
-	var balances []account.Balance
+	holdings := make(account.HoldingsSnapshot)
 	for i := range acc.Currencies {
-		var balance account.Balance
-		balance.CurrencyName = currency.NewCode(acc.Currencies[i].Name)
-		balance.TotalValue = float64(acc.Currencies[i].Balance)
-		balance.Hold = float64(acc.Currencies[i].Hold)
-
-		balances = append(balances, balance)
+		holdings[currency.NewCode(acc.Currencies[i].Name)] = account.Balance{
+			Total:  float64(acc.Currencies[i].Balance),
+			Locked: float64(acc.Currencies[i].Hold),
+		}
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currencies: balances,
-	})
-
-	err = account.Process(&response)
+	iAcc, err := a.GetAccounts()
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
 
-	return response, nil
+	err = a.LoadHoldings(iAcc[0], assetType, holdings)
+	if err != nil {
+		return nil, err
+	}
+
+	return a.GetHoldingsSnapshot(accountName, assetType)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
 func (a *Alphapoint) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	acc, err := account.GetHoldings(a.Name, assetType)
+	acc, err := a.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
-		return a.UpdateAccountInfo(assetType)
+		return a.UpdateAccountInfo(accountName, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -436,11 +432,4 @@ func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (a *Alphapoint) ValidateCredentials(assetType asset.Item) error {
-	_, err := a.UpdateAccountInfo(assetType)
-	return a.CheckTransientError(err)
 }
