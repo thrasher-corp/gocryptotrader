@@ -1356,11 +1356,6 @@ func TestGetHistoricTrades(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		// longer term
-		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*60*310), time.Now().Add(-time.Minute*60*300))
-		if err != nil {
-			t.Error(err)
-		}
 	}
 }
 
