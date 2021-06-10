@@ -295,6 +295,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			job.Interval,
 			job.DataType)
 	}
+ranges:
 	for i := range job.rangeHolder.Ranges {
 		isCompleted := true
 		for j := range job.rangeHolder.Ranges[i].Intervals {
@@ -311,8 +312,15 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 		var failures int64
 		resultLookup := job.Results[job.rangeHolder.Ranges[i].Start.Time]
 		for x := range resultLookup {
-			if resultLookup[x].Status == dataHistoryStatusFailed {
+			switch resultLookup[x].Status {
+			case dataHistoryStatusFailed:
 				failures++
+			case dataHistoryStatusComplete:
+				// this occurs in the scenario where data is missing
+				// however no errors were encountered when data is missing
+				// eg an exchange only returns an empty slice
+				// or the exchange is simply missing the data and does not have an error
+				continue ranges
 			}
 		}
 		if failures >= job.MaxRetryAttempts {
