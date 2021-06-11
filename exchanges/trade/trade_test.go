@@ -203,17 +203,16 @@ func TestShutdown(t *testing.T) {
 	t.Parallel()
 	var p Processor
 	p.mutex.Lock()
-	p.bufferProcessorInterval = time.Second
+	p.bufferProcessorInterval = time.Millisecond
 	p.mutex.Unlock()
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go p.Run(&wg)
 	wg.Wait()
-	time.Sleep(time.Millisecond)
 	if atomic.LoadInt32(&p.started) != 1 {
 		t.Error("expected it to start running")
 	}
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Millisecond * 2)
 	if atomic.LoadInt32(&p.started) != 0 {
 		t.Error("expected it to stop running")
 	}

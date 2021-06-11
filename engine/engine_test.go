@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
@@ -246,30 +247,29 @@ func TestUnloadExchange(t *testing.T) {
 }
 
 func TestDryRunParamInteraction(t *testing.T) {
-	bot := CreateTestBot(t)
-
-	// Simulate overiding default settings and ensure that enabling exchange
-	// verbose mode will be set on Bitfinex
-	var err error
-	if err = bot.UnloadExchange(testExchange); err != nil {
+	t.Parallel()
+	bot := &Engine{
+		ExchangeManager: SetupExchangeManager(),
+		Settings:        Settings{},
+		Config: &config.Config{
+			Exchanges: []config.ExchangeConfig{
+				{
+					Name:                    testExchange,
+					WebsocketTrafficTimeout: time.Second,
+				},
+			},
+		},
+	}
+	if err := bot.LoadExchange(testExchange, false, nil); err != nil {
 		t.Error(err)
 	}
-
-	bot.Settings.CheckParamInteraction = false
-	bot.Settings.EnableExchangeVerbose = false
-	if err = bot.LoadExchange(testExchange, false, nil); err != nil {
-		t.Error(err)
-	}
-
 	exchCfg, err := bot.Config.GetExchangeConfig(testExchange)
 	if err != nil {
 		t.Error(err)
 	}
-
 	if exchCfg.Verbose {
 		t.Error("verbose should have been disabled")
 	}
-
 	if err = bot.UnloadExchange(testExchange); err != nil {
 		t.Error(err)
 	}
@@ -288,7 +288,6 @@ func TestDryRunParamInteraction(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 	if !bot.Settings.EnableDryRun ||
 		!exchCfg.Verbose {
 		t.Error("dryrun should be true and verbose should be true")
