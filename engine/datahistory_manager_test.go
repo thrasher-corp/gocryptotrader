@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 func TestSetupDataHistoryManager(t *testing.T) {
@@ -920,8 +919,13 @@ var j = datahistoryjob.DataHistoryJob{
 	},
 }
 
-func dataHistoryTradeLoader(string, string, string, string, time.Time, time.Time) ([]trade.Data, error) {
-	return nil, nil
+func dataHistoryTradeLoader(_, _, _, _ string, irh *kline.IntervalRangeHolder) error {
+	for i := range irh.Ranges {
+		for j := range irh.Ranges[i].Intervals {
+			irh.Ranges[i].Intervals[j].HasData = true
+		}
+	}
+	return nil
 }
 
 func dataHistoryCandleLoader(string, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (kline.Item, error) {

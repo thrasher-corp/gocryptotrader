@@ -136,6 +136,14 @@ func GetTradesInRange(exchangeName, assetType, base, quote string, startDate, en
 	return SQLDataToTrade(results...)
 }
 
+// HasTradesInRanges Creates an executes an SQL query to verify if a trade exists within a timeframe
+func HasTradesInRanges(exchangeName, assetType, base, quote string, rangeHolder *kline.IntervalRangeHolder) error {
+	if exchangeName == "" || assetType == "" || base == "" || quote == "" {
+		return errors.New("invalid arguments received")
+	}
+	return tradesql.VerifyTradeInIntervals(exchangeName, assetType, base, quote, rangeHolder)
+}
+
 func tradeToSQLData(trades ...Data) ([]tradesql.Data, error) {
 	sort.Sort(ByDate(trades))
 	var results []tradesql.Data

@@ -379,6 +379,10 @@ func upsertDataHistoryJob(c *cli.Context) error {
 }
 
 func getDataHistoryJobsBetween(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
 	if c.IsSet("start_date") {
 		startTime = c.String("start_date")
 	} else {

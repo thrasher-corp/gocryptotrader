@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 const dataHistoryManagerName = "data_history_manager"
@@ -114,7 +113,7 @@ type DataHistoryManager struct {
 	jobResultDB                datahistoryjobresult.IDBService
 	maxJobsPerCycle            int64
 	verbose                    bool
-	tradeLoader                func(string, string, string, string, time.Time, time.Time) ([]trade.Data, error)
+	tradeLoader                func(string, string, string, string, *kline.IntervalRangeHolder) error
 	candleLoader               func(string, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (kline.Item, error)
 }
 

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -56,7 +57,7 @@ func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager
 		jobResultDB:                dhjr,
 		maxJobsPerCycle:            cfg.MaxJobsPerCycle,
 		verbose:                    cfg.Verbose,
-		tradeLoader:                trade.GetTradesInRange,
+		tradeLoader:                trade.HasTradesInRanges,
 		candleLoader:               kline.LoadFromDatabase,
 	}, nil
 }
@@ -179,15 +180,10 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			}
 			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 		case dataHistoryTradeDataType:
-			trades, err := m.tradeLoader(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].StartDate, jobs[i].EndDate)
+			err := m.tradeLoader(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].rangeHolder)
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return err
 			}
-			candles, err = trade.ConvertTradesToCandles(jobs[i].Interval, trades...)
-			if err != nil && !errors.Is(err, trade.ErrNoTradesSupplied) {
-				return err
-			}
-			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 		default:
 			return errUnknownDataType
 		}
@@ -625,6 +621,10 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 	// now try the database
 	j, err := m.jobDB.GetByNickName(nickname)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// no need to display normal sql err to user
+			return nil, errJobNotFound
+		}
 		return nil, fmt.Errorf("%w, %s", errJobNotFound, err)
 	}
 	job, err := m.convertDBModelToJob(j)
@@ -728,7 +728,7 @@ func (m *DataHistoryManager) GetActiveJobs() ([]DataHistoryJob, error) {
 func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJobSummary, error) {
 	job, err := m.GetByNickname(nickname, false)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("'%s' %w", nickname, err)
 	}
 
 	err = m.compareJobsToData(job)

@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
@@ -59,6 +60,89 @@ func Insert(trades ...Data) error {
 	}
 
 	return tx.Commit()
+}
+
+// VerifyTradeInIntervals will query for ONE trade within each kline interval and verify if data exists
+// if it does, it will set the range holder property "HasData" to true
+func VerifyTradeInIntervals(exchangeName, assetType, base, quote string, irh *kline.IntervalRangeHolder) error {
+	ctx := context.Background()
+	ctx = boil.SkipTimestamps(ctx)
+
+	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("beginTx %w", err)
+	}
+	defer func() {
+		if err != nil {
+			errRB := tx.Rollback()
+			if errRB != nil {
+				log.Errorf(log.DatabaseMgr, "Insert tx.Rollback %v", errRB)
+			}
+		}
+	}()
+
+	if repository.GetSQLDialect() == database.DBSQLite3 || repository.GetSQLDialect() == database.DBSQLite {
+		err = verifyTradeInIntervalsSqlite(ctx, tx, exchangeName, assetType, base, quote, irh)
+	} else {
+		err = verifyTradeInIntervalsPostgres(ctx, tx, exchangeName, assetType, base, quote, irh)
+	}
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func verifyTradeInIntervalsSqlite(ctx context.Context, tx *sql.Tx, exchangeName, assetType, base, quote string, irh *kline.IntervalRangeHolder) error {
+	exchangeUUID, err := exchange.UUIDByName(exchangeName)
+	if err != nil {
+		return err
+	}
+	for i := range irh.Ranges {
+		for j := range irh.Ranges[i].Intervals {
+			result, err := sqlite3.Trades(qm.Where("exchange_name_id = ? AND asset = ? AND base = ? AND quote = ? AND timestamp between ? AND ?",
+				exchangeUUID.String(),
+				assetType,
+				base,
+				quote,
+				irh.Ranges[i].Intervals[j].Start.Time.UTC().Format(time.RFC3339),
+				irh.Ranges[i].Intervals[j].End.Time.UTC().Format(time.RFC3339))).One(ctx, tx)
+			if err != nil {
+				return err
+			}
+			if result != nil {
+				irh.Ranges[i].Intervals[j].HasData = true
+			}
+		}
+	}
+
+	return nil
+}
+
+func verifyTradeInIntervalsPostgres(ctx context.Context, tx *sql.Tx, exchangeName, assetType, base, quote string, irh *kline.IntervalRangeHolder) error {
+	exchangeUUID, err := exchange.UUIDByName(exchangeName)
+	if err != nil {
+		return err
+	}
+	for i := range irh.Ranges {
+		for j := range irh.Ranges[i].Intervals {
+			result, err := modelPSQL.Trades(qm.Where("exchange_name_id = ? AND asset = ? AND base = ? AND quote = ? timestamp between ? AND ?",
+				exchangeUUID.String(),
+				assetType,
+				base,
+				quote,
+				irh.Ranges[i].Intervals[j].Start.Time.UTC().Format(time.RFC3339),
+				irh.Ranges[i].Intervals[j].End.Time.UTC().Format(time.RFC3339))).One(ctx, tx)
+			if err != nil {
+				return err
+			}
+			if result != nil {
+				irh.Ranges[i].Intervals[j].HasData = true
+			}
+		}
+	}
+
+	return nil
 }
 
 func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
