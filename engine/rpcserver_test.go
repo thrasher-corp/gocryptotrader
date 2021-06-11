@@ -1451,11 +1451,6 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, errNicknameUnset)
 	}
 
-	_, err = s.GetDataHistoryJobSummary(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "123"})
-	if !errors.Is(err, errJobNotFound) {
-		t.Errorf("received %v, expected %v", err, errJobNotFound)
-	}
-
 	resp, err := s.GetDataHistoryJobSummary(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestGetDataHistoryJobSummary"})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)

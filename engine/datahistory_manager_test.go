@@ -859,8 +859,9 @@ func (d dataHistoryJobService) Upsert(_ ...*datahistoryjob.DataHistoryJob) error
 	return nil
 }
 
-func (d dataHistoryJobService) GetByNickName(_ string) (*datahistoryjob.DataHistoryJob, error) {
+func (d dataHistoryJobService) GetByNickName(nickname string) (*datahistoryjob.DataHistoryJob, error) {
 	jc := j
+	jc.Nickname = nickname
 	return &jc, nil
 }
 
@@ -869,8 +870,9 @@ func (d dataHistoryJobService) GetJobsBetween(_, _ time.Time) ([]datahistoryjob.
 	return []datahistoryjob.DataHistoryJob{jc}, nil
 }
 
-func (d dataHistoryJobService) GetByID(_ string) (*datahistoryjob.DataHistoryJob, error) {
+func (d dataHistoryJobService) GetByID(id string) (*datahistoryjob.DataHistoryJob, error) {
 	jc := j
+	jc.ID = id
 	return &jc, nil
 }
 
@@ -879,8 +881,9 @@ func (d dataHistoryJobService) GetAllIncompleteJobsAndResults() ([]datahistoryjo
 	return []datahistoryjob.DataHistoryJob{jc}, nil
 }
 
-func (d dataHistoryJobService) GetJobAndAllResults(_ string) (*datahistoryjob.DataHistoryJob, error) {
+func (d dataHistoryJobService) GetJobAndAllResults(nickname string) (*datahistoryjob.DataHistoryJob, error) {
 	jc := j
+	jc.Nickname = nickname
 	return &jc, nil
 }
 
