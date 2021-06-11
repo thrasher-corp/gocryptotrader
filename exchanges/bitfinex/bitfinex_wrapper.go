@@ -476,10 +476,10 @@ func (b *Bitfinex) UpdateAccountInfo(accountName string, assetType asset.Item) (
 			ss[accountBalance[x].Type] = m1
 		}
 
-		m2, ok := m1[asset.Spot]
+		m2, ok := m1[assetType]
 		if !ok {
 			m2 = make(account.HoldingsSnapshot)
-			m1[asset.Spot] = m2
+			m1[assetType] = m2
 		}
 
 		m2[currency.NewCode(accountBalance[x].Currency)] = account.Balance{
@@ -490,7 +490,7 @@ func (b *Bitfinex) UpdateAccountInfo(accountName string, assetType asset.Item) (
 
 	for acc, m1 := range ss {
 		for ai, m2 := range m1 {
-			err = b.LoadHoldings(acc, ai, m2)
+			err = b.LoadHoldings(acc, acc == "exchange", ai, m2)
 			if err != nil {
 				return nil, err
 			}

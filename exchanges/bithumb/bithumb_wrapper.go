@@ -303,12 +303,7 @@ func (b *Bithumb) UpdateAccountInfo(accountName string, assetType asset.Item) (a
 		}
 	}
 
-	acc, err := b.GetAccounts() // TODO: TEST REDO ? Do this first then retrieve account balance
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.LoadHoldings(acc[0], asset.Spot, m)
+	err = b.LoadHoldings(accountName, true, asset.Spot, m)
 	if err != nil {
 		return nil, err
 	}

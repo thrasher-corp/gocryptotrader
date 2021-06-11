@@ -293,7 +293,7 @@ func (y *Yobit) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 		}
 	}
 
-	err = y.LoadHoldings(accountName, assetType, m)
+	err = y.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

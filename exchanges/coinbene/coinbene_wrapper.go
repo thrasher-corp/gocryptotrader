@@ -483,7 +483,7 @@ func (c *Coinbene) UpdateAccountInfo(accountName string, assetType asset.Item) (
 		}
 	}
 
-	err = c.LoadHoldings(accountName, assetType, m)
+	err = c.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

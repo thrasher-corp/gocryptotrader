@@ -388,7 +388,7 @@ func (b *BTSE) UpdateAccountInfo(accountName string, assetType asset.Item) (acco
 		}
 	}
 
-	err = b.LoadHoldings(accountName, assetType, m)
+	err = b.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

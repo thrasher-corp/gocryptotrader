@@ -579,7 +579,7 @@ func (k *Kraken) UpdateAccountInfo(accountName string, assetType asset.Item) (ac
 			}
 		}
 
-		err = k.LoadHoldings(accountName, assetType, spotm)
+		err = k.LoadHoldings(accountName, true, assetType, spotm)
 		if err != nil {
 			return nil, err
 		}
@@ -598,7 +598,7 @@ func (k *Kraken) UpdateAccountInfo(accountName string, assetType asset.Item) (ac
 			}
 
 			// Full account details come back, so load individual
-			err = k.LoadHoldings(acc, asset.Futures, futuresM)
+			err = k.LoadHoldings(acc, false, asset.Futures, futuresM)
 			if err != nil {
 				return nil, err
 			}

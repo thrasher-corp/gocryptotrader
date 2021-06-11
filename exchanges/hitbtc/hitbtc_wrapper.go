@@ -427,7 +427,7 @@ func (h *HitBTC) UpdateAccountInfo(accountName string, assetType asset.Item) (ac
 		}
 	}
 
-	err = h.LoadHoldings(accountName, assetType, m)
+	err = h.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

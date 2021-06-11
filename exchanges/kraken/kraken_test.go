@@ -921,14 +921,14 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 // TestGetAccountInfo wrapper test
 func TestGetAccountInfo(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := k.UpdateAccountInfo(account.Default, asset.Spot)
+		_, err := k.UpdateAccountInfo(string(account.Main), asset.Spot)
 		if err != nil {
 			// Spot and Futures have separate api keys. Please ensure that the
 			// correct one is provided
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := k.UpdateAccountInfo(account.Default, asset.Spot)
+		_, err := k.UpdateAccountInfo(string(account.Main), asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
@@ -939,7 +939,7 @@ func TestUpdateFuturesAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set. Skipping the test")
 	}
-	_, err := k.UpdateAccountInfo(account.Default, asset.Futures)
+	_, err := k.UpdateAccountInfo(string(account.Main), asset.Futures)
 	if err != nil {
 		// Spot and Futures have separate api keys. Please ensure that the
 		// correct one is provided

@@ -103,12 +103,7 @@ func (a *Alphapoint) UpdateAccountInfo(accountName string, assetType asset.Item)
 		}
 	}
 
-	iAcc, err := a.GetAccounts()
-	if err != nil {
-		return nil, err
-	}
-
-	err = a.LoadHoldings(iAcc[0], assetType, holdings)
+	err = a.LoadHoldings(accountName, true, assetType, holdings)
 	if err != nil {
 		return nil, err
 	}

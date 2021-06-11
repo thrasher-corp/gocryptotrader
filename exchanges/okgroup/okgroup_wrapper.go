@@ -204,7 +204,7 @@ func (o *OKGroup) UpdateAccountInfo(accountName string, assetType asset.Item) (a
 		}
 	}
 
-	err = o.LoadHoldings(accountName, assetType, m)
+	err = o.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

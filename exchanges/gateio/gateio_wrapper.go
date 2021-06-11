@@ -382,7 +382,7 @@ func (g *Gateio) UpdateAccountInfo(accountName string, assetType asset.Item) (ac
 		}
 	}
 
-	err := g.LoadHoldings(accountName, assetType, m)
+	err := g.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

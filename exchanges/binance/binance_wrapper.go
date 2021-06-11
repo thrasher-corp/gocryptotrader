@@ -636,7 +636,7 @@ func (b *Binance) UpdateAccountInfo(accountName string, assetType asset.Item) (a
 		return nil, fmt.Errorf("%v assetType not supported", assetType)
 	}
 
-	err := b.LoadHoldings(accountName, assetType, m)
+	err := b.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

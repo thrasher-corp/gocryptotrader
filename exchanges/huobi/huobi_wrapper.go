@@ -640,9 +640,7 @@ func (h *HUOBI) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 					Locked: locked,
 				}
 			}
-
-			// TODO: Add in ID
-			err = h.LoadHoldings(account.Default, assetType, m)
+			err = h.LoadHoldings(accountName, true, assetType, m)
 			if err != nil {
 				return nil, err
 			}
@@ -680,7 +678,7 @@ func (h *HUOBI) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 					m[code] = bal
 				}
 
-				err = h.LoadHoldings(accountID, assetType, m)
+				err = h.LoadHoldings(accountID, false, assetType, m)
 				if err != nil {
 					return nil, err
 				}
@@ -706,7 +704,7 @@ func (h *HUOBI) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 			}
 
 			subAccID := strconv.FormatInt(cmfSubAccsData.Data[x].SubUID, 10)
-			err = h.LoadHoldings(subAccID, asset.CoinMarginedFutures, m)
+			err = h.LoadHoldings(subAccID, false, asset.CoinMarginedFutures, m)
 			if err != nil {
 				return nil, err
 			}
@@ -730,7 +728,7 @@ func (h *HUOBI) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 					Locked: subAcc.AssetsData[y].MarginFrozen,
 				}
 			}
-			err = h.LoadHoldings(subAccID, asset.Futures, m)
+			err = h.LoadHoldings(subAccID, false, asset.Futures, m)
 			if err != nil {
 				return nil, err
 			}

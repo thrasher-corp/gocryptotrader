@@ -403,7 +403,7 @@ func (b *Bittrex) UpdateAccountInfo(accountName string, assetType asset.Item) (a
 		}
 	}
 
-	err = b.LoadHoldings(accountName, assetType, m)
+	err = b.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

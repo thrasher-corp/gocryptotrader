@@ -14,14 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// Main defines a default string for the main account name, used if there is no
-// need for differentiation.
-const Main = "main"
-
 var (
-	errAccountNameUnset                = errors.New("account name unset")
 	errCurrencyIsEmpty                 = errors.New("currency is empty")
-	errAccountsNotLoaded               = errors.New("accounts not loaded")
 	errAccountNotFound                 = errors.New("account not found in holdings")
 	errSnapshotIsNil                   = errors.New("holdings snapshot is nil")
 	errAccountBalancesNotLoaded        = errors.New("account balances not loaded")
@@ -47,74 +41,9 @@ type Holdings struct {
 	mux *dispatch.Mux
 	id  uuid.UUID
 
+	Accounts
+
 	m sync.Mutex
-
-	// availableAccounts is segregated so we can attach a RW mutex and it
-	// doesn't interfere with other systems when checking availability.
-	// TODO: Deprecate and add in key manager with associated account
-	// jurisdiction.
-	availableAccounts []string
-	accMtx            sync.RWMutex
-}
-
-// LoadAccount loads an account for future checking
-func (h *Holdings) LoadAccount(account string) error {
-	if account == "" {
-		return errAccountNameUnset
-	}
-
-	account = strings.ToLower(account)
-
-	h.accMtx.Lock()
-	defer h.accMtx.Unlock()
-
-	for x := range h.availableAccounts {
-		if h.availableAccounts[x] == account {
-			return nil
-		}
-	}
-	h.availableAccounts = append(h.availableAccounts, account)
-	return nil
-}
-
-// GetAccounts returns the loaded accounts in usage associated with the current
-// global API credentials
-func (h *Holdings) GetAccounts() ([]string, error) {
-	h.accMtx.RLock()
-	defer h.accMtx.RUnlock()
-
-	amount := len(h.availableAccounts)
-	if amount == 0 {
-		return nil, errAccountsNotLoaded
-	}
-
-	acc := make([]string, amount)
-	copy(acc, h.availableAccounts)
-	return acc, nil
-}
-
-// AccountValid cross references account with available accounts list. Used by
-// external calls GRPC and/or strategies to ensure availability before locking
-// core systems.
-func (h *Holdings) AccountValid(account string) error {
-	if account == "" {
-		return errAccountNameUnset
-	}
-
-	account = strings.ToLower(account)
-
-	h.accMtx.RLock()
-	defer h.accMtx.RUnlock()
-
-	for x := range h.availableAccounts {
-		if h.availableAccounts[x] == account {
-			return nil
-		}
-	}
-	return fmt.Errorf("%s %w: available accounts [%s]",
-		account,
-		errAccountNotFound,
-		h.availableAccounts)
 }
 
 // GetHolding returns the holding for a specific currency tied to an account
@@ -178,7 +107,7 @@ func (h *Holdings) GetHolding(account string, a asset.Item, c currency.Code) (*H
 // LoadHoldings flushes the entire amounts with the supplied account values,
 // this acts as a complete snapshot, anything held in the current holdings that
 // is not part of the supplied values list will be readjusted to zero value.
-func (h *Holdings) LoadHoldings(account string, a asset.Item, snapshot HoldingsSnapshot) error {
+func (h *Holdings) LoadHoldings(account string, isMain bool, a asset.Item, snapshot HoldingsSnapshot) error {
 	if account == "" {
 		return fmt.Errorf("cannot load holdings for %s %s %s: %w",
 			h.Exchange,
@@ -215,8 +144,8 @@ func (h *Holdings) LoadHoldings(account string, a asset.Item, snapshot HoldingsS
 	m1, ok := h.funds[account]
 	if !ok {
 		// Loads instance of account name for other sub-system interactions
-		err := h.LoadAccount(account)
-		if err != nil {
+		err := h.LoadAccount(account, isMain)
+		if err != nil && !errors.Is(err, errAccountAlreadyLoaded) {
 			h.m.Unlock()
 			return fmt.Errorf("cannot load holdings for %s %s %s: %w",
 				h.Exchange,
@@ -301,6 +230,15 @@ func (h *Holdings) GetHoldingsSnapshot(account string, ai asset.Item) (HoldingsS
 			account,
 			ai,
 			asset.ErrNotSupported)
+	}
+
+	account = strings.ToLower(account)
+	if account == string(Main) {
+		d, err := h.GetMainAccount()
+		if err != nil {
+			return nil, err
+		}
+		account = string(d)
 	}
 
 	h.m.Lock()

@@ -190,9 +190,9 @@ func (w Wrapper) AccountInformation(exch string) (account.FullSnapshot, error) {
 	}
 
 	sh := make(account.FullSnapshot)
-	sh[account.Default] = make(map[asset.Item]account.HoldingsSnapshot)
-	sh[account.Default][asset.Spot] = make(account.HoldingsSnapshot)
-	sh[account.Default][asset.Spot][currency.BTC] = account.Balance{
+	sh[string(account.Main)] = make(map[asset.Item]account.HoldingsSnapshot)
+	sh[string(account.Main)][asset.Spot] = make(account.HoldingsSnapshot)
+	sh[string(account.Main)][asset.Spot][currency.BTC] = account.Balance{
 		Total:  1337,
 		Locked: 1000,
 	}

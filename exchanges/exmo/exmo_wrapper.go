@@ -353,7 +353,7 @@ func (e *EXMO) UpdateAccountInfo(accountName string, assetType asset.Item) (acco
 		}
 	}
 
-	err = e.LoadHoldings(accountName, assetType, m)
+	err = e.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

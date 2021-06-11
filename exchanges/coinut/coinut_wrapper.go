@@ -337,7 +337,7 @@ func (c *COINUT) UpdateAccountInfo(accountName string, assetType asset.Item) (ac
 		currency.ZEC:  {Total: bal.ZEC},
 	}
 
-	err = c.LoadHoldings(accountName, assetType, m)
+	err = c.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

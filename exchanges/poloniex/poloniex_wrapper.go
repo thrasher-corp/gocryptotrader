@@ -398,7 +398,7 @@ func (p *Poloniex) UpdateAccountInfo(accountName string, assetType asset.Item) (
 		}
 	}
 
-	err = p.LoadHoldings(accountName, assetType, m)
+	err = p.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

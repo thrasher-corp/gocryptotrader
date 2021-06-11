@@ -1978,21 +1978,21 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		_, err := h.UpdateAccountInfo(account.Default, asset.CoinMarginedFutures)
+		_, err := h.UpdateAccountInfo(string(account.Main), asset.CoinMarginedFutures)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
-		_, err = h.UpdateAccountInfo(account.Default, asset.Futures)
+		_, err = h.UpdateAccountInfo(string(account.Main), asset.Futures)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
 	} else {
-		_, err := h.UpdateAccountInfo(account.Default, asset.CoinMarginedFutures)
+		_, err := h.UpdateAccountInfo(string(account.Main), asset.CoinMarginedFutures)
 		if err != nil {
 			// Spot and Futures have separate api keys. Please ensure that the correct keys are provided
 			t.Error(err)
 		}
-		_, err = h.UpdateAccountInfo(account.Default, asset.Futures)
+		_, err = h.UpdateAccountInfo(string(account.Main), asset.Futures)
 		if err != nil {
 			// Spot and Futures have separate api keys. Please ensure that the correct keys are provided
 			t.Error(err)
@@ -2002,10 +2002,11 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestGetSpotAccountInfo(t *testing.T) {
 	t.Parallel()
+	h.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := h.UpdateAccountInfo(account.Default, asset.Spot)
+	_, err := h.UpdateAccountInfo(string(account.Main), asset.Spot)
 	if err != nil {
 		// Spot and Futures have separate api keys. Please ensure that the correct keys are provided
 		t.Error(err)

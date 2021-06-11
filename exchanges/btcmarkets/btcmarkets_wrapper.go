@@ -409,7 +409,7 @@ func (b *BTCMarkets) UpdateAccountInfo(accountName string, assetType asset.Item)
 		}
 	}
 
-	err = b.LoadHoldings(accountName, assetType, m)
+	err = b.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

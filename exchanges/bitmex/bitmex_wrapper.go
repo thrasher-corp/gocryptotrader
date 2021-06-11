@@ -410,13 +410,12 @@ func (b *Bitmex) UpdateAccountInfo(accountName string, assetType asset.Item) (ac
 	m := make(account.HoldingsSnapshot)
 	for i := range bal {
 		m[currency.NewCode(bal[i].Currency)] = account.Balance{
-			// TODO: Check
 			Total:  float64(bal[i].WalletBalance),
 			Locked: float64(bal[i].AvailableMargin),
 		}
 	}
 
-	err = b.LoadHoldings(accountName, assetType, m)
+	err = b.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

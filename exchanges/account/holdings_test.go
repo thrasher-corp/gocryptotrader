@@ -14,77 +14,6 @@ const AccountTest = "test"
 var one = decimal.NewFromInt(1)
 var twenty = decimal.NewFromInt(20)
 
-func TestLoadAccount(t *testing.T) {
-	h := Holdings{}
-	err := h.LoadAccount("")
-	if !errors.Is(err, errAccountNameUnset) {
-		t.Fatalf("expected: %v but received: %v", errAccountNameUnset, err)
-	}
-
-	err = h.LoadAccount("testAccount")
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
-
-	err = h.LoadAccount("testAccOunt")
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
-
-	if len(h.availableAccounts) != 1 {
-		t.Fatal("unexpected account count")
-	}
-}
-
-func TestGetAccounts(t *testing.T) {
-	h := Holdings{}
-	_, err := h.GetAccounts()
-	if !errors.Is(err, errAccountsNotLoaded) {
-		t.Fatalf("expected: %v but received: %v", errAccountsNotLoaded, err)
-	}
-
-	err = h.LoadAccount("testAccount")
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
-
-	accs, err := h.GetAccounts()
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
-
-	if len(accs) != 1 {
-		t.Fatal("unexpected amount received")
-	}
-
-	if accs[0] != "testaccount" {
-		t.Fatalf("unexpected value %s received", accs[0])
-	}
-}
-
-func TestAccountValid(t *testing.T) {
-	h := Holdings{}
-	err := h.AccountValid("")
-	if !errors.Is(err, errAccountNameUnset) {
-		t.Fatalf("expected: %v but received: %v", errAccountNameUnset, err)
-	}
-
-	err = h.AccountValid("test")
-	if !errors.Is(err, errAccountNotFound) {
-		t.Fatalf("expected: %v but received: %v", errAccountNotFound, err)
-	}
-
-	err = h.LoadAccount("testAccount")
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
-
-	err = h.AccountValid("tEsTAccOuNt")
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
-}
-
 func TestGetHolding(t *testing.T) {
 	h, err := DeployHoldings("getHolding", false)
 	if !errors.Is(err, nil) {
@@ -111,7 +40,7 @@ func TestGetHolding(t *testing.T) {
 		currency.LTC: {Total: 20},
 	}
 
-	err = h.LoadHoldings(AccountTest, asset.Spot, values)
+	err = h.LoadHoldings(AccountTest, true, asset.Spot, values)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
@@ -162,17 +91,17 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
 
-	err = h.LoadHoldings("", "", nil)
+	err = h.LoadHoldings("", false, "", nil)
 	if !errors.Is(err, errAccountNameUnset) {
 		t.Fatalf("expected: %v but received: %v", errAccountNameUnset, err)
 	}
 
-	err = h.LoadHoldings(AccountTest, "", nil)
+	err = h.LoadHoldings(AccountTest, false, "", nil)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("expected: %v but received: %v", asset.ErrNotSupported, err)
 	}
 
-	err = h.LoadHoldings(AccountTest, asset.Spot, nil)
+	err = h.LoadHoldings(AccountTest, false, asset.Spot, nil)
 	if !errors.Is(err, errSnapshotIsNil) {
 		t.Fatalf("expected: %v but received: %v", errSnapshotIsNil, err)
 	}
@@ -182,7 +111,7 @@ func TestLoad(t *testing.T) {
 		currency.LTC: {Total: 20},
 	}
 
-	err = h.LoadHoldings(AccountTest, asset.Spot, values)
+	err = h.LoadHoldings(AccountTest, false, asset.Spot, values)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
@@ -192,7 +121,7 @@ func TestLoad(t *testing.T) {
 		currency.XRP: {Total: 60000},
 	}
 
-	err = h.LoadHoldings(AccountTest, asset.Spot, values)
+	err = h.LoadHoldings(AccountTest, false, asset.Spot, values)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
@@ -235,17 +164,17 @@ func TestGetHoldingsSnapshot(t *testing.T) {
 		t.Fatalf("expected: %v but received: %v", errAccountNameUnset, err)
 	}
 
-	_, err = h.GetHoldingsSnapshot(Default, "")
+	_, err = h.GetHoldingsSnapshot(string(Main), "")
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("expected: %v but received: %v", asset.ErrNotSupported, err)
 	}
 
-	_, err = h.GetHoldingsSnapshot(Default, asset.Spot)
+	_, err = h.GetHoldingsSnapshot(string(Main), asset.Spot)
 	if !errors.Is(err, errAccountBalancesNotLoaded) {
 		t.Fatalf("expected: %v but received: %v", errAccountBalancesNotLoaded, err)
 	}
 
-	err = h.LoadHoldings(Default, asset.Spot, HoldingsSnapshot{
+	err = h.LoadHoldings(string(Main), true, asset.Spot, HoldingsSnapshot{
 		currency.BTC: Balance{
 			Total:  1337,
 			Locked: 1,
@@ -260,12 +189,12 @@ func TestGetHoldingsSnapshot(t *testing.T) {
 		t.Fatalf("expected: %v but received: %v", errAccountNotFound, err)
 	}
 
-	_, err = h.GetHoldingsSnapshot(Default, asset.Futures)
+	_, err = h.GetHoldingsSnapshot(string(Main), asset.Futures)
 	if !errors.Is(err, errAssetTypeNotFound) {
 		t.Fatalf("expected: %v but received: %v", errAssetTypeNotFound, err)
 	}
 
-	m, err := h.GetHoldingsSnapshot(Default, asset.Spot)
+	m, err := h.GetHoldingsSnapshot(string(Main), asset.Spot)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
@@ -297,7 +226,7 @@ func TestAdjustHolding(t *testing.T) {
 
 	h.Verbose = true
 
-	err = h.LoadHoldings("someaccount", asset.Spot, values)
+	err = h.LoadHoldings("someaccount", false, asset.Spot, values)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
@@ -393,12 +322,18 @@ func TestHoldingsClaim(t *testing.T) {
 	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
 	}
+
+	err = h.LoadAccount("someaccount", false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected: %v but received: %v", nil, err)
+	}
+
 	_, err = h.Claim("someaccount", asset.Spot, currency.BTC, 1, false)
 	if !errors.Is(err, errAccountNotFound) {
 		t.Fatalf("expected: %v but received: %v", errAccountNotFound, err)
 	}
 
-	err = h.LoadHoldings("someaccount", asset.Spot, HoldingsSnapshot{
+	err = h.LoadHoldings("someaccount", false, asset.Spot, HoldingsSnapshot{
 		currency.BTC: Balance{
 			Total:  1,
 			Locked: .2,

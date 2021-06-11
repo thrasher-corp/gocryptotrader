@@ -16,9 +16,6 @@ func init() {
 	service.mux = dispatch.GetNewMux()
 }
 
-// Default defines the default main account for each apikey on an exchange
-const Default = "main"
-
 var (
 	errExchangeNameUnset        = errors.New("exchange name is unset")
 	errExchangeHoldingsNotFound = errors.New("exchange holdings not found")

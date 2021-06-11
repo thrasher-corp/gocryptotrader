@@ -320,7 +320,7 @@ func (l *Lbank) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 			Locked: totalHold,
 		}
 	}
-	err = l.LoadHoldings(accountName, assetType, m)
+	err = l.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

@@ -262,7 +262,7 @@ func (i *ItBit) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 				Locked: wallets[x].Balances[y].TotalBalance - wallets[x].Balances[y].AvailableBalance,
 			}
 		}
-		err = i.LoadHoldings(wallets[x].Name, assetType, m)
+		err = i.LoadHoldings(wallets[x].Name, x == 0, assetType, m)
 		if err != nil {
 			return nil, err
 		}

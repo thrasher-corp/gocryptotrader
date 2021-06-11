@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -605,7 +606,9 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 			b.Name)
 	}
 	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
-	return nil
+	// Associate with the account system
+	b.Holdings, err = account.DeployHoldings(b.Name, b.Verbose)
+	return err
 }
 
 // AllowAuthenticatedRequest checks to see if the required fields have been set

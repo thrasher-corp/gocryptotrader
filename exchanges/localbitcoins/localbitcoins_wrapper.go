@@ -267,7 +267,7 @@ func (l *LocalBitcoins) UpdateAccountInfo(accountName string, assetType asset.It
 		},
 	}
 
-	err = l.LoadHoldings(accountName, assetType, m)
+	err = l.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}

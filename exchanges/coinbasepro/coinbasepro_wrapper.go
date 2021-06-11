@@ -327,7 +327,7 @@ func (c *CoinbasePro) UpdateAccountInfo(accountName string, assetType asset.Item
 				Locked: accountBalance[i].Hold,
 			}
 		}
-		err = c.LoadHoldings(accountBalance[x].ID, assetType, m)
+		err = c.LoadHoldings(accountBalance[x].ID, true, assetType, m)
 		if err != nil {
 			return nil, err
 		}

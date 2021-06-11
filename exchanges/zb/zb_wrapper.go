@@ -372,7 +372,7 @@ func (z *ZB) UpdateAccountInfo(accountName string, assetType asset.Item) (accoun
 		}
 	}
 
-	err := z.LoadHoldings(account.Default, asset.Spot, m)
+	err := z.LoadHoldings(accountName, true, assetType, m)
 	if err != nil {
 		return nil, err
 	}
