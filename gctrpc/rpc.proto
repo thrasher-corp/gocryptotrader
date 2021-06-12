@@ -164,6 +164,7 @@ message GetOrderbooksResponse {
 message GetAccountInfoRequest {
     string exchange = 1;
     string asset_type = 2;
+    string account = 3;
 }
 
 message Account {

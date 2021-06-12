@@ -794,6 +794,12 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -836,6 +842,12 @@
           },
           {
             "name": "asset_type",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "account",
             "in": "query",
             "required": false,
             "type": "string"
@@ -2267,6 +2279,12 @@
           },
           {
             "name": "asset_type",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "account",
             "in": "query",
             "required": false,
             "type": "string"

@@ -9,11 +9,14 @@ import (
 )
 
 // GetAssetTypes returns a list of stored asset types
-func (p *PairsManager) GetAssetTypes() asset.Items {
+func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
 	p.m.RLock()
 	defer p.m.RUnlock()
 	var assetTypes asset.Items
-	for k := range p.Pairs {
+	for k, ps := range p.Pairs {
+		if enabled && (ps.AssetEnabled == nil || !*ps.AssetEnabled) {
+			continue
+		}
 		assetTypes = append(assetTypes, k)
 	}
 	return assetTypes

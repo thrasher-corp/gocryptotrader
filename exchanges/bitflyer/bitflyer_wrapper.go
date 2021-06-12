@@ -167,7 +167,7 @@ func (b *Bitflyer) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Bitflyer) UpdateTradablePairs(forceUpdate bool) error {
-	assets := b.CurrencyPairs.GetAssetTypes()
+	assets := b.CurrencyPairs.GetAssetTypes(false)
 	for x := range assets {
 		pairs, err := b.FetchTradablePairs(assets[x])
 		if err != nil {

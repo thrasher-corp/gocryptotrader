@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
@@ -764,7 +763,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 
 	if bot.Settings.EnableAllPairs &&
 		exchCfg.CurrencyPairs != nil {
-		assets := exchCfg.CurrencyPairs.GetAssetTypes()
+		assets := exchCfg.CurrencyPairs.GetAssetTypes(false)
 		for x := range assets {
 			var pairs currency.Pairs
 			pairs, err = exchCfg.CurrencyPairs.GetPairs(assets[x], false)
@@ -831,28 +830,32 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 
 	bot.ExchangeManager.Add(exch)
 	base := exch.GetBase()
-	if base.API.AuthenticatedSupport ||
-		base.API.AuthenticatedWebsocketSupport {
-		assetTypes := base.GetAssetTypes()
-		var useAsset asset.Item
-		for a := range assetTypes {
-			err = base.CurrencyPairs.IsAssetEnabled(assetTypes[a])
-			if err != nil {
-				continue
-			}
-			useAsset = assetTypes[a]
-			break
-		}
-		err = exch.ValidateCredentials(useAsset)
+	if base.API.AuthenticatedSupport || base.API.AuthenticatedWebsocketSupport {
+		accounts, err := base.GetAccounts()
 		if err != nil {
-			gctlog.Warnf(gctlog.ExchangeSys,
-				"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",
-				base.Name,
-				err)
-			base.API.AuthenticatedSupport = false
-			base.API.AuthenticatedWebsocketSupport = false
-			exchCfg.API.AuthenticatedSupport = false
-			exchCfg.API.AuthenticatedWebsocketSupport = false
+			// Opted to fail and return here as setup has not engaged properly
+			return err
+		}
+
+		// This allows for the full account balance set up and check for the
+		// supplied credentials.
+	accounts:
+		for x := range accounts {
+			assetTypes := base.GetAssetTypes(true)
+			for y := range assetTypes {
+				_, err = exch.UpdateAccountInfo(string(accounts[x]), assetTypes[y])
+				if err != nil && base.CheckTransientError(err) != nil {
+					gctlog.Warnf(gctlog.ExchangeSys,
+						"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",
+						base.Name,
+						err)
+					base.API.AuthenticatedSupport = false
+					base.API.AuthenticatedWebsocketSupport = false
+					exchCfg.API.AuthenticatedSupport = false
+					exchCfg.API.AuthenticatedWebsocketSupport = false
+					break accounts
+				}
+			}
 		}
 	}
 

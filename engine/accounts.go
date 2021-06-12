@@ -62,7 +62,7 @@ func (a *AccountManager) RunUpdater(interval time.Duration) error {
 		return errAccountManagerAlreadyStarted
 	}
 	if a.verbose {
-		log.Debugln(log.Global, "Account Manager started...")
+		log.Debugln(log.Accounts, "Account Manager started...")
 	}
 	a.synchronizationInterval = interval
 	a.shutdown = make(chan struct{})
@@ -109,17 +109,27 @@ func (a *AccountManager) updateAccountForExchange(exch exchange.IBotExchange) {
 		a.m.Unlock()
 	}
 
-	at := exch.GetAssetTypes()
-	for x := range at {
-		_, err := exch.UpdateAccountInfo(at[x])
-		if err != nil {
-			log.Errorf(log.Global,
-				"%s failed to update account holdings for account: %v",
-				exch.GetName(),
-				err)
-		}
+	accounts, err := exch.GetAccounts()
+	if err != nil {
+		log.Errorf(log.Accounts,
+			"%s failed to update account holdings for account: %v",
+			exch.GetName(),
+			err)
+		return
 	}
 
+	at := exch.GetAssetTypes(true)
+	for x := range accounts {
+		for y := range at {
+			_, err := exch.UpdateAccountInfo(string(accounts[x]), at[y])
+			if err != nil {
+				log.Errorf(log.Accounts,
+					"%s failed to update account holdings for account: %v",
+					exch.GetName(),
+					err)
+			}
+		}
+	}
 	// TODO: Update portfolio positioning, would need to tie
 	// into websocket as well.
 }

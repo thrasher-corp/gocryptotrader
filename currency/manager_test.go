@@ -37,7 +37,12 @@ func initTest(t *testing.T) {
 func TestGetAssetTypes(t *testing.T) {
 	initTest(t)
 
-	a := p.GetAssetTypes()
+	a := p.GetAssetTypes(true)
+	if len(a) != 0 {
+		t.Errorf("GetAssetTypes shouldn't be nil")
+	}
+
+	a = p.GetAssetTypes(false)
 	if len(a) == 0 {
 		t.Errorf("GetAssetTypes shouldn't be nil")
 	}

@@ -36,12 +36,16 @@ type IBotExchange interface {
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
 
+	// GetAccounts returns the accounts associated with the API key set
+	GetAccounts() ([]account.Designation, error)
 	FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error)
 	UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error)
+	GetFullAccountSnapshot() (account.FullSnapshot, error)
+	AccountValid(account string) error
 
 	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
-	GetAssetTypes() asset.Items
+	GetAssetTypes(enabled bool) asset.Items
 	GetRecentTrades(p currency.Pair, a asset.Item) ([]trade.Data, error)
 	GetHistoricTrades(p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error)
 	SupportsAutoPairUpdates() bool

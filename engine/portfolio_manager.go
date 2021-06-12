@@ -139,85 +139,64 @@ func (m *portfolioManager) processPortfolio() {
 			value)
 	}
 
-	d := m.getExchangeAccountInfo(m.exchangeManager.GetExchanges())
-	m.seedExchangeAccountInfo(d)
+	exchanges := m.exchangeManager.GetExchanges()
+	exchangeBalances := m.getExchangeAccountInfo(exchanges)
+	m.seedExchangeAccountInfo(exchangeBalances)
 	atomic.CompareAndSwapInt32(&m.processing, 1, 0)
 }
 
 // seedExchangeAccountInfo seeds account info
-func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) {
+func (m *portfolioManager) seedExchangeAccountInfo(accounts map[string]account.FullSnapshot) {
 	if len(accounts) == 0 {
 		return
 	}
-	for x := range accounts {
-		exchangeName := accounts[x].Exchange
-		var currencies []account.Balance
-		for y := range accounts[x].Accounts {
-			for z := range accounts[x].Accounts[y].Currencies {
-				var update bool
-				for i := range currencies {
-					if accounts[x].Accounts[y].Currencies[z].CurrencyName == currencies[i].CurrencyName {
-						currencies[i].Hold += accounts[x].Accounts[y].Currencies[z].Hold
-						currencies[i].TotalValue += accounts[x].Accounts[y].Currencies[z].TotalValue
-						update = true
-					}
-				}
+	for exch, m1 := range accounts {
+		for _, m2 := range m1 {
+			for _, m3 := range m2 {
+				for code, bal := range m3 {
+					if !m.base.ExchangeAddressExists(exch, code) {
+						if bal.Total <= 0 {
+							continue
+						}
 
-				if update {
-					continue
-				}
+						log.Debugf(log.PortfolioMgr,
+							"Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
+							exch,
+							code,
+							bal.Total,
+							portfolio.ExchangeAddress)
 
-				currencies = append(currencies, account.Balance{
-					CurrencyName: accounts[x].Accounts[y].Currencies[z].CurrencyName,
-					TotalValue:   accounts[x].Accounts[y].Currencies[z].TotalValue,
-					Hold:         accounts[x].Accounts[y].Currencies[z].Hold,
-				})
-			}
-		}
+						m.base.Addresses = append(m.base.Addresses,
+							portfolio.Address{Address: exch,
+								CoinType:    code,
+								Balance:     bal.Total,
+								Description: portfolio.ExchangeAddress})
+					} else {
+						if bal.Total <= 0 {
+							log.Debugf(log.PortfolioMgr,
+								"Portfolio: Removing %s %s entry.\n",
+								exch,
+								code)
+							m.base.RemoveExchangeAddress(exch, code)
+						} else {
+							balance, ok := m.base.GetAddressBalance(exch,
+								portfolio.ExchangeAddress,
+								code)
+							if !ok {
+								continue
+							}
 
-		for x := range currencies {
-			currencyName := currencies[x].CurrencyName
-			total := currencies[x].TotalValue
-
-			if !m.base.ExchangeAddressExists(exchangeName, currencyName) {
-				if total <= 0 {
-					continue
-				}
-
-				log.Debugf(log.PortfolioMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
-					exchangeName,
-					currencyName,
-					total,
-					portfolio.ExchangeAddress)
-
-				m.base.Addresses = append(
-					m.base.Addresses,
-					portfolio.Address{Address: exchangeName,
-						CoinType:    currencyName,
-						Balance:     total,
-						Description: portfolio.ExchangeAddress})
-			} else {
-				if total <= 0 {
-					log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry.\n",
-						exchangeName,
-						currencyName)
-					m.base.RemoveExchangeAddress(exchangeName, currencyName)
-				} else {
-					balance, ok := m.base.GetAddressBalance(exchangeName,
-						portfolio.ExchangeAddress,
-						currencyName)
-					if !ok {
-						continue
-					}
-
-					if balance != total {
-						log.Debugf(log.PortfolioMgr, "Portfolio: Updating %s %s entry with balance %f.\n",
-							exchangeName,
-							currencyName,
-							total)
-						m.base.UpdateExchangeAddressBalance(exchangeName,
-							currencyName,
-							total)
+							if balance != bal.Total {
+								log.Debugf(log.PortfolioMgr,
+									"Portfolio: Updating %s %s entry with balance %f.\n",
+									exch,
+									code,
+									bal.Total)
+								m.base.UpdateExchangeAddressBalance(exch,
+									code,
+									bal.Total)
+							}
+						}
 					}
 				}
 			}
@@ -226,8 +205,8 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 }
 
 // getExchangeAccountInfo returns all the current enabled exchanges
-func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []account.Holdings {
-	var response []account.Holdings
+func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) map[string]account.FullSnapshot {
+	response := make(map[string]account.FullSnapshot)
 	for x := range exchanges {
 		if exchanges[x] == nil || !exchanges[x].IsEnabled() {
 			continue
@@ -240,24 +219,17 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 			}
 			continue
 		}
-		assetTypes := exchanges[x].GetAssetTypes()
-		var exchangeHoldings account.Holdings
-		for y := range assetTypes {
-			accountHoldings, err := exchanges[x].FetchAccountInfo(assetTypes[y])
-			if err != nil {
-				log.Errorf(log.PortfolioMgr,
-					"Error encountered retrieving exchange account info for %s. Error %s\n",
-					exchanges[x].GetName(),
-					err)
-				continue
-			}
-			for z := range accountHoldings.Accounts {
-				accountHoldings.Accounts[z].AssetType = assetTypes[y]
-			}
-			exchangeHoldings.Exchange = exchanges[x].GetName()
-			exchangeHoldings.Accounts = append(exchangeHoldings.Accounts, accountHoldings.Accounts...)
+
+		name := exchanges[x].GetName()
+		sh, err := exchanges[x].GetFullAccountSnapshot()
+		if err != nil {
+			log.Errorf(log.PortfolioMgr,
+				"Error encountered retrieving exchange account info for %s. Error %s\n",
+				name,
+				err)
+			continue
 		}
-		response = append(response, exchangeHoldings)
+		response[name] = sh
 	}
 	return response
 }

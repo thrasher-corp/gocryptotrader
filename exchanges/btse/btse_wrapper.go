@@ -259,7 +259,7 @@ func (b *BTSE) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
-	a := b.GetAssetTypes()
+	a := b.GetAssetTypes(false)
 	for i := range a {
 		pairs, err := b.FetchTradablePairs(a[i])
 		if err != nil {

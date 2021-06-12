@@ -421,7 +421,7 @@ func TestGetAssetTypes(t *testing.T) {
 		},
 	}
 
-	aT := testExchange.GetAssetTypes()
+	aT := testExchange.GetAssetTypes(false)
 	if len(aT) != 3 {
 		t.Error("TestGetAssetTypes failed")
 	}

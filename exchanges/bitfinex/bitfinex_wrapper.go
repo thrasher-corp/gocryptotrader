@@ -303,7 +303,7 @@ func (b *Bitfinex) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
-	assets := b.CurrencyPairs.GetAssetTypes()
+	assets := b.CurrencyPairs.GetAssetTypes(false)
 	for i := range assets {
 		pairs, err := b.FetchTradablePairs(assets[i])
 		if err != nil {

@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -306,7 +307,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 	var orderbookData []EnabledExchangeOrderbooks
 	exchanges := m.GetExchanges()
 	for x := range exchanges {
-		assets := exchanges[x].GetAssetTypes()
+		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
 		var exchangeOB EnabledExchangeOrderbooks
 		exchangeOB.ExchangeName = exchName
@@ -343,7 +344,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 	var tickers []EnabledExchangeCurrencies
 	exchanges := m.GetExchanges()
 	for x := range exchanges {
-		assets := exchanges[x].GetAssetTypes()
+		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
 		var exchangeTickers EnabledExchangeCurrencies
 		exchangeTickers.ExchangeName = exchName
@@ -376,26 +377,20 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 }
 
 // getAllActiveAccounts returns all enabled exchanges accounts
-func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
-	var accounts []AllEnabledExchangeAccounts
+func getAllActiveAccounts(m iExchangeManager) map[string]account.FullSnapshot {
+	accounts := make(map[string]account.FullSnapshot)
 	exchanges := m.GetExchanges()
 	for x := range exchanges {
-		assets := exchanges[x].GetAssetTypes()
-		exchName := exchanges[x].GetName()
-		var exchangeAccounts AllEnabledExchangeAccounts
-		for y := range assets {
-			a, err := exchanges[x].FetchAccountInfo(assets[y])
-			if err != nil {
-				log.Errorf(log.APIServerMgr,
-					"Exchange %s failed to retrieve %s ticker. Err: %s\n",
-					exchName,
-					assets[y],
-					err)
-				continue
-			}
-			exchangeAccounts.Data = append(exchangeAccounts.Data, a)
+		name := exchanges[x].GetName()
+		sh, err := exchanges[x].GetFullAccountSnapshot()
+		if err != nil {
+			log.Errorf(log.APIServerMgr,
+				"Exchange %s failed to retrieve account snapshot. Err: %s\n",
+				name,
+				err)
+			continue
 		}
-		accounts = append(accounts, exchangeAccounts)
+		accounts[name] = sh
 	}
 	return accounts
 }

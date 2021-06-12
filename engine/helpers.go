@@ -537,30 +537,19 @@ func (bot *Engine) GetSpecificTicker(p currency.Pair, exchangeName string, asset
 }
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
-// information and turns into into a map string of
-// exchange.AccountCurrencyInfo
-func GetCollatedExchangeAccountInfoByCoin(accounts []account.Holdings) map[currency.Code]account.Balance {
-	result := make(map[currency.Code]account.Balance)
-	for x := range accounts {
-		for y := range accounts[x].Accounts {
-			for z := range accounts[x].Accounts[y].Currencies {
-				currencyName := accounts[x].Accounts[y].Currencies[z].CurrencyName
-				avail := accounts[x].Accounts[y].Currencies[z].TotalValue
-				onHold := accounts[x].Accounts[y].Currencies[z].Hold
-				info, ok := result[currencyName]
-				if !ok {
-					accountInfo := account.Balance{
-						CurrencyName: currencyName,
-						Hold:         onHold,
-						TotalValue:   avail,
-					}
-					result[currencyName] = accountInfo
-				} else {
-					info.Hold += onHold
-					info.TotalValue += avail
-					result[currencyName] = info
-				}
+// information and turns into into a map string of account.AssetSnapshot
+func GetCollatedExchangeAccountInfoByCoin(accounts account.FullSnapshot) account.AssetSnapshot {
+	result := make(account.AssetSnapshot)
+	for _, m1 := range accounts {
+		for at, m2 := range m1 {
+			sh, ok := result[at]
+			if !ok {
+				sh = make(account.HoldingsSnapshot)
 			}
+			for code, bal := range m2 {
+				sh[code] = bal
+			}
+			result[at] = sh
 		}
 	}
 	return result
@@ -707,7 +696,7 @@ func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
 	var tickerData []EnabledExchangeCurrencies
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
-		assets := exchanges[x].GetAssetTypes()
+		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
 		var exchangeTicker EnabledExchangeCurrencies
 		exchangeTicker.ExchangeName = exchName

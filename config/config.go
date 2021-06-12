@@ -347,7 +347,7 @@ func (c *Config) GetExchangeAssetTypes(exchName string) (asset.Items, error) {
 		return nil, fmt.Errorf("exchange %s currency pairs is nil", exchName)
 	}
 
-	return exchCfg.CurrencyPairs.GetAssetTypes(), nil
+	return exchCfg.CurrencyPairs.GetAssetTypes(false), nil
 }
 
 // SupportsExchangeAssetType returns whether or not the exchange supports the supplied asset type
@@ -367,7 +367,7 @@ func (c *Config) SupportsExchangeAssetType(exchName string, assetType asset.Item
 			assetType)
 	}
 
-	if !exchCfg.CurrencyPairs.GetAssetTypes().Contains(assetType) {
+	if !exchCfg.CurrencyPairs.GetAssetTypes(false).Contains(assetType) {
 		return fmt.Errorf("exchange %s unsupported asset type %s",
 			exchName,
 			assetType)
@@ -899,7 +899,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].AvailablePairs = nil
 			c.Exchanges[i].EnabledPairs = nil
 		} else {
-			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes()
+			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes(false)
 			var atLeastOne bool
 			for index := range assets {
 				err := c.Exchanges[i].CurrencyPairs.IsAssetEnabled(assets[index])

@@ -782,7 +782,7 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 // handled by ManageSubscriptions()
 func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
-	assets := o.GetAssetTypes()
+	assets := o.GetAssetTypes(true)
 	for x := range assets {
 		pairs, err := o.GetEnabledPairs(assets[x])
 		if err != nil {

@@ -260,7 +260,7 @@ func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (f *FTX) UpdateTradablePairs(forceUpdate bool) error {
-	assets := f.GetAssetTypes()
+	assets := f.GetAssetTypes(false)
 	for x := range assets {
 		pairs, err := f.FetchTradablePairs(assets[x])
 		if err != nil {
