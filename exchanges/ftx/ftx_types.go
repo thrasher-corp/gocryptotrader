@@ -181,11 +181,11 @@ type PositionData struct {
 	MaintenanceMarginRequirement float64 `json:"maintenanceMarginRequirement"`
 	NetSize                      float64 `json:"netSize"`
 	OpenSize                     float64 `json:"openSize"`
-	RealisedPnL                  float64 `json:"realisedPnL"`
-	ShortOrderSide               float64 `json:"shortOrderSide"`
+	RealizedPnL                  float64 `json:"realizedPnL"`
+	ShortOrderSize               float64 `json:"shortOrderSize"`
 	Side                         string  `json:"side"`
 	Size                         float64 `json:"size"`
-	UnrealisedPnL                float64 `json:"unrealisedPnL"`
+	UnrealizedPnL                float64 `json:"unrealizedPnL"`
 }
 
 // AccountInfoData stores account data
@@ -195,7 +195,7 @@ type AccountInfoData struct {
 	Collateral                   float64        `json:"collateral"`
 	FreeCollateral               float64        `json:"freeCollateral"`
 	InitialMarginRequirement     float64        `json:"initialMarginRequirement"`
-	Leverage                     float64        `json:"float64"`
+	Leverage                     float64        `json:"leverage"`
 	Liquidating                  bool           `json:"liquidating"`
 	MaintenanceMarginRequirement float64        `json:"maintenanceMarginRequirement"`
 	MakerFee                     float64        `json:"makerFee"`
@@ -381,7 +381,7 @@ type LTCreationData struct {
 	Token         string    `json:"token"`
 	RequestedSize float64   `json:"requestedSize"`
 	Pending       bool      `json:"pending"`
-	CreatedSize   float64   `json:"createdize"`
+	CreatedSize   float64   `json:"createdSize"`
 	Price         float64   `json:"price"`
 	Cost          float64   `json:"cost"`
 	Fee           float64   `json:"fee"`
