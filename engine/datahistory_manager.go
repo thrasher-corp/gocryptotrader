@@ -181,7 +181,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 		case dataHistoryTradeDataType:
 			err := m.tradeLoader(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].rangeHolder)
-			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return err
 			}
 		default:

@@ -10,7 +10,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
+	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
@@ -94,14 +94,14 @@ func VerifyTradeInIntervals(exchangeName, assetType, base, quote string, irh *kl
 }
 
 func verifyTradeInIntervalsSqlite(ctx context.Context, tx *sql.Tx, exchangeName, assetType, base, quote string, irh *kline.IntervalRangeHolder) error {
-	exchangeUUID, err := exchange.UUIDByName(exchangeName)
+	exch, err := sqlite3.Exchanges(qm.Where("name = ?", exchangeName)).One(ctx, tx)
 	if err != nil {
 		return err
 	}
 	for i := range irh.Ranges {
 		for j := range irh.Ranges[i].Intervals {
-			result, err := sqlite3.Trades(qm.Where("exchange_name_id = ? AND asset = ? AND base = ? AND quote = ? AND timestamp between ? AND ?",
-				exchangeUUID.String(),
+			result, err := sqlite3.Trades(qm.Load(sqlite3.TradeRels.ExchangeName), qm.Where("exchange_name_id = ? AND asset = ? AND base = ? AND quote = ? AND timestamp between ? AND ?",
+				exch.ID,
 				assetType,
 				base,
 				quote,
@@ -120,14 +120,14 @@ func verifyTradeInIntervalsSqlite(ctx context.Context, tx *sql.Tx, exchangeName,
 }
 
 func verifyTradeInIntervalsPostgres(ctx context.Context, tx *sql.Tx, exchangeName, assetType, base, quote string, irh *kline.IntervalRangeHolder) error {
-	exchangeUUID, err := exchange.UUIDByName(exchangeName)
+	exch, err := postgres.Exchanges(qm.Where("name = ?", exchangeName)).One(ctx, tx)
 	if err != nil {
 		return err
 	}
 	for i := range irh.Ranges {
 		for j := range irh.Ranges[i].Intervals {
-			result, err := modelPSQL.Trades(qm.Where("exchange_name_id = ? AND asset = ? AND base = ? AND quote = ? timestamp between ? AND ?",
-				exchangeUUID.String(),
+			result, err := postgres.Trades(qm.Where("exchange_name_id = ? AND asset = ? AND base = ? AND quote = ? timestamp between ? AND ?",
+				exch.ID,
 				assetType,
 				base,
 				quote,
@@ -190,7 +190,7 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			}
 			trades[i].ID = freshUUID.String()
 		}
-		var tempEvent = modelPSQL.Trade{
+		var tempEvent = postgres.Trade{
 			ExchangeNameID: trades[i].ExchangeNameID,
 			Base:           strings.ToUpper(trades[i].Base),
 			Quote:          strings.ToUpper(trades[i].Quote),
@@ -263,8 +263,8 @@ func getByUUIDSQLite(uuid string) (Data, error) {
 }
 
 func getByUUIDPostgres(uuid string) (td Data, err error) {
-	query := modelPSQL.Trades(qm.Where("id = ?", uuid))
-	var result *modelPSQL.Trade
+	query := postgres.Trades(qm.Where("id = ?", uuid))
+	var result *postgres.Trade
 	result, err = query.One(context.Background(), database.DB.SQL)
 	if err != nil {
 		return td, err
@@ -358,8 +358,8 @@ func getInRangePostgres(exchangeName, assetType, base, quote string, startDate, 
 		"quote":            strings.ToUpper(quote),
 	}
 	q := generateQuery(wheres, startDate, endDate)
-	query := modelPSQL.Trades(q...)
-	var result []*modelPSQL.Trade
+	query := postgres.Trades(q...)
+	var result []*postgres.Trade
 	result, err = query.All(context.Background(), database.DB.SQL)
 	if err != nil {
 		return td, err
@@ -427,7 +427,7 @@ func deleteTradesPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error
 	for i := range trades {
 		tradeIDs = append(tradeIDs, trades[i].ID)
 	}
-	query := modelPSQL.Trades(qm.WhereIn(`id in ?`, tradeIDs...))
+	query := postgres.Trades(qm.WhereIn(`id in ?`, tradeIDs...))
 	_, err := query.DeleteAll(ctx, tx)
 	return err
 }
