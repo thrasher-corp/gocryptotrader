@@ -125,18 +125,12 @@ func (e Exchange) CancelOrder(exch, orderID string, cp currency.Pair, a asset.It
 }
 
 // AccountInformation returns account information (balance etc) for requested exchange
-func (e Exchange) AccountInformation(exch string, assetType asset.Item) (account.Holdings, error) {
+func (e Exchange) AccountInformation(exch, accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	accountInfo, err := ex.FetchAccountInfo(assetType)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return accountInfo, nil
+	return ex.FetchAccountInfo(accountName, assetType)
 }
 
 // DepositAddress gets the address required to deposit funds for currency type

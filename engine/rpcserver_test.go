@@ -47,37 +47,26 @@ type fExchange struct {
 	exchange.IBotExchange
 }
 
+var snapshot = account.HoldingsSnapshot{
+	currency.BTC: account.Balance{
+		Total:  1337,
+		Locked: 1,
+	},
+}
+
 // FetchAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) FetchAccountInfo(a asset.Item) (account.Holdings, error) {
-	return account.Holdings{
-		Exchange: f.GetName(),
-		Accounts: []account.SubAccount{
-			{
-				ID:         "1337",
-				AssetType:  a,
-				Currencies: nil,
-			},
-		},
-	}, nil
+func (f fExchange) FetchAccountInfo(accountName string, a asset.Item) (account.HoldingsSnapshot, error) {
+	return snapshot, nil
 }
 
 // UpdateAccountInfo overrides testExchange's update account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
+func (f fExchange) UpdateAccountInfo(accountName string, a asset.Item) (account.HoldingsSnapshot, error) {
 	if a == asset.Futures {
-		return account.Holdings{}, errAssetTypeDisabled
+		return nil, errAssetTypeDisabled
 	}
-	return account.Holdings{
-		Exchange: f.GetName(),
-		Accounts: []account.SubAccount{
-			{
-				ID:         "1337",
-				AssetType:  a,
-				Currencies: nil,
-			},
-		},
-	}, nil
+	return snapshot, nil
 }
 
 // Sets up everything required to run any function inside rpcserver

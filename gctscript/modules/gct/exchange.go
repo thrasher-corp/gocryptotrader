@@ -213,7 +213,7 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeAccountInfo returns account information for requested exchange
 func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 1 {
+	if len(args) != 3 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
@@ -222,30 +222,36 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
 
-	sh, err := wrappers.GetWrapper().AccountInformation(exchangeName)
+	accountName, ok := objects.ToString(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, accountName)
+	}
+
+	assetName, ok := objects.ToString(args[2])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, assetName)
+	}
+
+	an, err := asset.New(assetName)
 	if err != nil {
 		return nil, err
 	}
 
-	fullSnapshot := &objects.Map{Value: make(map[string]objects.Object)}
-	for acc, m1 := range sh {
-		assets := &objects.Map{Value: make(map[string]objects.Object)}
-		for ai, m2 := range m1 {
-			balance := &objects.Map{Value: make(map[string]objects.Object)}
-			for code, bal := range m2 {
-				balance.Value[code.String()] = &objects.Map{
-					Value: map[string]objects.Object{
-						"Total":  &objects.Float{Value: bal.Total},
-						"Locked": &objects.Float{Value: bal.Locked},
-					},
-				}
-			}
-			assets.Value[ai.String()] = balance
-		}
-		fullSnapshot.Value[acc] = assets
+	sh, err := wrappers.GetWrapper().AccountInformation(exchangeName, accountName, an)
+	if err != nil {
+		return nil, err
 	}
 
-	return fullSnapshot, nil
+	holdingsSnapshot := &objects.Map{Value: make(map[string]objects.Object)}
+	for code, balance := range sh {
+		holdingsSnapshot.Value[code.String()] = &objects.Map{
+			Value: map[string]objects.Object{
+				"Total":  &objects.Float{Value: balance.Total},
+				"Locked": &objects.Float{Value: balance.Locked},
+			},
+		}
+	}
+	return holdingsSnapshot, nil
 }
 
 // ExchangeOrderQuery query order on exchange

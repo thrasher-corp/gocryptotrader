@@ -238,7 +238,7 @@ func (c *CoinbasePro) GetServerTime() (ServerTime, error) {
 }
 
 // GetAccounts returns a list of trading accounts associated with the APIKEYS
-func (c *CoinbasePro) GetAccounts() ([]AccountResponse, error) {
+func (c *CoinbasePro) GetAPIAccounts() ([]AccountResponse, error) {
 	var resp []AccountResponse
 
 	return resp,

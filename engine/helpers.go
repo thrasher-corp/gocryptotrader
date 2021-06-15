@@ -538,18 +538,27 @@ func (bot *Engine) GetSpecificTicker(p currency.Pair, exchangeName string, asset
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
 // information and turns into into a map string of account.AssetSnapshot
-func GetCollatedExchangeAccountInfoByCoin(accounts account.FullSnapshot) account.AssetSnapshot {
+func GetCollatedExchangeAccountInfoByCoin(accounts []account.FullSnapshot) account.AssetSnapshot {
 	result := make(account.AssetSnapshot)
-	for _, m1 := range accounts {
-		for at, m2 := range m1 {
-			sh, ok := result[at]
-			if !ok {
-				sh = make(account.HoldingsSnapshot)
+	for x := range accounts {
+		for _, m1 := range accounts[x] {
+			for at, m2 := range m1 {
+				sh, ok := result[at]
+				if !ok {
+					sh = make(account.HoldingsSnapshot)
+				}
+				for code, bal := range m2 {
+					stored, ok := sh[code]
+					if !ok {
+						sh[code] = bal
+						continue
+					}
+					stored.Total = stored.Total + bal.Total
+					stored.Locked = stored.Locked + bal.Locked
+					sh[code] = stored
+				}
+				result[at] = sh
 			}
-			for code, bal := range m2 {
-				sh[code] = bal
-			}
-			result[at] = sh
 		}
 	}
 	return result

@@ -1672,7 +1672,7 @@ func TestGetAccountBalance(t *testing.T) {
 	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
-	result, err := h.GetAccounts()
+	result, err := h.GetAPIAccounts()
 	if err != nil {
 		t.Errorf("Huobi GetAccounts: %s", err)
 	}
@@ -1909,7 +1909,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	accounts, err := h.GetAccounts()
+	accounts, err := h.GetAPIAccounts()
 	if err != nil {
 		t.Fatalf("Failed to get accounts. Err: %s", err)
 	}

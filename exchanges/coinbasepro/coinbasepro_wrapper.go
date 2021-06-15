@@ -314,7 +314,7 @@ func (c *CoinbasePro) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // coinbasepro exchange
 func (c *CoinbasePro) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	accountBalance, err := c.GetAccounts()
+	accountBalance, err := c.GetAPIAccounts()
 	if err != nil {
 		return nil, err
 	}

@@ -321,7 +321,7 @@ func (h *HUOBI) GetTimestamp() (int64, error) {
 }
 
 // GetAccounts returns the Huobi user accounts
-func (h *HUOBI) GetAccounts() ([]Account, error) {
+func (h *HUOBI) GetAPIAccounts() ([]Account, error) {
 	result := struct {
 		Accounts []Account `json:"data"`
 	}{}

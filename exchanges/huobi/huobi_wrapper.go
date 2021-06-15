@@ -602,7 +602,7 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // GetAccountID returns the account ID for trades
 func (h *HUOBI) GetAccountID() ([]Account, error) {
-	acc, err := h.GetAccounts()
+	acc, err := h.GetAPIAccounts()
 	if err != nil {
 		return nil, err
 	}

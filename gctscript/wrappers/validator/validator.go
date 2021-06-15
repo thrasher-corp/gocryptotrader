@@ -184,15 +184,13 @@ func (w Wrapper) CancelOrder(exch, orderid string, cp currency.Pair, a asset.Ite
 }
 
 // AccountInformation validator for test execution/scripts
-func (w Wrapper) AccountInformation(exch string) (account.FullSnapshot, error) {
+func (w Wrapper) AccountInformation(exch, accountName string, item asset.Item) (account.HoldingsSnapshot, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
 
-	sh := make(account.FullSnapshot)
-	sh[string(account.Main)] = make(map[asset.Item]account.HoldingsSnapshot)
-	sh[string(account.Main)][asset.Spot] = make(account.HoldingsSnapshot)
-	sh[string(account.Main)][asset.Spot][currency.BTC] = account.Balance{
+	sh := make(account.HoldingsSnapshot)
+	sh[currency.BTC] = account.Balance{
 		Total:  1337,
 		Locked: 1000,
 	}

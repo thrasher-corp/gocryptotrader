@@ -38,7 +38,7 @@ type Exchange interface {
 	QueryOrder(exch, orderid string, pair currency.Pair, assetType asset.Item) (*order.Detail, error)
 	SubmitOrder(submit *order.Submit) (*order.SubmitResponse, error)
 	CancelOrder(exch, orderid string, pair currency.Pair, item asset.Item) (bool, error)
-	AccountInformation(exch string) (account.FullSnapshot, error)
+	AccountInformation(exch, accountName string, item asset.Item) (account.HoldingsSnapshot, error)
 	DepositAddress(exch string, currencyCode currency.Code) (string, error)
 	WithdrawalFiatFunds(bankAccountID string, request *withdraw.Request) (out string, err error)
 	WithdrawalCryptoFunds(request *withdraw.Request) (out string, err error)

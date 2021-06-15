@@ -549,8 +549,7 @@ func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRe
 	if err != nil {
 		return nil, err
 	}
-
-	return createAccountInfoRequest(resp)
+	return createAccountInfoRequest(resp, r.Exchange, r.Account)
 }
 
 // UpdateAccountInfo forces an update of the account info
@@ -575,26 +574,25 @@ func (s *RPCServer) UpdateAccountInfo(_ context.Context, r *gctrpc.GetAccountInf
 	if err != nil {
 		return nil, err
 	}
-
-	return createAccountInfoRequest(resp)
+	return createAccountInfoRequest(resp, r.Exchange, r.Account)
 }
 
-func createAccountInfoRequest(h account.FullSnapshot) (*gctrpc.GetAccountInfoResponse, error) {
-	var accounts []*gctrpc.Account
-	for x := range h.Accounts {
-		var a gctrpc.Account
-		a.Id = h.Accounts[x].ID
-		for _, y := range h.Accounts[x].Currencies {
-			a.Currencies = append(a.Currencies, &gctrpc.AccountCurrencyInfo{
-				Currency:   y.CurrencyName.String(),
-				Hold:       y.Hold,
-				TotalValue: y.TotalValue,
-			})
-		}
-		accounts = append(accounts, &a)
-	}
+func createAccountInfoRequest(sh account.HoldingsSnapshot, exch, acc string) (*gctrpc.GetAccountInfoResponse, error) {
+	var a gctrpc.Account
+	for code, balance := range sh {
+		a.Currencies = append(a.Currencies, &gctrpc.AccountCurrencyInfo{
+			Currency:   code.String(),
+			TotalValue: balance.Total,
+			Hold:       balance.Locked,
+		})
 
-	return &gctrpc.GetAccountInfoResponse{Exchange: h.Exchange, Accounts: accounts}, nil
+	}
+	a.Id = acc
+
+	return &gctrpc.GetAccountInfoResponse{
+		Exchange: exch,
+		Accounts: []*gctrpc.Account{&a},
+	}, nil
 }
 
 // GetAccountInfoStream streams an account balance for a specific exchange
@@ -620,7 +618,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		return err
 	}
 
-	resp, err := createAccountInfoRequest(initAcc)
+	resp, err := createAccountInfoRequest(initAcc, r.Exchange, r.Account)
 	if err != nil {
 		return err
 	}
@@ -653,12 +651,12 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			return errors.New("type assertion failure, type not pointer interface{}")
 		}
 
-		acc, ok := (*memAddr).(account.FullSnapshot)
+		acc, ok := (*memAddr).(account.HoldingsSnapshot)
 		if !ok {
-			return errors.New("type assertion failure, type not account.FullSnapshot")
+			return errors.New("type assertion failure, type not account.HoldingsSnapshot")
 		}
 
-		resp, err = createAccountInfoRequest(acc)
+		resp, err = createAccountInfoRequest(acc, r.Exchange, r.Account)
 		if err != nil {
 			return err
 		}
