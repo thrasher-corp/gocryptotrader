@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -29,13 +30,14 @@ var (
 
 // NewAccountManager returns a pointer of a new instance of an account manager
 func NewAccountManager(e *Engine, verbose bool) (*AccountManager, error) {
+	fmt.Println("HOLY MOLY!!!!!!!!!!!!!!!")
 	if e == nil {
 		return nil, errEngineIsNil
 	}
 	return &AccountManager{
 		engine:   e,
 		accounts: make(map[exchange.IBotExchange]int),
-		verbose:  verbose,
+		verbose:  true,
 	}, nil
 }
 
@@ -92,22 +94,24 @@ func (a *AccountManager) updateAccountForExchange(exch exchange.IBotExchange) {
 	if !base.Config.API.AuthenticatedSupport {
 		return
 	}
-	if base.Config.API.AuthenticatedWebsocketSupport {
-		// This extends the request out to 6 x the synchronisation duration
-		a.m.Lock()
-		count, ok := a.accounts[exch]
-		if !ok {
-			a.accounts[exch] = 1
-			count = 1
-		}
-		if count%6 != 0 {
-			a.accounts[exch]++
-			a.m.Unlock()
-			return
-		}
-		a.accounts[exch] = 1
-		a.m.Unlock()
-	}
+
+	// TODO:
+	// if base.Config.API.AuthenticatedWebsocketSupport {
+	// 	// This extends the request out to 6 x the synchronisation duration
+	// 	a.m.Lock()
+	// 	count, ok := a.accounts[exch]
+	// 	if !ok {
+	// 		a.accounts[exch] = 1
+	// 		count = 1
+	// 	}
+	// 	if count%6 != 0 {
+	// 		a.accounts[exch]++
+	// 		a.m.Unlock()
+	// 		return
+	// 	}
+	// 	a.accounts[exch] = 1
+	// 	a.m.Unlock()
+	// }
 
 	accounts, err := exch.GetAccounts()
 	if err != nil {
@@ -117,21 +121,27 @@ func (a *AccountManager) updateAccountForExchange(exch exchange.IBotExchange) {
 			err)
 		return
 	}
+	fmt.Println("ACCOUNTS:", accounts)
 
 	at := exch.GetAssetTypes(true)
 	for x := range accounts {
 		for y := range at {
-			_, err := exch.UpdateAccountInfo(string(accounts[x]), at[y])
+			h, err := exch.UpdateAccountInfo(string(accounts[x]), at[y])
 			if err != nil {
 				log.Errorf(log.Accounts,
 					"%s failed to update account holdings for account: %v",
 					exch.GetName(),
 					err)
+			} else if a.verbose {
+				log.Debugf(log.Accounts,
+					"Account balance updated for exchange:%s account:%s asset:%s - %+v",
+					exch.GetName(),
+					accounts[y],
+					at[y],
+					h)
 			}
 		}
 	}
-	// TODO: Update portfolio positioning, would need to tie
-	// into websocket as well.
 }
 
 func (a *AccountManager) IsRunning() bool {

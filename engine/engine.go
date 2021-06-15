@@ -43,6 +43,7 @@ type Engine struct {
 	gctScriptManager        *gctscript.GctScriptManager
 	websocketRoutineManager *websocketRoutineManager
 	WithdrawManager         *WithdrawManager
+	AccountManager          *AccountManager
 	Settings                Settings
 	uptime                  time.Time
 	ServicesWG              sync.WaitGroup
@@ -599,6 +600,15 @@ func (bot *Engine) Start() error {
 		}
 		if err := bot.gctScriptManager.Start(&bot.ServicesWG); err != nil {
 			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %s", err)
+		}
+	}
+
+	bot.AccountManager, err = NewAccountManager(bot, bot.Settings.Verbose)
+	if err != nil {
+		gctlog.Errorf(gctlog.Global, "failed to create account manager. Err: %s", err)
+	} else {
+		if err := bot.AccountManager.RunUpdater(time.Second * 10); err != nil {
+			gctlog.Errorf(gctlog.Global, "Account manager unable to start: %s", err)
 		}
 	}
 

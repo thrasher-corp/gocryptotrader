@@ -60,11 +60,15 @@ func (a *Accounts) LoadAccount(account string, main bool) error {
 	return nil
 }
 
-// LoadAccount loads an account for future checking
+// LoadAccount loads a main account and subsequent sub accounts
 func (a *Accounts) LoadAccounts(main string, subAccount ...string) error {
 	if main == "" {
 		return errMainAccountNameUnset
 	}
+
+	a.m.Lock()
+	a.available = nil // Purge prior loaded accounts
+	a.m.Unlock()
 
 	err := a.LoadAccount(main, true)
 	if err != nil {

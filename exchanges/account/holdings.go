@@ -262,7 +262,7 @@ func (h *Holdings) GetHoldingsSnapshot(account string, ai asset.Item) (HoldingsS
 	for c, bal := range holdings {
 		total := bal.GetTotal()
 		if total > 0 {
-			m[currency.Code{Item: c}] = Balance{Total: total, Locked: bal.GetLocked()}
+			m[currency.Code{Item: c}.Upper()] = Balance{Total: total, Locked: bal.GetLocked()}
 		}
 	}
 	return m, nil
@@ -297,7 +297,7 @@ func (h *Holdings) GetFullSnapshot() (FullSnapshot, error) {
 				if err != nil {
 					continue
 				}
-				shm2[currency.Code{Item: c}] = bal
+				shm2[currency.Code{Item: c}.Upper()] = bal
 			}
 		}
 	}

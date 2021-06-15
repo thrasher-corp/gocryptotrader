@@ -8,7 +8,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"math/big"
 	"net"
 	"os"
@@ -672,21 +671,36 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	fmt.Println("WOW: %+v\n", result)
+	assetHoldings, ok := result[asset.Spot]
+	if !ok {
+		t.Fatal("Expected currency was not found in result map")
+	}
 
-	// amount, ok := result[currency.BTC]
-	// if !ok {
-	// 	t.Fatal("Expected currency was not found in result map")
-	// }
+	bal, ok := assetHoldings[currency.BTC]
+	if !ok {
+		t.Fatal("Expected currency was not found in result map")
+	}
 
-	// if amount.TotalValue != 200 {
-	// 	t.Fatal("Unexpected result")
-	// }
+	if bal.Total != 101 {
+		t.Fatalf("btc total amount should aggregate to 101 but receieved: %f", bal.Total)
+	}
 
-	// _, ok = result[currency.ETH]
-	// if ok {
-	// 	t.Fatal("Unexpected result")
-	// }
+	if bal.Locked != 2.5 {
+		t.Fatalf("btc locked amount should aggregate to 2.5 but receieved: %f", bal.Locked)
+	}
+
+	bal, ok = assetHoldings[currency.LTC]
+	if !ok {
+		t.Fatal("Expected currency was not found in result map")
+	}
+
+	if bal.Total != 135 {
+		t.Fatalf("ltc total amount should aggregate to 135 but receieved: %f", bal.Total)
+	}
+
+	if bal.Locked != 3 {
+		t.Fatalf("ltc locked amount should aggregate to 3 but receieved: %f", bal.Locked)
+	}
 }
 
 func TestGetExchangeHighestPriceByCurrencyPair(t *testing.T) {

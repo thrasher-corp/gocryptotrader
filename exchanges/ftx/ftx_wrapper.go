@@ -376,6 +376,7 @@ func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (f *FTX) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+	// f.Verbose = true
 	data, err := f.GetAllWalletBalances()
 	if err != nil {
 		return nil, err
@@ -386,7 +387,7 @@ func (f *FTX) UpdateAccountInfo(accountName string, assetType asset.Item) (accou
 		for i := range val {
 			m[currency.NewCode(val[i].Coin)] = account.Balance{
 				Total:  val[i].Total,
-				Locked: val[i].Total - val[i].Free,
+				Locked: val[i].Total - val[i].AvailableWithoutBorrow,
 			}
 		}
 
@@ -395,7 +396,6 @@ func (f *FTX) UpdateAccountInfo(accountName string, assetType asset.Item) (accou
 			return nil, err
 		}
 	}
-
 	return f.GetHoldingsSnapshot(accountName, assetType)
 }
 

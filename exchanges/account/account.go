@@ -48,6 +48,14 @@ func DeployHoldings(exch string, verbose bool) (*Holdings, error) {
 		Verbose:  verbose,
 	}
 
+	// Loads the default main account for the exchange, this can be overwritten
+	// later when LoadAccounts is run from setup in the exchange wrapper if
+	// custom accounts needs to be specifically loaded in.
+	err = holdings.LoadAccount(string(Main), true)
+	if err != nil {
+		return nil, err
+	}
+
 	service.accounts[exch] = holdings
 	return holdings, nil
 }
