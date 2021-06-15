@@ -196,7 +196,6 @@ func TestGetFundingHistory(t *testing.T) {
 
 func TestGetInstruments(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	_, err := b.GetInstruments(&GenericRequestParams{
 		Symbol: "XRPUSD",
 	})

@@ -471,7 +471,7 @@ func (f *FTX) GetWithdrawalsHistory(c currency.Code) (resp []exchange.Withdrawal
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (f *FTX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return f.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
+	return f.GetHistoricTrades(p, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
