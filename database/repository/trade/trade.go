@@ -100,7 +100,7 @@ func verifyTradeInIntervalsSqlite(ctx context.Context, tx *sql.Tx, exchangeName,
 	}
 	for i := range irh.Ranges {
 		for j := range irh.Ranges[i].Intervals {
-			result, err := sqlite3.Trades(qm.Load(sqlite3.TradeRels.ExchangeName), qm.Where("exchange_name_id = ? AND asset = ? AND base = ? AND quote = ? AND timestamp between ? AND ?",
+			result, err := sqlite3.Trades(qm.Where("exchange_name_id = ? AND asset = ? AND base = ? AND quote = ? AND timestamp between ? AND ?",
 				exch.ID,
 				assetType,
 				base,
