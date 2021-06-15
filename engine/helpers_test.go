@@ -208,6 +208,26 @@ func TestIsOnline(t *testing.T) {
 func TestGetSpecificAvailablePairs(t *testing.T) {
 	t.Parallel()
 	e := CreateTestBot(t)
+	cfg := &config.Config{
+		Exchanges: []config.ExchangeConfig{
+			{
+				Enabled: true,
+				Name:    testExchange,
+				CurrencyPairs: &currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{
+					asset.Spot: {
+						AssetEnabled: convert.BoolPtr(true),
+						Enabled:      currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, currency.USDT)},
+						Available:    currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, currency.USDT)},
+						ConfigFormat: &currency.PairFormat{
+							Uppercase: true,
+						},
+					},
+				}},
+			},
+		},
+	}
+	currency.USDT.Item.Role = currency.Cryptocurrency
+	e.Config = cfg
 	assetType := asset.Spot
 	result := e.GetSpecificAvailablePairs(true, true, true, false, assetType)
 
@@ -461,60 +481,52 @@ func TestGetRelatableCryptocurrencies(t *testing.T) {
 
 	p := GetRelatableCryptocurrencies(btcltc)
 	if p.Contains(btcltc, true) {
-		t.Fatal("Unexpected result")
+		t.Error("Unexpected result")
 	}
 	if p.Contains(btcbtc, true) {
-		t.Fatal("Unexpected result")
+		t.Error("Unexpected result")
 	}
 	if p.Contains(ltcltc, true) {
-		t.Fatal("Unexpected result")
+		t.Error("Unexpected result")
 	}
 	if !p.Contains(btceth, true) {
-		t.Fatal("Unexpected result")
+		t.Error("Unexpected result")
 	}
 
 	p = GetRelatableCryptocurrencies(btcltc)
 	if p.Contains(btcltc, true) {
-		t.Fatal("Unexpected result")
+		t.Error("Unexpected result")
 	}
 	if p.Contains(btcbtc, true) {
-		t.Fatal("Unexpected result")
+		t.Error("Unexpected result")
 	}
 	if p.Contains(ltcltc, true) {
-		t.Fatal("Unexpected result")
+		t.Error("Unexpected result")
 	}
 	if !p.Contains(btceth, true) {
-		t.Fatal("Unexpected result")
+		t.Error("Unexpected result")
 	}
 }
 
 func TestGetRelatableFiatCurrencies(t *testing.T) {
 	t.Parallel()
-	CreateTestBot(t)
-
-	btsusd, err := currency.NewPairFromStrings("BTC", "USD")
+	btcUSD, err := currency.NewPairFromStrings("BTC", "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	btceur, err := currency.NewPairFromStrings("BTC", "EUR")
+	btcEUR, err := currency.NewPairFromStrings("BTC", "EUR")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	p := GetRelatableFiatCurrencies(btsusd)
-	if !p.Contains(btceur, true) {
-		t.Fatal("Unexpected result")
+	p := GetRelatableFiatCurrencies(btcUSD)
+	if !p.Contains(btcEUR, true) {
+		t.Error("Unexpected result")
 	}
 
-	btczar, err := currency.NewPairFromStrings("BTC", "ZAR")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	p = GetRelatableFiatCurrencies(btsusd)
-	if !p.Contains(btczar, true) {
-		t.Fatal("Unexpected result")
+	if p.Contains(currency.NewPair(currency.DOGE, currency.XRP), true) {
+		t.Error("Unexpected result")
 	}
 }
 
@@ -540,9 +552,6 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 
 func TestGetExchangeNamesByCurrency(t *testing.T) {
 	t.Parallel()
-	e := CreateTestBot(t)
-	assetType := asset.Spot
-
 	btsusd, err := currency.NewPairFromStrings("BTC", "USD")
 	if err != nil {
 		t.Fatal(err)
@@ -558,6 +567,24 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	e := CreateTestBot(t)
+	bf := "Bitflyer"
+	e.Config.Exchanges = append(e.Config.Exchanges, config.ExchangeConfig{
+		Enabled: true,
+		Name:    bf,
+		CurrencyPairs: &currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: {
+				AssetEnabled: convert.BoolPtr(true),
+				Enabled:      currency.Pairs{btcjpy},
+				Available:    currency.Pairs{btcjpy},
+				ConfigFormat: &currency.PairFormat{
+					Uppercase: true,
+				},
+			},
+		}},
+	})
+	assetType := asset.Spot
+
 	result := e.GetExchangeNamesByCurrency(btsusd,
 		true,
 		assetType)
@@ -568,7 +595,7 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 	result = e.GetExchangeNamesByCurrency(btcjpy,
 		true,
 		assetType)
-	if !common.StringDataCompare(result, "Bitflyer") {
+	if !common.StringDataCompare(result, bf) {
 		t.Fatal("Unexpected result")
 	}
 

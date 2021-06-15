@@ -121,7 +121,7 @@ func TestNewFromConfig(t *testing.T) {
 		t.Errorf("expected: %v, received %v", config.ErrStartEndUnset, err)
 	}
 
-	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Hour)
+	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Minute)
 	cfg.DataSettings.APIData.EndDate = time.Now()
 	cfg.DataSettings.APIData.InclusiveEndDate = true
 	_, err = NewFromConfig(cfg, "", "", bot)
@@ -129,7 +129,7 @@ func TestNewFromConfig(t *testing.T) {
 		t.Errorf("expected: %v, received %v", errIntervalUnset, err)
 	}
 
-	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
+	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
 
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
@@ -172,9 +172,9 @@ func TestLoadData(t *testing.T) {
 		StartDate: time.Time{},
 		EndDate:   time.Time{},
 	}
-	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Hour)
+	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Minute)
 	cfg.DataSettings.APIData.EndDate = time.Now()
-	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
+	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
 	cfg.DataSettings.DataType = common.CandleStr
 	cfg.StrategySettings = config.StrategySettings{
 		Name: dollarcostaverage.Name,
@@ -202,13 +202,13 @@ func TestLoadData(t *testing.T) {
 
 	cfg.DataSettings.APIData = nil
 	cfg.DataSettings.DatabaseData = &config.DatabaseData{
-		StartDate:        time.Now().Add(-time.Hour),
+		StartDate:        time.Now().Add(-time.Minute),
 		EndDate:          time.Now(),
 		ConfigOverride:   nil,
 		InclusiveEndDate: true,
 	}
 	cfg.DataSettings.DataType = common.CandleStr
-	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
+	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
 
 	bt.Bot = bot
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
@@ -227,6 +227,7 @@ func TestLoadData(t *testing.T) {
 		t.Error(err)
 	}
 	cfg.DataSettings.CSVData = nil
+	cfg.DataSettings.Interval = time.Minute
 	cfg.DataSettings.LiveData = &config.LiveData{
 		APIKeyOverride:        "test",
 		APISecretOverride:     "test",
@@ -262,14 +263,14 @@ func TestLoadDatabaseData(t *testing.T) {
 	if !errors.Is(err, config.ErrStartEndUnset) {
 		t.Errorf("expected %v, received %v", config.ErrStartEndUnset, err)
 	}
-	cfg.DataSettings.DatabaseData.StartDate = time.Now().Add(-time.Hour)
+	cfg.DataSettings.DatabaseData.StartDate = time.Now().Add(-time.Minute)
 	cfg.DataSettings.DatabaseData.EndDate = time.Now()
 	_, err = loadDatabaseData(cfg, "", cp, "", -1)
 	if !errors.Is(err, errIntervalUnset) {
 		t.Errorf("expected %v, received %v", errIntervalUnset, err)
 	}
 
-	cfg.DataSettings.Interval = gctkline.OneDay.Duration()
+	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
 	_, err = loadDatabaseData(cfg, "", cp, "", -1)
 	if err != nil && !strings.Contains(err.Error(), "could not retrieve database data") {
 		t.Error(err)

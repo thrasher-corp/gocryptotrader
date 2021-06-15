@@ -1567,7 +1567,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().Add(-time.Hour * 1)
+	startTime := time.Now().Add(-time.Minute * 2)
 	_, err = h.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)

@@ -32,9 +32,9 @@ func TestLoadCandles(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	tt1 := time.Now().Add(-time.Hour).Round(gctkline.OneHour.Duration())
-	tt2 := time.Now().Round(gctkline.OneHour.Duration())
-	interval := gctkline.OneHour
+	tt1 := time.Now().Add(-time.Minute).Round(gctkline.OneMin.Duration())
+	tt2 := time.Now().Round(gctkline.OneMin.Duration())
+	interval := gctkline.OneMin
 	a := asset.Spot
 	var data *gctkline.Item
 	data, err = LoadData(common.DataCandle, tt1, tt2, interval.Duration(), exch, cp, a)
@@ -68,8 +68,8 @@ func TestLoadTrades(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	interval := gctkline.FifteenMin
-	tt1 := time.Now().Add(-time.Minute * 30).Round(interval.Duration())
+	interval := gctkline.OneMin
+	tt1 := time.Now().Add(-time.Minute * 2).Round(interval.Duration())
 	tt2 := time.Now().Round(interval.Duration())
 	a := asset.Spot
 	var data *gctkline.Item

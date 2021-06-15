@@ -212,7 +212,7 @@ func TestShutdown(t *testing.T) {
 	if atomic.LoadInt32(&p.started) != 1 {
 		t.Error("expected it to start running")
 	}
-	time.Sleep(time.Millisecond * 2)
+	time.Sleep(time.Millisecond * 20)
 	if atomic.LoadInt32(&p.started) != 0 {
 		t.Error("expected it to stop running")
 	}

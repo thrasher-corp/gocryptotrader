@@ -51,7 +51,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bitmex setup error", err)
 	}
-	b.UpdateTradablePairs(true)
 	os.Exit(m.Run())
 }
 
@@ -77,6 +76,9 @@ func TestGetFullFundingHistory(t *testing.T) {
 
 func TestGetUrgentAnnouncement(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.GetUrgentAnnouncement()
 	if err == nil {
 		t.Error("GetUrgentAnnouncement() Expected error")
@@ -85,6 +87,9 @@ func TestGetUrgentAnnouncement(t *testing.T) {
 
 func TestGetAPIKeys(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.GetAPIKeys()
 	if err == nil {
 		t.Error("GetAPIKeys() Expected error")
@@ -93,6 +98,7 @@ func TestGetAPIKeys(t *testing.T) {
 
 func TestRemoveAPIKey(t *testing.T) {
 	t.Parallel()
+
 	_, err := b.RemoveAPIKey(APIKeyParams{APIKeyID: "1337"})
 	if err == nil {
 		t.Error("RemoveAPIKey() Expected error")
@@ -101,6 +107,9 @@ func TestRemoveAPIKey(t *testing.T) {
 
 func TestDisableAPIKey(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.DisableAPIKey(APIKeyParams{APIKeyID: "1337"})
 	if err == nil {
 		t.Error("DisableAPIKey() Expected error")
@@ -109,6 +118,9 @@ func TestDisableAPIKey(t *testing.T) {
 
 func TestEnableAPIKey(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.EnableAPIKey(APIKeyParams{APIKeyID: "1337"})
 	if err == nil {
 		t.Error("EnableAPIKey() Expected error")
@@ -125,6 +137,9 @@ func TestGetTrollboxMessages(t *testing.T) {
 
 func TestSendTrollboxMessage(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.SendTrollboxMessage(ChatSendParams{
 		ChannelID: 1337,
 		Message:   "Hello,World!"})
@@ -151,6 +166,9 @@ func TestGetTrollboxConnectedUsers(t *testing.T) {
 
 func TestGetAccountExecutions(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.GetAccountExecutions(&GenericRequestParams{})
 	if err == nil {
 		t.Error("GetAccountExecutions() Expected error")
@@ -159,6 +177,9 @@ func TestGetAccountExecutions(t *testing.T) {
 
 func TestGetAccountExecutionTradeHistory(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.GetAccountExecutionTradeHistory(&GenericRequestParams{})
 	if err == nil {
 		t.Error("GetAccountExecutionTradeHistory() Expected error")
@@ -175,7 +196,10 @@ func TestGetFundingHistory(t *testing.T) {
 
 func TestGetInstruments(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetInstruments(&GenericRequestParams{})
+	b.Verbose = true
+	_, err := b.GetInstruments(&GenericRequestParams{
+		Symbol: "XRPUSD",
+	})
 	if err != nil {
 		t.Error("GetInstruments() error", err)
 	}
@@ -255,6 +279,9 @@ func TestGetLiquidationOrders(t *testing.T) {
 
 func TestGetCurrentNotifications(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.GetCurrentNotifications()
 	if err == nil {
 		t.Error("GetCurrentNotifications() Expected error")
@@ -263,6 +290,9 @@ func TestGetCurrentNotifications(t *testing.T) {
 
 func TestAmendOrder(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.AmendOrder(&OrderAmendParams{})
 	if err == nil {
 		t.Error("AmendOrder() Expected error")
@@ -271,6 +301,9 @@ func TestAmendOrder(t *testing.T) {
 
 func TestCreateOrder(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.CreateOrder(&OrderNewParams{Symbol: "XBTM15",
 		Price:         219.0,
 		ClientOrderID: "mm_bitmex_1a/oemUeQ4CAJZgP3fjHsA",
@@ -282,6 +315,9 @@ func TestCreateOrder(t *testing.T) {
 
 func TestCancelOrders(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.CancelOrders(&OrderCancelParams{})
 	if err == nil {
 		t.Error("CancelOrders() Expected error")
@@ -290,6 +326,9 @@ func TestCancelOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.CancelAllExistingOrders(OrderCancelAllParams{})
 	if err == nil {
 		t.Error("CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error)", err)
@@ -298,6 +337,9 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestAmendBulkOrders(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.AmendBulkOrders(OrderAmendBulkParams{})
 	if err == nil {
 		t.Error("AmendBulkOrders() Expected error")
@@ -306,6 +348,9 @@ func TestAmendBulkOrders(t *testing.T) {
 
 func TestCreateBulkOrders(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.CreateBulkOrders(OrderNewBulkParams{})
 	if err == nil {
 		t.Error("CreateBulkOrders() Expected error")
@@ -314,6 +359,9 @@ func TestCreateBulkOrders(t *testing.T) {
 
 func TestCancelAllOrdersAfterTime(t *testing.T) {
 	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.CancelAllOrdersAfterTime(OrderCancelAllAfterParams{})
 	if err == nil {
 		t.Error("CancelAllOrdersAfterTime() Expected error")
