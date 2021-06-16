@@ -144,6 +144,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
 	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
 	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager && (flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
+	b.Settings.EnableAccountManager = s.EnableAccountManager
 	b.Settings.MaxVirtualMachines = s.MaxVirtualMachines
 	b.Settings.EnableDispatcher = s.EnableDispatcher
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
@@ -297,6 +298,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable websocket routine: %v\n", s.EnableWebsocketRoutine)
 	gctlog.Debugf(gctlog.Global, "\t Enable NTP client: %v", s.EnableNTPClient)
 	gctlog.Debugf(gctlog.Global, "\t Enable Database manager: %v", s.EnableDatabaseManager)
+	gctlog.Debugf(gctlog.Global, "\t Enable Account manager: %v", s.EnableAccountManager)
 	gctlog.Debugf(gctlog.Global, "\t Enable dispatcher: %v", s.EnableDispatcher)
 	gctlog.Debugf(gctlog.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	gctlog.Debugf(gctlog.Global, "\t Dispatch package jobs limit: %d", s.DispatchJobsLimit)
@@ -603,12 +605,14 @@ func (bot *Engine) Start() error {
 		}
 	}
 
-	bot.AccountManager, err = NewAccountManager(bot, bot.Settings.Verbose)
-	if err != nil {
-		gctlog.Errorf(gctlog.Global, "failed to create account manager. Err: %s", err)
-	} else {
-		if err := bot.AccountManager.RunUpdater(time.Second * 10); err != nil {
-			gctlog.Errorf(gctlog.Global, "Account manager unable to start: %s", err)
+	if bot.Settings.EnableAccountManager {
+		bot.AccountManager, err = NewAccountManager(bot, bot.Settings.Verbose)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "failed to create account manager. Err: %s", err)
+		} else {
+			if err := bot.AccountManager.RunUpdater(time.Second * 10); err != nil {
+				gctlog.Errorf(gctlog.Global, "Account manager unable to start: %s", err)
+			}
 		}
 	}
 
@@ -636,55 +640,46 @@ func (bot *Engine) Stop() {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.eventManager.IsRunning() {
 		if err := bot.eventManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "event manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.ntpManager.IsRunning() {
 		if err := bot.ntpManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.CommunicationsManager.IsRunning() {
 		if err := bot.CommunicationsManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communication manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.portfolioManager.IsRunning() {
 		if err := bot.portfolioManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Fund manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.connectionManager.IsRunning() {
 		if err := bot.connectionManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.apiServer.IsRESTServerRunning() {
 		if err := bot.apiServer.StopRESTServer(); err != nil {
 			gctlog.Errorf(gctlog.Global, "API Server unable to stop REST server. Error: %s", err)
 		}
 	}
-
 	if bot.apiServer.IsWebsocketServerRunning() {
 		if err := bot.apiServer.StopWebsocketServer(); err != nil {
 			gctlog.Errorf(gctlog.Global, "API Server unable to stop websocket server. Error: %s", err)
 		}
 	}
-
 	if bot.DatabaseManager.IsRunning() {
 		if err := bot.DatabaseManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if dispatch.IsRunning() {
 		if err := dispatch.Stop(); err != nil {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatch system unable to stop. Error: %v", err)
@@ -693,6 +688,11 @@ func (bot *Engine) Stop() {
 	if bot.websocketRoutineManager.IsRunning() {
 		if err := bot.websocketRoutineManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "websocket routine manager unable to stop. Error: %v", err)
+		}
+	}
+	if bot.AccountManager.IsRunning() {
+		if err := bot.AccountManager.Shutdown(); err != nil {
+			gctlog.Errorf(gctlog.Global, "Account manager unable to stop. Error: %v", err)
 		}
 	}
 

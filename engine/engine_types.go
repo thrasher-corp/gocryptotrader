@@ -30,6 +30,7 @@ type Settings struct {
 	EnableDepositAddressManager bool
 	EnableEventManager          bool
 	EnableOrderManager          bool
+	EnableAccountManager        bool
 	EnableConnectivityMonitor   bool
 	EnableDatabaseManager       bool
 	EnableGCTScriptManager      bool

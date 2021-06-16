@@ -2,7 +2,6 @@ package engine
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 // AccountManager defines account management
 type AccountManager struct {
 	engine                  *Engine
-	accounts                map[exchange.IBotExchange]int // synchronisation
 	synchronizationInterval time.Duration
 	shutdown                chan struct{}
 	wg                      sync.WaitGroup
@@ -30,18 +28,16 @@ var (
 
 // NewAccountManager returns a pointer of a new instance of an account manager
 func NewAccountManager(e *Engine, verbose bool) (*AccountManager, error) {
-	fmt.Println("HOLY MOLY!!!!!!!!!!!!!!!")
 	if e == nil {
 		return nil, errEngineIsNil
 	}
 	return &AccountManager{
-		engine:   e,
-		accounts: make(map[exchange.IBotExchange]int),
-		verbose:  true,
+		engine:  e,
+		verbose: verbose,
 	}, nil
 }
 
-// Shutdown shuts down account management instance
+// Shutdown shuts down the account management instance
 func (a *AccountManager) Shutdown() error {
 	a.m.Lock()
 	defer a.m.Unlock()
@@ -74,13 +70,18 @@ func (a *AccountManager) RunUpdater(interval time.Duration) error {
 }
 
 func (a *AccountManager) accountUpdater() {
-	tt := time.NewTimer(a.synchronizationInterval) // Immediately set up exchanges
+	tt := time.NewTicker(a.synchronizationInterval)
 	defer a.wg.Done()
 	for {
 		select {
 		case <-tt.C:
 			exchs := a.engine.GetExchanges()
 			for x := range exchs {
+				if a.verbose {
+					log.Debugf(log.Accounts,
+						"Updating accounts for %s",
+						exchs[x].GetName())
+				}
 				go a.updateAccountForExchange(exchs[x])
 			}
 		case <-a.shutdown:
@@ -95,24 +96,6 @@ func (a *AccountManager) updateAccountForExchange(exch exchange.IBotExchange) {
 		return
 	}
 
-	// TODO:
-	// if base.Config.API.AuthenticatedWebsocketSupport {
-	// 	// This extends the request out to 6 x the synchronisation duration
-	// 	a.m.Lock()
-	// 	count, ok := a.accounts[exch]
-	// 	if !ok {
-	// 		a.accounts[exch] = 1
-	// 		count = 1
-	// 	}
-	// 	if count%6 != 0 {
-	// 		a.accounts[exch]++
-	// 		a.m.Unlock()
-	// 		return
-	// 	}
-	// 	a.accounts[exch] = 1
-	// 	a.m.Unlock()
-	// }
-
 	accounts, err := exch.GetAccounts()
 	if err != nil {
 		log.Errorf(log.Accounts,
@@ -121,24 +104,15 @@ func (a *AccountManager) updateAccountForExchange(exch exchange.IBotExchange) {
 			err)
 		return
 	}
-	fmt.Println("ACCOUNTS:", accounts)
-
 	at := exch.GetAssetTypes(true)
 	for x := range accounts {
 		for y := range at {
-			h, err := exch.UpdateAccountInfo(string(accounts[x]), at[y])
+			_, err := exch.UpdateAccountInfo(string(accounts[x]), at[y])
 			if err != nil {
 				log.Errorf(log.Accounts,
 					"%s failed to update account holdings for account: %v",
 					exch.GetName(),
 					err)
-			} else if a.verbose {
-				log.Debugf(log.Accounts,
-					"Account balance updated for exchange:%s account:%s asset:%s - %+v",
-					exch.GetName(),
-					accounts[y],
-					at[y],
-					h)
 			}
 		}
 	}
