@@ -866,6 +866,8 @@ message UpsertDataHistoryJobRequest {
     int64	max_retry_attempts = 10;
     int64	batch_size = 11;
     bool insert_only = 12;
+    int64	conversion_interval = 13;
+    bool overwrite_existing_data = 14;
 }
 
 message UpsertDataHistoryJobResponse {
@@ -893,10 +895,11 @@ message DataHistoryJob {
     int64	batch_size = 11;
     string status = 12;
     string data_type = 13;
-    repeated DataHistoryJobResult job_results = 14;
-    repeated string result_summaries = 15;
+    int64	conversion_interval = 14;
+    bool overwrite_existing_data = 15;
+    repeated DataHistoryJobResult job_results = 16;
+    repeated string result_summaries = 17;
 }
-
 
 message DataHistoryJobResult {
     string	start_date = 1;
@@ -1424,7 +1427,7 @@ service GoCryptoTrader {
 
     rpc UpsertDataHistoryJob (UpsertDataHistoryJobRequest) returns (UpsertDataHistoryJobResponse) {
         option (google.api.http) = {
-            post: "/v1/upsertdatahistoryjob"
+            post: "/v1/upsertdatahistoryjob",
                  body: "*"
         };
     }
@@ -1452,6 +1455,18 @@ service GoCryptoTrader {
     rpc GetDataHistoryJobSummary (GetDataHistoryJobDetailsRequest) returns (DataHistoryJob) {
         option (google.api.http) = {
             get: "/v1/getdatahistoryjobsummary"
+        };
+    }
+    rpc PauseDataHistoryJob (GetDataHistoryJobDetailsRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/pausedatahistoryjob",
+            body: "*"
+        };
+    }
+    rpc UnPauseDataHistoryJob (GetDataHistoryJobDetailsRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/unpausedatahistoryjob",
+            body: "*"
         };
     }
 }

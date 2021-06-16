@@ -458,6 +458,7 @@ ranges:
 				result.Status = dataHistoryStatusFailed
 				break
 			}
+			var validationIssues []string
 		candleValidation:
 			for i := range candles.Candles {
 				found := false
@@ -469,16 +470,19 @@ ranges:
 							candles.Candles[i].Close != cd.Candles[j].Close ||
 							candles.Candles[i].Open != cd.Candles[j].Open ||
 							candles.Candles[i].Volume != cd.Candles[j].Volume {
-							result.Result = "mismatched candle data in database that exists in API at range %v-%v"
+							validationIssues = append(validationIssues, fmt.Sprintf("mismatched candle data in database that exists in API at %v", candles.Candles[i].Time.Format(common.SimpleTimeFormatWithTimezone)))
 							result.Status = dataHistoryStatusFailed
 							continue candleValidation
 						}
 					}
 				}
 				if !found {
-					result.Result = "missing candle data in database that exists in API at range %v-%v"
+					validationIssues = append(validationIssues, fmt.Sprintf("missing candle data in database at %v", candles.Candles[i].Time.Format(common.SimpleTimeFormatWithTimezone)))
 					result.Status = dataHistoryStatusFailed
 				}
+			}
+			if len(validationIssues) > 0 {
+				result.Result = strings.Join(validationIssues, ", ")
 			}
 		default:
 			return errUnknownDataType
@@ -897,17 +901,6 @@ func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJo
 		DataType:     job.DataType,
 		ResultRanges: job.rangeHolder.DataSummary(true),
 	}, nil
-}
-
-func (m *DataHistoryManager) VerifyTradesAgainstAPICandles(job *DataHistoryJob, interval kline.Interval) error {
-
-}
-
-// ConvertJobResultsToCandles It will take a job's results and convert them to candles to save to the database
-// For trade based jobs, it can be converted into any candle
-// For candle based jobs, it can only be converted into larger candles, eg 4 15 minture candles into 60 minute candle
-func (m *DataHistoryManager) ConvertJobResultsToCandles(job *DataHistoryJob, interval kline.Interval) error {
-
 }
 
 // ----------------------------Lovely-converters----------------------------

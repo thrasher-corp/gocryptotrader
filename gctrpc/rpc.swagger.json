@@ -2119,6 +2119,38 @@
         ]
       }
     },
+    "/v1/pausedatahistoryjob": {
+      "post": {
+        "operationId": "GoCryptoTrader_PauseDataHistoryJob",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetDataHistoryJobDetailsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/removeevent": {
       "post": {
         "operationId": "GoCryptoTrader_RemoveEvent",
@@ -2417,6 +2449,38 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/gctrpcSubmitOrderRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/unpausedatahistoryjob": {
+      "post": {
+        "operationId": "GoCryptoTrader_UnPauseDataHistoryJob",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetDataHistoryJobDetailsRequest"
             }
           }
         ],
@@ -3225,6 +3289,13 @@
         "data_type": {
           "type": "string"
         },
+        "conversion_interval": {
+          "type": "string",
+          "format": "int64"
+        },
+        "overwrite_existing_data": {
+          "type": "boolean"
+        },
         "job_results": {
           "type": "array",
           "items": {
@@ -3560,6 +3631,20 @@
           "additionalProperties": {
             "type": "string"
           }
+        }
+      }
+    },
+    "gctrpcGetDataHistoryJobDetailsRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "nickname": {
+          "type": "string"
+        },
+        "fullDetails": {
+          "type": "boolean"
         }
       }
     },
@@ -4516,6 +4601,13 @@
           "format": "int64"
         },
         "insert_only": {
+          "type": "boolean"
+        },
+        "conversion_interval": {
+          "type": "string",
+          "format": "int64"
+        },
+        "overwrite_existing_data": {
           "type": "boolean"
         }
       }

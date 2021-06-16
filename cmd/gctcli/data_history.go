@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -69,7 +70,7 @@ var (
 		},
 		&cli.Uint64Flag{
 			Name:  "data_type",
-			Usage: "0 for candles, 1 for trades",
+			Usage: "0 for candles, 1 for trades, 2 for convert trades, 3 for convert candles, 4 for validate candles",
 		},
 		&cli.Uint64Flag{
 			Name:        "max_retry_attempts",
@@ -82,6 +83,14 @@ var (
 			Usage:       "the amount of API calls to make per run",
 			Destination: &batchSize,
 			Value:       3,
+		},
+		cli.Uint64Flag{
+			Name:  "conversion_interval",
+			Usage: klineMessage,
+		},
+		cli.BoolFlag{
+			Name:  "overwrite_existing_data",
+			Usage: "when converting candles, if data already exists for the time period in the database, it will be overwritten",
 		},
 	}
 )
@@ -326,6 +335,30 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		batchSize = c.Uint64("batch_size")
 	}
 
+	var conversionInterval time.Duration
+	var overwriteExistingData bool
+	if dataType == 2 || dataType == 3 || dataType == 4 {
+		var cInterval int64
+		if c.IsSet("conversion_interval") {
+			batchSize = c.Int64("conversion_interval")
+		} else {
+			batchSize, err = convert.Int64FromString(c.Args().Get(12))
+			if err != nil {
+				return fmt.Errorf("cannot process conversion_interval: %w", err)
+			}
+		}
+		conversionInterval = time.Duration(cInterval) * time.Second
+
+		if c.IsSet("overwrite_existing_data") {
+			overwriteExistingData = c.Bool("overwrite_existing_data")
+		} else {
+			overwriteExistingData, err = strconv.ParseBool(c.Args().Get(12))
+			if err != nil {
+				return fmt.Errorf("cannot process overwrite_existing_data: %w", err)
+			}
+		}
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -353,6 +386,8 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		DataType:         dataType,
 		MaxRetryAttempts: int64(maxRetryAttempts),
 		BatchSize:        int64(batchSize),
+		ConversionInterval:    int64(conversionInterval),
+		OverwriteExistingData: overwriteExistingData,
 	}
 	if strings.EqualFold(c.Command.Name, "addnewjob") {
 		request.InsertOnly = true
