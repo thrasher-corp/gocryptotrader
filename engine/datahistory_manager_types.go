@@ -23,6 +23,9 @@ type dataHistoryDataType int64
 const (
 	dataHistoryCandleDataType dataHistoryDataType = iota
 	dataHistoryTradeDataType
+	dataHistoryConvertTradesDataType
+	dataHistoryConvertCandlesDataType
+	dataHistoryConvertValidationDataType
 )
 
 // DataHistoryJob status descriptors
@@ -58,11 +61,18 @@ func (d dataHistoryStatus) Valid() bool {
 
 // String stringifies iotas to readable
 func (d dataHistoryDataType) String() string {
-	switch {
-	case int64(d) == 0:
+	n := int64(d)
+	switch n {
+	case 0:
 		return "candles"
-	case int64(d) == 1:
+	case 1:
 		return "trades"
+	case 2:
+		return "tradeconversion"
+	case 3:
+		return "candleconversion"
+	case 4:
+		return "conversionvalidation"
 	}
 	return ""
 }
@@ -117,22 +127,24 @@ type DataHistoryManager struct {
 // DataHistoryJob used to gather candle/trade history and save
 // to the database
 type DataHistoryJob struct {
-	ID               uuid.UUID
-	Nickname         string
-	Exchange         string
-	Asset            asset.Item
-	Pair             currency.Pair
-	StartDate        time.Time
-	EndDate          time.Time
-	Interval         kline.Interval
-	RunBatchLimit    int64
-	RequestSizeLimit int64
-	DataType         dataHistoryDataType
-	MaxRetryAttempts int64
-	Status           dataHistoryStatus
-	CreatedDate      time.Time
-	Results          map[time.Time][]DataHistoryJobResult
-	rangeHolder      *kline.IntervalRangeHolder
+	ID                    uuid.UUID
+	Nickname              string
+	Exchange              string
+	Asset                 asset.Item
+	Pair                  currency.Pair
+	StartDate             time.Time
+	EndDate               time.Time
+	Interval              kline.Interval
+	RunBatchLimit         int64
+	RequestSizeLimit      int64
+	DataType              dataHistoryDataType
+	MaxRetryAttempts      int64
+	Status                dataHistoryStatus
+	CreatedDate           time.Time
+	Results               map[time.Time][]DataHistoryJobResult
+	rangeHolder           *kline.IntervalRangeHolder
+	OverwriteExistingData bool
+	ConversionInterval    kline.Interval
 }
 
 // DataHistoryJobResult contains details on

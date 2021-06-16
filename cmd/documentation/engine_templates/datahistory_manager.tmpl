@@ -86,12 +86,14 @@ The below table is a summary of commands. For more details, view the commands in
 | start_time | When to begin fetching data | `01-01-2017T13:33:37Z` |
 | end_time | When to finish fetching data | `01-01-2018T13:33:37Z`  |
 | interval | A golang `time.Duration` representation of the candle interval to use. | `30000000000` |
-| data_type | The data type to fetch. `0` is candles and `1` is trades | `0` |
+| data_type | The data type to fetch. `0` is candles, `1` is trades, `2` is convert trades to candles, `3` is convert candles to candles, `4` validates candle data against API data | `0` |
 | request_size | The number of candles to fetch. eg if `500`, the data history manager will break up the request into the appropriate timeframe to ensure the data history run interval will fetch 500 candles to save to the database | `500` |
 | max_retries | For an interval period, the amount of attempts the data history manager is allowed to attempt to fetch data before moving onto the next period. This can be useful for determining whether the exchange is missing the data in that time period or, if just one failure of three, just means that the data history manager couldn't finish one request | `3` |
 | batch_count | The number of requests to make when processing a job | `3` |
 | status | A numerical representation for the status. `0` is active, `1` is failed `2` is complete, `3` is removed and `4` is missing data | `0` |
 | created | The date the job was created. | `2020-01-01T13:33:37Z` |
+| overwrite_existing_data | When converting data as a job and data already exists in an interval, this will overwrite it | `2020-01-01T13:33:37Z` |
+| conversion_interval | When converting data as a job, this determines the resulting interval | `2020-01-01T13:33:37Z` |
 
 #### datahistoryjobresult
 | Field | Description | Example |

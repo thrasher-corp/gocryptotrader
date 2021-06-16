@@ -297,14 +297,19 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	}
 ranges:
 	for i := range job.rangeHolder.Ranges {
-		isCompleted := true
-		for j := range job.rangeHolder.Ranges[i].Intervals {
-			if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
-				isCompleted = false
-				break
+		skipProcessing := true
+		if job.DataType == dataHistoryConvertTradesDataType ||
+			job.DataType == dataHistoryConvertCandlesDataType {
+			skipProcessing = false
+		} else {
+			for j := range job.rangeHolder.Ranges[i].Intervals {
+				if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
+					skipProcessing = false
+					break
+				}
 			}
 		}
-		if isCompleted ||
+		if skipProcessing ||
 			intervalsProcessed >= job.RunBatchLimit {
 			continue
 		}
@@ -403,6 +408,77 @@ ranges:
 			if err != nil {
 				result.Result += "could not save results: " + err.Error() + ". "
 				result.Status = dataHistoryStatusFailed
+			}
+		case dataHistoryConvertTradesDataType:
+			trades, err := trade.GetTradesInRange(job.Exchange, job.Asset.String(), job.Pair.Base.String(), job.Pair.Quote.String(), job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+			if err != nil {
+				result.Result = "could not get trades in range: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+				break
+			}
+			candles, err := trade.ConvertTradesToCandles(job.ConversionInterval, trades...)
+			if err != nil {
+				result.Result = "could not convert trades in range: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+				break
+			}
+			_, err = kline.StoreInDatabase(&candles, job.OverwriteExistingData)
+			if err != nil {
+				result.Result = "could not save candles in range: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+			}
+		case dataHistoryConvertCandlesDataType:
+			candles, err := kline.LoadFromDatabase(job.Exchange, job.Pair, job.Asset, job.Interval, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+			if err != nil {
+				result.Result = "could not get candles in range: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+				break
+			}
+			newCandles, err := kline.ConvertToNewInterval(&candles, job.ConversionInterval)
+			if err != nil {
+				result.Result = "could not convert candles in range: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+				break
+			}
+			_, err = kline.StoreInDatabase(newCandles, job.OverwriteExistingData)
+			if err != nil {
+				result.Result = "could not save candles in range: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+			}
+		case dataHistoryConvertValidationDataType:
+			candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, job.Interval)
+			if err != nil {
+				result.Result = "could not get candles: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+				break
+			}
+			cd, err := kline.LoadFromDatabase(job.Exchange, job.Pair, job.Asset, job.ConversionInterval, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+			if err != nil {
+				result.Result = "could not get candles: " + err.Error()
+				result.Status = dataHistoryStatusFailed
+				break
+			}
+		candleValidation:
+			for i := range candles.Candles {
+				found := false
+				for j := range cd.Candles {
+					if candles.Candles[i].Time.Equal(cd.Candles[j].Time) {
+						found = true
+						if candles.Candles[i].High != cd.Candles[j].High ||
+							candles.Candles[i].Low != cd.Candles[j].Low ||
+							candles.Candles[i].Close != cd.Candles[j].Close ||
+							candles.Candles[i].Open != cd.Candles[j].Open ||
+							candles.Candles[i].Volume != cd.Candles[j].Volume {
+							result.Result = "mismatched candle data in database that exists in API at range %v-%v"
+							result.Status = dataHistoryStatusFailed
+							continue candleValidation
+						}
+					}
+				}
+				if !found {
+					result.Result = "missing candle data in database that exists in API at range %v-%v"
+					result.Status = dataHistoryStatusFailed
+				}
 			}
 		default:
 			return errUnknownDataType
@@ -821,6 +897,17 @@ func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJo
 		DataType:     job.DataType,
 		ResultRanges: job.rangeHolder.DataSummary(true),
 	}, nil
+}
+
+func (m *DataHistoryManager) VerifyTradesAgainstAPICandles(job *DataHistoryJob, interval kline.Interval) error {
+
+}
+
+// ConvertJobResultsToCandles It will take a job's results and convert them to candles to save to the database
+// For trade based jobs, it can be converted into any candle
+// For candle based jobs, it can only be converted into larger candles, eg 4 15 minture candles into 60 minute candle
+func (m *DataHistoryManager) ConvertJobResultsToCandles(job *DataHistoryJob, interval kline.Interval) error {
+
 }
 
 // ----------------------------Lovely-converters----------------------------

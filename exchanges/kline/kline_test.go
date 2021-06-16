@@ -876,3 +876,91 @@ func BenchmarkJustifyIntervalTimeStoringUnixValues2(b *testing.B) {
 		}
 	}
 }
+
+func TestConvertToNewInterval(t *testing.T) {
+	_, err := ConvertToNewInterval(nil, OneMin)
+	if !errors.Is(err, errNilKline) {
+		t.Errorf("received '%v' expectec '%v'", err, errNilKline)
+	}
+
+	old := &Item{
+		Exchange: "lol",
+		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Asset:    asset.Spot,
+		Interval: OneDay,
+		Candles: []Candle{
+			{
+				Time:   time.Now(),
+				Open:   1337,
+				High:   1339,
+				Low:    1336,
+				Close:  1338,
+				Volume: 1337,
+			},
+			{
+				Time:   time.Now().AddDate(0, 0, 1),
+				Open:   1338,
+				High:   2000,
+				Low:    1332,
+				Close:  1696,
+				Volume: 6420,
+			},
+			{
+				Time:   time.Now().AddDate(0, 0, 2),
+				Open:   1696,
+				High:   1998,
+				Low:    1337,
+				Close:  6969,
+				Volume: 2520,
+			},
+		},
+	}
+
+	_, err = ConvertToNewInterval(old, 0)
+	if !errors.Is(err, ErrUnsetInterval) {
+		t.Errorf("received '%v' expectec '%v'", err, ErrUnsetInterval)
+	}
+	_, err = ConvertToNewInterval(old, OneMin)
+	if !errors.Is(err, ErrCanOnlyUpdootIntervals) {
+		t.Errorf("received '%v' expectec '%v'", err, ErrCanOnlyUpdootIntervals)
+	}
+	old.Interval = ThreeDay
+	_, err = ConvertToNewInterval(old, OneWeek)
+	if !errors.Is(err, ErrWholeNumberScaling) {
+		t.Errorf("received '%v' expectec '%v'", err, ErrWholeNumberScaling)
+	}
+
+	old.Interval = OneDay
+	newInterval := ThreeDay
+	newCandle, err := ConvertToNewInterval(old, newInterval)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expectec '%v'", err, nil)
+	}
+	if len(newCandle.Candles) != 1 {
+		t.Error("expected one candle")
+	}
+	if newCandle.Candles[0].Open != 1337 &&
+		newCandle.Candles[0].High != 2000 &&
+		newCandle.Candles[0].Low != 1332 &&
+		newCandle.Candles[0].Close != 6969 &&
+		newCandle.Candles[0].Volume != (2520+6420+1337) {
+		t.Error("unexpected updoot")
+	}
+
+	old.Candles = append(old.Candles, Candle{
+		Time:   time.Now().AddDate(0, 0, 3),
+		Open:   6969,
+		High:   1998,
+		Low:    2342,
+		Close:  7777,
+		Volume: 111,
+	})
+	newCandle, err = ConvertToNewInterval(old, newInterval)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expectec '%v'", err, nil)
+	}
+	if len(newCandle.Candles) != 1 {
+		t.Error("expected one candle")
+	}
+
+}

@@ -331,6 +331,68 @@ func (i *Interval) IntervalsPerYear() float64 {
 	return float64(OneYear.Duration().Nanoseconds()) / float64(i.Duration().Nanoseconds())
 }
 
+// ConvertToNewInterval allows the scaling of candles to larger candles
+// eg convert OneDay candles to ThreeDay candles, if there are adequate candles
+// incomplete candles are NOT converted
+// eg an 4 OneDay candles will convert to one ThreeDay candle, skipping the fourth
+func ConvertToNewInterval(item *Item, newInterval Interval) (*Item, error) {
+	if item == nil {
+		return nil, errNilKline
+	}
+	if newInterval <= 0 {
+		return nil, ErrUnsetInterval
+	}
+	if newInterval.Duration() <= item.Interval.Duration() {
+		return nil, ErrCanOnlyUpdootIntervals
+	}
+	if newInterval.Duration()%item.Interval.Duration() != 0 {
+		return nil, ErrWholeNumberScaling
+	}
+
+	intervalsToMerge := int64(newInterval / item.Interval)
+	var candleBundles [][]Candle
+	var candles []Candle
+	for i := range item.Candles {
+		candles = append(candles, item.Candles[i])
+		thing := int64(i + 1)
+		if intervalsToMerge == thing {
+			candleBundles = append(candleBundles, candles)
+			candles = []Candle{}
+		}
+	}
+	responseCandle := &Item{
+		Exchange: item.Exchange,
+		Pair:     item.Pair,
+		Asset:    item.Asset,
+		Interval: newInterval,
+	}
+	for i := range candleBundles {
+		var lowest, highest, volume float64
+		lowest = candleBundles[i][0].Low
+		highest = candleBundles[i][0].High
+		for j := range candleBundles[i] {
+			volume += candleBundles[i][j].Volume
+			if candleBundles[i][j].Low < lowest {
+				lowest = candleBundles[i][j].Low
+			}
+			if candleBundles[i][j].High > highest {
+				lowest = candleBundles[i][j].High
+			}
+			volume += candleBundles[i][j].Volume
+		}
+		responseCandle.Candles = append(responseCandle.Candles, Candle{
+			Time:   candleBundles[i][0].Time,
+			Open:   candleBundles[i][0].Open,
+			High:   highest,
+			Low:    lowest,
+			Close:  candleBundles[i][len(candleBundles[i])-1].Close,
+			Volume: volume,
+		})
+	}
+
+	return responseCandle, nil
+}
+
 // CalculateCandleDateRanges will calculate the expected candle data in intervals in a date range
 // If an API is limited in the amount of candles it can make in a request, it will automatically separate
 // ranges into the limit

@@ -45,6 +45,11 @@ var (
 	ErrUnsetInterval = errors.New("cannot calculate range, interval unset")
 	// ErrUnsupportedInterval returns when the provided interval is not supported by an exchange
 	ErrUnsupportedInterval = errors.New("interval unsupported by exchange")
+	// ErrCanOnlyUpdootIntervals returns when attempting to downscale candles
+	ErrCanOnlyUpdootIntervals = errors.New("interval must be a longer duration to scale")
+	// ErrWholeNumberScaling returns when old interval data cannot neatly fit into new interval size
+	ErrWholeNumberScaling = errors.New("new interval must scale properly into new candle")
+	errNilKline           = errors.New("kline item is nil")
 
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{
