@@ -45,7 +45,6 @@ func CreateTestBot(t *testing.T) *Engine {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
 	}
-
 	return bot
 }
 

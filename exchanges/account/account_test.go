@@ -47,8 +47,8 @@ func TestDeployHoldings(t *testing.T) {
 	}
 
 	_, err = DeployHoldings("test", false)
-	if !errors.Is(err, errExchangeAlreadyDeployed) {
-		t.Fatalf("expected: %v but received: %v", errExchangeAlreadyDeployed, err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
 }
 

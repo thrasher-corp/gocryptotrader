@@ -29,7 +29,8 @@ type subAccount struct {
 }
 
 var (
-	errAccountNameUnset         = errors.New("account name unset")
+	// ErrAccountNameUnset defines an error for when an account name is unset
+	ErrAccountNameUnset         = errors.New("account name unset")
 	errMainAccountNameUnset     = errors.New("main account name unset")
 	errAccountsNotLoaded        = errors.New("accounts not loaded")
 	errAccountAlreadyLoaded     = errors.New("account already loaded")
@@ -40,7 +41,7 @@ var (
 // LoadAccount loads an account for future checking
 func (a *Accounts) LoadAccount(account string, main bool) error {
 	if account == "" {
-		return errAccountNameUnset
+		return ErrAccountNameUnset
 	}
 
 	accD := Designation(strings.ToLower(account))
@@ -105,7 +106,7 @@ func (a *Accounts) GetAccounts() ([]Designation, error) {
 // core systems.
 func (a *Accounts) AccountValid(account string) error {
 	if account == "" {
-		return errAccountNameUnset
+		return ErrAccountNameUnset
 	}
 
 	account = strings.ToLower(account)

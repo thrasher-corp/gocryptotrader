@@ -8,9 +8,12 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
+
+var ftxTestExchange = "ftx"
 
 // omfExchange aka ordermanager fake exchange overrides exchange functions
 // we're not testing an actual exchange's implemented functions
@@ -18,14 +21,14 @@ type omfExchange struct {
 	exchange.IBotExchange
 }
 
-// CancelOrder overrides testExchange's cancel order function
+// CancelOrder overrides ftxTestExchange's cancel order function
 // to do the bare minimum required with no API calls or credentials required
 func (f omfExchange) CancelOrder(o *order.Cancel) error {
 	o.Status = order.Cancelled
 	return nil
 }
 
-// GetOrderInfo overrides testExchange's get order function
+// GetOrderInfo overrides ftxTestExchange's get order function
 // to do the bare minimum required with no API calls or credentials required
 func (f omfExchange) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	if orderID == "" {
@@ -33,7 +36,7 @@ func (f omfExchange) GetOrderInfo(orderID string, pair currency.Pair, assetType 
 	}
 
 	return order.Detail{
-		Exchange:  testExchange,
+		Exchange:  ftxTestExchange,
 		ID:        orderID,
 		Pair:      pair,
 		AssetType: assetType,
@@ -133,29 +136,55 @@ func TestOrderManagerStop(t *testing.T) {
 	}
 }
 
+var orderManager *OrderManager
+var m sync.Mutex
+
 func OrdersSetup(t *testing.T) *OrderManager {
-	var wg sync.WaitGroup
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if err != nil {
-		t.Error(err)
-	}
-	exch.SetDefaults()
+	m.Lock()
+	defer m.Unlock()
+	if orderManager == nil {
+		var wg sync.WaitGroup
+		em := SetupExchangeManager()
+		exch, err := em.NewExchangeByName("ftx")
+		if err != nil {
+			t.Error(err)
+		}
+		exch.SetDefaults()
+		conf, err := exch.GetDefaultConfig()
+		if err != nil {
+			t.Error(err)
+		}
 
-	fakeExchange := omfExchange{
-		IBotExchange: exch,
-	}
-	em.Add(fakeExchange)
-	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+		err = exch.Setup(conf)
+		if err != nil {
+			t.Error(err)
+		}
 
-	return m
+		b := exch.GetBase()
+		err = b.Holdings.LoadHoldings(string(account.Main),
+			true,
+			asset.Spot,
+			account.HoldingsSnapshot{
+				currency.BTC: account.Balance{Total: 10},
+			})
+		if err != nil {
+			t.Error(err)
+		}
+
+		fakeExchange := omfExchange{
+			IBotExchange: exch,
+		}
+		em.Add(&fakeExchange)
+		orderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, false)
+		if !errors.Is(err, nil) {
+			t.Errorf("error '%v', expected '%v'", err, nil)
+		}
+		err = orderManager.Start()
+		if !errors.Is(err, nil) {
+			t.Errorf("error '%v', expected '%v'", err, nil)
+		}
+	}
+	return orderManager
 }
 
 func TestOrdersGet(t *testing.T) {
@@ -168,7 +197,7 @@ func TestOrdersGet(t *testing.T) {
 func TestOrdersAdd(t *testing.T) {
 	m := OrdersSetup(t)
 	err := m.orderStore.add(&order.Detail{
-		Exchange: testExchange,
+		Exchange: ftxTestExchange,
 		ID:       "TestOrdersAdd",
 	})
 	if err != nil {
@@ -188,7 +217,7 @@ func TestOrdersAdd(t *testing.T) {
 	}
 
 	err = m.orderStore.add(&order.Detail{
-		Exchange: testExchange,
+		Exchange: ftxTestExchange,
 		ID:       "TestOrdersAdd",
 	})
 	if err == nil {
@@ -199,7 +228,7 @@ func TestOrdersAdd(t *testing.T) {
 func TestGetByInternalOrderID(t *testing.T) {
 	m := OrdersSetup(t)
 	err := m.orderStore.add(&order.Detail{
-		Exchange:        testExchange,
+		Exchange:        ftxTestExchange,
 		ID:              "TestGetByInternalOrderID",
 		InternalOrderID: "internalTest",
 	})
@@ -227,7 +256,7 @@ func TestGetByInternalOrderID(t *testing.T) {
 func TestGetByExchange(t *testing.T) {
 	m := OrdersSetup(t)
 	err := m.orderStore.add(&order.Detail{
-		Exchange:        testExchange,
+		Exchange:        ftxTestExchange,
 		ID:              "TestGetByExchange",
 		InternalOrderID: "internalTestGetByExchange",
 	})
@@ -236,7 +265,7 @@ func TestGetByExchange(t *testing.T) {
 	}
 
 	err = m.orderStore.add(&order.Detail{
-		Exchange:        testExchange,
+		Exchange:        ftxTestExchange,
 		ID:              "TestGetByExchange2",
 		InternalOrderID: "internalTestGetByExchange2",
 	})
@@ -245,7 +274,7 @@ func TestGetByExchange(t *testing.T) {
 	}
 
 	err = m.orderStore.add(&order.Detail{
-		Exchange:        testExchange,
+		Exchange:        ftxTestExchange,
 		ID:              "TestGetByExchange3",
 		InternalOrderID: "internalTest3",
 	})
@@ -253,7 +282,7 @@ func TestGetByExchange(t *testing.T) {
 		t.Error(err)
 	}
 	var o []*order.Detail
-	o, err = m.orderStore.getByExchange(testExchange)
+	o, err = m.orderStore.getByExchange(ftxTestExchange)
 	if err != nil {
 		t.Error(err)
 	}
@@ -262,10 +291,10 @@ func TestGetByExchange(t *testing.T) {
 	}
 	var o1Found, o2Found bool
 	for i := range o {
-		if o[i].ID == "TestGetByExchange" && o[i].Exchange == testExchange {
+		if o[i].ID == "TestGetByExchange" && o[i].Exchange == ftxTestExchange {
 			o1Found = true
 		}
-		if o[i].ID == "TestGetByExchange2" && o[i].Exchange == testExchange {
+		if o[i].ID == "TestGetByExchange2" && o[i].Exchange == ftxTestExchange {
 			o2Found = true
 		}
 	}
@@ -288,14 +317,14 @@ func TestGetByExchange(t *testing.T) {
 func TestGetByExchangeAndID(t *testing.T) {
 	m := OrdersSetup(t)
 	err := m.orderStore.add(&order.Detail{
-		Exchange: testExchange,
+		Exchange: ftxTestExchange,
 		ID:       "TestGetByExchangeAndID",
 	})
 	if err != nil {
 		t.Error(err)
 	}
 
-	o, err := m.orderStore.getByExchangeAndID(testExchange, "TestGetByExchangeAndID")
+	o, err := m.orderStore.getByExchangeAndID(ftxTestExchange, "TestGetByExchangeAndID")
 	if err != nil {
 		t.Error(err)
 	}
@@ -308,7 +337,7 @@ func TestGetByExchangeAndID(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = m.orderStore.getByExchangeAndID(testExchange, "")
+	_, err = m.orderStore.getByExchangeAndID(ftxTestExchange, "")
 	if err != ErrOrderNotFound {
 		t.Error(err)
 	}
@@ -320,7 +349,7 @@ func TestExists(t *testing.T) {
 		t.Error("Expected false")
 	}
 	o := &order.Detail{
-		Exchange: testExchange,
+		Exchange: ftxTestExchange,
 		ID:       "TestExists",
 	}
 	err := m.orderStore.add(o)
@@ -347,7 +376,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	err = m.Cancel(&order.Cancel{
-		Exchange: testExchange,
+		Exchange: ftxTestExchange,
 	})
 	if err == nil {
 		t.Error("Expected error due to no order ID")
@@ -362,7 +391,7 @@ func TestCancelOrder(t *testing.T) {
 
 	err = m.Cancel(&order.Cancel{
 		ID:        "ID",
-		Exchange:  testExchange,
+		Exchange:  ftxTestExchange,
 		AssetType: asset.Binary,
 	})
 	if err == nil {
@@ -370,7 +399,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	o := &order.Detail{
-		Exchange: testExchange,
+		Exchange: ftxTestExchange,
 		ID:       "1337",
 		Status:   order.New,
 	}
@@ -381,7 +410,7 @@ func TestCancelOrder(t *testing.T) {
 
 	err = m.Cancel(&order.Cancel{
 		ID:        "Unknown",
-		Exchange:  testExchange,
+		Exchange:  ftxTestExchange,
 		AssetType: asset.Spot,
 	})
 	if err == nil {
@@ -394,7 +423,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	cancel := &order.Cancel{
-		Exchange:  testExchange,
+		Exchange:  ftxTestExchange,
 		ID:        "1337",
 		Side:      order.Sell,
 		Status:    order.New,
@@ -420,7 +449,7 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 
 	var result order.Detail
-	result, err = m.GetOrderInfo(testExchange, "1337", currency.Pair{}, "")
+	result, err = m.GetOrderInfo(ftxTestExchange, "1337", currency.Pair{}, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -428,7 +457,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Error("unexpected order returned")
 	}
 
-	result, err = m.GetOrderInfo(testExchange, "1337", currency.Pair{}, "")
+	result, err = m.GetOrderInfo(ftxTestExchange, "1337", currency.Pair{}, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -440,7 +469,7 @@ func TestGetOrderInfo(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	m := OrdersSetup(t)
 	o := &order.Detail{
-		Exchange: testExchange,
+		Exchange: ftxTestExchange,
 		ID:       "TestCancelAllOrders",
 		Status:   order.New,
 	}
@@ -448,7 +477,7 @@ func TestCancelAllOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	exch := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
+	exch := m.orderStore.exchangeManager.GetExchangeByName(ftxTestExchange)
 	m.CancelAllOrders([]exchange.IBotExchange{})
 	if o.Status == order.Cancelled {
 		t.Error("Order should not be cancelled")
@@ -484,7 +513,7 @@ func TestSubmit(t *testing.T) {
 		t.Error("Expected error from empty exchange")
 	}
 
-	o.Exchange = testExchange
+	o.Exchange = ftxTestExchange
 	_, err = m.Submit(o)
 	if err == nil {
 		t.Error("Expected error from validation")
@@ -534,19 +563,25 @@ func TestSubmit(t *testing.T) {
 
 	m.cfg.AllowedPairs = nil
 	_, err = m.Submit(o)
+	if !errors.Is(err, account.ErrAccountNameUnset) {
+		t.Errorf("error '%v', expected '%v'", err, account.ErrAccountNameUnset)
+	}
+
+	o.Account = string(account.Main)
+	_, err = m.Submit(o)
 	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
 		t.Errorf("error '%v', expected '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	err = m.orderStore.add(&order.Detail{
-		Exchange: testExchange,
+		Exchange: ftxTestExchange,
 		ID:       "FakePassingExchangeOrder",
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	o2, err := m.orderStore.getByExchangeAndID(testExchange, "FakePassingExchangeOrder")
+	o2, err := m.orderStore.getByExchangeAndID(ftxTestExchange, "FakePassingExchangeOrder")
 	if err != nil {
 		t.Error(err)
 	}

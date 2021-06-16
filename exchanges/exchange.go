@@ -608,7 +608,7 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	}
 	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
 	// Associate with the account system
-	b.Holdings, err = account.DeployHoldings(b.Name, true)
+	b.Holdings, err = account.DeployHoldings(b.Name, b.Verbose)
 	return err
 }
 

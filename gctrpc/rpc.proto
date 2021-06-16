@@ -335,13 +335,15 @@ message GetOrderRequest {
 
 message SubmitOrderRequest {
     string exchange = 1;
-    CurrencyPair pair = 2;
-    string side = 3;
-    string order_type = 4;
-    double amount = 5;
-    double price = 6;
-    string client_id = 7;
-    string asset_type = 8;
+    string Account = 2;
+    CurrencyPair pair = 3;
+    string side = 4;
+    string order_type = 5;
+    double amount = 6;
+    double price = 7;
+    string client_id = 8;
+    string asset_type = 9;
+    bool full_amount_required = 10;
 }
 
 message Trades {

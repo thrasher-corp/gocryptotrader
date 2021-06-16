@@ -1458,12 +1458,16 @@ func getOrder(c *cli.Context) error {
 var submitOrderCommand = cli.Command{
 	Name:      "submitorder",
 	Usage:     "submit order submits an exchange order",
-	ArgsUsage: "<exchange> <pair> <side> <type> <amount> <price> <client_id>",
+	ArgsUsage: "<exchange> <account> <pair> <side> <type> <amount> <price> <client_id> <fullamount>",
 	Action:    submitOrder,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to submit the order for",
+		},
+		cli.StringFlag{
+			Name:  "account",
+			Usage: "the exchange account that this order will be associated with",
 		},
 		cli.StringFlag{
 			Name:  "pair",
@@ -1493,6 +1497,10 @@ var submitOrderCommand = cli.Command{
 			Name:  "asset",
 			Usage: "required asset type",
 		},
+		cli.BoolFlag{
+			Name:  "fullamount",
+			Usage: "requires the full amount, if set to false will allow anything under the request amount",
+		},
 	},
 }
 
@@ -1502,6 +1510,7 @@ func submitOrder(c *cli.Context) error {
 	}
 
 	var exchangeName string
+	var account string
 	var currencyPair string
 	var orderSide string
 	var orderType string
@@ -1509,6 +1518,7 @@ func submitOrder(c *cli.Context) error {
 	var price float64
 	var clientID string
 	var assetType string
+	var fullAmountRequired bool
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -1520,10 +1530,16 @@ func submitOrder(c *cli.Context) error {
 		return errInvalidExchange
 	}
 
+	if c.IsSet("account") {
+		account = c.String("account")
+	} else {
+		account = c.Args().Get(1)
+	}
+
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
 	} else {
-		currencyPair = c.Args().Get(1)
+		currencyPair = c.Args().Get(2)
 	}
 
 	if !validPair(currencyPair) {
@@ -1533,7 +1549,7 @@ func submitOrder(c *cli.Context) error {
 	if c.IsSet("side") {
 		orderSide = c.String("side")
 	} else {
-		orderSide = c.Args().Get(2)
+		orderSide = c.Args().Get(3)
 	}
 
 	if orderSide == "" {
@@ -1543,7 +1559,7 @@ func submitOrder(c *cli.Context) error {
 	if c.IsSet("type") {
 		orderType = c.String("type")
 	} else {
-		orderType = c.Args().Get(3)
+		orderType = c.Args().Get(4)
 	}
 
 	if orderType == "" {
@@ -1552,9 +1568,9 @@ func submitOrder(c *cli.Context) error {
 
 	if c.IsSet("amount") {
 		amount = c.Float64("amount")
-	} else if c.Args().Get(4) != "" {
+	} else if c.Args().Get(5) != "" {
 		var err error
-		amount, err = strconv.ParseFloat(c.Args().Get(4), 64)
+		amount, err = strconv.ParseFloat(c.Args().Get(6), 64)
 		if err != nil {
 			return err
 		}
@@ -1567,9 +1583,9 @@ func submitOrder(c *cli.Context) error {
 	// price is optional for market orders
 	if c.IsSet("price") {
 		price = c.Float64("price")
-	} else if c.Args().Get(5) != "" {
+	} else if c.Args().Get(7) != "" {
 		var err error
-		price, err = strconv.ParseFloat(c.Args().Get(5), 64)
+		price, err = strconv.ParseFloat(c.Args().Get(7), 64)
 		if err != nil {
 			return err
 		}
@@ -1578,18 +1594,28 @@ func submitOrder(c *cli.Context) error {
 	if c.IsSet("client_id") {
 		clientID = c.String("client_id")
 	} else {
-		clientID = c.Args().Get(6)
+		clientID = c.Args().Get(8)
 	}
 
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
 	} else {
-		assetType = c.Args().Get(7)
+		assetType = c.Args().Get(9)
 	}
 
 	assetType = strings.ToLower(assetType)
 	if !validAsset(assetType) {
 		return errInvalidAsset
+	}
+
+	if c.IsSet("fullamount") {
+		fullAmountRequired = c.Bool("fullamount")
+	} else {
+		var err error
+		fullAmountRequired, err = strconv.ParseBool(c.Args().Get(10))
+		if err != nil {
+			return err
+		}
 	}
 
 	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
@@ -1604,20 +1630,23 @@ func submitOrder(c *cli.Context) error {
 	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.SubmitOrder(context.Background(), &gctrpc.SubmitOrderRequest{
-		Exchange: exchangeName,
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: p.Delimiter,
-			Base:      p.Base.String(),
-			Quote:     p.Quote.String(),
-		},
-		Side:      orderSide,
-		OrderType: orderType,
-		Amount:    amount,
-		Price:     price,
-		ClientId:  clientID,
-		AssetType: assetType,
-	})
+	result, err := client.SubmitOrder(context.Background(),
+		&gctrpc.SubmitOrderRequest{
+			Exchange: exchangeName,
+			Account:  account,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
+			Side:               orderSide,
+			OrderType:          orderType,
+			Amount:             amount,
+			Price:              price,
+			ClientId:           clientID,
+			AssetType:          assetType,
+			FullAmountRequired: fullAmountRequired,
+		})
 	if err != nil {
 		return err
 	}

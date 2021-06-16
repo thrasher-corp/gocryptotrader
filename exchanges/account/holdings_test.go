@@ -21,8 +21,8 @@ func TestGetHolding(t *testing.T) {
 	}
 
 	_, err = h.GetHolding("", "", currency.Code{})
-	if !errors.Is(err, errAccountNameUnset) {
-		t.Fatalf("expected: %v but received: %v", errAccountNameUnset, err)
+	if !errors.Is(err, ErrAccountNameUnset) {
+		t.Fatalf("expected: %v but received: %v", ErrAccountNameUnset, err)
 	}
 
 	_, err = h.GetHolding(AccountTest, "", currency.Code{})
@@ -92,8 +92,8 @@ func TestLoad(t *testing.T) {
 	}
 
 	err = h.LoadHoldings("", false, "", nil)
-	if !errors.Is(err, errAccountNameUnset) {
-		t.Fatalf("expected: %v but received: %v", errAccountNameUnset, err)
+	if !errors.Is(err, ErrAccountNameUnset) {
+		t.Fatalf("expected: %v but received: %v", ErrAccountNameUnset, err)
 	}
 
 	err = h.LoadHoldings(AccountTest, false, "", nil)
@@ -160,8 +160,8 @@ func TestGetHoldingsSnapshot(t *testing.T) {
 	h := Holdings{}
 	h.Verbose = true
 	_, err := h.GetHoldingsSnapshot("", "")
-	if !errors.Is(err, errAccountNameUnset) {
-		t.Fatalf("expected: %v but received: %v", errAccountNameUnset, err)
+	if !errors.Is(err, ErrAccountNameUnset) {
+		t.Fatalf("expected: %v but received: %v", ErrAccountNameUnset, err)
 	}
 
 	_, err = h.GetHoldingsSnapshot(string(Main), "")
@@ -232,8 +232,8 @@ func TestAdjustHolding(t *testing.T) {
 	}
 
 	err = h.AdjustByBalance("", "", currency.Code{}, 0)
-	if !errors.Is(err, errAccountNameUnset) {
-		t.Fatalf("expected: %v but received: %v", errAccountNameUnset, err)
+	if !errors.Is(err, ErrAccountNameUnset) {
+		t.Fatalf("expected: %v but received: %v", ErrAccountNameUnset, err)
 	}
 
 	err = h.AdjustByBalance("someaccount", "", currency.Code{}, 0)
@@ -307,8 +307,8 @@ func TestAdjustHolding(t *testing.T) {
 func TestHoldingsClaim(t *testing.T) {
 	h := Holdings{}
 	_, err := h.Claim("", "", currency.Code{}, 0, false)
-	if !errors.Is(err, errAccountNameUnset) {
-		t.Fatalf("expected: %v but received: %v", errAccountNameUnset, err)
+	if !errors.Is(err, ErrAccountNameUnset) {
+		t.Fatalf("expected: %v but received: %v", ErrAccountNameUnset, err)
 	}
 	_, err = h.Claim("someaccount", "", currency.Code{}, 0, false)
 	if !errors.Is(err, asset.ErrNotSupported) {

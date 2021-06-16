@@ -1034,14 +1034,16 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 	}
 
 	submission := &order.Submit{
-		Pair:      p,
-		Side:      order.Side(r.Side),
-		Type:      order.Type(r.OrderType),
-		Amount:    r.Amount,
-		Price:     r.Price,
-		ClientID:  r.ClientId,
-		Exchange:  r.Exchange,
-		AssetType: a,
+		Account:            r.Account,
+		Pair:               p,
+		Side:               order.Side(r.Side),
+		Type:               order.Type(r.OrderType),
+		Amount:             r.Amount,
+		Price:              r.Price,
+		ClientID:           r.ClientId,
+		Exchange:           r.Exchange,
+		AssetType:          a,
+		FullAmountRequired: r.FullAmountRequired,
 	}
 
 	resp, err := s.OrderManager.Submit(submission)

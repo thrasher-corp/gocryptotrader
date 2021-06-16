@@ -4029,6 +4029,9 @@
         "exchange": {
           "type": "string"
         },
+        "Account": {
+          "type": "string"
+        },
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
@@ -4051,6 +4054,9 @@
         },
         "asset_type": {
           "type": "string"
+        },
+        "full_amount_required": {
+          "type": "boolean"
         }
       }
     },

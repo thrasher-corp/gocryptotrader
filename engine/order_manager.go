@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -316,12 +317,93 @@ func (m *OrderManager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, err
 			err)
 	}
 
-	result, err := exch.SubmitOrder(newOrder)
+	claim, usageCurrency, err := deriveClaim(newOrder, exch)
 	if err != nil {
 		return nil, err
 	}
 
+	result, err := exch.SubmitOrder(newOrder)
+	if err != nil {
+		// On failed submission we want to immediately release claimed balance
+		relErr := claim.Release()
+		if relErr != nil {
+			log.Errorf(log.OrderMgr, "%s %s %s cannot release funds from claim %v",
+				newOrder.Exchange,
+				newOrder.AssetType,
+				usageCurrency,
+				relErr)
+		}
+		return nil, err
+	}
+
+	// On accepted submission we want to preserve claim and wait for a rebalance
+	err = claim.ReleaseToPending()
+	if err != nil {
+		log.Errorf(log.OrderMgr, "%s %s %s cannot release funds from claim %v",
+			newOrder.Exchange,
+			newOrder.AssetType,
+			usageCurrency,
+			err)
+	}
 	return m.processSubmittedOrder(newOrder, result)
+}
+
+func deriveClaim(o *order.Submit, e exchange.IBotExchange) (*account.Claim, currency.Code, error) {
+	err := e.AccountValid(o.Account)
+	if err != nil {
+		return nil, currency.Code{}, err
+	}
+
+	switch o.AssetType {
+	case asset.Spot:
+		// Standard
+
+		// Derives utilisation currency to cross reference and claim on balance
+		// before order execution
+		usageCurrency := o.Pair.Base
+		claimAmount := o.Amount
+		if isSellSide(o.Side) {
+			usageCurrency = o.Pair.Quote
+			claimAmount = claimAmount * o.Price
+		}
+
+		// Claims amount balance on exchange account to lock out further usage
+		// by other strategies
+		claim, err := e.Claim(o.Account,
+			o.AssetType,
+			usageCurrency,
+			claimAmount,
+			o.FullAmountRequired)
+		if err != nil {
+			return nil, currency.Code{}, fmt.Errorf("order manager: exchange %s unable to place order: %w",
+				o.Exchange,
+				err)
+		}
+
+		if isSellSide(o.Side) {
+			// Adjust to actual claim amount
+			adjustment := claim.GetAmount()
+			if adjustment != o.Amount {
+				log.Debugf(log.OrderMgr,
+					"Amount has been adjusted from %f to %f for order %+v\n",
+					o.Amount,
+					adjustment,
+					o)
+				o.Amount = adjustment
+			}
+		} else {
+
+		}
+
+		return claim, usageCurrency, nil
+	default:
+		// Contract movement
+		return nil, currency.Code{}, nil
+	}
+}
+
+func isSellSide(s order.Side) bool {
+	return s == order.Buy || s == order.Ask
 }
 
 // SubmitFakeOrder runs through the same process as order submission
@@ -360,9 +442,10 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 	return m.processSubmittedOrder(newOrder, resultingOrder)
 }
 
-// GetOrdersSnapshot returns a snapshot of all orders in the orderstore. It optionally filters any orders that do not match the status
-// but a status of "" or ANY will include all
-// the time adds contexts for the when the snapshot is relevant for
+// GetOrdersSnapshot returns a snapshot of all orders in the orderstore. It
+// optionally filters any orders that do not match the status but a status of
+// "" or ANY will include all the time adds contexts for the when the snapshot
+// is relevant for
 func (m *OrderManager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.Time) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return nil, time.Time{}

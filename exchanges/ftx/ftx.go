@@ -1100,6 +1100,9 @@ func (f *FTX) StakeRequest(coin currency.Code, size float64) (*Stake, error) {
 
 // SendAuthHTTPRequest sends an authenticated request
 func (f *FTX) SendAuthHTTPRequest(ep exchange.URL, method, path string, data, result interface{}) error {
+	if !f.AllowAuthenticatedRequest() {
+		return fmt.Errorf("%s %w", f.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	}
 	endpoint, err := f.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err

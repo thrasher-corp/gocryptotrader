@@ -19,7 +19,6 @@ func init() {
 var (
 	errExchangeNameUnset        = errors.New("exchange name is unset")
 	errExchangeHoldingsNotFound = errors.New("exchange holdings not found")
-	errExchangeAlreadyDeployed  = errors.New("exchange already deployed in account services")
 )
 
 // DeployHoldings associates an exchange with with the accounts system and
@@ -31,9 +30,9 @@ func DeployHoldings(exch string, verbose bool) (*Holdings, error) {
 	exch = strings.ToLower(exch)
 	service.Lock()
 	defer service.Unlock()
-	_, ok := service.accounts[exch]
+	h, ok := service.accounts[exch]
 	if ok {
-		return nil, errExchangeAlreadyDeployed
+		return h, nil
 	}
 	id, err := service.mux.GetID()
 	if err != nil {

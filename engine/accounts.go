@@ -118,6 +118,7 @@ func (a *AccountManager) updateAccountForExchange(exch exchange.IBotExchange) {
 	}
 }
 
+// IsRunning checks to see if the manager is running
 func (a *AccountManager) IsRunning() bool {
 	a.m.Lock()
 	defer a.m.Unlock()

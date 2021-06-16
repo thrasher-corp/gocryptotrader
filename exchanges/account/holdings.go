@@ -54,7 +54,7 @@ func (h *Holdings) GetHolding(account string, a asset.Item, c currency.Code) (*H
 			account,
 			a,
 			c,
-			errAccountNameUnset)
+			ErrAccountNameUnset)
 	}
 
 	if !a.IsValid() {
@@ -113,7 +113,7 @@ func (h *Holdings) LoadHoldings(account string, isMain bool, a asset.Item, snaps
 			h.Exchange,
 			account,
 			a,
-			errAccountNameUnset)
+			ErrAccountNameUnset)
 	}
 
 	if !a.IsValid() {
@@ -221,7 +221,7 @@ func (h *Holdings) GetHoldingsSnapshot(account string, ai asset.Item) (HoldingsS
 			h.Exchange,
 			account,
 			ai,
-			errAccountNameUnset)
+			ErrAccountNameUnset)
 	}
 
 	if !ai.IsValid() {
@@ -262,7 +262,10 @@ func (h *Holdings) GetHoldingsSnapshot(account string, ai asset.Item) (HoldingsS
 	for c, bal := range holdings {
 		total := bal.GetTotal()
 		if total > 0 {
-			m[currency.Code{Item: c}.Upper()] = Balance{Total: total, Locked: bal.GetLocked()}
+			m[currency.Code{Item: c}.Upper()] = Balance{
+				Total:  total,
+				Locked: bal.GetLocked(),
+			}
 		}
 	}
 	return m, nil
@@ -370,6 +373,8 @@ func (h *Holdings) AdjustByBalance(account string, ai asset.Item, c currency.Cod
 	return nil
 }
 
+// Claim segregates an amount in memory that reflects a balance that is held on
+// an exchange which can then be freely utilised by a strategy or sub-system.
 func (h *Holdings) Claim(account string, ai asset.Item, c currency.Code, amount float64, totalRequired bool) (*Claim, error) {
 	err := h.validate(account, ai, c, amount, false)
 	if err != nil {
@@ -448,7 +453,7 @@ func (h *Holdings) getHoldingInternal(account string, ai asset.Item, ci *currenc
 // validate checks if request values are correct before locking down holdings
 func (h *Holdings) validate(account string, ai asset.Item, c currency.Code, amount float64, lessThanZero bool) error {
 	if account == "" {
-		return errAccountNameUnset
+		return ErrAccountNameUnset
 	}
 	if !ai.IsValid() {
 		return asset.ErrNotSupported

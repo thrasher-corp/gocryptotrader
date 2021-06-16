@@ -8,8 +8,8 @@ import (
 func TestLoadAccount(t *testing.T) {
 	a := Accounts{}
 	err := a.LoadAccount("", false)
-	if !errors.Is(err, errAccountNameUnset) {
-		t.Fatalf("expected: %v but received: %v", errAccountNameUnset, err)
+	if !errors.Is(err, ErrAccountNameUnset) {
+		t.Fatalf("expected: %v but received: %v", ErrAccountNameUnset, err)
 	}
 
 	err = a.LoadAccount("testAccount", true)
@@ -90,8 +90,8 @@ func TestGetAccounts(t *testing.T) {
 func TestAccountValid(t *testing.T) {
 	a := Accounts{}
 	err := a.AccountValid("")
-	if !errors.Is(err, errAccountNameUnset) {
-		t.Fatalf("expected: %v but received: %v", errAccountNameUnset, err)
+	if !errors.Is(err, ErrAccountNameUnset) {
+		t.Fatalf("expected: %v but received: %v", ErrAccountNameUnset, err)
 	}
 
 	err = a.AccountValid("test")

@@ -42,6 +42,7 @@ type IBotExchange interface {
 	UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error)
 	GetFullAccountSnapshot() (account.FullSnapshot, error)
 	AccountValid(account string) error
+	Claim(account string, ai asset.Item, c currency.Code, amount float64, totalRequired bool) (*account.Claim, error)
 
 	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
