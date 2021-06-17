@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -317,9 +317,40 @@ func (m *OrderManager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, err
 			err)
 	}
 
-	claim, usageCurrency, err := deriveClaim(newOrder, exch)
+	err = exch.AccountValid(newOrder.Account)
 	if err != nil {
 		return nil, err
+	}
+
+	code, amount, err := newOrder.GetProvision()
+	if err != nil {
+		return nil, err
+	}
+
+	// Claims amount balance on exchange account to lock out further usage
+	// by other strategies
+	claim, err := exch.Claim(newOrder.Account,
+		newOrder.AssetType,
+		code,
+		amount,
+		newOrder.FullAmountRequired)
+	if err != nil {
+		return nil,
+			fmt.Errorf("order manager: exchange %s unable to place order: %w",
+				newOrder.Exchange,
+				err)
+	}
+
+	pAmount := newOrder.Amount
+	// Readjust to actual claim amount
+	if newOrder.AdjustAmount(claim.GetAmount()) {
+		log.Warnf(log.OrderMgr,
+			"order %s %s %s amount has been adjusted from: %f to: %f",
+			newOrder.Exchange,
+			newOrder.AssetType,
+			newOrder.Pair,
+			pAmount,
+			newOrder.Amount)
 	}
 
 	result, err := exch.SubmitOrder(newOrder)
@@ -330,7 +361,7 @@ func (m *OrderManager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, err
 			log.Errorf(log.OrderMgr, "%s %s %s cannot release funds from claim %v",
 				newOrder.Exchange,
 				newOrder.AssetType,
-				usageCurrency,
+				code,
 				relErr)
 		}
 		return nil, err
@@ -342,68 +373,36 @@ func (m *OrderManager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, err
 		log.Errorf(log.OrderMgr, "%s %s %s cannot release funds from claim %v",
 			newOrder.Exchange,
 			newOrder.AssetType,
-			usageCurrency,
+			code,
 			err)
 	}
 	return m.processSubmittedOrder(newOrder, result)
 }
 
-func deriveClaim(o *order.Submit, e exchange.IBotExchange) (*account.Claim, currency.Code, error) {
-	err := e.AccountValid(o.Account)
-	if err != nil {
-		return nil, currency.Code{}, err
+// ReduceBaseByMaxQuotation reduces the amount of the base currency of the
+// potential order if it exceeds the max quotation.
+func ReduceBaseByMaxQuotation(amount, price, runningValue, maxQuote decimal.Decimal) decimal.Decimal {
+	total := amount.Mul(price).Add(runningValue)
+	if total.GreaterThan(maxQuote) {
+		// Returns the max base amount to be deployed
+		total = total.Sub(total.Sub(maxQuote))
+		return total.Div(price)
 	}
-
-	switch o.AssetType {
-	case asset.Spot:
-		// Standard
-
-		// Derives utilisation currency to cross reference and claim on balance
-		// before order execution
-		usageCurrency := o.Pair.Base
-		claimAmount := o.Amount
-		if isSellSide(o.Side) {
-			usageCurrency = o.Pair.Quote
-			claimAmount = claimAmount * o.Price
-		}
-
-		// Claims amount balance on exchange account to lock out further usage
-		// by other strategies
-		claim, err := e.Claim(o.Account,
-			o.AssetType,
-			usageCurrency,
-			claimAmount,
-			o.FullAmountRequired)
-		if err != nil {
-			return nil, currency.Code{}, fmt.Errorf("order manager: exchange %s unable to place order: %w",
-				o.Exchange,
-				err)
-		}
-
-		if isSellSide(o.Side) {
-			// Adjust to actual claim amount
-			adjustment := claim.GetAmount()
-			if adjustment != o.Amount {
-				log.Debugf(log.OrderMgr,
-					"Amount has been adjusted from %f to %f for order %+v\n",
-					o.Amount,
-					adjustment,
-					o)
-				o.Amount = adjustment
-			}
-		} else {
-
-		}
-
-		return claim, usageCurrency, nil
-	default:
-		// Contract movement
-		return nil, currency.Code{}, nil
-	}
+	// No adjustment to the amount needed
+	return amount
 }
 
-func isSellSide(s order.Side) bool {
-	return s == order.Buy || s == order.Ask
+// ReduceBaseByMaxBase reduces the amount of the base currency of the potential
+// order if it exceeds the max base amount.
+func ReduceBaseByMaxBase(amount, maxBase, runningAmount decimal.Decimal) decimal.Decimal {
+	total := amount.Add(runningAmount)
+	if total.GreaterThan(maxBase) {
+		total = total.Sub(total.Sub(maxBase))
+		// Returns the reduced max base to be return
+		return total
+	}
+	// No adjustment to the amount needed
+	return amount
 }
 
 // SubmitFakeOrder runs through the same process as order submission

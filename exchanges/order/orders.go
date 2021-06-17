@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
@@ -38,7 +39,9 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 	}
 
 	if s.Amount <= 0 {
-		return fmt.Errorf("submit validation error %w, suppled: %.8f", ErrAmountIsInvalid, s.Amount)
+		return fmt.Errorf("submit validation error %w, suppled: %.8f",
+			ErrAmountIsInvalid,
+			s.Amount)
 	}
 
 	if s.Type == Limit && s.Price <= 0 {
@@ -51,8 +54,78 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 			return err
 		}
 	}
-
 	return nil
+}
+
+// GetProvision returns the potential required currency and amount needed to
+// execute an order to match against balance conditions. e.g. executing a buy
+// order on BTC-USD for 1 BTC @ price 50,000 pair requires the quotation (USD)
+// currency to be utilised of amount $50,000.00 or 1 (btc amount) * 50,000
+// (btc price) and a sell would need a provision of 1 BTC required to be sold.
+// TODO: Change to decimal package instead of floats (critical)
+func (s *Submit) GetProvision() (currency.Code, float64, error) {
+	code := s.Pair.Base
+	relationalAmount := s.Amount
+	switch s.AssetType {
+	case asset.Spot:
+		// Normal spot trading
+		if isBuySide(s.Side) {
+			code = s.Pair.Quote
+			relationalAmount = s.Amount * s.Price
+		}
+	case asset.USDTMarginedFutures:
+		// Contracts that are denominated and settled in USDT - Binance
+		if isBuySide(s.Side) {
+			code = currency.USDT
+			relationalAmount = s.Amount * s.Price
+		}
+	case asset.Futures:
+		// Contracts that are denominated and settled in USD
+		if isBuySide(s.Side) {
+			code = currency.USD
+			relationalAmount = s.Amount * s.Price
+		}
+	case asset.Margin:
+		return currency.Code{},
+			0,
+			fmt.Errorf("cannot execute claim details for asset %s %w",
+				s.AssetType,
+				common.ErrFunctionNotSupported)
+	case asset.CoinMarginedFutures:
+		// Contracts that are denominated and settled in cryptos - Binance
+		fallthrough
+	default:
+		return currency.Code{},
+			0,
+			fmt.Errorf("cannot execute claim details for asset %s %w",
+				s.AssetType,
+				common.ErrNotYetImplemented)
+	}
+	return code, relationalAmount, nil
+}
+
+// Adjust distinguishes between amount claimed to amount about to be deployed
+// and returns a bool if amount was adjusted.
+// TODO: Change to decimal package instead of floats (critical)
+func (s *Submit) AdjustAmount(amount float64) (wasAdjusted bool) {
+	if isBuySide(s.Side) {
+		deployable := amount / s.Price
+		if deployable != s.Amount {
+			s.Amount = deployable
+			return true
+		}
+		return false
+	}
+	if amount != s.Amount {
+		s.Amount = amount
+		return true
+	}
+	return false
+}
+
+// isBuySide determines if order is of buy side
+func isBuySide(s Side) bool {
+	return s == Buy || s == Ask
 }
 
 // UpdateOrderFromDetail Will update an order detail (used in order management)
