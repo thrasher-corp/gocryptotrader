@@ -3339,18 +3339,21 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 	}
 
 	job := DataHistoryJob{
-		Nickname:         r.Nickname,
-		Exchange:         r.Exchange,
-		Asset:            a,
-		Pair:             p,
-		StartDate:        start,
-		EndDate:          end,
-		Interval:         kline.Interval(r.Interval),
-		RunBatchLimit:    r.BatchSize,
-		RequestSizeLimit: r.RequestSizeLimit,
-		DataType:         dataHistoryDataType(r.DataType),
-		Status:           dataHistoryStatusActive,
-		MaxRetryAttempts: r.MaxRetryAttempts,
+		Nickname:              r.Nickname,
+		Exchange:              r.Exchange,
+		Asset:                 a,
+		Pair:                  p,
+		StartDate:             start,
+		EndDate:               end,
+		Interval:              kline.Interval(r.Interval),
+		RunBatchLimit:         r.BatchSize,
+		RequestSizeLimit:      r.RequestSizeLimit,
+		DataType:              dataHistoryDataType(r.DataType),
+		MaxRetryAttempts:      r.MaxRetryAttempts,
+		Status:                dataHistoryStatusActive,
+		OverwriteExistingData: r.OverwriteExistingData,
+		ConversionInterval:    kline.Interval(r.ConversionInterval),
+		PreviousJobNickname:   r.PreviousJobNickname,
 	}
 
 	err = s.dataHistoryManager.UpsertJob(&job, r.InsertOnly)
@@ -3436,27 +3439,6 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 		JobResults:       jobResults,
 		Status:           result.Status.String(),
 	}, nil
-}
-
-// DeleteDataHistoryJob deletes a data history job from the database
-func (s *RPCServer) DeleteDataHistoryJob(_ context.Context, r *gctrpc.GetDataHistoryJobDetailsRequest) (*gctrpc.GenericResponse, error) {
-	if r == nil {
-		return nil, errNilRequestData
-	}
-	if r.Nickname == "" && r.Id == "" {
-		return nil, errNicknameIDUnset
-	}
-	if r.Nickname != "" && r.Id != "" {
-		return nil, errOnlyNicknameOrID
-	}
-	status := "success"
-	err := s.dataHistoryManager.DeleteJob(r.Nickname, r.Id)
-	if err != nil {
-		log.Error(log.GRPCSys, err)
-		status = "failed"
-	}
-
-	return &gctrpc.GenericResponse{Status: status}, err
 }
 
 // GetActiveDataHistoryJobs returns any active data history job details
@@ -3568,4 +3550,25 @@ func (s *RPCServer) GetDataHistoryJobSummary(_ context.Context, r *gctrpc.GetDat
 		Status:          job.Status.String(),
 		ResultSummaries: job.ResultRanges,
 	}, nil
+}
+
+// SetDataHistoryJobStatus sets a data history job's status
+func (s *RPCServer) SetDataHistoryJobStatus(_ context.Context, r *gctrpc.SetDataHistoryJobStatusRequest) (*gctrpc.GenericResponse, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+	if r.Nickname == "" && r.Id == "" {
+		return nil, errNicknameIDUnset
+	}
+	if r.Nickname != "" && r.Id != "" {
+		return nil, errOnlyNicknameOrID
+	}
+	status := "success"
+	err := s.dataHistoryManager.SetJobStatus(r.Nickname, r.Id, dataHistoryStatus(r.Status))
+	if err != nil {
+		log.Error(log.GRPCSys, err)
+		status = "failed"
+	}
+
+	return &gctrpc.GenericResponse{Status: status}, err
 }

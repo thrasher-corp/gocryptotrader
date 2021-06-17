@@ -527,6 +527,22 @@ completionCheck:
 			job.Status = dataHistoryIntervalMissingData
 		}
 		log.Infof(log.DataHistory, "job %s finished! Status: %s", job.Nickname, job.Status)
+		newJobs, err := m.jobDB.GetRelatedUpcomingJobs(job.Nickname)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+		var newJobNames []string
+		for i := range newJobs {
+			newJobs[i].Status = int64(dataHistoryStatusActive)
+			newJobNames = append(newJobNames, newJobs[i].Nickname)
+		}
+		if len(newJobNames) > 0 {
+			log.Infof(log.DataHistory, "setting the follow jobs to active: %s", strings.Join(newJobNames, ", "))
+			err = m.jobDB.Upsert(newJobs...)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	dbJob := m.convertJobToDBModel(job)
@@ -558,24 +574,28 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		return fmt.Errorf("upsert job %w", errNicknameUnset)
 	}
 
+	if m == nil {
+		return ErrNilSubsystem
+	}
+	if !m.IsRunning() {
+		return ErrSubSystemNotStarted
+	}
 	j, err := m.GetByNickname(job.Nickname, false)
 	if err != nil && !errors.Is(err, errJobNotFound) {
 		return err
 	}
-
 	if insertOnly && j != nil ||
 		(j != nil && j.Status != dataHistoryStatusActive) {
 		return fmt.Errorf("upsert job %w nickname: %s - status: %s ", errNicknameInUse, j.Nickname, j.Status)
 	}
-
-	m.m.Lock()
-	defer m.m.Unlock()
 
 	err = m.validateJob(job)
 	if err != nil {
 		return err
 	}
 	toUpdate := false
+	m.m.Lock()
+	defer m.m.Unlock()
 	if !insertOnly {
 		for i := range m.jobs {
 			if !strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
@@ -610,6 +630,9 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 			if job.MaxRetryAttempts != 0 && m.jobs[i].MaxRetryAttempts != job.MaxRetryAttempts {
 				m.jobs[i].MaxRetryAttempts = job.MaxRetryAttempts
 			}
+			if job.PreviousJobNickname != m.jobs[i].PreviousJobNickname {
+				m.jobs[i].PreviousJobNickname = job.PreviousJobNickname
+			}
 			m.jobs[i].DataType = job.DataType
 			m.jobs[i].Status = job.Status
 			break
@@ -624,6 +647,19 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.Interval, uint32(job.RequestSizeLimit))
 	if err != nil {
 		return err
+	}
+
+	if job.PreviousJobNickname != "" {
+		prevJob, err := m.GetByNickname(job.Nickname, false)
+		if err != nil {
+			if errors.Is(err, errJobNotFound) {
+				return fmt.Errorf("%s previous job %s %w", job.Nickname, job.PreviousJobNickname, err)
+			}
+		}
+		if prevJob.Status == dataHistoryStatusActive {
+			// we pause the job until the previous job is finished
+			job.Status = dataHistoryStatusPaused
+		}
 	}
 
 	if !toUpdate {
@@ -802,8 +838,8 @@ func (m *DataHistoryManager) GetAllJobStatusBetween(start, end time.Time) ([]*Da
 	return results, nil
 }
 
-// DeleteJob helper function to assist in setting a job to deleted
-func (m *DataHistoryManager) DeleteJob(nickname, id string) error {
+// SetJobStatus helper function to assist in setting a job to deleted
+func (m *DataHistoryManager) SetJobStatus(nickname, id string, status dataHistoryStatus) error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
@@ -816,6 +852,11 @@ func (m *DataHistoryManager) DeleteJob(nickname, id string) error {
 	if nickname != "" && id != "" {
 		return errOnlyNicknameOrID
 	}
+	if status != dataHistoryStatusPaused &&
+		status != dataHistoryStatusRemoved &&
+		status != dataHistoryStatusActive {
+		return fmt.Errorf("%w %s", errCannotSetJobStatus, status.String())
+	}
 	var dbJob *datahistoryjob.DataHistoryJob
 	var err error
 	m.m.Lock()
@@ -824,7 +865,10 @@ func (m *DataHistoryManager) DeleteJob(nickname, id string) error {
 		if strings.EqualFold(m.jobs[i].Nickname, nickname) ||
 			m.jobs[i].ID.String() == id {
 			dbJob = m.convertJobToDBModel(m.jobs[i])
-			m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
+			if status == dataHistoryStatusPaused ||
+				status == dataHistoryStatusRemoved {
+				m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
+			}
 			break
 		}
 	}
@@ -841,16 +885,19 @@ func (m *DataHistoryManager) DeleteJob(nickname, id string) error {
 			}
 		}
 	}
-	if dbJob.Status != int64(dataHistoryStatusActive) {
-		status := dataHistoryStatus(dbJob.Status)
-		return fmt.Errorf("job: %v status: %s error: %w", dbJob.Nickname, status, errCanOnlyDeleteActiveJobs)
-	}
-	dbJob.Status = int64(dataHistoryStatusRemoved)
+	dbJob.Status = int64(status)
 	err = m.jobDB.Upsert(dbJob)
 	if err != nil {
 		return err
 	}
-	log.Infof(log.DataHistory, "deleted job %v", dbJob.Nickname)
+	if status == dataHistoryStatusActive {
+		job, err := m.convertDBModelToJob(dbJob)
+		if err != nil {
+			return err
+		}
+		m.jobs = append(m.jobs, job)
+	}
+	log.Infof(log.DataHistory, "set job %v status to %v", dbJob.Nickname, status.String())
 	return nil
 }
 

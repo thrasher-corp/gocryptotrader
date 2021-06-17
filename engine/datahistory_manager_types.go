@@ -35,6 +35,7 @@ const (
 	dataHistoryStatusComplete
 	dataHistoryStatusRemoved
 	dataHistoryIntervalMissingData
+	dataHistoryStatusPaused
 )
 
 // String stringifies iotas to readable
@@ -89,12 +90,12 @@ var (
 	errNicknameIDUnset            = errors.New("must set 'id' OR 'nickname'")
 	errEmptyID                    = errors.New("id not set")
 	errOnlyNicknameOrID           = errors.New("can only set 'id' OR 'nickname'")
+	errCannotSetJobStatus         = errors.New("can only pause, unpause or delete jobs")
 	errNicknameInUse              = errors.New("cannot continue as nickname already in use")
 	errNicknameUnset              = errors.New("cannot continue as nickname unset")
 	errJobInvalid                 = errors.New("job has not been setup properly and cannot be processed")
 	errInvalidDataHistoryStatus   = errors.New("unsupported data history status received")
 	errInvalidDataHistoryDataType = errors.New("unsupported data history data type received")
-	errCanOnlyDeleteActiveJobs    = errors.New("can only delete active jobs")
 	// defaultDataHistoryTradeInterval is the default interval size used to verify whether there is any database data
 	// for a trade job
 	defaultDataHistoryTradeInterval          = kline.FifteenMin
@@ -145,6 +146,7 @@ type DataHistoryJob struct {
 	rangeHolder           *kline.IntervalRangeHolder
 	OverwriteExistingData bool
 	ConversionInterval    kline.Interval
+	PreviousJobNickname   string
 }
 
 // DataHistoryJobResult contains details on

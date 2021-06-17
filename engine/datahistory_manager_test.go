@@ -207,11 +207,11 @@ func TestUpsertJob(t *testing.T) {
 	}
 }
 
-func TestDeleteJob(t *testing.T) {
+func TestSetJobStatus(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
 	dhj := &DataHistoryJob{
-		Nickname:  "TestDeleteJob",
+		Nickname:  "TestSetJobStatus",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
@@ -224,36 +224,47 @@ func TestDeleteJob(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	err = m.DeleteJob("", "")
+	err = m.SetJobStatus("", "", 0)
 	if !errors.Is(err, errNicknameIDUnset) {
 		t.Errorf("error '%v', expected '%v'", err, errNicknameIDUnset)
 	}
 
-	err = m.DeleteJob("1337", "1337")
+	err = m.SetJobStatus("1337", "1337", 0)
 	if !errors.Is(err, errOnlyNicknameOrID) {
 		t.Errorf("error '%v', expected '%v'", err, errOnlyNicknameOrID)
 	}
 
-	err = m.DeleteJob(dhj.Nickname, "")
+	err = m.SetJobStatus(dhj.Nickname, "", dataHistoryStatusRemoved)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	if len(m.jobs) != 0 {
 		t.Error("expected 0")
 	}
-	err = m.DeleteJob("", dhj.ID.String())
+	err = m.SetJobStatus("", dhj.ID.String(), dataHistoryStatusActive)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
+	if len(m.jobs) != 1 {
+		t.Error("expected 1")
+	}
+
+	err = m.SetJobStatus("", dhj.ID.String(), dataHistoryStatusPaused)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	if len(m.jobs) != 0 {
+		t.Error("expected 0")
+	}
 
 	atomic.StoreInt32(&m.started, 0)
-	err = m.DeleteJob("", dhj.ID.String())
+	err = m.SetJobStatus("", dhj.ID.String(), 0)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 
 	m = nil
-	err = m.DeleteJob("", dhj.ID.String())
+	err = m.SetJobStatus("", dhj.ID.String(), 0)
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}

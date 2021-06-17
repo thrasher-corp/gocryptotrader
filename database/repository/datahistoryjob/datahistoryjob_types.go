@@ -44,4 +44,5 @@ type IDBService interface {
 	GetJobsBetween(startDate, endDate time.Time) ([]DataHistoryJob, error)
 	GetAllIncompleteJobsAndResults() ([]DataHistoryJob, error)
 	GetJobAndAllResults(nickname string) (*DataHistoryJob, error)
+	GetRelatedUpcomingJobs(nickname string) ([]*DataHistoryJob, error)
 }

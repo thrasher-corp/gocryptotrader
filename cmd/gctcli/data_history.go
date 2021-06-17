@@ -171,7 +171,21 @@ var dataHistoryCommands = &cli.Command{
 			Usage:     "sets a jobs status to deleted so it no longer is processed",
 			ArgsUsage: "<id> or <nickname>",
 			Flags:     specificJobSubCommands,
-			Action:    deleteDataHistoryJob,
+			Action:    setDataHistoryJobStatus,
+		},
+		{
+			Name:      "pausejob",
+			Usage:     "sets a jobs status to paused so it no longer is processed",
+			ArgsUsage: "<id> or <nickname>",
+			Flags:     specificJobSubCommands,
+			Action:    setDataHistoryJobStatus,
+		},
+		{
+			Name:      "unpausejob",
+			Usage:     "sets a jobs status to active so it can be processed",
+			ArgsUsage: "<id> or <nickname>",
+			Flags:     specificJobSubCommands,
+			Action:    setDataHistoryJobStatus,
 		},
 	},
 }
@@ -453,7 +467,7 @@ func getDataHistoryJobsBetween(c *cli.Context) error {
 	return nil
 }
 
-func deleteDataHistoryJob(c *cli.Context) error {
+func setDataHistoryJobStatus(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowCommandHelp(c, c.Command.Name)
 	}
@@ -474,6 +488,18 @@ func deleteDataHistoryJob(c *cli.Context) error {
 		return errors.New("can only set 'id' OR 'nickname'")
 	}
 
+	var status int64
+	switch c.Command.Name {
+	case "deletejob":
+		status = 3
+	case "pausejob":
+		status = 4
+	case "unpausejob":
+		status = 5
+	default:
+		return fmt.Errorf("unrecognised data history job status type")
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -485,12 +511,13 @@ func deleteDataHistoryJob(c *cli.Context) error {
 		}
 	}()
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	request := &gctrpc.GetDataHistoryJobDetailsRequest{
+	request := &gctrpc.SetDataHistoryJobStatusRequest{
 		Id:       id,
 		Nickname: nickname,
+		Status:   status,
 	}
 
-	result, err := client.DeleteDataHistoryJob(context.Background(), request)
+	result, err := client.SetDataHistoryJobStatus(context.Background(), request)
 	if err != nil {
 		return err
 	}

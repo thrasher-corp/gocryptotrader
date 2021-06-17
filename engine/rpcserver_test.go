@@ -1298,7 +1298,7 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 	}
 }
 
-func TestDeleteDataHistoryJob(t *testing.T) {
+func TestSetDataHistoryJobStatus(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
@@ -1316,29 +1316,43 @@ func TestDeleteDataHistoryJob(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, expected %v", err, nil)
 	}
-	_, err = s.DeleteDataHistoryJob(context.Background(), nil)
+	_, err = s.SetDataHistoryJobStatus(context.Background(), nil)
 	if !errors.Is(err, errNilRequestData) {
 		t.Errorf("received %v, expected %v", err, errNilRequestData)
 	}
 
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{})
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{})
 	if !errors.Is(err, errNicknameIDUnset) {
 		t.Errorf("received %v, expected %v", err, errNicknameIDUnset)
 	}
 
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: "123", Nickname: "123"})
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: "123", Nickname: "123"})
 	if !errors.Is(err, errOnlyNicknameOrID) {
 		t.Errorf("received %v, expected %v", err, errOnlyNicknameOrID)
 	}
 
 	id := m.jobs[0].ID
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestDeleteDataHistoryJob"})
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Nickname: "TestDeleteDataHistoryJob", Status: int64(dataHistoryStatusRemoved)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
 	dhj.ID = id
 	m.jobs = append(m.jobs, dhj)
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: id.String()})
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusRemoved)})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+	if len(m.jobs) != 0 {
+		t.Errorf("received %v, expected %v", len(m.jobs), 0)
+	}
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusActive)})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+	if len(m.jobs) != 1 {
+		t.Errorf("received %v, expected %v", len(m.jobs), 1)
+	}
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusPaused)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}

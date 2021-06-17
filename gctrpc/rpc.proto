@@ -868,6 +868,15 @@ message UpsertDataHistoryJobRequest {
     bool insert_only = 12;
     int64	conversion_interval = 13;
     bool overwrite_existing_data = 14;
+    string previous_job_nickname = 15;
+}
+
+message InsertSequentialJobsRequest {
+    repeated UpsertDataHistoryJobRequest jobs = 1;
+}
+
+message InsertSequentialJobsResponse {
+    repeated  UpsertDataHistoryJobResponse jobs = 1;
 }
 
 message UpsertDataHistoryJobResponse {
@@ -916,6 +925,12 @@ message DataHistoryJobs {
 message GetDataHistoryJobsBetweenRequest {
     string start_date = 1;
     string end_date = 2;
+}
+
+message SetDataHistoryJobStatusRequest {
+    string id = 1;
+    string nickname = 2;
+    int64 status = 3;
 }
 
 service GoCryptoTrader {
@@ -1442,11 +1457,6 @@ service GoCryptoTrader {
             get: "/v1/getactivedatahistoryjobs"
         };
     }
-    rpc DeleteDataHistoryJob (GetDataHistoryJobDetailsRequest) returns (GenericResponse) {
-        option (google.api.http) = {
-            delete: "/v1/deletedatahistoryjob"
-        };
-    }
     rpc GetDataHistoryJobsBetween (GetDataHistoryJobsBetweenRequest) returns (DataHistoryJobs) {
         option (google.api.http) = {
             get: "/v1/getdatahistoryjobsbetween"
@@ -1457,15 +1467,15 @@ service GoCryptoTrader {
             get: "/v1/getdatahistoryjobsummary"
         };
     }
-    rpc PauseDataHistoryJob (GetDataHistoryJobDetailsRequest) returns (GenericResponse) {
+    rpc SetDataHistoryJobStatus (SetDataHistoryJobStatusRequest) returns (GenericResponse) {
         option (google.api.http) = {
-            post: "/v1/pausedatahistoryjob",
+            post: "/v1/setdatahistoryjobstatus",
             body: "*"
         };
     }
-    rpc UnPauseDataHistoryJob (GetDataHistoryJobDetailsRequest) returns (GenericResponse) {
+    rpc InsertSequentialJobs (InsertSequentialJobsRequest) returns (InsertSequentialJobsResponse) {
         option (google.api.http) = {
-            post: "/v1/unpausedatahistoryjob",
+            post: "/v1/insertsequentialjobs",
             body: "*"
         };
     }

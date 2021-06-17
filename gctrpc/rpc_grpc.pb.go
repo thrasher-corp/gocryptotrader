@@ -100,11 +100,10 @@ type GoCryptoTraderClient interface {
 	UpsertDataHistoryJob(ctx context.Context, in *UpsertDataHistoryJobRequest, opts ...grpc.CallOption) (*UpsertDataHistoryJobResponse, error)
 	GetDataHistoryJobDetails(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*DataHistoryJob, error)
 	GetActiveDataHistoryJobs(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*DataHistoryJobs, error)
-	DeleteDataHistoryJob(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetDataHistoryJobsBetween(ctx context.Context, in *GetDataHistoryJobsBetweenRequest, opts ...grpc.CallOption) (*DataHistoryJobs, error)
 	GetDataHistoryJobSummary(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*DataHistoryJob, error)
-	PauseDataHistoryJob(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*GenericResponse, error)
-	UnPauseDataHistoryJob(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	SetDataHistoryJobStatus(ctx context.Context, in *SetDataHistoryJobStatusRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	InsertSequentialJobs(ctx context.Context, in *InsertSequentialJobsRequest, opts ...grpc.CallOption) (*InsertSequentialJobsResponse, error)
 }
 
 type goCryptoTraderClient struct {
@@ -991,15 +990,6 @@ func (c *goCryptoTraderClient) GetActiveDataHistoryJobs(ctx context.Context, in 
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) DeleteDataHistoryJob(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
-	out := new(GenericResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/DeleteDataHistoryJob", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *goCryptoTraderClient) GetDataHistoryJobsBetween(ctx context.Context, in *GetDataHistoryJobsBetweenRequest, opts ...grpc.CallOption) (*DataHistoryJobs, error) {
 	out := new(DataHistoryJobs)
 	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetDataHistoryJobsBetween", in, out, opts...)
@@ -1018,18 +1008,18 @@ func (c *goCryptoTraderClient) GetDataHistoryJobSummary(ctx context.Context, in 
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) PauseDataHistoryJob(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+func (c *goCryptoTraderClient) SetDataHistoryJobStatus(ctx context.Context, in *SetDataHistoryJobStatusRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
 	out := new(GenericResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/PauseDataHistoryJob", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/SetDataHistoryJobStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) UnPauseDataHistoryJob(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
-	out := new(GenericResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/UnPauseDataHistoryJob", in, out, opts...)
+func (c *goCryptoTraderClient) InsertSequentialJobs(ctx context.Context, in *InsertSequentialJobsRequest, opts ...grpc.CallOption) (*InsertSequentialJobsResponse, error) {
+	out := new(InsertSequentialJobsResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/InsertSequentialJobs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1122,11 +1112,10 @@ type GoCryptoTraderServer interface {
 	UpsertDataHistoryJob(context.Context, *UpsertDataHistoryJobRequest) (*UpsertDataHistoryJobResponse, error)
 	GetDataHistoryJobDetails(context.Context, *GetDataHistoryJobDetailsRequest) (*DataHistoryJob, error)
 	GetActiveDataHistoryJobs(context.Context, *GetInfoRequest) (*DataHistoryJobs, error)
-	DeleteDataHistoryJob(context.Context, *GetDataHistoryJobDetailsRequest) (*GenericResponse, error)
 	GetDataHistoryJobsBetween(context.Context, *GetDataHistoryJobsBetweenRequest) (*DataHistoryJobs, error)
 	GetDataHistoryJobSummary(context.Context, *GetDataHistoryJobDetailsRequest) (*DataHistoryJob, error)
-	PauseDataHistoryJob(context.Context, *GetDataHistoryJobDetailsRequest) (*GenericResponse, error)
-	UnPauseDataHistoryJob(context.Context, *GetDataHistoryJobDetailsRequest) (*GenericResponse, error)
+	SetDataHistoryJobStatus(context.Context, *SetDataHistoryJobStatusRequest) (*GenericResponse, error)
+	InsertSequentialJobs(context.Context, *InsertSequentialJobsRequest) (*InsertSequentialJobsResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
@@ -1380,20 +1369,17 @@ func (UnimplementedGoCryptoTraderServer) GetDataHistoryJobDetails(context.Contex
 func (UnimplementedGoCryptoTraderServer) GetActiveDataHistoryJobs(context.Context, *GetInfoRequest) (*DataHistoryJobs, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetActiveDataHistoryJobs not implemented")
 }
-func (UnimplementedGoCryptoTraderServer) DeleteDataHistoryJob(context.Context, *GetDataHistoryJobDetailsRequest) (*GenericResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteDataHistoryJob not implemented")
-}
 func (UnimplementedGoCryptoTraderServer) GetDataHistoryJobsBetween(context.Context, *GetDataHistoryJobsBetweenRequest) (*DataHistoryJobs, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDataHistoryJobsBetween not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) GetDataHistoryJobSummary(context.Context, *GetDataHistoryJobDetailsRequest) (*DataHistoryJob, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDataHistoryJobSummary not implemented")
 }
-func (UnimplementedGoCryptoTraderServer) PauseDataHistoryJob(context.Context, *GetDataHistoryJobDetailsRequest) (*GenericResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PauseDataHistoryJob not implemented")
+func (UnimplementedGoCryptoTraderServer) SetDataHistoryJobStatus(context.Context, *SetDataHistoryJobStatusRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetDataHistoryJobStatus not implemented")
 }
-func (UnimplementedGoCryptoTraderServer) UnPauseDataHistoryJob(context.Context, *GetDataHistoryJobDetailsRequest) (*GenericResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UnPauseDataHistoryJob not implemented")
+func (UnimplementedGoCryptoTraderServer) InsertSequentialJobs(context.Context, *InsertSequentialJobsRequest) (*InsertSequentialJobsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InsertSequentialJobs not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) mustEmbedUnimplementedGoCryptoTraderServer() {}
 
@@ -2902,24 +2888,6 @@ func _GoCryptoTrader_GetActiveDataHistoryJobs_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTrader_DeleteDataHistoryJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetDataHistoryJobDetailsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(GoCryptoTraderServer).DeleteDataHistoryJob(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTrader/DeleteDataHistoryJob",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).DeleteDataHistoryJob(ctx, req.(*GetDataHistoryJobDetailsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _GoCryptoTrader_GetDataHistoryJobsBetween_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetDataHistoryJobsBetweenRequest)
 	if err := dec(in); err != nil {
@@ -2956,38 +2924,38 @@ func _GoCryptoTrader_GetDataHistoryJobSummary_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTrader_PauseDataHistoryJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetDataHistoryJobDetailsRequest)
+func _GoCryptoTrader_SetDataHistoryJobStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetDataHistoryJobStatusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GoCryptoTraderServer).PauseDataHistoryJob(ctx, in)
+		return srv.(GoCryptoTraderServer).SetDataHistoryJobStatus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTrader/PauseDataHistoryJob",
+		FullMethod: "/gctrpc.GoCryptoTrader/SetDataHistoryJobStatus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).PauseDataHistoryJob(ctx, req.(*GetDataHistoryJobDetailsRequest))
+		return srv.(GoCryptoTraderServer).SetDataHistoryJobStatus(ctx, req.(*SetDataHistoryJobStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTrader_UnPauseDataHistoryJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetDataHistoryJobDetailsRequest)
+func _GoCryptoTrader_InsertSequentialJobs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InsertSequentialJobsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GoCryptoTraderServer).UnPauseDataHistoryJob(ctx, in)
+		return srv.(GoCryptoTraderServer).InsertSequentialJobs(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTrader/UnPauseDataHistoryJob",
+		FullMethod: "/gctrpc.GoCryptoTrader/InsertSequentialJobs",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).UnPauseDataHistoryJob(ctx, req.(*GetDataHistoryJobDetailsRequest))
+		return srv.(GoCryptoTraderServer).InsertSequentialJobs(ctx, req.(*InsertSequentialJobsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3304,10 +3272,6 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTrader_GetActiveDataHistoryJobs_Handler,
 		},
 		{
-			MethodName: "DeleteDataHistoryJob",
-			Handler:    _GoCryptoTrader_DeleteDataHistoryJob_Handler,
-		},
-		{
 			MethodName: "GetDataHistoryJobsBetween",
 			Handler:    _GoCryptoTrader_GetDataHistoryJobsBetween_Handler,
 		},
@@ -3316,12 +3280,12 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTrader_GetDataHistoryJobSummary_Handler,
 		},
 		{
-			MethodName: "PauseDataHistoryJob",
-			Handler:    _GoCryptoTrader_PauseDataHistoryJob_Handler,
+			MethodName: "SetDataHistoryJobStatus",
+			Handler:    _GoCryptoTrader_SetDataHistoryJobStatus_Handler,
 		},
 		{
-			MethodName: "UnPauseDataHistoryJob",
-			Handler:    _GoCryptoTrader_UnPauseDataHistoryJob_Handler,
+			MethodName: "InsertSequentialJobs",
+			Handler:    _GoCryptoTrader_InsertSequentialJobs_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
