@@ -186,6 +186,8 @@ type PositionData struct {
 	Side                         string  `json:"side"`
 	Size                         float64 `json:"size"`
 	UnrealizedPnL                float64 `json:"unrealizedPnL"`
+	CollateralUsed               float64 `json:"collateralUsed"`
+	EstimatedLiquidationPrice    float64 `json:"estimatedLiquidationPrice"`
 }
 
 // AccountInfoData stores account data
@@ -377,7 +379,7 @@ type LTBalanceData struct {
 
 // LTCreationData stores token creation requests' data
 type LTCreationData struct {
-	ID            string    `json:"id"`
+	ID            int64     `json:"id"`
 	Token         string    `json:"token"`
 	RequestedSize float64   `json:"requestedSize"`
 	Pending       bool      `json:"pending"`
@@ -391,7 +393,7 @@ type LTCreationData struct {
 
 // RequestTokenCreationData stores data of the token creation requested
 type RequestTokenCreationData struct {
-	ID            string    `json:"id"`
+	ID            int64     `json:"id"`
 	Token         string    `json:"token"`
 	RequestedSize float64   `json:"requestedSize"`
 	Cost          float64   `json:"cost"`
@@ -414,7 +416,7 @@ type LTRedemptionData struct {
 
 // LTRedemptionRequestData stores redemption request data for a leveraged token
 type LTRedemptionRequestData struct {
-	ID                string    `json:"id"`
+	ID                int64     `json:"id"`
 	Token             string    `json:"token"`
 	Size              float64   `json:"size"`
 	ProjectedProceeds float64   `json:"projectedProceeds"`
