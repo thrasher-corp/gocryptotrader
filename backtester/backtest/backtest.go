@@ -305,7 +305,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].ShowAccountClaimWarning = true
 		}
 
-		exch.GetBase().LoadHoldings(string(account.Main),
+		err = exch.GetBase().LoadHoldings(string(account.Main),
 			true,
 			asset.Spot,
 			account.HoldingsSnapshot{
@@ -314,6 +314,9 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 				currency.NewCode(cfg.CurrencySettings[i].Base):  account.Balance{Total: cfg.CurrencySettings[i].InitialFunds},
 				currency.NewCode(cfg.CurrencySettings[i].Quote): account.Balance{Total: cfg.CurrencySettings[i].InitialFunds},
 			})
+		if err != nil {
+			return resp, err
+		}
 
 		resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
 			ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
