@@ -3339,21 +3339,21 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 	}
 
 	job := DataHistoryJob{
-		Nickname:              r.Nickname,
-		Exchange:              r.Exchange,
-		Asset:                 a,
-		Pair:                  p,
-		StartDate:             start,
-		EndDate:               end,
-		Interval:              kline.Interval(r.Interval),
-		RunBatchLimit:         r.BatchSize,
-		RequestSizeLimit:      r.RequestSizeLimit,
-		DataType:              dataHistoryDataType(r.DataType),
-		MaxRetryAttempts:      r.MaxRetryAttempts,
-		Status:                dataHistoryStatusActive,
-		OverwriteExistingData: r.OverwriteExistingData,
-		ConversionInterval:    kline.Interval(r.ConversionInterval),
-		PreviousJobNickname:   r.PreviousJobNickname,
+		Nickname:                r.Nickname,
+		Exchange:                r.Exchange,
+		Asset:                   a,
+		Pair:                    p,
+		StartDate:               start,
+		EndDate:                 end,
+		Interval:                kline.Interval(r.Interval),
+		RunBatchLimit:           r.BatchSize,
+		RequestSizeLimit:        r.RequestSizeLimit,
+		DataType:                dataHistoryDataType(r.DataType),
+		MaxRetryAttempts:        r.MaxRetryAttempts,
+		Status:                  dataHistoryStatusActive,
+		OverwriteExistingData:   r.OverwriteExistingData,
+		ConversionInterval:      kline.Interval(r.ConversionInterval),
+		PrerequisiteJobNickname: r.PreviousJobNickname,
 	}
 
 	err = s.dataHistoryManager.UpsertJob(&job, r.InsertOnly)

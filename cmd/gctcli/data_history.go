@@ -92,6 +92,10 @@ var (
 			Name:  "overwrite_existing_data",
 			Usage: "when converting candles, if data already exists for the time period in the database, it will be overwritten",
 		},
+		cli.StringFlag{
+			Name:  "prerequisite_job_nickname",
+			Usage: "using an existing job nickname allows you to queue this new job to run after the previous job is finished",
+		},
 	}
 )
 
@@ -354,9 +358,9 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	if dataType == 2 || dataType == 3 || dataType == 4 {
 		var cInterval int64
 		if c.IsSet("conversion_interval") {
-			batchSize = c.Int64("conversion_interval")
+			cInterval = c.Int64("conversion_interval")
 		} else {
-			batchSize, err = convert.Int64FromString(c.Args().Get(12))
+			cInterval, err = convert.Int64FromString(c.Args().Get(11))
 			if err != nil {
 				return fmt.Errorf("cannot process conversion_interval: %w", err)
 			}
@@ -371,6 +375,12 @@ func upsertDataHistoryJob(c *cli.Context) error {
 				return fmt.Errorf("cannot process overwrite_existing_data: %w", err)
 			}
 		}
+	}
+	var prerequisiteJobNickname string
+	if c.IsSet("prerequisite_job_nickname") {
+		assetType = c.String("prerequisite_job_nickname")
+	} else {
+		prerequisiteJobNickname = c.Args().Get(13)
 	}
 
 	conn, err := setupClient()
@@ -402,6 +412,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		BatchSize:        int64(batchSize),
 		ConversionInterval:    int64(conversionInterval),
 		OverwriteExistingData: overwriteExistingData,
+		PrerequisiteJobNickname: prerequisiteJobNickname,
 	}
 	if strings.EqualFold(c.Command.Name, "addnewjob") {
 		request.InsertOnly = true

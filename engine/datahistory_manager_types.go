@@ -146,7 +146,9 @@ type DataHistoryJob struct {
 	rangeHolder           *kline.IntervalRangeHolder
 	OverwriteExistingData bool
 	ConversionInterval    kline.Interval
-	PreviousJobNickname   string
+	// Prerequisites mean this job is paused until the prerequisite job is completed
+	PrerequisiteJobID       uuid.UUID
+	PrerequisiteJobNickname string
 }
 
 // DataHistoryJobResult contains details on

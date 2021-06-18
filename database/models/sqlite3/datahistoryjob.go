@@ -114,17 +114,23 @@ var DatahistoryjobWhere = struct {
 
 // DatahistoryjobRels is where relationship names are stored.
 var DatahistoryjobRels = struct {
-	ExchangeName             string
-	JobDatahistoryjobresults string
+	ExchangeName                           string
+	FollowingJobDatahistoryjobrelations    string
+	PrerequisiteJobDatahistoryjobrelations string
+	JobDatahistoryjobresults               string
 }{
-	ExchangeName:             "ExchangeName",
-	JobDatahistoryjobresults: "JobDatahistoryjobresults",
+	ExchangeName:                           "ExchangeName",
+	FollowingJobDatahistoryjobrelations:    "FollowingJobDatahistoryjobrelations",
+	PrerequisiteJobDatahistoryjobrelations: "PrerequisiteJobDatahistoryjobrelations",
+	JobDatahistoryjobresults:               "JobDatahistoryjobresults",
 }
 
 // datahistoryjobR is where relationships are stored.
 type datahistoryjobR struct {
-	ExchangeName             *Exchange
-	JobDatahistoryjobresults DatahistoryjobresultSlice
+	ExchangeName                           *Exchange
+	FollowingJobDatahistoryjobrelations    DatahistoryjobrelationSlice
+	PrerequisiteJobDatahistoryjobrelations DatahistoryjobrelationSlice
+	JobDatahistoryjobresults               DatahistoryjobresultSlice
 }
 
 // NewStruct creates a new relationship struct
@@ -431,6 +437,48 @@ func (o *Datahistoryjob) ExchangeName(mods ...qm.QueryMod) exchangeQuery {
 	return query
 }
 
+// FollowingJobDatahistoryjobrelations retrieves all the datahistoryjobrelation's Datahistoryjobrelations with an executor via following_job_id column.
+func (o *Datahistoryjob) FollowingJobDatahistoryjobrelations(mods ...qm.QueryMod) datahistoryjobrelationQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"datahistoryjobrelations\".\"following_job_id\"=?", o.ID),
+	)
+
+	query := Datahistoryjobrelations(queryMods...)
+	queries.SetFrom(query.Query, "\"datahistoryjobrelations\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"datahistoryjobrelations\".*"})
+	}
+
+	return query
+}
+
+// PrerequisiteJobDatahistoryjobrelations retrieves all the datahistoryjobrelation's Datahistoryjobrelations with an executor via prerequisite_job_id column.
+func (o *Datahistoryjob) PrerequisiteJobDatahistoryjobrelations(mods ...qm.QueryMod) datahistoryjobrelationQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"datahistoryjobrelations\".\"prerequisite_job_id\"=?", o.ID),
+	)
+
+	query := Datahistoryjobrelations(queryMods...)
+	queries.SetFrom(query.Query, "\"datahistoryjobrelations\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"datahistoryjobrelations\".*"})
+	}
+
+	return query
+}
+
 // JobDatahistoryjobresults retrieves all the datahistoryjobresult's Datahistoryjobresults with an executor via job_id column.
 func (o *Datahistoryjob) JobDatahistoryjobresults(mods ...qm.QueryMod) datahistoryjobresultQuery {
 	var queryMods []qm.QueryMod
@@ -545,6 +593,196 @@ func (datahistoryjobL) LoadExchangeName(ctx context.Context, e boil.ContextExecu
 					foreign.R = &exchangeR{}
 				}
 				foreign.R.ExchangeNameDatahistoryjobs = append(foreign.R.ExchangeNameDatahistoryjobs, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadFollowingJobDatahistoryjobrelations allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (datahistoryjobL) LoadFollowingJobDatahistoryjobrelations(ctx context.Context, e boil.ContextExecutor, singular bool, maybeDatahistoryjob interface{}, mods queries.Applicator) error {
+	var slice []*Datahistoryjob
+	var object *Datahistoryjob
+
+	if singular {
+		object = maybeDatahistoryjob.(*Datahistoryjob)
+	} else {
+		slice = *maybeDatahistoryjob.(*[]*Datahistoryjob)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &datahistoryjobR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &datahistoryjobR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`datahistoryjobrelations`), qm.WhereIn(`datahistoryjobrelations.following_job_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load datahistoryjobrelations")
+	}
+
+	var resultSlice []*Datahistoryjobrelation
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice datahistoryjobrelations")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on datahistoryjobrelations")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for datahistoryjobrelations")
+	}
+
+	if len(datahistoryjobrelationAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.FollowingJobDatahistoryjobrelations = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &datahistoryjobrelationR{}
+			}
+			foreign.R.FollowingJob = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.FollowingJobID {
+				local.R.FollowingJobDatahistoryjobrelations = append(local.R.FollowingJobDatahistoryjobrelations, foreign)
+				if foreign.R == nil {
+					foreign.R = &datahistoryjobrelationR{}
+				}
+				foreign.R.FollowingJob = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadPrerequisiteJobDatahistoryjobrelations allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (datahistoryjobL) LoadPrerequisiteJobDatahistoryjobrelations(ctx context.Context, e boil.ContextExecutor, singular bool, maybeDatahistoryjob interface{}, mods queries.Applicator) error {
+	var slice []*Datahistoryjob
+	var object *Datahistoryjob
+
+	if singular {
+		object = maybeDatahistoryjob.(*Datahistoryjob)
+	} else {
+		slice = *maybeDatahistoryjob.(*[]*Datahistoryjob)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &datahistoryjobR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &datahistoryjobR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`datahistoryjobrelations`), qm.WhereIn(`datahistoryjobrelations.prerequisite_job_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load datahistoryjobrelations")
+	}
+
+	var resultSlice []*Datahistoryjobrelation
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice datahistoryjobrelations")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on datahistoryjobrelations")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for datahistoryjobrelations")
+	}
+
+	if len(datahistoryjobrelationAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.PrerequisiteJobDatahistoryjobrelations = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &datahistoryjobrelationR{}
+			}
+			foreign.R.PrerequisiteJob = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.PrerequisiteJobID {
+				local.R.PrerequisiteJobDatahistoryjobrelations = append(local.R.PrerequisiteJobDatahistoryjobrelations, foreign)
+				if foreign.R == nil {
+					foreign.R = &datahistoryjobrelationR{}
+				}
+				foreign.R.PrerequisiteJob = local
 				break
 			}
 		}
@@ -692,6 +930,112 @@ func (o *Datahistoryjob) SetExchangeName(ctx context.Context, exec boil.ContextE
 		related.R.ExchangeNameDatahistoryjobs = append(related.R.ExchangeNameDatahistoryjobs, o)
 	}
 
+	return nil
+}
+
+// AddFollowingJobDatahistoryjobrelations adds the given related objects to the existing relationships
+// of the datahistoryjob, optionally inserting them as new records.
+// Appends related to o.R.FollowingJobDatahistoryjobrelations.
+// Sets related.R.FollowingJob appropriately.
+func (o *Datahistoryjob) AddFollowingJobDatahistoryjobrelations(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Datahistoryjobrelation) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.FollowingJobID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"datahistoryjobrelations\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"following_job_id"}),
+				strmangle.WhereClause("\"", "\"", 0, datahistoryjobrelationPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.FollowingJobID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &datahistoryjobR{
+			FollowingJobDatahistoryjobrelations: related,
+		}
+	} else {
+		o.R.FollowingJobDatahistoryjobrelations = append(o.R.FollowingJobDatahistoryjobrelations, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &datahistoryjobrelationR{
+				FollowingJob: o,
+			}
+		} else {
+			rel.R.FollowingJob = o
+		}
+	}
+	return nil
+}
+
+// AddPrerequisiteJobDatahistoryjobrelations adds the given related objects to the existing relationships
+// of the datahistoryjob, optionally inserting them as new records.
+// Appends related to o.R.PrerequisiteJobDatahistoryjobrelations.
+// Sets related.R.PrerequisiteJob appropriately.
+func (o *Datahistoryjob) AddPrerequisiteJobDatahistoryjobrelations(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Datahistoryjobrelation) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.PrerequisiteJobID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"datahistoryjobrelations\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"prerequisite_job_id"}),
+				strmangle.WhereClause("\"", "\"", 0, datahistoryjobrelationPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.PrerequisiteJobID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &datahistoryjobR{
+			PrerequisiteJobDatahistoryjobrelations: related,
+		}
+	} else {
+		o.R.PrerequisiteJobDatahistoryjobrelations = append(o.R.PrerequisiteJobDatahistoryjobrelations, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &datahistoryjobrelationR{
+				PrerequisiteJob: o,
+			}
+		} else {
+			rel.R.PrerequisiteJob = o
+		}
+	}
 	return nil
 }
 

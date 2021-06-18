@@ -596,6 +596,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	toUpdate := false
 	m.m.Lock()
 	defer m.m.Unlock()
+	var existingJob *DataHistoryJob
 	if !insertOnly {
 		for i := range m.jobs {
 			if !strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
@@ -603,6 +604,9 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 			}
 			toUpdate = true
 			job.ID = m.jobs[i].ID
+			existingJob = m.jobs[i]
+			m.jobs[i].OverwriteExistingData = job.OverwriteExistingData
+
 			if job.Exchange != "" && m.jobs[i].Exchange != job.Exchange {
 				m.jobs[i].Exchange = job.Exchange
 			}
@@ -630,9 +634,13 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 			if job.MaxRetryAttempts != 0 && m.jobs[i].MaxRetryAttempts != job.MaxRetryAttempts {
 				m.jobs[i].MaxRetryAttempts = job.MaxRetryAttempts
 			}
-			if job.PreviousJobNickname != m.jobs[i].PreviousJobNickname {
-				m.jobs[i].PreviousJobNickname = job.PreviousJobNickname
+			if job.ConversionInterval != 0 && m.jobs[i].ConversionInterval != job.ConversionInterval {
+				m.jobs[i].ConversionInterval = job.ConversionInterval
 			}
+			if job.PrerequisiteJobNickname != "" && m.jobs[i].PrerequisiteJobNickname != job.PrerequisiteJobNickname {
+				m.jobs[i].PrerequisiteJobNickname = job.PrerequisiteJobNickname
+			}
+
 			m.jobs[i].DataType = job.DataType
 			m.jobs[i].Status = job.Status
 			break
@@ -649,16 +657,23 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		return err
 	}
 
-	if job.PreviousJobNickname != "" {
-		prevJob, err := m.GetByNickname(job.Nickname, false)
+	if job.PrerequisiteJobNickname != "" {
+		prereqJob, err := m.GetByNickname(job.PrerequisiteJobNickname, false)
 		if err != nil {
 			if errors.Is(err, errJobNotFound) {
-				return fmt.Errorf("%s previous job %s %w", job.Nickname, job.PreviousJobNickname, err)
+				return fmt.Errorf("%s previous job %s %w", job.Nickname, job.PrerequisiteJobNickname, err)
 			}
 		}
-		if prevJob.Status == dataHistoryStatusActive {
+		job.PrerequisiteJobID = prereqJob.ID
+		if existingJob != nil {
+			existingJob.PrerequisiteJobID = prereqJob.ID
+		}
+		if prereqJob.Status == dataHistoryStatusActive {
 			// we pause the job until the previous job is finished
 			job.Status = dataHistoryStatusPaused
+			if existingJob != nil {
+				existingJob.Status = dataHistoryStatusPaused
+			}
 		}
 	}
 
@@ -966,23 +981,33 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 		return nil, fmt.Errorf("job %s could not convert database job: %w", dbModel.Nickname, err)
 	}
 
-	return &DataHistoryJob{
-		ID:               id,
-		Nickname:         dbModel.Nickname,
-		Exchange:         dbModel.ExchangeName,
-		Asset:            asset.Item(dbModel.Asset),
-		Pair:             cp,
-		StartDate:        dbModel.StartDate,
-		EndDate:          dbModel.EndDate,
-		Interval:         kline.Interval(dbModel.Interval),
-		RunBatchLimit:    dbModel.BatchSize,
-		RequestSizeLimit: dbModel.RequestSizeLimit,
-		DataType:         dataHistoryDataType(dbModel.DataType),
-		MaxRetryAttempts: dbModel.MaxRetryAttempts,
-		Status:           dataHistoryStatus(dbModel.Status),
-		CreatedDate:      dbModel.CreatedDate,
-		Results:          jobResults,
-	}, nil
+	resp := &DataHistoryJob{
+		ID:                      id,
+		Nickname:                dbModel.Nickname,
+		Exchange:                dbModel.ExchangeName,
+		Asset:                   asset.Item(dbModel.Asset),
+		Pair:                    cp,
+		StartDate:               dbModel.StartDate,
+		EndDate:                 dbModel.EndDate,
+		Interval:                kline.Interval(dbModel.Interval),
+		RunBatchLimit:           dbModel.BatchSize,
+		RequestSizeLimit:        dbModel.RequestSizeLimit,
+		DataType:                dataHistoryDataType(dbModel.DataType),
+		MaxRetryAttempts:        dbModel.MaxRetryAttempts,
+		Status:                  dataHistoryStatus(dbModel.Status),
+		CreatedDate:             dbModel.CreatedDate,
+		Results:                 jobResults,
+		PrerequisiteJobNickname: dbModel.PrerequisiteJobNickname,
+	}
+	if resp.PrerequisiteJobNickname != "" {
+		prereqID, err := uuid.FromString(dbModel.PreviousJobID)
+		if err != nil {
+			return nil, err
+		}
+		resp.PrerequisiteJobID = prereqID
+	}
+
+	return resp, nil
 }
 
 func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryjobresult.DataHistoryJobResult) (map[time.Time][]DataHistoryJobResult, error) {
@@ -1033,24 +1058,28 @@ func (m *DataHistoryManager) convertJobResultToDBResult(results map[time.Time][]
 
 func (m *DataHistoryManager) convertJobToDBModel(job *DataHistoryJob) *datahistoryjob.DataHistoryJob {
 	model := &datahistoryjob.DataHistoryJob{
-		Nickname:         job.Nickname,
-		ExchangeName:     job.Exchange,
-		Asset:            job.Asset.String(),
-		Base:             job.Pair.Base.String(),
-		Quote:            job.Pair.Quote.String(),
-		StartDate:        job.StartDate,
-		EndDate:          job.EndDate,
-		Interval:         int64(job.Interval.Duration()),
-		RequestSizeLimit: job.RequestSizeLimit,
-		DataType:         int64(job.DataType),
-		MaxRetryAttempts: job.MaxRetryAttempts,
-		Status:           int64(job.Status),
-		CreatedDate:      job.CreatedDate,
-		BatchSize:        job.RunBatchLimit,
-		Results:          m.convertJobResultToDBResult(job.Results),
+		Nickname:                job.Nickname,
+		ExchangeName:            job.Exchange,
+		Asset:                   job.Asset.String(),
+		Base:                    job.Pair.Base.String(),
+		Quote:                   job.Pair.Quote.String(),
+		StartDate:               job.StartDate,
+		EndDate:                 job.EndDate,
+		Interval:                int64(job.Interval.Duration()),
+		RequestSizeLimit:        job.RequestSizeLimit,
+		DataType:                int64(job.DataType),
+		MaxRetryAttempts:        job.MaxRetryAttempts,
+		BatchSize:               job.RunBatchLimit,
+		Status:                  int64(job.Status),
+		CreatedDate:             job.CreatedDate,
+		Results:                 m.convertJobResultToDBResult(job.Results),
+		PrerequisiteJobNickname: job.PrerequisiteJobNickname,
 	}
 	if job.ID != uuid.Nil {
 		model.ID = job.ID.String()
+	}
+	if job.PrerequisiteJobID != uuid.Nil {
+		model.PreviousJobID = job.PrerequisiteJobID.String()
 	}
 
 	return model

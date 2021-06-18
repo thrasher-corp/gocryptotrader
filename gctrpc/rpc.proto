@@ -868,7 +868,7 @@ message UpsertDataHistoryJobRequest {
     bool insert_only = 12;
     int64	conversion_interval = 13;
     bool overwrite_existing_data = 14;
-    string previous_job_nickname = 15;
+    string prerequisite_job_nickname = 15;
 }
 
 message InsertSequentialJobsRequest {

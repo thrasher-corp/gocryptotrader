@@ -4591,7 +4591,7 @@
         "overwrite_existing_data": {
           "type": "boolean"
         },
-        "previous_job_nickname": {
+        "prerequisite_job_nickname": {
           "type": "string"
         }
       }
