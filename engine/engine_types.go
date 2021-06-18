@@ -31,6 +31,7 @@ type Settings struct {
 	EnableEventManager          bool
 	EnableOrderManager          bool
 	EnableAccountManager        bool
+	AccountManagerSyncDelay     time.Duration
 	EnableConnectivityMonitor   bool
 	EnableDatabaseManager       bool
 	EnableGCTScriptManager      bool

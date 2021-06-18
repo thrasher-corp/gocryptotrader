@@ -145,6 +145,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
 	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager && (flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
 	b.Settings.EnableAccountManager = s.EnableAccountManager
+	b.Settings.AccountManagerSyncDelay = s.AccountManagerSyncDelay
 	b.Settings.MaxVirtualMachines = s.MaxVirtualMachines
 	b.Settings.EnableDispatcher = s.EnableDispatcher
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
@@ -299,6 +300,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable NTP client: %v", s.EnableNTPClient)
 	gctlog.Debugf(gctlog.Global, "\t Enable Database manager: %v", s.EnableDatabaseManager)
 	gctlog.Debugf(gctlog.Global, "\t Enable Account manager: %v", s.EnableAccountManager)
+	gctlog.Debugf(gctlog.Global, "\t Account manager sync delay: %s", s.AccountManagerSyncDelay)
 	gctlog.Debugf(gctlog.Global, "\t Enable dispatcher: %v", s.EnableDispatcher)
 	gctlog.Debugf(gctlog.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	gctlog.Debugf(gctlog.Global, "\t Dispatch package jobs limit: %d", s.DispatchJobsLimit)
@@ -610,7 +612,7 @@ func (bot *Engine) Start() error {
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "failed to create account manager. Err: %s", err)
 		} else {
-			if err := bot.AccountManager.RunUpdater(time.Second * 10); err != nil {
+			if err := bot.AccountManager.RunUpdater(bot.Settings.AccountManagerSyncDelay); err != nil {
 				gctlog.Errorf(gctlog.Global, "Account manager unable to start: %s", err)
 			}
 		}

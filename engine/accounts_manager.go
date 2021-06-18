@@ -39,6 +39,7 @@ func NewAccountManager(e *Engine, verbose bool) (*AccountManager, error) {
 
 // Shutdown shuts down the account management instance
 func (a *AccountManager) Shutdown() error {
+	log.Debugln(log.Accounts, "Account Manager shutting down...")
 	a.m.Lock()
 	defer a.m.Unlock()
 	if a.shutdown == nil {
@@ -46,6 +47,7 @@ func (a *AccountManager) Shutdown() error {
 	}
 	close(a.shutdown)
 	a.wg.Wait()
+	log.Debugln(log.Accounts, "Account Manager stopped.")
 	return nil
 }
 
