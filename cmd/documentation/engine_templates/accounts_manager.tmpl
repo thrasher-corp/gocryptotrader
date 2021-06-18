@@ -1,0 +1,14 @@
+{{define "engine accounts_manager" -}}
+{{template "header" .}}
+## Current Features for {{.CapitalName}}
+
++ The accounts manager subsystem is used to synchronize accounts across exchanges 
++ In order to modify the behaviour of the accounts manager subsystem, you can change the command line flags when executing the binary:
+
++ `--accountmanager=true` or `--accountmanager=false` to enable and disable this feature (Default: `true`)
++ `--accountmanagerdelay` to change the the sychronization delay to sweep across and update exchange accounts (Default: `10s`) e.g. 10s == `--accountmanagerdelay=10s` or 30s == `--accountmanagerdelay=30s`
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

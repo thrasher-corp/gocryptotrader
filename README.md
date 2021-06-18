@@ -143,17 +143,17 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 654 |
+| [thrasher-](https://github.com/thrasher-) | 655 |
 | [shazbert](https://github.com/shazbert) | 207 |
-| [gloriousCode](https://github.com/gloriousCode) | 179 |
+| [gloriousCode](https://github.com/gloriousCode) | 180 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 12 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 12 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
@@ -164,6 +164,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
+| [yangrq1018](https://github.com/yangrq1018) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
@@ -171,8 +172,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [soxipy](https://github.com/soxipy) | 2 |
 | [mshogin](https://github.com/mshogin) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
-| [blombard](https://github.com/blombard) | 1 |
-| [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
+| [tk42](https://github.com/tk42) | 2 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
 | [frankzougc](https://github.com/frankzougc) | 1 |
