@@ -1611,11 +1611,8 @@ func submitOrder(c *cli.Context) error {
 	if c.IsSet("fullamount") {
 		fullAmountRequired = c.Bool("fullamount")
 	} else {
-		var err error
-		fullAmountRequired, err = strconv.ParseBool(c.Args().Get(10))
-		if err != nil {
-			return err
-		}
+		// Default to true if not specifically set
+		fullAmountRequired = true
 	}
 
 	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
