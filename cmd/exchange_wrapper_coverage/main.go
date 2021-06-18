@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -76,7 +77,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 	p := currency.NewPair(currency.BTC, currency.USD)
 	assetType := asset.Spot
 	if !e.SupportsAsset(assetType) {
-		assets := e.GetAssetTypes()
+		assets := e.GetAssetTypes(false)
 		rand.Seed(time.Now().Unix())
 		assetType = assets[rand.Intn(len(assets))] // nolint:gosec // basic number generation required, no need for crypo/rand
 	}
@@ -113,7 +114,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "UpdateTradablePairs")
 	}
 
-	_, err = e.FetchAccountInfo(assetType)
+	_, err = e.FetchAccountInfo(string(account.Main), assetType)
 	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetAccountInfo")
 	}
@@ -202,7 +203,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetHistoricCandlesExtended")
 	}
 
-	_, err = e.UpdateAccountInfo(assetType)
+	_, err = e.UpdateAccountInfo(string(account.Main), assetType)
 	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "UpdateAccountInfo")
 	}

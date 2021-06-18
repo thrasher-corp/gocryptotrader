@@ -285,7 +285,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 	var response []ExchangeAssetPairResponses
 	testOrderSide := parseOrderSide(config.OrderSubmission.OrderSide)
 	testOrderType := parseOrderType(config.OrderSubmission.OrderType)
-	assetTypes := base.GetAssetTypes()
+	assetTypes := base.GetAssetTypes(false)
 	if assetTypeOverride != "" {
 		a, err := asset.New(assetTypeOverride)
 		if err != nil {
@@ -495,8 +495,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 		}
 
-		var fetchAccountInfoResponse account.Holdings
-		fetchAccountInfoResponse, err = e.FetchAccountInfo(assetTypes[i])
+		var fetchAccountInfoResponse account.HoldingsSnapshot
+		fetchAccountInfoResponse, err = e.FetchAccountInfo(string(account.Main), assetTypes[i])
 		msg = ""
 		if err != nil {
 			msg = err.Error()

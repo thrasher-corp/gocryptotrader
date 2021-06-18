@@ -310,7 +310,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			asset.Spot,
 			account.HoldingsSnapshot{
 				// TODO: In future split holdings up into two distinct balances.
-				// Add in account differentiaion support
+				// Add in account differentiation support
 				currency.NewCode(cfg.CurrencySettings[i].Base):  account.Balance{Total: cfg.CurrencySettings[i].InitialFunds},
 				currency.NewCode(cfg.CurrencySettings[i].Quote): account.Balance{Total: cfg.CurrencySettings[i].InitialFunds},
 			})
