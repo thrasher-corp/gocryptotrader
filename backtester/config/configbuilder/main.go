@@ -598,6 +598,11 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	if yn == y || yn == yes {
 		setting.CanUseExchangeLimits = true
 	}
+	fmt.Println("Will the in-sample data amounts claim on current exchange balances through the account system? y/n")
+	yn = quickParse(reader)
+	if yn == y || yn == yes {
+		setting.CanUseAccountClaimSystem = true
+	}
 	fmt.Println("Do you wish to include slippage? y/n")
 	yn = quickParse(reader)
 	if yn == y || yn == yes {

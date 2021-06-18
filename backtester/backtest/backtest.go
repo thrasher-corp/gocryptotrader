@@ -38,6 +38,7 @@ import (
 	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -296,6 +297,24 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			}
 		}
 
+		if !cfg.CurrencySettings[i].CanUseAccountClaimSystem {
+			log.Warnf(log.BackTester, "exchange %s account claim system interaction has been disabled for %s %s, results may not work when in production",
+				cfg.CurrencySettings[i].ExchangeName,
+				pair,
+				a)
+			cfg.CurrencySettings[i].ShowAccountClaimWarning = true
+		}
+
+		exch.GetBase().LoadHoldings(string(account.Main),
+			true,
+			asset.Spot,
+			account.HoldingsSnapshot{
+				// TODO: In future split holdings up into two distinct balances.
+				// Add in account differentiaion support
+				currency.NewCode(cfg.CurrencySettings[i].Base):  account.Balance{Total: cfg.CurrencySettings[i].InitialFunds},
+				currency.NewCode(cfg.CurrencySettings[i].Quote): account.Balance{Total: cfg.CurrencySettings[i].InitialFunds},
+			})
+
 		resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
 			ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
 			InitialFunds:        cfg.CurrencySettings[i].InitialFunds,
@@ -316,13 +335,14 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			},
 			Limits:               limits,
 			CanUseExchangeLimits: cfg.CurrencySettings[i].CanUseExchangeLimits,
+			CanUseClaimSystem:    cfg.CurrencySettings[i].CanUseAccountClaimSystem,
 		})
 	}
 
 	return resp, nil
 }
 
-func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
+func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, assetType string) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
 	var err error
 	e := bt.Bot.GetExchangeByName(exch)
 	if e == nil {
@@ -336,7 +356,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 	}
 
 	var a asset.Item
-	a, err = asset.New(ass)
+	a, err = asset.New(assetType)
 	if err != nil {
 		return nil, currency.Pair{}, "", err
 	}

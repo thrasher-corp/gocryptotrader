@@ -54,4 +54,5 @@ type Settings struct {
 
 	Limits               *gctorder.Limits
 	CanUseExchangeLimits bool
+	CanUseClaimSystem    bool
 }

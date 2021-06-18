@@ -107,6 +107,9 @@ type CurrencySettings struct {
 
 	CanUseExchangeLimits          bool `json:"use-exchange-order-limits"`
 	ShowExchangeOrderLimitWarning bool `json:"-"`
+
+	CanUseAccountClaimSystem bool `json:"use-account-claim-system"`
+	ShowAccountClaimWarning  bool `json:"-"`
 }
 
 // APIData defines all fields to configure API based data

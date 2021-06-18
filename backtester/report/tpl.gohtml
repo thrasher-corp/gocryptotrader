@@ -277,6 +277,15 @@
 								<td>order execution limits supported but disabled, results may not work when in production</td>
 							</tr>
 						{{end}}
+						{{if  .ShowAccountClaimWarning}}
+							<tr>
+								<td>{{.ExchangeName}}</td>
+								<td>{{.Asset}}</td>
+								<td>{{.Base}}</td>
+								<td>{{.Quote}}</td>
+								<td>account claim system has been disabled, results may not work when in production</td>
+							</tr>
+						{{end}}
                     {{end}}
 					</tbody>
 				</table>

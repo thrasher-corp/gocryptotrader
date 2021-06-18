@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -153,31 +154,47 @@ func TestPlaceOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	exch := bot.GetExchangeByName(testExchange)
+	if exch == nil {
+		t.Fatal("unexpected value")
+	}
+
+	err = exch.GetBase().LoadHoldings(string(account.Main),
+		true,
+		asset.Spot,
+		account.HoldingsSnapshot{
+			currency.USDT: account.Balance{Total: 1000},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	e := Exchange{}
-	_, err = e.placeOrder(1, 1, false, true, nil, nil)
+	_, err = e.placeOrder(1, 1, false, true, true, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
 	f := &fill.Fill{}
-	_, err = e.placeOrder(1, 1, false, true, f, bot)
+	_, err = e.placeOrder(1, 1, false, true, true, f, bot)
 	if err != nil && err.Error() != "order exchange name must be specified" {
 		t.Error(err)
 	}
 
 	f.Exchange = testExchange
-	_, err = e.placeOrder(1, 1, false, true, f, bot)
+	_, err = e.placeOrder(1, 1, false, true, true, f, bot)
 	if !errors.Is(err, gctorder.ErrPairIsEmpty) {
 		t.Errorf("expected: %v, received %v", gctorder.ErrPairIsEmpty, err)
 	}
 	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
-	_, err = e.placeOrder(1, 1, false, true, f, bot)
+	_, err = e.placeOrder(1, 1, false, true, true, f, bot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = e.placeOrder(1, 1, true, true, f, bot)
+	_, err = e.placeOrder(1, 1, true, true, true, f, bot)
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}
@@ -208,7 +225,15 @@ func TestExecuteOrder(t *testing.T) {
 		t.Error(err)
 	}
 	b := bot.GetExchangeByName(testExchange)
-
+	err = b.GetBase().LoadHoldings(string(account.Main),
+		true,
+		asset.Spot,
+		account.HoldingsSnapshot{
+			currency.BTC: account.Balance{Total: 1000},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
 	_, err = b.FetchOrderbook(p, a)
@@ -282,6 +307,7 @@ func TestExecuteOrder(t *testing.T) {
 
 	cs.UseRealOrders = true
 	cs.CanUseExchangeLimits = true
+	cs.CanUseClaimSystem = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot)
@@ -315,6 +341,15 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		t.Error(err)
 	}
 	b := bot.GetExchangeByName(testExchange)
+	err = b.GetBase().LoadHoldings(string(account.Main),
+		true,
+		asset.Spot,
+		account.HoldingsSnapshot{
+			currency.BTC: account.Balance{Total: 1000},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
@@ -457,6 +492,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 
 	cs.UseRealOrders = true
 	cs.CanUseExchangeLimits = true
+	cs.CanUseClaimSystem = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot)

@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -317,97 +317,63 @@ func (m *OrderManager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, err
 			err)
 	}
 
-	err = exch.AccountValid(newOrder.Account)
+	claim, err := deriveClaim(newOrder, exch)
 	if err != nil {
 		return nil, err
 	}
 
-	code, amount, err := newOrder.GetProvision()
+	result, err := exch.SubmitOrder(newOrder)
+	checkClaim(claim, newOrder, err)
+	if err != nil {
+		return nil, err
+	}
+	return m.processSubmittedOrder(newOrder, result)
+}
+
+// derive claim checks if account is valid, gets provisions and executes claim
+// on the exchange account and adjusts any order amounts if needed.
+func deriveClaim(o *order.Submit, exch exchange.IBotExchange) (*account.Claim, error) {
+	err := exch.AccountValid(o.Account)
+	if err != nil {
+		return nil, err
+	}
+
+	code, amount, err := o.GetProvision()
 	if err != nil {
 		return nil, err
 	}
 
 	// Claims amount balance on exchange account to lock out further usage
 	// by other strategies
-	claim, err := exch.Claim(newOrder.Account,
-		newOrder.AssetType,
+	claim, err := exch.Claim(o.Account,
+		o.AssetType,
 		code,
 		amount,
-		newOrder.FullAmountRequired)
+		o.FullAmountRequired)
 	if err != nil {
 		return nil,
 			fmt.Errorf("order manager: exchange %s unable to place order: %w",
-				newOrder.Exchange,
+				o.Exchange,
 				err)
 	}
 
-	pAmount := newOrder.Amount
-	// Readjust to actual claim amount
-	if newOrder.AdjustAmount(claim.GetAmount()) {
+	pAmount := o.Amount
+	// Re-adjust order to new claim amount
+	if o.AdjustAmount(claim.GetAmount()) {
 		log.Warnf(log.OrderMgr,
 			"order %s %s %s amount has been adjusted from: %f to: %f",
-			newOrder.Exchange,
-			newOrder.AssetType,
-			newOrder.Pair,
+			o.Exchange,
+			o.AssetType,
+			o.Pair,
 			pAmount,
-			newOrder.Amount)
+			o.Amount)
 	}
-
-	result, err := exch.SubmitOrder(newOrder)
-	if err != nil {
-		// On failed submission we want to immediately release claimed balance
-		relErr := claim.Release()
-		if relErr != nil {
-			log.Errorf(log.OrderMgr, "%s %s %s cannot release funds from claim %v",
-				newOrder.Exchange,
-				newOrder.AssetType,
-				code,
-				relErr)
-		}
-		return nil, err
-	}
-
-	// On accepted submission we want to preserve claim and wait for a rebalance
-	err = claim.ReleaseToPending()
-	if err != nil {
-		log.Errorf(log.OrderMgr, "%s %s %s cannot release funds from claim %v",
-			newOrder.Exchange,
-			newOrder.AssetType,
-			code,
-			err)
-	}
-	return m.processSubmittedOrder(newOrder, result)
-}
-
-// ReduceBaseByMaxQuotation reduces the amount of the base currency of the
-// potential order if it exceeds the max quotation.
-func ReduceBaseByMaxQuotation(amount, price, runningValue, maxQuote decimal.Decimal) decimal.Decimal {
-	total := amount.Mul(price).Add(runningValue)
-	if total.GreaterThan(maxQuote) {
-		// Returns the max base amount to be deployed
-		total = total.Sub(total.Sub(maxQuote))
-		return total.Div(price)
-	}
-	// No adjustment to the amount needed
-	return amount
-}
-
-// ReduceBaseByMaxBase reduces the amount of the base currency of the potential
-// order if it exceeds the max base amount.
-func ReduceBaseByMaxBase(amount, maxBase, runningAmount decimal.Decimal) decimal.Decimal {
-	total := amount.Add(runningAmount)
-	if total.GreaterThan(maxBase) {
-		total = total.Sub(total.Sub(maxBase))
-		// Returns the reduced max base to be return
-		return total
-	}
-	// No adjustment to the amount needed
-	return amount
+	return claim, nil
 }
 
 // SubmitFakeOrder runs through the same process as order submission
 // but does not touch live endpoints
-func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse, checkExchangeLimits bool) (*OrderSubmitResponse, error) {
+func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse, checkExchangeLimits, claimAccountBalance bool) (*OrderSubmitResponse, error) {
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
@@ -438,7 +404,42 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 				err)
 		}
 	}
-	return m.processSubmittedOrder(newOrder, resultingOrder)
+
+	var claim *account.Claim
+	if claimAccountBalance {
+		claim, err = deriveClaim(newOrder, exch)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	resp, err := m.processSubmittedOrder(newOrder, resultingOrder)
+	checkClaim(claim, newOrder, err)
+	return resp, err
+}
+
+// checkClaim releases claim dependant on if a returned error is reported
+func checkClaim(c *account.Claim, o *order.Submit, err error) {
+	if c == nil {
+		return
+	}
+
+	var rErr error
+	if err != nil {
+		// On failed submission we want to immediately release claimed balance
+		rErr = c.Release()
+	} else {
+		// On accepted submission we want to preserve claim and wait for a
+		// rebalance
+		rErr = c.ReleaseToPending()
+	}
+	if rErr != nil {
+		log.Errorf(log.OrderMgr, "%s %s %s cannot release funds from claim %v",
+			o.Exchange,
+			o.AssetType,
+			o.Pair,
+			rErr)
+	}
 }
 
 // GetOrdersSnapshot returns a snapshot of all orders in the orderstore. It
@@ -482,10 +483,11 @@ func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 			"Order manager: Unable to generate UUID. Err: %s",
 			err)
 	}
-	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v side=%v type=%v for time %v.",
+	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] account=%v pair=%v price=%v amount=%v side=%v type=%v for time %v.",
 		newOrder.Exchange,
 		result.OrderID,
 		id.String(),
+		newOrder.Account,
 		newOrder.Pair,
 		newOrder.Price,
 		newOrder.Amount,
