@@ -94,7 +94,7 @@ func (a *AccountManager) accountUpdater() {
 
 func (a *AccountManager) updateAccountForExchange(exch exchange.IBotExchange) {
 	base := exch.GetBase()
-	if !base.Config.API.AuthenticatedSupport {
+	if base == nil || base.Config == nil || !base.Config.API.AuthenticatedSupport {
 		return
 	}
 

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 )
 
 func TestNewAccountManager(t *testing.T) {
@@ -64,45 +66,20 @@ func TestShutdown(t *testing.T) {
 	}
 }
 
-// type badAccountInfo struct {
-// 	// FakePassingExchange
-// }
+func TestUpdateAccountForExchange(t *testing.T) {
+	am := AccountManager{}
+	burnance := &binance.Binance{}
 
-// func (b *badAccountInfo) UpdateAccountInfo() (account.FullSnapshot, error) {
-// 	return nil, errors.New("this is intentionally evil")
-// }
-
-// func TestUpdateAccountForExchange(t *testing.T) {
-// 	a := AccountManager{
-// 		accounts: make(map[exchange.IBotExchange]int),
-// 	}
-// 	fakeExchange := &FakePassingExchange{
-// 		Base: exchange.Base{
-// 			Config: &config.ExchangeConfig{},
-// 		},
-// 	}
-// 	a.updateAccountForExchange(fakeExchange)
-// 	fakeExchange.Config.API.AuthenticatedSupport = true
-// 	a.updateAccountForExchange(fakeExchange)
-// 	fakeExchange.Config.API.AuthenticatedWebsocketSupport = true
-// 	a.updateAccountForExchange(fakeExchange)
-// 	a.updateAccountForExchange(fakeExchange)
-// 	a.updateAccountForExchange(fakeExchange)
-// 	a.updateAccountForExchange(fakeExchange)
-// 	a.updateAccountForExchange(fakeExchange)
-// 	a.updateAccountForExchange(fakeExchange)
-
-// 	bad := &badAccountInfo{
-// 		FakePassingExchange: FakePassingExchange{
-// 			Base: exchange.Base{
-// 				Config: &config.ExchangeConfig{
-// 					API: config.APIConfig{
-// 						AuthenticatedSupport: true,
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	a.updateAccountForExchange(bad)
-// }
+	am.updateAccountForExchange(burnance)
+	burnance.SetDefaults()
+	dConf, err := burnance.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dConf.API.AuthenticatedSupport = true
+	err = burnance.Setup(dConf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	am.updateAccountForExchange(burnance)
+}
