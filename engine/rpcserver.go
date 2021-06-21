@@ -585,7 +585,6 @@ func createAccountInfoRequest(sh account.HoldingsSnapshot, exch, acc string) (*g
 			TotalValue: balance.Total,
 			Hold:       balance.Locked,
 		})
-
 	}
 	a.Id = acc
 

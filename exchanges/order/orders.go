@@ -91,9 +91,8 @@ func (s *Submit) GetProvision() (currency.Code, float64, error) {
 			fmt.Errorf("cannot execute claim details for asset %s %w",
 				s.AssetType,
 				common.ErrFunctionNotSupported)
-	case asset.CoinMarginedFutures:
-		// Contracts that are denominated and settled in cryptos - Binance
-		fallthrough
+	// case asset.CoinMarginedFutures:
+	// 	// Contracts that are denominated and settled in cryptos - Binance
 	default:
 		return currency.Code{},
 			0,

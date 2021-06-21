@@ -207,23 +207,25 @@ func (h *Holding) release(c *Claim, pending bool) error {
 		return errClaimInvalid
 	}
 	for x := range h.claims {
-		if h.claims[x] == c {
-			// Remove claim from claims slice
-			h.claims[x] = h.claims[len(h.claims)-1]
-			h.claims[len(h.claims)-1] = nil
-			h.claims = h.claims[:len(h.claims)-1]
+		if h.claims[x] != c {
+			continue
+		}
+		// Remove claim from claims slice
+		h.claims[x] = h.claims[len(h.claims)-1]
+		h.claims[len(h.claims)-1] = nil
+		h.claims = h.claims[:len(h.claims)-1]
 
-			if pending {
-				// Change pending amount to be re-adjusted when a new update
-				// comes through
-				h.pending = h.pending.Add(c.amount)
-				return nil
-			}
-			// Change free amount NOTE: not changing locked amount as this is
-			// done by the exchange update
-			h.free = h.free.Add(c.amount)
+		if pending {
+			// Change pending amount to be re-adjusted when a new update
+			// comes through
+			h.pending = h.pending.Add(c.amount)
 			return nil
 		}
+		// Change free amount NOTE: not changing locked amount as this is
+		// done by the exchange update
+		h.free = h.free.Add(c.amount)
+		return nil
+
 	}
 	return errUnableToReleaseClaim
 }
@@ -330,26 +332,28 @@ func (h *Holding) reduce(c *Claim) error {
 	h.m.Lock()
 	defer h.m.Unlock()
 	for x := range h.claims {
-		if h.claims[x] == c {
-			// Remove claim from claims slice
-			h.claims[x] = h.claims[len(h.claims)-1]
-			h.claims[len(h.claims)-1] = nil
-			h.claims = h.claims[:len(h.claims)-1]
-
-			// Reduce total amount
-			h.total = h.total.Sub(c.getAmount())
-
-			if h.verbose {
-				log.Debugf(log.Accounts,
-					"Exchange:%s Account:%s Asset:%s Currency:%s Claim of %f released, total balance reduced.",
-					c.Exchange,
-					c.Account,
-					c.Asset,
-					c.Currency,
-					c.GetAmount())
-			}
-			return nil
+		if h.claims[x] != c {
+			continue
 		}
+		// Remove claim from claims slice
+		h.claims[x] = h.claims[len(h.claims)-1]
+		h.claims[len(h.claims)-1] = nil
+		h.claims = h.claims[:len(h.claims)-1]
+
+		// Reduce total amount
+		h.total = h.total.Sub(c.getAmount())
+
+		if h.verbose {
+			log.Debugf(log.Accounts,
+				"Exchange:%s Account:%s Asset:%s Currency:%s Claim of %f released, total balance reduced.",
+				c.Exchange,
+				c.Account,
+				c.Asset,
+				c.Currency,
+				c.GetAmount())
+		}
+		return nil
+
 	}
 	return errUnableToReduceClaim
 }

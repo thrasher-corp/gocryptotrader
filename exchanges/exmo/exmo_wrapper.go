@@ -336,12 +336,12 @@ func (e *EXMO) UpdateAccountInfo(accountName string, assetType asset.Item) (acco
 		if !ok {
 			return nil, errors.New("could not match with key")
 		}
-
-		a, err := strconv.ParseFloat(available, 64)
+		var a float64
+		a, err = strconv.ParseFloat(available, 64)
 		if err != nil {
 			return nil, err
 		}
-
+		var r float64
 		r, err := strconv.ParseFloat(reserved, 64)
 		if err != nil {
 			return nil, err

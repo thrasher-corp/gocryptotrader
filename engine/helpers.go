@@ -553,8 +553,8 @@ func GetCollatedExchangeAccountInfoByCoin(accounts []account.FullSnapshot) accou
 						sh[code] = bal
 						continue
 					}
-					stored.Total = stored.Total + bal.Total
-					stored.Locked = stored.Locked + bal.Locked
+					stored.Total += bal.Total
+					stored.Locked += bal.Locked
 					sh[code] = stored
 				}
 				result[at] = sh

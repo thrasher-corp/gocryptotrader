@@ -602,7 +602,7 @@ func (bot *Engine) Start() error {
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "failed to create script manager. Err: %s", err)
 		}
-		if err := bot.gctScriptManager.Start(&bot.ServicesWG); err != nil {
+		if err = bot.gctScriptManager.Start(&bot.ServicesWG); err != nil {
 			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %s", err)
 		}
 	}
@@ -611,10 +611,8 @@ func (bot *Engine) Start() error {
 		bot.AccountManager, err = NewAccountManager(bot, bot.Settings.Verbose)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "failed to create account manager. Err: %s", err)
-		} else {
-			if err := bot.AccountManager.RunUpdater(bot.Settings.AccountManagerSyncDelay); err != nil {
-				gctlog.Errorf(gctlog.Global, "Account manager unable to start: %s", err)
-			}
+		} else if err := bot.AccountManager.RunUpdater(bot.Settings.AccountManagerSyncDelay); err != nil {
+			gctlog.Errorf(gctlog.Global, "Account manager unable to start: %s", err)
 		}
 	}
 
