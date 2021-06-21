@@ -152,7 +152,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 12 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 11 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 12 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
@@ -173,6 +173,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [mshogin](https://github.com/mshogin) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [blombard](https://github.com/blombard) | 1 |
+| [tk42](https://github.com/tk42) | 2 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
 | [frankzougc](https://github.com/frankzougc) | 1 |

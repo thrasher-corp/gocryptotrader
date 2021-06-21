@@ -90,7 +90,7 @@ The below table is a summary of commands. For more details, view the commands in
 | request_size | The number of candles to fetch. eg if `500`, the data history manager will break up the request into the appropriate timeframe to ensure the data history run interval will fetch 500 candles to save to the database | `500` |
 | max_retries | For an interval period, the amount of attempts the data history manager is allowed to attempt to fetch data before moving onto the next period. This can be useful for determining whether the exchange is missing the data in that time period or, if just one failure of three, just means that the data history manager couldn't finish one request | `3` |
 | batch_count | The number of requests to make when processing a job | `3` |
-| status | A numerical representation for the status. `0` is active, `1` is failed `2` is complete and `3` is removed | `0` |
+| status | A numerical representation for the status. `0` is active, `1` is failed `2` is complete, `3` is removed and `4` is missing data | `0` |
 | created | The date the job was created. | `2020-01-01T13:33:37Z` |
 
 #### datahistoryjobresult
@@ -99,7 +99,7 @@ The below table is a summary of commands. For more details, view the commands in
 | id | Unique ID of the job status | `deadbeef-dead-beef-dead-beef13371337` |
 | job_id | The job ID being referenced | `deadbeef-dead-beef-dead-beef13371337` |
 | result | If there is an error, it will be detailed here | `exchange missing candle data for 2020-01-01 13:37Z` |
-| status | A numerical representation of the job result status. `1` is failed or `2` is complete | `2` |
+| status | A numerical representation of the job result status. `1` is failed, `2` is complete and `4` is missing data | `2` |
 | interval_start_time | The start date of the period fetched | `2020-01-01T13:33:37Z` |
 | interval_end_time  | The end date of the period fetched | `2020-01-02T13:33:37Z` |
 | run_time | The time the job was ran | `2020-01-03T13:33:37Z` |
