@@ -12,16 +12,16 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-const testExchange = "FTX"
+const testExchange = "binance"
 
 func TestLoadCandles(t *testing.T) {
 	t.Parallel()
-	interval := gctkline.FifteenMin
-	cp1 := currency.NewPair(currency.BTC, currency.USD)
+	interval := gctkline.OneHour
+	cp1 := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
 	em := engine.SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	pFormat := &currency.PairFormat{Uppercase: true, Delimiter: "/"}
+	pFormat := &currency.PairFormat{Uppercase: true}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,11 +52,11 @@ func TestLoadCandles(t *testing.T) {
 func TestLoadTrades(t *testing.T) {
 	t.Parallel()
 	interval := gctkline.OneMin
-	cp1 := currency.NewPair(currency.BTC, currency.USD)
+	cp1 := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
 	em := engine.SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	pFormat := &currency.PairFormat{Uppercase: true, Delimiter: "/"}
+	pFormat := &currency.PairFormat{Uppercase: true}
 	if err != nil {
 		t.Fatal(err)
 	}
