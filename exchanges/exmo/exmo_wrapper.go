@@ -342,7 +342,7 @@ func (e *EXMO) UpdateAccountInfo(accountName string, assetType asset.Item) (acco
 			return nil, err
 		}
 		var r float64
-		r, err := strconv.ParseFloat(reserved, 64)
+		r, err = strconv.ParseFloat(reserved, 64)
 		if err != nil {
 			return nil, err
 		}

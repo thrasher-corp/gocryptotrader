@@ -225,7 +225,6 @@ func (h *Holding) release(c *Claim, pending bool) error {
 		// done by the exchange update
 		h.free = h.free.Add(c.amount)
 		return nil
-
 	}
 	return errUnableToReleaseClaim
 }
@@ -353,7 +352,6 @@ func (h *Holding) reduce(c *Claim) error {
 				c.GetAmount())
 		}
 		return nil
-
 	}
 	return errUnableToReduceClaim
 }
