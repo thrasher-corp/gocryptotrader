@@ -38,7 +38,7 @@ type Submit struct {
 	Price             float64
 	Amount            float64
 	// FullAmountRequired allows for sub amount to be used in the event a claim
-	// has been enacted on an amount.
+	// has been enacted on an amount already.
 	FullAmountRequired bool
 	StopPrice          float64
 	LimitPriceUpper    float64

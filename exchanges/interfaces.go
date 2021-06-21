@@ -36,12 +36,24 @@ type IBotExchange interface {
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
 
-	// GetAccounts returns the accounts associated with the API key set
+	// GetAccounts returns the different account names associated with the
+	// supplied credentials
 	GetAccounts() ([]account.Designation, error)
+	// FetchAccountInfo initially fetches account info, if not found will
+	// execute UpdateAccountInfo
 	FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error)
+	// UpdateAccountInfo specifically fetches and updates account holdings from
+	// the exchange
 	UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error)
+	// GetFullAccountSnapshot returns a full snapshot of all accounts associated
+	// with supplied credentials
 	GetFullAccountSnapshot() (account.FullSnapshot, error)
+	// AccountValid verifies if the account supplied is valid
 	AccountValid(account string) error
+	// Claim allows for a strategy or sub-system to claim on a specific account
+	// holding associated with the supplied credentials. If totalRequired param
+	// is false will allow the claim of less than or equal to the request amount
+	// in the event multiple strategies are working on the same holdings.
 	Claim(account string, ai asset.Item, c currency.Code, amount float64, totalRequired bool) (*account.Claim, error)
 
 	GetAuthenticatedAPISupport(endpoint uint8) bool

@@ -194,7 +194,7 @@ holdings:
 	if h.Verbose {
 		m := make(HoldingsSnapshot)
 		for k, v := range m2 {
-			balance, err := v.GetBalance(false)
+			balance, err := v.GetBalance()
 			if err != nil {
 				continue
 			}
@@ -296,7 +296,7 @@ func (h *Holdings) GetFullSnapshot() (FullSnapshot, error) {
 					shm1[ai] = shm2
 				}
 
-				bal, err := holding.GetBalance(false)
+				bal, err := holding.GetBalance()
 				if err != nil {
 					continue
 				}
@@ -359,7 +359,7 @@ func (h *Holdings) AdjustByBalance(account string, ai asset.Item, c currency.Cod
 	}
 
 	if h.Verbose {
-		bal, _ := holding.GetBalance(false)
+		bal, _ := holding.GetBalance()
 		log.Debugf(log.Accounts,
 			"Exchange:%s Account:%s Asset:%s Currency:%s Balance Adjusted by %f Current Free Holdings:%f Current Total Holdings:%f",
 			h.Exchange,
@@ -411,7 +411,7 @@ func (h *Holdings) Claim(account string, ai asset.Item, c currency.Code, amount 
 	}
 
 	if h.Verbose {
-		bal, _ := holding.GetBalance(false)
+		bal, _ := holding.GetBalance()
 		log.Debugf(log.Accounts,
 			"Exchange:%s Account:%s Asset:%s Currency:%s total required: %v, amount %f claimed on holdings with amount requested %f Free Holdings:%f Total Holdings:%f",
 			h.Exchange,

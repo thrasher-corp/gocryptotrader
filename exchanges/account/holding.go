@@ -13,6 +13,8 @@ var (
 	errUnableToReleaseClaim  = errors.New("unable to release claim, holding amounts may be locked")
 	errNoBalance             = errors.New("no balance found for currency")
 	errUnableToReduceClaim   = errors.New("unable to reduce claim, claim not found")
+	errClaimIsNil            = errors.New("claim is nil")
+	errClaimInvalid          = errors.New("claim amount cannot be less than or equal to zero")
 )
 
 // Holding defines the total currency holdings for an account and what is
@@ -148,8 +150,6 @@ func (h *Holding) Claim(amount float64, totalRequired bool) (*Claim, error) {
 	return amountClaim, nil
 }
 
-var errClaimIsNil = errors.New("claim is nil")
-
 // Release is a protected exported function to release funds that has not
 // been successful or is not used
 func (h *Holding) Release(c *Claim) error {
@@ -200,8 +200,6 @@ func (h *Holding) ReleaseToPending(c *Claim) error {
 	}
 	return nil
 }
-
-var errClaimInvalid = errors.New("claim amount cannot be less than or equal to zero")
 
 // release releases the funds either to pending or free.
 func (h *Holding) release(c *Claim, pending bool) error {
@@ -357,12 +355,12 @@ func (h *Holding) reduce(c *Claim) error {
 }
 
 // GetBalance returns a balance on holdings, can pass in
-func (h *Holding) GetBalance(all bool) (Balance, error) {
+func (h *Holding) GetBalance() (Balance, error) {
 	h.m.Lock()
 	defer h.m.Unlock()
 
 	total, _ := h.total.Float64()
-	if total == 0 && !all {
+	if total == 0 {
 		return Balance{}, errNoBalance
 	}
 

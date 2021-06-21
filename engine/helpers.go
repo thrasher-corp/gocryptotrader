@@ -537,7 +537,7 @@ func (bot *Engine) GetSpecificTicker(p currency.Pair, exchangeName string, asset
 }
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
-// information and returns account aseet snapshot
+// information and returns account asset snapshot
 func GetCollatedExchangeAccountInfoByCoin(accounts []account.FullSnapshot) account.AssetSnapshot {
 	result := make(account.AssetSnapshot)
 	for x := range accounts {

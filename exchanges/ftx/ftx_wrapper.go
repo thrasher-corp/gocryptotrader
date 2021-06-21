@@ -376,7 +376,6 @@ func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (f *FTX) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	// f.Verbose = true
 	data, err := f.GetAllWalletBalances()
 	if err != nil {
 		return nil, err

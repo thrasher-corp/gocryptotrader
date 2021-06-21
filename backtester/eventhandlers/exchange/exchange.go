@@ -177,21 +177,24 @@ func (e *Exchange) placeOrder(price, amount float64, useRealOrders, useExchangeL
 		return "", err
 	}
 
-	fmt.Println("EXCHANGE:", f.Exchange)
 	var orderID string
 	o := &gctorder.Submit{
-		Account:            string(account.Main),
-		Price:              price,
-		Amount:             amount,
-		Fee:                f.ExchangeFee,
-		Exchange:           f.Exchange,
-		ID:                 u.String(),
-		Side:               f.Direction,
-		AssetType:          f.AssetType,
-		Date:               f.GetTime(),
-		LastUpdated:        f.GetTime(),
-		Pair:               f.Pair(),
-		Type:               gctorder.Market,
+		// For ease of use we can default to the main account.
+		Account:     string(account.Main),
+		Price:       price,
+		Amount:      amount,
+		Fee:         f.ExchangeFee,
+		Exchange:    f.Exchange,
+		ID:          u.String(),
+		Side:        f.Direction,
+		AssetType:   f.AssetType,
+		Date:        f.GetTime(),
+		LastUpdated: f.GetTime(),
+		Pair:        f.Pair(),
+		Type:        gctorder.Market,
+		// FullAmountRequired is true because strategies should be mutually
+		// exclusive in a backtester context. This may need to be reassessed
+		// later.
 		FullAmountRequired: true,
 	}
 
