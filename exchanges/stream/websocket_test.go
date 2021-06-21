@@ -163,7 +163,7 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ws.trafficTimeout = time.Millisecond * 100
+	ws.trafficTimeout = time.Millisecond
 	ws.ShutdownC = make(chan struct{})
 	ws.trafficMonitor()
 	if !ws.IsTrafficMonitorRunning() {
@@ -177,7 +177,7 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 
 	// Deploy traffic alert
 	ws.TrafficAlert <- struct{}{}
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 50)
 	ws.Wg.Wait()
 	if ws.IsTrafficMonitorRunning() {
 		t.Error("should be ded")

@@ -31,6 +31,7 @@ const (
 	dataHistoryStatusFailed
 	dataHistoryStatusComplete
 	dataHistoryStatusRemoved
+	dataHistoryIntervalMissingData
 )
 
 // String stringifies iotas to readable
@@ -44,13 +45,15 @@ func (d dataHistoryStatus) String() string {
 		return "complete"
 	case int64(d) == 3:
 		return "removed"
+	case int64(d) == 4:
+		return "missing data"
 	}
 	return ""
 }
 
 // Valid ensures the value set is legitimate
 func (d dataHistoryStatus) Valid() bool {
-	if int64(d) == 0 || int64(d) == 1 || int64(d) == 2 || int64(d) == 3 {
+	if int64(d) >= 0 && int64(d) <= 4 {
 		return true
 	}
 	return false

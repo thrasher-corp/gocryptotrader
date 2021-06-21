@@ -264,9 +264,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return ErrSubSystemNotStarted
 	}
-	if job.Status == dataHistoryStatusComplete ||
-		job.Status == dataHistoryStatusFailed ||
-		job.Status == dataHistoryStatusRemoved {
+	if job.Status != dataHistoryStatusActive {
 		return nil
 	}
 	var intervalsProcessed int64
@@ -306,21 +304,32 @@ ranges:
 		}
 
 		var failures int64
+		hasDataInRange := false
 		resultLookup := job.Results[job.rangeHolder.Ranges[i].Start.Time]
 		for x := range resultLookup {
 			switch resultLookup[x].Status {
+			case dataHistoryIntervalMissingData:
+				continue ranges
 			case dataHistoryStatusFailed:
 				failures++
 			case dataHistoryStatusComplete:
-				// this occurs in the scenario where data is missing
+				// this can occur in the scenario where data is missing
 				// however no errors were encountered when data is missing
 				// eg an exchange only returns an empty slice
 				// or the exchange is simply missing the data and does not have an error
-				continue ranges
+				hasDataInRange = true
 			}
 		}
 		if failures >= job.MaxRetryAttempts {
-			job.Status = dataHistoryStatusFailed
+			// failure threshold reached, we should not attempt
+			// to check this interval again
+			for x := range resultLookup {
+				resultLookup[x].Status = dataHistoryIntervalMissingData
+			}
+			job.Results[job.rangeHolder.Ranges[i].Start.Time] = resultLookup
+			continue
+		}
+		if hasDataInRange {
 			continue
 		}
 		if m.verbose {
@@ -344,33 +353,49 @@ ranges:
 		case dataHistoryCandleDataType:
 			candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, job.Interval)
 			if err != nil {
-				result.Result = "could not get candles: " + err.Error()
+				result.Result += "could not get candles: " + err.Error() + ". "
 				result.Status = dataHistoryStatusFailed
 				break
 			}
 			job.rangeHolder.SetHasDataFromCandles(candles.Candles)
+			for j := range job.rangeHolder.Ranges[i].Intervals {
+				if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
+					result.Status = dataHistoryStatusFailed
+					result.Result += fmt.Sprintf("missing data from %v - %v. ",
+						job.rangeHolder.Ranges[i].Intervals[j].Start.Time.Format(common.SimpleTimeFormatWithTimezone),
+						job.rangeHolder.Ranges[i].Intervals[j].End.Time.Format(common.SimpleTimeFormatWithTimezone))
+				}
+			}
 			_, err = kline.StoreInDatabase(&candles, true)
 			if err != nil {
-				result.Result = "could not save results: " + err.Error()
+				result.Result += "could not save results: " + err.Error() + ". "
 				result.Status = dataHistoryStatusFailed
 			}
 		case dataHistoryTradeDataType:
 			trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 			if err != nil {
-				result.Result = "could not get trades: " + err.Error()
+				result.Result += "could not get trades: " + err.Error() + ". "
 				result.Status = dataHistoryStatusFailed
 				break
 			}
 			candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
 			if err != nil {
-				result.Result = "could not convert candles to trades: " + err.Error()
+				result.Result += "could not convert candles to trades: " + err.Error() + ". "
 				result.Status = dataHistoryStatusFailed
 				break
 			}
 			job.rangeHolder.SetHasDataFromCandles(candles.Candles)
+			for j := range job.rangeHolder.Ranges[i].Intervals {
+				if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
+					result.Status = dataHistoryStatusFailed
+					result.Result += fmt.Sprintf("missing data from %v - %v. ",
+						job.rangeHolder.Ranges[i].Intervals[j].Start.Time.Format(common.SimpleTimeFormatWithTimezone),
+						job.rangeHolder.Ranges[i].Intervals[j].End.Time.Format(common.SimpleTimeFormatWithTimezone))
+				}
+			}
 			err = trade.SaveTradesToDatabase(trades...)
 			if err != nil {
-				result.Result = "could not save results: " + err.Error()
+				result.Result += "could not save results: " + err.Error() + ". "
 				result.Status = dataHistoryStatusFailed
 			}
 		default:
@@ -383,16 +408,39 @@ ranges:
 	}
 
 	completed := true
+	allResultsSuccessful := true
+	allResultsFailed := true
+completionCheck:
 	for i := range job.rangeHolder.Ranges {
-		for j := range job.rangeHolder.Ranges[i].Intervals {
-			if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
+		result, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
+		if !ok {
+			completed = false
+		}
+	results:
+		for j := range result {
+			switch result[j].Status {
+			case dataHistoryIntervalMissingData:
+				allResultsSuccessful = false
+				break results
+			case dataHistoryStatusComplete:
+				allResultsFailed = false
+				break results
+			default:
 				completed = false
+				break completionCheck
 			}
 		}
 	}
 	if completed {
-		job.Status = dataHistoryStatusComplete
-		log.Infof(log.DataHistory, "job %s finished!", job.Nickname)
+		switch {
+		case allResultsSuccessful:
+			job.Status = dataHistoryStatusComplete
+		case allResultsFailed:
+			job.Status = dataHistoryStatusFailed
+		default:
+			job.Status = dataHistoryIntervalMissingData
+		}
+		log.Infof(log.DataHistory, "job %s finished! Status: %v", job.Nickname, job.Status.String())
 	}
 
 	dbJob := m.convertJobToDBModel(job)
@@ -405,7 +453,7 @@ ranges:
 	return m.jobResultDB.Upsert(dbJobResults...)
 }
 
-// UpsertJob allows for GRPC interaction to upsert a jobs to be processed
+// UpsertJob allows for GRPC interaction to upsert a job to be processed
 func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) error {
 	if m == nil {
 		return ErrNilSubsystem
