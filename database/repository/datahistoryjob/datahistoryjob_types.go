@@ -26,7 +26,7 @@ type DataHistoryJob struct {
 	Status                  int64
 	CreatedDate             time.Time
 	Results                 []*datahistoryjobresult.DataHistoryJobResult
-	PreviousJobID           string
+	PrerequisiteJobID       string
 	PrerequisiteJobNickname string
 }
 

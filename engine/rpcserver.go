@@ -3353,7 +3353,7 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		Status:                  dataHistoryStatusActive,
 		OverwriteExistingData:   r.OverwriteExistingData,
 		ConversionInterval:      kline.Interval(r.ConversionInterval),
-		PrerequisiteJobNickname: r.PreviousJobNickname,
+		PrerequisiteJobNickname: r.PrerequisiteJobNickname,
 	}
 
 	err = s.dataHistoryManager.UpsertJob(&job, r.InsertOnly)

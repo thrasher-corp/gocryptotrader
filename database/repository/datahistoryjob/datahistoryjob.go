@@ -127,6 +127,51 @@ func (db *DBService) GetJobAndAllResults(nickname string) (*DataHistoryJob, erro
 	}
 }
 
+// GetRelatedUpcomingJobs will return related jobs
+func (db *DBService) GetRelatedUpcomingJobs(nickname string) ([]*DataHistoryJob, error) {
+	switch db.driver {
+	case database.DBSQLite3, database.DBSQLite:
+		return db.getRelatedUpcomingJobsSQLite(nickname)
+	case database.DBPostgreSQL:
+		return db.getRelatedUpcomingJobsPostgres(nickname)
+	default:
+		return nil, database.ErrNoDatabaseProvided
+	}
+}
+
+// RemoveRelationship removes a relationship in the event of a changed
+// relationship during upsertion
+func (db *DBService) RemoveRelationship(prerequisiteJobID, followingJobID string) error {
+	ctx := context.Background()
+
+	tx, err := db.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("beginTx %w", err)
+	}
+	defer func() {
+		if err != nil {
+			errRB := tx.Rollback()
+			if errRB != nil {
+				log.Errorf(log.DatabaseMgr, "Insert tx.Rollback %v", errRB)
+			}
+		}
+	}()
+
+	switch db.driver {
+	case database.DBSQLite3, database.DBSQLite:
+		err = removeRelationshipSQLite(ctx, tx, prerequisiteJobID, followingJobID)
+	case database.DBPostgreSQL:
+		err = removeRelationshipPostgres(ctx, tx, prerequisiteJobID, followingJobID)
+	default:
+		return database.ErrNoDatabaseProvided
+	}
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) error {
 	for i := range jobs {
 		r, err := sqlite3.Exchanges(
@@ -156,8 +201,8 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 		if err != nil {
 			return err
 		}
-		if jobs[i].PreviousJobID != "" {
-			err = insertRelationshipSQLite(ctx, tx, jobs[i].ID, jobs[i].PreviousJobID)
+		if jobs[i].PrerequisiteJobID != "" {
+			err = insertRelationshipSQLite(ctx, tx, jobs[i].ID, jobs[i].PrerequisiteJobID)
 			if err != nil {
 				return err
 			}
@@ -195,8 +240,8 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 		if err != nil {
 			return err
 		}
-		if jobs[i].PreviousJobID != "" {
-			err = insertRelationshipPostgres(ctx, tx, jobs[i].ID, jobs[i].PreviousJobID)
+		if jobs[i].PrerequisiteJobID != "" {
+			err = insertRelationshipPostgres(ctx, tx, jobs[i].ID, jobs[i].PrerequisiteJobID)
 			if err != nil {
 				return err
 			}
@@ -205,24 +250,6 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 
 	return nil
 }
-
-func insertRelationshipSQLite(ctx context.Context, tx *sql.Tx, previousJob, jobID string) error {
-	tempEvent := sqlite3.Datahistoryjobrelation{
-		JobID:    previousJob,
-		RelJobID: jobID,
-	}
-	return tempEvent.Insert(ctx, tx, boil.Infer())
-}
-
-func insertRelationshipPostgres(ctx context.Context, tx *sql.Tx, previousJob, jobID string) error {
-	//tempEvent := postgres.Datahistoryjobrelation{
-	//	JobID:    previousJob,
-	//	RelJobID: jobID,
-	//}
-	//return tempEvent.Insert(ctx, tx, boil.Infer())
-	return nil
-}
-
 func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
 	result, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", strings.ToLower(nickname))).One(context.Background(), db.sql)
@@ -272,12 +299,12 @@ func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, erro
 	return job, nil
 }
 
-func (db *DBService) getPrevJobRelSQLite(id string) (string, error) {
+func (db *DBService) getPrerequisiteJobByRelatedJobID(id string) (string, error) {
 	result, err := sqlite3.Datahistoryjobrelations(qm.Where("rel_job_id = ?", id)).One(context.Background(), db.sql)
 	if err != nil {
 		return "", err
 	}
-	return result.JobID, nil
+	return result.PrerequisiteJobID, nil
 }
 
 func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, error) {
@@ -730,36 +757,70 @@ func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob,
 	return jobs, nil
 }
 
-// GetRelatedUpcomingJobs will return related jobs
-func (db *DBService) GetRelatedUpcomingJobs(nickname string) ([]*DataHistoryJob, error) {
-	switch db.driver {
-	case database.DBSQLite3, database.DBSQLite:
-		return db.getRelatedUpcomingJobsSQLite(nickname)
-	case database.DBPostgreSQL:
-		return db.getRelatedUpcomingJobsPostgres(nickname)
-	default:
-		return nil, database.ErrNoDatabaseProvided
-	}
-}
-
 func (db *DBService) getRelatedUpcomingJobsSQLite(nickname string) ([]*DataHistoryJob, error) {
-	qm := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobrelations), qm.Where("nickname = ?", nickname))
-	jobWithRelations, err := qm.One(context.Background(), db.sql)
+	q := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.FollowingJobDatahistoryjobrelations), qm.Where("nickname = ?", nickname))
+	jobWithRelations, err := q.One(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
 	}
-
-	log.Infof(log.DataHistory, "%v", jobWithRelations.R.RelJobDatahistoryjobrelations[0].R.Job)
-	return nil, nil
+	var response []*DataHistoryJob
+	for i := range jobWithRelations.R.FollowingJobDatahistoryjobrelations {
+		job, err := db.getByIDSQLite(jobWithRelations.R.FollowingJobDatahistoryjobrelations[i].FollowingJobID)
+		if err != nil {
+			return nil, err
+		}
+		response = append(response, job)
+	}
+	return response, nil
 }
 
 func (db *DBService) getRelatedUpcomingJobsPostgres(nickname string) ([]*DataHistoryJob, error) {
-	//qm := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobrelations), qm.Where("nickname = ?", nickname))
-	//jobWithRelations, err := qm.One(context.Background(), db.sql)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//log.Infof(log.DataHistory, "%v", jobWithRelations.R.RelJobDatahistoryjobrelations[0].R.Job)
-	return nil, nil
+	q := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.FollowingJobDatahistoryjobrelations), qm.Where("nickname = ?", nickname))
+	jobWithRelations, err := q.One(context.Background(), db.sql)
+	if err != nil {
+		return nil, err
+	}
+	var response []*DataHistoryJob
+	for i := range jobWithRelations.R.FollowingJobDatahistoryjobrelations {
+		job, err := db.getByIDSQLite(jobWithRelations.R.FollowingJobDatahistoryjobrelations[i].FollowingJobID)
+		if err != nil {
+			return nil, err
+		}
+		response = append(response, job)
+	}
+	return response, nil
+}
+
+func insertRelationshipSQLite(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
+	tempEvent := sqlite3.Datahistoryjobrelation{
+		PrerequisiteJobID: prerequisiteJobID,
+		FollowingJobID:    followingJobID,
+	}
+	return tempEvent.Insert(ctx, tx, boil.Infer())
+}
+
+func insertRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
+	tempEvent := postgres.Datahistoryjobrelation{
+		PrerequisiteJobID: prerequisiteJobID,
+		FollowingJobID:    followingJobID,
+	}
+	return tempEvent.Insert(ctx, tx, boil.Infer())
+}
+
+func removeRelationshipSQLite(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
+	q := sqlite3.Datahistoryjobrelations(qm.Where("prerequisite_job_id = ? AND following_job_id = ?"))
+	_, err := q.DeleteAll(ctx, tx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func removeRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
+	q := postgres.Datahistoryjobrelations(qm.Where("prerequisite_job_id = ? AND following_job_id = ?"))
+	_, err := q.DeleteAll(ctx, tx)
+	if err != nil {
+		return err
+	}
+	return nil
 }

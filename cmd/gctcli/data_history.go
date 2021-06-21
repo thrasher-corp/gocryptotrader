@@ -94,7 +94,7 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "prerequisite_job_nickname",
-			Usage: "using an existing job nickname allows you to queue this new job to run after the previous job is finished",
+			Usage: "optional, using an existing job nickname allows you to queue this new job to run after the previous job is finished",
 		},
 	}
 )

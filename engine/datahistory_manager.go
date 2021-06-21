@@ -1000,7 +1000,7 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 		PrerequisiteJobNickname: dbModel.PrerequisiteJobNickname,
 	}
 	if resp.PrerequisiteJobNickname != "" {
-		prereqID, err := uuid.FromString(dbModel.PreviousJobID)
+		prereqID, err := uuid.FromString(dbModel.PrerequisiteJobID)
 		if err != nil {
 			return nil, err
 		}
@@ -1079,7 +1079,7 @@ func (m *DataHistoryManager) convertJobToDBModel(job *DataHistoryJob) *datahisto
 		model.ID = job.ID.String()
 	}
 	if job.PrerequisiteJobID != uuid.Nil {
-		model.PreviousJobID = job.PrerequisiteJobID.String()
+		model.PrerequisiteJobID = job.PrerequisiteJobID.String()
 	}
 
 	return model
