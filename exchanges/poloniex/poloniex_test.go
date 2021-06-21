@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -997,12 +998,121 @@ func TestProcessAccountKilledOrder(t *testing.T) {
 	}
 }
 
-func TestGetCompleteBalances(t *testing.T) {
+func TestGetAggregatedBalances(t *testing.T) {
 	if !mockTests && !areTestAPIKeysSet() {
 		t.Skip("API keys not set, mockTests false, skipping test")
 	}
-	_, err := p.GetCompleteBalances()
+	_, err := p.GetAggregatedBalances()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetExchangeBalances(t *testing.T) {
+	if !mockTests && !areTestAPIKeysSet() {
+		t.Skip("API keys not set, mockTests false, skipping test")
+	}
+	_, err := p.GetExchangeBalances()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateAccountInfo(t *testing.T) {
+	_, err := p.UpdateAccountInfo("", "")
+	if !errors.Is(err, errUnsupportedAccount) {
+		t.Fatalf("expected: %v but received: %v",
+			errUnsupportedAccount,
+			err)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.UpdateAccountInfo("exchange", asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("expected: %v but received: %v",
+			asset.ErrNotSupported,
+			err)
+	}
+
+	_, err = p.UpdateAccountInfo("exchange", asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLoadCurrencyDetails(t *testing.T) {
+	err := p.loadCurrencyDetails()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWebsocketLimitOrder(t *testing.T) {
+	// test websocket interaction on current holdings
+	err := p.loadCurrencyDetails()
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = p.LoadHoldings("exchange", true, asset.Spot, account.HoldingsSnapshot{
+		currency.XRP: account.Balance{Total: 32.14},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h, err := p.GetHolding("exchange", asset.Spot, currency.XRP)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := 32.14
+	if h.GetTotal() != expected {
+		t.Fatalf("expected: %f but received: %f", expected, h.GetTotal())
+	}
+	if h.GetFree() != 32.14 {
+		t.Fatalf("expected: %f but received: %f", expected, h.GetFree())
+	}
+
+	// Simulate successful claim on holdings and push to pending for
+	// reconciliation
+	claim, err := p.Holdings.Claim("exchange", asset.Spot, currency.XRP, 1, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = claim.ReleaseToPending()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	executeLimitOrderFrontEnd := []byte(`[1000,"",[["p",431682155857,127,"1000.00000000","1.00000000",0,null],["n",127,431682155857,0,"1000.00000000","1.00000000","2021-04-13 07:19:56","1.00000000",null],["b",243,"e","-1.00000000"]]]`)
+	err = p.wsHandleData(executeLimitOrderFrontEnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if h.GetTotal() != 31.14 { // This is expected to reduce total holdings as well.
+		t.Fatalf("expected: %f but received: %f", 31.14, h.GetTotal())
+	}
+
+	if h.GetFree() != 31.14 {
+		t.Fatalf("expected: %f but received: %f", 31.14, h.GetFree())
+	}
+
+	cancelLimitOrderFrontEnd := []byte(`[1000,"",[["o",431682155857,"0.00000000","c",null,"1.00000000"],["b",243,"e","1.00000000"]]]`)
+	err = p.wsHandleData(cancelLimitOrderFrontEnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if h.GetTotal() != expected { // This should increase total holdings and free holdings back to original when cancelled.
+		t.Fatalf("expected: %f but received: %f", expected, h.GetTotal())
+	}
+
+	if h.GetFree() != expected {
+		t.Fatalf("expected: %f but received: %f", expected, h.GetFree())
 	}
 }

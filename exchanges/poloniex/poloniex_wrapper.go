@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -153,6 +154,12 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err := p.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	// Margin and lending accounts not yet supported
+	err = p.LoadAccounts("exchange")
 	if err != nil {
 		return err
 	}
@@ -382,16 +389,29 @@ func (p *Poloniex) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orde
 	return orderbook.Get(p.Name, c, assetType)
 }
 
+var errUnsupportedAccount = errors.New("unsupported account")
+
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
 func (p *Poloniex) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
-	accountBalance, err := p.GetCompleteBalances()
+	if accountName != "exchange" {
+		return nil, fmt.Errorf("%w %s for asset %s",
+			errUnsupportedAccount,
+			accountName,
+			assetType)
+	}
+
+	if assetType != asset.Spot {
+		return nil, fmt.Errorf("%w %s", asset.ErrNotSupported, assetType)
+	}
+
+	balances, err := p.GetExchangeBalances()
 	if err != nil {
 		return nil, err
 	}
 
 	m := make(account.HoldingsSnapshot)
-	for code, balance := range accountBalance {
+	for code, balance := range balances {
 		m[currency.NewCode(code)] = account.Balance{
 			Total:  balance.Available + balance.OnOrders,
 			Locked: balance.OnOrders,

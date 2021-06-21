@@ -257,8 +257,9 @@ func (p *Poloniex) GetBalances() (Balance, error) {
 	return balance, nil
 }
 
-// GetCompleteBalances returns complete balances from your account.
-func (p *Poloniex) GetCompleteBalances() (CompleteBalances, error) {
+// GetAggregatedBalances returns complete aggregates balances between margin,
+// lending and exchange accountss.
+func (p *Poloniex) GetAggregatedBalances() (CompleteBalances, error) {
 	var result CompleteBalances
 	vals := url.Values{}
 	vals.Set("account", "all")
@@ -266,6 +267,17 @@ func (p *Poloniex) GetCompleteBalances() (CompleteBalances, error) {
 		http.MethodPost,
 		poloniexBalancesComplete,
 		vals,
+		&result)
+	return result, err
+}
+
+// GetExchangeBalances returns exchange account balances
+func (p *Poloniex) GetExchangeBalances() (CompleteBalances, error) {
+	var result CompleteBalances
+	err := p.SendAuthenticatedHTTPRequest(exchange.RestSpot,
+		http.MethodPost,
+		poloniexBalancesComplete,
+		url.Values{},
 		&result)
 	return result, err
 }
