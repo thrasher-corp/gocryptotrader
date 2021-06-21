@@ -53,10 +53,7 @@ func (d dataHistoryStatus) String() string {
 
 // Valid ensures the value set is legitimate
 func (d dataHistoryStatus) Valid() bool {
-	if int64(d) >= 0 && int64(d) <= 4 {
-		return true
-	}
-	return false
+	return int64(d) >= 0 && int64(d) <= 4
 }
 
 // String stringifies iotas to readable
@@ -72,10 +69,7 @@ func (d dataHistoryDataType) String() string {
 
 // Valid ensures the value set is legitimate
 func (d dataHistoryDataType) Valid() bool {
-	if int64(d) == 0 || int64(d) == 1 {
-		return true
-	}
-	return false
+	return int64(d) == 0 || int64(d) == 1
 }
 
 var (

@@ -148,8 +148,8 @@ func TestUpsertJob(t *testing.T) {
 	dhj.Exchange = strings.ToLower(testExchange)
 	dhj.Pair = currency.NewPair(currency.BTC, currency.USDT)
 	err = m.UpsertJob(dhj, false)
-	if !errors.Is(err, errCurrencyPairInvalid) {
-		t.Errorf("error '%v', expected '%v'", err, errCurrencyPairInvalid)
+	if !errors.Is(err, errCurrencyNotEnabled) {
+		t.Errorf("error '%v', expected '%v'", err, errCurrencyNotEnabled)
 	}
 
 	dhj.Pair = currency.NewPair(currency.BTC, currency.USD)
@@ -464,8 +464,8 @@ func TestValidateJob(t *testing.T) {
 	dhj.Exchange = testExchange
 	dhj.Pair = currency.NewPair(currency.BTC, currency.USDT)
 	err = m.validateJob(dhj)
-	if !errors.Is(err, errCurrencyPairInvalid) {
-		t.Errorf("error '%v', expected '%v'", err, errCurrencyPairInvalid)
+	if !errors.Is(err, errCurrencyNotEnabled) {
+		t.Errorf("error '%v', expected '%v'", err, errCurrencyNotEnabled)
 	}
 
 	dhj.Pair = currency.NewPair(currency.BTC, currency.USD)

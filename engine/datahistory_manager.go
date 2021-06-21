@@ -176,16 +176,16 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 		case dataHistoryCandleDataType:
 			candles, err = m.candleLoader(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].Interval, jobs[i].StartDate, jobs[i].EndDate)
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
-				return err
+				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
 			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 		case dataHistoryTradeDataType:
 			err := m.tradeLoader(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].rangeHolder)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return err
+				return fmt.Errorf("%s could not load trade data: %w", jobs[i].Nickname, err)
 			}
 		default:
-			return errUnknownDataType
+			return fmt.Errorf("%s %w %s", jobs[i].Nickname, errUnknownDataType, jobs[i].DataType.String())
 		}
 	}
 	return nil
@@ -256,7 +256,8 @@ func (m *DataHistoryManager) runJobs() error {
 	return nil
 }
 
-// runJob will iterate
+// runJob processes an active job, retrieves candle or trade data
+// for a given date range and saves all results to the database
 func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	if m == nil {
 		return ErrNilSubsystem
@@ -269,7 +270,12 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	}
 	var intervalsProcessed int64
 	if job.rangeHolder == nil || len(job.rangeHolder.Ranges) == 0 {
-		return errJobInvalid
+		return fmt.Errorf("%s %w invalid start/end range %s-%s",
+			job.Nickname,
+			errJobInvalid,
+			job.StartDate.Format(common.SimpleTimeFormatWithTimezone),
+			job.EndDate.Format(common.SimpleTimeFormatWithTimezone),
+		)
 	}
 
 	exch := m.exchangeManager.GetExchangeByName(job.Exchange)
@@ -333,7 +339,7 @@ ranges:
 			continue
 		}
 		if m.verbose {
-			log.Debugf(log.DataHistory, "%s processing range %v-%v", job.Nickname, job.rangeHolder.Ranges[i].Start, job.rangeHolder.Ranges[i].End)
+			log.Debugf(log.DataHistory, "job %s processing range %v-%v", job.Nickname, job.rangeHolder.Ranges[i].Start, job.rangeHolder.Ranges[i].End)
 		}
 		intervalsProcessed++
 		id, err := uuid.NewV4()
@@ -446,11 +452,15 @@ completionCheck:
 	dbJob := m.convertJobToDBModel(job)
 	err := m.jobDB.Upsert(dbJob)
 	if err != nil {
-		return err
+		return fmt.Errorf("job %s failed to update database: %w", job.Nickname, err)
 	}
 
 	dbJobResults := m.convertJobResultToDBResult(job.Results)
-	return m.jobResultDB.Upsert(dbJobResults...)
+	err = m.jobResultDB.Upsert(dbJobResults...)
+	if err != nil {
+		return fmt.Errorf("job %s failed to insert job results to database: %w", job.Nickname, err)
+	}
+	return nil
 }
 
 // UpsertJob allows for GRPC interaction to upsert a job to be processed
@@ -475,7 +485,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 
 	if insertOnly && j != nil ||
 		(j != nil && j.Status != dataHistoryStatusActive) {
-		return fmt.Errorf("upsert job %w nickname: '%s' - status: '%s' ", errNicknameInUse, j.Nickname, j.Status)
+		return fmt.Errorf("upsert job %w nickname: %s - status: %s ", errNicknameInUse, j.Nickname, j.Status)
 	}
 
 	m.m.Lock()
@@ -549,27 +559,27 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		return errNilJob
 	}
 	if !job.Asset.IsValid() {
-		return asset.ErrNotSupported
+		return fmt.Errorf("job %s %w %s", job.Nickname, asset.ErrNotSupported, job.Asset)
 	}
 	if job.Pair.IsEmpty() {
-		return errCurrencyPairUnset
+		return fmt.Errorf("job %s %w", job.Nickname, errCurrencyPairUnset)
 	}
 	if !job.Status.Valid() {
-		return errInvalidDataHistoryStatus
+		return fmt.Errorf("job %s %w: %s", job.Nickname, errInvalidDataHistoryStatus, job.Status.String())
 	}
 	if !job.DataType.Valid() {
-		return errInvalidDataHistoryDataType
+		return fmt.Errorf("job %s %w: %s", job.Nickname, errInvalidDataHistoryDataType, job.DataType.String())
 	}
 	exch := m.exchangeManager.GetExchangeByName(job.Exchange)
 	if exch == nil {
-		return fmt.Errorf("%s %w", job.Exchange, errExchangeNotLoaded)
+		return fmt.Errorf("job %s %w", job.Nickname, errExchangeNotLoaded)
 	}
 	pairs, err := exch.GetEnabledPairs(job.Asset)
 	if err != nil {
-		return err
+		return fmt.Errorf("job %s exchange %s asset %s currency %s %w", job.Nickname, job.Exchange, job.Asset, job.Pair, err)
 	}
 	if !pairs.Contains(job.Pair, false) {
-		return errCurrencyPairInvalid
+		return fmt.Errorf("job %s exchange %s asset %s currency %s %w", job.Nickname, job.Exchange, job.Asset, job.Pair, errCurrencyNotEnabled)
 	}
 	if job.Results == nil {
 		job.Results = make(map[time.Time][]DataHistoryJobResult)
@@ -593,13 +603,13 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 
 	b := exch.GetBase()
 	if !b.Features.Enabled.Kline.Intervals[job.Interval.Word()] {
-		return fmt.Errorf("%s %w not enabled on exchange %s", job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
+		return fmt.Errorf("job %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 
 	job.StartDate = job.StartDate.Round(job.Interval.Duration())
 	job.EndDate = job.EndDate.Round(job.Interval.Duration())
 	if err := common.StartEndTimeCheck(job.StartDate, job.EndDate); err != nil {
-		return fmt.Errorf("%w start: %v end %v", err, job.StartDate, job.EndDate)
+		return fmt.Errorf("job %s %w start: %v end %v", job.Nickname, err, job.StartDate, job.EndDate)
 	}
 
 	return nil
@@ -649,7 +659,7 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 	if fullDetails {
 		dbJ, err := m.jobDB.GetJobAndAllResults(nickname)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("job %s could not load job from database: %w", nickname, err)
 		}
 		result, err := m.convertDBModelToJob(dbJ)
 		if err != nil {
@@ -673,7 +683,7 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 			// no need to display normal sql err to user
 			return nil, errJobNotFound
 		}
-		return nil, fmt.Errorf("%w, %s", errJobNotFound, err)
+		return nil, fmt.Errorf("job %s %w, %s", nickname, errJobNotFound, err)
 	}
 	job, err := m.convertDBModelToJob(j)
 	if err != nil {
@@ -741,7 +751,7 @@ func (m *DataHistoryManager) DeleteJob(nickname, id string) error {
 	}
 	if dbJob.Status != int64(dataHistoryStatusActive) {
 		status := dataHistoryStatus(dbJob.Status)
-		return fmt.Errorf("job: '%v' status: '%v' error: '%w'", dbJob.Nickname, status.String(), errCanOnlyDeleteActiveJobs)
+		return fmt.Errorf("job: %v status: %v error: %w", dbJob.Nickname, status.String(), errCanOnlyDeleteActiveJobs)
 	}
 	dbJob.Status = int64(dataHistoryStatusRemoved)
 	err = m.jobDB.Upsert(dbJob)
@@ -776,7 +786,7 @@ func (m *DataHistoryManager) GetActiveJobs() ([]DataHistoryJob, error) {
 func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJobSummary, error) {
 	job, err := m.GetByNickname(nickname, false)
 	if err != nil {
-		return nil, fmt.Errorf("'%s' %w", nickname, err)
+		return nil, fmt.Errorf("job: %v %w", nickname, err)
 	}
 
 	err = m.compareJobsToData(job)
@@ -806,12 +816,12 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 	}
 	cp, err := currency.NewPairFromString(fmt.Sprintf("%s-%s", dbModel.Base, dbModel.Quote))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("job %s could not format pair %s-%s: %w", dbModel.Nickname, dbModel.Base, dbModel.Quote, err)
 	}
 
 	jobResults, err := m.convertDBResultToJobResult(dbModel.Results)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("job %s could not convert database job: %w", dbModel.Nickname, err)
 	}
 
 	return &DataHistoryJob{
