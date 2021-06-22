@@ -409,8 +409,8 @@ func (b *Bitfinex) GetMarginPairs() ([]string, error) {
 	return resp[0], nil
 }
 
-// GetDerivativeData gets data for the queried derivative
-func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limit int64) ([]DerivativeDataResponse, error) {
+// GetDerivativeStatusInfo gets status data for the queried derivative
+func (b *Bitfinex) GetDerivativeStatusInfo(keys, startTime, endTime string, sort, limit int64) ([]DerivativeDataResponse, error) {
 	var result [][19]interface{}
 	var finalResp []DerivativeDataResponse
 

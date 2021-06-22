@@ -73,7 +73,7 @@ func TestGetV2MarginFunding(t *testing.T) {
 
 func TestGetV2MarginInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip("api keys are not set or invalid")
 	}
 	_, err := b.GetV2MarginInfo("base")
 	if err != nil {
@@ -92,7 +92,7 @@ func TestGetV2MarginInfo(t *testing.T) {
 func TestGetAccountInfoV2(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip("api keys are not set or invalid")
 	}
 	_, err := b.GetAccountInfoV2()
 	if err != nil {
@@ -102,7 +102,7 @@ func TestGetAccountInfoV2(t *testing.T) {
 
 func TestGetV2FundingInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip("api keys are not set or invalid")
 	}
 	_, err := b.GetV2FundingInfo("fUSD,fUST")
 	if err != nil {
@@ -113,7 +113,7 @@ func TestGetV2FundingInfo(t *testing.T) {
 func TestGetV2Balances(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip("api keys are not set or invalid")
 	}
 	_, err := b.GetV2Balances()
 	if err != nil {
@@ -121,9 +121,9 @@ func TestGetV2Balances(t *testing.T) {
 	}
 }
 
-func TestGetDerivativeData(t *testing.T) {
+func TestGetDerivativeStatusInfo(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetDerivativeData("ALL", "", "", 0, 0)
+	_, err := b.GetDerivativeStatusInfo("ALL", "", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
