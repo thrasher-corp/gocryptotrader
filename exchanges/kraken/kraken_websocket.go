@@ -114,14 +114,12 @@ func (k *Kraken) WsConnect() error {
 					err)
 			} else {
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
-				var authsubs []stream.ChannelSubscription
-				authsubs, err = k.GenerateAuthenticatedSubscriptions()
+				err = k.wsAuthPingHandler()
 				if err != nil {
-					return err
-				}
-				err = k.Websocket.SubscribeToChannels(authsubs)
-				if err != nil {
-					return err
+					log.Errorf(log.ExchangeSys,
+						"%v - failed setup ping handler for auth connection. Websocket may disconnect unexpectedly. %v\n",
+						k.Name,
+						err)
 				}
 			}
 		}
@@ -369,6 +367,20 @@ func (k *Kraken) wsPingHandler() error {
 		return err
 	}
 	k.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+		Message:     message,
+		Delay:       krakenWsPingDelay,
+		MessageType: websocket.TextMessage,
+	})
+	return nil
+}
+
+// wsAuthPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
+func (k *Kraken) wsAuthPingHandler() error {
+	message, err := json.Marshal(pingRequest)
+	if err != nil {
+		return err
+	}
+	k.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		Message:     message,
 		Delay:       krakenWsPingDelay,
 		MessageType: websocket.TextMessage,
@@ -1127,18 +1139,14 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			})
 		}
 	}
-	return subscriptions, nil
-}
-
-// GenerateAuthenticatedSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (k *Kraken) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
-	for i := range authenticatedChannels {
-		params := make(map[string]interface{})
-		subscriptions = append(subscriptions, stream.ChannelSubscription{
-			Channel: authenticatedChannels[i],
-			Params:  params,
-		})
+	if k.Websocket.CanUseAuthenticatedEndpoints() {
+		for i := range authenticatedChannels {
+			params := make(map[string]interface{})
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: authenticatedChannels[i],
+				Params:  params,
+			})
+		}
 	}
 	return subscriptions, nil
 }
