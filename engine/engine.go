@@ -139,59 +139,47 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	b.Settings = *s
 
-	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager && (flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
+	b.Settings.EnableGCTScriptManager = b.Settings.EnableGCTScriptManager &&
+		(flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
+
 	if b.Settings.EnablePortfolioManager {
-		if b.Settings.PortfolioManagerDelay == time.Duration(0) && s.PortfolioManagerDelay > 0 {
-			b.Settings.PortfolioManagerDelay = s.PortfolioManagerDelay
-		} else {
+		if b.Settings.PortfolioManagerDelay <= 0 {
 			b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
 		}
 	}
 
 	if flagSet["grpc"] {
-		b.Settings.EnableGRPC = s.EnableGRPC
-	} else {
 		b.Settings.EnableGRPC = b.Config.RemoteControl.GRPC.Enabled
 	}
 
-	if flagSet["grpcproxy"] {
-		b.Settings.EnableGRPCProxy = s.EnableGRPCProxy
-	} else {
+	if !flagSet["grpcproxy"] {
 		b.Settings.EnableGRPCProxy = b.Config.RemoteControl.GRPC.GRPCProxyEnabled
 	}
 
-	if flagSet["websocketrpc"] {
-		b.Settings.EnableWebsocketRPC = s.EnableWebsocketRPC
-	} else {
+	if !flagSet["websocketrpc"] {
 		b.Settings.EnableWebsocketRPC = b.Config.RemoteControl.WebsocketRPC.Enabled
 	}
 
-	if flagSet["deprecatedrpc"] {
-		b.Settings.EnableDeprecatedRPC = s.EnableDeprecatedRPC
-	} else {
+	if !flagSet["deprecatedrpc"] {
 		b.Settings.EnableDeprecatedRPC = b.Config.RemoteControl.DeprecatedRPC.Enabled
 	}
 
 	if flagSet["maxvirtualmachines"] {
-		maxMachines := uint8(s.MaxVirtualMachines)
+		maxMachines := uint8(b.Settings.MaxVirtualMachines)
 		b.gctScriptManager.MaxVirtualMachines = &maxMachines
 	}
 
 	if flagSet["withdrawcachesize"] {
-		withdraw.CacheSize = s.WithdrawCacheSize
+		withdraw.CacheSize = b.Settings.WithdrawCacheSize
 	}
 
-	if b.Settings.EnableEventManager {
-		if b.Settings.EventManagerDelay != time.Duration(0) && s.EventManagerDelay > 0 {
-			b.Settings.EventManagerDelay = s.EventManagerDelay
-		} else {
-			b.Settings.EventManagerDelay = EventSleepDelay
-		}
+	if b.Settings.EnableEventManager && b.Settings.EventManagerDelay <= 0 {
+		b.Settings.EventManagerDelay = EventSleepDelay
 	}
 
 	// Checks if the flag values are different from the defaults
 	if b.Settings.MaxHTTPRequestJobsLimit != int(request.DefaultMaxRequestJobs) &&
-		s.MaxHTTPRequestJobsLimit > 0 {
+		b.Settings.MaxHTTPRequestJobsLimit > 0 {
 		request.MaxRequestJobs = int32(b.Settings.MaxHTTPRequestJobsLimit)
 	}
 
@@ -205,19 +193,16 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		}
 	}
 
-	if b.Settings.RequestMaxRetryAttempts != request.DefaultMaxRetryAttempts && s.RequestMaxRetryAttempts > 0 {
+	if b.Settings.RequestMaxRetryAttempts != request.DefaultMaxRetryAttempts &&
+		b.Settings.RequestMaxRetryAttempts > 0 {
 		request.MaxRetryAttempts = b.Settings.RequestMaxRetryAttempts
 	}
 
-	if s.HTTPTimeout != time.Duration(0) && s.HTTPTimeout > 0 {
-		b.Settings.HTTPTimeout = s.HTTPTimeout
-	} else {
+	if b.Settings.HTTPTimeout <= 0 {
 		b.Settings.HTTPTimeout = b.Config.GlobalHTTPTimeout
 	}
 
-	if s.GlobalHTTPTimeout != time.Duration(0) && s.GlobalHTTPTimeout > 0 {
-		b.Settings.GlobalHTTPTimeout = s.GlobalHTTPTimeout
-	} else {
+	if b.Settings.GlobalHTTPTimeout <= 0 {
 		b.Settings.GlobalHTTPTimeout = b.Config.GlobalHTTPTimeout
 	}
 	common.HTTPClient = common.NewHTTPClientWithTimeout(b.Settings.GlobalHTTPTimeout)
