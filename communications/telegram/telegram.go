@@ -14,7 +14,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -59,7 +58,7 @@ type Telegram struct {
 func (t *Telegram) IsConnected() bool { return t.Connected }
 
 // Setup takes in a Telegram configuration and sets verification token
-func (t *Telegram) Setup(cfg *config.CommunicationsConfig) {
+func (t *Telegram) Setup(cfg *base.CommunicationsConfig) {
 	t.Name = cfg.TelegramConfig.Name
 	t.Enabled = cfg.TelegramConfig.Enabled
 	t.Token = cfg.TelegramConfig.VerificationToken

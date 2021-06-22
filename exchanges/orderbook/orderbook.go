@@ -98,6 +98,7 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 		return nil, errAssetTypeNotSet
 	}
 	s.Lock()
+	defer s.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
 		id, err := s.Mux.GetID()
@@ -125,7 +126,6 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 		book = newDepth(m1.ID)
 		m3[p.Quote.Item] = book
 	}
-	s.Unlock()
 	return book, nil
 }
 

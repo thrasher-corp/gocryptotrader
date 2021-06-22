@@ -202,6 +202,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 			d.LastUpdated = m.LastUpdated
 		}
 	}
+	if d.Exchange == "" {
+		d.Exchange = m.Exchange
+	}
+	if d.ID == "" {
+		d.ID = m.ID
+	}
 }
 
 // UpdateOrderFromModify Will update an order detail (used in order management)
@@ -710,18 +716,25 @@ func (c *Cancel) StandardCancel() validate.Checker {
 	})
 }
 
+// PairAssetRequired is a validation check for when a cancel request
+// requires an asset type and currency pair to be present
+func (c *Cancel) PairAssetRequired() validate.Checker {
+	return validate.Check(func() error {
+		if c.Pair.IsEmpty() {
+			return ErrPairIsEmpty
+		}
+
+		if c.AssetType == "" {
+			return ErrAssetNotSet
+		}
+		return nil
+	})
+}
+
 // Validate checks internal struct requirements
 func (c *Cancel) Validate(opt ...validate.Checker) error {
 	if c == nil {
 		return ErrCancelOrderIsNil
-	}
-
-	if c.Pair.IsEmpty() {
-		return ErrPairIsEmpty
-	}
-
-	if c.AssetType == "" {
-		return ErrAssetNotSet
 	}
 
 	var errs common.Errors

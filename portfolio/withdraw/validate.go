@@ -6,7 +6,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
-	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
 // Validate takes interface and passes to asset type to check the request meets requirements to submit
@@ -33,12 +32,12 @@ func (r *Request) Validate(opt ...validate.Checker) (err error) {
 		if (r.Currency != currency.Code{}) && !r.Currency.IsFiatCurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotFiat)
 		}
-		allErrors = append(allErrors, validateFiat(r)...)
+		allErrors = append(allErrors, r.validateFiat()...)
 	case Crypto:
 		if (r.Currency != currency.Code{}) && !r.Currency.IsCryptocurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotCrypto)
 		}
-		allErrors = append(allErrors, validateCrypto(r)...)
+		allErrors = append(allErrors, r.validateCrypto()...)
 	default:
 		allErrors = append(allErrors, "invalid request type")
 	}
@@ -60,30 +59,25 @@ func (r *Request) Validate(opt ...validate.Checker) (err error) {
 }
 
 // validateFiat takes interface and passes to asset type to check the request meets requirements to submit
-func validateFiat(request *Request) (err []string) {
-	errBank := request.Fiat.Bank.ValidateForWithdrawal(request.Exchange, request.Currency)
+func (r *Request) validateFiat() []string {
+	var resp []string
+	errBank := r.Fiat.Bank.ValidateForWithdrawal(r.Exchange, r.Currency)
 	if errBank != nil {
-		err = append(err, errBank...)
+		resp = append(resp, errBank...)
 	}
-	return err
+	return resp
 }
 
 // validateCrypto checks if Crypto request is valid and meets the minimum requirements to submit a crypto withdrawal request
-func validateCrypto(request *Request) (err []string) {
-	if !portfolio.IsWhiteListed(request.Crypto.Address) {
-		err = append(err, ErrStrAddressNotWhiteListed)
+func (r *Request) validateCrypto() []string {
+	var resp []string
+
+	if r.Crypto.Address == "" {
+		resp = append(resp, ErrStrAddressNotSet)
 	}
 
-	if !portfolio.IsExchangeSupported(request.Exchange, request.Crypto.Address) {
-		err = append(err, ErrStrExchangeNotSupportedByAddress)
+	if r.Crypto.FeeAmount < 0 {
+		resp = append(resp, ErrStrFeeCannotBeNegative)
 	}
-
-	if request.Crypto.Address == "" {
-		err = append(err, ErrStrAddressNotSet)
-	}
-
-	if request.Crypto.FeeAmount < 0 {
-		err = append(err, ErrStrFeeCannotBeNegative)
-	}
-	return
+	return resp
 }

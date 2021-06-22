@@ -1,0 +1,28 @@
+{{define "engine apiserver" -}}
+{{template "header" .}}
+## Current Features for {{.CapitalName}}
++ The API server subsystem is a deprecated service used to host a REST or websocket server to interact with some functions of GoCryptoTrader
++ This subsystem is no longer maintained and it is highly encouraged to interact with GRPC endpoints directly where possible
++ In order to modify the behaviour of the API server subsystem, you can edit the following inside your config file:
+
+### deprecatedRPC
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| enabled | If enabled will create a REST server which will listen to commands on the listen address | `true` |
+| listenAddress | If enabled will listen for REST requests on this address and return a JSON response | `localhost:9050` |
+
+### websocketRPC
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| enabled | If enabled will create a REST server which will listen to commands on the listen address | `true` |
+| listenAddress | If enabled will listen for requests on this address and return a JSON response | `localhost:9051` |
+| connectionLimit | Defines how many connections the websocket RPC server can handle simultanesoly | `1` |
+| maxAuthFailures | For authenticated endpoints, the amount of failed attempts allowed before disconnection | `3` |
+| allowInsecureOrigin | Allows use of insecure connections | `true` |
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

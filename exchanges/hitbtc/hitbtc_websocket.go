@@ -86,7 +86,7 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 		}
 	}
 	if init.Error.Message != "" || init.Error.Code != 0 {
-		return "", fmt.Errorf("hitbtc.go error - Code: %d, Message: %s",
+		return "", fmt.Errorf("code: %d, Message: %s",
 			init.Error.Code,
 			init.Error.Message)
 	}
@@ -292,7 +292,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 // WsProcessOrderbookSnapshot processes a full orderbook snapshot to a local cache
 func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	if len(ob.Params.Bid) == 0 || len(ob.Params.Ask) == 0 {
-		return errors.New("hitbtc.go error - no orderbooks to process")
+		return errors.New("no orderbooks to process")
 	}
 
 	var newOrderBook orderbook.Base

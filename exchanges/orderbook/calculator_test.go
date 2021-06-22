@@ -1,6 +1,7 @@
 package orderbook
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -32,14 +33,26 @@ func TestWhaleBomb(t *testing.T) {
 	}
 
 	// valid
-	b.WhaleBomb(7001, true)
+	_, err = b.WhaleBomb(7001, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
 	// invalid
-	b.WhaleBomb(7002, true)
+	_, err = b.WhaleBomb(7002, true)
+	if err == nil {
+		t.Error("unexpected result")
+	}
 
 	// valid
-	b.WhaleBomb(6998, false)
+	_, err = b.WhaleBomb(6998, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
 	// invalid
-	b.WhaleBomb(6997, false)
+	_, err = b.WhaleBomb(6997, false)
+	if err == nil {
+		t.Error("unexpected result")
+	}
 }
 
 func TestSimulateOrder(t *testing.T) {

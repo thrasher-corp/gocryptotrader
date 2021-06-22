@@ -93,5 +93,6 @@ func convertGCTtoSQLBoilerConfig(c *database.Config) {
 
 // getLoadedDBPath gets the path loaded by 'database/drivers/sqlite3'
 func getLoadedDBPath() string {
-	return filepath.Join(database.DB.DataPath, database.DB.Config.Database)
+	cfg := database.DB.GetConfig()
+	return filepath.Join(database.DB.DataPath, cfg.Database)
 }

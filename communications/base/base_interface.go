@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -13,18 +12,18 @@ type IComm []ICommunicate
 
 // ICommunicate enforces standard functions across communication packages
 type ICommunicate interface {
-	Setup(config *config.CommunicationsConfig)
+	Setup(config *CommunicationsConfig)
 	Connect() error
 	PushEvent(Event) error
 	IsEnabled() bool
 	IsConnected() bool
 	GetName() string
+	SetServiceStarted(time.Time)
 }
 
-// Setup sets up communication variables and intiates a connection to the
+// Setup sets up communication variables and initiates a connection to the
 // communication mediums
 func (c IComm) Setup() {
-	ServiceStarted = time.Now()
 	for i := range c {
 		if c[i].IsEnabled() && !c[i].IsConnected() {
 			err := c[i].Connect()
@@ -33,6 +32,7 @@ func (c IComm) Setup() {
 				continue
 			}
 			log.Debugf(log.CommunicationMgr, "Communications: %v is enabled and online.", c[i].GetName())
+			c[i].SetServiceStarted(time.Now())
 		}
 	}
 }

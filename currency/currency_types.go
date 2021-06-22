@@ -25,6 +25,7 @@ type BotOverrides struct {
 	FxCurrencyLayer     bool
 	FxFixer             bool
 	FxOpenExchangeRates bool
+	FxExchangeRateHost  bool
 }
 
 // CoinmarketcapSettings refers to settings

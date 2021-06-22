@@ -313,6 +313,14 @@ func TestExtractPort(t *testing.T) {
 		t.Errorf(
 			"Expected '%d'. Actual '%d'.", expectedOutput, actualResult)
 	}
+
+	address = "localhost"
+	expectedOutput = 80
+	actualResult = ExtractPort(address)
+	if expectedOutput != actualResult {
+		t.Errorf(
+			"Expected '%d'. Actual '%d'.", expectedOutput, actualResult)
+	}
 }
 
 func TestGetURIPath(t *testing.T) {

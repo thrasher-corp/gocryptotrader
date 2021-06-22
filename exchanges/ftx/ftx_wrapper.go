@@ -736,7 +736,7 @@ func (f *FTX) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.I
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (f *FTX) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
-	a, err := f.FetchDepositAddress(cryptocurrency.String())
+	a, err := f.FetchDepositAddress(cryptocurrency)
 	if err != nil {
 		return "", err
 	}
@@ -749,8 +749,7 @@ func (f *FTX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*w
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
-	resp, err := f.Withdraw(withdrawRequest.Currency.String(),
+	resp, err := f.Withdraw(withdrawRequest.Currency,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.TradePassword,

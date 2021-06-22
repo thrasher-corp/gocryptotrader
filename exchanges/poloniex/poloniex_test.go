@@ -130,37 +130,29 @@ func TestGetFee(t *testing.T) {
 
 	if areTestAPIKeysSet() || mockTests {
 		// CryptocurrencyTradeFee Basic
-		if resp, err := p.GetFee(feeBuilder); resp != float64(0.0025) || err != nil {
+		if _, err := p.GetFee(feeBuilder); err != nil {
 			t.Error(err)
-			t.Errorf("GetFee() error. Expected: %f, Received: %f",
-				float64(0.0025), resp)
 		}
 
 		// CryptocurrencyTradeFee High quantity
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
-		if resp, err := p.GetFee(feeBuilder); resp != float64(2500) || err != nil {
-			t.Errorf("GetFee() error. Expected: %f, Received: %f",
-				float64(2500), resp)
+		if _, err := p.GetFee(feeBuilder); err != nil {
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee Negative purchase price
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
-		if resp, err := p.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("GetFee() error. Expected: %f, Received: %f",
-				float64(0), resp)
+		if _, err := p.GetFee(feeBuilder); err != nil {
 			t.Error(err)
 		}
 	}
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if resp, err := p.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(0.001), resp)
+	if _, err := p.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -168,27 +160,21 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if resp, err := p.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(0), resp)
+	if _, err := p.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
-	// CyptocurrencyDepositFee Basic
+	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
-	if resp, err := p.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(0), resp)
+	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
+	if _, err := p.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	if resp, err := p.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(0), resp)
+	if _, err := p.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -196,9 +182,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
-	if resp, err := p.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(0), resp)
+	if _, err := p.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 }
@@ -470,7 +454,7 @@ func TestWithdraw(t *testing.T) {
 			Address:   core.BitcoinDonationAddress,
 			FeeAmount: 1,
 		},
-		Amount:        0,
+		Amount:        0.00001337,
 		Currency:      currency.LTC,
 		Description:   "WITHDRAW IT ALL",
 		TradePassword: "Password",
@@ -485,8 +469,8 @@ func TestWithdraw(t *testing.T) {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	case !areTestAPIKeysSet() && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
-	case mockTests && err == nil:
-		t.Error("Mock Withdraw() err cannot be nil")
+	case mockTests && err != nil:
+		t.Error(err)
 	}
 }
 

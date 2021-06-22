@@ -1109,7 +1109,7 @@ func (h *HUOBI) FQueryTriggerOrderHistory(contractCode currency.Pair, symbol, tr
 // FuturesAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
 func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint string, values url.Values, data, result interface{}) error {
 	if !h.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
+		return fmt.Errorf("%s %w", h.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	ePoint, err := h.API.Endpoints.GetURL(ep)
 	if err != nil {

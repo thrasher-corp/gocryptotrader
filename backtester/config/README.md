@@ -3,7 +3,7 @@
 <img src="/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
 
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester/config)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
@@ -127,6 +127,7 @@ See below for a set of tables and fields, expected values and what they can do
 | APISecretOverride | Will set the GoCryptoTrader exchange to use the following API Secret | `5678` |
 | APIClientIDOverride | Will set the GoCryptoTrader exchange to use the following API Client ID | `9012` |
 | API2FAOverride | Will set the GoCryptoTrader exchange to use the following 2FA seed | `hello-moto` |
+| APISubaccountOverride | Will set the GoCryptoTrader exchange to use the following subaccount on supported exchanges | `subzero` |
 | RealOrders | Whether to place real orders. You really should never consider using this. Ever ever. | `true` |
 
 ##### Leverage Settings

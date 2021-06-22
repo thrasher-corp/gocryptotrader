@@ -699,8 +699,7 @@ func (c *CoinbasePro) SendHTTPRequest(ep exchange.URL, path string, result inter
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path string, params map[string]interface{}, result interface{}) (err error) {
 	if !c.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
-			c.Name)
+		return fmt.Errorf("%s %w", c.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	endpoint, err := c.API.Endpoints.GetURL(ep)
 	if err != nil {

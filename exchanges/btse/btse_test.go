@@ -475,50 +475,42 @@ func TestGetFee(t *testing.T) {
 		PurchasePrice: 1000,
 	}
 
-	if resp, err := b.GetFee(feeBuilder); resp != 1.000000 || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", 1.000000, resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	feeBuilder.IsMaker = false
-	if resp, err := b.GetFee(feeBuilder); resp != 2.00000 || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", 2.00000, resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if resp, err := b.GetFee(feeBuilder); resp != 0.0005 || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", 0.0005, resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	feeBuilder.Pair.Base = currency.USDT
-	if resp, err := b.GetFee(feeBuilder); resp != 1.080000 || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", 1.080000, resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	if resp, err := b.GetFee(feeBuilder); resp != float64(3) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(3), resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	feeBuilder.Amount = 1000000
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	if resp, err := b.GetFee(feeBuilder); resp != float64(900) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(900), resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	feeBuilder.Amount = 1000
-	if resp, err := b.GetFee(feeBuilder); resp != float64(25) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(25), resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 }

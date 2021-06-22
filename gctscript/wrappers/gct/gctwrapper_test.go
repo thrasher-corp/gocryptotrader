@@ -30,10 +30,34 @@ func TestMain(m *testing.M) {
 		log.Print(err)
 		os.Exit(1)
 	}
-	engine.Bot.LoadExchange(exch.Value, false, nil)
-	engine.Bot.DepositAddressManager = new(engine.DepositAddressManager)
-	go engine.Bot.DepositAddressManager.Sync()
-	err = engine.Bot.OrderManager.Start(engine.Bot)
+	em := engine.SetupExchangeManager()
+	exch, err := em.NewExchangeByName(exch.Value)
+	if err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+	exch.SetDefaults()
+	em.Add(exch)
+	engine.Bot.ExchangeManager = em
+	engine.Bot.WithdrawManager, err = engine.SetupWithdrawManager(em, nil, true)
+	if err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+
+	engine.Bot.DepositAddressManager = engine.SetupDepositAddressManager()
+	err = engine.Bot.DepositAddressManager.Sync(engine.Bot.GetExchangeCryptocurrencyDepositAddresses())
+	if err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+
+	engine.Bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &engine.Bot.ServicesWG, false)
+	if err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+	err = engine.Bot.OrderManager.Start()
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
@@ -46,7 +70,7 @@ func TestSetup(t *testing.T) {
 	x := Setup()
 	xType := reflect.TypeOf(x).String()
 	if xType != "*gct.Wrapper" {
-		t.Fatalf("Setup() should return pointer to Wrapper instead received: %v", x)
+		t.Fatalf("SetupCommunicationManager() should return pointer to Wrapper instead received: %v", x)
 	}
 }
 

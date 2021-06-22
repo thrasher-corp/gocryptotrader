@@ -1,226 +1,296 @@
 package bittrex
 
 import (
-	"encoding/json"
+	"sync"
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
-// Response is the generalised response type for Bittrex
-type Response struct {
-	Success bool            `json:"success"`
-	Message string          `json:"message"`
-	Result  json.RawMessage `json:"result"`
+// CancelOrderRequest holds request data for CancelOrder
+type CancelOrderRequest struct {
+	OrderID int64 `json:"orderId,string"`
 }
 
-// Market holds current market metadata
-type Market struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  []struct {
-		MarketCurrency     string  `json:"MarketCurrency"`
-		BaseCurrency       string  `json:"BaseCurrency"`
-		MarketCurrencyLong string  `json:"MarketCurrencyLong"`
-		BaseCurrencyLong   string  `json:"BaseCurrencyLong"`
-		MinTradeSize       float64 `json:"MinTradeSize"`
-		MarketName         string  `json:"MarketName"`
-		IsActive           bool    `json:"IsActive"`
-		Created            string  `json:"Created"`
-	} `json:"result"`
+// TimeInForce defines timeInForce types
+type TimeInForce string
+
+// All order status types
+const (
+	GoodTilCancelled         TimeInForce = "GOOD_TIL_CANCELLED"
+	ImmediateOrCancel        TimeInForce = "IMMEDIATE_OR_CANCEL"
+	FillOrKill               TimeInForce = "FILL_OR_KILL"
+	PostOnlyGoodTilCancelled TimeInForce = "POST_ONLY_GOOD_TIL_CANCELLED"
+	BuyNow                   TimeInForce = "BUY_NOW"
+)
+
+// OrderData holds order data
+type OrderData struct {
+	ID            string    `json:"id"`
+	MarketSymbol  string    `json:"marketSymbol"`
+	Direction     string    `json:"direction"`
+	Type          string    `json:"type"`
+	Quantity      float64   `json:"quantity,string"`
+	Limit         float64   `json:"limit,string"`
+	Ceiling       float64   `json:"ceiling,string"`
+	TimeInForce   string    `json:"timeInForce"`
+	ClientOrderID string    `json:"clientOrderId"`
+	FillQuantity  float64   `json:"fillQuantity,string"`
+	Commission    float64   `json:"commission,string"`
+	Proceeds      float64   `json:"proceeds,string"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+	ClosedAt      time.Time `json:"closedAt"`
+	OrderToCancel struct {
+		Type string `json:"type,string"`
+		ID   string `json:"id,string"`
+	} `json:"orderToCancel"`
 }
 
-// Currency holds supported currency metadata
-type Currency struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  []struct {
-		Currency        string  `json:"Currency"`
-		CurrencyLong    string  `json:"CurrencyLong"`
-		MinConfirmation int64   `json:"MinConfirmation"`
-		TxFee           float64 `json:"TxFee"`
-		IsActive        bool    `json:"IsActive"`
-		CoinType        string  `json:"CoinType"`
-		BaseAddress     string  `json:"BaseAddress"`
-	} `json:"result"`
+// BulkCancelResultData holds the result of a bulk cancel action
+type BulkCancelResultData struct {
+	ID         string    `json:"id"`
+	StatusCode string    `json:"statusCode"`
+	Result     OrderData `json:"result"`
 }
 
-// Ticker holds basic ticker information
-type Ticker struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  struct {
-		Bid  float64 `json:"Bid"`
-		Ask  float64 `json:"Ask"`
-		Last float64 `json:"Last"`
-	} `json:"result"`
+// MarketData stores market data
+type MarketData struct {
+	Symbol              string    `json:"symbol"`
+	BaseCurrencySymbol  string    `json:"baseCurrencySymbol"`
+	QuoteCurrencySymbol string    `json:"quoteCurrencySymbol"`
+	MinTradeSize        float64   `json:"minTradeSize,string"`
+	Precision           int32     `json:"precision"`
+	Status              string    `json:"status"`
+	CreatedAt           time.Time `json:"createdAt"`
+	Notice              string    `json:"notice"`
+	ProhibitedIn        []string  `json:"prohibitedIn"`
 }
 
-// MarketSummary holds last 24 hour metadata of an active exchange
-type MarketSummary struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  []struct {
-		MarketName        string  `json:"MarketName"`
-		High              float64 `json:"High"`
-		Low               float64 `json:"Low"`
-		Volume            float64 `json:"Volume"`
-		Last              float64 `json:"Last"`
-		BaseVolume        float64 `json:"BaseVolume"`
-		TimeStamp         string  `json:"TimeStamp"`
-		Bid               float64 `json:"Bid"`
-		Ask               float64 `json:"Ask"`
-		OpenBuyOrders     int64   `json:"OpenBuyOrders"`
-		OpenSellOrders    int64   `json:"OpenSellOrders"`
-		PrevDay           float64 `json:"PrevDay"`
-		Created           string  `json:"Created"`
-		DisplayMarketName string  `json:"DisplayMarketName"`
-	} `json:"result"`
+// TickerData stores ticker data
+type TickerData struct {
+	Symbol        string  `json:"symbol"`
+	LastTradeRate float64 `json:"lastTradeRate,string"`
+	BidRate       float64 `json:"bidRate,string"`
+	AskRate       float64 `json:"askRate,string"`
 }
 
-// OrderBooks holds an array of buy & sell orders held on the exchange
-type OrderBooks struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  struct {
-		Buy  []OrderBook `json:"buy"`
-		Sell []OrderBook `json:"sell"`
-	} `json:"result"`
+// TradeData stores trades data
+type TradeData struct {
+	ID         string    `json:"id"`
+	ExecutedAt time.Time `json:"executedAt"`
+	Quantity   float64   `json:"quantity,string"`
+	Rate       float64   `json:"rate,string"`
+	TakerSide  string    `json:"takerSide"`
 }
 
-// OrderBook holds a singular order on an exchange
-type OrderBook struct {
-	Quantity float64 `json:"Quantity"`
-	Rate     float64 `json:"Rate"`
+// MarketSummaryData stores market summary data
+type MarketSummaryData struct {
+	Symbol        string    `json:"symbol"`
+	High          float64   `json:"high,string"`
+	Low           float64   `json:"low,string"`
+	Volume        float64   `json:"volume,string"`
+	QuoteVolume   float64   `json:"quoteVolume,string"`
+	PercentChange float64   `json:"percentChange,string"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
-// MarketHistory holds an executed trade's data for a market ie "BTC-LTC"
-type MarketHistory struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  []struct {
-		ID        int64   `json:"Id"`
-		Timestamp string  `json:"TimeStamp"`
-		Quantity  float64 `json:"Quantity"`
-		Price     float64 `json:"Price"`
-		Total     float64 `json:"Total"`
-		FillType  string  `json:"FillType"`
-		OrderType string  `json:"OrderType"`
-	} `json:"result"`
+// OrderbookData holds the order book data
+type OrderbookData struct {
+	Bid []OrderbookEntryData `json:"bid"`
+	Ask []OrderbookEntryData `json:"ask"`
 }
 
-// Balance holds the balance from your account for a specified currency
-type Balance struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  struct {
-		Currency      string  `json:"Currency"`
-		Balance       float64 `json:"Balance"`
-		Available     float64 `json:"Available"`
-		Pending       float64 `json:"Pending"`
-		CryptoAddress string  `json:"CryptoAddress"`
-		Requested     bool    `json:"Requested"`
-		UUID          string  `json:"Uuid"`
-	} `json:"result"`
+// OrderbookEntryData holds an order book entry
+type OrderbookEntryData struct {
+	Quantity float64 `json:"quantity,string"`
+	Rate     float64 `json:"rate,string"`
 }
 
-// Balances holds the balance from your account for a specified currency
-type Balances struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  []struct {
-		Currency      string  `json:"Currency"`
-		Balance       float64 `json:"Balance"`
-		Available     float64 `json:"Available"`
-		Pending       float64 `json:"Pending"`
-		CryptoAddress string  `json:"CryptoAddress"`
-		Requested     bool    `json:"Requested"`
-		UUID          string  `json:"Uuid"`
-	} `json:"result"`
+// BalanceData holds balance data
+type BalanceData struct {
+	CurrencySymbol string    `json:"currencySymbol"`
+	Total          float64   `json:"total,string"`
+	Available      float64   `json:"available,string"`
+	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
-// DepositAddress holds a generated address to send specific coins to the
-// exchange
-type DepositAddress struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  struct {
-		Currency string `json:"Currency"`
-		Address  string `json:"Address"`
-	} `json:"result"`
+// AddressData holds address data
+// Status is REQUESTED or PROVISIONED
+type AddressData struct {
+	Status           string `json:"status"`
+	CurrencySymbol   string `json:"currencySymbol"`
+	CryptoAddress    string `json:"cryptoAddress"`
+	CryptoAddressTag string `json:"cryptoAddressTag"`
 }
 
-// UUID contains the universal unique identifier for one or multiple
-// transactions on the exchange
-type UUID struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  struct {
-		ID string `json:"uuid"`
-	} `json:"result"`
+// CurrencyData holds currency data
+// Status is ONLINE or OFFLINE
+type CurrencyData struct {
+	Symbol           string   `json:"symbol"`
+	Name             string   `json:"name"`
+	CoinType         string   `json:"coinType"`
+	Status           string   `json:"status"`
+	MinConfirmations int32    `json:"minConfirmations"`
+	Notice           string   `json:"notice"`
+	TxFee            float64  `json:"txFee,string"`
+	LogoURL          string   `json:"logoUrl"`
+	ProhibitedIn     []string `json:"prohibitedIn"`
 }
 
-// Order holds the full order information associated with the UUID supplied
-type Order struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  []struct {
-		AccountID                  string  `json:"AccountId"`
-		OrderUUID                  string  `json:"OrderUuid"`
-		Exchange                   string  `json:"Exchange"`
-		Type                       string  `json:"Type"`
-		Quantity                   float64 `json:"Quantity"`
-		QuantityRemaining          float64 `json:"QuantityRemaining"`
-		Limit                      float64 `json:"Limit"`
-		Reserved                   float64 `json:"Reserved"`
-		ReserveRemaining           float64 `json:"ReserveRemaining"`
-		CommissionReserved         float64 `json:"CommissionReserved"`
-		CommissionReserveRemaining float64 `json:"CommissionReserveRemaining"`
-		CommissionPaid             float64 `json:"CommissionPaid"`
-		Price                      float64 `json:"Price"`
-		PricePerUnit               float64 `json:"PricePerUnit"`
-		Opened                     string  `json:"Opened"`
-		Closed                     string  `json:"Closed"`
-		IsOpen                     bool    `json:"IsOpen"`
-		Sentinel                   string  `json:"Sentinel"`
-		CancelInitiated            bool    `json:"CancelInitiated"`
-		ImmediateOrCancel          bool    `json:"ImmediateOrCancel"`
-		IsConditional              bool    `json:"IsConditional"`
-		Condition                  string  `json:"Condition"`
-		ConditionTarget            string  `json:"ConditionTarget"`
-		// Below Used in OrderHistory
-		TimeStamp  string  `json:"TimeStamp"`
-		Commission float64 `json:"Commission"`
-	} `json:"result"`
+// WithdrawalData holds withdrawal data
+type WithdrawalData struct {
+	ID                 string    `json:"id"`
+	CurrencySymbol     string    `json:"currencySymbol"`
+	Quantity           float64   `json:"quantity,string"`
+	CryptoAddress      string    `json:"cryptoAddress"`
+	CryptoAddressTag   string    `json:"cryptoAddressTag"`
+	TxCost             float64   `json:"txCost,string"`
+	TxID               string    `json:"txId"`
+	Status             string    `json:"status"`
+	CreatedAt          time.Time `json:"createdAt"`
+	CompletedAt        time.Time `json:"completedAt"`
+	ClientWithdrawalID string    `json:"clientWithdrawalId"`
 }
 
-// WithdrawalHistory holds the Withdrawal history data
-type WithdrawalHistory struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  []struct {
-		PaymentUUID    string  `json:"PaymentUuid"`
-		Currency       string  `json:"Currency"`
-		Amount         float64 `json:"Amount"`
-		Address        string  `json:"Address"`
-		Opened         string  `json:"Opened"`
-		Authorized     bool    `json:"Authorized"`
-		PendingPayment bool    `json:"PendingPayment"`
-		TxCost         float64 `json:"TxCost"`
-		TxID           string  `json:"TxId"`
-		Canceled       bool    `json:"Canceled"`
-		InvalidAddress bool    `json:"InvalidAddress"`
-	} `json:"result"`
+// DepositData holds deposit data
+type DepositData struct {
+	ID               string    `json:"id"`
+	CurrencySymbol   string    `json:"currencySymbol"`
+	Quantity         float64   `json:"quantity,string"`
+	CryptoAddress    string    `json:"cryptoAddress"`
+	CryptoAddressTag string    `json:"cryptoAddressTag"`
+	TxID             string    `json:"txId"`
+	Confirmations    int32     `json:"confirmations"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+	CompletedAt      time.Time `json:"completedAt"`
+	Status           string    `json:"status"`
+	Source           string    `json:"source"`
 }
 
-// DepositHistory holds the Deposit history data
-type DepositHistory struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  []struct {
-		ID            int64   `json:"Id"`
-		Amount        float64 `json:"Amount"`
-		Currency      string  `json:"Currency"`
-		Confirmations int64   `json:"Confirmations"`
-		LastUpdated   string  `json:"LastUpdated"`
-		TxID          string  `json:"TxId"`
-		CryptoAddress string  `json:"CryptoAddress"`
-	} `json:"result"`
+// CandleData holds candle data
+type CandleData struct {
+	StartsAt    time.Time `json:"startsAt"`
+	Open        float64   `json:"open,string"`
+	High        float64   `json:"high,string"`
+	Low         float64   `json:"low,string"`
+	Close       float64   `json:"close,string"`
+	Volume      float64   `json:"volume,string"`
+	QuoteVolume float64   `json:"quoteVolume,string"`
+}
+
+// WsSignalRHandshakeData holds data for the SignalR websocket wrapper handshake
+type WsSignalRHandshakeData struct {
+	URL                     string  `json:"Url"`                     // Path to the SignalR endpoint
+	ConnectionToken         string  `json:"ConnectionToken"`         // Connection token assigned by the server
+	ConnectionID            string  `json:"ConnectionId"`            // The ID of the connection
+	KeepAliveTimeout        float64 `json:"KeepAliveTimeout"`        // Representing the amount of time to wait before sending a keep alive packet over an idle connection
+	DisconnectTimeout       float64 `json:"DisconnectTimeout"`       // Represents the amount of time to wait after a connection goes away before raising the disconnect event
+	ConnectionTimeout       float64 `json:"ConnectionTimeout"`       // Represents the amount of time to leave a connection open before timing out
+	TryWebSockets           bool    `json:"TryWebSockets"`           // Whether the server supports websockets
+	ProtocolVersion         string  `json:"ProtocolVersion"`         // The version of the protocol used for communication
+	TransportConnectTimeout float64 `json:"TransportConnectTimeout"` // The maximum amount of time the client should try to connect to the server using a given transport
+	LongPollDelay           float64 `json:"LongPollDelay"`           // The time to tell the browser to wait before reestablishing a long poll connection after data is sent from the server.
+}
+
+// WsEventRequest holds data on websocket requests
+type WsEventRequest struct {
+	Hub          string      `json:"H"`
+	Method       string      `json:"M"`
+	Arguments    interface{} `json:"A"`
+	InvocationID int64       `json:"I"`
+}
+
+// WsEventStatus holds data on the websocket event status
+type WsEventStatus struct {
+	Success   bool   `json:"Success"`
+	ErrorCode string `json:"ErrorCode"`
+}
+
+// WsEventResponse holds data on the websocket response
+type WsEventResponse struct {
+	C            string      `json:"C"`
+	S            int         `json:"S"`
+	G            string      `json:"G"`
+	Response     interface{} `json:"R"`
+	InvocationID int64       `json:"I,string"`
+	Message      []struct {
+		Hub       string   `json:"H"`
+		Method    string   `json:"M"`
+		Arguments []string `json:"A"`
+	} `json:"M"`
+}
+
+// WsSubscriptionResponse holds data on the websocket response
+type WsSubscriptionResponse struct {
+	C            string          `json:"C"`
+	S            int             `json:"S"`
+	G            string          `json:"G"`
+	Response     []WsEventStatus `json:"R"`
+	InvocationID int64           `json:"I,string"`
+	Message      []struct {
+		Hub       string   `json:"H"`
+		Method    string   `json:"M"`
+		Arguments []string `json:"A"`
+	} `json:"M"`
+}
+
+// WsAuthResponse holds data on the websocket response
+type WsAuthResponse struct {
+	C            string        `json:"C"`
+	S            int           `json:"S"`
+	G            string        `json:"G"`
+	Response     WsEventStatus `json:"R"`
+	InvocationID int64         `json:"I,string"`
+	Message      []struct {
+		Hub       string   `json:"H"`
+		Method    string   `json:"M"`
+		Arguments []string `json:"A"`
+	} `json:"M"`
+}
+
+// OrderbookUpdateMessage holds websocket orderbook update messages
+type OrderbookUpdateMessage struct {
+	MarketSymbol string               `json:"marketSymbol"`
+	Depth        int                  `json:"depth"`
+	Sequence     int64                `json:"sequence"`
+	BidDeltas    []OrderbookEntryData `json:"bidDeltas"`
+	AskDeltas    []OrderbookEntryData `json:"askDeltas"`
+}
+
+// OrderUpdateMessage holds websocket order update messages
+type OrderUpdateMessage struct {
+	AccountID string    `json:"accountId"`
+	Sequence  int       `json:"int,string"`
+	Delta     OrderData `json:"delta"`
+}
+
+// WsPendingRequest holds pending requests
+type WsPendingRequest struct {
+	WsEventRequest
+	ChannelsToSubscribe *[]stream.ChannelSubscription
+}
+
+// orderbookManager defines a way of managing and maintaining synchronisation
+// across connections and assets.
+type orderbookManager struct {
+	state map[currency.Code]map[currency.Code]map[asset.Item]*update
+	sync.Mutex
+
+	jobs chan job
+}
+
+type update struct {
+	buffer       chan *OrderbookUpdateMessage
+	fetchingBook bool
+	initialSync  bool
+}
+
+// job defines a synchonisation job that tells a go routine to fetch an
+// orderbook via the REST protocol
+type job struct {
+	Pair currency.Pair
 }

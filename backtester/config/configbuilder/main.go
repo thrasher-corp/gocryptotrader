@@ -395,7 +395,10 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 			}
 		}
 		cfg.DataSettings.DatabaseData.ConfigOverride.Port = uint16(port)
-		database.DB.Config = cfg.DataSettings.DatabaseData.ConfigOverride
+		err = database.DB.SetConfig(cfg.DataSettings.DatabaseData.ConfigOverride)
+		if err != nil {
+			return fmt.Errorf("database failed to set config: %w", err)
+		}
 		if cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBPostgreSQL {
 			_, err = dbPSQL.Connect()
 			if err != nil {
@@ -423,13 +426,15 @@ func parseLive(reader *bufio.Reader, cfg *config.Config) {
 		input = quickParse(reader)
 		if input == y || input == yes {
 			fmt.Println("What is the API key?")
-			cfg.DataSettings.DatabaseData.ConfigOverride.Database = quickParse(reader)
+			cfg.DataSettings.LiveData.APIKeyOverride = quickParse(reader)
 			fmt.Println("What is the API secret?")
-			cfg.DataSettings.DatabaseData.ConfigOverride.Database = quickParse(reader)
+			cfg.DataSettings.LiveData.APISecretOverride = quickParse(reader)
 			fmt.Println("What is the Client ID?")
-			cfg.DataSettings.DatabaseData.ConfigOverride.Database = quickParse(reader)
+			cfg.DataSettings.LiveData.APIClientIDOverride = quickParse(reader)
 			fmt.Println("What is the 2FA seed?")
-			cfg.DataSettings.DatabaseData.ConfigOverride.Database = quickParse(reader)
+			cfg.DataSettings.LiveData.API2FAOverride = quickParse(reader)
+			fmt.Println("What is the subaccount to use?")
+			cfg.DataSettings.LiveData.APISubaccountOverride = quickParse(reader)
 		}
 	}
 }

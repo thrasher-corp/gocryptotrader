@@ -1,0 +1,18 @@
+{{define "engine event_manager" -}}
+{{template "header" .}}
+## Current Features for {{.CapitalName}}
++ The event manager subsystem is used to push events to communication systems such as Slack
++ The only configurable aspects of the event manager are the delays between receiving an event and pushing it and enabling verbose:
+
+### connectionMonitor
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| eventmanagerdelay | Sets the event managers sleep delay between event checking by a Golang `time.Duration` |  `0` |
+| verbose | Outputs debug messaging allowing for greater transparency for what the event manager is doing |  `false` |
+
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

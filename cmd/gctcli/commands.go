@@ -2225,11 +2225,11 @@ var addEventCommand = cli.Command{
 		},
 		cli.BoolFlag{
 			Name:  "check_bids",
-			Usage: "whether to check the bids (if false, asks will be used)",
+			Usage: "whether to check the bids",
 		},
 		cli.BoolFlag{
-			Name:  "check_bids_and_asks",
-			Usage: "the wallet address",
+			Name:  "check_asks",
+			Usage: "whether to check the asks",
 		},
 		cli.Float64Flag{
 			Name:  "orderbook_amount",
@@ -2260,7 +2260,7 @@ func addEvent(c *cli.Context) error {
 	var condition string
 	var price float64
 	var checkBids bool
-	var checkBidsAndAsks bool
+	var checkAsks bool
 	var orderbookAmount float64
 	var currencyPair string
 	var assetType string
@@ -2296,8 +2296,8 @@ func addEvent(c *cli.Context) error {
 		checkBids = c.Bool("check_bids")
 	}
 
-	if c.IsSet("check_bids_and_asks") {
-		checkBids = c.Bool("check_bids_and_asks")
+	if c.IsSet("check_asks") {
+		checkAsks = c.Bool("check_asks")
 	}
 
 	if c.IsSet("orderbook_amount") {
@@ -2345,11 +2345,11 @@ func addEvent(c *cli.Context) error {
 		Exchange: exchangeName,
 		Item:     item,
 		ConditionParams: &gctrpc.ConditionParams{
-			Condition:        condition,
-			Price:            price,
-			CheckBids:        checkBids,
-			CheckBidsAndAsks: checkBidsAndAsks,
-			OrderbookAmount:  orderbookAmount,
+			Condition:       condition,
+			Price:           price,
+			CheckBids:       checkBids,
+			CheckAsks:       checkAsks,
+			OrderbookAmount: orderbookAmount,
 		},
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,

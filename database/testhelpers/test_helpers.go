@@ -75,7 +75,10 @@ func GetConnectionDetails() *database.Config {
 
 // ConnectToDatabase opens connection to database and returns pointer to instance of database.DB
 func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err error) {
-	database.DB.Config = conn
+	err = database.DB.SetConfig(conn)
+	if err != nil {
+		return nil, err
+	}
 	if conn.Driver == database.DBPostgreSQL {
 		dbConn, err = psqlConn.Connect()
 		if err != nil {

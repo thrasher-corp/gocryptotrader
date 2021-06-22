@@ -1,0 +1,30 @@
+{{define "engine database_connection" -}}
+{{template "header" .}}
+## Current Features for {{.CapitalName}}
++ The database connection manager subsystem is used to periodically check whether the application is connected to the database and will provide alerts of any changes
++ In order to modify the behaviour of the database connection manager subsystem, you can edit the following inside your config file under `database`:
+
+### database
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| enabled | Enabled or disables the database connection subsystem |  `true` |
+| verbose | Displays more information to the logger which can be helpful for debugging | `false` |
+| driver | The SQL driver to use. Can be `postgres` or `sqlite`. | `sqlite` |
+| connectionDetails | See below |  |
+
+### connectionDetails
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| host | The host address of the database |  `localhost` |
+| port |  The port used to connect to the database |  `5432` |
+| username | An optional username to connect to the database | `username` |
+| password | An optional password to connect to the database | `password` |
+| database | The name of the database | `database.db` |
+| sslmode | The connection type of the database for Postgres databases only | `disable` |
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

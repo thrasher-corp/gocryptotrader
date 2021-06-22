@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
@@ -171,7 +172,7 @@ func (c *Config) PurgeExchangeAPICredentials() {
 }
 
 // GetCommunicationsConfig returns the communications configuration
-func (c *Config) GetCommunicationsConfig() CommunicationsConfig {
+func (c *Config) GetCommunicationsConfig() base.CommunicationsConfig {
 	m.Lock()
 	comms := c.Communications
 	m.Unlock()
@@ -180,7 +181,7 @@ func (c *Config) GetCommunicationsConfig() CommunicationsConfig {
 
 // UpdateCommunicationsConfig sets a new updated version of a Communications
 // configuration
-func (c *Config) UpdateCommunicationsConfig(config *CommunicationsConfig) {
+func (c *Config) UpdateCommunicationsConfig(config *base.CommunicationsConfig) {
 	m.Lock()
 	c.Communications = *config
 	m.Unlock()
@@ -211,7 +212,7 @@ func (c *Config) CheckCommunicationsConfig() {
 	// with example settings
 
 	if c.Communications.SlackConfig.Name == "" {
-		c.Communications.SlackConfig = SlackConfig{
+		c.Communications.SlackConfig = base.SlackConfig{
 			Name:              "Slack",
 			TargetChannel:     "general",
 			VerificationToken: "testtest",
@@ -221,7 +222,7 @@ func (c *Config) CheckCommunicationsConfig() {
 	if c.Communications.SMSGlobalConfig.Name == "" {
 		if c.SMS != nil {
 			if c.SMS.Contacts != nil {
-				c.Communications.SMSGlobalConfig = SMSGlobalConfig{
+				c.Communications.SMSGlobalConfig = base.SMSGlobalConfig{
 					Name:     "SMSGlobal",
 					Enabled:  c.SMS.Enabled,
 					Verbose:  c.SMS.Verbose,
@@ -232,13 +233,13 @@ func (c *Config) CheckCommunicationsConfig() {
 				// flush old SMS config
 				c.SMS = nil
 			} else {
-				c.Communications.SMSGlobalConfig = SMSGlobalConfig{
+				c.Communications.SMSGlobalConfig = base.SMSGlobalConfig{
 					Name:     "SMSGlobal",
 					From:     c.Name,
 					Username: "main",
 					Password: "test",
 
-					Contacts: []SMSContact{
+					Contacts: []base.SMSContact{
 						{
 							Name:    "bob",
 							Number:  "1234",
@@ -248,12 +249,12 @@ func (c *Config) CheckCommunicationsConfig() {
 				}
 			}
 		} else {
-			c.Communications.SMSGlobalConfig = SMSGlobalConfig{
+			c.Communications.SMSGlobalConfig = base.SMSGlobalConfig{
 				Name:     "SMSGlobal",
 				Username: "main",
 				Password: "test",
 
-				Contacts: []SMSContact{
+				Contacts: []base.SMSContact{
 					{
 						Name:    "bob",
 						Number:  "1234",
@@ -279,7 +280,7 @@ func (c *Config) CheckCommunicationsConfig() {
 	}
 
 	if c.Communications.SMTPConfig.Name == "" {
-		c.Communications.SMTPConfig = SMTPConfig{
+		c.Communications.SMTPConfig = base.SMTPConfig{
 			Name:            "SMTP",
 			Host:            "smtp.google.com",
 			Port:            "537",
@@ -290,7 +291,7 @@ func (c *Config) CheckCommunicationsConfig() {
 	}
 
 	if c.Communications.TelegramConfig.Name == "" {
-		c.Communications.TelegramConfig = TelegramConfig{
+		c.Communications.TelegramConfig = base.TelegramConfig{
 			Name:              "Telegram",
 			VerificationToken: "testest",
 		}
@@ -749,7 +750,7 @@ func (c *Config) GetExchangeConfig(name string) (*ExchangeConfig, error) {
 			return &c.Exchanges[i], nil
 		}
 	}
-	return nil, fmt.Errorf(ErrExchangeNotFound, name)
+	return nil, fmt.Errorf("%s %w", name, ErrExchangeNotFound)
 }
 
 // GetForexProvider returns a forex provider configuration by its name
@@ -794,7 +795,7 @@ func (c *Config) UpdateExchangeConfig(e *ExchangeConfig) error {
 			return nil
 		}
 	}
-	return fmt.Errorf(ErrExchangeNotFound, e.Name)
+	return fmt.Errorf("%s %w", e.Name, ErrExchangeNotFound)
 }
 
 // CheckExchangeConfigValues returns configuation values for all enabled
@@ -1086,11 +1087,12 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	count := 0
 	for i := range c.Currency.ForexProviders {
 		if c.Currency.ForexProviders[i].Enabled {
-			if c.Currency.ForexProviders[i].Name == "CurrencyConverter" &&
+			if (c.Currency.ForexProviders[i].Name == "CurrencyConverter" || c.Currency.ForexProviders[i].Name == "ExchangeRates") &&
 				c.Currency.ForexProviders[i].PrimaryProvider &&
 				(c.Currency.ForexProviders[i].APIKey == "" ||
 					c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
-				log.Warnln(log.Global, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..")
+				log.Warnf(log.Global, "%s forex provider no longer supports unset API key requests. Switching to %s FX provider..",
+					c.Currency.ForexProviders[i].Name, DefaultForexProviderExchangeRatesAPI)
 				c.Currency.ForexProviders[i].Enabled = false
 				c.Currency.ForexProviders[i].PrimaryProvider = false
 				c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey
@@ -1118,7 +1120,8 @@ func (c *Config) CheckCurrencyConfigValues() error {
 			if c.Currency.ForexProviders[x].Name == DefaultForexProviderExchangeRatesAPI {
 				c.Currency.ForexProviders[x].Enabled = true
 				c.Currency.ForexProviders[x].PrimaryProvider = true
-				log.Warnln(log.ConfigMgr, "Using ExchangeRatesAPI for default forex provider.")
+				log.Warnf(log.ConfigMgr, "No valid forex providers configured. Defaulting to %s.",
+					DefaultForexProviderExchangeRatesAPI)
 			}
 		}
 	}
@@ -1343,9 +1346,7 @@ func (c *Config) checkDatabaseConfig() error {
 		database.DB.DataPath = databaseDir
 	}
 
-	database.DB.Config = &c.Database
-
-	return nil
+	return database.DB.SetConfig(&c.Database)
 }
 
 // CheckNTPConfig checks for missing or incorrectly configured NTPClient and recreates with known safe defaults
@@ -1369,14 +1370,14 @@ func (c *Config) CheckNTPConfig() {
 	}
 }
 
-// DisableNTPCheck allows the user to change how they are prompted for timesync alerts
-func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
+// SetNTPCheck allows the user to change how they are prompted for timesync alerts
+func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 	m.Lock()
 	defer m.Unlock()
 
 	reader := bufio.NewReader(input)
 	log.Warnln(log.ConfigMgr, "Your system time is out of sync, this may cause issues with trading")
-	log.Warnln(log.ConfigMgr, "How would you like to show future notifications? (a)lert / (w)arn / (d)isable")
+	log.Warnln(log.ConfigMgr, "How would you like to show future notifications? (a)lert at startup / (w)arn periodically / (d)isable")
 
 	var resp string
 	answered := false
@@ -1456,9 +1457,9 @@ func GetAndMigrateDefaultPath(configFile string) (string, error) {
 
 // GetFilePath returns the desired config file or the default config file name
 // and whether it was loaded from a default location (rather than explicitly specified)
-func GetFilePath(configfile string) (configPath string, isImplicitDefaultPath bool, err error) {
-	if configfile != "" {
-		return configfile, false, nil
+func GetFilePath(configFile string) (configPath string, isImplicitDefaultPath bool, err error) {
+	if configFile != "" {
+		return configFile, false, nil
 	}
 
 	exePath, err := common.GetExecutablePath()
@@ -1475,16 +1476,16 @@ func GetFilePath(configfile string) (configPath string, isImplicitDefaultPath bo
 
 	for _, p := range defaultPaths {
 		if file.Exists(p) {
-			configfile = p
+			configFile = p
 			break
 		}
 	}
-	if configfile == "" {
+	if configFile == "" {
 		return "", false, fmt.Errorf("config.json file not found in %s, please follow README.md in root dir for config generation",
 			newDir)
 	}
 
-	return configfile, true, nil
+	return configFile, true, nil
 }
 
 // migrateConfig will move the config file to the target

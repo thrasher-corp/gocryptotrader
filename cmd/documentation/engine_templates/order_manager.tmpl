@@ -1,0 +1,11 @@
+{{define "engine order_manager" -}}
+{{template "header" .}}
+## Current Features for {{.CapitalName}}
++ The order manager subsystem stores and monitors all orders from enabled exchanges with API keys and `authenticatedSupport` enabled
++ It can be enabled or disabled via runtime command `-ordermanager=false` and defaults to true
++ All orders placed via GoCryptoTrader will be added to the order manager store
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

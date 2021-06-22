@@ -263,7 +263,7 @@ func (c *COINUT) GetOpenPositions(instrumentID int) ([]OpenPosition, error) {
 // SendHTTPRequest sends either an authenticated or unauthenticated HTTP request
 func (c *COINUT) SendHTTPRequest(ep exchange.URL, apiRequest string, params map[string]interface{}, authenticated bool, result interface{}) (err error) {
 	if !c.API.AuthenticatedSupport && authenticated {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
+		return fmt.Errorf("%s %w", c.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	endpoint, err := c.API.Endpoints.GetURL(ep)

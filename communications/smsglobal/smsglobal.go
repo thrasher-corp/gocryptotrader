@@ -10,7 +10,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -34,7 +33,7 @@ type SMSGlobal struct {
 
 // Setup takes in a SMSGlobal configuration, sets username, password and
 // and recipient list
-func (s *SMSGlobal) Setup(cfg *config.CommunicationsConfig) {
+func (s *SMSGlobal) Setup(cfg *base.CommunicationsConfig) {
 	s.Name = cfg.SMSGlobalConfig.Name
 	s.Enabled = cfg.SMSGlobalConfig.Enabled
 	s.Verbose = cfg.SMSGlobalConfig.Verbose

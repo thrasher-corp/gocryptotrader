@@ -1,0 +1,149 @@
+on: [push, pull_request]
+name: CI
+env:
+  GO_VERSION: 1.16.x
+jobs:
+  backend-psql:
+    name: GoCryptoTrader back-end with PSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: gct_dev_ci
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Cancel previous workflow runs
+      uses: styfle/cancel-workflow-action@0.9.0
+      with:
+        access_token: ${{ github.token }}
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Setup Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache go modules  
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ runner.os }}-go-
+
+    - name: Test
+      run: go test -race -coverprofile coverage.txt -covermode atomic ./...
+      env:
+        PSQL_USER: postgres
+        PSQL_PASS: postgres
+        PSQL_HOST: localhost
+        PSQL_DBNAME: gct_dev_ci
+        PSQL_SKIPSQLCMD: true
+        PSQL_TESTDBNAME: gct_dev_ci
+        PSQL_SSLMODE: disable
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
+
+  backend-32bit:
+    name: GoCryptoTrader back-end 32-bit with PSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: gct_dev_ci
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Cancel previous workflow runs
+      uses: styfle/cancel-workflow-action@0.9.0
+      with:
+        access_token: ${{ github.token }}
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Setup Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache go modules  
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-386-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ runner.os }}-go-386-
+
+    - name: Install gcc-multilib
+      run: sudo apt-get install gcc-multilib
+
+    - name: Test
+      run: go test -coverprofile coverage.txt -covermode atomic ./...
+      env:
+        PSQL_USER: postgres
+        PSQL_PASS: postgres
+        PSQL_HOST: localhost
+        PSQL_DBNAME: gct_dev_ci
+        PSQL_SKIPSQLCMD: true
+        PSQL_TESTDBNAME: gct_dev_ci
+        PSQL_SSLMODE: disable
+        GOARCH: 386
+        CGO_ENABLED: 1
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
+
+  frontend:
+    name: GoCryptoTrader front-end
+    runs-on: ubuntu-latest
+    steps:
+    - name: Cancel previous workflow runs
+      uses: styfle/cancel-workflow-action@0.9.0
+      with:
+        access_token: ${{ github.token }}
+
+    - uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: '10.8.x'
+
+    - name: Cache Node.js modules
+      uses: actions/cache@v2
+      with:
+        path: ~/.npm
+        key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.OS }}-node-
+          ${{ runner.OS }}-
+
+    - name: Build
+      run: | 
+        cd web/
+        npm install
+        npm run lint
+        npm run build

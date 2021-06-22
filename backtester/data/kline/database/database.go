@@ -48,7 +48,7 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 		}
 		resp.Item = klineItem
 	default:
-		return nil, fmt.Errorf("could not retrieve database data for %v %v %v, invalid data type received", exchangeName, a, fPair)
+		return nil, fmt.Errorf("could not retrieve database data for %v %v %v, %w", exchangeName, a, fPair, common.ErrInvalidDataType)
 	}
 	resp.Item.Exchange = strings.ToLower(resp.Item.Exchange)
 

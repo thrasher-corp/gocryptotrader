@@ -2922,7 +2922,7 @@
         "check_bids": {
           "type": "boolean"
         },
-        "check_bids_and_asks": {
+        "check_asks": {
           "type": "boolean"
         },
         "orderbook_amount": {

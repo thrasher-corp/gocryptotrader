@@ -486,7 +486,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 // ProcessOrderbook processes orderbook updates
 func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.Pair, a asset.Item) error {
 	if len(data) < 1 {
-		return errors.New("bitmex_websocket.go error - no orderbook data")
+		return errors.New("no orderbook data")
 	}
 
 	switch action {
@@ -516,7 +516,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 
 		err := b.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {
-			return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
+			return fmt.Errorf("process orderbook error -  %s",
 				err)
 		}
 	default:

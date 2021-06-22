@@ -1,11 +1,11 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -86,7 +86,11 @@ func TestLoadDataCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bot.DatabaseManager.Start(bot)
+	bot.DatabaseManager, err = engine.SetupDatabaseConnectionManager(&bot.Config.Database)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bot.DatabaseManager.Start(&bot.ServicesWG)
 	if err != nil {
 		t.Error(err)
 	}
@@ -161,7 +165,11 @@ func TestLoadDataTrades(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bot.DatabaseManager.Start(bot)
+	bot.DatabaseManager, err = engine.SetupDatabaseConnectionManager(&bot.Config.Database)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bot.DatabaseManager.Start(&bot.ServicesWG)
 	if err != nil {
 		t.Error(err)
 	}
@@ -202,7 +210,7 @@ func TestLoadDataInvalid(t *testing.T) {
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	_, err := LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, -1, p, a)
-	if err != nil && !strings.Contains(err.Error(), "could not retrieve database data for binance spot BTCUSDT, invalid data type received") {
-		t.Error(err)
+	if !errors.Is(err, common.ErrInvalidDataType) {
+		t.Errorf("expected '%v' received '%v'", err, common.ErrInvalidDataType)
 	}
 }

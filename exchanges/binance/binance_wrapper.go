@@ -638,6 +638,21 @@ func (b *Binance) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 		}
 
 		acc.Currencies = currencyDetails
+	case asset.Margin:
+		accData, err := b.GetMarginAccount()
+		if err != nil {
+			return info, err
+		}
+		var currencyDetails []account.Balance
+		for i := range accData.UserAssets {
+			currencyDetails = append(currencyDetails, account.Balance{
+				CurrencyName: currency.NewCode(accData.UserAssets[i].Asset),
+				TotalValue:   accData.UserAssets[i].Free + accData.UserAssets[i].Locked,
+				Hold:         accData.UserAssets[i].Locked,
+			})
+		}
+
+		acc.Currencies = currencyDetails
 
 	default:
 		return info, fmt.Errorf("%v assetType not supported", assetType)
@@ -1113,7 +1128,6 @@ func (b *Binance) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	amountStr := strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
 	v, err := b.WithdrawCrypto(withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
@@ -1129,13 +1143,13 @@ func (b *Binance) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Binance) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *Binance) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Binance) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *Binance) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

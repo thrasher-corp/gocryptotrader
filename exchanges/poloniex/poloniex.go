@@ -847,8 +847,7 @@ func (p *Poloniex) SendHTTPRequest(ep exchange.URL, path string, result interfac
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (p *Poloniex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint string, values url.Values, result interface{}) error {
 	if !p.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
-			p.Name)
+		return fmt.Errorf("%s %w", p.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	ePoint, err := p.API.Endpoints.GetURL(ep)
 	if err != nil {
