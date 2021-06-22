@@ -21,31 +21,23 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// Const declarations for common.go operations
 const (
-	SatoshisPerBTC = 100000000
-	SatoshisPerLTC = 100000000
-	WeiPerEther    = 1000000000000000000
+	// SimpleTimeFormat a common, but non-implemented time format in golang
+	SimpleTimeFormat = "2006-01-02 15:04:05"
+	// SimpleTimeFormatWithTimezone a common, but non-implemented time format in golang
+	SimpleTimeFormatWithTimezone = "2006-01-02 15:04:05 MST"
 	// GctExt is the extension for GCT Tengo script files
 	GctExt = ".gct"
-)
-
-// SimpleTimeFormat a common, but non-implemented time format in golang
-const (
-	SimpleTimeFormat             = "2006-01-02 15:04:05"
-	SimpleTimeFormatWithTimezone = "2006-01-02 15:04:05 MST"
 )
 
 // Vars for common.go operations
 var (
 	HTTPClient    *http.Client
 	HTTPUserAgent string
-  m             sync.Mutex
-
+	m             sync.Mutex
 	// ErrNotYetImplemented defines a common error across the code base that
 	// alerts of a function that has not been completed or tied into main code
 	ErrNotYetImplemented = errors.New("not yet implemented")
-
 	// ErrFunctionNotSupported defines a standardised error for an unsupported
 	// wrapper function by an API
 	ErrFunctionNotSupported  = errors.New("unsupported wrapper function")
