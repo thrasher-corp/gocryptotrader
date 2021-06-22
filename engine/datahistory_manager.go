@@ -185,7 +185,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 				return fmt.Errorf("%s could not load trade data: %w", jobs[i].Nickname, err)
 			}
 		default:
-			return fmt.Errorf("%s %w %s", jobs[i].Nickname, errUnknownDataType, jobs[i].DataType.String())
+			return fmt.Errorf("%s %w %s", jobs[i].Nickname, errUnknownDataType, jobs[i].DataType)
 		}
 	}
 	return nil
@@ -446,7 +446,7 @@ completionCheck:
 		default:
 			job.Status = dataHistoryIntervalMissingData
 		}
-		log.Infof(log.DataHistory, "job %s finished! Status: %v", job.Nickname, job.Status.String())
+		log.Infof(log.DataHistory, "job %s finished! Status: %s", job.Nickname, job.Status)
 	}
 
 	dbJob := m.convertJobToDBModel(job)
@@ -565,10 +565,10 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		return fmt.Errorf("job %s %w", job.Nickname, errCurrencyPairUnset)
 	}
 	if !job.Status.Valid() {
-		return fmt.Errorf("job %s %w: %s", job.Nickname, errInvalidDataHistoryStatus, job.Status.String())
+		return fmt.Errorf("job %s %w: %s", job.Nickname, errInvalidDataHistoryStatus, job.Status)
 	}
 	if !job.DataType.Valid() {
-		return fmt.Errorf("job %s %w: %s", job.Nickname, errInvalidDataHistoryDataType, job.DataType.String())
+		return fmt.Errorf("job %s %w: %s", job.Nickname, errInvalidDataHistoryDataType, job.DataType)
 	}
 	exch := m.exchangeManager.GetExchangeByName(job.Exchange)
 	if exch == nil {
@@ -751,7 +751,7 @@ func (m *DataHistoryManager) DeleteJob(nickname, id string) error {
 	}
 	if dbJob.Status != int64(dataHistoryStatusActive) {
 		status := dataHistoryStatus(dbJob.Status)
-		return fmt.Errorf("job: %v status: %v error: %w", dbJob.Nickname, status.String(), errCanOnlyDeleteActiveJobs)
+		return fmt.Errorf("job: %v status: %s error: %w", dbJob.Nickname, status, errCanOnlyDeleteActiveJobs)
 	}
 	dbJob.Status = int64(dataHistoryStatusRemoved)
 	err = m.jobDB.Upsert(dbJob)
