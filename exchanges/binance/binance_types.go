@@ -8,6 +8,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+const wsRateLimitMilliseconds = 250
+
 // withdrawals status codes description
 const (
 	EmailSent = iota
