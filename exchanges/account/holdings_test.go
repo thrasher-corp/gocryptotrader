@@ -15,7 +15,7 @@ var one = decimal.NewFromInt(1)
 var twenty = decimal.NewFromInt(20)
 
 func TestGetHolding(t *testing.T) {
-	h, err := DeployHoldings("getHolding", false)
+	h, err := DeployHoldings("getHolding", true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
@@ -40,7 +40,7 @@ func TestGetHolding(t *testing.T) {
 		currency.LTC: {Total: 20},
 	}
 
-	err = h.LoadHoldings(AccountTest, true, asset.Spot, values)
+	err = h.LoadHoldings(AccountTest, false, asset.Spot, values)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
@@ -167,6 +167,16 @@ func TestGetHoldingsSnapshot(t *testing.T) {
 	_, err = h.GetHoldingsSnapshot(string(Main), "")
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("expected: %v but received: %v", asset.ErrNotSupported, err)
+	}
+
+	_, err = h.GetHoldingsSnapshot(string(Main), asset.Spot)
+	if !errors.Is(err, errAccountsNotLoaded) {
+		t.Fatalf("expected: %v but received: %v", errAccountsNotLoaded, err)
+	}
+
+	err = h.LoadAccount(string(Main), true)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	_, err = h.GetHoldingsSnapshot(string(Main), asset.Spot)

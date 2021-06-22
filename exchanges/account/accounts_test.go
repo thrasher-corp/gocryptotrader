@@ -44,17 +44,12 @@ func TestLoadAccounts(t *testing.T) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
 
+	// This call flushes the entire list of accounts
 	err = a.LoadAccounts("exchange")
-	if !errors.Is(err, errAccountAlreadyLoaded) {
-		t.Fatalf("expected: %v but received: %v", errAccountAlreadyLoaded, err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
 
-	err = a.LoadAccounts("fail")
-	if !errors.Is(err, errMainAccountAlreadyLoaded) {
-		t.Fatalf("expected: %v but received: %v", errMainAccountAlreadyLoaded, err)
-	}
-
-	a = Accounts{}
 	err = a.LoadAccounts("exchange", "exchange")
 	if !errors.Is(err, errAccountAlreadyLoaded) {
 		t.Fatalf("expected: %v but received: %v", errAccountAlreadyLoaded, err)

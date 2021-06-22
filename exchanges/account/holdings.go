@@ -24,6 +24,7 @@ var (
 	errAssetTypeNotFound               = errors.New("asset type not found in holdings")
 	errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less or equal to zero")
 	errCurrencyItemNotFound            = errors.New("currency not found in holdings")
+	errAccountHoldingsNotSetup         = errors.New("exchange account system has not yet been set up")
 )
 
 // Holdings defines exchange account holdings
@@ -48,6 +49,10 @@ type Holdings struct {
 
 // GetHolding returns the holding for a specific currency tied to an account
 func (h *Holdings) GetHolding(account string, a asset.Item, c currency.Code) (*Holding, error) {
+	if h == nil {
+		return nil, errAccountHoldingsNotSetup
+	}
+
 	if account == "" {
 		return nil, fmt.Errorf("cannot get holding for %s %s %s %s: %w",
 			h.Exchange,
@@ -108,6 +113,10 @@ func (h *Holdings) GetHolding(account string, a asset.Item, c currency.Code) (*H
 // this acts as a complete snapshot, anything held in the current holdings that
 // is not part of the supplied values list will be readjusted to zero value.
 func (h *Holdings) LoadHoldings(account string, isMain bool, a asset.Item, snapshot HoldingsSnapshot) error {
+	if h == nil {
+		return errAccountHoldingsNotSetup
+	}
+
 	if account == "" {
 		return fmt.Errorf("cannot load holdings for %s %s %s: %w",
 			h.Exchange,
@@ -216,6 +225,10 @@ holdings:
 
 // GetHoldingsSnapshot returns holdings for an account asset
 func (h *Holdings) GetHoldingsSnapshot(account string, ai asset.Item) (HoldingsSnapshot, error) {
+	if h == nil {
+		return nil, errAccountHoldingsNotSetup
+	}
+
 	if account == "" {
 		return nil, fmt.Errorf("cannot load holdings for %s %s %s: %w",
 			h.Exchange,
@@ -274,6 +287,10 @@ func (h *Holdings) GetHoldingsSnapshot(account string, ai asset.Item) (HoldingsS
 // GetFullSnapshot returns a full snapshot of the current exchange' account
 // balances
 func (h *Holdings) GetFullSnapshot() (FullSnapshot, error) {
+	if h == nil {
+		return nil, errAccountHoldingsNotSetup
+	}
+
 	if h.funds == nil {
 		return nil, errAccountBalancesNotLoaded
 	}
@@ -309,6 +326,10 @@ func (h *Holdings) GetFullSnapshot() (FullSnapshot, error) {
 
 // publish publishes update to the dispatch mux to be called in a go routine
 func (h *Holdings) publish() {
+	if h == nil {
+		return
+	}
+
 	ss, err := h.GetFullSnapshot()
 	if err != nil {
 		log.Errorf(log.Accounts, "cannot publish to dispatch mux %v", err)
@@ -452,6 +473,10 @@ func (h *Holdings) getHoldingInternal(account string, ai asset.Item, ci *currenc
 
 // validate checks if request values are correct before locking down holdings
 func (h *Holdings) validate(account string, ai asset.Item, c currency.Code, amount float64, lessThanZero bool) error {
+	if h == nil {
+		return errAccountHoldingsNotSetup
+	}
+
 	if account == "" {
 		return ErrAccountNameUnset
 	}

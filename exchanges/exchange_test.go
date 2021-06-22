@@ -1239,6 +1239,8 @@ func TestSetupDefaults(t *testing.T) {
 	t.Parallel()
 
 	var b Base
+	b.Name = "Bitfinex" // Should be set in SetDefaults() call, but this is the
+	// base functionality
 	cfg := config.ExchangeConfig{
 		HTTPTimeout: time.Duration(-1),
 		API: config.APIConfig{
@@ -1276,7 +1278,10 @@ func TestSetupDefaults(t *testing.T) {
 			},
 		},
 	)
-	b.SetupDefaults(&cfg)
+	err = b.SetupDefaults(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ps, err := cfg.CurrencyPairs.Get(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
@@ -1288,7 +1293,10 @@ func TestSetupDefaults(t *testing.T) {
 	// Test websocket support
 	b.Websocket = stream.New()
 	b.Features.Supports.Websocket = true
-	b.SetupDefaults(&cfg)
+	err = b.SetupDefaults(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:          false,
 		WebsocketTimeout: time.Second * 30,

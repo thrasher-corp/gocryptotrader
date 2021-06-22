@@ -166,6 +166,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 			asset.Spot,
 			account.HoldingsSnapshot{
 				currency.BTC: account.Balance{Total: 10},
+				currency.USD: account.Balance{Total: 100000},
 			})
 		if err != nil {
 			t.Error(err)
@@ -570,7 +571,9 @@ func TestSubmit(t *testing.T) {
 	o.Account = string(account.Main)
 	_, err = m.Submit(o)
 	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
-		t.Errorf("error '%v', expected '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+		t.Errorf("error '%v', expected '%v'",
+			err,
+			exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	err = m.orderStore.add(&order.Detail{

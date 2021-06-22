@@ -233,6 +233,14 @@ func TestGetAllActiveAccounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	bs.SetDefaults()
+	conf, err := bs.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = bs.Setup(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
 	man.Add(bs)
 	resp := getAllActiveAccounts(man)
 	if resp == nil {
