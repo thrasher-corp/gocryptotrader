@@ -137,7 +137,6 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 
 // validateSettings validates and sets all bot settings
 func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
-	// Set full state from command line
 	b.Settings = *s
 
 	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager && (flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
