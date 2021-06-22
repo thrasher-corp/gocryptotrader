@@ -3528,25 +3528,29 @@ var getAuditEventCommand = &cli.Command{
 	Action:    getAuditEvent,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:        "start, s",
+			Name:        "start",
+			Aliases:     []string{"s"},
 			Usage:       "start date to search",
 			Value:       time.Now().Add(-time.Hour).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
-			Name:        "end, e",
+			Name:        "end",
+			Aliases:     []string{"e"},
 			Usage:       "end time to search",
 			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
 		&cli.StringFlag{
-			Name:        "order, o",
+			Name:        "order",
+			Aliases:     []string{"o"},
 			Usage:       "order results by ascending/descending",
 			Value:       "asc",
 			Destination: &order,
 		},
 		&cli.IntFlag{
-			Name:        "limit, l",
+			Name:        "limit",
+			Aliases:     []string{"l"},
 			Usage:       "how many results to retrieve",
 			Value:       100,
 			Destination: &limit,
@@ -4066,8 +4070,9 @@ var getHistoricCandlesCommand = &cli.Command{
 	Action:    getHistoricCandles,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange, e",
-			Usage: "the exchange to get the candles from",
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to get the candles from",
 		},
 		&cli.StringFlag{
 			Name:  "pair",
@@ -4078,13 +4083,15 @@ var getHistoricCandlesCommand = &cli.Command{
 			Usage: "the asset type of the currency pair",
 		},
 		&cli.Int64Flag{
-			Name:        "rangesize, r",
+			Name:        "rangesize",
+			Aliases:     []string{"r"},
 			Usage:       "the amount of time to go back from now to fetch candles in the given granularity",
 			Value:       10,
 			Destination: &candleRangeSize,
 		},
 		&cli.Int64Flag{
-			Name:        "granularity, g",
+			Name:        "granularity",
+			Aliases:     []string{"g"},
 			Usage:       fmt.Sprintf(klineMessage, "granularity"),
 			Value:       86400,
 			Destination: &candleGranularity,
@@ -4202,19 +4209,23 @@ var getHistoricCandlesExtendedCommand = &cli.Command{
 	Action:    getHistoricCandlesExtended,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange, e",
-			Usage: "the exchange to get the candles from",
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to get the candles from",
 		},
 		&cli.StringFlag{
-			Name:  "pair, p",
-			Usage: "the currency pair to get the candles for",
+			Name:    "pair",
+			Aliases: []string{"p"},
+			Usage:   "the currency pair to get the candles for",
 		},
 		&cli.StringFlag{
-			Name:  "asset, a",
-			Usage: "the asset type of the currency pair",
+			Name:    "asset",
+			Aliases: []string{"a"},
+			Usage:   "the asset type of the currency pair",
 		},
 		&cli.Int64Flag{
-			Name:        "interval, i",
+			Name:        "interval",
+			Aliases:     []string{"i"},
 			Usage:       fmt.Sprintf(klineMessage, "interval"),
 			Value:       86400,
 			Destination: &candleGranularity,
@@ -4244,8 +4255,9 @@ var getHistoricCandlesExtendedCommand = &cli.Command{
 			Usage: "source data from database <true/false>",
 		},
 		&cli.BoolFlag{
-			Name:  "fillmissingdatawithtrades, fill",
-			Usage: "will create candles for missing intervals using stored trade data <true/false>",
+			Name:    "fillmissingdatawithtrades",
+			Aliases: []string{"fill"},
+			Usage:   "will create candles for missing intervals using stored trade data <true/false>",
 		},
 	},
 }
@@ -4393,19 +4405,23 @@ var findMissingSavedCandleIntervalsCommand = &cli.Command{
 	Action:    findMissingSavedCandleIntervals,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange, e",
-			Usage: "the exchange to find the missing candles",
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to find the missing candles",
 		},
 		&cli.StringFlag{
-			Name:  "pair, p",
-			Usage: "the currency pair",
+			Name:    "pair",
+			Aliases: []string{"p"},
+			Usage:   "the currency pair",
 		},
 		&cli.StringFlag{
-			Name:  "asset, a",
-			Usage: "the asset type of the currency pair",
+			Name:    "asset",
+			Aliases: []string{"a"},
+			Usage:   "the asset type of the currency pair",
 		},
 		&cli.Int64Flag{
-			Name:        "interval, i",
+			Name:        "interval",
+			Aliases:     []string{"i"},
 			Usage:       fmt.Sprintf(klineMessage, "interval"),
 			Value:       86400,
 			Destination: &candleGranularity,
