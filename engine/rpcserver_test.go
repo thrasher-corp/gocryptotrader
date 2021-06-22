@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -41,7 +41,6 @@ const (
 	unexpectedLackOfError = "unexpected lack of error"
 	migrationsFolder      = "migrations"
 	databaseFolder        = "database"
-	databaseName          = "rpctestdb.db"
 )
 
 // fExchange is a fake exchange with function overrides
@@ -131,24 +130,60 @@ func RPCTestSetup(t *testing.T) *Engine {
 		Driver:  database.DBSQLite3,
 		ConnectionDetails: drivers.ConnectionDetails{
 			Host:     "localhost",
-			Database: databaseName,
+			Database: "test123.db",
 		},
 	}
 	engerino := new(Engine)
+	dbm, err := SetupDatabaseConnectionManager(&dbConf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dbm.dbConn.DataPath = tempDir
+	engerino.DatabaseManager = dbm
+	var wg sync.WaitGroup
+	err = dbm.Start(&wg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	engerino.Config = &config.Config{}
-	err = engerino.Config.LoadConfig(config.TestFile, true)
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
-		t.Fatalf("SetupTest: Failed to load config: %s", err)
+		t.Error(err)
 	}
-	engerino.ExchangeManager = SetupExchangeManager()
-	err = engerino.LoadExchange(testExchange, false, nil)
+	exch.SetDefaults()
+	b := exch.GetBase()
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true}}
+	em.Add(exch)
+
+	exch, err = em.NewExchangeByName("Binance")
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
-	err = engerino.LoadExchange("Binance", false, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	exch.SetDefaults()
+	b = exch.GetBase()
+	cp = currency.NewPair(currency.BTC, currency.USDT)
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true}}
+	em.Add(exch)
+	engerino.ExchangeManager = em
+
 	engerino.Config.Database = dbConf
 	engerino.DatabaseManager, err = SetupDatabaseConnectionManager(&engerino.Config.Database)
 	if err != nil {
@@ -186,7 +221,7 @@ func CleanRPCTest(t *testing.T, engerino *Engine) {
 		t.Error(err)
 		return
 	}
-	err = os.Remove(filepath.Join(common.GetDefaultDataDir(runtime.GOOS), databaseFolder, databaseName))
+	err = os.Remove(filepath.Join(engerino.DatabaseManager.dbConn.DataPath, engerino.DatabaseManager.cfg.Database))
 	if err != nil {
 		t.Error(err)
 	}
@@ -282,7 +317,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		},
 		AssetType:    asset.Spot.String(),
 		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
+		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
 	if !errors.Is(err, errExchangeNotLoaded) {
@@ -298,8 +333,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 2, 2, 2, 2, 2, 2, time.UTC).Format(common.SimpleTimeFormat),
+		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
 	if !errors.Is(err, errNoTrades) {
@@ -308,7 +343,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 
 	// add a trade
 	err = sqltrade.Insert(sqltrade.Data{
-		Timestamp: time.Date(2020, 1, 1, 1, 2, 2, 1, time.UTC),
+		Timestamp: time.Date(2020, 0, 0, 0, 30, 0, 0, time.UTC),
 		Exchange:  testExchange,
 		Base:      currency.BTC.String(),
 		Quote:     currency.USD.String(),
@@ -331,8 +366,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 3, 2, 2, 2, 2, 2, time.UTC).Format(common.SimpleTimeFormat),
+		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
 	if err != nil {
@@ -351,8 +386,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 2, 2, 2, 2, 2, 2, time.UTC).Format(common.SimpleTimeFormat),
+		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 		Sync:         true,
 	})
@@ -369,8 +404,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 2, 2, 2, 2, 2, 2, time.UTC).Format(common.SimpleTimeFormat),
+		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 		Sync:         true,
 		Force:        true,
@@ -388,8 +423,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 2, 2, 2, 2, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
+		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 		UseDb:        true,
 	})
@@ -407,8 +442,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
 	// error checks
-	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC)
-	defaultEnd := time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC)
+	defaultStart := time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC)
+	defaultEnd := time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC)
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	_, err := s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: "",
@@ -514,7 +549,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		Price:        1337,
 		Amount:       1337,
 		Side:         order.Buy,
-		Timestamp:    time.Date(2020, 1, 2, 3, 1, 1, 7, time.UTC),
+		Timestamp:    time.Date(2020, 0, 0, 2, 0, 0, 0, time.UTC),
 	})
 	if err != nil {
 		t.Error(err)
@@ -529,7 +564,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		},
 		AssetType:             asset.Spot.String(),
 		Start:                 defaultStart.Format(common.SimpleTimeFormat),
-		End:                   time.Date(2020, 1, 2, 4, 2, 2, 2, time.UTC).Format(common.SimpleTimeFormat),
+		End:                   time.Date(2020, 0, 0, 3, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval:          int64(kline.OneHour.Duration()),
 		UseDb:                 true,
 		FillMissingWithTrades: true,
@@ -660,8 +695,8 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	// no data found response
-	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC)
-	defaultEnd := time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC)
+	defaultStart := time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC)
+	defaultEnd := time.Date(2020, 0, 0, 4, 0, 0, 0, time.UTC)
 	var resp *gctrpc.FindMissingIntervalsResponse
 	_, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
 		ExchangeName: testExchange,
@@ -687,7 +722,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 		Interval: kline.OneHour,
 		Candles: []kline.Candle{
 			{
-				Time:   time.Date(2020, 1, 1, 2, 1, 1, 1, time.UTC),
+				Time:   time.Date(2020, 0, 0, 0, 30, 0, 0, time.UTC),
 				Open:   1337,
 				High:   1337,
 				Low:    1337,
@@ -724,7 +759,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 		Interval: kline.OneHour,
 		Candles: []kline.Candle{
 			{
-				Time:   time.Date(2020, 1, 1, 3, 1, 1, 1, time.UTC),
+				Time:   time.Date(2020, 0, 0, 2, 45, 0, 0, time.UTC),
 				Open:   1337,
 				High:   1337,
 				Low:    1337,
@@ -806,7 +841,7 @@ func TestGetRecentTrades(t *testing.T) {
 		},
 		AssetType: asset.Spot.String(),
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
+		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 	})
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
@@ -842,7 +877,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		},
 		AssetType: asset.Spot.String(),
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
+		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 	}, nil)
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
@@ -856,7 +891,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		},
 		AssetType: asset.Spot.String(),
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
+		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 	}, nil)
 	if err != common.ErrFunctionNotSupported {
 		t.Error(err)

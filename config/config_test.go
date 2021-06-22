@@ -1555,7 +1555,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].API.Credentials.Secret = "Secret"
 	cfg.Exchanges[0].API.AuthenticatedSupport = true
 	cfg.Exchanges[0].API.AuthenticatedWebsocketSupport = true
-	cfg.CheckExchangeConfigValues()
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
 	if cfg.Exchanges[0].API.AuthenticatedSupport ||
 		cfg.Exchanges[0].API.AuthenticatedWebsocketSupport {
 		t.Error("Expected authenticated endpoints to be false from invalid API keys")
@@ -1567,7 +1570,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].API.AuthenticatedWebsocketSupport = true
 	cfg.Exchanges[0].API.Credentials.ClientID = DefaultAPIClientID
 	cfg.Exchanges[0].API.Credentials.Secret = "TESTYTEST"
-	cfg.CheckExchangeConfigValues()
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
 	if cfg.Exchanges[0].API.AuthenticatedSupport ||
 		cfg.Exchanges[0].API.AuthenticatedWebsocketSupport {
 		t.Error("Expected AuthenticatedAPISupport to be false from invalid API keys")
@@ -1579,7 +1585,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].API.Credentials.Key = "meow"
 	cfg.Exchanges[0].API.Credentials.Secret = "test123"
 	cfg.Exchanges[0].API.Credentials.ClientID = "clientIDerino"
-	cfg.CheckExchangeConfigValues()
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
 	if !cfg.Exchanges[0].API.AuthenticatedSupport ||
 		!cfg.Exchanges[0].API.AuthenticatedWebsocketSupport {
 		t.Error("Expected AuthenticatedAPISupport and AuthenticatedWebsocketAPISupport to be false from invalid API keys")
@@ -1591,7 +1600,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	// Test empty exchange name for an enabled exchange
 	cfg.Exchanges[0].Enabled = true
 	cfg.Exchanges[0].Name = ""
-	cfg.CheckExchangeConfigValues()
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
 	if cfg.Exchanges[0].Enabled {
 		t.Errorf(
 			"Exchange with no name should be empty",
@@ -1730,19 +1742,20 @@ func TestRetrieveConfigCurrencyPairs(t *testing.T) {
 }
 
 func TestReadConfigFromFile(t *testing.T) {
-	readConfig := GetConfig()
-	err := readConfig.ReadConfigFromFile(TestFile, true)
+	cfg := &Config{}
+	err := cfg.ReadConfigFromFile(TestFile, true)
 	if err != nil {
 		t.Errorf("TestReadConfig %s", err.Error())
 	}
 
-	err = readConfig.ReadConfigFromFile("bla", true)
+	err = cfg.ReadConfigFromFile("bla", true)
 	if err == nil {
 		t.Error("TestReadConfig error cannot be nil")
 	}
 }
 
 func TestReadConfigFromReader(t *testing.T) {
+	t.Parallel()
 	confString := `{"name":"test"}`
 	conf, encrypted, err := ReadConfig(strings.NewReader(confString), Unencrypted)
 	if err != nil {
@@ -1762,21 +1775,21 @@ func TestReadConfigFromReader(t *testing.T) {
 }
 
 func TestLoadConfig(t *testing.T) {
-	loadConfig := GetConfig()
-	err := loadConfig.LoadConfig(TestFile, true)
+	cfg := &Config{}
+	err := cfg.LoadConfig(TestFile, true)
 	if err != nil {
 		t.Error("TestLoadConfig " + err.Error())
 	}
 
-	err = loadConfig.LoadConfig("testy", true)
+	err = cfg.LoadConfig("testy", true)
 	if err == nil {
 		t.Error("TestLoadConfig Expected error")
 	}
 }
 
 func TestSaveConfigToFile(t *testing.T) {
-	saveConfig := GetConfig()
-	err := saveConfig.LoadConfig(TestFile, true)
+	cfg := &Config{}
+	err := cfg.LoadConfig(TestFile, true)
 	if err != nil {
 		t.Errorf("TestSaveConfig.LoadConfig: %s", err.Error())
 	}
@@ -1786,7 +1799,7 @@ func TestSaveConfigToFile(t *testing.T) {
 	}
 	f.Close()
 	defer os.Remove(f.Name())
-	err2 := saveConfig.SaveConfigToFile(f.Name())
+	err2 := cfg.SaveConfigToFile(f.Name())
 	if err2 != nil {
 		t.Errorf("TestSaveConfig.SaveConfig, %s", err2.Error())
 	}
@@ -1826,6 +1839,7 @@ func TestDefaultFilePath(t *testing.T) {
 }
 
 func TestGetFilePath(t *testing.T) {
+	t.Parallel()
 	expected := "blah.json"
 	result, wasDefault, _ := GetFilePath("blah.json")
 	if result != "blah.json" {
@@ -1888,13 +1902,36 @@ func TestCheckRemoteControlConfig(t *testing.T) {
 }
 
 func TestCheckConfig(t *testing.T) {
-	var c Config
-	err := c.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf("%s", err)
+	t.Parallel()
+	cp1 := currency.NewPair(currency.DOGE, currency.XRP)
+	cp2 := currency.NewPair(currency.DOGE, currency.USD)
+	cfg := &Config{
+		Exchanges: []ExchangeConfig{
+			{
+				Name:    testFakeExchangeName,
+				Enabled: true,
+				BaseCurrencies: currency.Currencies{
+					currency.USD,
+				},
+				CurrencyPairs: &currency.PairsManager{
+					RequestFormat:   nil,
+					ConfigFormat:    nil,
+					UseGlobalFormat: false,
+					LastUpdated:     0,
+					Pairs: map[asset.Item]*currency.PairStore{
+						asset.Spot: {
+							AssetEnabled:  convert.BoolPtr(true),
+							Available:     currency.Pairs{cp1, cp2},
+							Enabled:       currency.Pairs{cp1},
+							ConfigFormat:  &currency.PairFormat{},
+							RequestFormat: &currency.PairFormat{},
+						},
+					},
+				},
+			},
+		},
 	}
-
-	err = c.CheckConfig()
+	err := cfg.CheckConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2135,6 +2172,7 @@ func TestCheckCurrencyConfigValues(t *testing.T) {
 }
 
 func TestPreengineConfigUpgrade(t *testing.T) {
+	t.Parallel()
 	var c Config
 	if err := c.LoadConfig("../testdata/preengine_config.json", false); err != nil {
 		t.Fatal(err)

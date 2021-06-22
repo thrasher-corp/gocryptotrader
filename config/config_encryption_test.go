@@ -38,6 +38,7 @@ func TestPromptForConfigKey(t *testing.T) {
 }
 
 func TestEncryptConfigFile(t *testing.T) {
+	t.Parallel()
 	_, err := EncryptConfigFile([]byte("test"), nil)
 	if err == nil {
 		t.Fatal("Expected error")
@@ -67,6 +68,7 @@ func TestEncryptConfigFile(t *testing.T) {
 }
 
 func TestDecryptConfigFile(t *testing.T) {
+	t.Parallel()
 	result, err := EncryptConfigFile([]byte("test"), []byte("key"))
 	if err != nil {
 		t.Fatal(err)
@@ -135,8 +137,9 @@ func TestMakeNewSessionDK(t *testing.T) {
 }
 
 func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
-	c := &Config{}
-	c.EncryptConfig = 1
+	c := &Config{
+		EncryptConfig: 1,
+	}
 	tempDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
@@ -148,8 +151,14 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Problem creating temp file at %s: %s\n", tempDir, err)
 	}
-	passFile.WriteString("pass\npass\n")
-	passFile.Close()
+	_, err = passFile.WriteString("pass\npass\n")
+	if err != nil {
+		t.Error(err)
+	}
+	err = passFile.Close()
+	if err != nil {
+		t.Error(err)
+	}
 
 	// Temporarily replace Stdin with a custom input
 	oldIn := os.Stdin
@@ -179,7 +188,7 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Problem reading file %s: %s\n", enc2, err)
 	}
-	// legth of prefix + salt
+	// length of prefix + salt
 	l := len(EncryptConfirmString+SaltPrefix) + SaltRandomLength
 	// Even though prefix, including salt with the random bytes is the same
 	if !bytes.Equal(data1[:l], data2[:l]) {
@@ -285,6 +294,7 @@ func TestReadConfigWithPrompt(t *testing.T) {
 }
 
 func TestReadEncryptedConfigFromReader(t *testing.T) {
+	t.Parallel()
 	keyProvider := func() ([]byte, error) { return []byte("pass"), nil }
 	// Encrypted conf for: `{"name":"test"}` with key `pass`
 	confBytes := []byte{84, 72, 79, 82, 83, 45, 72, 65, 77, 77, 69, 82, 126, 71, 67, 84, 126, 83, 79, 126, 83, 65, 76, 84, 89, 126, 246, 110, 128, 3, 30, 168, 172, 160, 198, 176, 136, 62, 152, 155, 253, 176, 16, 48, 52, 246, 44, 29, 151, 47, 217, 226, 178, 12, 218, 113, 248, 172, 195, 232, 136, 104, 9, 199, 20, 4, 71, 4, 253, 249}
@@ -309,6 +319,7 @@ func TestReadEncryptedConfigFromReader(t *testing.T) {
 
 // TestSaveConfigToFileWithErrorInPasswordPrompt should preserve the original file
 func TestSaveConfigToFileWithErrorInPasswordPrompt(t *testing.T) {
+	t.Parallel()
 	c := &Config{
 		Name:          "test",
 		EncryptConfig: fileEncryptionEnabled,

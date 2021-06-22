@@ -255,6 +255,7 @@ func TestUpdates(t *testing.T) {
 
 // TestHittingTheBuffer logic test
 func TestHittingTheBuffer(t *testing.T) {
+	t.Parallel()
 	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -287,6 +288,7 @@ func TestHittingTheBuffer(t *testing.T) {
 
 // TestInsertWithIDs logic test
 func TestInsertWithIDs(t *testing.T) {
+	t.Parallel()
 	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -357,6 +359,7 @@ func TestSortIDs(t *testing.T) {
 
 // TestOutOfOrderIDs logic test
 func TestOutOfOrderIDs(t *testing.T) {
+	t.Parallel()
 	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -390,6 +393,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 }
 
 func TestOrderbookLastUpdateID(t *testing.T) {
+	t.Parallel()
 	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -423,6 +427,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 
 // TestRunUpdateWithoutSnapshot logic test
 func TestRunUpdateWithoutSnapshot(t *testing.T) {
+	t.Parallel()
 	var holder Orderbook
 	var snapShot1 orderbook.Base
 	asks := []orderbook.Item{
@@ -451,6 +456,7 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 
 // TestRunUpdateWithoutAnyUpdates logic test
 func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
+	t.Parallel()
 	var obl Orderbook
 	var snapShot1 orderbook.Base
 	snapShot1.Asks = []orderbook.Item{}
@@ -472,6 +478,7 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 
 // TestRunSnapshotWithNoData logic test
 func TestRunSnapshotWithNoData(t *testing.T) {
+	t.Parallel()
 	var obl Orderbook
 	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 	obl.dataHandler = make(chan interface{}, 1)
@@ -488,6 +495,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 
 // TestLoadSnapshot logic test
 func TestLoadSnapshot(t *testing.T) {
+	t.Parallel()
 	var obl Orderbook
 	obl.dataHandler = make(chan interface{}, 100)
 	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
@@ -526,6 +534,7 @@ func TestFlushbuffer(t *testing.T) {
 
 // TestInsertingSnapShots logic test
 func TestInsertingSnapShots(t *testing.T) {
+	t.Parallel()
 	var holder Orderbook
 	holder.dataHandler = make(chan interface{}, 100)
 	holder.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
@@ -705,6 +714,7 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
+	t.Parallel()
 	w := Orderbook{}
 	err := w.Setup(0, false, false, false, false, true, "", nil)
 	if !errors.Is(err, errUnsetExchangeName) {
@@ -736,6 +746,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
+	t.Parallel()
 	w := Orderbook{}
 	err := w.validate(nil)
 	if !errors.Is(err, errUpdateIsNil) {
@@ -749,6 +760,7 @@ func TestValidate(t *testing.T) {
 }
 
 func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
+	t.Parallel()
 	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Error(err)
@@ -782,6 +794,7 @@ func deploySliceOrdered(size int) orderbook.Items {
 }
 
 func TestUpdateByIDAndAction(t *testing.T) {
+	t.Parallel()
 	holder := orderbookHolder{}
 
 	asks := deploySliceOrdered(100)
@@ -990,6 +1003,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 }
 
 func TestFlushOrderbook(t *testing.T) {
+	t.Parallel()
 	w := &Orderbook{}
 	err := w.Setup(5, false, false, false, false, false, "test", make(chan interface{}, 2))
 	if err != nil {
