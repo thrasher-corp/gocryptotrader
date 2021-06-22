@@ -41,6 +41,8 @@ var (
 	ErrNilArguments = errors.New("received nil argument(s)")
 	// ErrNilEvent is a common error for whenever a nil event occurs when it shouldn't have
 	ErrNilEvent = errors.New("nil event received")
+	// ErrInvalidDataType occurs when an invalid data type is defined in the config
+	ErrInvalidDataType = errors.New("invalid datatype received")
 )
 
 // EventHandler interface implements required GetTime() & Pair() return

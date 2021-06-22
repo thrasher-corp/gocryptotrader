@@ -745,7 +745,7 @@ func (l *LocalBitcoins) SendHTTPRequest(endpoint exchange.URL, path string, resu
 // localbitcoins
 func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path string, params url.Values, result interface{}) (err error) {
 	if !l.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
+		return fmt.Errorf("%s %w", l.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	endpoint, err := l.API.Endpoints.GetURL(ep)
 	if err != nil {

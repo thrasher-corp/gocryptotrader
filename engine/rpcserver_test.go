@@ -3,11 +3,12 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -21,12 +22,15 @@ import (
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/goose"
 )
 
@@ -37,14 +41,53 @@ const (
 	databaseName          = "rpctestdb"
 )
 
+// fExchange is a fake exchange with function overrides
+// we're not testing an actual exchange's implemented functions
+type fExchange struct {
+	exchange.IBotExchange
+}
+
+// FetchAccountInfo overrides testExchange's fetch account info function
+// to do the bare minimum required with no API calls or credentials required
+func (f fExchange) FetchAccountInfo(a asset.Item) (account.Holdings, error) {
+	return account.Holdings{
+		Exchange: f.GetName(),
+		Accounts: []account.SubAccount{
+			{
+				ID:         "1337",
+				AssetType:  a,
+				Currencies: nil,
+			},
+		},
+	}, nil
+}
+
+// UpdateAccountInfo overrides testExchange's update account info function
+// to do the bare minimum required with no API calls or credentials required
+func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
+	if a == asset.Futures {
+		return account.Holdings{}, errAssetTypeDisabled
+	}
+	return account.Holdings{
+		Exchange: f.GetName(),
+		Accounts: []account.SubAccount{
+			{
+				ID:         "1337",
+				AssetType:  a,
+				Currencies: nil,
+			},
+		},
+	}, nil
+}
+
 // Sets up everything required to run any function inside rpcserver
 func RPCTestSetup(t *testing.T) *Engine {
-	database.DB.Mu.Lock()
 	var err error
 	dbConf := database.Config{
 		Enabled: true,
 		Driver:  database.DBSQLite3,
 		ConnectionDetails: drivers.ConnectionDetails{
+			Host:     "localhost",
 			Database: databaseName,
 		},
 	}
@@ -54,20 +97,22 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("SetupTest: Failed to load config: %s", err)
 	}
-
-	if engerino.GetExchangeByName(testExchange) == nil {
-		err = engerino.LoadExchange(testExchange, false, nil)
-		if err != nil {
-			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
-		}
+	engerino.ExchangeManager = SetupExchangeManager()
+	err = engerino.LoadExchange(testExchange, false, nil)
+	if err != nil {
+		log.Fatal(err)
 	}
 	engerino.Config.Database = dbConf
-	err = engerino.DatabaseManager.Start(engerino)
+	engerino.DatabaseManager, err = SetupDatabaseConnectionManager(&engerino.Config.Database)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = engerino.DatabaseManager.Start(&engerino.ServicesWG)
 	if err != nil {
 		log.Fatal(err)
 	}
 	path := filepath.Join("..", databaseFolder, migrationsFolder)
-	err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
+	err = goose.Run("up", database.DB.SQL, repository.GetSQLDialect(), path, "")
 	if err != nil {
 		t.Fatalf("failed to run migrations %v", err)
 	}
@@ -76,14 +121,11 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)
 	}
-	database.DB.Mu.Unlock()
 
 	return engerino
 }
 
 func CleanRPCTest(t *testing.T, engerino *Engine) {
-	database.DB.Mu.Lock()
-	defer database.DB.Mu.Unlock()
 	err := engerino.DatabaseManager.Stop()
 	if err != nil {
 		t.Error(err)
@@ -100,9 +142,6 @@ func TestGetSavedTrades(t *testing.T) {
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
 	_, err := s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
-	if err == nil {
-		t.Fatal(unexpectedLackOfError)
-	}
 	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
@@ -117,10 +156,6 @@ func TestGetSavedTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	})
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
 	}
@@ -178,10 +213,6 @@ func TestConvertTradesToCandles(t *testing.T) {
 	s := RPCServer{Engine: engerino}
 	// bad param test
 	_, err := s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{})
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
@@ -199,10 +230,6 @@ func TestConvertTradesToCandles(t *testing.T) {
 		End:          time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
 	}
@@ -220,17 +247,13 @@ func TestConvertTradesToCandles(t *testing.T) {
 		End:          time.Date(2020, 2, 2, 2, 2, 2, 2, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
-	if err.Error() != "no trades returned from supplied params" {
-		t.Error(err)
+	if !errors.Is(err, errNoTrades) {
+		t.Errorf("received '%v' expected '%v'", err, errNoTrades)
 	}
 
 	// add a trade
 	err = sqltrade.Insert(sqltrade.Data{
-		Timestamp: time.Date(2020, 1, 1, 1, 1, 2, 1, time.UTC),
+		Timestamp: time.Date(2020, 1, 1, 1, 2, 2, 1, time.UTC),
 		Exchange:  testExchange,
 		Base:      currency.BTC.String(),
 		Quote:     currency.USD.String(),
@@ -240,8 +263,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		Side:      order.Buy.String(),
 	})
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	// get candle from one trade
@@ -255,7 +277,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		},
 		AssetType:    asset.Spot.String(),
 		Start:        time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-		End:          time.Date(2020, 2, 2, 2, 2, 2, 2, time.UTC).Format(common.SimpleTimeFormat),
+		End:          time.Date(2020, 3, 2, 2, 2, 2, 2, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
 	if err != nil {
@@ -712,10 +734,6 @@ func TestGetRecentTrades(t *testing.T) {
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
 	_, err := s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
@@ -730,10 +748,6 @@ func TestGetRecentTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	})
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
 	}
@@ -756,10 +770,6 @@ func TestGetHistoricTrades(t *testing.T) {
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
 	err := s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{}, nil)
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
@@ -774,10 +784,6 @@ func TestGetHistoricTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	}, nil)
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
 	}
@@ -792,10 +798,6 @@ func TestGetHistoricTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	}, nil)
-	if err == nil {
-		t.Error(unexpectedLackOfError)
-		return
-	}
 	if err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
@@ -803,39 +805,48 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	bot := CreateTestBot(t)
+	exch := bot.ExchangeManager.GetExchangeByName(testExchange)
+	b := exch.GetBase()
+	b.Name = "fake"
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	bot.ExchangeManager.Add(fakeExchange)
 	s := RPCServer{Engine: bot}
 
-	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Spot.String()})
-	if err != nil {
-		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
-	}
-	if r.Accounts[0].Currencies[0].TotalValue != 10 {
-		t.Fatal("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
+	_, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
+	if !errors.Is(err, nil) {
+		t.Errorf("expected %v, received %v", errAssetTypeDisabled, nil)
 	}
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
 	bot := CreateTestBot(t)
+	exch := bot.ExchangeManager.GetExchangeByName(testExchange)
+	b := exch.GetBase()
+	b.Name = "fake"
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	bot.ExchangeManager.Add(fakeExchange)
 	s := RPCServer{Engine: bot}
 
-	getResponse, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Spot.String()})
-	if err != nil {
-		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
+	_, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
+	if !errors.Is(err, nil) {
+		t.Errorf("expected %v, received %v", nil, err)
 	}
 
-	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Futures.String()})
+	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Futures.String()})
 	if !errors.Is(err, errAssetTypeDisabled) {
 		t.Errorf("expected %v, received %v", errAssetTypeDisabled, err)
 	}
 
-	updateResp, err := s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{
-		Exchange:  fakePassExchange,
+	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{
+		Exchange:  "fake",
 		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, nil) {
-		t.Error(err)
-	} else if getResponse.Accounts[0].Currencies[0].TotalValue == updateResp.Accounts[0].Currencies[0].TotalValue {
-		t.Fatalf("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
+		t.Errorf("expected %v, received %v", nil, err)
 	}
 }
 
@@ -903,11 +914,8 @@ func TestGetOrders(t *testing.T) {
 		StartDate: time.Now().Format(common.SimpleTimeFormat),
 		EndDate:   time.Now().Add(time.Hour).Format(common.SimpleTimeFormat),
 	})
-	if err != nil && !strings.Contains(err.Error(), "not supported due to unset/default API keys") {
-		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expected error")
+	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
+		t.Errorf("received '%v', expected '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	exch := engerino.GetExchangeByName(exchName)
@@ -982,18 +990,24 @@ func TestGetOrder(t *testing.T) {
 		t.Errorf("expected %v, received %v", asset.ErrNotSupported, err)
 	}
 
+	s.OrderManager, err = SetupOrderManager(engerino.ExchangeManager, engerino.CommunicationsManager, &engerino.ServicesWG, engerino.Settings.Verbose)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = s.OrderManager.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,
 		OrderId:  "",
 		Pair:     p,
 		Asset:    asset.Spot.String(),
 	})
-	if !errors.Is(err, errOrderIDCannotBeEmpty) {
-		t.Errorf("expected %v, received %v", errOrderIDCannotBeEmpty, err)
-	}
-	err = engerino.OrderManager.Start(engerino)
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, ErrOrderIDCannotBeEmpty) {
+		t.Errorf("expected %v, received %v", ErrOrderIDCannotBeEmpty, err)
 	}
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,
@@ -1001,8 +1015,8 @@ func TestGetOrder(t *testing.T) {
 		Pair:     p,
 		Asset:    asset.Spot.String(),
 	})
-	if err == nil {
-		t.Error("expected error")
+	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
+		t.Errorf("expected '%v' received '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 }
 
@@ -1021,8 +1035,8 @@ func TestCheckVars(t *testing.T) {
 	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, errExchangeDisabled) {
-		t.Errorf("expected %v, got %v", errExchangeDisabled, err)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("expected %v, got %v", ErrExchangeNotFound, err)
 	}
 
 	e.SetEnabled(true)
@@ -1090,13 +1104,77 @@ func TestCheckVars(t *testing.T) {
 		t.Errorf("expected %v, got %v", errCurrencyNotEnabled, err)
 	}
 
-	e.GetBase().CurrencyPairs.EnablePair(
+	err = e.GetBase().CurrencyPairs.EnablePair(
 		asset.Spot,
 		currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestParseEvents(t *testing.T) {
+	var exchangeName = "Binance"
+	var testData []*withdraw.Response
+	for x := 0; x < 5; x++ {
+		test := fmt.Sprintf("test-%v", x)
+		resp := &withdraw.Response{
+			ID: withdraw.DryRunID,
+			Exchange: withdraw.ExchangeResponse{
+				Name:   test,
+				ID:     test,
+				Status: test,
+			},
+			RequestDetails: withdraw.Request{
+				Exchange:    test,
+				Description: test,
+				Amount:      1.0,
+			},
+		}
+		if x%2 == 0 {
+			resp.RequestDetails.Currency = currency.AUD
+			resp.RequestDetails.Type = 1
+			resp.RequestDetails.Fiat = withdraw.FiatRequest{
+				Bank: banking.Account{
+					Enabled:             false,
+					ID:                  fmt.Sprintf("test-%v", x),
+					BankName:            fmt.Sprintf("test-%v-bank", x),
+					AccountName:         "hello",
+					AccountNumber:       fmt.Sprintf("test-%v", x),
+					BSBNumber:           "123456",
+					SupportedCurrencies: "BTC-AUD",
+					SupportedExchanges:  exchangeName,
+				},
+			}
+		} else {
+			resp.RequestDetails.Currency = currency.BTC
+			resp.RequestDetails.Type = 0
+			resp.RequestDetails.Crypto.Address = test
+			resp.RequestDetails.Crypto.FeeAmount = 0
+			resp.RequestDetails.Crypto.AddressTag = test
+		}
+		testData = append(testData, resp)
+	}
+	v := parseMultipleEvents(testData)
+	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
+		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
+	}
+	if testData == nil || len(testData) < 2 {
+		t.Fatal("expected at least 2")
+	}
+
+	v = parseSingleEvents(testData[0])
+	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
+		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
+	}
+
+	v = parseSingleEvents(testData[1])
+	if v.Event[0].Request.Type != 0 {
+		t.Fatal("Expected second entry in slice to return a Request.Type of Crypto")
 	}
 }

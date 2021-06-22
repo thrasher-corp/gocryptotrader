@@ -33,9 +33,12 @@ func TestAddTradesToBuffer(t *testing.T) {
 	wg.Add(1)
 	processor.setup(&wg)
 	wg.Wait()
-	database.DB.Config = &dbConf
+	err := database.DB.SetConfig(&dbConf)
+	if err != nil {
+		t.Error(err)
+	}
 	cp, _ := currency.NewPairFromString("BTC-USD")
-	err := AddTradesToBuffer("test!", []Data{
+	err = AddTradesToBuffer("test!", []Data{
 		{
 			Timestamp:    time.Now(),
 			Exchange:     "test!",

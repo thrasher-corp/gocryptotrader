@@ -23,7 +23,7 @@ import (
 
 // NewVM attempts to create a new Virtual Machine firstly from pool
 func (g *GctScriptManager) NewVM() (vm *VM) {
-	if !g.Started() {
+	if !g.IsRunning() {
 		log.Error(log.GCTScriptMgr, Error{
 			Action: "NewVM",
 			Cause:  ErrScriptingDisabled,

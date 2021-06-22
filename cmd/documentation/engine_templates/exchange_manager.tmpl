@@ -1,0 +1,11 @@
+{{define "engine exchange_manager" -}}
+{{template "header" .}}
+## Current Features for {{.CapitalName}}
++ The exchange manager subsystem is used load and store exchanges so that the engine Bot can use them to track orderbooks, submit orders etc etc
++ The exchange manager itself is not customisable, it is always enabled.
++ The exchange manager by default will load all exchanges that are enabled in your config, however, it will also load exchanges by request via GRPC commands
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

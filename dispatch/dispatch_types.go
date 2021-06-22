@@ -66,7 +66,7 @@ type job struct {
 	ID   uuid.UUID
 }
 
-// Mux defines a new multiplexor for the dispatch system, these a generated
+// Mux defines a new multiplexer for the dispatch system, these a generated
 // per subsystem
 type Mux struct {
 	// Reference to the main running dispatch service
@@ -80,6 +80,6 @@ type Pipe struct {
 	C chan interface{}
 	// ID to tracked system
 	id uuid.UUID
-	// Reference to multiplexor
+	// Reference to multiplexer
 	m *Mux
 }

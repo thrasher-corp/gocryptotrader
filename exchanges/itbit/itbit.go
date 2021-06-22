@@ -296,7 +296,7 @@ func (i *ItBit) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 // SendAuthenticatedHTTPRequest sends an authenticated request to itBit
 func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path string, params map[string]interface{}, result interface{}) error {
 	if !i.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, i.Name)
+		return fmt.Errorf("%s %w", i.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	endpoint, err := i.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -366,7 +366,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 	err = json.Unmarshal(intermediary, &errCheck)
 	if err == nil {
 		if errCheck.Code != 0 || errCheck.Description != "" {
-			return fmt.Errorf("itbit.go SendAuthRequest error code: %d description: %s",
+			return fmt.Errorf("sendAuthRequest error code: %d description: %s",
 				errCheck.Code,
 				errCheck.Description)
 		}

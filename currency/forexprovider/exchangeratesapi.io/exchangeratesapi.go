@@ -166,11 +166,11 @@ func (e *ExchangeRates) GetTimeSeriesRates(startDate, endDate time.Time, baseCur
 	}
 
 	if startDate.IsZero() || endDate.IsZero() {
-		return nil, errors.New("startDate and endDate params must be set")
+		return nil, errStartEndDatesInvalid
 	}
 
 	if startDate.After(endDate) {
-		return nil, errors.New("startDate must be before endDate")
+		return nil, errStartAfterEnd
 	}
 
 	v := url.Values{}
@@ -197,11 +197,11 @@ func (e *ExchangeRates) GetFluctuations(startDate, endDate time.Time, baseCurren
 	}
 
 	if startDate.IsZero() || endDate.IsZero() {
-		return nil, errors.New("startDate and endDate must be set")
+		return nil, errStartEndDatesInvalid
 	}
 
 	if startDate.After(endDate) {
-		return nil, errors.New("startDate must be before endDate")
+		return nil, errStartAfterEnd
 	}
 
 	v := url.Values{}

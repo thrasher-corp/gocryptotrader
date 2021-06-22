@@ -702,7 +702,6 @@ func (b *Bittrex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	result, err := b.Withdraw(withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.Crypto.Address,
@@ -719,13 +718,13 @@ func (b *Bittrex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bittrex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *Bittrex) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bittrex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *Bittrex) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -1,7 +1,6 @@
 package ftx
 
 import (
-	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -182,11 +181,13 @@ type PositionData struct {
 	MaintenanceMarginRequirement float64 `json:"maintenanceMarginRequirement"`
 	NetSize                      float64 `json:"netSize"`
 	OpenSize                     float64 `json:"openSize"`
-	RealisedPnL                  float64 `json:"realisedPnL"`
-	ShortOrderSide               float64 `json:"shortOrderSide"`
+	RealizedPnL                  float64 `json:"realizedPnL"`
+	ShortOrderSize               float64 `json:"shortOrderSize"`
 	Side                         string  `json:"side"`
 	Size                         float64 `json:"size"`
-	UnrealisedPnL                float64 `json:"unrealisedPnL"`
+	UnrealizedPnL                float64 `json:"unrealizedPnL"`
+	CollateralUsed               float64 `json:"collateralUsed"`
+	EstimatedLiquidationPrice    float64 `json:"estimatedLiquidationPrice"`
 }
 
 // AccountInfoData stores account data
@@ -196,7 +197,7 @@ type AccountInfoData struct {
 	Collateral                   float64        `json:"collateral"`
 	FreeCollateral               float64        `json:"freeCollateral"`
 	InitialMarginRequirement     float64        `json:"initialMarginRequirement"`
-	Leverage                     float64        `json:"float64"`
+	Leverage                     float64        `json:"leverage"`
 	Liquidating                  bool           `json:"liquidating"`
 	MaintenanceMarginRequirement float64        `json:"maintenanceMarginRequirement"`
 	MakerFee                     float64        `json:"makerFee"`
@@ -378,11 +379,11 @@ type LTBalanceData struct {
 
 // LTCreationData stores token creation requests' data
 type LTCreationData struct {
-	ID            string    `json:"id"`
+	ID            int64     `json:"id"`
 	Token         string    `json:"token"`
 	RequestedSize float64   `json:"requestedSize"`
 	Pending       bool      `json:"pending"`
-	CreatedSize   float64   `json:"createdize"`
+	CreatedSize   float64   `json:"createdSize"`
 	Price         float64   `json:"price"`
 	Cost          float64   `json:"cost"`
 	Fee           float64   `json:"fee"`
@@ -392,7 +393,7 @@ type LTCreationData struct {
 
 // RequestTokenCreationData stores data of the token creation requested
 type RequestTokenCreationData struct {
-	ID            string    `json:"id"`
+	ID            int64     `json:"id"`
 	Token         string    `json:"token"`
 	RequestedSize float64   `json:"requestedSize"`
 	Cost          float64   `json:"cost"`
@@ -415,7 +416,7 @@ type LTRedemptionData struct {
 
 // LTRedemptionRequestData stores redemption request data for a leveraged token
 type LTRedemptionRequestData struct {
-	ID                string    `json:"id"`
+	ID                int64     `json:"id"`
 	Token             string    `json:"token"`
 	Size              float64   `json:"size"`
 	ProjectedProceeds float64   `json:"projectedProceeds"`
@@ -691,8 +692,6 @@ var (
 	TimeIntervalDay            = TimeInterval("86400")
 )
 
-var errInvalidInterval = errors.New("invalid interval")
-
 // OrderVars stores side, status and type for any order/trade
 type OrderVars struct {
 	Side      order.Side
@@ -781,6 +780,16 @@ type Subaccount struct {
 	Competition bool   `json:"competition"`
 }
 
+// SubaccountTransferStatus stores the subaccount transfer details
+type SubaccountTransferStatus struct {
+	ID     int64     `json:"id"`
+	Coin   string    `json:"coin"`
+	Size   float64   `json:"size"`
+	Time   time.Time `json:"time"`
+	Notes  string    `json:"notes"`
+	Status string    `json:"status"`
+}
+
 // SubaccountBalance stores the user's subaccount balance
 type SubaccountBalance struct {
 	Coin                   string  `json:"coin"`
@@ -790,12 +799,37 @@ type SubaccountBalance struct {
 	AvailableWithoutBorrow float64 `json:"availableWithoutBorrow"`
 }
 
-// SubaccountTransferStatus stores the subaccount transfer details
-type SubaccountTransferStatus struct {
-	ID     int64     `json:"id"`
+// Stake stores an individual coin stake
+type Stake struct {
+	Coin      string    `json:"coin"`
+	CreatedAt time.Time `json:"createdAt"`
+	ID        int64     `json:"id"`
+	Size      float64   `json:"size"`
+}
+
+// UnstakeRequest stores data for an unstake request
+type UnstakeRequest struct {
+	Stake
+	Status       string    `json:"status"`
+	UnlockAt     time.Time `json:"unlockAt"`
+	FractionToGo float64   `json:"fractionToGo"`
+	Fee          float64   `json:"fee"`
+}
+
+// StakeBalance stores an individual coin stake balance
+type StakeBalance struct {
+	Coin               string  `json:"coin"`
+	LifetimeRewards    float64 `json:"lifetimeRewards"`
+	ScheduledToUnstake float64 `json:"scheduledToUnstake"`
+	Staked             float64 `json:"staked"`
+}
+
+// StakeReward stores an individual staking reward
+type StakeReward struct {
 	Coin   string    `json:"coin"`
+	ID     int64     `json:"id"`
 	Size   float64   `json:"size"`
-	Time   time.Time `json:"time"`
 	Notes  string    `json:"notes"`
 	Status string    `json:"status"`
+	Time   time.Time `json:"time"`
 }

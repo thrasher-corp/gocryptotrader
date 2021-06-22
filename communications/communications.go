@@ -8,7 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/communications/smsglobal"
 	"github.com/thrasher-corp/gocryptotrader/communications/smtpservice"
 	"github.com/thrasher-corp/gocryptotrader/communications/telegram"
-	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
 // Communications is the overarching type across the communications packages
@@ -16,10 +15,13 @@ type Communications struct {
 	base.IComm
 }
 
+// ErrNoCommunicationRelayersEnabled returns when no relayers enabled
+var ErrNoCommunicationRelayersEnabled = errors.New("no communication relayers enabled")
+
 // NewComm sets up and returns a pointer to a Communications object
-func NewComm(cfg *config.CommunicationsConfig) (*Communications, error) {
+func NewComm(cfg *base.CommunicationsConfig) (*Communications, error) {
 	if !cfg.IsAnyEnabled() {
-		return nil, errors.New("no communication relayers enabled")
+		return nil, ErrNoCommunicationRelayersEnabled
 	}
 
 	var comm Communications

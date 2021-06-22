@@ -570,8 +570,7 @@ func (o *OKGroup) GetErrorCode(code interface{}) error {
 // URL arguments must be in the request path and not as url.URL values
 func (o *OKGroup) SendHTTPRequest(ep exchange.URL, httpMethod, requestType, requestPath string, data, result interface{}, authenticated bool) (err error) {
 	if authenticated && !o.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
-			o.Name)
+		return fmt.Errorf("%s %w", o.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	endpoint, err := o.API.Endpoints.GetURL(ep)
 	if err != nil {

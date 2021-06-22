@@ -289,7 +289,7 @@ func (l *LakeBTC) SendHTTPRequest(endpoint exchange.URL, path string, result int
 // SendAuthenticatedHTTPRequest sends an autheticated HTTP request to a LakeBTC
 func (l *LakeBTC) SendAuthenticatedHTTPRequest(ep exchange.URL, method, params string, result interface{}) (err error) {
 	if !l.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
+		return fmt.Errorf("%s %w", l.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	endpoint, err := l.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -341,7 +341,7 @@ func (l *LakeBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		fee = calculateTradingFee(feeBuilder.PurchasePrice,
 			feeBuilder.Amount,
 			feeBuilder.IsMaker)
-	case exchange.CyptocurrencyDepositFee:
+	case exchange.CryptocurrencyDepositFee:
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.InternationalBankWithdrawalFee:
 		// fees for withdrawals are dynamic. They cannot be calculated in

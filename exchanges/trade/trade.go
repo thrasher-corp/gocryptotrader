@@ -29,7 +29,8 @@ func (p *Processor) setup(wg *sync.WaitGroup) {
 
 // AddTradesToBuffer will push trade data onto the buffer
 func AddTradesToBuffer(exchangeName string, data ...Data) error {
-	if database.DB == nil || database.DB.Config == nil || !database.DB.Config.Enabled {
+	cfg := database.DB.GetConfig()
+	if database.DB == nil || cfg == nil || !cfg.Enabled {
 		return nil
 	}
 	if len(data) == 0 {

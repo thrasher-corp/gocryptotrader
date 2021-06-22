@@ -405,8 +405,7 @@ func (g *Gateio) GenerateSignature(message string) []byte {
 // To use this you must setup an APIKey and APISecret from the exchange
 func (g *Gateio) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint, param string, result interface{}) error {
 	if !g.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
-			g.Name)
+		return fmt.Errorf("%s %w", g.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 	ePoint, err := g.API.Endpoints.GetURL(ep)
 	if err != nil {

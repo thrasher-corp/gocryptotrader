@@ -60,8 +60,8 @@ func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()
 	x := exchangeTest.Exchanges(false)
 	y := len(x)
-	if y != 28 {
-		t.Fatalf("expected 28 received %v", y)
+	if y != 1 {
+		t.Fatalf("expected 1 received %v", y)
 	}
 }
 
@@ -205,6 +205,9 @@ func setupEngine() (err error) {
 	if err != nil {
 		return err
 	}
+
+	em := engine.SetupExchangeManager()
+	engine.Bot.ExchangeManager = em
 
 	return engine.Bot.LoadExchange(exchName, false, nil)
 }
