@@ -22,15 +22,14 @@ const (
 )
 
 var (
-	wsHub                   *websocketHub
-	wsHubStarted            bool
-	errNilRemoteConfig      = errors.New("received nil remote config")
-	errNilPProfConfig       = errors.New("received nil pprof config")
-	errNilBot               = errors.New("received nil engine bot")
-	errEmptyConfigPath      = errors.New("received empty config path")
-	errServerDisabled       = errors.New("server disabled")
-	errInvalidListenAddress = errors.New("invalid listen address")
-	errAlreadyRunning       = errors.New("already running")
+	wsHub              *websocketHub
+	wsHubStarted       bool
+	errNilRemoteConfig = errors.New("received nil remote config")
+	errNilPProfConfig  = errors.New("received nil pprof config")
+	errNilBot          = errors.New("received nil engine bot")
+	errEmptyConfigPath = errors.New("received empty config path")
+	errServerDisabled  = errors.New("server disabled")
+	errAlreadyRunning  = errors.New("already running")
 	// ErrWebsocketServiceNotRunning occurs when a message is sent to be broadcast via websocket
 	// and its not running
 	ErrWebsocketServiceNotRunning = errors.New("websocket service not started")
