@@ -1,6 +1,8 @@
 #! /bin/bash
+
 # bash programmable completion for gctcli
-# copy to /etc/bash_completion.d/gctcli and source it or restart your shell
+# For info on implementation for current shell session or persistence:
+# https://github.com/urfave/cli/blob/master/docs/v2/manual.md#enabling
 
 : ${PROG:=$(basename ${BASH_SOURCE})}
 
