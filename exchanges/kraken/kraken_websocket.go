@@ -1141,10 +1141,8 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	}
 	if k.Websocket.CanUseAuthenticatedEndpoints() {
 		for i := range authenticatedChannels {
-			params := make(map[string]interface{})
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: authenticatedChannels[i],
-				Params:  params,
 			})
 		}
 	}
@@ -1187,7 +1185,7 @@ channels:
 		if !channelsToSubscribe[i].Currency.IsEmpty() {
 			outbound.Pairs = []string{channelsToSubscribe[i].Currency.String()}
 		}
-		if channelsToSubscribe[i].Params != nil {
+		if common.StringDataContains(authenticatedChannels, channelsToSubscribe[i].Channel) {
 			outbound.Subscription.Token = authToken
 		}
 
@@ -1262,6 +1260,9 @@ channels:
 				Depth: depth,
 			},
 			RequestID: id,
+		}
+		if common.StringDataContains(authenticatedChannels, channelsToUnsubscribe[x].Channel) {
+			unsub.Subscription.Token = authToken
 		}
 		unsub.Channels = append(unsub.Channels, channelsToUnsubscribe[x])
 		unsubs = append(unsubs, unsub)
