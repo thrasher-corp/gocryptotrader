@@ -16,7 +16,7 @@ type AccountV2Data struct {
 	Timezone         string
 }
 
-// MarginInfoData stores margin data
+// MarginInfoV2 stores V2 margin data
 type MarginInfoV2 struct {
 	Symbol          string
 	UserPNL         float64

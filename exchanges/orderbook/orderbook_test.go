@@ -43,24 +43,28 @@ func TestGetAveragePrice(t *testing.T) {
 	b = Base{}
 	b.Pair = cp
 	b.Asks = []Item{
-		{Amount: 5, Price: 4},
-		{Amount: 5, Price: 3},
-		{Amount: 5, Price: 2},
 		{Amount: 5, Price: 1},
+		{Amount: 5, Price: 2},
+		{Amount: 5, Price: 3},
+		{Amount: 5, Price: 4},
 	}
 	avgPrice, err := b.GetAveragePrice(true, 15)
 	if err != nil {
 		t.Error(err)
 	}
-	if avgPrice != 3 {
-		t.Error("avg price calculation failed")
+	if avgPrice != 2 {
+		t.Errorf("avg price calculation failed: expected 2, received %.3f", avgPrice)
 	}
 	avgPrice, err = b.GetAveragePrice(true, 18)
 	if err != nil {
 		t.Error(err)
 	}
-	if fmt.Sprintf("%.3f", avgPrice) != "2.667" {
-		t.Error("avg price calculation failed")
+	if fmt.Sprintf("%.3f", avgPrice) != "2.333" {
+		t.Errorf("avg price calculation failed: expected 2.667, received %.3f", avgPrice)
+	}
+	avgPrice, err = b.GetAveragePrice(true, 25)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Errorf("expected: %v, received %v", errNotEnoughLiquidity, err)
 	}
 }
 

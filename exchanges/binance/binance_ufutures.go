@@ -64,11 +64,15 @@ const (
 )
 
 // UServerTime gets the server time
-func (b *Binance) UServerTime() (int64, error) {
+func (b *Binance) UServerTime() (time.Time, error) {
 	var data struct {
 		ServerTime int64 `json:"serverTime"`
 	}
-	return data.ServerTime, b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesServerTime, uFuturesDefaultRate, &data)
+	err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesServerTime, uFuturesDefaultRate, &data)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(0, data.ServerTime*1000000), nil
 }
 
 // UExchangeInfo stores usdt margined futures data

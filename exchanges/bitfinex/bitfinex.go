@@ -121,6 +121,36 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	return -1, fmt.Errorf("unexpected platform status value %d", response[0])
 }
 
+func baseMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
+	var resp []MarginInfoV2
+	var tempResp MarginInfoV2
+	tempData, ok := data[1].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("%w", errTypeAssert)
+	}
+	tempResp.UserPNL, ok = tempData[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("%w for UserPNL", errTypeAssert)
+	}
+	tempResp.UserSwaps, ok = tempData[1].(float64)
+	if !ok {
+		return nil, fmt.Errorf("%w for UserSwaps", errTypeAssert)
+	}
+	tempResp.MarginBalance, ok = tempData[2].(float64)
+	if !ok {
+		return nil, fmt.Errorf("%w for MarginBalance", errTypeAssert)
+	}
+	tempResp.MarginNet, ok = tempData[3].(float64)
+	if !ok {
+		return nil, fmt.Errorf("%w for MarginNet", errTypeAssert)
+	}
+	tempResp.MarginMin, ok = tempData[4].(float64)
+	if !ok {
+		return nil, fmt.Errorf("%w for MarginMin", errTypeAssert)
+	}
+	resp = append(resp, tempResp)
+}
+
 // GetV2MarginInfo gets margin info
 func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoV2, error) {
 	var data []interface{}
@@ -135,32 +165,7 @@ func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoV2, error) {
 	var resp []MarginInfoV2
 	switch symbol {
 	case "base":
-		var tempResp MarginInfoV2
-		tempData, ok := data[1].([]interface{})
-		if !ok {
-			return nil, fmt.Errorf("%w", errTypeAssert)
-		}
-		tempResp.UserPNL, ok = tempData[0].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for UserPNL", errTypeAssert)
-		}
-		tempResp.UserSwaps, ok = tempData[1].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for UserSwaps", errTypeAssert)
-		}
-		tempResp.MarginBalance, ok = tempData[2].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for MarginBalance", errTypeAssert)
-		}
-		tempResp.MarginNet, ok = tempData[3].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for MarginNet", errTypeAssert)
-		}
-		tempResp.MarginMin, ok = tempData[4].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for MarginMin", errTypeAssert)
-		}
-		resp = append(resp, tempResp)
+
 	case "sym_all":
 		for x := range data {
 			var tempResp MarginInfoV2
