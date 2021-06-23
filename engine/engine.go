@@ -137,101 +137,52 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 
 // validateSettings validates and sets all bot settings
 func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
-	b.Settings.Verbose = s.Verbose
-	b.Settings.EnableDryRun = s.EnableDryRun
-	b.Settings.EnableAllExchanges = s.EnableAllExchanges
-	b.Settings.EnableAllPairs = s.EnableAllPairs
-	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
-	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
-	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager && (flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
-	b.Settings.EnableAccountManager = s.EnableAccountManager
-	b.Settings.AccountManagerSyncDelay = s.AccountManagerSyncDelay
-	b.Settings.MaxVirtualMachines = s.MaxVirtualMachines
-	b.Settings.EnableDispatcher = s.EnableDispatcher
-	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
-	b.Settings.WithdrawCacheSize = s.WithdrawCacheSize
+	b.Settings = *s
+
+	b.Settings.EnableGCTScriptManager = b.Settings.EnableGCTScriptManager &&
+		(flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
+
 	if b.Settings.EnablePortfolioManager {
-		if b.Settings.PortfolioManagerDelay == time.Duration(0) && s.PortfolioManagerDelay > 0 {
-			b.Settings.PortfolioManagerDelay = s.PortfolioManagerDelay
-		} else {
+		if b.Settings.PortfolioManagerDelay <= 0 {
 			b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
 		}
 	}
 
-	if flagSet["grpc"] {
-		b.Settings.EnableGRPC = s.EnableGRPC
-	} else {
+	if !flagSet["grpc"] {
 		b.Settings.EnableGRPC = b.Config.RemoteControl.GRPC.Enabled
 	}
 
-	if flagSet["grpcproxy"] {
-		b.Settings.EnableGRPCProxy = s.EnableGRPCProxy
-	} else {
+	if !flagSet["grpcproxy"] {
 		b.Settings.EnableGRPCProxy = b.Config.RemoteControl.GRPC.GRPCProxyEnabled
 	}
 
-	if flagSet["websocketrpc"] {
-		b.Settings.EnableWebsocketRPC = s.EnableWebsocketRPC
-	} else {
+	if !flagSet["websocketrpc"] {
 		b.Settings.EnableWebsocketRPC = b.Config.RemoteControl.WebsocketRPC.Enabled
 	}
 
-	if flagSet["deprecatedrpc"] {
-		b.Settings.EnableDeprecatedRPC = s.EnableDeprecatedRPC
-	} else {
+	if !flagSet["deprecatedrpc"] {
 		b.Settings.EnableDeprecatedRPC = b.Config.RemoteControl.DeprecatedRPC.Enabled
 	}
 
 	if flagSet["maxvirtualmachines"] {
-		maxMachines := uint8(s.MaxVirtualMachines)
+		maxMachines := uint8(b.Settings.MaxVirtualMachines)
 		b.gctScriptManager.MaxVirtualMachines = &maxMachines
 	}
 
 	if flagSet["withdrawcachesize"] {
-		withdraw.CacheSize = s.WithdrawCacheSize
+		withdraw.CacheSize = b.Settings.WithdrawCacheSize
 	}
 
-	b.Settings.EnableCommsRelayer = s.EnableCommsRelayer
-	b.Settings.EnableEventManager = s.EnableEventManager
-
-	if b.Settings.EnableEventManager {
-		if b.Settings.EventManagerDelay != time.Duration(0) && s.EventManagerDelay > 0 {
-			b.Settings.EventManagerDelay = s.EventManagerDelay
-		} else {
-			b.Settings.EventManagerDelay = EventSleepDelay
-		}
+	if b.Settings.EnableEventManager && b.Settings.EventManagerDelay <= 0 {
+		b.Settings.EventManagerDelay = EventSleepDelay
 	}
-
-	b.Settings.EnableConnectivityMonitor = s.EnableConnectivityMonitor
-	b.Settings.EnableNTPClient = s.EnableNTPClient
-	b.Settings.EnableOrderManager = s.EnableOrderManager
-	b.Settings.EnableExchangeSyncManager = s.EnableExchangeSyncManager
-	b.Settings.EnableTickerSyncing = s.EnableTickerSyncing
-	b.Settings.EnableOrderbookSyncing = s.EnableOrderbookSyncing
-	b.Settings.EnableTradeSyncing = s.EnableTradeSyncing
-	b.Settings.SyncWorkers = s.SyncWorkers
-	b.Settings.SyncTimeoutREST = s.SyncTimeoutREST
-	b.Settings.SyncTimeoutWebsocket = s.SyncTimeoutWebsocket
-	b.Settings.SyncContinuously = s.SyncContinuously
-	b.Settings.EnableDepositAddressManager = s.EnableDepositAddressManager
-	b.Settings.EnableExchangeAutoPairUpdates = s.EnableExchangeAutoPairUpdates
-	b.Settings.EnableExchangeWebsocketSupport = s.EnableExchangeWebsocketSupport
-	b.Settings.EnableExchangeRESTSupport = s.EnableExchangeRESTSupport
-	b.Settings.EnableExchangeVerbose = s.EnableExchangeVerbose
-	b.Settings.EnableExchangeHTTPRateLimiter = s.EnableExchangeHTTPRateLimiter
-	b.Settings.EnableExchangeHTTPDebugging = s.EnableExchangeHTTPDebugging
-	b.Settings.DisableExchangeAutoPairUpdates = s.DisableExchangeAutoPairUpdates
-	b.Settings.ExchangePurgeCredentials = s.ExchangePurgeCredentials
-	b.Settings.EnableWebsocketRoutine = s.EnableWebsocketRoutine
 
 	// Checks if the flag values are different from the defaults
-	b.Settings.MaxHTTPRequestJobsLimit = s.MaxHTTPRequestJobsLimit
 	if b.Settings.MaxHTTPRequestJobsLimit != int(request.DefaultMaxRequestJobs) &&
-		s.MaxHTTPRequestJobsLimit > 0 {
+		b.Settings.MaxHTTPRequestJobsLimit > 0 {
 		request.MaxRequestJobs = int32(b.Settings.MaxHTTPRequestJobsLimit)
 	}
 
-	b.Settings.TradeBufferProcessingInterval = s.TradeBufferProcessingInterval
 	if b.Settings.TradeBufferProcessingInterval != trade.DefaultProcessorIntervalTime {
 		if b.Settings.TradeBufferProcessingInterval >= time.Second {
 			trade.BufferProcessorIntervalTime = b.Settings.TradeBufferProcessingInterval
@@ -242,36 +193,23 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		}
 	}
 
-	b.Settings.RequestMaxRetryAttempts = s.RequestMaxRetryAttempts
-	if b.Settings.RequestMaxRetryAttempts != request.DefaultMaxRetryAttempts && s.RequestMaxRetryAttempts > 0 {
+	if b.Settings.RequestMaxRetryAttempts != request.DefaultMaxRetryAttempts &&
+		b.Settings.RequestMaxRetryAttempts > 0 {
 		request.MaxRetryAttempts = b.Settings.RequestMaxRetryAttempts
 	}
 
-	b.Settings.HTTPTimeout = s.HTTPTimeout
-	if s.HTTPTimeout != time.Duration(0) && s.HTTPTimeout > 0 {
-		b.Settings.HTTPTimeout = s.HTTPTimeout
-	} else {
+	if b.Settings.HTTPTimeout <= 0 {
 		b.Settings.HTTPTimeout = b.Config.GlobalHTTPTimeout
 	}
 
-	b.Settings.HTTPUserAgent = s.HTTPUserAgent
-	b.Settings.HTTPProxy = s.HTTPProxy
-
-	if s.GlobalHTTPTimeout != time.Duration(0) && s.GlobalHTTPTimeout > 0 {
-		b.Settings.GlobalHTTPTimeout = s.GlobalHTTPTimeout
-	} else {
+	if b.Settings.GlobalHTTPTimeout <= 0 {
 		b.Settings.GlobalHTTPTimeout = b.Config.GlobalHTTPTimeout
 	}
 	common.HTTPClient = common.NewHTTPClientWithTimeout(b.Settings.GlobalHTTPTimeout)
 
-	b.Settings.GlobalHTTPUserAgent = s.GlobalHTTPUserAgent
 	if b.Settings.GlobalHTTPUserAgent != "" {
 		common.HTTPUserAgent = b.Settings.GlobalHTTPUserAgent
 	}
-
-	b.Settings.GlobalHTTPProxy = s.GlobalHTTPProxy
-	b.Settings.DispatchMaxWorkerAmount = s.DispatchMaxWorkerAmount
-	b.Settings.DispatchJobsLimit = s.DispatchJobsLimit
 }
 
 // PrintSettings returns the engine settings

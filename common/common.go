@@ -21,34 +21,27 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// Vars for common.go operations
-var (
-	HTTPClient    *http.Client
-	HTTPUserAgent string
-
-	// ErrNotYetImplemented defines a common error across the code base that
-	// alerts of a function that has not been completed or tied into main code
-	ErrNotYetImplemented = errors.New("not yet implemented")
-
-	// ErrFunctionNotSupported defines a standardised error for an unsupported
-	// wrapper function by an API
-	ErrFunctionNotSupported = errors.New("unsupported wrapper function")
-	m                       sync.Mutex
-)
-
-// Const declarations for common.go operations
 const (
-	SatoshisPerBTC = 100000000
-	SatoshisPerLTC = 100000000
-	WeiPerEther    = 1000000000000000000
+	// SimpleTimeFormat a common, but non-implemented time format in golang
+	SimpleTimeFormat = "2006-01-02 15:04:05"
+	// SimpleTimeFormatWithTimezone a common, but non-implemented time format in golang
+	SimpleTimeFormatWithTimezone = "2006-01-02 15:04:05 MST"
 	// GctExt is the extension for GCT Tengo script files
 	GctExt = ".gct"
 )
 
-// SimpleTimeFormat a common, but non-implemented time format in golang
-const (
-	SimpleTimeFormat             = "2006-01-02 15:04:05"
-	SimpleTimeFormatWithTimezone = "2006-01-02 15:04:05 MST"
+// Vars for common.go operations
+var (
+	HTTPClient    *http.Client
+	HTTPUserAgent string
+	m             sync.Mutex
+	// ErrNotYetImplemented defines a common error across the code base that
+	// alerts of a function that has not been completed or tied into main code
+	ErrNotYetImplemented = errors.New("not yet implemented")
+	// ErrFunctionNotSupported defines a standardised error for an unsupported
+	// wrapper function by an API
+	ErrFunctionNotSupported  = errors.New("unsupported wrapper function")
+	errInvalidCryptoCurrency = errors.New("invalid crypto currency")
 )
 
 func initialiseHTTPClient() {
@@ -153,13 +146,13 @@ func IsEnabled(isEnabled bool) string {
 func IsValidCryptoAddress(address, crypto string) (bool, error) {
 	switch strings.ToLower(crypto) {
 	case "btc":
-		return regexp.MatchString("^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$", address)
+		return regexp.MatchString("^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,90}$", address)
 	case "ltc":
 		return regexp.MatchString("^[L3M][a-km-zA-HJ-NP-Z1-9]{25,34}$", address)
 	case "eth":
 		return regexp.MatchString("^0x[a-km-z0-9]{40}$", address)
 	default:
-		return false, errors.New("invalid crypto currency")
+		return false, fmt.Errorf("%w %s", errInvalidCryptoCurrency, crypto)
 	}
 }
 
