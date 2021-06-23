@@ -39,6 +39,9 @@ func NewAccountManager(e *Engine, verbose bool) (*AccountManager, error) {
 
 // Shutdown shuts down the account management instance
 func (a *AccountManager) Shutdown() error {
+	if a == nil {
+		return errAccountManagerNotStarted
+	}
 	log.Debugln(log.Accounts, "Account Manager shutting down...")
 	a.m.Lock()
 	defer a.m.Unlock()
@@ -53,6 +56,9 @@ func (a *AccountManager) Shutdown() error {
 
 // RunUpdater takes in a sync duration and spawns an update routine.
 func (a *AccountManager) RunUpdater(interval time.Duration) error {
+	if a == nil {
+		return errAccountManagerNotStarted
+	}
 	if interval < time.Second*10 {
 		return errUnrealisticUpdateInterval
 	}
@@ -122,6 +128,9 @@ func (a *AccountManager) updateAccountForExchange(exch exchange.IBotExchange) {
 
 // IsRunning checks to see if the manager is running
 func (a *AccountManager) IsRunning() bool {
+	if a == nil {
+		return false
+	}
 	a.m.Lock()
 	defer a.m.Unlock()
 	return a.shutdown != nil
