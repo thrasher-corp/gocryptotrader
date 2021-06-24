@@ -345,7 +345,7 @@ func deriveClaim(o *order.Submit, exch exchange.IBotExchange) (*account.Claim, e
 
 	// Claims amount balance on exchange account to lock out further usage
 	// by other strategies
-	claim, err := exch.Claim(o.Account,
+	claim, err := exch.ClaimAccountFunds(o.Account,
 		o.AssetType,
 		code,
 		amount,

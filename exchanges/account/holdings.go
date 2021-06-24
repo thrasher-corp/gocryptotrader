@@ -394,9 +394,10 @@ func (h *Holdings) AdjustByBalance(account string, ai asset.Item, c currency.Cod
 	return nil
 }
 
-// Claim segregates an amount in memory that reflects a balance that is held on
-// an exchange which can then be freely utilised by a strategy or sub-system.
-func (h *Holdings) Claim(account string, ai asset.Item, c currency.Code, amount float64, totalRequired bool) (*Claim, error) {
+// ClaimAccountFunds segregates an amount in memory that reflects a balance that
+// is held on an exchange which can then be freely utilised by a strategy or
+// sub-system.
+func (h *Holdings) ClaimAccountFunds(account string, ai asset.Item, c currency.Code, amount float64, totalRequired bool) (*Claim, error) {
 	err := h.validate(account, ai, c, amount, false)
 	if err != nil {
 		return nil, fmt.Errorf("cannot claim holdings for %s %s %s %s by %f: %w",

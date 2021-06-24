@@ -316,19 +316,19 @@ func TestAdjustHolding(t *testing.T) {
 
 func TestHoldingsClaim(t *testing.T) {
 	h := Holdings{}
-	_, err := h.Claim("", "", currency.Code{}, 0, false)
+	_, err := h.ClaimAccountFunds("", "", currency.Code{}, 0, false)
 	if !errors.Is(err, ErrAccountNameUnset) {
 		t.Fatalf("expected: %v but received: %v", ErrAccountNameUnset, err)
 	}
-	_, err = h.Claim("someaccount", "", currency.Code{}, 0, false)
+	_, err = h.ClaimAccountFunds("someaccount", "", currency.Code{}, 0, false)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("expected: %v but received: %v", asset.ErrNotSupported, err)
 	}
-	_, err = h.Claim("someaccount", asset.Spot, currency.Code{}, 0, false)
+	_, err = h.ClaimAccountFunds("someaccount", asset.Spot, currency.Code{}, 0, false)
 	if !errors.Is(err, errCurrencyCodeEmpty) {
 		t.Fatalf("expected: %v but received: %v", errCurrencyCodeEmpty, err)
 	}
-	_, err = h.Claim("someaccount", asset.Spot, currency.BTC, 0, false)
+	_, err = h.ClaimAccountFunds("someaccount", asset.Spot, currency.BTC, 0, false)
 	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
 	}
@@ -338,7 +338,7 @@ func TestHoldingsClaim(t *testing.T) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
 
-	_, err = h.Claim("someaccount", asset.Spot, currency.BTC, 1, false)
+	_, err = h.ClaimAccountFunds("someaccount", asset.Spot, currency.BTC, 1, false)
 	if !errors.Is(err, errAccountNotFound) {
 		t.Fatalf("expected: %v but received: %v", errAccountNotFound, err)
 	}
@@ -354,14 +354,12 @@ func TestHoldingsClaim(t *testing.T) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
 
-	h.Verbose = true
-
-	_, err = h.Claim("someaccount", asset.Spot, currency.BTC, 1, true)
+	_, err = h.ClaimAccountFunds("someaccount", asset.Spot, currency.BTC, 1, true)
 	if !errors.Is(err, errAmountExceedsHoldings) {
 		t.Fatalf("expected: %v but received: %v", errAmountExceedsHoldings, err)
 	}
 
-	c, err := h.Claim("someaccount", asset.Spot, currency.BTC, 1, false)
+	c, err := h.ClaimAccountFunds("someaccount", asset.Spot, currency.BTC, 1, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}

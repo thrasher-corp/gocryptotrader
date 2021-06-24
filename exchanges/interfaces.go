@@ -50,11 +50,11 @@ type IBotExchange interface {
 	GetFullAccountSnapshot() (account.FullSnapshot, error)
 	// AccountValid verifies if the account supplied is valid
 	AccountValid(account string) error
-	// Claim allows for a strategy or sub-system to claim on a specific account
+	// ClaimAccountFunds allows for a strategy or sub-system to claim on a specific account
 	// holding associated with the supplied credentials. If totalRequired param
 	// is false will allow the claim of less than or equal to the request amount
 	// in the event multiple strategies are working on the same holdings.
-	Claim(account string, ai asset.Item, c currency.Code, amount float64, totalRequired bool) (*account.Claim, error)
+	ClaimAccountFunds(account string, ai asset.Item, c currency.Code, amount float64, totalRequired bool) (*account.Claim, error)
 
 	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
