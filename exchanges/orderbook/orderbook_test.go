@@ -62,7 +62,7 @@ func TestGetAveragePrice(t *testing.T) {
 	if fmt.Sprintf("%.3f", avgPrice) != "2.333" {
 		t.Errorf("avg price calculation failed: expected 2.667, received %.3f", avgPrice)
 	}
-	avgPrice, err = b.GetAveragePrice(true, 25)
+	_, err = b.GetAveragePrice(true, 25)
 	if !errors.Is(err, errNotEnoughLiquidity) {
 		t.Errorf("expected: %v, received %v", errNotEnoughLiquidity, err)
 	}
