@@ -1209,7 +1209,13 @@ func TestGetProvision(t *testing.T) {
 }
 
 func TestAdjustAmount(t *testing.T) {
-	s := Submit{
+	s := Submit{Side: Buy}
+	_, err := s.AdjustAmount(1337)
+	if !errors.Is(err, errOrderPriceIsZero) {
+		t.Fatalf("received: %v expected: %v", err, errOrderPriceIsZero)
+	}
+
+	s = Submit{
 		Pair:      currency.NewPair(currency.BTC, currency.USD),
 		Amount:    .5,
 		Price:     50000,
@@ -1217,12 +1223,12 @@ func TestAdjustAmount(t *testing.T) {
 		AssetType: "silly asset :(",
 	}
 
-	if s.AdjustAmount(25000) {
+	if b, err := s.AdjustAmount(25000); err != nil || b {
 		t.Fatal("price should not have been adjusted")
 	}
 
 	// Reduced due to amount claimed is less than max requested
-	if !s.AdjustAmount(24000) {
+	if b, err := s.AdjustAmount(24000); err != nil || !b {
 		t.Fatal("price should have been adjusted")
 	}
 
@@ -1233,11 +1239,11 @@ func TestAdjustAmount(t *testing.T) {
 	s.Amount = .5
 
 	s.Side = Sell
-	if s.AdjustAmount(.5) {
+	if b, err := s.AdjustAmount(.5); err != nil || b {
 		t.Fatal("price should not have been adjusted")
 	}
 
-	if !s.AdjustAmount(.48) {
+	if b, err := s.AdjustAmount(.48); err != nil || !b {
 		t.Fatal("price should have been adjusted")
 	}
 

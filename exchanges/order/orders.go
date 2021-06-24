@@ -13,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
+var errOrderPriceIsZero = errors.New("order price is zero")
+
 // Validate checks the supplied data and returns whether or not it's valid
 func (s *Submit) Validate(opt ...validate.Checker) error {
 	if s == nil {
@@ -106,20 +108,24 @@ func (s *Submit) GetProvision() (currency.Code, float64, error) {
 // Adjust distinguishes between amount claimed to amount about to be deployed
 // and returns a bool if amount was adjusted.
 // TODO: Change to decimal package instead of floats (critical)
-func (s *Submit) AdjustAmount(amount float64) (wasAdjusted bool) {
+func (s *Submit) AdjustAmount(amount float64) (wasAdjusted bool, err error) {
 	if isBuySide(s.Side) {
+		if s.Price == 0 {
+			return false, fmt.Errorf("cannot adjust amount %w", errOrderPriceIsZero)
+		}
+
 		deployable := amount / s.Price
 		if deployable != s.Amount {
 			s.Amount = deployable
-			return true
+			return true, nil
 		}
-		return false
+		return false, nil
 	}
 	if amount != s.Amount {
 		s.Amount = amount
-		return true
+		return true, nil
 	}
-	return false
+	return false, nil
 }
 
 // isBuySide determines if order is of buy side
