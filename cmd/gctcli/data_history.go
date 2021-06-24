@@ -11,79 +11,79 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 var (
 	guidExample            = "deadbeef-dead-beef-dead-beef13371337"
 	specificJobSubCommands = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "id",
 			Usage: guidExample,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "nickname",
 			Usage: "binance-spot-btc-usdt-2019-trades",
 		},
 	}
 	fullJobSubCommands = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:     "nickname",
 			Usage:    "binance-spot-btc-usdt-2019-trades",
 			Required: true,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "binance",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "spot",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "btc-usdt",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "start_date",
 			Usage:       "formatted as: 2006-01-02 15:04:05",
 			Value:       time.Now().AddDate(-1, 0, 0).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "end_date",
 			Usage:       "formatted as: 2006-01-02 15:04:05",
 			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
-		cli.Uint64Flag{
+		&cli.Uint64Flag{
 			Name:  "interval",
 			Usage: klineMessage,
 		},
-		cli.Uint64Flag{
+		&cli.Uint64Flag{
 			Name:  "request_size_limit",
 			Usage: "500 - will only retrieve 500 candles per API request",
 		},
-		cli.Uint64Flag{
+		&cli.Uint64Flag{
 			Name:  "data_type",
 			Usage: "0 for candles, 1 for trades",
 		},
-		cli.Uint64Flag{
+		&cli.Uint64Flag{
 			Name:  "max_retry_attempts",
 			Usage: "3 - the maximum retry attempts for an interval period before giving up",
 		},
-		cli.Uint64Flag{
+		&cli.Uint64Flag{
 			Name:  "batch_size",
 			Usage: "3 - the amount of API calls to make per run",
 		},
 	}
 )
 
-var dataHistoryCommands = cli.Command{
+var dataHistoryCommands = &cli.Command{
 	Name:      "datahistory",
 	Usage:     "manage data history jobs to retrieve historic trade or candle data over time",
 	ArgsUsage: "<command> <args>",
-	Subcommands: []cli.Command{
+	Subcommands: []*cli.Command{
 		{
 			Name:   "getactivejobs",
 			Usage:  "returns all jobs that are currently active",
@@ -96,11 +96,11 @@ var dataHistoryCommands = cli.Command{
 				time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 				time.Now().Format(common.SimpleTimeFormat)),
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "start_date",
 					Usage: "formatted as: 2006-01-02 15:04:05",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "end_date",
 					Usage: "formatted as: 2006-01-02 15:04:05",
 				},
@@ -121,20 +121,24 @@ var dataHistoryCommands = cli.Command{
 			Description: "results may be large",
 			ArgsUsage:   "<nickname>",
 			Action:      getDataHistoryJob,
-			Flags: []cli.Flag{cli.StringFlag{
-				Name:  "nickname",
-				Usage: "binance-spot-btc-usdt-2019-trades",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "nickname",
+					Usage: "binance-spot-btc-usdt-2019-trades",
+				},
 			},
-			}},
+		},
 		{
 			Name:      "getjobstatussummary",
 			Usage:     "returns a job with human readable summary of its status",
 			ArgsUsage: "<nickname>",
 			Action:    getDataHistoryJobSummary,
-			Flags: []cli.Flag{cli.StringFlag{
-				Name:  "nickname",
-				Usage: "binance-spot-btc-usdt-2019-trades",
-			}},
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "nickname",
+					Usage: "binance-spot-btc-usdt-2019-trades",
+				},
+			},
 		},
 		{
 			Name:   "addnewjob",

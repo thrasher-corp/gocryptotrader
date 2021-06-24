@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
-	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2"
 )
 
 var websocketManagerCommand = &cli.Command{
