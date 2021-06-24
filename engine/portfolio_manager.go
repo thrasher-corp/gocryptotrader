@@ -150,10 +150,10 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts map[string]account.F
 	if len(accounts) == 0 {
 		return
 	}
-	for exch, m1 := range accounts {
-		for _, m2 := range m1 {
-			for _, m3 := range m2 {
-				for code, bal := range m3 {
+	for exch, accountSnapshots := range accounts {
+		for _, indAssetSnapshots := range accountSnapshots {
+			for _, currencyHoldings := range indAssetSnapshots {
+				for code, bal := range currencyHoldings {
 					if !m.base.ExchangeAddressExists(exch, code) {
 						if bal.Total <= 0 {
 							continue
