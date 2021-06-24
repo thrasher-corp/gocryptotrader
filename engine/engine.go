@@ -546,7 +546,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableAccountManager {
-		bot.AccountManager, err = NewAccountManager(bot, bot.Settings.Verbose)
+		bot.AccountManager, err = NewAccountManager(bot.ExchangeManager, bot.Settings.Verbose)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "failed to create account manager. Err: %s", err)
 		} else if err := bot.AccountManager.RunUpdater(bot.Settings.AccountManagerSyncDelay); err != nil {
@@ -781,27 +781,33 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	if base.API.AuthenticatedSupport || base.API.AuthenticatedWebsocketSupport {
 		accounts, err := base.GetAccounts()
 		if err != nil {
-			// Opted to fail and return here as setup has not engaged properly
-			return err
-		}
-
-		// This allows for the full account balance set up and check for the
-		// supplied credentials.
-	accounts:
-		for x := range accounts {
-			assetTypes := base.GetAssetTypes(true)
-			for y := range assetTypes {
-				_, err = exch.UpdateAccountInfo(string(accounts[x]), assetTypes[y])
-				if err != nil && base.CheckTransientError(err) != nil {
-					gctlog.Warnf(gctlog.ExchangeSys,
-						"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",
-						base.Name,
-						err)
-					base.API.AuthenticatedSupport = false
-					base.API.AuthenticatedWebsocketSupport = false
-					exchCfg.API.AuthenticatedSupport = false
-					exchCfg.API.AuthenticatedWebsocketSupport = false
-					break accounts
+			gctlog.Errorf(gctlog.ExchangeSys,
+				"%s: Cannot validate credentials, cannot get a valid accounts, Error: %s\n",
+				base.Name,
+				err)
+			base.API.AuthenticatedSupport = false
+			base.API.AuthenticatedWebsocketSupport = false
+			exchCfg.API.AuthenticatedSupport = false
+			exchCfg.API.AuthenticatedWebsocketSupport = false
+		} else {
+			// This allows for the full account balance set up and check for the
+			// supplied credentials.
+		accounts:
+			for x := range accounts {
+				assetTypes := base.GetAssetTypes(true)
+				for y := range assetTypes {
+					_, err = exch.UpdateAccountInfo(string(accounts[x]), assetTypes[y])
+					if err != nil && base.CheckTransientError(err) != nil {
+						gctlog.Warnf(gctlog.ExchangeSys,
+							"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",
+							base.Name,
+							err)
+						base.API.AuthenticatedSupport = false
+						base.API.AuthenticatedWebsocketSupport = false
+						exchCfg.API.AuthenticatedSupport = false
+						exchCfg.API.AuthenticatedWebsocketSupport = false
+						break accounts
+					}
 				}
 			}
 		}
