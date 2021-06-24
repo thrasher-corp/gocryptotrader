@@ -1094,7 +1094,6 @@ func TestGetOrder(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
-
 	p := &gctrpc.CurrencyPair{
 		Delimiter: "-",
 		Base:      "BTC",
