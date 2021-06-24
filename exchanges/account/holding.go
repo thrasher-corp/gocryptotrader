@@ -367,5 +367,5 @@ func (h *Holding) GetBalance() (Balance, error) {
 	}
 
 	locked, _ := h.locked.Float64()
-	return Balance{total, locked}, nil
+	return Balance{total, locked, total - locked}, nil
 }

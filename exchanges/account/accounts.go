@@ -17,13 +17,13 @@ const Main Designation = "main"
 
 // Accounts defines multiple labelled segrations on balances
 type Accounts struct {
-	available []subAccount
+	available []account
 	m         sync.RWMutex
 }
 
-// subAccount is a sub type to differentiate between the main accounts and sub
+// account is a sub type to differentiate between the main account and sub
 // accounts
-type subAccount struct {
+type account struct {
 	Name Designation
 	Main bool
 }
@@ -39,12 +39,12 @@ var (
 )
 
 // LoadAccount loads an account for future checking
-func (a *Accounts) LoadAccount(account string, main bool) error {
-	if account == "" {
+func (a *Accounts) LoadAccount(accountName string, main bool) error {
+	if accountName == "" {
 		return ErrAccountNameUnset
 	}
 
-	accD := Designation(strings.ToLower(account))
+	accD := Designation(strings.ToLower(accountName))
 
 	a.m.Lock()
 	defer a.m.Unlock()
@@ -57,7 +57,7 @@ func (a *Accounts) LoadAccount(account string, main bool) error {
 			return errMainAccountAlreadyLoaded
 		}
 	}
-	a.available = append(a.available, subAccount{Name: accD, Main: main})
+	a.available = append(a.available, account{Name: accD, Main: main})
 	return nil
 }
 
@@ -85,8 +85,8 @@ func (a *Accounts) LoadAccounts(main string, subAccount ...string) error {
 	return nil
 }
 
-// GetAccounts returns the loaded accounts in usage associated with the current
-// global API credentials
+// GetAccounts returns the loaded accounts associated with the current global
+// API credentials
 func (a *Accounts) GetAccounts() ([]Designation, error) {
 	a.m.RLock()
 	defer a.m.RUnlock()

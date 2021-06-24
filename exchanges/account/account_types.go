@@ -35,6 +35,8 @@ type Balance struct {
 	Total float64
 	// The amount currently in use either for lending or locked in a limit order.
 	Locked float64
+	// The amount availaable for use/
+	Available float64
 }
 
 // FullSnapshot defines a full snapshot of account asset balances
