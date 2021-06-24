@@ -572,7 +572,7 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Binance exchange
-func (b *Binance) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (b *Binance) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	m := make(account.HoldingsSnapshot)
 	switch assetType {
 	case asset.Spot:
@@ -643,7 +643,7 @@ func (b *Binance) UpdateAccountInfo(accountName string, assetType asset.Item) (a
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Binance) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (b *Binance) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(accountName, assetType)

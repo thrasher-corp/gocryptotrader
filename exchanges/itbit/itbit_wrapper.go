@@ -248,7 +248,7 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (i *ItBit) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
 		return nil, err
@@ -262,7 +262,13 @@ func (i *ItBit) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 				Locked: wallets[x].Balances[y].TotalBalance - wallets[x].Balances[y].AvailableBalance,
 			}
 		}
-		err = i.LoadHoldings(wallets[x].Name, x == 0, assetType, m)
+		var acc account.Designation
+		acc, err = account.NewDesignation(wallets[x].Name)
+		if err != nil {
+			return nil, err
+		}
+
+		err = i.LoadHoldings(acc, x == 0, assetType, m)
 		if err != nil {
 			return nil, err
 		}
@@ -271,7 +277,7 @@ func (i *ItBit) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (i *ItBit) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := i.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return i.UpdateAccountInfo(accountName, assetType)

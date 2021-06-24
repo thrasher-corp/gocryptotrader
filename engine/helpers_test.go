@@ -634,7 +634,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 
 	var exchangeInfo []account.FullSnapshot
 	exchangeInfo = append(exchangeInfo, account.FullSnapshot{
-		string(account.Main): account.AssetSnapshot{ // Exchange 1
+		account.Main: account.AssetSnapshot{ // Exchange 1
 			asset.Spot: account.HoldingsSnapshot{
 				currency.BTC: account.Balance{
 					Total:  99,

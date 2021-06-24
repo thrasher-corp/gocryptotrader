@@ -400,7 +400,7 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Bitmex exchange
-func (b *Bitmex) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (b *Bitmex) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	bal, err := b.GetAllUserMargin()
 	if err != nil {
 		return nil, err
@@ -423,7 +423,7 @@ func (b *Bitmex) UpdateAccountInfo(accountName string, assetType asset.Item) (ac
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bitmex) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (b *Bitmex) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(accountName, assetType)

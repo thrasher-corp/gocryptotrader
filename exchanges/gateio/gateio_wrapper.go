@@ -324,7 +324,7 @@ func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // exchange
-func (g *Gateio) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (g *Gateio) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	m := make(account.HoldingsSnapshot)
 	if g.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := g.wsGetBalance([]string{})
@@ -390,7 +390,7 @@ func (g *Gateio) UpdateAccountInfo(accountName string, assetType asset.Item) (ac
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (g *Gateio) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (g *Gateio) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := g.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return g.UpdateAccountInfo(accountName, assetType)

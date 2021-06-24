@@ -304,7 +304,7 @@ func (g *Gemini) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateAccountInfo Retrieves balances for all enabled currencies for the
 // Gemini exchange
-func (g *Gemini) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (g *Gemini) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	accountBalance, err := g.GetBalances()
 	if err != nil {
 		return nil, err
@@ -326,7 +326,7 @@ func (g *Gemini) UpdateAccountInfo(accountName string, assetType asset.Item) (ac
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (g *Gemini) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (g *Gemini) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := g.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return g.UpdateAccountInfo(accountName, assetType)

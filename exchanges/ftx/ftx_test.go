@@ -957,7 +957,7 @@ func TestUpdateAccountHoldings(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.UpdateAccountInfo(string(account.Main), asset.Spot)
+	_, err := f.UpdateAccountInfo(account.Main, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -968,7 +968,7 @@ func TestFetchAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.FetchAccountInfo(string(account.Main), asset.Spot)
+	_, err := f.FetchAccountInfo(account.Main, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

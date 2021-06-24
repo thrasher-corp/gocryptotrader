@@ -161,7 +161,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 		}
 
 		b := exch.GetBase()
-		err = b.Holdings.LoadHoldings(string(account.Main),
+		err = b.Holdings.LoadHoldings(account.Main,
 			true,
 			asset.Spot,
 			account.HoldingsSnapshot{

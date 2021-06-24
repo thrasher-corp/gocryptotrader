@@ -92,7 +92,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	_, err := y.UpdateAccountInfo(string(account.Main), asset.Spot)
+	_, err := y.UpdateAccountInfo(account.Main, asset.Spot)
 	if err == nil {
 		t.Error("GetAccountInfo() Expected error")
 	}

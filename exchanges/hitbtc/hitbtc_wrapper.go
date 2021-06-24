@@ -413,7 +413,7 @@ func (h *HitBTC) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // HitBTC exchange
-func (h *HitBTC) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (h *HitBTC) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	accountBalance, err := h.GetBalances()
 	if err != nil {
 		return nil, err
@@ -435,7 +435,7 @@ func (h *HitBTC) UpdateAccountInfo(accountName string, assetType asset.Item) (ac
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (h *HitBTC) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (h *HitBTC) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := h.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return h.UpdateAccountInfo(accountName, assetType)

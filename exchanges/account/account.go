@@ -43,14 +43,14 @@ func DeployHoldings(exch string, verbose bool) (*Holdings, error) {
 		Exchange: exch,
 		mux:      service.mux,
 		id:       id,
-		funds:    make(map[string]map[asset.Item]map[*currency.Item]*Holding),
+		funds:    make(map[Designation]map[asset.Item]map[*currency.Item]*Holding),
 		Verbose:  verbose,
 	}
 
 	// Loads the default main account for the exchange, this can be overwritten
 	// later when LoadAccounts is run from setup in the exchange wrapper if
 	// custom accounts needs to be specifically loaded in.
-	err = holdings.LoadAccount(string(Main), true)
+	err = holdings.LoadAccount(Main, true)
 	if err != nil {
 		return nil, err
 	}

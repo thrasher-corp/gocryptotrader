@@ -278,7 +278,7 @@ func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Yobit exchange
-func (y *Yobit) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (y *Yobit) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	accountBalance, err := y.GetAccountInformation()
 	if err != nil {
 		return nil, err
@@ -301,7 +301,7 @@ func (y *Yobit) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (y *Yobit) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (y *Yobit) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := y.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return y.UpdateAccountInfo(accountName, assetType)

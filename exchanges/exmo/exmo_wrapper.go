@@ -324,7 +324,7 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Exmo exchange
-func (e *EXMO) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (e *EXMO) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	result, err := e.GetUserInfo()
 	if err != nil {
 		return nil, err
@@ -361,7 +361,7 @@ func (e *EXMO) UpdateAccountInfo(accountName string, assetType asset.Item) (acco
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (e *EXMO) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (e *EXMO) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := e.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return e.UpdateAccountInfo(accountName, assetType)

@@ -361,7 +361,7 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 	t.Parallel()
 
-	_, err := b.FetchAccountInfo(string(account.Main), asset.Spot)
+	_, err := b.FetchAccountInfo(account.Main, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -372,7 +372,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 		t.SkipNow()
 	}
 	t.Parallel()
-	_, err := b.UpdateAccountInfo(string(account.Main), asset.Spot)
+	_, err := b.UpdateAccountInfo(account.Main, asset.Spot)
 	if err != nil {
 		t.Error("GetAccountInfo error", err)
 	}

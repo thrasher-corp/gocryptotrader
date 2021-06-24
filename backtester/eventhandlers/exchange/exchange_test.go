@@ -160,7 +160,7 @@ func TestPlaceOrder(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	err = exch.GetBase().LoadHoldings(string(account.Main),
+	err = exch.GetBase().LoadHoldings(account.Main,
 		true,
 		asset.Spot,
 		account.HoldingsSnapshot{
@@ -225,7 +225,7 @@ func TestExecuteOrder(t *testing.T) {
 		t.Error(err)
 	}
 	b := bot.GetExchangeByName(testExchange)
-	err = b.GetBase().LoadHoldings(string(account.Main),
+	err = b.GetBase().LoadHoldings(account.Main,
 		true,
 		asset.Spot,
 		account.HoldingsSnapshot{
@@ -341,7 +341,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		t.Error(err)
 	}
 	b := bot.GetExchangeByName(testExchange)
-	err = b.GetBase().LoadHoldings(string(account.Main),
+	err = b.GetBase().LoadHoldings(account.Main,
 		true,
 		asset.Spot,
 		account.HoldingsSnapshot{

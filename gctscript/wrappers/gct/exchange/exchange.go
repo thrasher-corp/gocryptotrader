@@ -130,7 +130,13 @@ func (e Exchange) AccountInformation(exch, accountName string, assetType asset.I
 	if err != nil {
 		return nil, err
 	}
-	return ex.FetchAccountInfo(accountName, assetType)
+
+	acc, err := account.NewDesignation(accountName)
+	if err != nil {
+		return nil, err
+	}
+
+	return ex.FetchAccountInfo(acc, assetType)
 }
 
 // DepositAddress gets the address required to deposit funds for currency type

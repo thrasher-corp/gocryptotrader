@@ -389,7 +389,7 @@ func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (b *Bittrex) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (b *Bittrex) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	balanceData, err := b.GetBalances()
 	if err != nil {
 		return nil, err
@@ -411,7 +411,7 @@ func (b *Bittrex) UpdateAccountInfo(accountName string, assetType asset.Item) (a
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bittrex) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (b *Bittrex) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(accountName, assetType)

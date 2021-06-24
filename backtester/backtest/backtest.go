@@ -305,7 +305,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].ShowAccountClaimWarning = true
 		}
 
-		err = exch.GetBase().LoadHoldings(string(account.Main),
+		err = exch.GetBase().LoadHoldings(account.Main,
 			true,
 			asset.Spot,
 			account.HoldingsSnapshot{

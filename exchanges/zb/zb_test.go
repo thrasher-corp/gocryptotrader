@@ -355,12 +355,12 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	if z.ValidateAPICredentials() {
-		_, err := z.UpdateAccountInfo(string(account.Main), asset.Spot)
+		_, err := z.UpdateAccountInfo(account.Main, asset.Spot)
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := z.UpdateAccountInfo(string(account.Main), asset.Spot)
+		_, err := z.UpdateAccountInfo(account.Main, asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}

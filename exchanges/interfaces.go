@@ -41,20 +41,20 @@ type IBotExchange interface {
 	GetAccounts() ([]account.Designation, error)
 	// FetchAccountInfo initially fetches account info, if not found will
 	// execute UpdateAccountInfo
-	FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error)
+	FetchAccountInfo(a account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error)
 	// UpdateAccountInfo specifically fetches and updates account holdings from
 	// the exchange
-	UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error)
+	UpdateAccountInfo(a account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error)
 	// GetFullAccountSnapshot returns a full snapshot of all accounts associated
 	// with supplied credentials
 	GetFullAccountSnapshot() (account.FullSnapshot, error)
 	// AccountValid verifies if the account supplied is valid
-	AccountValid(account string) error
+	AccountValid(a account.Designation) error
 	// ClaimAccountFunds allows for a strategy or sub-system to claim on a specific account
 	// holding associated with the supplied credentials. If totalRequired param
 	// is false will allow the claim of less than or equal to the request amount
 	// in the event multiple strategies are working on the same holdings.
-	ClaimAccountFunds(account string, ai asset.Item, c currency.Code, amount float64, totalRequired bool) (*account.Claim, error)
+	ClaimAccountFunds(a account.Designation, assetType asset.Item, c currency.Code, amount float64, totalRequired bool) (*account.Claim, error)
 
 	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error

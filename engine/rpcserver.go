@@ -534,18 +534,19 @@ func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRe
 	}
 
 	exch := s.GetExchangeByName(r.Exchange)
-
 	err = checkParams(r.Exchange, exch, assetType, currency.Pair{})
 	if err != nil {
 		return nil, err
 	}
-
-	err = exch.AccountValid(r.Account)
+	acc, err := account.NewDesignation(r.Account)
 	if err != nil {
 		return nil, err
 	}
-
-	resp, err := exch.FetchAccountInfo(r.Account, assetType)
+	err = exch.AccountValid(acc)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := exch.FetchAccountInfo(acc, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -564,13 +565,16 @@ func (s *RPCServer) UpdateAccountInfo(_ context.Context, r *gctrpc.GetAccountInf
 	if err != nil {
 		return nil, err
 	}
-
-	err = exch.AccountValid(r.Account)
+	acc, err := account.NewDesignation(r.Account)
+	if err != nil {
+		return nil, err
+	}
+	err = exch.AccountValid(acc)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := exch.UpdateAccountInfo(r.Account, assetType)
+	resp, err := exch.UpdateAccountInfo(acc, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -606,13 +610,16 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 	if err != nil {
 		return err
 	}
-
-	err = exch.AccountValid(r.Account)
+	acc, err := account.NewDesignation(r.Account)
+	if err != nil {
+		return err
+	}
+	err = exch.AccountValid(acc)
 	if err != nil {
 		return err
 	}
 
-	initAcc, err := exch.FetchAccountInfo(r.Account, assetType)
+	initAcc, err := exch.FetchAccountInfo(acc, assetType)
 	if err != nil {
 		return err
 	}

@@ -374,7 +374,7 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // BTSE exchange
-func (b *BTSE) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (b *BTSE) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	balance, err := b.GetWalletInformation()
 	if err != nil {
 		return nil, err
@@ -396,7 +396,7 @@ func (b *BTSE) UpdateAccountInfo(accountName string, assetType asset.Item) (acco
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *BTSE) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (b *BTSE) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(accountName, assetType)

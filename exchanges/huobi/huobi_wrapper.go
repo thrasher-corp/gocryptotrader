@@ -616,7 +616,7 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
-func (h *HUOBI) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (h *HUOBI) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	m := make(account.HoldingsSnapshot)
 	switch assetType {
 	case asset.Spot:
@@ -651,8 +651,13 @@ func (h *HUOBI) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 			}
 			for x := range accounts {
 				m := make(account.HoldingsSnapshot)
-				accountID := strconv.FormatInt(accounts[x].ID, 10)
-				balances, err := h.GetAccountBalance(accountID)
+				var acc account.Designation
+				acc, err = account.NewDesignation(strconv.FormatInt(accounts[x].ID, 10))
+				if err != nil {
+					return nil, err
+				}
+
+				balances, err := h.GetAccountBalance(string(acc))
 				if err != nil {
 					return nil, err
 				}
@@ -678,7 +683,7 @@ func (h *HUOBI) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 					m[code] = bal
 				}
 
-				err = h.LoadHoldings(accountID, false, assetType, m)
+				err = h.LoadHoldings(acc, false, assetType, m)
 				if err != nil {
 					return nil, err
 				}
@@ -703,8 +708,13 @@ func (h *HUOBI) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 				}
 			}
 
-			subAccID := strconv.FormatInt(cmfSubAccsData.Data[x].SubUID, 10)
-			err = h.LoadHoldings(subAccID, false, asset.CoinMarginedFutures, m)
+			var acc account.Designation
+			acc, err = account.NewDesignation(strconv.FormatInt(cmfSubAccsData.Data[x].SubUID, 10))
+			if err != nil {
+				return nil, err
+			}
+
+			err = h.LoadHoldings(acc, false, asset.CoinMarginedFutures, m)
 			if err != nil {
 				return nil, err
 			}
@@ -728,7 +738,14 @@ func (h *HUOBI) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 					Locked: subAcc.AssetsData[y].MarginFrozen,
 				}
 			}
-			err = h.LoadHoldings(subAccID, false, asset.Futures, m)
+
+			var acc account.Designation
+			acc, err = account.NewDesignation(subAccID)
+			if err != nil {
+				return nil, err
+			}
+
+			err = h.LoadHoldings(acc, false, asset.Futures, m)
 			if err != nil {
 				return nil, err
 			}
@@ -738,7 +755,7 @@ func (h *HUOBI) UpdateAccountInfo(accountName string, assetType asset.Item) (acc
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (h *HUOBI) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (h *HUOBI) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := h.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return h.UpdateAccountInfo(accountName, assetType)

@@ -143,7 +143,7 @@ func TestGetFullSnapshot(t *testing.T) {
 		t.Fatalf("expected: %v but received: %v", errAccountBalancesNotLoaded, err)
 	}
 
-	h.funds = make(map[string]map[asset.Item]map[*currency.Item]*Holding)
+	h.funds = make(map[Designation]map[asset.Item]map[*currency.Item]*Holding)
 
 	_, err = h.GetFullSnapshot()
 	if !errors.Is(err, nil) {
@@ -164,27 +164,27 @@ func TestGetHoldingsSnapshot(t *testing.T) {
 		t.Fatalf("expected: %v but received: %v", ErrAccountNameUnset, err)
 	}
 
-	_, err = h.GetHoldingsSnapshot(string(Main), "")
+	_, err = h.GetHoldingsSnapshot(Main, "")
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("expected: %v but received: %v", asset.ErrNotSupported, err)
 	}
 
-	_, err = h.GetHoldingsSnapshot(string(Main), asset.Spot)
+	_, err = h.GetHoldingsSnapshot(Main, asset.Spot)
 	if !errors.Is(err, errAccountsNotLoaded) {
 		t.Fatalf("expected: %v but received: %v", errAccountsNotLoaded, err)
 	}
 
-	err = h.LoadAccount(string(Main), true)
+	err = h.LoadAccount(Main, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = h.GetHoldingsSnapshot(string(Main), asset.Spot)
+	_, err = h.GetHoldingsSnapshot(Main, asset.Spot)
 	if !errors.Is(err, errAccountBalancesNotLoaded) {
 		t.Fatalf("expected: %v but received: %v", errAccountBalancesNotLoaded, err)
 	}
 
-	err = h.LoadHoldings(string(Main), true, asset.Spot, HoldingsSnapshot{
+	err = h.LoadHoldings(Main, true, asset.Spot, HoldingsSnapshot{
 		currency.BTC: Balance{
 			Total:  1337,
 			Locked: 1,
@@ -199,12 +199,12 @@ func TestGetHoldingsSnapshot(t *testing.T) {
 		t.Fatalf("expected: %v but received: %v", errAccountNotFound, err)
 	}
 
-	_, err = h.GetHoldingsSnapshot(string(Main), asset.Futures)
+	_, err = h.GetHoldingsSnapshot(Main, asset.Futures)
 	if !errors.Is(err, errAssetTypeNotFound) {
 		t.Fatalf("expected: %v but received: %v", errAssetTypeNotFound, err)
 	}
 
-	m, err := h.GetHoldingsSnapshot(string(Main), asset.Spot)
+	m, err := h.GetHoldingsSnapshot(Main, asset.Spot)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}

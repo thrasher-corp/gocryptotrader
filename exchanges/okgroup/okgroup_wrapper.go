@@ -182,7 +182,7 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (o *OKGroup) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	currencies, err := o.GetSpotTradingAccounts()
 	if err != nil {
 		return nil, err
@@ -212,7 +212,7 @@ func (o *OKGroup) UpdateAccountInfo(accountName string, assetType asset.Item) (a
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (o *OKGroup) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := o.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return o.UpdateAccountInfo(accountName, assetType)

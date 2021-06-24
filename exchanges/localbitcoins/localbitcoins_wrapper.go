@@ -254,7 +254,7 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // LocalBitcoins exchange
-func (l *LocalBitcoins) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (l *LocalBitcoins) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	accountBalance, err := l.GetWalletBalance()
 	if err != nil {
 		return nil, err
@@ -275,7 +275,7 @@ func (l *LocalBitcoins) UpdateAccountInfo(accountName string, assetType asset.It
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (l *LocalBitcoins) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (l *LocalBitcoins) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := l.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return l.UpdateAccountInfo(accountName, assetType)

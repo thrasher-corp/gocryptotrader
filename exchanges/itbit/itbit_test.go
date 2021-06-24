@@ -372,7 +372,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := i.UpdateAccountInfo(string(account.Main), asset.Spot)
+		_, err := i.UpdateAccountInfo(account.Main, asset.Spot)
 		if err != nil {
 			t.Error(err)
 		}

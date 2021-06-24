@@ -496,7 +496,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 
 		var fetchAccountInfoResponse account.HoldingsSnapshot
-		fetchAccountInfoResponse, err = e.FetchAccountInfo(string(account.Main), assetTypes[i])
+		fetchAccountInfoResponse, err = e.FetchAccountInfo(account.Main, assetTypes[i])
 		msg = ""
 		if err != nil {
 			msg = err.Error()

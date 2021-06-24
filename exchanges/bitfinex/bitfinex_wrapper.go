@@ -462,7 +462,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Bitfinex exchange
-func (b *Bitfinex) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (b *Bitfinex) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
 		return nil, err
@@ -470,10 +470,15 @@ func (b *Bitfinex) UpdateAccountInfo(accountName string, assetType asset.Item) (
 
 	ss := make(account.FullSnapshot)
 	for x := range accountBalance {
-		m1, ok := ss[accountBalance[x].Type]
+		var acc account.Designation
+		acc, err = account.NewDesignation(accountBalance[x].Type)
+		if err != nil {
+			return nil, err
+		}
+		m1, ok := ss[acc]
 		if !ok {
 			m1 = make(map[asset.Item]account.HoldingsSnapshot)
-			ss[accountBalance[x].Type] = m1
+			ss[acc] = m1
 		}
 
 		m2, ok := m1[assetType]
@@ -500,7 +505,7 @@ func (b *Bitfinex) UpdateAccountInfo(accountName string, assetType asset.Item) (
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bitfinex) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (b *Bitfinex) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := b.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(accountName, assetType)

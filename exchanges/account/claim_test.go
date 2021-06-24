@@ -9,14 +9,14 @@ import (
 )
 
 func TestGetAmount(t *testing.T) {
+	t.Parallel()
 	c := Claim{}
 	f := c.GetAmount()
 	if f != 0 {
 		t.Fatal("unexpected number")
 	}
 
-	df := c.getAmount()
-	if !df.Equal(decimal.Zero) {
+	if !c.amount.Equal(decimal.Zero) {
 		t.Fatal("unexpected decimal")
 	}
 
@@ -26,12 +26,13 @@ func TestGetAmount(t *testing.T) {
 		t.Fatal("unexpected number")
 	}
 
-	if !c.amount.Equal(c.getAmount()) {
+	if !c.amount.Equal(c.amount) {
 		t.Fatal("unexpected decimal")
 	}
 }
 
 func TestGetTime(t *testing.T) {
+	t.Parallel()
 	c := Claim{}
 	tt := c.GetTime()
 	if tt != (time.Time{}) {
@@ -46,6 +47,7 @@ func TestGetTime(t *testing.T) {
 }
 
 func TestRelease(t *testing.T) {
+	t.Parallel()
 	holding := &Holding{}
 	c := &Claim{
 		h:      holding,
@@ -64,6 +66,7 @@ func TestRelease(t *testing.T) {
 }
 
 func TestReleaseToPending(t *testing.T) {
+	t.Parallel()
 	holding := &Holding{}
 	c := &Claim{
 		amount: decimal.NewFromFloat(1),
@@ -86,6 +89,7 @@ func TestReleaseToPending(t *testing.T) {
 }
 
 func TestReleaseAndReduce(t *testing.T) {
+	t.Parallel()
 	holding := &Holding{
 		total: decimal.NewFromFloat(1),
 	}
@@ -110,6 +114,7 @@ func TestReleaseAndReduce(t *testing.T) {
 }
 
 func TestHasClaim(t *testing.T) {
+	t.Parallel()
 	holding := &Holding{
 		total: decimal.NewFromFloat(1),
 	}

@@ -89,7 +89,7 @@ func (a *Alphapoint) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (a *Alphapoint) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := a.GetAccountInformation()
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func (a *Alphapoint) UpdateAccountInfo(accountName string, assetType asset.Item)
 
 // FetchAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (a *Alphapoint) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := a.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return a.UpdateAccountInfo(accountName, assetType)

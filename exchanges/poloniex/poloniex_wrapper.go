@@ -393,7 +393,7 @@ var errUnsupportedAccount = errors.New("unsupported account")
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (p *Poloniex) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	if accountName != "exchange" {
 		return nil, fmt.Errorf("%w %s for asset %s",
 			errUnsupportedAccount,
@@ -426,7 +426,7 @@ func (p *Poloniex) UpdateAccountInfo(accountName string, assetType asset.Item) (
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (p *Poloniex) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (p *Poloniex) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := p.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return p.UpdateAccountInfo(accountName, assetType)

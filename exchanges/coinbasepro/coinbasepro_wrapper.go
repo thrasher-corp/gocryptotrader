@@ -313,7 +313,7 @@ func (c *CoinbasePro) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // coinbasepro exchange
-func (c *CoinbasePro) UpdateAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (c *CoinbasePro) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	accountBalance, err := c.GetAPIAccounts()
 	if err != nil {
 		return nil, err
@@ -327,7 +327,13 @@ func (c *CoinbasePro) UpdateAccountInfo(accountName string, assetType asset.Item
 				Locked: accountBalance[i].Hold,
 			}
 		}
-		err = c.LoadHoldings(accountBalance[x].ID, true, assetType, m)
+
+		var acc account.Designation
+		acc, err = account.NewDesignation(accountBalance[x].ID)
+		if err != nil {
+			return nil, err
+		}
+		err = c.LoadHoldings(acc, true, assetType, m)
 		if err != nil {
 			return nil, err
 		}
@@ -337,7 +343,7 @@ func (c *CoinbasePro) UpdateAccountInfo(accountName string, assetType asset.Item
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (c *CoinbasePro) FetchAccountInfo(accountName string, assetType asset.Item) (account.HoldingsSnapshot, error) {
+func (c *CoinbasePro) FetchAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
 	acc, err := c.GetHoldingsSnapshot(accountName, assetType)
 	if err != nil {
 		return c.UpdateAccountInfo(accountName, assetType)

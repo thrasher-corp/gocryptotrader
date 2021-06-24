@@ -78,7 +78,7 @@ func (h *Holding) GetTotalClaims() float64 {
 	var total decimal.Decimal
 	h.m.Lock()
 	for x := range h.claims {
-		total = total.Add(h.claims[x].getAmount())
+		total = total.Add(h.claims[x].amount)
 	}
 	h.m.Unlock()
 	claims, _ := total.Float64()
@@ -97,7 +97,7 @@ func (h *Holding) setAmounts(total, locked decimal.Decimal) {
 	// Determine full claimed amount
 	var claimed decimal.Decimal
 	for x := range h.claims {
-		claimed = claimed.Add(h.claims[x].getAmount())
+		claimed = claimed.Add(h.claims[x].amount)
 	}
 
 	if !h.pending.LessThanOrEqual(decimal.Zero) {
@@ -340,7 +340,7 @@ func (h *Holding) reduce(c *Claim) error {
 		h.claims = h.claims[:len(h.claims)-1]
 
 		// Reduce total amount
-		h.total = h.total.Sub(c.getAmount())
+		h.total = h.total.Sub(c.amount)
 
 		if h.verbose {
 			log.Debugf(log.Accounts,

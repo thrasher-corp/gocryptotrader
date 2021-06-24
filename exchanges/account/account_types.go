@@ -40,17 +40,10 @@ type Balance struct {
 }
 
 // FullSnapshot defines a full snapshot of account asset balances
-type FullSnapshot map[string]AssetSnapshot
+type FullSnapshot map[Designation]AssetSnapshot
 
 // AssetSnapshot defines a snapshot for the asset items
 type AssetSnapshot map[asset.Item]HoldingsSnapshot
 
 // HoldingsSnapshot defines a currency and its related balance
 type HoldingsSnapshot map[currency.Code]Balance
-
-// ident defines identifying variables
-type ident struct {
-	Exchange, Account string
-	Asset             asset.Item
-	Currency          currency.Code
-}

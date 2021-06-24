@@ -115,7 +115,7 @@ func (a *AccountManager) updateAccountForExchange(exch exchange.IBotExchange) {
 	at := exch.GetAssetTypes(true)
 	for x := range accounts {
 		for y := range at {
-			_, err := exch.UpdateAccountInfo(string(accounts[x]), at[y])
+			_, err := exch.UpdateAccountInfo(accounts[x], at[y])
 			if err != nil {
 				log.Errorf(log.Accounts,
 					"%s failed to update account holdings for account: %v",

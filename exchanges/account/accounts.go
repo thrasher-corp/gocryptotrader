@@ -7,10 +7,6 @@ import (
 	"sync"
 )
 
-// Designation identifies a sub account or exchange balance segregation
-// associated with the supplied api-key set.
-type Designation string
-
 // Main defines a default string for the main account, used if there is no
 // need for differentiation.
 const Main Designation = "main"
@@ -39,17 +35,15 @@ var (
 )
 
 // LoadAccount loads an account for future checking
-func (a *Accounts) LoadAccount(accountName string, main bool) error {
+func (a *Accounts) LoadAccount(accountName Designation, main bool) error {
 	if accountName == "" {
 		return ErrAccountNameUnset
 	}
 
-	accD := Designation(strings.ToLower(accountName))
-
 	a.m.Lock()
 	defer a.m.Unlock()
 	for x := range a.available {
-		if a.available[x].Name == accD {
+		if a.available[x].Name == accountName {
 			return errAccountAlreadyLoaded
 		}
 
@@ -57,12 +51,12 @@ func (a *Accounts) LoadAccount(accountName string, main bool) error {
 			return errMainAccountAlreadyLoaded
 		}
 	}
-	a.available = append(a.available, account{Name: accD, Main: main})
+	a.available = append(a.available, account{Name: accountName, Main: main})
 	return nil
 }
 
 // LoadAccount loads a main account and subsequent sub accounts
-func (a *Accounts) LoadAccounts(main string, subAccount ...string) error {
+func (a *Accounts) LoadAccounts(main Designation, subAccount ...Designation) error {
 	if main == "" {
 		return errMainAccountNameUnset
 	}
@@ -104,12 +98,10 @@ func (a *Accounts) GetAccounts() ([]Designation, error) {
 // AccountValid cross references account with available accounts list. Used by
 // external calls GRPC and/or strategies to ensure availability before locking
 // core systems.
-func (a *Accounts) AccountValid(account string) error {
+func (a *Accounts) AccountValid(account Designation) error {
 	if account == "" {
 		return ErrAccountNameUnset
 	}
-
-	account = strings.ToLower(account)
 
 	a.m.RLock()
 	defer a.m.RUnlock()
@@ -118,7 +110,7 @@ func (a *Accounts) AccountValid(account string) error {
 	}
 
 	for x := range a.available {
-		if string(a.available[x].Name) == account {
+		if a.available[x].Name == account {
 			return nil
 		}
 	}
@@ -141,4 +133,15 @@ func (a *Accounts) GetMainAccount() (Designation, error) {
 		}
 	}
 	return "", errMainAccountNotLoaded
+}
+
+// Designation identifies a sub account or exchange balance segregation
+// associated with the supplied api-key set.
+type Designation string
+
+func NewDesignation(name string) (Designation, error) {
+	if name == "" {
+		return "", ErrAccountNameUnset
+	}
+	return Designation(strings.ToLower(name)), nil
 }

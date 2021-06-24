@@ -333,7 +333,12 @@ func (m *OrderManager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, err
 // derive claim checks if account is valid, gets provisions and executes claim
 // on the exchange account and adjusts any order amounts if needed.
 func deriveClaim(o *order.Submit, exch exchange.IBotExchange) (*account.Claim, error) {
-	err := exch.AccountValid(o.Account)
+	acc, err := account.NewDesignation(o.Account)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.AccountValid(acc)
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +350,7 @@ func deriveClaim(o *order.Submit, exch exchange.IBotExchange) (*account.Claim, e
 
 	// Claims amount balance on exchange account to lock out further usage
 	// by other strategies
-	claim, err := exch.ClaimAccountFunds(o.Account,
+	claim, err := exch.ClaimAccountFunds(acc,
 		o.AssetType,
 		code,
 		amount,

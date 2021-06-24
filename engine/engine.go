@@ -796,7 +796,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 			for x := range accounts {
 				assetTypes := base.GetAssetTypes(true)
 				for y := range assetTypes {
-					_, err = exch.UpdateAccountInfo(string(accounts[x]), assetTypes[y])
+					_, err = exch.UpdateAccountInfo(accounts[x], assetTypes[y])
 					if err != nil && base.CheckTransientError(err) != nil {
 						gctlog.Warnf(gctlog.ExchangeSys,
 							"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",

@@ -3,7 +3,6 @@ package account
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/gofrs/uuid"
@@ -34,7 +33,7 @@ type Holdings struct {
 	// Asset type is added because of potential unknown unknowns; we can reduce
 	// this map in the future when we can ensure the ability to differentiate
 	// between asset types is not needed.
-	funds map[string]map[asset.Item]map[*currency.Item]*Holding
+	funds map[Designation]map[asset.Item]map[*currency.Item]*Holding
 
 	// TODO: Link up with RPC stream
 	// TODO: Update dispatch.Mux type with core uuid or switch over to
@@ -48,7 +47,7 @@ type Holdings struct {
 }
 
 // GetHolding returns the holding for a specific currency tied to an account
-func (h *Holdings) GetHolding(account string, a asset.Item, c currency.Code) (*Holding, error) {
+func (h *Holdings) GetHolding(account Designation, a asset.Item, c currency.Code) (*Holding, error) {
 	if h == nil {
 		return nil, errAccountHoldingsNotSetup
 	}
@@ -80,8 +79,6 @@ func (h *Holdings) GetHolding(account string, a asset.Item, c currency.Code) (*H
 			errCurrencyIsEmpty)
 	}
 
-	account = strings.ToLower(account)
-
 	h.m.Lock()
 	defer h.m.Unlock()
 	// Below we create the map contents if not found because if we have a
@@ -112,7 +109,7 @@ func (h *Holdings) GetHolding(account string, a asset.Item, c currency.Code) (*H
 // LoadHoldings flushes the entire amounts with the supplied account values,
 // this acts as a complete snapshot, anything held in the current holdings that
 // is not part of the supplied values list will be readjusted to zero value.
-func (h *Holdings) LoadHoldings(account string, isMain bool, a asset.Item, snapshot HoldingsSnapshot) error {
+func (h *Holdings) LoadHoldings(account Designation, isMain bool, a asset.Item, snapshot HoldingsSnapshot) error {
 	if h == nil {
 		return errAccountHoldingsNotSetup
 	}
@@ -143,11 +140,9 @@ func (h *Holdings) LoadHoldings(account string, isMain bool, a asset.Item, snaps
 			errSnapshotIsNil)
 	}
 
-	account = strings.ToLower(account)
-
 	h.m.Lock()
 	if h.funds == nil {
-		h.funds = make(map[string]map[asset.Item]map[*currency.Item]*Holding)
+		h.funds = make(map[Designation]map[asset.Item]map[*currency.Item]*Holding)
 	}
 
 	m1, ok := h.funds[account]
@@ -224,7 +219,7 @@ holdings:
 }
 
 // GetHoldingsSnapshot returns holdings for an account asset
-func (h *Holdings) GetHoldingsSnapshot(account string, ai asset.Item) (HoldingsSnapshot, error) {
+func (h *Holdings) GetHoldingsSnapshot(account Designation, ai asset.Item) (HoldingsSnapshot, error) {
 	if h == nil {
 		return nil, errAccountHoldingsNotSetup
 	}
@@ -245,13 +240,12 @@ func (h *Holdings) GetHoldingsSnapshot(account string, ai asset.Item) (HoldingsS
 			asset.ErrNotSupported)
 	}
 
-	account = strings.ToLower(account)
-	if account == string(Main) {
-		d, err := h.GetMainAccount()
+	if account == Main {
+		var err error
+		account, err = h.GetMainAccount()
 		if err != nil {
 			return nil, err
 		}
-		account = string(d)
 	}
 
 	h.m.Lock()
@@ -343,7 +337,7 @@ func (h *Holdings) publish() {
 // AdjustByBalance matches with currency currency holding and decreases or
 // increases on value change. i.e. if negative will decrease current holdings
 // if positive will increase current holdings
-func (h *Holdings) AdjustByBalance(account string, ai asset.Item, c currency.Code, amount float64) error {
+func (h *Holdings) AdjustByBalance(account Designation, ai asset.Item, c currency.Code, amount float64) error {
 	err := h.validate(account, ai, c, amount, true)
 	if err != nil {
 		return fmt.Errorf("cannot adjust holdings for %s %s %s %s by %f: %w",
@@ -354,8 +348,6 @@ func (h *Holdings) AdjustByBalance(account string, ai asset.Item, c currency.Cod
 			amount,
 			err)
 	}
-
-	account = strings.ToLower(account)
 
 	holding, err := h.getHoldingInternal(account, ai, c.Item)
 	if err != nil {
@@ -397,7 +389,7 @@ func (h *Holdings) AdjustByBalance(account string, ai asset.Item, c currency.Cod
 // ClaimAccountFunds segregates an amount in memory that reflects a balance that
 // is held on an exchange which can then be freely utilised by a strategy or
 // sub-system.
-func (h *Holdings) ClaimAccountFunds(account string, ai asset.Item, c currency.Code, amount float64, totalRequired bool) (*Claim, error) {
+func (h *Holdings) ClaimAccountFunds(account Designation, ai asset.Item, c currency.Code, amount float64, totalRequired bool) (*Claim, error) {
 	err := h.validate(account, ai, c, amount, false)
 	if err != nil {
 		return nil, fmt.Errorf("cannot claim holdings for %s %s %s %s by %f: %w",
@@ -409,7 +401,6 @@ func (h *Holdings) ClaimAccountFunds(account string, ai asset.Item, c currency.C
 			err)
 	}
 
-	account = strings.ToLower(account)
 	holding, err := h.getHoldingInternal(account, ai, c.Item)
 	if err != nil {
 		return nil, fmt.Errorf("cannot claim holdings for %s %s %s %s by %f: %w",
@@ -452,7 +443,7 @@ func (h *Holdings) ClaimAccountFunds(account string, ai asset.Item, c currency.C
 
 // getHoldingInternal returns the individual account holding but does not create
 // an instance like the function above
-func (h *Holdings) getHoldingInternal(account string, ai asset.Item, ci *currency.Item) (*Holding, error) {
+func (h *Holdings) getHoldingInternal(account Designation, ai asset.Item, ci *currency.Item) (*Holding, error) {
 	// lock and unlock here so we can release this 'global' lock as fast as
 	// possible and only work on the individual holding locks if needed.
 	h.m.Lock()
@@ -473,7 +464,7 @@ func (h *Holdings) getHoldingInternal(account string, ai asset.Item, ci *currenc
 }
 
 // validate checks if request values are correct before locking down holdings
-func (h *Holdings) validate(account string, ai asset.Item, c currency.Code, amount float64, lessThanZero bool) error {
+func (h *Holdings) validate(account Designation, ai asset.Item, c currency.Code, amount float64, lessThanZero bool) error {
 	if h == nil {
 		return errAccountHoldingsNotSetup
 	}

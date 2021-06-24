@@ -49,7 +49,7 @@ type fExchange struct {
 
 // FetchAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) FetchAccountInfo(accountName string, a asset.Item) (account.HoldingsSnapshot, error) {
+func (f fExchange) FetchAccountInfo(accountName account.Designation, a asset.Item) (account.HoldingsSnapshot, error) {
 	return account.HoldingsSnapshot{
 		currency.BTC: account.Balance{
 			Total:  1337,
@@ -60,7 +60,7 @@ func (f fExchange) FetchAccountInfo(accountName string, a asset.Item) (account.H
 
 // UpdateAccountInfo overrides testExchange's update account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) UpdateAccountInfo(accountName string, a asset.Item) (account.HoldingsSnapshot, error) {
+func (f fExchange) UpdateAccountInfo(accountName account.Designation, a asset.Item) (account.HoldingsSnapshot, error) {
 	if a == asset.Futures {
 		return nil, errAssetTypeDisabled
 	}

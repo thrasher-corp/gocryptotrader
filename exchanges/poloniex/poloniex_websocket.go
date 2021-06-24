@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -932,7 +933,14 @@ func (p *Poloniex) processAccountBalanceUpdate(notification []interface{}) error
 	if err != nil {
 		return err
 	}
-	return p.Holdings.AdjustByBalance(deriveWalletType(walletType),
+
+	var acc account.Designation
+	acc, err = account.NewDesignation(deriveWalletType(walletType))
+	if err != nil {
+		return err
+	}
+
+	return p.Holdings.AdjustByBalance(acc,
 		asset.Spot,
 		code,
 		amount)
