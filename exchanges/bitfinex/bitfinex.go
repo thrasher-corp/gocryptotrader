@@ -122,7 +122,6 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 }
 
 func baseMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
-	var resp []MarginInfoV2
 	var tempResp MarginInfoV2
 	tempData, ok := data[1].([]interface{})
 	if !ok {
@@ -148,7 +147,81 @@ func baseMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w for MarginMin", errTypeAssert)
 	}
-	resp = append(resp, tempResp)
+	return append([]MarginInfoV2{}, tempResp), nil
+}
+
+func symbolMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
+	var resp []MarginInfoV2
+	for x := range data {
+		var tempResp MarginInfoV2
+		tempData, ok := data[x].([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("%w for all sym", errTypeAssert)
+		}
+		var check bool
+		tempResp.Symbol, check = tempData[1].(string)
+		if !check {
+			return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
+		}
+		tempFloatData, check := tempData[2].([]interface{})
+		if !check {
+			return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
+		}
+		if len(tempFloatData) < 4 {
+			return nil, errors.New("invalid data received")
+		}
+		tempResp.TradableBalance, ok = tempFloatData[0].(float64)
+		if !ok {
+			return nil, fmt.Errorf("%w for TradableBalance", errTypeAssert)
+		}
+		tempResp.GrossBalance, ok = tempFloatData[1].(float64)
+		if !ok {
+			return nil, fmt.Errorf("%w for GrossBalance", errTypeAssert)
+		}
+		tempResp.BestAskAmount, ok = tempFloatData[2].(float64)
+		if !ok {
+			return nil, fmt.Errorf("%w for BestAskAmount", errTypeAssert)
+		}
+		tempResp.BestBidAmount, ok = tempFloatData[3].(float64)
+		if !ok {
+			return nil, fmt.Errorf("%w for BestBidAmount", errTypeAssert)
+		}
+		resp = append(resp, tempResp)
+	}
+	return resp, nil
+}
+
+func defaultMarginV2Info(data []interface{}) ([]MarginInfoV2, error) {
+	var tempResp MarginInfoV2
+	var ok bool
+	tempResp.Symbol, ok = data[1].(string)
+	if !ok {
+		return nil, fmt.Errorf("%w for symbol", errTypeAssert)
+	}
+	tempData, check := data[2].([]interface{})
+	if !check {
+		return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
+	}
+	if len(tempData) < 4 {
+		return nil, errors.New("invalid data received")
+	}
+	tempResp.TradableBalance, ok = tempData[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("%w for TradableBalance", errTypeAssert)
+	}
+	tempResp.GrossBalance, ok = tempData[1].(float64)
+	if !ok {
+		return nil, fmt.Errorf("%w for GrossBalance", errTypeAssert)
+	}
+	tempResp.BestAskAmount, ok = tempData[2].(float64)
+	if !ok {
+		return nil, fmt.Errorf("%w for BestAskAmount", errTypeAssert)
+	}
+	tempResp.BestBidAmount, ok = tempData[3].(float64)
+	if !ok {
+		return nil, fmt.Errorf("%w for BestBidAmount", errTypeAssert)
+	}
+	return append([]MarginInfoV2{}, tempResp), nil
 }
 
 // GetV2MarginInfo gets margin info
@@ -165,75 +238,20 @@ func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoV2, error) {
 	var resp []MarginInfoV2
 	switch symbol {
 	case "base":
-
+		resp, err = baseMarginInfo(data)
+		if err != nil {
+			return nil, err
+		}
 	case "sym_all":
-		for x := range data {
-			var tempResp MarginInfoV2
-			tempData, ok := data[x].([]interface{})
-			if !ok {
-				return nil, fmt.Errorf("%w for all sym", errTypeAssert)
-			}
-			var check bool
-			tempResp.Symbol, check = tempData[1].(string)
-			if !check {
-				return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
-			}
-			tempFloatData, check := tempData[2].([]interface{})
-			if !check {
-				return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
-			}
-			if len(tempFloatData) < 4 {
-				return nil, errors.New("invalid data received")
-			}
-			tempResp.TradableBalance, ok = tempFloatData[0].(float64)
-			if !ok {
-				return nil, fmt.Errorf("%w for TradableBalance", errTypeAssert)
-			}
-			tempResp.GrossBalance, ok = tempFloatData[1].(float64)
-			if !ok {
-				return nil, fmt.Errorf("%w for GrossBalance", errTypeAssert)
-			}
-			tempResp.BestAskAmount, ok = tempFloatData[2].(float64)
-			if !ok {
-				return nil, fmt.Errorf("%w for BestAskAmount", errTypeAssert)
-			}
-			tempResp.BestBidAmount, ok = tempFloatData[3].(float64)
-			if !ok {
-				return nil, fmt.Errorf("%w for BestBidAmount", errTypeAssert)
-			}
-			resp = append(resp, tempResp)
+		resp, err = symbolMarginInfo(data)
+		if err != nil {
+			return nil, err
 		}
 	default:
-		var tempResp MarginInfoV2
-		var ok bool
-		tempResp.Symbol, ok = data[1].(string)
-		if !ok {
-			return nil, fmt.Errorf("%w for symbol", errTypeAssert)
+		resp, err = defaultMarginV2Info(data)
+		if err != nil {
+			return nil, err
 		}
-		tempData, check := data[2].([]interface{})
-		if !check {
-			return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
-		}
-		if len(tempData) < 4 {
-			return nil, errors.New("invalid data received")
-		}
-		tempResp.TradableBalance, ok = tempData[0].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for TradableBalance", errTypeAssert)
-		}
-		tempResp.GrossBalance, ok = tempData[1].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for GrossBalance", errTypeAssert)
-		}
-		tempResp.BestAskAmount, ok = tempData[2].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for BestAskAmount", errTypeAssert)
-		}
-		tempResp.BestBidAmount, ok = tempData[3].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for BestBidAmount", errTypeAssert)
-		}
-		resp = append(resp, tempResp)
 	}
 	return resp, nil
 }
