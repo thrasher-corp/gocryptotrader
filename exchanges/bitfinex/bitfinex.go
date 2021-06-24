@@ -91,8 +91,6 @@ const (
 	bitfinexWsSequenceFlag = 65536
 )
 
-var errTypeAssert = errors.New("type assertion failed")
-
 // Bitfinex is the overarching type across the bitfinex package
 type Bitfinex struct {
 	exchange.Base
@@ -240,17 +238,17 @@ func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoV2, error) {
 	case "base":
 		resp, err = baseMarginInfo(data)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%v: %w", b.Name, err)
 		}
 	case "sym_all":
 		resp, err = symbolMarginInfo(data)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%v: %w", b.Name, err)
 		}
 	default:
 		resp, err = defaultMarginV2Info(data)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%v: %w", b.Name, err)
 		}
 	}
 	return resp, nil
@@ -434,7 +432,7 @@ func (b *Bitfinex) GetMarginPairs() ([]string, error) {
 
 // GetDerivativeStatusInfo gets status data for the queried derivative
 func (b *Bitfinex) GetDerivativeStatusInfo(keys, startTime, endTime string, sort, limit int64) ([]DerivativeDataResponse, error) {
-	var result [][19]interface{}
+	var result [][]interface{}
 	var finalResp []DerivativeDataResponse
 
 	params := url.Values{}

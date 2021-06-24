@@ -131,7 +131,7 @@ var (
 )
 
 // GetHistoricalIndexData gets historical index data
-func (f *FTX) GetHistoricalIndex(indexName string, resolution, limit int64, startTime, endTime time.Time) ([]OHLCVData, error) {
+func (f *FTX) GetHistoricalIndex(indexName string, resolution int64, startTime, endTime time.Time) ([]OHLCVData, error) {
 	params := url.Values{}
 	if indexName == "" {
 		return nil, errors.New("indexName is a mandatory field")
@@ -142,9 +142,6 @@ func (f *FTX) GetHistoricalIndex(indexName string, resolution, limit int64, star
 		return nil, err
 	}
 	params.Set("resolution", strconv.FormatInt(resolution, 10))
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
 			return nil, errStartTimeCannotBeAfterEndTime

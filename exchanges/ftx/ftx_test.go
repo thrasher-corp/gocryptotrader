@@ -81,11 +81,11 @@ func TestGetMarkets(t *testing.T) {
 
 func TestGetHistoricalIndex(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetHistoricalIndex("BTC", 3600, 1, time.Now().Add(-time.Hour*2), time.Now().Add(-time.Hour*1))
+	_, err := f.GetHistoricalIndex("BTC", 3600, time.Now().Add(-time.Hour*2), time.Now().Add(-time.Hour*1))
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetHistoricalIndex("BTC", 3600, 1, time.Time{}, time.Time{})
+	_, err = f.GetHistoricalIndex("BTC", 3600, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}

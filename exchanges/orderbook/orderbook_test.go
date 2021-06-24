@@ -2,8 +2,8 @@ package orderbook
 
 import (
 	"errors"
-	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"strconv"
@@ -48,19 +48,23 @@ func TestGetAveragePrice(t *testing.T) {
 		{Amount: 5, Price: 3},
 		{Amount: 5, Price: 4},
 	}
+	_, err = b.GetAveragePrice(true, -2)
+	if !errors.Is(err, errAmountInvalid) {
+		t.Errorf("expected: %v, received %v", errAmountInvalid, err)
+	}
 	avgPrice, err := b.GetAveragePrice(true, 15)
 	if err != nil {
 		t.Error(err)
 	}
 	if avgPrice != 2 {
-		t.Errorf("avg price calculation failed: expected 2, received %.3f", avgPrice)
+		t.Errorf("avg price calculation failed: expected 2, received %f", avgPrice)
 	}
 	avgPrice, err = b.GetAveragePrice(true, 18)
 	if err != nil {
 		t.Error(err)
 	}
-	if fmt.Sprintf("%.3f", avgPrice) != "2.333" {
-		t.Errorf("avg price calculation failed: expected 2.667, received %.3f", avgPrice)
+	if math.Round(avgPrice*1000)/1000 != 2.333 {
+		t.Errorf("avg price calculation failed: expected 2.333, received %f", math.Round(avgPrice*1000)/1000)
 	}
 	_, err = b.GetAveragePrice(true, 25)
 	if !errors.Is(err, errNotEnoughLiquidity) {

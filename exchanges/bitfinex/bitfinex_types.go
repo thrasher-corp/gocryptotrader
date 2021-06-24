@@ -1,10 +1,13 @@
 package bitfinex
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
+
+var errTypeAssert = errors.New("type assertion failed")
 
 // AccountV2Data stores account v2 data
 type AccountV2Data struct {

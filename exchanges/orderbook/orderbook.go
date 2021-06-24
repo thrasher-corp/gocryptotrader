@@ -17,6 +17,9 @@ import (
 // It finds the nominal amount spent on the total purchase or sell and uses it
 // to find the average price for an individual unit bought or sold
 func (b *Base) GetAveragePrice(buy bool, amount float64) (float64, error) {
+	if amount <= 0 {
+		return 0, errAmountInvalid
+	}
 	var aggNominalAmount, remainingAmount float64
 	if buy {
 		aggNominalAmount, remainingAmount = b.Asks.FindNominalAmount(amount)
