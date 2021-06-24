@@ -155,7 +155,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts map[string]account.F
 			for _, currencyHoldings := range indAssetSnapshots {
 				for code, bal := range currencyHoldings {
 					if !m.base.ExchangeAddressExists(exch, code) {
-						if bal.Total <= 0 {
+						if bal.Total == 0 {
 							continue
 						}
 
@@ -172,7 +172,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts map[string]account.F
 								Balance:     bal.Total,
 								Description: portfolio.ExchangeAddress})
 					} else {
-						if bal.Total <= 0 {
+						if bal.Total == 0 {
 							log.Debugf(log.PortfolioMgr,
 								"Portfolio: Removing %s %s entry.\n",
 								exch,
