@@ -11,7 +11,7 @@ import (
 
 // AccountManager defines account management
 type AccountManager struct {
-	engine                  *Engine
+	exchangeManager         iExchangeManager
 	synchronizationInterval time.Duration
 	shutdown                chan struct{}
 	wg                      sync.WaitGroup
@@ -27,13 +27,13 @@ var (
 )
 
 // NewAccountManager returns a pointer of a new instance of an account manager
-func NewAccountManager(e *Engine, verbose bool) (*AccountManager, error) {
-	if e == nil {
+func NewAccountManager(m iExchangeManager, verbose bool) (*AccountManager, error) {
+	if m == nil {
 		return nil, errEngineIsNil
 	}
 	return &AccountManager{
-		engine:  e,
-		verbose: verbose,
+		exchangeManager: m,
+		verbose:         verbose,
 	}, nil
 }
 
@@ -83,7 +83,7 @@ func (a *AccountManager) accountUpdater() {
 	for {
 		select {
 		case <-tt.C:
-			exchs := a.engine.GetExchanges()
+			exchs := a.exchangeManager.GetExchanges()
 			for x := range exchs {
 				if a.verbose {
 					log.Debugf(log.Accounts,
