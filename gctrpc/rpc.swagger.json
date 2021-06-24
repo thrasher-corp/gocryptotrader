@@ -3198,10 +3198,7 @@
           "type": "string"
         },
         "accounts": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/gctrpcAccount"
-          }
+          "$ref": "#/definitions/gctrpcAccount"
         }
       }
     },

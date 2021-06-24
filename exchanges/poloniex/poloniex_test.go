@@ -1078,7 +1078,7 @@ func TestWebsocketLimitOrder(t *testing.T) {
 
 	// Simulate successful claim on holdings and push to pending for
 	// reconciliation
-	claim, err := p.Holdings.Claim("exchange", asset.Spot, currency.XRP, 1, true)
+	claim, err := p.Holdings.ClaimAccountFunds("exchange", asset.Spot, currency.XRP, 1, true)
 	if err != nil {
 		t.Fatal(err)
 	}

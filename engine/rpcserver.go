@@ -590,7 +590,7 @@ func createAccountInfoRequest(sh account.HoldingsSnapshot, exch, acc string) (*g
 
 	return &gctrpc.GetAccountInfoResponse{
 		Exchange: exch,
-		Accounts: []*gctrpc.Account{&a},
+		Accounts: &a,
 	}, nil
 }
 
