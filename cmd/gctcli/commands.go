@@ -15,14 +15,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
-	"github.com/urfave/cli"
+	cli "github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 )
 
 var startTime, endTime, order string
 var limit int
 
-var getInfoCommand = cli.Command{
+var getInfoCommand = &cli.Command{
 	Name:   "getinfo",
 	Usage:  "gets GoCryptoTrader info",
 	Action: getInfo,
@@ -48,7 +48,7 @@ func getInfo(_ *cli.Context) error {
 	return nil
 }
 
-var getSubsystemsCommand = cli.Command{
+var getSubsystemsCommand = &cli.Command{
 	Name:   "getsubsystems",
 	Usage:  "gets GoCryptoTrader subsystems and their status",
 	Action: getSubsystems,
@@ -74,13 +74,13 @@ func getSubsystems(_ *cli.Context) error {
 	return nil
 }
 
-var enableSubsystemCommand = cli.Command{
+var enableSubsystemCommand = &cli.Command{
 	Name:      "enablesubsystem",
 	Usage:     "enables an engine subsystem",
 	ArgsUsage: "<subsystem>",
 	Action:    enableSubsystem,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "subsystem",
 			Usage: "the subsystem to enable",
 		},
@@ -124,13 +124,13 @@ func enableSubsystem(c *cli.Context) error {
 	return nil
 }
 
-var disableSubsystemCommand = cli.Command{
+var disableSubsystemCommand = &cli.Command{
 	Name:      "disablesubsystem",
 	Usage:     "disables an engine subsystem",
 	ArgsUsage: "<subsystem>",
 	Action:    disableSubsystem,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "subsystem",
 			Usage: "the subsystem to disable",
 		},
@@ -174,7 +174,7 @@ func disableSubsystem(c *cli.Context) error {
 	return nil
 }
 
-var getRPCEndpointsCommand = cli.Command{
+var getRPCEndpointsCommand = &cli.Command{
 	Name:   "getrpcendpoints",
 	Usage:  "gets GoCryptoTrader endpoints info",
 	Action: getRPCEndpoints,
@@ -200,7 +200,7 @@ func getRPCEndpoints(_ *cli.Context) error {
 	return nil
 }
 
-var getCommunicationRelayersCommand = cli.Command{
+var getCommunicationRelayersCommand = &cli.Command{
 	Name:   "getcommsrelayers",
 	Usage:  "gets GoCryptoTrader communication relayers",
 	Action: getCommunicationRelayers,
@@ -226,13 +226,13 @@ func getCommunicationRelayers(_ *cli.Context) error {
 	return nil
 }
 
-var getExchangesCommand = cli.Command{
+var getExchangesCommand = &cli.Command{
 	Name:      "getexchanges",
 	Usage:     "gets a list of enabled or available exchanges",
 	ArgsUsage: "<enabled>",
 	Action:    getExchanges,
 	Flags: []cli.Flag{
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "enabled",
 			Usage: "whether to list enabled exchanges or not",
 		},
@@ -266,13 +266,13 @@ func getExchanges(c *cli.Context) error {
 	return nil
 }
 
-var enableExchangeCommand = cli.Command{
+var enableExchangeCommand = &cli.Command{
 	Name:      "enableexchange",
 	Usage:     "enables an exchange",
 	ArgsUsage: "<exchange>",
 	Action:    enableExchange,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to enable",
 		},
@@ -316,13 +316,13 @@ func enableExchange(c *cli.Context) error {
 	return nil
 }
 
-var disableExchangeCommand = cli.Command{
+var disableExchangeCommand = &cli.Command{
 	Name:      "disableexchange",
 	Usage:     "disables an exchange",
 	ArgsUsage: "<exchange>",
 	Action:    disableExchange,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to disable",
 		},
@@ -366,13 +366,13 @@ func disableExchange(c *cli.Context) error {
 	return nil
 }
 
-var getExchangeOTPCommand = cli.Command{
+var getExchangeOTPCommand = &cli.Command{
 	Name:      "getexchangeotp",
 	Usage:     "gets a specific exchange OTP code",
 	ArgsUsage: "<exchange>",
 	Action:    getExchangeOTPCode,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the OTP code for",
 		},
@@ -416,7 +416,7 @@ func getExchangeOTPCode(c *cli.Context) error {
 	return nil
 }
 
-var getExchangeOTPsCommand = cli.Command{
+var getExchangeOTPsCommand = &cli.Command{
 	Name:   "getexchangeotps",
 	Usage:  "gets all exchange OTP codes",
 	Action: getExchangeOTPCodes,
@@ -441,13 +441,13 @@ func getExchangeOTPCodes(c *cli.Context) error {
 	return nil
 }
 
-var getExchangeInfoCommand = cli.Command{
+var getExchangeInfoCommand = &cli.Command{
 	Name:      "getexchangeinfo",
 	Usage:     "gets a specific exchanges info",
 	ArgsUsage: "<exchange>",
 	Action:    getExchangeInfo,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the info for",
 		},
@@ -491,21 +491,21 @@ func getExchangeInfo(c *cli.Context) error {
 	return nil
 }
 
-var getTickerCommand = cli.Command{
+var getTickerCommand = &cli.Command{
 	Name:      "getticker",
 	Usage:     "gets the ticker for a specific currency pair and exchange",
 	ArgsUsage: "<exchange> <pair> <asset>",
 	Action:    getTicker,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the ticker for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "the currency pair to get the ticker for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "the asset type of the currency pair to get the ticker for",
 		},
@@ -584,7 +584,7 @@ func getTicker(c *cli.Context) error {
 	return nil
 }
 
-var getTickersCommand = cli.Command{
+var getTickersCommand = &cli.Command{
 	Name:   "gettickers",
 	Usage:  "gets all tickers for all enabled exchanges and currency pairs",
 	Action: getTickers,
@@ -607,21 +607,21 @@ func getTickers(_ *cli.Context) error {
 	return nil
 }
 
-var getOrderbookCommand = cli.Command{
+var getOrderbookCommand = &cli.Command{
 	Name:      "getorderbook",
 	Usage:     "gets the orderbook for a specific currency pair and exchange",
 	ArgsUsage: "<exchange> <pair> <asset>",
 	Action:    getOrderbook,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the orderbook for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "the currency pair to get the orderbook for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "the asset type of the currency pair to get the orderbook for",
 		},
@@ -700,7 +700,7 @@ func getOrderbook(c *cli.Context) error {
 	return nil
 }
 
-var getOrderbooksCommand = cli.Command{
+var getOrderbooksCommand = &cli.Command{
 	Name:   "getorderbooks",
 	Usage:  "gets all orderbooks for all enabled exchanges and currency pairs",
 	Action: getOrderbooks,
@@ -723,17 +723,17 @@ func getOrderbooks(_ *cli.Context) error {
 	return nil
 }
 
-var getAccountInfoCommand = cli.Command{
+var getAccountInfoCommand = &cli.Command{
 	Name:      "getaccountinfo",
 	Usage:     "gets the exchange account balance info",
 	ArgsUsage: "<exchange> <asset>",
 	Action:    getAccountInfo,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the account info for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "the asset type to get the account info for",
 		},
@@ -787,17 +787,17 @@ func getAccountInfo(c *cli.Context) error {
 	return nil
 }
 
-var getAccountInfoStreamCommand = cli.Command{
+var getAccountInfoStreamCommand = &cli.Command{
 	Name:      "getaccountinfostream",
 	Usage:     "gets the account info stream for a specific exchange",
 	ArgsUsage: "<exchange> <asset>",
 	Action:    getAccountInfoStream,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the account info stream from",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "the asset type to get the account info stream for",
 		},
@@ -862,17 +862,17 @@ func getAccountInfoStream(c *cli.Context) error {
 	}
 }
 
-var updateAccountInfoCommand = cli.Command{
+var updateAccountInfoCommand = &cli.Command{
 	Name:      "updateaccountinfo",
 	Usage:     "updates the exchange account balance info",
 	ArgsUsage: "<exchange> <asset>",
 	Action:    updateAccountInfo,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the account info for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "the asset type to get the account info for",
 		},
@@ -927,7 +927,7 @@ func updateAccountInfo(c *cli.Context) error {
 	return nil
 }
 
-var getConfigCommand = cli.Command{
+var getConfigCommand = &cli.Command{
 	Name:   "getconfig",
 	Usage:  "gets the config",
 	Action: getConfig,
@@ -950,7 +950,7 @@ func getConfig(_ *cli.Context) error {
 	return nil
 }
 
-var getPortfolioCommand = cli.Command{
+var getPortfolioCommand = &cli.Command{
 	Name:   "getportfolio",
 	Usage:  "gets the portfolio",
 	Action: getPortfolio,
@@ -973,7 +973,7 @@ func getPortfolio(_ *cli.Context) error {
 	return nil
 }
 
-var getPortfolioSummaryCommand = cli.Command{
+var getPortfolioSummaryCommand = &cli.Command{
 	Name:   "getportfoliosummary",
 	Usage:  "gets the portfolio summary",
 	Action: getPortfolioSummary,
@@ -996,33 +996,33 @@ func getPortfolioSummary(_ *cli.Context) error {
 	return nil
 }
 
-var addPortfolioAddressCommand = cli.Command{
+var addPortfolioAddressCommand = &cli.Command{
 	Name:      "addportfolioaddress",
 	Usage:     "adds an address to the portfolio",
 	ArgsUsage: "<address> <coin_type> <description> <balance> <cold_storage> <supported_exchanges> ",
 	Action:    addPortfolioAddress,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "address",
 			Usage: "the address to add to the portfolio",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "coin_type",
 			Usage: "the coin type e.g ('BTC')",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "description",
 			Usage: "description of the address",
 		},
-		cli.Float64Flag{
+		&cli.Float64Flag{
 			Name:  "balance",
 			Usage: "balance of the address",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "cold_storage",
 			Usage: "true/false if address is cold storage",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "supported_exchanges",
 			Usage: "common separated list of exchanges supported by this address for withdrawals",
 		},
@@ -1109,21 +1109,21 @@ func addPortfolioAddress(c *cli.Context) error {
 	return nil
 }
 
-var removePortfolioAddressCommand = cli.Command{
+var removePortfolioAddressCommand = &cli.Command{
 	Name:      "removeportfolioaddress",
 	Usage:     "removes an address from the portfolio",
 	ArgsUsage: "<address> <coin_type> <description>",
 	Action:    removePortfolioAddress,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "address",
 			Usage: "the address to add to the portfolio",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "coin_type",
 			Usage: "the coin type e.g ('BTC')",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "description",
 			Usage: "description of the address",
 		},
@@ -1180,7 +1180,7 @@ func removePortfolioAddress(c *cli.Context) error {
 	return nil
 }
 
-var getForexProvidersCommand = cli.Command{
+var getForexProvidersCommand = &cli.Command{
 	Name:   "getforexproviders",
 	Usage:  "gets the available forex providers",
 	Action: getForexProviders,
@@ -1203,7 +1203,7 @@ func getForexProviders(_ *cli.Context) error {
 	return nil
 }
 
-var getForexRatesCommand = cli.Command{
+var getForexRatesCommand = &cli.Command{
 	Name:   "getforexrates",
 	Usage:  "gets forex rates",
 	Action: getForexRates,
@@ -1226,31 +1226,31 @@ func getForexRates(_ *cli.Context) error {
 	return nil
 }
 
-var getOrdersCommand = cli.Command{
+var getOrdersCommand = &cli.Command{
 	Name:      "getorders",
 	Usage:     "gets the open orders",
 	ArgsUsage: "<exchange> <asset> <pair> <start> <end>",
 	Action:    getOrders,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get orders for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "the asset type to get orders for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "the currency pair to get orders for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "start",
 			Usage:       "start date, optional. Will filter any results before this date",
 			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "end",
 			Usage:       "end date, optional. Will filter any results after this date",
 			Value:       time.Now().Format(common.SimpleTimeFormat),
@@ -1356,25 +1356,25 @@ func getOrders(c *cli.Context) error {
 	return nil
 }
 
-var getOrderCommand = cli.Command{
+var getOrderCommand = &cli.Command{
 	Name:      "getorder",
 	Usage:     "gets the specified order info",
 	ArgsUsage: "<exchange> <order_id> <pair>",
 	Action:    getOrder,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the order for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "required asset type",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "the pair to retrieve",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "order_id",
 			Usage: "the order id to retrieve",
 		},
@@ -1455,41 +1455,41 @@ func getOrder(c *cli.Context) error {
 	return nil
 }
 
-var submitOrderCommand = cli.Command{
+var submitOrderCommand = &cli.Command{
 	Name:      "submitorder",
 	Usage:     "submit order submits an exchange order",
 	ArgsUsage: "<exchange> <pair> <side> <type> <amount> <price> <client_id>",
 	Action:    submitOrder,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to submit the order for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "the currency pair",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "side",
 			Usage: "the order side to use (BUY OR SELL)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "type",
 			Usage: "the order type (MARKET OR LIMIT)",
 		},
-		cli.Float64Flag{
+		&cli.Float64Flag{
 			Name:  "amount",
 			Usage: "the amount for the order",
 		},
-		cli.Float64Flag{
+		&cli.Float64Flag{
 			Name:  "price",
 			Usage: "the price for the order",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "client_id",
 			Usage: "the optional client order ID",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "required asset type",
 		},
@@ -1626,25 +1626,25 @@ func submitOrder(c *cli.Context) error {
 	return nil
 }
 
-var simulateOrderCommand = cli.Command{
+var simulateOrderCommand = &cli.Command{
 	Name:      "simulateorder",
 	Usage:     "simulate order simulates an exchange order",
 	ArgsUsage: "<exchange> <pair> <side> <amount>",
 	Action:    simulateOrder,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to simulate the order for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "the currency pair",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "side",
 			Usage: "the order side to use (BUY OR SELL)",
 		},
-		cli.Float64Flag{
+		&cli.Float64Flag{
 			Name:  "amount",
 			Usage: "the amount for the order",
 		},
@@ -1735,25 +1735,25 @@ func simulateOrder(c *cli.Context) error {
 	return nil
 }
 
-var whaleBombCommand = cli.Command{
+var whaleBombCommand = &cli.Command{
 	Name:      "whalebomb",
 	Usage:     "whale bomb finds the amount required to reach a price target",
 	ArgsUsage: "<exchange> <pair> <side> <price>",
 	Action:    whaleBomb,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to whale bomb",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "the currency pair",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "side",
 			Usage: "the order side to use (BUY OR SELL)",
 		},
-		cli.Float64Flag{
+		&cli.Float64Flag{
 			Name:  "price",
 			Usage: "the price target",
 		},
@@ -1840,37 +1840,37 @@ func whaleBomb(c *cli.Context) error {
 	return nil
 }
 
-var cancelOrderCommand = cli.Command{
+var cancelOrderCommand = &cli.Command{
 	Name:      "cancelorder",
 	Usage:     "cancel order cancels an exchange order",
 	ArgsUsage: "<exchange> <account_id> <order_id> <pair> <asset> <wallet_address> <side>",
 	Action:    cancelOrder,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to cancel the order for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "account_id",
 			Usage: "the account id",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "order_id",
 			Usage: "the order id",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "the currency pair to cancel the order for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "the asset type",
 		},
-		cli.Float64Flag{
+		&cli.Float64Flag{
 			Name:  "wallet_address",
 			Usage: "the wallet address",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "side",
 			Usage: "the order side",
 		},
@@ -1986,37 +1986,37 @@ func cancelOrder(c *cli.Context) error {
 	return nil
 }
 
-var cancelBatchOrdersCommand = cli.Command{
+var cancelBatchOrdersCommand = &cli.Command{
 	Name:      "cancelbatchorders",
 	Usage:     "cancel batch orders cancels a list of exchange orders (comma separated)",
 	ArgsUsage: "<exchange> <account_id> <order_ids> <pair> <asset> <wallet_address> <side>",
 	Action:    cancelBatchOrders,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to cancel the order for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "account_id",
 			Usage: "the account id",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "order_ids",
 			Usage: "the comma separated orders id-s",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "the currency pair to cancel the order for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "the asset type",
 		},
-		cli.Float64Flag{
+		&cli.Float64Flag{
 			Name:  "wallet_address",
 			Usage: "the wallet address",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "side",
 			Usage: "the order side",
 		},
@@ -2132,13 +2132,13 @@ func cancelBatchOrders(c *cli.Context) error {
 	return nil
 }
 
-var cancelAllOrdersCommand = cli.Command{
+var cancelAllOrdersCommand = &cli.Command{
 	Name:      "cancelallorders",
 	Usage:     "cancels all orders (all or by exchange name)",
 	ArgsUsage: "<exchange>",
 	Action:    cancelAllOrders,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to cancel all orders on",
 		},
@@ -2178,7 +2178,7 @@ func cancelAllOrders(c *cli.Context) error {
 	return nil
 }
 
-var getEventsCommand = cli.Command{
+var getEventsCommand = &cli.Command{
 	Name:   "getevents",
 	Usage:  "gets all events",
 	Action: getEvents,
@@ -2201,49 +2201,49 @@ func getEvents(_ *cli.Context) error {
 	return nil
 }
 
-var addEventCommand = cli.Command{
+var addEventCommand = &cli.Command{
 	Name:      "addevent",
 	Usage:     "adds an event",
 	ArgsUsage: "<exchange> <item> <condition> <price> <check_bids> <check_bids_and_asks> <orderbook_amount> <pair> <asset> <action>",
 	Action:    addEvent,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to add an event for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "item",
 			Usage: "the item to trigger the event",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "condition",
 			Usage: "the condition for the event",
 		},
-		cli.Float64Flag{
+		&cli.Float64Flag{
 			Name:  "price",
 			Usage: "the price to trigger the event",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "check_bids",
 			Usage: "whether to check the bids",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "check_asks",
 			Usage: "whether to check the asks",
 		},
-		cli.Float64Flag{
+		&cli.Float64Flag{
 			Name:  "orderbook_amount",
 			Usage: "the orderbook amount to trigger the event",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "the currency pair",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "the asset type",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "action",
 			Usage: "the action for the event to perform upon trigger",
 		},
@@ -2367,13 +2367,13 @@ func addEvent(c *cli.Context) error {
 	return nil
 }
 
-var removeEventCommand = cli.Command{
+var removeEventCommand = &cli.Command{
 	Name:      "removeevent",
 	Usage:     "removes an event",
 	ArgsUsage: "<event_id>",
 	Action:    removeEvent,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "event_id",
 			Usage: "the event id to remove",
 		},
@@ -2417,13 +2417,13 @@ func removeEvent(c *cli.Context) error {
 	return nil
 }
 
-var getCryptocurrencyDepositAddressesCommand = cli.Command{
+var getCryptocurrencyDepositAddressesCommand = &cli.Command{
 	Name:      "getcryptocurrencydepositaddresses",
 	Usage:     "gets the cryptocurrency deposit addresses for an exchange",
 	ArgsUsage: "<exchange>",
 	Action:    getCryptocurrencyDepositAddresses,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the cryptocurrency deposit addresses for",
 		},
@@ -2463,17 +2463,17 @@ func getCryptocurrencyDepositAddresses(c *cli.Context) error {
 	return nil
 }
 
-var getCryptocurrencyDepositAddressCommand = cli.Command{
+var getCryptocurrencyDepositAddressCommand = &cli.Command{
 	Name:      "getcryptocurrencydepositaddress",
 	Usage:     "gets the cryptocurrency deposit address for an exchange and cryptocurrency",
 	ArgsUsage: "<exchange> <cryptocurrency>",
 	Action:    getCryptocurrencyDepositAddress,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the cryptocurrency deposit address for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "cryptocurrency",
 			Usage: "the cryptocurrency to get the deposit address for",
 		},
@@ -2529,37 +2529,37 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 	return nil
 }
 
-var withdrawCryptocurrencyFundsCommand = cli.Command{
+var withdrawCryptocurrencyFundsCommand = &cli.Command{
 	Name:      "withdrawcryptofunds",
 	Usage:     "withdraws cryptocurrency funds from the desired exchange",
 	ArgsUsage: "<exchange> <currency>  <amount> <address> <addresstag> <fee> <description>",
 	Action:    withdrawCryptocurrencyFunds,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to withdraw from",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "currency",
 			Usage: "the cryptocurrency to withdraw funds from",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "address",
 			Usage: "address to withdraw to",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "addresstag",
 			Usage: "address tag/memo",
 		},
-		cli.Float64Flag{
+		&cli.Float64Flag{
 			Name:  "amount",
 			Usage: "amount of funds to withdraw",
 		},
-		cli.Float64Flag{
+		&cli.Float64Flag{
 			Name:  "fee",
 			Usage: "fee to submit with request",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "description",
 			Usage: "description to submit with request",
 		},
@@ -2652,29 +2652,29 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	return nil
 }
 
-var withdrawFiatFundsCommand = cli.Command{
+var withdrawFiatFundsCommand = &cli.Command{
 	Name:      "withdrawfiatfunds",
 	Usage:     "withdraws fiat funds from the desired exchange",
 	ArgsUsage: "<exchange> <currency> <amount> <bankaccount id> <description>",
 	Action:    withdrawFiatFunds,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to withdraw from",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "currency",
 			Usage: "the fiat currency to withdraw funds from",
 		},
-		cli.Float64Flag{
+		&cli.Float64Flag{
 			Name:  "amount",
 			Usage: "amount of funds to withdraw",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "bankaccountid",
 			Usage: "ID of bank account to use",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "description",
 			Usage: "description to submit with request",
 		},
@@ -2749,17 +2749,17 @@ func withdrawFiatFunds(c *cli.Context) error {
 	return nil
 }
 
-var withdrawalRequestCommand = cli.Command{
+var withdrawalRequestCommand = &cli.Command{
 	Name:      "withdrawalrequesthistory",
 	Usage:     "retrieve previous withdrawal request details",
 	ArgsUsage: "<type> <args>",
-	Subcommands: []cli.Command{
+	Subcommands: []*cli.Command{
 		{
 			Name:      "byid",
 			Usage:     "id",
 			ArgsUsage: "<id>",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "id",
 					Usage: "withdrawal id",
 				},
@@ -2771,11 +2771,11 @@ var withdrawalRequestCommand = cli.Command{
 			Usage:     "exchange id",
 			ArgsUsage: "<id>",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "exchange",
 					Usage: "exchange name",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "id",
 					Usage: "withdrawal id",
 				},
@@ -2787,15 +2787,15 @@ var withdrawalRequestCommand = cli.Command{
 			Usage:     "exchange limit",
 			ArgsUsage: "<id>",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "exchange",
 					Usage: "exchange name",
 				},
-				cli.Int64Flag{
+				&cli.Int64Flag{
 					Name:  "limit",
 					Usage: "max number of withdrawals to return",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "currency",
 					Usage: "<currency>",
 				},
@@ -2807,23 +2807,23 @@ var withdrawalRequestCommand = cli.Command{
 			Usage:     "exchange start end limit",
 			ArgsUsage: "<exchange> <start> <end> <limit>",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "exchange",
 					Usage: "the currency used in to withdraw",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "start",
 					Usage:       "the start date to get withdrawals from. Any withdrawal before this date will be filtered",
 					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 					Destination: &startTime,
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "end",
 					Usage:       "the end date to get withdrawals from. Any withdrawal after this date will be filtered",
 					Value:       time.Now().Format(common.SimpleTimeFormat),
 					Destination: &endTime,
 				},
-				cli.Int64Flag{
+				&cli.Int64Flag{
 					Name:  "limit",
 					Usage: "max number of withdrawals to return",
 				},
@@ -3013,13 +3013,13 @@ func withdrawlRequestByDate(c *cli.Context) error {
 	return nil
 }
 
-var getLoggerDetailsCommand = cli.Command{
+var getLoggerDetailsCommand = &cli.Command{
 	Name:      "getloggerdetails",
 	Usage:     "gets an individual loggers details",
 	ArgsUsage: "<logger>",
 	Action:    getLoggerDetails,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "logger",
 			Usage: "logger to get level details of",
 		},
@@ -3062,17 +3062,17 @@ func getLoggerDetails(c *cli.Context) error {
 	return nil
 }
 
-var setLoggerDetailsCommand = cli.Command{
+var setLoggerDetailsCommand = &cli.Command{
 	Name:      "setloggerdetails",
 	Usage:     "sets an individual loggers details",
 	ArgsUsage: "<logger> <flags>",
 	Action:    setLoggerDetails,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "logger",
 			Usage: "logger to get level details of",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "flags",
 			Usage: "pipe separated value of loggers e.g INFO|WARN",
 		},
@@ -3128,21 +3128,21 @@ func setLoggerDetails(c *cli.Context) error {
 	return nil
 }
 
-var getOrderbookStreamCommand = cli.Command{
+var getOrderbookStreamCommand = &cli.Command{
 	Name:      "getorderbookstream",
 	Usage:     "gets the orderbook stream for a specific currency pair and exchange",
 	ArgsUsage: "<exchange> <pair> <asset>",
 	Action:    getOrderbookStream,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the orderbook from",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "currency pair",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "the asset type of the currency pair",
 		},
@@ -3275,13 +3275,13 @@ func getOrderbookStream(c *cli.Context) error {
 	}
 }
 
-var getExchangeOrderbookStreamCommand = cli.Command{
+var getExchangeOrderbookStreamCommand = &cli.Command{
 	Name:      "getexchangeorderbookstream",
 	Usage:     "gets a stream for all orderbooks associated with an exchange",
 	ArgsUsage: "<exchange>",
 	Action:    getExchangeOrderbookStream,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the orderbook from",
 		},
@@ -3337,21 +3337,21 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 	}
 }
 
-var getTickerStreamCommand = cli.Command{
+var getTickerStreamCommand = &cli.Command{
 	Name:      "gettickerstream",
 	Usage:     "gets the ticker stream for a specific currency pair and exchange",
 	ArgsUsage: "<exchange> <pair> <asset>",
 	Action:    getTickerStream,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the ticker from",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "currency pair",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "the asset type of the currency pair",
 		},
@@ -3454,13 +3454,13 @@ func getTickerStream(c *cli.Context) error {
 	}
 }
 
-var getExchangeTickerStreamCommand = cli.Command{
+var getExchangeTickerStreamCommand = &cli.Command{
 	Name:      "getexchangetickerstream",
 	Usage:     "gets a stream for all tickers associated with an exchange",
 	ArgsUsage: "<exchange>",
 	Action:    getExchangeTickerStream,
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the ticker from",
 		},
@@ -3521,32 +3521,36 @@ func getExchangeTickerStream(c *cli.Context) error {
 	}
 }
 
-var getAuditEventCommand = cli.Command{
+var getAuditEventCommand = &cli.Command{
 	Name:      "getauditevent",
 	Usage:     "gets audit events matching query parameters",
 	ArgsUsage: "<starttime> <endtime> <orderby> <limit>",
 	Action:    getAuditEvent,
 	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:        "start, s",
+		&cli.StringFlag{
+			Name:        "start",
+			Aliases:     []string{"s"},
 			Usage:       "start date to search",
 			Value:       time.Now().Add(-time.Hour).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
-		cli.StringFlag{
-			Name:        "end, e",
+		&cli.StringFlag{
+			Name:        "end",
+			Aliases:     []string{"e"},
 			Usage:       "end time to search",
 			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
-		cli.StringFlag{
-			Name:        "order, o",
+		&cli.StringFlag{
+			Name:        "order",
+			Aliases:     []string{"o"},
 			Usage:       "order results by ascending/descending",
 			Value:       "asc",
 			Destination: &order,
 		},
-		cli.IntFlag{
-			Name:        "limit, l",
+		&cli.IntFlag{
+			Name:        "limit",
+			Aliases:     []string{"l"},
 			Usage:       "how many results to retrieve",
 			Value:       100,
 			Destination: &limit,
@@ -3622,22 +3626,22 @@ func getAuditEvent(c *cli.Context) error {
 }
 
 var uuid, filename, path string
-var gctScriptCommand = cli.Command{
+var gctScriptCommand = &cli.Command{
 	Name:      "script",
 	Usage:     "execute scripting management command",
 	ArgsUsage: "<command> <args>",
-	Subcommands: []cli.Command{
+	Subcommands: []*cli.Command{
 		{
 			Name:      "execute",
 			Usage:     "execute script filename",
 			ArgsUsage: "<filename> <path>",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "filename",
 					Usage:       "the script filename",
 					Destination: &filename,
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "path",
 					Usage:       "the directory of the script file",
 					Destination: &path,
@@ -3649,7 +3653,7 @@ var gctScriptCommand = cli.Command{
 			Name:  "query",
 			Usage: "query running virtual machine",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "uuid",
 					Usage:       "the unique id of the script in memory",
 					Destination: &uuid,
@@ -3661,7 +3665,7 @@ var gctScriptCommand = cli.Command{
 			Name:  "read",
 			Usage: "read script",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "name",
 					Usage:       "the script name",
 					Destination: &uuid,
@@ -3683,7 +3687,7 @@ var gctScriptCommand = cli.Command{
 			Name:  "stop",
 			Usage: "terminate running script",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "uuid",
 					Usage:       "the unique id of the script in memory",
 					Destination: &uuid,
@@ -3700,16 +3704,16 @@ var gctScriptCommand = cli.Command{
 			Name:  "upload",
 			Usage: "upload a new script/archive",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "path",
 					Usage:       "<path> to single script or zip collection",
 					Destination: &filename,
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "overwrite",
 					Usage: "<true/false>",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "archived",
 					Usage: "<true/false>",
 				},
@@ -3720,11 +3724,11 @@ var gctScriptCommand = cli.Command{
 			Name:  "autoload",
 			Usage: "add or remove script from autoload list",
 			Flags: []cli.Flag{
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "command",
 					Usage: "<add/remove>",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "script",
 					Usage: "<script name>",
 				},
@@ -4059,37 +4063,40 @@ const klineMessage = "%v in seconds supported values are: 15, 60(1min), 180(3min
 	"60480(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)"
 
 var candleRangeSize, candleGranularity int64
-var getHistoricCandlesCommand = cli.Command{
+var getHistoricCandlesCommand = &cli.Command{
 	Name:      "gethistoriccandles",
 	Usage:     "gets historical candles for the specified granularity up to range size time from now.",
 	ArgsUsage: "<exchange> <pair> <asset> <rangesize> <granularity>",
 	Action:    getHistoricCandles,
 	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "exchange, e",
-			Usage: "the exchange to get the candles from",
+		&cli.StringFlag{
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to get the candles from",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "pair",
 			Usage: "the currency pair to get the candles for",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "asset",
 			Usage: "the asset type of the currency pair",
 		},
-		cli.Int64Flag{
-			Name:        "rangesize, r",
+		&cli.Int64Flag{
+			Name:        "rangesize",
+			Aliases:     []string{"r"},
 			Usage:       "the amount of time to go back from now to fetch candles in the given granularity",
 			Value:       10,
 			Destination: &candleRangeSize,
 		},
-		cli.Int64Flag{
-			Name:        "granularity, g",
+		&cli.Int64Flag{
+			Name:        "granularity",
+			Aliases:     []string{"g"},
 			Usage:       fmt.Sprintf(klineMessage, "granularity"),
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "fillmissingdatawithtrades, fill",
 			Usage: "will create candles for missing intervals using stored trade data <true/false>",
 		},
@@ -4195,57 +4202,62 @@ func getHistoricCandles(c *cli.Context) error {
 	return nil
 }
 
-var getHistoricCandlesExtendedCommand = cli.Command{
+var getHistoricCandlesExtendedCommand = &cli.Command{
 	Name:      "gethistoriccandlesextended",
 	Usage:     "gets historical candles for the specified pair, asset, interval & date range",
 	ArgsUsage: "<exchange> <pair> <asset> <interval> <start> <end>",
 	Action:    getHistoricCandlesExtended,
 	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "exchange, e",
-			Usage: "the exchange to get the candles from",
+		&cli.StringFlag{
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to get the candles from",
 		},
-		cli.StringFlag{
-			Name:  "pair, p",
-			Usage: "the currency pair to get the candles for",
+		&cli.StringFlag{
+			Name:    "pair",
+			Aliases: []string{"p"},
+			Usage:   "the currency pair to get the candles for",
 		},
-		cli.StringFlag{
-			Name:  "asset, a",
-			Usage: "the asset type of the currency pair",
+		&cli.StringFlag{
+			Name:    "asset",
+			Aliases: []string{"a"},
+			Usage:   "the asset type of the currency pair",
 		},
-		cli.Int64Flag{
-			Name:        "interval, i",
+		&cli.Int64Flag{
+			Name:        "interval",
+			Aliases:     []string{"i"},
 			Usage:       fmt.Sprintf(klineMessage, "interval"),
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "start",
 			Usage:       "the date to begin retrieveing candles. Any candles before this date will be filtered",
 			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "end",
 			Usage:       "the date to end retrieveing candles. Any candles after this date will be filtered",
 			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "sync",
 			Usage: "<true/false>",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "force",
 			Usage: "will overwrite any conflicting candle data on save <true/false>",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "db",
 			Usage: "source data from database <true/false>",
 		},
-		cli.BoolFlag{
-			Name:  "fillmissingdatawithtrades, fill",
-			Usage: "will create candles for missing intervals using stored trade data <true/false>",
+		&cli.BoolFlag{
+			Name:    "fillmissingdatawithtrades",
+			Aliases: []string{"fill"},
+			Usage:   "will create candles for missing intervals using stored trade data <true/false>",
 		},
 	},
 }
@@ -4386,37 +4398,41 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	return nil
 }
 
-var findMissingSavedCandleIntervalsCommand = cli.Command{
+var findMissingSavedCandleIntervalsCommand = &cli.Command{
 	Name:      "findmissingsavedcandleintervals",
 	Usage:     "will highlight any interval that is missing candle data so you can fill that gap",
 	ArgsUsage: "<exchange> <pair> <asset> <interval> <start> <end>",
 	Action:    findMissingSavedCandleIntervals,
 	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "exchange, e",
-			Usage: "the exchange to find the missing candles",
+		&cli.StringFlag{
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to find the missing candles",
 		},
-		cli.StringFlag{
-			Name:  "pair, p",
-			Usage: "the currency pair",
+		&cli.StringFlag{
+			Name:    "pair",
+			Aliases: []string{"p"},
+			Usage:   "the currency pair",
 		},
-		cli.StringFlag{
-			Name:  "asset, a",
-			Usage: "the asset type of the currency pair",
+		&cli.StringFlag{
+			Name:    "asset",
+			Aliases: []string{"a"},
+			Usage:   "the asset type of the currency pair",
 		},
-		cli.Int64Flag{
-			Name:        "interval, i",
+		&cli.Int64Flag{
+			Name:        "interval",
+			Aliases:     []string{"i"},
 			Usage:       fmt.Sprintf(klineMessage, "interval"),
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "start",
 			Usage:       "<start> rounded down to the nearest hour",
 			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "end",
 			Usage:       "<end> rounded down to the nearest hour",
 			Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
