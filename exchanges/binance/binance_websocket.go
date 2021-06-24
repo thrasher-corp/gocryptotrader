@@ -540,14 +540,21 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
-
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
+		if i%50 == 0 && i != 0 {
+			err := b.Websocket.Conn.SendJSONMessage(payload)
+			if err != nil {
+				return err
+			}
+			payload.Params = []string{}
+		}
 	}
-
-	err := b.Websocket.Conn.SendJSONMessage(payload)
-	if err != nil {
-		return err
+	if len(payload.Params) > 0 {
+		err := b.Websocket.Conn.SendJSONMessage(payload)
+		if err != nil {
+			return err
+		}
 	}
 	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
@@ -560,10 +567,19 @@ func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 	}
 	for i := range channelsToUnsubscribe {
 		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
+		if i%50 == 0 && i != 0 {
+			err := b.Websocket.Conn.SendJSONMessage(payload)
+			if err != nil {
+				return err
+			}
+			payload.Params = []string{}
+		}
 	}
-	err := b.Websocket.Conn.SendJSONMessage(payload)
-	if err != nil {
-		return err
+	if len(payload.Params) > 0 {
+		err := b.Websocket.Conn.SendJSONMessage(payload)
+		if err != nil {
+			return err
+		}
 	}
 	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
 	return nil

@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
-	"github.com/urfave/cli"
+	cli "github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -59,38 +59,38 @@ func main() {
 	app.EnableBashCompletion = true
 	app.Usage = "command line interface for managing the gocryptotrader daemon"
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "rpchost",
 			Value:       "localhost:9052",
 			Usage:       "the gRPC host to connect to",
 			Destination: &host,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "rpcuser",
 			Value:       "admin",
 			Usage:       "the gRPC username",
 			Destination: &username,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "rpcpassword",
 			Value:       "Password",
 			Usage:       "the gRPC password",
 			Destination: &password,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "delimiter",
 			Value:       "-",
 			Usage:       "the default currency pair delimiter used to standardise currency pair input",
 			Destination: &pairDelimiter,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:        "cert",
 			Value:       filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "tls", "cert.pem"),
 			Usage:       "the path to TLS cert of the gRPC server",
 			Destination: &certPath,
 		},
 	}
-	app.Commands = []cli.Command{
+	app.Commands = []*cli.Command{
 		getInfoCommand,
 		getSubsystemsCommand,
 		enableSubsystemCommand,
