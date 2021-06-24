@@ -222,7 +222,8 @@ func defaultMarginV2Info(data []interface{}) ([]MarginInfoV2, error) {
 	return append([]MarginInfoV2{}, tempResp), nil
 }
 
-// GetV2MarginInfo gets margin info
+// GetV2MarginInfo gets v2 margin info for a symbol provided
+// symbol: base, sym_all, any other trading symbol example tBTCUSD
 func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoV2, error) {
 	var data []interface{}
 	err := b.SendAuthenticatedHTTPRequestV2(exchange.RestSpot, http.MethodPost,
@@ -238,17 +239,17 @@ func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoV2, error) {
 	case "base":
 		resp, err = baseMarginInfo(data)
 		if err != nil {
-			return nil, fmt.Errorf("%v: %w", b.Name, err)
+			return nil, fmt.Errorf("%v - %s: %w", b.Name, symbol, err)
 		}
 	case "sym_all":
 		resp, err = symbolMarginInfo(data)
 		if err != nil {
-			return nil, fmt.Errorf("%v: %w", b.Name, err)
+			return nil, fmt.Errorf("%v - %s: %w", b.Name, symbol, err)
 		}
 	default:
 		resp, err = defaultMarginV2Info(data)
 		if err != nil {
-			return nil, fmt.Errorf("%v: %w", b.Name, err)
+			return nil, fmt.Errorf("%v - %s: %w", b.Name, symbol, err)
 		}
 	}
 	return resp, nil
@@ -275,11 +276,11 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 	}
 	avgRate, ok := resp[0].(float64)
 	if !ok {
-		return response, fmt.Errorf("%w for rate", errTypeAssert)
+		return response, fmt.Errorf("%v - %v: %w for rate", b.Name, symbol, errTypeAssert)
 	}
 	avgAmount, ok := resp[1].(float64)
 	if !ok {
-		return response, fmt.Errorf("%w for amount", errTypeAssert)
+		return response, fmt.Errorf("%v - %v: %w for amount", b.Name, symbol, errTypeAssert)
 	}
 	response.Symbol = symbol
 	response.RateAverage = avgRate
@@ -304,20 +305,20 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginFundingDataV2, error) {
 	}
 	sym, ok := resp[0].(string)
 	if !ok {
-		return response, fmt.Errorf("%w for sym", errTypeAssert)
+		return response, fmt.Errorf("%v GetV2FundingInfo: %w for sym", b.Name, errTypeAssert)
 	}
 	symbol, ok := resp[1].(string)
 	if !ok {
-		return response, fmt.Errorf("%w for symbol", errTypeAssert)
+		return response, fmt.Errorf("%v GetV2FundingInfo: %w for symbol", b.Name, errTypeAssert)
 	}
 	fundingData, ok := resp[2].([]interface{})
 	if !ok {
-		return response, fmt.Errorf("%w for fundingData", errTypeAssert)
+		return response, fmt.Errorf("%v GetV2FundingInfo: %w for fundingData", b.Name, errTypeAssert)
 	}
 	response.Sym = sym
 	response.Symbol = symbol
 	if len(fundingData) < 4 {
-		return response, errors.New("invalid length of fundingData")
+		return response, fmt.Errorf("%v GetV2FundingInfo: invalid length of fundingData", b.Name)
 	}
 	for x := 0; x < 3; x++ {
 		_, ok := fundingData[x].(float64)
@@ -345,33 +346,33 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 		return resp, err
 	}
 	if len(data) < 8 {
-		return resp, errors.New("invalid length of data")
+		return resp, fmt.Errorf("%v GetAccountInfoV2: invalid length of data", b.Name)
 	}
 	var ok bool
 	var tempString string
 	var tempFloat float64
 	if tempFloat, ok = data[0].(float64); !ok {
-		return resp, fmt.Errorf("%w for id", errTypeAssert)
+		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for id", b.Name, errTypeAssert)
 	}
 	resp.ID = int64(tempFloat)
 	if tempString, ok = data[1].(string); !ok {
-		return resp, fmt.Errorf("%w for email", errTypeAssert)
+		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for email", b.Name, errTypeAssert)
 	}
 	resp.Email = tempString
 	if tempString, ok = data[2].(string); !ok {
-		return resp, fmt.Errorf("%w for username", errTypeAssert)
+		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for username", b.Name, errTypeAssert)
 	}
 	resp.Username = tempString
 	if tempFloat, ok = data[3].(float64); !ok {
-		return resp, fmt.Errorf("%w for accountcreate", errTypeAssert)
+		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for accountcreate", b.Name, errTypeAssert)
 	}
 	resp.MTSAccountCreate = int64(tempFloat)
 	if tempFloat, ok = data[4].(float64); !ok {
-		return resp, fmt.Errorf("%w failed for verified", errTypeAssert)
+		return resp, fmt.Errorf("%v GetAccountInfoV2: %w failed for verified", b.Name, errTypeAssert)
 	}
 	resp.Verified = int64(tempFloat)
 	if tempString, ok = data[7].(string); !ok {
-		return resp, fmt.Errorf("%w for timezone", errTypeAssert)
+		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for timezone", b.Name, errTypeAssert)
 	}
 	resp.Timezone = tempString
 	return resp, nil
@@ -392,19 +393,19 @@ func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
 	for x := range data {
 		wType, ok := data[x][0].(string)
 		if !ok {
-			return resp, fmt.Errorf("%w for walletType", errTypeAssert)
+			return resp, fmt.Errorf("%v GetV2Balances: %w for walletType", b.Name, errTypeAssert)
 		}
 		curr, ok := data[x][1].(string)
 		if !ok {
-			return resp, fmt.Errorf("%w for currency", errTypeAssert)
+			return resp, fmt.Errorf("%v GetV2Balances: %w for currency", b.Name, errTypeAssert)
 		}
 		bal, ok := data[x][2].(float64)
 		if !ok {
-			return resp, fmt.Errorf("%w for balance", errTypeAssert)
+			return resp, fmt.Errorf("%v GetV2Balances: %w for balance", b.Name, errTypeAssert)
 		}
 		unsettledInterest, ok := data[x][3].(float64)
 		if !ok {
-			return resp, fmt.Errorf("%w for unsettledInterest", errTypeAssert)
+			return resp, fmt.Errorf("%v GetV2Balances: %w for unsettledInterest", b.Name, errTypeAssert)
 		}
 		resp = append(resp, WalletDataV2{
 			WalletType:        wType,
@@ -457,43 +458,43 @@ func (b *Bitfinex) GetDerivativeStatusInfo(keys, startTime, endTime string, sort
 	}
 	for z := range result {
 		if len(result[z]) < 19 {
-			return finalResp, errors.New("invalid response, array length too small, check api docs for updates")
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: invalid response, array length too small, check api docs for updates", b.Name)
 		}
 		var response DerivativeDataResponse
 		var ok bool
 		if response.Key, ok = result[z][0].(string); !ok {
-			return finalResp, fmt.Errorf("%w for Key", errTypeAssert)
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for Key", b.Name, errTypeAssert)
 		}
 		if response.MTS, ok = result[z][1].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for MTS", errTypeAssert)
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for MTS", b.Name, errTypeAssert)
 		}
 		if response.DerivPrice, ok = result[z][3].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for DerivPrice", errTypeAssert)
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for DerivPrice", b.Name, errTypeAssert)
 		}
 		if response.SpotPrice, ok = result[z][4].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for SpotPrice", errTypeAssert)
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for SpotPrice", b.Name, errTypeAssert)
 		}
 		if response.InsuranceFundBalance, ok = result[z][6].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for Insurance fund balance", errTypeAssert)
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for Insurance fund balance", b.Name, errTypeAssert)
 		}
 		if response.NextFundingEventTS, ok = result[z][8].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for NextFundingEventTS", errTypeAssert)
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for NextFundingEventTS", b.Name, errTypeAssert)
 		}
 		if response.NextFundingAccured, ok = result[z][9].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for NextFundingAccrued", errTypeAssert)
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for NextFundingAccrued", b.Name, errTypeAssert)
 		}
 		if response.NextFundingStep, ok = result[z][10].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for NextFundingStep", errTypeAssert)
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for NextFundingStep", b.Name, errTypeAssert)
 		}
 		if response.CurrentFunding, ok = result[z][12].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for CurrentFunding", errTypeAssert)
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for CurrentFunding", b.Name, errTypeAssert)
 		}
 		if response.MarkPrice, ok = result[z][15].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for MarkPrice", errTypeAssert)
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for MarkPrice", b.Name, errTypeAssert)
 		}
 
 		if response.OpenInterest, ok = result[z][18].(float64); !ok {
-			return finalResp, fmt.Errorf("%w for OpenInterest", errTypeAssert)
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for OpenInterest", b.Name, errTypeAssert)
 		}
 		finalResp = append(finalResp, response)
 	}
