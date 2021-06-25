@@ -130,7 +130,7 @@ var (
 	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
 
-// GetHistoricalIndexData gets historical index data
+// GetHistoricalIndex gets historical index data
 func (f *FTX) GetHistoricalIndex(indexName string, resolution int64, startTime, endTime time.Time) ([]OHLCVData, error) {
 	params := url.Values{}
 	if indexName == "" {

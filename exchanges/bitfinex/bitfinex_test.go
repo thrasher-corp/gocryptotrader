@@ -223,6 +223,11 @@ func TestGetOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	_, err = b.GetOrderbook("tLINK:UST", "P0", 1)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetStats(t *testing.T) {
@@ -1389,7 +1394,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ret != "fBTCUSD" {
+	if ret != "tBTC:USD" {
 		t.Errorf("unexpected result: %v", ret)
 	}
 	pair, err = currency.NewPairFromString("BTCUSD")
@@ -1441,7 +1446,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ret, err = b.fixCasing(pair, asset.Margin)
+	ret, err = b.fixCasing(pair, asset.MarginFunding)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1452,7 +1457,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ret, err = b.fixCasing(pair, asset.Margin)
+	ret, err = b.fixCasing(pair, asset.MarginFunding)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1464,7 +1469,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ret, err = b.fixCasing(pair, asset.Margin)
+	ret, err = b.fixCasing(pair, asset.MarginFunding)
 	if err != nil {
 		t.Fatal(err)
 	}

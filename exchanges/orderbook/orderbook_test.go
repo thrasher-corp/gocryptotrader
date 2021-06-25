@@ -72,6 +72,24 @@ func TestGetAveragePrice(t *testing.T) {
 	}
 }
 
+func TestFindNominalAmount(t *testing.T) {
+	b := Items{
+		{Amount: 5, Price: 1},
+		{Amount: 5, Price: 2},
+		{Amount: 5, Price: 3},
+		{Amount: 5, Price: 4},
+	}
+	nomAmt, remainingAmt := b.FindNominalAmount(15)
+	if nomAmt != 30 && remainingAmt != 0 {
+		t.Errorf("invalid return")
+	}
+	b = Items{}
+	nomAmt, remainingAmt = b.FindNominalAmount(15)
+	if nomAmt != 0 && remainingAmt != 30 {
+		t.Errorf("invalid return")
+	}
+}
+
 func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 	_, err := SubscribeToExchangeOrderbooks("")
 	if !errors.Is(err, errCannotFindOrderbook) {

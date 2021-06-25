@@ -230,7 +230,7 @@ func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoV2, error) {
 		bitfinexV2MarginInfo+symbol,
 		nil,
 		&data,
-		tradeRateLimit)
+		getMarginInfoRate)
 	if err != nil {
 		return nil, err
 	}
@@ -671,7 +671,6 @@ func (b *Bitfinex) GetOrderbook(symbol, precision string, limit int64) (Orderboo
 		u.Set("len", strconv.FormatInt(limit, 10))
 	}
 	path := bitfinexAPIVersion2 + bitfinexOrderbook + symbol + "/" + precision + "?" + u.Encode()
-
 	var response [][]interface{}
 	err := b.SendHTTPRequest(exchange.RestSpot, path, &response, orderbookFunction)
 	if err != nil {
