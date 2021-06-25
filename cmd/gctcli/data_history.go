@@ -84,15 +84,15 @@ var (
 			Destination: &batchSize,
 			Value:       3,
 		},
-		cli.Uint64Flag{
+		&cli.Uint64Flag{
 			Name:  "conversion_interval",
 			Usage: klineMessage,
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "overwrite_existing_data",
 			Usage: "when converting candles, if data already exists for the time period in the database, it will be overwritten",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "prerequisite_job_nickname",
 			Usage: "optional, using an existing job nickname allows you to queue this new job to run after the previous job is finished",
 		},
