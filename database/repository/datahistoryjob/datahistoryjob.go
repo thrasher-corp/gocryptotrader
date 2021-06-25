@@ -202,7 +202,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 			return err
 		}
 		if jobs[i].PrerequisiteJobID != "" {
-			err = insertRelationshipSQLite(ctx, tx, jobs[i].ID, jobs[i].PrerequisiteJobID)
+			err = insertRelationshipSQLite(ctx, tx, &tempEvent, jobs[i].PrerequisiteJobID)
 			if err != nil {
 				return err
 			}
@@ -732,46 +732,76 @@ func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob,
 				Date:              results[i].R.JobDatahistoryjobresults[j].RunTime,
 			})
 		}
-
-		jobs = append(jobs, DataHistoryJob{
-			ID:               results[i].ID,
-			Nickname:         results[i].Nickname,
-			ExchangeID:       results[i].ExchangeNameID,
-			ExchangeName:     results[i].R.ExchangeName.Name,
-			Asset:            results[i].Asset,
-			Base:             results[i].Base,
-			Quote:            results[i].Quote,
-			StartDate:        results[i].StartTime,
-			EndDate:          results[i].EndTime,
-			Interval:         int64(results[i].Interval),
-			BatchSize:        int64(results[i].BatchCount),
-			RequestSizeLimit: int64(results[i].RequestSize),
-			DataType:         int64(results[i].DataType),
-			MaxRetryAttempts: int64(results[i].MaxRetries),
-			Status:           int64(results[i].Status),
-			CreatedDate:      results[i].Created,
-			Results:          jobResults,
-		})
+		job := db.convertBoilToStruct(results[i])
+		job.Results = jobResults
+		jobs = append(jobs, *job)
 	}
 
 	return jobs, nil
 }
 
+func (db *DBService) convertBoilToStruct(result *postgres.Datahistoryjob) *DataHistoryJob {
+	return &DataHistoryJob{
+		ID:               result.ID,
+		Nickname:         result.Nickname,
+		ExchangeID:       result.ExchangeNameID,
+		ExchangeName:     result.R.ExchangeName.Name,
+		Asset:            result.Asset,
+		Base:             result.Base,
+		Quote:            result.Quote,
+		StartDate:        result.StartTime,
+		EndDate:          result.EndTime,
+		Interval:         int64(result.Interval),
+		BatchSize:        int64(result.BatchCount),
+		RequestSizeLimit: int64(result.RequestSize),
+		DataType:         int64(result.DataType),
+		MaxRetryAttempts: int64(result.MaxRetries),
+		Status:           int64(result.Status),
+		CreatedDate:      result.Created,
+	}
+}
+
 func (db *DBService) getRelatedUpcomingJobsSQLite(nickname string) ([]*DataHistoryJob, error) {
-	//q := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.FollowingJobDatahistoryjobrelations), qm.Where("nickname = ?", nickname))
-	//jobWithRelations, err := q.One(context.Background(), db.sql)
-	//	if err != nil {
-	//	return nil, err
-	//}
-	var response []*DataHistoryJob
-	//for i := range jobWithRelations.R.FollowingJobDatahistoryjobrelations {
-	//	job, err := db.getByIDSQLite(jobWithRelations.R.FollowingJobDatahistoryjobrelations[i].FollowingJobID)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	response = append(response, job)
-	//}
-	return response, nil
+	job, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", nickname)).One(context.Background(), db.sql)
+	if err != nil {
+		return nil, err
+	}
+	sl, err := job.FollowingJobDatahistoryjobs().All(context.Background(), db.sql)
+	var resp []*DataHistoryJob
+	for i := range sl {
+		start, err := time.Parse(time.RFC3339, sl[i].StartTime)
+		if err != nil {
+			return nil, err
+		}
+		end, err := time.Parse(time.RFC3339, sl[i].EndTime)
+		if err != nil {
+			return nil, err
+		}
+		created, err := time.Parse(time.RFC3339, sl[i].Created)
+		if err != nil {
+			return nil, err
+		}
+
+		resp = append(resp, &DataHistoryJob{
+			ID:               sl[i].ID,
+			Nickname:         sl[i].Nickname,
+			ExchangeID:       sl[i].ExchangeNameID,
+			ExchangeName:     sl[i].R.ExchangeName.Name,
+			Asset:            sl[i].Asset,
+			Base:             sl[i].Base,
+			Quote:            sl[i].Quote,
+			StartDate:        start,
+			EndDate:          end,
+			Interval:         int64(sl[i].Interval),
+			BatchSize:        int64(sl[i].BatchCount),
+			RequestSizeLimit: int64(sl[i].RequestSize),
+			DataType:         int64(sl[i].DataType),
+			MaxRetryAttempts: int64(sl[i].MaxRetries),
+			Status:           int64(sl[i].Status),
+			CreatedDate:      created,
+		})
+	}
+	return resp, nil
 }
 
 func (db *DBService) getRelatedUpcomingJobsPostgres(nickname string) ([]*DataHistoryJob, error) {
@@ -791,13 +821,12 @@ func (db *DBService) getRelatedUpcomingJobsPostgres(nickname string) ([]*DataHis
 	return response, nil
 }
 
-func insertRelationshipSQLite(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
-	return nil
-	//tempEvent := sqlite3.Datahistoryjobrelation{
-	//	PrerequisiteJobID: prerequisiteJobID,
-	//	FollowingJobID:    followingJobID,
-	//}
-	//return tempEvent.Insert(ctx, tx, boil.Infer())
+func insertRelationshipSQLite(ctx context.Context, tx *sql.Tx, job *sqlite3.Datahistoryjob, prerequisiteJobID string) error {
+	result, err := sqlite3.Datahistoryjobs(qm.Where("job_id = ?", prerequisiteJobID)).One(ctx, tx)
+	if err != nil {
+		return err
+	}
+	return result.AddPrerequisiteJobDatahistoryjobs(ctx, tx, true, job)
 }
 
 func insertRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
@@ -809,11 +838,14 @@ func insertRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJob
 }
 
 func removeRelationshipSQLite(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
-	//q := sqlite3.Datahistoryjobrelations(qm.Where("prerequisite_job_id = ? AND following_job_id = ?"))
-	//_, err := q.DeleteAll(ctx, tx)
-	//if err != nil {
-	//	return err
-	//}
+	job, err := sqlite3.Datahistoryjobs(qm.Where("following_job_id = ?", followingJobID)).One(ctx, tx)
+	if err != nil {
+		return err
+	}
+	_, err = job.PrerequisiteJobDatahistoryjobs(qm.Where("prerequisite_job_id = ?", prerequisiteJobID)).DeleteAll(ctx, tx)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

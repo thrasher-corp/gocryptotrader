@@ -445,8 +445,8 @@ func (o *Datahistoryjob) PrerequisiteJobDatahistoryjobs(mods ...qm.QueryMod) dat
 	}
 
 	queryMods = append(queryMods,
-		qm.InnerJoin("\"datahistoryjobrelations\" on \"datahistoryjob\".\"id\" = \"datahistoryjobrelations\".\"prerequisite_job_id\""),
-		qm.Where("\"datahistoryjobrelations\".\"following_job_id\"=?", o.ID),
+		qm.InnerJoin("\"datahistoryjobqueue\" on \"datahistoryjob\".\"id\" = \"datahistoryjobqueue\".\"prerequisite_job_id\""),
+		qm.Where("\"datahistoryjobqueue\".\"following_job_id\"=?", o.ID),
 	)
 
 	query := Datahistoryjobs(queryMods...)
@@ -467,8 +467,8 @@ func (o *Datahistoryjob) FollowingJobDatahistoryjobs(mods ...qm.QueryMod) datahi
 	}
 
 	queryMods = append(queryMods,
-		qm.InnerJoin("\"datahistoryjobrelations\" on \"datahistoryjob\".\"id\" = \"datahistoryjobrelations\".\"following_job_id\""),
-		qm.Where("\"datahistoryjobrelations\".\"prerequisite_job_id\"=?", o.ID),
+		qm.InnerJoin("\"datahistoryjobqueue\" on \"datahistoryjob\".\"id\" = \"datahistoryjobqueue\".\"following_job_id\""),
+		qm.Where("\"datahistoryjobqueue\".\"prerequisite_job_id\"=?", o.ID),
 	)
 
 	query := Datahistoryjobs(queryMods...)
@@ -645,7 +645,7 @@ func (datahistoryjobL) LoadPrerequisiteJobDatahistoryjobs(ctx context.Context, e
 	query := NewQuery(
 		qm.Select("\"datahistoryjob\".*, \"a\".\"following_job_id\""),
 		qm.From("\"datahistoryjob\""),
-		qm.InnerJoin("\"datahistoryjobrelations\" as \"a\" on \"datahistoryjob\".\"id\" = \"a\".\"prerequisite_job_id\""),
+		qm.InnerJoin("\"datahistoryjobqueue\" as \"a\" on \"datahistoryjob\".\"id\" = \"a\".\"prerequisite_job_id\""),
 		qm.WhereIn("\"a\".\"following_job_id\" in ?", args...),
 	)
 	if mods != nil {
@@ -760,7 +760,7 @@ func (datahistoryjobL) LoadFollowingJobDatahistoryjobs(ctx context.Context, e bo
 	query := NewQuery(
 		qm.Select("\"datahistoryjob\".*, \"a\".\"prerequisite_job_id\""),
 		qm.From("\"datahistoryjob\""),
-		qm.InnerJoin("\"datahistoryjobrelations\" as \"a\" on \"datahistoryjob\".\"id\" = \"a\".\"following_job_id\""),
+		qm.InnerJoin("\"datahistoryjobqueue\" as \"a\" on \"datahistoryjob\".\"id\" = \"a\".\"following_job_id\""),
 		qm.WhereIn("\"a\".\"prerequisite_job_id\" in ?", args...),
 	)
 	if mods != nil {
@@ -990,7 +990,7 @@ func (o *Datahistoryjob) AddPrerequisiteJobDatahistoryjobs(ctx context.Context, 
 	}
 
 	for _, rel := range related {
-		query := "insert into \"datahistoryjobrelations\" (\"following_job_id\", \"prerequisite_job_id\") values (?, ?)"
+		query := "insert into \"datahistoryjobqueue\" (\"following_job_id\", \"prerequisite_job_id\") values (?, ?)"
 		values := []interface{}{o.ID, rel.ID}
 
 		if boil.DebugMode {
@@ -1030,7 +1030,7 @@ func (o *Datahistoryjob) AddPrerequisiteJobDatahistoryjobs(ctx context.Context, 
 // Replaces o.R.PrerequisiteJobDatahistoryjobs with related.
 // Sets related.R.FollowingJobDatahistoryjobs's PrerequisiteJobDatahistoryjobs accordingly.
 func (o *Datahistoryjob) SetPrerequisiteJobDatahistoryjobs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Datahistoryjob) error {
-	query := "delete from \"datahistoryjobrelations\" where \"following_job_id\" = ?"
+	query := "delete from \"datahistoryjobqueue\" where \"following_job_id\" = ?"
 	values := []interface{}{o.ID}
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, query)
@@ -1055,7 +1055,7 @@ func (o *Datahistoryjob) SetPrerequisiteJobDatahistoryjobs(ctx context.Context, 
 func (o *Datahistoryjob) RemovePrerequisiteJobDatahistoryjobs(ctx context.Context, exec boil.ContextExecutor, related ...*Datahistoryjob) error {
 	var err error
 	query := fmt.Sprintf(
-		"delete from \"datahistoryjobrelations\" where \"following_job_id\" = ? and \"prerequisite_job_id\" in (%s)",
+		"delete from \"datahistoryjobqueue\" where \"following_job_id\" = ? and \"prerequisite_job_id\" in (%s)",
 		strmangle.Placeholders(dialect.UseIndexPlaceholders, len(related), 2, 1),
 	)
 	values := []interface{}{o.ID}
@@ -1130,7 +1130,7 @@ func (o *Datahistoryjob) AddFollowingJobDatahistoryjobs(ctx context.Context, exe
 	}
 
 	for _, rel := range related {
-		query := "insert into \"datahistoryjobrelations\" (\"prerequisite_job_id\", \"following_job_id\") values (?, ?)"
+		query := "insert into \"datahistoryjobqueue\" (\"prerequisite_job_id\", \"following_job_id\") values (?, ?)"
 		values := []interface{}{o.ID, rel.ID}
 
 		if boil.DebugMode {
@@ -1170,7 +1170,7 @@ func (o *Datahistoryjob) AddFollowingJobDatahistoryjobs(ctx context.Context, exe
 // Replaces o.R.FollowingJobDatahistoryjobs with related.
 // Sets related.R.PrerequisiteJobDatahistoryjobs's FollowingJobDatahistoryjobs accordingly.
 func (o *Datahistoryjob) SetFollowingJobDatahistoryjobs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Datahistoryjob) error {
-	query := "delete from \"datahistoryjobrelations\" where \"prerequisite_job_id\" = ?"
+	query := "delete from \"datahistoryjobqueue\" where \"prerequisite_job_id\" = ?"
 	values := []interface{}{o.ID}
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, query)
@@ -1195,7 +1195,7 @@ func (o *Datahistoryjob) SetFollowingJobDatahistoryjobs(ctx context.Context, exe
 func (o *Datahistoryjob) RemoveFollowingJobDatahistoryjobs(ctx context.Context, exec boil.ContextExecutor, related ...*Datahistoryjob) error {
 	var err error
 	query := fmt.Sprintf(
-		"delete from \"datahistoryjobrelations\" where \"prerequisite_job_id\" = ? and \"following_job_id\" in (%s)",
+		"delete from \"datahistoryjobqueue\" where \"prerequisite_job_id\" = ? and \"following_job_id\" in (%s)",
 		strmangle.Placeholders(dialect.UseIndexPlaceholders, len(related), 2, 1),
 	)
 	values := []interface{}{o.ID}

@@ -1,11 +1,11 @@
 -- +goose Up
-CREATE TABLE datahistoryjobrelations
+CREATE TABLE datahistoryjobqueue
 (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    prerequisite_job_id text not null,
+    prerequisite_job_id text not null ,
     following_job_id text not null,
-    FOREIGN KEY(prerequisite_job_id) REFERENCES datahistoryjob(id),
-    FOREIGN KEY(following_job_id) REFERENCES datahistoryjob(id)
+    PRIMARY KEY (prerequisite_job_id, following_job_id),
+    FOREIGN KEY (prerequisite_job_id) REFERENCES datahistoryjob(id) ON DELETE RESTRICT ,
+    FOREIGN KEY (following_job_id) REFERENCES datahistoryjob(id)  ON DELETE RESTRICT
 );
 -- +goose Down
-DROP TABLE datahistoryjobrelations;
+DROP TABLE datahistoryjobqueue;

@@ -526,11 +526,11 @@ func testDatahistoryjobToManyPrerequisiteJobDatahistoryjobs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = tx.Exec("insert into \"datahistoryjobrelations\" (\"following_job_id\", \"prerequisite_job_id\") values (?, ?)", a.ID, b.ID)
+	_, err = tx.Exec("insert into \"datahistoryjobqueue\" (\"following_job_id\", \"prerequisite_job_id\") values (?, ?)", a.ID, b.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tx.Exec("insert into \"datahistoryjobrelations\" (\"following_job_id\", \"prerequisite_job_id\") values (?, ?)", a.ID, c.ID)
+	_, err = tx.Exec("insert into \"datahistoryjobqueue\" (\"following_job_id\", \"prerequisite_job_id\") values (?, ?)", a.ID, c.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -610,11 +610,11 @@ func testDatahistoryjobToManyFollowingJobDatahistoryjobs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = tx.Exec("insert into \"datahistoryjobrelations\" (\"prerequisite_job_id\", \"following_job_id\") values (?, ?)", a.ID, b.ID)
+	_, err = tx.Exec("insert into \"datahistoryjobqueue\" (\"prerequisite_job_id\", \"following_job_id\") values (?, ?)", a.ID, b.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tx.Exec("insert into \"datahistoryjobrelations\" (\"prerequisite_job_id\", \"following_job_id\") values (?, ?)", a.ID, c.ID)
+	_, err = tx.Exec("insert into \"datahistoryjobqueue\" (\"prerequisite_job_id\", \"following_job_id\") values (?, ?)", a.ID, c.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
