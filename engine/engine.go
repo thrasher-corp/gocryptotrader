@@ -206,7 +206,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	if b.Settings.GlobalHTTPTimeout <= 0 {
 		b.Settings.GlobalHTTPTimeout = b.Config.GlobalHTTPTimeout
 	}
-	common.HTTPClient = common.NewHTTPClientWithTimeout(b.Settings.GlobalHTTPTimeout)
+	common.SetHTTPClientWithTimeout(b.Settings.GlobalHTTPTimeout)
 
 	if b.Settings.GlobalHTTPUserAgent != "" {
 		common.HTTPUserAgent = b.Settings.GlobalHTTPUserAgent

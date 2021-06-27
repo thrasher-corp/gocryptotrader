@@ -61,6 +61,14 @@ func initialiseHTTPClient() {
 	m.Unlock()
 }
 
+// SetHTTPClientWithTimeout protects the setting of the
+// global HTTPClient
+func SetHTTPClientWithTimeout(t time.Duration) {
+	m.Lock()
+	defer m.Unlock()
+	HTTPClient = NewHTTPClientWithTimeout(t)
+}
+
 // NewHTTPClientWithTimeout initialises a new HTTP client and its underlying
 // transport IdleConnTimeout with the specified timeout duration
 func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
@@ -199,10 +207,13 @@ func SendHTTPRequest(method, urlPath string, headers map[string]string, body io.
 		req.Header.Add("User-Agent", HTTPUserAgent)
 	}
 
+	m.Lock()
 	resp, err := HTTPClient.Do(req)
 	if err != nil {
+		m.Unlock()
 		return "", err
 	}
+	m.Unlock()
 
 	contents, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
@@ -224,10 +235,13 @@ func SendHTTPGetRequest(urlPath string, jsonDecode, isVerbose bool, result inter
 
 	initialiseHTTPClient()
 
+	m.Lock()
 	res, err := HTTPClient.Get(urlPath)
 	if err != nil {
+		m.Unlock()
 		return err
 	}
+	m.Unlock()
 
 	if res.StatusCode != 200 {
 		return fmt.Errorf("common.SendHTTPGetRequest() error: HTTP status code %d", res.StatusCode)
