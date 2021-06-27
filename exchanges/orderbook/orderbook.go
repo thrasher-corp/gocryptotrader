@@ -38,16 +38,16 @@ func (b *Base) GetAveragePrice(buy bool, amount float64) (float64, error) {
 func (elem Items) FindNominalAmount(amount float64) (aggNominalAmount, remainingAmount float64) {
 	remainingAmount = amount
 	for x := range elem {
-		if amount <= elem[x].Amount {
-			aggNominalAmount += elem[x].Price * amount
-			amount = 0
+		if remainingAmount <= elem[x].Amount {
+			aggNominalAmount += elem[x].Price * remainingAmount
+			remainingAmount = 0
 			break
 		} else {
 			aggNominalAmount += elem[x].Price * elem[x].Amount
-			amount -= elem[x].Amount
+			remainingAmount -= elem[x].Amount
 		}
 	}
-	return aggNominalAmount, amount
+	return aggNominalAmount, remainingAmount
 }
 
 // Get checks and returns the orderbook given an exchange name and currency pair
