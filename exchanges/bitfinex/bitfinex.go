@@ -242,7 +242,8 @@ func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoV2, error) {
 			return nil, fmt.Errorf("%v - %s: %w", b.Name, symbol, err)
 		}
 	case "sym_all":
-		resp, err := symbolMarginInfo(data)
+		var resp []MarginInfoV2
+		resp, err = symbolMarginInfo(data)
 		return resp, err
 	default:
 		tempResp, err = defaultMarginV2Info(data)

@@ -1,6 +1,7 @@
 package huobi
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -698,7 +699,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cp1, err := currency.NewPairFromString("BTC-USD")
+	cp1, err := currency.NewPairFromString("BTC_USD")
 	if err != nil {
 		t.Error(err)
 	}
@@ -714,6 +715,22 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Fatal("no tradable pairs")
 	}
 	cp2, err := currency.NewPairFromString(tradablePairs[0])
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = h.UpdateOrderbook(cp2, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	tradablePairs, err = h.FetchTradablePairs(asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(tradablePairs)
+	if len(tradablePairs) == 0 {
+		t.Fatal("no tradable pairs")
+	}
+	cp2, err = currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
 		t.Error(err)
 	}
