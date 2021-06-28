@@ -766,7 +766,7 @@ func (db *DBService) getRelatedUpcomingJobsSQLite(nickname string) ([]*DataHisto
 	if err != nil {
 		return nil, err
 	}
-	sl, err := job.FollowingJobDatahistoryjobs().All(context.Background(), db.sql)
+	sl, err := job.JobDatahistoryjobs().All(context.Background(), db.sql)
 	var resp []*DataHistoryJob
 	for i := range sl {
 		start, err := time.Parse(time.RFC3339, sl[i].StartTime)
@@ -805,14 +805,14 @@ func (db *DBService) getRelatedUpcomingJobsSQLite(nickname string) ([]*DataHisto
 }
 
 func (db *DBService) getRelatedUpcomingJobsPostgres(nickname string) ([]*DataHistoryJob, error) {
-	q := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.FollowingJobDatahistoryjobrelations), qm.Where("nickname = ?", nickname))
+	q := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobs), qm.Where("nickname = ?", nickname))
 	jobWithRelations, err := q.One(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
 	}
 	var response []*DataHistoryJob
-	for i := range jobWithRelations.R.FollowingJobDatahistoryjobrelations {
-		job, err := db.getByIDSQLite(jobWithRelations.R.FollowingJobDatahistoryjobrelations[i].FollowingJobID)
+	for i := range jobWithRelations.R.JobDatahistoryjobs {
+		job, err := db.getByIDSQLite(jobWithRelations.R.JobDatahistoryjobs[i].ID)
 		if err != nil {
 			return nil, err
 		}
@@ -829,7 +829,7 @@ func setRelationshipSQLite(ctx context.Context, tx *sql.Tx, jobID, prerequisiteJ
 	if prerequisiteJobID == "" {
 		return job.RemovePrerequisiteJobDatahistoryjobs(ctx, tx)
 	}
-	result, err := sqlite3.Datahistoryjobs(qm.Where("job_id = ?", prerequisiteJobID)).One(ctx, tx)
+	result, err := sqlite3.Datahistoryjobs(qm.Where("id = ?", prerequisiteJobID)).One(ctx, tx)
 	if err != nil {
 		return err
 	}
@@ -838,16 +838,17 @@ func setRelationshipSQLite(ctx context.Context, tx *sql.Tx, jobID, prerequisiteJ
 }
 
 func setRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
-	_, err := postgres.Datahistoryjobrelations(qm.Where("following_job_id = ?", followingJobID)).DeleteAll(ctx, tx)
+	job, err := postgres.Datahistoryjobs(qm.Where("id = ?", followingJobID)).One(ctx, tx)
 	if err != nil {
 		return err
 	}
 	if prerequisiteJobID == "" {
-		return nil
+		return job.RemovePrerequisiteJobDatahistoryjobs(ctx, tx)
 	}
-	tempEvent := postgres.Datahistoryjobrelation{
-		PrerequisiteJobID: prerequisiteJobID,
-		FollowingJobID:    followingJobID,
+	result, err := postgres.Datahistoryjobs(qm.Where("id = ?", prerequisiteJobID)).One(ctx, tx)
+	if err != nil {
+		return err
 	}
-	return tempEvent.Insert(ctx, tx, boil.Infer())
+
+	return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true, result)
 }

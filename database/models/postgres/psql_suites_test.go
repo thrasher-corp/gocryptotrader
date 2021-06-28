@@ -12,8 +12,6 @@ func TestUpsert(t *testing.T) {
 
 	t.Run("Datahistoryjobs", testDatahistoryjobsUpsert)
 
-	t.Run("Datahistoryjobrelations", testDatahistoryjobrelationsUpsert)
-
 	t.Run("Datahistoryjobresults", testDatahistoryjobresultsUpsert)
 
 	t.Run("Exchanges", testExchangesUpsert)

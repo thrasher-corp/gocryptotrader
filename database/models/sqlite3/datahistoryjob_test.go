@@ -526,11 +526,11 @@ func testDatahistoryjobToManyPrerequisiteJobDatahistoryjobs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = tx.Exec("insert into \"datahistoryjobqueue\" (\"following_job_id\", \"prerequisite_job_id\") values (?, ?)", a.ID, b.ID)
+	_, err = tx.Exec("insert into \"datahistoryjobrelations\" (\"job_id\", \"prerequisite_job_id\") values (?, ?)", a.ID, b.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tx.Exec("insert into \"datahistoryjobqueue\" (\"following_job_id\", \"prerequisite_job_id\") values (?, ?)", a.ID, c.ID)
+	_, err = tx.Exec("insert into \"datahistoryjobrelations\" (\"job_id\", \"prerequisite_job_id\") values (?, ?)", a.ID, c.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -578,7 +578,7 @@ func testDatahistoryjobToManyPrerequisiteJobDatahistoryjobs(t *testing.T) {
 	}
 }
 
-func testDatahistoryjobToManyFollowingJobDatahistoryjobs(t *testing.T) {
+func testDatahistoryjobToManyJobDatahistoryjobs(t *testing.T) {
 	var err error
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
@@ -610,16 +610,16 @@ func testDatahistoryjobToManyFollowingJobDatahistoryjobs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = tx.Exec("insert into \"datahistoryjobqueue\" (\"prerequisite_job_id\", \"following_job_id\") values (?, ?)", a.ID, b.ID)
+	_, err = tx.Exec("insert into \"datahistoryjobrelations\" (\"prerequisite_job_id\", \"job_id\") values (?, ?)", a.ID, b.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tx.Exec("insert into \"datahistoryjobqueue\" (\"prerequisite_job_id\", \"following_job_id\") values (?, ?)", a.ID, c.ID)
+	_, err = tx.Exec("insert into \"datahistoryjobrelations\" (\"prerequisite_job_id\", \"job_id\") values (?, ?)", a.ID, c.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	check, err := a.FollowingJobDatahistoryjobs().All(ctx, tx)
+	check, err := a.JobDatahistoryjobs().All(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -642,18 +642,18 @@ func testDatahistoryjobToManyFollowingJobDatahistoryjobs(t *testing.T) {
 	}
 
 	slice := DatahistoryjobSlice{&a}
-	if err = a.L.LoadFollowingJobDatahistoryjobs(ctx, tx, false, (*[]*Datahistoryjob)(&slice), nil); err != nil {
+	if err = a.L.LoadJobDatahistoryjobs(ctx, tx, false, (*[]*Datahistoryjob)(&slice), nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.FollowingJobDatahistoryjobs); got != 2 {
+	if got := len(a.R.JobDatahistoryjobs); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
-	a.R.FollowingJobDatahistoryjobs = nil
-	if err = a.L.LoadFollowingJobDatahistoryjobs(ctx, tx, true, &a, nil); err != nil {
+	a.R.JobDatahistoryjobs = nil
+	if err = a.L.LoadJobDatahistoryjobs(ctx, tx, true, &a, nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.FollowingJobDatahistoryjobs); got != 2 {
+	if got := len(a.R.JobDatahistoryjobs); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
@@ -785,10 +785,10 @@ func testDatahistoryjobToManyAddOpPrerequisiteJobDatahistoryjobs(t *testing.T) {
 		first := x[0]
 		second := x[1]
 
-		if first.R.FollowingJobDatahistoryjobs[0] != &a {
+		if first.R.JobDatahistoryjobs[0] != &a {
 			t.Error("relationship was not added properly to the slice")
 		}
-		if second.R.FollowingJobDatahistoryjobs[0] != &a {
+		if second.R.JobDatahistoryjobs[0] != &a {
 			t.Error("relationship was not added properly to the slice")
 		}
 
@@ -870,16 +870,16 @@ func testDatahistoryjobToManySetOpPrerequisiteJobDatahistoryjobs(t *testing.T) {
 	// to these when we call Set(). Leaving them here as wishful thinking
 	// and to let people know there's dragons.
 	//
-	// if len(b.R.FollowingJobDatahistoryjobs) != 0 {
+	// if len(b.R.JobDatahistoryjobs) != 0 {
 	// 	t.Error("relationship was not removed properly from the slice")
 	// }
-	// if len(c.R.FollowingJobDatahistoryjobs) != 0 {
+	// if len(c.R.JobDatahistoryjobs) != 0 {
 	// 	t.Error("relationship was not removed properly from the slice")
 	// }
-	if d.R.FollowingJobDatahistoryjobs[0] != &a {
+	if d.R.JobDatahistoryjobs[0] != &a {
 		t.Error("relationship was not added properly to the slice")
 	}
-	if e.R.FollowingJobDatahistoryjobs[0] != &a {
+	if e.R.JobDatahistoryjobs[0] != &a {
 		t.Error("relationship was not added properly to the slice")
 	}
 
@@ -942,16 +942,16 @@ func testDatahistoryjobToManyRemoveOpPrerequisiteJobDatahistoryjobs(t *testing.T
 		t.Error("count was wrong:", count)
 	}
 
-	if len(b.R.FollowingJobDatahistoryjobs) != 0 {
+	if len(b.R.JobDatahistoryjobs) != 0 {
 		t.Error("relationship was not removed properly from the slice")
 	}
-	if len(c.R.FollowingJobDatahistoryjobs) != 0 {
+	if len(c.R.JobDatahistoryjobs) != 0 {
 		t.Error("relationship was not removed properly from the slice")
 	}
-	if d.R.FollowingJobDatahistoryjobs[0] != &a {
+	if d.R.JobDatahistoryjobs[0] != &a {
 		t.Error("relationship was not added properly to the foreign struct")
 	}
-	if e.R.FollowingJobDatahistoryjobs[0] != &a {
+	if e.R.JobDatahistoryjobs[0] != &a {
 		t.Error("relationship was not added properly to the foreign struct")
 	}
 
@@ -968,7 +968,7 @@ func testDatahistoryjobToManyRemoveOpPrerequisiteJobDatahistoryjobs(t *testing.T
 	}
 }
 
-func testDatahistoryjobToManyAddOpFollowingJobDatahistoryjobs(t *testing.T) {
+func testDatahistoryjobToManyAddOpJobDatahistoryjobs(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
@@ -1005,7 +1005,7 @@ func testDatahistoryjobToManyAddOpFollowingJobDatahistoryjobs(t *testing.T) {
 	}
 
 	for i, x := range foreignersSplitByInsertion {
-		err = a.AddFollowingJobDatahistoryjobs(ctx, tx, i != 0, x...)
+		err = a.AddJobDatahistoryjobs(ctx, tx, i != 0, x...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1020,14 +1020,14 @@ func testDatahistoryjobToManyAddOpFollowingJobDatahistoryjobs(t *testing.T) {
 			t.Error("relationship was not added properly to the slice")
 		}
 
-		if a.R.FollowingJobDatahistoryjobs[i*2] != first {
+		if a.R.JobDatahistoryjobs[i*2] != first {
 			t.Error("relationship struct slice not set to correct value")
 		}
-		if a.R.FollowingJobDatahistoryjobs[i*2+1] != second {
+		if a.R.JobDatahistoryjobs[i*2+1] != second {
 			t.Error("relationship struct slice not set to correct value")
 		}
 
-		count, err := a.FollowingJobDatahistoryjobs().Count(ctx, tx)
+		count, err := a.JobDatahistoryjobs().Count(ctx, tx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1037,7 +1037,7 @@ func testDatahistoryjobToManyAddOpFollowingJobDatahistoryjobs(t *testing.T) {
 	}
 }
 
-func testDatahistoryjobToManySetOpFollowingJobDatahistoryjobs(t *testing.T) {
+func testDatahistoryjobToManySetOpJobDatahistoryjobs(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
@@ -1068,12 +1068,12 @@ func testDatahistoryjobToManySetOpFollowingJobDatahistoryjobs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = a.SetFollowingJobDatahistoryjobs(ctx, tx, false, &b, &c)
+	err = a.SetJobDatahistoryjobs(ctx, tx, false, &b, &c)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err := a.FollowingJobDatahistoryjobs().Count(ctx, tx)
+	count, err := a.JobDatahistoryjobs().Count(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1081,12 +1081,12 @@ func testDatahistoryjobToManySetOpFollowingJobDatahistoryjobs(t *testing.T) {
 		t.Error("count was wrong:", count)
 	}
 
-	err = a.SetFollowingJobDatahistoryjobs(ctx, tx, true, &d, &e)
+	err = a.SetJobDatahistoryjobs(ctx, tx, true, &d, &e)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err = a.FollowingJobDatahistoryjobs().Count(ctx, tx)
+	count, err = a.JobDatahistoryjobs().Count(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1111,15 +1111,15 @@ func testDatahistoryjobToManySetOpFollowingJobDatahistoryjobs(t *testing.T) {
 		t.Error("relationship was not added properly to the slice")
 	}
 
-	if a.R.FollowingJobDatahistoryjobs[0] != &d {
+	if a.R.JobDatahistoryjobs[0] != &d {
 		t.Error("relationship struct slice not set to correct value")
 	}
-	if a.R.FollowingJobDatahistoryjobs[1] != &e {
+	if a.R.JobDatahistoryjobs[1] != &e {
 		t.Error("relationship struct slice not set to correct value")
 	}
 }
 
-func testDatahistoryjobToManyRemoveOpFollowingJobDatahistoryjobs(t *testing.T) {
+func testDatahistoryjobToManyRemoveOpJobDatahistoryjobs(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
@@ -1144,12 +1144,12 @@ func testDatahistoryjobToManyRemoveOpFollowingJobDatahistoryjobs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = a.AddFollowingJobDatahistoryjobs(ctx, tx, true, foreigners...)
+	err = a.AddJobDatahistoryjobs(ctx, tx, true, foreigners...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err := a.FollowingJobDatahistoryjobs().Count(ctx, tx)
+	count, err := a.JobDatahistoryjobs().Count(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1157,12 +1157,12 @@ func testDatahistoryjobToManyRemoveOpFollowingJobDatahistoryjobs(t *testing.T) {
 		t.Error("count was wrong:", count)
 	}
 
-	err = a.RemoveFollowingJobDatahistoryjobs(ctx, tx, foreigners[:2]...)
+	err = a.RemoveJobDatahistoryjobs(ctx, tx, foreigners[:2]...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err = a.FollowingJobDatahistoryjobs().Count(ctx, tx)
+	count, err = a.JobDatahistoryjobs().Count(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1183,15 +1183,15 @@ func testDatahistoryjobToManyRemoveOpFollowingJobDatahistoryjobs(t *testing.T) {
 		t.Error("relationship was not added properly to the foreign struct")
 	}
 
-	if len(a.R.FollowingJobDatahistoryjobs) != 2 {
+	if len(a.R.JobDatahistoryjobs) != 2 {
 		t.Error("should have preserved two relationships")
 	}
 
 	// Removal doesn't do a stable deletion for performance so we have to flip the order
-	if a.R.FollowingJobDatahistoryjobs[1] != &d {
+	if a.R.JobDatahistoryjobs[1] != &d {
 		t.Error("relationship to d should have been preserved")
 	}
-	if a.R.FollowingJobDatahistoryjobs[0] != &e {
+	if a.R.JobDatahistoryjobs[0] != &e {
 		t.Error("relationship to e should have been preserved")
 	}
 }

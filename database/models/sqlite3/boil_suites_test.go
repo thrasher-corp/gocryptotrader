@@ -214,7 +214,7 @@ func TestOneToOne(t *testing.T) {
 // or deadlocks can occur.
 func TestToMany(t *testing.T) {
 	t.Run("DatahistoryjobToPrerequisiteJobDatahistoryjobs", testDatahistoryjobToManyPrerequisiteJobDatahistoryjobs)
-	t.Run("DatahistoryjobToFollowingJobDatahistoryjobs", testDatahistoryjobToManyFollowingJobDatahistoryjobs)
+	t.Run("DatahistoryjobToJobDatahistoryjobs", testDatahistoryjobToManyJobDatahistoryjobs)
 	t.Run("DatahistoryjobToJobDatahistoryjobresults", testDatahistoryjobToManyJobDatahistoryjobresults)
 	t.Run("ExchangeToExchangeNameDatahistoryjobs", testExchangeToManyExchangeNameDatahistoryjobs)
 	t.Run("ExchangeToExchangeNameWithdrawalHistories", testExchangeToManyExchangeNameWithdrawalHistories)
@@ -255,7 +255,7 @@ func TestOneToOneRemove(t *testing.T) {}
 // or deadlocks can occur.
 func TestToManyAdd(t *testing.T) {
 	t.Run("DatahistoryjobToPrerequisiteJobDatahistoryjobs", testDatahistoryjobToManyAddOpPrerequisiteJobDatahistoryjobs)
-	t.Run("DatahistoryjobToFollowingJobDatahistoryjobs", testDatahistoryjobToManyAddOpFollowingJobDatahistoryjobs)
+	t.Run("DatahistoryjobToJobDatahistoryjobs", testDatahistoryjobToManyAddOpJobDatahistoryjobs)
 	t.Run("DatahistoryjobToJobDatahistoryjobresults", testDatahistoryjobToManyAddOpJobDatahistoryjobresults)
 	t.Run("ExchangeToExchangeNameDatahistoryjobs", testExchangeToManyAddOpExchangeNameDatahistoryjobs)
 	t.Run("ExchangeToExchangeNameWithdrawalHistories", testExchangeToManyAddOpExchangeNameWithdrawalHistories)
@@ -268,14 +268,14 @@ func TestToManyAdd(t *testing.T) {
 // or deadlocks can occur.
 func TestToManySet(t *testing.T) {
 	t.Run("DatahistoryjobToPrerequisiteJobDatahistoryjobs", testDatahistoryjobToManySetOpPrerequisiteJobDatahistoryjobs)
-	t.Run("DatahistoryjobToFollowingJobDatahistoryjobs", testDatahistoryjobToManySetOpFollowingJobDatahistoryjobs)
+	t.Run("DatahistoryjobToJobDatahistoryjobs", testDatahistoryjobToManySetOpJobDatahistoryjobs)
 }
 
 // TestToManyRemove tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManyRemove(t *testing.T) {
 	t.Run("DatahistoryjobToPrerequisiteJobDatahistoryjobs", testDatahistoryjobToManyRemoveOpPrerequisiteJobDatahistoryjobs)
-	t.Run("DatahistoryjobToFollowingJobDatahistoryjobs", testDatahistoryjobToManyRemoveOpFollowingJobDatahistoryjobs)
+	t.Run("DatahistoryjobToJobDatahistoryjobs", testDatahistoryjobToManyRemoveOpJobDatahistoryjobs)
 }
 
 func TestReload(t *testing.T) {
