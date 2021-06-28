@@ -158,26 +158,28 @@ func TestSetup(t *testing.T) {
 }
 
 func TestTrafficMonitorTimeout(t *testing.T) {
+	t.Parallel()
 	ws := *New()
 	err := ws.Setup(defaultSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ws.trafficTimeout = time.Nanosecond
+	ws.trafficTimeout = time.Millisecond
 	ws.ShutdownC = make(chan struct{})
 	ws.trafficMonitor()
 	if !ws.IsTrafficMonitorRunning() {
 		t.Fatal("traffic monitor should be running")
 	}
+	// Deploy traffic alert
+	ws.TrafficAlert <- struct{}{}
 	// try to add another traffic monitor
 	ws.trafficMonitor()
 	if !ws.IsTrafficMonitorRunning() {
 		t.Fatal("traffic monitor should be running")
 	}
-
-	// Deploy traffic alert
-	ws.TrafficAlert <- struct{}{}
-	time.Sleep(time.Millisecond * 50)
+	// prevent shutdown routine
+	ws.setConnectedStatus(false)
+	// await timeout closure
 	ws.Wg.Wait()
 	if ws.IsTrafficMonitorRunning() {
 		t.Error("should be ded")
