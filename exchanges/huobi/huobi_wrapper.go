@@ -59,10 +59,7 @@ func (h *HUOBI) SetDefaults() {
 	h.API.CredentialsValidator.RequiresSecret = true
 
 	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: false,
-			Delimiter: currency.DashDelimiter,
-		},
+		RequestFormat: &currency.PairFormat{Uppercase: false},
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: currency.DashDelimiter,
 			Uppercase: true,
