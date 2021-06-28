@@ -1,7 +1,6 @@
 package huobi
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -726,7 +725,6 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(tradablePairs)
 	if len(tradablePairs) == 0 {
 		t.Fatal("no tradable pairs")
 	}

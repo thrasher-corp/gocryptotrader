@@ -365,31 +365,13 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 
 		for z := range symbols {
 			if symbols[z].ContractStatus == 1 {
-				pairs = append(pairs, symbols[z].ContractCode)
+				curr, err := currency.NewPairFromString(symbols[z].ContractCode)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
-
-		fmtCurrencies, err := currency.NewPairsFromStrings(pairs)
-		if err != nil {
-			return nil, err
-		}
-
-		var configFormatPairs currency.Pairs
-		var b, q currency.Code
-		for f := range fmtCurrencies {
-			b = fmtCurrencies[f].Base.Lower()
-			q = fmtCurrencies[f].Quote.Lower()
-			if format.Uppercase {
-				b = fmtCurrencies[f].Base.Upper()
-				q = fmtCurrencies[f].Quote.Upper()
-			}
-			configFormatPairs = append(configFormatPairs, currency.Pair{
-				Base:      b,
-				Quote:     q,
-				Delimiter: format.Delimiter,
-			})
-		}
-		return configFormatPairs.Strings(), nil
 	case asset.Futures:
 		symbols, err := h.FGetContractInfo("", "", currency.Pair{})
 		if err != nil {
@@ -398,30 +380,13 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 
 		for c := range symbols.Data {
 			if symbols.Data[c].ContractStatus == 1 {
-				pairs = append(pairs, symbols.Data[c].ContractCode)
+				curr, err := currency.NewPairFromString(symbols.Data[c].ContractCode)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
-		fmtCurrencies, err := currency.NewPairsFromStrings(pairs)
-		if err != nil {
-			return nil, err
-		}
-
-		var configFormatPairs currency.Pairs
-		var b, q currency.Code
-		for f := range fmtCurrencies {
-			b = fmtCurrencies[f].Base.Lower()
-			q = fmtCurrencies[f].Quote.Lower()
-			if format.Uppercase {
-				b = fmtCurrencies[f].Base.Upper()
-				q = fmtCurrencies[f].Quote.Upper()
-			}
-			configFormatPairs = append(configFormatPairs, currency.Pair{
-				Base:      b,
-				Quote:     q,
-				Delimiter: format.Delimiter,
-			})
-		}
-		return configFormatPairs.Strings(), nil
 	}
 	return pairs, nil
 }
