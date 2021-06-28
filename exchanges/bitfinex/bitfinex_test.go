@@ -104,7 +104,7 @@ func TestGetV2FundingInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("api keys are not set or invalid")
 	}
-	_, err := b.GetV2FundingInfo("fUSD,fUST")
+	_, err := b.GetV2FundingInfo("fUST")
 	if err != nil {
 		t.Error(err)
 	}

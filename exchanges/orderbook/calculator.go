@@ -224,3 +224,40 @@ func (b *Base) sell(amount float64) (orders orderSummary, quoteAmount float64) {
 	}
 	return
 }
+
+// GetAveragePrice finds the average buy or sell price of a specified amount.
+// It finds the nominal amount spent on the total purchase or sell and uses it
+// to find the average price for an individual unit bought or sold
+func (b *Base) GetAveragePrice(buy bool, amount float64) (float64, error) {
+	if amount <= 0 {
+		return 0, errAmountInvalid
+	}
+	var aggNominalAmount, remainingAmount float64
+	if buy {
+		aggNominalAmount, remainingAmount = b.Asks.FindNominalAmount(amount)
+	} else {
+		aggNominalAmount, remainingAmount = b.Bids.FindNominalAmount(amount)
+	}
+	if remainingAmount != 0 {
+		return 0, fmt.Errorf("%w for %v on exchange %v to support a buy amount of %v", errNotEnoughLiquidity, b.Pair, b.Exchange, amount)
+	}
+	return aggNominalAmount / amount, nil
+}
+
+// FindNominalAmount finds the nominal amount spent in terms of the quote
+// If the orderbook doesn't have enough liquidity it returns a non zero
+// remaining amount value
+func (elem Items) FindNominalAmount(amount float64) (aggNominalAmount, remainingAmount float64) {
+	remainingAmount = amount
+	for x := range elem {
+		if remainingAmount <= elem[x].Amount {
+			aggNominalAmount += elem[x].Price * remainingAmount
+			remainingAmount = 0
+			break
+		} else {
+			aggNominalAmount += elem[x].Price * elem[x].Amount
+			remainingAmount -= elem[x].Amount
+		}
+	}
+	return aggNominalAmount, remainingAmount
+}
