@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -362,128 +363,15 @@ ranges:
 		// processing the job
 		switch job.DataType {
 		case dataHistoryCandleDataType:
-			candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, job.Interval)
-			if err != nil {
-				result.Result += "could not get candles: " + err.Error() + ". "
-				result.Status = dataHistoryStatusFailed
-				break
-			}
-			job.rangeHolder.SetHasDataFromCandles(candles.Candles)
-			for j := range job.rangeHolder.Ranges[i].Intervals {
-				if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
-					result.Status = dataHistoryStatusFailed
-					result.Result += fmt.Sprintf("missing data from %v - %v. ",
-						job.rangeHolder.Ranges[i].Intervals[j].Start.Time.Format(common.SimpleTimeFormatWithTimezone),
-						job.rangeHolder.Ranges[i].Intervals[j].End.Time.Format(common.SimpleTimeFormatWithTimezone))
-				}
-			}
-			_, err = kline.StoreInDatabase(&candles, true)
-			if err != nil {
-				result.Result += "could not save results: " + err.Error() + ". "
-				result.Status = dataHistoryStatusFailed
-			}
+			result.processCandleData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		case dataHistoryTradeDataType:
-			trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
-			if err != nil {
-				result.Result += "could not get trades: " + err.Error() + ". "
-				result.Status = dataHistoryStatusFailed
-				break
-			}
-			candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
-			if err != nil {
-				result.Result += "could not convert candles to trades: " + err.Error() + ". "
-				result.Status = dataHistoryStatusFailed
-				break
-			}
-			job.rangeHolder.SetHasDataFromCandles(candles.Candles)
-			for j := range job.rangeHolder.Ranges[i].Intervals {
-				if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
-					result.Status = dataHistoryStatusFailed
-					result.Result += fmt.Sprintf("missing data from %v - %v. ",
-						job.rangeHolder.Ranges[i].Intervals[j].Start.Time.Format(common.SimpleTimeFormatWithTimezone),
-						job.rangeHolder.Ranges[i].Intervals[j].End.Time.Format(common.SimpleTimeFormatWithTimezone))
-				}
-			}
-			err = trade.SaveTradesToDatabase(trades...)
-			if err != nil {
-				result.Result += "could not save results: " + err.Error() + ". "
-				result.Status = dataHistoryStatusFailed
-			}
+			result.processTradeData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		case dataHistoryConvertTradesDataType:
-			trades, err := trade.GetTradesInRange(job.Exchange, job.Asset.String(), job.Pair.Base.String(), job.Pair.Quote.String(), job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
-			if err != nil {
-				result.Result = "could not get trades in range: " + err.Error()
-				result.Status = dataHistoryStatusFailed
-				break
-			}
-			candles, err := trade.ConvertTradesToCandles(job.ConversionInterval, trades...)
-			if err != nil {
-				result.Result = "could not convert trades in range: " + err.Error()
-				result.Status = dataHistoryStatusFailed
-				break
-			}
-			_, err = kline.StoreInDatabase(&candles, job.OverwriteExistingData)
-			if err != nil {
-				result.Result = "could not save candles in range: " + err.Error()
-				result.Status = dataHistoryStatusFailed
-			}
+			result.convertTradesToCandles(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		case dataHistoryConvertCandlesDataType:
-			candles, err := kline.LoadFromDatabase(job.Exchange, job.Pair, job.Asset, job.Interval, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
-			if err != nil {
-				result.Result = "could not get candles in range: " + err.Error()
-				result.Status = dataHistoryStatusFailed
-				break
-			}
-			newCandles, err := kline.ConvertToNewInterval(&candles, job.ConversionInterval)
-			if err != nil {
-				result.Result = "could not convert candles in range: " + err.Error()
-				result.Status = dataHistoryStatusFailed
-				break
-			}
-			_, err = kline.StoreInDatabase(newCandles, job.OverwriteExistingData)
-			if err != nil {
-				result.Result = "could not save candles in range: " + err.Error()
-				result.Status = dataHistoryStatusFailed
-			}
+			result.convertCandlesData(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		case dataHistoryConvertValidationDataType:
-			candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, job.Interval)
-			if err != nil {
-				result.Result = "could not get candles: " + err.Error()
-				result.Status = dataHistoryStatusFailed
-				break
-			}
-			cd, err := kline.LoadFromDatabase(job.Exchange, job.Pair, job.Asset, job.ConversionInterval, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
-			if err != nil {
-				result.Result = "could not get candles: " + err.Error()
-				result.Status = dataHistoryStatusFailed
-				break
-			}
-			var validationIssues []string
-		candleValidation:
-			for i := range candles.Candles {
-				found := false
-				for j := range cd.Candles {
-					if candles.Candles[i].Time.Equal(cd.Candles[j].Time) {
-						found = true
-						if candles.Candles[i].High != cd.Candles[j].High ||
-							candles.Candles[i].Low != cd.Candles[j].Low ||
-							candles.Candles[i].Close != cd.Candles[j].Close ||
-							candles.Candles[i].Open != cd.Candles[j].Open ||
-							candles.Candles[i].Volume != cd.Candles[j].Volume {
-							validationIssues = append(validationIssues, fmt.Sprintf("mismatched candle data in database that exists in API at %v", candles.Candles[i].Time.Format(common.SimpleTimeFormatWithTimezone)))
-							result.Status = dataHistoryStatusFailed
-							continue candleValidation
-						}
-					}
-				}
-				if !found {
-					validationIssues = append(validationIssues, fmt.Sprintf("missing candle data in database at %v", candles.Candles[i].Time.Format(common.SimpleTimeFormatWithTimezone)))
-					result.Status = dataHistoryStatusFailed
-				}
-			}
-			if len(validationIssues) > 0 {
-				result.Result = strings.Join(validationIssues, ", ")
-			}
+			result.validateCandles(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		default:
 			return errUnknownDataType
 		}
@@ -527,20 +415,22 @@ completionCheck:
 			job.Status = dataHistoryIntervalMissingData
 		}
 		log.Infof(log.DataHistory, "job %s finished! Status: %s", job.Nickname, job.Status)
-		newJobs, err := m.jobDB.GetRelatedUpcomingJobs(job.Nickname)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return err
-		}
-		var newJobNames []string
-		for i := range newJobs {
-			newJobs[i].Status = int64(dataHistoryStatusActive)
-			newJobNames = append(newJobNames, newJobs[i].Nickname)
-		}
-		if len(newJobNames) > 0 {
-			log.Infof(log.DataHistory, "setting the follow jobs to active: %s", strings.Join(newJobNames, ", "))
-			err = m.jobDB.Upsert(newJobs...)
-			if err != nil {
+		if job.Status != dataHistoryStatusFailed {
+			newJobs, err := m.jobDB.GetRelatedUpcomingJobs(job.Nickname)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return err
+			}
+			var newJobNames []string
+			for i := range newJobs {
+				newJobs[i].Status = int64(dataHistoryStatusActive)
+				newJobNames = append(newJobNames, newJobs[i].Nickname)
+			}
+			if len(newJobNames) > 0 {
+				log.Infof(log.DataHistory, "setting the follow jobs to active: %s", strings.Join(newJobNames, ", "))
+				err = m.jobDB.Upsert(newJobs...)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -557,6 +447,151 @@ completionCheck:
 		return fmt.Errorf("job %s failed to insert job results to database: %w", job.Nickname, err)
 	}
 	return nil
+}
+
+func (r *DataHistoryJobResult) processCandleData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) {
+	candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, startRange, endRange, job.Interval)
+	if err != nil {
+		r.Result += "could not get candles: " + err.Error() + ". "
+		r.Status = dataHistoryStatusFailed
+		return
+	}
+	job.rangeHolder.SetHasDataFromCandles(candles.Candles)
+	for i := range job.rangeHolder.Ranges {
+		for j := range job.rangeHolder.Ranges[i].Intervals {
+			if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
+				r.Status = dataHistoryStatusFailed
+				r.Result += fmt.Sprintf("missing data from %v - %v. ",
+					startRange.Format(common.SimpleTimeFormatWithTimezone),
+					endRange.Format(common.SimpleTimeFormatWithTimezone))
+			}
+		}
+	}
+	_, err = kline.StoreInDatabase(&candles, true)
+	if err != nil {
+		r.Result += "could not save results: " + err.Error() + ". "
+		r.Status = dataHistoryStatusFailed
+	}
+}
+
+func (r *DataHistoryJobResult) processTradeData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) {
+	trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, startRange, endRange)
+	if err != nil {
+		r.Result += "could not get trades: " + err.Error() + ". "
+		r.Status = dataHistoryStatusFailed
+		return
+	}
+	candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
+	if err != nil {
+		r.Result += "could not convert candles to trades: " + err.Error() + ". "
+		r.Status = dataHistoryStatusFailed
+		return
+	}
+	job.rangeHolder.SetHasDataFromCandles(candles.Candles)
+	for i := range job.rangeHolder.Ranges {
+		for j := range job.rangeHolder.Ranges[i].Intervals {
+			if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
+				r.Status = dataHistoryStatusFailed
+				r.Result += fmt.Sprintf("missing data from %v - %v. ",
+					job.rangeHolder.Ranges[i].Intervals[j].Start.Time.Format(common.SimpleTimeFormatWithTimezone),
+					job.rangeHolder.Ranges[i].Intervals[j].End.Time.Format(common.SimpleTimeFormatWithTimezone))
+			}
+		}
+	}
+	err = trade.SaveTradesToDatabase(trades...)
+	if err != nil {
+		r.Result += "could not save results: " + err.Error() + ". "
+		r.Status = dataHistoryStatusFailed
+	}
+}
+
+func (r *DataHistoryJobResult) convertTradesToCandles(job *DataHistoryJob, startRange, endRange time.Time) {
+	trades, err := trade.GetTradesInRange(job.Exchange, job.Asset.String(), job.Pair.Base.String(), job.Pair.Quote.String(), startRange, endRange)
+	if err != nil {
+		r.Result = "could not get trades in range: " + err.Error()
+		r.Status = dataHistoryStatusFailed
+		return
+	}
+	candles, err := trade.ConvertTradesToCandles(job.ConversionInterval, trades...)
+	if err != nil {
+		r.Result = "could not convert trades in range: " + err.Error()
+		r.Status = dataHistoryStatusFailed
+		return
+	}
+	_, err = kline.StoreInDatabase(&candles, job.OverwriteExistingData)
+	if err != nil {
+		r.Result = "could not save candles in range: " + err.Error()
+		r.Status = dataHistoryStatusFailed
+	}
+}
+
+func (r *DataHistoryJobResult) convertCandlesData(job *DataHistoryJob, startRange, endRange time.Time) {
+	candles, err := kline.LoadFromDatabase(job.Exchange, job.Pair, job.Asset, job.Interval, startRange, endRange)
+	if err != nil {
+		r.Result = "could not get candles in range: " + err.Error()
+		r.Status = dataHistoryStatusFailed
+		return
+	}
+	newCandles, err := kline.ConvertToNewInterval(&candles, job.ConversionInterval)
+	if err != nil {
+		r.Result = "could not convert candles in range: " + err.Error()
+		r.Status = dataHistoryStatusFailed
+		return
+	}
+	_, err = kline.StoreInDatabase(newCandles, job.OverwriteExistingData)
+	if err != nil {
+		r.Result = "could not save candles in range: " + err.Error()
+		r.Status = dataHistoryStatusFailed
+	}
+}
+
+func (r *DataHistoryJobResult) validateCandles(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) {
+	candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, startRange, endRange, job.Interval)
+	if err != nil {
+		r.Result = "could not get candles: " + err.Error()
+		r.Status = dataHistoryStatusFailed
+		return
+	}
+	cd, err := kline.LoadFromDatabase(job.Exchange, job.Pair, job.Asset, job.ConversionInterval, startRange, endRange)
+	if err != nil {
+		r.Result = "could not get candles: " + err.Error()
+		r.Status = dataHistoryStatusFailed
+		return
+	}
+	var validationIssues []string
+candleValidation:
+	for i := range candles.Candles {
+		found := false
+		for j := range cd.Candles {
+			if candles.Candles[i].Time.Equal(cd.Candles[j].Time) {
+				found = true
+				if candles.Candles[i].High != cd.Candles[j].High ||
+					candles.Candles[i].Low != cd.Candles[j].Low ||
+					candles.Candles[i].Close != cd.Candles[j].Close ||
+					candles.Candles[i].Open != cd.Candles[j].Open ||
+					candles.Candles[i].Volume != cd.Candles[j].Volume {
+					validationIssues = append(validationIssues, fmt.Sprintf("mismatched candle data in database that exists in API at %v", candles.Candles[i].Time.Format(common.SimpleTimeFormatWithTimezone)))
+					r.Status = dataHistoryStatusFailed
+					continue candleValidation
+				}
+			}
+		}
+		if !found {
+			validationIssues = append(validationIssues, fmt.Sprintf("missing candle data in database at that exists in API at %v", candles.Candles[i].Time.Format(common.SimpleTimeFormatWithTimezone)))
+			r.Status = dataHistoryStatusFailed
+		}
+	}
+	if len(validationIssues) > 0 {
+		r.Result = strings.Join(validationIssues, ", ")
+	}
+}
+
+func (m *DataHistoryManager) ModifyPrerequisiteJob(prerequisiteJobNickname, jobNickname string) error {
+	if prerequisiteJobNickname == "" {
+		return m.jobDB.SetRelationship(prerequisiteJobNickname, jobNickname)
+	}
+
+	return m.jobDB.SetRelationship(prerequisiteJobNickname, jobNickname)
 }
 
 // UpsertJob allows for GRPC interaction to upsert a job to be processed
@@ -593,18 +628,16 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	if err != nil {
 		return err
 	}
-	toUpdate := false
+	isUpdatingExistingJob := false
 	m.m.Lock()
 	defer m.m.Unlock()
-	var existingJob *DataHistoryJob
 	if !insertOnly {
 		for i := range m.jobs {
 			if !strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
 				continue
 			}
-			toUpdate = true
+			isUpdatingExistingJob = true
 			job.ID = m.jobs[i].ID
-			existingJob = m.jobs[i]
 			m.jobs[i].OverwriteExistingData = job.OverwriteExistingData
 
 			if job.Exchange != "" && m.jobs[i].Exchange != job.Exchange {
@@ -637,10 +670,6 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 			if job.ConversionInterval != 0 && m.jobs[i].ConversionInterval != job.ConversionInterval {
 				m.jobs[i].ConversionInterval = job.ConversionInterval
 			}
-			if job.PrerequisiteJobNickname != "" && m.jobs[i].PrerequisiteJobNickname != job.PrerequisiteJobNickname {
-				m.jobs[i].PrerequisiteJobNickname = job.PrerequisiteJobNickname
-			}
-
 			m.jobs[i].DataType = job.DataType
 			m.jobs[i].Status = job.Status
 			break
@@ -657,7 +686,9 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		return err
 	}
 
-	if job.PrerequisiteJobNickname != "" {
+	if job.PrerequisiteJobNickname != "" && !isUpdatingExistingJob {
+		// only allow new jobs to create associations.
+		// updating/removing existing associations is its own task
 		prereqJob, err := m.GetByNickname(job.PrerequisiteJobNickname, false)
 		if err != nil {
 			if errors.Is(err, errJobNotFound) {
@@ -665,19 +696,11 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 			}
 		}
 		job.PrerequisiteJobID = prereqJob.ID
-		if existingJob != nil {
-			existingJob.PrerequisiteJobID = prereqJob.ID
-		}
-		if prereqJob.Status == dataHistoryStatusActive {
-			// we pause the job until the previous job is finished
-			job.Status = dataHistoryStatusPaused
-			if existingJob != nil {
-				existingJob.Status = dataHistoryStatusPaused
-			}
-		}
+		// we pause the job until the previous job is finished
+		job.Status = dataHistoryStatusPaused
 	}
 
-	if !toUpdate {
+	if !isUpdatingExistingJob {
 		m.jobs = append(m.jobs, job)
 	}
 

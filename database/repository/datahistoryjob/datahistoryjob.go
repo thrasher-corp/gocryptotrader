@@ -139,9 +139,9 @@ func (db *DBService) GetRelatedUpcomingJobs(nickname string) ([]*DataHistoryJob,
 	}
 }
 
-// RemoveRelationship removes a relationship in the event of a changed
+// SetRelationship removes a relationship in the event of a changed
 // relationship during upsertion
-func (db *DBService) RemoveRelationship(prerequisiteJobID, followingJobID string) error {
+func (db *DBService) SetRelationship(prerequisiteJobID, followingJobID string) error {
 	ctx := context.Background()
 
 	tx, err := db.sql.BeginTx(ctx, nil)
@@ -159,9 +159,9 @@ func (db *DBService) RemoveRelationship(prerequisiteJobID, followingJobID string
 
 	switch db.driver {
 	case database.DBSQLite3, database.DBSQLite:
-		err = removeRelationshipSQLite(ctx, tx, prerequisiteJobID, followingJobID)
+		err = setRelationshipSQLite(ctx, tx, prerequisiteJobID, followingJobID)
 	case database.DBPostgreSQL:
-		err = removeRelationshipPostgres(ctx, tx, prerequisiteJobID, followingJobID)
+		err = setRelationshipPostgres(ctx, tx, prerequisiteJobID, followingJobID)
 	default:
 		return database.ErrNoDatabaseProvided
 	}
@@ -202,7 +202,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 			return err
 		}
 		if jobs[i].PrerequisiteJobID != "" {
-			err = insertRelationshipSQLite(ctx, tx, &tempEvent, jobs[i].PrerequisiteJobID)
+			err = setRelationshipSQLite(ctx, tx, jobs[i].ID, jobs[i].PrerequisiteJobID)
 			if err != nil {
 				return err
 			}
@@ -241,7 +241,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			return err
 		}
 		if jobs[i].PrerequisiteJobID != "" {
-			err = insertRelationshipPostgres(ctx, tx, jobs[i].ID, jobs[i].PrerequisiteJobID)
+			err = setRelationshipPostgres(ctx, tx, jobs[i].ID, jobs[i].PrerequisiteJobID)
 			if err != nil {
 				return err
 			}
@@ -821,39 +821,33 @@ func (db *DBService) getRelatedUpcomingJobsPostgres(nickname string) ([]*DataHis
 	return response, nil
 }
 
-func insertRelationshipSQLite(ctx context.Context, tx *sql.Tx, job *sqlite3.Datahistoryjob, prerequisiteJobID string) error {
+func setRelationshipSQLite(ctx context.Context, tx *sql.Tx, jobID, prerequisiteJobID string) error {
+	job, err := sqlite3.Datahistoryjobs(qm.Where("id = ?", jobID)).One(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if prerequisiteJobID == "" {
+		return job.RemovePrerequisiteJobDatahistoryjobs(ctx, tx)
+	}
 	result, err := sqlite3.Datahistoryjobs(qm.Where("job_id = ?", prerequisiteJobID)).One(ctx, tx)
 	if err != nil {
 		return err
 	}
-	return result.AddPrerequisiteJobDatahistoryjobs(ctx, tx, true, job)
+
+	return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true, result)
 }
 
-func insertRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
+func setRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
+	_, err := postgres.Datahistoryjobrelations(qm.Where("following_job_id = ?", followingJobID)).DeleteAll(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if prerequisiteJobID == "" {
+		return nil
+	}
 	tempEvent := postgres.Datahistoryjobrelation{
 		PrerequisiteJobID: prerequisiteJobID,
 		FollowingJobID:    followingJobID,
 	}
 	return tempEvent.Insert(ctx, tx, boil.Infer())
-}
-
-func removeRelationshipSQLite(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
-	job, err := sqlite3.Datahistoryjobs(qm.Where("following_job_id = ?", followingJobID)).One(ctx, tx)
-	if err != nil {
-		return err
-	}
-	_, err = job.PrerequisiteJobDatahistoryjobs(qm.Where("prerequisite_job_id = ?", prerequisiteJobID)).DeleteAll(ctx, tx)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func removeRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
-	q := postgres.Datahistoryjobrelations(qm.Where("prerequisite_job_id = ? AND following_job_id = ?"))
-	_, err := q.DeleteAll(ctx, tx)
-	if err != nil {
-		return err
-	}
-	return nil
 }

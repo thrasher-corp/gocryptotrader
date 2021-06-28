@@ -2077,38 +2077,6 @@
         ]
       }
     },
-    "/v1/insertsequentialjobs": {
-      "post": {
-        "operationId": "GoCryptoTrader_InsertSequentialJobs",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcInsertSequentialJobsResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcInsertSequentialJobsRequest"
-            }
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
     "/v1/removeevent": {
       "post": {
         "operationId": "GoCryptoTrader_RemoveEvent",
@@ -2476,6 +2444,38 @@
             "in": "query",
             "required": false,
             "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/updatedatahistoryjobprerequisite": {
+      "post": {
+        "operationId": "GoCryptoTrader_UpdateDataHistoryJobPrerequisite",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcUpdateDataHistoryJobPrerequisiteRequest"
+            }
           }
         ],
         "tags": [
@@ -3979,28 +3979,6 @@
         }
       }
     },
-    "gctrpcInsertSequentialJobsRequest": {
-      "type": "object",
-      "properties": {
-        "jobs": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/gctrpcUpsertDataHistoryJobRequest"
-          }
-        }
-      }
-    },
-    "gctrpcInsertSequentialJobsResponse": {
-      "type": "object",
-      "properties": {
-        "jobs": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/gctrpcUpsertDataHistoryJobResponse"
-          }
-        }
-      }
-    },
     "gctrpcOfflineCoinSummary": {
       "type": "object",
       "properties": {
@@ -4536,6 +4514,17 @@
           "format": "double"
         },
         "fee_asset": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcUpdateDataHistoryJobPrerequisiteRequest": {
+      "type": "object",
+      "properties": {
+        "nickname": {
+          "type": "string"
+        },
+        "prerequisite_job_nickname": {
           "type": "string"
         }
       }

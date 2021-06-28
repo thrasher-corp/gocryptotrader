@@ -3572,3 +3572,21 @@ func (s *RPCServer) SetDataHistoryJobStatus(_ context.Context, r *gctrpc.SetData
 
 	return &gctrpc.GenericResponse{Status: status}, err
 }
+
+// UpdateDataHistoryJobPrerequisite sets or removes a prerequisite job for an existing job
+// if the prerequisite job is "", then the relationship is removed
+func (s *RPCServer) UpdateDataHistoryJobPrerequisite(_ context.Context, r *gctrpc.UpdateDataHistoryJobPrerequisiteRequest) (*gctrpc.GenericResponse, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+	if r.Nickname == "" {
+		return nil, errNicknameUnset
+	}
+	status := "success"
+	err := s.dataHistoryManager.ModifyPrerequisiteJob(r.Nickname, r.PrerequisiteJobNickname)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Set job '%v' prerequisite job to '%v' and set status to paused", r.Nickname, r.PrerequisiteJobNickname)}, err
+}

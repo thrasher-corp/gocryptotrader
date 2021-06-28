@@ -41,6 +41,16 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 A job is a set of parameters which will allow GoCryptoTrader to periodically retrieve historical data. Its purpose is to break up the process of retrieving large sets of data for multiple currencies and exchanges into more manageable chunks in a "set and forget" style.
 For a breakdown of what a job consists of and what each parameter does, please review the database tables and the cycle details below.
 
+### What kind of jobs are there?
+
+| Job name | Description | Job type number |
+| ------ | ----------- | ------- |
+| dataHistoryCandleDataType | This job will fetch and save candles in the ranges you specify | 0 |
+| dataHistoryTradeDataType | This job will fetch and save trades in the ranges you specify | 1 |
+| dataHistoryConvertTradesDataType | This job will use _existing_ trade data and convert the trades to candles in the ranges you specify | 2 |
+| dataHistoryConvertCandlesDataType | This job will use _existing_ candle data and convert the trades to candles in the ranges you specify. Note, it can only convert candles to a lower resolution: 1m -> 1h is valid, 1h -> 1m is invalid | 3 |
+| dataHistoryConvertValidationDataType | This job will compare _existing_ candle data against API candle data and highlight any discrepancies. A useful tool to verify that converted candles and trades match API data and can be used to convert into other candle types | 4 |
+
 ## What happens during a data history cycle?
 + Once the checkInterval ticker timer has finished, the data history manager will process all jobs considered `active`.
 + A job's start and end time is broken down into intervals defined by the `interval` variable of a job. For a job beginning `2020-01-01` to `2020-01-02` with an interval of one hour will create 24 chunks to retrieve
@@ -59,7 +69,14 @@ For a breakdown of what a job consists of and what each parameter does, please r
   + Modify the following example command to your needs: `.\gctcli.exe datahistory upsertjob --nickname=binance-spot-bnb-btc-1h-candles --exchange=binance --asset=spot --pair=BNB-BTC --interval=3600 --start_date="2020-06-02 12:00:00" --end_date="2020-12-02 12:00:00" --request_size_limit=10 --data_type=0 --max_retry_attempts=3 --batch_size=3`
 
 ### Candle intervals and trade fetching
-+ A candle interval is required for a job, even when fetching trade data. This is to appropriately break down requests into time interval chunks. However, it is restricted to only a small range of times. This is to prevent fetching issues as fetching trades over a period of days or weeks will take a significant amount of time. When setting a job to fetch trades, the allowable range is less than 4 hours and greater than 10 minutes.
++ A candle interval is required for a job, even when fetching trade data. This is to appropriately break down requests into time interval chunks. However, it is restricted to only a small range of times. This is to prevent fetching issues as fetching trades over a period of days or weeks will take a significant amount of time. When setting a job to fetch trades, the allowable range is less than 4 hours and greater than 10 minutes. So an interval of 1 hour will then fetch an hour's worth of trade data.
+
+## Job queuing
+You can add jobs will will be paused by default by using the parameter `prerequisiteJobNickname`. The prerequisite job will be checked whether it exists and add a relationship.
++ When the prerequisite job status goes is set to `complete`, the data history manager will search for any jobs which are pending its completion and update their status to `active`.
++ If the prerequisite job is deleted or fails, the upcoming job will _not_ be run.
++ Multiple jobs can use the same prerequisite job and you can also queue from one job to the next multiple times.
+
 
 ### Application run time parameters
 
@@ -104,12 +121,14 @@ The below table is a summary of commands. For more details, view the commands in
 | start_time | When to begin fetching data | `01-01-2017T13:33:37Z` |
 | end_time | When to finish fetching data | `01-01-2018T13:33:37Z`  |
 | interval | A golang `time.Duration` representation of the candle interval to use. | `30000000000` |
-| data_type | The data type to fetch. `0` is candles and `1` is trades | `0` |
+| data_type | The data type to fetch. `0` is candles, `1` is trades, `2` is convert trades to candles, `3` is convert candles to candles, `4` validates candle data against API data | `0` |
 | request_size | The number of candles to fetch. eg if `500`, the data history manager will break up the request into the appropriate timeframe to ensure the data history run interval will fetch 500 candles to save to the database | `500` |
 | max_retries | For an interval period, the amount of attempts the data history manager is allowed to attempt to fetch data before moving onto the next period. This can be useful for determining whether the exchange is missing the data in that time period or, if just one failure of three, just means that the data history manager couldn't finish one request | `3` |
 | batch_count | The number of requests to make when processing a job | `3` |
 | status | A numerical representation for the status. `0` is active, `1` is failed `2` is complete, `3` is removed and `4` is missing data | `0` |
 | created | The date the job was created. | `2020-01-01T13:33:37Z` |
+| overwrite_existing_data | When converting data as a job and data already exists in an interval, this will overwrite it | `2020-01-01T13:33:37Z` |
+| conversion_interval | When converting data as a job, this determines the resulting interval | `2020-01-01T13:33:37Z` |
 
 #### datahistoryjobresult
 | Field | Description | Example |
@@ -121,6 +140,12 @@ The below table is a summary of commands. For more details, view the commands in
 | interval_start_time | The start date of the period fetched | `2020-01-01T13:33:37Z` |
 | interval_end_time  | The end date of the period fetched | `2020-01-02T13:33:37Z` |
 | run_time | The time the job was ran | `2020-01-03T13:33:37Z` |
+
+#### datahistoryjobqueue
+| Field | Description | Example |
+| ------ | ----------- | ------- |
+|prerequisite_job_id | The job that must be completed before `following_job_id` can be run | `deadbeef-dead-beef-dead-beef13371337` |
+|following_job_id | The job that will be run after `prerequisite_job_id` completes | `deadbeef-dead-beef-dead-beef13371337` |
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

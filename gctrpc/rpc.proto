@@ -880,8 +880,8 @@ message InsertSequentialJobsResponse {
 }
 
 message UpsertDataHistoryJobResponse {
-   string message = 1;
-   string job_id = 2;
+    string message = 1;
+    string job_id = 2;
 }
 
 message GetDataHistoryJobDetailsRequest {
@@ -932,6 +932,12 @@ message SetDataHistoryJobStatusRequest {
     string nickname = 2;
     int64 status = 3;
 }
+
+message UpdateDataHistoryJobPrerequisiteRequest {
+    string nickname = 1;
+    string prerequisite_job_nickname = 2;
+}
+
 
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
@@ -1443,7 +1449,7 @@ service GoCryptoTrader {
     rpc UpsertDataHistoryJob (UpsertDataHistoryJobRequest) returns (UpsertDataHistoryJobResponse) {
         option (google.api.http) = {
             post: "/v1/upsertdatahistoryjob",
-                 body: "*"
+            body: "*"
         };
     }
 
@@ -1473,9 +1479,9 @@ service GoCryptoTrader {
             body: "*"
         };
     }
-    rpc InsertSequentialJobs (InsertSequentialJobsRequest) returns (InsertSequentialJobsResponse) {
+    rpc UpdateDataHistoryJobPrerequisite (UpdateDataHistoryJobPrerequisiteRequest) returns (GenericResponse) {
         option (google.api.http) = {
-            post: "/v1/insertsequentialjobs",
+            post: "/v1/updatedatahistoryjobprerequisite",
             body: "*"
         };
     }

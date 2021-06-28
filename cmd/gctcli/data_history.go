@@ -191,6 +191,12 @@ var dataHistoryCommands = &cli.Command{
 			Flags:     specificJobSubCommands,
 			Action:    setDataHistoryJobStatus,
 		},
+		{
+			Name: "updateprerequisitejob",
+		},
+		{
+			Name: "removeprerequisitejob",
+		},
 	},
 }
 
