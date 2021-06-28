@@ -389,8 +389,6 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 				Delimiter: format.Delimiter,
 			})
 		}
-
-		pairs = nil
 		return configFormatPairs.Strings(), nil
 	case asset.Futures:
 		symbols, err := h.FGetContractInfo("", "", currency.Pair{})
@@ -423,8 +421,6 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 				Delimiter: format.Delimiter,
 			})
 		}
-
-		pairs = nil
 		return configFormatPairs.Strings(), nil
 	}
 	return pairs, nil
