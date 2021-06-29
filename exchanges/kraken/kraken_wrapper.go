@@ -330,7 +330,10 @@ func (k *Kraken) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (k *Kraken) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 	var products []string
-
+	format, err := k.GetPairFormat(assetType, false)
+	if err != nil {
+		return nil, err
+	}
 	switch assetType {
 	case asset.Spot:
 		if !assetTranslator.Seeded() {
@@ -339,10 +342,6 @@ func (k *Kraken) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 			}
 		}
 		pairs, err := k.GetAssetPairs([]string{}, "")
-		if err != nil {
-			return nil, err
-		}
-		format, err := k.GetPairFormat(assetType, false)
 		if err != nil {
 			return nil, err
 		}

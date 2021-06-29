@@ -486,7 +486,6 @@ func TestGetOHLC(t *testing.T) {
 
 // TestGetDepth API endpoint test
 func TestGetDepth(t *testing.T) {
-	k.Verbose = true
 	t.Parallel()
 	cp, err := currency.NewPairFromString("BCHEUR")
 	if err != nil {

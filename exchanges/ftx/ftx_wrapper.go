@@ -239,18 +239,30 @@ func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	format, err := f.GetPairFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
 	var pairs []string
 	switch a {
 	case asset.Spot:
 		for x := range markets {
 			if markets[x].MarketType == spotString {
-				pairs = append(pairs, markets[x].Name)
+				curr, err := currency.NewPairFromString(markets[x].Name)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
 	case asset.Futures:
 		for x := range markets {
 			if markets[x].MarketType == futuresString {
-				pairs = append(pairs, markets[x].Name)
+				curr, err := currency.NewPairFromString(markets[x].Name)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
 	}
