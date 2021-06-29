@@ -374,7 +374,11 @@ func (k *Kraken) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 		}
 		for x := range pairs.Instruments {
 			if pairs.Instruments[x].Tradable {
-				products = append(products, pairs.Instruments[x].Symbol)
+				curr, err := currency.NewPairFromString(pairs.Instruments[x].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				products = append(products, format.Format(curr))
 			}
 		}
 	}
