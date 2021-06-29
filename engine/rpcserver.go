@@ -3583,7 +3583,7 @@ func (s *RPCServer) UpdateDataHistoryJobPrerequisite(_ context.Context, r *gctrp
 		return nil, errNicknameUnset
 	}
 	status := "success"
-	err := s.dataHistoryManager.ModifyPrerequisiteJob(r.Nickname, r.PrerequisiteJobNickname)
+	err := s.dataHistoryManager.SetJobRelationship(r.Nickname, r.PrerequisiteJobNickname)
 	if err != nil {
 		return nil, err
 	}

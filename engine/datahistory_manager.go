@@ -586,12 +586,15 @@ candleValidation:
 	}
 }
 
-func (m *DataHistoryManager) ModifyPrerequisiteJob(prerequisiteJobNickname, jobNickname string) error {
+// SetJobRelationship will add/modify/delete a relationship with an existing job
+// it will add the relationship and set the jobNickname job to paused
+// if deleting, it will remove the relationship from the database and set the job to active
+func (m *DataHistoryManager) SetJobRelationship(prerequisiteJobNickname, jobNickname string) error {
+	status := dataHistoryStatusPaused
 	if prerequisiteJobNickname == "" {
-		return m.jobDB.SetRelationship(prerequisiteJobNickname, jobNickname)
+		status = dataHistoryStatusActive
 	}
-
-	return m.jobDB.SetRelationship(prerequisiteJobNickname, jobNickname)
+	return m.jobDB.SetRelationship(prerequisiteJobNickname, jobNickname, int64(status))
 }
 
 // UpsertJob allows for GRPC interaction to upsert a job to be processed

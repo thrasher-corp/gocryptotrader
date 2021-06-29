@@ -1,6 +1,8 @@
 package datahistoryjob
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -195,12 +197,78 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Errorf("expected 20, received %v", len(results))
 			}
 
-			jerb, err = db.GetJobAndAllResults(jerberoos[0].Nickname)
+			jerb, err = db.GetJobAndAllResults(results[0].Nickname)
 			if err != nil {
 				t.Error(err)
 			}
-			if !strings.EqualFold(jerb.Nickname, jerberoos[0].Nickname) {
+			if !strings.EqualFold(jerb.Nickname, results[0].Nickname) {
 				t.Errorf("expected %v, received %v", jerb.Nickname, jerberoos[0].Nickname)
+			}
+
+			err = db.SetRelationship(results[0].ID, results[1].ID, 1337)
+			if err != nil {
+				t.Error(err)
+			}
+
+			jerb, err = db.GetByID(results[1].ID)
+			if err != nil {
+				t.Error(err)
+			}
+			if jerb.Status != 1337 {
+				t.Error("expected 1337")
+			}
+
+			rel, err := db.GetRelatedUpcomingJobs(results[0].Nickname)
+			if err != nil {
+				t.Error(err)
+			}
+			if len(rel) != 1 {
+				t.Error("expected 1")
+			}
+			if rel[0].ID != results[1].ID {
+				t.Errorf("received %v expected %v", rel[0].ID, results[1].ID)
+			}
+
+			err = db.SetRelationship(results[0].ID, results[2].ID, 1337)
+			if err != nil {
+				t.Error(err)
+			}
+			rel, err = db.GetRelatedUpcomingJobs(results[0].Nickname)
+			if err != nil {
+				t.Error(err)
+			}
+			if len(rel) != 2 {
+				t.Error("expected 2")
+			}
+			for i := range rel {
+				if rel[i].ID != results[1].ID && rel[i].ID != results[2].ID {
+					t.Errorf("received %v expected %v or %v", rel[i].ID, results[1].ID, results[2].ID)
+				}
+			}
+
+			jerb, err = db.GetPrerequisiteJob(results[1].Nickname)
+			if err != nil {
+				t.Error(err)
+			}
+			if jerb.ID != results[0].ID {
+				t.Errorf("received %v expected %v", jerb.ID, results[0].ID)
+			}
+
+			jerb, err = db.GetPrerequisiteJob(results[2].Nickname)
+			if err != nil {
+				t.Error(err)
+			}
+			if jerb.ID != results[0].ID {
+				t.Errorf("received %v expected %v", jerb.ID, results[0].ID)
+			}
+
+			err = db.SetRelationship("", results[2].ID, 0)
+			if err != nil {
+				t.Error(err)
+			}
+			jerb, err = db.GetPrerequisiteJob(results[2].Nickname)
+			if !errors.Is(err, sql.ErrNoRows) {
+				t.Errorf("received %v exepcted %v", err, sql.ErrNoRows)
 			}
 
 			err = testhelpers.CloseDatabase(dbConn)

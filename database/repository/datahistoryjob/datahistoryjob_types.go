@@ -40,12 +40,12 @@ type DBService struct {
 // IDBService allows using data history job database service
 // without needing to care about implementation
 type IDBService interface {
-	Upsert(jobs ...*DataHistoryJob) error
-	GetByNickName(nickname string) (*DataHistoryJob, error)
-	GetByID(id string) (*DataHistoryJob, error)
-	GetJobsBetween(startDate, endDate time.Time) ([]DataHistoryJob, error)
+	Upsert(...*DataHistoryJob) error
+	GetByNickName(string) (*DataHistoryJob, error)
+	GetByID(string) (*DataHistoryJob, error)
+	GetJobsBetween(time.Time, time.Time) ([]DataHistoryJob, error)
 	GetAllIncompleteJobsAndResults() ([]DataHistoryJob, error)
-	GetJobAndAllResults(nickname string) (*DataHistoryJob, error)
-	GetRelatedUpcomingJobs(nickname string) ([]*DataHistoryJob, error)
-	SetRelationship(prerequisiteJobID, followingJobID string) error
+	GetJobAndAllResults(string) (*DataHistoryJob, error)
+	GetRelatedUpcomingJobs(string) ([]*DataHistoryJob, error)
+	SetRelationship(string, string, int64) error
 }

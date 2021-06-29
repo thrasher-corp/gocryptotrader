@@ -139,9 +139,22 @@ func (db *DBService) GetRelatedUpcomingJobs(nickname string) ([]*DataHistoryJob,
 	}
 }
 
+// GetPrerequisiteJob will return the job that must complete before the
+// referenced job
+func (db *DBService) GetPrerequisiteJob(nickname string) (*DataHistoryJob, error) {
+	switch db.driver {
+	case database.DBSQLite3, database.DBSQLite:
+		return db.getPrerequisiteJobSQLite(nickname)
+	case database.DBPostgreSQL:
+		return db.getPrerequisiteJobPostgres(nickname)
+	default:
+		return nil, database.ErrNoDatabaseProvided
+	}
+}
+
 // SetRelationship removes a relationship in the event of a changed
 // relationship during upsertion
-func (db *DBService) SetRelationship(prerequisiteJobID, followingJobID string) error {
+func (db *DBService) SetRelationship(prerequisiteJobID, followingJobID string, status int64) error {
 	ctx := context.Background()
 
 	tx, err := db.sql.BeginTx(ctx, nil)
@@ -159,9 +172,9 @@ func (db *DBService) SetRelationship(prerequisiteJobID, followingJobID string) e
 
 	switch db.driver {
 	case database.DBSQLite3, database.DBSQLite:
-		err = setRelationshipSQLite(ctx, tx, prerequisiteJobID, followingJobID)
+		err = setRelationshipSQLite(ctx, tx, prerequisiteJobID, followingJobID, status)
 	case database.DBPostgreSQL:
-		err = setRelationshipPostgres(ctx, tx, prerequisiteJobID, followingJobID)
+		err = setRelationshipPostgres(ctx, tx, prerequisiteJobID, followingJobID, status)
 	default:
 		return database.ErrNoDatabaseProvided
 	}
@@ -202,7 +215,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 			return err
 		}
 		if jobs[i].PrerequisiteJobID != "" {
-			err = setRelationshipSQLite(ctx, tx, jobs[i].ID, jobs[i].PrerequisiteJobID)
+			err = setRelationshipSQLite(ctx, tx, jobs[i].ID, jobs[i].PrerequisiteJobID, jobs[i].Status)
 			if err != nil {
 				return err
 			}
@@ -241,7 +254,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			return err
 		}
 		if jobs[i].PrerequisiteJobID != "" {
-			err = setRelationshipPostgres(ctx, tx, jobs[i].ID, jobs[i].PrerequisiteJobID)
+			err = setRelationshipPostgres(ctx, tx, jobs[i].ID, jobs[i].PrerequisiteJobID, jobs[i].Status)
 			if err != nil {
 				return err
 			}
@@ -781,12 +794,16 @@ func (db *DBService) getRelatedUpcomingJobsSQLite(nickname string) ([]*DataHisto
 		if err != nil {
 			return nil, err
 		}
+		exch, err := sl[i].ExchangeName().One(context.Background(), db.sql)
+		if err != nil {
+			return nil, err
+		}
 
 		resp = append(resp, &DataHistoryJob{
 			ID:               sl[i].ID,
 			Nickname:         sl[i].Nickname,
 			ExchangeID:       sl[i].ExchangeNameID,
-			ExchangeName:     sl[i].R.ExchangeName.Name,
+			ExchangeName:     exch.Name,
 			Asset:            sl[i].Asset,
 			Base:             sl[i].Base,
 			Quote:            sl[i].Quote,
@@ -821,29 +838,41 @@ func (db *DBService) getRelatedUpcomingJobsPostgres(nickname string) ([]*DataHis
 	return response, nil
 }
 
-func setRelationshipSQLite(ctx context.Context, tx *sql.Tx, jobID, prerequisiteJobID string) error {
-	job, err := sqlite3.Datahistoryjobs(qm.Where("id = ?", jobID)).One(ctx, tx)
+func setRelationshipSQLite(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string, status int64) error {
+	job, err := sqlite3.Datahistoryjobs(qm.Where("id = ?", followingJobID)).One(ctx, tx)
 	if err != nil {
 		return err
 	}
-	if prerequisiteJobID == "" {
-		return job.RemovePrerequisiteJobDatahistoryjobs(ctx, tx)
-	}
-	result, err := sqlite3.Datahistoryjobs(qm.Where("id = ?", prerequisiteJobID)).One(ctx, tx)
+	job.Status = float64(status)
+	_, err = job.Update(ctx, tx, boil.Infer())
 	if err != nil {
 		return err
 	}
 
-	return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true, result)
+	if prerequisiteJobID == "" {
+		return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true)
+	}
+	prerequisiteJob, err := sqlite3.Datahistoryjobs(qm.Where("id = ?", prerequisiteJobID)).One(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true, prerequisiteJob)
 }
 
-func setRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string) error {
+func setRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string, status int64) error {
 	job, err := postgres.Datahistoryjobs(qm.Where("id = ?", followingJobID)).One(ctx, tx)
 	if err != nil {
 		return err
 	}
+	job.Status = float64(status)
+	_, err = job.Update(ctx, tx, boil.Infer())
+	if err != nil {
+		return err
+	}
+
 	if prerequisiteJobID == "" {
-		return job.RemovePrerequisiteJobDatahistoryjobs(ctx, tx)
+		return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true)
 	}
 	result, err := postgres.Datahistoryjobs(qm.Where("id = ?", prerequisiteJobID)).One(ctx, tx)
 	if err != nil {
@@ -851,4 +880,84 @@ func setRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJobID,
 	}
 
 	return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true, result)
+}
+
+func (db *DBService) getPrerequisiteJobSQLite(nickname string) (*DataHistoryJob, error) {
+	job, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", nickname)).One(context.Background(), db.sql)
+	if err != nil {
+		return nil, err
+	}
+	sl, err := job.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
+	if err != nil {
+		return nil, err
+	}
+	start, err := time.Parse(time.RFC3339, sl.StartTime)
+	if err != nil {
+		return nil, err
+	}
+	end, err := time.Parse(time.RFC3339, sl.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	created, err := time.Parse(time.RFC3339, sl.Created)
+	if err != nil {
+		return nil, err
+	}
+	exch, err := sl.ExchangeName().One(context.Background(), db.sql)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DataHistoryJob{
+		ID:               sl.ID,
+		Nickname:         sl.Nickname,
+		ExchangeID:       sl.ExchangeNameID,
+		ExchangeName:     exch.Name,
+		Asset:            sl.Asset,
+		Base:             sl.Base,
+		Quote:            sl.Quote,
+		StartDate:        start,
+		EndDate:          end,
+		Interval:         int64(sl.Interval),
+		BatchSize:        int64(sl.BatchCount),
+		RequestSizeLimit: int64(sl.RequestSize),
+		DataType:         int64(sl.DataType),
+		MaxRetryAttempts: int64(sl.MaxRetries),
+		Status:           int64(sl.Status),
+		CreatedDate:      created,
+	}, nil
+}
+
+func (db *DBService) getPrerequisiteJobPostgres(nickname string) (*DataHistoryJob, error) {
+	job, err := postgres.Datahistoryjobs(qm.Where("nickname = ?", nickname)).One(context.Background(), db.sql)
+	if err != nil {
+		return nil, err
+	}
+	sl, err := job.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
+	if err != nil {
+		return nil, err
+	}
+	exch, err := sl.ExchangeName().One(context.Background(), db.sql)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DataHistoryJob{
+		ID:               sl.ID,
+		Nickname:         sl.Nickname,
+		ExchangeID:       sl.ExchangeNameID,
+		ExchangeName:     exch.Name,
+		Asset:            sl.Asset,
+		Base:             sl.Base,
+		Quote:            sl.Quote,
+		StartDate:        sl.StartTime,
+		EndDate:          sl.EndTime,
+		Interval:         int64(sl.Interval),
+		BatchSize:        int64(sl.BatchCount),
+		RequestSizeLimit: int64(sl.RequestSize),
+		DataType:         int64(sl.DataType),
+		MaxRetryAttempts: int64(sl.MaxRetries),
+		Status:           int64(sl.Status),
+		CreatedDate:      sl.Created,
+	}, nil
 }
