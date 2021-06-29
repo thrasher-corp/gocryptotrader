@@ -66,7 +66,7 @@ func (b *Bitfinex) SetDefaults() {
 	}
 
 	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 	}
 
@@ -1063,10 +1063,10 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 
 func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 	var checkString [2]byte
-	if a == asset.Spot {
+	if a == asset.Spot || a == asset.Margin {
 		checkString[0] = 't'
 		checkString[1] = 'T'
-	} else if a == asset.Margin {
+	} else if a == asset.MarginFunding {
 		checkString[0] = 'f'
 		checkString[1] = 'F'
 	}

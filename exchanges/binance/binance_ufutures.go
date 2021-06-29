@@ -19,6 +19,7 @@ import (
 const (
 
 	// Unauth
+	ufuturesServerTime         = "/fapi/v1/time"
 	ufuturesExchangeInfo       = "/fapi/v1/exchangeInfo?"
 	ufuturesOrderbook          = "/fapi/v1/depth?"
 	ufuturesRecentTrades       = "/fapi/v1/trades?"
@@ -61,6 +62,18 @@ const (
 	ufuturesUsersForceOrders      = "/fapi/v1/forceOrders"
 	ufuturesADLQuantile           = "/fapi/v1/adlQuantile"
 )
+
+// UServerTime gets the server time
+func (b *Binance) UServerTime() (time.Time, error) {
+	var data struct {
+		ServerTime int64 `json:"serverTime"`
+	}
+	err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesServerTime, uFuturesDefaultRate, &data)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(0, data.ServerTime*1000000), nil
+}
 
 // UExchangeInfo stores usdt margined futures data
 func (b *Binance) UExchangeInfo() (UFuturesExchangeInfo, error) {

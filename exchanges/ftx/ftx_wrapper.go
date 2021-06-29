@@ -239,18 +239,30 @@ func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	format, err := f.GetPairFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
 	var pairs []string
 	switch a {
 	case asset.Spot:
 		for x := range markets {
 			if markets[x].MarketType == spotString {
-				pairs = append(pairs, markets[x].Name)
+				curr, err := currency.NewPairFromString(markets[x].Name)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
 	case asset.Futures:
 		for x := range markets {
 			if markets[x].MarketType == futuresString {
-				pairs = append(pairs, markets[x].Name)
+				curr, err := currency.NewPairFromString(markets[x].Name)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
 	}
@@ -1021,8 +1033,8 @@ func (f *FTX) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.
 	}
 
 	ohlcData, err := f.GetHistoricalData(formattedPair.String(),
-		f.FormatExchangeKlineInterval(interval),
-		strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
+		int64(interval.Duration().Seconds()),
+		int64(f.Features.Enabled.Kline.ResultLimit),
 		start, end)
 	if err != nil {
 		return kline.Item{}, err
@@ -1071,8 +1083,8 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 	for x := range dates.Ranges {
 		var ohlcData []OHLCVData
 		ohlcData, err = f.GetHistoricalData(formattedPair.String(),
-			f.FormatExchangeKlineInterval(interval),
-			strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
+			int64(interval.Duration().Seconds()),
+			int64(f.Features.Enabled.Kline.ResultLimit),
 			dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
 		if err != nil {
 			return kline.Item{}, err

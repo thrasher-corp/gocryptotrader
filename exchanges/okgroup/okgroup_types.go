@@ -15,6 +15,25 @@ const (
 	ImmediateOrCancelOrder
 )
 
+// PerpSwapInstrumentData stores instrument data for perpetual swap contracts
+type PerpSwapInstrumentData struct {
+	InstrumentID        string  `json:"instrument_id"`
+	UnderlyingIndex     string  `json:"underlying_index"`
+	QuoteCurrency       string  `json:"quote_currency"`
+	Coin                string  `json:"coin"`
+	ContractValue       float64 `json:"contract_val,string"`
+	Listing             string  `json:"listing"`
+	Delivery            string  `json:"delivery"`
+	SizeIncrement       float64 `json:"size_increment,string"`
+	TickSize            float64 `json:"tick_size,string"`
+	BaseCurrency        string  `json:"base_currency"`
+	Underlying          string  `json:"underlying"`
+	SettlementCurrency  string  `json:"settlement_currency"`
+	IsInverse           bool    `json:"is_inverse,string"`
+	Category            float64 `json:"category,string"`
+	ContractValCurrency string  `json:"contract_val_currency"`
+}
+
 // TradingPairData stores data about a trading pair
 type TradingPairData struct {
 	BaseCurrency  string  `json:"base_currency"`
