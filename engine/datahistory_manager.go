@@ -58,8 +58,11 @@ func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager
 		jobResultDB:                dhjr,
 		maxJobsPerCycle:            cfg.MaxJobsPerCycle,
 		verbose:                    cfg.Verbose,
-		tradeLoader:                trade.HasTradesInRanges,
+		tradeChecker:               trade.HasTradesInRanges,
+		tradeLoader:                trade.GetTradesInRange,
+		tradeSaver:                 trade.SaveTradesToDatabase,
 		candleLoader:               kline.LoadFromDatabase,
+		candleSaver:                kline.StoreInDatabase,
 	}, nil
 }
 
@@ -181,7 +184,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			}
 			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 		case dataHistoryTradeDataType:
-			err := m.tradeLoader(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].rangeHolder)
+			err := m.tradeChecker(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].rangeHolder)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return fmt.Errorf("%s could not load trade data: %w", jobs[i].Nickname, err)
 			}
@@ -348,36 +351,33 @@ ranges:
 			log.Debugf(log.DataHistory, "job %s processing range %v-%v", job.Nickname, job.rangeHolder.Ranges[i].Start, job.rangeHolder.Ranges[i].End)
 		}
 		intervalsProcessed++
-		id, err := uuid.NewV4()
-		if err != nil {
-			return err
-		}
-		result := DataHistoryJobResult{
-			ID:                id,
-			JobID:             job.ID,
-			IntervalStartDate: job.rangeHolder.Ranges[i].Start.Time,
-			IntervalEndDate:   job.rangeHolder.Ranges[i].End.Time,
-			Status:            dataHistoryStatusComplete,
-			Date:              time.Now(),
-		}
+
+		var result *DataHistoryJobResult
+		var err error
 		// processing the job
 		switch job.DataType {
 		case dataHistoryCandleDataType:
-			result.processCandleData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+			result, err = m.processCandleData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		case dataHistoryTradeDataType:
-			result.processTradeData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+			result, err = m.processTradeData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		case dataHistoryConvertTradesDataType:
-			result.convertTradesToCandles(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+			result, err = m.convertJobTradesToCandles(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		case dataHistoryConvertCandlesDataType:
-			result.convertCandlesData(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+			result, err = m.upscaleJobCandleData(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		case dataHistoryConvertValidationDataType:
-			result.validateCandles(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+			result, err = m.validateCandles(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		default:
 			return errUnknownDataType
 		}
+		if err != nil {
+			return err
+		}
+		if result == nil {
+			return errNilResult
+		}
 
 		lookup := job.Results[result.IntervalStartDate]
-		lookup = append(lookup, result)
+		lookup = append(lookup, *result)
 		job.Results[result.IntervalStartDate] = lookup
 	}
 
@@ -449,12 +449,34 @@ completionCheck:
 	return nil
 }
 
-func (r *DataHistoryJobResult) processCandleData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) {
+func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
+	if job == nil {
+		return nil, errNilJob
+	}
+	if exch == nil {
+		return nil, ErrExchangeNotFound
+	}
+	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
+		return nil, err
+	}
+
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
+	r := &DataHistoryJobResult{
+		ID:                id,
+		JobID:             job.ID,
+		IntervalStartDate: startRange,
+		IntervalEndDate:   endRange,
+		Status:            dataHistoryStatusComplete,
+		Date:              time.Now(),
+	}
 	candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, startRange, endRange, job.Interval)
 	if err != nil {
 		r.Result += "could not get candles: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
-		return
+		return r, nil
 	}
 	job.rangeHolder.SetHasDataFromCandles(candles.Candles)
 	for i := range job.rangeHolder.Ranges {
@@ -467,25 +489,47 @@ func (r *DataHistoryJobResult) processCandleData(job *DataHistoryJob, exch excha
 			}
 		}
 	}
-	_, err = kline.StoreInDatabase(&candles, true)
+	_, err = m.candleSaver(&candles, true)
 	if err != nil {
 		r.Result += "could not save results: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
 	}
+	return r, nil
 }
 
-func (r *DataHistoryJobResult) processTradeData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) {
+func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
+	if job == nil {
+		return nil, errNilJob
+	}
+	if exch == nil {
+		return nil, ErrExchangeNotFound
+	}
+	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
+		return nil, err
+	}
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
+	r := &DataHistoryJobResult{
+		ID:                id,
+		JobID:             job.ID,
+		IntervalStartDate: startRange,
+		IntervalEndDate:   endRange,
+		Status:            dataHistoryStatusComplete,
+		Date:              time.Now(),
+	}
 	trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, startRange, endRange)
 	if err != nil {
 		r.Result += "could not get trades: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
-		return
+		return r, nil
 	}
 	candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
 	if err != nil {
 		r.Result += "could not convert candles to trades: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
-		return
+		return r, nil
 	}
 	job.rangeHolder.SetHasDataFromCandles(candles.Candles)
 	for i := range job.rangeHolder.Ranges {
@@ -498,65 +542,126 @@ func (r *DataHistoryJobResult) processTradeData(job *DataHistoryJob, exch exchan
 			}
 		}
 	}
-	err = trade.SaveTradesToDatabase(trades...)
+	err = m.tradeSaver(trades...)
 	if err != nil {
 		r.Result += "could not save results: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
 	}
+	return r, nil
 }
 
-func (r *DataHistoryJobResult) convertTradesToCandles(job *DataHistoryJob, startRange, endRange time.Time) {
-	trades, err := trade.GetTradesInRange(job.Exchange, job.Asset.String(), job.Pair.Base.String(), job.Pair.Quote.String(), startRange, endRange)
+func (m *DataHistoryManager) convertJobTradesToCandles(job *DataHistoryJob, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
+	if job == nil {
+		return nil, errNilJob
+	}
+	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
+		return nil, err
+	}
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
+	r := &DataHistoryJobResult{
+		ID:                id,
+		JobID:             job.ID,
+		IntervalStartDate: startRange,
+		IntervalEndDate:   endRange,
+		Status:            dataHistoryStatusComplete,
+		Date:              time.Now(),
+	}
+	trades, err := m.tradeLoader(job.Exchange, job.Asset.String(), job.Pair.Base.String(), job.Pair.Quote.String(), startRange, endRange)
 	if err != nil {
 		r.Result = "could not get trades in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return
+		return r, nil
 	}
 	candles, err := trade.ConvertTradesToCandles(job.ConversionInterval, trades...)
 	if err != nil {
 		r.Result = "could not convert trades in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return
+		return r, nil
 	}
-	_, err = kline.StoreInDatabase(&candles, job.OverwriteExistingData)
+	_, err = m.candleSaver(&candles, job.OverwriteExistingData)
 	if err != nil {
 		r.Result = "could not save candles in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
 	}
+	return r, nil
 }
 
-func (r *DataHistoryJobResult) convertCandlesData(job *DataHistoryJob, startRange, endRange time.Time) {
-	candles, err := kline.LoadFromDatabase(job.Exchange, job.Pair, job.Asset, job.Interval, startRange, endRange)
+func (m *DataHistoryManager) upscaleJobCandleData(job *DataHistoryJob, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
+	if job == nil {
+		return nil, errNilJob
+	}
+	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
+		return nil, err
+	}
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
+	r := &DataHistoryJobResult{
+		ID:                id,
+		JobID:             job.ID,
+		IntervalStartDate: startRange,
+		IntervalEndDate:   endRange,
+		Status:            dataHistoryStatusComplete,
+		Date:              time.Now(),
+	}
+	candles, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.Interval, startRange, endRange)
 	if err != nil {
 		r.Result = "could not get candles in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return
+		return r, nil
 	}
 	newCandles, err := kline.ConvertToNewInterval(&candles, job.ConversionInterval)
 	if err != nil {
 		r.Result = "could not convert candles in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return
+		return r, nil
 	}
-	_, err = kline.StoreInDatabase(newCandles, job.OverwriteExistingData)
+	_, err = m.candleSaver(newCandles, job.OverwriteExistingData)
 	if err != nil {
 		r.Result = "could not save candles in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
 	}
+	return r, nil
 }
 
-func (r *DataHistoryJobResult) validateCandles(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) {
+func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
+	if job == nil {
+		return nil, errNilJob
+	}
+	if exch == nil {
+		return nil, ErrExchangeNotFound
+	}
+	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
+		return nil, err
+	}
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
+	r := &DataHistoryJobResult{
+		ID:                id,
+		JobID:             job.ID,
+		IntervalStartDate: startRange,
+		IntervalEndDate:   endRange,
+		Status:            dataHistoryStatusComplete,
+		Date:              time.Now(),
+	}
+
 	candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, startRange, endRange, job.Interval)
 	if err != nil {
 		r.Result = "could not get candles: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return
+		return r, nil
 	}
-	cd, err := kline.LoadFromDatabase(job.Exchange, job.Pair, job.Asset, job.ConversionInterval, startRange, endRange)
+	cd, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.ConversionInterval, startRange, endRange)
 	if err != nil {
 		r.Result = "could not get candles: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return
+		return r, nil
 	}
 	var validationIssues []string
 candleValidation:
@@ -584,6 +689,7 @@ candleValidation:
 	if len(validationIssues) > 0 {
 		r.Result = strings.Join(validationIssues, ", ")
 	}
+	return r, nil
 }
 
 // SetJobRelationship will add/modify/delete a relationship with an existing job

@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 const dataHistoryManagerName = "data_history_manager"
@@ -96,6 +97,7 @@ var (
 	errJobInvalid                 = errors.New("job has not been setup properly and cannot be processed")
 	errInvalidDataHistoryStatus   = errors.New("unsupported data history status received")
 	errInvalidDataHistoryDataType = errors.New("unsupported data history data type received")
+	errNilResult                  = errors.New("received nil job result")
 	// defaultDataHistoryTradeInterval is the default interval size used to verify whether there is any database data
 	// for a trade job
 	defaultDataHistoryTradeInterval          = kline.FifteenMin
@@ -121,8 +123,11 @@ type DataHistoryManager struct {
 	jobResultDB                datahistoryjobresult.IDBService
 	maxJobsPerCycle            int64
 	verbose                    bool
-	tradeLoader                func(string, string, string, string, *kline.IntervalRangeHolder) error
+	tradeChecker               func(string, string, string, string, *kline.IntervalRangeHolder) error
 	candleLoader               func(string, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (kline.Item, error)
+	tradeLoader                func(string, string, string, string, time.Time, time.Time) ([]trade.Data, error)
+	tradeSaver                 func(...trade.Data) error
+	candleSaver                func(*kline.Item, bool) (uint64, error)
 }
 
 // DataHistoryJob used to gather candle/trade history and save

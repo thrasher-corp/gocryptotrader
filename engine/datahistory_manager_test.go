@@ -16,8 +16,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 func TestSetupDataHistoryManager(t *testing.T) {
@@ -854,11 +857,246 @@ func createDHM(t *testing.T) *DataHistoryManager {
 		jobResultDB:     dataHistoryJobResultService{},
 		started:         1,
 		exchangeManager: em,
-		tradeLoader:     dataHistoryTradeLoader,
+		tradeChecker:    dataHistoryTradeLoader,
 		candleLoader:    dataHistoryCandleLoader,
 		interval:        time.NewTicker(time.Minute),
 	}
 	return m
+}
+
+func TestProcessCandleData(t *testing.T) {
+	t.Parallel()
+	m := createDHM(t)
+	r := &DataHistoryJobResult{}
+	_, err := m.processCandleData(nil, nil, time.Time{}, time.Time{})
+	if !errors.Is(err, errNilJob) {
+		t.Errorf("received %v expected %v", err, errNilJob)
+	}
+	j := &DataHistoryJob{
+		Nickname:  "",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2),
+		EndDate:   time.Now(),
+		Interval:  kline.OneHour,
+	}
+	_, err = m.processCandleData(j, nil, time.Time{}, time.Time{})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
+	}
+
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	exch.SetDefaults()
+	fakeExchange := dhmExchange{
+		IBotExchange: exch,
+	}
+	_, err = m.processCandleData(j, exch, time.Time{}, time.Time{})
+	if !errors.Is(err, common.ErrDateUnset) {
+		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
+	}
+	j.rangeHolder, err = kline.CalculateCandleDateRanges(j.StartDate, j.EndDate, j.Interval, 1337)
+	if err != nil {
+		t.Error(err)
+	}
+	r, err = m.processCandleData(j, fakeExchange, j.StartDate, j.EndDate)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if r.Status != dataHistoryStatusFailed {
+		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
+	}
+	r, err = m.processCandleData(j, exch, j.StartDate, j.EndDate)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if r.Status != dataHistoryStatusFailed {
+		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
+	}
+}
+
+func TestProcessTradeData(t *testing.T) {
+	t.Parallel()
+	m := createDHM(t)
+	r := &DataHistoryJobResult{}
+	_, err := m.processTradeData(nil, nil, time.Time{}, time.Time{})
+	if !errors.Is(err, errNilJob) {
+		t.Errorf("received %v expected %v", err, errNilJob)
+	}
+	j := &DataHistoryJob{
+		Nickname:  "",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2),
+		EndDate:   time.Now(),
+		Interval:  kline.OneHour,
+	}
+	_, err = m.processTradeData(j, nil, time.Time{}, time.Time{})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
+	}
+
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	exch.SetDefaults()
+	fakeExchange := dhmExchange{
+		IBotExchange: exch,
+	}
+	_, err = m.processTradeData(j, exch, time.Time{}, time.Time{})
+	if !errors.Is(err, common.ErrDateUnset) {
+		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
+	}
+	j.rangeHolder, err = kline.CalculateCandleDateRanges(j.StartDate, j.EndDate, j.Interval, 1337)
+	if err != nil {
+		t.Error(err)
+	}
+	r, err = m.processTradeData(j, fakeExchange, j.StartDate, j.EndDate)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if r.Status != dataHistoryStatusFailed {
+		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
+	}
+	r, err = m.processTradeData(j, exch, j.StartDate, j.EndDate)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if r.Status != dataHistoryStatusFailed {
+		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
+	}
+}
+
+func TestConvertJobTradesToCandles(t *testing.T) {
+	t.Parallel()
+	m := createDHM(t)
+	r := &DataHistoryJobResult{}
+	_, err := m.convertJobTradesToCandles(nil, time.Time{}, time.Time{})
+	if !errors.Is(err, errNilJob) {
+		t.Errorf("received %v expected %v", err, errNilJob)
+	}
+	j := &DataHistoryJob{
+		Nickname:  "",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2),
+		EndDate:   time.Now(),
+		Interval:  kline.OneHour,
+	}
+	_, err = m.convertJobTradesToCandles(j, time.Time{}, time.Time{})
+	if !errors.Is(err, common.ErrDateUnset) {
+		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
+	}
+
+	r, err = m.convertJobTradesToCandles(j, j.StartDate, j.EndDate)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if r.Status != dataHistoryStatusFailed {
+		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
+	}
+	// test is limited without overriding functions, however each function is tested elsewhere
+	if !strings.Contains(r.Result, database.ErrDatabaseNotConnected.Error()) {
+		t.Errorf("received %v expected error to contain %v", r.Result, database.ErrDatabaseNotConnected.Error())
+	}
+}
+
+func TestUpscaleJobCandleData(t *testing.T) {
+	t.Parallel()
+	m := createDHM(t)
+	r := &DataHistoryJobResult{}
+	_, err := m.upscaleJobCandleData(nil, time.Time{}, time.Time{})
+	if !errors.Is(err, errNilJob) {
+		t.Errorf("received %v expected %v", err, errNilJob)
+	}
+	j := &DataHistoryJob{
+		Nickname:  "",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2),
+		EndDate:   time.Now(),
+		Interval:  kline.OneHour,
+	}
+	_, err = m.upscaleJobCandleData(j, time.Time{}, time.Time{})
+	if !errors.Is(err, common.ErrDateUnset) {
+		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
+	}
+
+	r, err = m.upscaleJobCandleData(j, j.StartDate, j.EndDate)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if r.Status != dataHistoryStatusFailed {
+		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
+	}
+	// test is limited without overriding functions, however each function is tested elsewhere
+	if !strings.Contains(r.Result, database.ErrDatabaseNotConnected.Error()) {
+		t.Errorf("received %v expected error to contain %v", r.Result, database.ErrDatabaseNotConnected.Error())
+	}
+}
+
+func TestValidateCandles(t *testing.T) {
+	t.Parallel()
+	m := createDHM(t)
+	r := &DataHistoryJobResult{}
+	_, err := m.validateCandles(nil, nil, time.Time{}, time.Time{})
+	if !errors.Is(err, errNilJob) {
+		t.Errorf("received %v expected %v", err, errNilJob)
+	}
+	j := &DataHistoryJob{
+		Nickname:  "",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2),
+		EndDate:   time.Now(),
+		Interval:  kline.OneHour,
+	}
+	_, err = m.validateCandles(j, nil, time.Time{}, time.Time{})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
+	}
+
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	exch.SetDefaults()
+	fakeExchange := dhmExchange{
+		IBotExchange: exch,
+	}
+	_, err = m.validateCandles(j, exch, time.Time{}, time.Time{})
+	if !errors.Is(err, common.ErrDateUnset) {
+		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
+	}
+	j.rangeHolder, err = kline.CalculateCandleDateRanges(j.StartDate, j.EndDate, j.Interval, 1337)
+	if err != nil {
+		t.Error(err)
+	}
+	r, err = m.validateCandles(j, fakeExchange, j.StartDate, j.EndDate)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if r.Status != dataHistoryStatusFailed {
+		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
+	}
+	r, err = m.validateCandles(j, exch, j.StartDate, j.EndDate)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if r.Status != dataHistoryStatusFailed {
+		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
+	}
 }
 
 // these structs and function implementations are used
@@ -954,6 +1192,78 @@ func dataHistoryTradeLoader(_, _, _, _ string, irh *kline.IntervalRangeHolder) e
 	return nil
 }
 
-func dataHistoryCandleLoader(string, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (kline.Item, error) {
-	return kline.Item{}, nil
+func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, i kline.Interval, _ time.Time, _ time.Time) (kline.Item, error) {
+	return kline.Item{
+		Exchange: exch,
+		Pair:     cp,
+		Asset:    a,
+		Interval: i,
+		Candles: []kline.Candle{
+			{
+				Time:   time.Now(),
+				Open:   1,
+				High:   10,
+				Low:    1,
+				Close:  4,
+				Volume: 8,
+			},
+		},
+	}, nil
+}
+
+// dhmExchange aka datahistorymanager fake exchange overrides exchange functions
+// we're not testing an actual exchange's implemented functions
+type dhmExchange struct {
+	exchange.IBotExchange
+}
+
+func (f dhmExchange) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error) {
+	return kline.Item{
+		Exchange: testExchange,
+		Pair:     p,
+		Asset:    a,
+		Interval: interval,
+		Candles: []kline.Candle{
+			{
+				Time:   timeStart.Add(interval.Duration()),
+				Open:   1,
+				High:   2,
+				Low:    3,
+				Close:  4,
+				Volume: 5,
+			},
+			{
+				Time:   timeStart.Add(interval.Duration() * 2),
+				Open:   1,
+				High:   2,
+				Low:    3,
+				Close:  4,
+				Volume: 5,
+			},
+		},
+	}, nil
+}
+
+func (f dhmExchange) GetHistoricTrades(p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
+	return []trade.Data{
+		{
+			Exchange:     testExchange,
+			CurrencyPair: p,
+			AssetType:    a,
+			Side:         order.Buy,
+			Price:        1337,
+			Amount:       4,
+			Timestamp:    startTime.Add(time.Minute),
+		},
+		{
+			Exchange:     testExchange,
+			CurrencyPair: p,
+			AssetType:    a,
+			Side:         order.Buy,
+			Price:        1338,
+			Amount:       2,
+			Timestamp:    startTime.Add(time.Minute * 2),
+		},
+	}, nil
+
 }
