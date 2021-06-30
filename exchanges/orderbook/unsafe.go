@@ -10,7 +10,37 @@ import "sync"
 type Unsafe struct {
 	BidHead **Node
 	AskHead **Node
-	M       *sync.Mutex
+	m       *sync.Mutex
+}
+
+// Lock locks down the underlying linked list which inhibits all pending updates
+// for strategy inspection.
+func (src *Unsafe) Lock() {
+	src.m.Lock()
+}
+
+// Unlock unlocks the underlying linked list after inspection by a strategy to
+// resume normal operations
+func (src *Unsafe) Unlock() {
+	src.m.Unlock()
+}
+
+// Locker defines functionality for locking and unlocking unsafe books
+type Locker interface {
+	Lock()
+	Unlock()
+}
+
+// LockWith locks both books for the context of cross orderbook inspection
+func (src *Unsafe) LockWith(dst Locker) {
+	src.m.Lock()
+	dst.Lock()
+}
+
+// UnlockWith unlocks both books for the context of cross orderbook inspection
+func (src *Unsafe) UnlockWith(dst Locker) {
+	src.m.Unlock()
+	dst.Unlock()
 }
 
 // GetUnsafe returns an unsafe orderbook with pointers to the linked list heads.
@@ -18,6 +48,6 @@ func (d *Depth) GetUnsafe() Unsafe {
 	return Unsafe{
 		BidHead: &d.bids.linkedList.head,
 		AskHead: &d.asks.linkedList.head,
-		M:       &d.m,
+		m:       &d.m,
 	}
 }
