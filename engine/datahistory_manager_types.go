@@ -171,14 +171,17 @@ type DataHistoryJobResult struct {
 // DataHistoryJobSummary is a human readable summary of the job
 // for quickly understanding the status of a given job
 type DataHistoryJobSummary struct {
-	Nickname     string
-	Exchange     string
-	Asset        asset.Item
-	Pair         currency.Pair
-	StartDate    time.Time
-	EndDate      time.Time
-	Interval     kline.Interval
-	Status       dataHistoryStatus
-	DataType     dataHistoryDataType
-	ResultRanges []string
+	Nickname                string
+	Exchange                string
+	Asset                   asset.Item
+	Pair                    currency.Pair
+	StartDate               time.Time
+	EndDate                 time.Time
+	Interval                kline.Interval
+	Status                  dataHistoryStatus
+	DataType                dataHistoryDataType
+	ResultRanges            []string
+	OverwriteExistingData   bool
+	ConversionInterval      kline.Interval
+	PrerequisiteJobNickname string
 }

@@ -19,98 +19,155 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 	"github.com/thrasher-corp/sqlboiler/queries/qmhelper"
 	"github.com/thrasher-corp/sqlboiler/strmangle"
+	"github.com/volatiletech/null"
 )
 
 // Datahistoryjob is an object representing the database table.
 type Datahistoryjob struct {
-	ID             string    `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Nickname       string    `boil:"nickname" json:"nickname" toml:"nickname" yaml:"nickname"`
-	ExchangeNameID string    `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
-	Asset          string    `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
-	Base           string    `boil:"base" json:"base" toml:"base" yaml:"base"`
-	Quote          string    `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
-	StartTime      time.Time `boil:"start_time" json:"start_time" toml:"start_time" yaml:"start_time"`
-	EndTime        time.Time `boil:"end_time" json:"end_time" toml:"end_time" yaml:"end_time"`
-	DataType       float64   `boil:"data_type" json:"data_type" toml:"data_type" yaml:"data_type"`
-	Interval       float64   `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
-	RequestSize    float64   `boil:"request_size" json:"request_size" toml:"request_size" yaml:"request_size"`
-	MaxRetries     float64   `boil:"max_retries" json:"max_retries" toml:"max_retries" yaml:"max_retries"`
-	BatchCount     float64   `boil:"batch_count" json:"batch_count" toml:"batch_count" yaml:"batch_count"`
-	Status         float64   `boil:"status" json:"status" toml:"status" yaml:"status"`
-	Created        time.Time `boil:"created" json:"created" toml:"created" yaml:"created"`
+	ID                 string       `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Nickname           string       `boil:"nickname" json:"nickname" toml:"nickname" yaml:"nickname"`
+	ExchangeNameID     string       `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
+	Asset              string       `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
+	Base               string       `boil:"base" json:"base" toml:"base" yaml:"base"`
+	Quote              string       `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
+	StartTime          time.Time    `boil:"start_time" json:"start_time" toml:"start_time" yaml:"start_time"`
+	EndTime            time.Time    `boil:"end_time" json:"end_time" toml:"end_time" yaml:"end_time"`
+	DataType           float64      `boil:"data_type" json:"data_type" toml:"data_type" yaml:"data_type"`
+	Interval           float64      `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
+	RequestSize        float64      `boil:"request_size" json:"request_size" toml:"request_size" yaml:"request_size"`
+	MaxRetries         float64      `boil:"max_retries" json:"max_retries" toml:"max_retries" yaml:"max_retries"`
+	BatchCount         float64      `boil:"batch_count" json:"batch_count" toml:"batch_count" yaml:"batch_count"`
+	Status             float64      `boil:"status" json:"status" toml:"status" yaml:"status"`
+	Created            time.Time    `boil:"created" json:"created" toml:"created" yaml:"created"`
+	ConversionInterval null.Float64 `boil:"conversion_interval" json:"conversion_interval,omitempty" toml:"conversion_interval" yaml:"conversion_interval,omitempty"`
+	OverwriteData      null.Bool    `boil:"overwrite_data" json:"overwrite_data,omitempty" toml:"overwrite_data" yaml:"overwrite_data,omitempty"`
 
 	R *datahistoryjobR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L datahistoryjobL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var DatahistoryjobColumns = struct {
-	ID             string
-	Nickname       string
-	ExchangeNameID string
-	Asset          string
-	Base           string
-	Quote          string
-	StartTime      string
-	EndTime        string
-	DataType       string
-	Interval       string
-	RequestSize    string
-	MaxRetries     string
-	BatchCount     string
-	Status         string
-	Created        string
+	ID                 string
+	Nickname           string
+	ExchangeNameID     string
+	Asset              string
+	Base               string
+	Quote              string
+	StartTime          string
+	EndTime            string
+	DataType           string
+	Interval           string
+	RequestSize        string
+	MaxRetries         string
+	BatchCount         string
+	Status             string
+	Created            string
+	ConversionInterval string
+	OverwriteData      string
 }{
-	ID:             "id",
-	Nickname:       "nickname",
-	ExchangeNameID: "exchange_name_id",
-	Asset:          "asset",
-	Base:           "base",
-	Quote:          "quote",
-	StartTime:      "start_time",
-	EndTime:        "end_time",
-	DataType:       "data_type",
-	Interval:       "interval",
-	RequestSize:    "request_size",
-	MaxRetries:     "max_retries",
-	BatchCount:     "batch_count",
-	Status:         "status",
-	Created:        "created",
+	ID:                 "id",
+	Nickname:           "nickname",
+	ExchangeNameID:     "exchange_name_id",
+	Asset:              "asset",
+	Base:               "base",
+	Quote:              "quote",
+	StartTime:          "start_time",
+	EndTime:            "end_time",
+	DataType:           "data_type",
+	Interval:           "interval",
+	RequestSize:        "request_size",
+	MaxRetries:         "max_retries",
+	BatchCount:         "batch_count",
+	Status:             "status",
+	Created:            "created",
+	ConversionInterval: "conversion_interval",
+	OverwriteData:      "overwrite_data",
 }
 
 // Generated where
 
+type whereHelpernull_Float64 struct{ field string }
+
+func (w whereHelpernull_Float64) EQ(x null.Float64) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Float64) NEQ(x null.Float64) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Float64) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Float64) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+func (w whereHelpernull_Float64) LT(x null.Float64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Float64) LTE(x null.Float64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Float64) GT(x null.Float64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Float64) GTE(x null.Float64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
+type whereHelpernull_Bool struct{ field string }
+
+func (w whereHelpernull_Bool) EQ(x null.Bool) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Bool) NEQ(x null.Bool) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Bool) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Bool) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+func (w whereHelpernull_Bool) LT(x null.Bool) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Bool) LTE(x null.Bool) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Bool) GT(x null.Bool) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Bool) GTE(x null.Bool) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
 var DatahistoryjobWhere = struct {
-	ID             whereHelperstring
-	Nickname       whereHelperstring
-	ExchangeNameID whereHelperstring
-	Asset          whereHelperstring
-	Base           whereHelperstring
-	Quote          whereHelperstring
-	StartTime      whereHelpertime_Time
-	EndTime        whereHelpertime_Time
-	DataType       whereHelperfloat64
-	Interval       whereHelperfloat64
-	RequestSize    whereHelperfloat64
-	MaxRetries     whereHelperfloat64
-	BatchCount     whereHelperfloat64
-	Status         whereHelperfloat64
-	Created        whereHelpertime_Time
+	ID                 whereHelperstring
+	Nickname           whereHelperstring
+	ExchangeNameID     whereHelperstring
+	Asset              whereHelperstring
+	Base               whereHelperstring
+	Quote              whereHelperstring
+	StartTime          whereHelpertime_Time
+	EndTime            whereHelpertime_Time
+	DataType           whereHelperfloat64
+	Interval           whereHelperfloat64
+	RequestSize        whereHelperfloat64
+	MaxRetries         whereHelperfloat64
+	BatchCount         whereHelperfloat64
+	Status             whereHelperfloat64
+	Created            whereHelpertime_Time
+	ConversionInterval whereHelpernull_Float64
+	OverwriteData      whereHelpernull_Bool
 }{
-	ID:             whereHelperstring{field: "\"datahistoryjob\".\"id\""},
-	Nickname:       whereHelperstring{field: "\"datahistoryjob\".\"nickname\""},
-	ExchangeNameID: whereHelperstring{field: "\"datahistoryjob\".\"exchange_name_id\""},
-	Asset:          whereHelperstring{field: "\"datahistoryjob\".\"asset\""},
-	Base:           whereHelperstring{field: "\"datahistoryjob\".\"base\""},
-	Quote:          whereHelperstring{field: "\"datahistoryjob\".\"quote\""},
-	StartTime:      whereHelpertime_Time{field: "\"datahistoryjob\".\"start_time\""},
-	EndTime:        whereHelpertime_Time{field: "\"datahistoryjob\".\"end_time\""},
-	DataType:       whereHelperfloat64{field: "\"datahistoryjob\".\"data_type\""},
-	Interval:       whereHelperfloat64{field: "\"datahistoryjob\".\"interval\""},
-	RequestSize:    whereHelperfloat64{field: "\"datahistoryjob\".\"request_size\""},
-	MaxRetries:     whereHelperfloat64{field: "\"datahistoryjob\".\"max_retries\""},
-	BatchCount:     whereHelperfloat64{field: "\"datahistoryjob\".\"batch_count\""},
-	Status:         whereHelperfloat64{field: "\"datahistoryjob\".\"status\""},
-	Created:        whereHelpertime_Time{field: "\"datahistoryjob\".\"created\""},
+	ID:                 whereHelperstring{field: "\"datahistoryjob\".\"id\""},
+	Nickname:           whereHelperstring{field: "\"datahistoryjob\".\"nickname\""},
+	ExchangeNameID:     whereHelperstring{field: "\"datahistoryjob\".\"exchange_name_id\""},
+	Asset:              whereHelperstring{field: "\"datahistoryjob\".\"asset\""},
+	Base:               whereHelperstring{field: "\"datahistoryjob\".\"base\""},
+	Quote:              whereHelperstring{field: "\"datahistoryjob\".\"quote\""},
+	StartTime:          whereHelpertime_Time{field: "\"datahistoryjob\".\"start_time\""},
+	EndTime:            whereHelpertime_Time{field: "\"datahistoryjob\".\"end_time\""},
+	DataType:           whereHelperfloat64{field: "\"datahistoryjob\".\"data_type\""},
+	Interval:           whereHelperfloat64{field: "\"datahistoryjob\".\"interval\""},
+	RequestSize:        whereHelperfloat64{field: "\"datahistoryjob\".\"request_size\""},
+	MaxRetries:         whereHelperfloat64{field: "\"datahistoryjob\".\"max_retries\""},
+	BatchCount:         whereHelperfloat64{field: "\"datahistoryjob\".\"batch_count\""},
+	Status:             whereHelperfloat64{field: "\"datahistoryjob\".\"status\""},
+	Created:            whereHelpertime_Time{field: "\"datahistoryjob\".\"created\""},
+	ConversionInterval: whereHelpernull_Float64{field: "\"datahistoryjob\".\"conversion_interval\""},
+	OverwriteData:      whereHelpernull_Bool{field: "\"datahistoryjob\".\"overwrite_data\""},
 }
 
 // DatahistoryjobRels is where relationship names are stored.
@@ -143,8 +200,8 @@ func (*datahistoryjobR) NewStruct() *datahistoryjobR {
 type datahistoryjobL struct{}
 
 var (
-	datahistoryjobAllColumns            = []string{"id", "nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "data_type", "interval", "request_size", "max_retries", "batch_count", "status", "created"}
-	datahistoryjobColumnsWithoutDefault = []string{"nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "data_type", "interval", "request_size", "max_retries", "batch_count", "status", "created"}
+	datahistoryjobAllColumns            = []string{"id", "nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "data_type", "interval", "request_size", "max_retries", "batch_count", "status", "created", "conversion_interval", "overwrite_data"}
+	datahistoryjobColumnsWithoutDefault = []string{"nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "data_type", "interval", "request_size", "max_retries", "batch_count", "status", "created", "conversion_interval", "overwrite_data"}
 	datahistoryjobColumnsWithDefault    = []string{"id"}
 	datahistoryjobPrimaryKeyColumns     = []string{"id"}
 )
@@ -665,7 +722,7 @@ func (datahistoryjobL) LoadPrerequisiteJobDatahistoryjobs(ctx context.Context, e
 		one := new(Datahistoryjob)
 		var localJoinCol string
 
-		err = results.Scan(&one.ID, &one.Nickname, &one.ExchangeNameID, &one.Asset, &one.Base, &one.Quote, &one.StartTime, &one.EndTime, &one.DataType, &one.Interval, &one.RequestSize, &one.MaxRetries, &one.BatchCount, &one.Status, &one.Created, &localJoinCol)
+		err = results.Scan(&one.ID, &one.Nickname, &one.ExchangeNameID, &one.Asset, &one.Base, &one.Quote, &one.StartTime, &one.EndTime, &one.DataType, &one.Interval, &one.RequestSize, &one.MaxRetries, &one.BatchCount, &one.Status, &one.Created, &one.ConversionInterval, &one.OverwriteData, &localJoinCol)
 		if err != nil {
 			return errors.Wrap(err, "failed to scan eager loaded results for datahistoryjob")
 		}
@@ -780,7 +837,7 @@ func (datahistoryjobL) LoadJobDatahistoryjobs(ctx context.Context, e boil.Contex
 		one := new(Datahistoryjob)
 		var localJoinCol string
 
-		err = results.Scan(&one.ID, &one.Nickname, &one.ExchangeNameID, &one.Asset, &one.Base, &one.Quote, &one.StartTime, &one.EndTime, &one.DataType, &one.Interval, &one.RequestSize, &one.MaxRetries, &one.BatchCount, &one.Status, &one.Created, &localJoinCol)
+		err = results.Scan(&one.ID, &one.Nickname, &one.ExchangeNameID, &one.Asset, &one.Base, &one.Quote, &one.StartTime, &one.EndTime, &one.DataType, &one.Interval, &one.RequestSize, &one.MaxRetries, &one.BatchCount, &one.Status, &one.Created, &one.ConversionInterval, &one.OverwriteData, &localJoinCol)
 		if err != nil {
 			return errors.Wrap(err, "failed to scan eager loaded results for datahistoryjob")
 		}

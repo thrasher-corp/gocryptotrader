@@ -28,6 +28,8 @@ type DataHistoryJob struct {
 	Results                 []*datahistoryjobresult.DataHistoryJobResult
 	PrerequisiteJobID       string
 	PrerequisiteJobNickname string
+	ConversionInterval      int64
+	OverwriteData           bool
 }
 
 // DBService is a service which allows the interaction with
