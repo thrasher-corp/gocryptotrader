@@ -3583,10 +3583,12 @@ func (s *RPCServer) UpdateDataHistoryJobPrerequisite(_ context.Context, r *gctrp
 		return nil, errNicknameUnset
 	}
 	status := "success"
-	err := s.dataHistoryManager.SetJobRelationship(r.Nickname, r.PrerequisiteJobNickname)
+	err := s.dataHistoryManager.SetJobRelationship(r.PrerequisiteJobNickname, r.Nickname)
 	if err != nil {
 		return nil, err
 	}
-
-	return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Set job '%v' prerequisite job to '%v' and set status to paused", r.Nickname, r.PrerequisiteJobNickname)}, err
+	if r.PrerequisiteJobNickname == "" {
+		return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Removed prerequisite from job '%v' and set status to active", r.Nickname)}, nil
+	}
+	return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Set job '%v' prerequisite job to '%v' and set status to paused", r.Nickname, r.PrerequisiteJobNickname)}, nil
 }

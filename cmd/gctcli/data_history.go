@@ -17,6 +17,16 @@ import (
 
 var (
 	maxRetryAttempts, requestSizeLimit, batchSize uint64
+	prerequisiteJobSubCommands = []cli.Flag{
+		&cli.StringFlag{
+			Name:  "nickname",
+			Usage: "binance-spot-btc-usdt-2019-trades",
+		},
+		&cli.StringFlag{
+			Name:  "prerequisite",
+			Usage: "binance-spot-btc-usdt-2018-trades",
+		},
+	}
 	guidExample                                   = "deadbeef-dead-beef-dead-beef13371337"
 	specificJobSubCommands                        = []cli.Flag{
 		&cli.StringFlag{
@@ -86,15 +96,15 @@ var (
 		},
 		&cli.Uint64Flag{
 			Name:  "conversion_interval",
-			Usage: klineMessage,
+			Usage: "used in conversion jobs (data type 2 & 3), data will be converted and saved at this interval",
 		},
 		&cli.BoolFlag{
 			Name:  "overwrite_existing_data",
 			Usage: "when converting candles, if data already exists for the time period in the database, it will be overwritten",
 		},
 		&cli.StringFlag{
-			Name:  "prerequisite_job_nickname",
-			Usage: "optional, using an existing job nickname allows you to queue this new job to run after the previous job is finished",
+			Name:  "prerequisite",
+			Usage: "optional - can only be set on job creation, use command `updateprerequisite` or `removeprerequisite` to modify existing jobs",
 		},
 	}
 )
@@ -192,10 +202,23 @@ var dataHistoryCommands = &cli.Command{
 			Action:    setDataHistoryJobStatus,
 		},
 		{
-			Name: "updateprerequisitejob",
+			Name:      "updateprerequisite",
+			Usage:     "adds or updates a prerequisite job to the job referenced - if the job is active, it will be set as 'paused'",
+			ArgsUsage: "<prerequisite> <nickname>",
+			Flags:     prerequisiteJobSubCommands,
+			Action:    setPrerequisiteJob,
 		},
 		{
-			Name: "removeprerequisitejob",
+			Name:      "removeprerequisite",
+			Usage:     "removes a prerequisite job from the job referenced - if the job is 'paused', it will be set as 'active'",
+			ArgsUsage: "<nickname>",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "nickname",
+					Usage: "binance-spot-btc-usdt-2019-trades",
+				},
+			},
+			Action: setPrerequisiteJob,
 		},
 	},
 }
@@ -570,6 +593,55 @@ func getDataHistoryJobSummary(c *cli.Context) error {
 	}
 
 	result, err := client.GetDataHistoryJobSummary(context.Background(), request)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func setPrerequisiteJob(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
+	var nickname string
+	if c.IsSet("nickname") {
+		nickname = c.String("nickname")
+	} else {
+		nickname = c.Args().First()
+	}
+
+	var prerequisite string
+	if c.IsSet("prerequisite") {
+		prerequisite = c.String("prerequisite")
+	} else {
+		prerequisite = c.Args().Get(1)
+	}
+
+	if c.Command.Name == "updateprerequisite" {
+		if prerequisite == "" {
+			return errors.New("prerequisite required")
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			fmt.Print(err)
+		}
+	}()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	request := &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
+		PrerequisiteJobNickname: prerequisite,
+		Nickname:                nickname,
+	}
+
+	result, err := client.UpdateDataHistoryJobPrerequisite(context.Background(), request)
 	if err != nil {
 		return err
 	}

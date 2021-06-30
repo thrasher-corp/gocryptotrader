@@ -1479,3 +1479,33 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 		t.Errorf("received %v, expected %v", nil, "result summaries slice")
 	}
 }
+
+func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {
+	t.Parallel()
+	m := createDHM(t)
+	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
+	_, err := s.UpdateDataHistoryJobPrerequisite(context.Background(), nil)
+	if !errors.Is(err, errNilRequestData) {
+		t.Errorf("received %v, expected %v", err, errNilRequestData)
+	}
+
+	_, err = s.UpdateDataHistoryJobPrerequisite(context.Background(), &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{})
+	if !errors.Is(err, errNicknameUnset) {
+		t.Errorf("received %v, expected %v", err, errNicknameUnset)
+	}
+
+	_, err = s.UpdateDataHistoryJobPrerequisite(context.Background(), &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
+		Nickname: "test456",
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+
+	_, err = s.UpdateDataHistoryJobPrerequisite(context.Background(), &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
+		Nickname:                "test456",
+		PrerequisiteJobNickname: "test123",
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+}
