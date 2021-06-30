@@ -100,11 +100,11 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  "overwrite_existing_data",
-			Usage: "when converting candles, if data already exists for the time period in the database, it will be overwritten",
+			Usage: "used in conversion jobs (data type 2 & 3), when converting candles, if data already exists for the time period in the database, it will be overwritten",
 		},
 		&cli.StringFlag{
 			Name:  "prerequisite",
-			Usage: "optional - can only be set on job creation, use command `updateprerequisite` or `removeprerequisite` to modify existing jobs",
+			Usage: "optional - adds or updates the job to have a prerequisite, will only run when prerequisite job is complete - use command 'removeprerequisite' to remove a prerequisite",
 		},
 	}
 )
@@ -406,8 +406,8 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		}
 	}
 	var prerequisiteJobNickname string
-	if c.IsSet("prerequisite_job_nickname") {
-		assetType = c.String("prerequisite_job_nickname")
+	if c.IsSet("prerequisite") {
+		assetType = c.String("prerequisite")
 	} else {
 		prerequisiteJobNickname = c.Args().Get(13)
 	}

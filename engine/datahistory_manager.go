@@ -818,7 +818,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		return err
 	}
 
-	if job.PrerequisiteJobNickname != "" && !isUpdatingExistingJob {
+	if job.PrerequisiteJobNickname != "" {
 		// only allow new jobs to create associations.
 		// updating/removing existing associations is its own task
 		prereqJob, err := m.GetByNickname(job.PrerequisiteJobNickname, false)
