@@ -426,7 +426,7 @@ completionCheck:
 	return nil
 }
 
-func (m *DataHistoryManager) completionCheck(job *DataHistoryJob, allResultsSuccessful bool, allResultsFailed bool) error {
+func (m *DataHistoryManager) completionCheck(job *DataHistoryJob, allResultsSuccessful, allResultsFailed bool) error {
 	if job == nil {
 		return errNilJob
 	}
@@ -503,7 +503,7 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 			}
 		}
 	}
-	_, err = m.candleSaver(&candles, true)
+	_, err = m.candleSaver(&candles, job.OverwriteExistingData)
 	if err != nil {
 		r.Result += "could not save results: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
@@ -893,6 +893,11 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	b := exch.GetBase()
 	if !b.Features.Enabled.Kline.Intervals[job.Interval.Word()] {
 		return fmt.Errorf("job %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
+	}
+
+	if (job.DataType == dataHistoryConvertTradesDataType || job.DataType == dataHistoryCandleDataType) &&
+		job.ConversionInterval <= 0 {
+		return fmt.Errorf("job %s %s %w %s", job.Nickname, job.ConversionInterval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 
 	job.StartDate = job.StartDate.Round(job.Interval.Duration())

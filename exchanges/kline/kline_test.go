@@ -962,5 +962,4 @@ func TestConvertToNewInterval(t *testing.T) {
 	if len(newCandle.Candles) != 1 {
 		t.Error("expected one candle")
 	}
-
 }

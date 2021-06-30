@@ -701,7 +701,6 @@ func TestRunJob(t *testing.T) {
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
-
 }
 
 func TestGenerateJobSummaryTest(t *testing.T) {
@@ -890,7 +889,6 @@ func createDHM(t *testing.T) *DataHistoryManager {
 func TestProcessCandleData(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
-	r := &DataHistoryJobResult{}
 	_, err := m.processCandleData(nil, nil, time.Time{}, time.Time{})
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
@@ -928,7 +926,7 @@ func TestProcessCandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	r, err = m.processCandleData(j, fakeExchange, j.StartDate, j.EndDate)
+	r, err := m.processCandleData(j, fakeExchange, j.StartDate, j.EndDate)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -947,7 +945,6 @@ func TestProcessCandleData(t *testing.T) {
 func TestProcessTradeData(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
-	r := &DataHistoryJobResult{}
 	_, err := m.processTradeData(nil, nil, time.Time{}, time.Time{})
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
@@ -984,7 +981,7 @@ func TestProcessTradeData(t *testing.T) {
 		t.Error(err)
 	}
 	m.tradeSaver = dataHistoryTradeSaver
-	r, err = m.processTradeData(j, fakeExchange, j.StartDate, j.EndDate)
+	r, err := m.processTradeData(j, fakeExchange, j.StartDate, j.EndDate)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -1003,7 +1000,6 @@ func TestProcessTradeData(t *testing.T) {
 func TestConvertJobTradesToCandles(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
-	r := &DataHistoryJobResult{}
 	_, err := m.convertJobTradesToCandles(nil, time.Time{}, time.Time{})
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
@@ -1023,7 +1019,7 @@ func TestConvertJobTradesToCandles(t *testing.T) {
 	}
 	m.tradeLoader = dataHistoryTraderLoader
 	m.candleSaver = dataHistoryCandleSaver
-	r, err = m.convertJobTradesToCandles(j, j.StartDate, j.EndDate)
+	r, err := m.convertJobTradesToCandles(j, j.StartDate, j.EndDate)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -1036,7 +1032,6 @@ func TestUpscaleJobCandleData(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
 	m.candleSaver = dataHistoryCandleSaver
-	r := &DataHistoryJobResult{}
 	_, err := m.upscaleJobCandleData(nil, time.Time{}, time.Time{})
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
@@ -1056,7 +1051,7 @@ func TestUpscaleJobCandleData(t *testing.T) {
 		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
 	}
 
-	r, err = m.upscaleJobCandleData(j, j.StartDate, j.EndDate)
+	r, err := m.upscaleJobCandleData(j, j.StartDate, j.EndDate)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -1068,7 +1063,6 @@ func TestUpscaleJobCandleData(t *testing.T) {
 func TestValidateCandles(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
-	r := &DataHistoryJobResult{}
 	_, err := m.validateCandles(nil, nil, time.Time{}, time.Time{})
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
@@ -1104,7 +1098,7 @@ func TestValidateCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	r, err = m.validateCandles(j, fakeExchange, j.StartDate, j.EndDate)
+	r, err := m.validateCandles(j, fakeExchange, j.StartDate, j.EndDate)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -1314,7 +1308,7 @@ func dataHistoryTraderLoader(exch, a, base, quote string, start, _ time.Time) ([
 	}, nil
 }
 
-func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, i kline.Interval, start time.Time, _ time.Time) (kline.Item, error) {
+func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, i kline.Interval, start, _ time.Time) (kline.Item, error) {
 	return kline.Item{
 		Exchange: exch,
 		Pair:     cp,
@@ -1403,5 +1397,4 @@ func (f dhmExchange) GetHistoricTrades(p currency.Pair, a asset.Item, startTime,
 			Timestamp:    startTime.Add(time.Minute * 2),
 		},
 	}, nil
-
 }

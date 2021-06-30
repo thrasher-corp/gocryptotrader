@@ -223,7 +223,7 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Error(err)
 			}
 			if len(rel) != 1 {
-				t.Error("expected 1")
+				t.Fatal("expected 1")
 			}
 			if rel[0].ID != results[1].ID {
 				t.Errorf("received %v expected %v", rel[0].ID, results[1].ID)
@@ -238,7 +238,7 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Error(err)
 			}
 			if len(rel) != 2 {
-				t.Error("expected 2")
+				t.Fatal("expected 2")
 			}
 			for i := range rel {
 				if rel[i].ID != results[1].ID && rel[i].ID != results[2].ID {
@@ -266,7 +266,7 @@ func TestDataHistoryJob(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			jerb, err = db.GetPrerequisiteJob(results[2].Nickname)
+			_, err = db.GetPrerequisiteJob(results[2].Nickname)
 			if !errors.Is(err, sql.ErrNoRows) {
 				t.Errorf("received %v exepcted %v", err, sql.ErrNoRows)
 			}

@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
+	"github.com/volatiletech/null"
 )
 
 // Setup returns a DBService
@@ -192,22 +193,28 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 		if err != nil {
 			return err
 		}
+		var overwrite int64
+		if jobs[i].OverwriteData {
+			overwrite = 1
+		}
 		var tempEvent = sqlite3.Datahistoryjob{
-			ID:             jobs[i].ID,
-			ExchangeNameID: r.ID,
-			Nickname:       strings.ToLower(jobs[i].Nickname),
-			Asset:          strings.ToLower(jobs[i].Asset),
-			Base:           strings.ToUpper(jobs[i].Base),
-			Quote:          strings.ToUpper(jobs[i].Quote),
-			StartTime:      jobs[i].StartDate.UTC().Format(time.RFC3339),
-			EndTime:        jobs[i].EndDate.UTC().Format(time.RFC3339),
-			Interval:       float64(jobs[i].Interval),
-			DataType:       float64(jobs[i].DataType),
-			RequestSize:    float64(jobs[i].RequestSizeLimit),
-			MaxRetries:     float64(jobs[i].MaxRetryAttempts),
-			BatchCount:     float64(jobs[i].BatchSize),
-			Status:         float64(jobs[i].Status),
-			Created:        time.Now().UTC().Format(time.RFC3339),
+			ID:                 jobs[i].ID,
+			ExchangeNameID:     r.ID,
+			Nickname:           strings.ToLower(jobs[i].Nickname),
+			Asset:              strings.ToLower(jobs[i].Asset),
+			Base:               strings.ToUpper(jobs[i].Base),
+			Quote:              strings.ToUpper(jobs[i].Quote),
+			StartTime:          jobs[i].StartDate.UTC().Format(time.RFC3339),
+			EndTime:            jobs[i].EndDate.UTC().Format(time.RFC3339),
+			Interval:           float64(jobs[i].Interval),
+			DataType:           float64(jobs[i].DataType),
+			RequestSize:        float64(jobs[i].RequestSizeLimit),
+			MaxRetries:         float64(jobs[i].MaxRetryAttempts),
+			BatchCount:         float64(jobs[i].BatchSize),
+			Status:             float64(jobs[i].Status),
+			Created:            time.Now().UTC().Format(time.RFC3339),
+			ConversionInterval: null.Float64{Float64: float64(jobs[i].ConversionInterval), Valid: true},
+			OverwriteData:      null.Int64{Int64: overwrite, Valid: true},
 		}
 
 		err = tempEvent.Insert(ctx, tx, boil.Infer())
@@ -233,21 +240,23 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			return err
 		}
 		var tempEvent = postgres.Datahistoryjob{
-			ID:             jobs[i].ID,
-			Nickname:       strings.ToLower(jobs[i].Nickname),
-			ExchangeNameID: r.ID,
-			Asset:          strings.ToLower(jobs[i].Asset),
-			Base:           strings.ToUpper(jobs[i].Base),
-			Quote:          strings.ToUpper(jobs[i].Quote),
-			StartTime:      jobs[i].StartDate.UTC(),
-			EndTime:        jobs[i].EndDate.UTC(),
-			Interval:       float64(jobs[i].Interval),
-			DataType:       float64(jobs[i].DataType),
-			BatchCount:     float64(jobs[i].BatchSize),
-			RequestSize:    float64(jobs[i].RequestSizeLimit),
-			MaxRetries:     float64(jobs[i].MaxRetryAttempts),
-			Status:         float64(jobs[i].Status),
-			Created:        time.Now().UTC(),
+			ID:                 jobs[i].ID,
+			Nickname:           strings.ToLower(jobs[i].Nickname),
+			ExchangeNameID:     r.ID,
+			Asset:              strings.ToLower(jobs[i].Asset),
+			Base:               strings.ToUpper(jobs[i].Base),
+			Quote:              strings.ToUpper(jobs[i].Quote),
+			StartTime:          jobs[i].StartDate.UTC(),
+			EndTime:            jobs[i].EndDate.UTC(),
+			Interval:           float64(jobs[i].Interval),
+			DataType:           float64(jobs[i].DataType),
+			BatchCount:         float64(jobs[i].BatchSize),
+			RequestSize:        float64(jobs[i].RequestSizeLimit),
+			MaxRetries:         float64(jobs[i].MaxRetryAttempts),
+			Status:             float64(jobs[i].Status),
+			Created:            time.Now().UTC(),
+			OverwriteData:      null.Bool{Bool: jobs[i].OverwriteData, Valid: true},
+			ConversionInterval: null.Float64{Float64: float64(jobs[i].ConversionInterval), Valid: true},
 		}
 		err = tempEvent.Upsert(ctx, tx, true, []string{"nickname"}, boil.Infer(), boil.Infer())
 		if err != nil {
@@ -290,23 +299,26 @@ func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, erro
 		return nil, err
 	}
 
+	overwrite := result.OverwriteData.Int64 == 1
 	job = &DataHistoryJob{
-		ID:               result.ID,
-		Nickname:         result.Nickname,
-		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     exchangeResult.Name,
-		Asset:            result.Asset,
-		Base:             result.Base,
-		Quote:            result.Quote,
-		StartDate:        ts,
-		EndDate:          te,
-		Interval:         int64(result.Interval),
-		BatchSize:        int64(result.BatchCount),
-		RequestSizeLimit: int64(result.RequestSize),
-		DataType:         int64(result.DataType),
-		MaxRetryAttempts: int64(result.MaxRetries),
-		Status:           int64(result.Status),
-		CreatedDate:      c,
+		ID:                 result.ID,
+		Nickname:           result.Nickname,
+		ExchangeID:         result.ExchangeNameID,
+		ExchangeName:       exchangeResult.Name,
+		Asset:              result.Asset,
+		Base:               result.Base,
+		Quote:              result.Quote,
+		StartDate:          ts,
+		EndDate:            te,
+		Interval:           int64(result.Interval),
+		BatchSize:          int64(result.BatchCount),
+		RequestSizeLimit:   int64(result.RequestSize),
+		DataType:           int64(result.DataType),
+		MaxRetryAttempts:   int64(result.MaxRetries),
+		Status:             int64(result.Status),
+		CreatedDate:        c,
+		ConversionInterval: int64(result.ConversionInterval.Float64),
+		OverwriteData:      overwrite,
 	}
 
 	return job, nil
@@ -334,22 +346,24 @@ func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, er
 	}
 
 	job = &DataHistoryJob{
-		ID:               result.ID,
-		Nickname:         result.Nickname,
-		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     exchangeResult.Name,
-		Asset:            result.Asset,
-		Base:             result.Base,
-		Quote:            result.Quote,
-		StartDate:        result.StartTime,
-		EndDate:          result.EndTime,
-		Interval:         int64(result.Interval),
-		BatchSize:        int64(result.BatchCount),
-		RequestSizeLimit: int64(result.RequestSize),
-		DataType:         int64(result.DataType),
-		MaxRetryAttempts: int64(result.MaxRetries),
-		Status:           int64(result.Status),
-		CreatedDate:      result.Created,
+		ID:                 result.ID,
+		Nickname:           result.Nickname,
+		ExchangeID:         result.ExchangeNameID,
+		ExchangeName:       exchangeResult.Name,
+		Asset:              result.Asset,
+		Base:               result.Base,
+		Quote:              result.Quote,
+		StartDate:          result.StartTime,
+		EndDate:            result.EndTime,
+		Interval:           int64(result.Interval),
+		BatchSize:          int64(result.BatchCount),
+		RequestSizeLimit:   int64(result.RequestSize),
+		DataType:           int64(result.DataType),
+		MaxRetryAttempts:   int64(result.MaxRetries),
+		Status:             int64(result.Status),
+		CreatedDate:        result.Created,
+		ConversionInterval: int64(result.ConversionInterval.Float64),
+		OverwriteData:      result.OverwriteData.Bool,
 	}
 
 	return job, nil
@@ -379,24 +393,26 @@ func (db *DBService) getByIDSQLite(id string) (*DataHistoryJob, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	overwrite := result.OverwriteData.Int64 == 1
 	job = &DataHistoryJob{
-		ID:               result.ID,
-		Nickname:         result.Nickname,
-		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     exchangeResult.Name,
-		Asset:            result.Asset,
-		Base:             result.Base,
-		Quote:            result.Quote,
-		StartDate:        ts,
-		EndDate:          te,
-		Interval:         int64(result.Interval),
-		RequestSizeLimit: int64(result.RequestSize),
-		DataType:         int64(result.DataType),
-		MaxRetryAttempts: int64(result.MaxRetries),
-		BatchSize:        int64(result.BatchCount),
-		Status:           int64(result.Status),
-		CreatedDate:      c,
+		ID:                 result.ID,
+		Nickname:           result.Nickname,
+		ExchangeID:         result.ExchangeNameID,
+		ExchangeName:       exchangeResult.Name,
+		Asset:              result.Asset,
+		Base:               result.Base,
+		Quote:              result.Quote,
+		StartDate:          ts,
+		EndDate:            te,
+		Interval:           int64(result.Interval),
+		RequestSizeLimit:   int64(result.RequestSize),
+		DataType:           int64(result.DataType),
+		MaxRetryAttempts:   int64(result.MaxRetries),
+		BatchSize:          int64(result.BatchCount),
+		Status:             int64(result.Status),
+		CreatedDate:        c,
+		ConversionInterval: int64(result.ConversionInterval.Float64),
+		OverwriteData:      overwrite,
 	}
 
 	return job, nil
@@ -416,22 +432,24 @@ func (db *DBService) getByIDPostgres(id string) (*DataHistoryJob, error) {
 	}
 
 	job = &DataHistoryJob{
-		ID:               result.ID,
-		Nickname:         result.Nickname,
-		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     exchangeResult.Name,
-		Asset:            result.Asset,
-		Base:             result.Base,
-		Quote:            result.Quote,
-		StartDate:        result.StartTime,
-		EndDate:          result.EndTime,
-		Interval:         int64(result.Interval),
-		BatchSize:        int64(result.BatchCount),
-		RequestSizeLimit: int64(result.RequestSize),
-		DataType:         int64(result.DataType),
-		MaxRetryAttempts: int64(result.MaxRetries),
-		Status:           int64(result.Status),
-		CreatedDate:      result.Created,
+		ID:                 result.ID,
+		Nickname:           result.Nickname,
+		ExchangeID:         result.ExchangeNameID,
+		ExchangeName:       exchangeResult.Name,
+		Asset:              result.Asset,
+		Base:               result.Base,
+		Quote:              result.Quote,
+		StartDate:          result.StartTime,
+		EndDate:            result.EndTime,
+		Interval:           int64(result.Interval),
+		BatchSize:          int64(result.BatchCount),
+		RequestSizeLimit:   int64(result.RequestSize),
+		DataType:           int64(result.DataType),
+		MaxRetryAttempts:   int64(result.MaxRetries),
+		Status:             int64(result.Status),
+		CreatedDate:        result.Created,
+		ConversionInterval: int64(result.ConversionInterval.Float64),
+		OverwriteData:      result.OverwriteData.Bool,
 	}
 
 	return job, nil
@@ -465,23 +483,26 @@ func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataH
 			return nil, err
 		}
 
+		overwrite := results[i].OverwriteData.Int64 == 1
 		jobs = append(jobs, DataHistoryJob{
-			ID:               results[i].ID,
-			Nickname:         results[i].Nickname,
-			ExchangeID:       results[i].ExchangeNameID,
-			ExchangeName:     exchangeResult.Name,
-			Asset:            results[i].Asset,
-			Base:             results[i].Base,
-			Quote:            results[i].Quote,
-			StartDate:        ts,
-			EndDate:          te,
-			Interval:         int64(results[i].Interval),
-			RequestSizeLimit: int64(results[i].RequestSize),
-			BatchSize:        int64(results[i].BatchCount),
-			DataType:         int64(results[i].DataType),
-			MaxRetryAttempts: int64(results[i].MaxRetries),
-			Status:           int64(results[i].Status),
-			CreatedDate:      c,
+			ID:                 results[i].ID,
+			Nickname:           results[i].Nickname,
+			ExchangeID:         results[i].ExchangeNameID,
+			ExchangeName:       exchangeResult.Name,
+			Asset:              results[i].Asset,
+			Base:               results[i].Base,
+			Quote:              results[i].Quote,
+			StartDate:          ts,
+			EndDate:            te,
+			Interval:           int64(results[i].Interval),
+			RequestSizeLimit:   int64(results[i].RequestSize),
+			BatchSize:          int64(results[i].BatchCount),
+			DataType:           int64(results[i].DataType),
+			MaxRetryAttempts:   int64(results[i].MaxRetries),
+			Status:             int64(results[i].Status),
+			CreatedDate:        c,
+			ConversionInterval: int64(results[i].ConversionInterval.Float64),
+			OverwriteData:      overwrite,
 		})
 	}
 
@@ -502,22 +523,24 @@ func (db *DBService) getJobsBetweenPostgres(startDate, endDate time.Time) ([]Dat
 			return nil, err
 		}
 		jobs = append(jobs, DataHistoryJob{
-			ID:               results[i].ID,
-			Nickname:         results[i].Nickname,
-			ExchangeID:       results[i].ExchangeNameID,
-			ExchangeName:     exchangeResult.Name,
-			Asset:            results[i].Asset,
-			Base:             results[i].Base,
-			Quote:            results[i].Quote,
-			StartDate:        results[i].StartTime,
-			EndDate:          results[i].EndTime,
-			Interval:         int64(results[i].Interval),
-			BatchSize:        int64(results[i].BatchCount),
-			RequestSizeLimit: int64(results[i].RequestSize),
-			DataType:         int64(results[i].DataType),
-			MaxRetryAttempts: int64(results[i].MaxRetries),
-			Status:           int64(results[i].Status),
-			CreatedDate:      results[i].Created,
+			ID:                 results[i].ID,
+			Nickname:           results[i].Nickname,
+			ExchangeID:         results[i].ExchangeNameID,
+			ExchangeName:       exchangeResult.Name,
+			Asset:              results[i].Asset,
+			Base:               results[i].Base,
+			Quote:              results[i].Quote,
+			StartDate:          results[i].StartTime,
+			EndDate:            results[i].EndTime,
+			Interval:           int64(results[i].Interval),
+			BatchSize:          int64(results[i].BatchCount),
+			RequestSizeLimit:   int64(results[i].RequestSize),
+			DataType:           int64(results[i].DataType),
+			MaxRetryAttempts:   int64(results[i].MaxRetries),
+			Status:             int64(results[i].Status),
+			CreatedDate:        results[i].Created,
+			ConversionInterval: int64(results[i].ConversionInterval.Float64),
+			OverwriteData:      results[i].OverwriteData.Bool,
 		})
 	}
 
@@ -574,25 +597,27 @@ func (db *DBService) getJobAndAllResultsSQLite(nickname string) (*DataHistoryJob
 	if err != nil {
 		return nil, err
 	}
-
+	overwrite := result.OverwriteData.Int64 == 1
 	job = &DataHistoryJob{
-		ID:               result.ID,
-		Nickname:         result.Nickname,
-		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     result.R.ExchangeName.Name,
-		Asset:            result.Asset,
-		Base:             result.Base,
-		Quote:            result.Quote,
-		StartDate:        start,
-		EndDate:          end,
-		Interval:         int64(result.Interval),
-		BatchSize:        int64(result.BatchCount),
-		RequestSizeLimit: int64(result.RequestSize),
-		DataType:         int64(result.DataType),
-		MaxRetryAttempts: int64(result.MaxRetries),
-		Status:           int64(result.Status),
-		CreatedDate:      created,
-		Results:          jobResults,
+		ID:                 result.ID,
+		Nickname:           result.Nickname,
+		ExchangeID:         result.ExchangeNameID,
+		ExchangeName:       result.R.ExchangeName.Name,
+		Asset:              result.Asset,
+		Base:               result.Base,
+		Quote:              result.Quote,
+		StartDate:          start,
+		EndDate:            end,
+		Interval:           int64(result.Interval),
+		BatchSize:          int64(result.BatchCount),
+		RequestSizeLimit:   int64(result.RequestSize),
+		DataType:           int64(result.DataType),
+		MaxRetryAttempts:   int64(result.MaxRetries),
+		Status:             int64(result.Status),
+		CreatedDate:        created,
+		Results:            jobResults,
+		ConversionInterval: int64(result.ConversionInterval.Float64),
+		OverwriteData:      overwrite,
 	}
 
 	return job, nil
@@ -623,23 +648,25 @@ func (db *DBService) getJobAndAllResultsPostgres(nickname string) (*DataHistoryJ
 	}
 
 	job = &DataHistoryJob{
-		ID:               result.ID,
-		Nickname:         result.Nickname,
-		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     result.R.ExchangeName.Name,
-		Asset:            result.Asset,
-		Base:             result.Base,
-		Quote:            result.Quote,
-		StartDate:        result.StartTime,
-		EndDate:          result.EndTime,
-		Interval:         int64(result.Interval),
-		BatchSize:        int64(result.BatchCount),
-		RequestSizeLimit: int64(result.RequestSize),
-		DataType:         int64(result.DataType),
-		MaxRetryAttempts: int64(result.MaxRetries),
-		Status:           int64(result.Status),
-		CreatedDate:      result.Created,
-		Results:          jobResults,
+		ID:                 result.ID,
+		Nickname:           result.Nickname,
+		ExchangeID:         result.ExchangeNameID,
+		ExchangeName:       result.R.ExchangeName.Name,
+		Asset:              result.Asset,
+		Base:               result.Base,
+		Quote:              result.Quote,
+		StartDate:          result.StartTime,
+		EndDate:            result.EndTime,
+		Interval:           int64(result.Interval),
+		BatchSize:          int64(result.BatchCount),
+		RequestSizeLimit:   int64(result.RequestSize),
+		DataType:           int64(result.DataType),
+		MaxRetryAttempts:   int64(result.MaxRetries),
+		Status:             int64(result.Status),
+		CreatedDate:        result.Created,
+		Results:            jobResults,
+		ConversionInterval: int64(result.ConversionInterval.Float64),
+		OverwriteData:      result.OverwriteData.Bool,
 	}
 
 	return job, nil
@@ -696,25 +723,28 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 		if err != nil {
 			return nil, err
 		}
+		overwrite := results[i].OverwriteData.Int64 == 1
 
 		jobs = append(jobs, DataHistoryJob{
-			ID:               results[i].ID,
-			Nickname:         results[i].Nickname,
-			ExchangeID:       results[i].ExchangeNameID,
-			ExchangeName:     results[i].R.ExchangeName.Name,
-			Asset:            results[i].Asset,
-			Base:             results[i].Base,
-			Quote:            results[i].Quote,
-			StartDate:        start,
-			EndDate:          end,
-			Interval:         int64(results[i].Interval),
-			BatchSize:        int64(results[i].BatchCount),
-			RequestSizeLimit: int64(results[i].RequestSize),
-			DataType:         int64(results[i].DataType),
-			MaxRetryAttempts: int64(results[i].MaxRetries),
-			Status:           int64(results[i].Status),
-			CreatedDate:      created,
-			Results:          jobResults,
+			ID:                 results[i].ID,
+			Nickname:           results[i].Nickname,
+			ExchangeID:         results[i].ExchangeNameID,
+			ExchangeName:       results[i].R.ExchangeName.Name,
+			Asset:              results[i].Asset,
+			Base:               results[i].Base,
+			Quote:              results[i].Quote,
+			StartDate:          start,
+			EndDate:            end,
+			Interval:           int64(results[i].Interval),
+			BatchSize:          int64(results[i].BatchCount),
+			RequestSizeLimit:   int64(results[i].RequestSize),
+			DataType:           int64(results[i].DataType),
+			MaxRetryAttempts:   int64(results[i].MaxRetries),
+			Status:             int64(results[i].Status),
+			CreatedDate:        created,
+			Results:            jobResults,
+			ConversionInterval: int64(results[i].ConversionInterval.Float64),
+			OverwriteData:      overwrite,
 		})
 	}
 
@@ -755,22 +785,24 @@ func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob,
 
 func (db *DBService) convertBoilToStruct(result *postgres.Datahistoryjob) *DataHistoryJob {
 	return &DataHistoryJob{
-		ID:               result.ID,
-		Nickname:         result.Nickname,
-		ExchangeID:       result.ExchangeNameID,
-		ExchangeName:     result.R.ExchangeName.Name,
-		Asset:            result.Asset,
-		Base:             result.Base,
-		Quote:            result.Quote,
-		StartDate:        result.StartTime,
-		EndDate:          result.EndTime,
-		Interval:         int64(result.Interval),
-		BatchSize:        int64(result.BatchCount),
-		RequestSizeLimit: int64(result.RequestSize),
-		DataType:         int64(result.DataType),
-		MaxRetryAttempts: int64(result.MaxRetries),
-		Status:           int64(result.Status),
-		CreatedDate:      result.Created,
+		ID:                 result.ID,
+		Nickname:           result.Nickname,
+		ExchangeID:         result.ExchangeNameID,
+		ExchangeName:       result.R.ExchangeName.Name,
+		Asset:              result.Asset,
+		Base:               result.Base,
+		Quote:              result.Quote,
+		StartDate:          result.StartTime,
+		EndDate:            result.EndTime,
+		Interval:           int64(result.Interval),
+		BatchSize:          int64(result.BatchCount),
+		RequestSizeLimit:   int64(result.RequestSize),
+		DataType:           int64(result.DataType),
+		MaxRetryAttempts:   int64(result.MaxRetries),
+		Status:             int64(result.Status),
+		CreatedDate:        result.Created,
+		ConversionInterval: int64(result.ConversionInterval.Float64),
+		OverwriteData:      result.OverwriteData.Bool,
 	}
 }
 
@@ -780,6 +812,9 @@ func (db *DBService) getRelatedUpcomingJobsSQLite(nickname string) ([]*DataHisto
 		return nil, err
 	}
 	sl, err := job.JobDatahistoryjobs().All(context.Background(), db.sql)
+	if err != nil {
+		return nil, err
+	}
 	var resp []*DataHistoryJob
 	for i := range sl {
 		start, err := time.Parse(time.RFC3339, sl[i].StartTime)
@@ -798,24 +833,26 @@ func (db *DBService) getRelatedUpcomingJobsSQLite(nickname string) ([]*DataHisto
 		if err != nil {
 			return nil, err
 		}
-
+		overwrite := sl[i].OverwriteData.Int64 == 1
 		resp = append(resp, &DataHistoryJob{
-			ID:               sl[i].ID,
-			Nickname:         sl[i].Nickname,
-			ExchangeID:       sl[i].ExchangeNameID,
-			ExchangeName:     exch.Name,
-			Asset:            sl[i].Asset,
-			Base:             sl[i].Base,
-			Quote:            sl[i].Quote,
-			StartDate:        start,
-			EndDate:          end,
-			Interval:         int64(sl[i].Interval),
-			BatchSize:        int64(sl[i].BatchCount),
-			RequestSizeLimit: int64(sl[i].RequestSize),
-			DataType:         int64(sl[i].DataType),
-			MaxRetryAttempts: int64(sl[i].MaxRetries),
-			Status:           int64(sl[i].Status),
-			CreatedDate:      created,
+			ID:                 sl[i].ID,
+			Nickname:           sl[i].Nickname,
+			ExchangeID:         sl[i].ExchangeNameID,
+			ExchangeName:       exch.Name,
+			Asset:              sl[i].Asset,
+			Base:               sl[i].Base,
+			Quote:              sl[i].Quote,
+			StartDate:          start,
+			EndDate:            end,
+			Interval:           int64(sl[i].Interval),
+			BatchSize:          int64(sl[i].BatchCount),
+			RequestSizeLimit:   int64(sl[i].RequestSize),
+			DataType:           int64(sl[i].DataType),
+			MaxRetryAttempts:   int64(sl[i].MaxRetries),
+			Status:             int64(sl[i].Status),
+			CreatedDate:        created,
+			ConversionInterval: int64(sl[i].ConversionInterval.Float64),
+			OverwriteData:      overwrite,
 		})
 	}
 	return resp, nil
@@ -829,7 +866,7 @@ func (db *DBService) getRelatedUpcomingJobsPostgres(nickname string) ([]*DataHis
 	}
 	var response []*DataHistoryJob
 	for i := range jobWithRelations.R.JobDatahistoryjobs {
-		job, err := db.getByIDSQLite(jobWithRelations.R.JobDatahistoryjobs[i].ID)
+		job, err := db.getByIDPostgres(jobWithRelations.R.JobDatahistoryjobs[i].ID)
 		if err != nil {
 			return nil, err
 		}
@@ -852,12 +889,12 @@ func setRelationshipSQLite(ctx context.Context, tx *sql.Tx, prerequisiteJobID, f
 	if prerequisiteJobID == "" {
 		return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true)
 	}
-	prerequisiteJob, err := sqlite3.Datahistoryjobs(qm.Where("id = ?", prerequisiteJobID)).One(ctx, tx)
+	result, err := sqlite3.Datahistoryjobs(qm.Where("id = ?", prerequisiteJobID)).One(ctx, tx)
 	if err != nil {
 		return err
 	}
 
-	return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true, prerequisiteJob)
+	return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true, result)
 }
 
 func setRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJobID, followingJobID string, status int64) error {
@@ -872,14 +909,14 @@ func setRelationshipPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJobID,
 	}
 
 	if prerequisiteJobID == "" {
-		return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true)
+		return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, false)
 	}
 	result, err := postgres.Datahistoryjobs(qm.Where("id = ?", prerequisiteJobID)).One(ctx, tx)
 	if err != nil {
 		return err
 	}
 
-	return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true, result)
+	return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, false, result)
 }
 
 func (db *DBService) getPrerequisiteJobSQLite(nickname string) (*DataHistoryJob, error) {
@@ -887,44 +924,47 @@ func (db *DBService) getPrerequisiteJobSQLite(nickname string) (*DataHistoryJob,
 	if err != nil {
 		return nil, err
 	}
-	sl, err := job.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
+	result, err := job.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
 	}
-	start, err := time.Parse(time.RFC3339, sl.StartTime)
+	start, err := time.Parse(time.RFC3339, result.StartTime)
 	if err != nil {
 		return nil, err
 	}
-	end, err := time.Parse(time.RFC3339, sl.EndTime)
+	end, err := time.Parse(time.RFC3339, result.EndTime)
 	if err != nil {
 		return nil, err
 	}
-	created, err := time.Parse(time.RFC3339, sl.Created)
+	created, err := time.Parse(time.RFC3339, result.Created)
 	if err != nil {
 		return nil, err
 	}
-	exch, err := sl.ExchangeName().One(context.Background(), db.sql)
+	exch, err := result.ExchangeName().One(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
 	}
+	overwrite := result.OverwriteData.Int64 == 1
 
 	return &DataHistoryJob{
-		ID:               sl.ID,
-		Nickname:         sl.Nickname,
-		ExchangeID:       sl.ExchangeNameID,
-		ExchangeName:     exch.Name,
-		Asset:            sl.Asset,
-		Base:             sl.Base,
-		Quote:            sl.Quote,
-		StartDate:        start,
-		EndDate:          end,
-		Interval:         int64(sl.Interval),
-		BatchSize:        int64(sl.BatchCount),
-		RequestSizeLimit: int64(sl.RequestSize),
-		DataType:         int64(sl.DataType),
-		MaxRetryAttempts: int64(sl.MaxRetries),
-		Status:           int64(sl.Status),
-		CreatedDate:      created,
+		ID:                 result.ID,
+		Nickname:           result.Nickname,
+		ExchangeID:         result.ExchangeNameID,
+		ExchangeName:       exch.Name,
+		Asset:              result.Asset,
+		Base:               result.Base,
+		Quote:              result.Quote,
+		StartDate:          start,
+		EndDate:            end,
+		Interval:           int64(result.Interval),
+		BatchSize:          int64(result.BatchCount),
+		RequestSizeLimit:   int64(result.RequestSize),
+		DataType:           int64(result.DataType),
+		MaxRetryAttempts:   int64(result.MaxRetries),
+		Status:             int64(result.Status),
+		CreatedDate:        created,
+		ConversionInterval: int64(result.ConversionInterval.Float64),
+		OverwriteData:      overwrite,
 	}, nil
 }
 
@@ -933,31 +973,33 @@ func (db *DBService) getPrerequisiteJobPostgres(nickname string) (*DataHistoryJo
 	if err != nil {
 		return nil, err
 	}
-	sl, err := job.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
+	result, err := job.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
 	}
-	exch, err := sl.ExchangeName().One(context.Background(), db.sql)
+	exch, err := result.ExchangeName().One(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
 	}
 
 	return &DataHistoryJob{
-		ID:               sl.ID,
-		Nickname:         sl.Nickname,
-		ExchangeID:       sl.ExchangeNameID,
-		ExchangeName:     exch.Name,
-		Asset:            sl.Asset,
-		Base:             sl.Base,
-		Quote:            sl.Quote,
-		StartDate:        sl.StartTime,
-		EndDate:          sl.EndTime,
-		Interval:         int64(sl.Interval),
-		BatchSize:        int64(sl.BatchCount),
-		RequestSizeLimit: int64(sl.RequestSize),
-		DataType:         int64(sl.DataType),
-		MaxRetryAttempts: int64(sl.MaxRetries),
-		Status:           int64(sl.Status),
-		CreatedDate:      sl.Created,
+		ID:                 result.ID,
+		Nickname:           result.Nickname,
+		ExchangeID:         result.ExchangeNameID,
+		ExchangeName:       exch.Name,
+		Asset:              result.Asset,
+		Base:               result.Base,
+		Quote:              result.Quote,
+		StartDate:          result.StartTime,
+		EndDate:            result.EndTime,
+		Interval:           int64(result.Interval),
+		BatchSize:          int64(result.BatchCount),
+		RequestSizeLimit:   int64(result.RequestSize),
+		DataType:           int64(result.DataType),
+		MaxRetryAttempts:   int64(result.MaxRetries),
+		Status:             int64(result.Status),
+		CreatedDate:        result.Created,
+		ConversionInterval: int64(result.ConversionInterval.Float64),
+		OverwriteData:      result.OverwriteData.Bool,
 	}, nil
 }
