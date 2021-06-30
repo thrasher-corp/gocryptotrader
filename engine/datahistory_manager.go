@@ -364,7 +364,7 @@ ranges:
 			result, err = m.convertJobTradesToCandles(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		case dataHistoryConvertCandlesDataType:
 			result, err = m.upscaleJobCandleData(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
-		case dataHistoryConvertValidationDataType:
+		case dataHistoryCandleValidationDataType:
 			result, err = m.validateCandles(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		default:
 			return errUnknownDataType
@@ -406,32 +406,9 @@ completionCheck:
 		}
 	}
 	if completed {
-		switch {
-		case allResultsSuccessful:
-			job.Status = dataHistoryStatusComplete
-		case allResultsFailed:
-			job.Status = dataHistoryStatusFailed
-		default:
-			job.Status = dataHistoryIntervalMissingData
-		}
-		log.Infof(log.DataHistory, "job %s finished! Status: %s", job.Nickname, job.Status)
-		if job.Status != dataHistoryStatusFailed {
-			newJobs, err := m.jobDB.GetRelatedUpcomingJobs(job.Nickname)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return err
-			}
-			var newJobNames []string
-			for i := range newJobs {
-				newJobs[i].Status = int64(dataHistoryStatusActive)
-				newJobNames = append(newJobNames, newJobs[i].Nickname)
-			}
-			if len(newJobNames) > 0 {
-				log.Infof(log.DataHistory, "setting the follow jobs to active: %s", strings.Join(newJobNames, ", "))
-				err = m.jobDB.Upsert(newJobs...)
-				if err != nil {
-					return err
-				}
-			}
+		err := m.completionCheck(job, allResultsSuccessful, allResultsFailed)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -445,6 +422,43 @@ completionCheck:
 	err = m.jobResultDB.Upsert(dbJobResults...)
 	if err != nil {
 		return fmt.Errorf("job %s failed to insert job results to database: %w", job.Nickname, err)
+	}
+	return nil
+}
+
+func (m *DataHistoryManager) completionCheck(job *DataHistoryJob, allResultsSuccessful bool, allResultsFailed bool) error {
+	if job == nil {
+		return errNilJob
+	}
+	if allResultsSuccessful && allResultsFailed {
+		return errJobInvalid
+	}
+	switch {
+	case allResultsSuccessful:
+		job.Status = dataHistoryStatusComplete
+	case allResultsFailed:
+		job.Status = dataHistoryStatusFailed
+	default:
+		job.Status = dataHistoryIntervalMissingData
+	}
+	log.Infof(log.DataHistory, "job %s finished! Status: %s", job.Nickname, job.Status)
+	if job.Status != dataHistoryStatusFailed {
+		newJobs, err := m.jobDB.GetRelatedUpcomingJobs(job.Nickname)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+		var newJobNames []string
+		for i := range newJobs {
+			newJobs[i].Status = int64(dataHistoryStatusActive)
+			newJobNames = append(newJobNames, newJobs[i].Nickname)
+		}
+		if len(newJobNames) > 0 {
+			log.Infof(log.DataHistory, "setting the follow jobs to active: %s", strings.Join(newJobNames, ", "))
+			err = m.jobDB.Upsert(newJobs...)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -696,7 +710,16 @@ candleValidation:
 // it will add the relationship and set the jobNickname job to paused
 // if deleting, it will remove the relationship from the database and set the job to active
 func (m *DataHistoryManager) SetJobRelationship(prerequisiteJobNickname, jobNickname string) error {
+	if m == nil {
+		return ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return ErrSubSystemNotStarted
+	}
 	status := dataHistoryStatusPaused
+	if jobNickname == "" {
+		return errNicknameUnset
+	}
 	if prerequisiteJobNickname == "" {
 		status = dataHistoryStatusActive
 	}

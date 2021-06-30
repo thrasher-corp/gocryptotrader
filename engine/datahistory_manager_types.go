@@ -26,7 +26,7 @@ const (
 	dataHistoryTradeDataType
 	dataHistoryConvertTradesDataType
 	dataHistoryConvertCandlesDataType
-	dataHistoryConvertValidationDataType
+	dataHistoryCandleValidationDataType
 )
 
 // DataHistoryJob status descriptors
