@@ -310,44 +310,20 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		}
 	}
 	candleInterval := time.Duration(interval) * time.Second
-	var holder int64
 	if c.IsSet("request_size_limit") {
 		requestSizeLimit = c.Uint64("request_size_limit")
-	} else {
-		holder, err = convert.Int64FromString(c.Args().Get(7))
-		if err != nil {
-			return fmt.Errorf("cannot process request_size_limit: %w", err)
-		}
-		requestSizeLimit = uint64(holder)
 	}
 
 	if c.IsSet("data_type") {
 		dataType = c.Int64("data_type")
-	} else {
-		dataType, err = convert.Int64FromString(c.Args().Get(8))
-		if err != nil {
-			return fmt.Errorf("cannot process data_type: %w", err)
-		}
 	}
 
 	if c.IsSet("max_retry_attempts") {
 		maxRetryAttempts = c.Uint64("max_retry_attempts")
-	} else {
-		holder, err = convert.Int64FromString(c.Args().Get(9))
-		if err != nil {
-			return fmt.Errorf("cannot process max_retry_attempts: %w", err)
-		}
-		maxRetryAttempts = uint64(holder)
 	}
 
 	if c.IsSet("batch_size") {
 		batchSize = c.Uint64("batch_size")
-	} else {
-		holder, err = convert.Int64FromString(c.Args().Get(10))
-		if err != nil {
-			return fmt.Errorf("cannot process batch_size: %w", err)
-		}
-		batchSize = uint64(holder)
 	}
 
 	conn, err := setupClient()
