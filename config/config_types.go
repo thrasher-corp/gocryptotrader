@@ -79,7 +79,7 @@ type Config struct {
 	Database           database.Config           `json:"database"`
 	Logging            log.Config                `json:"logging"`
 	ConnectionMonitor  ConnectionMonitorConfig   `json:"connectionMonitor"`
-	DataHistoryMonitor DataHistoryManager        `json:"dataHistoryManager"`
+	DataHistoryManager DataHistoryManager        `json:"dataHistoryManager"`
 	Profiler           Profiler                  `json:"profiler"`
 	NTPClient          NTPClientConfig           `json:"ntpclient"`
 	GCTScript          gctscript.Config          `json:"gctscript"`

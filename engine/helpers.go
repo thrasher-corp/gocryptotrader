@@ -230,7 +230,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case dataHistoryManagerName:
 		if enable {
 			if bot.dataHistoryManager == nil {
-				bot.dataHistoryManager, err = SetupDataHistoryManager(bot.ExchangeManager, bot.DatabaseManager, &bot.Config.DataHistoryMonitor)
+				bot.dataHistoryManager, err = SetupDataHistoryManager(bot.ExchangeManager, bot.DatabaseManager, &bot.Config.DataHistoryManager)
 				if err != nil {
 					return err
 				}
