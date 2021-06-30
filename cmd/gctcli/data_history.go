@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -388,28 +387,15 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		var cInterval int64
 		if c.IsSet("conversion_interval") {
 			cInterval = c.Int64("conversion_interval")
-		} else {
-			cInterval, err = convert.Int64FromString(c.Args().Get(11))
-			if err != nil {
-				return fmt.Errorf("cannot process conversion_interval: %w", err)
-			}
 		}
 		conversionInterval = time.Duration(cInterval) * time.Second
-
 		if c.IsSet("overwrite_existing_data") {
 			overwriteExistingData = c.Bool("overwrite_existing_data")
-		} else {
-			overwriteExistingData, err = strconv.ParseBool(c.Args().Get(12))
-			if err != nil {
-				return fmt.Errorf("cannot process overwrite_existing_data: %w", err)
-			}
 		}
 	}
 	var prerequisiteJobNickname string
 	if c.IsSet("prerequisite") {
-		assetType = c.String("prerequisite")
-	} else {
-		prerequisiteJobNickname = c.Args().Get(13)
+		prerequisiteJobNickname = c.String("prerequisite")
 	}
 
 	conn, err := setupClient()

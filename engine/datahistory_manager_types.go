@@ -81,7 +81,7 @@ func (d dataHistoryDataType) String() string {
 
 // Valid ensures the value set is legitimate
 func (d dataHistoryDataType) Valid() bool {
-	return int64(d) == 0 || int64(d) == 1
+	return int64(d) >= 0 && int64(d) <= 4
 }
 
 var (

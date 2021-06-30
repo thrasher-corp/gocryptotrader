@@ -177,7 +177,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 		}
 		var candles kline.Item
 		switch jobs[i].DataType {
-		case dataHistoryCandleDataType:
+		case dataHistoryCandleDataType, dataHistoryCandleValidationDataType:
 			candles, err = m.candleLoader(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].Interval, jobs[i].StartDate, jobs[i].EndDate)
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
@@ -188,6 +188,12 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return fmt.Errorf("%s could not load trade data: %w", jobs[i].Nickname, err)
 			}
+		case dataHistoryConvertCandlesDataType, dataHistoryConvertTradesDataType:
+			candles, err = m.candleLoader(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].ConversionInterval, jobs[i].StartDate, jobs[i].EndDate)
+			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
+				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
+			}
+			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 		default:
 			return fmt.Errorf("%s %w %s", jobs[i].Nickname, errUnknownDataType, jobs[i].DataType)
 		}
@@ -302,15 +308,12 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 ranges:
 	for i := range job.rangeHolder.Ranges {
 		skipProcessing := true
-		if job.DataType == dataHistoryConvertTradesDataType ||
-			job.DataType == dataHistoryConvertCandlesDataType {
-			skipProcessing = false
-		} else {
-			for j := range job.rangeHolder.Ranges[i].Intervals {
-				if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
-					skipProcessing = false
-					break
-				}
+		for j := range job.rangeHolder.Ranges[i].Intervals {
+			if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
+				skipProcessing = false
+				break
+			} else if job.rangeHolder.Ranges[i].Intervals[j].HasData && job.DataType == dataHistoryCandleValidationDataType {
+				skipProcessing = false
 			}
 		}
 		if skipProcessing ||
@@ -813,21 +816,30 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 			return err
 		}
 	}
-	job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.Interval, uint32(job.RequestSizeLimit))
-	if err != nil {
-		return err
+	if job.DataType == dataHistoryTradeDataType ||
+		job.DataType == dataHistoryCandleDataType ||
+		job.DataType == dataHistoryCandleValidationDataType {
+		job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.Interval, uint32(job.RequestSizeLimit))
+		if err != nil {
+			return err
+		}
+	} else {
+		job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.ConversionInterval, uint32(job.RequestSizeLimit))
+		if err != nil {
+			return err
+		}
 	}
-
 	if job.PrerequisiteJobNickname != "" {
 		// only allow new jobs to create associations.
 		// updating/removing existing associations is its own task
-		prereqJob, err := m.GetByNickname(job.PrerequisiteJobNickname, false)
+		prereqJob, err := m.jobDB.GetByNickName(job.PrerequisiteJobNickname)
 		if err != nil {
-			if errors.Is(err, errJobNotFound) {
+			if errors.Is(err, sql.ErrNoRows) {
 				return fmt.Errorf("%s previous job %s %w", job.Nickname, job.PrerequisiteJobNickname, err)
 			}
+			return err
 		}
-		job.PrerequisiteJobID = prereqJob.ID
+		job.PrerequisiteJobID = uuid.FromStringOrNil(prereqJob.ID)
 		// we pause the job until the previous job is finished
 		job.Status = dataHistoryStatusPaused
 	}
@@ -895,7 +907,7 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		return fmt.Errorf("job %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 
-	if (job.DataType == dataHistoryConvertTradesDataType || job.DataType == dataHistoryCandleDataType) &&
+	if (job.DataType == dataHistoryConvertTradesDataType || job.DataType == dataHistoryConvertCandlesDataType) &&
 		job.ConversionInterval <= 0 {
 		return fmt.Errorf("job %s %s %w %s", job.Nickname, job.ConversionInterval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
@@ -1158,6 +1170,8 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 		CreatedDate:             dbModel.CreatedDate,
 		Results:                 jobResults,
 		PrerequisiteJobNickname: dbModel.PrerequisiteJobNickname,
+		OverwriteExistingData:   dbModel.OverwriteData,
+		ConversionInterval:      kline.Interval(dbModel.ConversionInterval),
 	}
 	if resp.PrerequisiteJobNickname != "" {
 		prereqID, err := uuid.FromString(dbModel.PrerequisiteJobID)
@@ -1234,6 +1248,8 @@ func (m *DataHistoryManager) convertJobToDBModel(job *DataHistoryJob) *datahisto
 		CreatedDate:             job.CreatedDate,
 		Results:                 m.convertJobResultToDBResult(job.Results),
 		PrerequisiteJobNickname: job.PrerequisiteJobNickname,
+		ConversionInterval:      int64(job.ConversionInterval),
+		OverwriteData:           job.OverwriteExistingData,
 	}
 	if job.ID != uuid.Nil {
 		model.ID = job.ID.String()
