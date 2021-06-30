@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	guidExample            = "deadbeef-dead-beef-dead-beef13371337"
-	specificJobSubCommands = []cli.Flag{
+	maxRetryAttempts, requestSizeLimit, batchSize uint64
+	guidExample                                   = "deadbeef-dead-beef-dead-beef13371337"
+	specificJobSubCommands                        = []cli.Flag{
 		&cli.StringFlag{
 			Name:  "id",
 			Usage: guidExample,
@@ -61,20 +62,26 @@ var (
 			Usage: klineMessage,
 		},
 		&cli.Uint64Flag{
-			Name:  "request_size_limit",
-			Usage: "500 - will only retrieve 500 candles per API request",
+			Name:        "request_size_limit",
+			Usage:       "the number of candles to retrieve per API request",
+			Destination: &requestSizeLimit,
+			Value:       500,
 		},
 		&cli.Uint64Flag{
 			Name:  "data_type",
 			Usage: "0 for candles, 1 for trades",
 		},
 		&cli.Uint64Flag{
-			Name:  "max_retry_attempts",
-			Usage: "3 - the maximum retry attempts for an interval period before giving up",
+			Name:        "max_retry_attempts",
+			Usage:       "the maximum retry attempts for an interval period before giving up",
+			Value:       3,
+			Destination: &maxRetryAttempts,
 		},
 		&cli.Uint64Flag{
-			Name:  "batch_size",
-			Usage: "3 - the amount of API calls to make per run",
+			Name:        "batch_size",
+			Usage:       "the amount of API calls to make per run",
+			Destination: &batchSize,
+			Value:       3,
 		},
 	}
 )
@@ -91,10 +98,8 @@ var dataHistoryCommands = &cli.Command{
 			Action: getActiveDataHistoryJobs,
 		},
 		{
-			Name: "getjobsbetweendates",
-			Usage: fmt.Sprintf("returns all jobs with creation dates between the two provided dates, defaults to between %v & %v",
-				time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
-				time.Now().Format(common.SimpleTimeFormat)),
+			Name:  "getjobsbetweendates",
+			Usage: "returns all jobs with creation dates between the two provided dates",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "start_date",
@@ -238,9 +243,9 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	}
 
 	var (
-		err                                                               error
-		nickname, exchange, assetType, pair                               string
-		interval, requestSizeLimit, dataType, maxRetryAttempts, batchSize int64
+		err                                 error
+		nickname, exchange, assetType, pair string
+		interval, dataType                  int64
 	)
 	if c.IsSet("nickname") {
 		nickname = c.String("nickname")
@@ -305,14 +310,15 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		}
 	}
 	candleInterval := time.Duration(interval) * time.Second
-
+	var holder int64
 	if c.IsSet("request_size_limit") {
-		requestSizeLimit = c.Int64("request_size_limit")
+		requestSizeLimit = c.Uint64("request_size_limit")
 	} else {
-		requestSizeLimit, err = convert.Int64FromString(c.Args().Get(7))
+		holder, err = convert.Int64FromString(c.Args().Get(7))
 		if err != nil {
 			return fmt.Errorf("cannot process request_size_limit: %w", err)
 		}
+		requestSizeLimit = uint64(holder)
 	}
 
 	if c.IsSet("data_type") {
@@ -325,21 +331,23 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	}
 
 	if c.IsSet("max_retry_attempts") {
-		maxRetryAttempts = c.Int64("max_retry_attempts")
+		maxRetryAttempts = c.Uint64("max_retry_attempts")
 	} else {
-		maxRetryAttempts, err = convert.Int64FromString(c.Args().Get(9))
+		holder, err = convert.Int64FromString(c.Args().Get(9))
 		if err != nil {
 			return fmt.Errorf("cannot process max_retry_attempts: %w", err)
 		}
+		maxRetryAttempts = uint64(holder)
 	}
 
 	if c.IsSet("batch_size") {
-		batchSize = c.Int64("batch_size")
+		batchSize = c.Uint64("batch_size")
 	} else {
-		batchSize, err = convert.Int64FromString(c.Args().Get(10))
+		holder, err = convert.Int64FromString(c.Args().Get(10))
 		if err != nil {
 			return fmt.Errorf("cannot process batch_size: %w", err)
 		}
+		batchSize = uint64(holder)
 	}
 
 	conn, err := setupClient()
@@ -365,10 +373,10 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		StartDate:        negateLocalOffset(s),
 		EndDate:          negateLocalOffset(e),
 		Interval:         int64(candleInterval),
-		RequestSizeLimit: requestSizeLimit,
+		RequestSizeLimit: int64(requestSizeLimit),
 		DataType:         dataType,
-		MaxRetryAttempts: maxRetryAttempts,
-		BatchSize:        batchSize,
+		MaxRetryAttempts: int64(maxRetryAttempts),
+		BatchSize:        int64(batchSize),
 	}
 	if strings.EqualFold(c.Command.Name, "addnewjob") {
 		request.InsertOnly = true
