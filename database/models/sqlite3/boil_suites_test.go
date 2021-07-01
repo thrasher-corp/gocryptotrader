@@ -14,6 +14,8 @@ import "testing"
 func TestParent(t *testing.T) {
 	t.Run("AuditEvents", testAuditEvents)
 	t.Run("Candles", testCandles)
+	t.Run("Datahistoryjobs", testDatahistoryjobs)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresults)
 	t.Run("Exchanges", testExchanges)
 	t.Run("Scripts", testScripts)
 	t.Run("ScriptExecutions", testScriptExecutions)
@@ -26,6 +28,8 @@ func TestParent(t *testing.T) {
 func TestDelete(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsDelete)
 	t.Run("Candles", testCandlesDelete)
+	t.Run("Datahistoryjobs", testDatahistoryjobsDelete)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsDelete)
 	t.Run("Exchanges", testExchangesDelete)
 	t.Run("Scripts", testScriptsDelete)
 	t.Run("ScriptExecutions", testScriptExecutionsDelete)
@@ -38,6 +42,8 @@ func TestDelete(t *testing.T) {
 func TestQueryDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsQueryDeleteAll)
 	t.Run("Candles", testCandlesQueryDeleteAll)
+	t.Run("Datahistoryjobs", testDatahistoryjobsQueryDeleteAll)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsQueryDeleteAll)
 	t.Run("Exchanges", testExchangesQueryDeleteAll)
 	t.Run("Scripts", testScriptsQueryDeleteAll)
 	t.Run("ScriptExecutions", testScriptExecutionsQueryDeleteAll)
@@ -50,6 +56,8 @@ func TestQueryDeleteAll(t *testing.T) {
 func TestSliceDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceDeleteAll)
 	t.Run("Candles", testCandlesSliceDeleteAll)
+	t.Run("Datahistoryjobs", testDatahistoryjobsSliceDeleteAll)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsSliceDeleteAll)
 	t.Run("Exchanges", testExchangesSliceDeleteAll)
 	t.Run("Scripts", testScriptsSliceDeleteAll)
 	t.Run("ScriptExecutions", testScriptExecutionsSliceDeleteAll)
@@ -62,6 +70,8 @@ func TestSliceDeleteAll(t *testing.T) {
 func TestExists(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsExists)
 	t.Run("Candles", testCandlesExists)
+	t.Run("Datahistoryjobs", testDatahistoryjobsExists)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsExists)
 	t.Run("Exchanges", testExchangesExists)
 	t.Run("Scripts", testScriptsExists)
 	t.Run("ScriptExecutions", testScriptExecutionsExists)
@@ -74,6 +84,8 @@ func TestExists(t *testing.T) {
 func TestFind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsFind)
 	t.Run("Candles", testCandlesFind)
+	t.Run("Datahistoryjobs", testDatahistoryjobsFind)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsFind)
 	t.Run("Exchanges", testExchangesFind)
 	t.Run("Scripts", testScriptsFind)
 	t.Run("ScriptExecutions", testScriptExecutionsFind)
@@ -86,6 +98,8 @@ func TestFind(t *testing.T) {
 func TestBind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsBind)
 	t.Run("Candles", testCandlesBind)
+	t.Run("Datahistoryjobs", testDatahistoryjobsBind)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsBind)
 	t.Run("Exchanges", testExchangesBind)
 	t.Run("Scripts", testScriptsBind)
 	t.Run("ScriptExecutions", testScriptExecutionsBind)
@@ -98,6 +112,8 @@ func TestBind(t *testing.T) {
 func TestOne(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsOne)
 	t.Run("Candles", testCandlesOne)
+	t.Run("Datahistoryjobs", testDatahistoryjobsOne)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsOne)
 	t.Run("Exchanges", testExchangesOne)
 	t.Run("Scripts", testScriptsOne)
 	t.Run("ScriptExecutions", testScriptExecutionsOne)
@@ -110,6 +126,8 @@ func TestOne(t *testing.T) {
 func TestAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsAll)
 	t.Run("Candles", testCandlesAll)
+	t.Run("Datahistoryjobs", testDatahistoryjobsAll)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsAll)
 	t.Run("Exchanges", testExchangesAll)
 	t.Run("Scripts", testScriptsAll)
 	t.Run("ScriptExecutions", testScriptExecutionsAll)
@@ -122,6 +140,8 @@ func TestAll(t *testing.T) {
 func TestCount(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsCount)
 	t.Run("Candles", testCandlesCount)
+	t.Run("Datahistoryjobs", testDatahistoryjobsCount)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsCount)
 	t.Run("Exchanges", testExchangesCount)
 	t.Run("Scripts", testScriptsCount)
 	t.Run("ScriptExecutions", testScriptExecutionsCount)
@@ -134,6 +154,8 @@ func TestCount(t *testing.T) {
 func TestHooks(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsHooks)
 	t.Run("Candles", testCandlesHooks)
+	t.Run("Datahistoryjobs", testDatahistoryjobsHooks)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsHooks)
 	t.Run("Exchanges", testExchangesHooks)
 	t.Run("Scripts", testScriptsHooks)
 	t.Run("ScriptExecutions", testScriptExecutionsHooks)
@@ -148,6 +170,10 @@ func TestInsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsInsertWhitelist)
 	t.Run("Candles", testCandlesInsert)
 	t.Run("Candles", testCandlesInsertWhitelist)
+	t.Run("Datahistoryjobs", testDatahistoryjobsInsert)
+	t.Run("Datahistoryjobs", testDatahistoryjobsInsertWhitelist)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsInsert)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsInsertWhitelist)
 	t.Run("Exchanges", testExchangesInsert)
 	t.Run("Exchanges", testExchangesInsertWhitelist)
 	t.Run("Scripts", testScriptsInsert)
@@ -168,6 +194,8 @@ func TestInsert(t *testing.T) {
 // or deadlocks can occur.
 func TestToOne(t *testing.T) {
 	t.Run("CandleToExchangeUsingExchangeName", testCandleToOneExchangeUsingExchangeName)
+	t.Run("DatahistoryjobToExchangeUsingExchangeName", testDatahistoryjobToOneExchangeUsingExchangeName)
+	t.Run("DatahistoryjobresultToDatahistoryjobUsingJob", testDatahistoryjobresultToOneDatahistoryjobUsingJob)
 	t.Run("ScriptExecutionToScriptUsingScript", testScriptExecutionToOneScriptUsingScript)
 	t.Run("TradeToExchangeUsingExchangeName", testTradeToOneExchangeUsingExchangeName)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalHistory", testWithdrawalCryptoToOneWithdrawalHistoryUsingWithdrawalHistory)
@@ -185,6 +213,8 @@ func TestOneToOne(t *testing.T) {
 // TestToMany tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToMany(t *testing.T) {
+	t.Run("DatahistoryjobToJobDatahistoryjobresults", testDatahistoryjobToManyJobDatahistoryjobresults)
+	t.Run("ExchangeToExchangeNameDatahistoryjobs", testExchangeToManyExchangeNameDatahistoryjobs)
 	t.Run("ExchangeToExchangeNameWithdrawalHistories", testExchangeToManyExchangeNameWithdrawalHistories)
 	t.Run("ScriptToScriptExecutions", testScriptToManyScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptos", testWithdrawalHistoryToManyWithdrawalCryptos)
@@ -195,6 +225,8 @@ func TestToMany(t *testing.T) {
 // or deadlocks can occur.
 func TestToOneSet(t *testing.T) {
 	t.Run("CandleToExchangeUsingExchangeNameCandle", testCandleToOneSetOpExchangeUsingExchangeName)
+	t.Run("DatahistoryjobToExchangeUsingExchangeNameDatahistoryjobs", testDatahistoryjobToOneSetOpExchangeUsingExchangeName)
+	t.Run("DatahistoryjobresultToDatahistoryjobUsingJobDatahistoryjobresults", testDatahistoryjobresultToOneSetOpDatahistoryjobUsingJob)
 	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneSetOpScriptUsingScript)
 	t.Run("TradeToExchangeUsingExchangeNameTrade", testTradeToOneSetOpExchangeUsingExchangeName)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCryptos", testWithdrawalCryptoToOneSetOpWithdrawalHistoryUsingWithdrawalHistory)
@@ -220,6 +252,8 @@ func TestOneToOneRemove(t *testing.T) {}
 // TestToManyAdd tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManyAdd(t *testing.T) {
+	t.Run("DatahistoryjobToJobDatahistoryjobresults", testDatahistoryjobToManyAddOpJobDatahistoryjobresults)
+	t.Run("ExchangeToExchangeNameDatahistoryjobs", testExchangeToManyAddOpExchangeNameDatahistoryjobs)
 	t.Run("ExchangeToExchangeNameWithdrawalHistories", testExchangeToManyAddOpExchangeNameWithdrawalHistories)
 	t.Run("ScriptToScriptExecutions", testScriptToManyAddOpScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptos", testWithdrawalHistoryToManyAddOpWithdrawalCryptos)
@@ -237,6 +271,8 @@ func TestToManyRemove(t *testing.T) {}
 func TestReload(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReload)
 	t.Run("Candles", testCandlesReload)
+	t.Run("Datahistoryjobs", testDatahistoryjobsReload)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsReload)
 	t.Run("Exchanges", testExchangesReload)
 	t.Run("Scripts", testScriptsReload)
 	t.Run("ScriptExecutions", testScriptExecutionsReload)
@@ -249,6 +285,8 @@ func TestReload(t *testing.T) {
 func TestReloadAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReloadAll)
 	t.Run("Candles", testCandlesReloadAll)
+	t.Run("Datahistoryjobs", testDatahistoryjobsReloadAll)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsReloadAll)
 	t.Run("Exchanges", testExchangesReloadAll)
 	t.Run("Scripts", testScriptsReloadAll)
 	t.Run("ScriptExecutions", testScriptExecutionsReloadAll)
@@ -261,6 +299,8 @@ func TestReloadAll(t *testing.T) {
 func TestSelect(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSelect)
 	t.Run("Candles", testCandlesSelect)
+	t.Run("Datahistoryjobs", testDatahistoryjobsSelect)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsSelect)
 	t.Run("Exchanges", testExchangesSelect)
 	t.Run("Scripts", testScriptsSelect)
 	t.Run("ScriptExecutions", testScriptExecutionsSelect)
@@ -273,6 +313,8 @@ func TestSelect(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpdate)
 	t.Run("Candles", testCandlesUpdate)
+	t.Run("Datahistoryjobs", testDatahistoryjobsUpdate)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsUpdate)
 	t.Run("Exchanges", testExchangesUpdate)
 	t.Run("Scripts", testScriptsUpdate)
 	t.Run("ScriptExecutions", testScriptExecutionsUpdate)
@@ -285,6 +327,8 @@ func TestUpdate(t *testing.T) {
 func TestSliceUpdateAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceUpdateAll)
 	t.Run("Candles", testCandlesSliceUpdateAll)
+	t.Run("Datahistoryjobs", testDatahistoryjobsSliceUpdateAll)
+	t.Run("Datahistoryjobresults", testDatahistoryjobresultsSliceUpdateAll)
 	t.Run("Exchanges", testExchangesSliceUpdateAll)
 	t.Run("Scripts", testScriptsSliceUpdateAll)
 	t.Run("ScriptExecutions", testScriptExecutionsSliceUpdateAll)

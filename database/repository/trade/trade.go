@@ -10,10 +10,11 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
-	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
+	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
+	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
@@ -61,6 +62,89 @@ func Insert(trades ...Data) error {
 	return tx.Commit()
 }
 
+// VerifyTradeInIntervals will query for ONE trade within each kline interval and verify if data exists
+// if it does, it will set the range holder property "HasData" to true
+func VerifyTradeInIntervals(exchangeName, assetType, base, quote string, irh *kline.IntervalRangeHolder) error {
+	ctx := context.Background()
+	ctx = boil.SkipTimestamps(ctx)
+
+	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("beginTx %w", err)
+	}
+	defer func() {
+		if err != nil {
+			errRB := tx.Rollback()
+			if errRB != nil {
+				log.DatabaseMgr.Errorf("Insert tx.Rollback %v", errRB)
+			}
+		}
+	}()
+
+	if repository.GetSQLDialect() == database.DBSQLite3 || repository.GetSQLDialect() == database.DBSQLite {
+		err = verifyTradeInIntervalsSqlite(ctx, tx, exchangeName, assetType, base, quote, irh)
+	} else {
+		err = verifyTradeInIntervalsPostgres(ctx, tx, exchangeName, assetType, base, quote, irh)
+	}
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func verifyTradeInIntervalsSqlite(ctx context.Context, tx *sql.Tx, exchangeName, assetType, base, quote string, irh *kline.IntervalRangeHolder) error {
+	exch, err := sqlite3.Exchanges(qm.Where("name = ?", exchangeName)).One(ctx, tx)
+	if err != nil {
+		return err
+	}
+	for i := range irh.Ranges {
+		for j := range irh.Ranges[i].Intervals {
+			result, err := sqlite3.Trades(qm.Where("exchange_name_id = ? AND asset = ? AND base = ? AND quote = ? AND timestamp between ? AND ?",
+				exch.ID,
+				assetType,
+				base,
+				quote,
+				irh.Ranges[i].Intervals[j].Start.Time.UTC().Format(time.RFC3339),
+				irh.Ranges[i].Intervals[j].End.Time.UTC().Format(time.RFC3339))).One(ctx, tx)
+			if err != nil {
+				return err
+			}
+			if result != nil {
+				irh.Ranges[i].Intervals[j].HasData = true
+			}
+		}
+	}
+
+	return nil
+}
+
+func verifyTradeInIntervalsPostgres(ctx context.Context, tx *sql.Tx, exchangeName, assetType, base, quote string, irh *kline.IntervalRangeHolder) error {
+	exch, err := postgres.Exchanges(qm.Where("name = ?", exchangeName)).One(ctx, tx)
+	if err != nil {
+		return err
+	}
+	for i := range irh.Ranges {
+		for j := range irh.Ranges[i].Intervals {
+			result, err := postgres.Trades(qm.Where("exchange_name_id = ? AND asset = ? AND base = ? AND quote = ? timestamp between ? AND ?",
+				exch.ID,
+				assetType,
+				base,
+				quote,
+				irh.Ranges[i].Intervals[j].Start.Time.UTC().Format(time.RFC3339),
+				irh.Ranges[i].Intervals[j].End.Time.UTC().Format(time.RFC3339))).One(ctx, tx)
+			if err != nil {
+				return err
+			}
+			if result != nil {
+				irh.Ranges[i].Intervals[j].HasData = true
+			}
+		}
+	}
+
+	return nil
+}
+
 func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	for i := range trades {
 		if trades[i].ID == "" {
@@ -70,7 +154,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			}
 			trades[i].ID = freshUUID.String()
 		}
-		var tempEvent = modelSQLite.Trade{
+		var tempEvent = sqlite3.Trade{
 			ID:             trades[i].ID,
 			ExchangeNameID: trades[i].ExchangeNameID,
 			Base:           strings.ToUpper(trades[i].Base),
@@ -106,7 +190,7 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			}
 			trades[i].ID = freshUUID.String()
 		}
-		var tempEvent = modelPSQL.Trade{
+		var tempEvent = postgres.Trade{
 			ExchangeNameID: trades[i].ExchangeNameID,
 			Base:           strings.ToUpper(trades[i].Base),
 			Quote:          strings.ToUpper(trades[i].Quote),
@@ -152,7 +236,7 @@ func GetByUUID(uuid string) (td Data, err error) {
 func getByUUIDSQLite(uuid string) (Data, error) {
 	var td Data
 	var ts time.Time
-	query := modelSQLite.Trades(qm.Where("id = ?", uuid))
+	query := sqlite3.Trades(qm.Where("id = ?", uuid))
 	result, err := query.One(context.Background(), database.DB.SQL)
 	if err != nil {
 		return td, err
@@ -179,8 +263,8 @@ func getByUUIDSQLite(uuid string) (Data, error) {
 }
 
 func getByUUIDPostgres(uuid string) (td Data, err error) {
-	query := modelPSQL.Trades(qm.Where("id = ?", uuid))
-	var result *modelPSQL.Trade
+	query := postgres.Trades(qm.Where("id = ?", uuid))
+	var result *postgres.Trade
 	result, err = query.One(context.Background(), database.DB.SQL)
 	if err != nil {
 		return td, err
@@ -232,8 +316,8 @@ func getInRangeSQLite(exchangeName, assetType, base, quote string, startDate, en
 		"quote":            strings.ToUpper(quote),
 	}
 	q := generateQuery(wheres, startDate, endDate)
-	query := modelSQLite.Trades(q...)
-	var result []*modelSQLite.Trade
+	query := sqlite3.Trades(q...)
+	var result []*sqlite3.Trade
 	result, err = query.All(context.Background(), database.DB.SQL)
 	if err != nil {
 		return td, err
@@ -274,8 +358,8 @@ func getInRangePostgres(exchangeName, assetType, base, quote string, startDate, 
 		"quote":            strings.ToUpper(quote),
 	}
 	q := generateQuery(wheres, startDate, endDate)
-	query := modelPSQL.Trades(q...)
-	var result []*modelPSQL.Trade
+	query := postgres.Trades(q...)
+	var result []*postgres.Trade
 	result, err = query.All(context.Background(), database.DB.SQL)
 	if err != nil {
 		return td, err
@@ -333,7 +417,7 @@ func deleteTradesSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	for i := range trades {
 		tradeIDs = append(tradeIDs, trades[i].ID)
 	}
-	query := modelSQLite.Trades(qm.WhereIn(`id in ?`, tradeIDs...))
+	query := sqlite3.Trades(qm.WhereIn(`id in ?`, tradeIDs...))
 	_, err := query.DeleteAll(ctx, tx)
 	return err
 }
@@ -343,7 +427,7 @@ func deleteTradesPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error
 	for i := range trades {
 		tradeIDs = append(tradeIDs, trades[i].ID)
 	}
-	query := modelPSQL.Trades(qm.WhereIn(`id in ?`, tradeIDs...))
+	query := postgres.Trades(qm.WhereIn(`id in ?`, tradeIDs...))
 	_, err := query.DeleteAll(ctx, tx)
 	return err
 }

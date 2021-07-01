@@ -80,7 +80,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 		}
 	}
 	if len(out.Candles) < 1 {
-		return out, fmt.Errorf(errNoCandleDataFound, exchangeName, base, quote, interval, asset)
+		return out, fmt.Errorf("%w: %s %s %s %v %s", ErrNoCandleDataFound, exchangeName, base, quote, interval, asset)
 	}
 
 	out.ExchangeID = exchangeName

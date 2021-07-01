@@ -80,13 +80,13 @@ func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err er
 		return nil, err
 	}
 	if conn.Driver == database.DBPostgreSQL {
-		dbConn, err = psqlConn.Connect()
+		dbConn, err = psqlConn.Connect(conn)
 		if err != nil {
 			return nil, err
 		}
 	} else if conn.Driver == database.DBSQLite3 || conn.Driver == database.DBSQLite {
 		database.DB.DataPath = TempDir
-		dbConn, err = sqliteConn.Connect()
+		dbConn, err = sqliteConn.Connect(conn.Database)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +96,7 @@ func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err er
 	if err != nil {
 		return nil, err
 	}
-
+	database.DB.SetConnected(true)
 	return
 }
 

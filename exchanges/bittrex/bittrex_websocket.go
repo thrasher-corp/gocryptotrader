@@ -56,6 +56,8 @@ var defaultSpotSubscribedChannelsAuth = []string{
 	wsOrders,
 }
 
+// TickerCache holds ticker and market summary data
+// in order to combine them when processing data
 type TickerCache struct {
 	MarketSummaries map[string]*MarketSummaryData
 	Tickers         map[string]*TickerData

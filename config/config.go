@@ -1409,6 +1409,19 @@ func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 	return resp, nil
 }
 
+// CheckDataHistoryMonitorConfig ensures the data history config is
+// valid, or sets default values
+func (c *Config) CheckDataHistoryMonitorConfig() {
+	m.Lock()
+	defer m.Unlock()
+	if c.DataHistoryManager.CheckInterval <= 0 {
+		c.DataHistoryManager.CheckInterval = defaultDataHistoryMonitorCheckTimer
+	}
+	if c.DataHistoryManager.MaxJobsPerCycle == 0 {
+		c.DataHistoryManager.MaxJobsPerCycle = defaultMaxJobsPerCycle
+	}
+}
+
 // CheckConnectionMonitorConfig checks and if zero value assigns default values
 func (c *Config) CheckConnectionMonitorConfig() {
 	m.Lock()
@@ -1752,6 +1765,7 @@ func (c *Config) CheckConfig() error {
 	}
 
 	c.CheckConnectionMonitorConfig()
+	c.CheckDataHistoryMonitorConfig()
 	c.CheckCommunicationsConfig()
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()

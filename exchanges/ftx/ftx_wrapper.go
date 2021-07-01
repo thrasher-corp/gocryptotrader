@@ -1,6 +1,7 @@
 package ftx
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -474,14 +475,10 @@ func (f *FTX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Da
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
+// FTX returns trades from the end date and iterates towards the start date
 func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if timestampStart.Equal(timestampEnd) ||
-		timestampEnd.After(time.Now()) ||
-		timestampEnd.Before(timestampStart) ||
-		(timestampStart.IsZero() && !timestampEnd.IsZero()) {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v",
-			timestampStart,
-			timestampEnd)
+	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
 	var err error
 	p, err = f.FormatExchangeCurrency(p, assetType)
@@ -489,23 +486,31 @@ func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestamp
 		return nil, err
 	}
 
-	ts := timestampStart
+	ts := timestampEnd
 	var resp []trade.Data
-	limit := 100
 allTrades:
 	for {
 		var trades []TradeData
 		trades, err = f.GetTrades(p.String(),
+			timestampStart.Unix(),
 			ts.Unix(),
-			timestampEnd.Unix(),
 			100)
 		if err != nil {
+			if errors.Is(err, errStartTimeCannotBeAfterEndTime) {
+				break
+			}
 			return nil, err
 		}
-
+		if len(trades) == 0 {
+			break
+		}
 		for i := 0; i < len(trades); i++ {
-			if trades[i].Time.Before(timestampStart) || trades[i].Time.After(timestampEnd) {
+			if timestampStart.Equal(trades[i].Time) || trades[i].Time.Before(timestampStart) {
+				// reached end of trades to crawl
 				break allTrades
+			}
+			if trades[i].Time.After(ts) {
+				continue
 			}
 			var side order.Side
 			side, err = order.StringToOrderSide(trades[i].Side)
@@ -522,16 +527,10 @@ allTrades:
 				Amount:       trades[i].Size,
 				Timestamp:    trades[i].Time,
 			})
+
 			if i == len(trades)-1 {
-				if ts.Equal(trades[i].Time) {
-					// reached end of trades to crawl
-					break allTrades
-				}
 				ts = trades[i].Time
 			}
-		}
-		if len(trades) != limit {
-			break allTrades
 		}
 	}
 
@@ -1073,7 +1072,10 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
-	dates := kline.CalculateCandleDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
 
 	formattedPair, err := f.FormatExchangeCurrency(p, a)
 	if err != nil {
@@ -1101,9 +1103,10 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 			})
 		}
 	}
-	err = dates.VerifyResultsHaveData(ret.Candles)
-	if err != nil {
-		log.ExchangeSys.Warnf("%s - %s", f.Name, err)
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.ExchangeSys.Warnf("%v - %v", f.Name, summary)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

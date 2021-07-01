@@ -55,6 +55,7 @@ func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 	systems[DeprecatedName] = bot.Settings.EnableDeprecatedRPC
 	systems[WebsocketName] = bot.Settings.EnableWebsocketRPC
 	systems[dispatch.Name] = dispatch.IsRunning()
+	systems[dataHistoryManagerName] = bot.dataHistoryManager.IsRunning()
 	return systems
 }
 
@@ -226,7 +227,17 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 		return bot.apiServer.StopWebsocketServer()
 	case grpcName, grpcProxyName:
 		return errors.New("cannot manage GRPC subsystem via GRPC. Please manually change your config")
-
+	case dataHistoryManagerName:
+		if enable {
+			if bot.dataHistoryManager == nil {
+				bot.dataHistoryManager, err = SetupDataHistoryManager(bot.ExchangeManager, bot.DatabaseManager, &bot.Config.DataHistoryManager)
+				if err != nil {
+					return err
+				}
+			}
+			return bot.dataHistoryManager.Start()
+		}
+		return bot.dataHistoryManager.Stop()
 	case vm.Name:
 		if enable {
 			if bot.gctScriptManager == nil {

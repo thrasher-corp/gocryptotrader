@@ -164,6 +164,7 @@ func init() {
 	APIServerMgr = registerNewSubLogger("API")
 	ConfigMgr = registerNewSubLogger("CONFIG")
 	DatabaseMgr = registerNewSubLogger("DATABASE")
+	DataHistory = registerNewSubLogger("DATAHISTORY")
 	OrderMgr = registerNewSubLogger("ORDER")
 	PortfolioMgr = registerNewSubLogger("PORTFOLIO")
 	SyncMgr = registerNewSubLogger("SYNC")

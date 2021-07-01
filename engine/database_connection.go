@@ -16,9 +16,7 @@ import (
 // DatabaseConnectionManagerName is an exported subsystem name
 const DatabaseConnectionManagerName = "database"
 
-var (
-	errDatabaseDisabled = errors.New("database support disabled")
-)
+var errDatabaseDisabled = errors.New("database support disabled")
 
 // DatabaseConnectionManager holds the database connection and its status
 type DatabaseConnectionManager struct {
@@ -41,6 +39,15 @@ func (m *DatabaseConnectionManager) IsRunning() bool {
 		return false
 	}
 	return atomic.LoadInt32(&m.started) == 1
+}
+
+// GetInstance returns a limited scoped database instance
+func (m *DatabaseConnectionManager) GetInstance() database.IDatabase {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return nil
+	}
+
+	return m.dbConn
 }
 
 // SetupDatabaseConnectionManager creates a new database manager
@@ -67,6 +74,14 @@ func SetupDatabaseConnectionManager(cfg *database.Config) (*DatabaseConnectionMa
 	return m, nil
 }
 
+// IsConnected is an exported check to verify if the database is connected
+func (m *DatabaseConnectionManager) IsConnected() bool {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return false
+	}
+	return m.dbConn.IsConnected()
+}
+
 // Start sets up the database connection manager to maintain a SQL connection
 func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
 	if m == nil {
@@ -91,13 +106,13 @@ func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
 				m.host,
 				m.database,
 				m.driver)
-			m.dbConn, err = dbpsql.Connect()
+			m.dbConn, err = dbpsql.Connect(m.dbConn.GetConfig())
 		case database.DBSQLite,
 			database.DBSQLite3:
 			log.DatabaseMgr.Debugf("Attempting to establish database connection to %s utilising %s driver\n",
 				m.database,
 				m.driver)
-			m.dbConn, err = dbsqlite3.Connect()
+			m.dbConn, err = dbsqlite3.Connect(m.database)
 		default:
 			return database.ErrNoDatabaseProvided
 		}

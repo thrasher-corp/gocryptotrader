@@ -849,8 +849,70 @@ message FindMissingIntervalsResponse {
 }
 
 message SetExchangeTradeProcessingRequest {
-    string exchange = 1;
-    bool status = 2;
+    string Exchange = 1;
+    bool Status = 2;
+}
+
+message UpsertDataHistoryJobRequest {
+    string	nickname = 1;
+    string	exchange = 2;
+    string	asset = 3;
+    CurrencyPair pair = 4;
+    string	start_date = 5;
+    string	end_date = 6;
+    int64	interval = 7;
+    int64	request_size_limit = 8;
+    int64	data_type = 9;
+    int64	max_retry_attempts = 10;
+    int64	batch_size = 11;
+    bool insert_only = 12;
+}
+
+message UpsertDataHistoryJobResponse {
+   string message = 1;
+   string job_id = 2;
+}
+
+message GetDataHistoryJobDetailsRequest {
+    string id = 1;
+    string nickname = 2;
+    bool fullDetails = 3;
+}
+
+message DataHistoryJob {
+    string id = 1;
+    string	nickname = 2;
+    string	exchange =3;
+    string	asset = 4;
+    CurrencyPair pair = 5;
+    string	start_date = 6;
+    string	end_date = 7;
+    int64	interval = 8;
+    int64	request_size_limit = 9;
+    int64	max_retry_attempts = 10;
+    int64	batch_size = 11;
+    string status = 12;
+    string data_type = 13;
+    repeated DataHistoryJobResult job_results = 14;
+    repeated string result_summaries = 15;
+}
+
+
+message DataHistoryJobResult {
+    string	start_date = 1;
+    string	end_date = 2;
+    bool has_data = 3;
+    string message = 4;
+    string run_date = 5;
+}
+
+message DataHistoryJobs {
+    repeated DataHistoryJob results = 1;
+}
+
+message GetDataHistoryJobsBetweenRequest {
+    string start_date = 1;
+    string end_date = 2;
 }
 
 service GoCryptoTrader {
@@ -1354,10 +1416,42 @@ service GoCryptoTrader {
             get: "/v1/findmissingsavedtradeintervals"
         };
     }
-
     rpc SetExchangeTradeProcessing (SetExchangeTradeProcessingRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/setexchangetradeprocessing"
+        };
+    }
+
+    rpc UpsertDataHistoryJob (UpsertDataHistoryJobRequest) returns (UpsertDataHistoryJobResponse) {
+        option (google.api.http) = {
+            post: "/v1/upsertdatahistoryjob"
+                 body: "*"
+        };
+    }
+
+    rpc GetDataHistoryJobDetails (GetDataHistoryJobDetailsRequest) returns (DataHistoryJob) {
+        option (google.api.http) = {
+            get: "/v1/getdatahistoryjobdetails"
+        };
+    }
+    rpc GetActiveDataHistoryJobs (GetInfoRequest) returns (DataHistoryJobs) {
+        option (google.api.http) = {
+            get: "/v1/getactivedatahistoryjobs"
+        };
+    }
+    rpc DeleteDataHistoryJob (GetDataHistoryJobDetailsRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            delete: "/v1/deletedatahistoryjob"
+        };
+    }
+    rpc GetDataHistoryJobsBetween (GetDataHistoryJobsBetweenRequest) returns (DataHistoryJobs) {
+        option (google.api.http) = {
+            get: "/v1/getdatahistoryjobsbetween"
+        };
+    }
+    rpc GetDataHistoryJobSummary (GetDataHistoryJobDetailsRequest) returns (DataHistoryJob) {
+        option (google.api.http) = {
+            get: "/v1/getdatahistoryjobsummary"
         };
     }
 }
