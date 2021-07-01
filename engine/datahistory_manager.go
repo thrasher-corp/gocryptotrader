@@ -572,7 +572,10 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	}
 	exch := m.exchangeManager.GetExchangeByName(job.Exchange)
 	if exch == nil {
-		return fmt.Errorf("job %s %w", job.Nickname, errExchangeNotLoaded)
+		return fmt.Errorf("job %s cannot process job: %s %w",
+			job.Nickname,
+			job.Exchange,
+			errExchangeNotLoaded)
 	}
 	pairs, err := exch.GetEnabledPairs(job.Asset)
 	if err != nil {
