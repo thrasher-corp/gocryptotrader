@@ -35,7 +35,7 @@ import (
 
 const testExchange = "Bitstamp"
 
-func newBotWithExchange() (*engine.Engine, gctexchange.IBotExchange) {
+func newBotWithExchange() *engine.Engine {
 	bot := &engine.Engine{
 		Config: &gctconfig.Config{
 			Exchanges: []gctconfig.ExchangeConfig{
@@ -66,7 +66,7 @@ func newBotWithExchange() (*engine.Engine, gctexchange.IBotExchange) {
 	exch.SetDefaults()
 	em.Add(exch)
 	bot.ExchangeManager = em
-	return bot, exch
+	return bot
 }
 
 func TestNewFromConfig(t *testing.T) {
@@ -82,7 +82,7 @@ func TestNewFromConfig(t *testing.T) {
 		t.Errorf("expected: %v, received %v", errNilBot, err)
 	}
 
-	bot, _ := newBotWithExchange()
+	bot := newBotWithExchange()
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, config.ErrNoCurrencySettings) {
 		t.Errorf("expected: %v, received %v", config.ErrNoCurrencySettings, err)
@@ -513,7 +513,7 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bot, _ := newBotWithExchange()
+	bot := newBotWithExchange()
 
 	bt := BackTest{
 		Bot:        bot,
@@ -607,7 +607,7 @@ func TestFullCycleMulti(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bot, _ := newBotWithExchange()
+	bot := newBotWithExchange()
 
 	bt := BackTest{
 		Bot:        bot,
