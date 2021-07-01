@@ -631,6 +631,10 @@ func TestRunJob(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
+	m.tradeSaver = dataHistoryTradeSaver
+	m.candleSaver = dataHistoryCandleSaver
+	m.tradeLoader = dataHistoryTraderLoader
+	m.tradeChecker = dataHistoryHasDataChecker
 
 	err = m.runJob(dhj)
 	if !errors.Is(err, nil) {
@@ -675,10 +679,6 @@ func TestRunJob(t *testing.T) {
 	}
 
 	dhjt.DataType = dataHistoryConvertTradesDataType
-	m.tradeSaver = dataHistoryTradeSaver
-	m.candleSaver = dataHistoryCandleSaver
-	m.tradeLoader = dataHistoryTraderLoader
-	m.tradeChecker = dataHistoryHasDataChecker
 	err = m.runJob(dhjt)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -869,10 +869,13 @@ func createDHM(t *testing.T) *DataHistoryManager {
 	b = exch2.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		Available:    currency.Pairs{cp2},
-		Enabled:      currency.Pairs{cp2},
-		AssetEnabled: convert.BoolPtr(true),
-		ConfigFormat: &currency.PairFormat{Uppercase: true}}
+		Available:     currency.Pairs{cp2},
+		Enabled:       currency.Pairs{cp2},
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
+
 	em.Add(exch2)
 	m := &DataHistoryManager{
 		jobDB:           dataHistoryJobService{},
