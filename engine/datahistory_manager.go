@@ -695,6 +695,15 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 
 // GetAllJobStatusBetween will return all jobs between two ferns
 func (m *DataHistoryManager) GetAllJobStatusBetween(start, end time.Time) ([]*DataHistoryJob, error) {
+	if m == nil {
+		return nil, ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, ErrSubSystemNotStarted
+	}
+	if err := common.StartEndTimeCheck(start, end); err != nil {
+		return nil, err
+	}
 	dbJobs, err := m.jobDB.GetJobsBetween(start, end)
 	if err != nil {
 		return nil, err
@@ -784,6 +793,9 @@ func (m *DataHistoryManager) GetActiveJobs() ([]DataHistoryJob, error) {
 
 // GenerateJobSummary returns a human readable summary of a job's status
 func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJobSummary, error) {
+	if m == nil {
+		return nil, ErrNilSubsystem
+	}
 	job, err := m.GetByNickname(nickname, false)
 	if err != nil {
 		return nil, fmt.Errorf("job: %v %w", nickname, err)

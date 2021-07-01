@@ -525,6 +525,12 @@ func TestGetAllJobStatusBetween(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
+
+	m.started = 0
+	_, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
 }
 
 func TestPrepareJobs(t *testing.T) {
