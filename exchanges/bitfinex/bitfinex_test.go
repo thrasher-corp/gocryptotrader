@@ -63,9 +63,27 @@ func TestMain(m *testing.M) {
 
 func TestGetV2MarginFunding(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip("api keys are not set or invalid")
 	}
 	_, err := b.GetV2MarginFunding("fUSD", "2", 2)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetV2MarginInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys are not set or invalid")
+	}
+	_, err := b.GetV2MarginInfo("base")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetV2MarginInfo("tBTCUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetV2MarginInfo("sym_all")
 	if err != nil {
 		t.Error(err)
 	}
@@ -74,7 +92,7 @@ func TestGetV2MarginFunding(t *testing.T) {
 func TestGetAccountInfoV2(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip("api keys are not set or invalid")
 	}
 	_, err := b.GetAccountInfoV2()
 	if err != nil {
@@ -84,9 +102,9 @@ func TestGetAccountInfoV2(t *testing.T) {
 
 func TestGetV2FundingInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip("api keys are not set or invalid")
 	}
-	_, err := b.GetV2FundingInfo("fUSD")
+	_, err := b.GetV2FundingInfo("fUST")
 	if err != nil {
 		t.Error(err)
 	}
@@ -95,7 +113,7 @@ func TestGetV2FundingInfo(t *testing.T) {
 func TestGetV2Balances(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.SkipNow()
+		t.Skip("api keys are not set or invalid")
 	}
 	_, err := b.GetV2Balances()
 	if err != nil {
@@ -103,9 +121,9 @@ func TestGetV2Balances(t *testing.T) {
 	}
 }
 
-func TestGetDerivativeData(t *testing.T) {
+func TestGetDerivativeStatusInfo(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetDerivativeData("tBTCF0:USTF0", "", "", 0, 0)
+	_, err := b.GetDerivativeStatusInfo("ALL", "", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -202,6 +220,11 @@ func TestGetOrderbook(t *testing.T) {
 	}
 
 	_, err = b.GetOrderbook("fUSD", "P0", 1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetOrderbook("tLINK:UST", "P0", 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1363,7 +1386,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ret != "fBTCUSD" {
+	if ret != "tBTC:USD" {
 		t.Errorf("unexpected result: %v", ret)
 	}
 	pair, err = currency.NewPairFromString("BTCUSD")
@@ -1415,7 +1438,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ret, err = b.fixCasing(pair, asset.Margin)
+	ret, err = b.fixCasing(pair, asset.MarginFunding)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1426,7 +1449,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ret, err = b.fixCasing(pair, asset.Margin)
+	ret, err = b.fixCasing(pair, asset.MarginFunding)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1438,7 +1461,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ret, err = b.fixCasing(pair, asset.Margin)
+	ret, err = b.fixCasing(pair, asset.MarginFunding)
 	if err != nil {
 		t.Fatal(err)
 	}

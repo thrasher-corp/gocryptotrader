@@ -48,6 +48,7 @@ const (
 	getPositionAuditReqRate           = 45
 	updateCollateralOnPositionReqRate = 45 // This is not specified just inputed above
 	// Margin funding -
+	getMarginInfoRate               = 90
 	getActiveFundingOffersReqRate   = 45
 	submitFundingOfferReqRate       = 45 // This is not specified just inputed above
 	cancelFundingOfferReqRate       = 45

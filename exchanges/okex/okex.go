@@ -52,7 +52,7 @@ const (
 	okGroupPerpTickers     = "instruments/ticker"
 	okGroupMarginPairData  = "accounts/%s/availability"
 	okGroupMarginPairsData = "accounts/availability"
-	okGroupSpotPairs       = "instruments"
+	okGroupInstruments     = "instruments"
 )
 
 // OKEX bases all account, spot and margin methods off okgroup implementation
@@ -65,6 +65,14 @@ func (o *OKEX) GetSwapMarkets() ([]okgroup.SwapInstrumentsData, error) {
 	var resp []okgroup.SwapInstrumentsData
 	return resp, o.SendHTTPRequest(exchange.RestSpot, http.MethodGet, okGroupSwapSubsection,
 		okGroupSwapInstruments,
+		nil, &resp, false)
+}
+
+// GetSwapInstruments gets perpetual swap instruments data
+func (o *OKEX) GetSwapInstruments() ([]okgroup.PerpSwapInstrumentData, error) {
+	var resp []okgroup.PerpSwapInstrumentData
+	return resp, o.SendHTTPRequest(exchange.RestSpot, http.MethodGet, okGroupSwapSubsection,
+		okGroupInstruments,
 		nil, &resp, false)
 }
 
@@ -172,7 +180,7 @@ func (o *OKEX) GetMarginRates(instrumentID currency.Pair) (okgroup.MarginCurrenc
 // GetSpotMarkets gets perpetual swap markets' data
 func (o *OKEX) GetSpotMarkets() ([]okgroup.TradingPairData, error) {
 	var resp []okgroup.TradingPairData
-	return resp, o.SendHTTPRequest(exchange.RestSpot, http.MethodGet, okGroupSpotSubsection, okGroupSpotPairs, nil, &resp, false)
+	return resp, o.SendHTTPRequest(exchange.RestSpot, http.MethodGet, okGroupSpotSubsection, okGroupInstruments, nil, &resp, false)
 }
 
 // GetFundingRate gets funding rate of a given currency

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestIsEnabled(t *testing.T) {
@@ -31,45 +32,100 @@ func TestIsEnabled(t *testing.T) {
 func TestIsValidCryptoAddress(t *testing.T) {
 	t.Parallel()
 	b, err := IsValidCryptoAddress("1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "bTC")
-	if err != nil && !b {
-		t.Errorf("Common IsValidCryptoAddress error: %s", err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+	if !b {
+		t.Errorf("expected address '%s' to be valid", "1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX")
+	}
+
+	b, err = IsValidCryptoAddress("bc1qw508d6qejxtdg4y5r3zarvaly0c5xw7kv8f3t4", "bTC")
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !b {
+		t.Errorf("expected address '%s' to be valid", "bc1qw508d6qejxtdg4y5r3zarvaly0c5xw7kv8f3t4")
+	}
+
+	b, err = IsValidCryptoAddress("an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx", "bTC")
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if b {
+		t.Errorf("expected address '%s' to be invalid", "an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx")
+	}
+
+	b, err = IsValidCryptoAddress("bc1qc7slrfxkknqcq2jevvvkdgvrt8080852dfjewde450xdlk4ugp7szw5tk9", "bTC")
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !b {
+		t.Errorf("expected address '%s' to be valid", "bc1qc7slrfxkknqcq2jevvvkdgvrt8080852dfjewde450xdlk4ugp7szw5tk9")
+	}
+
 	b, err = IsValidCryptoAddress("0Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "btc")
-	if err == nil && b {
-		t.Error("Common IsValidCryptoAddress error")
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+	if b {
+		t.Errorf("expected address '%s' to be invalid", "0Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX")
+	}
+
 	b, err = IsValidCryptoAddress("1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "lTc")
-	if err == nil && b {
-		t.Error("Common IsValidCryptoAddress error")
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+	if b {
+		t.Errorf("expected address '%s' to be invalid", "1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX")
+	}
+
 	b, err = IsValidCryptoAddress("3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "ltc")
-	if err != nil && !b {
-		t.Errorf("Common IsValidCryptoAddress error: %s", err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+	if !b {
+		t.Errorf("expected address '%s' to be valid", "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj")
+	}
+
 	b, err = IsValidCryptoAddress("NCDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "lTc")
-	if err == nil && b {
-		t.Error("Common IsValidCryptoAddress error")
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+	if b {
+		t.Errorf("expected address '%s' to be invalid", "NCDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj")
+	}
+
 	b, err = IsValidCryptoAddress(
 		"0xb794f5ea0ba39494ce839613fffba74279579268",
 		"eth",
 	)
-	if err != nil && b {
-		t.Errorf("Common IsValidCryptoAddress error: %s", err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+	if !b {
+		t.Errorf("expected address '%s' to be valid", "0xb794f5ea0ba39494ce839613fffba74279579268")
+	}
+
 	b, err = IsValidCryptoAddress(
 		"xxb794f5ea0ba39494ce839613fffba74279579268",
 		"eTh",
 	)
-	if err == nil && b {
-		t.Error("Common IsValidCryptoAddress error")
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+	if b {
+		t.Errorf("expected address '%s' to be invalid", "xxb794f5ea0ba39494ce839613fffba74279579268")
+	}
+
 	b, err = IsValidCryptoAddress(
 		"xxb794f5ea0ba39494ce839613fffba74279579268",
 		"ding",
 	)
-	if err == nil && b {
-		t.Error("Common IsValidCryptoAddress error")
+	if !errors.Is(err, errInvalidCryptoCurrency) {
+		t.Errorf("received '%v' expected '%v'", err, errInvalidCryptoCurrency)
+	}
+	if b {
+		t.Errorf("expected address '%s' to be invalid", "xxb794f5ea0ba39494ce839613fffba74279579268")
 	}
 }
 
@@ -569,5 +625,42 @@ func TestErrors(t *testing.T) {
 	test = append(test, errors.New("test2"))
 	if test.Error() != "test1, test2" {
 		t.Fatal("does not match error")
+	}
+}
+
+func TestParseStartEndDate(t *testing.T) {
+	pt := time.Date(1999, 1, 1, 0, 0, 0, 0, time.Local)
+	ft := time.Date(2222, 1, 1, 0, 0, 0, 0, time.Local)
+	et := time.Date(2020, 1, 1, 1, 0, 0, 0, time.Local)
+	nt := time.Time{}
+
+	err := StartEndTimeCheck(nt, nt)
+	if !errors.Is(err, ErrDateUnset) {
+		t.Errorf("received %v, expected %v", err, ErrDateUnset)
+	}
+
+	err = StartEndTimeCheck(et, nt)
+	if !errors.Is(err, ErrDateUnset) {
+		t.Errorf("received %v, expected %v", err, ErrDateUnset)
+	}
+
+	err = StartEndTimeCheck(et, et)
+	if !errors.Is(err, ErrStartEqualsEnd) {
+		t.Errorf("received %v, expected %v", err, ErrStartEqualsEnd)
+	}
+
+	err = StartEndTimeCheck(ft, et)
+	if !errors.Is(err, ErrStartAfterTimeNow) {
+		t.Errorf("received %v, expected %v", err, ErrStartAfterTimeNow)
+	}
+
+	err = StartEndTimeCheck(et, pt)
+	if !errors.Is(err, ErrStartAfterEnd) {
+		t.Errorf("received %v, expected %v", err, ErrStartAfterEnd)
+	}
+
+	err = StartEndTimeCheck(pt, et)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
 	}
 }

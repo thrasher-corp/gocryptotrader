@@ -76,14 +76,31 @@ func TestLoadConfigWithSettings(t *testing.T) {
 
 func TestStartStopDoesNotCausePanic(t *testing.T) {
 	t.Parallel()
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
+	}
+	defer func() {
+		err = os.RemoveAll(tempDir)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
 		EnableDryRun: true,
+		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
 		t.Error(err)
 	}
 	botOne.Settings.EnableGRPCProxy = false
+	for i := range botOne.Config.Exchanges {
+		if botOne.Config.Exchanges[i].Name != testExchange {
+			// there is no need to load all exchanges for this test
+			botOne.Config.Exchanges[i].Enabled = false
+		}
+	}
 	if err = botOne.Start(); err != nil {
 		t.Error(err)
 	}

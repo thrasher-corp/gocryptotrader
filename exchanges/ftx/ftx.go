@@ -41,6 +41,7 @@ const (
 	getFundingRates      = "/funding_rates"
 	getIndexWeights      = "/indexes/%s/weights"
 	getAllWalletBalances = "/wallet/all_balances"
+	getIndexCandles      = "/indexes/%s/candles"
 
 	// Authenticated endpoints
 	getAccountInfo           = "/account"
@@ -133,7 +134,44 @@ var (
 	errCoinMustBeSpecified                               = errors.New("a coin must be specified")
 	errSubaccountTransferSizeGreaterThanZero             = errors.New("transfer size must be greater than 0")
 	errSubaccountTransferSourceDestinationMustNotBeEqual = errors.New("subaccount transfer source and destination must not be the same value")
+
+	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
+
+// GetHistoricalIndex gets historical index data
+func (f *FTX) GetHistoricalIndex(indexName string, resolution int64, startTime, endTime time.Time) ([]OHLCVData, error) {
+	params := url.Values{}
+	if indexName == "" {
+		return nil, errors.New("indexName is a mandatory field")
+	}
+	params.Set("index_name", indexName)
+	err := checkResolution(resolution)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("resolution", strconv.FormatInt(resolution, 10))
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return nil, errStartTimeCannotBeAfterEndTime
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	resp := struct {
+		Data []OHLCVData `json:"result"`
+	}{}
+	endpoint := common.EncodeURLValues(fmt.Sprintf(getIndexCandles, indexName), params)
+	return resp.Data, f.SendHTTPRequest(exchange.RestSpot, endpoint, &resp)
+}
+
+func checkResolution(res int64) error {
+	for x := range validResolutionData {
+		if validResolutionData[x] == res {
+			return nil
+		}
+	}
+	return errors.New("resolution data is a mandatory field and the data provided is invalid")
+}
 
 // GetMarkets gets market data
 func (f *FTX) GetMarkets() ([]MarketData, error) {
@@ -210,19 +248,20 @@ func (f *FTX) GetTrades(marketName string, startTime, endTime, limit int64) ([]T
 }
 
 // GetHistoricalData gets historical OHLCV data for a given market pair
-func (f *FTX) GetHistoricalData(marketName, timeInterval, limit string, startTime, endTime time.Time) ([]OHLCVData, error) {
+func (f *FTX) GetHistoricalData(marketName string, timeInterval, limit int64, startTime, endTime time.Time) ([]OHLCVData, error) {
 	if marketName == "" {
 		return nil, errors.New("a market pair must be specified")
 	}
 
-	if timeInterval == "" {
-		return nil, errors.New("a time interval must be specified")
+	err := checkResolution(timeInterval)
+	if err != nil {
+		return nil, err
 	}
 
 	params := url.Values{}
-	params.Set("resolution", timeInterval)
-	if limit != "" {
-		params.Set("limit", limit)
+	params.Set("resolution", strconv.FormatInt(timeInterval, 10))
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {

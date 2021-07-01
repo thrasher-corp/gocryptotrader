@@ -246,6 +246,10 @@ func main() {
 				Login:         "Daanikus",
 				URL:           "https://github.com/Daanikus",
 				Contributions: 1,
+			}, {
+				Login:         "CodeLingoBot",
+				URL:           "https://github.com/CodeLingoBot",
+				Contributions: 1,
 			},
 		}...)
 
@@ -434,7 +438,7 @@ func GetPackageName(name string, capital bool) string {
 		i = len(newStrings) - 1
 	}
 	if capital {
-		return strings.Title(newStrings[i])
+		return strings.Replace(strings.Title(newStrings[i]), "_", " ", -1)
 	}
 	return newStrings[i]
 }

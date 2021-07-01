@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -20,8 +19,6 @@ type CommunicationManager struct {
 	relayMsg chan base.Event
 	comms    *communications.Communications
 }
-
-var errNilConfig = errors.New("received nil communications config")
 
 // SetupCommunicationManager creates a communications manager
 func SetupCommunicationManager(cfg *base.CommunicationsConfig) (*CommunicationManager, error) {

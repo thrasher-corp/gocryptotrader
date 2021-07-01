@@ -10,25 +10,26 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-var tradeCommand = cli.Command{
+var tradeCommand = &cli.Command{
 	Name:      "trade",
 	Usage:     "execute trade related commands",
 	ArgsUsage: "<command> <args>",
-	Subcommands: []cli.Command{
+	Subcommands: []*cli.Command{
 		{
 			Name:      "setexchangetradeprocessing",
 			Usage:     "sets whether an exchange can save trades to the database",
 			ArgsUsage: "<exchange> <status>",
 			Action:    setExchangeTradeProcessing,
 			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "exchange, e",
-					Usage: "the exchange to change the status of",
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to change the status of",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "status",
 					Usage: "<true>/<false>",
 				},
@@ -40,17 +41,20 @@ var tradeCommand = cli.Command{
 			ArgsUsage: "<exchange> <pair> <asset>",
 			Action:    getRecentTrades,
 			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "exchange, e",
-					Usage: "the exchange to get the trades from",
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to get the trades from",
 				},
-				cli.StringFlag{
-					Name:  "pair, p",
-					Usage: "the currency pair to get the trades for",
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "the currency pair to get the trades for",
 				},
-				cli.StringFlag{
-					Name:  "asset, a",
-					Usage: "the asset type of the currency pair",
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair",
 				},
 			},
 		},
@@ -60,25 +64,28 @@ var tradeCommand = cli.Command{
 			ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
 			Action:    getHistoricTrades,
 			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "exchange, e",
-					Usage: "the exchange to get the trades from",
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to get the trades from",
 				},
-				cli.StringFlag{
-					Name:  "pair, p",
-					Usage: "the currency pair to get the trades for",
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "the currency pair to get the trades for",
 				},
-				cli.StringFlag{
-					Name:  "asset, a",
-					Usage: "the asset type of the currency pair",
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "start",
 					Usage:       "<start>",
 					Value:       time.Now().Add(-time.Hour * 6).Format(common.SimpleTimeFormat),
 					Destination: &startTime,
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "end",
 					Usage:       "<end> WARNING: large date ranges may take considerable time",
 					Value:       time.Now().Format(common.SimpleTimeFormat),
@@ -92,25 +99,28 @@ var tradeCommand = cli.Command{
 			ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
 			Action:    getSavedTrades,
 			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "exchange, e",
-					Usage: "the exchange to get the trades from",
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to get the trades from",
 				},
-				cli.StringFlag{
-					Name:  "pair, p",
-					Usage: "the currency pair to get the trades for",
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "the currency pair to get the trades for",
 				},
-				cli.StringFlag{
-					Name:  "asset, a",
-					Usage: "the asset type of the currency pair",
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "start",
 					Usage:       "<start>",
 					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 					Destination: &startTime,
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "end",
 					Usage:       "<end>",
 					Value:       time.Now().Format(common.SimpleTimeFormat),
@@ -124,25 +134,28 @@ var tradeCommand = cli.Command{
 			ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
 			Action:    findMissingSavedTradeIntervals,
 			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "exchange, e",
-					Usage: "the exchange to find the missing trades",
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to find the missing trades",
 				},
-				cli.StringFlag{
-					Name:  "pair, p",
-					Usage: "the currency pair",
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "the currency pair",
 				},
-				cli.StringFlag{
-					Name:  "asset, a",
-					Usage: "the asset type of the currency pair",
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "start",
 					Usage:       "<start> rounded down to the nearest hour",
 					Value:       time.Now().Add(-time.Hour * 24).Truncate(time.Hour).Format(common.SimpleTimeFormat),
 					Destination: &startTime,
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "end",
 					Usage:       "<end> rounded down to the nearest hour",
 					Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
@@ -156,43 +169,49 @@ var tradeCommand = cli.Command{
 			ArgsUsage: "<exchange> <pair> <asset> <interval> <start> <end>",
 			Action:    convertSavedTradesToCandles,
 			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "exchange, e",
-					Usage: "the exchange",
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange",
 				},
-				cli.StringFlag{
-					Name:  "pair, p",
-					Usage: "the currency pair to get the trades for",
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "the currency pair to get the trades for",
 				},
-				cli.StringFlag{
-					Name:  "asset, a",
-					Usage: "the asset type of the currency pair",
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair",
 				},
-				cli.Int64Flag{
-					Name:        "interval, i",
-					Usage:       fmt.Sprintf(klineMessage, "interval"),
+				&cli.Int64Flag{
+					Name:        "interval",
+					Aliases:     []string{"i"},
+					Usage:       klineMessage,
 					Value:       86400,
 					Destination: &candleGranularity,
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "start",
 					Usage:       "<start>",
 					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 					Destination: &startTime,
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:        "end",
 					Usage:       "<end>",
 					Value:       time.Now().Format(common.SimpleTimeFormat),
 					Destination: &endTime,
 				},
-				cli.BoolFlag{
-					Name:  "sync, s",
-					Usage: "will sync the resulting candles to the database <true/false>",
+				&cli.BoolFlag{
+					Name:    "sync",
+					Aliases: []string{"s"},
+					Usage:   "will sync the resulting candles to the database <true/false>",
 				},
-				cli.BoolFlag{
-					Name:  "force, f",
-					Usage: "will overwrite any conflicting candle data on save <true/false>",
+				&cli.BoolFlag{
+					Name:    "force",
+					Aliases: []string{"f"},
+					Usage:   "will overwrite any conflicting candle data on save <true/false>",
 				},
 			},
 		},

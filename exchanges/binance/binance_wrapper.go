@@ -241,6 +241,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            wsRateLimitMilliseconds,
 	})
 }
 
@@ -344,14 +345,14 @@ func (b *Binance) FetchTradablePairs(a asset.Item) ([]string, error) {
 	if !b.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, b.Name)
 	}
+	format, err := b.GetPairFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
 	var pairs []string
 	switch a {
 	case asset.Spot, asset.Margin:
 		info, err := b.GetExchangeInfo()
-		if err != nil {
-			return nil, err
-		}
-		format, err := b.GetPairFormat(a, false)
 		if err != nil {
 			return nil, err
 		}
@@ -375,7 +376,11 @@ func (b *Binance) FetchTradablePairs(a asset.Item) ([]string, error) {
 		}
 		for z := range cInfo.Symbols {
 			if cInfo.Symbols[z].ContractStatus == "TRADING" {
-				pairs = append(pairs, cInfo.Symbols[z].Symbol)
+				curr, err := currency.NewPairFromString(cInfo.Symbols[z].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
 	case asset.USDTMarginedFutures:
@@ -385,7 +390,11 @@ func (b *Binance) FetchTradablePairs(a asset.Item) ([]string, error) {
 		}
 		for u := range uInfo.Symbols {
 			if uInfo.Symbols[u].Status == "TRADING" {
-				pairs = append(pairs, uInfo.Symbols[u].Symbol)
+				curr, err := currency.NewPairFromString(uInfo.Symbols[u].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
 	}
@@ -1513,7 +1522,11 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		Asset:    a,
 		Interval: interval,
 	}
-	dates := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	var candles []CandleStick
 	for x := range dates.Ranges {
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),
@@ -1523,7 +1536,7 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 		}
 
-		candles, err := b.GetSpotKline(&req)
+		candles, err = b.GetSpotKline(&req)
 		if err != nil {
 			return kline.Item{}, err
 		}
@@ -1545,11 +1558,11 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		}
 	}
 
-	err := dates.VerifyResultsHaveData(ret.Candles)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
-
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)

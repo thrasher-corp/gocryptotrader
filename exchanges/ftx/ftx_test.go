@@ -81,6 +81,18 @@ func TestGetMarkets(t *testing.T) {
 	}
 }
 
+func TestGetHistoricalIndex(t *testing.T) {
+	t.Parallel()
+	_, err := f.GetHistoricalIndex("BTC", 3600, time.Now().Add(-time.Hour*2), time.Now().Add(-time.Hour*1))
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetHistoricalIndex("BTC", 3600, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetMarket(t *testing.T) {
 	t.Parallel()
 	_, err := f.GetMarket(spotPair)
@@ -136,28 +148,28 @@ func TestGetTrades(t *testing.T) {
 func TestGetHistoricalData(t *testing.T) {
 	t.Parallel()
 	// test empty market
-	_, err := f.GetHistoricalData("", "86400", "5", time.Time{}, time.Time{})
+	_, err := f.GetHistoricalData("", 86400, 5, time.Time{}, time.Time{})
 	if err == nil {
 		t.Error("empty market should return an error")
 	}
 	// test empty resolution
-	_, err = f.GetHistoricalData(spotPair, "", "5", time.Time{}, time.Time{})
+	_, err = f.GetHistoricalData(spotPair, 0, 5, time.Time{}, time.Time{})
 	if err == nil {
 		t.Error("empty resolution should return an error")
 	}
-	_, err = f.GetHistoricalData(spotPair, "86400", "5", time.Unix(validFTTBTCEndTime, 0), time.Unix(validFTTBTCStartTime, 0))
+	_, err = f.GetHistoricalData(spotPair, 86400, 5, time.Unix(validFTTBTCEndTime, 0), time.Unix(validFTTBTCStartTime, 0))
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 	var o []OHLCVData
-	o, err = f.GetHistoricalData(spotPair, "86400", "5", time.Time{}, time.Time{})
+	o, err = f.GetHistoricalData(spotPair, 86400, 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
 	if len(o) != 5 {
 		t.Error("limit of 5 should return 5 items")
 	}
-	o, err = f.GetHistoricalData(spotPair, "86400", "5", time.Unix(invalidFTTBTCStartTime, 0), time.Unix(invalidFTTBTCEndTime, 0))
+	o, err = f.GetHistoricalData(spotPair, 86400, 5, time.Unix(invalidFTTBTCStartTime, 0), time.Unix(invalidFTTBTCEndTime, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1353,11 +1365,6 @@ func TestGetHistoricTrades(t *testing.T) {
 			t.Fatal(err)
 		}
 		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*15), time.Now())
-		if err != nil {
-			t.Error(err)
-		}
-		// longer term
-		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*60*310), time.Now().Add(-time.Minute*60*300))
 		if err != nil {
 			t.Error(err)
 		}

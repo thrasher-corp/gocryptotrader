@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -97,12 +98,12 @@ func TestTrades(t *testing.T) {
 
 func tradeSQLTester(t *testing.T) {
 	var trades, trades2 []Data
-
+	firstTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	for i := 0; i < 20; i++ {
 		uu, _ := uuid.NewV4()
 		trades = append(trades, Data{
 			ID:        uu.String(),
-			Timestamp: time.Now(),
+			Timestamp: firstTime.Add(time.Minute * time.Duration(i)),
 			Exchange:  testExchanges[0].Name,
 			Base:      currency.BTC.String(),
 			Quote:     currency.USD.String(),
@@ -122,7 +123,7 @@ func tradeSQLTester(t *testing.T) {
 		uu, _ := uuid.NewV4()
 		trades2 = append(trades2, Data{
 			ID:        uu.String(),
-			Timestamp: time.Now(),
+			Timestamp: firstTime.Add(time.Minute * time.Duration(i)),
 			Exchange:  testExchanges[0].Name,
 			Base:      currency.BTC.String(),
 			Quote:     currency.USD.String(),
@@ -142,8 +143,8 @@ func tradeSQLTester(t *testing.T) {
 		asset.Spot.String(),
 		currency.BTC.String(),
 		currency.USD.String(),
-		time.Now().Add(-time.Hour),
-		time.Now().Add(time.Hour),
+		firstTime.Add(-time.Hour),
+		firstTime.Add(time.Hour),
 	)
 	if err != nil {
 		t.Error(err)
@@ -157,13 +158,31 @@ func tradeSQLTester(t *testing.T) {
 		asset.Spot.String(),
 		currency.BTC.String(),
 		currency.USD.String(),
-		time.Now().Add(-time.Hour),
-		time.Now().Add(time.Hour))
+		firstTime.Add(-time.Hour),
+		firstTime.Add(time.Hour))
 	if err != nil {
 		t.Error(err)
 	}
 	if len(v) == 0 {
 		t.Error("Bad get!")
+	}
+
+	ranges, err := kline.CalculateCandleDateRanges(firstTime, firstTime.Add(20*time.Minute), kline.OneMin, 100)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = VerifyTradeInIntervals(testExchanges[0].Name,
+		asset.Spot.String(),
+		currency.BTC.String(),
+		currency.USD.String(),
+		ranges)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !ranges.HasDataAtDate(firstTime) {
+		t.Error("expected data")
 	}
 
 	err = DeleteTrades(trades...)
