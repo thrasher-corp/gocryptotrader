@@ -178,12 +178,12 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 
 	err := f.StoreAssetPairFormat(asset.Spot, spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	err = f.StoreAssetPairFormat(asset.Futures, futures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 ```
 
@@ -680,7 +680,7 @@ func (f *FTX) WsConnect() error {
 		Delay:       ftxWebsocketTimer,
 	})
 	if f.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
+		log.ExchangeSys.Debugf( "%s Connected to Websocket.\n", f.Name)
 	}
 	// This reader routine is called prior to initiating a subscription for
 	// efficient processing.

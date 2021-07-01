@@ -43,7 +43,8 @@ func (m *eventManager) Start() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("event manager %w", ErrSubSystemAlreadyStarted)
 	}
-	log.Debugf(log.EventMgr, "Event Manager started. SleepDelay: %v\n", EventSleepDelay.String())
+	log.EventMgr.Debugf("Event Manager started. SleepDelay: %v\n",
+		EventSleepDelay.String())
 	m.shutdown = make(chan struct{})
 	go m.run()
 	return nil
@@ -89,19 +90,21 @@ func (m *eventManager) run() {
 func (m *eventManager) executeEvent(i int) {
 	if !m.events[i].Executed {
 		if m.verbose {
-			log.Debugf(log.EventMgr, "Events: Processing event %s.\n", m.events[i].String())
+			log.EventMgr.Debugf("Events: Processing event %s.\n",
+				m.events[i])
 		}
 		err := m.checkEventCondition(&m.events[i])
 		if err != nil {
-			msg := fmt.Sprintf(
-				"Events: ID: %d triggered on %s successfully [%v]\n", m.events[i].ID,
-				m.events[i].Exchange, m.events[i].String(),
+			msg := fmt.Sprintf("Events: ID: %d triggered on %s successfully [%v]\n",
+				m.events[i].ID,
+				m.events[i].Exchange,
+				m.events[i],
 			)
-			log.Infoln(log.EventMgr, msg)
+			log.EventMgr.Infoln(msg)
 			m.comms.PushEvent(base.Event{Type: "event", Message: msg})
 			m.events[i].Executed = true
 		} else if m.verbose {
-			log.Debugf(log.EventMgr, "%v", err)
+			log.EventMgr.Debugf("%v", err)
 		}
 	}
 }
@@ -316,7 +319,7 @@ func (e *Event) processOrderbook() error {
 			subtotal := ob.Bids[x].Amount * ob.Bids[x].Price
 			err = e.shouldProcessEvent(subtotal, e.Condition.OrderbookAmount)
 			if err == nil {
-				log.Debugf(log.EventMgr, "Events: Bid Amount: %f Price: %v Subtotal: %v\n", ob.Bids[x].Amount, ob.Bids[x].Price, subtotal)
+				log.EventMgr.Debugf("Events: Bid Amount: %f Price: %v Subtotal: %v\n", ob.Bids[x].Amount, ob.Bids[x].Price, subtotal)
 			}
 		}
 	}
@@ -326,7 +329,7 @@ func (e *Event) processOrderbook() error {
 			subtotal := ob.Asks[x].Amount * ob.Asks[x].Price
 			err = e.shouldProcessEvent(subtotal, e.Condition.OrderbookAmount)
 			if err == nil {
-				log.Debugf(log.EventMgr, "Events: Ask Amount: %f Price: %v Subtotal: %v\n", ob.Asks[x].Amount, ob.Asks[x].Price, subtotal)
+				log.EventMgr.Debugf("Events: Ask Amount: %f Price: %v Subtotal: %v\n", ob.Asks[x].Amount, ob.Asks[x].Price, subtotal)
 			}
 		}
 	}

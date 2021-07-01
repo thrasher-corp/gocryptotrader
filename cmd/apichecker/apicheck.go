@@ -107,12 +107,12 @@ func main() {
 	log.SetupGlobalLogger()
 	configData, err = readFileData(jsonFile)
 	if err != nil {
-		log.Error(log.Global, err)
+		log.Global.Error(err)
 		os.Exit(1)
 	}
 	testConfigData, err = readFileData(testJSONFile)
 	if err != nil {
-		log.Error(log.Global, err)
+		log.Global.Error(err)
 		os.Exit(1)
 	}
 	usageData = testConfigData
@@ -126,7 +126,7 @@ func main() {
 			data.Repo = path
 			err = addExch(exchangeName, checkType, data, false)
 			if err != nil {
-				log.Error(log.Global, err)
+				log.Global.Error(err)
 				os.Exit(1)
 			}
 		case htmlScrape:
@@ -141,7 +141,7 @@ func main() {
 			data.Path = path
 			err = addExch(exchangeName, checkType, data, false)
 			if err != nil {
-				log.Error(log.Global, err)
+				log.Global.Error(err)
 				os.Exit(1)
 			}
 		}
@@ -152,7 +152,7 @@ func main() {
 		if trelloBoardName != "" {
 			a, err = trelloGetBoardID()
 			if err != nil {
-				log.Error(log.Global, err)
+				log.Global.Error(err)
 				os.Exit(1)
 			}
 			trelloBoardID = a
@@ -160,25 +160,25 @@ func main() {
 		if create {
 			err = createAndSet()
 			if err != nil {
-				log.Error(log.Global, err)
+				log.Global.Error(err)
 				os.Exit(1)
 			}
 		}
 		err = updateFile(backupFile)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Global.Error(err)
 			os.Exit(1)
 		}
 		err = checkUpdates(jsonFile)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Global.Error(err)
 			os.Exit(1)
 		}
 	} else {
-		log.Warnln(log.Global, "This is a test update since API keys are not set.")
+		log.Global.Warnln("This is a test update since API keys are not set.")
 		err := checkUpdates(testJSONFile)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Global.Error(err)
 			os.Exit(1)
 		}
 		log.Infoln(log.Global, "API update check completed successfully")
@@ -283,7 +283,7 @@ func getSha(repoPath string) (ShaResponse, error) {
 	var resp ShaResponse
 	getPath := fmt.Sprintf(githubPath, repoPath)
 	if verbose {
-		log.Debugf(log.Global, "Getting SHA of this path: %v\n", getPath)
+		log.Global.Debugf("Getting SHA of this path: %v\n", getPath)
 	}
 	return resp, sendGetReq(getPath, &resp)
 }
@@ -434,16 +434,16 @@ func checkUpdates(fileName string) error {
 	if !areAPIKeysSet() {
 		fileName = testJSONFile
 		if verbose {
-			log.Warnln(log.Global, "Updating test file; main file & trello will not be automatically updated since API key & token are not set")
+			log.Global.Warnln("Updating test file; main file & trello will not be automatically updated since API key & token are not set")
 		}
 	}
-	log.Warnf(log.Global, "The following exchanges need an update: %v\n", resp)
+	log.Global.Warnf("The following exchanges need an update: %v\n", resp)
 	for k := range errMap {
-		log.Warnf(log.Global, "Error: %v\n", errMap[k])
+		log.Global.Warnf("Error: %v\n", errMap[k])
 	}
 	unsup := checkMissingExchanges()
-	log.Warnf(log.Global, "The following exchanges are not supported by apichecker: %v\n", unsup)
-	log.Debugf(log.Global, "Saving the updates to the following file: %s\n", fileName)
+	log.Global.Warnf("The following exchanges are not supported by apichecker: %v\n", unsup)
+	log.Global.Debugf("Saving the updates to the following file: %s\n", fileName)
 	return ioutil.WriteFile(fileName, file, 0770)
 }
 
@@ -526,7 +526,7 @@ func addExch(exchName, checkType string, data interface{}, isUpdate bool) error 
 	var file []byte
 	if !isUpdate {
 		if checkExistingExchanges(exchName) {
-			log.Debugf(log.Global, "%v exchange already exists\n", exchName)
+			log.Global.Debugf("%v exchange already exists\n", exchName)
 			return nil
 		}
 		exchangeData, err := fillData(exchName, checkType, data)

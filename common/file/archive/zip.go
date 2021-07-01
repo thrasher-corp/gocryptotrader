@@ -38,7 +38,7 @@ func UnZip(src, dest string) (fileList []string, err error) {
 		if !strings.HasPrefix(fPath, filepath.Clean(dest)+string(os.PathSeparator)) {
 			err = z.Close()
 			if err != nil {
-				log.Errorf(log.Global, ErrUnableToCloseFile, z, err)
+				log.Global.Errorf(ErrUnableToCloseFile, z, err)
 			}
 			err = fmt.Errorf("%s: illegal file path", fPath)
 			return
@@ -68,7 +68,7 @@ func UnZip(src, dest string) (fileList []string, err error) {
 		if err != nil {
 			errCls := outFile.Close()
 			if errCls != nil {
-				log.Errorf(log.Global, ErrUnableToCloseFile, outFile, errCls)
+				log.Global.Errorf(ErrUnableToCloseFile, outFile, errCls)
 			}
 			return
 		}
@@ -77,25 +77,25 @@ func UnZip(src, dest string) (fileList []string, err error) {
 		if errIOCopy != nil {
 			err = z.Close()
 			if err != nil {
-				log.Errorf(log.Global, ErrUnableToCloseFile, z, err)
+				log.Global.Errorf(ErrUnableToCloseFile, z, err)
 			}
 			err = outFile.Close()
 			if err != nil {
-				log.Errorf(log.Global, ErrUnableToCloseFile, outFile, err)
+				log.Global.Errorf(ErrUnableToCloseFile, outFile, err)
 			}
 			err = eFile.Close()
 			if err != nil {
-				log.Errorf(log.Global, ErrUnableToCloseFile, eFile, err)
+				log.Global.Errorf(ErrUnableToCloseFile, eFile, err)
 			}
 			return fileList, errIOCopy
 		}
 		err = outFile.Close()
 		if err != nil {
-			log.Errorf(log.Global, ErrUnableToCloseFile, outFile, err)
+			log.Global.Errorf(ErrUnableToCloseFile, outFile, err)
 		}
 		err = eFile.Close()
 		if err != nil {
-			log.Errorf(log.Global, ErrUnableToCloseFile, eFile, err)
+			log.Global.Errorf(ErrUnableToCloseFile, eFile, err)
 		}
 		if err != nil {
 			return
@@ -125,12 +125,12 @@ func Zip(src, dest string) error {
 		z.Close()
 		errCls := f.Close()
 		if errCls != nil {
-			log.Errorf(log.Global, "Failed to close file handle, manual deletion required: %v", errCls)
+			log.Global.Errorf("Failed to close file handle, manual deletion required: %v", errCls)
 			return err
 		}
 		errRemove := os.Remove(dest)
 		if errRemove != nil {
-			log.Errorf(log.Global, "Failed to remove archive, manual deletion required: %v", errRemove)
+			log.Global.Errorf("Failed to remove archive, manual deletion required: %v", errRemove)
 		}
 		return err
 	}
@@ -176,7 +176,7 @@ func addFilesToZipWrapper(z *zip.Writer, src string, isDir bool) error {
 		}
 		_, err = io.Copy(w, f)
 		if err != nil {
-			log.Errorf(log.Global, "Failed to Copy data: %v", err)
+			log.Global.Errorf("Failed to Copy data: %v", err)
 		}
 
 		return f.Close()

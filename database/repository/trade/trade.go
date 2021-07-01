@@ -44,7 +44,7 @@ func Insert(trades ...Data) error {
 		if err != nil {
 			errRB := tx.Rollback()
 			if errRB != nil {
-				log.Errorf(log.DatabaseMgr, "Insert tx.Rollback %v", errRB)
+				log.DatabaseMgr.Errorf("Insert tx.Rollback %v", errRB)
 			}
 		}
 	}()
@@ -312,7 +312,7 @@ func DeleteTrades(trades ...Data) error {
 		if err != nil {
 			errRB := tx.Rollback()
 			if errRB != nil {
-				log.Errorf(log.DatabaseMgr, "DeleteTrades tx.Rollback %v", errRB)
+				log.DatabaseMgr.Errorf("DeleteTrades tx.Rollback %v", errRB)
 			}
 		}
 	}()

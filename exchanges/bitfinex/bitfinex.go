@@ -1539,7 +1539,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path st
 	}
 
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "Request JSON: %s\n", PayloadJSON)
+		log.ExchangeSys.Debugf("Request JSON: %s\n", PayloadJSON)
 	}
 
 	PayloadBase64 := crypto.Base64Encode(PayloadJSON)

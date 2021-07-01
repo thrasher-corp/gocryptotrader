@@ -62,7 +62,7 @@ func (l *LakeBTC) SetDefaults() {
 	configFmt := &currency.PairFormat{Uppercase: true}
 	err := l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	l.Features = exchange.Features{
@@ -108,7 +108,7 @@ func (l *LakeBTC) SetDefaults() {
 		exchange.WebsocketSpot: lakeBTCWSURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	l.Websocket = stream.New()
 	l.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -172,7 +172,7 @@ func (l *LakeBTC) Run() {
 
 	err := l.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", l.Name, err)
+		log.ExchangeSys.Errorf("%s failed to update tradable pairs. Err: %s", l.Name, err)
 	}
 }
 

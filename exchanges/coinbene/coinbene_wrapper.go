@@ -69,7 +69,7 @@ func (c *Coinbene) SetDefaults() {
 		},
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	err = c.StoreAssetPairFormat(asset.PerpetualSwap, currency.PairStore{
@@ -83,7 +83,7 @@ func (c *Coinbene) SetDefaults() {
 		},
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	c.Features = exchange.Features{
@@ -154,7 +154,7 @@ func (c *Coinbene) SetDefaults() {
 		exchange.WebsocketSpot: wsContractURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -218,7 +218,7 @@ func (c *Coinbene) Start(wg *sync.WaitGroup) {
 // Run implements the Coinbene wrapper
 func (c *Coinbene) Run() {
 	if c.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s. (url: %s).\n",
 			c.Name,
 			common.IsEnabled(c.Websocket.IsEnabled()),
@@ -233,7 +233,7 @@ func (c *Coinbene) Run() {
 
 	err := c.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s Failed to update tradable pairs. Error: %s",
 			c.Name,
 			err)
@@ -355,7 +355,7 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 
 			tick, ok := tickers[fpair.String()]
 			if !ok {
-				log.Warnf(log.ExchangeSys,
+				log.ExchangeSys.Warnf(
 					"%s SWAP ticker item was not found",
 					c.Name)
 				continue

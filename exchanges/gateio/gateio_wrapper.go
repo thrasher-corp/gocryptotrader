@@ -63,7 +63,7 @@ func (g *Gateio) SetDefaults() {
 	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
 	err := g.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	g.Features = exchange.Features{
@@ -134,7 +134,7 @@ func (g *Gateio) SetDefaults() {
 		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	g.Websocket = stream.New()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -206,7 +206,7 @@ func (g *Gateio) Run() {
 
 	err := g.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", g.Name, err)
+		log.ExchangeSys.Errorf("%s failed to update tradable pairs. Err: %s", g.Name, err)
 	}
 }
 

@@ -35,14 +35,14 @@ func Event(res *withdraw.Response) {
 
 	exchangeUUID, err := exchangeDB.UUIDByName(res.Exchange.Name)
 	if err != nil {
-		log.Error(log.DatabaseMgr, err)
+		log.DatabaseMgr.Error(err)
 		return
 	}
 
 	res.Exchange.Name = exchangeUUID.String()
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Event transaction being failed: %v", err)
+		log.DatabaseMgr.Errorf("Event transaction being failed: %v", err)
 		return
 	}
 
@@ -52,17 +52,17 @@ func Event(res *withdraw.Response) {
 		err = addPSQLEvent(ctx, tx, res)
 	}
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Event insert failed: %v", err)
+		log.DatabaseMgr.Errorf("Event insert failed: %v", err)
 		err = tx.Rollback()
 		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
+			log.DatabaseMgr.Errorf("Event Transaction rollback failed: %v", err)
 		}
 		return
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Event Transaction commit failed: %v", err)
+		log.DatabaseMgr.Errorf("Event Transaction commit failed: %v", err)
 		return
 	}
 }
@@ -83,10 +83,10 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 
 	err = tempEvent.Insert(ctx, tx, boil.Infer())
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
+		log.DatabaseMgr.Errorf("Event Insert failed: %v", err)
 		err = tx.Rollback()
 		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+			log.DatabaseMgr.Errorf("Rollback failed: %v", err)
 		}
 		return
 	}
@@ -103,10 +103,10 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 		}
 		err = tempEvent.SetWithdrawalFiatWithdrawalFiats(ctx, tx, true, fiatEvent)
 		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
+			log.DatabaseMgr.Errorf("Event Insert failed: %v", err)
 			err = tx.Rollback()
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+				log.DatabaseMgr.Errorf("Rollback failed: %v", err)
 			}
 			return
 		}
@@ -122,10 +122,10 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 		}
 		err = tempEvent.AddWithdrawalCryptoWithdrawalCryptos(ctx, tx, true, cryptoEvent)
 		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
+			log.DatabaseMgr.Errorf("Event Insert failed: %v", err)
 			err = tx.Rollback()
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+				log.DatabaseMgr.Errorf("Rollback failed: %v", err)
 			}
 			return
 		}
@@ -140,10 +140,10 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err error) {
 	newUUID, errUUID := uuid.NewV4()
 	if errUUID != nil {
-		log.Errorf(log.DatabaseMgr, "Failed to generate UUID: %v", errUUID)
+		log.DatabaseMgr.Errorf("Failed to generate UUID: %v", errUUID)
 		err = tx.Rollback()
 		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+			log.DatabaseMgr.Errorf("Rollback failed: %v", err)
 		}
 		return
 	}
@@ -164,10 +164,10 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 
 	err = tempEvent.Insert(ctx, tx, boil.Infer())
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
+		log.DatabaseMgr.Errorf("Event Insert failed: %v", err)
 		err = tx.Rollback()
 		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+			log.DatabaseMgr.Errorf("Rollback failed: %v", err)
 		}
 		return
 	}
@@ -185,10 +185,10 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 
 		err = tempEvent.AddWithdrawalFiats(ctx, tx, true, fiatEvent)
 		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
+			log.DatabaseMgr.Errorf("Event Insert failed: %v", err)
 			err = tx.Rollback()
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+				log.DatabaseMgr.Errorf("Rollback failed: %v", err)
 			}
 			return
 		}
@@ -206,10 +206,10 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 
 		err = tempEvent.AddWithdrawalCryptos(ctx, tx, true, cryptoEvent)
 		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
+			log.DatabaseMgr.Errorf("Event Insert failed: %v", err)
 			err = tx.Rollback()
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+				log.DatabaseMgr.Errorf("Rollback failed: %v", err)
 			}
 			return
 		}
@@ -232,7 +232,7 @@ func GetEventByUUID(id string) (*withdraw.Response, error) {
 func GetEventsByExchange(exchange string, limit int) ([]*withdraw.Response, error) {
 	exch, err := exchangeDB.UUIDByName(exchange)
 	if err != nil {
-		log.Error(log.DatabaseMgr, err)
+		log.DatabaseMgr.Error(err)
 		return nil, err
 	}
 	return getByColumns(generateWhereQuery([]string{"exchange_name_id"}, []string{exch.String()}, limit))
@@ -242,7 +242,7 @@ func GetEventsByExchange(exchange string, limit int) ([]*withdraw.Response, erro
 func GetEventByExchangeID(exchange, id string) (*withdraw.Response, error) {
 	exch, err := exchangeDB.UUIDByName(exchange)
 	if err != nil {
-		log.Error(log.DatabaseMgr, err)
+		log.DatabaseMgr.Error(err)
 		return nil, err
 	}
 	resp, err := getByColumns(generateWhereQuery([]string{"exchange_name_id", "exchange_id"}, []string{exch.String(), id}, 1))
@@ -260,7 +260,7 @@ func GetEventsByDate(exchange string, start, end time.Time, limit int) ([]*withd
 	}
 	exch, err := exchangeDB.UUIDByName(exchange)
 	if err != nil {
-		log.Error(log.DatabaseMgr, err)
+		log.DatabaseMgr.Error(err)
 		return nil, err
 	}
 	return getByColumns(append(generateWhereQuery([]string{"exchange_name_id"}, []string{exch.String()}, 0), betweenQuery...))
@@ -315,10 +315,10 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 
 			exchangeName, err := v[x].ExchangeName().One(ctx, database.DB.SQL)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
+				log.DatabaseMgr.Errorf("Unable to get exchange name")
 				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID)
 				if errUUID != nil {
-					log.Errorf(log.DatabaseMgr, "invalid exchange name UUID for record %v", v[x].ID)
+					log.DatabaseMgr.Errorf("invalid exchange name UUID for record %v", v[x].ID)
 				} else {
 					tempResp.Exchange.UUID = tempUUID
 				}
@@ -328,7 +328,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 
 			createdAtTime, err := time.Parse(time.RFC3339, v[x].CreatedAt)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "record: %v has an incorrect time format ( %v ) - defaulting to empty time: %v", tempResp.ID, v[x].CreatedAt, err)
+				log.DatabaseMgr.Errorf("record: %v has an incorrect time format ( %v ) - defaulting to empty time: %v", tempResp.ID, v[x].CreatedAt, err)
 				tempResp.CreatedAt = time.Time{}
 			} else {
 				tempResp.CreatedAt = createdAtTime
@@ -336,7 +336,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 
 			updatedAtTime, err := time.Parse(time.RFC3339, v[x].UpdatedAt)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "record: %v has an incorrect time format ( %v ) - defaulting to empty time: %v", tempResp.ID, v[x].UpdatedAt, err)
+				log.DatabaseMgr.Errorf("record: %v has an incorrect time format ( %v ) - defaulting to empty time: %v", tempResp.ID, v[x].UpdatedAt, err)
 				tempResp.UpdatedAt = time.Time{}
 			} else {
 				tempResp.UpdatedAt = updatedAtTime
@@ -386,10 +386,10 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 
 			exchangeName, err := v[x].ExchangeName().One(ctx, database.DB.SQL)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
+				log.DatabaseMgr.Errorf("Unable to get exchange name")
 				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID)
 				if errUUID != nil {
-					log.Errorf(log.DatabaseMgr, "invalid exchange name UUID for record %v", v[x].ID)
+					log.DatabaseMgr.Errorf("invalid exchange name UUID for record %v", v[x].ID)
 				} else {
 					tempResp.Exchange.UUID = tempUUID
 				}

@@ -37,7 +37,7 @@ func (b *BTCMarkets) WsConnect() error {
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
+		log.ExchangeSys.Debugf("%s Connected to Websocket.\n", b.Name)
 	}
 	go b.wsReadData()
 	return nil
@@ -69,7 +69,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 	switch wsResponse.MessageType {
 	case heartbeat:
 		if b.Verbose {
-			log.Debugf(log.ExchangeSys, "%v - Websocket heartbeat received %s", b.Name, respRaw)
+			log.ExchangeSys.Debugf("%v - Websocket heartbeat received %s", b.Name, respRaw)
 		}
 	case wsOB:
 		var ob WsOrderbook

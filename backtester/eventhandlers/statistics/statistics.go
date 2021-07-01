@@ -144,7 +144,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 // CalculateAllResults calculates the statistics of all exchange asset pair holdings,
 // orders, ratios and drawdowns
 func (s *Statistic) CalculateAllResults() error {
-	log.Info(log.BackTester, "calculating backtesting results")
+	log.BackTester.Info("calculating backtesting results")
 	s.PrintAllEvents()
 	currCount := 0
 	var finalResults []FinalResultsHolder
@@ -191,31 +191,31 @@ func (s *Statistic) CalculateAllResults() error {
 
 // PrintTotalResults outputs all results to the CMD
 func (s *Statistic) PrintTotalResults() {
-	log.Info(log.BackTester, "------------------Strategy-----------------------------------")
-	log.Infof(log.BackTester, "Strategy Name: %v", s.StrategyName)
-	log.Infof(log.BackTester, "Strategy Nickname: %v", s.StrategyNickname)
-	log.Infof(log.BackTester, "Strategy Goal: %v\n\n", s.StrategyGoal)
-	log.Info(log.BackTester, "------------------Total Results------------------------------")
-	log.Info(log.BackTester, "------------------Orders----------------------------------")
-	log.Infof(log.BackTester, "Total buy orders: %v", s.TotalBuyOrders)
-	log.Infof(log.BackTester, "Total sell orders: %v", s.TotalSellOrders)
-	log.Infof(log.BackTester, "Total orders: %v\n\n", s.TotalOrders)
+	log.BackTester.Info("------------------Strategy-----------------------------------")
+	log.BackTester.Infof("Strategy Name: %v", s.StrategyName)
+	log.BackTester.Infof("Strategy Nickname: %v", s.StrategyNickname)
+	log.BackTester.Infof("Strategy Goal: %v\n\n", s.StrategyGoal)
+	log.BackTester.Info("------------------Total Results------------------------------")
+	log.BackTester.Info("------------------Orders----------------------------------")
+	log.BackTester.Infof("Total buy orders: %v", s.TotalBuyOrders)
+	log.BackTester.Infof("Total sell orders: %v", s.TotalSellOrders)
+	log.BackTester.Infof("Total orders: %v\n\n", s.TotalOrders)
 
 	if s.BiggestDrawdown != nil {
-		log.Info(log.BackTester, "------------------Biggest Drawdown------------------------")
-		log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
-		log.Infof(log.BackTester, "Highest Price: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price)
-		log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
-		log.Infof(log.BackTester, "Lowest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
-		log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
-		log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent)
-		log.Infof(log.BackTester, "Difference: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price-s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
-		log.Infof(log.BackTester, "Drawdown length: %v\n\n", s.BiggestDrawdown.MaxDrawdown.IntervalDuration)
+		log.BackTester.Info("------------------Biggest Drawdown------------------------")
+		log.BackTester.Infof("Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
+		log.BackTester.Infof("Highest Price: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price)
+		log.BackTester.Infof("Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
+		log.BackTester.Infof("Lowest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
+		log.BackTester.Infof("Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
+		log.BackTester.Infof("Calculated Drawdown: %.2f%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent)
+		log.BackTester.Infof("Difference: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price-s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
+		log.BackTester.Infof("Drawdown length: %v\n\n", s.BiggestDrawdown.MaxDrawdown.IntervalDuration)
 	}
 	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {
-		log.Info(log.BackTester, "------------------Orders----------------------------------")
-		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement)
-		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement)
+		log.BackTester.Info("------------------Orders----------------------------------")
+		log.BackTester.Infof("Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement)
+		log.BackTester.Infof("Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement)
 	}
 }
 
@@ -258,7 +258,7 @@ func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResults
 
 // PrintAllEvents outputs all event details in the CMD
 func (s *Statistic) PrintAllEvents() {
-	log.Info(log.BackTester, "------------------Events-------------------------------------")
+	log.BackTester.Info("------------------Events-------------------------------------")
 	var errs gctcommon.Errors
 	for e, x := range s.ExchangeAssetPairStatistics {
 		for a, y := range x {
@@ -272,13 +272,13 @@ func (s *Statistic) PrintAllEvents() {
 							direction == common.DoNothing ||
 							direction == common.MissingData ||
 							direction == "" {
-							log.Infof(log.BackTester, "%v | Price: $%v - Direction: %v - Reason: %s",
+							log.BackTester.Infof("%v | Price: $%v - Direction: %v - Reason: %s",
 								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 								c.Events[i].FillEvent.GetClosePrice(),
 								c.Events[i].FillEvent.GetDirection(),
 								c.Events[i].FillEvent.GetReason())
 						} else {
-							log.Infof(log.BackTester, "%v | Price: $%v - Amount: %v - Fee: $%v - Total: $%v - Direction %v - Reason: %s",
+							log.BackTester.Infof("%v | Price: $%v - Amount: %v - Fee: $%v - Total: $%v - Direction %v - Reason: %s",
 								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 								c.Events[i].FillEvent.GetPurchasePrice(),
 								c.Events[i].FillEvent.GetAmount(),
@@ -289,12 +289,12 @@ func (s *Statistic) PrintAllEvents() {
 							)
 						}
 					case c.Events[i].SignalEvent != nil:
-						log.Infof(log.BackTester, "%v | Price: $%v - Reason: %v",
+						log.BackTester.Infof("%v | Price: $%v - Reason: %v",
 							c.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 							c.Events[i].SignalEvent.GetPrice(),
 							c.Events[i].SignalEvent.GetReason())
 					case c.Events[i].DataEvent != nil:
-						log.Infof(log.BackTester, "%v | Price: $%v - Reason: %v",
+						log.BackTester.Infof("%v | Price: $%v - Reason: %v",
 							c.Events[i].DataEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 							c.Events[i].DataEvent.ClosePrice(),
 							c.Events[i].DataEvent.GetReason())
@@ -306,9 +306,9 @@ func (s *Statistic) PrintAllEvents() {
 		}
 	}
 	if len(errs) > 0 {
-		log.Info(log.BackTester, "------------------Errors-------------------------------------")
+		log.BackTester.Info("------------------Errors-------------------------------------")
 		for i := range errs {
-			log.Info(log.BackTester, errs[i].Error())
+			log.BackTester.Info(errs[i].Error())
 		}
 	}
 }

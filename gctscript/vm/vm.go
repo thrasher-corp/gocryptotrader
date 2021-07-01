@@ -24,7 +24,7 @@ import (
 // NewVM attempts to create a new Virtual Machine firstly from pool
 func (g *GctScriptManager) NewVM() (vm *VM) {
 	if !g.IsRunning() {
-		log.Error(log.GCTScriptMgr, Error{
+		log.GCTScriptMgr.Error(Error{
 			Action: "NewVM",
 			Cause:  ErrScriptingDisabled,
 		})
@@ -32,7 +32,7 @@ func (g *GctScriptManager) NewVM() (vm *VM) {
 	}
 	newUUID, err := uuid.NewV4()
 	if err != nil {
-		log.Error(log.GCTScriptMgr, Error{
+		log.GCTScriptMgr.Error(Error{
 			Action: "New: UUID",
 			Cause:  err,
 		})
@@ -40,7 +40,7 @@ func (g *GctScriptManager) NewVM() (vm *VM) {
 	}
 
 	if g.config.Verbose {
-		log.Debugln(log.GCTScriptMgr, "New GCTScript VM created")
+		log.GCTScriptMgr.Debugln("New GCTScript VM created")
 	}
 
 	vm = &VM{
@@ -68,7 +68,7 @@ func (vm *VM) Load(file string) error {
 	}
 
 	if vm.config.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Loading script: %s ID: %v", vm.ShortName(), vm.ID)
+		log.GCTScriptMgr.Debugf("Loading script: %s ID: %v", vm.ShortName(), vm.ID)
 	}
 
 	code, err := ioutil.ReadFile(file)
@@ -94,7 +94,7 @@ func (vm *VM) Load(file string) error {
 
 	if vm.config.AllowImports {
 		if vm.config.Verbose {
-			log.Debugf(log.GCTScriptMgr, "File imports enabled for vm: %v", vm.ID)
+			log.GCTScriptMgr.Debugf("File imports enabled for vm: %v", vm.ID)
 		}
 		vm.Script.EnableFileImport(true)
 	}
@@ -112,7 +112,7 @@ func (vm *VM) Compile() (err error) {
 // Run runs byte code
 func (vm *VM) Run() (err error) {
 	if vm.config.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Running script: %s ID: %v", vm.ShortName(), vm.ID)
+		log.GCTScriptMgr.Debugf("Running script: %s ID: %v", vm.ShortName(), vm.ID)
 	}
 
 	err = vm.Compiled.Run()
@@ -137,7 +137,7 @@ func (vm *VM) RunCtx() (err error) {
 	defer cancel()
 
 	if vm.config.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Running script: %s ID: %v", vm.ShortName(), vm.ID)
+		log.GCTScriptMgr.Debugf("Running script: %s ID: %v", vm.ShortName(), vm.ID)
 	}
 
 	err = vm.Compiled.RunContext(ct)
@@ -159,38 +159,38 @@ func (vm *VM) CompileAndRun() {
 	}
 	err := vm.Compile()
 	if err != nil {
-		log.Error(log.GCTScriptMgr, err)
+		log.GCTScriptMgr.Error(err)
 		err = vm.unregister()
 		if err != nil {
-			log.Error(log.GCTScriptMgr, err)
+			log.GCTScriptMgr.Error(err)
 		}
 		return
 	}
 
 	err = vm.RunCtx()
 	if err != nil {
-		log.Error(log.GCTScriptMgr, err)
+		log.GCTScriptMgr.Error(err)
 		err = vm.unregister()
 		if err != nil {
-			log.Error(log.GCTScriptMgr, err)
+			log.GCTScriptMgr.Error(err)
 		}
 		return
 	}
 	if vm.Compiled.Get("timer").String() != "" {
 		vm.T, err = time.ParseDuration(vm.Compiled.Get("timer").String())
 		if err != nil {
-			log.Error(log.GCTScriptMgr, err)
+			log.GCTScriptMgr.Error(err)
 			err = vm.Shutdown()
 			if err != nil {
-				log.Error(log.GCTScriptMgr, err)
+				log.GCTScriptMgr.Error(err)
 			}
 			return
 		}
 		if vm.T < time.Nanosecond {
-			log.Error(log.GCTScriptMgr, "Repeat timer cannot be under 1 nano second")
+			log.GCTScriptMgr.Error("Repeat timer cannot be under 1 nano second")
 			err = vm.Shutdown()
 			if err != nil {
-				log.Errorln(log.GCTScriptMgr, err)
+				log.GCTScriptMgr.Errorln(err)
 			}
 			return
 		}
@@ -198,7 +198,7 @@ func (vm *VM) CompileAndRun() {
 	} else {
 		err = vm.Shutdown()
 		if err != nil {
-			log.Error(log.GCTScriptMgr, err)
+			log.GCTScriptMgr.Error(err)
 		}
 		return
 	}
@@ -213,7 +213,7 @@ func (vm *VM) Shutdown() error {
 		close(vm.S)
 	}
 	if vm.config.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Shutting down script: %s ID: %v", vm.ShortName(), vm.ID)
+		log.GCTScriptMgr.Debugf("Shutting down script: %s ID: %v", vm.ShortName(), vm.ID)
 	}
 	vm.Script = nil
 	pool.Put(vm.Script)
@@ -230,7 +230,7 @@ func (vm *VM) Read() ([]byte, error) {
 // Read contents of script back
 func (vm *VM) read() ([]byte, error) {
 	if vm.config.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Read script: %s ID: %v", vm.ShortName(), vm.ID)
+		log.GCTScriptMgr.Debugf("Read script: %s ID: %v", vm.ShortName(), vm.ID)
 	}
 	return ioutil.ReadFile(vm.File)
 }
@@ -249,7 +249,7 @@ func (vm *VM) event(status, executionType string) {
 	if executionType == TypeLoad {
 		scriptData, err := vm.scriptData()
 		if err != nil {
-			log.Errorf(log.GCTScriptMgr, "Failed to retrieve scriptData: %v", err)
+			log.GCTScriptMgr.Errorf("Failed to retrieve scriptData: %v", err)
 		}
 		data.SetValid(scriptData)
 	}
@@ -285,7 +285,7 @@ func (vm *VM) getHash() string {
 	}
 	contents, err := vm.read()
 	if err != nil {
-		log.Errorln(log.GCTScriptMgr, err)
+		log.GCTScriptMgr.Errorln(err)
 	}
 	contents = append(contents, vm.ShortName()...)
 	return hex.EncodeToString(crypto.GetSHA256(contents))

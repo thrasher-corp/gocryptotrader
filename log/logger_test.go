@@ -2,6 +2,7 @@ package log
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -62,7 +63,7 @@ func SetupDisabled() {
 func BenchmarkInfo(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		Info(Global, "Hello this is an info benchmark")
+		Global.Info("Hello this is an info benchmark")
 	}
 }
 
@@ -158,7 +159,7 @@ func TestConfigureSubLogger(t *testing.T) {
 	if err != nil {
 		t.Skipf("configureSubLogger() returned unexpected error %v", err)
 	}
-	if (Global.Levels != Levels{
+	if (Global.Enabled != Levels{
 		Info:  true,
 		Debug: false,
 	}) {
@@ -189,21 +190,21 @@ func BenchmarkInfoDisabled(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		Info(Global, "Hello this is an info benchmark")
+		Global.Info("Hello this is an info benchmark")
 	}
 }
 
 func BenchmarkInfof(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		Infof(Global, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
+		Global.Infof("Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
 	}
 }
 
 func BenchmarkInfoln(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		Infoln(Global, "Hello this is an infoln benchmark")
+		Global.Infoln("Hello this is an infoln benchmark")
 	}
 }
 
@@ -224,13 +225,13 @@ func TestNewLogEvent(t *testing.T) {
 func TestInfo(t *testing.T) {
 	w := &bytes.Buffer{}
 
-	tempSL := subLogger{
+	tempSL := &subLogger{
 		"TESTYMCTESTALOT",
 		splitLevel("INFO|WARN|DEBUG|ERROR"),
 		w,
 	}
 
-	Info(&tempSL, "Hello")
+	tempSL.Info("Hello")
 
 	if w.String() == "" {
 		t.Error("expected Info() to write output to buffer")
@@ -240,7 +241,7 @@ func TestInfo(t *testing.T) {
 	w.Reset()
 
 	SetLevel("TESTYMCTESTALOT", "INFO")
-	Debug(&tempSL, "HelloHello")
+	tempSL.Debug("HelloHello")
 
 	if w.String() != "" {
 		t.Error("Expected output buffer to be empty but Debug wrote to output")
@@ -260,5 +261,24 @@ func TestSubLoggerName(t *testing.T) {
 	logger.newLogEvent("out", "header", "SUBLOGGER", w)
 	if strings.Contains(w.String(), "SUBLOGGER") {
 		t.Error("Unexpected SUBLOGGER in output")
+	}
+}
+
+func TestNewSubLogger(t *testing.T) {
+	_, err := NewSubLogger("")
+	if !errors.Is(err, errEmptyLoggerName) {
+		t.Fatalf("received: %v but expected: %v", err, errEmptyLoggerName)
+	}
+
+	sl, err := NewSubLogger("TESTERINOS")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	sl.Debug("testerinos")
+
+	_, err = NewSubLogger("TESTERINOS")
+	if !errors.Is(err, errSubLoggerAlreadyregistered) {
+		t.Fatalf("received: %v but expected: %v", err, errSubLoggerAlreadyregistered)
 	}
 }

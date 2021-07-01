@@ -86,9 +86,9 @@ type Levels struct {
 }
 
 type subLogger struct {
-	name string
-	Levels
-	output io.Writer
+	name    string
+	Enabled Levels
+	output  io.Writer
 }
 
 // Event holds the data sent to the log and which multiwriter to send to

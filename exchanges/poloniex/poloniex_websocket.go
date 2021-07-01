@@ -696,7 +696,7 @@ func (p *Poloniex) processAccountPendingOrder(notification []interface{}) error 
 		if !errors.Is(err, errIDNotFoundInPairMap) {
 			return err
 		}
-		log.Errorf(log.WebsocketMgr,
+		log.WebsocketMgr.Errorf(
 			"%s - Unknown currency pair ID. Currency will appear as the pair ID: '%v'",
 			p.Name,
 			currencyID)
@@ -829,7 +829,7 @@ func (p *Poloniex) processAccountOrderLimit(notification []interface{}) error {
 		if !errors.Is(err, errIDNotFoundInPairMap) {
 			return err
 		}
-		log.Errorf(log.WebsocketMgr,
+		log.WebsocketMgr.Errorf(
 			"%s - Unknown currency pair ID. Currency will appear as the pair ID: '%v'",
 			p.Name,
 			currencyID)

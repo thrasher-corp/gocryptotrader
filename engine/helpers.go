@@ -252,7 +252,7 @@ func (bot *Engine) GetExchangeOTPs() (map[string]string, error) {
 			exchName := bot.Config.Exchanges[x].Name
 			o, err := totp.GenerateCode(otpSecret, time.Now())
 			if err != nil {
-				log.Errorf(log.Global, "Unable to generate OTP code for exchange %s. Err: %s\n",
+				log.Global.Errorf("Unable to generate OTP code for exchange %s. Err: %s\n",
 					exchName, err)
 				continue
 			}
@@ -664,14 +664,14 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 		exchName := exchanges[x].GetName()
 		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 			if bot.Settings.Verbose {
-				log.Debugf(log.ExchangeSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
+				log.ExchangeSys.Debugf("GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
 			}
 			continue
 		}
 
 		cryptoCurrencies, err := bot.GetCryptocurrenciesByExchange(exchName, true, true, asset.Spot)
 		if err != nil {
-			log.Debugf(log.ExchangeSys, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
+			log.ExchangeSys.Debugf("%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
 			continue
 		}
 
@@ -680,7 +680,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 			cryptocurrency := cryptoCurrencies[y]
 			depositAddr, err := exchanges[x].GetDepositAddress(currency.NewCode(cryptocurrency), "")
 			if err != nil {
-				log.Errorf(log.Global, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
+				log.Global.Errorf("%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
 				continue
 			}
 			cryptoAddr[cryptocurrency] = depositAddr
@@ -715,7 +715,7 @@ func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
 		for y := range assets {
 			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
 					exchName,
 					err)
@@ -724,7 +724,7 @@ func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
 			for z := range currencies {
 				tp, err := exchanges[x].FetchTicker(currencies[z], assets[y])
 				if err != nil {
-					log.Errorf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
+					log.ExchangeSys.Errorf("Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),
 						err)
 					continue
@@ -764,7 +764,7 @@ func checkCerts(certDir string) error {
 	keyFile := filepath.Join(certDir, "key.pem")
 
 	if !file.Exists(certFile) || !file.Exists(keyFile) {
-		log.Warnln(log.Global, "gRPC certificate/key file missing, recreating...")
+		log.Global.Warnln("gRPC certificate/key file missing, recreating...")
 		return genCert(certDir)
 	}
 
@@ -777,11 +777,11 @@ func checkCerts(certDir string) error {
 		if err != errCertExpired {
 			return err
 		}
-		log.Warnln(log.Global, "gRPC certificate has expired, regenerating...")
+		log.Global.Warnln("gRPC certificate has expired, regenerating...")
 		return genCert(certDir)
 	}
 
-	log.Infoln(log.Global, "gRPC TLS certificate and key files exist, will use them.")
+	log.Global.Infoln("gRPC TLS certificate and key files exist, will use them.")
 	return nil
 }
 
@@ -856,6 +856,7 @@ func genCert(targetDir string) error {
 		return fmt.Errorf("failed to write cert.pem file %s", err)
 	}
 
-	log.Infof(log.Global, "gRPC TLS key.pem and cert.pem files written to %s\n", targetDir)
+	log.Global.Infof("gRPC TLS key.pem and cert.pem files written to %s\n",
+		targetDir)
 	return nil
 }

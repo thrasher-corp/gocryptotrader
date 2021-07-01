@@ -66,12 +66,12 @@ func (b *Bitmex) SetDefaults() {
 		asset.Futures,
 		asset.Index)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	err = b.DisableAssetWebsocketSupport(asset.Index)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	b.Features = exchange.Features{
@@ -130,7 +130,7 @@ func (b *Bitmex) SetDefaults() {
 		exchange.WebsocketSpot: bitmexWSURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -195,9 +195,9 @@ func (b *Bitmex) Run() {
 	if b.Verbose {
 		wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.ExchangeSys.Error(err)
 		}
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s. (url: %s).\n",
 			b.Name,
 			common.IsEnabled(b.Websocket.IsEnabled()),
@@ -211,7 +211,7 @@ func (b *Bitmex) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.ExchangeSys.Errorf("%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
 }
 
@@ -269,7 +269,7 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 
 		err = b.UpdatePairs(p, a, false, false)
 		if err != nil {
-			log.Warnf(log.ExchangeSys,
+			log.ExchangeSys.Warnf(
 				"%s failed to update available pairs. Err: %v",
 				b.Name,
 				err)

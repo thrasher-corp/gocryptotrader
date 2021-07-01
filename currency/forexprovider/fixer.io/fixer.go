@@ -25,7 +25,7 @@ import (
 // Setup sets appropriate values for fixer object
 func (f *Fixer) Setup(config base.Settings) error {
 	if config.APIKeyLvl < 0 || config.APIKeyLvl > 4 {
-		log.Errorf(log.Global,
+		log.Global.Errorf(
 			"apikey incorrectly set in config.json for %s, please set appropriate account levels\n",
 			config.Name)
 		return errors.New("apikey set failure")

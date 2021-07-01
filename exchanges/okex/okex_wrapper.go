@@ -82,12 +82,12 @@ func (o *OKEX) SetDefaults() {
 
 	err := o.StoreAssetPairFormat(asset.PerpetualSwap, swap)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	err = o.StoreAssetPairFormat(asset.Futures, futures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	index := currency.PairStore{
@@ -113,12 +113,12 @@ func (o *OKEX) SetDefaults() {
 
 	err = o.StoreAssetPairFormat(asset.Spot, spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	err = o.StoreAssetPairFormat(asset.Index, index)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	o.Features = exchange.Features{
@@ -201,7 +201,7 @@ func (o *OKEX) SetDefaults() {
 		exchange.WebsocketSpot: OkExWebsocketURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	o.Websocket = stream.New()
 	o.APIVersion = okExAPIVersion
@@ -224,9 +224,9 @@ func (o *OKEX) Run() {
 	if o.Verbose {
 		wsEndpoint, err := o.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.ExchangeSys.Error(err)
 		}
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s. (url: %s).\n",
 			o.Name,
 			common.IsEnabled(o.Websocket.IsEnabled()),
@@ -235,7 +235,7 @@ func (o *OKEX) Run() {
 
 	format, err := o.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			o.Name,
 			err)
@@ -245,7 +245,7 @@ func (o *OKEX) Run() {
 	forceUpdate := false
 	enabled, err := o.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			o.Name,
 			err)
@@ -254,7 +254,7 @@ func (o *OKEX) Run() {
 
 	avail, err := o.GetAvailablePairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			o.Name,
 			err)
@@ -269,17 +269,17 @@ func (o *OKEX) Run() {
 			format.Delimiter +
 			currency.USDT.String()})
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s failed to update currencies.\n",
 				o.Name)
 		} else {
-			log.Warnf(log.ExchangeSys,
+			log.ExchangeSys.Warnf(
 				"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.",
 				o.Name)
 
 			err = o.UpdatePairs(p, asset.Spot, true, forceUpdate)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"%s failed to update currencies.\n",
 					o.Name)
 				return
@@ -293,7 +293,7 @@ func (o *OKEX) Run() {
 
 	err = o.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			o.Name,
 			err)

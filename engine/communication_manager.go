@@ -56,7 +56,7 @@ func (m *CommunicationManager) Start() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("communications manager %w", ErrSubSystemAlreadyStarted)
 	}
-	log.Debugf(log.CommunicationMgr, "Communications manager %s", MsgSubSystemStarting)
+	log.CommunicationMgr.Debugf("Communications manager %s", MsgSubSystemStarting)
 	m.shutdown = make(chan struct{})
 	go m.run()
 	return nil
@@ -82,7 +82,7 @@ func (m *CommunicationManager) Stop() error {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
 	close(m.shutdown)
-	log.Debugf(log.CommunicationMgr, "Communications manager %s", MsgSubSystemShuttingDown)
+	log.CommunicationMgr.Debugf("Communications manager %s", MsgSubSystemShuttingDown)
 	return nil
 }
 
@@ -94,16 +94,16 @@ func (m *CommunicationManager) PushEvent(evt base.Event) {
 	select {
 	case m.relayMsg <- evt:
 	default:
-		log.Errorf(log.CommunicationMgr, "Failed to send, no receiver when pushing event [%v]", evt)
+		log.CommunicationMgr.Errorf("Failed to send, no receiver when pushing event [%v]", evt)
 	}
 }
 
 // run takes awaiting messages and pushes them to be handled by communications
 func (m *CommunicationManager) run() {
-	log.Debugf(log.Global, "Communications manager %s", MsgSubSystemStarted)
+	log.Global.Debugf("Communications manager %s", MsgSubSystemStarted)
 	defer func() {
 		// TO-DO shutdown comms connections for connected services (Slack etc)
-		log.Debugf(log.CommunicationMgr, "Communications manager %s", MsgSubSystemShutdown)
+		log.CommunicationMgr.Debugf("Communications manager %s", MsgSubSystemShutdown)
 	}()
 
 	for {

@@ -40,7 +40,7 @@ func newDepth(id uuid.UUID) *Depth {
 func (d *Depth) Publish() {
 	err := d.mux.Publish([]uuid.UUID{d.id}, d.Retrieve())
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "Cannot publish orderbook update to mux %v", err)
+		log.ExchangeSys.Errorf("Cannot publish orderbook update to mux %v", err)
 	}
 }
 

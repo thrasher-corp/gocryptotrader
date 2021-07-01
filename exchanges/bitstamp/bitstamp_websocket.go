@@ -34,7 +34,7 @@ func (b *Bitstamp) WsConnect() error {
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
+		log.ExchangeSys.Debugf("%s Connected to Websocket.\n", b.Name)
 	}
 	err = b.seedOrderBook()
 	if err != nil {
@@ -71,15 +71,15 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 	switch wsResponse.Event {
 	case "bts:subscribe":
 		if b.Verbose {
-			log.Debugf(log.ExchangeSys, "%v - Websocket subscription acknowledgement", b.Name)
+			log.ExchangeSys.Debugf("%v - Websocket subscription acknowledgement", b.Name)
 		}
 	case "bts:unsubscribe":
 		if b.Verbose {
-			log.Debugf(log.ExchangeSys, "%v - Websocket unsubscribe acknowledgement", b.Name)
+			log.ExchangeSys.Debugf("%v - Websocket unsubscribe acknowledgement", b.Name)
 		}
 	case "bts:request_reconnect":
 		if b.Verbose {
-			log.Debugf(log.ExchangeSys, "%v - Websocket reconnection request received", b.Name)
+			log.ExchangeSys.Debugf("%v - Websocket reconnection request received", b.Name)
 		}
 		go b.Websocket.Shutdown() // Connection monitor will reconnect
 	case "data":
@@ -134,7 +134,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		})
 	case "order_created", "order_deleted", "order_changed":
 		if b.Verbose {
-			log.Debugf(log.ExchangeSys, "%v - Websocket order acknowledgement", b.Name)
+			log.ExchangeSys.Debugf("%v - Websocket order acknowledgement", b.Name)
 		}
 	default:
 		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}

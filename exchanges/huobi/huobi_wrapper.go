@@ -85,15 +85,15 @@ func (h *HUOBI) SetDefaults() {
 	}
 	err := h.StoreAssetPairFormat(asset.Spot, fmt1)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	err = h.StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	err = h.StoreAssetPairFormat(asset.Futures, futures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	h.Features = exchange.Features{
@@ -166,7 +166,7 @@ func (h *HUOBI) SetDefaults() {
 		exchange.WebsocketSpot:    wsMarketURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -241,7 +241,7 @@ func (h *HUOBI) Start(wg *sync.WaitGroup) {
 // Run implements the HUOBI wrapper
 func (h *HUOBI) Run() {
 	if h.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s (url: %s).\n",
 			h.Name,
 			common.IsEnabled(h.Websocket.IsEnabled()),
@@ -252,7 +252,7 @@ func (h *HUOBI) Run() {
 	var forceUpdate bool
 	enabled, err := h.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s Failed to update enabled currencies. Err:%s\n",
 			h.Name,
 			err)
@@ -260,7 +260,7 @@ func (h *HUOBI) Run() {
 
 	avail, err := h.GetAvailablePairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s Failed to update enabled currencies. Err:%s\n",
 			h.Name,
 			err)
@@ -276,7 +276,7 @@ func (h *HUOBI) Run() {
 		var exchCfg *config.ExchangeConfig
 		exchCfg, err = cfg.GetExchangeConfig(h.Name)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s failed to get exchange config. %s\n",
 				h.Name,
 				err)
@@ -290,7 +290,7 @@ func (h *HUOBI) Run() {
 		var format currency.PairFormat
 		format, err = h.GetPairFormat(asset.Spot, false)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s failed to get exchange config. %s\n",
 				h.Name,
 				err)
@@ -303,12 +303,12 @@ func (h *HUOBI) Run() {
 				Delimiter: format.Delimiter,
 			},
 		}
-		log.Warn(log.ExchangeSys,
+		log.ExchangeSys.Warn(
 			"Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
 
 		err = h.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s Failed to update enabled currencies. Err:%s\n",
 				h.Name,
 				err)
@@ -321,7 +321,7 @@ func (h *HUOBI) Run() {
 
 	err = h.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			h.Name,
 			err)

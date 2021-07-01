@@ -62,7 +62,7 @@ func (h *HitBTC) SetDefaults() {
 	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	err := h.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	h.Features = exchange.Features{
@@ -136,7 +136,7 @@ func (h *HitBTC) SetDefaults() {
 		exchange.WebsocketSpot: hitbtcWebsocketAddress,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -202,14 +202,14 @@ func (h *HitBTC) Start(wg *sync.WaitGroup) {
 // Run implements the HitBTC wrapper
 func (h *HitBTC) Run() {
 	if h.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", h.Name, common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
+		log.ExchangeSys.Debugf("%s Websocket: %s (url: %s).\n", h.Name, common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
 		h.PrintEnabledPairs()
 	}
 
 	forceUpdate := false
 	format, err := h.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			h.Name,
 			err)
@@ -217,7 +217,7 @@ func (h *HitBTC) Run() {
 	}
 	enabled, err := h.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			h.Name,
 			err)
@@ -226,7 +226,7 @@ func (h *HitBTC) Run() {
 
 	avail, err := h.GetAvailablePairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			h.Name,
 			err)
@@ -236,13 +236,13 @@ func (h *HitBTC) Run() {
 	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
 		!common.StringDataContains(avail.Strings(), format.Delimiter) {
 		enabledPairs := []string{currency.BTC.String() + format.Delimiter + currency.USD.String()}
-		log.Warn(log.ExchangeSys,
+		log.ExchangeSys.Warn(
 			"Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
 		forceUpdate = true
 		var p currency.Pairs
 		p, err = currency.NewPairsFromStrings(enabledPairs)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s failed to update tradable pairs. Err: %s",
 				h.Name,
 				err)
@@ -250,7 +250,7 @@ func (h *HitBTC) Run() {
 		}
 		err = h.UpdatePairs(p, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s failed to update enabled currencies.\n",
 				h.Name)
 		}
@@ -262,7 +262,7 @@ func (h *HitBTC) Run() {
 
 	err = h.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			h.Name,
 			err)
@@ -880,7 +880,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 	}
 	err = dates.VerifyResultsHaveData(ret.Candles)
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", h.Name, err)
+		log.ExchangeSys.Warnf("%s - %s", h.Name, err)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

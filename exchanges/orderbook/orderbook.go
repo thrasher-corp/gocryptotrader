@@ -230,8 +230,7 @@ func (b *Base) Verify() error {
 	// a book dries up, this will still update so we do not traverse potential
 	// incorrect old data.
 	if len(b.Asks) == 0 || len(b.Bids) == 0 {
-		log.Warnf(log.OrderBook,
-			bookLengthIssue,
+		log.OrderBook.Warnf(bookLengthIssue,
 			b.Exchange,
 			b.Pair,
 			b.Asset,

@@ -503,7 +503,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint st
 	headers["btse-sign"] = crypto.HexEncodeToString(hmac)
 
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Sending %s request to URL %s",
 			b.Name, method, endpoint)
 	}

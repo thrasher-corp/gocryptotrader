@@ -46,7 +46,7 @@ func (m *WithdrawManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Res
 
 	var err error
 	if m.isDryRun {
-		log.Warnln(log.Global, "Dry run enabled, no withdrawal request will be submitted or have an event created")
+		log.Global.Warnln("Dry run enabled, no withdrawal request will be submitted or have an event created")
 		resp.ID = withdraw.DryRunID
 		resp.Exchange.Status = "dryrun"
 		resp.Exchange.ID = withdraw.DryRunID.String()

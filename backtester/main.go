@@ -120,14 +120,14 @@ func main() {
 
 	err = bt.Statistic.CalculateAllResults()
 	if err != nil {
-		gctlog.Error(gctlog.BackTester, err)
+		gctlog.BackTester.Error(err)
 		os.Exit(1)
 	}
 
 	if generateReport {
 		err = bt.Reports.GenerateReport()
 		if err != nil {
-			gctlog.Error(gctlog.BackTester, err)
+			gctlog.BackTester.Error(err)
 		}
 	}
 }

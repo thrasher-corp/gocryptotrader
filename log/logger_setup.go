@@ -1,6 +1,7 @@
 package log
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -8,6 +9,11 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+)
+
+var (
+	errEmptyLoggerName            = errors.New("cannot have empty logger name")
+	errSubLoggerAlreadyregistered = errors.New("sub logger already registered")
 )
 
 func getWriters(s *SubLoggerConfig) io.Writer {
@@ -68,7 +74,7 @@ func configureSubLogger(logger, levels string, output io.Writer) error {
 
 	logPtr.output = output
 
-	logPtr.Levels = splitLevel(levels)
+	logPtr.Enabled = splitLevel(levels)
 	subLoggers[logger] = logPtr
 
 	return nil
@@ -97,7 +103,7 @@ func SetupGlobalLogger() {
 	}
 
 	for x := range subLoggers {
-		subLoggers[x].Levels = splitLevel(GlobalLogConfig.Level)
+		subLoggers[x].Enabled = splitLevel(GlobalLogConfig.Level)
 		subLoggers[x].output = getWriters(&GlobalLogConfig.SubLoggerConfig)
 	}
 
@@ -122,13 +128,27 @@ func splitLevel(level string) (l Levels) {
 	return
 }
 
+// NewSubLogger allows for a new sub logger to be registered.
+func NewSubLogger(name string) (*subLogger, error) {
+	if name == "" {
+		return nil, errEmptyLoggerName
+	}
+	name = strings.ToUpper(name)
+	_, ok := subLoggers[name]
+	if ok {
+		return nil, errSubLoggerAlreadyregistered
+	}
+
+	return registerNewSubLogger(name), nil
+}
+
 func registerNewSubLogger(logger string) *subLogger {
 	temp := subLogger{
 		name:   strings.ToUpper(logger),
 		output: os.Stdout,
 	}
 
-	temp.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
+	temp.Enabled = splitLevel("INFO|WARN|DEBUG|ERROR")
 	subLoggers[logger] = &temp
 
 	return &temp

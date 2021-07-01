@@ -147,7 +147,7 @@ func (b *Bittrex) applyBufferUpdate(pair currency.Pair) error {
 	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	if err != nil || (recent.Asks == nil && recent.Bids == nil) {
 		if b.Verbose {
-			log.Debugf(log.WebsocketMgr, "Orderbook: Fetching via REST\n")
+			log.WebsocketMgr.Debugf("Orderbook: Fetching via REST\n")
 		}
 		return b.obm.fetchBookViaREST(pair)
 	}
@@ -166,8 +166,7 @@ func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 			case j := <-b.obm.jobs:
 				err := b.processJob(j.Pair)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%s processing websocket orderbook error %v",
+					log.WebsocketMgr.Errorf("%s processing websocket orderbook error %v",
 						b.Name, err)
 				}
 			case <-b.Websocket.ShutdownC:
@@ -204,14 +203,13 @@ func (b *Bittrex) processJob(p currency.Pair) error {
 func (b *Bittrex) flushAndCleanup(p currency.Pair) {
 	errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
 	if errClean != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s flushing websocket error: %v",
+		log.WebsocketMgr.Errorf("%s flushing websocket error: %v",
 			b.Name,
 			errClean)
 	}
 	errClean = b.obm.cleanup(p)
 	if errClean != nil {
-		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
+		log.WebsocketMgr.Errorf("%s cleanup websocket error: %v",
 			b.Name,
 			errClean)
 	}

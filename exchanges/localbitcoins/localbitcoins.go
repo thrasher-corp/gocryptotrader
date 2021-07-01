@@ -764,7 +764,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ep exchange.URL, method, pa
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	if l.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Sending `%s` request to `%s`, path: `%s`, params: `%s`.",
+		log.ExchangeSys.Debugf("%s Sending `%s` request to `%s`, path: `%s`, params: `%s`.",
 			l.Name,
 			method,
 			endpoint,

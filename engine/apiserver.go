@@ -132,8 +132,7 @@ func (m *apiServerManager) newRouter(isREST bool) *mux.Router {
 			if m.pprofConfig.MutexProfileFraction > 0 {
 				runtime.SetMutexProfileFraction(m.pprofConfig.MutexProfileFraction)
 			}
-			log.Debugf(log.RESTSys,
-				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug/pprof/\n",
+			log.RESTSys.Debugf("HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug/pprof/\n",
 				common.ExtractHost(m.websocketListenAddress),
 				common.ExtractPort(m.websocketListenAddress))
 			router.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
@@ -164,8 +163,7 @@ func (m *apiServerManager) StartRESTServer() error {
 		atomic.StoreInt32(&m.restStarted, 0)
 		return fmt.Errorf("rest %w", errServerDisabled)
 	}
-	log.Debugf(log.RESTSys,
-		"Deprecated RPC handler support enabled. Listen URL: http://%s:%d\n",
+	log.RESTSys.Debugf("Deprecated RPC handler support enabled. Listen URL: http://%s:%d\n",
 		common.ExtractHost(m.restListenAddress), common.ExtractPort(m.restListenAddress))
 	m.restRouter = m.newRouter(true)
 	if m.restHTTPServer == nil {
@@ -181,7 +179,7 @@ func (m *apiServerManager) StartRESTServer() error {
 		if err != nil {
 			atomic.StoreInt32(&m.restStarted, 0)
 			if !errors.Is(err, http.ErrServerClosed) {
-				log.Error(log.APIServerMgr, err)
+				log.APIServerMgr.Error(err)
 			}
 		}
 	}()
@@ -194,8 +192,7 @@ func restLogger(inner http.Handler, name string) http.Handler {
 		start := time.Now()
 		inner.ServeHTTP(w, r)
 
-		log.Debugf(log.RESTSys,
-			"%s\t%s\t%s\t%s",
+		log.RESTSys.Debugf("%s\t%s\t%s\t%s",
 			r.Method,
 			r.RequestURI,
 			name,
@@ -213,7 +210,7 @@ func writeResponse(w http.ResponseWriter, response interface{}) error {
 
 // handleError prints the REST method and error
 func handleError(method string, err error) {
-	log.Errorf(log.APIServerMgr, "RESTful %s: handler failed to send JSON response. Error %s\n",
+	log.APIServerMgr.Errorf("RESTful %s: handler failed to send JSON response. Error %s\n",
 		method, err)
 }
 
@@ -296,7 +293,7 @@ func (m *apiServerManager) restGetAllEnabledAccountInfo(w http.ResponseWriter, r
 func (m *apiServerManager) getIndex(w http.ResponseWriter, _ *http.Request) {
 	_, err := fmt.Fprint(w, restIndexResponse)
 	if err != nil {
-		log.Error(log.APIServerMgr, err)
+		log.APIServerMgr.Error(err)
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -314,8 +311,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 		for y := range assets {
 			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
 			if err != nil {
-				log.Errorf(log.APIServerMgr,
-					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
+				log.APIServerMgr.Errorf("Exchange %s could not retrieve enabled currencies. Err: %s\n",
 					exchName,
 					err)
 				continue
@@ -323,8 +319,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 			for z := range currencies {
 				ob, err := exchanges[x].FetchOrderbook(currencies[z], assets[y])
 				if err != nil {
-					log.Errorf(log.APIServerMgr,
-						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
+					log.APIServerMgr.Errorf("Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
 						currencies[z].String(),
 						err)
 					continue
@@ -351,8 +346,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 		for y := range assets {
 			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
 			if err != nil {
-				log.Errorf(log.APIServerMgr,
-					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
+				log.APIServerMgr.Errorf("Exchange %s could not retrieve enabled currencies. Err: %s\n",
 					exchName,
 					err)
 				continue
@@ -360,8 +354,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 			for z := range currencies {
 				t, err := exchanges[x].FetchTicker(currencies[z], assets[y])
 				if err != nil {
-					log.Errorf(log.APIServerMgr,
-						"Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
+					log.APIServerMgr.Errorf("Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),
 						err)
 					continue
@@ -386,8 +379,7 @@ func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
 		for y := range assets {
 			a, err := exchanges[x].FetchAccountInfo(assets[y])
 			if err != nil {
-				log.Errorf(log.APIServerMgr,
-					"Exchange %s failed to retrieve %s ticker. Err: %s\n",
+				log.APIServerMgr.Errorf("Exchange %s failed to retrieve %s ticker. Err: %s\n",
 					exchName,
 					assets[y],
 					err)
@@ -409,9 +401,9 @@ func (m *apiServerManager) StartWebsocketServer() error {
 		atomic.StoreInt32(&m.websocketStarted, 0)
 		return fmt.Errorf("websocket %w", errServerDisabled)
 	}
-	log.Debugf(log.APIServerMgr,
-		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
-		common.ExtractHost(m.websocketListenAddress), common.ExtractPort(m.websocketListenAddress))
+	log.APIServerMgr.Debugf("Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
+		common.ExtractHost(m.websocketListenAddress),
+		common.ExtractPort(m.websocketListenAddress))
 	m.websocketRouter = m.newRouter(false)
 	if m.websocketHTTPServer == nil {
 		m.websocketHTTPServer = &http.Server{
@@ -427,7 +419,7 @@ func (m *apiServerManager) StartWebsocketServer() error {
 		if err != nil {
 			atomic.StoreInt32(&m.websocketStarted, 0)
 			if !errors.Is(err, http.ErrServerClosed) {
-				log.Error(log.APIServerMgr, err)
+				log.APIServerMgr.Error(err)
 			}
 		}
 	}()
@@ -451,7 +443,7 @@ func (h *websocketHub) run() {
 			h.Clients[client] = true
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client]; ok {
-				log.Debugln(log.APIServerMgr, "websocket: disconnected client")
+				log.APIServerMgr.Debugln("websocket: disconnected client")
 				delete(h.Clients, client)
 				close(client.Send)
 			}
@@ -460,7 +452,7 @@ func (h *websocketHub) run() {
 				select {
 				case client.Send <- message:
 				default:
-					log.Debugln(log.APIServerMgr, "websocket: disconnected client")
+					log.APIServerMgr.Debugln("websocket: disconnected client")
 					close(client.Send)
 					delete(h.Clients, client)
 				}
@@ -473,7 +465,7 @@ func (h *websocketHub) run() {
 func (c *websocketClient) SendWebsocketMessage(evt interface{}) error {
 	data, err := json.Marshal(evt)
 	if err != nil {
-		log.Errorf(log.APIServerMgr, "websocket: failed to send message: %s\n", err)
+		log.APIServerMgr.Errorf("websocket: failed to send message: %s\n", err)
 		return err
 	}
 
@@ -486,7 +478,7 @@ func (c *websocketClient) read() {
 		c.Hub.Unregister <- c
 		conErr := c.Conn.Close()
 		if conErr != nil {
-			log.Error(log.APIServerMgr, conErr)
+			log.APIServerMgr.Error(conErr)
 		}
 	}()
 
@@ -494,7 +486,7 @@ func (c *websocketClient) read() {
 		msgType, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Errorf(log.APIServerMgr, "websocket: client disconnected, err: %s\n", err)
+				log.APIServerMgr.Errorf("websocket: client disconnected, err: %s\n", err)
 			}
 			break
 		}
@@ -503,42 +495,42 @@ func (c *websocketClient) read() {
 			var evt WebsocketEvent
 			err := json.Unmarshal(message, &evt)
 			if err != nil {
-				log.Errorf(log.APIServerMgr, "websocket: failed to decode JSON sent from client %s\n", err)
+				log.APIServerMgr.Errorf("websocket: failed to decode JSON sent from client %s\n", err)
 				continue
 			}
 
 			if evt.Event == "" {
-				log.Warnln(log.APIServerMgr, "websocket: client sent a blank event, disconnecting")
+				log.APIServerMgr.Warnln("websocket: client sent a blank event, disconnecting")
 				continue
 			}
 
 			dataJSON, err := json.Marshal(evt.Data)
 			if err != nil {
-				log.Errorln(log.APIServerMgr, "websocket: client sent data we couldn't JSON decode")
+				log.APIServerMgr.Errorln("websocket: client sent data we couldn't JSON decode")
 				break
 			}
 
 			req := strings.ToLower(evt.Event)
-			log.Debugf(log.APIServerMgr, "websocket: request received: %s\n", req)
+			log.APIServerMgr.Debugf("websocket: request received: %s\n", req)
 
 			result, ok := wsHandlers[req]
 			if !ok {
-				log.Debugln(log.APIServerMgr, "websocket: unsupported event")
+				log.APIServerMgr.Debugln("websocket: unsupported event")
 				continue
 			}
 
 			if result.authRequired && !c.Authenticated {
-				log.Warnf(log.APIServerMgr, "Websocket: request %s failed due to unauthenticated request on an authenticated API\n", evt.Event)
+				log.APIServerMgr.Warnf("Websocket: request %s failed due to unauthenticated request on an authenticated API\n", evt.Event)
 				err = c.SendWebsocketMessage(WebsocketEventResponse{Event: evt.Event, Error: "unauthorised request on authenticated API"})
 				if err != nil {
-					log.Error(log.APIServerMgr, err)
+					log.APIServerMgr.Error(err)
 				}
 				continue
 			}
 
 			err = result.handler(c, dataJSON)
 			if err != nil {
-				log.Errorf(log.APIServerMgr, "websocket: request %s failed. Error %s\n", evt.Event, err)
+				log.APIServerMgr.Errorf("websocket: request %s failed. Error %s\n", evt.Event, err)
 				continue
 			}
 		}
@@ -549,7 +541,7 @@ func (c *websocketClient) write() {
 	defer func() {
 		err := c.Conn.Close()
 		if err != nil {
-			log.Error(log.APIServerMgr, err)
+			log.APIServerMgr.Error(err)
 		}
 	}()
 	for {
@@ -557,20 +549,20 @@ func (c *websocketClient) write() {
 		if !ok {
 			err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 			if err != nil {
-				log.Error(log.APIServerMgr, err)
+				log.APIServerMgr.Error(err)
 			}
-			log.Debugln(log.APIServerMgr, "websocket: hub closed the channel")
+			log.APIServerMgr.Debugln("websocket: hub closed the channel")
 			return
 		}
 
 		w, err := c.Conn.NextWriter(websocket.TextMessage)
 		if err != nil {
-			log.Errorf(log.APIServerMgr, "websocket: failed to create new io.writeCloser: %s\n", err)
+			log.APIServerMgr.Errorf("websocket: failed to create new io.writeCloser: %s\n", err)
 			return
 		}
 		_, err = w.Write(message)
 		if err != nil {
-			log.Error(log.APIServerMgr, err)
+			log.APIServerMgr.Error(err)
 		}
 
 		// Add queued chat messages to the current websocket message
@@ -578,12 +570,12 @@ func (c *websocketClient) write() {
 		for i := 0; i < n; i++ {
 			_, err = w.Write(<-c.Send)
 			if err != nil {
-				log.Error(log.APIServerMgr, err)
+				log.APIServerMgr.Error(err)
 			}
 		}
 
 		if err := w.Close(); err != nil {
-			log.Errorf(log.APIServerMgr, "websocket: failed to close io.WriteCloser: %s\n", err)
+			log.APIServerMgr.Errorf("websocket: failed to close io.WriteCloser: %s\n", err)
 			return
 		}
 	}
@@ -625,9 +617,9 @@ func (m *apiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http
 	numClients := len(wsHub.Clients)
 
 	if numClients >= connectionLimit {
-		log.Warnf(log.APIServerMgr,
-			"websocket: client rejected due to websocket client limit reached. Number of clients %d. Limit %d.\n",
-			numClients, connectionLimit)
+		log.APIServerMgr.Warnf("websocket: client rejected due to websocket client limit reached. Number of clients %d. Limit %d.\n",
+			numClients,
+			connectionLimit)
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -645,7 +637,7 @@ func (m *apiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Error(log.APIServerMgr, err)
+		log.APIServerMgr.Error(err)
 		return
 	}
 
@@ -663,9 +655,9 @@ func (m *apiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http
 	}
 
 	client.Hub.Register <- client
-	log.Debugf(log.APIServerMgr,
-		"websocket: client connected. Connected clients: %d. Limit %d.\n",
-		numClients+1, connectionLimit)
+	log.APIServerMgr.Debugf("websocket: client connected. Connected clients: %d. Limit %d.\n",
+		numClients+1,
+		connectionLimit)
 
 	go client.read()
 	go client.write()
@@ -682,7 +674,7 @@ func wsAuth(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.APIServerMgr.Error(sendErr)
 		}
 		return err
 	}
@@ -691,8 +683,7 @@ func wsAuth(client *websocketClient, data interface{}) error {
 	if auth.Username == client.username && auth.Password == hashPW {
 		client.Authenticated = true
 		wsResp.Data = WebsocketResponseSuccess
-		log.Debugln(log.APIServerMgr,
-			"websocket: client authenticated successfully")
+		log.APIServerMgr.Debugln("websocket: client authenticated successfully")
 		return client.SendWebsocketMessage(wsResp)
 	}
 
@@ -700,19 +691,19 @@ func wsAuth(client *websocketClient, data interface{}) error {
 	client.authFailures++
 	sendErr := client.SendWebsocketMessage(wsResp)
 	if sendErr != nil {
-		log.Error(log.APIServerMgr, sendErr)
+		log.APIServerMgr.Error(sendErr)
 	}
 	if client.authFailures >= client.maxAuthFailures {
-		log.Debugf(log.APIServerMgr,
-			"websocket: disconnecting client, maximum auth failures threshold reached (failures: %d limit: %d)\n",
-			client.authFailures, client.maxAuthFailures)
+		log.APIServerMgr.Debugf("websocket: disconnecting client, maximum auth failures threshold reached (failures: %d limit: %d)\n",
+			client.authFailures,
+			client.maxAuthFailures)
 		wsHub.Unregister <- client
 		return nil
 	}
 
-	log.Debugf(log.APIServerMgr,
-		"websocket: client sent wrong username/password (failures: %d limit: %d)\n",
-		client.authFailures, client.maxAuthFailures)
+	log.APIServerMgr.Debugf("websocket: client sent wrong username/password (failures: %d limit: %d)\n",
+		client.authFailures,
+		client.maxAuthFailures)
 	return nil
 }
 
@@ -734,7 +725,7 @@ func wsSaveConfig(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.APIServerMgr.Error(sendErr)
 		}
 		return err
 	}
@@ -745,7 +736,7 @@ func wsSaveConfig(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.APIServerMgr.Error(sendErr)
 		}
 		return err
 	}
@@ -755,7 +746,7 @@ func wsSaveConfig(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.APIServerMgr.Error(sendErr)
 		}
 		return err
 	}
@@ -790,7 +781,7 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.APIServerMgr.Error(sendErr)
 		}
 		return err
 	}
@@ -810,7 +801,7 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 		wsResp.Error = exchange.ErrNoExchangeFound.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.APIServerMgr.Error(sendErr)
 		}
 		return err
 	}
@@ -819,7 +810,7 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.APIServerMgr.Error(sendErr)
 		}
 		return err
 	}
@@ -845,7 +836,7 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.APIServerMgr.Error(sendErr)
 		}
 		return err
 	}
@@ -865,7 +856,7 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 		wsResp.Error = exchange.ErrNoExchangeFound.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.APIServerMgr.Error(sendErr)
 		}
 		return err
 	}
@@ -874,7 +865,7 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.APIServerMgr.Error(sendErr)
 		}
 		return err
 	}

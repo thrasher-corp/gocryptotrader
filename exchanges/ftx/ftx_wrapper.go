@@ -79,12 +79,12 @@ func (f *FTX) SetDefaults() {
 
 	err := f.StoreAssetPairFormat(asset.Spot, spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	err = f.StoreAssetPairFormat(asset.Futures, futures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	f.Features = exchange.Features{
@@ -148,7 +148,7 @@ func (f *FTX) SetDefaults() {
 		exchange.WebsocketSpot: ftxWSURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	f.Websocket = stream.New()
 	f.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -210,7 +210,7 @@ func (f *FTX) Start(wg *sync.WaitGroup) {
 // Run implements the FTX wrapper
 func (f *FTX) Run() {
 	if f.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s.",
 			f.Name,
 			common.IsEnabled(f.Websocket.IsEnabled()))
@@ -223,7 +223,7 @@ func (f *FTX) Run() {
 
 	err := f.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			f.Name,
 			err)
@@ -1103,7 +1103,7 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 	}
 	err = dates.VerifyResultsHaveData(ret.Candles)
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", f.Name, err)
+		log.ExchangeSys.Warnf("%s - %s", f.Name, err)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

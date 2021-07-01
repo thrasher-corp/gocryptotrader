@@ -2344,7 +2344,7 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 		},
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	err = b.DisableAssetWebsocketSupport(asset.Spot)

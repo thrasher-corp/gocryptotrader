@@ -62,7 +62,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	configFmt := &currency.PairFormat{/*Set pair request formatting details here*/}
 	err := {{.Variable}}.SetGlobalPairsManager(requestFmt, configFmt, /*multiple assets can be set here using the asset package ie asset.Spot*/)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	// If assets require multiple differences in formating for request and 
@@ -82,11 +82,11 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 
 	err = {{.Variable}}.StoreAssetPairFormat(asset.Spot, fmt1)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	err = {{.Variable}}.StoreAssetPairFormat(asset.Margin, fmt2)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	// Fill out the capabilities/features that the exchange supports
@@ -193,7 +193,7 @@ func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) {
 // Run implements the {{.CapitalName}} wrapper
 func ({{.Variable}} *{{.CapitalName}}) Run() {
 	if {{.Variable}}.Verbose {
-	{{ if .WS }} log.Debugf(log.ExchangeSys,
+	{{ if .WS }} log.ExchangeSys.Debugf(
 			"%s Websocket: %s.",
 			{{.Variable}}.Name,
 			common.IsEnabled({{.Variable}}.Websocket.IsEnabled())) {{ end }}
@@ -206,7 +206,7 @@ func ({{.Variable}} *{{.CapitalName}}) Run() {
 
 	err := {{.Variable}}.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			{{.Variable}}.Name,
 			err)

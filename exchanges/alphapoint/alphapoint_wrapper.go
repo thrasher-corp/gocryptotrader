@@ -37,7 +37,7 @@ func (a *Alphapoint) SetDefaults() {
 		exchange.WebsocketSpot: alphapointDefaultWebsocketURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true

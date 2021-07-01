@@ -88,8 +88,7 @@ func (w *Orderbook) Update(u *Update) error {
 	// because the book is highly illiquid. TODO: Book resubscribe on websocket.
 	if book.ob.IsRestSnapshot() {
 		if w.verbose {
-			log.Warnf(log.WebsocketMgr,
-				"%s for Exchange %s CurrencyPair: %s AssetType: %s consider extending synctimeoutwebsocket",
+			log.WebsocketMgr.Warnf("%s for Exchange %s CurrencyPair: %s AssetType: %s consider extending synctimeoutwebsocket",
 				errRESTOverwrite,
 				w.exchangeName,
 				u.Pair,

@@ -229,12 +229,12 @@ func (p *Portfolio) OnFill(fillEvent fill.Event) (*fill.Fill, error) {
 		err = p.setHoldingsForOffset(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), &h, false)
 	}
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 	}
 
 	err = p.addComplianceSnapshot(fillEvent)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 	}
 
 	direction := fillEvent.GetDirection()

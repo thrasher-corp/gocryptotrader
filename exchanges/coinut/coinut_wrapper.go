@@ -63,7 +63,7 @@ func (c *COINUT) SetDefaults() {
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	err := c.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	c.Features = exchange.Features{
@@ -119,7 +119,7 @@ func (c *COINUT) SetDefaults() {
 		exchange.WebsocketSpot: coinutWebsocketURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -186,14 +186,14 @@ func (c *COINUT) Start(wg *sync.WaitGroup) {
 // Run implements the COINUT wrapper
 func (c *COINUT) Run() {
 	if c.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", c.Name, common.IsEnabled(c.Websocket.IsEnabled()), coinutWebsocketURL)
+		log.ExchangeSys.Debugf("%s Websocket: %s. (url: %s).\n", c.Name, common.IsEnabled(c.Websocket.IsEnabled()), coinutWebsocketURL)
 		c.PrintEnabledPairs()
 	}
 
 	forceUpdate := false
 	format, err := c.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update currencies. Err: %s\n",
 			c.Name,
 			err)
@@ -202,7 +202,7 @@ func (c *COINUT) Run() {
 
 	enabled, err := c.CurrencyPairs.GetPairs(asset.Spot, true)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update currencies. Err: %s\n",
 			c.Name,
 			err)
@@ -210,7 +210,7 @@ func (c *COINUT) Run() {
 	}
 	avail, err := c.CurrencyPairs.GetPairs(asset.Spot, false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update currencies. Err: %s\n",
 			c.Name,
 			err)
@@ -224,18 +224,18 @@ func (c *COINUT) Run() {
 			format.Delimiter +
 			currency.USDT.String()})
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s failed to update currencies. Err: %s\n",
 				c.Name,
 				err)
 		} else {
-			log.Warn(log.ExchangeSys,
+			log.ExchangeSys.Warn(
 				"Enabled pairs for Coinut reset due to config upgrade, please enable the ones you would like to use again")
 			forceUpdate = true
 
 			err = c.UpdatePairs(p, asset.Spot, true, true)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"%s failed to update currencies. Err: %s\n",
 					c.Name,
 					err)
@@ -249,7 +249,7 @@ func (c *COINUT) Run() {
 
 	err = c.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
+		log.ExchangeSys.Errorf("%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}
 }
 

@@ -102,7 +102,9 @@ type orderSummary []Item
 
 func (o orderSummary) Print() {
 	for x := range o {
-		log.Debugf(log.OrderBook, "Order: Price: %f Amount: %f", o[x].Price, o[x].Amount)
+		log.OrderBook.Debugf("Order: Price: %f Amount: %f",
+			o[x].Price,
+			o[x].Amount)
 	}
 }
 

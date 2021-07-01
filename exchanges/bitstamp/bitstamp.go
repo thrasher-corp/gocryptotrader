@@ -173,12 +173,12 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 	for _, x := range resp.Bids {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.ExchangeSys.Error(err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.ExchangeSys.Error(err)
 			continue
 		}
 		orderbook.Bids = append(orderbook.Bids, OrderbookBase{price, amount})
@@ -187,12 +187,12 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 	for _, x := range resp.Asks {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.ExchangeSys.Error(err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.ExchangeSys.Error(err)
 			continue
 		}
 		orderbook.Asks = append(orderbook.Asks, OrderbookBase{price, amount})
@@ -637,7 +637,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, v2
 	}
 
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "Sending POST request to "+path)
+		log.ExchangeSys.Debugf("Sending POST request to " + path)
 	}
 
 	headers := make(map[string]string)

@@ -62,7 +62,7 @@ func (l *LocalBitcoins) SetDefaults() {
 	configFmt := &currency.PairFormat{Uppercase: true}
 	err := l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	l.Features = exchange.Features{
@@ -98,7 +98,7 @@ func (l *LocalBitcoins) SetDefaults() {
 		exchange.RestSpot: localbitcoinsAPIURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 }
 
@@ -132,7 +132,7 @@ func (l *LocalBitcoins) Run() {
 
 	err := l.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", l.Name, err)
+		log.ExchangeSys.Errorf("%s failed to update tradable pairs. Err: %s", l.Name, err)
 	}
 }
 
@@ -524,7 +524,7 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 	for i := range resp {
 		orderDate, err := time.Parse(time.RFC3339, resp[i].Data.CreatedAt)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.ExchangeSys.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name,
 				"GetActiveOrders",
 				resp[i].Data.Advertisement.ID,
@@ -594,7 +594,7 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 	for i := range allTrades {
 		orderDate, err := time.Parse(time.RFC3339, allTrades[i].Data.CreatedAt)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name,
 				"GetActiveOrders",

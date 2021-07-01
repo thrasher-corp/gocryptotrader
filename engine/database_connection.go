@@ -81,22 +81,20 @@ func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
 		}
 	}()
 
-	log.Debugln(log.DatabaseMgr, "Database manager starting...")
+	log.DatabaseMgr.Debugln("Database manager starting...")
 
 	if m.enabled {
 		m.shutdown = make(chan struct{})
 		switch m.driver {
 		case database.DBPostgreSQL:
-			log.Debugf(log.DatabaseMgr,
-				"Attempting to establish database connection to host %s/%s utilising %s driver\n",
+			log.DatabaseMgr.Debugf("Attempting to establish database connection to host %s/%s utilising %s driver\n",
 				m.host,
 				m.database,
 				m.driver)
 			m.dbConn, err = dbpsql.Connect()
 		case database.DBSQLite,
 			database.DBSQLite3:
-			log.Debugf(log.DatabaseMgr,
-				"Attempting to establish database connection to %s utilising %s driver\n",
+			log.DatabaseMgr.Debugf("Attempting to establish database connection to %s utilising %s driver\n",
 				m.database,
 				m.driver)
 			m.dbConn, err = dbsqlite3.Connect()
@@ -131,7 +129,7 @@ func (m *DatabaseConnectionManager) Stop() error {
 
 	err := m.dbConn.CloseConnection()
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Failed to close database: %v", err)
+		log.DatabaseMgr.Errorf("Failed to close database: %v", err)
 	}
 
 	close(m.shutdown)
@@ -140,14 +138,14 @@ func (m *DatabaseConnectionManager) Stop() error {
 }
 
 func (m *DatabaseConnectionManager) run(wg *sync.WaitGroup) {
-	log.Debugln(log.DatabaseMgr, "Database manager started.")
+	log.DatabaseMgr.Debugln("Database manager started.")
 	t := time.NewTicker(time.Second * 2)
 
 	defer func() {
 		t.Stop()
 		m.wg.Done()
 		wg.Done()
-		log.Debugln(log.DatabaseMgr, "Database manager shutdown.")
+		log.DatabaseMgr.Debugln("Database manager shutdown.")
 	}()
 
 	for {
@@ -157,7 +155,7 @@ func (m *DatabaseConnectionManager) run(wg *sync.WaitGroup) {
 		case <-t.C:
 			err := m.checkConnection()
 			if err != nil {
-				log.Error(log.DatabaseMgr, "Database connection error:", err)
+				log.DatabaseMgr.Error("Database connection error:", err)
 			}
 		}
 	}
@@ -184,7 +182,7 @@ func (m *DatabaseConnectionManager) checkConnection() error {
 	}
 
 	if !m.dbConn.IsConnected() {
-		log.Info(log.DatabaseMgr, "Database connection reestablished")
+		log.DatabaseMgr.Info("Database connection reestablished")
 		m.dbConn.SetConnected(true)
 	}
 	return nil

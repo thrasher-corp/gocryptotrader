@@ -47,7 +47,7 @@ func (h *HitBTC) WsConnect() error {
 	go h.wsReadData()
 	err = h.wsLogin()
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
+		log.ExchangeSys.Errorf("%v - authentication failed: %v\n", h.Name, err)
 	}
 
 	return nil

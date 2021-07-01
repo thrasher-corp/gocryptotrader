@@ -113,12 +113,12 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 	for _, x := range resp.Bids {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.ExchangeSys.Error(err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.ExchangeSys.Error(err)
 			continue
 		}
 		orderbook.Bids = append(orderbook.Bids, OrderbookStructure{price, amount})
@@ -127,12 +127,12 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 	for _, x := range resp.Asks {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.ExchangeSys.Error(err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.ExchangeSys.Error(err)
 			continue
 		}
 		orderbook.Asks = append(orderbook.Asks, OrderbookStructure{price, amount})
@@ -301,7 +301,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(ep exchange.URL, method, params s
 	hmac := crypto.GetHMAC(crypto.HashSHA1, []byte(req), []byte(l.API.Credentials.Secret))
 
 	if l.Verbose {
-		log.Debugf(log.ExchangeSys, "Sending POST request to %s calling method %s with params %s\n", endpoint, method, req)
+		log.ExchangeSys.Debugf("Sending POST request to %s calling method %s with params %s\n", endpoint, method, req)
 	}
 
 	postData := make(map[string]interface{})

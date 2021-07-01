@@ -69,7 +69,7 @@ func (p *Poloniex) SetDefaults() {
 
 	err := p.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	p.Features = exchange.Features{
@@ -137,7 +137,7 @@ func (p *Poloniex) SetDefaults() {
 		exchange.WebsocketSpot: poloniexWebsocketAddress,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	p.Websocket = stream.New()
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -202,7 +202,7 @@ func (p *Poloniex) Start(wg *sync.WaitGroup) {
 // Run implements the Poloniex wrapper
 func (p *Poloniex) Run() {
 	if p.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s (url: %s).\n",
 			p.Name,
 			common.IsEnabled(p.Websocket.IsEnabled()),
@@ -214,7 +214,7 @@ func (p *Poloniex) Run() {
 
 	avail, err := p.GetAvailablePairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			p.Name,
 			err)
@@ -222,7 +222,7 @@ func (p *Poloniex) Run() {
 	}
 
 	if common.StringDataCompare(avail.Strings(), "BTC_USDT") {
-		log.Warnf(log.ExchangeSys,
+		log.ExchangeSys.Warnf(
 			"%s contains invalid pair, forcing upgrade of available currencies.\n",
 			p.Name)
 		forceUpdate = true
@@ -234,7 +234,7 @@ func (p *Poloniex) Run() {
 
 	err = p.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			p.Name,
 			err)
@@ -746,7 +746,7 @@ func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
 			orderDate, err := time.Parse(common.SimpleTimeFormat, resp.Data[key][i].Date)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 					p.Name,
 					"GetActiveOrders",
@@ -805,7 +805,7 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 			orderDate, err := time.Parse(common.SimpleTimeFormat,
 				resp.Data[key][i].Date)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 					p.Name,
 					"GetActiveOrders",

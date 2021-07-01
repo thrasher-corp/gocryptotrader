@@ -453,24 +453,21 @@ func (b *Base) Seed(port Base) {
 // StartPortfolioWatcher observes the portfolio object
 func (b *Base) StartPortfolioWatcher() {
 	addrCount := len(b.Addresses)
-	log.Debugf(log.PortfolioMgr,
-		"PortfolioWatcher started: Have %d entries in portfolio.\n", addrCount,
-	)
+	log.PortfolioMgr.Debugf("PortfolioWatcher started: Have %d entries in portfolio.\n",
+		addrCount)
 	for {
 		data := b.GetPortfolioGroupedCoin()
 		for key, value := range data {
 			err := b.UpdatePortfolio(value, key)
 			if err != nil {
-				log.Errorf(log.PortfolioMgr,
-					"PortfolioWatcher error %s for currency %s, val %v\n",
+				log.PortfolioMgr.Errorf("PortfolioWatcher error %s for currency %s, val %v\n",
 					err,
 					key,
 					value)
 				continue
 			}
 
-			log.Debugf(log.PortfolioMgr,
-				"PortfolioWatcher: Successfully updated address balance for %s address(es) %s\n",
+			log.PortfolioMgr.Debugf("PortfolioWatcher: Successfully updated address balance for %s address(es) %s\n",
 				key,
 				value)
 		}

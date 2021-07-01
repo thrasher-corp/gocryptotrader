@@ -172,7 +172,7 @@ func (b *Bittrex) WsAuth() error {
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.WebsocketMgr, "%s Sending JSON message - %s\n", b.Name, requestString)
+		log.WebsocketMgr.Debugf("%s Sending JSON message - %s\n", b.Name, requestString)
 	}
 
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
@@ -182,11 +182,15 @@ func (b *Bittrex) WsAuth() error {
 	var response WsAuthResponse
 	err = json.Unmarshal(respRaw, &response)
 	if err != nil {
-		log.Warnf(log.WebsocketMgr, "%s - Cannot unmarshal into WsAuthResponse (%s)\n", b.Name, string(respRaw))
+		log.WebsocketMgr.Warnf("%s - Cannot unmarshal into WsAuthResponse (%s)\n",
+			b.Name,
+			string(respRaw))
 		return err
 	}
 	if !response.Response.Success {
-		log.Warnf(log.WebsocketMgr, "%s - Unable to authenticate (%s)", b.Name, response.Response.ErrorCode)
+		log.WebsocketMgr.Warnf("%s - Unable to authenticate (%s)",
+			b.Name,
+			response.Response.ErrorCode)
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	return nil
@@ -275,7 +279,9 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.WebsocketMgr, "%s - Sending JSON message - %s\n", b.Name, requestString)
+		log.WebsocketMgr.Debugf("%s - Sending JSON message - %s\n",
+			b.Name,
+			requestString)
 	}
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
@@ -340,7 +346,9 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.WebsocketMgr, "%s - Sending JSON message - %s\n", b.Name, requestString)
+		log.WebsocketMgr.Debugf("%s - Sending JSON message - %s\n",
+			b.Name,
+			requestString)
 	}
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
@@ -377,7 +385,7 @@ func (b *Bittrex) wsReadData() {
 		default:
 			resp := b.Websocket.Conn.ReadMessage()
 			if resp.Raw == nil {
-				log.Warnf(log.WebsocketMgr, "%s Received empty message\n", b.Name)
+				log.WebsocketMgr.Warnf("%s Received empty message\n", b.Name)
 				return
 			}
 
@@ -406,7 +414,9 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 	var response WsEventResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
-		log.Warnf(log.WebsocketMgr, "%s Cannot unmarshal into eventResponse (%s)\n", b.Name, string(respRaw))
+		log.WebsocketMgr.Warnf("%s Cannot unmarshal into eventResponse (%s)\n",
+			b.Name,
+			string(respRaw))
 		return err
 	}
 	if response.Response != nil && response.InvocationID > 0 {
@@ -418,7 +428,9 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 
 	if response.Response == nil && len(response.Message) == 0 && response.C == "" {
 		if b.Verbose {
-			log.Warnf(log.WebsocketMgr, "%s Received keep-alive (%s)\n", b.Name, string(respRaw))
+			log.WebsocketMgr.Warnf("%s Received keep-alive (%s)\n",
+				b.Name,
+				string(respRaw))
 		}
 		return nil
 	}
@@ -469,11 +481,11 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 			}
 		case "heartbeat":
 			if b.Verbose {
-				log.Warnf(log.WebsocketMgr, "%s Received heartbeat\n", b.Name)
+				log.WebsocketMgr.Warnf("%s Received heartbeat\n", b.Name)
 			}
 		case "authenticationExpiring":
 			if b.Verbose {
-				log.Debugf(log.WebsocketMgr, "%s - Re-authenticating.\n", b.Name)
+				log.WebsocketMgr.Debugf("%s - Re-authenticating.\n", b.Name)
 			}
 			err = b.WsAuth()
 			if err != nil {

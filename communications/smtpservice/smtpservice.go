@@ -38,7 +38,7 @@ func (s *SMTPservice) Setup(cfg *base.CommunicationsConfig) {
 	s.AccountPassword = cfg.SMTPConfig.AccountPassword
 	s.From = cfg.SMTPConfig.From
 	s.RecipientList = cfg.SMTPConfig.RecipientList
-	log.Debugf(log.CommunicationMgr, "SMTP: Setup - From: %v. To: %s. Server: %s.\n", s.From, s.RecipientList, s.Host)
+	log.CommunicationMgr.Debugf("SMTP: Setup - From: %v. To: %s. Server: %s.\n", s.From, s.RecipientList, s.Host)
 }
 
 // IsConnected returns whether or not the connection is connected
@@ -71,7 +71,7 @@ func (s *SMTPservice) Send(subject, msg string) error {
 		return errors.New("STMPservice Send() cannot send with unset service properties")
 	}
 
-	log.Debugf(log.CommunicationMgr, "SMTP: Sending email to %v. Subject: %s Message: %s [From: %s]\n", s.RecipientList,
+	log.CommunicationMgr.Debugf("SMTP: Sending email to %v. Subject: %s Message: %s [From: %s]\n", s.RecipientList,
 		subject, msg, s.From)
 	messageToSend := fmt.Sprintf(
 		msgSMTP,

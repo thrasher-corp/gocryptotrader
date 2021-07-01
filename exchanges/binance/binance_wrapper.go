@@ -86,31 +86,31 @@ func (b *Binance) SetDefaults() {
 	}
 	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	err = b.StoreAssetPairFormat(asset.Margin, fmt1)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	err = b.DisableAssetWebsocketSupport(asset.Margin)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	err = b.StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	err = b.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	err = b.StoreAssetPairFormat(asset.USDTMarginedFutures, usdtFutures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	err = b.DisableAssetWebsocketSupport(asset.USDTMarginedFutures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -194,7 +194,7 @@ func (b *Binance) SetDefaults() {
 		exchange.WebsocketSpot:         binanceDefaultWebsocketURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	b.Websocket = stream.New()
@@ -257,7 +257,7 @@ func (b *Binance) Start(wg *sync.WaitGroup) {
 // Run implements the Binance wrapper
 func (b *Binance) Run() {
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s. (url: %s).\n",
 			b.Name,
 			common.IsEnabled(b.Websocket.IsEnabled()),
@@ -268,14 +268,14 @@ func (b *Binance) Run() {
 	forceUpdate := false
 	format, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+		log.ExchangeSys.Errorf("%s failed to get enabled currencies. Err %s\n",
 			b.Name,
 			err)
 		return
 	}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+		log.ExchangeSys.Errorf("%s failed to get enabled currencies. Err %s\n",
 			b.Name,
 			err)
 		return
@@ -283,7 +283,7 @@ func (b *Binance) Run() {
 
 	avail, err := b.GetAvailablePairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
+		log.ExchangeSys.Errorf("%s failed to get available currencies. Err %s\n",
 			b.Name,
 			err)
 		return
@@ -297,17 +297,17 @@ func (b *Binance) Run() {
 				format.Delimiter +
 				currency.USDT.String()})
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
+			log.ExchangeSys.Errorf("%s failed to update currencies. Err %s\n",
 				b.Name,
 				err)
 		} else {
-			log.Warn(log.ExchangeSys,
+			log.ExchangeSys.Warn(
 				"Available pairs for Binance reset due to config upgrade, please enable the ones you would like to use again")
 			forceUpdate = true
 
 			err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"%s failed to update currencies. Err: %s\n",
 					b.Name,
 					err)
@@ -320,7 +320,7 @@ func (b *Binance) Run() {
 		if err = b.CurrencyPairs.IsAssetEnabled(a[x]); err == nil {
 			err = b.UpdateOrderExecutionLimits(a[x])
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"Could not set %s exchange exchange limits: %v",
 					b.Name,
 					err)
@@ -333,7 +333,7 @@ func (b *Binance) Run() {
 	}
 	err = b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			b.Name,
 			err)
@@ -1556,7 +1556,7 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 
 	err := dates.VerifyResultsHaveData(ret.Candles)
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+		log.ExchangeSys.Warnf("%s - %s", b.Name, err)
 	}
 
 	ret.RemoveDuplicates()

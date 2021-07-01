@@ -20,7 +20,7 @@ const (
 func areAPICredtionalsSet(minAllowable uint8) bool {
 	if apiAccountPlanLevel != "" && apikey != "" {
 		if err := c.CheckAccountPlan(minAllowable); err != nil {
-			log.Warn(log.Global, "coinmarketpcap test suite - account plan not allowed for function, please review or upgrade plan to test")
+			log.ExchaneSys.Warn("coinmarketpcap test suite - account plan not allowed for function, please review or upgrade plan to test")
 			return false
 		}
 		return true

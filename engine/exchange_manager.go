@@ -92,7 +92,7 @@ func (m *ExchangeManager) RemoveExchange(exchName string) error {
 	m.m.Lock()
 	defer m.m.Unlock()
 	delete(m.exchanges, strings.ToLower(exchName))
-	log.Infof(log.ExchangeSys, "%s exchange unloaded successfully.\n", exchName)
+	log.ExchangeSys.Infof("%s exchange unloaded successfully.\n", exchName)
 	return nil
 }
 

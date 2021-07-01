@@ -106,19 +106,19 @@ func StartRPCServer(engine *Engine) {
 	targetDir := utils.GetTLSDir(engine.Settings.DataDir)
 	err := checkCerts(targetDir)
 	if err != nil {
-		log.Errorf(log.GRPCSys, "gRPC checkCerts failed. err: %s\n", err)
+		log.GRPCSys.Errorf("gRPC checkCerts failed. err: %s\n", err)
 		return
 	}
-	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", engine.Config.RemoteControl.GRPC.ListenAddress)
+	log.GRPCSys.Debugf("gRPC server support enabled. Starting gRPC server on https://%v.\n", engine.Config.RemoteControl.GRPC.ListenAddress)
 	lis, err := net.Listen("tcp", engine.Config.RemoteControl.GRPC.ListenAddress)
 	if err != nil {
-		log.Errorf(log.GRPCSys, "gRPC server failed to bind to port: %s", err)
+		log.GRPCSys.Errorf("gRPC server failed to bind to port: %s", err)
 		return
 	}
 
 	creds, err := credentials.NewServerTLSFromFile(filepath.Join(targetDir, "cert.pem"), filepath.Join(targetDir, "key.pem"))
 	if err != nil {
-		log.Errorf(log.GRPCSys, "gRPC server could not load TLS keys: %s\n", err)
+		log.GRPCSys.Errorf("gRPC server could not load TLS keys: %s\n", err)
 		return
 	}
 
@@ -132,12 +132,12 @@ func StartRPCServer(engine *Engine) {
 
 	go func() {
 		if err := server.Serve(lis); err != nil {
-			log.Errorf(log.GRPCSys, "gRPC server failed to serve: %s\n", err)
+			log.GRPCSys.Errorf("gRPC server failed to serve: %s\n", err)
 			return
 		}
 	}()
 
-	log.Debugln(log.GRPCSys, "gRPC server started!")
+	log.GRPCSys.Debugln("gRPC server started!")
 
 	if s.Settings.EnableGRPCProxy {
 		s.StartRPCRESTProxy()
@@ -146,12 +146,12 @@ func StartRPCServer(engine *Engine) {
 
 // StartRPCRESTProxy starts a gRPC proxy
 func (s *RPCServer) StartRPCRESTProxy() {
-	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.Config.RemoteControl.GRPC.GRPCProxyListenAddress)
+	log.GRPCSys.Debugf("gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.Config.RemoteControl.GRPC.GRPCProxyListenAddress)
 
 	targetDir := utils.GetTLSDir(s.Settings.DataDir)
 	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
 	if err != nil {
-		log.Errorf(log.GRPCSys, "Unabled to start gRPC proxy. Err: %s\n", err)
+		log.GRPCSys.Errorf("Unabled to start gRPC proxy. Err: %s\n", err)
 		return
 	}
 
@@ -165,18 +165,18 @@ func (s *RPCServer) StartRPCRESTProxy() {
 	err = gctrpc.RegisterGoCryptoTraderHandlerFromEndpoint(context.Background(),
 		mux, s.Config.RemoteControl.GRPC.ListenAddress, opts)
 	if err != nil {
-		log.Errorf(log.GRPCSys, "Failed to register gRPC proxy. Err: %s\n", err)
+		log.GRPCSys.Errorf("Failed to register gRPC proxy. Err: %s\n", err)
 		return
 	}
 
 	go func() {
 		if err := http.ListenAndServe(s.Config.RemoteControl.GRPC.GRPCProxyListenAddress, mux); err != nil {
-			log.Errorf(log.GRPCSys, "gRPC proxy failed to server: %s\n", err)
+			log.GRPCSys.Errorf("gRPC proxy failed to server: %s\n", err)
 			return
 		}
 	}()
 
-	log.Debugln(log.GRPCSys, "gRPC proxy server started!")
+	log.GRPCSys.Debugln("gRPC proxy server started!")
 }
 
 // GetInfo returns info about the current GoCryptoTrader session
@@ -477,8 +477,7 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 		for y := range assets {
 			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
 			if err != nil {
-				log.Errorf(log.RESTSys,
-					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
+				log.RESTSys.Errorf("Exchange %s could not retrieve enabled currencies. Err: %s\n",
 					exchName,
 					err)
 				continue
@@ -486,8 +485,7 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 			for z := range currencies {
 				resp, err := exchanges[x].FetchOrderbook(currencies[z], assets[y])
 				if err != nil {
-					log.Errorf(log.RESTSys,
-						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
+					log.RESTSys.Errorf("Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
 						currencies[z].String(),
 						err)
 					continue
@@ -637,7 +635,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 	defer func() {
 		pipeErr := pipe.Release()
 		if pipeErr != nil {
-			log.Error(log.DispatchMgr, pipeErr)
+			log.DispatchMgr.Error(pipeErr)
 		}
 	}()
 
@@ -1445,11 +1443,11 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 
 	resp.Event.CreatedAt = timestamppb.New(v.CreatedAt)
 	if err := resp.Event.CreatedAt.CheckValid(); err != nil {
-		log.Errorf(log.GRPCSys, "withdrawal event by id CreatedAt: %s", err)
+		log.GRPCSys.Errorf("withdrawal event by id CreatedAt: %s", err)
 	}
 	resp.Event.UpdatedAt = timestamppb.New(v.UpdatedAt)
 	if err := resp.Event.UpdatedAt.CheckValid(); err != nil {
-		log.Errorf(log.GRPCSys, "withdrawal event by id UpdatedAt: %s", err)
+		log.GRPCSys.Errorf("withdrawal event by id UpdatedAt: %s", err)
 	}
 
 	if v.RequestDetails.Type == withdraw.Crypto {
@@ -1746,7 +1744,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 	defer func() {
 		pipeErr := pipe.Release()
 		if pipeErr != nil {
-			log.Error(log.DispatchMgr, pipeErr)
+			log.DispatchMgr.Error(pipeErr)
 		}
 	}()
 
@@ -1816,7 +1814,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 	defer func() {
 		pipeErr := pipe.Release()
 		if pipeErr != nil {
-			log.Error(log.DispatchMgr, pipeErr)
+			log.DispatchMgr.Error(pipeErr)
 		}
 	}()
 
@@ -1861,7 +1859,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 	defer func() {
 		pipeErr := pipe.Release()
 		if pipeErr != nil {
-			log.Error(log.DispatchMgr, pipeErr)
+			log.DispatchMgr.Error(pipeErr)
 		}
 	}()
 
@@ -2090,8 +2088,7 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 		}
 
 		for i := range response.Candles {
-			log.Infof(log.GRPCSys,
-				"Filled requested OHLCV data for %v %v %v interval at %v with trade data",
+			log.GRPCSys.Infof("Filled requested OHLCV data for %v %v %v interval at %v with trade data",
 				klineItem.Exchange,
 				klineItem.Pair.String(),
 				klineItem.Asset,
@@ -2263,13 +2260,13 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 	}
 	err = newFile.Close()
 	if err != nil {
-		log.Errorln(log.Global, "Failed to close file handle, archive removal may fail")
+		log.Global.Errorln("Failed to close file handle, archive removal may fail")
 	}
 
 	if r.Archived {
 		files, errExtract := archive.UnZip(fPath, filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
 		if errExtract != nil {
-			log.Errorf(log.Global, "Failed to archive zip file %v", errExtract)
+			log.Global.Errorf("Failed to archive zip file %v", errExtract)
 			return &gctrpc.GenericResponse{Status: MsgStatusError, Data: errExtract.Error()}, nil
 		}
 		var failedFiles []string
@@ -2286,7 +2283,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 		if len(failedFiles) > 0 {
 			err = os.RemoveAll(filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
 			if err != nil {
-				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v (%v), manual deletion required", filepath.Base(fPath), err)
+				log.GCTScriptMgr.Errorf("Failed to remove file %v (%v), manual deletion required", filepath.Base(fPath), err)
 			}
 			return &gctrpc.GenericResponse{Status: gctscript.ErrScriptFailedValidation, Data: strings.Join(failedFiles, ", ")}, nil
 		}
@@ -2295,7 +2292,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 		if err != nil {
 			errRemove := os.Remove(fPath)
 			if errRemove != nil {
-				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v, manual deletion required: %v", filepath.Base(fPath), errRemove)
+				log.GCTScriptMgr.Errorf("Failed to remove file %v, manual deletion required: %v", filepath.Base(fPath), errRemove)
 			}
 			return &gctrpc.GenericResponse{Status: gctscript.ErrScriptFailedValidation, Data: err.Error()}, nil
 		}
@@ -3165,11 +3162,11 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 
 		tempEvent.CreatedAt = timestamppb.New(ret[x].CreatedAt)
 		if err := tempEvent.CreatedAt.CheckValid(); err != nil {
-			log.Errorf(log.Global, "withdrawal parseMultipleEvents CreatedAt: %s", err)
+			log.Global.Errorf("withdrawal parseMultipleEvents CreatedAt: %s", err)
 		}
 		tempEvent.UpdatedAt = timestamppb.New(ret[x].UpdatedAt)
 		if err := tempEvent.UpdatedAt.CheckValid(); err != nil {
-			log.Errorf(log.Global, "withdrawal parseMultipleEvents UpdatedAt: %s", err)
+			log.Global.Errorf("withdrawal parseMultipleEvents UpdatedAt: %s", err)
 		}
 
 		if ret[x].RequestDetails.Type == withdraw.Crypto {
@@ -3219,7 +3216,7 @@ func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, 
 
 		tempEvent.UpdatedAt = timestamppb.New(ret[x].Timestamp)
 		if err := tempEvent.UpdatedAt.CheckValid(); err != nil {
-			log.Errorf(log.Global, "withdrawal parseWithdrawalsHistory UpdatedAt: %s", err)
+			log.Global.Errorf("withdrawal parseWithdrawalsHistory UpdatedAt: %s", err)
 		}
 
 		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
@@ -3250,11 +3247,11 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 	}
 	tempEvent.CreatedAt = timestamppb.New(ret.CreatedAt)
 	if err := tempEvent.CreatedAt.CheckValid(); err != nil {
-		log.Errorf(log.Global, "withdrawal parseSingleEvents CreatedAt %s", err)
+		log.Global.Errorf("withdrawal parseSingleEvents CreatedAt %s", err)
 	}
 	tempEvent.UpdatedAt = timestamppb.New(ret.UpdatedAt)
 	if err := tempEvent.UpdatedAt.CheckValid(); err != nil {
-		log.Errorf(log.Global, "withdrawal parseSingleEvents UpdatedAt: %s", err)
+		log.Global.Errorf("withdrawal parseSingleEvents UpdatedAt: %s", err)
 	}
 
 	if ret.RequestDetails.Type == withdraw.Crypto {

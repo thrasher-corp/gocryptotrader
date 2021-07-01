@@ -105,7 +105,7 @@ func LoadFromGCTScriptCSV(file string) (out []Candle, errRet error) {
 	defer func() {
 		err = csvFile.Close()
 		if err != nil {
-			log.Errorln(log.Global, err)
+			log.Global.Errorln(err)
 		}
 	}()
 

@@ -335,7 +335,7 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(epath exchange.URL, method, endpoint
 		[]byte(e.API.Credentials.Secret))
 
 	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "Sending %s request to %s with params %s\n",
+		log.ExchangeSys.Debugf("Sending %s request to %s with params %s\n",
 			method,
 			endpoint,
 			payload)

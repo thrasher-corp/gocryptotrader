@@ -61,7 +61,7 @@ func (i *ItBit) SetDefaults() {
 	configFmt := &currency.PairFormat{Uppercase: true}
 	err := i.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	i.Features = exchange.Features{
@@ -99,7 +99,7 @@ func (i *ItBit) SetDefaults() {
 		exchange.RestSpot: itbitAPIURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 }
 
@@ -533,7 +533,7 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		side := order.Side(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				i.Name,
 				"GetActiveOrders",
@@ -601,7 +601,7 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		side := order.Side(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				i.Name,
 				"GetActiveOrders",

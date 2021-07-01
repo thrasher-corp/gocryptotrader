@@ -79,14 +79,14 @@ func (m *websocketRoutineManager) Stop() error {
 // websocketRoutine Initial routine management system for websocket
 func (m *websocketRoutineManager) websocketRoutine() {
 	if m.verbose {
-		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
+		log.WebsocketMgr.Debugln("Connecting exchange websocket services...")
 	}
 	exchanges := m.exchangeManager.GetExchanges()
 	for i := range exchanges {
 		go func(i int) {
 			if exchanges[i].SupportsWebsocket() {
 				if m.verbose {
-					log.Debugf(log.WebsocketMgr,
+					log.WebsocketMgr.Debugf(
 						"Exchange %s websocket support: Yes Enabled: %v\n",
 						exchanges[i].GetName(),
 						common.IsEnabled(exchanges[i].IsWebsocketEnabled()),
@@ -95,9 +95,7 @@ func (m *websocketRoutineManager) websocketRoutine() {
 
 				ws, err := exchanges[i].GetWebsocket()
 				if err != nil {
-					log.Errorf(
-						log.WebsocketMgr,
-						"Exchange %s GetWebsocket error: %s\n",
+					log.WebsocketMgr.Errorf("Exchange %s GetWebsocket error: %s\n",
 						exchanges[i].GetName(),
 						err,
 					)
@@ -116,15 +114,15 @@ func (m *websocketRoutineManager) websocketRoutine() {
 				if ws.IsEnabled() {
 					err = ws.Connect()
 					if err != nil {
-						log.Errorf(log.WebsocketMgr, "%v\n", err)
+						log.WebsocketMgr.Errorf("%v\n", err)
 					}
 					err = ws.FlushChannels()
 					if err != nil {
-						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v\n", err)
+						log.WebsocketMgr.Errorf("Failed to subscribe: %v\n", err)
 					}
 				}
 			} else if m.verbose {
-				log.Debugf(log.WebsocketMgr,
+				log.WebsocketMgr.Debugf(
 					"Exchange %s websocket support: No\n",
 					exchanges[i].GetName(),
 				)
@@ -149,7 +147,7 @@ func (m *websocketRoutineManager) WebsocketDataReceiver(ws *stream.Websocket) {
 		case data := <-ws.ToRoutine:
 			err := m.WebsocketDataHandler(ws.GetName(), data)
 			if err != nil {
-				log.Error(log.WebsocketMgr, err)
+				log.WebsocketMgr.Error(err)
 			}
 		}
 	}
@@ -165,12 +163,12 @@ func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data int
 
 	switch d := data.(type) {
 	case string:
-		log.Info(log.WebsocketMgr, d)
+		log.WebsocketMgr.Info(d)
 	case error:
 		return fmt.Errorf("exchange %s websocket error - %s", exchName, data)
 	case stream.FundingData:
 		if m.verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
+			log.WebsocketMgr.Infof("%s websocket %s %s funding updated %+v",
 				exchName,
 				m.FormatCurrency(d.CurrencyPair),
 				d.AssetType,
@@ -194,7 +192,7 @@ func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data int
 		m.syncer.PrintTickerSummary(d, "websocket", err)
 	case stream.KlineData:
 		if m.verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
+			log.WebsocketMgr.Infof("%s websocket %s %s kline updated %+v",
 				exchName,
 				m.FormatCurrency(d.Pair),
 				d.AssetType,
@@ -245,15 +243,14 @@ func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data int
 	case order.ClassificationError:
 		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case stream.UnhandledMessageWarning:
-		log.Warn(log.WebsocketMgr, d.Message)
+		log.WebsocketMgr.Warn(d.Message)
 	case account.Change:
 		if m.verbose {
 			m.printAccountHoldingsChangeSummary(d)
 		}
 	default:
 		if m.verbose {
-			log.Warnf(log.WebsocketMgr,
-				"%s websocket Unknown type: %+v",
+			log.WebsocketMgr.Warnf("%s websocket Unknown type: %+v",
 				exchName,
 				d)
 		}
@@ -278,7 +275,7 @@ func (m *websocketRoutineManager) printOrderChangeSummary(o *order.Modify) {
 		return
 	}
 
-	log.Debugf(log.WebsocketMgr,
+	log.WebsocketMgr.Debugf(
 		"Order Change: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
 		o.Exchange,
 		o.AssetType,
@@ -300,7 +297,7 @@ func (m *websocketRoutineManager) printOrderSummary(o *order.Detail) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 || o == nil {
 		return
 	}
-	log.Debugf(log.WebsocketMgr,
+	log.WebsocketMgr.Debugf(
 		"New Order: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
 		o.Exchange,
 		o.AssetType,
@@ -322,7 +319,7 @@ func (m *websocketRoutineManager) printAccountHoldingsChangeSummary(o account.Ch
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
-	log.Debugf(log.WebsocketMgr,
+	log.WebsocketMgr.Debugf(
 		"Account Holdings Balance Changed: %s %s %s has changed balance by %f for account: %s",
 		o.Exchange,
 		o.Asset,

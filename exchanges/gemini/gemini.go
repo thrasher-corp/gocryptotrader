@@ -387,7 +387,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path stri
 	}
 
 	if g.Verbose {
-		log.Debugf(log.ExchangeSys, "Request JSON: %s", PayloadJSON)
+		log.ExchangeSys.Debugf("Request JSON: %s", PayloadJSON)
 	}
 
 	PayloadBase64 := crypto.Base64Encode(PayloadJSON)

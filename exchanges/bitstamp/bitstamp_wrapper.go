@@ -60,7 +60,7 @@ func (b *Bitstamp) SetDefaults() {
 	configFmt := &currency.PairFormat{Uppercase: true}
 	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	b.Features = exchange.Features{
@@ -133,7 +133,7 @@ func (b *Bitstamp) SetDefaults() {
 		exchange.WebsocketSpot: bitstampWSURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -197,7 +197,7 @@ func (b *Bitstamp) Start(wg *sync.WaitGroup) {
 // Run implements the Bitstamp wrapper
 func (b *Bitstamp) Run() {
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s.",
 			b.Name,
 			common.IsEnabled(b.Websocket.IsEnabled()))
@@ -210,7 +210,7 @@ func (b *Bitstamp) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			b.Name,
 			err)
@@ -668,7 +668,7 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 
 		tm, err := parseTime(resp[i].DateTime)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s GetActiveOrders unable to parse time: %s\n", b.Name, err)
 		}
 
@@ -733,7 +733,7 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 		case resp[i].XRP > 0:
 			baseCurrency = currency.XRP
 		default:
-			log.Warnf(log.ExchangeSys,
+			log.ExchangeSys.Warnf(
 				"%s No base currency found for ID '%d'\n",
 				b.Name,
 				resp[i].OrderID)
@@ -745,7 +745,7 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 		case resp[i].EUR > 0:
 			quoteCurrency = currency.EUR
 		default:
-			log.Warnf(log.ExchangeSys,
+			log.ExchangeSys.Warnf(
 				"%s No quote currency found for orderID '%d'\n",
 				b.Name,
 				resp[i].OrderID)
@@ -760,7 +760,7 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 		tm, err := parseTime(resp[i].Date)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s GetOrderHistory unable to parse time: %s\n", b.Name, err)
 		}
 
@@ -882,7 +882,7 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 	}
 	err = dates.VerifyResultsHaveData(ret.Candles)
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+		log.ExchangeSys.Warnf("%s - %s", b.Name, err)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

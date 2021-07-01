@@ -6,7 +6,7 @@ import (
 )
 
 // Info takes a pointer subLogger struct and string sends to newLogEvent
-func Info(sl *subLogger, data string) {
+func (sl *subLogger) Info(data string) {
 	fields := getFields(sl)
 	if fields == nil {
 		return
@@ -19,7 +19,7 @@ func Info(sl *subLogger, data string) {
 }
 
 // Infoln takes a pointer subLogger struct and interface sends to newLogEvent
-func Infoln(sl *subLogger, v ...interface{}) {
+func (sl *subLogger) Infoln(v ...interface{}) {
 	fields := getFields(sl)
 	if fields == nil {
 		return
@@ -32,12 +32,12 @@ func Infoln(sl *subLogger, v ...interface{}) {
 }
 
 // Infof takes a pointer subLogger struct, string & interface formats and sends to Info()
-func Infof(sl *subLogger, data string, v ...interface{}) {
-	Info(sl, fmt.Sprintf(data, v...))
+func (sl *subLogger) Infof(data string, v ...interface{}) {
+	sl.Info(fmt.Sprintf(data, v...))
 }
 
 // Debug takes a pointer subLogger struct and string sends to multiwriter
-func Debug(sl *subLogger, data string) {
+func (sl *subLogger) Debug(data string) {
 	fields := getFields(sl)
 	if fields == nil {
 		return
@@ -50,7 +50,7 @@ func Debug(sl *subLogger, data string) {
 }
 
 // Debugln  takes a pointer subLogger struct, string and interface sends to newLogEvent
-func Debugln(sl *subLogger, v ...interface{}) {
+func (sl *subLogger) Debugln(v ...interface{}) {
 	fields := getFields(sl)
 	if fields == nil {
 		return
@@ -63,12 +63,12 @@ func Debugln(sl *subLogger, v ...interface{}) {
 }
 
 // Debugf takes a pointer subLogger struct, string & interface formats and sends to Info()
-func Debugf(sl *subLogger, data string, v ...interface{}) {
-	Debug(sl, fmt.Sprintf(data, v...))
+func (sl *subLogger) Debugf(data string, v ...interface{}) {
+	sl.Debug(fmt.Sprintf(data, v...))
 }
 
 // Warn takes a pointer subLogger struct & string  and sends to newLogEvent()
-func Warn(sl *subLogger, data string) {
+func (sl *subLogger) Warn(data string) {
 	fields := getFields(sl)
 	if fields == nil {
 		return
@@ -81,7 +81,7 @@ func Warn(sl *subLogger, data string) {
 }
 
 // Warnln takes a pointer subLogger struct & interface formats and sends to newLogEvent()
-func Warnln(sl *subLogger, v ...interface{}) {
+func (sl *subLogger) Warnln(v ...interface{}) {
 	fields := getFields(sl)
 	if fields == nil {
 		return
@@ -94,12 +94,12 @@ func Warnln(sl *subLogger, v ...interface{}) {
 }
 
 // Warnf takes a pointer subLogger struct, string & interface formats and sends to Warn()
-func Warnf(sl *subLogger, data string, v ...interface{}) {
-	Warn(sl, fmt.Sprintf(data, v...))
+func (sl *subLogger) Warnf(data string, v ...interface{}) {
+	sl.Warn(fmt.Sprintf(data, v...))
 }
 
 // Error takes a pointer subLogger struct & interface formats and sends to newLogEvent()
-func Error(sl *subLogger, data ...interface{}) {
+func (sl *subLogger) Error(data ...interface{}) {
 	fields := getFields(sl)
 	if fields == nil {
 		return
@@ -112,7 +112,7 @@ func Error(sl *subLogger, data ...interface{}) {
 }
 
 // Errorln takes a pointer subLogger struct, string & interface formats and sends to newLogEvent()
-func Errorln(sl *subLogger, v ...interface{}) {
+func (sl *subLogger) Errorln(v ...interface{}) {
 	fields := getFields(sl)
 	if fields == nil {
 		return
@@ -125,8 +125,8 @@ func Errorln(sl *subLogger, v ...interface{}) {
 }
 
 // Errorf takes a pointer subLogger struct, string & interface formats and sends to Debug()
-func Errorf(sl *subLogger, data string, v ...interface{}) {
-	Error(sl, fmt.Sprintf(data, v...))
+func (sl *subLogger) Errorf(data string, v ...interface{}) {
+	sl.Error(fmt.Sprintf(data, v...))
 }
 
 func displayError(err error) {
@@ -157,10 +157,10 @@ func getFields(sl *subLogger) *logFields {
 	RWM.RLock()
 	defer RWM.RUnlock()
 	return &logFields{
-		info:   sl.Info,
-		warn:   sl.Warn,
-		debug:  sl.Debug,
-		error:  sl.Error,
+		info:   sl.Enabled.Info,
+		warn:   sl.Enabled.Warn,
+		debug:  sl.Enabled.Debug,
+		error:  sl.Enabled.Error,
 		name:   sl.name,
 		output: sl.output,
 		logger: *logger,

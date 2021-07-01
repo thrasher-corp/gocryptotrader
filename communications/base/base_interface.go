@@ -28,10 +28,10 @@ func (c IComm) Setup() {
 		if c[i].IsEnabled() && !c[i].IsConnected() {
 			err := c[i].Connect()
 			if err != nil {
-				log.Errorf(log.CommunicationMgr, "Communications: %s failed to connect. Err: %s", c[i].GetName(), err)
+				log.CommunicationMgr.Errorf("Communications: %s failed to connect. Err: %s", c[i].GetName(), err)
 				continue
 			}
-			log.Debugf(log.CommunicationMgr, "Communications: %v is enabled and online.", c[i].GetName())
+			log.CommunicationMgr.Debugf("Communications: %v is enabled and online.", c[i].GetName())
 			c[i].SetServiceStarted(time.Now())
 		}
 	}
@@ -43,7 +43,7 @@ func (c IComm) PushEvent(event Event) {
 		if c[i].IsEnabled() && c[i].IsConnected() {
 			err := c[i].PushEvent(event)
 			if err != nil {
-				log.Errorf(log.CommunicationMgr, "Communications error - PushEvent() in package %s with %v. Err %s",
+				log.CommunicationMgr.Errorf("Communications error - PushEvent() in package %s with %v. Err %s",
 					c[i].GetName(), event, err)
 			}
 		}
@@ -69,7 +69,7 @@ func (c IComm) GetEnabledCommunicationMediums() error {
 	var count int
 	for i := range c {
 		if c[i].IsEnabled() && c[i].IsConnected() {
-			log.Debugf(log.CommunicationMgr, "Communications: Medium %s is enabled.", c[i].GetName())
+			log.CommunicationMgr.Debugf("Communications: Medium %s is enabled.", c[i].GetName())
 			count++
 		}
 	}

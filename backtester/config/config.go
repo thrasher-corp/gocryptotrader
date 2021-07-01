@@ -33,101 +33,101 @@ func LoadConfig(data []byte) (resp *Config, err error) {
 
 // PrintSetting prints relevant settings to the console for easy reading
 func (c *Config) PrintSetting() {
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Backtester Settings------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Strategy Settings--------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Infof(log.BackTester, "Strategy: %s", c.StrategySettings.Name)
+	log.BackTester.Info("-------------------------------------------------------------")
+	log.BackTester.Info("------------------Backtester Settings------------------------")
+	log.BackTester.Info("-------------------------------------------------------------")
+	log.BackTester.Info("------------------Strategy Settings--------------------------")
+	log.BackTester.Info("-------------------------------------------------------------")
+	log.BackTester.Infof("Strategy: %s", c.StrategySettings.Name)
 	if len(c.StrategySettings.CustomSettings) > 0 {
-		log.Info(log.BackTester, "Custom strategy variables:")
+		log.BackTester.Info("Custom strategy variables:")
 		for k, v := range c.StrategySettings.CustomSettings {
-			log.Infof(log.BackTester, "%s: %v", k, v)
+			log.BackTester.Infof("%s: %v", k, v)
 		}
 	} else {
-		log.Info(log.BackTester, "Custom strategy variables: unset")
+		log.BackTester.Info("Custom strategy variables: unset")
 	}
-	log.Infof(log.BackTester, "Simultaneous Signal Processing: %v", c.StrategySettings.SimultaneousSignalProcessing)
+	log.BackTester.Infof("Simultaneous Signal Processing: %v", c.StrategySettings.SimultaneousSignalProcessing)
 	for i := range c.CurrencySettings {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.BackTester.Info("-------------------------------------------------------------")
 		currStr := fmt.Sprintf("------------------%v %v-%v Settings---------------------------------------------------------",
 			c.CurrencySettings[i].Asset,
 			c.CurrencySettings[i].Base,
 			c.CurrencySettings[i].Quote)
-		log.Infof(log.BackTester, currStr[:61])
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
-		log.Infof(log.BackTester, "Initial funds: %.4f", c.CurrencySettings[i].InitialFunds)
-		log.Infof(log.BackTester, "Maker fee: %.2f", c.CurrencySettings[i].TakerFee)
-		log.Infof(log.BackTester, "Taker fee: %.2f", c.CurrencySettings[i].MakerFee)
-		log.Infof(log.BackTester, "Minimum slippage percent %.2f", c.CurrencySettings[i].MinimumSlippagePercent)
-		log.Infof(log.BackTester, "Maximum slippage percent: %.2f", c.CurrencySettings[i].MaximumSlippagePercent)
-		log.Infof(log.BackTester, "Buy rules: %+v", c.CurrencySettings[i].BuySide)
-		log.Infof(log.BackTester, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
-		log.Infof(log.BackTester, "Leverage rules: %+v", c.CurrencySettings[i].Leverage)
-		log.Infof(log.BackTester, "Can use exchange defined order execution limits: %+v", c.CurrencySettings[i].CanUseExchangeLimits)
+		log.BackTester.Infof(currStr[:61])
+		log.BackTester.Info("-------------------------------------------------------------")
+		log.BackTester.Infof("Exchange: %v", c.CurrencySettings[i].ExchangeName)
+		log.BackTester.Infof("Initial funds: %.4f", c.CurrencySettings[i].InitialFunds)
+		log.BackTester.Infof("Maker fee: %.2f", c.CurrencySettings[i].TakerFee)
+		log.BackTester.Infof("Taker fee: %.2f", c.CurrencySettings[i].MakerFee)
+		log.BackTester.Infof("Minimum slippage percent %.2f", c.CurrencySettings[i].MinimumSlippagePercent)
+		log.BackTester.Infof("Maximum slippage percent: %.2f", c.CurrencySettings[i].MaximumSlippagePercent)
+		log.BackTester.Infof("Buy rules: %+v", c.CurrencySettings[i].BuySide)
+		log.BackTester.Infof("Sell rules: %+v", c.CurrencySettings[i].SellSide)
+		log.BackTester.Infof("Leverage rules: %+v", c.CurrencySettings[i].Leverage)
+		log.BackTester.Infof("Can use exchange defined order execution limits: %+v", c.CurrencySettings[i].CanUseExchangeLimits)
 	}
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Portfolio Settings-------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Infof(log.BackTester, "Buy rules: %+v", c.PortfolioSettings.BuySide)
-	log.Infof(log.BackTester, "Sell rules: %+v", c.PortfolioSettings.SellSide)
-	log.Infof(log.BackTester, "Leverage rules: %+v", c.PortfolioSettings.Leverage)
+	log.BackTester.Info("-------------------------------------------------------------")
+	log.BackTester.Info("------------------Portfolio Settings-------------------------")
+	log.BackTester.Info("-------------------------------------------------------------")
+	log.BackTester.Infof("Buy rules: %+v", c.PortfolioSettings.BuySide)
+	log.BackTester.Infof("Sell rules: %+v", c.PortfolioSettings.SellSide)
+	log.BackTester.Infof("Leverage rules: %+v", c.PortfolioSettings.Leverage)
 	if c.DataSettings.LiveData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------Live Settings------------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", c.DataSettings.DataType)
-		log.Infof(log.BackTester, "Interval: %v", c.DataSettings.Interval)
-		log.Infof(log.BackTester, "REAL ORDERS: %v", c.DataSettings.LiveData.RealOrders)
-		log.Infof(log.BackTester, "Overriding GCT API settings: %v", c.DataSettings.LiveData.APIClientIDOverride != "")
+		log.BackTester.Info("-------------------------------------------------------------")
+		log.BackTester.Info("------------------Live Settings------------------------------")
+		log.BackTester.Info("-------------------------------------------------------------")
+		log.BackTester.Infof("Data type: %v", c.DataSettings.DataType)
+		log.BackTester.Infof("Interval: %v", c.DataSettings.Interval)
+		log.BackTester.Infof("REAL ORDERS: %v", c.DataSettings.LiveData.RealOrders)
+		log.BackTester.Infof("Overriding GCT API settings: %v", c.DataSettings.LiveData.APIClientIDOverride != "")
 	}
 	if c.DataSettings.APIData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------API Settings-------------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", c.DataSettings.DataType)
-		log.Infof(log.BackTester, "Interval: %v", c.DataSettings.Interval)
-		log.Infof(log.BackTester, "Start date: %v", c.DataSettings.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(log.BackTester, "End date: %v", c.DataSettings.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
+		log.BackTester.Info("-------------------------------------------------------------")
+		log.BackTester.Info("------------------API Settings-------------------------------")
+		log.BackTester.Info("-------------------------------------------------------------")
+		log.BackTester.Infof("Data type: %v", c.DataSettings.DataType)
+		log.BackTester.Infof("Interval: %v", c.DataSettings.Interval)
+		log.BackTester.Infof("Start date: %v", c.DataSettings.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.BackTester.Infof("End date: %v", c.DataSettings.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
 	}
 	if c.DataSettings.CSVData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------CSV Settings-------------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", c.DataSettings.DataType)
-		log.Infof(log.BackTester, "Interval: %v", c.DataSettings.Interval)
-		log.Infof(log.BackTester, "CSV file: %v", c.DataSettings.CSVData.FullPath)
+		log.BackTester.Info("-------------------------------------------------------------")
+		log.BackTester.Info("------------------CSV Settings-------------------------------")
+		log.BackTester.Info("-------------------------------------------------------------")
+		log.BackTester.Infof("Data type: %v", c.DataSettings.DataType)
+		log.BackTester.Infof("Interval: %v", c.DataSettings.Interval)
+		log.BackTester.Infof("CSV file: %v", c.DataSettings.CSVData.FullPath)
 	}
 	if c.DataSettings.DatabaseData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------Database Settings--------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", c.DataSettings.DataType)
-		log.Infof(log.BackTester, "Interval: %v", c.DataSettings.Interval)
-		log.Infof(log.BackTester, "Start date: %v", c.DataSettings.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(log.BackTester, "End date: %v", c.DataSettings.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
+		log.BackTester.Info("-------------------------------------------------------------")
+		log.BackTester.Info("------------------Database Settings--------------------------")
+		log.BackTester.Info("-------------------------------------------------------------")
+		log.BackTester.Infof("Data type: %v", c.DataSettings.DataType)
+		log.BackTester.Infof("Interval: %v", c.DataSettings.Interval)
+		log.BackTester.Infof("Start date: %v", c.DataSettings.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.BackTester.Infof("End date: %v", c.DataSettings.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
 	}
-	log.Info(log.BackTester, "-------------------------------------------------------------\n\n")
+	log.BackTester.Info("-------------------------------------------------------------\n\n")
 }
 
 // Validate ensures no one sets bad config values on purpose
 func (m *MinMax) Validate() {
 	if m.MaximumSize < 0 {
 		m.MaximumSize *= -1
-		log.Warnf(log.BackTester, "invalid maximum size set to %v", m.MaximumSize)
+		log.BackTester.Warnf("invalid maximum size set to %v", m.MaximumSize)
 	}
 	if m.MinimumSize < 0 {
 		m.MinimumSize *= -1
-		log.Warnf(log.BackTester, "invalid minimum size set to %v", m.MinimumSize)
+		log.BackTester.Warnf("invalid minimum size set to %v", m.MinimumSize)
 	}
 	if m.MaximumSize <= m.MinimumSize && m.MinimumSize != 0 && m.MaximumSize != 0 {
 		m.MaximumSize = m.MinimumSize + 1
-		log.Warnf(log.BackTester, "invalid maximum size set to %v", m.MaximumSize)
+		log.BackTester.Warnf("invalid maximum size set to %v", m.MaximumSize)
 	}
 	if m.MaximumTotal < 0 {
 		m.MaximumTotal *= -1
-		log.Warnf(log.BackTester, "invalid maximum total set to %v", m.MaximumTotal)
+		log.BackTester.Warnf("invalid maximum total set to %v", m.MaximumTotal)
 	}
 }
 

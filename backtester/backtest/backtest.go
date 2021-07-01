@@ -148,7 +148,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			MaximumHoldingRatio:            cfg.CurrencySettings[i].MaximumHoldingsRatio,
 		}
 		if cfg.CurrencySettings[i].MakerFee > cfg.CurrencySettings[i].TakerFee {
-			log.Warnf(log.BackTester, "maker fee '%v' should not exceed taker fee '%v'. Please review config",
+			log.BackTester.Warnf("maker fee '%v' should not exceed taker fee '%v'. Please review config",
 				cfg.CurrencySettings[i].MakerFee,
 				cfg.CurrencySettings[i].TakerFee)
 		}
@@ -242,7 +242,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 
 		if cfg.CurrencySettings[i].MaximumSlippagePercent < 0 {
-			log.Warnf(log.BackTester, "invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
+			log.BackTester.Warnf("invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MaximumSlippagePercent,
 				slippage.DefaultMaximumSlippagePercent)
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
@@ -251,7 +251,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 		if cfg.CurrencySettings[i].MinimumSlippagePercent < 0 {
-			log.Warnf(log.BackTester, "invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
+			log.BackTester.Warnf("invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MinimumSlippagePercent,
 				slippage.DefaultMinimumSlippagePercent)
 			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
@@ -288,7 +288,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 
 		if limits != nil {
 			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
-				log.Warnf(log.BackTester, "exchange %s order execution limits supported but disabled for %s %s, results may not work when in production",
+				log.BackTester.Warnf("exchange %s order execution limits supported but disabled for %s %s, results may not work when in production",
 					cfg.CurrencySettings[i].ExchangeName,
 					pair,
 					a)
@@ -343,7 +343,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 
 	exchangeBase := e.GetBase()
 	if !exchangeBase.ValidateAPICredentials() {
-		log.Warnf(log.BackTester, "no credentials set for %v, this is theoretical only", exchangeBase.Name)
+		log.BackTester.Warnf("no credentials set for %v, this is theoretical only", exchangeBase.Name)
 	}
 
 	fPair, err = exchangeBase.FormatExchangeCurrency(cp, a)
@@ -398,7 +398,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, take
 		Amount:        1,
 	})
 	if err != nil {
-		log.Errorf(log.BackTester, "Could not retrieve taker fee for %v. %v", exch.GetName(), err)
+		log.BackTester.Errorf("Could not retrieve taker fee for %v. %v", exch.GetName(), err)
 	}
 
 	makerFee, err = exch.GetFeeByType(&gctexchange.FeeBuilder{
@@ -409,7 +409,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, take
 		Amount:        1,
 	})
 	if err != nil {
-		log.Errorf(log.BackTester, "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
+		log.BackTester.Errorf("Could not retrieve maker fee for %v. %v", exch.GetName(), err)
 	}
 
 	return makerFee, takerFee
@@ -418,7 +418,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, take
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
 func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
-	log.Infof(log.BackTester, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
+	log.BackTester.Infof("loading data for %v %v %v...\n", exch.GetName(), a, fPair)
 	if exch == nil {
 		return nil, engine.ErrExchangeNotFound
 	}
@@ -470,7 +470,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		err = resp.Range.VerifyResultsHaveData(resp.Item.Candles)
 		if err != nil {
 			if strings.Contains(err.Error(), "missing candles data between") {
-				log.Warn(log.BackTester, err.Error())
+				log.BackTester.Warn(err.Error())
 			} else {
 				return nil, err
 			}
@@ -499,7 +499,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		defer func() {
 			stopErr := bt.Bot.DatabaseManager.Stop()
 			if stopErr != nil {
-				log.Error(log.BackTester, stopErr)
+				log.BackTester.Error(stopErr)
 			}
 		}()
 		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType)
@@ -518,7 +518,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		err = resp.Range.VerifyResultsHaveData(resp.Item.Candles)
 		if err != nil {
 			if strings.Contains(err.Error(), "missing candles data between") {
-				log.Warn(log.BackTester, err.Error())
+				log.BackTester.Warn(err.Error())
 			} else {
 				return nil, err
 			}
@@ -619,7 +619,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	}
 	err = dates.VerifyResultsHaveData(candles.Candles)
 	if err != nil && errors.Is(err, gctkline.ErrMissingCandleData) {
-		log.Warn(log.BackTester, err.Error())
+		log.BackTester.Warn(err.Error())
 	} else if err != nil {
 		return nil, err
 	}
@@ -658,7 +658,7 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	validated := base.ValidateAPICredentials()
 	base.API.AuthenticatedSupport = validated
 	if !validated && cfg.DataSettings.LiveData.RealOrders {
-		log.Warn(log.BackTester, "invalid API credentials set, real orders set to false")
+		log.BackTester.Warn("invalid API credentials set, real orders set to false")
 		cfg.DataSettings.LiveData.RealOrders = false
 	}
 	return nil
@@ -667,7 +667,7 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() error {
-	log.Info(log.BackTester, "running backtester against pre-defined data")
+	log.BackTester.Info("running backtester against pre-defined data")
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {
@@ -679,7 +679,7 @@ dataLoadingIssue:
 						d := dataHandler.Next()
 						if d == nil {
 							if !bt.hasHandledEvent {
-								log.Errorf(log.BackTester, "Unable to perform `Next` for %v %v %v", exchangeName, assetItem, currencyPair)
+								log.BackTester.Errorf("Unable to perform `Next` for %v %v %v", exchangeName, assetItem, currencyPair)
 							}
 							break dataLoadingIssue
 						}
@@ -756,13 +756,13 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
 				// too much bad data is a severe error and backtesting must cease
 				return err
 			}
-			log.Error(log.BackTester, err)
+			log.BackTester.Error(err)
 			return nil
 		}
 		for i := range signals {
 			err = bt.Statistic.SetEventForOffset(signals[i])
 			if err != nil {
-				log.Error(log.BackTester, err)
+				log.BackTester.Error(err)
 			}
 			bt.EventQueue.AppendEvent(signals[i])
 		}
@@ -776,12 +776,12 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
 				// too much bad data is a severe error and backtesting must cease
 				return err
 			}
-			log.Error(log.BackTester, err)
+			log.BackTester.Error(err)
 			return nil
 		}
 		err = bt.Statistic.SetEventForOffset(s)
 		if err != nil {
-			log.Error(log.BackTester, err)
+			log.BackTester.Error(err)
 		}
 		bt.EventQueue.AppendEvent(s)
 	}
@@ -794,30 +794,30 @@ func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) {
 	// update portfoliomanager with latest price
 	err := bt.Portfolio.Update(e)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 	}
 	// update statistics with latest price
 	err = bt.Statistic.SetupEventForTime(e)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 	}
 }
 
 func (bt *BackTest) processSignalEvent(ev signal.Event) {
 	cs, err := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 		return
 	}
 	var o *order.Order
 	o, err = bt.Portfolio.OnSignal(ev, &cs)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 		return
 	}
 	err = bt.Statistic.SetEventForOffset(o)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 	}
 
 	bt.EventQueue.AppendEvent(o)
@@ -828,14 +828,14 @@ func (bt *BackTest) processOrderEvent(ev order.Event) {
 	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.Bot)
 	if err != nil {
 		if f == nil {
-			log.Errorf(log.BackTester, "fill event should always be returned, please fix, %v", err)
+			log.BackTester.Errorf("fill event should always be returned, please fix, %v", err)
 			return
 		}
-		log.Errorf(log.BackTester, "%v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
+		log.BackTester.Errorf("%v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
 	}
 	err = bt.Statistic.SetEventForOffset(f)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 	}
 	bt.EventQueue.AppendEvent(f)
 }
@@ -843,36 +843,36 @@ func (bt *BackTest) processOrderEvent(ev order.Event) {
 func (bt *BackTest) processFillEvent(ev fill.Event) {
 	t, err := bt.Portfolio.OnFill(ev)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 		return
 	}
 
 	err = bt.Statistic.SetEventForOffset(t)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 	}
 
 	var holding holdings.Holding
 	holding, err = bt.Portfolio.ViewHoldingAtTimePeriod(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 	}
 
 	err = bt.Statistic.AddHoldingsForTime(&holding)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 	}
 
 	var cp *compliance.Manager
 	cp, err = bt.Portfolio.GetComplianceManager(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 	}
 
 	snap := cp.GetLatestSnapshot()
 	err = bt.Statistic.AddComplianceSnapshotForTime(snap, ev)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 	}
 }
 
@@ -880,7 +880,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event) {
 // It runs by constantly checking for new live datas and running through the list of events
 // once new data is processed. It will run until application close event has been received
 func (bt *BackTest) RunLive() error {
-	log.Info(log.BackTester, "running backtester against live data")
+	log.BackTester.Info("running backtester against live data")
 	timeoutTimer := time.NewTimer(time.Minute * 5)
 	// a frequent timer so that when a new candle is released by an exchange
 	// that it can be processed quickly
@@ -936,13 +936,13 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		fPair,
 		a)
 	if err != nil {
-		log.Errorf(log.BackTester, "%v. Please check your GoCryptoTrader configuration", err)
+		log.BackTester.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 		return
 	}
 	resp.Item = *candles
 	err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate, dataType)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.BackTester.Error(err)
 		return
 	}
 
@@ -954,7 +954,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		case <-loadNewDataTicker.C:
 			err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate, dataType)
 			if err != nil {
-				log.Error(log.BackTester, err)
+				log.BackTester.Error(err)
 				return
 			}
 		}
@@ -1010,7 +1010,7 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 
 	resp.Append(candles)
 	bt.Reports.AddKlineItem(&resp.Item)
-	log.Info(log.BackTester, "sleeping for 30 seconds before checking for new candle data")
+	log.BackTester.Info("sleeping for 30 seconds before checking for new candle data")
 	return nil
 }
 

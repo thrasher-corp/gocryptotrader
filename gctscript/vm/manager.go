@@ -77,7 +77,7 @@ func (g *GctScriptManager) Stop() error {
 }
 
 func (g *GctScriptManager) run(wg *sync.WaitGroup) {
-	log.Debugf(log.Global, "%s starting", caseName)
+	log.Global.Debugf("%s starting", caseName)
 
 	SetDefaultScriptOutput()
 	g.autoLoad()

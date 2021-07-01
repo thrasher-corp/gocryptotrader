@@ -60,7 +60,7 @@ func (l *Lbank) SetDefaults() {
 	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter}
 	err := l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	l.Features = exchange.Features{
@@ -113,7 +113,7 @@ func (l *Lbank) SetDefaults() {
 		exchange.RestSpot: lbankAPIURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 }
 
@@ -133,7 +133,7 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) error {
 		err = l.loadPrivKey()
 		if err != nil {
 			l.API.AuthenticatedSupport = false
-			log.Errorf(log.ExchangeSys, "%s couldn't load private key, setting authenticated support to false", l.Name)
+			log.ExchangeSys.Errorf("%s couldn't load private key, setting authenticated support to false", l.Name)
 		}
 	}
 	return nil
@@ -160,7 +160,7 @@ func (l *Lbank) Run() {
 
 	err := l.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", l.Name, err)
+		log.ExchangeSys.Errorf("%s failed to update tradable pairs. Err: %s", l.Name, err)
 	}
 }
 
@@ -969,7 +969,7 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 
 	err = dates.VerifyResultsHaveData(ret.Candles)
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", l.Name, err)
+		log.ExchangeSys.Warnf("%s - %s", l.Name, err)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

@@ -58,7 +58,7 @@ func (m *OrderManager) Start() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("order manager %w", ErrSubSystemAlreadyStarted)
 	}
-	log.Debugln(log.OrderMgr, "Order manager starting...")
+	log.OrderMgr.Debugln("Order manager starting...")
 	m.shutdown = make(chan struct{})
 	go m.run()
 	return nil
@@ -77,7 +77,7 @@ func (m *OrderManager) Stop() error {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
 
-	log.Debugln(log.OrderMgr, "Order manager shutting down...")
+	log.OrderMgr.Debugln("Order manager shutting down...")
 	close(m.shutdown)
 	return nil
 }
@@ -85,18 +85,18 @@ func (m *OrderManager) Stop() error {
 // gracefulShutdown cancels all orders (if enabled) before shutting down
 func (m *OrderManager) gracefulShutdown() {
 	if m.cfg.CancelOrdersOnShutdown {
-		log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
+		log.OrderMgr.Debugln("Order manager: Cancelling any open orders...")
 		m.CancelAllOrders(m.orderStore.exchangeManager.GetExchanges())
 	}
 }
 
 // run will periodically process orders
 func (m *OrderManager) run() {
-	log.Debugln(log.OrderMgr, "Order manager started.")
+	log.OrderMgr.Debugln("Order manager started.")
 	tick := time.NewTicker(orderManagerDelay)
 	m.orderStore.wg.Add(1)
 	defer func() {
-		log.Debugln(log.OrderMgr, "Order manager shutdown.")
+		log.OrderMgr.Debugln("Order manager shutdown.")
 		tick.Stop()
 		m.orderStore.wg.Done()
 	}()
@@ -129,7 +129,7 @@ func (m *OrderManager) CancelAllOrders(exchangeNames []exchange.IBotExchange) {
 			continue
 		}
 		for j := range exchangeOrders {
-			log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", exchangeNames[i].GetName())
+			log.OrderMgr.Debugf("Order manager: Cancelling order(s) for exchange %s.", exchangeNames[i].GetName())
 			err := m.Cancel(&order.Cancel{
 				Exchange:      exchangeOrders[j].Exchange,
 				ID:            exchangeOrders[j].ID,
@@ -142,7 +142,7 @@ func (m *OrderManager) CancelAllOrders(exchangeNames []exchange.IBotExchange) {
 				AssetType:     exchangeOrders[j].AssetType,
 			})
 			if err != nil {
-				log.Error(log.OrderMgr, err)
+				log.OrderMgr.Error(err)
 			}
 		}
 	}
@@ -191,7 +191,7 @@ func (m *OrderManager) Cancel(cancel *order.Cancel) error {
 		return err
 	}
 
-	log.Debugf(log.OrderMgr, "Order manager: Cancelling order ID %v [%+v]",
+	log.OrderMgr.Debugf("Order manager: Cancelling order ID %v [%+v]",
 		cancel.ID, cancel)
 
 	err = exch.CancelOrder(cancel)
@@ -209,7 +209,7 @@ func (m *OrderManager) Cancel(cancel *order.Cancel) error {
 	od.Status = order.Cancelled
 	msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
 		od.Exchange, od.ID)
-	log.Debugln(log.OrderMgr, msg)
+	log.OrderMgr.Debugln(msg)
 	m.orderStore.commsManager.PushEvent(base.Event{
 		Type:    "order",
 		Message: msg,
@@ -396,7 +396,7 @@ func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 
 	id, err := uuid.NewV4()
 	if err != nil {
-		log.Warnf(log.OrderMgr,
+		log.OrderMgr.Warnf(
 			"Order manager: Unable to generate UUID. Err: %s",
 			err)
 	}
@@ -411,7 +411,7 @@ func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 		newOrder.Type,
 		newOrder.Date)
 
-	log.Debugln(log.OrderMgr, msg)
+	log.OrderMgr.Debugln(msg)
 	m.orderStore.commsManager.PushEvent(base.Event{
 		Type:    "order",
 		Message: msg,
@@ -470,7 +470,7 @@ func (m *OrderManager) processOrders() {
 		if !exchanges[i].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 			continue
 		}
-		log.Debugf(log.OrderMgr,
+		log.OrderMgr.Debugf(
 			"Order manager: Processing orders for exchange %v.",
 			exchanges[i].GetName())
 
@@ -478,8 +478,7 @@ func (m *OrderManager) processOrders() {
 		for y := range supportedAssets {
 			pairs, err := exchanges[i].GetEnabledPairs(supportedAssets[y])
 			if err != nil {
-				log.Errorf(log.OrderMgr,
-					"Order manager: Unable to get enabled pairs for %s and asset type %s: %s",
+				log.OrderMgr.Errorf("Order manager: Unable to get enabled pairs for %s and asset type %s: %s",
 					exchanges[i].GetName(),
 					supportedAssets[y],
 					err)
@@ -488,8 +487,7 @@ func (m *OrderManager) processOrders() {
 
 			if len(pairs) == 0 {
 				if m.verbose {
-					log.Debugf(log.OrderMgr,
-						"Order manager: No pairs enabled for %s and asset type %s, skipping...",
+					log.OrderMgr.Debugf("Order manager: No pairs enabled for %s and asset type %s, skipping...",
 						exchanges[i].GetName(),
 						supportedAssets[y])
 				}
@@ -504,8 +502,7 @@ func (m *OrderManager) processOrders() {
 			}
 			result, err := exchanges[i].GetActiveOrders(&req)
 			if err != nil {
-				log.Warnf(log.OrderMgr,
-					"Order manager: Unable to get active orders for %s and asset type %s: %s",
+				log.OrderMgr.Warnf("Order manager: Unable to get active orders for %s and asset type %s: %s",
 					exchanges[i].GetName(),
 					supportedAssets[y],
 					err)
@@ -518,7 +515,7 @@ func (m *OrderManager) processOrders() {
 				if result != ErrOrdersAlreadyExists {
 					msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
 						ord.Exchange, ord.ID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type)
-					log.Debugf(log.OrderMgr, "%v", msg)
+					log.OrderMgr.Debugf("%v", msg)
 					m.orderStore.commsManager.PushEvent(base.Event{
 						Type:    "order",
 						Message: msg,
@@ -721,7 +718,7 @@ func (s *store) add(det *order.Detail) error {
 	if det.InternalOrderID == "" {
 		id, err := uuid.NewV4()
 		if err != nil {
-			log.Warnf(log.OrderMgr,
+			log.OrderMgr.Warnf(
 				"Order manager: Unable to generate UUID. Err: %s",
 				err)
 		} else {

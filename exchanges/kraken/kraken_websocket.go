@@ -100,7 +100,7 @@ func (k *Kraken) WsConnect() error {
 		authToken, err = k.GetWebsocketToken()
 		if err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%v - authentication failed: %v\n",
 				k.Name,
 				err)
@@ -108,7 +108,7 @@ func (k *Kraken) WsConnect() error {
 			err = k.Websocket.AuthConn.Dial(&dialer, http.Header{})
 			if err != nil {
 				k.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"%v - failed to connect to authenticated endpoint: %v\n",
 					k.Name,
 					err)
@@ -116,7 +116,7 @@ func (k *Kraken) WsConnect() error {
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
 				err = k.wsAuthPingHandler()
 				if err != nil {
-					log.Errorf(log.ExchangeSys,
+					log.ExchangeSys.Errorf(
 						"%v - failed setup ping handler for auth connection. Websocket may disconnect unexpectedly. %v\n",
 						k.Name,
 						err)
@@ -127,7 +127,7 @@ func (k *Kraken) WsConnect() error {
 
 	err = k.wsPingHandler()
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%v - failed setup ping handler. Websocket may disconnect unexpectedly. %v\n",
 			k.Name,
 			err)
@@ -292,7 +292,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 						systemStatus.Status)
 				}
 				if systemStatus.Version > krakenWSSupportedVersion {
-					log.Warnf(log.ExchangeSys,
+					log.ExchangeSys.Warnf(
 						"%v New version of Websocket API released. Was %v Now %v",
 						k.Name,
 						krakenWSSupportedVersion,
@@ -616,12 +616,12 @@ func (k *Kraken) addNewSubscriptionChannelData(response *wsSubscription) {
 		var err error
 		pair, err = currency.NewPairFromString(response.Pair)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s exchange error: %s", k.Name, err)
+			log.ExchangeSys.Errorf("%s exchange error: %s", k.Name, err)
 			return
 		}
 		fPair, err = k.FormatExchangeCurrency(pair, asset.Spot)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s exchange error: %s", k.Name, err)
+			log.ExchangeSys.Errorf("%s exchange error: %s", k.Name, err)
 			return
 		}
 	}
@@ -705,7 +705,7 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data []inter
 	bidVolume := data[3].(string)
 	askVolume := data[4].(string)
 	if k.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%v Spread data for '%v' received. Best bid: '%v' Best ask: '%v' Time: '%v', Bid volume '%v', Ask volume '%v'",
 			k.Name,
 			channelData.Pair,
@@ -787,8 +787,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 					// backlog occurred. So put this into it's own go routine.
 					errResub := k.Websocket.ResubscribeToChannel(resub)
 					if errResub != nil {
-						log.Errorf(log.WebsocketMgr,
-							"resubscription failure for %v: %v",
+						log.WebsocketMgr.Errorf("resubscription failure for %v: %v",
 							resub,
 							errResub)
 					}

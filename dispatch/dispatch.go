@@ -44,7 +44,7 @@ func Stop() error {
 		return errors.New(errNotInitialised)
 	}
 
-	log.Debugln(log.DispatchMgr, "Dispatch manager shutting down...")
+	log.DispatchMgr.Debugln("Dispatch manager shutting down...")
 
 	mtx.Lock()
 	defer mtx.Unlock()
@@ -86,13 +86,11 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 	}
 
 	if workers < 1 {
-		log.Warn(log.DispatchMgr,
-			"Dispatcher: workers cannot be zero, using default values")
+		log.DispatchMgr.Warn("Dispatcher: workers cannot be zero, using default values")
 		workers = DefaultMaxWorkers
 	}
 	if channelCapacity < 1 {
-		log.Warn(log.DispatchMgr,
-			"Dispatcher: jobs limit cannot be zero, using default values")
+		log.DispatchMgr.Warn("Dispatcher: jobs limit cannot be zero, using default values")
 		channelCapacity = DefaultJobsLimit
 	}
 	d.jobs = make(chan *job, channelCapacity)
@@ -146,7 +144,7 @@ func (d *Dispatcher) stop() error {
 			<-d.jobs
 		}
 
-		log.Debugln(log.DispatchMgr, "Dispatch manager shutdown.")
+		log.DispatchMgr.Debugln("Dispatch manager shutdown.")
 
 		return nil
 	case <-timer.C:

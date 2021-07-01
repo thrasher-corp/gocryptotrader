@@ -38,7 +38,7 @@ func (e *ExchangeRates) cleanCurrencies(baseCurrency, symbols string) string {
 	if len(e.supportedCurrencies) == 0 {
 		supportedCurrencies, err := e.GetSupportedCurrencies()
 		if err != nil {
-			log.Warnf(log.Global, "ExchangeRatesAPI unable to fetch supported currencies: %s", err)
+			log.Global.Warnf("ExchangeRatesAPI unable to fetch supported currencies: %s", err)
 		} else {
 			e.supportedCurrencies = supportedCurrencies
 		}
@@ -64,8 +64,8 @@ func (e *ExchangeRates) cleanCurrencies(baseCurrency, symbols string) string {
 		// remove and warn about any unsupported currencies
 		if len(e.supportedCurrencies) > 0 {
 			if !strings.Contains(strings.Join(e.supportedCurrencies, ","), x) {
-				log.Warnf(log.Global,
-					"Forex provider ExchangeRatesAPI does not support currency %s, removing from forex rates query.\n", x)
+				log.Global.Warnf("Forex provider ExchangeRatesAPI does not support currency %s, removing from forex rates query.\n",
+					x)
 				continue
 			}
 		}

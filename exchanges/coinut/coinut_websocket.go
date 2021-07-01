@@ -59,7 +59,7 @@ func (c *COINUT) WsConnect() error {
 	err = c.wsAuthenticate()
 	if err != nil {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		log.Error(log.WebsocketMgr, err)
+		log.WebsocketMgr.Error(err)
 	}
 
 	// define bi-directional communication

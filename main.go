@@ -134,12 +134,12 @@ func main() {
 
 	engine.PrintSettings(&engine.Bot.Settings)
 	if err = engine.Bot.Start(); err != nil {
-		gctlog.Errorf(gctlog.Global, "Unable to start bot engine. Error: %s\n", err)
+		gctlog.Global.Errorf("Unable to start bot engine. Error: %s\n", err)
 		os.Exit(1)
 	}
 
 	interrupt := signaler.WaitForInterrupt()
-	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
+	gctlog.Global.Infof("Captured %v, shutdown requested.\n", interrupt)
 	engine.Bot.Stop()
-	gctlog.Infoln(gctlog.Global, "Exiting.")
+	gctlog.Global.Infoln("Exiting.")
 }

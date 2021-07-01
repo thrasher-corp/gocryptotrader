@@ -50,7 +50,7 @@ func (s *SMSGlobal) Setup(cfg *base.CommunicationsConfig) {
 				Enabled: cfg.SMSGlobalConfig.Contacts[x].Enabled,
 			},
 		)
-		log.Debugf(log.CommunicationMgr, "SMSGlobal: SMS Contact: %s. Number: %s. Enabled: %v\n",
+		log.CommunicationMgr.Debugf("SMSGlobal: SMS Contact: %s. Number: %s. Enabled: %v\n",
 			cfg.SMSGlobalConfig.Contacts[x].Name,
 			cfg.SMSGlobalConfig.Contacts[x].Number,
 			cfg.SMSGlobalConfig.Contacts[x].Enabled)
@@ -150,7 +150,7 @@ func (s *SMSGlobal) SendMessageToAll(message string) error {
 	for x := range s.Contacts {
 		if s.Contacts[x].Enabled {
 			if s.Verbose {
-				log.Debugf(log.CommunicationMgr, "SMSGlobal: Sending SMS to %s. Number: %s. Message: %s [From: %s]\n",
+				log.CommunicationMgr.Debugf("SMSGlobal: Sending SMS to %s. Number: %s. Message: %s [From: %s]\n",
 					s.Contacts[x].Name, s.Contacts[x].Number, message, s.SendFrom)
 			}
 			err := s.SendMessage(s.Contacts[x].Number, message)

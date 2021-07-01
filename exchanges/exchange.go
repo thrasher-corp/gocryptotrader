@@ -289,8 +289,7 @@ func (b *Base) SetConfigPairs() error {
 	exchangeAssets := b.CurrencyPairs.GetAssetTypes()
 	for x := range assetTypes {
 		if !exchangeAssets.Contains(assetTypes[x]) {
-			log.Warnf(log.ExchangeSys,
-				"%s exchange asset type %s unsupported, please manually remove from configuration",
+			log.ExchangeSys.Warnf("%s exchange asset type %s unsupported, please manually remove from configuration",
 				b.Name,
 				assetTypes[x])
 		}
@@ -531,8 +530,7 @@ func (b *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
 		if err != nil {
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false
-			log.Warnf(log.ExchangeSys,
-				warningBase64DecryptSecretKeyFailed,
+			log.ExchangeSys.Warnf(warningBase64DecryptSecretKeyFailed,
 				b.Name)
 			return
 		}
@@ -600,8 +598,7 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	b.BaseCurrencies = exch.BaseCurrencies
 
 	if exch.OrderbookConfig.VerificationBypass {
-		log.Warnf(log.ExchangeSys,
-			"%s orderbook verification has been bypassed via config.",
+		log.ExchangeSys.Warnf("%s orderbook verification has been bypassed via config.",
 			b.Name)
 	}
 	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
@@ -637,8 +634,7 @@ func (b *Base) ValidateAPICredentials() bool {
 	if b.API.CredentialsValidator.RequiresKey {
 		if b.API.Credentials.Key == "" ||
 			b.API.Credentials.Key == config.DefaultAPIKey {
-			log.Warnf(log.ExchangeSys,
-				"exchange %s requires API key but default/empty one set",
+			log.ExchangeSys.Warnf("exchange %s requires API key but default/empty one set",
 				b.Name)
 			return false
 		}
@@ -647,8 +643,7 @@ func (b *Base) ValidateAPICredentials() bool {
 	if b.API.CredentialsValidator.RequiresSecret {
 		if b.API.Credentials.Secret == "" ||
 			b.API.Credentials.Secret == config.DefaultAPISecret {
-			log.Warnf(log.ExchangeSys,
-				"exchange %s requires API secret but default/empty one set",
+			log.ExchangeSys.Warnf("exchange %s requires API secret but default/empty one set",
 				b.Name)
 			return false
 		}
@@ -657,8 +652,7 @@ func (b *Base) ValidateAPICredentials() bool {
 	if b.API.CredentialsValidator.RequiresPEM {
 		if b.API.Credentials.PEMKey == "" ||
 			strings.Contains(b.API.Credentials.PEMKey, "JUSTADUMMY") {
-			log.Warnf(log.ExchangeSys,
-				"exchange %s requires API PEM key but default/empty one set",
+			log.ExchangeSys.Warnf("exchange %s requires API PEM key but default/empty one set",
 				b.Name)
 			return false
 		}
@@ -667,8 +661,7 @@ func (b *Base) ValidateAPICredentials() bool {
 	if b.API.CredentialsValidator.RequiresClientID {
 		if b.API.Credentials.ClientID == "" ||
 			b.API.Credentials.ClientID == config.DefaultAPIClientID {
-			log.Warnf(log.ExchangeSys,
-				"exchange %s requires API ClientID but default/empty one set",
+			log.ExchangeSys.Warnf("exchange %s requires API ClientID but default/empty one set",
 				b.Name)
 			return false
 		}
@@ -677,8 +670,7 @@ func (b *Base) ValidateAPICredentials() bool {
 	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !b.LoadedByConfig {
 		_, err := crypto.Base64Decode(b.API.Credentials.Secret)
 		if err != nil {
-			log.Warnf(log.ExchangeSys,
-				"exchange %s API secret base64 decode failed: %s",
+			log.ExchangeSys.Warnf("exchange %s API secret base64 decode failed: %s",
 				b.Name, err)
 			return false
 		}
@@ -736,23 +728,20 @@ func (b *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 	newPairs, removedPairs := targetPairs.FindDifferences(products)
 	if force || len(newPairs) > 0 || len(removedPairs) > 0 {
 		if force {
-			log.Debugf(log.ExchangeSys,
-				"%s forced update of %s [%v] pairs.",
+			log.ExchangeSys.Debugf("%s forced update of %s [%v] pairs.",
 				b.Name,
 				updateType,
 				strings.ToUpper(assetType.String()))
 		} else {
 			if len(newPairs) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Added: %s.\n",
+				log.ExchangeSys.Debugf("%s Updating %s pairs [%v] - Added: %s.\n",
 					b.Name,
 					updateType,
 					strings.ToUpper(assetType.String()),
 					newPairs)
 			}
 			if len(removedPairs) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Removed: %s.\n",
+				log.ExchangeSys.Debugf("%s Updating %s pairs [%v] - Removed: %s.\n",
 					b.Name,
 					updateType,
 					strings.ToUpper(assetType.String()),
@@ -776,7 +765,7 @@ func (b *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 			}
 
 			if len(remove) > 0 {
-				log.Debugf(log.ExchangeSys,
+				log.ExchangeSys.Debugf(
 					"%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
 					b.Name,
 					strings.ToUpper(assetType.String()),
@@ -795,11 +784,11 @@ func (b *Base) SetAPIURL() error {
 		if strings.Contains(endpoint, "https") || strings.Contains(endpoint, "wss") {
 			return
 		}
-		log.Warnf(log.ExchangeSys,
-			"%s is using HTTP instead of HTTPS or WS instead of WSS [%s] for API functionality, an"+
-				" attacker could eavesdrop on this connection. Use at your"+
-				" own risk.",
-			b.Name, endpoint)
+		log.ExchangeSys.Warnf("%s is using HTTP instead of HTTPS or WS instead of WSS [%s] for API functionality, an"+
+			" attacker could eavesdrop on this connection. Use at your"+
+			" own risk.",
+			b.Name,
+			endpoint)
 	}
 	var err error
 	if b.Config.API.OldEndPoints != nil {
@@ -928,8 +917,10 @@ func (b *Base) SupportsAsset(a asset.Item) bool {
 // PrintEnabledPairs prints the exchanges enabled asset pairs
 func (b *Base) PrintEnabledPairs() {
 	for k, v := range b.CurrencyPairs.Pairs {
-		log.Infof(log.ExchangeSys, "%s Asset type %v:\n\t Enabled pairs: %v",
-			b.Name, strings.ToUpper(k.String()), v.Enabled)
+		log.ExchangeSys.Infof("%s Asset type %v:\n\t Enabled pairs: %v",
+			b.Name,
+			strings.ToUpper(k.String()),
+			v.Enabled)
 	}
 }
 
@@ -940,8 +931,7 @@ func (b *Base) GetBase() *Base { return b }
 // for validation of API credentials
 func (b *Base) CheckTransientError(err error) error {
 	if _, ok := err.(net.Error); ok {
-		log.Warnf(log.ExchangeSys,
-			"%s net error captured, will not disable authentication %s",
+		log.ExchangeSys.Warnf("%s net error captured, will not disable authentication %s",
 			b.Name,
 			err)
 		return nil
@@ -1156,7 +1146,7 @@ func (b *Base) SetSaveTradeDataStatus(enabled bool) {
 	b.Features.Enabled.SaveTradeData = enabled
 	b.Config.Features.Enabled.SaveTradeData = enabled
 	if b.Verbose {
-		log.Debugf(log.Trade, "Set %v 'SaveTradeData' to %v", b.Name, enabled)
+		log.Trade.Debugf("Set %v 'SaveTradeData' to %v", b.Name, enabled)
 	}
 }
 
@@ -1189,7 +1179,7 @@ func (e *Endpoints) SetRunning(key, val string) error {
 	}
 	_, err = url.ParseRequestURI(val)
 	if err != nil {
-		log.Warnf(log.ExchangeSys,
+		log.ExchangeSys.Warnf(
 			"Could not set custom URL for %s to %s for exchange %s. invalid URI for request.",
 			key,
 			val,

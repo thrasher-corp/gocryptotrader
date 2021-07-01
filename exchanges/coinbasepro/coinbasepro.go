@@ -714,7 +714,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path
 		}
 
 		if c.Verbose {
-			log.Debugf(log.ExchangeSys, "Request JSON: %s\n", payload)
+			log.ExchangeSys.Debugf("Request JSON: %s\n", payload)
 		}
 	}
 

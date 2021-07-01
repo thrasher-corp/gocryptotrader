@@ -69,7 +69,7 @@ func (b *Bittrex) SetDefaults() {
 
 	err := b.StoreAssetPairFormat(asset.Spot, spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	b.Features = exchange.Features{
@@ -129,7 +129,7 @@ func (b *Bittrex) SetDefaults() {
 		exchange.WebsocketSpotSupplementary: bittrexAPIWSNegotiationsURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -198,7 +198,7 @@ func (b *Bittrex) Start(wg *sync.WaitGroup) {
 // Run implements the Bittrex wrapper
 func (b *Bittrex) Run() {
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s.",
 			b.Name,
 			common.IsEnabled(b.Websocket.IsEnabled()))
@@ -211,14 +211,14 @@ func (b *Bittrex) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			b.Name,
 			err)
 	}
 	restURL, err := b.API.Endpoints.GetURL(exchange.RestSpot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to check REST Spot URL. Err: %s",
 			b.Name,
 			err)
@@ -226,13 +226,13 @@ func (b *Bittrex) Run() {
 	if restURL == bittrexAPIDeprecatedURL {
 		err = b.API.Endpoints.SetRunning(exchange.RestSpot.String(), bittrexAPIRestURL)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s failed to update deprecated REST Spot URL. Err: %s",
 				b.Name,
 				err)
 		}
 		b.Config.API.Endpoints[exchange.RestSpot.String()] = bittrexAPIRestURL
-		log.Warnf(log.ExchangeSys,
+		log.ExchangeSys.Warnf(
 			"Deprecated %s REST URL updated from %s to %s", b.Name, bittrexAPIDeprecatedURL, bittrexAPIRestURL)
 	}
 }
@@ -637,7 +637,7 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 	orderPair, err := currency.NewPairDelimiter(orderData.MarketSymbol,
 		format.Delimiter)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"Exchange %v Func %v Order %v Could not parse currency pair %v",
 			b.Name,
 			"GetActiveOrders",
@@ -758,7 +758,7 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		pair, err := currency.NewPairDelimiter(orderData[i].MarketSymbol,
 			format.Delimiter)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"Exchange %v Func %v Order %v Could not parse currency pair %v",
 				b.Name,
 				"GetActiveOrders",
@@ -769,7 +769,7 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 
 		orderSide, err := order.StringToOrderSide(orderData[i].Direction)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order side - %s\n", b.Name, err.Error())
+			log.ExchangeSys.Errorf("GetActiveOrders - %s - cannot get order side - %s\n", b.Name, err.Error())
 			continue
 		}
 
@@ -827,7 +827,7 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			pair, err := currency.NewPairDelimiter(orderData[i].MarketSymbol,
 				format.Delimiter)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"Exchange %v Func %v Order %v Could not parse currency pair %v",
 					b.Name,
 					"GetOrderHistory",
@@ -838,12 +838,12 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 			orderSide, err := order.StringToOrderSide(orderData[i].Direction)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order side - %s\n", b.Name, err.Error())
+				log.ExchangeSys.Errorf("GetActiveOrders - %s - cannot get order side - %s\n", b.Name, err.Error())
 				continue
 			}
 			orderStatus, err := order.StringToOrderStatus(orderData[i].Status)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order status - %s\n", b.Name, err.Error())
+				log.ExchangeSys.Errorf("GetActiveOrders - %s - cannot get order status - %s\n", b.Name, err.Error())
 				continue
 			}
 

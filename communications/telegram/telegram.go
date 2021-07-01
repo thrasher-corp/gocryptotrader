@@ -71,7 +71,7 @@ func (t *Telegram) Connect() error {
 		return err
 	}
 
-	log.Debugln(log.CommunicationMgr, "Telegram: Connected successfully!")
+	log.CommunicationMgr.Debugln("Telegram: Connected successfully!")
 	t.Connected = true
 	go t.PollerStart()
 	return nil
@@ -93,7 +93,7 @@ func (t *Telegram) PushEvent(event base.Event) error {
 // PollerStart starts the long polling sequence
 func (t *Telegram) PollerStart() {
 	errWait := func(err error) {
-		log.Errorln(log.CommunicationMgr, err)
+		log.CommunicationMgr.Errorln(err)
 		time.Sleep(ErrWaiter)
 	}
 
@@ -118,7 +118,7 @@ func (t *Telegram) PollerStart() {
 				if string(resp.Result[i].Message.Text[0]) == "/" {
 					err = t.HandleMessages(resp.Result[i].Message.Text, resp.Result[i].Message.From.ID)
 					if err != nil {
-						log.Errorf(log.CommunicationMgr, "Telegram: Unable to HandleMessages. Error: %s\n", err)
+						log.CommunicationMgr.Errorf("Telegram: Unable to HandleMessages. Error: %s\n", err)
 						continue
 					}
 				}
@@ -150,7 +150,7 @@ func (t *Telegram) InitialConnect() error {
 	for userName, ID := range warmWelcomeList {
 		err = t.SendMessage(fmt.Sprintf("GoCryptoTrader bot has connected: Hello, %s!", userName), ID)
 		if err != nil {
-			log.Errorf(log.CommunicationMgr, "Telegram: Unable to send welcome message. Error: %s\n", err)
+			log.CommunicationMgr.Errorf("Telegram: Unable to send welcome message. Error: %s\n", err)
 			continue
 		}
 	}
@@ -166,7 +166,7 @@ func (t *Telegram) InitialConnect() error {
 // HandleMessages handles incoming message from the long polling routine
 func (t *Telegram) HandleMessages(text string, chatID int64) error {
 	if t.Verbose {
-		log.Debugf(log.CommunicationMgr, "Telegram: Received message: %s\n", text)
+		log.CommunicationMgr.Debugf("Telegram: Received message: %s\n", text)
 	}
 
 	switch {
@@ -235,7 +235,7 @@ func (t *Telegram) SendMessage(text string, chatID int64) error {
 	}
 
 	if t.Verbose {
-		log.Debugf(log.CommunicationMgr, "Telegram: Sent '%s'\n", text)
+		log.CommunicationMgr.Debugf("Telegram: Sent '%s'\n", text)
 	}
 	return nil
 }

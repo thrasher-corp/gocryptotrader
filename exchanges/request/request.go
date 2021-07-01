@@ -53,7 +53,7 @@ func (r *Requester) SendPayload(ctx context.Context, i *Item) error {
 	if i.HTTPDebugging {
 		// Err not evaluated due to validation check above
 		dump, _ := httputil.DumpRequestOut(req, true)
-		log.Debugf(log.RequestSys, "DumpRequest:\n%s", dump)
+		log.RequestSys.Debugf("DumpRequest:\n%s", dump)
 	}
 
 	if atomic.LoadInt32(&r.jobs) >= MaxRequestJobs {
@@ -112,26 +112,22 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 	}
 
 	if p.Verbose {
-		log.Debugf(log.RequestSys,
-			"%s request path: %s",
+		log.RequestSys.Debugf("%s request path: %s",
 			r.Name,
 			p.Path)
 
 		for k, d := range req.Header {
-			log.Debugf(log.RequestSys,
-				"%s request header [%s]: %s",
+			log.RequestSys.Debugf("%s request header [%s]: %s",
 				r.Name,
 				k,
 				d)
 		}
-		log.Debugf(log.RequestSys,
-			"%s request type: %s",
+		log.RequestSys.Debugf("%s request type: %s",
 			r.Name,
 			req.Method)
 
 		if p.Body != nil {
-			log.Debugf(log.RequestSys,
-				"%s request body: %v",
+			log.RequestSys.Debugf("%s request body: %v",
 				r.Name,
 				p.Body)
 		}
@@ -182,8 +178,7 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 			}
 
 			if p.Verbose {
-				log.Errorf(log.RequestSys,
-					"%s request has failed. Retrying request in %s, attempt %d",
+				log.RequestSys.Errorf("%s request has failed. Retrying request in %s, attempt %d",
 					r.Name,
 					delay,
 					attempt)
@@ -223,21 +218,23 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 		if p.HTTPDebugging {
 			dump, err := httputil.DumpResponse(resp, false)
 			if err != nil {
-				log.Errorf(log.RequestSys, "DumpResponse invalid response: %v:", err)
+				log.RequestSys.Errorf("DumpResponse invalid response: %v:", err)
 			}
-			log.Debugf(log.RequestSys, "DumpResponse Headers (%v):\n%s", p.Path, dump)
-			log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", p.Path, string(contents))
+			log.RequestSys.Debugf("DumpResponse Headers (%v):\n%s",
+				p.Path,
+				dump)
+			log.RequestSys.Debugf("DumpResponse Body (%v):\n %s",
+				p.Path,
+				string(contents))
 		}
 
 		resp.Body.Close()
 		if p.Verbose {
-			log.Debugf(log.RequestSys,
-				"HTTP status: %s, Code: %v",
+			log.RequestSys.Debugf("HTTP status: %s, Code: %v",
 				resp.Status,
 				resp.StatusCode)
 			if !p.HTTPDebugging {
-				log.Debugf(log.RequestSys,
-					"%s raw response: %s",
+				log.RequestSys.Debugf("%s raw response: %s",
 					r.Name,
 					string(contents))
 			}
@@ -295,8 +292,7 @@ func (r *Requester) SetProxy(p *url.URL) error {
 func (r *Requester) drainBody(body io.ReadCloser) {
 	defer body.Close()
 	if _, err := io.Copy(ioutil.Discard, io.LimitReader(body, drainBodyLimit)); err != nil {
-		log.Errorf(log.RequestSys,
-			"%s failed to drain request body %s",
+		log.RequestSys.Errorf("%s failed to drain request body %s",
 			r.Name,
 			err)
 	}

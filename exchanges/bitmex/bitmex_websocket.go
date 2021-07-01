@@ -87,7 +87,7 @@ func (b *Bitmex) WsConnect() error {
 	}
 
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"Successfully connected to Bitmex %s at time: %s Limit: %d",
 			welcomeResp.Info,
 			welcomeResp.Timestamp,
@@ -98,7 +98,7 @@ func (b *Bitmex) WsConnect() error {
 
 	err = b.websocketSendAuth()
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%v - authentication failed: %v\n",
 			b.Name,
 			err)
@@ -154,13 +154,13 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 		if decodedResp.Success {
 			if len(quickCapture) == 3 {
 				if b.Verbose {
-					log.Debugf(log.ExchangeSys, "%s websocket: Successfully subscribed to %s",
+					log.ExchangeSys.Debugf("%s websocket: Successfully subscribed to %s",
 						b.Name, decodedResp.Subscribe)
 				}
 			} else {
 				b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				if b.Verbose {
-					log.Debugf(log.ExchangeSys, "%s websocket: Successfully authenticated websocket connection",
+					log.ExchangeSys.Debugf("%s websocket: Successfully authenticated websocket connection",
 						b.Name)
 				}
 			}

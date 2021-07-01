@@ -80,7 +80,9 @@ func (d *DataFromKline) Append(ki *gctkline.Item) {
 		})
 		candleTimes = append(candleTimes, gctCandles[i].Time)
 	}
-	log.Debugf(log.BackTester, "appending %v candle intervals: %v", len(gctCandles), candleTimes)
+	log.BackTester.Debugf("appending %v candle intervals: %v",
+		len(gctCandles),
+		candleTimes)
 	d.AppendStream(klineData...)
 	d.SortStream()
 }

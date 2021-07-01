@@ -63,7 +63,7 @@ func (z *ZB) SetDefaults() {
 	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
 	err := z.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	z.Features = exchange.Features{
@@ -138,7 +138,7 @@ func (z *ZB) SetDefaults() {
 		exchange.WebsocketSpot:         zbWebsocketAPI,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	z.Websocket = stream.New()
 	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -210,7 +210,7 @@ func (z *ZB) Run() {
 
 	err := z.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", z.Name, err)
+		log.ExchangeSys.Errorf("%s failed to update tradable pairs. Err: %s", z.Name, err)
 	}
 }
 

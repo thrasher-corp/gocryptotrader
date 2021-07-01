@@ -62,7 +62,7 @@ func (b *BTCMarkets) SetDefaults() {
 	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	b.Features = exchange.Features{
@@ -126,7 +126,7 @@ func (b *BTCMarkets) SetDefaults() {
 		exchange.WebsocketSpot: btcMarketsWSURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -189,7 +189,7 @@ func (b *BTCMarkets) Start(wg *sync.WaitGroup) {
 // Run implements the BTC Markets wrapper
 func (b *BTCMarkets) Run() {
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s (url: %s).\n",
 			b.Name,
 			common.IsEnabled(b.Websocket.IsEnabled()),
@@ -200,7 +200,7 @@ func (b *BTCMarkets) Run() {
 	forceUpdate := false
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s Failed to update enabled currencies Err:%s\n",
 			b.Name,
 			err)
@@ -208,7 +208,7 @@ func (b *BTCMarkets) Run() {
 	}
 	format, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s Failed to update enabled currencies.\n",
 			b.Name)
 		return
@@ -216,7 +216,7 @@ func (b *BTCMarkets) Run() {
 
 	avail, err := b.GetAvailablePairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s Failed to update enabled currencies.\n",
 			b.Name)
 		return
@@ -224,7 +224,7 @@ func (b *BTCMarkets) Run() {
 
 	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
 		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		log.Warnln(log.ExchangeSys, "Available pairs for BTC Markets reset due to config upgrade, please enable the pairs you would like again.")
+		log.ExchangeSys.Warnln("Available pairs for BTC Markets reset due to config upgrade, please enable the pairs you would like again.")
 		forceUpdate = true
 	}
 	if forceUpdate {
@@ -236,7 +236,7 @@ func (b *BTCMarkets) Run() {
 		}
 		err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s Failed to update enabled currencies.\n",
 				b.Name)
 		}
@@ -248,7 +248,7 @@ func (b *BTCMarkets) Run() {
 
 	err = b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			b.Name,
 			err)
@@ -750,7 +750,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 			case market:
 				tempResp.Type = order.Market
 			default:
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"%s unknown order type %s getting order",
 					b.Name,
 					tempData[y].Type)
@@ -764,7 +764,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 			case orderPartiallyMatched:
 				tempResp.Status = order.PartiallyFilled
 			default:
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"%s unexpected status %s on order %v",
 					b.Name,
 					tempData[y].Status,
@@ -1020,7 +1020,7 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, s
 
 	err = dates.VerifyResultsHaveData(ret.Candles)
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+		log.ExchangeSys.Warnf("%s - %s", b.Name, err)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

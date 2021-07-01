@@ -318,7 +318,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 		}
 
 		if i.Verbose {
-			log.Debugf(log.ExchangeSys, "Request JSON: %s\n", PayloadJSON)
+			log.ExchangeSys.Debugf("Request JSON: %s\n", PayloadJSON)
 		}
 	}
 

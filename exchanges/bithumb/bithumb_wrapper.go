@@ -61,7 +61,7 @@ func (b *Bithumb) SetDefaults() {
 	configFmt := &currency.PairFormat{Uppercase: true, Index: "KRW"}
 	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	b.Features = exchange.Features{
@@ -121,7 +121,7 @@ func (b *Bithumb) SetDefaults() {
 		exchange.RestSpot: apiURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 }
 
@@ -155,7 +155,7 @@ func (b *Bithumb) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.ExchangeSys.Errorf("%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
 }
 

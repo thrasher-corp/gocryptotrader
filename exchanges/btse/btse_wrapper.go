@@ -76,7 +76,7 @@ func (b *BTSE) SetDefaults() {
 	}
 	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	fmt2 := currency.PairStore{
@@ -89,7 +89,7 @@ func (b *BTSE) SetDefaults() {
 	}
 	err = b.StoreAssetPairFormat(asset.Futures, fmt2)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	b.Features = exchange.Features{
@@ -162,7 +162,7 @@ func (b *BTSE) SetDefaults() {
 		exchange.WebsocketSpot: btseWebsocket,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -239,7 +239,7 @@ func (b *BTSE) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s Failed to update tradable pairs. Error: %s", b.Name, err)
 	}
 }
@@ -628,7 +628,7 @@ func (b *BTSE) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.
 		od.Pair, err = currency.NewPairDelimiter(o[i].Symbol,
 			format.Delimiter)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s GetOrderInfo unable to parse currency pair: %s\n",
 				b.Name,
 				err)
@@ -657,7 +657,7 @@ func (b *BTSE) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.
 		for i := range th {
 			createdAt, err := parseOrderTime(th[i].TradeID)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"%s GetOrderInfo unable to parse time: %s\n", b.Name, err)
 			}
 			od.Trades = append(od.Trades, order.TradeHistory{
@@ -760,7 +760,7 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 			p, err := currency.NewPairDelimiter(resp[i].Symbol,
 				format.Delimiter)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"%s GetActiveOrders unable to parse currency pair: %s\n",
 					b.Name,
 					err)
@@ -790,7 +790,7 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 				false,
 				"", resp[i].OrderID)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"%s: Unable to get order fills for orderID %s",
 					b.Name,
 					resp[i].OrderID)
@@ -800,7 +800,7 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 			for i := range fills {
 				createdAt, err := parseOrderTime(fills[i].Timestamp)
 				if err != nil {
-					log.Errorf(log.ExchangeSys,
+					log.ExchangeSys.Errorf(
 						"%s GetActiveOrders unable to parse time: %s\n",
 						b.Name,
 						err)

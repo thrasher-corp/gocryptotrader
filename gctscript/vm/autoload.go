@@ -21,7 +21,7 @@ func (g *GctScriptManager) Autoload(name string, remove bool) error {
 			}
 			g.config.AutoLoad = append(g.config.AutoLoad[:x], g.config.AutoLoad[x+1:]...)
 			if g.config.Verbose {
-				log.Debugf(log.GCTScriptMgr, "Removing script: %s from autoload", name)
+				log.GCTScriptMgr.Debugf("Removing script: %s from autoload", name)
 			}
 			return nil
 		}
@@ -38,7 +38,7 @@ func (g *GctScriptManager) Autoload(name string, remove bool) error {
 	}
 	g.config.AutoLoad = append(g.config.AutoLoad, name)
 	if g.config.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Adding script: %s to autoload", name)
+		log.GCTScriptMgr.Debugf("Adding script: %s to autoload", name)
 	}
 	return nil
 }
@@ -47,7 +47,7 @@ func (g *GctScriptManager) autoLoad() {
 	for x := range g.config.AutoLoad {
 		temp := g.New()
 		if temp == nil {
-			log.Errorf(log.GCTScriptMgr, "Unable to create Virtual Machine, autoload failed for: %v",
+			log.GCTScriptMgr.Errorf("Unable to create Virtual Machine, autoload failed for: %v",
 				g.config.AutoLoad[x])
 			continue
 		}
@@ -58,10 +58,10 @@ func (g *GctScriptManager) autoLoad() {
 		scriptPath := filepath.Join(ScriptPath, name)
 		err := temp.Load(scriptPath)
 		if err != nil {
-			log.Errorf(log.GCTScriptMgr, "%v failed to load: %v", filepath.Base(scriptPath), err)
+			log.GCTScriptMgr.Errorf("%v failed to load: %v", filepath.Base(scriptPath), err)
 			err = temp.unregister()
 			if err != nil {
-				log.Errorf(log.GCTScriptMgr, "%v failed to unregister: %v", filepath.Base(scriptPath), err)
+				log.GCTScriptMgr.Errorf("%v failed to unregister: %v", filepath.Base(scriptPath), err)
 			}
 			continue
 		}

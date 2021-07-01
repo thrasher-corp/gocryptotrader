@@ -81,7 +81,7 @@ func Insert(in Details) error {
 	if err != nil {
 		errRB := tx.Rollback()
 		if errRB != nil {
-			log.Errorln(log.DatabaseMgr, errRB)
+			log.DatabaseMgr.Errorln(errRB)
 		}
 		return err
 	}
@@ -115,7 +115,7 @@ func InsertMany(in []Details) error {
 	if err != nil {
 		errRB := tx.Rollback()
 		if errRB != nil {
-			log.Errorln(log.DatabaseMgr, errRB)
+			log.DatabaseMgr.Errorln(errRB)
 		}
 		return err
 	}
@@ -124,7 +124,7 @@ func InsertMany(in []Details) error {
 	if err != nil {
 		errRB := tx.Rollback()
 		if errRB != nil {
-			log.Errorln(log.DatabaseMgr, errRB)
+			log.DatabaseMgr.Errorln(errRB)
 		}
 		return err
 	}
@@ -146,7 +146,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in []Details) (err error) {
 		if err != nil {
 			errRB := tx.Rollback()
 			if errRB != nil {
-				log.Errorln(log.DatabaseMgr, errRB)
+				log.DatabaseMgr.Errorln(errRB)
 			}
 			return err
 		}
@@ -165,7 +165,7 @@ func insertPostgresql(ctx context.Context, tx *sql.Tx, in []Details) (err error)
 		if err != nil {
 			errRB := tx.Rollback()
 			if errRB != nil {
-				log.Errorln(log.DatabaseMgr, errRB)
+				log.DatabaseMgr.Errorln(errRB)
 			}
 			return
 		}
@@ -207,7 +207,7 @@ func LoadCSV(file string) (out []Details, err error) {
 	defer func() {
 		err = csvFile.Close()
 		if err != nil {
-			log.Errorln(log.Global, err)
+			log.Global.Errorln(err)
 		}
 	}()
 

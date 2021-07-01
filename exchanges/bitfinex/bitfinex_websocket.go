@@ -57,7 +57,7 @@ func (b *Bitfinex) WsConnect() error {
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
 		err = b.Websocket.AuthConn.Dial(&dialer, http.Header{})
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%v unable to connect to authenticated Websocket. Error: %s",
 				b.Name,
 				err)
@@ -66,7 +66,7 @@ func (b *Bitfinex) WsConnect() error {
 		go b.wsReadData(b.Websocket.AuthConn)
 		err = b.WsSendAuth()
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%v - authentication failed: %v\n",
 				b.Name,
 				err)
@@ -1194,7 +1194,7 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, pair string) {
 	b.WebsocketSubdChannels[chanID] = chanInfo
 
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n",
 			b.Name,
 			channel,

@@ -64,7 +64,7 @@ func (c *CoinbasePro) SetDefaults() {
 	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	err := c.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	c.Features = exchange.Features{
@@ -138,7 +138,7 @@ func (c *CoinbasePro) SetDefaults() {
 		exchange.WebsocketSpot: coinbaseproWebsocketURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -202,7 +202,7 @@ func (c *CoinbasePro) Start(wg *sync.WaitGroup) {
 // Run implements the coinbasepro wrapper
 func (c *CoinbasePro) Run() {
 	if c.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s. (url: %s).\n",
 			c.Name,
 			common.IsEnabled(c.Websocket.IsEnabled()),
@@ -213,7 +213,7 @@ func (c *CoinbasePro) Run() {
 	forceUpdate := false
 	format, err := c.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update currencies. Err: %s\n",
 			c.Name,
 			err)
@@ -221,7 +221,7 @@ func (c *CoinbasePro) Run() {
 	}
 	enabled, err := c.CurrencyPairs.GetPairs(asset.Spot, true)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update currencies. Err: %s\n",
 			c.Name,
 			err)
@@ -230,7 +230,7 @@ func (c *CoinbasePro) Run() {
 
 	avail, err := c.CurrencyPairs.GetPairs(asset.Spot, false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update currencies. Err: %s\n",
 			c.Name,
 			err)
@@ -244,18 +244,18 @@ func (c *CoinbasePro) Run() {
 			format.Delimiter +
 			currency.USD.String()})
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s failed to update currencies. Err: %s\n",
 				c.Name,
 				err)
 		} else {
-			log.Warn(log.ExchangeSys,
+			log.ExchangeSys.Warn(
 				"Enabled pairs for CoinbasePro reset due to config upgrade, please enable the ones you would like to use again")
 			forceUpdate = true
 
 			err = c.UpdatePairs(p, asset.Spot, true, true)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"%s failed to update currencies. Err: %s\n",
 					c.Name,
 					err)
@@ -269,7 +269,7 @@ func (c *CoinbasePro) Run() {
 
 	err = c.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
+		log.ExchangeSys.Errorf("%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}
 }
 
@@ -940,7 +940,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 	}
 	err = dates.VerifyResultsHaveData(ret.Candles)
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", c.Name, err)
+		log.ExchangeSys.Warnf("%s - %s", c.Name, err)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

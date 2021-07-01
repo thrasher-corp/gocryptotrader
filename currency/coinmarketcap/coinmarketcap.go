@@ -713,7 +713,7 @@ func (c *Coinmarketcap) SetAccountPlan(s string) error {
 	case "enterprise":
 		c.Plan = Enterprise
 	default:
-		log.Warnf(log.Global, "account plan %s not found, defaulting to basic", s)
+		log.Global.Warnf("account plan %s not found, defaulting to basic", s)
 		c.Plan = Basic
 	}
 	return nil

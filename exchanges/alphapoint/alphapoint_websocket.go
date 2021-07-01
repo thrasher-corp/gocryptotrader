@@ -21,31 +21,31 @@ func (a *Alphapoint) WebsocketClient() {
 		var httpResp *http.Response
 		endpoint, err := a.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
-			log.Error(log.WebsocketMgr, err)
+			log.WebsocketMgr.Error(err)
 		}
 		a.WebsocketConn, httpResp, err = dialer.Dial(endpoint, http.Header{})
 		httpResp.Body.Close() // not used, so safely free the body
 
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s Unable to connect to Websocket. Error: %s\n", a.Name, err)
+			log.ExchangeSys.Errorf("%s Unable to connect to Websocket. Error: %s\n", a.Name, err)
 			continue
 		}
 
 		if a.Verbose {
-			log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", a.Name)
+			log.ExchangeSys.Debugf("%s Connected to Websocket.\n", a.Name)
 		}
 
 		err = a.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(`{"messageType": "logon"}`))
 
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.ExchangeSys.Error(err)
 			return
 		}
 
 		for a.Enabled {
 			msgType, resp, err := a.WebsocketConn.ReadMessage()
 			if err != nil {
-				log.Error(log.ExchangeSys, err)
+				log.ExchangeSys.Error(err)
 				break
 			}
 
@@ -57,7 +57,7 @@ func (a *Alphapoint) WebsocketClient() {
 				msgType := MsgType{}
 				err := json.Unmarshal(resp, &msgType)
 				if err != nil {
-					log.Error(log.ExchangeSys, err)
+					log.ExchangeSys.Error(err)
 					continue
 				}
 
@@ -65,13 +65,13 @@ func (a *Alphapoint) WebsocketClient() {
 					ticker := WebsocketTicker{}
 					err = json.Unmarshal(resp, &ticker)
 					if err != nil {
-						log.Error(log.ExchangeSys, err)
+						log.ExchangeSys.Error(err)
 						continue
 					}
 				}
 			}
 		}
 		a.WebsocketConn.Close()
-		log.Debugf(log.ExchangeSys, "%s Websocket client disconnected.", a.Name)
+		log.ExchangeSys.Debugf("%s Websocket client disconnected.", a.Name)
 	}
 }

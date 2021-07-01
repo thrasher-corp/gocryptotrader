@@ -35,12 +35,12 @@ func TestMain(m *testing.M) {
 	var err error
 	configData, err = readFileData(jsonFile)
 	if err != nil {
-		log.Error(log.Global, err)
+		log.Global.Error(err)
 		os.Exit(1)
 	}
 	testConfigData, err = readFileData(testJSONFile)
 	if err != nil {
-		log.Error(log.Global, err)
+		log.Global.Error(err)
 		os.Exit(1)
 	}
 	usageData = testConfigData
@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 	testExitCode := m.Run()
 	err = removeTestFileVars()
 	if err != nil {
-		log.Error(log.Global, err)
+		log.Global.Error(err)
 		os.Exit(1)
 	}
 	os.Exit(testExitCode)

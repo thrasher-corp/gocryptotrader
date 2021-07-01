@@ -85,17 +85,17 @@ func (k *Kraken) SetDefaults() {
 
 	err := k.StoreAssetPairFormat(asset.Spot, pairStore)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	err = k.StoreAssetPairFormat(asset.Futures, futures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	err = k.DisableAssetWebsocketSupport(asset.Futures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	k.Features = exchange.Features{
@@ -177,7 +177,7 @@ func (k *Kraken) SetDefaults() {
 		exchange.WebsocketSpot: krakenWSURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	k.Websocket = stream.New()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -264,7 +264,7 @@ func (k *Kraken) Run() {
 	forceUpdate := false
 	format, err := k.GetPairFormat(asset.UseDefault(), false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			k.Name,
 			err)
@@ -272,7 +272,7 @@ func (k *Kraken) Run() {
 	}
 	enabled, err := k.GetEnabledPairs(asset.UseDefault())
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			k.Name,
 			err)
@@ -281,7 +281,7 @@ func (k *Kraken) Run() {
 
 	avail, err := k.GetAvailablePairs(asset.UseDefault())
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			k.Name,
 			err)
@@ -296,17 +296,17 @@ func (k *Kraken) Run() {
 			format.Delimiter +
 			currency.USD.String()})
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s failed to update currencies. Err: %s\n",
 				k.Name,
 				err)
 		} else {
-			log.Warn(log.ExchangeSys, "Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
+			log.ExchangeSys.Warn("Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
 			forceUpdate = true
 
 			err = k.UpdatePairs(p, asset.UseDefault(), true, true)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"%s failed to update currencies. Err: %s\n",
 					k.Name,
 					err)
@@ -320,7 +320,7 @@ func (k *Kraken) Run() {
 
 	err = k.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			k.Name,
 			err)
@@ -351,7 +351,7 @@ func (k *Kraken) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 			}
 			base := assetTranslator.LookupAltname(pairs[i].Base)
 			if base == "" {
-				log.Warnf(log.ExchangeSys,
+				log.ExchangeSys.Warnf(
 					"%s unable to lookup altname for base currency %s",
 					k.Name,
 					pairs[i].Base)
@@ -359,7 +359,7 @@ func (k *Kraken) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 			}
 			quote := assetTranslator.LookupAltname(pairs[i].Quote)
 			if quote == "" {
-				log.Warnf(log.ExchangeSys,
+				log.ExchangeSys.Warnf(
 					"%s unable to lookup altname for quote currency %s",
 					k.Name,
 					pairs[i].Quote)
@@ -573,7 +573,7 @@ func (k *Kraken) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 		for key := range bal {
 			translatedCurrency := assetTranslator.LookupAltname(key)
 			if translatedCurrency == "" {
-				log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
+				log.ExchangeSys.Warnf("%s unable to translate currency: %s\n",
 					k.Name,
 					key)
 				continue

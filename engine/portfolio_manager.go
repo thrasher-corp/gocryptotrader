@@ -72,7 +72,7 @@ func (m *portfolioManager) Start(wg *sync.WaitGroup) error {
 		return fmt.Errorf("portfolio manager %w", ErrSubSystemAlreadyStarted)
 	}
 
-	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", MsgSubSystemStarting)
+	log.PortfolioMgr.Debugf("Portfolio manager %s", MsgSubSystemStarting)
 	m.shutdown = make(chan struct{})
 	go m.run(wg)
 	return nil
@@ -90,20 +90,20 @@ func (m *portfolioManager) Stop() error {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
 
-	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", MsgSubSystemShuttingDown)
+	log.PortfolioMgr.Debugf("Portfolio manager %s", MsgSubSystemShuttingDown)
 	close(m.shutdown)
 	return nil
 }
 
 // run periodically will check and update portfolio holdings
 func (m *portfolioManager) run(wg *sync.WaitGroup) {
-	log.Debugln(log.PortfolioMgr, "Portfolio manager started.")
+	log.PortfolioMgr.Debugln("Portfolio manager started.")
 	wg.Add(1)
 	tick := time.NewTicker(m.portfolioManagerDelay)
 	defer func() {
 		tick.Stop()
 		wg.Done()
-		log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
+		log.PortfolioMgr.Debugf("Portfolio manager shutdown.")
 	}()
 
 	go m.processPortfolio()
@@ -126,15 +126,13 @@ func (m *portfolioManager) processPortfolio() {
 	for key, value := range data {
 		err := m.base.UpdatePortfolio(value, key)
 		if err != nil {
-			log.Errorf(log.PortfolioMgr,
-				"PortfolioWatcher error %s for currency %s\n",
+			log.PortfolioMgr.Errorf("PortfolioWatcher error %s for currency %s\n",
 				err,
 				key)
 			continue
 		}
 
-		log.Debugf(log.PortfolioMgr,
-			"Portfolio manager: Successfully updated address balance for %s address(es) %s\n",
+		log.PortfolioMgr.Debugf("Portfolio manager: Successfully updated address balance for %s address(es) %s\n",
 			key,
 			value)
 	}
@@ -184,7 +182,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 					continue
 				}
 
-				log.Debugf(log.PortfolioMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
+				log.PortfolioMgr.Debugf("Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
 					exchangeName,
 					currencyName,
 					total,
@@ -198,7 +196,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 						Description: portfolio.ExchangeAddress})
 			} else {
 				if total <= 0 {
-					log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry.\n",
+					log.PortfolioMgr.Debugf("Portfolio: Removing %s %s entry.\n",
 						exchangeName,
 						currencyName)
 					m.base.RemoveExchangeAddress(exchangeName, currencyName)
@@ -211,7 +209,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 					}
 
 					if balance != total {
-						log.Debugf(log.PortfolioMgr, "Portfolio: Updating %s %s entry with balance %f.\n",
+						log.PortfolioMgr.Debugf("Portfolio: Updating %s %s entry with balance %f.\n",
 							exchangeName,
 							currencyName,
 							total)
@@ -234,8 +232,7 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 		}
 		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 			if m.base.Verbose {
-				log.Debugf(log.PortfolioMgr,
-					"skipping %s due to disabled authenticated API support.\n",
+				log.PortfolioMgr.Debugf("skipping %s due to disabled authenticated API support.\n",
 					exchanges[x].GetName())
 			}
 			continue
@@ -245,8 +242,7 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 		for y := range assetTypes {
 			accountHoldings, err := exchanges[x].FetchAccountInfo(assetTypes[y])
 			if err != nil {
-				log.Errorf(log.PortfolioMgr,
-					"Error encountered retrieving exchange account info for %s. Error %s\n",
+				log.PortfolioMgr.Errorf("Error encountered retrieving exchange account info for %s. Error %s\n",
 					exchanges[x].GetName(),
 					err)
 				continue

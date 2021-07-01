@@ -281,7 +281,7 @@ func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params
 			path := aggregatedTrades + "?" + params.Encode()
 			err := b.SendHTTPRequest(exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
-				log.Warn(log.ExchangeSys, err.Error())
+				log.ExchangeSys.Warn(err.Error())
 				return resp, err
 			}
 		}
@@ -739,7 +739,7 @@ func (b *Binance) SendAuthHTTPRequest(ePath exchange.URL, method, path string, p
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "sent path: %s", path)
+		log.ExchangeSys.Debugf("sent path: %s", path)
 	}
 
 	path = common.EncodeURLValues(path, params)

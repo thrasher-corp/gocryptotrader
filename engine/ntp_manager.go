@@ -58,7 +58,7 @@ func (m *ntpManager) Start() error {
 			case nil:
 				break check
 			case ErrSubSystemNotStarted:
-				log.Debugln(log.TimeMgr, "NTP manager: User disabled NTP prompts. Exiting.")
+				log.TimeMgr.Debugln("NTP manager: User disabled NTP prompts. Exiting.")
 				atomic.CompareAndSwapInt32(&m.started, 1, 0)
 				return nil
 			default:
@@ -74,7 +74,7 @@ func (m *ntpManager) Start() error {
 	}
 	m.shutdown = make(chan struct{})
 	go m.run()
-	log.Debugf(log.TimeMgr, "NTP manager %s", MsgSubSystemStarted)
+	log.TimeMgr.Debugf("NTP manager %s", MsgSubSystemStarted)
 	return nil
 }
 
@@ -87,10 +87,10 @@ func (m *ntpManager) Stop() error {
 		return fmt.Errorf("NTP manager %w", ErrSubSystemNotStarted)
 	}
 	defer func() {
-		log.Debugf(log.TimeMgr, "NTP manager %s", MsgSubSystemShutdown)
+		log.TimeMgr.Debugf("NTP manager %s", MsgSubSystemShutdown)
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
-	log.Debugf(log.TimeMgr, "NTP manager %s", MsgSubSystemShuttingDown)
+	log.TimeMgr.Debugf("NTP manager %s", MsgSubSystemShuttingDown)
 	close(m.shutdown)
 	return nil
 }
@@ -109,7 +109,7 @@ func (m *ntpManager) run() {
 		case <-t.C:
 			err := m.processTime()
 			if err != nil {
-				log.Error(log.TimeMgr, err)
+				log.TimeMgr.Error(err)
 			}
 		}
 	}
@@ -142,7 +142,7 @@ func (m *ntpManager) processTime() error {
 	negDiff := m.allowedNegativeDifference
 	configNTPNegativeTime := -negDiff
 	if diff > configNTPTime || diff < configNTPNegativeTime {
-		log.Warnf(log.TimeMgr, "NTP manager: Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v\n",
+		log.TimeMgr.Warnf("NTP manager: Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v\n",
 			NTPTime,
 			currentTime,
 			diff,
@@ -158,35 +158,35 @@ func checkTimeInPools(pool []string) time.Time {
 	for i := range pool {
 		con, err := net.DialTimeout("udp", pool[i], 5*time.Second)
 		if err != nil {
-			log.Warnf(log.TimeMgr, "Unable to connect to hosts %v attempting next", pool[i])
+			log.TimeMgr.Warnf("Unable to connect to hosts %v attempting next", pool[i])
 			continue
 		}
 
 		if err = con.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
-			log.Warnf(log.TimeMgr, "Unable to SetDeadline. Error: %s\n", err)
+			log.TimeMgr.Warnf("Unable to SetDeadline. Error: %s\n", err)
 			err = con.Close()
 			if err != nil {
-				log.Error(log.TimeMgr, err)
+				log.TimeMgr.Error(err)
 			}
 			continue
 		}
 
 		req := &ntpPacket{Settings: 0x1B}
 		if err = binary.Write(con, binary.BigEndian, req); err != nil {
-			log.Warnf(log.TimeMgr, "Unable to write. Error: %s\n", err)
+			log.TimeMgr.Warnf("Unable to write. Error: %s\n", err)
 			err = con.Close()
 			if err != nil {
-				log.Error(log.TimeMgr, err)
+				log.TimeMgr.Error(err)
 			}
 			continue
 		}
 
 		rsp := &ntpPacket{}
 		if err = binary.Read(con, binary.BigEndian, rsp); err != nil {
-			log.Warnf(log.TimeMgr, "Unable to read. Error: %s\n", err)
+			log.TimeMgr.Warnf("Unable to read. Error: %s\n", err)
 			err = con.Close()
 			if err != nil {
-				log.Error(log.TimeMgr, err)
+				log.TimeMgr.Error(err)
 			}
 			continue
 		}
@@ -196,10 +196,10 @@ func checkTimeInPools(pool []string) time.Time {
 
 		err = con.Close()
 		if err != nil {
-			log.Error(log.TimeMgr, err)
+			log.TimeMgr.Error(err)
 		}
 		return time.Unix(int64(secs), nanos)
 	}
-	log.Warnln(log.TimeMgr, "No valid NTP servers found, using current system time")
+	log.TimeMgr.Warnln("No valid NTP servers found, using current system time")
 	return time.Now().UTC()
 }

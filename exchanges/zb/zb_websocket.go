@@ -304,7 +304,7 @@ func (z *ZB) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 func (z *ZB) wsGenerateSignature(request interface{}) string {
 	jsonResponse, err := json.Marshal(request)
 	if err != nil {
-		log.Error(log.ExchangeSys, err)
+		log.ExchangeSys.Error(err)
 		return ""
 	}
 	hmac := crypto.GetHMAC(crypto.HashMD5,

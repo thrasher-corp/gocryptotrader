@@ -12,7 +12,7 @@ import (
 func (g *GctScriptManager) New() *VM {
 	if VMSCount.Len() >= int32(g.GetMaxVirtualMachines()) {
 		if g.config.Verbose {
-			log.Warnf(log.GCTScriptMgr, "GCTScript MaxVirtualMachines (%v) hit, unable to start further instances",
+			log.GCTScriptMgr.Warnf("GCTScript MaxVirtualMachines (%v) hit, unable to start further instances",
 				g.GetMaxVirtualMachines())
 		}
 		return nil
@@ -47,7 +47,7 @@ func (g *GctScriptManager) Validate(file string) (err error) {
 // ShutdownAll shutdown all
 func (g *GctScriptManager) ShutdownAll() (err error) {
 	if g.config.Verbose {
-		log.Debugln(log.GCTScriptMgr, "Shutting down all Virtual Machines")
+		log.GCTScriptMgr.Debugln("Shutting down all Virtual Machines")
 	}
 
 	var errors []error
@@ -75,7 +75,7 @@ func (g *GctScriptManager) RemoveVM(id uuid.UUID) error {
 	AllVMSync.Delete(id)
 	VMSCount.remove()
 	if g.config.Verbose {
-		log.Debugf(log.GCTScriptMgr, "VM %v removed from AllVMs", id)
+		log.GCTScriptMgr.Debugf("VM %v removed from AllVMs", id)
 	}
 	return nil
 }

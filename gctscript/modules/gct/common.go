@@ -130,8 +130,7 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	log.Infof(log.GCTScriptMgr,
-		"CSV file successfully saved to: %s",
+	log.GCTScriptMgr.Infof("CSV file successfully saved to: %s",
 		target)
 	return nil, nil
 }

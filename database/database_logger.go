@@ -7,6 +7,6 @@ type Logger struct{}
 
 // Write takes input and sends to GCT logger
 func (l Logger) Write(p []byte) (n int, err error) {
-	log.Debugf(log.DatabaseMgr, "SQL: %s", p)
+	log.DatabaseMgr.Debugf("SQL: %s", p)
 	return 0, nil
 }

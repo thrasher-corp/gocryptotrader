@@ -53,7 +53,7 @@ func (g *Gemini) WsConnect() error {
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		err := g.WsAuth(&dialer)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%v - websocket authentication failed: %v\n", g.Name, err)
+			log.ExchangeSys.Errorf("%v - websocket authentication failed: %v\n", g.Name, err)
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}

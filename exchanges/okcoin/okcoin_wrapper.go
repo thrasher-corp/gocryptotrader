@@ -140,7 +140,7 @@ func (o *OKCoin) SetDefaults() {
 		exchange.WebsocketSpot: okCoinWebsocketURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	o.APIVersion = okCoinAPIVersion
 	o.Websocket = stream.New()
@@ -161,7 +161,7 @@ func (o *OKCoin) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKCoin) Run() {
 	if o.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s. (url: %s).\n",
 			o.Name,
 			common.IsEnabled(o.Websocket.IsEnabled()),
@@ -171,7 +171,7 @@ func (o *OKCoin) Run() {
 	forceUpdate := false
 	format, err := o.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update currencies. Err: %s\n",
 			o.Name,
 			err)
@@ -179,7 +179,7 @@ func (o *OKCoin) Run() {
 	}
 	enabled, err := o.CurrencyPairs.GetPairs(asset.Spot, true)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update currencies. Err: %s\n",
 			o.Name,
 			err)
@@ -188,7 +188,7 @@ func (o *OKCoin) Run() {
 
 	avail, err := o.CurrencyPairs.GetPairs(asset.Spot, false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update currencies. Err: %s\n",
 			o.Name,
 			err)
@@ -202,18 +202,18 @@ func (o *OKCoin) Run() {
 			format.Delimiter +
 			currency.USD.String()})
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%s failed to update currencies.\n",
 				o.Name)
 		} else {
-			log.Warnf(log.ExchangeSys,
+			log.ExchangeSys.Warnf(
 				"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.\n",
 				o.Name)
 			forceUpdate = true
 
 			err = o.UpdatePairs(p, asset.Spot, true, true)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.ExchangeSys.Errorf(
 					"%s failed to update currencies. Err: %s\n",
 					o.Name,
 					err)
@@ -228,7 +228,7 @@ func (o *OKCoin) Run() {
 
 	err = o.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			o.Name,
 			err)

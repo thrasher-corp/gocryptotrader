@@ -284,7 +284,7 @@ func (c *COINUT) SendHTTPRequest(ep exchange.URL, apiRequest string, params map[
 	}
 
 	if c.Verbose {
-		log.Debugf(log.ExchangeSys, "Request JSON: %s", payload)
+		log.ExchangeSys.Debugf("Request JSON: %s", payload)
 	}
 
 	headers := make(map[string]string)

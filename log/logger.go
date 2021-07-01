@@ -67,7 +67,7 @@ func Level(s string) (*Levels, error) {
 		return nil, fmt.Errorf("logger %v not found", s)
 	}
 
-	return &logger.Levels, nil
+	return &logger.Enabled, nil
 }
 
 // SetLevel sets sublogger levels
@@ -76,7 +76,7 @@ func SetLevel(s, level string) (*Levels, error) {
 	if !found {
 		return nil, fmt.Errorf("logger %v not found", s)
 	}
-	logger.Levels = splitLevel(level)
+	logger.Enabled = splitLevel(level)
 
-	return &logger.Levels, nil
+	return &logger.Enabled, nil
 }

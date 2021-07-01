@@ -69,14 +69,14 @@ func (h *HUOBI) WsConnect() error {
 	}
 	err = h.wsAuthenticatedDial(&dialer)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%v - authenticated dial failed: %v\n",
 			h.Name,
 			err)
 	}
 	err = h.wsLogin()
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%v - authentication failed: %v\n",
 			h.Name,
 			err)
@@ -201,7 +201,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		}
 		err := h.Websocket.AuthConn.SendJSONMessage(authPing)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.ExchangeSys.Error(err)
 		}
 		return nil
 	}
@@ -422,7 +422,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 func (h *HUOBI) sendPingResponse(pong int64) {
 	err := h.Websocket.Conn.SendJSONMessage(WsPong{Pong: pong})
 	if err != nil {
-		log.Error(log.ExchangeSys, err)
+		log.ExchangeSys.Error(err)
 	}
 }
 

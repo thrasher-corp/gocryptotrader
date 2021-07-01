@@ -76,7 +76,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	defer conStatus.Body.Close()
 
 	if w.Verbose {
-		log.Infof(log.WebsocketMgr,
+		log.WebsocketMgr.Infof(
 			"%v Websocket connected to %s\n",
 			w.ExchangeName,
 			w.URL)
@@ -100,8 +100,7 @@ func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 	defer w.writeControl.Unlock()
 
 	if w.Verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%s websocket connection: sending message to websocket %+v\n",
+		log.WebsocketMgr.Debugf("%s websocket connection: sending message to websocket %+v\n",
 			w.ExchangeName,
 			data)
 	}
@@ -127,8 +126,7 @@ func (w *WebsocketConnection) SendRawMessage(messageType int, message []byte) er
 	defer w.writeControl.Unlock()
 
 	if w.Verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v websocket connection: sending message [%s]\n",
+		log.WebsocketMgr.Debugf("%v websocket connection: sending message [%s]\n",
 			w.ExchangeName,
 			message)
 	}
@@ -176,7 +174,7 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 			case <-ticker.C:
 				err := w.SendRawMessage(handler.MessageType, handler.Message)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr,
+					log.WebsocketMgr.Errorf(
 						"%v websocket connection: ping handler failed to send message [%s]",
 						w.ExchangeName,
 						handler.Message)
@@ -223,7 +221,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	case websocket.BinaryMessage:
 		standardMessage, err = w.parseBinaryResponse(resp)
 		if err != nil {
-			log.Errorf(log.WebsocketMgr,
+			log.WebsocketMgr.Errorf(
 				"%v websocket connection: parseBinaryResponse error: %v",
 				w.ExchangeName,
 				err)
@@ -231,8 +229,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 		}
 	}
 	if w.Verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v websocket connection: message received: %v",
+		log.WebsocketMgr.Debugf("%v websocket connection: message received: %v",
 			w.ExchangeName,
 			string(standardMessage))
 	}

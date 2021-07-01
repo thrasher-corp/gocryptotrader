@@ -68,7 +68,7 @@ func (e *EXMO) SetDefaults() {
 	}
 	err := e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	e.Features = exchange.Features{
@@ -113,7 +113,7 @@ func (e *EXMO) SetDefaults() {
 		exchange.RestSpot: exmoAPIURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 }
 
@@ -147,7 +147,7 @@ func (e *EXMO) Run() {
 
 	err := e.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", e.Name, err)
+		log.ExchangeSys.Errorf("%s failed to update tradable pairs. Err: %s", e.Name, err)
 	}
 }
 

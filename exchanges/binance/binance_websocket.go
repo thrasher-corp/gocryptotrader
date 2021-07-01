@@ -54,7 +54,7 @@ func (b *Binance) WsConnect() error {
 		listenKey, err = b.GetWsAuthStreamKey()
 		if err != nil {
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%v unable to connect to authenticated Websocket. Error: %s",
 				b.Name,
 				err)
@@ -120,8 +120,8 @@ func (b *Binance) KeepAuthKeyAlive() {
 			err := b.MaintainWsAuthStreamKey()
 			if err != nil {
 				b.Websocket.DataHandler <- err
-				log.Warnf(log.ExchangeSys,
-					b.Name+" - Unable to renew auth websocket token, may experience shutdown")
+				log.ExchangeSys.Warnf(
+					b.Name + " - Unable to renew auth websocket token, may experience shutdown")
 			}
 		}
 	}
@@ -669,8 +669,7 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 			case j := <-b.obm.jobs:
 				err := b.processJob(j.Pair)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%s processing websocket orderbook error %v",
+					log.WebsocketMgr.Errorf("%s processing websocket orderbook error %v",
 						b.Name, err)
 				}
 			case <-b.Websocket.ShutdownC:
@@ -707,14 +706,13 @@ func (b *Binance) processJob(p currency.Pair) error {
 func (b *Binance) flushAndCleanup(p currency.Pair) {
 	errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
 	if errClean != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s flushing websocket error: %v",
+		log.WebsocketMgr.Errorf("%s flushing websocket error: %v",
 			b.Name,
 			errClean)
 	}
 	errClean = b.obm.cleanup(p)
 	if errClean != nil {
-		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
+		log.WebsocketMgr.Errorf("%s cleanup websocket error: %v",
 			b.Name,
 			errClean)
 	}

@@ -76,15 +76,15 @@ func (c *ConversionRates) Register(from, to Code) (Conversion, error) {
 
 	p, ok := c.m[from.Item][to.Item]
 	if !ok {
-		log.Errorf(log.Global,
-			"currency conversion rate not found from %s to %s\n", from, to)
+		log.Global.Errorf("currency conversion rate not found from %s to %s\n",
+			from,
+			to)
 		return Conversion{}, errors.New("no rate found")
 	}
 
 	i, ok := c.m[to.Item][from.Item]
 	if !ok {
-		log.Errorf(log.Global,
-			"currency conversion inversion rate not found from %s to %s\n",
+		log.Global.Errorf("currency conversion inversion rate not found from %s to %s\n",
 			to,
 			from)
 		return Conversion{}, errors.New("no rate found")
@@ -102,7 +102,7 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 	}
 
 	if storage.IsVerbose() {
-		log.Debugln(log.Global, "Conversion rates are being updated.")
+		log.Global.Debugln("Conversion rates are being updated.")
 	}
 
 	solidvalues := make(map[Code]map[Code]float64)
@@ -191,8 +191,7 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 					crossRate = 1 / v
 				}
 				if storage.IsVerbose() {
-					log.Debugf(log.Global,
-						"Conversion from %s to %s deriving cross rate value %f\n",
+					log.Global.Debugf("Conversion from %s to %s deriving cross rate value %f\n",
 						base,
 						term,
 						crossRate)

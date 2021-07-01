@@ -68,7 +68,7 @@ func (b *Bitflyer) SetDefaults() {
 		asset.Spot,
 		asset.Futures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	b.Features = exchange.Features{
@@ -100,7 +100,7 @@ func (b *Bitflyer) SetDefaults() {
 		exchange.ChainAnalysis: chainAnalysis,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 }
 
@@ -134,7 +134,7 @@ func (b *Bitflyer) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
+		log.ExchangeSys.Errorf("%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
 }
 

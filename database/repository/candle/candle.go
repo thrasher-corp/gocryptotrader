@@ -132,7 +132,7 @@ func deleteSQLite(ctx context.Context, queries []qm.QueryMod) (int64, error) {
 	if err != nil {
 		errRB := tx.Rollback()
 		if errRB != nil {
-			log.Errorln(log.DatabaseMgr, errRB)
+			log.DatabaseMgr.Errorln(errRB)
 		}
 		return 0, err
 	}
@@ -159,7 +159,7 @@ func deletePostgres(ctx context.Context, queries []qm.QueryMod) (int64, error) {
 	if err != nil {
 		errRB := tx.Rollback()
 		if errRB != nil {
-			log.Errorln(log.DatabaseMgr, errRB)
+			log.DatabaseMgr.Errorln(errRB)
 		}
 		return 0, err
 	}
@@ -196,7 +196,7 @@ func Insert(in *Item) (uint64, error) {
 	if err != nil {
 		errRB := tx.Rollback()
 		if errRB != nil {
-			log.Errorln(log.DatabaseMgr, errRB)
+			log.DatabaseMgr.Errorln(errRB)
 		}
 		return 0, err
 	}
@@ -277,7 +277,7 @@ func InsertFromCSV(exchangeName, base, quote string, interval int64, asset, file
 	defer func() {
 		err = csvFile.Close()
 		if err != nil {
-			log.Errorln(log.Global, err)
+			log.Global.Errorln(err)
 		}
 	}()
 

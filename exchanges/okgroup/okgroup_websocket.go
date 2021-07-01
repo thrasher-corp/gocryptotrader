@@ -188,7 +188,7 @@ func (o *OKGroup) WsConnect() error {
 		return err
 	}
 	if o.Verbose {
-		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
+		log.ExchangeSys.Debugf("Successful connection to %v\n",
 			o.Websocket.GetWebsocketURL())
 	}
 
@@ -196,7 +196,7 @@ func (o *OKGroup) WsConnect() error {
 	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = o.WsLogin()
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
+			log.ExchangeSys.Errorf(
 				"%v - authentication failed: %v\n",
 				o.Name,
 				err)
@@ -296,8 +296,11 @@ func (o *OKGroup) WsHandleData(respRaw []byte) error {
 			}
 		}
 		if o.Verbose {
-			log.Debug(log.ExchangeSys,
-				o.Name+" - "+eventResponse.Event+" on channel: "+eventResponse.Channel)
+			log.ExchangeSys.Debug(o.Name +
+				" - " +
+				eventResponse.Event +
+				" on channel: " +
+				eventResponse.Channel)
 		}
 	}
 	return nil
@@ -661,7 +664,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, ins
 			instrument)
 	}
 	if o.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s passed checksum for instrument %s",
 			o.Name,
 			instrument)
@@ -722,7 +725,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, inst
 
 	if checksum != wsEventData.Checksum {
 		// re-sub
-		log.Warnf(log.ExchangeSys, "%s checksum failure for item %s",
+		log.ExchangeSys.Warnf("%s checksum failure for item %s",
 			o.Name,
 			wsEventData.InstrumentID)
 		return errors.New("checksum failed")
@@ -1026,7 +1029,7 @@ func (o *OKGroup) GetAssetTypeFromTableName(table string) asset.Item {
 	case asset.Index.String():
 		return asset.Index
 	default:
-		log.Warnf(log.ExchangeSys, "%s unhandled asset type %s",
+		log.ExchangeSys.Warnf("%s unhandled asset type %s",
 			o.Name,
 			table[:assetIndex])
 		return asset.Item(table[:assetIndex])

@@ -57,7 +57,7 @@ func (f *FTX) WsConnect() error {
 		Delay:       ftxWebsocketTimer,
 	})
 	if f.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
+		log.ExchangeSys.Debugf("%s Connected to Websocket.\n", f.Name)
 	}
 
 	go f.wsReadData()
@@ -459,7 +459,7 @@ func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.
 	checksum := f.CalcUpdateOBChecksum(updatedOb)
 
 	if checksum != data.Checksum {
-		log.Warnf(log.ExchangeSys, "%s checksum failure for item %s",
+		log.ExchangeSys.Warnf("%s checksum failure for item %s",
 			f.Name,
 			p)
 		return errors.New("checksum failed")

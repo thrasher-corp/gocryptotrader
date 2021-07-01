@@ -61,7 +61,7 @@ func (y *Yobit) SetDefaults() {
 	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
 	err := y.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	y.Features = exchange.Features{
@@ -104,7 +104,7 @@ func (y *Yobit) SetDefaults() {
 		exchange.RestSpotSupplementary: apiPrivateURL,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 }
 
@@ -138,7 +138,7 @@ func (y *Yobit) Run() {
 
 	err := y.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			y.Name,
 			err)

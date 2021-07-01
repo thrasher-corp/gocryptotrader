@@ -133,7 +133,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			log.Infof(log.WebsocketMgr, "%v subscribed to %v", b.Name, strings.Join(subscribe.Channel, ", "))
+			log.WebsocketMgr.Infof("%v subscribed to %v", b.Name, strings.Join(subscribe.Channel, ", "))
 		case "login":
 			var login WsLoginAcknowledgement
 			err = json.Unmarshal(respRaw, &login)
@@ -141,7 +141,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			b.Websocket.SetCanUseAuthenticatedEndpoints(login.Success)
-			log.Infof(log.WebsocketMgr, "%v websocket authenticated: %v", b.Name, login.Success)
+			log.WebsocketMgr.Infof("%v websocket authenticated: %v", b.Name, login.Success)
 		default:
 			return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
 		}

@@ -72,15 +72,15 @@ func (b *Bitfinex) SetDefaults() {
 
 	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	err = b.StoreAssetPairFormat(asset.Margin, fmt2)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	err = b.StoreAssetPairFormat(asset.MarginFunding, fmt1)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 
 	b.Features = exchange.Features{
@@ -169,7 +169,7 @@ func (b *Bitfinex) SetDefaults() {
 		exchange.WebsocketSpot: publicBitfinexWebsocketEndpoint,
 	})
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.ExchangeSys.Errorln(err)
 	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -243,7 +243,7 @@ func (b *Bitfinex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitfinex wrapper
 func (b *Bitfinex) Run() {
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
+		log.ExchangeSys.Debugf(
 			"%s Websocket: %s.",
 			b.Name,
 			common.IsEnabled(b.Websocket.IsEnabled()))
@@ -256,7 +256,7 @@ func (b *Bitfinex) Run() {
 
 	err := b.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys,
+		log.ExchangeSys.Errorf(
 			"%s failed to update tradable pairs. Err: %s",
 			b.Name,
 			err)
@@ -812,7 +812,7 @@ func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 		orderSide := order.Side(strings.ToUpper(resp[i].Side))
 		timestamp, err := strconv.ParseFloat(resp[i].Timestamp, 64)
 		if err != nil {
-			log.Warnf(log.ExchangeSys,
+			log.ExchangeSys.Warnf(
 				"Unable to convert timestamp '%s', leaving blank",
 				resp[i].Timestamp)
 		}
@@ -881,7 +881,7 @@ func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 		orderSide := order.Side(strings.ToUpper(resp[i].Side))
 		timestamp, err := strconv.ParseInt(resp[i].Timestamp, 10, 64)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "Unable to convert timestamp '%v', leaving blank", resp[i].Timestamp)
+			log.ExchangeSys.Warnf("Unable to convert timestamp '%v', leaving blank", resp[i].Timestamp)
 		}
 		orderDate := time.Unix(timestamp, 0)
 
@@ -1053,7 +1053,7 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 	}
 	err = dates.VerifyResultsHaveData(ret.Candles)
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+		log.ExchangeSys.Warnf("%s - %s", b.Name, err)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)
