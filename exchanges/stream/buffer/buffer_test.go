@@ -1003,7 +1003,6 @@ func TestUpdateByIDAndAction(t *testing.T) {
 }
 
 func TestFlushOrderbook(t *testing.T) {
-	t.Parallel()
 	w := &Orderbook{}
 	err := w.Setup(5, false, false, false, false, false, "test", make(chan interface{}, 2))
 	if err != nil {

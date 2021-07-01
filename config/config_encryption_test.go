@@ -319,7 +319,6 @@ func TestReadEncryptedConfigFromReader(t *testing.T) {
 
 // TestSaveConfigToFileWithErrorInPasswordPrompt should preserve the original file
 func TestSaveConfigToFileWithErrorInPasswordPrompt(t *testing.T) {
-	t.Parallel()
 	c := &Config{
 		Name:          "test",
 		EncryptConfig: fileEncryptionEnabled,
