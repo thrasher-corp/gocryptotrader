@@ -1,12 +1,12 @@
 package deribit
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -16,10 +16,10 @@ const (
 	canManipulateRealOrders = false
 )
 
-var de Deribit
+var d Deribit
 
 func TestMain(m *testing.M) {
-	de.SetDefaults()
+	d.SetDefaults()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 
-	err = de.Setup(exchCfg)
+	err = d.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,16 +44,58 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// Ensures that this exchange package is compatible with IBotExchange
-func TestInterface(t *testing.T) {
-	var e exchange.IBotExchange
-	if e = new(Deribit); e == nil {
-		t.Fatal("unable to allocate exchange")
-	}
-}
-
 func areTestAPIKeysSet() bool {
-	return de.ValidateAPICredentials()
+	return d.ValidateAPICredentials()
 }
 
 // Implement tests for API endpoints below
+
+func TestGetBookSummaryByCurrency(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	data, err := d.GetBookSummaryByCurrency("BTC", "")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(data)
+}
+
+func TestGetBookSummaryByInstrument(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	data, err := d.GetBookSummaryByInstrument("BTC-25MAR22")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(data)
+}
+
+func TestGetContractSize(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	data, err := d.GetContractSize("BTC-25MAR22")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(data)
+}
+
+func TestGetCurrencies(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	data, err := d.GetCurrencies()
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(data)
+}
+
+func TestGetFundingChartData(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	data, err := d.GetFundingChartData("BTC-PERPETUAL", "8h")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(data)
+}

@@ -1,5 +1,14 @@
 package deribit
 
+// UnmarshalError is the struct which is used for unmarshalling errors
+type UnmarshalError struct {
+	Message string `json:"message"`
+	Data    struct {
+		Reason string `json:"reason"`
+		Code   int64  `json:"code"`
+	}
+}
+
 // BookSummaryData stores summary data
 type BookSummaryData struct {
 	VolumeUSD              float64 `json:"volume_usd"`
@@ -22,7 +31,7 @@ type BookSummaryData struct {
 
 // ContractSizeData stores contract size for given instrument
 type ContractSizeData struct {
-	ContractSize int64 `json:"contract_size"`
+	ContractSize float64 `json:"contract_size"`
 }
 
 // CurrencyData stores data for currencies
@@ -385,5 +394,3 @@ type PrivateCancelData struct {
 	API                 bool    `json:"api"`
 	Amount              float64 `json:"amount"`
 }
-
-

@@ -2,9 +2,11 @@ package deribit
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"net/http"
+	"net/url"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -15,7 +17,7 @@ type Deribit struct {
 }
 
 const (
-	deribitAPIURL     = "www.deribit.com"
+	deribitAPIURL     = "https://www.deribit.com"
 	deribitAPIVersion = "/api/v2"
 
 	// Public endpoints
@@ -123,9 +125,50 @@ const (
 // Start implementing public and private exchange API funcs below
 
 // GetBookSummaryByCurrency gets book summary data for currency requested
-func (d *Deribit) GetBookSummaryByCurrency(currency, kind string) (BookSummaryData, error) {
-	var resp IndexWeights
-	return resp, f.SendHTTPRequest(exchange.RestSpot, fmt.Sprintf(getIndexWeights, index), &resp)
+func (d *Deribit) GetBookSummaryByCurrency(currency, kind string) ([]BookSummaryData, error) {
+	var resp []BookSummaryData
+	params := url.Values{}
+	params.Set("currency", currency)
+	if kind != "" {
+		params.Set("kind", kind)
+	}
+	return resp, d.SendHTTPRequest(exchange.RestSpot,
+		common.EncodeURLValues(getBookByCurrency, params), &resp)
+}
+
+// GetBookSummaryByInstrument gets book summary data for instrument requested
+func (d *Deribit) GetBookSummaryByInstrument(instrument string) ([]BookSummaryData, error) {
+	var resp []BookSummaryData
+	params := url.Values{}
+	params.Set("instrument_name", instrument)
+	return resp, d.SendHTTPRequest(exchange.RestSpot,
+		common.EncodeURLValues(getBookByInstrument, params), &resp)
+}
+
+// GetContractSize gets contract size for instrument requested
+func (d *Deribit) GetContractSize(instrument string) (ContractSizeData, error) {
+	var resp ContractSizeData
+	params := url.Values{}
+	params.Set("instrument_name", instrument)
+	return resp, d.SendHTTPRequest(exchange.RestSpot,
+		common.EncodeURLValues(getContractSize, params), &resp)
+}
+
+// GetCurrencies gets all cryptocurrencies supported by the API
+func (d *Deribit) GetCurrencies() ([]CurrencyData, error) {
+	var resp []CurrencyData
+	return resp, d.SendHTTPRequest(exchange.RestSpot, getCurrencies, &resp)
+}
+
+// GetFundingChartData gets funding chart data for the requested instrument and timelength
+// supported lengths: 8h, 24h, 1m <-(1month)
+func (d *Deribit) GetFundingChartData(instrument, length string) (FundingChartData, error) {
+	var resp FundingChartData
+	params := url.Values{}
+	params.Set("instrument_name", instrument)
+	params.Set("length", length)
+	return resp, d.SendHTTPRequest(exchange.RestSpot,
+		common.EncodeURLValues(getFundingChartData, params), &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -134,12 +177,21 @@ func (d *Deribit) SendHTTPRequest(ep exchange.URL, path string, result interface
 	if err != nil {
 		return err
 	}
-	return d.SendPayload(context.Background(), &request.Item{
+	var data struct {
+		JsonRPC string          `json:"jsonrpc"`
+		ID      int64           `json:"id"`
+		Data    json.RawMessage `json:"result"`
+	}
+	err = d.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
+		Path:          endpoint + deribitAPIVersion + path,
+		Result:        &data,
 		Verbose:       d.Verbose,
 		HTTPDebugging: d.HTTPDebugging,
 		HTTPRecording: d.HTTPRecording,
 	})
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data.Data, result)
 }
