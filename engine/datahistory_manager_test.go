@@ -528,8 +528,14 @@ func TestGetAllJobStatusBetween(t *testing.T) {
 
 	m.started = 0
 	_, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	}
+
+	m = nil
+	_, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 }
 
