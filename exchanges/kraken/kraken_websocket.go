@@ -58,9 +58,12 @@ const (
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be
 // processed at a time
-var subscriptionChannelPair []WebsocketChannelData
-var authToken string
-var pingRequest = WebsocketBaseEventRequest{Event: stream.Ping}
+var (
+	subscriptionChannelPair []WebsocketChannelData
+	authToken               string
+	pingRequest             = WebsocketBaseEventRequest{Event: stream.Ping}
+	m                       sync.Mutex
+)
 
 // Channels require a topic and a currency
 // Format [[ticker,but-t4u],[orderbook,nce-btt]]
@@ -625,6 +628,8 @@ func (k *Kraken) addNewSubscriptionChannelData(response *wsSubscription) {
 			return
 		}
 	}
+	m.Lock()
+	defer m.Unlock()
 	subscriptionChannelPair = append(subscriptionChannelPair, WebsocketChannelData{
 		Subscription: response.Subscription.Name,
 		Pair:         fPair,
@@ -634,6 +639,8 @@ func (k *Kraken) addNewSubscriptionChannelData(response *wsSubscription) {
 
 // getSubscriptionChannelData retrieves WebsocketChannelData based on response ID
 func getSubscriptionChannelData(id int64) (WebsocketChannelData, error) {
+	m.Lock()
+	defer m.Unlock()
 	for i := range subscriptionChannelPair {
 		if subscriptionChannelPair[i].ChannelID == nil {
 			continue
