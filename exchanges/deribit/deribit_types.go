@@ -242,3 +242,148 @@ type CancelWithdrawalData struct {
 	TransactionID      int64   `json:"transaction_id"`
 	UpdatedTimestamp   int64   `json:"updated_timestamp"`
 }
+
+// CreateDepositAddressData stores data for creating a deposit address
+type CreateDepositAddressData struct {
+	Address           string `json:"address"`
+	CreationTimestamp int64  `json:"creation_timestamp"`
+	Currency          string `json:"currency"`
+	Type              string `json:"type"`
+}
+
+// DepositsData stores data of deposits
+type DepositsData struct {
+	Count int64 `json:"count"`
+	Data  []struct {
+		Address           string  `json:"address"`
+		Amount            float64 `json:"amount"`
+		Currency          string  `json:"currency"`
+		ReceivedTimestamp int64   `json:"receivedTimestamp"`
+		State             string  `json:"state"`
+		TransactionID     string  `json:"transaction_id"`
+		UpdatedTimestamp  int64   `json:"updated_timestamp"`
+	} `json:"data"`
+}
+
+// TransferData stores data for a transfer
+type TransferData struct {
+	Amount           float64 `json:"amount"`
+	CreatedTimestamp int64   `json:"created_timestamp"`
+	Currency         string  `json:"currency"`
+	Direction        string  `json:"direction"`
+	ID               int64   `json:"id"`
+	OtherSide        string  `json:"other_side"`
+	State            string  `json:"state"`
+	Type             string  `json:"type"`
+	UpdatedTimestamp int64   `json:"updated_timestamp"`
+}
+
+// TransfersData stores data of transfers
+type TransfersData struct {
+	Count int64          `json:"count"`
+	Data  []TransferData `json:"data"`
+}
+
+// WithdrawData stores data of withdrawal
+type WithdrawData struct {
+	Address            string  `json:"address"`
+	Amount             float64 `json:"amount"`
+	ConfirmedTimestamp int64   `json:"confirmed_timestamp"`
+	CreatedTimestamp   int64   `json:"created_timestamp"`
+	Currency           string  `json:"currency"`
+	Fee                float64 `json:"fee"`
+	ID                 int64   `json:"id"`
+	Priority           float64 `json:"priority"`
+	State              string  `json:"state"`
+	TransactionID      int64   `json:"transaction_id"`
+	UpdatedTimestamp   int64   `json:"updated_timestamp"`
+}
+
+// WithdrawalsData stores data of withdrawals
+type WithdrawalsData struct {
+	Count int64          `json:"count"`
+	Data  []WithdrawData `json:"data"`
+}
+
+// TradeData stores a data for a private trade
+type TradeData struct {
+	TradeSequence  int64   `json:"trade_seq"`
+	TradeID        int64   `json:"trade_id"`
+	Timestamp      int64   `json:"timestamp"`
+	TickDirection  int64   `json:"tick_direction"`
+	State          string  `json:"state"`
+	SelfTrade      bool    `json:"self_trade"`
+	ReduceOnly     bool    `json:"reduce_only"`
+	Price          float64 `json:"price"`
+	PostOnly       bool    `json:"post_only"`
+	OrderType      string  `json:"order_type"`
+	OrderID        string  `json:"order_id"`
+	MatchingID     int64   `json:"matching_id"`
+	MarkPrice      float64 `json:"mark_price"`
+	Liquidity      string  `json:"liquidity"`
+	Label          string  `json:"label"`
+	InstrumentName string  `json:"instrument_name"`
+	IndexPrice     float64 `json:"index_price"`
+	FeeCurrency    string  `json:"fee_currency"`
+	Fee            float64 `json:"fee"`
+	Direction      string  `json:"direction"`
+	Amount         float64 `json:"amount"`
+}
+
+// OrderData stores order data
+type OrderData struct {
+	Web                 bool    `json:"web"`
+	TimeInForce         string  `json:"time_in_force"`
+	Replaced            bool    `json:"replaced"`
+	ReduceOnly          bool    `json:"reduce_only"`
+	ProfitLoss          float64 `json:"profit_loss"`
+	Price               float64 `json:"price"`
+	PostOnly            bool    `json:"post_only"`
+	OrderType           string  `json:"order_type"`
+	OrderState          string  `json:"order_state"`
+	OrderID             int64   `json:"order_id"`
+	MaxShow             int64   `json:"max_show"`
+	LastUpdateTimestamp int64   `json:"last_update_timestamp"`
+	Label               string  `json:"label"`
+	IsLiquidation       bool    `json:"is_liquidation"`
+	InstrumentName      string  `json:"instrument_name"`
+	FilledAmount        float64 `json:"filled_amount"`
+	Direction           string  `json:"direction"`
+	CreationTimestamp   int64   `json:"creation_timestamp"`
+	Commission          float64 `json:"commission"`
+	AveragePrice        float64 `json:"average_price"`
+	API                 bool    `json:"api"`
+	Amount              float64 `json:"amount"`
+}
+
+// PrivateTradeData stores data of a private buy, sell or edit
+type PrivateTradeData struct {
+	Trades []TradeData `json:"trades"`
+	Order  OrderData   `json:"order"`
+}
+
+// PrivateCancelData stores data of a private cancel
+type PrivateCancelData struct {
+	Triggered           bool    `json:"triggered"`
+	Trigger             string  `json:"trigger"`
+	TimeInForce         string  `json:"time_in_force"`
+	TriggerPrice        float64 `json:"trigger_price"`
+	ReduceOnly          bool    `json:"reduce_only"`
+	ProfitLoss          float64 `json:"profit_loss"`
+	Price               string  `json:"price"`
+	PostOnly            bool    `json:"post_only"`
+	OrderType           string  `json:"order_type"`
+	OrderState          string  `json:"order_state"`
+	OrderID             string  `json:"order_id"`
+	MaxShow             int64   `json:"max_show"`
+	LastUpdateTimestamp int64   `json:"last_update_timestamp"`
+	Label               string  `json:"label"`
+	IsLiquidation       bool    `json:"is_liquidation"`
+	InstrumentName      string  `json:"instrument_name"`
+	Direction           string  `json:"direction"`
+	CreationTimestamp   int64   `json:"creation_timestamp"`
+	API                 bool    `json:"api"`
+	Amount              float64 `json:"amount"`
+}
+
+

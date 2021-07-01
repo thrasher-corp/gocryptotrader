@@ -1,7 +1,12 @@
 package deribit
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 // Deribit is the overarching type across this package
@@ -11,7 +16,7 @@ type Deribit struct {
 
 const (
 	deribitAPIURL     = "www.deribit.com"
-	deribitAPIVersion = ""
+	deribitAPIVersion = "/api/v2"
 
 	// Public endpoints
 	getBookByCurrency                = "/public/get_book_summary_by_currency"
@@ -116,3 +121,25 @@ const (
 )
 
 // Start implementing public and private exchange API funcs below
+
+// GetBookSummaryByCurrency gets book summary data for currency requested
+func (d *Deribit) GetBookSummaryByCurrency(currency, kind string) (BookSummaryData, error) {
+	var resp IndexWeights
+	return resp, f.SendHTTPRequest(exchange.RestSpot, fmt.Sprintf(getIndexWeights, index), &resp)
+}
+
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (d *Deribit) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
+	endpoint, err := d.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
+	return d.SendPayload(context.Background(), &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        result,
+		Verbose:       d.Verbose,
+		HTTPDebugging: d.HTTPDebugging,
+		HTTPRecording: d.HTTPRecording,
+	})
+}
