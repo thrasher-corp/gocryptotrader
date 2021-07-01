@@ -13,6 +13,7 @@ var (
 	APIServerMgr     *subLogger
 	ConfigMgr        *subLogger
 	DatabaseMgr      *subLogger
+	DataHistory      *subLogger
 	GCTScriptMgr     *subLogger
 	OrderMgr         *subLogger
 	PortfolioMgr     *subLogger

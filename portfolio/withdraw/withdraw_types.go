@@ -25,8 +25,6 @@ const (
 const (
 	// ErrStrAmountMustBeGreaterThanZero message to return when requested amount is less than 0
 	ErrStrAmountMustBeGreaterThanZero = "amount must be greater than 0"
-	// ErrStrAddressisInvalid message to return when address is invalid for crypto request
-	ErrStrAddressisInvalid = "address is not valid"
 	// ErrStrAddressNotSet message to return when address is empty
 	ErrStrAddressNotSet = "address cannot be empty"
 	// ErrStrNoCurrencySet message to return when no currency is set
@@ -37,8 +35,6 @@ const (
 	ErrStrCurrencyNotFiat = "requested currency is not fiat"
 	// ErrStrFeeCannotBeNegative message to return when fee amount is negative
 	ErrStrFeeCannotBeNegative = "fee amount cannot be negative"
-	// ErrStrAddressNotWhiteListed message to return when attempting to withdraw to non-whitelisted address
-
 )
 
 var (

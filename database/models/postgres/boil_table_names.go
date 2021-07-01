@@ -4,23 +4,27 @@
 package postgres
 
 var TableNames = struct {
-	AuditEvent        string
-	Candle            string
-	Exchange          string
-	Script            string
-	ScriptExecution   string
-	Trade             string
-	WithdrawalCrypto  string
-	WithdrawalFiat    string
-	WithdrawalHistory string
+	AuditEvent           string
+	Candle               string
+	Datahistoryjob       string
+	Datahistoryjobresult string
+	Exchange             string
+	Script               string
+	ScriptExecution      string
+	Trade                string
+	WithdrawalCrypto     string
+	WithdrawalFiat       string
+	WithdrawalHistory    string
 }{
-	AuditEvent:        "audit_event",
-	Candle:            "candle",
-	Exchange:          "exchange",
-	Script:            "script",
-	ScriptExecution:   "script_execution",
-	Trade:             "trade",
-	WithdrawalCrypto:  "withdrawal_crypto",
-	WithdrawalFiat:    "withdrawal_fiat",
-	WithdrawalHistory: "withdrawal_history",
+	AuditEvent:           "audit_event",
+	Candle:               "candle",
+	Datahistoryjob:       "datahistoryjob",
+	Datahistoryjobresult: "datahistoryjobresult",
+	Exchange:             "exchange",
+	Script:               "script",
+	ScriptExecution:      "script_execution",
+	Trade:                "trade",
+	WithdrawalCrypto:     "withdrawal_crypto",
+	WithdrawalFiat:       "withdrawal_fiat",
+	WithdrawalHistory:    "withdrawal_history",
 }

@@ -555,8 +555,8 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 
-	tt := time.Now()
-	tt2 := time.Now().Add(time.Hour)
+	tt := time.Now().Add(-gctkline.OneDay.Duration() * 7)
+	tt2 := time.Now().Add(-gctkline.OneDay.Duration() * 6)
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)

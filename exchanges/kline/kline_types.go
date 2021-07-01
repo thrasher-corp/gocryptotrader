@@ -41,6 +41,11 @@ const (
 var (
 	// ErrMissingCandleData is an error for missing candle data
 	ErrMissingCandleData = errors.New("missing candle data")
+	// ErrUnsetInterval is an error for date range calculation
+	ErrUnsetInterval = errors.New("cannot calculate range, interval unset")
+	// ErrUnsupportedInterval returns when the provided interval is not supported by an exchange
+	ErrUnsupportedInterval = errors.New("interval unsupported by exchange")
+
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{
 		FifteenSecond,

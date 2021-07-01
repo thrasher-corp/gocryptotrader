@@ -121,20 +121,10 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 	}
 
 	exch := e.ExchangeManager.GetExchangeByName(testExchange)
-	cfg, err := exch.GetDefaultConfig()
-	if err != nil {
-		t.Error(err)
-	}
-	cfg.Enabled = true
-	cfg.API.AuthenticatedSupport = true
-	cfg.API.AuthenticatedWebsocketSupport = true
-	cfg.API.Credentials.Key = "test"
-	cfg.API.Credentials.Secret = "test"
-	cfg.WebsocketTrafficTimeout = time.Minute
-	err = exch.Setup(cfg)
-	if err != nil {
-		t.Error(err)
-	}
+	b := exch.GetBase()
+	b.API.AuthenticatedWebsocketSupport = true
+	b.API.Credentials.Key = "test"
+	b.API.Credentials.Secret = "test"
 	if result := e.GetAuthAPISupportedExchanges(); len(result) != 1 {
 		t.Fatal("Unexpected result", result)
 	}
