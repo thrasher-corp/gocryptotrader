@@ -4,8 +4,27 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 )
+
+var (
+	errEmptyLoggerName            = errors.New("cannot have empty logger name")
+	errSubLoggerAlreadyregistered = errors.New("sub logger already registered")
+)
+
+// NewSubLogger allows for a new sub logger to be registered.
+func NewSubLogger(name string) (*SubLogger, error) {
+	if name == "" {
+		return nil, errEmptyLoggerName
+	}
+	name = strings.ToUpper(name)
+	_, ok := subLoggers[name]
+	if ok {
+		return nil, errSubLoggerAlreadyregistered
+	}
+	return registerNewSubLogger(name), nil
+}
 
 func newLogger(c *Config) *Logger {
 	return &Logger{
@@ -53,7 +72,7 @@ func CloseLogger() error {
 	return GlobalLogFile.Close()
 }
 
-func validSubLogger(s string) (bool, *subLogger) {
+func validSubLogger(s string) (bool, *SubLogger) {
 	if v, found := subLoggers[s]; found {
 		return true, v
 	}
