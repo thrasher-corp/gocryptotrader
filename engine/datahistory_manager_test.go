@@ -192,7 +192,7 @@ func TestUpsertJob(t *testing.T) {
 		Interval:         kline.FifteenMin,
 		RunBatchLimit:    1338,
 		RequestSizeLimit: 1337,
-		DataType:         2,
+		DataType:         99,
 		MaxRetryAttempts: 1337,
 	}
 	err = m.UpsertJob(newJob, false)
@@ -892,7 +892,7 @@ func createDHM(t *testing.T) *DataHistoryManager {
 func TestProcessCandleData(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
-	_, err := m.processCandleData(nil, nil, time.Time{}, time.Time{})
+	_, err := m.processCandleData(nil, nil, time.Time{}, time.Time{}, 0)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
 	}
@@ -905,7 +905,7 @@ func TestProcessCandleData(t *testing.T) {
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
 	}
-	_, err = m.processCandleData(j, nil, time.Time{}, time.Time{})
+	_, err = m.processCandleData(j, nil, time.Time{}, time.Time{}, 0)
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
 	}
@@ -919,7 +919,7 @@ func TestProcessCandleData(t *testing.T) {
 	fakeExchange := dhmExchange{
 		IBotExchange: exch,
 	}
-	_, err = m.processCandleData(j, exch, time.Time{}, time.Time{})
+	_, err = m.processCandleData(j, exch, time.Time{}, time.Time{}, 0)
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
 	}
@@ -929,14 +929,14 @@ func TestProcessCandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	r, err := m.processCandleData(j, fakeExchange, j.StartDate, j.EndDate)
+	r, err := m.processCandleData(j, fakeExchange, j.StartDate, j.EndDate, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 	if r.Status != dataHistoryStatusComplete {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusComplete)
 	}
-	r, err = m.processCandleData(j, exch, j.StartDate, j.EndDate)
+	r, err = m.processCandleData(j, exch, j.StartDate, j.EndDate, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -948,7 +948,7 @@ func TestProcessCandleData(t *testing.T) {
 func TestProcessTradeData(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
-	_, err := m.processTradeData(nil, nil, time.Time{}, time.Time{})
+	_, err := m.processTradeData(nil, nil, time.Time{}, time.Time{}, 0)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
 	}
@@ -961,7 +961,7 @@ func TestProcessTradeData(t *testing.T) {
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
 	}
-	_, err = m.processTradeData(j, nil, time.Time{}, time.Time{})
+	_, err = m.processTradeData(j, nil, time.Time{}, time.Time{}, 0)
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
 	}
@@ -975,7 +975,7 @@ func TestProcessTradeData(t *testing.T) {
 	fakeExchange := dhmExchange{
 		IBotExchange: exch,
 	}
-	_, err = m.processTradeData(j, exch, time.Time{}, time.Time{})
+	_, err = m.processTradeData(j, exch, time.Time{}, time.Time{}, 0)
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
 	}
@@ -984,14 +984,14 @@ func TestProcessTradeData(t *testing.T) {
 		t.Error(err)
 	}
 	m.tradeSaver = dataHistoryTradeSaver
-	r, err := m.processTradeData(j, fakeExchange, j.StartDate, j.EndDate)
+	r, err := m.processTradeData(j, fakeExchange, j.StartDate, j.EndDate, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 	if r.Status != dataHistoryStatusFailed {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
 	}
-	r, err = m.processTradeData(j, exch, j.StartDate, j.EndDate)
+	r, err = m.processTradeData(j, exch, j.StartDate, j.EndDate, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
