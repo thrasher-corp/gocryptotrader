@@ -11,6 +11,7 @@ type Unsafe struct {
 	BidHead **Node
 	AskHead **Node
 	m       *sync.Mutex
+	*Alert
 }
 
 // Lock locks down the underlying linked list which inhibits all pending updates
@@ -49,5 +50,6 @@ func (d *Depth) GetUnsafe() Unsafe {
 		BidHead: &d.bids.linkedList.head,
 		AskHead: &d.asks.linkedList.head,
 		m:       &d.m,
+		Alert:   &d.Alert,
 	}
 }
