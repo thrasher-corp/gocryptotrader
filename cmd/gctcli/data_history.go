@@ -16,7 +16,7 @@ import (
 
 var (
 	maxRetryAttempts, requestSizeLimit, batchSize uint64
-	prerequisiteJobSubCommands = []cli.Flag{
+	prerequisiteJobSubCommands                    = []cli.Flag{
 		&cli.StringFlag{
 			Name:  "nickname",
 			Usage: "binance-spot-btc-usdt-2019-trades",
@@ -26,8 +26,8 @@ var (
 			Usage: "binance-spot-btc-usdt-2018-trades",
 		},
 	}
-	guidExample                                   = "deadbeef-dead-beef-dead-beef13371337"
-	specificJobSubCommands                        = []cli.Flag{
+	guidExample            = "deadbeef-dead-beef-dead-beef13371337"
+	specificJobSubCommands = []cli.Flag{
 		&cli.StringFlag{
 			Name:  "id",
 			Usage: guidExample,
@@ -418,15 +418,15 @@ func upsertDataHistoryJob(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		StartDate:        negateLocalOffset(s),
-		EndDate:          negateLocalOffset(e),
-		Interval:         int64(candleInterval),
-		RequestSizeLimit: int64(requestSizeLimit),
-		DataType:         dataType,
-		MaxRetryAttempts: int64(maxRetryAttempts),
-		BatchSize:        int64(batchSize),
-		ConversionInterval:    int64(conversionInterval),
-		OverwriteExistingData: overwriteExistingData,
+		StartDate:               negateLocalOffset(s),
+		EndDate:                 negateLocalOffset(e),
+		Interval:                int64(candleInterval),
+		RequestSizeLimit:        int64(requestSizeLimit),
+		DataType:                dataType,
+		MaxRetryAttempts:        int64(maxRetryAttempts),
+		BatchSize:               int64(batchSize),
+		ConversionInterval:      int64(conversionInterval),
+		OverwriteExistingData:   overwriteExistingData,
 		PrerequisiteJobNickname: prerequisiteJobNickname,
 	}
 	if strings.EqualFold(c.Command.Name, "addnewjob") {
@@ -605,10 +605,8 @@ func setPrerequisiteJob(c *cli.Context) error {
 		prerequisite = c.Args().Get(1)
 	}
 
-	if c.Command.Name == "updateprerequisite" {
-		if prerequisite == "" {
-			return errors.New("prerequisite required")
-		}
+	if c.Command.Name == "updateprerequisite" && prerequisite == "" {
+		return errors.New("prerequisite required")
 	}
 
 	conn, err := setupClient()

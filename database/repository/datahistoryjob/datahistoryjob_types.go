@@ -49,5 +49,6 @@ type IDBService interface {
 	GetAllIncompleteJobsAndResults() ([]DataHistoryJob, error)
 	GetJobAndAllResults(string) (*DataHistoryJob, error)
 	GetRelatedUpcomingJobs(string) ([]*DataHistoryJob, error)
-	SetRelationship(string, string, int64) error
+	SetRelationshipByID(string, string, int64) error
+	SetRelationshipByNickname(string, string, int64) error
 }

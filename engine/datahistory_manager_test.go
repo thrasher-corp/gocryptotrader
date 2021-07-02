@@ -1208,7 +1208,11 @@ func (d dataHistoryJobService) Upsert(_ ...*datahistoryjob.DataHistoryJob) error
 	return nil
 }
 
-func (d dataHistoryJobService) SetRelationship(string, string, int64) error {
+func (d dataHistoryJobService) SetRelationshipByID(string, string, int64) error {
+	return nil
+}
+
+func (d dataHistoryJobService) SetRelationshipByNickname(string, string, int64) error {
 	return nil
 }
 

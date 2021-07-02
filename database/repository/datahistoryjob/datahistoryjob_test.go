@@ -205,7 +205,7 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Errorf("expected %v, received %v", jerb.Nickname, jerberoos[0].Nickname)
 			}
 
-			err = db.SetRelationship(results[0].ID, results[1].ID, 1337)
+			err = db.SetRelationshipByID(results[0].ID, results[1].ID, 1337)
 			if err != nil {
 				t.Error(err)
 			}
@@ -229,7 +229,7 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Errorf("received %v expected %v", rel[0].ID, results[1].ID)
 			}
 
-			err = db.SetRelationship(results[0].ID, results[2].ID, 1337)
+			err = db.SetRelationshipByID(results[0].ID, results[2].ID, 1337)
 			if err != nil {
 				t.Error(err)
 			}
@@ -262,7 +262,7 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Errorf("received %v expected %v", jerb.ID, results[0].ID)
 			}
 
-			err = db.SetRelationship("", results[2].ID, 0)
+			err = db.SetRelationshipByNickname("", results[2].Nickname, 0)
 			if err != nil {
 				t.Error(err)
 			}

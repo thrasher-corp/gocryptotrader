@@ -339,8 +339,6 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 		if err != nil {
 			return fmt.Errorf("job %s failed to insert job results to database: %w", job.Nickname, err)
 		}
-		return nil
-
 	} else {
 	ranges:
 		for i := range job.rangeHolder.Ranges {
@@ -349,12 +347,31 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 				if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
 					skipProcessing = false
 					break
-				} else if job.rangeHolder.Ranges[i].Intervals[j].HasData && job.DataType == dataHistoryCandleValidationDataType {
-					skipProcessing = false
 				}
 			}
-			if skipProcessing ||
-				intervalsProcessed >= job.RunBatchLimit {
+			if skipProcessing {
+				_, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
+				if !ok {
+					// we have determined that data is there, however it is not reflected in
+					// this specific job's results, which is required for a job to be complete
+					id, err := uuid.NewV4()
+					if err != nil {
+						return err
+					}
+					job.Results[job.rangeHolder.Ranges[i].Start.Time] = []DataHistoryJobResult{
+						{
+							ID:                id,
+							JobID:             job.ID,
+							IntervalStartDate: job.rangeHolder.Ranges[i].Start.Time,
+							IntervalEndDate:   job.rangeHolder.Ranges[i].End.Time,
+							Status:            dataHistoryStatusComplete,
+							Date:              time.Now(),
+						},
+					}
+				}
+				continue
+			}
+			if intervalsProcessed >= job.RunBatchLimit {
 				continue
 			}
 
@@ -404,8 +421,6 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 				result, err = m.convertJobTradesToCandles(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 			case dataHistoryConvertCandlesDataType:
 				result, err = m.upscaleJobCandleData(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
-			case dataHistoryCandleValidationDataType:
-				result, err = m.validateCandles(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 			default:
 				return errUnknownDataType
 			}
@@ -420,36 +435,36 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			lookup = append(lookup, *result)
 			job.Results[result.IntervalStartDate] = lookup
 		}
+	}
 
-		completed := true
-		allResultsSuccessful := true
-		allResultsFailed := true
-	completionCheck:
-		for i := range job.rangeHolder.Ranges {
-			result, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
-			if !ok {
+	completed := true
+	allResultsSuccessful := true
+	allResultsFailed := true
+completionCheck:
+	for i := range job.rangeHolder.Ranges {
+		result, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
+		if !ok {
+			completed = false
+		}
+	results:
+		for j := range result {
+			switch result[j].Status {
+			case dataHistoryIntervalMissingData:
+				allResultsSuccessful = false
+				break results
+			case dataHistoryStatusComplete:
+				allResultsFailed = false
+				break results
+			default:
 				completed = false
-			}
-		results:
-			for j := range result {
-				switch result[j].Status {
-				case dataHistoryIntervalMissingData:
-					allResultsSuccessful = false
-					break results
-				case dataHistoryStatusComplete:
-					allResultsFailed = false
-					break results
-				default:
-					completed = false
-					break completionCheck
-				}
+				break completionCheck
 			}
 		}
-		if completed {
-			err := m.completionCheck(job, allResultsSuccessful, allResultsFailed)
-			if err != nil {
-				return err
-			}
+	}
+	if completed {
+		err := m.completionCheck(job, allResultsSuccessful, allResultsFailed)
+		if err != nil {
+			return err
 		}
 	}
 	dbJob := m.convertJobToDBModel(job)
@@ -759,7 +774,7 @@ func (m *DataHistoryManager) SetJobRelationship(prerequisiteJobNickname, jobNick
 	if prerequisiteJobNickname == "" {
 		status = dataHistoryStatusActive
 	}
-	return m.jobDB.SetRelationship(prerequisiteJobNickname, jobNickname, int64(status))
+	return m.jobDB.SetRelationshipByNickname(prerequisiteJobNickname, jobNickname, int64(status))
 }
 
 // UpsertJob allows for GRPC interaction to upsert a job to be processed
@@ -862,27 +877,23 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 			return err
 		}
 	}
-	if job.PrerequisiteJobNickname != "" {
-		// only allow new jobs to create associations.
-		// updating/removing existing associations is its own task
-		prereqJob, err := m.jobDB.GetByNickName(job.PrerequisiteJobNickname)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return fmt.Errorf("%s previous job %s %w", job.Nickname, job.PrerequisiteJobNickname, err)
-			}
-			return err
-		}
-		job.PrerequisiteJobID = uuid.FromStringOrNil(prereqJob.ID)
-		// we pause the job until the previous job is finished
-		job.Status = dataHistoryStatusPaused
-	}
 
 	if !isUpdatingExistingJob {
 		m.jobs = append(m.jobs, job)
 	}
 
 	dbJob := m.convertJobToDBModel(job)
-	return m.jobDB.Upsert(dbJob)
+	err = m.jobDB.Upsert(dbJob)
+	if err != nil {
+		return err
+	}
+	if job.PrerequisiteJobNickname == "" {
+		return nil
+	}
+	job.Status = dataHistoryStatusPaused
+	// only allow new jobs to create associations.
+	// updating/removing existing associations is its own task
+	return m.jobDB.SetRelationshipByNickname(job.PrerequisiteJobNickname, job.Nickname, int64(dataHistoryStatusPaused))
 }
 
 func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
