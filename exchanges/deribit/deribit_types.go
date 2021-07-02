@@ -1,5 +1,7 @@
 package deribit
 
+import "errors"
+
 // UnmarshalError is the struct which is used for unmarshalling errors
 type UnmarshalError struct {
 	Message string `json:"message"`
@@ -8,6 +10,10 @@ type UnmarshalError struct {
 		Code   int64  `json:"code"`
 	}
 }
+
+var (
+	errStartTimeCannotBeAfterEndTime = errors.New("start timestamp cannot be after end timestamp")
+)
 
 // BookSummaryData stores summary data
 type BookSummaryData struct {
@@ -102,7 +108,7 @@ type InstrumentData struct {
 	InstrumentName       string  `json:"instrument_name"`
 	ExpirationTimestamp  int64   `json:"expiration_timestamp"`
 	CreationTimestamp    int64   `json:"creation_timestamp"`
-	ContractSize         int64   `json:"contract_size"`
+	ContractSize         float64 `json:"contract_size"`
 	BlockTradeCommission float64 `json:"block_trade_commission"`
 	BaseCurrency         string  `json:"base_currency"`
 }
@@ -114,7 +120,7 @@ type SettlementsData struct {
 		Timestamp         int64   `json:"timestamp"`
 		SessionProfitLoss float64 `json:"session_profit_loss"`
 		ProfitLoss        float64 `json:"profit_loss"`
-		Position          int64   `json:"position"`
+		Position          float64 `json:"position"`
 		MarkPrice         float64 `json:"mark_price"`
 		InstrumentName    string  `json:"instrument_name"`
 		IndexPrice        float64 `json:"index_price"`
