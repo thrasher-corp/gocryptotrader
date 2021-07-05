@@ -100,11 +100,13 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 
 func TestCheckBankAccountConfig(t *testing.T) {
 	t.Parallel()
-	cfg := &Config{BankAccounts: []banking.Account{
-		{
-			Enabled: true,
+	cfg := &Config{
+		BankAccounts: []banking.Account{
+			{
+				Enabled: true,
+			},
 		},
-	}}
+	}
 
 	cfg.CheckBankAccountConfig()
 	if cfg.BankAccounts[0].Enabled {
