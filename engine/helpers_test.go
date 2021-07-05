@@ -208,7 +208,13 @@ func TestIsOnline(t *testing.T) {
 func TestGetSpecificAvailablePairs(t *testing.T) {
 	t.Parallel()
 	e := CreateTestBot(t)
-	cfg := &config.Config{
+	c := currency.Code{
+		Item: &currency.Item{
+			Role:   currency.Cryptocurrency,
+			Symbol: "usdt",
+		},
+	}
+	e.Config = &config.Config{
 		Exchanges: []config.ExchangeConfig{
 			{
 				Enabled: true,
@@ -216,8 +222,8 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 				CurrencyPairs: &currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{
 					asset.Spot: {
 						AssetEnabled: convert.BoolPtr(true),
-						Enabled:      currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, currency.USDT)},
-						Available:    currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, currency.USDT)},
+						Enabled:      currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, c)},
+						Available:    currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, c)},
 						ConfigFormat: &currency.PairFormat{
 							Uppercase: true,
 						},
@@ -226,25 +232,15 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 			},
 		},
 	}
-	currency.USDT.Item.Role = currency.Cryptocurrency
-	e.Config = cfg
 	assetType := asset.Spot
-	result := e.GetSpecificAvailablePairs(true, true, true, false, assetType)
 
-	btcUSD, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Error(err)
-	}
-
+	result := e.GetSpecificAvailablePairs(true, true, true, true, assetType)
+	btcUSD := currency.NewPair(currency.BTC, currency.USD)
 	if !result.Contains(btcUSD, true) {
 		t.Error("Unexpected result")
 	}
 
-	btcUSDT, err := currency.NewPairFromStrings("BTC", "USDT")
-	if err != nil {
-		t.Error(err)
-	}
-
+	btcUSDT := currency.NewPair(currency.BTC, c)
 	if !result.Contains(btcUSDT, false) {
 		t.Error("Unexpected result")
 	}
@@ -255,11 +251,7 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 		t.Error("Unexpected result")
 	}
 
-	ltcBTC, err := currency.NewPairFromStrings("LTC", "BTC")
-	if err != nil {
-		t.Error(err)
-	}
-
+	ltcBTC := currency.NewPair(currency.LTC, currency.BTC)
 	result = e.GetSpecificAvailablePairs(true, false, false, true, assetType)
 	if result.Contains(ltcBTC, false) {
 		t.Error("Unexpected result")
