@@ -3,12 +3,14 @@ package deribit
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -189,14 +191,34 @@ func (d *Deribit) GetFundingRateValue(instrument string, startTime, endTime time
 		common.EncodeURLValues(getFundingRateValue, params), &resp)
 }
 
-// // GetHistoricalVolatility gets historical volatility data
-// func (d *Deribit) GetHistoricalVolatility(currency string) (HistoricalVolatilityData, error) {
-// 	var resp HistoricalVolatilityData
-// 	params := url.Values{}
-// 	params.Set("currency", instrument)
-// 	return resp, d.SendHTTPRequest(exchange.RestSpot,
-// 		common.EncodeURLValues(getHistoricalVolatility, params), &resp)
-// }
+// GetHistoricalVolatility gets historical volatility data
+func (d *Deribit) GetHistoricalVolatility(currency string) ([]HistoricalVolatilityData, error) {
+	var data [][2]interface{}
+	params := url.Values{}
+	params.Set("currency", currency)
+	err := d.SendHTTPRequest(exchange.RestSpot,
+		common.EncodeURLValues(getHistoricalVolatility, params), &data)
+	if err != nil {
+		return nil, err
+	}
+	var resp []HistoricalVolatilityData
+	for x := range data {
+		timeData, ok := data[x][0].(float64)
+		if !ok {
+			fmt.Println(data[x][0])
+			return resp, fmt.Errorf("%v GetHistoricalVolatility: %w for time", d.Name, errTypeAssert)
+		}
+		val, ok := data[x][1].(float64)
+		if !ok {
+			return resp, fmt.Errorf("%v GetHistoricalVolatility: %w for val", d.Name, errTypeAssert)
+		}
+		resp = append(resp, HistoricalVolatilityData{
+			Timestamp: timeData,
+			Value:     val,
+		})
+	}
+	return resp, nil
+}
 
 // GetIndexPrice gets price data for the requested index
 func (d *Deribit) GetIndexPrice(index string) (IndexPriceData, error) {
@@ -336,13 +358,10 @@ func (d *Deribit) GetLastTradesByCurrencyAndTime(currency, kind, sorting string,
 }
 
 // GetLastTradesByInstrument gets last trades for requested instrument requested
-func (d *Deribit) GetLastTradesByInstrument(currency, kind, startSeq, endSeq, sorting string, count int64, includeOld bool) (PublicTradesData, error) {
+func (d *Deribit) GetLastTradesByInstrument(currency, startSeq, endSeq, sorting string, count int64, includeOld bool) (PublicTradesData, error) {
 	var resp PublicTradesData
 	params := url.Values{}
 	params.Set("instrument_name", currency)
-	if kind != "" {
-		params.Set("kind", kind)
-	}
 	if startSeq != "" {
 		params.Set("start_seq", startSeq)
 	}
@@ -365,13 +384,10 @@ func (d *Deribit) GetLastTradesByInstrument(currency, kind, startSeq, endSeq, so
 }
 
 // GetLastTradesByInstrumentAndTime gets last trades for requested instrument requested and time intervals
-func (d *Deribit) GetLastTradesByInstrumentAndTime(instrument, kind, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (PublicTradesData, error) {
+func (d *Deribit) GetLastTradesByInstrumentAndTime(instrument, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (PublicTradesData, error) {
 	var resp PublicTradesData
 	params := url.Values{}
 	params.Set("instrument_name", instrument)
-	if kind != "" {
-		params.Set("kind", kind)
-	}
 	if sorting != "" {
 		params.Set("sorting", sorting)
 	}
@@ -428,13 +444,43 @@ func (d *Deribit) GetTradeVolumes(extended bool) ([]TradeVolumesData, error) {
 		common.EncodeURLValues(getTradeVolumes, params), &resp)
 }
 
-// GetTradeVolumes gets trade volumes' data of all instruments
-func (d *Deribit) GetTradingViewChartData(instrument,resolution string, startTime, endTime time.Time) (TVChartData, error) {
+// GetTradingViewChartData gets volatility index data for the requested instrument
+func (d *Deribit) GetTradingViewChartData(instrument, resolution string, startTime, endTime time.Time) (TVChartData, error) {
 	var resp TVChartData
 	params := url.Values{}
-	params.Set("instrument_name", instrument)	
+	params.Set("instrument_name", instrument)
+	if startTime.After(endTime) {
+		return resp, errStartTimeCannotBeAfterEndTime
+	}
+	params.Set("start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
+	params.Set("end_timestamp", strconv.FormatInt(endTime.Unix()*1000, 10))
+	params.Set("resolution", resolution)
 	return resp, d.SendHTTPRequest(exchange.RestSpot,
 		common.EncodeURLValues(getTradingViewChartData, params), &resp)
+}
+
+// GetVolatilityIndexData gets volatility index data for the requested currency
+func (d *Deribit) GetVolatilityIndexData(currency, resolution string, startTime, endTime time.Time) (VolatilityIndexData, error) {
+	var resp VolatilityIndexData
+	params := url.Values{}
+	params.Set("currency", currency)
+	if startTime.After(endTime) {
+		return resp, errStartTimeCannotBeAfterEndTime
+	}
+	params.Set("start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
+	params.Set("end_timestamp", strconv.FormatInt(endTime.Unix()*1000, 10))
+	params.Set("resolution", resolution)
+	return resp, d.SendHTTPRequest(exchange.RestSpot,
+		common.EncodeURLValues(getVolatilityIndexData, params), &resp)
+}
+
+// GetPublicTicker gets volatility index data for the requested instrument
+func (d *Deribit) GetPublicTicker(instrument string) (TickerData, error) {
+	var resp TickerData
+	params := url.Values{}
+	params.Set("instrument_name", instrument)
+	return resp, d.SendHTTPRequest(exchange.RestSpot,
+		common.EncodeURLValues(getTicker, params), &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -460,4 +506,79 @@ func (d *Deribit) SendHTTPRequest(ep exchange.URL, path string, result interface
 		return err
 	}
 	return json.Unmarshal(data.Data, result)
+}
+
+// GetPublicTicker gets volatility index data for the requested instrument
+func (d *Deribit) GetAccountSummary(currency string, extended bool) (AccountSummaryData, error) {
+	var resp AccountSummaryData
+	params := url.Values{}
+	params.Set("currency", currency)
+	extendedStr := "false"
+	if extended {
+		extendedStr = "true"
+	}
+	params.Set("extended", extendedStr)
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		common.EncodeURLValues(getAccountSummary, params), nil, &resp)
+}
+
+// SendAuthHTTPRequest sends an authenticated request to deribit api
+func (d *Deribit) SendHTTPAuthRequest(ep exchange.URL, method, path string, data url.Values, result interface{}) error {
+	kee := "key"
+	see := "secret"
+	endpoint, err := d.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
+
+	reqDataStr := method + "\n" + deribitAPIVersion + path + "\n" + "" + "\n"
+	fmt.Printf("REQUEST DATA STRRRRRRRRR: %v\n\n\n", reqDataStr)
+
+	n := d.Requester.GetNonce(true)
+
+	strTS := strconv.FormatInt(time.Now().Unix()*1000, 10)
+
+	str2Sign := fmt.Sprintf("%s\n%s\n%s", strTS,
+		n, reqDataStr)
+
+	fmt.Printf("STR 2 SIGN: %v\n\n\n", str2Sign)
+
+	hmac := crypto.GetHMAC(crypto.HashSHA256,
+		[]byte(str2Sign),
+		[]byte(see))
+
+	headers := make(map[string]string)
+	// headerString := fmt.Sprintf("deri-hmac-sha256 id=%s,ts=%s,sig=%s,nonce=%s",
+	// 	kee,
+	// 	strTS,
+	// 	crypto.HexEncodeToString(hmac),
+	// 	n)
+	// headers["Authorization"] = "deri-hmac-sha256"
+	headers["id"] = kee
+	headers["ts"] = strTS
+	headers["sig"] = crypto.HexEncodeToString(hmac)
+	headers["nonce"] = n.String()
+	headers["Content-Type"] = "application/json"
+
+	var tempData struct {
+		JsonRPC string          `json:"jsonrpc"`
+		ID      int64           `json:"id"`
+		Data    json.RawMessage `json:"result"`
+	}
+
+	err = d.SendPayload(context.Background(), &request.Item{
+		Method:        method,
+		Path:          endpoint + deribitAPIVersion + getAccountSummary,
+		Headers:       headers,
+		Body:          nil,
+		Result:        &tempData,
+		AuthRequest:   true,
+		Verbose:       d.Verbose,
+		HTTPDebugging: d.HTTPDebugging,
+		HTTPRecording: d.HTTPRecording,
+	})
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(tempData.Data, result)
 }

@@ -12,6 +12,7 @@ type UnmarshalError struct {
 }
 
 var (
+	errTypeAssert                    = errors.New("type assertion failed")
 	errStartTimeCannotBeAfterEndTime = errors.New("start timestamp cannot be after end timestamp")
 )
 
@@ -81,10 +82,8 @@ type FundingRateValueData struct {
 
 // HistoricalVolatilityData stores volatility data for requested symbols
 type HistoricalVolatilityData struct {
-	Result struct {
-		Timestamp int64
-		Value     float64
-	}
+	Timestamp float64
+	Value     float64
 }
 
 // IndexPriceData gets index price data
@@ -399,4 +398,54 @@ type PrivateCancelData struct {
 	CreationTimestamp   int64   `json:"creation_timestamp"`
 	API                 bool    `json:"api"`
 	Amount              float64 `json:"amount"`
+}
+
+// AccountSummaryData stores data of account summary for a given currency
+type AccountSummaryData struct {
+	Balance                  float64 `json:"balance"`
+	OptionsSessionUPL        float64 `json:"options_session_upl"`
+	DepositAddress           string  `json:"deposit_address"`
+	OptionsGamma             float64 `json:"options_gamma"`
+	OptionsTheta             float64 `json:"options_theta"`
+	Username                 string  `json:"username"`
+	Equity                   float64 `json:"equity"`
+	Type                     string  `json:"type"`
+	Currency                 string  `json:"currency"`
+	DeltaTotal               float64 `json:"delta_total"`
+	FuturesSessionRPL        float64 `json:"futures_session_rpl"`
+	PortfolioManagingEnabled bool    `json:"portfolio_managing_enabled"`
+	TotalPL                  float64 `json:"total_pl"`
+	MarginBalance            float64 `json:"margin_balance"`
+	TFAEnabled               bool    `json:"tfa_enabled"`
+	OptionsSessionRPL        float64 `json:"options_session_rpl"`
+	OptionsDelta             float64 `json:"options_delta"`
+	FuturesPL                float64 `json:"futures_pl"`
+	ReferrerID               string  `json:"referrer_id"`
+	ID                       int64   `json:"id"`
+	SessionUPL               float64 `json:"session_upl"`
+	AvailableWithdrawalFunds float64 `json:"available_withdrawal_funds"`
+	CreationTimestamp        int64   `json:"creation_timestamp"`
+	OptionsPL                float64 `json:"options_pl"`
+	SystemName               string  `json:"system_name"`
+	Limits                   struct {
+		NonMatchingEngine struct {
+			Rate  int64 `json:"rate"`
+			Burst int64 `json:"burst"`
+		} `json:"non_matching_engine"`
+		MatchingEngine struct {
+			Rate  int64 `json:"rate"`
+			Burst int64 `json:"burst"`
+		} `json:"matching_engine"`
+	} `json:"limits"`
+	InitialMargin             float64 `json:"initial_margin"`
+	ProjectedInitialMargin    float64 `json:"projected_initial_margin"`
+	MaintenanceMargin         float64 `json:"maintenance_margin"`
+	SessionRPL                float64 `json:"session_rpl"`
+	InteruserTransfersEnabled bool    `json:"interuser_transfers_enabled"`
+	OptionsVega               float64 `json:"options_vega"`
+	ProjectedDeltaTotal       float64 `json:"projected_delta_total"`
+	Email                     string  `json:"email"`
+	FuturesSessionUPL         float64 `json:"futures_session_upl"`
+	AvailableFunds            float64 `json:"available_funds"`
+	OptionsValue              float64 `json:"options_value"`
 }
