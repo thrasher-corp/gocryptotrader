@@ -1,6 +1,7 @@
 package datahistoryjob
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -38,6 +39,8 @@ type DBService struct {
 	sql    database.ISQL
 	driver string
 }
+
+var errCannotSetSamePrerequisite = errors.New("prerequisite job cannot be the same as the following job")
 
 // IDBService allows using data history job database service
 // without needing to care about implementation

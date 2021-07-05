@@ -99,7 +99,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  "overwrite_existing_data",
-			Usage: "used in conversion jobs (data type 2 & 3), when converting candles, if data already exists for the time period in the database, it will be overwritten",
+			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
 		},
 		&cli.StringFlag{
 			Name:  "prerequisite",
@@ -521,7 +521,7 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 	case "pausejob":
 		status = 4
 	case "unpausejob":
-		status = 5
+		status = 0
 	default:
 		return fmt.Errorf("unrecognised data history job status type")
 	}

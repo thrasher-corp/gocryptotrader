@@ -157,7 +157,9 @@ func (db *DBService) GetPrerequisiteJob(nickname string) (*DataHistoryJob, error
 // relationship during upsertion
 func (db *DBService) SetRelationshipByID(prerequisiteJobID, followingJobID string, status int64) error {
 	ctx := context.Background()
-
+	if strings.EqualFold(prerequisiteJobID, followingJobID) {
+		return errCannotSetSamePrerequisite
+	}
 	tx, err := db.sql.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("beginTx %w", err)
@@ -190,7 +192,9 @@ func (db *DBService) SetRelationshipByID(prerequisiteJobID, followingJobID strin
 // relationship during upsertion
 func (db *DBService) SetRelationshipByNickname(prerequisiteNickname, followingNickname string, status int64) error {
 	ctx := context.Background()
-
+	if strings.EqualFold(prerequisiteNickname, followingNickname) {
+		return errCannotSetSamePrerequisite
+	}
 	tx, err := db.sql.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("beginTx %w", err)
@@ -254,12 +258,6 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 		if err != nil {
 			return err
 		}
-		if jobs[i].PrerequisiteJobID != "" {
-			err = setRelationshipByIDSQLite(ctx, tx, jobs[i].ID, jobs[i].PrerequisiteJobID, jobs[i].Status)
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	return nil
@@ -294,12 +292,6 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 		err = tempEvent.Upsert(ctx, tx, true, []string{"nickname"}, boil.Infer(), boil.Infer())
 		if err != nil {
 			return err
-		}
-		if jobs[i].PrerequisiteJobID != "" {
-			err = setRelationshipByIDPostgres(ctx, tx, jobs[i].ID, jobs[i].PrerequisiteJobID, jobs[i].Status)
-			if err != nil {
-				return err
-			}
 		}
 	}
 

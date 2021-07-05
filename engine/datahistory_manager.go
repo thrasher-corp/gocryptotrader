@@ -305,8 +305,13 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			job.Interval,
 			job.DataType)
 	}
+	var result *DataHistoryJobResult
+	var err error
+
 	if job.DataType == dataHistoryCandleValidationDataType {
 		// in order to verify that an area has been checked, we need to create a datahistoryresult
+		var failures int64
+
 		startDate := job.StartDate
 	validations:
 		for k, v := range job.Results {
@@ -314,10 +319,23 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 				if v[i].Status == dataHistoryStatusComplete {
 					startDate = k
 					continue validations
+				} else if v[i].Status == dataHistoryStatusFailed {
+					failures++
 				}
 			}
+			if failures >= job.MaxRetryAttempts {
+				// failure threshold reached, we should not attempt
+				// to check this interval again
+				for x := range v {
+					v[x].Status = dataHistoryIntervalMissingData
+				}
+				job.Results[k] = v
+				startDate = k
+				continue
+			}
 		}
-		result, err := m.validateCandles(job, exch, startDate, startDate.Add(job.Interval.Duration()*time.Duration(job.RequestSizeLimit)))
+
+		result, err = m.validateCandles(job, exch, startDate, startDate.Add(job.Interval.Duration()*time.Duration(job.RequestSizeLimit)))
 		if err != nil {
 			return err
 		}
@@ -325,20 +343,6 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 		lookup := job.Results[result.IntervalStartDate]
 		lookup = append(lookup, *result)
 		job.Results[result.IntervalStartDate] = lookup
-		// when running a validation job, we get the results, and then iterate over those,
-		// if any have failed,
-
-		dbJob := m.convertJobToDBModel(job)
-		err = m.jobDB.Upsert(dbJob)
-		if err != nil {
-			return fmt.Errorf("job %s failed to update database: %w", job.Nickname, err)
-		}
-
-		dbJobResults := m.convertJobResultToDBResult(job.Results)
-		err = m.jobResultDB.Upsert(dbJobResults...)
-		if err != nil {
-			return fmt.Errorf("job %s failed to insert job results to database: %w", job.Nickname, err)
-		}
 	} else {
 	ranges:
 		for i := range job.rangeHolder.Ranges {
@@ -351,7 +355,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			}
 			if skipProcessing {
 				_, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
-				if !ok {
+				if !ok && !job.OverwriteExistingData {
 					// we have determined that data is there, however it is not reflected in
 					// this specific job's results, which is required for a job to be complete
 					id, err := uuid.NewV4()
@@ -369,7 +373,9 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 						},
 					}
 				}
-				continue
+				if !job.OverwriteExistingData {
+					continue
+				}
 			}
 			if intervalsProcessed >= job.RunBatchLimit {
 				continue
@@ -409,8 +415,6 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			}
 			intervalsProcessed++
 
-			var result *DataHistoryJobResult
-			var err error
 			// processing the job
 			switch job.DataType {
 			case dataHistoryCandleDataType:
@@ -468,7 +472,7 @@ completionCheck:
 		}
 	}
 	dbJob := m.convertJobToDBModel(job)
-	err := m.jobDB.Upsert(dbJob)
+	err = m.jobDB.Upsert(dbJob)
 	if err != nil {
 		return fmt.Errorf("job %s failed to update database: %w", job.Nickname, err)
 	}
@@ -722,7 +726,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
-	cd, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.ConversionInterval, startRange, endRange)
+	cd, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.Interval, startRange, endRange)
 	if err != nil {
 		r.Result = "could not get candles: " + err.Error()
 		r.Status = dataHistoryStatusFailed

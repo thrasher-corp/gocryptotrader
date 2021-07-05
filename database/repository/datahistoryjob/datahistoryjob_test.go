@@ -1,7 +1,6 @@
 package datahistoryjob
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -174,8 +173,8 @@ func TestDataHistoryJob(t *testing.T) {
 			}
 
 			results, err := db.GetAllIncompleteJobsAndResults()
-			if err != nil {
-				t.Error(err)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
 			}
 			if len(results) != 19 {
 				t.Errorf("expected 19, received %v", len(results))
@@ -190,37 +189,37 @@ func TestDataHistoryJob(t *testing.T) {
 			}
 
 			results, err = db.GetJobsBetween(time.Now().Add(-time.Hour), time.Now())
-			if err != nil {
-				t.Error(err)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
 			}
 			if len(results) != 20 {
 				t.Errorf("expected 20, received %v", len(results))
 			}
 
 			jerb, err = db.GetJobAndAllResults(results[0].Nickname)
-			if err != nil {
-				t.Error(err)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
 			}
 			if !strings.EqualFold(jerb.Nickname, results[0].Nickname) {
 				t.Errorf("expected %v, received %v", jerb.Nickname, jerberoos[0].Nickname)
 			}
 
 			err = db.SetRelationshipByID(results[0].ID, results[1].ID, 1337)
-			if err != nil {
-				t.Error(err)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
 			}
 
 			jerb, err = db.GetByID(results[1].ID)
-			if err != nil {
-				t.Error(err)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
 			}
 			if jerb.Status != 1337 {
 				t.Error("expected 1337")
 			}
 
 			rel, err := db.GetRelatedUpcomingJobs(results[0].Nickname)
-			if err != nil {
-				t.Error(err)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
 			}
 			if len(rel) != 1 {
 				t.Fatal("expected 1")
@@ -230,12 +229,12 @@ func TestDataHistoryJob(t *testing.T) {
 			}
 
 			err = db.SetRelationshipByID(results[0].ID, results[2].ID, 1337)
-			if err != nil {
-				t.Error(err)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
 			}
 			rel, err = db.GetRelatedUpcomingJobs(results[0].Nickname)
-			if err != nil {
-				t.Error(err)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
 			}
 			if len(rel) != 2 {
 				t.Fatal("expected 2")
@@ -247,33 +246,55 @@ func TestDataHistoryJob(t *testing.T) {
 			}
 
 			jerb, err = db.GetPrerequisiteJob(results[1].Nickname)
-			if err != nil {
-				t.Error(err)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
 			}
 			if jerb.ID != results[0].ID {
 				t.Errorf("received %v expected %v", jerb.ID, results[0].ID)
 			}
 
 			jerb, err = db.GetPrerequisiteJob(results[2].Nickname)
-			if err != nil {
-				t.Error(err)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
 			}
 			if jerb.ID != results[0].ID {
 				t.Errorf("received %v expected %v", jerb.ID, results[0].ID)
 			}
 
-			err = db.SetRelationshipByNickname("", results[2].Nickname, 0)
-			if err != nil {
-				t.Error(err)
+			err = db.SetRelationshipByNickname(results[4].Nickname, results[2].Nickname, 0)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
 			}
-			_, err = db.GetPrerequisiteJob(results[2].Nickname)
-			if !errors.Is(err, sql.ErrNoRows) {
-				t.Errorf("received %v exepcted %v", err, sql.ErrNoRows)
+			err = db.SetRelationshipByNickname(results[2].Nickname, results[2].Nickname, 0)
+			if !errors.Is(err, errCannotSetSamePrerequisite) {
+				t.Errorf("recevied %v expected %v", err, errCannotSetSamePrerequisite)
+			}
+			err = db.SetRelationshipByNickname(results[3].Nickname, results[2].Nickname, 0)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
+			}
+
+			// ensure only one prerequisite can be associated at once
+			// after setting the prerequisite twice
+			rel, err = db.GetRelatedUpcomingJobs(results[4].Nickname)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
+			}
+			if len(rel) != 0 {
+				t.Errorf("recevied %v expected %v", len(rel), 0)
+			}
+
+			rel, err = db.GetRelatedUpcomingJobs(results[3].Nickname)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
+			}
+			if len(rel) != 1 {
+				t.Errorf("recevied %v expected %v", len(rel), 1)
 			}
 
 			err = testhelpers.CloseDatabase(dbConn)
-			if err != nil {
-				t.Error(err)
+			if !errors.Is(err, nil) {
+				t.Errorf("recevied %v expected %v", err, nil)
 			}
 		})
 	}
