@@ -165,7 +165,7 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ws.trafficTimeout = time.Millisecond
+	ws.trafficTimeout = time.Second * 2
 	ws.ShutdownC = make(chan struct{})
 	ws.trafficMonitor()
 	if !ws.IsTrafficMonitorRunning() {
