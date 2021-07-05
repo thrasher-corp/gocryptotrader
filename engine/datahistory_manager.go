@@ -334,8 +334,11 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 				continue
 			}
 		}
-
-		result, err = m.validateCandles(job, exch, startDate, startDate.Add(job.Interval.Duration()*time.Duration(job.RequestSizeLimit)))
+		requestEnd := startDate.Add(job.Interval.Duration() * time.Duration(job.RequestSizeLimit))
+		if requestEnd.After(job.EndDate) {
+			requestEnd = job.EndDate
+		}
+		result, err = m.validateCandles(job, exch, startDate, requestEnd)
 		if err != nil {
 			return err
 		}
