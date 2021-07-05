@@ -255,7 +255,6 @@ func TestUpdates(t *testing.T) {
 
 // TestHittingTheBuffer logic test
 func TestHittingTheBuffer(t *testing.T) {
-	t.Parallel()
 	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -288,7 +287,6 @@ func TestHittingTheBuffer(t *testing.T) {
 
 // TestInsertWithIDs logic test
 func TestInsertWithIDs(t *testing.T) {
-	t.Parallel()
 	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -359,7 +357,6 @@ func TestSortIDs(t *testing.T) {
 
 // TestOutOfOrderIDs logic test
 func TestOutOfOrderIDs(t *testing.T) {
-	t.Parallel()
 	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -393,7 +390,6 @@ func TestOutOfOrderIDs(t *testing.T) {
 }
 
 func TestOrderbookLastUpdateID(t *testing.T) {
-	t.Parallel()
 	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -517,8 +513,8 @@ func TestLoadSnapshot(t *testing.T) {
 	}
 }
 
-// TestFlushbuffer logic test
-func TestFlushbuffer(t *testing.T) {
+// TestFlushBuffer logic test
+func TestFlushBuffer(t *testing.T) {
 	obl, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -1003,6 +999,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 }
 
 func TestFlushOrderbook(t *testing.T) {
+	t.Parallel()
 	w := &Orderbook{}
 	err := w.Setup(5, false, false, false, false, false, "test", make(chan interface{}, 2))
 	if err != nil {
