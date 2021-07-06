@@ -197,7 +197,7 @@ func TestLoadDataAPI(t *testing.T) {
 	em := engine.ExchangeManager{}
 	exch, err := em.NewExchangeByName("Binance")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
@@ -264,7 +264,7 @@ func TestLoadDataDatabase(t *testing.T) {
 	em := engine.ExchangeManager{}
 	exch, err := em.NewExchangeByName("Binance")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
@@ -320,7 +320,7 @@ func TestLoadDataCSV(t *testing.T) {
 	em := engine.ExchangeManager{}
 	exch, err := em.NewExchangeByName("Binance")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
@@ -382,7 +382,7 @@ func TestLoadDataLive(t *testing.T) {
 	em := engine.ExchangeManager{}
 	exch, err := em.NewExchangeByName("Binance")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()

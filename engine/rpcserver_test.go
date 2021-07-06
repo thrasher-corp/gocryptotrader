@@ -153,7 +153,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
@@ -169,7 +169,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 
 	exch, err = em.NewExchangeByName("Binance")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	b = exch.GetBase()

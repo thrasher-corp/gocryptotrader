@@ -21,10 +21,10 @@ func TestLoadCandles(t *testing.T) {
 	a := asset.Spot
 	em := engine.SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	pFormat := &currency.PairFormat{Uppercase: true}
 	if err != nil {
 		t.Fatal(err)
 	}
+	pFormat := &currency.PairFormat{Uppercase: true}
 	b := exch.GetBase()
 	exch.SetDefaults()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
@@ -56,10 +56,10 @@ func TestLoadTrades(t *testing.T) {
 	a := asset.Spot
 	em := engine.SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	pFormat := &currency.PairFormat{Uppercase: true}
 	if err != nil {
 		t.Fatal(err)
 	}
+	pFormat := &currency.PairFormat{Uppercase: true}
 	b := exch.GetBase()
 	exch.SetDefaults()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)

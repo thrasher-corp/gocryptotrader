@@ -854,7 +854,7 @@ func TestGetExchangeNames(t *testing.T) {
 	for i := range bot.Config.Exchanges {
 		exch, err := bot.ExchangeManager.NewExchangeByName(bot.Config.Exchanges[i].Name)
 		if err != nil && !errors.Is(err, ErrExchangeAlreadyLoaded) {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if exch != nil {
 			exch.SetDefaults()

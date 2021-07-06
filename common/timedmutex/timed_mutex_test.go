@@ -26,9 +26,9 @@ func TestConsistencyOfPanicFreeUnlock(t *testing.T) {
 
 func TestUnlockAfterTimeout(t *testing.T) {
 	t.Parallel()
-	tm := NewTimedMutex(time.Millisecond)
+	tm := NewTimedMutex(time.Nanosecond)
 	tm.LockForDuration()
-	time.Sleep(2 * time.Millisecond)
+	time.Sleep(time.Millisecond * 200)
 	wasUnlocked := tm.UnlockIfLocked()
 	if wasUnlocked {
 		t.Error("Mutex should have been unlocked by timeout, not command")

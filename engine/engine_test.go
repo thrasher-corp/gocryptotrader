@@ -170,7 +170,7 @@ func TestCheckExchangeExists(t *testing.T) {
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 	exch.SetDefaults()
 	em.Add(exch)
@@ -189,7 +189,7 @@ func TestGetExchangeByName(t *testing.T) {
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 	exch.SetDefaults()
 	exch.SetEnabled(true)
@@ -221,7 +221,7 @@ func TestUnloadExchange(t *testing.T) {
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 	exch.SetDefaults()
 	exch.SetEnabled(true)
