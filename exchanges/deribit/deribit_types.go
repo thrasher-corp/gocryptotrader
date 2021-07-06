@@ -257,8 +257,8 @@ type CancelWithdrawalData struct {
 	UpdatedTimestamp   int64   `json:"updated_timestamp"`
 }
 
-// CreateDepositAddressData stores data for creating a deposit address
-type CreateDepositAddressData struct {
+// DepositAddressData stores data of a deposit address
+type DepositAddressData struct {
 	Address           string `json:"address"`
 	CreationTimestamp int64  `json:"creation_timestamp"`
 	Currency          string `json:"currency"`
@@ -398,6 +398,76 @@ type PrivateCancelData struct {
 	CreationTimestamp   int64   `json:"creation_timestamp"`
 	API                 bool    `json:"api"`
 	Amount              float64 `json:"amount"`
+}
+
+// GetMarginsData stores data for margin
+type GetMarginsData struct {
+	Buy      float64 `json:"buy"`
+	MaxPrice float64 `json:"max_price"`
+	MinPrice float64 `json:"min_price"`
+	Sell     float64 `json:"sell"`
+}
+
+// MMPConfigData gets the current configuration data for MMP
+type MMPConfigData struct {
+	Currency      string  `json:"currency"`
+	Interval      int64   `json:"interval"`
+	FrozenTime    int64   `json:"frozen_time"`
+	QuantityLimit float64 `json:"quantity_limit"`
+}
+
+// OrderMarginsData stores data for order margins
+type OrderMarginData struct {
+	OrderID       string  `json:"order_id"`
+	InitialMargin float64 `json:"initial_margin"`
+}
+
+// TriggerOrderData stores data for trigger orders
+type TriggerOrderData struct {
+	Trigger        string  `json:"trigger"`
+	Timestamp      int64   `json:"timestamp"`
+	TriggerPrice   float64 `json:"trigger_price"`
+	TriggerOrderID string  `json:"trigger_order_id"`
+	OrderState     string  `json:"order_state"`
+	Request        string  `json:"request"`
+	Price          float64 `json:"price"`
+	OrderID        int64   `json:"order_id"`
+	Offset         int64   `json:"offset"`
+	InstrumentName string  `json:"instrument_name"`
+	Amount         float64 `json:"amount"`
+	Direction      string  `json:"direction"`
+}
+
+// UserTradesData stores data of user trades
+type UserTradesData struct {
+	Trades  []UserTradeData `json:"trades"`
+	HasMore bool            `json:"has_more"`
+}
+
+// UserTradeData stores data of user trades
+type UserTradeData struct {
+	UnderlyingPrice float64 `json:"underlying_price"`
+	TradeSequence   int64   `json:"trade_sequence"`
+	TradeID         int64   `json:"trade_id"`
+	Timestamp       int64   `json:"timestamp"`
+	TickDirection   int64   `json:"tick_direction"`
+	State           string  `json:"state"`
+	SelfTrade       bool    `json:"self_trade"`
+	ReduceOnly      bool    `json:"reduce_only"`
+	Price           float64 `json:"price"`
+	PostOnly        bool    `json:"post_only"`
+	OrderType       string  `json:"order_type"`
+	OrderID         int64   `json:"order_id"`
+	MatchingID      int64   `json:"matching_id"`
+	MarkPrice       float64 `json:"mark_price"`
+	Liquidity       string  `json:"liquidity"`
+	IV              float64 `json:"iv"`
+	InstrumentName  string  `json:"instrument_name"`
+	IndexPrice      float64 `json:"index_price"`
+	FeeCurrency     string  `json:"fee_currency"`
+	Fee             float64 `json:"fee"`
+	Direction       string  `json:"direction"`
+	Amount          float64 `json:"amount"`
 }
 
 // AccountSummaryData stores data of account summary for a given currency

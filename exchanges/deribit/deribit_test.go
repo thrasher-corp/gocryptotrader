@@ -276,3 +276,113 @@ func TestGetAccountSummary(t *testing.T) {
 	}
 	fmt.Println(a)
 }
+
+func TestCancelTransferByID(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.CancelTransferByID("BTC", "", 23487)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetTransfers(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.GetTransfers("BTC", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestCancelWithdrawal(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.CancelWithdrawal("BTC", 123844)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestCreateDepositAddress(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.CreateDepositAddress("BTC")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetCurrentDepositAddress(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.GetCurrentDepositAddress("BTC")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetDeposits(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.GetDeposits("BTC", 25, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetWithdrawals(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.GetWithdrawals("BTC", 25, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestSubmitTransferToSubAccount(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.SubmitTransferToSubAccount("BTC", 0.01, 13434)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestSubmitTransferToUser(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.SubmitTransferToUser("BTC", "", 0.001, 13434)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestSubmitWithdraw(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.SubmitWithdraw("BTC", "incorrectAddress", "", "", 0.001)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}

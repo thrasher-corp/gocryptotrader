@@ -474,7 +474,7 @@ func (d *Deribit) GetVolatilityIndexData(currency, resolution string, startTime,
 		common.EncodeURLValues(getVolatilityIndexData, params), &resp)
 }
 
-// GetPublicTicker gets volatility index data for the requested instrument
+// GetPublicTicker gets public ticker data of the instrument requested
 func (d *Deribit) GetPublicTicker(instrument string) (TickerData, error) {
 	var resp TickerData
 	params := url.Values{}
@@ -508,7 +508,7 @@ func (d *Deribit) SendHTTPRequest(ep exchange.URL, path string, result interface
 	return json.Unmarshal(data.Data, result)
 }
 
-// GetPublicTicker gets volatility index data for the requested instrument
+// GetAccountSummary gets account summary data for the requested instrument
 func (d *Deribit) GetAccountSummary(currency string, extended bool) (AccountSummaryData, error) {
 	var resp AccountSummaryData
 	params := url.Values{}
@@ -522,16 +522,142 @@ func (d *Deribit) GetAccountSummary(currency string, extended bool) (AccountSumm
 		common.EncodeURLValues(getAccountSummary, params), nil, &resp)
 }
 
+// CancelWithdrawal cancels withdrawal request for a given currency by its id
+func (d *Deribit) CancelWithdrawal(currency string, id int64) (CancelWithdrawalData, error) {
+	var resp CancelWithdrawalData
+	params := url.Values{}
+	params.Set("currency", currency)
+	params.Set("id", strconv.FormatInt(id, 10))
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		cancelWithdrawal, params, &resp)
+}
+
+// CancelTransferByID gets volatility index data for the requested instrument
+func (d *Deribit) CancelTransferByID(currency, tfa string, id int64) (AccountSummaryData, error) {
+	var resp AccountSummaryData
+	params := url.Values{}
+	params.Set("currency", currency)
+	if tfa != "" {
+		params.Set("tfa", tfa)
+	}
+	params.Set("id", strconv.FormatInt(id, 10))
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		common.EncodeURLValues(cancelTransferByID, params), nil, &resp)
+}
+
+// CreateDepositAddress creates a deposit address for the currency requested
+func (d *Deribit) CreateDepositAddress(currency string) (DepositAddressData, error) {
+	var resp DepositAddressData
+	params := url.Values{}
+	params.Set("currency", currency)
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		createDepositAddress, params, &resp)
+}
+
+// GetCurrentDepositAddress gets the current deposit address for the requested currency
+func (d *Deribit) GetCurrentDepositAddress(currency string) (DepositAddressData, error) {
+	var resp DepositAddressData
+	params := url.Values{}
+	params.Set("currency", currency)
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		createDepositAddress, params, &resp)
+}
+
+// GetDeposits gets the deposits of a given currency
+func (d *Deribit) GetDeposits(currency string, count, offset int64) (DepositsData, error) {
+	var resp DepositsData
+	params := url.Values{}
+	params.Set("currency", currency)
+	if count != 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if offset != 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getDeposits, params, &resp)
+}
+
+// GetTransfers gets transfers data for the requested currency
+func (d *Deribit) GetTransfers(currency string, count, offset int64) (TransferData, error) {
+	var resp TransferData
+	params := url.Values{}
+	params.Set("currency", currency)
+	if count != 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if offset != 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getTransfers, params, &resp)
+}
+
+// GetWithdrawals gets withdrawals data for a requested currency
+func (d *Deribit) GetWithdrawals(currency string, count, offset int64) (WithdrawalsData, error) {
+	var resp WithdrawalsData
+	params := url.Values{}
+	params.Set("currency", currency)
+	if count != 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if offset != 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getWithdrawals, params, &resp)
+}
+
+// SubmitTransferToSubAccount submits a request to transfer a currency to a subaccount
+func (d *Deribit) SubmitTransferToSubAccount(currency string, amount float64, destinationID int64) (TransferData, error) {
+	var resp TransferData
+	params := url.Values{}
+	params.Set("currency", currency)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		submitTransferToSubaccount, params, &resp)
+}
+
+// SubmitTransferToSubAccount submits a request to transfer a currency to another user
+func (d *Deribit) SubmitTransferToUser(currency, tfa string, amount float64, destinationID int64) (TransferData, error) {
+	var resp TransferData
+	params := url.Values{}
+	params.Set("currency", currency)
+	if tfa != "" {
+		params.Set("tfa", tfa)
+	}
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		submitTransferToSubaccount, params, &resp)
+}
+
+// SubmitWithdraw submits a withdrawal request to the exchange for the requested currency
+func (d *Deribit) SubmitWithdraw(currency, address, priority, tfa string, amount float64) (WithdrawData, error) {
+	var resp WithdrawData
+	params := url.Values{}
+	params.Set("currency", currency)
+	params.Set("address", address)
+	if priority != "" {
+		params.Set("priority", priority)
+	}
+	if tfa != "" {
+		params.Set("tfa", tfa)
+	}
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		submitWithdraw, params, &resp)
+}
+
 // SendAuthHTTPRequest sends an authenticated request to deribit api
 func (d *Deribit) SendHTTPAuthRequest(ep exchange.URL, method, path string, data url.Values, result interface{}) error {
-	kee := "key"
-	see := "secret"
+	kee := "" //key here
+	see := "" //secret here
 	endpoint, err := d.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
 
-	reqDataStr := method + "\n" + deribitAPIVersion + path + "\n" + "" + "\n"
+	reqDataStr := method + "\n" + deribitAPIVersion + common.EncodeURLValues(path, data) + "\n" + "" + "\n"
 	fmt.Printf("REQUEST DATA STRRRRRRRRR: %v\n\n\n", reqDataStr)
 
 	n := d.Requester.GetNonce(true)
@@ -548,16 +674,16 @@ func (d *Deribit) SendHTTPAuthRequest(ep exchange.URL, method, path string, data
 		[]byte(see))
 
 	headers := make(map[string]string)
-	// headerString := fmt.Sprintf("deri-hmac-sha256 id=%s,ts=%s,sig=%s,nonce=%s",
-	// 	kee,
-	// 	strTS,
-	// 	crypto.HexEncodeToString(hmac),
-	// 	n)
-	// headers["Authorization"] = "deri-hmac-sha256"
-	headers["id"] = kee
-	headers["ts"] = strTS
-	headers["sig"] = crypto.HexEncodeToString(hmac)
-	headers["nonce"] = n.String()
+	headerString := fmt.Sprintf("deri-hmac-sha256 id=%s,ts=%s,sig=%s,nonce=%s",
+		kee,
+		strTS,
+		crypto.HexEncodeToString(hmac),
+		n)
+	headers["Authorization"] = headerString
+	// headers["id"] = kee
+	// headers["ts"] = strTS
+	// headers["sig"] = crypto.HexEncodeToString(hmac)
+	// headers["nonce"] = n.String()
 	headers["Content-Type"] = "application/json"
 
 	var tempData struct {
@@ -568,7 +694,7 @@ func (d *Deribit) SendHTTPAuthRequest(ep exchange.URL, method, path string, data
 
 	err = d.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          endpoint + deribitAPIVersion + getAccountSummary,
+		Path:          endpoint + deribitAPIVersion + path,
 		Headers:       headers,
 		Body:          nil,
 		Result:        &tempData,
