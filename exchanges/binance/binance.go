@@ -271,13 +271,16 @@ func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params
 	if arg.FromID > 0 {
 		fromID = arg.FromID
 	} else {
-		for start := arg.StartTime; len(resp) == 0; start = start.Add(time.Hour) {
+		// Only 10 seconds is used to prevent limit of 1000 being reached in the first request,
+		// cutting off trades for high activity pairs
+		increment := time.Second * 10
+		for start := arg.StartTime; len(resp) == 0; start = start.Add(increment) {
 			if !arg.EndTime.IsZero() && !start.Before(arg.EndTime) {
 				// All requests returned empty
 				return nil, nil
 			}
 			params.Set("startTime", timeString(start))
-			params.Set("endTime", timeString(start.Add(time.Hour)))
+			params.Set("endTime", timeString(start.Add(increment)))
 			path := aggregatedTrades + "?" + params.Encode()
 			err := b.SendHTTPRequest(exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {

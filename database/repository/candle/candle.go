@@ -34,6 +34,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 		qm.Where("quote = ?", strings.ToUpper(quote)),
 		qm.Where("interval = ?", interval),
 		qm.Where("asset = ?", strings.ToLower(asset)),
+		qm.OrderBy("timestamp"),
 	}
 
 	exchangeUUID, errS := exchange.UUIDByName(exchangeName)

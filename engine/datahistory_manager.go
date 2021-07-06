@@ -316,11 +316,18 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	validations:
 		for k, v := range job.Results {
 			for i := range v {
-				if v[i].Status == dataHistoryStatusComplete {
-					startDate = k
+				switch v[i].Status {
+				case dataHistoryIntervalMissingData:
 					continue validations
-				} else if v[i].Status == dataHistoryStatusFailed {
+				case dataHistoryStatusFailed:
 					failures++
+				case dataHistoryStatusComplete:
+					// this can occur in the scenario where data is missing
+					// however no errors were encountered when data is missing
+					// eg an exchange only returns an empty slice
+					// or the exchange is simply missing the data and does not have an error
+					startDate = k.Add(job.Interval.Duration())
+					continue validations
 				}
 			}
 			if failures >= job.MaxRetryAttempts {
@@ -330,7 +337,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 					v[x].Status = dataHistoryIntervalMissingData
 				}
 				job.Results[k] = v
-				startDate = k
+				startDate = k.Add(job.Interval.Duration())
 				continue
 			}
 		}
@@ -599,7 +606,8 @@ func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
-	candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
+	filteredTraders := trade.FilterTradesByTime(trades, startRange, endRange)
+	candles, err := trade.ConvertTradesToCandles(job.Interval, filteredTraders...)
 	if err != nil {
 		r.Result += "could not convert candles to trades: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
@@ -729,7 +737,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
-	cd, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.Interval, startRange, endRange)
+	cd, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.Interval, startRange.UTC(), endRange.UTC())
 	if err != nil {
 		r.Result = "could not get candles: " + err.Error()
 		r.Status = dataHistoryStatusFailed
@@ -741,13 +749,26 @@ candleValidation:
 		found := false
 		for j := range cd.Candles {
 			if candles.Candles[i].Time.Equal(cd.Candles[j].Time) {
+				var candleIssues []string
 				found = true
-				if candles.Candles[i].High != cd.Candles[j].High ||
-					candles.Candles[i].Low != cd.Candles[j].Low ||
-					candles.Candles[i].Close != cd.Candles[j].Close ||
-					candles.Candles[i].Open != cd.Candles[j].Open ||
-					candles.Candles[i].Volume != cd.Candles[j].Volume {
-					validationIssues = append(validationIssues, fmt.Sprintf("mismatched candle data in database that exists in API at %v", candles.Candles[i].Time.Format(common.SimpleTimeFormatWithTimezone)))
+				if candles.Candles[i].High != cd.Candles[j].High {
+					candleIssues = append(candleIssues, fmt.Sprintf("High api: %v db: %v", candles.Candles[i].High, cd.Candles[j].High))
+				}
+				if candles.Candles[i].Low != cd.Candles[j].Low {
+					candleIssues = append(candleIssues, fmt.Sprintf("Low api: %v db: %v", candles.Candles[i].Low, cd.Candles[j].Low))
+				}
+				if candles.Candles[i].Close != cd.Candles[j].Close {
+					candleIssues = append(candleIssues, fmt.Sprintf("Close api: %v db: %v", candles.Candles[i].Close, cd.Candles[j].Close))
+				}
+				if candles.Candles[i].Open != cd.Candles[j].Open {
+					candleIssues = append(candleIssues, fmt.Sprintf("Open api: %v db: %v", candles.Candles[i].Open, cd.Candles[j].Open))
+				}
+				if candles.Candles[i].Volume != cd.Candles[j].Volume {
+					candleIssues = append(candleIssues, fmt.Sprintf("Volume api: %v db: %v", candles.Candles[i].Volume, cd.Candles[j].Volume))
+				}
+				if len(candleIssues) > 0 {
+					candleIssues = append([]string{fmt.Sprintf("issues found at %v", cd.Candles[j].Time.Format(common.SimpleTimeFormat))}, validationIssues...)
+					validationIssues = append(validationIssues, candleIssues...)
 					r.Status = dataHistoryStatusFailed
 					continue candleValidation
 				}
@@ -759,7 +780,7 @@ candleValidation:
 		}
 	}
 	if len(validationIssues) > 0 {
-		r.Result = strings.Join(validationIssues, ", ")
+		r.Result = strings.Join(validationIssues, " -- ")
 	}
 	return r, nil
 }
@@ -947,20 +968,25 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	if job.RequestSizeLimit <= 0 {
 		job.RequestSizeLimit = defaultDataHistoryRequestSizeLimit
 	}
-	if job.DataType == dataHistoryTradeDataType &&
-		(job.Interval >= kline.FourHour || job.Interval <= kline.TenMin) {
-		log.Warnf(log.DataHistory, "job %s interval %v outside limits, defaulting to %v", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
-		job.Interval = defaultDataHistoryTradeInterval
+	if job.DataType == dataHistoryTradeDataType {
+		if job.Interval >= kline.FourHour || job.Interval <= kline.OneMin {
+			log.Warnf(log.DataHistory, "job %s interval %v outside limit of 4h, defaulting to %v", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
+			job.Interval = defaultDataHistoryTradeInterval
+		}
+		if job.RequestSizeLimit > 20 {
+			log.Warnf(log.DataHistory, "job %s request size %v outside limit of 100, defaulting to %v", job.Nickname, job.RequestSizeLimit, defaultDataHistoryTradeRequestSize)
+			job.RequestSizeLimit = defaultDataHistoryTradeRequestSize
+		}
 	}
 
 	b := exch.GetBase()
-	if !b.Features.Enabled.Kline.Intervals[job.Interval.Word()] {
-		return fmt.Errorf("job %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
+	if !b.Features.Enabled.Kline.Intervals[job.Interval.Word()] && (job.DataType != dataHistoryTradeDataType && job.DataType != dataHistoryConvertTradesDataType) {
+		return fmt.Errorf("job interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 
 	if (job.DataType == dataHistoryConvertTradesDataType || job.DataType == dataHistoryConvertCandlesDataType) &&
 		job.ConversionInterval <= 0 {
-		return fmt.Errorf("job %s %s %w %s", job.Nickname, job.ConversionInterval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
+		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.ConversionInterval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 
 	job.StartDate = job.StartDate.Round(job.Interval.Duration())

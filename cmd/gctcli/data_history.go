@@ -75,7 +75,7 @@ var (
 			Name:        "request_size_limit",
 			Usage:       "the number of candles to retrieve per API request",
 			Destination: &requestSizeLimit,
-			Value:       500,
+			Value:       50,
 		},
 		&cli.Uint64Flag{
 			Name:  "data_type",

@@ -104,8 +104,9 @@ var (
 	defaultDataHistoryMaxJobsPerCycle  int64 = 5
 	defaultDataHistoryBatchLimit       int64 = 3
 	defaultDataHistoryRetryAttempts    int64 = 3
-	defaultDataHistoryRequestSizeLimit int64 = 10
+	defaultDataHistoryRequestSizeLimit int64 = 50
 	defaultDataHistoryTicker                 = time.Minute
+	defaultDataHistoryTradeRequestSize int64 = 5
 )
 
 // DataHistoryManager is responsible for synchronising,
