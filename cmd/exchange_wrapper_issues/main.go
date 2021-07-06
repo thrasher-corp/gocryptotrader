@@ -65,7 +65,7 @@ func main() {
 			wrapperConfig.Exchanges[strings.ToLower(name)] = &config.APICredentialsConfig{}
 		}
 		if shouldLoadExchange(name) {
-			err = bot.LoadExchange(name, true, &wg)
+			err = bot.LoadExchange(name, &wg)
 			if err != nil {
 				log.Printf("Failed to load exchange %s. Err: %s", name, err)
 				continue

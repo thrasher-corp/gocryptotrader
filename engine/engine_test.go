@@ -236,7 +236,7 @@ func TestDryRunParamInteraction(t *testing.T) {
 
 	bot.Settings.CheckParamInteraction = false
 	bot.Settings.EnableExchangeVerbose = false
-	if err = bot.LoadExchange(testExchange, false, nil); err != nil {
+	if err = bot.LoadExchange(testExchange, nil); err != nil {
 		t.Error(err)
 	}
 
@@ -259,7 +259,7 @@ func TestDryRunParamInteraction(t *testing.T) {
 	bot.Settings.EnableDryRun = true
 	bot.Settings.CheckParamInteraction = true
 	bot.Settings.EnableExchangeVerbose = true
-	if err = bot.LoadExchange(testExchange, false, nil); err != nil {
+	if err = bot.LoadExchange(testExchange, nil); err != nil {
 		t.Error(err)
 	}
 

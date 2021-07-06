@@ -41,7 +41,7 @@ func newBotWithExchange() (*engine.Engine, gctexchange.IBotExchange) {
 		log.Fatal(err)
 	}
 	bot.ExchangeManager = engine.SetupExchangeManager()
-	err = bot.LoadExchange(testExchange, false, nil)
+	err = bot.LoadExchange(testExchange, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

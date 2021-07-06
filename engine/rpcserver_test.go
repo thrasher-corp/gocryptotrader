@@ -102,11 +102,11 @@ func RPCTestSetup(t *testing.T) *Engine {
 		t.Fatalf("SetupTest: Failed to load config: %s", err)
 	}
 	engerino.ExchangeManager = SetupExchangeManager()
-	err = engerino.LoadExchange(testExchange, false, nil)
+	err = engerino.LoadExchange(testExchange, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = engerino.LoadExchange("Binance", false, nil)
+	err = engerino.LoadExchange("Binance", nil)
 	if err != nil {
 		log.Fatal(err)
 	}

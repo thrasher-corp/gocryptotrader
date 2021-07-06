@@ -149,7 +149,7 @@ func TestPlaceOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bot.LoadExchange(testExchange, false, nil)
+	err = bot.LoadExchange(testExchange, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -203,7 +203,7 @@ func TestExecuteOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bot.LoadExchange(testExchange, false, nil)
+	err = bot.LoadExchange(testExchange, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -310,7 +310,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bot.LoadExchange(testExchange, false, nil)
+	err = bot.LoadExchange(testExchange, nil)
 	if err != nil {
 		t.Error(err)
 	}

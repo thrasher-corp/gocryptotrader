@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 	}
 
 	bot.ExchangeManager = engine.SetupExchangeManager()
-	err = bot.LoadExchange(testExchange, false, nil)
+	err = bot.LoadExchange(testExchange, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

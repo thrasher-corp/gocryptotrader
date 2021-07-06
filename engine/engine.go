@@ -705,8 +705,9 @@ func (bot *Engine) GetExchanges() []exchange.IBotExchange {
 	return bot.ExchangeManager.GetExchanges()
 }
 
-// LoadExchange loads an exchange by name
-func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
+// LoadExchange loads an exchange by name. Optional wait group can be added for
+// external synchronization.
+func (bot *Engine) LoadExchange(name string, optional *sync.WaitGroup) error {
 	exch, err := bot.ExchangeManager.NewExchangeByName(name)
 	if err != nil {
 		return err
@@ -820,8 +821,8 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 		}
 	}
 
-	if useWG {
-		exch.Start(wg)
+	if optional != nil {
+		exch.Start(optional)
 	} else {
 		tempWG := sync.WaitGroup{}
 		exch.Start(&tempWG)
@@ -889,7 +890,7 @@ func (bot *Engine) SetupExchanges() error {
 		cfg := configs[x]
 		go func(currCfg config.ExchangeConfig) {
 			defer wg.Done()
-			err := bot.LoadExchange(currCfg.Name, true, &wg)
+			err := bot.LoadExchange(currCfg.Name, &wg)
 			if err != nil {
 				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", currCfg.Name, err)
 				return

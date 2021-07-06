@@ -26,7 +26,7 @@ func TestLoadCandles(t *testing.T) {
 		t.Fatalf("SetupTest: Failed to load config: %s", err)
 	}
 	bot.ExchangeManager = engine.SetupExchangeManager()
-	err = bot.LoadExchange(testExchange, false, nil)
+	err = bot.LoadExchange(testExchange, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestLoadTrades(t *testing.T) {
 	}
 	bot.ExchangeManager = engine.SetupExchangeManager()
 
-	err = bot.LoadExchange(testExchange, false, nil)
+	err = bot.LoadExchange(testExchange, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
