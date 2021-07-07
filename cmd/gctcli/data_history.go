@@ -8,15 +8,14 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
 )
 
 var (
-	maxRetryAttempts, requestSizeLimit, batchSize uint64
-	prerequisiteJobSubCommands                    = []cli.Flag{
+	maxRetryAttempts, requestSizeLimit, batchSize, comparisonDecimalPlaces uint64
+	prerequisiteJobSubCommands                                             = []cli.Flag{
 		&cli.StringFlag{
 			Name:  "nickname",
 			Usage: "binance-spot-btc-usdt-2019-trades",
@@ -37,23 +36,26 @@ var (
 			Usage: "binance-spot-btc-usdt-2019-trades",
 		},
 	}
-	fullJobSubCommands = []cli.Flag{
+	baseJobSubCommands = []cli.Flag{
 		&cli.StringFlag{
 			Name:     "nickname",
 			Usage:    "binance-spot-btc-usdt-2019-trades",
 			Required: true,
 		},
 		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "binance",
+			Name:     "exchange",
+			Usage:    "binance",
+			Required: true,
 		},
 		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "spot",
+			Name:     "asset",
+			Usage:    "spot",
+			Required: true,
 		},
 		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "btc-usdt",
+			Name:     "pair",
+			Usage:    "btc-usdt",
+			Required: true,
 		},
 		&cli.StringFlag{
 			Name:        "start_date",
@@ -68,18 +70,15 @@ var (
 			Destination: &endTime,
 		},
 		&cli.Uint64Flag{
-			Name:  "interval",
-			Usage: klineMessage,
+			Name:     "interval",
+			Usage:    klineMessage,
+			Required: true,
 		},
 		&cli.Uint64Flag{
 			Name:        "request_size_limit",
 			Usage:       "the number of candles to retrieve per API request",
 			Destination: &requestSizeLimit,
 			Value:       50,
-		},
-		&cli.Uint64Flag{
-			Name:  "data_type",
-			Usage: "0 for candles, 1 for trades, 2 for convert trades, 3 for convert candles, 4 for validate candles",
 		},
 		&cli.Uint64Flag{
 			Name:        "max_retry_attempts",
@@ -93,20 +92,79 @@ var (
 			Destination: &batchSize,
 			Value:       3,
 		},
-		&cli.Uint64Flag{
-			Name:  "conversion_interval",
-			Usage: "used in conversion jobs (data type 2 & 3), data will be converted and saved at this interval",
-		},
-		&cli.BoolFlag{
-			Name:  "overwrite_existing_data",
-			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
-		},
 		&cli.StringFlag{
 			Name:  "prerequisite",
 			Usage: "optional - adds or updates the job to have a prerequisite, will only run when prerequisite job is complete - use command 'removeprerequisite' to remove a prerequisite",
 		},
+		&cli.BoolFlag{
+			Name:  "upsert",
+			Usage: "if true, will update an existing job if the nickname is shared. if false, will reject a job if the nickname already exists",
+		},
+	}
+	retrievalJobSubCommands = []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "overwrite_existing_data",
+			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
+		},
+	}
+	conversionJobSubCommands = []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "overwrite_existing_data",
+			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
+		},
+		&cli.Uint64Flag{
+			Name:     "conversion_interval",
+			Usage:    "data will be converted and saved at this interval",
+			Required: true,
+		},
+	}
+	validationJobSubCommands = []cli.Flag{
+		&cli.Uint64Flag{
+			Name:        "comparison_decimal_places",
+			Usage:       "the number of decimal places used to compare against API data for accuracy",
+			Destination: &comparisonDecimalPlaces,
+			Value:       3,
+		},
 	}
 )
+
+var dataHistoryJobCommands = &cli.Command{
+	Name:      "addjob",
+	Usage:     "add or update data history jobs",
+	ArgsUsage: "<command> <args>",
+	Subcommands: []*cli.Command{
+		{
+			Name:   "savecandles",
+			Usage:  "will fetch candle data from an exchange and save it to the database",
+			Flags:  append(baseJobSubCommands, retrievalJobSubCommands...),
+			Action: upsertDataHistoryJob,
+		},
+		{
+			Name:   "convertcandles",
+			Usage:  "convert candles saved to the database to a new resolution eg 1min -> 5min",
+			Flags:  append(baseJobSubCommands, retrievalJobSubCommands...),
+			Action: upsertDataHistoryJob,
+		},
+		{
+			Name:   "savetrades",
+			Usage:  "will fetch trade data from an exchange and save it to the database",
+			Flags:  append(baseJobSubCommands, conversionJobSubCommands...),
+			Action: upsertDataHistoryJob,
+		},
+		{
+			Name:   "converttrades",
+			Usage:  "convert trades saved to the database to any candle resolution eg 30min",
+			Flags:  append(baseJobSubCommands, conversionJobSubCommands...),
+			Action: upsertDataHistoryJob,
+		},
+		{
+			Name:   "validatecandles",
+			Usage:  "will compare database candle data with API candle data - useful for validating converted trades and candles",
+			Flags:  append(baseJobSubCommands, validationJobSubCommands...),
+			Action: upsertDataHistoryJob,
+		},
+	},
+}
 
 var dataHistoryCommands = &cli.Command{
 	Name:      "datahistory",
@@ -167,18 +225,7 @@ var dataHistoryCommands = &cli.Command{
 				},
 			},
 		},
-		{
-			Name:   "addnewjob",
-			Usage:  "creates a new data history job",
-			Flags:  fullJobSubCommands,
-			Action: upsertDataHistoryJob,
-		},
-		{
-			Name:   "upsertjob",
-			Usage:  "adds a new job, or updates an existing one if it matches jobid OR nickname",
-			Flags:  fullJobSubCommands,
-			Action: upsertDataHistoryJob,
-		},
+		dataHistoryJobCommands,
 		{
 			Name:      "deletejob",
 			Usage:     "sets a jobs status to deleted so it no longer is processed",
@@ -304,14 +351,10 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	)
 	if c.IsSet("nickname") {
 		nickname = c.String("nickname")
-	} else {
-		nickname = c.Args().First()
 	}
 
 	if c.IsSet("exchange") {
 		exchange = c.String("exchange")
-	} else {
-		exchange = c.Args().Get(1)
 	}
 	if !validExchange(exchange) {
 		return errInvalidExchange
@@ -319,8 +362,6 @@ func upsertDataHistoryJob(c *cli.Context) error {
 
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
 	}
 	if !validAsset(assetType) {
 		return errInvalidAsset
@@ -328,8 +369,6 @@ func upsertDataHistoryJob(c *cli.Context) error {
 
 	if c.IsSet("pair") {
 		pair = c.String("pair")
-	} else {
-		pair = c.Args().Get(3)
 	}
 	if !validPair(pair) {
 		return errInvalidPair
@@ -358,19 +397,10 @@ func upsertDataHistoryJob(c *cli.Context) error {
 
 	if c.IsSet("interval") {
 		interval = c.Int64("interval")
-	} else {
-		interval, err = convert.Int64FromString(c.Args().Get(6))
-		if err != nil {
-			return fmt.Errorf("cannot process interval: %w", err)
-		}
 	}
 	candleInterval := time.Duration(interval) * time.Second
 	if c.IsSet("request_size_limit") {
 		requestSizeLimit = c.Uint64("request_size_limit")
-	}
-
-	if c.IsSet("data_type") {
-		dataType = c.Int64("data_type")
 	}
 
 	if c.IsSet("max_retry_attempts") {
@@ -380,10 +410,35 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	if c.IsSet("batch_size") {
 		batchSize = c.Uint64("batch_size")
 	}
+	var upsert bool
+	if c.IsSet("upsert") {
+		upsert = c.Bool("upsert")
+	}
+
+	switch c.Command.Name {
+	case "savecandles":
+		dataType = 0
+	case "savetrades":
+		dataType = 1
+	case "convertcandles":
+		dataType = 2
+	case "converttrades":
+		dataType = 3
+	case "validatecandles":
+		dataType = 4
+	default:
+		return errors.New("unrecognised command, cannot set data type")
+	}
 
 	var conversionInterval time.Duration
 	var overwriteExistingData bool
-	if dataType == 2 || dataType == 3 || dataType == 4 {
+
+	switch dataType {
+	case 0, 1:
+		if c.IsSet("overwrite_existing_data") {
+			overwriteExistingData = c.Bool("overwrite_existing_data")
+		}
+	case 2, 3:
 		var cInterval int64
 		if c.IsSet("conversion_interval") {
 			cInterval = c.Int64("conversion_interval")
@@ -392,7 +447,12 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		if c.IsSet("overwrite_existing_data") {
 			overwriteExistingData = c.Bool("overwrite_existing_data")
 		}
+	case 4:
+		if c.IsSet("comparison_decimal_places") {
+			comparisonDecimalPlaces = c.Uint64("comparison_decimal_places")
+		}
 	}
+
 	var prerequisiteJobNickname string
 	if c.IsSet("prerequisite") {
 		prerequisiteJobNickname = c.String("prerequisite")
@@ -428,9 +488,8 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		ConversionInterval:      int64(conversionInterval),
 		OverwriteExistingData:   overwriteExistingData,
 		PrerequisiteJobNickname: prerequisiteJobNickname,
-	}
-	if strings.EqualFold(c.Command.Name, "addnewjob") {
-		request.InsertOnly = true
+		InsertOnly:              !upsert,
+		DecimalPlaceComparison:  int64(comparisonDecimalPlaces),
 	}
 
 	result, err := client.UpsertDataHistoryJob(context.Background(), request)

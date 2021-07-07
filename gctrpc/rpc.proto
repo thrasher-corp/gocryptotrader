@@ -869,6 +869,7 @@ message UpsertDataHistoryJobRequest {
     int64	conversion_interval = 13;
     bool overwrite_existing_data = 14;
     string prerequisite_job_nickname = 15;
+    int64 decimal_place_comparison = 16;
 }
 
 message InsertSequentialJobsRequest {
@@ -906,8 +907,10 @@ message DataHistoryJob {
     string data_type = 13;
     int64	conversion_interval = 14;
     bool overwrite_existing_data = 15;
-    repeated DataHistoryJobResult job_results = 16;
-    repeated string result_summaries = 17;
+    string prerequisite_job_nickname = 16;
+    int64 decimal_place_comparison = 17;
+    repeated DataHistoryJobResult job_results = 18;
+    repeated string result_summaries = 19;
 }
 
 message DataHistoryJobResult {

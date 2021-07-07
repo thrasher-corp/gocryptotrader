@@ -107,6 +107,7 @@ var (
 	defaultDataHistoryRequestSizeLimit int64 = 50
 	defaultDataHistoryTicker                 = time.Minute
 	defaultDataHistoryTradeRequestSize int64 = 5
+	defaultDecimalPlaceComparison      int64 = 3
 )
 
 // DataHistoryManager is responsible for synchronising,
@@ -134,24 +135,25 @@ type DataHistoryManager struct {
 // DataHistoryJob used to gather candle/trade history and save
 // to the database
 type DataHistoryJob struct {
-	ID                    uuid.UUID
-	Nickname              string
-	Exchange              string
-	Asset                 asset.Item
-	Pair                  currency.Pair
-	StartDate             time.Time
-	EndDate               time.Time
-	Interval              kline.Interval
-	RunBatchLimit         int64
-	RequestSizeLimit      int64
-	DataType              dataHistoryDataType
-	MaxRetryAttempts      int64
-	Status                dataHistoryStatus
-	CreatedDate           time.Time
-	Results               map[time.Time][]DataHistoryJobResult
-	rangeHolder           *kline.IntervalRangeHolder
-	OverwriteExistingData bool
-	ConversionInterval    kline.Interval
+	ID                     uuid.UUID
+	Nickname               string
+	Exchange               string
+	Asset                  asset.Item
+	Pair                   currency.Pair
+	StartDate              time.Time
+	EndDate                time.Time
+	Interval               kline.Interval
+	RunBatchLimit          int64
+	RequestSizeLimit       int64
+	DataType               dataHistoryDataType
+	MaxRetryAttempts       int64
+	Status                 dataHistoryStatus
+	CreatedDate            time.Time
+	Results                map[time.Time][]DataHistoryJobResult
+	rangeHolder            *kline.IntervalRangeHolder
+	OverwriteExistingData  bool
+	ConversionInterval     kline.Interval
+	DecimalPlaceComparison int64
 	// Prerequisites mean this job is paused until the prerequisite job is completed
 	PrerequisiteJobID       uuid.UUID
 	PrerequisiteJobNickname string

@@ -3254,6 +3254,13 @@
         "overwrite_existing_data": {
           "type": "boolean"
         },
+        "prerequisite_job_nickname": {
+          "type": "string"
+        },
+        "decimal_place_comparison": {
+          "type": "string",
+          "format": "int64"
+        },
         "job_results": {
           "type": "array",
           "items": {
@@ -4582,6 +4589,10 @@
         },
         "prerequisite_job_nickname": {
           "type": "string"
+        },
+        "decimal_place_comparison": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },

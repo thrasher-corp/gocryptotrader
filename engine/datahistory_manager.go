@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -311,7 +312,6 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	if job.DataType == dataHistoryCandleValidationDataType {
 		// in order to verify that an area has been checked, we need to create a datahistoryresult
 		var failures int64
-
 		startDate := job.StartDate
 	validations:
 		for k, v := range job.Results {
@@ -341,18 +341,21 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 				continue
 			}
 		}
-		requestEnd := startDate.Add(job.Interval.Duration() * time.Duration(job.RequestSizeLimit))
-		if requestEnd.After(job.EndDate) {
-			requestEnd = job.EndDate
-		}
-		result, err = m.validateCandles(job, exch, startDate, requestEnd)
-		if err != nil {
-			return err
-		}
+		for i := int64(0); i < job.RunBatchLimit; i++ {
+			requestEnd := startDate.Add(job.Interval.Duration() * time.Duration(job.RequestSizeLimit))
+			if requestEnd.After(job.EndDate) {
+				requestEnd = job.EndDate
+			}
+			result, err = m.validateCandles(job, exch, startDate, requestEnd)
+			if err != nil {
+				return err
+			}
 
-		lookup := job.Results[result.IntervalStartDate]
-		lookup = append(lookup, *result)
-		job.Results[result.IntervalStartDate] = lookup
+			lookup := job.Results[result.IntervalStartDate]
+			lookup = append(lookup, *result)
+			job.Results[result.IntervalStartDate] = lookup
+			startDate = startDate.Add(job.Interval.Duration() * time.Duration(job.RequestSizeLimit))
+		}
 	} else {
 	ranges:
 		for i := range job.rangeHolder.Ranges {
@@ -731,51 +734,69 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		Date:              time.Now(),
 	}
 
-	candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, startRange, endRange, job.Interval)
+	apiCandles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, startRange, endRange, job.Interval)
 	if err != nil {
-		r.Result = "could not get candles: " + err.Error()
+		r.Result = "could not get API candles: " + err.Error()
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
-	cd, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.Interval, startRange.UTC(), endRange.UTC())
+
+	dbCandles, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.Interval, startRange, endRange)
 	if err != nil {
-		r.Result = "could not get candles: " + err.Error()
+		r.Result = "could not get database candles: " + err.Error()
 		r.Status = dataHistoryStatusFailed
 		return r, nil
+	}
+	dbCandleMap := make(map[int64]kline.Candle)
+	for i := range dbCandles.Candles {
+		dbCandleMap[dbCandles.Candles[i].Time.Unix()] = dbCandles.Candles[i]
 	}
 	var validationIssues []string
-candleValidation:
-	for i := range candles.Candles {
-		found := false
-		for j := range cd.Candles {
-			if candles.Candles[i].Time.Equal(cd.Candles[j].Time) {
-				var candleIssues []string
-				found = true
-				if candles.Candles[i].High != cd.Candles[j].High {
-					candleIssues = append(candleIssues, fmt.Sprintf("High api: %v db: %v", candles.Candles[i].High, cd.Candles[j].High))
-				}
-				if candles.Candles[i].Low != cd.Candles[j].Low {
-					candleIssues = append(candleIssues, fmt.Sprintf("Low api: %v db: %v", candles.Candles[i].Low, cd.Candles[j].Low))
-				}
-				if candles.Candles[i].Close != cd.Candles[j].Close {
-					candleIssues = append(candleIssues, fmt.Sprintf("Close api: %v db: %v", candles.Candles[i].Close, cd.Candles[j].Close))
-				}
-				if candles.Candles[i].Open != cd.Candles[j].Open {
-					candleIssues = append(candleIssues, fmt.Sprintf("Open api: %v db: %v", candles.Candles[i].Open, cd.Candles[j].Open))
-				}
-				if candles.Candles[i].Volume != cd.Candles[j].Volume {
-					candleIssues = append(candleIssues, fmt.Sprintf("Volume api: %v db: %v", candles.Candles[i].Volume, cd.Candles[j].Volume))
-				}
-				if len(candleIssues) > 0 {
-					candleIssues = append([]string{fmt.Sprintf("issues found at %v", cd.Candles[j].Time.Format(common.SimpleTimeFormat))}, validationIssues...)
-					validationIssues = append(validationIssues, candleIssues...)
-					r.Status = dataHistoryStatusFailed
-					continue candleValidation
-				}
-			}
+	multiplier := float64(1)
+	for i := int64(0); i < job.DecimalPlaceComparison; i++ {
+		multiplier *= 10
+	}
+	for i := range apiCandles.Candles {
+		can, ok := dbCandleMap[apiCandles.Candles[i].Time.Unix()]
+		if !ok {
+			validationIssues = append(validationIssues, fmt.Sprintf("issues found at %v missing candle data in database", apiCandles.Candles[i].Time.Format(common.SimpleTimeFormatWithTimezone)))
+			r.Status = dataHistoryIntervalMissingData
+			continue
 		}
-		if !found {
-			validationIssues = append(validationIssues, fmt.Sprintf("missing candle data in database at that exists in API at %v", candles.Candles[i].Time.Format(common.SimpleTimeFormatWithTimezone)))
+		var (
+			candleIssues []string
+			rAPIHigh, rAPILow, rAPIClose, rAPIOpen, rAPIVolume,
+			rDBHigh, rDBLow, rDBClose, rDBOpen, rDBVolume float64
+		)
+		rAPIOpen = math.Round(apiCandles.Candles[i].Open*multiplier) / multiplier
+		rAPIHigh = math.Round(apiCandles.Candles[i].High*multiplier) / multiplier
+		rAPILow = math.Round(apiCandles.Candles[i].Low*multiplier) / multiplier
+		rAPIClose = math.Round(apiCandles.Candles[i].Close*multiplier) / multiplier
+		rAPIVolume = math.Round(apiCandles.Candles[i].Volume*multiplier) / multiplier
+		rDBOpen = math.Round(can.Open*multiplier) / multiplier
+		rDBHigh = math.Round(can.High*multiplier) / multiplier
+		rDBLow = math.Round(can.Low*multiplier) / multiplier
+		rDBClose = math.Round(can.Close*multiplier) / multiplier
+		rDBVolume = math.Round(can.Volume*multiplier) / multiplier
+
+		if rAPIHigh != rDBHigh {
+			candleIssues = append(candleIssues, fmt.Sprintf("High api: %v db: %v", rAPIHigh, rDBHigh))
+		}
+		if rAPILow != rDBLow {
+			candleIssues = append(candleIssues, fmt.Sprintf("Low api: %v db: %v", rAPILow, rDBLow))
+		}
+		if rAPIClose != rDBClose {
+			candleIssues = append(candleIssues, fmt.Sprintf("Close api: %v db: %v", rAPIClose, rDBClose))
+		}
+		if rAPIOpen != rDBOpen {
+			candleIssues = append(candleIssues, fmt.Sprintf("Open api: %v db: %v", rAPIOpen, rDBOpen))
+		}
+		if rAPIVolume != rDBVolume {
+			candleIssues = append(candleIssues, fmt.Sprintf("Volume api: %v db: %v", rAPIVolume, rDBVolume))
+		}
+		if len(candleIssues) > 0 {
+			candleIssues = append([]string{fmt.Sprintf("issues found at %v", can.Time.Format(common.SimpleTimeFormat))}, candleIssues...)
+			validationIssues = append(validationIssues, candleIssues...)
 			r.Status = dataHistoryStatusFailed
 		}
 	}
@@ -881,6 +902,9 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 			if job.ConversionInterval != 0 && m.jobs[i].ConversionInterval != job.ConversionInterval {
 				m.jobs[i].ConversionInterval = job.ConversionInterval
 			}
+			if job.DecimalPlaceComparison != 0 && m.jobs[i].DecimalPlaceComparison != job.DecimalPlaceComparison {
+				m.jobs[i].DecimalPlaceComparison = job.DecimalPlaceComparison
+			}
 			m.jobs[i].DataType = job.DataType
 			m.jobs[i].Status = job.Status
 			break
@@ -892,18 +916,14 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 			return err
 		}
 	}
-	if job.DataType == dataHistoryTradeDataType ||
-		job.DataType == dataHistoryCandleDataType ||
-		job.DataType == dataHistoryCandleValidationDataType {
-		job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.Interval, uint32(job.RequestSizeLimit))
-		if err != nil {
-			return err
-		}
-	} else {
-		job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.ConversionInterval, uint32(job.RequestSizeLimit))
-		if err != nil {
-			return err
-		}
+	interval := job.Interval
+	if job.DataType == dataHistoryConvertTradesDataType ||
+		job.DataType == dataHistoryConvertCandlesDataType {
+		interval = job.ConversionInterval
+	}
+	job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, interval, uint32(job.RequestSizeLimit))
+	if err != nil {
+		return err
 	}
 
 	if !isUpdatingExistingJob {
@@ -987,6 +1007,11 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	if (job.DataType == dataHistoryConvertTradesDataType || job.DataType == dataHistoryConvertCandlesDataType) &&
 		job.ConversionInterval <= 0 {
 		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.ConversionInterval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
+	}
+
+	if job.DecimalPlaceComparison <= 0 && job.DataType == dataHistoryCandleValidationDataType {
+		log.Warnf(log.DataHistory, "job %s decimal place comparison %v invalid. defaulting to %v", job.Nickname, job.DecimalPlaceComparison, defaultDecimalPlaceComparison)
+		job.DecimalPlaceComparison = defaultDecimalPlaceComparison
 	}
 
 	job.StartDate = job.StartDate.Round(job.Interval.Duration())
