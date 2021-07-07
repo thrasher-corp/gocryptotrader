@@ -648,6 +648,83 @@ func (d *Deribit) SubmitWithdraw(currency, address, priority, tfa string, amount
 		submitWithdraw, params, &resp)
 }
 
+// SubmitWithdraw submits a withdrawal request to the exchange for the requested currency
+func (d *Deribit) PrivateBuy(instrumentName string, amount float64, orderType, label string, price float64, timeInForce string, maxShow float64, postOnly, rejectPostOnly, reduceOnly, mmp bool, triggerPrice float64, trigger, advanced string) ([]TradeData, error) {
+	var resp struct {
+		Trades []TradeData `json:"trades"`
+	}
+	params := url.Values{}
+	return resp.Trades, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		submitBuy, params, &resp)
+}
+
+// ChangeAPIKeyName changes the name of the api key requested
+func (d *Deribit) ChangeAPIKeyName(id int64, name string) (APIKeyData, error) {
+	var resp APIKeyData
+	params := url.Values{}
+	params.Set("id", strconv.FormatInt(id, 10))
+	params.Set("name", name)
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		changeAPIKeyName, params, &resp)
+}
+
+// ChangeScopeInAPIKey changes the scope of the api key requested
+func (d *Deribit) ChangeScopeInAPIKey(id int64, maxScope string) (APIKeyData, error) {
+	var resp APIKeyData
+	params := url.Values{}
+	params.Set("id", strconv.FormatInt(id, 10))
+	params.Set("max_scope", maxScope)
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		changeScopeInAPIKey, params, &resp)
+}
+
+// ChangeSubAccountName changes the name of the requested subaccount id
+func (d *Deribit) ChangeSubAccountName(sid int64, name string) (string, error) {
+	params := url.Values{}
+	params.Set("sid", strconv.FormatInt(sid, 10))
+	params.Set("name", name)
+	var resp string
+	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		changeSubAccountName, params, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp != "ok" {
+		return "", fmt.Errorf("subaccount name change failed")
+	}
+	return resp, nil
+}
+
+func (d *Deribit) CreateAPIKey(maxScope, name string, defaultKey bool) (APIKeyData, error) {
+	var resp APIKeyData
+	params := url.Values{}
+	params.Set("max_scope", maxScope)
+	if name != "" {
+		params.Set("name", name)
+	}
+	defaultKeyStr := "false"
+	if defaultKey {
+		defaultKeyStr = "true"
+	}
+	params.Set("default", defaultKeyStr)
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		createAPIKey, params, &resp)
+}
+
+func (d *Deribit) CreateSubAccount() (SubAccountData, error) {
+	var resp SubAccountData
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		createSubAccount, nil, &resp)
+}
+
+func (d *Deribit) DisableAPIKey(id int64) (APIKeyData, error) {
+	var resp APIKeyData
+	params := url.Values{}
+	params.Set("id", strconv.FormatInt(id, 10))
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		disableAPIKey, params, &resp)
+}
+
 // SendAuthHTTPRequest sends an authenticated request to deribit api
 func (d *Deribit) SendHTTPAuthRequest(ep exchange.URL, method, path string, data url.Values, result interface{}) error {
 	kee := "" //key here
@@ -680,10 +757,6 @@ func (d *Deribit) SendHTTPAuthRequest(ep exchange.URL, method, path string, data
 		crypto.HexEncodeToString(hmac),
 		n)
 	headers["Authorization"] = headerString
-	// headers["id"] = kee
-	// headers["ts"] = strTS
-	// headers["sig"] = crypto.HexEncodeToString(hmac)
-	// headers["nonce"] = n.String()
 	headers["Content-Type"] = "application/json"
 
 	var tempData struct {

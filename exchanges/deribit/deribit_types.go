@@ -470,6 +470,23 @@ type UserTradeData struct {
 	Amount          float64 `json:"amount"`
 }
 
+// PrivateSettlementHistoryData stores data for private settlement history
+type PrivateSettlementsHistoryData struct {
+	Settlements []PrivateSettlementData `json:"settlements"`
+}
+
+// PrivateSettlementData stores private settlement data
+type PrivateSettlementData struct {
+	Type              string  `json:"type"`
+	Timestamp         int64   `json:"timestamp"`
+	SessionProfitLoss float64 `json:"session_profit_loss"`
+	ProfitLoss        float64 `json:"profit_loss"`
+	Position          float64 `json:"position"`
+	MarkPrice         float64 `json:"mark_price"`
+	InstrumentName    string  `json:"instrument_name"`
+	IndexPrice        float64 `json:"index_price"`
+}
+
 // AccountSummaryData stores data of account summary for a given currency
 type AccountSummaryData struct {
 	Balance                  float64 `json:"balance"`
@@ -519,3 +536,72 @@ type AccountSummaryData struct {
 	AvailableFunds            float64 `json:"available_funds"`
 	OptionsValue              float64 `json:"options_value"`
 }
+
+// APIKeyData stores data regarding the api key
+type APIKeyData struct {
+	Timestamp    int64  `json:"timestamp"`
+	MaxScope     string `json:"max_scope"`
+	ID           int64  `json:"id"`
+	Enabled      bool   `json:"enabled"`
+	Default      bool   `json:"default"`
+	ClientSecret string `json:"client_secret"`
+	ClientID     string `json:"client_id"`
+	Name         string `json:"name"`
+}
+
+// SubAccountData stores stores subaccount data
+type SubAccountData struct {
+	Email        string `json:"email"`
+	ID           int64  `json:"id"`
+	IsPassword   bool   `json:"is_password"`
+	LoginEnabled bool   `json:"login_enabled"`
+	Portfolio    struct {
+		Eth struct {
+			AvailableFunds           float64 `json:"available_funds"`
+			AvailableWithdrawalFunds float64 `json:"available_withdrawal_funds"`
+			Balance                  float64 `json:"balance"`
+			Currency                 string  `json:"currency"`
+			Equity                   float64 `json:"equity"`
+			InitialMargin            float64 `json:"initial_margin"`
+			MaintenanceMargin        float64 `json:"maintenance_margin"`
+			MarginBalance            float64 `json:"margin_balance"`
+		} `json:"eth"`
+		Btc struct {
+			AvailableFunds           float64 `json:"available_funds"`
+			AvailableWithdrawalFunds float64 `json:"available_withdrawal_funds"`
+			Balance                  float64 `json:"balance"`
+			Currency                 string  `json:"currency"`
+			Equity                   float64 `json:"equity"`
+			InitialMargin            float64 `json:"initial_margin"`
+			MaintenanceMargin        float64 `json:"maintenance_margin"`
+			MarginBalance            float64 `json:"margin_balance"`
+		} `json:"btc"`
+	}
+	ReceiveNotifications bool   `json:"receive_notifications"`
+	SystemName           string `json:"system_name"`
+	TFAEnabled           bool   `json:"tfa_enabled"`
+	Type                 string `json:"type"`
+	Username             string `json:"username"`
+}
+
+// AffiliateProgramInfo stores info of affiliate program
+type AffiliateProgramInfo struct {
+	Received struct {
+		Eth float64 `json:"eth"`
+		Btc float64 `json:"btc"`
+	} `json:"received"`
+	NumberOfAffiliates int64  `json:"number_of_affiliates"`
+	Link               string `json:"link"`
+	IsEnabled          bool   `json:"is_enabled"`
+}
+
+// PrivateAnnouncementsData stores data of private announcements
+type PrivateAnnouncementsData struct {
+	Title                string `json:"title"`
+	PublicationTimestamp int64  `json:"publication_timestamp"`
+	Important            bool   `json:"important"`
+	ID                   int64  `json:"id"`
+	Body                 string `json:"body"`
+}
+
+//

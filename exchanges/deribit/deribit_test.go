@@ -37,6 +37,8 @@ func TestMain(m *testing.M) {
 	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
+	d.API.Credentials.Key = apiKey
+	d.API.Credentials.Secret = apiSecret
 
 	err = d.Setup(exchCfg)
 	if err != nil {
@@ -381,6 +383,72 @@ func TestSubmitWithdraw(t *testing.T) {
 	t.Parallel()
 	fmt.Println(d.API.Credentials.Key)
 	a, err := d.SubmitWithdraw("BTC", "incorrectAddress", "", "", 0.001)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestChangeAPIKeyName(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.ChangeAPIKeyName(1, "TestKey123")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestChangeScopeInAPIKey(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.ChangeScopeInAPIKey(1, "account:read_write")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestChangeSubAccountName(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.ChangeSubAccountName(1, "TestingSubAccount")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestCreateAPIKey(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.CreateAPIKey("account:read_write", "TestingSubAccount", false)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestCreateSubAccount(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.CreateSubAccount()
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestDisableAPIKey(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	fmt.Println(d.API.Credentials.Key)
+	a, err := d.DisableAPIKey(1)
 	if err != nil {
 		t.Error(err)
 	}
