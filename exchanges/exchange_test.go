@@ -348,13 +348,23 @@ func TestSetAPICredentialDefaults(t *testing.T) {
 }
 
 func TestSetAutoPairDefaults(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.TestFile, true)
-	if err != nil {
-		t.Fatalf("TestSetAutoPairDefaults failed to load config file. Error: %s", err)
-	}
+	t.Parallel()
+	bs := "Bitstamp"
+	cfg := &config.Config{Exchanges: []config.ExchangeConfig{
+		{
+			Name:          bs,
+			CurrencyPairs: &currency.PairsManager{},
+			Features: &config.FeaturesConfig{
+				Supports: config.FeaturesSupportedConfig{
+					RESTCapabilities: protocol.Features{
+						AutoPairUpdates: true,
+					},
+				},
+			},
+		},
+	}}
 
-	exch, err := cfg.GetExchangeConfig("Bitstamp")
+	exch, err := cfg.GetExchangeConfig(bs)
 	if err != nil {
 		t.Fatalf("TestSetAutoPairDefaults load config failed. Error %s", err)
 	}
@@ -369,7 +379,7 @@ func TestSetAutoPairDefaults(t *testing.T) {
 
 	exch.Features.Supports.RESTCapabilities.AutoPairUpdates = false
 
-	exch, err = cfg.GetExchangeConfig("Bitstamp")
+	exch, err = cfg.GetExchangeConfig(bs)
 	if err != nil {
 		t.Fatalf("TestSetAutoPairDefaults load config failed. Error %s", err)
 	}
@@ -1467,10 +1477,14 @@ func TestSetPairs(t *testing.T) {
 }
 
 func TestUpdatePairs(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.TestFile, true)
-	if err != nil {
-		t.Fatal("TestUpdatePairs failed to load config")
+	t.Parallel()
+	cfg := &config.Config{
+		Exchanges: []config.ExchangeConfig{
+			{
+				Name:          defaultTestExchange,
+				CurrencyPairs: &currency.PairsManager{},
+			},
+		},
 	}
 
 	exchCfg, err := cfg.GetExchangeConfig(defaultTestExchange)

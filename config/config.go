@@ -1062,7 +1062,7 @@ func (c *Config) CheckBankAccountConfig() {
 			}
 		}
 	}
-	banking.Accounts = c.BankAccounts
+	banking.SetAccounts(c.BankAccounts...)
 }
 
 // CheckCurrencyConfigValues checks to see if the currency config values are correct or not

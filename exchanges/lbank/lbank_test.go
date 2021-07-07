@@ -427,7 +427,7 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 
-	startTime := time.Now().Add(-time.Hour)
+	startTime := time.Now().Add(-time.Minute * 2)
 	end := time.Now()
 	pair, err := currency.NewPairFromString("eth_btc")
 	if err != nil {

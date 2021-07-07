@@ -107,7 +107,7 @@ func verifyTradeInIntervalsSqlite(ctx context.Context, tx *sql.Tx, exchangeName,
 				quote,
 				irh.Ranges[i].Intervals[j].Start.Time.UTC().Format(time.RFC3339),
 				irh.Ranges[i].Intervals[j].End.Time.UTC().Format(time.RFC3339))).One(ctx, tx)
-			if err != nil {
+			if err != nil && err != sql.ErrNoRows {
 				return err
 			}
 			if result != nil {
@@ -133,7 +133,7 @@ func verifyTradeInIntervalsPostgres(ctx context.Context, tx *sql.Tx, exchangeNam
 				quote,
 				irh.Ranges[i].Intervals[j].Start.Time.UTC(),
 				irh.Ranges[i].Intervals[j].End.Time.UTC())).One(ctx, tx)
-			if err != nil {
+			if err != nil && err != sql.ErrNoRows {
 				return err
 			}
 			if result != nil {

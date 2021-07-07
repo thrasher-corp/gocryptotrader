@@ -1,12 +1,14 @@
 package config
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -22,12 +24,10 @@ import (
 )
 
 const (
-	// Default number of enabled exchanges. Modify this whenever an exchange is
-	// added or removed
-	defaultEnabledExchanges = 28
-	testFakeExchangeName    = "Stampbit"
-	testPair                = "BTC-USD"
-	testString              = "test"
+	testFakeExchangeName = "Stampbit"
+	testPair             = "BTC-USD"
+	testString           = "test"
+	bfx                  = "Bitfinex"
 )
 
 func TestGetNonExistentDefaultFilePathDoesNotCreateDefaultDir(t *testing.T) {
@@ -42,21 +42,28 @@ func TestGetNonExistentDefaultFilePathDoesNotCreateDefaultDir(t *testing.T) {
 }
 
 func TestGetCurrencyConfig(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("GetCurrencyConfig LoadConfig error", err)
+	t.Parallel()
+	cfg := &Config{
+		Currency: CurrencyConfig{
+			ForeignExchangeUpdateDuration: time.Second,
+		},
 	}
-	_ = cfg.GetCurrencyConfig()
+	cCFG := cfg.GetCurrencyConfig()
+	if cCFG.ForeignExchangeUpdateDuration != cfg.Currency.ForeignExchangeUpdateDuration {
+		t.Error("did not retrieve correct currency config")
+	}
 }
 
 func TestGetClientBankAccounts(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Fatal("GetExchangeBankAccounts LoadConfig error", err)
-	}
-	_, err = cfg.GetClientBankAccounts("Kraken", "USD")
+	t.Parallel()
+	cfg := &Config{BankAccounts: []banking.Account{
+		{
+			SupportedCurrencies: "USD",
+			SupportedExchanges:  "Kraken",
+		},
+	}}
+
+	_, err := cfg.GetClientBankAccounts("Kraken", "USD")
 	if err != nil {
 		t.Error("GetExchangeBankAccounts error", err)
 	}
@@ -67,12 +74,21 @@ func TestGetClientBankAccounts(t *testing.T) {
 }
 
 func TestGetExchangeBankAccounts(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("GetExchangeBankAccounts LoadConfig error", err)
+	t.Parallel()
+
+	cfg := &Config{
+		Exchanges: []ExchangeConfig{{
+			Name:    bfx,
+			Enabled: true,
+			BankAccounts: []banking.Account{
+				{
+					SupportedCurrencies: "USD",
+					SupportedExchanges:  bfx,
+				},
+			},
+		}},
 	}
-	_, err = cfg.GetExchangeBankAccounts("Bitfinex", "", "USD")
+	_, err := cfg.GetExchangeBankAccounts(bfx, "", "USD")
 	if err != nil {
 		t.Error("GetExchangeBankAccounts error", err)
 	}
@@ -83,32 +99,61 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 }
 
 func TestCheckBankAccountConfig(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("GetExchangeBankAccounts LoadConfig error", err)
+	t.Parallel()
+	cfg := &Config{
+		BankAccounts: []banking.Account{
+			{
+				Enabled: true,
+			},
+		},
 	}
 
-	cfg.BankAccounts[0].Enabled = true
 	cfg.CheckBankAccountConfig()
+	if cfg.BankAccounts[0].Enabled {
+		t.Error("validation should have changed it to false")
+	}
+	cfg.BankAccounts[0] = banking.Account{
+		Enabled:             true,
+		ID:                  "1337",
+		BankName:            "1337",
+		BankAddress:         "1337",
+		BankPostalCode:      "1337",
+		BankPostalCity:      "1337",
+		BankCountry:         "1337",
+		AccountName:         "1337",
+		AccountNumber:       "1337",
+		SWIFTCode:           "1337",
+		IBAN:                "1337",
+		BSBNumber:           "1337",
+		BankCode:            1337,
+		SupportedCurrencies: "1337",
+		SupportedExchanges:  "1337",
+	}
+	cfg.CheckBankAccountConfig()
+	if !cfg.BankAccounts[0].Enabled {
+		t.Error("validation should have not have changed result")
+	}
 }
 
 func TestUpdateExchangeBankAccounts(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("UpdateExchangeBankAccounts LoadConfig error", err)
+	t.Parallel()
+	cfg := &Config{
+		Exchanges: []ExchangeConfig{
+			{
+				Name:    bfx,
+				Enabled: true,
+			},
+		},
 	}
-
 	b := []banking.Account{{Enabled: false}}
-	err = cfg.UpdateExchangeBankAccounts("Bitfinex", b)
+	err := cfg.UpdateExchangeBankAccounts(bfx, b)
 	if err != nil {
 		t.Error("UpdateExchangeBankAccounts error", err)
 	}
 	var count int
-	for _, exch := range cfg.Exchanges {
-		if exch.Name == "Bitfinex" {
-			if !exch.BankAccounts[0].Enabled {
+	for i := range cfg.Exchanges {
+		if cfg.Exchanges[i].Name == bfx {
+			if !cfg.Exchanges[i].BankAccounts[0].Enabled {
 				count++
 			}
 		}
@@ -124,13 +169,17 @@ func TestUpdateExchangeBankAccounts(t *testing.T) {
 }
 
 func TestUpdateClientBankAccounts(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("UpdateClientBankAccounts LoadConfig error", err)
+	t.Parallel()
+	cfg := &Config{
+		BankAccounts: []banking.Account{
+			{
+				BankName:      testString,
+				AccountNumber: "1337",
+			},
+		},
 	}
-	b := banking.Account{Enabled: false, BankName: testString, AccountNumber: "0234"}
-	err = cfg.UpdateClientBankAccounts(&b)
+	b := banking.Account{Enabled: false, BankName: testString, AccountNumber: "1337"}
+	err := cfg.UpdateClientBankAccounts(&b)
 	if err != nil {
 		t.Error("UpdateClientBankAccounts error", err)
 	}
@@ -154,18 +203,12 @@ func TestUpdateClientBankAccounts(t *testing.T) {
 }
 
 func TestCheckClientBankAccounts(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("CheckClientBankAccounts LoadConfig error", err)
-	}
-
-	cfg.BankAccounts = nil
+	t.Parallel()
+	cfg := &Config{}
 	cfg.CheckClientBankAccounts()
 	if len(cfg.BankAccounts) == 0 {
-		t.Error("CheckClientBankAccounts error:", err)
+		t.Error("expected a placeholder account")
 	}
-
 	cfg.BankAccounts = nil
 	cfg.BankAccounts = []banking.Account{
 		{
@@ -288,19 +331,24 @@ func TestPurgeExchangeCredentials(t *testing.T) {
 }
 
 func TestGetCommunicationsConfig(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("GetCommunicationsConfig LoadConfig error", err)
+	t.Parallel()
+	cfg := &Config{
+		Communications: base.CommunicationsConfig{
+			SlackConfig: base.SlackConfig{Name: "hellomoto"},
+		},
 	}
-	_ = cfg.GetCommunicationsConfig()
+	cCFG := cfg.GetCommunicationsConfig()
+	if cCFG.SlackConfig.Name != cfg.Communications.SlackConfig.Name {
+		t.Error("failed to retrieve config")
+	}
 }
 
 func TestUpdateCommunicationsConfig(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("UpdateCommunicationsConfig LoadConfig error", err)
+	t.Parallel()
+	cfg := &Config{
+		Communications: base.CommunicationsConfig{
+			SlackConfig: base.SlackConfig{Name: "hellomoto"},
+		},
 	}
 	cfg.UpdateCommunicationsConfig(&base.CommunicationsConfig{SlackConfig: base.SlackConfig{Name: testString}})
 	if cfg.Communications.SlackConfig.Name != testString {
@@ -309,38 +357,40 @@ func TestUpdateCommunicationsConfig(t *testing.T) {
 }
 
 func TestGetCryptocurrencyProviderConfig(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("GetCryptocurrencyProviderConfig LoadConfig error", err)
+	t.Parallel()
+	cfg := &Config{
+		Currency: CurrencyConfig{
+			CryptocurrencyProvider: CryptocurrencyProvider{
+				Name: "hellomoto",
+			},
+		},
 	}
-	_ = cfg.GetCryptocurrencyProviderConfig()
+	cCFG := cfg.GetCryptocurrencyProviderConfig()
+	if cCFG.Name != cfg.Currency.CryptocurrencyProvider.Name {
+		t.Error("failed to retrieve config")
+	}
 }
 
 func TestUpdateCryptocurrencyProviderConfig(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("UpdateCryptocurrencyProviderConfig LoadConfig error", err)
+	t.Parallel()
+	cfg := &Config{
+		Currency: CurrencyConfig{
+			CryptocurrencyProvider: CryptocurrencyProvider{
+				Name: "hellomoto",
+			},
+		},
 	}
-
-	orig := cfg.GetCryptocurrencyProviderConfig()
 	cfg.UpdateCryptocurrencyProviderConfig(CryptocurrencyProvider{Name: "SERIOUS TESTING PROCEDURE!"})
 	if cfg.Currency.CryptocurrencyProvider.Name != "SERIOUS TESTING PROCEDURE!" {
 		t.Error("UpdateCurrencyProviderConfig LoadConfig error")
 	}
-
-	cfg.UpdateCryptocurrencyProviderConfig(orig)
 }
 
 func TestCheckCommunicationsConfig(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("CheckCommunicationsConfig LoadConfig error", err)
+	t.Parallel()
+	cfg := &Config{
+		Communications: base.CommunicationsConfig{},
 	}
-
-	cfg.Communications = base.CommunicationsConfig{}
 	cfg.CheckCommunicationsConfig()
 	if cfg.Communications.SlackConfig.Name != "Slack" ||
 		cfg.Communications.SMSGlobalConfig.Name != "SMSGlobal" ||
@@ -354,7 +404,7 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 	cfg.Communications.SMSGlobalConfig.Name = ""
 	cfg.CheckCommunicationsConfig()
 	if cfg.Communications.SMSGlobalConfig.Password != testString {
-		t.Error("CheckCommunicationsConfig error:", err)
+		t.Error("incorrect password")
 	}
 
 	cfg.SMS.Contacts = append(cfg.SMS.Contacts, base.SMSContact{
@@ -365,7 +415,7 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 	cfg.Communications.SMSGlobalConfig.Name = ""
 	cfg.CheckCommunicationsConfig()
 	if cfg.Communications.SMSGlobalConfig.Contacts[0].Name != "Bobby" {
-		t.Error("CheckCommunicationsConfig error:", err)
+		t.Error("incorrect name")
 	}
 
 	cfg.Communications.SMSGlobalConfig.From = ""
@@ -497,7 +547,6 @@ func TestSupportsExchangeAssetType(t *testing.T) {
 
 func TestSetPairs(t *testing.T) {
 	t.Parallel()
-
 	var c Config
 	pairs := currency.Pairs{
 		currency.NewPair(currency.BTC, currency.USD),
@@ -544,7 +593,6 @@ func TestSetPairs(t *testing.T) {
 
 func TestGetCurrencyPairConfig(t *testing.T) {
 	t.Parallel()
-
 	var c Config
 	_, err := c.GetCurrencyPairConfig("asdfg", asset.Spot)
 	if err == nil {
@@ -602,7 +650,6 @@ func TestCheckPairConfigFormats(t *testing.T) {
 	if err := c.CheckPairConfigFormats("non-existent"); err == nil {
 		t.Error("non-existent exchange should throw an error")
 	}
-
 	// Test nil pair store
 	c.Exchanges = append(c.Exchanges,
 		ExchangeConfig{
@@ -851,14 +898,26 @@ func TestCheckPairConsistency(t *testing.T) {
 }
 
 func TestSupportsPair(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf(
-			"TestSupportsPair. LoadConfig Error: %s", err.Error(),
-		)
+	t.Parallel()
+	fmt := &currency.PairFormat{}
+	cfg := &Config{
+		Exchanges: []ExchangeConfig{
+			{
+				Name:    bfx,
+				Enabled: true,
+				CurrencyPairs: &currency.PairsManager{
+					Pairs: map[asset.Item]*currency.PairStore{
+						asset.Spot: {
+							AssetEnabled:  convert.BoolPtr(true),
+							Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+							ConfigFormat:  fmt,
+							RequestFormat: fmt,
+						},
+					},
+				},
+			},
+		},
 	}
-
 	assetType := asset.Spot
 	if cfg.SupportsPair("asdf",
 		currency.NewPair(currency.BTC, currency.USD), assetType) {
@@ -867,10 +926,9 @@ func TestSupportsPair(t *testing.T) {
 		)
 	}
 
-	if !cfg.SupportsPair("Bitfinex",
-		currency.NewPair(currency.BTC, currency.USD), assetType) {
+	if !cfg.SupportsPair(bfx, currency.NewPair(currency.BTC, currency.USD), assetType) {
 		t.Errorf(
-			"TestSupportsPair. Incorrect values. Err: %s", err,
+			"expected true",
 		)
 	}
 }
@@ -1065,22 +1123,16 @@ func TestGetEnabledPairs(t *testing.T) {
 }
 
 func TestGetEnabledExchanges(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf(
-			"TestGetEnabledExchanges. LoadConfig Error: %s", err.Error(),
-		)
-	}
+	t.Parallel()
+	cfg := &Config{Exchanges: []ExchangeConfig{
+		{
+			Name:    bfx,
+			Enabled: true,
+		},
+	}}
 
 	exchanges := cfg.GetEnabledExchanges()
-	if len(exchanges) != defaultEnabledExchanges {
-		t.Error(
-			"TestGetEnabledExchanges. Enabled exchanges value mismatch",
-		)
-	}
-
-	if !common.StringDataCompare(exchanges, "Bitfinex") {
+	if !common.StringDataCompare(exchanges, bfx) {
 		t.Error(
 			"TestGetEnabledExchanges. Expected exchange Bitfinex not found",
 		)
@@ -1088,14 +1140,13 @@ func TestGetEnabledExchanges(t *testing.T) {
 }
 
 func TestGetDisabledExchanges(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf(
-			"TestGetDisabledExchanges. LoadConfig Error: %s", err.Error(),
-		)
-	}
-
+	t.Parallel()
+	cfg := &Config{Exchanges: []ExchangeConfig{
+		{
+			Name:    bfx,
+			Enabled: true,
+		},
+	}}
 	exchanges := cfg.GetDisabledExchanges()
 	if len(exchanges) != 0 {
 		t.Error(
@@ -1103,7 +1154,7 @@ func TestGetDisabledExchanges(t *testing.T) {
 		)
 	}
 
-	exchCfg, err := cfg.GetExchangeConfig("Bitfinex")
+	exchCfg, err := cfg.GetExchangeConfig(bfx)
 	if err != nil {
 		t.Errorf(
 			"TestGetDisabledExchanges. GetExchangeConfig Error: %s", err.Error(),
@@ -1126,26 +1177,27 @@ func TestGetDisabledExchanges(t *testing.T) {
 }
 
 func TestCountEnabledExchanges(t *testing.T) {
-	GetConfigEnabledExchanges := GetConfig()
-	err := GetConfigEnabledExchanges.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error(
-			"GetConfigEnabledExchanges load config error: " + err.Error(),
-		)
-	}
-	enabledExch := GetConfigEnabledExchanges.CountEnabledExchanges()
-	if enabledExch != defaultEnabledExchanges {
-		t.Errorf("Expected %v, Received %v", defaultEnabledExchanges, enabledExch)
+	t.Parallel()
+	cfg := &Config{Exchanges: []ExchangeConfig{
+		{
+			Enabled: true,
+		},
+	}}
+	enabledExch := cfg.CountEnabledExchanges()
+	if enabledExch != 1 {
+		t.Errorf("Expected %v, Received %v", 1, enabledExch)
 	}
 }
 
 func TestGetCurrencyPairDisplayConfig(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf(
-			"GetCurrencyPairDisplayConfig. LoadConfig Error: %s", err.Error(),
-		)
+	t.Parallel()
+	cfg := &Config{
+		Currency: CurrencyConfig{
+			CurrencyPairFormat: &CurrencyPairFormatConfig{
+				Delimiter: "-",
+				Uppercase: true,
+			},
+		},
 	}
 	settings := cfg.GetCurrencyPairDisplayConfig()
 	if settings.Delimiter != "-" || !settings.Uppercase {
@@ -1156,42 +1208,50 @@ func TestGetCurrencyPairDisplayConfig(t *testing.T) {
 }
 
 func TestGetAllExchangeConfigs(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("GetAllExchangeConfigs. LoadConfig error", err)
+	t.Parallel()
+	cfg := &Config{
+		Exchanges: []ExchangeConfig{
+			{},
+		},
 	}
-	if len(cfg.GetAllExchangeConfigs()) < 26 {
+	if len(cfg.GetAllExchangeConfigs()) != 1 {
 		t.Error("GetAllExchangeConfigs error")
 	}
 }
 
 func TestGetExchangeConfig(t *testing.T) {
-	GetExchangeConfig := GetConfig()
-	err := GetExchangeConfig.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf(
-			"GetExchangeConfig.LoadConfig Error: %s", err.Error(),
-		)
+	t.Parallel()
+	cfg := &Config{
+		Exchanges: []ExchangeConfig{
+			{
+				Name: bfx,
+			},
+		},
 	}
-	_, err = GetExchangeConfig.GetExchangeConfig("Bitfinex")
+	_, err := cfg.GetExchangeConfig(bfx)
 	if err != nil {
 		t.Errorf("GetExchangeConfig.GetExchangeConfig Error: %s",
 			err.Error())
 	}
-	_, err = GetExchangeConfig.GetExchangeConfig("Testy")
-	if err == nil {
-		t.Error("GetExchangeConfig.GetExchangeConfig Expected error")
+	_, err = cfg.GetExchangeConfig("Testy")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, ErrExchangeNotFound)
 	}
 }
 
 func TestGetForexProviderConfig(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("GetForexProviderConfig. LoadConfig error", err)
+	t.Parallel()
+	fxr := "Fixer"
+	cfg := &Config{
+		Currency: CurrencyConfig{
+			ForexProviders: []currency.FXSettings{
+				{
+					Name: fxr,
+				},
+			},
+		},
 	}
-	_, err = cfg.GetForexProvider("Fixer")
+	_, err := cfg.GetForexProvider(fxr)
 	if err != nil {
 		t.Error("GetForexProviderConfig error", err)
 	}
@@ -1203,25 +1263,37 @@ func TestGetForexProviderConfig(t *testing.T) {
 }
 
 func TestGetForexProviders(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error(err)
+	t.Parallel()
+	fxr := "Fixer"
+	cfg := &Config{
+		Currency: CurrencyConfig{
+			ForexProviders: []currency.FXSettings{
+				{
+					Name: fxr,
+				},
+			},
+		},
 	}
-
-	if r := cfg.GetForexProviders(); len(r) != 6 {
+	if r := cfg.GetForexProviders(); len(r) != 1 {
 		t.Error("unexpected length of forex providers")
 	}
 }
 
 func TestGetPrimaryForexProvider(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("GetPrimaryForexProvider. LoadConfig error", err)
+	t.Parallel()
+	fxr := "Fixer"
+	cfg := &Config{
+		Currency: CurrencyConfig{
+			ForexProviders: []currency.FXSettings{
+				{
+					Name:            fxr,
+					PrimaryProvider: true,
+				},
+			},
+		},
 	}
 	primary := cfg.GetPrimaryForexProvider()
-	if primary == "" {
+	if primary != fxr {
 		t.Error("GetPrimaryForexProvider error")
 	}
 
@@ -1235,25 +1307,29 @@ func TestGetPrimaryForexProvider(t *testing.T) {
 }
 
 func TestUpdateExchangeConfig(t *testing.T) {
-	c := GetConfig()
-	err := c.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error(err)
+	t.Parallel()
+	ok := "OKEX"
+	cfg := &Config{
+		Exchanges: []ExchangeConfig{
+			{
+				Name: ok,
+				API:  APIConfig{Credentials: APICredentialsConfig{}},
+			},
+		},
 	}
-
 	e := &ExchangeConfig{}
-	err = c.UpdateExchangeConfig(e)
+	err := cfg.UpdateExchangeConfig(e)
 	if err == nil {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	e, err = c.GetExchangeConfig("OKEX")
+	e, err = cfg.GetExchangeConfig(ok)
 	if err != nil {
 		t.Error(err)
 	}
 
 	e.API.Credentials.Key = "test1234"
-	err = c.UpdateExchangeConfig(e)
+	err = cfg.UpdateExchangeConfig(e)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1481,7 +1557,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].API.Credentials.Secret = "Secret"
 	cfg.Exchanges[0].API.AuthenticatedSupport = true
 	cfg.Exchanges[0].API.AuthenticatedWebsocketSupport = true
-	cfg.CheckExchangeConfigValues()
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
 	if cfg.Exchanges[0].API.AuthenticatedSupport ||
 		cfg.Exchanges[0].API.AuthenticatedWebsocketSupport {
 		t.Error("Expected authenticated endpoints to be false from invalid API keys")
@@ -1493,7 +1572,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].API.AuthenticatedWebsocketSupport = true
 	cfg.Exchanges[0].API.Credentials.ClientID = DefaultAPIClientID
 	cfg.Exchanges[0].API.Credentials.Secret = "TESTYTEST"
-	cfg.CheckExchangeConfigValues()
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
 	if cfg.Exchanges[0].API.AuthenticatedSupport ||
 		cfg.Exchanges[0].API.AuthenticatedWebsocketSupport {
 		t.Error("Expected AuthenticatedAPISupport to be false from invalid API keys")
@@ -1505,7 +1587,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].API.Credentials.Key = "meow"
 	cfg.Exchanges[0].API.Credentials.Secret = "test123"
 	cfg.Exchanges[0].API.Credentials.ClientID = "clientIDerino"
-	cfg.CheckExchangeConfigValues()
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
 	if !cfg.Exchanges[0].API.AuthenticatedSupport ||
 		!cfg.Exchanges[0].API.AuthenticatedWebsocketSupport {
 		t.Error("Expected AuthenticatedAPISupport and AuthenticatedWebsocketAPISupport to be false from invalid API keys")
@@ -1517,7 +1602,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	// Test empty exchange name for an enabled exchange
 	cfg.Exchanges[0].Enabled = true
 	cfg.Exchanges[0].Name = ""
-	cfg.CheckExchangeConfigValues()
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
 	if cfg.Exchanges[0].Enabled {
 		t.Errorf(
 			"Exchange with no name should be empty",
@@ -1610,14 +1698,35 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 }
 
 func TestRetrieveConfigCurrencyPairs(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf(
-			"TestRetrieveConfigCurrencyPairs.LoadConfig: %s", err.Error(),
-		)
+	t.Parallel()
+	cp1 := currency.NewPair(currency.DOGE, currency.XRP)
+	cp2 := currency.NewPair(currency.DOGE, currency.USD)
+	cfg := &Config{
+		Exchanges: []ExchangeConfig{
+			{
+				Enabled: true,
+				BaseCurrencies: currency.Currencies{
+					currency.USD,
+				},
+				CurrencyPairs: &currency.PairsManager{
+					RequestFormat:   nil,
+					ConfigFormat:    nil,
+					UseGlobalFormat: false,
+					LastUpdated:     0,
+					Pairs: map[asset.Item]*currency.PairStore{
+						asset.Spot: {
+							AssetEnabled:  convert.BoolPtr(true),
+							Available:     currency.Pairs{cp1, cp2},
+							Enabled:       currency.Pairs{cp1},
+							ConfigFormat:  &currency.PairFormat{},
+							RequestFormat: &currency.PairFormat{},
+						},
+					},
+				},
+			},
+		},
 	}
-	err = cfg.RetrieveConfigCurrencyPairs(true, asset.Spot)
+	err := cfg.RetrieveConfigCurrencyPairs(true, asset.Spot)
 	if err != nil {
 		t.Errorf(
 			"TestRetrieveConfigCurrencyPairs.RetrieveConfigCurrencyPairs: %s",
@@ -1635,19 +1744,20 @@ func TestRetrieveConfigCurrencyPairs(t *testing.T) {
 }
 
 func TestReadConfigFromFile(t *testing.T) {
-	readConfig := GetConfig()
-	err := readConfig.ReadConfigFromFile(TestFile, true)
+	cfg := &Config{}
+	err := cfg.ReadConfigFromFile(TestFile, true)
 	if err != nil {
 		t.Errorf("TestReadConfig %s", err.Error())
 	}
 
-	err = readConfig.ReadConfigFromFile("bla", true)
+	err = cfg.ReadConfigFromFile("bla", true)
 	if err == nil {
 		t.Error("TestReadConfig error cannot be nil")
 	}
 }
 
 func TestReadConfigFromReader(t *testing.T) {
+	t.Parallel()
 	confString := `{"name":"test"}`
 	conf, encrypted, err := ReadConfig(strings.NewReader(confString), Unencrypted)
 	if err != nil {
@@ -1667,21 +1777,21 @@ func TestReadConfigFromReader(t *testing.T) {
 }
 
 func TestLoadConfig(t *testing.T) {
-	loadConfig := GetConfig()
-	err := loadConfig.LoadConfig(TestFile, true)
+	cfg := &Config{}
+	err := cfg.LoadConfig(TestFile, true)
 	if err != nil {
 		t.Error("TestLoadConfig " + err.Error())
 	}
 
-	err = loadConfig.LoadConfig("testy", true)
+	err = cfg.LoadConfig("testy", true)
 	if err == nil {
 		t.Error("TestLoadConfig Expected error")
 	}
 }
 
 func TestSaveConfigToFile(t *testing.T) {
-	saveConfig := GetConfig()
-	err := saveConfig.LoadConfig(TestFile, true)
+	cfg := &Config{}
+	err := cfg.LoadConfig(TestFile, true)
 	if err != nil {
 		t.Errorf("TestSaveConfig.LoadConfig: %s", err.Error())
 	}
@@ -1691,7 +1801,7 @@ func TestSaveConfigToFile(t *testing.T) {
 	}
 	f.Close()
 	defer os.Remove(f.Name())
-	err2 := saveConfig.SaveConfigToFile(f.Name())
+	err2 := cfg.SaveConfigToFile(f.Name())
 	if err2 != nil {
 		t.Errorf("TestSaveConfig.SaveConfig, %s", err2.Error())
 	}
@@ -1722,6 +1832,7 @@ func TestDefaultFilePath(t *testing.T) {
 	// means moving a users config file around), a way of getting around this is
 	// to pass the datadir as a param line but adds a burden to everyone who
 	// uses it
+	t.Parallel()
 	result := DefaultFilePath()
 	if !strings.Contains(result, File) &&
 		!strings.Contains(result, EncryptedFile) {
@@ -1730,6 +1841,7 @@ func TestDefaultFilePath(t *testing.T) {
 }
 
 func TestGetFilePath(t *testing.T) {
+	t.Parallel()
 	expected := "blah.json"
 	result, wasDefault, _ := GetFilePath("blah.json")
 	if result != "blah.json" {
@@ -1792,13 +1904,36 @@ func TestCheckRemoteControlConfig(t *testing.T) {
 }
 
 func TestCheckConfig(t *testing.T) {
-	var c Config
-	err := c.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf("%s", err)
+	t.Parallel()
+	cp1 := currency.NewPair(currency.DOGE, currency.XRP)
+	cp2 := currency.NewPair(currency.DOGE, currency.USD)
+	cfg := &Config{
+		Exchanges: []ExchangeConfig{
+			{
+				Name:    testFakeExchangeName,
+				Enabled: true,
+				BaseCurrencies: currency.Currencies{
+					currency.USD,
+				},
+				CurrencyPairs: &currency.PairsManager{
+					RequestFormat:   nil,
+					ConfigFormat:    nil,
+					UseGlobalFormat: false,
+					LastUpdated:     0,
+					Pairs: map[asset.Item]*currency.PairStore{
+						asset.Spot: {
+							AssetEnabled:  convert.BoolPtr(true),
+							Available:     currency.Pairs{cp1, cp2},
+							Enabled:       currency.Pairs{cp1},
+							ConfigFormat:  &currency.PairFormat{},
+							RequestFormat: &currency.PairFormat{},
+						},
+					},
+				},
+			},
+		},
 	}
-
-	err = c.CheckConfig()
+	err := cfg.CheckConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1952,92 +2087,94 @@ func TestCheckDatabaseConfig(t *testing.T) {
 }
 
 func TestCheckNTPConfig(t *testing.T) {
-	c := GetConfig()
+	t.Parallel()
+	cfg := &Config{
+		NTPClient: NTPClientConfig{},
+	}
 
-	c.NTPClient.Level = 0
-	c.NTPClient.Pool = nil
-	c.NTPClient.AllowedNegativeDifference = nil
-	c.NTPClient.AllowedDifference = nil
+	cfg.CheckNTPConfig()
 
-	c.CheckNTPConfig()
-
-	if c.NTPClient.Pool[0] != "pool.ntp.org:123" {
+	if cfg.NTPClient.Pool[0] != "pool.ntp.org:123" {
 		t.Error("ntpclient with no valid pool should default to pool.ntp.org")
 	}
 
-	if c.NTPClient.AllowedDifference == nil {
+	if cfg.NTPClient.AllowedDifference == nil {
 		t.Error("ntpclient with nil alloweddifference should default to sane value")
 	}
 
-	if c.NTPClient.AllowedNegativeDifference == nil {
+	if cfg.NTPClient.AllowedNegativeDifference == nil {
 		t.Error("ntpclient with nil allowednegativedifference should default to sane value")
 	}
 }
 
 func TestCheckCurrencyConfigValues(t *testing.T) {
-	c := GetConfig()
-	c.Currency.ForexProviders = nil
-	c.Currency.CryptocurrencyProvider = CryptocurrencyProvider{}
-	err := c.CheckCurrencyConfigValues()
+	t.Parallel()
+	cfg := &Config{
+		Currency: CurrencyConfig{},
+	}
+	cfg.Currency.ForexProviders = nil
+	cfg.Currency.CryptocurrencyProvider = CryptocurrencyProvider{}
+	err := cfg.CheckCurrencyConfigValues()
 	if err != nil {
 		t.Error(err)
 	}
-	if c.Currency.ForexProviders == nil {
+	if cfg.Currency.ForexProviders == nil {
 		t.Error("Failed to populate c.Currency.ForexProviders")
 	}
-	if c.Currency.CryptocurrencyProvider.APIkey != DefaultUnsetAPIKey {
+	if cfg.Currency.CryptocurrencyProvider.APIkey != DefaultUnsetAPIKey {
 		t.Error("Failed to set the api key to the default key")
 	}
-	if c.Currency.CryptocurrencyProvider.Name != "CoinMarketCap" {
+	if cfg.Currency.CryptocurrencyProvider.Name != "CoinMarketCap" {
 		t.Error("Failed to set the  c.Currency.CryptocurrencyProvider.Name")
 	}
 
-	c.Currency.ForexProviders[0].Enabled = true
-	c.Currency.ForexProviders[0].Name = "CurrencyConverter"
-	c.Currency.ForexProviders[0].PrimaryProvider = true
-	c.Currency.Cryptocurrencies = nil
-	c.Cryptocurrencies = nil
-	c.Currency.CurrencyPairFormat = nil
-	c.CurrencyPairFormat = &CurrencyPairFormatConfig{
+	cfg.Currency.ForexProviders[0].Enabled = true
+	cfg.Currency.ForexProviders[0].Name = "CurrencyConverter"
+	cfg.Currency.ForexProviders[0].PrimaryProvider = true
+	cfg.Currency.Cryptocurrencies = nil
+	cfg.Cryptocurrencies = nil
+	cfg.Currency.CurrencyPairFormat = nil
+	cfg.CurrencyPairFormat = &CurrencyPairFormatConfig{
 		Uppercase: true,
 	}
-	c.Currency.FiatDisplayCurrency = currency.Code{}
-	c.FiatDisplayCurrency = &currency.BTC
-	c.Currency.CryptocurrencyProvider.Enabled = true
-	err = c.CheckCurrencyConfigValues()
+	cfg.Currency.FiatDisplayCurrency = currency.Code{}
+	cfg.FiatDisplayCurrency = &currency.BTC
+	cfg.Currency.CryptocurrencyProvider.Enabled = true
+	err = cfg.CheckCurrencyConfigValues()
 	if err != nil {
 		t.Error(err)
 	}
-	if c.Currency.ForexProviders[0].Enabled {
+	if cfg.Currency.ForexProviders[0].Enabled {
 		t.Error("Failed to disable invalid forex provider")
 	}
-	if !c.Currency.CurrencyPairFormat.Uppercase {
+	if !cfg.Currency.CurrencyPairFormat.Uppercase {
 		t.Error("Failed to apply c.CurrencyPairFormat format to c.Currency.CurrencyPairFormat")
 	}
 
-	c.Currency.CryptocurrencyProvider.Enabled = false
-	c.Currency.CryptocurrencyProvider.APIkey = ""
-	c.Currency.CryptocurrencyProvider.AccountPlan = ""
-	c.FiatDisplayCurrency = &currency.BTC
-	c.Currency.ForexProviders[0].Enabled = true
-	c.Currency.ForexProviders[0].Name = "Name"
-	c.Currency.ForexProviders[0].PrimaryProvider = true
-	c.Currency.Cryptocurrencies = currency.Currencies{}
-	c.Cryptocurrencies = &currency.Currencies{}
-	err = c.CheckCurrencyConfigValues()
+	cfg.Currency.CryptocurrencyProvider.Enabled = false
+	cfg.Currency.CryptocurrencyProvider.APIkey = ""
+	cfg.Currency.CryptocurrencyProvider.AccountPlan = ""
+	cfg.FiatDisplayCurrency = &currency.BTC
+	cfg.Currency.ForexProviders[0].Enabled = true
+	cfg.Currency.ForexProviders[0].Name = "Name"
+	cfg.Currency.ForexProviders[0].PrimaryProvider = true
+	cfg.Currency.Cryptocurrencies = currency.Currencies{}
+	cfg.Cryptocurrencies = &currency.Currencies{}
+	err = cfg.CheckCurrencyConfigValues()
 	if err != nil {
 		t.Error(err)
 	}
-	if c.FiatDisplayCurrency != nil {
+	if cfg.FiatDisplayCurrency != nil {
 		t.Error("Failed to clear c.FiatDisplayCurrency")
 	}
-	if c.Currency.CryptocurrencyProvider.APIkey != DefaultUnsetAPIKey ||
-		c.Currency.CryptocurrencyProvider.AccountPlan != DefaultUnsetAccountPlan {
+	if cfg.Currency.CryptocurrencyProvider.APIkey != DefaultUnsetAPIKey ||
+		cfg.Currency.CryptocurrencyProvider.AccountPlan != DefaultUnsetAccountPlan {
 		t.Error("Failed to set CryptocurrencyProvider.APIkey and AccountPlan")
 	}
 }
 
 func TestPreengineConfigUpgrade(t *testing.T) {
+	t.Parallel()
 	var c Config
 	if err := c.LoadConfig("../testdata/preengine_config.json", false); err != nil {
 		t.Fatal(err)

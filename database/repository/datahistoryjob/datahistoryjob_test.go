@@ -125,8 +125,8 @@ func TestDataHistoryJob(t *testing.T) {
 					Asset:        asset.Spot.String(),
 					Base:         currency.BTC.String(),
 					Quote:        currency.USD.String(),
-					StartDate:    time.Now().Add(time.Duration(i) * time.Second),
-					EndDate:      time.Now().Add(time.Minute * time.Duration(i)),
+					StartDate:    time.Now().Add(time.Duration(i+1) * time.Second).UTC(),
+					EndDate:      time.Now().Add(time.Minute * time.Duration(i+1)).UTC(),
 					Interval:     int64(i),
 				})
 			}
@@ -145,8 +145,8 @@ func TestDataHistoryJob(t *testing.T) {
 					Asset:        asset.Spot.String(),
 					Base:         currency.BTC.String(),
 					Quote:        currency.USD.String(),
-					StartDate:    time.Now().Add(time.Duration(i) * time.Second),
-					EndDate:      time.Now().Add(time.Minute * time.Duration(i)),
+					StartDate:    time.Now().Add(time.Duration(i+1) * time.Second).UTC(),
+					EndDate:      time.Now().Add(time.Minute * time.Duration(i+1)).UTC(),
 					Interval:     int64(i),
 				}
 				if i == 19 {
@@ -180,7 +180,7 @@ func TestDataHistoryJob(t *testing.T) {
 				t.Errorf("expected 19, received %v", len(results))
 			}
 
-			jerb, err := db.getJobAndAllResultsPostgres(jerberoos[0].Nickname)
+			jerb, err := db.GetJobAndAllResults(jerberoos[0].Nickname)
 			if err != nil {
 				t.Fatal(err)
 			}

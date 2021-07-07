@@ -22,7 +22,7 @@ func LoadData(exch exchange.IBotExchange, dataType int64, interval time.Duration
 		candles, err = exch.GetHistoricCandles(
 			fPair,
 			a,
-			time.Now().Add(-interval), // multiplied by 2 to ensure the latest candle is always included
+			time.Now().Add(-interval*2), // multiplied by 2 to ensure the latest candle is always included
 			time.Now(),
 			kline.Interval(interval))
 		if err != nil {
@@ -30,9 +30,7 @@ func LoadData(exch exchange.IBotExchange, dataType int64, interval time.Duration
 		}
 	case common.DataTrade:
 		var trades []trade.Data
-		trades, err = exch.GetRecentTrades(
-			fPair,
-			a)
+		trades, err = exch.GetHistoricTrades(fPair, a, time.Now().Add(-interval*2), time.Now()) // multiplied by 2 to ensure the latest candle is always included
 		if err != nil {
 			return nil, err
 		}

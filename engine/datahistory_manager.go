@@ -186,7 +186,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 		case dataHistoryTradeDataType:
 			err := m.tradeChecker(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].rangeHolder)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			if err != nil && err != sql.ErrNoRows {
 				return fmt.Errorf("%s could not load trade data: %w", jobs[i].Nickname, err)
 			}
 		case dataHistoryConvertCandlesDataType, dataHistoryConvertTradesDataType:
@@ -1087,7 +1087,7 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 	// now try the database
 	j, err := m.jobDB.GetByNickName(nickname)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if err == sql.ErrNoRows {
 			// no need to display normal sql err to user
 			return nil, errJobNotFound
 		}

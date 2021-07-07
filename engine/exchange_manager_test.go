@@ -69,7 +69,7 @@ func TestNewExchangeByName(t *testing.T) {
 	for i := range exchanges {
 		exch, err := m.NewExchangeByName(exchanges[i])
 		if err != nil && exchanges[i] != "fake" {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if err == nil {
 			exch.SetDefaults()

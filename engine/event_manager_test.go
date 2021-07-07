@@ -125,7 +125,7 @@ func TestEventManagerAdd(t *testing.T) {
 	}
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	em.Add(exch)
@@ -181,7 +181,7 @@ func TestEventManagerRemove(t *testing.T) {
 	}
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	em.Add(exch)
@@ -222,7 +222,7 @@ func TestGetEventCounter(t *testing.T) {
 	}
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	em.Add(exch)
@@ -268,7 +268,7 @@ func TestCheckEventCondition(t *testing.T) {
 	}
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	em.Add(exch)

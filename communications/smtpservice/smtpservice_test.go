@@ -10,11 +10,8 @@ import (
 var s SMTPservice
 
 func TestSetup(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Parallel()
+	cfg := &config.Config{Communications: base.CommunicationsConfig{}}
 	commsCfg := cfg.GetCommunicationsConfig()
 	s.Setup(&commsCfg)
 }

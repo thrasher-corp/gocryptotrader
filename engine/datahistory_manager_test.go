@@ -848,7 +848,7 @@ func createDHM(t *testing.T) *DataHistoryManager {
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
+		t.Fatalf("error '%v', expected '%v'", err, nil)
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	exch.SetDefaults()
@@ -862,7 +862,7 @@ func createDHM(t *testing.T) *DataHistoryManager {
 
 	exch2, err := em.NewExchangeByName("Binance")
 	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
+		t.Fatalf("error '%v', expected '%v'", err, nil)
 	}
 	cp2 := currency.NewPair(currency.BTC, currency.USDT)
 	exch2.SetDefaults()

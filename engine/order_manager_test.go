@@ -138,7 +138,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch.SetDefaults()
 
