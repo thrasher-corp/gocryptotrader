@@ -8,14 +8,35 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
+// SetAccounts safely overwrites bank account slice
+func SetAccounts(accs ...Account) {
+	m.Lock()
+	defer m.Unlock()
+	accounts = accs
+}
+
+// AppendAccounts safely adds to bank account slice
+func AppendAccounts(accs ...Account) {
+	m.Lock()
+	defer m.Unlock()
+accountRange:
+	for j := range accs {
+		for i := range accounts {
+			if accounts[i].AccountNumber == accs[j].AccountNumber {
+				continue accountRange
+			}
+		}
+		accounts = append(accounts, accs[j])
+	}
+}
+
 // GetBankAccountByID Returns a bank account based on its ID
 func GetBankAccountByID(id string) (*Account, error) {
 	m.Lock()
 	defer m.Unlock()
-
-	for x := range Accounts {
-		if strings.EqualFold(Accounts[x].ID, id) {
-			return &Accounts[x], nil
+	for x := range accounts {
+		if strings.EqualFold(accounts[x].ID, id) {
+			return &accounts[x], nil
 		}
 	}
 	return nil, fmt.Errorf(ErrBankAccountNotFound, id)
@@ -83,7 +104,7 @@ func (b *Account) ValidateForWithdrawal(exchange string, cur currency.Code) (err
 
 	if cur.Upper() == currency.AUD {
 		if b.BSBNumber == "" {
-			err = append(err, ErrBSBRequiredforAUD)
+			err = append(err, ErrBSBRequiredForAUD)
 		}
 	} else {
 		if b.IBAN == "" && b.SWIFTCode == "" {

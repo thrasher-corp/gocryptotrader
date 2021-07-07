@@ -13,7 +13,7 @@ func (i *Instance) SetConfig(cfg *Config) error {
 		return ErrNilInstance
 	}
 	if cfg == nil {
-		return errNilConfig
+		return ErrNilConfig
 	}
 	i.m.Lock()
 	i.config = cfg

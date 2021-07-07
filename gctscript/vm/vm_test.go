@@ -93,7 +93,6 @@ func TestVMLoad1s(t *testing.T) {
 	}
 
 	testVM.CompileAndRun()
-	time.Sleep(5000)
 	err = testVM.Shutdown()
 	if err != nil {
 		if !errors.Is(err, ErrNoVMLoaded) {

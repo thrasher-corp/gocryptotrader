@@ -20,10 +20,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -32,42 +35,54 @@ import (
 
 const testExchange = "Bitstamp"
 
-func newBotWithExchange() (*engine.Engine, gctexchange.IBotExchange) {
-	bot, err := engine.NewFromSettings(&engine.Settings{
-		ConfigFile:   filepath.Join("..", "..", "testdata", "configtest.json"),
-		EnableDryRun: true,
-	}, nil)
+func newBotWithExchange() *engine.Engine {
+	bot := &engine.Engine{
+		Config: &gctconfig.Config{
+			Exchanges: []gctconfig.ExchangeConfig{
+				{
+					Name:                    testExchange,
+					Enabled:                 true,
+					WebsocketTrafficTimeout: time.Second,
+					CurrencyPairs: &currency.PairsManager{
+						Pairs: map[asset.Item]*currency.PairStore{
+							asset.Spot: {
+								AssetEnabled:  convert.BoolPtr(true),
+								Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+								Enabled:       []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+								ConfigFormat:  &currency.PairFormat{},
+								RequestFormat: &currency.PairFormat{},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	em := engine.SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		log.Fatal(err)
 	}
-	bot.ExchangeManager = engine.SetupExchangeManager()
-	err = bot.LoadExchange(testExchange, false, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	exch := bot.GetExchangeByName(testExchange)
-	if exch == nil {
-		log.Fatal("expected not nil")
-	}
-	return bot, exch
+	exch.SetDefaults()
+	em.Add(exch)
+	bot.ExchangeManager = em
+	return bot
 }
 
 func TestNewFromConfig(t *testing.T) {
 	t.Parallel()
 	_, err := NewFromConfig(nil, "", "", nil)
-	if err == nil {
-		t.Error("expected error for nil config")
+	if !errors.Is(err, errNilConfig) {
+		t.Errorf("received %v, expected %v", err, errNilConfig)
 	}
 
-	cfg := &config.Config{
-		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
-	}
+	cfg := &config.Config{}
 	_, err = NewFromConfig(cfg, "", "", nil)
 	if !errors.Is(err, errNilBot) {
 		t.Errorf("expected: %v, received %v", errNilBot, err)
 	}
 
-	bot, _ := newBotWithExchange()
+	bot := newBotWithExchange()
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, config.ErrNoCurrencySettings) {
 		t.Errorf("expected: %v, received %v", config.ErrNoCurrencySettings, err)
@@ -97,6 +112,12 @@ func TestNewFromConfig(t *testing.T) {
 		t.Errorf("expected: %v, received %v", engine.ErrExchangeNotFound, err)
 	}
 
+	cfg.StrategySettings = config.StrategySettings{
+		Name: dollarcostaverage.Name,
+		CustomSettings: map[string]interface{}{
+			"hello": "moto",
+		},
+	}
 	cfg.CurrencySettings[0].ExchangeName = testExchange
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, errNoDataSource) {
@@ -105,7 +126,6 @@ func TestNewFromConfig(t *testing.T) {
 
 	cfg.CurrencySettings[0].Base = "BTC"
 	cfg.CurrencySettings[0].Quote = "USD"
-
 	cfg.DataSettings.APIData = &config.APIData{
 		StartDate: time.Time{},
 		EndDate:   time.Time{},
@@ -121,7 +141,7 @@ func TestNewFromConfig(t *testing.T) {
 		t.Errorf("expected: %v, received %v", config.ErrStartEndUnset, err)
 	}
 
-	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Hour)
+	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Minute)
 	cfg.DataSettings.APIData.EndDate = time.Now()
 	cfg.DataSettings.APIData.InclusiveEndDate = true
 	_, err = NewFromConfig(cfg, "", "", bot)
@@ -129,19 +149,7 @@ func TestNewFromConfig(t *testing.T) {
 		t.Errorf("expected: %v, received %v", errIntervalUnset, err)
 	}
 
-	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
-
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("expected: %v, received %v", base.ErrStrategyNotFound, err)
-	}
-
-	cfg.StrategySettings = config.StrategySettings{
-		Name: dollarcostaverage.Name,
-		CustomSettings: map[string]interface{}{
-			"hello": "moto",
-		},
-	}
+	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
 	cfg.CurrencySettings[0].MakerFee = 1337
 	cfg.CurrencySettings[0].TakerFee = 1337
 	_, err = NewFromConfig(cfg, "", "", bot)
@@ -150,140 +158,246 @@ func TestNewFromConfig(t *testing.T) {
 	}
 }
 
-func TestLoadData(t *testing.T) {
+func TestLoadDataAPI(t *testing.T) {
 	t.Parallel()
-	cfg := &config.Config{
-		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
-	}
-	cfg.CurrencySettings = []config.CurrencySettings{
-		{
-			ExchangeName: "test",
-			Asset:        "test",
-			Base:         "test",
-			Quote:        "test",
-		},
-	}
-	cfg.CurrencySettings[0].ExchangeName = "binance"
-	cfg.CurrencySettings[0].Asset = asset.Spot.String()
-	cfg.CurrencySettings[0].Base = "BTC"
-	cfg.CurrencySettings[0].Quote = "USDT"
-	cfg.CurrencySettings[0].InitialFunds = 1337
-	cfg.DataSettings.APIData = &config.APIData{
-		StartDate: time.Time{},
-		EndDate:   time.Time{},
-	}
-	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Hour)
-	cfg.DataSettings.APIData.EndDate = time.Now()
-	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
-	cfg.DataSettings.DataType = common.CandleStr
-	cfg.StrategySettings = config.StrategySettings{
-		Name: dollarcostaverage.Name,
-		CustomSettings: map[string]interface{}{
-			"hello": "moto",
-		},
-	}
-	cfg.CurrencySettings[0].MakerFee = 1337
-	cfg.CurrencySettings[0].TakerFee = 1337
-	bot, exch := newBotWithExchange()
-
-	_, err := NewFromConfig(cfg, "", "", bot)
-	if err != nil {
-		t.Error(err)
-	}
 	bt := BackTest{
 		Reports: &report.Data{},
+		Bot:     &engine.Engine{},
 	}
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cfg := &config.Config{
+		CurrencySettings: []config.CurrencySettings{
+			{
+				ExchangeName: "Binance",
+				Asset:        asset.Spot.String(),
+				Base:         cp.Base.String(),
+				Quote:        cp.Quote.String(),
+				InitialFunds: 1337,
+				Leverage:     config.Leverage{},
+				BuySide:      config.MinMax{},
+				SellSide:     config.MinMax{},
+				MakerFee:     1337,
+				TakerFee:     1337,
+			},
+		},
+		DataSettings: config.DataSettings{
+			DataType: common.CandleStr,
+			Interval: gctkline.OneMin.Duration(),
+			APIData: &config.APIData{
+				StartDate: time.Now().Add(-time.Minute),
+				EndDate:   time.Now(),
+			}},
+		StrategySettings: config.StrategySettings{
+			Name: dollarcostaverage.Name,
+			CustomSettings: map[string]interface{}{
+				"hello": "moto",
+			},
+		},
+	}
+	em := engine.ExchangeManager{}
+	exch, err := em.NewExchangeByName("Binance")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true}}
 
-	cp := currency.NewPair(currency.BTC, currency.USD)
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
+}
 
-	cfg.DataSettings.APIData = nil
-	cfg.DataSettings.DatabaseData = &config.DatabaseData{
-		StartDate:        time.Now().Add(-time.Hour),
-		EndDate:          time.Now(),
-		ConfigOverride:   nil,
-		InclusiveEndDate: true,
+func TestLoadDataDatabase(t *testing.T) {
+	t.Parallel()
+	bt := BackTest{
+		Reports: &report.Data{},
+		Bot: &engine.Engine{
+			Config: &gctconfig.Config{Database: database.Config{}},
+		},
 	}
-	cfg.DataSettings.DataType = common.CandleStr
-	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cfg := &config.Config{
+		CurrencySettings: []config.CurrencySettings{
+			{
+				ExchangeName: "Binance",
+				Asset:        asset.Spot.String(),
+				Base:         cp.Base.String(),
+				Quote:        cp.Quote.String(),
+				InitialFunds: 1337,
+				Leverage:     config.Leverage{},
+				BuySide:      config.MinMax{},
+				SellSide:     config.MinMax{},
+				MakerFee:     1337,
+				TakerFee:     1337,
+			},
+		},
+		DataSettings: config.DataSettings{
+			DataType: common.CandleStr,
+			Interval: gctkline.OneMin.Duration(),
+			DatabaseData: &config.DatabaseData{
+				ConfigOverride: &database.Config{
+					Enabled: true,
+					Driver:  "sqlite3",
+					ConnectionDetails: drivers.ConnectionDetails{
+						Database: "gocryptotrader.db",
+					},
+				},
+				StartDate:        time.Now().Add(-time.Minute),
+				EndDate:          time.Now(),
+				InclusiveEndDate: true,
+			}},
+		StrategySettings: config.StrategySettings{
+			Name: dollarcostaverage.Name,
+			CustomSettings: map[string]interface{}{
+				"hello": "moto",
+			},
+		},
+	}
+	em := engine.ExchangeManager{}
+	exch, err := em.NewExchangeByName("Binance")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true}}
 
-	bt.Bot = bot
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
 	if err != nil && !strings.Contains(err.Error(), "unable to retrieve data from GoCryptoTrader database") {
 		t.Error(err)
 	}
+}
 
-	cfg.DataSettings.DatabaseData = nil
-	cfg.DataSettings.CSVData = &config.CSVData{
-		FullPath: "test",
+func TestLoadDataCSV(t *testing.T) {
+	t.Parallel()
+	bt := BackTest{
+		Reports: &report.Data{},
+		Bot:     &engine.Engine{},
 	}
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cfg := &config.Config{
+		CurrencySettings: []config.CurrencySettings{
+			{
+				ExchangeName: "Binance",
+				Asset:        asset.Spot.String(),
+				Base:         cp.Base.String(),
+				Quote:        cp.Quote.String(),
+				InitialFunds: 1337,
+				Leverage:     config.Leverage{},
+				BuySide:      config.MinMax{},
+				SellSide:     config.MinMax{},
+				MakerFee:     1337,
+				TakerFee:     1337,
+			},
+		},
+		DataSettings: config.DataSettings{
+			DataType: common.CandleStr,
+			Interval: gctkline.OneMin.Duration(),
+			CSVData: &config.CSVData{
+				FullPath: "test",
+			}},
+		StrategySettings: config.StrategySettings{
+			Name: dollarcostaverage.Name,
+			CustomSettings: map[string]interface{}{
+				"hello": "moto",
+			},
+		},
+	}
+	em := engine.ExchangeManager{}
+	exch, err := em.NewExchangeByName("Binance")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
 	if err != nil &&
 		!strings.Contains(err.Error(), "The system cannot find the file specified.") &&
 		!strings.Contains(err.Error(), "no such file or directory") {
 		t.Error(err)
 	}
-	cfg.DataSettings.CSVData = nil
-	cfg.DataSettings.LiveData = &config.LiveData{
-		APIKeyOverride:        "test",
-		APISecretOverride:     "test",
-		APIClientIDOverride:   "test",
-		API2FAOverride:        "test",
-		APISubaccountOverride: "test",
-		RealOrders:            true,
+}
+
+func TestLoadDataLive(t *testing.T) {
+	t.Parallel()
+	bt := BackTest{
+		Reports:  &report.Data{},
+		Bot:      &engine.Engine{},
+		shutdown: make(chan struct{}),
 	}
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cfg := &config.Config{
+		CurrencySettings: []config.CurrencySettings{
+			{
+				ExchangeName: "Binance",
+				Asset:        asset.Spot.String(),
+				Base:         cp.Base.String(),
+				Quote:        cp.Quote.String(),
+				InitialFunds: 1337,
+				Leverage:     config.Leverage{},
+				BuySide:      config.MinMax{},
+				SellSide:     config.MinMax{},
+				MakerFee:     1337,
+				TakerFee:     1337,
+			},
+		},
+		DataSettings: config.DataSettings{
+			DataType: common.CandleStr,
+			Interval: gctkline.OneMin.Duration(),
+			LiveData: &config.LiveData{
+				APIKeyOverride:      "test",
+				APISecretOverride:   "test",
+				APIClientIDOverride: "test",
+				API2FAOverride:      "test",
+				RealOrders:          true,
+			}},
+		StrategySettings: config.StrategySettings{
+			Name: dollarcostaverage.Name,
+			CustomSettings: map[string]interface{}{
+				"hello": "moto",
+			},
+		},
+	}
+	em := engine.ExchangeManager{}
+	exch, err := em.NewExchangeByName("Binance")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
-}
-
-func TestLoadDatabaseData(t *testing.T) {
-	t.Parallel()
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	_, err := loadDatabaseData(nil, "", cp, "", -1)
-	if err != nil && !strings.Contains(err.Error(), "nil config data received") {
-		t.Error(err)
-	}
-	cfg := &config.Config{
-		DataSettings: config.DataSettings{
-			DatabaseData: &config.DatabaseData{
-				StartDate:      time.Time{},
-				EndDate:        time.Time{},
-				ConfigOverride: nil,
-			},
-		},
-		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
-	}
-	_, err = loadDatabaseData(cfg, "", cp, "", -1)
-	if !errors.Is(err, config.ErrStartEndUnset) {
-		t.Errorf("expected %v, received %v", config.ErrStartEndUnset, err)
-	}
-	cfg.DataSettings.DatabaseData.StartDate = time.Now().Add(-time.Hour)
-	cfg.DataSettings.DatabaseData.EndDate = time.Now()
-	_, err = loadDatabaseData(cfg, "", cp, "", -1)
-	if !errors.Is(err, errIntervalUnset) {
-		t.Errorf("expected %v, received %v", errIntervalUnset, err)
-	}
-
-	cfg.DataSettings.Interval = gctkline.OneDay.Duration()
-	_, err = loadDatabaseData(cfg, "", cp, "", -1)
-	if err != nil && !strings.Contains(err.Error(), "could not retrieve database data") {
-		t.Error(err)
-	}
-
-	cfg.DataSettings.DataType = common.CandleStr
-	_, err = loadDatabaseData(cfg, "", cp, "", common.DataCandle)
-	if err != nil && !strings.Contains(err.Error(), "exchange, base, quote, asset, interval, start & end cannot be empty") {
-		t.Error(err)
-	}
-	_, err = loadDatabaseData(cfg, testExchange, cp, asset.Spot, common.DataCandle)
-	if err != nil && !strings.Contains(err.Error(), "database support is disabled") {
-		t.Error(err)
-	}
+	bt.Stop()
 }
 
 func TestLoadLiveData(t *testing.T) {
@@ -399,7 +513,7 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bot, _ := newBotWithExchange()
+	bot := newBotWithExchange()
 
 	bt := BackTest{
 		Bot:        bot,
@@ -493,7 +607,7 @@ func TestFullCycleMulti(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bot, _ := newBotWithExchange()
+	bot := newBotWithExchange()
 
 	bt := BackTest{
 		Bot:        bot,
