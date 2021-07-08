@@ -276,8 +276,11 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return ErrSubSystemNotStarted
 	}
+	if job == nil {
+		return errNilJob
+	}
 	if job.Status != dataHistoryStatusActive {
-		return nil
+		return fmt.Errorf("job %s %w", job.Nickname, errJobInvalid)
 	}
 	var intervalsProcessed int64
 	if job.rangeHolder == nil || len(job.rangeHolder.Ranges) == 0 {
@@ -342,6 +345,9 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			}
 		}
 		for i := int64(0); i < job.RunBatchLimit; i++ {
+			if err := common.StartEndTimeCheck(startDate, job.EndDate); err != nil {
+				break
+			}
 			requestEnd := startDate.Add(job.Interval.Duration() * time.Duration(job.RequestSizeLimit))
 			if requestEnd.After(job.EndDate) {
 				requestEnd = job.EndDate
@@ -855,6 +861,15 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		(j != nil && j.Status != dataHistoryStatusActive) {
 		return fmt.Errorf("upsert job %w nickname: %s - status: %s ", errNicknameInUse, j.Nickname, j.Status)
 	}
+	if job.PrerequisiteJobNickname != "" {
+		p, err := m.GetByNickname(job.PrerequisiteJobNickname, false)
+		if err != nil {
+			return fmt.Errorf("upsert job %s could not find prerequisite job %v %w", j.Nickname, j.PrerequisiteJobNickname, err)
+		}
+		if p.Status != dataHistoryStatusActive && p.Status != dataHistoryStatusPaused {
+			return fmt.Errorf("upsert job %s prerequisite job already completed %w", j.Nickname, errJobInvalid)
+		}
+	}
 
 	err = m.validateJob(job)
 	if err != nil {
@@ -1009,9 +1024,15 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.ConversionInterval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 
-	if job.DecimalPlaceComparison <= 0 && job.DataType == dataHistoryCandleValidationDataType {
-		log.Warnf(log.DataHistory, "job %s decimal place comparison %v invalid. defaulting to %v", job.Nickname, job.DecimalPlaceComparison, defaultDecimalPlaceComparison)
-		job.DecimalPlaceComparison = defaultDecimalPlaceComparison
+	if job.DataType == dataHistoryCandleValidationDataType {
+		if job.DecimalPlaceComparison <= 0 {
+			log.Warnf(log.DataHistory, "job %s decimal place comparison %v invalid. defaulting to %v", job.Nickname, job.DecimalPlaceComparison, defaultDecimalPlaceComparison)
+			job.DecimalPlaceComparison = defaultDecimalPlaceComparison
+		}
+		if job.RequestSizeLimit > 50 {
+			log.Warnf(log.DataHistory, "job %s validation batch limit %v too high. defaulting to %v", job.Nickname, job.RequestSizeLimit, defaultDataHistoryRequestSizeLimit)
+			job.RequestSizeLimit = defaultDataHistoryRequestSizeLimit
+		}
 	}
 
 	job.StartDate = job.StartDate.Round(job.Interval.Duration())

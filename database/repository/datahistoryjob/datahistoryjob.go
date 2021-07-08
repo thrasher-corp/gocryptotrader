@@ -1047,7 +1047,6 @@ func setRelationshipByNicknameSQLite(ctx context.Context, tx *sql.Tx, prerequisi
 	if err != nil {
 		return err
 	}
-
 	return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, true, result)
 }
 

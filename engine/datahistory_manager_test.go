@@ -183,17 +183,19 @@ func TestUpsertJob(t *testing.T) {
 	}
 
 	newJob := &DataHistoryJob{
-		Nickname:         dhj.Nickname,
-		Exchange:         testExchange,
-		Asset:            asset.Spot,
-		Pair:             currency.NewPair(currency.BTC, currency.USD),
-		StartDate:        startDate,
-		EndDate:          time.Now().Add(-time.Minute),
-		Interval:         kline.FifteenMin,
-		RunBatchLimit:    1338,
-		RequestSizeLimit: 1337,
-		DataType:         99,
-		MaxRetryAttempts: 1337,
+		Nickname:               dhj.Nickname,
+		Exchange:               testExchange,
+		Asset:                  asset.Spot,
+		Pair:                   currency.NewPair(currency.BTC, currency.USD),
+		StartDate:              startDate,
+		EndDate:                time.Now().Add(-time.Minute),
+		Interval:               kline.FifteenMin,
+		RunBatchLimit:          1338,
+		RequestSizeLimit:       1337,
+		DataType:               99,
+		MaxRetryAttempts:       1337,
+		ConversionInterval:     3,
+		DecimalPlaceComparison: 5,
 	}
 	err = m.UpsertJob(newJob, false)
 	if !errors.Is(err, errInvalidDataHistoryDataType) {
@@ -501,8 +503,16 @@ func TestValidateJob(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errInvalidTimes)
 	}
 
-	dhj.StartDate = time.Now().Add(-time.Hour)
+	dhj.StartDate = time.Now().Add(-time.Hour * 60)
 	dhj.EndDate = time.Now().Add(-time.Minute)
+	err = m.validateJob(dhj)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+
+	dhj.DataType = dataHistoryCandleValidationDataType
+	dhj.Interval = kline.OneDay
+	dhj.RequestSizeLimit = 999
 	err = m.validateJob(dhj)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -616,90 +626,124 @@ func TestCompareJobsToData(t *testing.T) {
 }
 
 func TestRunJob(t *testing.T) {
-	t.Parallel()
-	m := createDHM(t)
-	dhj := &DataHistoryJob{
-		Nickname:  "TestProcessJobs",
-		Exchange:  "Binance",
-		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
-		StartDate: time.Now().Add(-time.Hour * 2),
-		EndDate:   time.Now(),
-		Interval:  kline.OneHour,
-	}
-	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	m.tradeSaver = dataHistoryTradeSaver
-	m.candleSaver = dataHistoryCandleSaver
-	m.tradeLoader = dataHistoryTraderLoader
-	m.tradeChecker = dataHistoryHasDataChecker
-
-	err = m.runJob(dhj)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-
-	dhj.Pair = currency.NewPair(currency.DOGE, currency.USDT)
-	err = m.runJob(dhj)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-
-	dhjt := &DataHistoryJob{
-		Nickname:  "TestProcessJobs2",
-		Exchange:  "Binance",
-		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
-		StartDate: time.Now().Add(-time.Hour * 5),
-		EndDate:   time.Now(),
-		Interval:  kline.OneHour,
-		DataType:  dataHistoryTradeDataType,
-	}
-	err = m.UpsertJob(dhjt, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-
-	err = m.compareJobsToData(dhjt)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-
-	err = m.runJob(dhjt)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-
-	dhjt.DataType = dataHistoryConvertCandlesDataType
-	err = m.runJob(dhjt)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
+	testCases := []*DataHistoryJob{
+		{
+			Nickname:  "TestRunJobDataHistoryCandleDataType",
+			Exchange:  "Binance",
+			Asset:     asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			StartDate: time.Now().Add(-time.Minute * 30),
+			EndDate:   time.Now(),
+			Interval:  kline.FifteenMin,
+			DataType:  dataHistoryCandleDataType,
+		},
+		{
+			Nickname:  "TestRunJobDataHistoryTradeDataType",
+			Exchange:  "Binance",
+			Asset:     asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			StartDate: time.Now().Add(-time.Minute * 15),
+			EndDate:   time.Now(),
+			Interval:  kline.OneMin,
+			DataType:  dataHistoryTradeDataType,
+		},
+		{
+			Nickname:           "TestRunJobDataHistoryConvertCandlesDataType",
+			Exchange:           "Binance",
+			Asset:              asset.Spot,
+			Pair:               currency.NewPair(currency.BTC, currency.USDT),
+			StartDate:          time.Now().Add(-time.Hour * 2),
+			EndDate:            time.Now(),
+			Interval:           kline.FifteenMin,
+			DataType:           dataHistoryConvertCandlesDataType,
+			ConversionInterval: kline.OneHour,
+		},
+		{
+			Nickname:           "TestRunJobDataHistoryConvertTradesDataType",
+			Exchange:           "Binance",
+			Asset:              asset.Spot,
+			Pair:               currency.NewPair(currency.BTC, currency.USDT),
+			StartDate:          time.Now().Add(-time.Hour * 2),
+			EndDate:            time.Now(),
+			Interval:           kline.FifteenMin,
+			DataType:           dataHistoryConvertTradesDataType,
+			ConversionInterval: kline.OneHour,
+		},
+		{
+			Nickname:  "TestRunJobDataHistoryCandleValidationDataType",
+			Exchange:  "Binance",
+			Asset:     asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			StartDate: time.Now().Add(-time.Hour * 2),
+			EndDate:   time.Now(),
+			Interval:  kline.OneHour,
+			DataType:  dataHistoryCandleValidationDataType,
+		},
 	}
 
-	dhjt.DataType = dataHistoryConvertTradesDataType
-	err = m.runJob(dhjt)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	for x := range testCases {
+		test := testCases[x]
+		t.Run(test.Nickname, func(t *testing.T) {
+			t.Parallel()
+			m := createDHM(t)
+			err := m.UpsertJob(test, false)
+			if !errors.Is(err, nil) {
+				t.Errorf("error '%v', expected '%v'", err, nil)
+			}
 
-	dhjt.DataType = dataHistoryCandleValidationDataType
-	err = m.runJob(dhjt)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+			err = m.UpsertJob(test, false)
+			if !errors.Is(err, nil) {
+				t.Errorf("error '%v', expected '%v'", err, nil)
+			}
+			m.tradeSaver = dataHistoryTradeSaver
+			m.candleSaver = dataHistoryCandleSaver
+			m.tradeLoader = dataHistoryTraderLoader
+			m.tradeChecker = dataHistoryHasDataChecker
 
-	atomic.StoreInt32(&m.started, 0)
-	err = m.runJob(dhjt)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+			err = m.runJob(nil)
+			if !errors.Is(err, errNilJob) {
+				t.Errorf("error '%v', expected '%v'", err, errNilJob)
+			}
 
-	m = nil
-	err = m.runJob(dhjt)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+			test.Status = dataHistoryIntervalMissingData
+			err = m.runJob(test)
+			if !errors.Is(err, errJobInvalid) {
+				t.Errorf("error '%v', expected '%v'", err, errJobInvalid)
+			}
+
+			rh := test.rangeHolder
+			test.Status = dataHistoryStatusActive
+			test.rangeHolder = nil
+			err = m.runJob(test)
+			if !errors.Is(err, errJobInvalid) {
+				t.Errorf("error '%v', expected '%v'", err, errJobInvalid)
+			}
+
+			test.rangeHolder = rh
+			err = m.runJob(test)
+			if !errors.Is(err, nil) {
+				t.Errorf("error '%v', expected '%v'", err, nil)
+			}
+
+			test.Pair = currency.NewPair(currency.DOGE, currency.USDT)
+			test.Status = dataHistoryStatusActive
+			err = m.runJob(test)
+			if !errors.Is(err, nil) {
+				t.Errorf("error '%v', expected '%v'", err, nil)
+			}
+
+			atomic.StoreInt32(&m.started, 0)
+			err = m.runJob(test)
+			if !errors.Is(err, ErrSubSystemNotStarted) {
+				t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
+			}
+
+			m = nil
+			err = m.runJob(test)
+			if !errors.Is(err, ErrNilSubsystem) {
+				t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
+			}
+		})
 	}
 }
 
@@ -1105,8 +1149,8 @@ func TestValidateCandles(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	if r.Status != dataHistoryStatusFailed {
-		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
+	if r.Status != dataHistoryIntervalMissingData {
+		t.Errorf("received %v expected %v", r.Status, dataHistoryIntervalMissingData)
 	}
 	r, err = m.validateCandles(j, exch, j.StartDate, j.EndDate)
 	if !errors.Is(err, nil) {

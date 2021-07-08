@@ -13,159 +13,6 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var (
-	maxRetryAttempts, requestSizeLimit, batchSize, comparisonDecimalPlaces uint64
-	prerequisiteJobSubCommands                                             = []cli.Flag{
-		&cli.StringFlag{
-			Name:  "nickname",
-			Usage: "binance-spot-btc-usdt-2019-trades",
-		},
-		&cli.StringFlag{
-			Name:  "prerequisite",
-			Usage: "binance-spot-btc-usdt-2018-trades",
-		},
-	}
-	guidExample            = "deadbeef-dead-beef-dead-beef13371337"
-	specificJobSubCommands = []cli.Flag{
-		&cli.StringFlag{
-			Name:  "id",
-			Usage: guidExample,
-		},
-		&cli.StringFlag{
-			Name:  "nickname",
-			Usage: "binance-spot-btc-usdt-2019-trades",
-		},
-	}
-	baseJobSubCommands = []cli.Flag{
-		&cli.StringFlag{
-			Name:     "nickname",
-			Usage:    "binance-spot-btc-usdt-2019-trades",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:     "exchange",
-			Usage:    "binance",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:     "asset",
-			Usage:    "spot",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:     "pair",
-			Usage:    "btc-usdt",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:        "start_date",
-			Usage:       "formatted as: 2006-01-02 15:04:05",
-			Value:       time.Now().AddDate(-1, 0, 0).Format(common.SimpleTimeFormat),
-			Destination: &startTime,
-		},
-		&cli.StringFlag{
-			Name:        "end_date",
-			Usage:       "formatted as: 2006-01-02 15:04:05",
-			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
-			Destination: &endTime,
-		},
-		&cli.Uint64Flag{
-			Name:     "interval",
-			Usage:    klineMessage,
-			Required: true,
-		},
-		&cli.Uint64Flag{
-			Name:        "request_size_limit",
-			Usage:       "the number of candles to retrieve per API request",
-			Destination: &requestSizeLimit,
-			Value:       50,
-		},
-		&cli.Uint64Flag{
-			Name:        "max_retry_attempts",
-			Usage:       "the maximum retry attempts for an interval period before giving up",
-			Value:       3,
-			Destination: &maxRetryAttempts,
-		},
-		&cli.Uint64Flag{
-			Name:        "batch_size",
-			Usage:       "the amount of API calls to make per run",
-			Destination: &batchSize,
-			Value:       3,
-		},
-		&cli.StringFlag{
-			Name:  "prerequisite",
-			Usage: "optional - adds or updates the job to have a prerequisite, will only run when prerequisite job is complete - use command 'removeprerequisite' to remove a prerequisite",
-		},
-		&cli.BoolFlag{
-			Name:  "upsert",
-			Usage: "if true, will update an existing job if the nickname is shared. if false, will reject a job if the nickname already exists",
-		},
-	}
-	retrievalJobSubCommands = []cli.Flag{
-		&cli.BoolFlag{
-			Name:  "overwrite_existing_data",
-			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
-		},
-	}
-	conversionJobSubCommands = []cli.Flag{
-		&cli.BoolFlag{
-			Name:  "overwrite_existing_data",
-			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
-		},
-		&cli.Uint64Flag{
-			Name:     "conversion_interval",
-			Usage:    "data will be converted and saved at this interval",
-			Required: true,
-		},
-	}
-	validationJobSubCommands = []cli.Flag{
-		&cli.Uint64Flag{
-			Name:        "comparison_decimal_places",
-			Usage:       "the number of decimal places used to compare against API data for accuracy",
-			Destination: &comparisonDecimalPlaces,
-			Value:       3,
-		},
-	}
-)
-
-var dataHistoryJobCommands = &cli.Command{
-	Name:      "addjob",
-	Usage:     "add or update data history jobs",
-	ArgsUsage: "<command> <args>",
-	Subcommands: []*cli.Command{
-		{
-			Name:   "savecandles",
-			Usage:  "will fetch candle data from an exchange and save it to the database",
-			Flags:  append(baseJobSubCommands, retrievalJobSubCommands...),
-			Action: upsertDataHistoryJob,
-		},
-		{
-			Name:   "convertcandles",
-			Usage:  "convert candles saved to the database to a new resolution eg 1min -> 5min",
-			Flags:  append(baseJobSubCommands, retrievalJobSubCommands...),
-			Action: upsertDataHistoryJob,
-		},
-		{
-			Name:   "savetrades",
-			Usage:  "will fetch trade data from an exchange and save it to the database",
-			Flags:  append(baseJobSubCommands, conversionJobSubCommands...),
-			Action: upsertDataHistoryJob,
-		},
-		{
-			Name:   "converttrades",
-			Usage:  "convert trades saved to the database to any candle resolution eg 30min",
-			Flags:  append(baseJobSubCommands, conversionJobSubCommands...),
-			Action: upsertDataHistoryJob,
-		},
-		{
-			Name:   "validatecandles",
-			Usage:  "will compare database candle data with API candle data - useful for validating converted trades and candles",
-			Flags:  append(baseJobSubCommands, validationJobSubCommands...),
-			Action: upsertDataHistoryJob,
-		},
-	},
-}
-
 var dataHistoryCommands = &cli.Command{
 	Name:      "datahistory",
 	Usage:     "manage data history jobs to retrieve historic trade or candle data over time",
@@ -268,6 +115,183 @@ var dataHistoryCommands = &cli.Command{
 		},
 	},
 }
+
+var dataHistoryJobCommands = &cli.Command{
+	Name:      "addjob",
+	Usage:     "add or update data history jobs",
+	ArgsUsage: "<command> <args>",
+	Subcommands: []*cli.Command{
+		{
+			Name:   "savecandles",
+			Usage:  "will fetch candle data from an exchange and save it to the database",
+			Flags:  append(baseJobSubCommands, candleRetrievalJobSubCommands...),
+			Action: upsertDataHistoryJob,
+		},
+		{
+			Name:   "convertcandles",
+			Usage:  "convert candles saved to the database to a new resolution eg 1min -> 5min",
+			Flags:  append(baseJobSubCommands, candleRetrievalJobSubCommands...),
+			Action: upsertDataHistoryJob,
+		},
+		{
+			Name:   "savetrades",
+			Usage:  "will fetch trade data from an exchange and save it to the database",
+			Flags:  append(baseJobSubCommands, tradeRetrievalJobSubCommands...),
+			Action: upsertDataHistoryJob,
+		},
+		{
+			Name:   "converttrades",
+			Usage:  "convert trades saved to the database to any candle resolution eg 30min",
+			Flags:  append(baseJobSubCommands, conversionJobSubCommands...),
+			Action: upsertDataHistoryJob,
+		},
+		{
+			Name:   "validatecandles",
+			Usage:  "will compare database candle data with API candle data - useful for validating converted trades and candles",
+			Flags:  append(baseJobSubCommands, validationJobSubCommands...),
+			Action: upsertDataHistoryJob,
+		},
+	},
+}
+
+var (
+	maxRetryAttempts, requestSizeLimit, batchSize, comparisonDecimalPlaces uint64
+	prerequisiteJobSubCommands                                             = []cli.Flag{
+		&cli.StringFlag{
+			Name:  "nickname",
+			Usage: "binance-spot-btc-usdt-2019-trades",
+		},
+		&cli.StringFlag{
+			Name:  "prerequisite",
+			Usage: "binance-spot-btc-usdt-2018-trades",
+		},
+	}
+	guidExample            = "deadbeef-dead-beef-dead-beef13371337"
+	specificJobSubCommands = []cli.Flag{
+		&cli.StringFlag{
+			Name:  "id",
+			Usage: guidExample,
+		},
+		&cli.StringFlag{
+			Name:  "nickname",
+			Usage: "binance-spot-btc-usdt-2019-trades",
+		},
+	}
+	baseJobSubCommands = []cli.Flag{
+		&cli.StringFlag{
+			Name:     "nickname",
+			Usage:    "binance-spot-btc-usdt-2019-trades",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     "exchange",
+			Usage:    "binance",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     "asset",
+			Usage:    "spot",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     "pair",
+			Usage:    "btc-usdt",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:        "start_date",
+			Usage:       "formatted as: 2006-01-02 15:04:05",
+			Value:       time.Now().AddDate(-1, 0, 0).Format(common.SimpleTimeFormat),
+			Destination: &startTime,
+		},
+		&cli.StringFlag{
+			Name:        "end_date",
+			Usage:       "formatted as: 2006-01-02 15:04:05",
+			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+			Destination: &endTime,
+		},
+		&cli.Uint64Flag{
+			Name:     "interval",
+			Usage:    klineMessage,
+			Required: true,
+		},
+		&cli.Uint64Flag{
+			Name:        "max_retry_attempts",
+			Usage:       "the maximum retry attempts for an interval period before giving up",
+			Value:       3,
+			Destination: &maxRetryAttempts,
+		},
+		&cli.Uint64Flag{
+			Name:        "batch_size",
+			Usage:       "the amount of API calls to make per run",
+			Destination: &batchSize,
+			Value:       3,
+		},
+		&cli.StringFlag{
+			Name:  "prerequisite",
+			Usage: "optional - adds or updates the job to have a prerequisite, will only run when prerequisite job is complete - use command 'removeprerequisite' to remove a prerequisite",
+		},
+		&cli.BoolFlag{
+			Name:  "upsert",
+			Usage: "if true, will update an existing job if the nickname is shared. if false, will reject a job if the nickname already exists",
+		},
+	}
+	candleRetrievalJobSubCommands = []cli.Flag{
+		&cli.Uint64Flag{
+			Name:        "request_size_limit",
+			Usage:       "the number of candles to retrieve per API request",
+			Destination: &requestSizeLimit,
+			Value:       500,
+		},
+		&cli.BoolFlag{
+			Name:  "overwrite_existing_data",
+			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
+		},
+	}
+	tradeRetrievalJobSubCommands = []cli.Flag{
+		&cli.Uint64Flag{
+			Name:        "request_size_limit",
+			Usage:       "the number of intervals of trades to retrieve per processing",
+			Destination: &requestSizeLimit,
+			Value:       50,
+		},
+		&cli.BoolFlag{
+			Name:  "overwrite_existing_data",
+			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
+		},
+	}
+	conversionJobSubCommands = []cli.Flag{
+		&cli.Uint64Flag{
+			Name:        "request_size_limit",
+			Usage:       "the number of candles to convert per processing",
+			Destination: &requestSizeLimit,
+			Value:       500,
+		},
+		&cli.BoolFlag{
+			Name:  "overwrite_existing_data",
+			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
+		},
+		&cli.Uint64Flag{
+			Name:     "conversion_interval",
+			Usage:    "data will be converted and saved at this interval",
+			Required: true,
+		},
+	}
+	validationJobSubCommands = []cli.Flag{
+		&cli.Uint64Flag{
+			Name:        "request_size_limit",
+			Usage:       "the number of candles to retrieve from the API to compare to",
+			Destination: &requestSizeLimit,
+			Value:       50,
+		},
+		&cli.Uint64Flag{
+			Name:        "comparison_decimal_places",
+			Usage:       "the number of decimal places used to compare against API data for accuracy",
+			Destination: &comparisonDecimalPlaces,
+			Value:       3,
+		},
+	}
+)
 
 func getDataHistoryJob(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
