@@ -104,7 +104,7 @@ var (
 	defaultDataHistoryMaxJobsPerCycle  int64 = 5
 	defaultDataHistoryBatchLimit       int64 = 3
 	defaultDataHistoryRetryAttempts    int64 = 3
-	defaultDataHistoryRequestSizeLimit int64 = 50
+	defaultDataHistoryRequestSizeLimit int64 = 500
 	defaultDataHistoryTicker                 = time.Minute
 	defaultDataHistoryTradeRequestSize int64 = 5
 	defaultDecimalPlaceComparison      int64 = 3

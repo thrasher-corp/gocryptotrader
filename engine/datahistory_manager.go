@@ -1029,7 +1029,7 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 			log.Warnf(log.DataHistory, "job %s decimal place comparison %v invalid. defaulting to %v", job.Nickname, job.DecimalPlaceComparison, defaultDecimalPlaceComparison)
 			job.DecimalPlaceComparison = defaultDecimalPlaceComparison
 		}
-		if job.RequestSizeLimit > 50 {
+		if job.RequestSizeLimit > 500 {
 			log.Warnf(log.DataHistory, "job %s validation batch limit %v too high. defaulting to %v", job.Nickname, job.RequestSizeLimit, defaultDataHistoryRequestSizeLimit)
 			job.RequestSizeLimit = defaultDataHistoryRequestSizeLimit
 		}
@@ -1295,6 +1295,7 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 		PrerequisiteJobNickname: dbModel.PrerequisiteJobNickname,
 		OverwriteExistingData:   dbModel.OverwriteData,
 		ConversionInterval:      kline.Interval(dbModel.ConversionInterval),
+		DecimalPlaceComparison:  dbModel.DecimalPlaceComparison,
 	}
 	if resp.PrerequisiteJobNickname != "" {
 		prereqID, err := uuid.FromString(dbModel.PrerequisiteJobID)

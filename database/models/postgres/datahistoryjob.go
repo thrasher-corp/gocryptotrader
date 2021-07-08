@@ -19,30 +19,29 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 	"github.com/thrasher-corp/sqlboiler/queries/qmhelper"
 	"github.com/thrasher-corp/sqlboiler/strmangle"
-	"github.com/thrasher-corp/sqlboiler/types"
 	"github.com/volatiletech/null"
 )
 
 // Datahistoryjob is an object representing the database table.
 type Datahistoryjob struct {
-	ID                     string            `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Nickname               string            `boil:"nickname" json:"nickname" toml:"nickname" yaml:"nickname"`
-	ExchangeNameID         string            `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
-	Asset                  string            `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
-	Base                   string            `boil:"base" json:"base" toml:"base" yaml:"base"`
-	Quote                  string            `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
-	StartTime              time.Time         `boil:"start_time" json:"start_time" toml:"start_time" yaml:"start_time"`
-	EndTime                time.Time         `boil:"end_time" json:"end_time" toml:"end_time" yaml:"end_time"`
-	DataType               float64           `boil:"data_type" json:"data_type" toml:"data_type" yaml:"data_type"`
-	Interval               float64           `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
-	RequestSize            float64           `boil:"request_size" json:"request_size" toml:"request_size" yaml:"request_size"`
-	MaxRetries             float64           `boil:"max_retries" json:"max_retries" toml:"max_retries" yaml:"max_retries"`
-	BatchCount             float64           `boil:"batch_count" json:"batch_count" toml:"batch_count" yaml:"batch_count"`
-	Status                 float64           `boil:"status" json:"status" toml:"status" yaml:"status"`
-	Created                time.Time         `boil:"created" json:"created" toml:"created" yaml:"created"`
-	ConversionInterval     null.Float64      `boil:"conversion_interval" json:"conversion_interval,omitempty" toml:"conversion_interval" yaml:"conversion_interval,omitempty"`
-	OverwriteData          null.Bool         `boil:"overwrite_data" json:"overwrite_data,omitempty" toml:"overwrite_data" yaml:"overwrite_data,omitempty"`
-	DecimalPlaceComparison types.NullDecimal `boil:"decimal_place_comparison" json:"decimal_place_comparison,omitempty" toml:"decimal_place_comparison" yaml:"decimal_place_comparison,omitempty"`
+	ID                     string       `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Nickname               string       `boil:"nickname" json:"nickname" toml:"nickname" yaml:"nickname"`
+	ExchangeNameID         string       `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
+	Asset                  string       `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
+	Base                   string       `boil:"base" json:"base" toml:"base" yaml:"base"`
+	Quote                  string       `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
+	StartTime              time.Time    `boil:"start_time" json:"start_time" toml:"start_time" yaml:"start_time"`
+	EndTime                time.Time    `boil:"end_time" json:"end_time" toml:"end_time" yaml:"end_time"`
+	DataType               float64      `boil:"data_type" json:"data_type" toml:"data_type" yaml:"data_type"`
+	Interval               float64      `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
+	RequestSize            float64      `boil:"request_size" json:"request_size" toml:"request_size" yaml:"request_size"`
+	MaxRetries             float64      `boil:"max_retries" json:"max_retries" toml:"max_retries" yaml:"max_retries"`
+	BatchCount             float64      `boil:"batch_count" json:"batch_count" toml:"batch_count" yaml:"batch_count"`
+	Status                 float64      `boil:"status" json:"status" toml:"status" yaml:"status"`
+	Created                time.Time    `boil:"created" json:"created" toml:"created" yaml:"created"`
+	ConversionInterval     null.Float64 `boil:"conversion_interval" json:"conversion_interval,omitempty" toml:"conversion_interval" yaml:"conversion_interval,omitempty"`
+	OverwriteData          null.Bool    `boil:"overwrite_data" json:"overwrite_data,omitempty" toml:"overwrite_data" yaml:"overwrite_data,omitempty"`
+	DecimalPlaceComparison null.Int     `boil:"decimal_place_comparison" json:"decimal_place_comparison,omitempty" toml:"decimal_place_comparison" yaml:"decimal_place_comparison,omitempty"`
 
 	R *datahistoryjobR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L datahistoryjobL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -136,28 +135,26 @@ func (w whereHelpernull_Bool) GTE(x null.Bool) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
-type whereHelpertypes_NullDecimal struct{ field string }
+type whereHelpernull_Int struct{ field string }
 
-func (w whereHelpertypes_NullDecimal) EQ(x types.NullDecimal) qm.QueryMod {
+func (w whereHelpernull_Int) EQ(x null.Int) qm.QueryMod {
 	return qmhelper.WhereNullEQ(w.field, false, x)
 }
-func (w whereHelpertypes_NullDecimal) NEQ(x types.NullDecimal) qm.QueryMod {
+func (w whereHelpernull_Int) NEQ(x null.Int) qm.QueryMod {
 	return qmhelper.WhereNullEQ(w.field, true, x)
 }
-func (w whereHelpertypes_NullDecimal) IsNull() qm.QueryMod { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpertypes_NullDecimal) IsNotNull() qm.QueryMod {
-	return qmhelper.WhereIsNotNull(w.field)
-}
-func (w whereHelpertypes_NullDecimal) LT(x types.NullDecimal) qm.QueryMod {
+func (w whereHelpernull_Int) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Int) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+func (w whereHelpernull_Int) LT(x null.Int) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.LT, x)
 }
-func (w whereHelpertypes_NullDecimal) LTE(x types.NullDecimal) qm.QueryMod {
+func (w whereHelpernull_Int) LTE(x null.Int) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.LTE, x)
 }
-func (w whereHelpertypes_NullDecimal) GT(x types.NullDecimal) qm.QueryMod {
+func (w whereHelpernull_Int) GT(x null.Int) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GT, x)
 }
-func (w whereHelpertypes_NullDecimal) GTE(x types.NullDecimal) qm.QueryMod {
+func (w whereHelpernull_Int) GTE(x null.Int) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
@@ -179,7 +176,7 @@ var DatahistoryjobWhere = struct {
 	Created                whereHelpertime_Time
 	ConversionInterval     whereHelpernull_Float64
 	OverwriteData          whereHelpernull_Bool
-	DecimalPlaceComparison whereHelpertypes_NullDecimal
+	DecimalPlaceComparison whereHelpernull_Int
 }{
 	ID:                     whereHelperstring{field: "\"datahistoryjob\".\"id\""},
 	Nickname:               whereHelperstring{field: "\"datahistoryjob\".\"nickname\""},
@@ -198,7 +195,7 @@ var DatahistoryjobWhere = struct {
 	Created:                whereHelpertime_Time{field: "\"datahistoryjob\".\"created\""},
 	ConversionInterval:     whereHelpernull_Float64{field: "\"datahistoryjob\".\"conversion_interval\""},
 	OverwriteData:          whereHelpernull_Bool{field: "\"datahistoryjob\".\"overwrite_data\""},
-	DecimalPlaceComparison: whereHelpertypes_NullDecimal{field: "\"datahistoryjob\".\"decimal_place_comparison\""},
+	DecimalPlaceComparison: whereHelpernull_Int{field: "\"datahistoryjob\".\"decimal_place_comparison\""},
 }
 
 // DatahistoryjobRels is where relationship names are stored.

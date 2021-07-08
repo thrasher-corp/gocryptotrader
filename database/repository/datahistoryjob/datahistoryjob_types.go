@@ -31,6 +31,7 @@ type DataHistoryJob struct {
 	PrerequisiteJobNickname string
 	ConversionInterval      int64
 	OverwriteData           bool
+	DecimalPlaceComparison  int64
 }
 
 // DBService is a service which allows the interaction with
