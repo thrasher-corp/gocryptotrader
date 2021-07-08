@@ -695,6 +695,7 @@ func (d *Deribit) ChangeSubAccountName(sid int64, name string) (string, error) {
 	return resp, nil
 }
 
+// CreateAPIKey creates an api key based on the provided settings
 func (d *Deribit) CreateAPIKey(maxScope, name string, defaultKey bool) (APIKeyData, error) {
 	var resp APIKeyData
 	params := url.Values{}
@@ -711,18 +712,299 @@ func (d *Deribit) CreateAPIKey(maxScope, name string, defaultKey bool) (APIKeyDa
 		createAPIKey, params, &resp)
 }
 
+// CreateSubAccount creates a new subaccount
 func (d *Deribit) CreateSubAccount() (SubAccountData, error) {
 	var resp SubAccountData
 	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
 		createSubAccount, nil, &resp)
 }
 
+// DisableAPIKey disables the api key linked to the provided id
 func (d *Deribit) DisableAPIKey(id int64) (APIKeyData, error) {
 	var resp APIKeyData
 	params := url.Values{}
 	params.Set("id", strconv.FormatInt(id, 10))
 	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
 		disableAPIKey, params, &resp)
+}
+
+// DisableTFAForSubAccount disables two factor authentication for the subaccount linked to the requested id
+func (d *Deribit) DisableTFAForSubAccount(sid int64) (string, error) {
+	var resp string
+	params := url.Values{}
+	params.Set("sid", strconv.FormatInt(sid, 10))
+	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		disableTFAForSubaccount, params, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp != "ok" {
+		return "", fmt.Errorf("disabling 2fa for subaccount %v failed", sid)
+	}
+	return resp, nil
+}
+
+// EnableAffiliateProgram enables the affiliate program
+func (d *Deribit) EnableAffiliateProgram() (string, error) {
+	var resp string
+	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		enableAffiliateProgram, nil, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp != "ok" {
+		return "", fmt.Errorf("could not enable affiliate program")
+	}
+	return resp, nil
+}
+
+// EnableAPIKey enables the api key linked to the provided id
+func (d *Deribit) EnableAPIKey(id int64) (APIKeyData, error) {
+	var resp APIKeyData
+	params := url.Values{}
+	params.Set("id", strconv.FormatInt(id, 10))
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		enableAPIKey, params, &resp)
+}
+
+// GetAffiliateProgramInfo gets the affiliate program info
+func (d *Deribit) GetAffiliateProgramInfo(id int64) (AffiliateProgramInfo, error) {
+	var resp AffiliateProgramInfo
+	params := url.Values{}
+	params.Set("id", strconv.FormatInt(id, 10))
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getAffiliateProgramInfo, params, &resp)
+}
+
+// GetEmailLanguage gets the current language set for the email
+func (d *Deribit) GetEmailLanguage() (string, error) {
+	var resp string
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getEmailLanguage, nil, &resp)
+}
+
+// GetNewAnnouncements gets new announcements
+func (d *Deribit) GetNewAnnouncements() ([]PrivateAnnouncementsData, error) {
+	var resp []PrivateAnnouncementsData
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getNewAnnouncements, nil, &resp)
+}
+
+// GetPosition gets the data of all positions in the requested instrument name
+func (d *Deribit) GetPosition(instrumentName string) (PositionData, error) {
+	var resp PositionData
+	var params url.Values
+	params.Set("instrument_name", instrumentName)
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getPosition, params, &resp)
+}
+
+// GetSubAccounts gets all subaccounts' data
+func (d *Deribit) GetSubAccounts(withPortfolio bool) ([]SubAccountData, error) {
+	var resp []SubAccountData
+	var params url.Values
+	withPortfolioStr := "false"
+	if withPortfolio {
+		withPortfolioStr = "true"
+	}
+	params.Set("with_portfolio", withPortfolioStr)
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getSubAccounts, params, &resp)
+}
+
+// GetPositions gets positions data of the user account
+func (d *Deribit) GetPositions(currency, kind string) ([]PositionData, error) {
+	var resp []PositionData
+	var params url.Values
+	params.Set("currency", currency)
+	if kind != "" {
+		params.Set("kind", kind)
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getPositions, params, &resp)
+}
+
+// GetTransactionLog gets transaction logs' data
+func (d *Deribit) GetTransactionLog(currency, query string, startTime, endTime time.Time, count, continuation int64) ([]TransactionsData, error) {
+	var resp []TransactionsData
+	var params url.Values
+	params.Set("currency", currency)
+	if query != "" {
+		params.Set("query", query)
+	}
+	if startTime.After(endTime) {
+		return resp, errStartTimeCannotBeAfterEndTime
+	}
+	params.Set("start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
+	params.Set("end_timestamp", strconv.FormatInt(endTime.Unix()*1000, 10))
+	if count != 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if continuation != 0 {
+		params.Set("continuation", strconv.FormatInt(continuation, 10))
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getTransactionLog, params, &resp)
+}
+
+// ListAPIKeys lists all the api keys associated with a user account
+func (d *Deribit) ListAPIKeys(tfa string) ([]APIKeyData, error) {
+	var resp []APIKeyData
+	var params url.Values
+	if tfa != "" {
+		params.Set("tfa", tfa)
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		listAPIKeys, params, &resp)
+}
+
+// RemoveAPIKey removes api key vid ID
+func (d *Deribit) RemoveAPIKey(id string) (string, error) {
+	var resp string
+	var params url.Values
+	params.Set("id", id)
+	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		removeAPIKey, nil, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp != "ok" {
+		return "", fmt.Errorf("removal of the api key requested failed")
+	}
+	return resp, nil
+}
+
+// RemoveSubAccount removes a subaccount given its id
+func (d *Deribit) RemoveSubAccount(subAccountID int64) (string, error) {
+	var resp string
+	var params url.Values
+	params.Set("subaccount_id", strconv.FormatInt(subAccountID, 10))
+	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		removeSubAccount, nil, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp != "ok" {
+		return "", fmt.Errorf("removal of sub account %v failed", subAccountID)
+	}
+	return resp, nil
+}
+
+// ResetAPIKey resets the api key to its defualt settings
+func (d *Deribit) ResetAPIKey(id string) (APIKeyData, error) {
+	var resp APIKeyData
+	var params url.Values
+	params.Set("id", id)
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		resetAPIKey, params, &resp)
+}
+
+// SetAnnouncementAsRead sets an announcement as read
+func (d *Deribit) SetAnnouncementAsRead(id int64) (string, error) {
+	var resp string
+	var params url.Values
+	params.Set("announcement_id", strconv.FormatInt(id, 10))
+	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		setAnnouncementAsRead, nil, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp != "ok" {
+		return "", fmt.Errorf("setting announcement %v as read failed", id)
+	}
+	return resp, nil
+}
+
+// SetEmailForSubAccount links an email given to the designated subaccount
+func (d *Deribit) SetEmailForSubAccount(sid int64, email string) (string, error) {
+	var resp string
+	var params url.Values
+	params.Set("sid", strconv.FormatInt(sid, 10))
+	params.Set("email", email)
+	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		setEmailForSubAccount, nil, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp != "ok" {
+		return "", fmt.Errorf("could not link email (%v) to subaccount %v", email, sid)
+	}
+	return resp, nil
+}
+
+// SetEmailLanguage sets a requested language for an email
+func (d *Deribit) SetEmailLanguage(language string) (string, error) {
+	var resp string
+	var params url.Values
+	params.Set("language", language)
+	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		setEmailLanguage, nil, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp != "ok" {
+		return "", fmt.Errorf("could not set the email language to %v", language)
+	}
+	return resp, nil
+}
+
+// SetPasswordForSubAccount sets a password for subaccount usage
+func (d *Deribit) SetPasswordForSubAccount(sid int64, password string) (string, error) {
+	var resp string
+	var params url.Values
+	params.Set("password", password)
+	params.Set("sid", strconv.FormatInt(sid, 10))
+	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		setPasswordForSubAccount, nil, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp != "ok" {
+		return "", fmt.Errorf("could not set the provided password to subaccount %v", sid)
+	}
+	return resp, nil
+}
+
+// ToggleNotificationsFromSubAccount toggles the notifications from a subaccount specified
+func (d *Deribit) ToggleNotificationsFromSubAccount(sid int64, state bool) (string, error) {
+	var resp string
+	var params url.Values
+	params.Set("sid", strconv.FormatInt(sid, 10))
+	notifStateStr := "false"
+	if !state {
+		notifStateStr = "true"
+	}
+	params.Set("state", notifStateStr)
+	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		toggleNotificationsFromSubAccount, nil, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp != "ok" {
+		return "", fmt.Errorf("toggling notifications for subaccount %v to %v failed", sid, state)
+	}
+	return resp, nil
+}
+
+// ToggleSubAccountLogin toggles access for subaccount login
+func (d *Deribit) ToggleSubAccountLogin(sid int64, state bool) (string, error) {
+	var resp string
+	var params url.Values
+	params.Set("sid", strconv.FormatInt(sid, 10))
+	notifStateStr := "false"
+	if !state {
+		notifStateStr = "true"
+	}
+	params.Set("state", notifStateStr)
+	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		toggleSubAccountLogin, nil, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp != "ok" {
+		return "", fmt.Errorf("toggling login access for subaccount %v to %v failed", sid, state)
+	}
+	return resp, nil
 }
 
 // SendAuthHTTPRequest sends an authenticated request to deribit api

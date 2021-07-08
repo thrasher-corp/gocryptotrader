@@ -604,4 +604,58 @@ type PrivateAnnouncementsData struct {
 	Body                 string `json:"body"`
 }
 
-//
+// PositionData stores data for account's position
+type PositionData struct {
+	AveragePrice              float64 `json:"average_price"`
+	Delta                     float64 `json:"delta"`
+	Direction                 string  `json:"direction"`
+	EstimatedLiquidationPrice float64 `json:"estimated_liquidation_price"`
+	FloatingProfitLoss        float64 `json:"floating_profit_loss"`
+	IndexPrice                float64 `json:"index_price"`
+	InitialMargin             float64 `json:"initial_margin"`
+	InstrumentName            string  `json:"instrument_name"`
+	Leverage                  float64 `json:"leverage"`
+	Kind                      string  `json:"kind"`
+	MaintenanceMargin         float64 `json:"maintenance_margin"`
+	MarkPrice                 float64 `json:"mark_price"`
+	OpenOrdersMargin          float64 `json:"open_orders_margin"`
+	RealizedProfitLoss        float64 `json:"realized_profit_loss"`
+	SettlementPrice           float64 `json:"settlement_price"`
+	Size                      float64 `json:"size"`
+	SizeCurrency              string  `json:"size_currency"`
+	TotalProfitLoss           float64 `json:"total_profit_loss"`
+}
+
+// TransactionLogData stores information regarding an account transaction
+type TransactionLogData struct {
+	Username        string  `json:"username"`
+	UserSeq         int64   `json:"user_seq"`
+	UserID          int64   `json:"user_id"`
+	TransactionType string  `json:"transaction_type"`
+	TradeID         int64   `json:"trade_id"`
+	Timestamp       int64   `json:"timestamp"`
+	Side            string  `json:"side"`
+	Price           float64 `json:"price"`
+	Position        float64 `json:"position"`
+	OrderID         int64   `json:"order_id"`
+	InterestPL      float64 `json:"interest_pl"`
+	InstrumentName  string  `json:"instrument_name"`
+	Info            struct {
+		TransferType string `json:"transfer_type"`
+		OtherUserID  int64  `json:"other_user_id"`
+		OtherUser    string `json:"other_user"`
+	} `json:"info"`
+	ID         int64   `json:"id"`
+	Equity     float64 `json:"equity"`
+	Currency   string  `json:"currency"`
+	Commission float64 `json:"commission"`
+	Change     float64 `json:"change"`
+	Cashflow   float64 `json:"cashflow"`
+	Balance    float64 `json:"balance"`
+}
+
+// TransactionsData stores multiple transaction logs
+type TransactionsData struct {
+	Logs         []TransactionLogData `json:"logs"`
+	Continuation int64                `json:"continuation"`
+}

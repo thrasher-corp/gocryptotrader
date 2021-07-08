@@ -271,7 +271,6 @@ func TestGetPublicTicker(t *testing.T) {
 func TestGetAccountSummary(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.GetAccountSummary("BTC", false)
 	if err != nil {
 		t.Error(err)
@@ -282,7 +281,6 @@ func TestGetAccountSummary(t *testing.T) {
 func TestCancelTransferByID(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.CancelTransferByID("BTC", "", 23487)
 	if err != nil {
 		t.Error(err)
@@ -293,7 +291,6 @@ func TestCancelTransferByID(t *testing.T) {
 func TestGetTransfers(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.GetTransfers("BTC", 0, 0)
 	if err != nil {
 		t.Error(err)
@@ -304,7 +301,6 @@ func TestGetTransfers(t *testing.T) {
 func TestCancelWithdrawal(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.CancelWithdrawal("BTC", 123844)
 	if err != nil {
 		t.Error(err)
@@ -315,7 +311,6 @@ func TestCancelWithdrawal(t *testing.T) {
 func TestCreateDepositAddress(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.CreateDepositAddress("BTC")
 	if err != nil {
 		t.Error(err)
@@ -326,7 +321,6 @@ func TestCreateDepositAddress(t *testing.T) {
 func TestGetCurrentDepositAddress(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.GetCurrentDepositAddress("BTC")
 	if err != nil {
 		t.Error(err)
@@ -337,7 +331,6 @@ func TestGetCurrentDepositAddress(t *testing.T) {
 func TestGetDeposits(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.GetDeposits("BTC", 25, 0)
 	if err != nil {
 		t.Error(err)
@@ -348,7 +341,6 @@ func TestGetDeposits(t *testing.T) {
 func TestGetWithdrawals(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.GetWithdrawals("BTC", 25, 0)
 	if err != nil {
 		t.Error(err)
@@ -359,7 +351,6 @@ func TestGetWithdrawals(t *testing.T) {
 func TestSubmitTransferToSubAccount(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.SubmitTransferToSubAccount("BTC", 0.01, 13434)
 	if err != nil {
 		t.Error(err)
@@ -370,7 +361,6 @@ func TestSubmitTransferToSubAccount(t *testing.T) {
 func TestSubmitTransferToUser(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.SubmitTransferToUser("BTC", "", 0.001, 13434)
 	if err != nil {
 		t.Error(err)
@@ -381,7 +371,6 @@ func TestSubmitTransferToUser(t *testing.T) {
 func TestSubmitWithdraw(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.SubmitWithdraw("BTC", "incorrectAddress", "", "", 0.001)
 	if err != nil {
 		t.Error(err)
@@ -392,7 +381,6 @@ func TestSubmitWithdraw(t *testing.T) {
 func TestChangeAPIKeyName(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.ChangeAPIKeyName(1, "TestKey123")
 	if err != nil {
 		t.Error(err)
@@ -403,7 +391,6 @@ func TestChangeAPIKeyName(t *testing.T) {
 func TestChangeScopeInAPIKey(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.ChangeScopeInAPIKey(1, "account:read_write")
 	if err != nil {
 		t.Error(err)
@@ -414,7 +401,6 @@ func TestChangeScopeInAPIKey(t *testing.T) {
 func TestChangeSubAccountName(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.ChangeSubAccountName(1, "TestingSubAccount")
 	if err != nil {
 		t.Error(err)
@@ -425,7 +411,6 @@ func TestChangeSubAccountName(t *testing.T) {
 func TestCreateAPIKey(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.CreateAPIKey("account:read_write", "TestingSubAccount", false)
 	if err != nil {
 		t.Error(err)
@@ -436,7 +421,6 @@ func TestCreateAPIKey(t *testing.T) {
 func TestCreateSubAccount(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.CreateSubAccount()
 	if err != nil {
 		t.Error(err)
@@ -447,8 +431,128 @@ func TestCreateSubAccount(t *testing.T) {
 func TestDisableAPIKey(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	fmt.Println(d.API.Credentials.Key)
 	a, err := d.DisableAPIKey(1)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestDisableTFAForSubAccount(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	// Use with caution will reduce the security of the account
+	a, err := d.DisableTFAForSubAccount(1)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestEnableAffiliateProgram(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.EnableAffiliateProgram()
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestEnableAPIKey(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.EnableAPIKey(1)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetAffiliateProgramInfo(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetAffiliateProgramInfo(1)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetEmailLanguage(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetEmailLanguage()
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetNewAnnouncements(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetNewAnnouncements()
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetPosition(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetPosition("BTC-25MAR22")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetSubAccounts(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetSubAccounts(false)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetPositions(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetPositions("BTC", "option")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+	_, err = d.GetPositions("ETH", "")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetTransactionLog(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetTransactionLog("BTC", "trade", time.Now().Add(-24*time.Hour), time.Now(), 5, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+	a, err = d.GetTransactionLog("BTC", "trade", time.Now().Add(-24*time.Hour), time.Now(), 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestListAPIKeys(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.ListAPIKeys("")
 	if err != nil {
 		t.Error(err)
 	}
