@@ -130,7 +130,7 @@ var dataHistoryJobCommands = &cli.Command{
 		{
 			Name:   "convertcandles",
 			Usage:  "convert candles saved to the database to a new resolution eg 1min -> 5min",
-			Flags:  append(baseJobSubCommands, candleRetrievalJobSubCommands...),
+			Flags:  append(baseJobSubCommands, conversionJobSubCommands...),
 			Action: upsertDataHistoryJob,
 		},
 		{
@@ -445,9 +445,9 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	case "savetrades":
 		dataType = 1
 	case "convertcandles":
-		dataType = 2
-	case "converttrades":
 		dataType = 3
+	case "converttrades":
+		dataType = 2
 	case "validatecandles":
 		dataType = 4
 	default:

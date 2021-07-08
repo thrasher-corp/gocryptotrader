@@ -316,11 +316,16 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 		// in order to verify that an area has been checked, we need to create a datahistoryresult
 		var failures int64
 		startDate := job.StartDate
+		intervalLength := job.Interval.Duration() * time.Duration(job.RequestSizeLimit)
 	validations:
 		for k, v := range job.Results {
+			if !k.Equal(startDate) {
+				continue
+			}
 			for i := range v {
 				switch v[i].Status {
 				case dataHistoryIntervalMissingData:
+					startDate = k.Add(intervalLength)
 					continue validations
 				case dataHistoryStatusFailed:
 					failures++
@@ -329,7 +334,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 					// however no errors were encountered when data is missing
 					// eg an exchange only returns an empty slice
 					// or the exchange is simply missing the data and does not have an error
-					startDate = k.Add(job.Interval.Duration())
+					startDate = k.Add(intervalLength)
 					continue validations
 				}
 			}
@@ -340,7 +345,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 					v[x].Status = dataHistoryIntervalMissingData
 				}
 				job.Results[k] = v
-				startDate = k.Add(job.Interval.Duration())
+				startDate = k.Add(intervalLength)
 				continue
 			}
 		}
@@ -348,7 +353,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			if err := common.StartEndTimeCheck(startDate, job.EndDate); err != nil {
 				break
 			}
-			requestEnd := startDate.Add(job.Interval.Duration() * time.Duration(job.RequestSizeLimit))
+			requestEnd := startDate.Add(intervalLength)
 			if requestEnd.After(job.EndDate) {
 				requestEnd = job.EndDate
 			}
@@ -360,7 +365,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			lookup := job.Results[result.IntervalStartDate]
 			lookup = append(lookup, *result)
 			job.Results[result.IntervalStartDate] = lookup
-			startDate = startDate.Add(job.Interval.Duration() * time.Duration(job.RequestSizeLimit))
+			startDate = startDate.Add(intervalLength)
 		}
 	} else {
 	ranges:
