@@ -763,7 +763,7 @@ type WsOrderUpdateData struct {
 	RejectionReason                   string    `json:"r"`
 	Symbol                            string    `json:"s"`
 	TradeID                           int64     `json:"t"`
-	Ignored                           int64     `json:"I"` //must be ignored explicitly, otherwise it overwrites 'i'
+	Ignored                           int64     `json:"I"` // must be ignored explicitly, otherwise it overwrites 'i'
 	IsOnOrderBook                     bool      `json:"w"`
 	CurrentExecutionType              string    `json:"x"`
 	CumulativeFilledQuantity          float64   `json:"z,string"`

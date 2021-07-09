@@ -2507,7 +2507,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Pair:            currency.NewPair(currency.BTC, currency.USDT),
 		RemainingAmount: 0.000284,
 	}
-	//empty the channel. otherwise mock_test will fail
+	// empty the channel. otherwise mock_test will fail
 	for len(b.Websocket.DataHandler) > 0 {
 		<-b.Websocket.DataHandler
 	}
@@ -2520,7 +2520,8 @@ func TestWsOrderExecutionReport(t *testing.T) {
 	switch res.(type) {
 	case *order.Detail:
 		r := res.(*order.Detail)
-		r.Date = time.Time{} //ignore the date
+		// ignore the date
+		r.Date = time.Time{}
 		if diff := cmp.Diff(expRes, *r); diff != "" {
 			t.Error(diff)
 		}
