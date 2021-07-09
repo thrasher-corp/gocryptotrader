@@ -2517,9 +2517,8 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := <-b.Websocket.DataHandler
-	switch res.(type) {
+	switch r := res.(type) {
 	case *order.Detail:
-		r := res.(*order.Detail)
 		// ignore the date
 		r.Date = time.Time{}
 		if diff := cmp.Diff(expRes, *r); diff != "" {
