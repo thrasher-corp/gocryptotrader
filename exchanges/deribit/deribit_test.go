@@ -558,3 +558,94 @@ func TestListAPIKeys(t *testing.T) {
 	}
 	fmt.Println(a)
 }
+
+func TestRemoveAPIKey(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.RemoveAPIKey(1)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestRemoveSubAccount(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.RemoveSubAccount(1)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestResetAPIKey(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.ResetAPIKey(1)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestSetAnnouncementAsRead(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.SetAnnouncementAsRead(1)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestSetEmailForSubAccount(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.SetEmailForSubAccount(1, "wrongemail@wrongemail.com")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestSetEmailLanguage(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.SetEmailLanguage("ja")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestSetPasswordForSubAccount(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	// Caution! This may reduce the security of the subaccount
+	a, err := d.SetPasswordForSubAccount(1, "randompassword123")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestToggleNotificationsFromSubAccount(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.ToggleNotificationsFromSubAccount(1, false)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestToggleSubAccountLogin(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.ToggleSubAccountLogin(1, false)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}

@@ -659,3 +659,9 @@ type TransactionsData struct {
 	Logs         []TransactionLogData `json:"logs"`
 	Continuation int64                `json:"continuation"`
 }
+
+// PrivateTradeData stores data of a private trade/order
+type PlaceTradeData struct {
+	Trades []PrivateTradeData `json:"trades"`
+	Order  OrderData          `json:"order"`
+}

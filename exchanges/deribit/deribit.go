@@ -648,16 +648,6 @@ func (d *Deribit) SubmitWithdraw(currency, address, priority, tfa string, amount
 		submitWithdraw, params, &resp)
 }
 
-// SubmitWithdraw submits a withdrawal request to the exchange for the requested currency
-func (d *Deribit) PrivateBuy(instrumentName string, amount float64, orderType, label string, price float64, timeInForce string, maxShow float64, postOnly, rejectPostOnly, reduceOnly, mmp bool, triggerPrice float64, trigger, advanced string) ([]TradeData, error) {
-	var resp struct {
-		Trades []TradeData `json:"trades"`
-	}
-	params := url.Values{}
-	return resp.Trades, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
-		submitBuy, params, &resp)
-}
-
 // ChangeAPIKeyName changes the name of the api key requested
 func (d *Deribit) ChangeAPIKeyName(id int64, name string) (APIKeyData, error) {
 	var resp APIKeyData
@@ -859,10 +849,10 @@ func (d *Deribit) ListAPIKeys(tfa string) ([]APIKeyData, error) {
 }
 
 // RemoveAPIKey removes api key vid ID
-func (d *Deribit) RemoveAPIKey(id string) (string, error) {
+func (d *Deribit) RemoveAPIKey(id int64) (string, error) {
 	var resp string
 	var params url.Values
-	params.Set("id", id)
+	params.Set("id", strconv.FormatInt(id, 10))
 	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
 		removeAPIKey, nil, &resp)
 	if err != nil {
@@ -891,10 +881,10 @@ func (d *Deribit) RemoveSubAccount(subAccountID int64) (string, error) {
 }
 
 // ResetAPIKey resets the api key to its defualt settings
-func (d *Deribit) ResetAPIKey(id string) (APIKeyData, error) {
+func (d *Deribit) ResetAPIKey(id int64) (APIKeyData, error) {
 	var resp APIKeyData
 	var params url.Values
-	params.Set("id", id)
+	params.Set("id", strconv.FormatInt(id, 10))
 	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
 		resetAPIKey, params, &resp)
 }
@@ -1005,6 +995,295 @@ func (d *Deribit) ToggleSubAccountLogin(sid int64, state bool) (string, error) {
 		return "", fmt.Errorf("toggling login access for subaccount %v to %v failed", sid, state)
 	}
 	return resp, nil
+}
+
+// PrivateBuy submits submits a private buy request
+func (d *Deribit) PrivateBuy(instrumentName, orderType, label, timeInForce, trigger, advanced string, amount, price, maxShow, triggerPrice float64, postOnly, rejectPostOnly, reduceOnly, mmp bool) (PrivateTradeData, error) {
+	var resp PrivateTradeData
+	params := url.Values{}
+	params.Set("instrument_name", instrumentName)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if label != "" {
+		params.Set("label", label)
+	}
+	if timeInForce != "" {
+		params.Set("time_in_force", timeInForce)
+	}
+	if maxShow != 0 {
+		params.Set("max_show", strconv.FormatFloat(maxShow, 'f', -1, 64))
+	}
+	postOnlyStr := "false"
+	if postOnly {
+		postOnlyStr = "true"
+	}
+	params.Set("post_only", postOnlyStr)
+	rejectPostOnlyStr := "false"
+	if rejectPostOnly {
+		rejectPostOnlyStr = "true"
+	}
+	params.Set("reject_post_only", rejectPostOnlyStr)
+	reduceOnlyStr := "false"
+	if reduceOnly {
+		reduceOnlyStr = "true"
+	}
+	params.Set("reduce_only", reduceOnlyStr)
+	mmpStr := "false"
+	if mmp {
+		mmpStr = "true"
+	}
+	params.Set("mmp", mmpStr)
+	if triggerPrice != 0 {
+		params.Set("trigger_price", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
+	}
+	if trigger != "" {
+		params.Set("trigger", trigger)
+	}
+	if advanced != "" {
+		params.Set("advanced", advanced)
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		submitBuy, params, &resp)
+}
+
+// PrivateSell submits a sell request with the parameters provided
+func (d *Deribit) PrivateSell(instrumentName, orderType, label, timeInForce, trigger, advanced string, amount, price, maxShow, triggerPrice float64, postOnly, rejectPostOnly, reduceOnly, mmp bool) (PrivateTradeData, error) {
+	var resp PrivateTradeData
+	params := url.Values{}
+	params.Set("instrument_name", instrumentName)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if label != "" {
+		params.Set("label", label)
+	}
+	if timeInForce != "" {
+		params.Set("time_in_force", timeInForce)
+	}
+	if maxShow != 0 {
+		params.Set("max_show", strconv.FormatFloat(maxShow, 'f', -1, 64))
+	}
+	postOnlyStr := "false"
+	if postOnly {
+		postOnlyStr = "true"
+	}
+	params.Set("post_only", postOnlyStr)
+	rejectPostOnlyStr := "false"
+	if rejectPostOnly {
+		rejectPostOnlyStr = "true"
+	}
+	params.Set("reject_post_only", rejectPostOnlyStr)
+	reduceOnlyStr := "false"
+	if reduceOnly {
+		reduceOnlyStr = "true"
+	}
+	params.Set("reduce_only", reduceOnlyStr)
+	mmpStr := "false"
+	if mmp {
+		mmpStr = "true"
+	}
+	params.Set("mmp", mmpStr)
+	if triggerPrice != 0 {
+		params.Set("trigger_price", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
+	}
+	if trigger != "" {
+		params.Set("trigger", trigger)
+	}
+	if advanced != "" {
+		params.Set("advanced", advanced)
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		submitSell, params, &resp)
+}
+
+// PrivateEdit submits an edit order request
+func (d *Deribit) PrivateEdit(orderID, advanced string, amount, price, triggerPrice float64, postOnly, reduceOnly, rejectPostOnly, mmp bool) (PrivateTradeData, error) {
+	var resp PrivateTradeData
+	params := url.Values{}
+	params.Set("order_id", orderID)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	postOnlyStr := "false"
+	if postOnly {
+		postOnlyStr = "true"
+	}
+	params.Set("post_only", postOnlyStr)
+	rejectPostOnlyStr := "false"
+	if rejectPostOnly {
+		rejectPostOnlyStr = "true"
+	}
+	params.Set("reject_post_only", rejectPostOnlyStr)
+	reduceOnlyStr := "false"
+	if reduceOnly {
+		reduceOnlyStr = "true"
+	}
+	params.Set("reduce_only", reduceOnlyStr)
+	mmpStr := "false"
+	if mmp {
+		mmpStr = "true"
+	}
+	params.Set("mmp", mmpStr)
+	if triggerPrice != 0 {
+		params.Set("trigger_price", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
+	}
+	if advanced != "" {
+		params.Set("advanced", advanced)
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		editByLabel, params, &resp)
+}
+
+// EditOrderByLabel submits an edit order request sorted via label
+func (d *Deribit) EditOrderByLabel(label, instrumentName, advanced string, amount, price, triggerPrice float64, postOnly, reduceOnly, rejectPostOnly, mmp bool) (PrivateTradeData, error) {
+	var resp PrivateTradeData
+	params := url.Values{}
+	if label != "" {
+		params.Set("label", label)
+	}
+	params.Set("instrument_name", instrumentName)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	postOnlyStr := "false"
+	if postOnly {
+		postOnlyStr = "true"
+	}
+	params.Set("post_only", postOnlyStr)
+	rejectPostOnlyStr := "false"
+	if rejectPostOnly {
+		rejectPostOnlyStr = "true"
+	}
+	params.Set("reject_post_only", rejectPostOnlyStr)
+	reduceOnlyStr := "false"
+	if reduceOnly {
+		reduceOnlyStr = "true"
+	}
+	params.Set("reduce_only", reduceOnlyStr)
+	mmpStr := "false"
+	if mmp {
+		mmpStr = "true"
+	}
+	params.Set("mmp", mmpStr)
+	if triggerPrice != 0 {
+		params.Set("trigger_price", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
+	}
+	if advanced != "" {
+		params.Set("advanced", advanced)
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		editByLabel, params, &resp)
+}
+
+// SubmitCancel sends a request to cancel the order via its orderID
+func (d *Deribit) SubmitCancel(orderID string) (PrivateCancelData, error) {
+	var resp PrivateCancelData
+	var params url.Values
+	params.Set("order_id", orderID)
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		submitCancel, params, &resp)
+}
+
+// SubmitCancelAll sends a request to cancel all user orders in all currencies and instruments
+func (d *Deribit) SubmitCancelAll() (int64, error) {
+	var resp int64
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		submitCancelAll, nil, &resp)
+}
+
+// SubmitCancelAllByCurrency sends a request to cancel all user orders for the specified currency
+func (d *Deribit) SubmitCancelAllByCurrency(currency, kind, orderType string) (int64, error) {
+	var resp int64
+	var params url.Values
+	params.Set("currency", currency)
+	if kind != "" {
+		params.Set("kind", kind)
+	}
+	if orderType != "" {
+		params.Set("order_type", orderType)
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		submitCancelAllByCurrency, nil, &resp)
+}
+
+// SubmitCancelAllByInstrument sends a request to cancel all user orders for the specified instrument
+func (d *Deribit) SubmitCancelAllByInstrument(instrumentName, orderType string) (int64, error) {
+	var resp int64
+	var params url.Values
+	params.Set("instrument_name", instrumentName)
+	if orderType != "" {
+		params.Set("order_type", orderType)
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		submitCancelAllByInstrument, nil, &resp)
+}
+
+// SubmitCancelByLabel sends a request to cancel all user orders for the specified label
+func (d *Deribit) SubmitCancelByLabel(label string) (int64, error) {
+	var resp int64
+	var params url.Values
+	params.Set("label", label)
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		submitCancelByLabel, nil, &resp)
+}
+
+// SubmitClosePosition sends a request to cancel all user orders for the specified label
+func (d *Deribit) SubmitClosePosition(instrumentName, orderType string, price float64) (PrivateTradeData, error) {
+	var resp PrivateTradeData
+	var params url.Values
+	params.Set("instrument_name", instrumentName)
+	if orderType != "" {
+		params.Set("order_type", orderType)
+	}
+	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		submitClosePosition, nil, &resp)
+}
+
+// GetMargins sends a request to fetch account margins data
+func (d *Deribit) GetMargins(instrumentName string, amount, price float64) (GetMarginsData, error) {
+	var resp GetMarginsData
+	var params url.Values
+	params.Set("instrument_name", instrumentName)
+	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getMargins, nil, &resp)
+}
+
+// GetMMPConfig sends a request to fetch the config for MMP of the requested currency
+func (d *Deribit) GetMMPConfig(currency string) (MMPConfigData, error) {
+	var resp MMPConfigData
+	var params url.Values
+	params.Set("currency", currency)
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getMMPConfig, nil, &resp)
+}
+
+// GetOpenOrdersByCurrency sends a request to fetch open orders data sorted by requested params
+func (d *Deribit) GetOpenOrdersByCurrency(currency, kind, orderType string) ([]OrderData, error) {
+	var resp []OrderData
+	var params url.Values
+	params.Set("currency", currency)
+	if kind != "" {
+		params.Set("kind", kind)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getOpenOrdersByCurrency, nil, &resp)
+}
+
+// GetOpenOrdersByInstrument sends a request to fetch open orders data sorted by requested params
+func (d *Deribit) GetOpenOrdersByInstrument(instrumentName, orderType string) ([]OrderData, error) {
+	var resp []OrderData
+	var params url.Values
+	params.Set("instrument_name", instrumentName)
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+		getOpenOrdersByInstrument, nil, &resp)
 }
 
 // SendAuthHTTPRequest sends an authenticated request to deribit api
