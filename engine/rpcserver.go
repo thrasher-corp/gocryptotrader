@@ -1002,7 +1002,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 		o := &gctrpc.OrderDetails{
 			Exchange:      r.Exchange,
 			Id:            resp[x].ID,
-			ClientOrderId: resp[x].ClientID,
+			ClientOrderId: resp[x].ClientOrderID,
 			BaseCurrency:  resp[x].Pair.Base.String(),
 			QuoteCurrency: resp[x].Pair.Quote.String(),
 			AssetType:     resp[x].AssetType.String(),
@@ -1085,7 +1085,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	return &gctrpc.OrderDetails{
 		Exchange:      result.Exchange,
 		Id:            result.ID,
-		ClientOrderId: result.ClientID,
+		ClientOrderId: result.ClientOrderID,
 		BaseCurrency:  result.Pair.Base.String(),
 		QuoteCurrency: result.Pair.Quote.String(),
 		AssetType:     result.AssetType.String(),

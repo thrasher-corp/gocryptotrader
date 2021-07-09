@@ -805,12 +805,13 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		}
 
 		var orderRequest = NewOrderRequest{
-			Symbol:      s.Pair,
-			Side:        sideType,
-			Price:       s.Price,
-			Quantity:    s.Amount,
-			TradeType:   requestParamsOrderType,
-			TimeInForce: timeInForce,
+			Symbol:           s.Pair,
+			Side:             sideType,
+			Price:            s.Price,
+			Quantity:         s.Amount,
+			TradeType:        requestParamsOrderType,
+			TimeInForce:      timeInForce,
+			NewClientOrderID: s.ClientOrderID,
 		}
 		response, err := b.NewOrder(&orderRequest)
 		if err != nil {
@@ -1050,6 +1051,7 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 			Amount:         resp.OrigQty,
 			Exchange:       b.Name,
 			ID:             strconv.FormatInt(resp.OrderID, 10),
+			ClientOrderID:  resp.ClientOrderID,
 			Side:           orderSide,
 			Type:           orderType,
 			Pair:           pair,
@@ -1191,17 +1193,18 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				orderSide := order.Side(strings.ToUpper(resp[x].Side))
 				orderType := order.Type(strings.ToUpper(resp[x].Type))
 				orders = append(orders, order.Detail{
-					Amount:      resp[x].OrigQty,
-					Date:        resp[x].Time,
-					Exchange:    b.Name,
-					ID:          strconv.FormatInt(resp[x].OrderID, 10),
-					Side:        orderSide,
-					Type:        orderType,
-					Price:       resp[x].Price,
-					Status:      order.Status(resp[x].Status),
-					Pair:        req.Pairs[i],
-					AssetType:   asset.Spot,
-					LastUpdated: resp[x].UpdateTime,
+					Amount:        resp[x].OrigQty,
+					Date:          resp[x].Time,
+					Exchange:      b.Name,
+					ID:            strconv.FormatInt(resp[x].OrderID, 10),
+					ClientOrderID: resp[x].ClientOrderID,
+					Side:          orderSide,
+					Type:          orderType,
+					Price:         resp[x].Price,
+					Status:        order.Status(resp[x].Status),
+					Pair:          req.Pairs[i],
+					AssetType:     asset.Spot,
+					LastUpdated:   resp[x].UpdateTime,
 				})
 			}
 		case asset.CoinMarginedFutures:
