@@ -11,6 +11,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
@@ -297,8 +298,11 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			job.EndDate.Format(common.SimpleTimeFormatWithTimezone),
 		)
 	}
-
-	exch := m.exchangeManager.GetExchangeByName(job.Exchange)
+	exchangeName := job.Exchange
+	if job.DataType == dataHistoryCandleValidationSecondarySourceType {
+		exchangeName = job.SecondaryExchangeSource
+	}
+	exch := m.exchangeManager.GetExchangeByName(exchangeName)
 	if exch == nil {
 		return fmt.Errorf("%s %w, cannot process job %s for %s %s",
 			job.Exchange,
@@ -318,7 +322,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	var result *DataHistoryJobResult
 	var err error
 
-	if job.DataType == dataHistoryCandleValidationDataType {
+	if job.DataType == dataHistoryCandleValidationDataType || job.DataType == dataHistoryCandleValidationSecondarySourceType {
 		// in order to verify that an area has been checked, we need to create a datahistoryresult
 		var failures int64
 		startDate := job.StartDate
@@ -785,31 +789,61 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 			rAPIHigh, rAPILow, rAPIClose, rAPIOpen, rAPIVolume,
 			rDBHigh, rDBLow, rDBClose, rDBOpen, rDBVolume float64
 		)
-		rAPIOpen = math.Round(apiCandles.Candles[i].Open*multiplier) / multiplier
-		rAPIHigh = math.Round(apiCandles.Candles[i].High*multiplier) / multiplier
-		rAPILow = math.Round(apiCandles.Candles[i].Low*multiplier) / multiplier
-		rAPIClose = math.Round(apiCandles.Candles[i].Close*multiplier) / multiplier
-		rAPIVolume = math.Round(apiCandles.Candles[i].Volume*multiplier) / multiplier
-		rDBOpen = math.Round(can.Open*multiplier) / multiplier
-		rDBHigh = math.Round(can.High*multiplier) / multiplier
-		rDBLow = math.Round(can.Low*multiplier) / multiplier
-		rDBClose = math.Round(can.Close*multiplier) / multiplier
-		rDBVolume = math.Round(can.Volume*multiplier) / multiplier
 
-		if rAPIHigh != rDBHigh {
-			candleIssues = append(candleIssues, fmt.Sprintf("High api: %v db: %v", rAPIHigh, rDBHigh))
-		}
-		if rAPILow != rDBLow {
-			candleIssues = append(candleIssues, fmt.Sprintf("Low api: %v db: %v", rAPILow, rDBLow))
-		}
-		if rAPIClose != rDBClose {
-			candleIssues = append(candleIssues, fmt.Sprintf("Close api: %v db: %v", rAPIClose, rDBClose))
-		}
+		rAPIOpen = math.Round(apiCandles.Candles[i].Open*multiplier) / multiplier
+		rDBOpen = math.Round(can.Open*multiplier) / multiplier
 		if rAPIOpen != rDBOpen {
-			candleIssues = append(candleIssues, fmt.Sprintf("Open api: %v db: %v", rAPIOpen, rDBOpen))
+			diff := gctmath.CalculatePercentageDifference(rAPIOpen, rDBOpen)
+			candleIssues = append(candleIssues, fmt.Sprintf("Open api: %v db: %v diff: %v%", rAPIOpen, rDBOpen, diff))
+			if job.OverwriteExistingData &&
+				job.IssueTolerancePercentage != 0 &&
+				diff > job.IssueTolerancePercentage {
+				// somehow update the candle to be saved
+			}
 		}
+		rAPIHigh = math.Round(apiCandles.Candles[i].High*multiplier) / multiplier
+		rDBHigh = math.Round(can.High*multiplier) / multiplier
+		if rAPIHigh != rDBHigh {
+			diff := gctmath.CalculatePercentageDifference(rAPIHigh, rDBHigh)
+			candleIssues = append(candleIssues, fmt.Sprintf("High api: %v db: %v diff: %v%", rAPIHigh, rDBHigh, diff))
+			if job.OverwriteExistingData &&
+				job.IssueTolerancePercentage != 0 &&
+				diff > job.IssueTolerancePercentage {
+				// somehow update the candle to be saved
+			}
+		}
+		rAPILow = math.Round(apiCandles.Candles[i].Low*multiplier) / multiplier
+		rDBLow = math.Round(can.Low*multiplier) / multiplier
+		if rAPILow != rDBLow {
+			diff := gctmath.CalculatePercentageDifference(rAPILow, rDBLow)
+			candleIssues = append(candleIssues, fmt.Sprintf("Low api: %v db: %v diff: %v%", rAPILow, rDBLow, diff))
+			if job.OverwriteExistingData &&
+				job.IssueTolerancePercentage != 0 &&
+				diff > job.IssueTolerancePercentage {
+				// somehow update the candle to be saved
+			}
+		}
+		rAPIClose = math.Round(apiCandles.Candles[i].Close*multiplier) / multiplier
+		rDBClose = math.Round(can.Close*multiplier) / multiplier
+		if rAPIClose != rDBClose {
+			diff := gctmath.CalculatePercentageDifference(rAPIClose, rDBClose)
+			candleIssues = append(candleIssues, fmt.Sprintf("Close api: %v db: %v diff: %v%", rAPIClose, rDBClose, diff))
+			if job.OverwriteExistingData &&
+				job.IssueTolerancePercentage != 0 &&
+				diff > job.IssueTolerancePercentage {
+				// somehow update the candle to be saved
+			}
+		}
+		rAPIVolume = math.Round(apiCandles.Candles[i].Volume*multiplier) / multiplier
+		rDBVolume = math.Round(can.Volume*multiplier) / multiplier
 		if rAPIVolume != rDBVolume {
-			candleIssues = append(candleIssues, fmt.Sprintf("Volume api: %v db: %v", rAPIVolume, rDBVolume))
+			diff := gctmath.CalculatePercentageDifference(rAPIVolume, rDBVolume)
+			candleIssues = append(candleIssues, fmt.Sprintf("Volume api: %v db: %v diff: %v%", rAPIVolume, rDBVolume, diff))
+			if job.OverwriteExistingData &&
+				job.IssueTolerancePercentage != 0 &&
+				diff > job.IssueTolerancePercentage {
+				// somehow update the candle to be saved
+			}
 		}
 		if len(candleIssues) > 0 {
 			candleIssues = append([]string{fmt.Sprintf("issues found at %v", can.Time.Format(common.SimpleTimeFormat))}, candleIssues...)
