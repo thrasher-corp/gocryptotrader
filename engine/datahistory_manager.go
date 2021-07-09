@@ -246,6 +246,12 @@ func (m *DataHistoryManager) runJobs() error {
 	if err != nil {
 		return err
 	}
+	if len(validJobs) == 0 {
+		if m.verbose {
+			log.Infof(log.DataHistory, "no data history jobs to process")
+		}
+		return nil
+	}
 
 	m.m.Lock()
 	defer func() {

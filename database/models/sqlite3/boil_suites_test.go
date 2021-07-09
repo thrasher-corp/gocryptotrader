@@ -193,8 +193,10 @@ func TestInsert(t *testing.T) {
 // TestToOne tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOne(t *testing.T) {
+	t.Run("CandleToDatahistoryjobUsingRelatedJob", testCandleToOneDatahistoryjobUsingRelatedJob)
 	t.Run("CandleToExchangeUsingExchangeName", testCandleToOneExchangeUsingExchangeName)
 	t.Run("DatahistoryjobToExchangeUsingExchangeName", testDatahistoryjobToOneExchangeUsingExchangeName)
+	t.Run("DatahistoryjobToExchangeUsingSecondaryExchange", testDatahistoryjobToOneExchangeUsingSecondaryExchange)
 	t.Run("DatahistoryjobresultToDatahistoryjobUsingJob", testDatahistoryjobresultToOneDatahistoryjobUsingJob)
 	t.Run("ScriptExecutionToScriptUsingScript", testScriptExecutionToOneScriptUsingScript)
 	t.Run("TradeToExchangeUsingExchangeName", testTradeToOneExchangeUsingExchangeName)
@@ -213,10 +215,12 @@ func TestOneToOne(t *testing.T) {
 // TestToMany tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToMany(t *testing.T) {
+	t.Run("DatahistoryjobToRelatedJobCandles", testDatahistoryjobToManyRelatedJobCandles)
 	t.Run("DatahistoryjobToPrerequisiteJobDatahistoryjobs", testDatahistoryjobToManyPrerequisiteJobDatahistoryjobs)
 	t.Run("DatahistoryjobToJobDatahistoryjobs", testDatahistoryjobToManyJobDatahistoryjobs)
 	t.Run("DatahistoryjobToJobDatahistoryjobresults", testDatahistoryjobToManyJobDatahistoryjobresults)
 	t.Run("ExchangeToExchangeNameDatahistoryjobs", testExchangeToManyExchangeNameDatahistoryjobs)
+	t.Run("ExchangeToSecondaryExchangeDatahistoryjobs", testExchangeToManySecondaryExchangeDatahistoryjobs)
 	t.Run("ExchangeToExchangeNameWithdrawalHistories", testExchangeToManyExchangeNameWithdrawalHistories)
 	t.Run("ScriptToScriptExecutions", testScriptToManyScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptos", testWithdrawalHistoryToManyWithdrawalCryptos)
@@ -226,8 +230,10 @@ func TestToMany(t *testing.T) {
 // TestToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOneSet(t *testing.T) {
+	t.Run("CandleToDatahistoryjobUsingRelatedJobCandles", testCandleToOneSetOpDatahistoryjobUsingRelatedJob)
 	t.Run("CandleToExchangeUsingExchangeNameCandle", testCandleToOneSetOpExchangeUsingExchangeName)
 	t.Run("DatahistoryjobToExchangeUsingExchangeNameDatahistoryjobs", testDatahistoryjobToOneSetOpExchangeUsingExchangeName)
+	t.Run("DatahistoryjobToExchangeUsingSecondaryExchangeDatahistoryjobs", testDatahistoryjobToOneSetOpExchangeUsingSecondaryExchange)
 	t.Run("DatahistoryjobresultToDatahistoryjobUsingJobDatahistoryjobresults", testDatahistoryjobresultToOneSetOpDatahistoryjobUsingJob)
 	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneSetOpScriptUsingScript)
 	t.Run("TradeToExchangeUsingExchangeNameTrade", testTradeToOneSetOpExchangeUsingExchangeName)
@@ -238,7 +244,10 @@ func TestToOneSet(t *testing.T) {
 
 // TestToOneRemove tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToOneRemove(t *testing.T) {}
+func TestToOneRemove(t *testing.T) {
+	t.Run("CandleToDatahistoryjobUsingRelatedJobCandles", testCandleToOneRemoveOpDatahistoryjobUsingRelatedJob)
+	t.Run("DatahistoryjobToExchangeUsingSecondaryExchangeDatahistoryjobs", testDatahistoryjobToOneRemoveOpExchangeUsingSecondaryExchange)
+}
 
 // TestOneToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
@@ -254,10 +263,12 @@ func TestOneToOneRemove(t *testing.T) {}
 // TestToManyAdd tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManyAdd(t *testing.T) {
+	t.Run("DatahistoryjobToRelatedJobCandles", testDatahistoryjobToManyAddOpRelatedJobCandles)
 	t.Run("DatahistoryjobToPrerequisiteJobDatahistoryjobs", testDatahistoryjobToManyAddOpPrerequisiteJobDatahistoryjobs)
 	t.Run("DatahistoryjobToJobDatahistoryjobs", testDatahistoryjobToManyAddOpJobDatahistoryjobs)
 	t.Run("DatahistoryjobToJobDatahistoryjobresults", testDatahistoryjobToManyAddOpJobDatahistoryjobresults)
 	t.Run("ExchangeToExchangeNameDatahistoryjobs", testExchangeToManyAddOpExchangeNameDatahistoryjobs)
+	t.Run("ExchangeToSecondaryExchangeDatahistoryjobs", testExchangeToManyAddOpSecondaryExchangeDatahistoryjobs)
 	t.Run("ExchangeToExchangeNameWithdrawalHistories", testExchangeToManyAddOpExchangeNameWithdrawalHistories)
 	t.Run("ScriptToScriptExecutions", testScriptToManyAddOpScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptos", testWithdrawalHistoryToManyAddOpWithdrawalCryptos)
@@ -267,15 +278,19 @@ func TestToManyAdd(t *testing.T) {
 // TestToManySet tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManySet(t *testing.T) {
+	t.Run("DatahistoryjobToRelatedJobCandles", testDatahistoryjobToManySetOpRelatedJobCandles)
 	t.Run("DatahistoryjobToPrerequisiteJobDatahistoryjobs", testDatahistoryjobToManySetOpPrerequisiteJobDatahistoryjobs)
 	t.Run("DatahistoryjobToJobDatahistoryjobs", testDatahistoryjobToManySetOpJobDatahistoryjobs)
+	t.Run("ExchangeToSecondaryExchangeDatahistoryjobs", testExchangeToManySetOpSecondaryExchangeDatahistoryjobs)
 }
 
 // TestToManyRemove tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManyRemove(t *testing.T) {
+	t.Run("DatahistoryjobToRelatedJobCandles", testDatahistoryjobToManyRemoveOpRelatedJobCandles)
 	t.Run("DatahistoryjobToPrerequisiteJobDatahistoryjobs", testDatahistoryjobToManyRemoveOpPrerequisiteJobDatahistoryjobs)
 	t.Run("DatahistoryjobToJobDatahistoryjobs", testDatahistoryjobToManyRemoveOpJobDatahistoryjobs)
+	t.Run("ExchangeToSecondaryExchangeDatahistoryjobs", testExchangeToManyRemoveOpSecondaryExchangeDatahistoryjobs)
 }
 
 func TestReload(t *testing.T) {

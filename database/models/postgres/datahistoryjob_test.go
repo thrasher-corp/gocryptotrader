@@ -494,6 +494,160 @@ func testDatahistoryjobsInsertWhitelist(t *testing.T) {
 	}
 }
 
+func testDatahistoryjobToManySourceJobCandles(t *testing.T) {
+	var err error
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b, c Candle
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, true, datahistoryjobColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Datahistoryjob struct: %s", err)
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = randomize.Struct(seed, &b, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &c, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+
+	queries.Assign(&b.SourceJobID, a.ID)
+	queries.Assign(&c.SourceJobID, a.ID)
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := a.SourceJobCandles().All(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range check {
+		if queries.Equal(v.SourceJobID, b.SourceJobID) {
+			bFound = true
+		}
+		if queries.Equal(v.SourceJobID, c.SourceJobID) {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := DatahistoryjobSlice{&a}
+	if err = a.L.LoadSourceJobCandles(ctx, tx, false, (*[]*Datahistoryjob)(&slice), nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.SourceJobCandles); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.SourceJobCandles = nil
+	if err = a.L.LoadSourceJobCandles(ctx, tx, true, &a, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.SourceJobCandles); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", check)
+	}
+}
+
+func testDatahistoryjobToManyValidationJobCandles(t *testing.T) {
+	var err error
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b, c Candle
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, true, datahistoryjobColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Datahistoryjob struct: %s", err)
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = randomize.Struct(seed, &b, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &c, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+
+	queries.Assign(&b.ValidationJobID, a.ID)
+	queries.Assign(&c.ValidationJobID, a.ID)
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := a.ValidationJobCandles().All(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range check {
+		if queries.Equal(v.ValidationJobID, b.ValidationJobID) {
+			bFound = true
+		}
+		if queries.Equal(v.ValidationJobID, c.ValidationJobID) {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := DatahistoryjobSlice{&a}
+	if err = a.L.LoadValidationJobCandles(ctx, tx, false, (*[]*Datahistoryjob)(&slice), nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.ValidationJobCandles); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.ValidationJobCandles = nil
+	if err = a.L.LoadValidationJobCandles(ctx, tx, true, &a, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.ValidationJobCandles); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", check)
+	}
+}
+
 func testDatahistoryjobToManyPrerequisiteJobDatahistoryjobs(t *testing.T) {
 	var err error
 	ctx := context.Background()
@@ -737,6 +891,508 @@ func testDatahistoryjobToManyJobDatahistoryjobresults(t *testing.T) {
 
 	if t.Failed() {
 		t.Logf("%#v", check)
+	}
+}
+
+func testDatahistoryjobToManyAddOpSourceJobCandles(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b, c, d, e Candle
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Candle{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*Candle{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddSourceJobCandles(ctx, tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if !queries.Equal(a.ID, first.SourceJobID) {
+			t.Error("foreign key was wrong value", a.ID, first.SourceJobID)
+		}
+		if !queries.Equal(a.ID, second.SourceJobID) {
+			t.Error("foreign key was wrong value", a.ID, second.SourceJobID)
+		}
+
+		if first.R.SourceJob != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.SourceJob != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.SourceJobCandles[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.SourceJobCandles[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.SourceJobCandles().Count(ctx, tx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+
+func testDatahistoryjobToManySetOpSourceJobCandles(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b, c, d, e Candle
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Candle{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.SetSourceJobCandles(ctx, tx, false, &b, &c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.SourceJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.SetSourceJobCandles(ctx, tx, true, &d, &e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.SourceJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if !queries.IsValuerNil(b.SourceJobID) {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if !queries.IsValuerNil(c.SourceJobID) {
+		t.Error("want c's foreign key value to be nil")
+	}
+	if !queries.Equal(a.ID, d.SourceJobID) {
+		t.Error("foreign key was wrong value", a.ID, d.SourceJobID)
+	}
+	if !queries.Equal(a.ID, e.SourceJobID) {
+		t.Error("foreign key was wrong value", a.ID, e.SourceJobID)
+	}
+
+	if b.R.SourceJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.SourceJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.SourceJob != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+	if e.R.SourceJob != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+
+	if a.R.SourceJobCandles[0] != &d {
+		t.Error("relationship struct slice not set to correct value")
+	}
+	if a.R.SourceJobCandles[1] != &e {
+		t.Error("relationship struct slice not set to correct value")
+	}
+}
+
+func testDatahistoryjobToManyRemoveOpSourceJobCandles(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b, c, d, e Candle
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Candle{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.AddSourceJobCandles(ctx, tx, true, foreigners...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.SourceJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.RemoveSourceJobCandles(ctx, tx, foreigners[:2]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.SourceJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if !queries.IsValuerNil(b.SourceJobID) {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if !queries.IsValuerNil(c.SourceJobID) {
+		t.Error("want c's foreign key value to be nil")
+	}
+
+	if b.R.SourceJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.SourceJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.SourceJob != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+	if e.R.SourceJob != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+
+	if len(a.R.SourceJobCandles) != 2 {
+		t.Error("should have preserved two relationships")
+	}
+
+	// Removal doesn't do a stable deletion for performance so we have to flip the order
+	if a.R.SourceJobCandles[1] != &d {
+		t.Error("relationship to d should have been preserved")
+	}
+	if a.R.SourceJobCandles[0] != &e {
+		t.Error("relationship to e should have been preserved")
+	}
+}
+
+func testDatahistoryjobToManyAddOpValidationJobCandles(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b, c, d, e Candle
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Candle{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*Candle{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddValidationJobCandles(ctx, tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if !queries.Equal(a.ID, first.ValidationJobID) {
+			t.Error("foreign key was wrong value", a.ID, first.ValidationJobID)
+		}
+		if !queries.Equal(a.ID, second.ValidationJobID) {
+			t.Error("foreign key was wrong value", a.ID, second.ValidationJobID)
+		}
+
+		if first.R.ValidationJob != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.ValidationJob != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.ValidationJobCandles[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.ValidationJobCandles[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.ValidationJobCandles().Count(ctx, tx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+
+func testDatahistoryjobToManySetOpValidationJobCandles(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b, c, d, e Candle
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Candle{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.SetValidationJobCandles(ctx, tx, false, &b, &c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.ValidationJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.SetValidationJobCandles(ctx, tx, true, &d, &e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.ValidationJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if !queries.IsValuerNil(b.ValidationJobID) {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if !queries.IsValuerNil(c.ValidationJobID) {
+		t.Error("want c's foreign key value to be nil")
+	}
+	if !queries.Equal(a.ID, d.ValidationJobID) {
+		t.Error("foreign key was wrong value", a.ID, d.ValidationJobID)
+	}
+	if !queries.Equal(a.ID, e.ValidationJobID) {
+		t.Error("foreign key was wrong value", a.ID, e.ValidationJobID)
+	}
+
+	if b.R.ValidationJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.ValidationJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.ValidationJob != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+	if e.R.ValidationJob != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+
+	if a.R.ValidationJobCandles[0] != &d {
+		t.Error("relationship struct slice not set to correct value")
+	}
+	if a.R.ValidationJobCandles[1] != &e {
+		t.Error("relationship struct slice not set to correct value")
+	}
+}
+
+func testDatahistoryjobToManyRemoveOpValidationJobCandles(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b, c, d, e Candle
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Candle{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.AddValidationJobCandles(ctx, tx, true, foreigners...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.ValidationJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.RemoveValidationJobCandles(ctx, tx, foreigners[:2]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.ValidationJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if !queries.IsValuerNil(b.ValidationJobID) {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if !queries.IsValuerNil(c.ValidationJobID) {
+		t.Error("want c's foreign key value to be nil")
+	}
+
+	if b.R.ValidationJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.ValidationJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.ValidationJob != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+	if e.R.ValidationJob != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+
+	if len(a.R.ValidationJobCandles) != 2 {
+		t.Error("should have preserved two relationships")
+	}
+
+	// Removal doesn't do a stable deletion for performance so we have to flip the order
+	if a.R.ValidationJobCandles[1] != &d {
+		t.Error("relationship to d should have been preserved")
+	}
+	if a.R.ValidationJobCandles[0] != &e {
+		t.Error("relationship to e should have been preserved")
 	}
 }
 
@@ -1271,7 +1927,7 @@ func testDatahistoryjobToManyAddOpJobDatahistoryjobresults(t *testing.T) {
 		}
 	}
 }
-func testDatahistoryjobToOneExchangeUsingExchangeName(t *testing.T) {
+func testDatahistoryjobToOneExchangeUsingSecondaryExchange(t *testing.T) {
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
@@ -1280,7 +1936,7 @@ func testDatahistoryjobToOneExchangeUsingExchangeName(t *testing.T) {
 	var foreign Exchange
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, datahistoryjobDBTypes, false, datahistoryjobColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, datahistoryjobDBTypes, true, datahistoryjobColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Datahistoryjob struct: %s", err)
 	}
 	if err := randomize.Struct(seed, &foreign, exchangeDBTypes, false, exchangeColumnsWithDefault...); err != nil {
@@ -1291,38 +1947,38 @@ func testDatahistoryjobToOneExchangeUsingExchangeName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	local.ExchangeNameID = foreign.ID
+	queries.Assign(&local.SecondaryExchangeID, foreign.ID)
 	if err := local.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
 
-	check, err := local.ExchangeName().One(ctx, tx)
+	check, err := local.SecondaryExchange().One(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if check.ID != foreign.ID {
+	if !queries.Equal(check.ID, foreign.ID) {
 		t.Errorf("want: %v, got %v", foreign.ID, check.ID)
 	}
 
 	slice := DatahistoryjobSlice{&local}
-	if err = local.L.LoadExchangeName(ctx, tx, false, (*[]*Datahistoryjob)(&slice), nil); err != nil {
+	if err = local.L.LoadSecondaryExchange(ctx, tx, false, (*[]*Datahistoryjob)(&slice), nil); err != nil {
 		t.Fatal(err)
 	}
-	if local.R.ExchangeName == nil {
+	if local.R.SecondaryExchange == nil {
 		t.Error("struct should have been eager loaded")
 	}
 
-	local.R.ExchangeName = nil
-	if err = local.L.LoadExchangeName(ctx, tx, true, &local, nil); err != nil {
+	local.R.SecondaryExchange = nil
+	if err = local.L.LoadSecondaryExchange(ctx, tx, true, &local, nil); err != nil {
 		t.Fatal(err)
 	}
-	if local.R.ExchangeName == nil {
+	if local.R.SecondaryExchange == nil {
 		t.Error("struct should have been eager loaded")
 	}
 }
 
-func testDatahistoryjobToOneSetOpExchangeUsingExchangeName(t *testing.T) {
+func testDatahistoryjobToOneSetOpExchangeUsingSecondaryExchange(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
@@ -1351,32 +2007,83 @@ func testDatahistoryjobToOneSetOpExchangeUsingExchangeName(t *testing.T) {
 	}
 
 	for i, x := range []*Exchange{&b, &c} {
-		err = a.SetExchangeName(ctx, tx, i != 0, x)
+		err = a.SetSecondaryExchange(ctx, tx, i != 0, x)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if a.R.ExchangeName != x {
+		if a.R.SecondaryExchange != x {
 			t.Error("relationship struct not set to correct value")
 		}
 
-		if x.R.ExchangeNameDatahistoryjobs[0] != &a {
+		if x.R.SecondaryExchangeDatahistoryjobs[0] != &a {
 			t.Error("failed to append to foreign relationship struct")
 		}
-		if a.ExchangeNameID != x.ID {
-			t.Error("foreign key was wrong value", a.ExchangeNameID)
+		if !queries.Equal(a.SecondaryExchangeID, x.ID) {
+			t.Error("foreign key was wrong value", a.SecondaryExchangeID)
 		}
 
-		zero := reflect.Zero(reflect.TypeOf(a.ExchangeNameID))
-		reflect.Indirect(reflect.ValueOf(&a.ExchangeNameID)).Set(zero)
+		zero := reflect.Zero(reflect.TypeOf(a.SecondaryExchangeID))
+		reflect.Indirect(reflect.ValueOf(&a.SecondaryExchangeID)).Set(zero)
 
 		if err = a.Reload(ctx, tx); err != nil {
 			t.Fatal("failed to reload", err)
 		}
 
-		if a.ExchangeNameID != x.ID {
-			t.Error("foreign key was wrong value", a.ExchangeNameID, x.ID)
+		if !queries.Equal(a.SecondaryExchangeID, x.ID) {
+			t.Error("foreign key was wrong value", a.SecondaryExchangeID, x.ID)
 		}
+	}
+}
+
+func testDatahistoryjobToOneRemoveOpExchangeUsingSecondaryExchange(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b Exchange
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &b, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = a.SetSecondaryExchange(ctx, tx, true, &b); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = a.RemoveSecondaryExchange(ctx, tx, &b); err != nil {
+		t.Error("failed to remove relationship")
+	}
+
+	count, err := a.SecondaryExchange().Count(ctx, tx)
+	if err != nil {
+		t.Error(err)
+	}
+	if count != 0 {
+		t.Error("want no relationships remaining")
+	}
+
+	if a.R.SecondaryExchange != nil {
+		t.Error("R struct entry should be nil")
+	}
+
+	if !queries.IsValuerNil(a.SecondaryExchangeID) {
+		t.Error("foreign key value should be nil")
+	}
+
+	if len(b.R.SecondaryExchangeDatahistoryjobs) != 0 {
+		t.Error("failed to remove a from b's relationships")
 	}
 }
 
@@ -1454,7 +2161,7 @@ func testDatahistoryjobsSelect(t *testing.T) {
 }
 
 var (
-	datahistoryjobDBTypes = map[string]string{`ID`: `uuid`, `Nickname`: `character varying`, `ExchangeNameID`: `uuid`, `Asset`: `character varying`, `Base`: `character varying`, `Quote`: `character varying`, `StartTime`: `timestamp with time zone`, `EndTime`: `timestamp with time zone`, `DataType`: `double precision`, `Interval`: `double precision`, `RequestSize`: `double precision`, `MaxRetries`: `double precision`, `BatchCount`: `double precision`, `Status`: `double precision`, `Created`: `timestamp with time zone`, `ConversionInterval`: `double precision`, `OverwriteData`: `boolean`, `DecimalPlaceComparison`: `integer`}
+	datahistoryjobDBTypes = map[string]string{`ID`: `uuid`, `Nickname`: `character varying`, `ExchangeNameID`: `uuid`, `Asset`: `character varying`, `Base`: `character varying`, `Quote`: `character varying`, `StartTime`: `timestamp with time zone`, `EndTime`: `timestamp with time zone`, `DataType`: `double precision`, `Interval`: `double precision`, `RequestSize`: `double precision`, `MaxRetries`: `double precision`, `BatchCount`: `double precision`, `Status`: `double precision`, `Created`: `timestamp with time zone`, `ConversionInterval`: `double precision`, `OverwriteData`: `boolean`, `DecimalPlaceComparison`: `integer`, `SecondaryExchangeID`: `uuid`, `IssueTolerancePercentage`: `double precision`, `ReplaceOnIssue`: `boolean`}
 	_                     = bytes.MinRead
 )
 

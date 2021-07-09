@@ -32,3 +32,15 @@ type Candle struct {
 	Close     float64
 	Volume    float64
 }
+
+type Candleroo struct {
+	Timestamp        time.Time
+	Open             float64
+	High             float64
+	Low              float64
+	Close            float64
+	Volume           float64
+	SourceJob        string
+	ValidationIssues string
+	ValidationJob    string
+}

@@ -24,67 +24,76 @@ import (
 
 // Datahistoryjob is an object representing the database table.
 type Datahistoryjob struct {
-	ID                     string       `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Nickname               string       `boil:"nickname" json:"nickname" toml:"nickname" yaml:"nickname"`
-	ExchangeNameID         string       `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
-	Asset                  string       `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
-	Base                   string       `boil:"base" json:"base" toml:"base" yaml:"base"`
-	Quote                  string       `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
-	StartTime              time.Time    `boil:"start_time" json:"start_time" toml:"start_time" yaml:"start_time"`
-	EndTime                time.Time    `boil:"end_time" json:"end_time" toml:"end_time" yaml:"end_time"`
-	DataType               float64      `boil:"data_type" json:"data_type" toml:"data_type" yaml:"data_type"`
-	Interval               float64      `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
-	RequestSize            float64      `boil:"request_size" json:"request_size" toml:"request_size" yaml:"request_size"`
-	MaxRetries             float64      `boil:"max_retries" json:"max_retries" toml:"max_retries" yaml:"max_retries"`
-	BatchCount             float64      `boil:"batch_count" json:"batch_count" toml:"batch_count" yaml:"batch_count"`
-	Status                 float64      `boil:"status" json:"status" toml:"status" yaml:"status"`
-	Created                time.Time    `boil:"created" json:"created" toml:"created" yaml:"created"`
-	ConversionInterval     null.Float64 `boil:"conversion_interval" json:"conversion_interval,omitempty" toml:"conversion_interval" yaml:"conversion_interval,omitempty"`
-	OverwriteData          null.Bool    `boil:"overwrite_data" json:"overwrite_data,omitempty" toml:"overwrite_data" yaml:"overwrite_data,omitempty"`
-	DecimalPlaceComparison null.Int     `boil:"decimal_place_comparison" json:"decimal_place_comparison,omitempty" toml:"decimal_place_comparison" yaml:"decimal_place_comparison,omitempty"`
+	ID                       string       `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Nickname                 string       `boil:"nickname" json:"nickname" toml:"nickname" yaml:"nickname"`
+	ExchangeNameID           string       `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
+	Asset                    string       `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
+	Base                     string       `boil:"base" json:"base" toml:"base" yaml:"base"`
+	Quote                    string       `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
+	StartTime                time.Time    `boil:"start_time" json:"start_time" toml:"start_time" yaml:"start_time"`
+	EndTime                  time.Time    `boil:"end_time" json:"end_time" toml:"end_time" yaml:"end_time"`
+	DataType                 float64      `boil:"data_type" json:"data_type" toml:"data_type" yaml:"data_type"`
+	Interval                 float64      `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
+	RequestSize              float64      `boil:"request_size" json:"request_size" toml:"request_size" yaml:"request_size"`
+	MaxRetries               float64      `boil:"max_retries" json:"max_retries" toml:"max_retries" yaml:"max_retries"`
+	BatchCount               float64      `boil:"batch_count" json:"batch_count" toml:"batch_count" yaml:"batch_count"`
+	Status                   float64      `boil:"status" json:"status" toml:"status" yaml:"status"`
+	Created                  time.Time    `boil:"created" json:"created" toml:"created" yaml:"created"`
+	ConversionInterval       null.Float64 `boil:"conversion_interval" json:"conversion_interval,omitempty" toml:"conversion_interval" yaml:"conversion_interval,omitempty"`
+	OverwriteData            null.Bool    `boil:"overwrite_data" json:"overwrite_data,omitempty" toml:"overwrite_data" yaml:"overwrite_data,omitempty"`
+	DecimalPlaceComparison   null.Int     `boil:"decimal_place_comparison" json:"decimal_place_comparison,omitempty" toml:"decimal_place_comparison" yaml:"decimal_place_comparison,omitempty"`
+	SecondaryExchangeID      null.String  `boil:"secondary_exchange_id" json:"secondary_exchange_id,omitempty" toml:"secondary_exchange_id" yaml:"secondary_exchange_id,omitempty"`
+	IssueTolerancePercentage null.Float64 `boil:"issue_tolerance_percentage" json:"issue_tolerance_percentage,omitempty" toml:"issue_tolerance_percentage" yaml:"issue_tolerance_percentage,omitempty"`
+	ReplaceOnIssue           null.Bool    `boil:"replace_on_issue" json:"replace_on_issue,omitempty" toml:"replace_on_issue" yaml:"replace_on_issue,omitempty"`
 
 	R *datahistoryjobR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L datahistoryjobL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var DatahistoryjobColumns = struct {
-	ID                     string
-	Nickname               string
-	ExchangeNameID         string
-	Asset                  string
-	Base                   string
-	Quote                  string
-	StartTime              string
-	EndTime                string
-	DataType               string
-	Interval               string
-	RequestSize            string
-	MaxRetries             string
-	BatchCount             string
-	Status                 string
-	Created                string
-	ConversionInterval     string
-	OverwriteData          string
-	DecimalPlaceComparison string
+	ID                       string
+	Nickname                 string
+	ExchangeNameID           string
+	Asset                    string
+	Base                     string
+	Quote                    string
+	StartTime                string
+	EndTime                  string
+	DataType                 string
+	Interval                 string
+	RequestSize              string
+	MaxRetries               string
+	BatchCount               string
+	Status                   string
+	Created                  string
+	ConversionInterval       string
+	OverwriteData            string
+	DecimalPlaceComparison   string
+	SecondaryExchangeID      string
+	IssueTolerancePercentage string
+	ReplaceOnIssue           string
 }{
-	ID:                     "id",
-	Nickname:               "nickname",
-	ExchangeNameID:         "exchange_name_id",
-	Asset:                  "asset",
-	Base:                   "base",
-	Quote:                  "quote",
-	StartTime:              "start_time",
-	EndTime:                "end_time",
-	DataType:               "data_type",
-	Interval:               "interval",
-	RequestSize:            "request_size",
-	MaxRetries:             "max_retries",
-	BatchCount:             "batch_count",
-	Status:                 "status",
-	Created:                "created",
-	ConversionInterval:     "conversion_interval",
-	OverwriteData:          "overwrite_data",
-	DecimalPlaceComparison: "decimal_place_comparison",
+	ID:                       "id",
+	Nickname:                 "nickname",
+	ExchangeNameID:           "exchange_name_id",
+	Asset:                    "asset",
+	Base:                     "base",
+	Quote:                    "quote",
+	StartTime:                "start_time",
+	EndTime:                  "end_time",
+	DataType:                 "data_type",
+	Interval:                 "interval",
+	RequestSize:              "request_size",
+	MaxRetries:               "max_retries",
+	BatchCount:               "batch_count",
+	Status:                   "status",
+	Created:                  "created",
+	ConversionInterval:       "conversion_interval",
+	OverwriteData:            "overwrite_data",
+	DecimalPlaceComparison:   "decimal_place_comparison",
+	SecondaryExchangeID:      "secondary_exchange_id",
+	IssueTolerancePercentage: "issue_tolerance_percentage",
+	ReplaceOnIssue:           "replace_on_issue",
 }
 
 // Generated where
@@ -159,53 +168,63 @@ func (w whereHelpernull_Int) GTE(x null.Int) qm.QueryMod {
 }
 
 var DatahistoryjobWhere = struct {
-	ID                     whereHelperstring
-	Nickname               whereHelperstring
-	ExchangeNameID         whereHelperstring
-	Asset                  whereHelperstring
-	Base                   whereHelperstring
-	Quote                  whereHelperstring
-	StartTime              whereHelpertime_Time
-	EndTime                whereHelpertime_Time
-	DataType               whereHelperfloat64
-	Interval               whereHelperfloat64
-	RequestSize            whereHelperfloat64
-	MaxRetries             whereHelperfloat64
-	BatchCount             whereHelperfloat64
-	Status                 whereHelperfloat64
-	Created                whereHelpertime_Time
-	ConversionInterval     whereHelpernull_Float64
-	OverwriteData          whereHelpernull_Bool
-	DecimalPlaceComparison whereHelpernull_Int
+	ID                       whereHelperstring
+	Nickname                 whereHelperstring
+	ExchangeNameID           whereHelperstring
+	Asset                    whereHelperstring
+	Base                     whereHelperstring
+	Quote                    whereHelperstring
+	StartTime                whereHelpertime_Time
+	EndTime                  whereHelpertime_Time
+	DataType                 whereHelperfloat64
+	Interval                 whereHelperfloat64
+	RequestSize              whereHelperfloat64
+	MaxRetries               whereHelperfloat64
+	BatchCount               whereHelperfloat64
+	Status                   whereHelperfloat64
+	Created                  whereHelpertime_Time
+	ConversionInterval       whereHelpernull_Float64
+	OverwriteData            whereHelpernull_Bool
+	DecimalPlaceComparison   whereHelpernull_Int
+	SecondaryExchangeID      whereHelpernull_String
+	IssueTolerancePercentage whereHelpernull_Float64
+	ReplaceOnIssue           whereHelpernull_Bool
 }{
-	ID:                     whereHelperstring{field: "\"datahistoryjob\".\"id\""},
-	Nickname:               whereHelperstring{field: "\"datahistoryjob\".\"nickname\""},
-	ExchangeNameID:         whereHelperstring{field: "\"datahistoryjob\".\"exchange_name_id\""},
-	Asset:                  whereHelperstring{field: "\"datahistoryjob\".\"asset\""},
-	Base:                   whereHelperstring{field: "\"datahistoryjob\".\"base\""},
-	Quote:                  whereHelperstring{field: "\"datahistoryjob\".\"quote\""},
-	StartTime:              whereHelpertime_Time{field: "\"datahistoryjob\".\"start_time\""},
-	EndTime:                whereHelpertime_Time{field: "\"datahistoryjob\".\"end_time\""},
-	DataType:               whereHelperfloat64{field: "\"datahistoryjob\".\"data_type\""},
-	Interval:               whereHelperfloat64{field: "\"datahistoryjob\".\"interval\""},
-	RequestSize:            whereHelperfloat64{field: "\"datahistoryjob\".\"request_size\""},
-	MaxRetries:             whereHelperfloat64{field: "\"datahistoryjob\".\"max_retries\""},
-	BatchCount:             whereHelperfloat64{field: "\"datahistoryjob\".\"batch_count\""},
-	Status:                 whereHelperfloat64{field: "\"datahistoryjob\".\"status\""},
-	Created:                whereHelpertime_Time{field: "\"datahistoryjob\".\"created\""},
-	ConversionInterval:     whereHelpernull_Float64{field: "\"datahistoryjob\".\"conversion_interval\""},
-	OverwriteData:          whereHelpernull_Bool{field: "\"datahistoryjob\".\"overwrite_data\""},
-	DecimalPlaceComparison: whereHelpernull_Int{field: "\"datahistoryjob\".\"decimal_place_comparison\""},
+	ID:                       whereHelperstring{field: "\"datahistoryjob\".\"id\""},
+	Nickname:                 whereHelperstring{field: "\"datahistoryjob\".\"nickname\""},
+	ExchangeNameID:           whereHelperstring{field: "\"datahistoryjob\".\"exchange_name_id\""},
+	Asset:                    whereHelperstring{field: "\"datahistoryjob\".\"asset\""},
+	Base:                     whereHelperstring{field: "\"datahistoryjob\".\"base\""},
+	Quote:                    whereHelperstring{field: "\"datahistoryjob\".\"quote\""},
+	StartTime:                whereHelpertime_Time{field: "\"datahistoryjob\".\"start_time\""},
+	EndTime:                  whereHelpertime_Time{field: "\"datahistoryjob\".\"end_time\""},
+	DataType:                 whereHelperfloat64{field: "\"datahistoryjob\".\"data_type\""},
+	Interval:                 whereHelperfloat64{field: "\"datahistoryjob\".\"interval\""},
+	RequestSize:              whereHelperfloat64{field: "\"datahistoryjob\".\"request_size\""},
+	MaxRetries:               whereHelperfloat64{field: "\"datahistoryjob\".\"max_retries\""},
+	BatchCount:               whereHelperfloat64{field: "\"datahistoryjob\".\"batch_count\""},
+	Status:                   whereHelperfloat64{field: "\"datahistoryjob\".\"status\""},
+	Created:                  whereHelpertime_Time{field: "\"datahistoryjob\".\"created\""},
+	ConversionInterval:       whereHelpernull_Float64{field: "\"datahistoryjob\".\"conversion_interval\""},
+	OverwriteData:            whereHelpernull_Bool{field: "\"datahistoryjob\".\"overwrite_data\""},
+	DecimalPlaceComparison:   whereHelpernull_Int{field: "\"datahistoryjob\".\"decimal_place_comparison\""},
+	SecondaryExchangeID:      whereHelpernull_String{field: "\"datahistoryjob\".\"secondary_exchange_id\""},
+	IssueTolerancePercentage: whereHelpernull_Float64{field: "\"datahistoryjob\".\"issue_tolerance_percentage\""},
+	ReplaceOnIssue:           whereHelpernull_Bool{field: "\"datahistoryjob\".\"replace_on_issue\""},
 }
 
 // DatahistoryjobRels is where relationship names are stored.
 var DatahistoryjobRels = struct {
-	ExchangeName                   string
+	SecondaryExchange              string
+	SourceJobCandles               string
+	ValidationJobCandles           string
 	PrerequisiteJobDatahistoryjobs string
 	JobDatahistoryjobs             string
 	JobDatahistoryjobresults       string
 }{
-	ExchangeName:                   "ExchangeName",
+	SecondaryExchange:              "SecondaryExchange",
+	SourceJobCandles:               "SourceJobCandles",
+	ValidationJobCandles:           "ValidationJobCandles",
 	PrerequisiteJobDatahistoryjobs: "PrerequisiteJobDatahistoryjobs",
 	JobDatahistoryjobs:             "JobDatahistoryjobs",
 	JobDatahistoryjobresults:       "JobDatahistoryjobresults",
@@ -213,7 +232,9 @@ var DatahistoryjobRels = struct {
 
 // datahistoryjobR is where relationships are stored.
 type datahistoryjobR struct {
-	ExchangeName                   *Exchange
+	SecondaryExchange              *Exchange
+	SourceJobCandles               CandleSlice
+	ValidationJobCandles           CandleSlice
 	PrerequisiteJobDatahistoryjobs DatahistoryjobSlice
 	JobDatahistoryjobs             DatahistoryjobSlice
 	JobDatahistoryjobresults       DatahistoryjobresultSlice
@@ -228,8 +249,8 @@ func (*datahistoryjobR) NewStruct() *datahistoryjobR {
 type datahistoryjobL struct{}
 
 var (
-	datahistoryjobAllColumns            = []string{"id", "nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "data_type", "interval", "request_size", "max_retries", "batch_count", "status", "created", "conversion_interval", "overwrite_data", "decimal_place_comparison"}
-	datahistoryjobColumnsWithoutDefault = []string{"nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "data_type", "interval", "request_size", "max_retries", "batch_count", "status", "created", "conversion_interval", "overwrite_data", "decimal_place_comparison"}
+	datahistoryjobAllColumns            = []string{"id", "nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "data_type", "interval", "request_size", "max_retries", "batch_count", "status", "created", "conversion_interval", "overwrite_data", "decimal_place_comparison", "secondary_exchange_id", "issue_tolerance_percentage", "replace_on_issue"}
+	datahistoryjobColumnsWithoutDefault = []string{"nickname", "exchange_name_id", "asset", "base", "quote", "start_time", "end_time", "data_type", "interval", "request_size", "max_retries", "batch_count", "status", "created", "conversion_interval", "overwrite_data", "decimal_place_comparison", "secondary_exchange_id", "issue_tolerance_percentage", "replace_on_issue"}
 	datahistoryjobColumnsWithDefault    = []string{"id"}
 	datahistoryjobPrimaryKeyColumns     = []string{"id"}
 )
@@ -509,16 +530,58 @@ func (q datahistoryjobQuery) Exists(ctx context.Context, exec boil.ContextExecut
 	return count > 0, nil
 }
 
-// ExchangeName pointed to by the foreign key.
-func (o *Datahistoryjob) ExchangeName(mods ...qm.QueryMod) exchangeQuery {
+// SecondaryExchange pointed to by the foreign key.
+func (o *Datahistoryjob) SecondaryExchange(mods ...qm.QueryMod) exchangeQuery {
 	queryMods := []qm.QueryMod{
-		qm.Where("\"id\" = ?", o.ExchangeNameID),
+		qm.Where("\"id\" = ?", o.SecondaryExchangeID),
 	}
 
 	queryMods = append(queryMods, mods...)
 
 	query := Exchanges(queryMods...)
 	queries.SetFrom(query.Query, "\"exchange\"")
+
+	return query
+}
+
+// SourceJobCandles retrieves all the candle's Candles with an executor via source_job_id column.
+func (o *Datahistoryjob) SourceJobCandles(mods ...qm.QueryMod) candleQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"candle\".\"source_job_id\"=?", o.ID),
+	)
+
+	query := Candles(queryMods...)
+	queries.SetFrom(query.Query, "\"candle\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"candle\".*"})
+	}
+
+	return query
+}
+
+// ValidationJobCandles retrieves all the candle's Candles with an executor via validation_job_id column.
+func (o *Datahistoryjob) ValidationJobCandles(mods ...qm.QueryMod) candleQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"candle\".\"validation_job_id\"=?", o.ID),
+	)
+
+	query := Candles(queryMods...)
+	queries.SetFrom(query.Query, "\"candle\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"candle\".*"})
+	}
 
 	return query
 }
@@ -588,9 +651,9 @@ func (o *Datahistoryjob) JobDatahistoryjobresults(mods ...qm.QueryMod) datahisto
 	return query
 }
 
-// LoadExchangeName allows an eager lookup of values, cached into the
+// LoadSecondaryExchange allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
-func (datahistoryjobL) LoadExchangeName(ctx context.Context, e boil.ContextExecutor, singular bool, maybeDatahistoryjob interface{}, mods queries.Applicator) error {
+func (datahistoryjobL) LoadSecondaryExchange(ctx context.Context, e boil.ContextExecutor, singular bool, maybeDatahistoryjob interface{}, mods queries.Applicator) error {
 	var slice []*Datahistoryjob
 	var object *Datahistoryjob
 
@@ -605,7 +668,9 @@ func (datahistoryjobL) LoadExchangeName(ctx context.Context, e boil.ContextExecu
 		if object.R == nil {
 			object.R = &datahistoryjobR{}
 		}
-		args = append(args, object.ExchangeNameID)
+		if !queries.IsNil(object.SecondaryExchangeID) {
+			args = append(args, object.SecondaryExchangeID)
+		}
 
 	} else {
 	Outer:
@@ -615,12 +680,14 @@ func (datahistoryjobL) LoadExchangeName(ctx context.Context, e boil.ContextExecu
 			}
 
 			for _, a := range args {
-				if a == obj.ExchangeNameID {
+				if queries.Equal(a, obj.SecondaryExchangeID) {
 					continue Outer
 				}
 			}
 
-			args = append(args, obj.ExchangeNameID)
+			if !queries.IsNil(obj.SecondaryExchangeID) {
+				args = append(args, obj.SecondaryExchangeID)
+			}
 
 		}
 	}
@@ -665,22 +732,212 @@ func (datahistoryjobL) LoadExchangeName(ctx context.Context, e boil.ContextExecu
 
 	if singular {
 		foreign := resultSlice[0]
-		object.R.ExchangeName = foreign
+		object.R.SecondaryExchange = foreign
 		if foreign.R == nil {
 			foreign.R = &exchangeR{}
 		}
-		foreign.R.ExchangeNameDatahistoryjobs = append(foreign.R.ExchangeNameDatahistoryjobs, object)
+		foreign.R.SecondaryExchangeDatahistoryjobs = append(foreign.R.SecondaryExchangeDatahistoryjobs, object)
 		return nil
 	}
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if local.ExchangeNameID == foreign.ID {
-				local.R.ExchangeName = foreign
+			if queries.Equal(local.SecondaryExchangeID, foreign.ID) {
+				local.R.SecondaryExchange = foreign
 				if foreign.R == nil {
 					foreign.R = &exchangeR{}
 				}
-				foreign.R.ExchangeNameDatahistoryjobs = append(foreign.R.ExchangeNameDatahistoryjobs, local)
+				foreign.R.SecondaryExchangeDatahistoryjobs = append(foreign.R.SecondaryExchangeDatahistoryjobs, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadSourceJobCandles allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (datahistoryjobL) LoadSourceJobCandles(ctx context.Context, e boil.ContextExecutor, singular bool, maybeDatahistoryjob interface{}, mods queries.Applicator) error {
+	var slice []*Datahistoryjob
+	var object *Datahistoryjob
+
+	if singular {
+		object = maybeDatahistoryjob.(*Datahistoryjob)
+	} else {
+		slice = *maybeDatahistoryjob.(*[]*Datahistoryjob)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &datahistoryjobR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &datahistoryjobR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ID) {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`candle`), qm.WhereIn(`candle.source_job_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load candle")
+	}
+
+	var resultSlice []*Candle
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice candle")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on candle")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for candle")
+	}
+
+	if len(candleAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.SourceJobCandles = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &candleR{}
+			}
+			foreign.R.SourceJob = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if queries.Equal(local.ID, foreign.SourceJobID) {
+				local.R.SourceJobCandles = append(local.R.SourceJobCandles, foreign)
+				if foreign.R == nil {
+					foreign.R = &candleR{}
+				}
+				foreign.R.SourceJob = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadValidationJobCandles allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (datahistoryjobL) LoadValidationJobCandles(ctx context.Context, e boil.ContextExecutor, singular bool, maybeDatahistoryjob interface{}, mods queries.Applicator) error {
+	var slice []*Datahistoryjob
+	var object *Datahistoryjob
+
+	if singular {
+		object = maybeDatahistoryjob.(*Datahistoryjob)
+	} else {
+		slice = *maybeDatahistoryjob.(*[]*Datahistoryjob)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &datahistoryjobR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &datahistoryjobR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ID) {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`candle`), qm.WhereIn(`candle.validation_job_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load candle")
+	}
+
+	var resultSlice []*Candle
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice candle")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on candle")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for candle")
+	}
+
+	if len(candleAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.ValidationJobCandles = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &candleR{}
+			}
+			foreign.R.ValidationJob = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if queries.Equal(local.ID, foreign.ValidationJobID) {
+				local.R.ValidationJobCandles = append(local.R.ValidationJobCandles, foreign)
+				if foreign.R == nil {
+					foreign.R = &candleR{}
+				}
+				foreign.R.ValidationJob = local
 				break
 			}
 		}
@@ -750,7 +1007,7 @@ func (datahistoryjobL) LoadPrerequisiteJobDatahistoryjobs(ctx context.Context, e
 		one := new(Datahistoryjob)
 		var localJoinCol string
 
-		err = results.Scan(&one.ID, &one.Nickname, &one.ExchangeNameID, &one.Asset, &one.Base, &one.Quote, &one.StartTime, &one.EndTime, &one.DataType, &one.Interval, &one.RequestSize, &one.MaxRetries, &one.BatchCount, &one.Status, &one.Created, &one.ConversionInterval, &one.OverwriteData, &one.DecimalPlaceComparison, &localJoinCol)
+		err = results.Scan(&one.ID, &one.Nickname, &one.ExchangeNameID, &one.Asset, &one.Base, &one.Quote, &one.StartTime, &one.EndTime, &one.DataType, &one.Interval, &one.RequestSize, &one.MaxRetries, &one.BatchCount, &one.Status, &one.Created, &one.ConversionInterval, &one.OverwriteData, &one.DecimalPlaceComparison, &one.SecondaryExchangeID, &one.IssueTolerancePercentage, &one.ReplaceOnIssue, &localJoinCol)
 		if err != nil {
 			return errors.Wrap(err, "failed to scan eager loaded results for datahistoryjob")
 		}
@@ -865,7 +1122,7 @@ func (datahistoryjobL) LoadJobDatahistoryjobs(ctx context.Context, e boil.Contex
 		one := new(Datahistoryjob)
 		var localJoinCol string
 
-		err = results.Scan(&one.ID, &one.Nickname, &one.ExchangeNameID, &one.Asset, &one.Base, &one.Quote, &one.StartTime, &one.EndTime, &one.DataType, &one.Interval, &one.RequestSize, &one.MaxRetries, &one.BatchCount, &one.Status, &one.Created, &one.ConversionInterval, &one.OverwriteData, &one.DecimalPlaceComparison, &localJoinCol)
+		err = results.Scan(&one.ID, &one.Nickname, &one.ExchangeNameID, &one.Asset, &one.Base, &one.Quote, &one.StartTime, &one.EndTime, &one.DataType, &one.Interval, &one.RequestSize, &one.MaxRetries, &one.BatchCount, &one.Status, &one.Created, &one.ConversionInterval, &one.OverwriteData, &one.DecimalPlaceComparison, &one.SecondaryExchangeID, &one.IssueTolerancePercentage, &one.ReplaceOnIssue, &localJoinCol)
 		if err != nil {
 			return errors.Wrap(err, "failed to scan eager loaded results for datahistoryjob")
 		}
@@ -1014,10 +1271,10 @@ func (datahistoryjobL) LoadJobDatahistoryjobresults(ctx context.Context, e boil.
 	return nil
 }
 
-// SetExchangeName of the datahistoryjob to the related item.
-// Sets o.R.ExchangeName to related.
-// Adds o to related.R.ExchangeNameDatahistoryjobs.
-func (o *Datahistoryjob) SetExchangeName(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Exchange) error {
+// SetSecondaryExchange of the datahistoryjob to the related item.
+// Sets o.R.SecondaryExchange to related.
+// Adds o to related.R.SecondaryExchangeDatahistoryjobs.
+func (o *Datahistoryjob) SetSecondaryExchange(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Exchange) error {
 	var err error
 	if insert {
 		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
@@ -1027,7 +1284,7 @@ func (o *Datahistoryjob) SetExchangeName(ctx context.Context, exec boil.ContextE
 
 	updateQuery := fmt.Sprintf(
 		"UPDATE \"datahistoryjob\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, []string{"exchange_name_id"}),
+		strmangle.SetParamNames("\"", "\"", 1, []string{"secondary_exchange_id"}),
 		strmangle.WhereClause("\"", "\"", 2, datahistoryjobPrimaryKeyColumns),
 	)
 	values := []interface{}{related.ID, o.ID}
@@ -1041,21 +1298,298 @@ func (o *Datahistoryjob) SetExchangeName(ctx context.Context, exec boil.ContextE
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	o.ExchangeNameID = related.ID
+	queries.Assign(&o.SecondaryExchangeID, related.ID)
 	if o.R == nil {
 		o.R = &datahistoryjobR{
-			ExchangeName: related,
+			SecondaryExchange: related,
 		}
 	} else {
-		o.R.ExchangeName = related
+		o.R.SecondaryExchange = related
 	}
 
 	if related.R == nil {
 		related.R = &exchangeR{
-			ExchangeNameDatahistoryjobs: DatahistoryjobSlice{o},
+			SecondaryExchangeDatahistoryjobs: DatahistoryjobSlice{o},
 		}
 	} else {
-		related.R.ExchangeNameDatahistoryjobs = append(related.R.ExchangeNameDatahistoryjobs, o)
+		related.R.SecondaryExchangeDatahistoryjobs = append(related.R.SecondaryExchangeDatahistoryjobs, o)
+	}
+
+	return nil
+}
+
+// RemoveSecondaryExchange relationship.
+// Sets o.R.SecondaryExchange to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *Datahistoryjob) RemoveSecondaryExchange(ctx context.Context, exec boil.ContextExecutor, related *Exchange) error {
+	var err error
+
+	queries.SetScanner(&o.SecondaryExchangeID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("secondary_exchange_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.R.SecondaryExchange = nil
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.SecondaryExchangeDatahistoryjobs {
+		if queries.Equal(o.SecondaryExchangeID, ri.SecondaryExchangeID) {
+			continue
+		}
+
+		ln := len(related.R.SecondaryExchangeDatahistoryjobs)
+		if ln > 1 && i < ln-1 {
+			related.R.SecondaryExchangeDatahistoryjobs[i] = related.R.SecondaryExchangeDatahistoryjobs[ln-1]
+		}
+		related.R.SecondaryExchangeDatahistoryjobs = related.R.SecondaryExchangeDatahistoryjobs[:ln-1]
+		break
+	}
+	return nil
+}
+
+// AddSourceJobCandles adds the given related objects to the existing relationships
+// of the datahistoryjob, optionally inserting them as new records.
+// Appends related to o.R.SourceJobCandles.
+// Sets related.R.SourceJob appropriately.
+func (o *Datahistoryjob) AddSourceJobCandles(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Candle) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			queries.Assign(&rel.SourceJobID, o.ID)
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"candle\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"source_job_id"}),
+				strmangle.WhereClause("\"", "\"", 2, candlePrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			queries.Assign(&rel.SourceJobID, o.ID)
+		}
+	}
+
+	if o.R == nil {
+		o.R = &datahistoryjobR{
+			SourceJobCandles: related,
+		}
+	} else {
+		o.R.SourceJobCandles = append(o.R.SourceJobCandles, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &candleR{
+				SourceJob: o,
+			}
+		} else {
+			rel.R.SourceJob = o
+		}
+	}
+	return nil
+}
+
+// SetSourceJobCandles removes all previously related items of the
+// datahistoryjob replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.SourceJob's SourceJobCandles accordingly.
+// Replaces o.R.SourceJobCandles with related.
+// Sets related.R.SourceJob's SourceJobCandles accordingly.
+func (o *Datahistoryjob) SetSourceJobCandles(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Candle) error {
+	query := "update \"candle\" set \"source_job_id\" = null where \"source_job_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.ExecContext(ctx, query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.SourceJobCandles {
+			queries.SetScanner(&rel.SourceJobID, nil)
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.SourceJob = nil
+		}
+
+		o.R.SourceJobCandles = nil
+	}
+	return o.AddSourceJobCandles(ctx, exec, insert, related...)
+}
+
+// RemoveSourceJobCandles relationships from objects passed in.
+// Removes related items from R.SourceJobCandles (uses pointer comparison, removal does not keep order)
+// Sets related.R.SourceJob.
+func (o *Datahistoryjob) RemoveSourceJobCandles(ctx context.Context, exec boil.ContextExecutor, related ...*Candle) error {
+	var err error
+	for _, rel := range related {
+		queries.SetScanner(&rel.SourceJobID, nil)
+		if rel.R != nil {
+			rel.R.SourceJob = nil
+		}
+		if _, err = rel.Update(ctx, exec, boil.Whitelist("source_job_id")); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.SourceJobCandles {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.SourceJobCandles)
+			if ln > 1 && i < ln-1 {
+				o.R.SourceJobCandles[i] = o.R.SourceJobCandles[ln-1]
+			}
+			o.R.SourceJobCandles = o.R.SourceJobCandles[:ln-1]
+			break
+		}
+	}
+
+	return nil
+}
+
+// AddValidationJobCandles adds the given related objects to the existing relationships
+// of the datahistoryjob, optionally inserting them as new records.
+// Appends related to o.R.ValidationJobCandles.
+// Sets related.R.ValidationJob appropriately.
+func (o *Datahistoryjob) AddValidationJobCandles(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Candle) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			queries.Assign(&rel.ValidationJobID, o.ID)
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"candle\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"validation_job_id"}),
+				strmangle.WhereClause("\"", "\"", 2, candlePrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			queries.Assign(&rel.ValidationJobID, o.ID)
+		}
+	}
+
+	if o.R == nil {
+		o.R = &datahistoryjobR{
+			ValidationJobCandles: related,
+		}
+	} else {
+		o.R.ValidationJobCandles = append(o.R.ValidationJobCandles, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &candleR{
+				ValidationJob: o,
+			}
+		} else {
+			rel.R.ValidationJob = o
+		}
+	}
+	return nil
+}
+
+// SetValidationJobCandles removes all previously related items of the
+// datahistoryjob replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.ValidationJob's ValidationJobCandles accordingly.
+// Replaces o.R.ValidationJobCandles with related.
+// Sets related.R.ValidationJob's ValidationJobCandles accordingly.
+func (o *Datahistoryjob) SetValidationJobCandles(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Candle) error {
+	query := "update \"candle\" set \"validation_job_id\" = null where \"validation_job_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.ExecContext(ctx, query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.ValidationJobCandles {
+			queries.SetScanner(&rel.ValidationJobID, nil)
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.ValidationJob = nil
+		}
+
+		o.R.ValidationJobCandles = nil
+	}
+	return o.AddValidationJobCandles(ctx, exec, insert, related...)
+}
+
+// RemoveValidationJobCandles relationships from objects passed in.
+// Removes related items from R.ValidationJobCandles (uses pointer comparison, removal does not keep order)
+// Sets related.R.ValidationJob.
+func (o *Datahistoryjob) RemoveValidationJobCandles(ctx context.Context, exec boil.ContextExecutor, related ...*Candle) error {
+	var err error
+	for _, rel := range related {
+		queries.SetScanner(&rel.ValidationJobID, nil)
+		if rel.R != nil {
+			rel.R.ValidationJob = nil
+		}
+		if _, err = rel.Update(ctx, exec, boil.Whitelist("validation_job_id")); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.ValidationJobCandles {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.ValidationJobCandles)
+			if ln > 1 && i < ln-1 {
+				o.R.ValidationJobCandles[i] = o.R.ValidationJobCandles[ln-1]
+			}
+			o.R.ValidationJobCandles = o.R.ValidationJobCandles[:ln-1]
+			break
+		}
 	}
 
 	return nil
