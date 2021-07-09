@@ -359,6 +359,44 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 	}
 }
 
+// MatchFilter will return true if a detail matches the filter criteria
+func (d *Detail) MatchFilter(f Filter) bool {
+	if f.Exchange != "" && d.Exchange != f.Exchange {
+		return false
+	}
+	if f.InternalOrderID != "" && d.InternalOrderID != f.InternalOrderID {
+		return false
+	}
+	if f.ID != "" && d.ID != f.ID {
+		return false
+	}
+	if f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID {
+		return false
+	}
+	if f.AccountID != "" && d.AccountID != f.AccountID {
+		return false
+	}
+	if f.ClientID != "" && d.ClientID != f.ClientID {
+		return false
+	}
+	if f.Type != "" && d.Type != f.Type {
+		return false
+	}
+	if f.Side != "" && d.Side != f.Side {
+		return false
+	}
+	if f.Status != "" && d.Status != f.Status {
+		return false
+	}
+	if f.AssetType != "" && d.AssetType != f.AssetType {
+		return false
+	}
+	if !f.Pair.IsEmpty() && !f.Pair.Equal(f.Pair) {
+		return false
+	}
+	return true
+}
+
 // String implements the stringer interface
 func (t Type) String() string {
 	return string(t)

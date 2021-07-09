@@ -388,6 +388,36 @@ func (m *OrderManager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.T
 	return os, latestUpdate
 }
 
+// GetOrdersFiltered returns a snapshot of all orders in the order store.
+//It optionally filters any orders that do not match the status
+// but a status of "" or ANY will include all
+// the time adds contexts for the when the snapshot is relevant for
+func (m *OrderManager) GetOrdersFiltered(f order.Filter) ([]order.Detail, time.Time, error) {
+	if m == nil {
+		return nil, time.Time{}, fmt.Errorf("order manager %w", ErrNilSubsystem)
+	}
+
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return nil, time.Time{}, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+	}
+	var os []order.Detail
+	var latestUpdate time.Time
+	for _, v := range m.orderStore.Orders {
+		for i := range v {
+			if !v[i].MatchFilter(f) {
+				continue
+			}
+			if v[i].LastUpdated.After(latestUpdate) {
+				latestUpdate = v[i].LastUpdated
+			}
+
+			cpy := *v[i]
+			os = append(os, cpy)
+		}
+	}
+	return os, latestUpdate, nil
+}
+
 // processSubmittedOrder adds a new order to the manager
 func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse) (*OrderSubmitResponse, error) {
 	if !result.IsOrderPlaced {
