@@ -594,6 +594,7 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 				endRange.Format(common.SimpleTimeFormatWithTimezone))
 		}
 	}
+	candles.SourceJobID = job.ID
 	_, err = m.candleSaver(&candles, job.OverwriteExistingData)
 	if err != nil {
 		r.Result += "could not save results: " + err.Error() + ". "
@@ -685,6 +686,7 @@ func (m *DataHistoryManager) convertJobTradesToCandles(job *DataHistoryJob, star
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
+	candles.SourceJobID = job.ID
 	_, err = m.candleSaver(&candles, job.OverwriteExistingData)
 	if err != nil {
 		r.Result = "could not save candles in range: " + err.Error()
@@ -724,6 +726,7 @@ func (m *DataHistoryManager) upscaleJobCandleData(job *DataHistoryJob, startRang
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
+	newCandles.SourceJobID = job.ID
 	_, err = m.candleSaver(newCandles, job.OverwriteExistingData)
 	if err != nil {
 		r.Result = "could not save candles in range: " + err.Error()
@@ -761,7 +764,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
-
+	apiCandles.ValidationJobID = job.ID
 	dbCandles, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.Interval, startRange, endRange)
 	if err != nil {
 		r.Result = "could not get database candles: " + err.Error()
@@ -794,7 +797,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		rDBOpen = math.Round(can.Open*multiplier) / multiplier
 		if rAPIOpen != rDBOpen {
 			diff := gctmath.CalculatePercentageDifference(rAPIOpen, rDBOpen)
-			candleIssues = append(candleIssues, fmt.Sprintf("Open api: %v db: %v diff: %v%", rAPIOpen, rDBOpen, diff))
+			candleIssues = append(candleIssues, fmt.Sprintf("Open api: %v db: %v diff: %v%%", rAPIOpen, rDBOpen, diff))
 			if job.OverwriteExistingData &&
 				job.IssueTolerancePercentage != 0 &&
 				diff > job.IssueTolerancePercentage {
@@ -805,7 +808,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		rDBHigh = math.Round(can.High*multiplier) / multiplier
 		if rAPIHigh != rDBHigh {
 			diff := gctmath.CalculatePercentageDifference(rAPIHigh, rDBHigh)
-			candleIssues = append(candleIssues, fmt.Sprintf("High api: %v db: %v diff: %v%", rAPIHigh, rDBHigh, diff))
+			candleIssues = append(candleIssues, fmt.Sprintf("High api: %v db: %v diff: %v%%", rAPIHigh, rDBHigh, diff))
 			if job.OverwriteExistingData &&
 				job.IssueTolerancePercentage != 0 &&
 				diff > job.IssueTolerancePercentage {
@@ -816,7 +819,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		rDBLow = math.Round(can.Low*multiplier) / multiplier
 		if rAPILow != rDBLow {
 			diff := gctmath.CalculatePercentageDifference(rAPILow, rDBLow)
-			candleIssues = append(candleIssues, fmt.Sprintf("Low api: %v db: %v diff: %v%", rAPILow, rDBLow, diff))
+			candleIssues = append(candleIssues, fmt.Sprintf("Low api: %v db: %v diff: %v%%", rAPILow, rDBLow, diff))
 			if job.OverwriteExistingData &&
 				job.IssueTolerancePercentage != 0 &&
 				diff > job.IssueTolerancePercentage {
@@ -827,7 +830,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		rDBClose = math.Round(can.Close*multiplier) / multiplier
 		if rAPIClose != rDBClose {
 			diff := gctmath.CalculatePercentageDifference(rAPIClose, rDBClose)
-			candleIssues = append(candleIssues, fmt.Sprintf("Close api: %v db: %v diff: %v%", rAPIClose, rDBClose, diff))
+			candleIssues = append(candleIssues, fmt.Sprintf("Close api: %v db: %v diff: %v%%", rAPIClose, rDBClose, diff))
 			if job.OverwriteExistingData &&
 				job.IssueTolerancePercentage != 0 &&
 				diff > job.IssueTolerancePercentage {
@@ -838,7 +841,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		rDBVolume = math.Round(can.Volume*multiplier) / multiplier
 		if rAPIVolume != rDBVolume {
 			diff := gctmath.CalculatePercentageDifference(rAPIVolume, rDBVolume)
-			candleIssues = append(candleIssues, fmt.Sprintf("Volume api: %v db: %v diff: %v%", rAPIVolume, rDBVolume, diff))
+			candleIssues = append(candleIssues, fmt.Sprintf("Volume api: %v db: %v diff: %v%%", rAPIVolume, rDBVolume, diff))
 			if job.OverwriteExistingData &&
 				job.IssueTolerancePercentage != 0 &&
 				diff > job.IssueTolerancePercentage {
@@ -850,9 +853,14 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 			validationIssues = append(validationIssues, candleIssues...)
 			r.Status = dataHistoryStatusFailed
 		}
+		apiCandles.Candles[i].ValidationIssues = strings.Join(candleIssues, ", ")
 	}
 	if len(validationIssues) > 0 {
 		r.Result = strings.Join(validationIssues, " -- ")
+	}
+	_, err = m.candleSaver(&apiCandles, true)
+	if err != nil {
+		return nil, err
 	}
 	return r, nil
 }
@@ -1020,7 +1028,14 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	if !job.DataType.Valid() {
 		return fmt.Errorf("job %s %w: %s", job.Nickname, errInvalidDataHistoryDataType, job.DataType)
 	}
-	exch := m.exchangeManager.GetExchangeByName(job.Exchange)
+	exchangeName := job.Exchange
+	if job.DataType == dataHistoryCandleValidationSecondarySourceType {
+		exchangeName = job.SecondaryExchangeSource
+		if job.Exchange == "" {
+			return fmt.Errorf("job %s %w, exchange name required to lookup existing results", job.Nickname, errExchangeNameUnset)
+		}
+	}
+	exch := m.exchangeManager.GetExchangeByName(exchangeName)
 	if exch == nil {
 		return fmt.Errorf("job %s cannot process job: %s %w",
 			job.Nickname,

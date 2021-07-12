@@ -1110,6 +1110,7 @@ func TestUpscaleJobCandleData(t *testing.T) {
 func TestValidateCandles(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
+	m.candleSaver = dataHistoryCandleSaver
 	_, err := m.validateCandles(nil, nil, time.Time{}, time.Time{})
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)

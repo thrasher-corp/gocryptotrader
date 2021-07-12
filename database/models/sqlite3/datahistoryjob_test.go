@@ -494,7 +494,7 @@ func testDatahistoryjobsInsertWhitelist(t *testing.T) {
 	}
 }
 
-func testDatahistoryjobToManyRelatedJobCandles(t *testing.T) {
+func testDatahistoryjobToManyValidationJobCandles(t *testing.T) {
 	var err error
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
@@ -519,8 +519,8 @@ func testDatahistoryjobToManyRelatedJobCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	queries.Assign(&b.RelatedJobID, a.ID)
-	queries.Assign(&c.RelatedJobID, a.ID)
+	queries.Assign(&b.ValidationJobID, a.ID)
+	queries.Assign(&c.ValidationJobID, a.ID)
 	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
@@ -528,17 +528,17 @@ func testDatahistoryjobToManyRelatedJobCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	check, err := a.RelatedJobCandles().All(ctx, tx)
+	check, err := a.ValidationJobCandles().All(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bFound, cFound := false, false
 	for _, v := range check {
-		if queries.Equal(v.RelatedJobID, b.RelatedJobID) {
+		if queries.Equal(v.ValidationJobID, b.ValidationJobID) {
 			bFound = true
 		}
-		if queries.Equal(v.RelatedJobID, c.RelatedJobID) {
+		if queries.Equal(v.ValidationJobID, c.ValidationJobID) {
 			cFound = true
 		}
 	}
@@ -551,18 +551,95 @@ func testDatahistoryjobToManyRelatedJobCandles(t *testing.T) {
 	}
 
 	slice := DatahistoryjobSlice{&a}
-	if err = a.L.LoadRelatedJobCandles(ctx, tx, false, (*[]*Datahistoryjob)(&slice), nil); err != nil {
+	if err = a.L.LoadValidationJobCandles(ctx, tx, false, (*[]*Datahistoryjob)(&slice), nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.RelatedJobCandles); got != 2 {
+	if got := len(a.R.ValidationJobCandles); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
-	a.R.RelatedJobCandles = nil
-	if err = a.L.LoadRelatedJobCandles(ctx, tx, true, &a, nil); err != nil {
+	a.R.ValidationJobCandles = nil
+	if err = a.L.LoadValidationJobCandles(ctx, tx, true, &a, nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.RelatedJobCandles); got != 2 {
+	if got := len(a.R.ValidationJobCandles); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", check)
+	}
+}
+
+func testDatahistoryjobToManySourceJobCandles(t *testing.T) {
+	var err error
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b, c Candle
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, true, datahistoryjobColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Datahistoryjob struct: %s", err)
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = randomize.Struct(seed, &b, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &c, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+
+	queries.Assign(&b.SourceJobID, a.ID)
+	queries.Assign(&c.SourceJobID, a.ID)
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := a.SourceJobCandles().All(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range check {
+		if queries.Equal(v.SourceJobID, b.SourceJobID) {
+			bFound = true
+		}
+		if queries.Equal(v.SourceJobID, c.SourceJobID) {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := DatahistoryjobSlice{&a}
+	if err = a.L.LoadSourceJobCandles(ctx, tx, false, (*[]*Datahistoryjob)(&slice), nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.SourceJobCandles); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.SourceJobCandles = nil
+	if err = a.L.LoadSourceJobCandles(ctx, tx, true, &a, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.SourceJobCandles); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
@@ -817,7 +894,7 @@ func testDatahistoryjobToManyJobDatahistoryjobresults(t *testing.T) {
 	}
 }
 
-func testDatahistoryjobToManyAddOpRelatedJobCandles(t *testing.T) {
+func testDatahistoryjobToManyAddOpValidationJobCandles(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
@@ -854,7 +931,7 @@ func testDatahistoryjobToManyAddOpRelatedJobCandles(t *testing.T) {
 	}
 
 	for i, x := range foreignersSplitByInsertion {
-		err = a.AddRelatedJobCandles(ctx, tx, i != 0, x...)
+		err = a.AddValidationJobCandles(ctx, tx, i != 0, x...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -862,28 +939,28 @@ func testDatahistoryjobToManyAddOpRelatedJobCandles(t *testing.T) {
 		first := x[0]
 		second := x[1]
 
-		if !queries.Equal(a.ID, first.RelatedJobID) {
-			t.Error("foreign key was wrong value", a.ID, first.RelatedJobID)
+		if !queries.Equal(a.ID, first.ValidationJobID) {
+			t.Error("foreign key was wrong value", a.ID, first.ValidationJobID)
 		}
-		if !queries.Equal(a.ID, second.RelatedJobID) {
-			t.Error("foreign key was wrong value", a.ID, second.RelatedJobID)
+		if !queries.Equal(a.ID, second.ValidationJobID) {
+			t.Error("foreign key was wrong value", a.ID, second.ValidationJobID)
 		}
 
-		if first.R.RelatedJob != &a {
+		if first.R.ValidationJob != &a {
 			t.Error("relationship was not added properly to the foreign slice")
 		}
-		if second.R.RelatedJob != &a {
+		if second.R.ValidationJob != &a {
 			t.Error("relationship was not added properly to the foreign slice")
 		}
 
-		if a.R.RelatedJobCandles[i*2] != first {
+		if a.R.ValidationJobCandles[i*2] != first {
 			t.Error("relationship struct slice not set to correct value")
 		}
-		if a.R.RelatedJobCandles[i*2+1] != second {
+		if a.R.ValidationJobCandles[i*2+1] != second {
 			t.Error("relationship struct slice not set to correct value")
 		}
 
-		count, err := a.RelatedJobCandles().Count(ctx, tx)
+		count, err := a.ValidationJobCandles().Count(ctx, tx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -893,7 +970,7 @@ func testDatahistoryjobToManyAddOpRelatedJobCandles(t *testing.T) {
 	}
 }
 
-func testDatahistoryjobToManySetOpRelatedJobCandles(t *testing.T) {
+func testDatahistoryjobToManySetOpValidationJobCandles(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
@@ -924,25 +1001,12 @@ func testDatahistoryjobToManySetOpRelatedJobCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = a.SetRelatedJobCandles(ctx, tx, false, &b, &c)
+	err = a.SetValidationJobCandles(ctx, tx, false, &b, &c)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err := a.RelatedJobCandles().Count(ctx, tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Error("count was wrong:", count)
-	}
-
-	err = a.SetRelatedJobCandles(ctx, tx, true, &d, &e)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	count, err = a.RelatedJobCandles().Count(ctx, tx)
+	count, err := a.ValidationJobCandles().Count(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -950,41 +1014,54 @@ func testDatahistoryjobToManySetOpRelatedJobCandles(t *testing.T) {
 		t.Error("count was wrong:", count)
 	}
 
-	if !queries.IsValuerNil(b.RelatedJobID) {
+	err = a.SetValidationJobCandles(ctx, tx, true, &d, &e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.ValidationJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if !queries.IsValuerNil(b.ValidationJobID) {
 		t.Error("want b's foreign key value to be nil")
 	}
-	if !queries.IsValuerNil(c.RelatedJobID) {
+	if !queries.IsValuerNil(c.ValidationJobID) {
 		t.Error("want c's foreign key value to be nil")
 	}
-	if !queries.Equal(a.ID, d.RelatedJobID) {
-		t.Error("foreign key was wrong value", a.ID, d.RelatedJobID)
+	if !queries.Equal(a.ID, d.ValidationJobID) {
+		t.Error("foreign key was wrong value", a.ID, d.ValidationJobID)
 	}
-	if !queries.Equal(a.ID, e.RelatedJobID) {
-		t.Error("foreign key was wrong value", a.ID, e.RelatedJobID)
-	}
-
-	if b.R.RelatedJob != nil {
-		t.Error("relationship was not removed properly from the foreign struct")
-	}
-	if c.R.RelatedJob != nil {
-		t.Error("relationship was not removed properly from the foreign struct")
-	}
-	if d.R.RelatedJob != &a {
-		t.Error("relationship was not added properly to the foreign struct")
-	}
-	if e.R.RelatedJob != &a {
-		t.Error("relationship was not added properly to the foreign struct")
+	if !queries.Equal(a.ID, e.ValidationJobID) {
+		t.Error("foreign key was wrong value", a.ID, e.ValidationJobID)
 	}
 
-	if a.R.RelatedJobCandles[0] != &d {
+	if b.R.ValidationJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.ValidationJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.ValidationJob != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+	if e.R.ValidationJob != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+
+	if a.R.ValidationJobCandles[0] != &d {
 		t.Error("relationship struct slice not set to correct value")
 	}
-	if a.R.RelatedJobCandles[1] != &e {
+	if a.R.ValidationJobCandles[1] != &e {
 		t.Error("relationship struct slice not set to correct value")
 	}
 }
 
-func testDatahistoryjobToManyRemoveOpRelatedJobCandles(t *testing.T) {
+func testDatahistoryjobToManyRemoveOpValidationJobCandles(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
@@ -1009,12 +1086,12 @@ func testDatahistoryjobToManyRemoveOpRelatedJobCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = a.AddRelatedJobCandles(ctx, tx, true, foreigners...)
+	err = a.AddValidationJobCandles(ctx, tx, true, foreigners...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err := a.RelatedJobCandles().Count(ctx, tx)
+	count, err := a.ValidationJobCandles().Count(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1022,12 +1099,12 @@ func testDatahistoryjobToManyRemoveOpRelatedJobCandles(t *testing.T) {
 		t.Error("count was wrong:", count)
 	}
 
-	err = a.RemoveRelatedJobCandles(ctx, tx, foreigners[:2]...)
+	err = a.RemoveValidationJobCandles(ctx, tx, foreigners[:2]...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err = a.RelatedJobCandles().Count(ctx, tx)
+	count, err = a.ValidationJobCandles().Count(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1035,35 +1112,286 @@ func testDatahistoryjobToManyRemoveOpRelatedJobCandles(t *testing.T) {
 		t.Error("count was wrong:", count)
 	}
 
-	if !queries.IsValuerNil(b.RelatedJobID) {
+	if !queries.IsValuerNil(b.ValidationJobID) {
 		t.Error("want b's foreign key value to be nil")
 	}
-	if !queries.IsValuerNil(c.RelatedJobID) {
+	if !queries.IsValuerNil(c.ValidationJobID) {
 		t.Error("want c's foreign key value to be nil")
 	}
 
-	if b.R.RelatedJob != nil {
+	if b.R.ValidationJob != nil {
 		t.Error("relationship was not removed properly from the foreign struct")
 	}
-	if c.R.RelatedJob != nil {
+	if c.R.ValidationJob != nil {
 		t.Error("relationship was not removed properly from the foreign struct")
 	}
-	if d.R.RelatedJob != &a {
+	if d.R.ValidationJob != &a {
 		t.Error("relationship to a should have been preserved")
 	}
-	if e.R.RelatedJob != &a {
+	if e.R.ValidationJob != &a {
 		t.Error("relationship to a should have been preserved")
 	}
 
-	if len(a.R.RelatedJobCandles) != 2 {
+	if len(a.R.ValidationJobCandles) != 2 {
 		t.Error("should have preserved two relationships")
 	}
 
 	// Removal doesn't do a stable deletion for performance so we have to flip the order
-	if a.R.RelatedJobCandles[1] != &d {
+	if a.R.ValidationJobCandles[1] != &d {
 		t.Error("relationship to d should have been preserved")
 	}
-	if a.R.RelatedJobCandles[0] != &e {
+	if a.R.ValidationJobCandles[0] != &e {
+		t.Error("relationship to e should have been preserved")
+	}
+}
+
+func testDatahistoryjobToManyAddOpSourceJobCandles(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b, c, d, e Candle
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Candle{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*Candle{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddSourceJobCandles(ctx, tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if !queries.Equal(a.ID, first.SourceJobID) {
+			t.Error("foreign key was wrong value", a.ID, first.SourceJobID)
+		}
+		if !queries.Equal(a.ID, second.SourceJobID) {
+			t.Error("foreign key was wrong value", a.ID, second.SourceJobID)
+		}
+
+		if first.R.SourceJob != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.SourceJob != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.SourceJobCandles[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.SourceJobCandles[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.SourceJobCandles().Count(ctx, tx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+
+func testDatahistoryjobToManySetOpSourceJobCandles(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b, c, d, e Candle
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Candle{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.SetSourceJobCandles(ctx, tx, false, &b, &c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.SourceJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.SetSourceJobCandles(ctx, tx, true, &d, &e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.SourceJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if !queries.IsValuerNil(b.SourceJobID) {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if !queries.IsValuerNil(c.SourceJobID) {
+		t.Error("want c's foreign key value to be nil")
+	}
+	if !queries.Equal(a.ID, d.SourceJobID) {
+		t.Error("foreign key was wrong value", a.ID, d.SourceJobID)
+	}
+	if !queries.Equal(a.ID, e.SourceJobID) {
+		t.Error("foreign key was wrong value", a.ID, e.SourceJobID)
+	}
+
+	if b.R.SourceJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.SourceJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.SourceJob != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+	if e.R.SourceJob != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+
+	if a.R.SourceJobCandles[0] != &d {
+		t.Error("relationship struct slice not set to correct value")
+	}
+	if a.R.SourceJobCandles[1] != &e {
+		t.Error("relationship struct slice not set to correct value")
+	}
+}
+
+func testDatahistoryjobToManyRemoveOpSourceJobCandles(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Datahistoryjob
+	var b, c, d, e Candle
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, datahistoryjobDBTypes, false, strmangle.SetComplement(datahistoryjobPrimaryKeyColumns, datahistoryjobColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Candle{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.AddSourceJobCandles(ctx, tx, true, foreigners...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.SourceJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.RemoveSourceJobCandles(ctx, tx, foreigners[:2]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.SourceJobCandles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if !queries.IsValuerNil(b.SourceJobID) {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if !queries.IsValuerNil(c.SourceJobID) {
+		t.Error("want c's foreign key value to be nil")
+	}
+
+	if b.R.SourceJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.SourceJob != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.SourceJob != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+	if e.R.SourceJob != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+
+	if len(a.R.SourceJobCandles) != 2 {
+		t.Error("should have preserved two relationships")
+	}
+
+	// Removal doesn't do a stable deletion for performance so we have to flip the order
+	if a.R.SourceJobCandles[1] != &d {
+		t.Error("relationship to d should have been preserved")
+	}
+	if a.R.SourceJobCandles[0] != &e {
 		t.Error("relationship to e should have been preserved")
 	}
 }

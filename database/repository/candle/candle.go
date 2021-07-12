@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
+	"github.com/volatiletech/null"
 )
 
 // Series returns candle data
@@ -54,12 +55,15 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 				return out, errT
 			}
 			out.Candles = append(out.Candles, Candle{
-				Timestamp: t,
-				Open:      retCandle[x].Open,
-				High:      retCandle[x].High,
-				Low:       retCandle[x].Low,
-				Close:     retCandle[x].Close,
-				Volume:    retCandle[x].Volume,
+				Timestamp:        t,
+				Open:             retCandle[x].Open,
+				High:             retCandle[x].High,
+				Low:              retCandle[x].Low,
+				Close:            retCandle[x].Close,
+				Volume:           retCandle[x].Volume,
+				SourceJobID:      retCandle[x].SourceJobID.String,
+				ValidationJobID:  retCandle[x].ValidationJobID.String,
+				ValidationIssues: retCandle[x].ValidationIssues.String,
 			})
 		}
 	} else {
@@ -71,12 +75,15 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 
 		for x := range retCandle {
 			out.Candles = append(out.Candles, Candle{
-				Timestamp: retCandle[x].Timestamp,
-				Open:      retCandle[x].Open,
-				High:      retCandle[x].High,
-				Low:       retCandle[x].Low,
-				Close:     retCandle[x].Close,
-				Volume:    retCandle[x].Volume,
+				Timestamp:        retCandle[x].Timestamp,
+				Open:             retCandle[x].Open,
+				High:             retCandle[x].High,
+				Low:              retCandle[x].Low,
+				Close:            retCandle[x].Close,
+				Volume:           retCandle[x].Volume,
+				SourceJobID:      retCandle[x].SourceJobID.String,
+				ValidationJobID:  retCandle[x].ValidationJobID.String,
+				ValidationIssues: retCandle[x].ValidationIssues.String,
 			})
 		}
 	}
@@ -230,6 +237,15 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 			return 0, err
 		}
 		tempCandle.ID = tempUUID.String()
+		if in.Candles[x].ValidationJobID != "" {
+			tempCandle.ValidationJobID = null.String{String: in.Candles[x].ValidationJobID, Valid: true}
+			if in.Candles[x].ValidationIssues != "" {
+				tempCandle.ValidationIssues = null.String{String: in.Candles[x].ValidationIssues, Valid: true}
+			}
+		}
+		if in.Candles[x].SourceJobID != "" {
+			tempCandle.SourceJobID = null.String{String: in.Candles[x].SourceJobID, Valid: true}
+		}
 		err = tempCandle.Insert(ctx, tx, boil.Infer())
 		if err != nil {
 			return 0, err
@@ -256,6 +272,15 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 			Low:            in.Candles[x].Low,
 			Close:          in.Candles[x].Close,
 			Volume:         in.Candles[x].Volume,
+		}
+		if in.Candles[x].ValidationJobID != "" {
+			tempCandle.ValidationJobID = null.String{String: in.Candles[x].ValidationJobID, Valid: true}
+			if in.Candles[x].ValidationIssues != "" {
+				tempCandle.ValidationIssues = null.String{String: in.Candles[x].ValidationIssues, Valid: true}
+			}
+		}
+		if in.Candles[x].SourceJobID != "" {
+			tempCandle.SourceJobID = null.String{String: in.Candles[x].SourceJobID, Valid: true}
 		}
 		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_name_id", "base", "quote", "interval", "asset"}, boil.Infer(), boil.Infer())
 		if err != nil {

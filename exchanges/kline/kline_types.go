@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -79,21 +80,24 @@ var (
 
 // Item holds all the relevant information for internal kline elements
 type Item struct {
-	Exchange string
-	Pair     currency.Pair
-	Asset    asset.Item
-	Interval Interval
-	Candles  []Candle
+	Exchange        string
+	Pair            currency.Pair
+	Asset           asset.Item
+	Interval        Interval
+	Candles         []Candle
+	SourceJobID     uuid.UUID
+	ValidationJobID uuid.UUID
 }
 
 // Candle holds historic rate information.
 type Candle struct {
-	Time   time.Time
-	Open   float64
-	High   float64
-	Low    float64
-	Close  float64
-	Volume float64
+	Time             time.Time
+	Open             float64
+	High             float64
+	Low              float64
+	Close            float64
+	Volume           float64
+	ValidationIssues string
 }
 
 // ByDate allows for sorting candle entries by date
