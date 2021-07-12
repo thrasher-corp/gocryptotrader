@@ -780,6 +780,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 	for i := int64(0); i < job.DecimalPlaceComparison; i++ {
 		multiplier *= 10
 	}
+	anyCandleModified := false
 	for i := range apiCandles.Candles {
 		can, ok := dbCandleMap[apiCandles.Candles[i].Time.Unix()]
 		if !ok {
@@ -787,82 +788,87 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 			r.Status = dataHistoryIntervalMissingData
 			continue
 		}
-		var (
-			candleIssues []string
-			rAPIHigh, rAPILow, rAPIClose, rAPIOpen, rAPIVolume,
-			rDBHigh, rDBLow, rDBClose, rDBOpen, rDBVolume float64
-		)
+		var candleIssues []string
+		var willReplace bool
 
-		rAPIOpen = math.Round(apiCandles.Candles[i].Open*multiplier) / multiplier
-		rDBOpen = math.Round(can.Open*multiplier) / multiplier
-		if rAPIOpen != rDBOpen {
-			diff := gctmath.CalculatePercentageDifference(rAPIOpen, rDBOpen)
-			candleIssues = append(candleIssues, fmt.Sprintf("Open api: %v db: %v diff: %v%%", rAPIOpen, rDBOpen, diff))
-			if job.OverwriteExistingData &&
-				job.IssueTolerancePercentage != 0 &&
-				diff > job.IssueTolerancePercentage {
-				// somehow update the candle to be saved
-			}
+		issue, replace := m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Open, can.Open, "Open")
+		if issue != "" {
+			candleIssues = append(candleIssues, issue)
 		}
-		rAPIHigh = math.Round(apiCandles.Candles[i].High*multiplier) / multiplier
-		rDBHigh = math.Round(can.High*multiplier) / multiplier
-		if rAPIHigh != rDBHigh {
-			diff := gctmath.CalculatePercentageDifference(rAPIHigh, rDBHigh)
-			candleIssues = append(candleIssues, fmt.Sprintf("High api: %v db: %v diff: %v%%", rAPIHigh, rDBHigh, diff))
-			if job.OverwriteExistingData &&
-				job.IssueTolerancePercentage != 0 &&
-				diff > job.IssueTolerancePercentage {
-				// somehow update the candle to be saved
-			}
+		if replace {
+			willReplace = true
 		}
-		rAPILow = math.Round(apiCandles.Candles[i].Low*multiplier) / multiplier
-		rDBLow = math.Round(can.Low*multiplier) / multiplier
-		if rAPILow != rDBLow {
-			diff := gctmath.CalculatePercentageDifference(rAPILow, rDBLow)
-			candleIssues = append(candleIssues, fmt.Sprintf("Low api: %v db: %v diff: %v%%", rAPILow, rDBLow, diff))
-			if job.OverwriteExistingData &&
-				job.IssueTolerancePercentage != 0 &&
-				diff > job.IssueTolerancePercentage {
-				// somehow update the candle to be saved
-			}
+		issue, replace = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].High, can.High, "High")
+		if issue != "" {
+			candleIssues = append(candleIssues, issue)
 		}
-		rAPIClose = math.Round(apiCandles.Candles[i].Close*multiplier) / multiplier
-		rDBClose = math.Round(can.Close*multiplier) / multiplier
-		if rAPIClose != rDBClose {
-			diff := gctmath.CalculatePercentageDifference(rAPIClose, rDBClose)
-			candleIssues = append(candleIssues, fmt.Sprintf("Close api: %v db: %v diff: %v%%", rAPIClose, rDBClose, diff))
-			if job.OverwriteExistingData &&
-				job.IssueTolerancePercentage != 0 &&
-				diff > job.IssueTolerancePercentage {
-				// somehow update the candle to be saved
-			}
+		if !willReplace && replace {
+			willReplace = true
 		}
-		rAPIVolume = math.Round(apiCandles.Candles[i].Volume*multiplier) / multiplier
-		rDBVolume = math.Round(can.Volume*multiplier) / multiplier
-		if rAPIVolume != rDBVolume {
-			diff := gctmath.CalculatePercentageDifference(rAPIVolume, rDBVolume)
-			candleIssues = append(candleIssues, fmt.Sprintf("Volume api: %v db: %v diff: %v%%", rAPIVolume, rDBVolume, diff))
-			if job.OverwriteExistingData &&
-				job.IssueTolerancePercentage != 0 &&
-				diff > job.IssueTolerancePercentage {
-				// somehow update the candle to be saved
-			}
+		issue, replace = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Low, can.Low, "Low")
+		if issue != "" {
+			candleIssues = append(candleIssues, issue)
 		}
+		if !willReplace && replace {
+			willReplace = true
+		}
+		issue, replace = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Close, can.Close, "Close")
+		if issue != "" {
+			candleIssues = append(candleIssues, issue)
+		}
+		if !willReplace && replace {
+			willReplace = true
+		}
+		issue, replace = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Volume, can.Volume, "Volume")
+		if issue != "" {
+			candleIssues = append(candleIssues, issue)
+		}
+		if !willReplace && replace {
+			willReplace = true
+		}
+		if willReplace {
+			candleIssues = append(candleIssues, "replacing database candle data with API data")
+			apiCandles.Candles[i] = can
+		}
+
 		if len(candleIssues) > 0 {
+			anyCandleModified = true
 			candleIssues = append([]string{fmt.Sprintf("issues found at %v", can.Time.Format(common.SimpleTimeFormat))}, candleIssues...)
 			validationIssues = append(validationIssues, candleIssues...)
 			r.Status = dataHistoryStatusFailed
+			apiCandles.Candles[i].ValidationIssues = strings.Join(candleIssues, ", ")
 		}
-		apiCandles.Candles[i].ValidationIssues = strings.Join(candleIssues, ", ")
+
 	}
 	if len(validationIssues) > 0 {
 		r.Result = strings.Join(validationIssues, " -- ")
 	}
-	_, err = m.candleSaver(&apiCandles, true)
-	if err != nil {
-		return nil, err
+	if anyCandleModified {
+		_, err = m.candleSaver(&apiCandles, true)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return r, nil
+}
+
+// CheckCandleIssue verifies that stored data matches API data
+func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier, apiData, dbData float64, candleField string) (issue string, replace bool) {
+	if multiplier != 0 {
+		apiData = math.Round(apiData*multiplier) / multiplier
+		dbData = math.Round(dbData*multiplier) / multiplier
+	}
+
+	if apiData != dbData {
+		diff := gctmath.CalculatePercentageDifference(apiData, dbData)
+		issue = fmt.Sprintf("%s api: %v db: %v diff: %v%%", candleField, apiData, dbData, diff)
+		if job.ReplaceOnIssue &&
+			job.IssueTolerancePercentage != 0 &&
+			diff > job.IssueTolerancePercentage {
+			replace = true
+		}
+	}
+	return issue, replace
 }
 
 // SetJobRelationship will add/modify/delete a relationship with an existing job
