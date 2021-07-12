@@ -472,7 +472,8 @@ type UserTradeData struct {
 
 // PrivateSettlementHistoryData stores data for private settlement history
 type PrivateSettlementsHistoryData struct {
-	Settlements []PrivateSettlementData `json:"settlements"`
+	Settlements  []PrivateSettlementData `json:"settlements"`
+	Continuation string                  `json:"continuation"`
 }
 
 // PrivateSettlementData stores private settlement data

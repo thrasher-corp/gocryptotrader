@@ -649,3 +649,84 @@ func TestToggleSubAccountLogin(t *testing.T) {
 	}
 	fmt.Println(a)
 }
+
+func TestGetOpenOrdersByCurrency(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetOpenOrdersByCurrency("BTC", "option", "all")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetOpenOrdersByInstrument(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetOpenOrdersByInstrument("BTC-25MAR22", "all")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetOrderHistoryByCurrency(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetOrderHistoryByCurrency("BTC", "future", 0, 0, false, false)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetOrderHistoryByInstrument(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetOrderHistoryByInstrument("BTC-25MAR22", 0, 0, false, false)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetOrderMarginsByID(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	// NOTE TO SELF: UPDATE THIS
+	a, err := d.GetOrderMarginsByID([]string{""})
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetOrderState(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetOrderState("brokenid123")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetTriggerOrderHistory(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetTriggerOrderHistory("ETH", "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestGetUserTradesByCurrency(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.GetUserTradesByCurrency("ETH", "future", "5000", "5005", "asc", 0, false)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
