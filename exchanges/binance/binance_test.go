@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2492,7 +2492,6 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 
 func TestWsOrderExecutionReport(t *testing.T) {
 	// cannot run in parallel due to inspecting the DataHandler result
-	// t.Parallel()
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616627567900,"s":"BTCUSDT","c":"c4wyKsIhoAaittTYlIVLqk","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028400","p":"52789.10000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":5340845958,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1616627567900,"t":-1,"I":11388173160,"w":true,"m":false,"M":false,"O":1616627567900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}}`)
 	expRes := order.Detail{
 		Price:           52789.1,
@@ -2506,6 +2505,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		AssetType:       asset.Spot,
 		Pair:            currency.NewPair(currency.BTC, currency.USDT),
 		RemainingAmount: 0.000284,
+		Date:            time.Unix(0, 1616627567900*int64(time.Millisecond)),
 	}
 	// empty the channel. otherwise mock_test will fail
 	for len(b.Websocket.DataHandler) > 0 {
@@ -2519,10 +2519,8 @@ func TestWsOrderExecutionReport(t *testing.T) {
 	res := <-b.Websocket.DataHandler
 	switch r := res.(type) {
 	case *order.Detail:
-		// ignore the date
-		r.Date = time.Time{}
-		if diff := cmp.Diff(expRes, *r); diff != "" {
-			t.Error(diff)
+		if !reflect.DeepEqual(expRes, *r) {
+			t.Errorf("Results do not match:\nexpected: %v\nreceived: %v", expRes, *r)
 		}
 	default:
 		t.Fatalf("expected type order.Detail, found %T", res)
