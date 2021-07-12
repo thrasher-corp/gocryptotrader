@@ -12,7 +12,7 @@ ALTER TABLE datahistoryjob
     DROP conversion_interval,
     DROP overwrite_data,
     DROP decimal_place_comparison,
-    DROP CONSTRAINT datahistoryjob_exchange_name_id_fkey,
+    DROP CONSTRAINT datahistoryjob_secondary_exchange_id_fkey,
     DROP secondary_exchange_id ,
     DROP issue_tolerance_percentage,
     DROP replace_on_issue;

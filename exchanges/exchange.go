@@ -433,6 +433,7 @@ func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 			}
 		}
 	}
+
 	return response, "", errors.New("pair not found: " + p)
 }
 
