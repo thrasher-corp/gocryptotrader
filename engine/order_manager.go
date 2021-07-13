@@ -390,7 +390,7 @@ func (m *OrderManager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.T
 
 // GetOrdersFiltered returns a snapshot of all orders in the order store.
 // Filtering is applied based on the order.Filter unless entries are empty
-func (m *OrderManager) GetOrdersFiltered(f order.Filter) ([]order.Detail, time.Time, error) {
+func (m *OrderManager) GetOrdersFiltered(f *order.Filter) ([]order.Detail, time.Time, error) {
 	if m == nil {
 		return nil, time.Time{}, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}

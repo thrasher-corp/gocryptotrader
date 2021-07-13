@@ -1684,10 +1684,7 @@ func TestGetManagedOrders(t *testing.T) {
 	})
 	if err != nil {
 		t.Errorf("non expected Error: %v", err)
-	} else {
-		if oo == nil || len(oo.GetOrders()) != 1 {
-			t.Errorf("unexpected order result: %v", oo)
-		}
+	} else if oo == nil || len(oo.GetOrders()) != 1 {
+		t.Errorf("unexpected order result: %v", oo)
 	}
-
 }

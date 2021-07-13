@@ -361,7 +361,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 
 // MatchFilter will return true if a detail matches the filter criteria
 // empty elements are ignored
-func (d *Detail) MatchFilter(f Filter) bool {
+func (d *Detail) MatchFilter(f *Filter) bool {
 	if f.Exchange != "" && d.Exchange != f.Exchange {
 		return false
 	}

@@ -1147,8 +1147,9 @@ func TestMatchFilter(t *testing.T) {
 		15: {Exchange: "Binance", Type: Limit, Status: New},
 	}
 	// empty filter tests
+	emptyFilter := filters[0]
 	for _, o := range orders {
-		if !o.MatchFilter(filters[0]) {
+		if !o.MatchFilter(&emptyFilter) {
 			t.Error("empty filter should match everything")
 		}
 	}
@@ -1197,7 +1198,7 @@ func TestMatchFilter(t *testing.T) {
 	}
 	//specific tests
 	for num, tt := range tests {
-		if tt.o.MatchFilter(tt.f) != tt.expRes {
+		if tt.o.MatchFilter(&tt.f) != tt.expRes {
 			t.Errorf("tests[%v] failed", num)
 		}
 	}
