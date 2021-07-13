@@ -380,19 +380,22 @@ func (d *Detail) MatchFilter(f Filter) bool {
 	if f.ClientID != "" && d.ClientID != f.ClientID {
 		return false
 	}
-	if f.Type != "" && d.Type != f.Type {
+	if f.WalletAddress != "" && d.WalletAddress != f.WalletAddress {
 		return false
 	}
-	if f.Side != "" && d.Side != f.Side {
+	if f.Type != "" && f.Type != AnyType && d.Type != f.Type {
 		return false
 	}
-	if f.Status != "" && d.Status != f.Status {
+	if f.Side != "" && f.Side != AnySide && d.Side != f.Side {
+		return false
+	}
+	if f.Status != "" && f.Status != AnyStatus && d.Status != f.Status {
 		return false
 	}
 	if f.AssetType != "" && d.AssetType != f.AssetType {
 		return false
 	}
-	if !f.Pair.IsEmpty() && !f.Pair.Equal(f.Pair) {
+	if !f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair) {
 		return false
 	}
 	return true
@@ -501,15 +504,11 @@ func FilterOrdersByCurrencies(orders *[]Detail, currencies []currency.Pair) {
 
 	var filteredOrders []Detail
 	for i := range *orders {
-		matchFound := false
 		for _, c := range currencies {
-			if !matchFound && (*orders)[i].Pair.EqualIncludeReciprocal(c) {
-				matchFound = true
+			if (*orders)[i].Pair.EqualIncludeReciprocal(c) {
+				filteredOrders = append(filteredOrders, (*orders)[i])
+				break
 			}
-		}
-
-		if matchFound {
-			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
 
