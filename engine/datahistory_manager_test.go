@@ -517,6 +517,23 @@ func TestValidateJob(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
+	dhj.DataType = dataHistoryTradeDataType
+	err = m.validateJob(dhj)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+
+	dhj.DataType = dataHistoryCandleValidationSecondarySourceType
+	err = m.validateJob(dhj)
+	if !errors.Is(err, errExchangeNameUnset) {
+		t.Errorf("error '%v', expected '%v'", err, errExchangeNameUnset)
+	}
+	dhj.SecondaryExchangeSource = "lol"
+	dhj.Exchange = ""
+	err = m.validateJob(dhj)
+	if !errors.Is(err, errExchangeNameUnset) {
+		t.Errorf("error '%v', expected '%v'", err, errExchangeNameUnset)
+	}
 }
 
 func TestGetAllJobStatusBetween(t *testing.T) {
@@ -1189,6 +1206,76 @@ func TestSetJobRelationship(t *testing.T) {
 	err = m.SetJobRelationship("", "")
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("received %v expected %v", err, ErrNilSubsystem)
+	}
+}
+
+func TestCheckCandleIssue(t *testing.T) {
+	t.Parallel()
+	m := createDHM(t)
+	issue, replace := m.CheckCandleIssue(nil, 0, 0, 0, "")
+	if issue != errNilJob.Error() {
+		t.Errorf("expected 'nil job' received %v", issue)
+	}
+	if replace {
+		t.Errorf("expected %v received %v", false, replace)
+	}
+
+	job := &DataHistoryJob{
+		IssueTolerancePercentage: 0,
+		ReplaceOnIssue:           false,
+		DecimalPlaceComparison:   0,
+	}
+	issue, replace = m.CheckCandleIssue(job, 0, 0, 0, "")
+	if issue != "" {
+		t.Errorf("expected 'nil job' received %v", issue)
+	}
+	if replace {
+		t.Errorf("expected %v received %v", false, replace)
+	}
+
+	issue, replace = m.CheckCandleIssue(job, 0, 1, 2, "Open")
+	if issue != "Open api: 1 db: 2 diff: 100 %" {
+		t.Errorf("expected 'Open api: 1 db: 2 diff: 100 %%' received %v", issue)
+	}
+	if replace {
+		t.Errorf("expected %v received %v", false, replace)
+	}
+
+	job.IssueTolerancePercentage = 100
+	issue, replace = m.CheckCandleIssue(job, 0, 1, 1.5, "Open")
+	if issue != "" {
+		t.Errorf("expected 'Open api: 1 db: 2 diff: 100 %%' received %v", issue)
+	}
+	if replace {
+		t.Errorf("expected %v received %v", false, replace)
+	}
+
+	job.IssueTolerancePercentage = 1
+	job.ReplaceOnIssue = true
+	issue, replace = m.CheckCandleIssue(job, 10, 1.5, 1, "Open")
+	if issue != "Open api: 1.5 db: 1 diff: 50 %" {
+		t.Errorf("expected 'Open api: 1.5 db: 1 diff: 50 %%' received %v", issue)
+	}
+	if !replace {
+		t.Errorf("expected %v received %v", true, replace)
+	}
+
+	m.started = 0
+	issue, replace = m.CheckCandleIssue(nil, 0, 0, 0, "")
+	if issue != ErrSubSystemNotStarted.Error() {
+		t.Errorf("expected %v received %v", ErrSubSystemNotStarted, issue)
+	}
+	if replace {
+		t.Errorf("expected %v received %v", false, replace)
+	}
+
+	m = nil
+	issue, replace = m.CheckCandleIssue(nil, 0, 0, 0, "")
+	if issue != ErrNilSubsystem.Error() {
+		t.Errorf("expected %v received %v", ErrNilSubsystem, issue)
+	}
+	if replace {
+		t.Errorf("expected %v received %v", false, replace)
 	}
 }
 

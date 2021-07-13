@@ -53,13 +53,15 @@ func (d dataHistoryStatus) String() string {
 		return "removed"
 	case int64(d) == 4:
 		return "missing data"
+	case int64(d) == 5:
+		return "paused"
 	}
 	return ""
 }
 
 // Valid ensures the value set is legitimate
 func (d dataHistoryStatus) Valid() bool {
-	return int64(d) >= 0 && int64(d) <= 4
+	return int64(d) >= 0 && int64(d) <= 5
 }
 
 // String stringifies iotas to readable
@@ -84,7 +86,7 @@ func (d dataHistoryDataType) String() string {
 
 // Valid ensures the value set is legitimate
 func (d dataHistoryDataType) Valid() bool {
-	return int64(d) >= 0 && int64(d) <= 4
+	return int64(d) >= 0 && int64(d) <= 5
 }
 
 var (

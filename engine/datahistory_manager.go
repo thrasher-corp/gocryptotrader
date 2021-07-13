@@ -801,7 +801,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		dbCandleMap[dbCandles.Candles[i].Time.Unix()] = dbCandles.Candles[i]
 	}
 	var validationIssues []string
-	multiplier := float64(1)
+	multiplier := int64(1)
 	for i := int64(0); i < job.DecimalPlaceComparison; i++ {
 		multiplier *= 10
 	}
@@ -878,12 +878,22 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 }
 
 // CheckCandleIssue verifies that stored data matches API data
-func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier, apiData, dbData float64, candleField string) (issue string, replace bool) {
-	if multiplier != 0 {
-		apiData = math.Round(apiData*multiplier) / multiplier
-		dbData = math.Round(dbData*multiplier) / multiplier
+func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier int64, apiData, dbData float64, candleField string) (issue string, replace bool) {
+	if m == nil {
+		return ErrNilSubsystem.Error(), false
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return ErrSubSystemNotStarted.Error(), false
+	}
+	if job == nil {
+		return errNilJob.Error(), false
 	}
 
+	floatiplier := float64(multiplier)
+	if multiplier > 0 {
+		apiData = math.Round(apiData*floatiplier) / floatiplier
+		dbData = math.Round(dbData*floatiplier) / floatiplier
+	}
 	if apiData != dbData {
 		var diff float64
 		if apiData > dbData {
@@ -891,7 +901,9 @@ func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier, a
 		} else {
 			diff = gctmath.CalculatePercentageGainOrLoss(dbData, apiData)
 		}
-		issue = fmt.Sprintf("%s api: %v db: %v diff: %v %%", candleField, apiData, dbData, diff)
+		if diff > job.IssueTolerancePercentage {
+			issue = fmt.Sprintf("%s api: %v db: %v diff: %v %%", candleField, apiData, dbData, diff)
+		}
 		if job.ReplaceOnIssue &&
 			job.IssueTolerancePercentage != 0 &&
 			diff > job.IssueTolerancePercentage {
@@ -1009,6 +1021,15 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 			if job.DecimalPlaceComparison != 0 && m.jobs[i].DecimalPlaceComparison != job.DecimalPlaceComparison {
 				m.jobs[i].DecimalPlaceComparison = job.DecimalPlaceComparison
 			}
+			if job.SecondaryExchangeSource != "" && m.jobs[i].SecondaryExchangeSource != job.SecondaryExchangeSource {
+				m.jobs[i].SecondaryExchangeSource = job.SecondaryExchangeSource
+			}
+			if job.ReplaceOnIssue != m.jobs[i].ReplaceOnIssue {
+				m.jobs[i].ReplaceOnIssue = job.ReplaceOnIssue
+			}
+			if job.IssueTolerancePercentage > 0 && job.IssueTolerancePercentage != m.jobs[i].IssueTolerancePercentage {
+				m.jobs[i].IssueTolerancePercentage = job.IssueTolerancePercentage
+			}
 			m.jobs[i].DataType = job.DataType
 			m.jobs[i].Status = job.Status
 			break
@@ -1066,6 +1087,9 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	}
 	exchangeName := job.Exchange
 	if job.DataType == dataHistoryCandleValidationSecondarySourceType {
+		if job.SecondaryExchangeSource == "" {
+			return fmt.Errorf("job %s %w, secondary exchange name required to lookup existing results", job.Nickname, errExchangeNameUnset)
+		}
 		exchangeName = job.SecondaryExchangeSource
 		if job.Exchange == "" {
 			return fmt.Errorf("job %s %w, exchange name required to lookup existing results", job.Nickname, errExchangeNameUnset)
@@ -1469,7 +1493,6 @@ func (m *DataHistoryManager) convertJobToDBModel(job *DataHistoryJob) *datahisto
 		Status:                      int64(job.Status),
 		CreatedDate:                 job.CreatedDate,
 		Results:                     m.convertJobResultToDBResult(job.Results),
-		PrerequisiteJobID:           "",
 		PrerequisiteJobNickname:     job.PrerequisiteJobNickname,
 		ConversionInterval:          int64(job.ConversionInterval),
 		OverwriteData:               job.OverwriteExistingData,
