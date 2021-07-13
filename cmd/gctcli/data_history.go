@@ -151,6 +151,12 @@ var dataHistoryJobCommands = &cli.Command{
 			Flags:  append(baseJobSubCommands, validationJobSubCommands...),
 			Action: upsertDataHistoryJob,
 		},
+		{
+			Name:   "secondaryvalidatecandles",
+			Usage:  "will compare database candle data with a different exchange's API candle data - ",
+			Flags:  append(baseJobSubCommands, secondaryValidationJobSubCommands...),
+			Action: upsertDataHistoryJob,
+		},
 	},
 }
 
@@ -289,6 +295,36 @@ var (
 			Usage:       "the number of decimal places used to compare against API data for accuracy",
 			Destination: &comparisonDecimalPlaces,
 			Value:       3,
+		},
+		&cli.Float64Flag{
+			Name:  "intolerance_percentage",
+			Usage: "the number of decimal places used to compare against API data for accuracy",
+		},
+		&cli.Uint64Flag{
+			Name:  "replace_on_issue",
+			Usage: "if true, when the intolerance percentage is exceeded, then the comparison API candle will replace the database candle",
+		},
+	}
+	secondaryValidationJobSubCommands = []cli.Flag{
+		&cli.StringFlag{
+			Name:  "secondary_exchange",
+			Usage: "the exchange to compare candles data to",
+		},
+		&cli.Uint64Flag{
+			Name:        "request_size_limit",
+			Usage:       "the number of candles to retrieve from the API to compare to",
+			Destination: &requestSizeLimit,
+			Value:       50,
+		},
+		&cli.Uint64Flag{
+			Name:        "comparison_decimal_places",
+			Usage:       "the number of decimal places used to compare against API data for accuracy",
+			Destination: &comparisonDecimalPlaces,
+			Value:       3,
+		},
+		&cli.Float64Flag{
+			Name:  "intolerance_percentage",
+			Usage: "the number of decimal places used to compare against API data for accuracy",
 		},
 	}
 )
@@ -439,6 +475,26 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		upsert = c.Bool("upsert")
 	}
 
+	var secondaryExchange string
+	if c.IsSet("secondary_exchange") {
+		secondaryExchange = c.String("secondary_exchange")
+	}
+
+	var prerequisiteJobNickname string
+	if c.IsSet("prerequisite") {
+		prerequisiteJobNickname = c.String("prerequisite")
+	}
+
+	var intolerancePercentage float64
+	if c.IsSet("intolerance_percentage") {
+		intolerancePercentage = c.Float64("intolerance_percentage")
+	}
+
+	var replaceOnIssue bool
+	if c.IsSet("replace_on_issue") {
+		replaceOnIssue = c.Bool("replace_on_issue")
+	}
+
 	switch c.Command.Name {
 	case "savecandles":
 		dataType = 0
@@ -450,6 +506,8 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		dataType = 2
 	case "validatecandles":
 		dataType = 4
+	case "secondaryvalidatecandles":
+		dataType = 5
 	default:
 		return errors.New("unrecognised command, cannot set data type")
 	}
@@ -477,11 +535,6 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		}
 	}
 
-	var prerequisiteJobNickname string
-	if c.IsSet("prerequisite") {
-		prerequisiteJobNickname = c.String("prerequisite")
-	}
-
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -502,18 +555,21 @@ func upsertDataHistoryJob(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		StartDate:               negateLocalOffset(s),
-		EndDate:                 negateLocalOffset(e),
-		Interval:                int64(candleInterval),
-		RequestSizeLimit:        int64(requestSizeLimit),
-		DataType:                dataType,
-		MaxRetryAttempts:        int64(maxRetryAttempts),
-		BatchSize:               int64(batchSize),
-		ConversionInterval:      int64(conversionInterval),
-		OverwriteExistingData:   overwriteExistingData,
-		PrerequisiteJobNickname: prerequisiteJobNickname,
-		InsertOnly:              !upsert,
-		DecimalPlaceComparison:  int64(comparisonDecimalPlaces),
+		StartDate:                negateLocalOffset(s),
+		EndDate:                  negateLocalOffset(e),
+		Interval:                 int64(candleInterval),
+		RequestSizeLimit:         int64(requestSizeLimit),
+		DataType:                 dataType,
+		MaxRetryAttempts:         int64(maxRetryAttempts),
+		BatchSize:                int64(batchSize),
+		ConversionInterval:       int64(conversionInterval),
+		OverwriteExistingData:    overwriteExistingData,
+		PrerequisiteJobNickname:  prerequisiteJobNickname,
+		InsertOnly:               !upsert,
+		DecimalPlaceComparison:   int64(comparisonDecimalPlaces),
+		SecondaryExchangeName:    secondaryExchange,
+		IssueTolerancePercentage: intolerancePercentage,
+		ReplaceOnIssue:           replaceOnIssue,
 	}
 
 	result, err := client.UpsertDataHistoryJob(context.Background(), request)

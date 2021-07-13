@@ -3261,6 +3261,16 @@
           "type": "string",
           "format": "int64"
         },
+        "secondary_exchange_name": {
+          "type": "string"
+        },
+        "issue_tolerance_percentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "replace_on_issue": {
+          "type": "boolean"
+        },
         "job_results": {
           "type": "array",
           "items": {
@@ -4593,6 +4603,16 @@
         "decimal_place_comparison": {
           "type": "string",
           "format": "int64"
+        },
+        "secondary_exchange_name": {
+          "type": "string"
+        },
+        "issue_tolerance_percentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "replace_on_issue": {
+          "type": "boolean"
         }
       }
     },

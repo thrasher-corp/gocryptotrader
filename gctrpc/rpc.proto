@@ -870,6 +870,9 @@ message UpsertDataHistoryJobRequest {
     bool overwrite_existing_data = 14;
     string prerequisite_job_nickname = 15;
     int64 decimal_place_comparison = 16;
+    string secondary_exchange_name = 17;
+    double issue_tolerance_percentage = 18;
+    bool replace_on_issue = 19;
 }
 
 message InsertSequentialJobsRequest {
@@ -909,8 +912,11 @@ message DataHistoryJob {
     bool overwrite_existing_data = 15;
     string prerequisite_job_nickname = 16;
     int64 decimal_place_comparison = 17;
-    repeated DataHistoryJobResult job_results = 18;
-    repeated string result_summaries = 19;
+    string secondary_exchange_name = 18;
+    double issue_tolerance_percentage = 19;
+    bool replace_on_issue = 20;
+    repeated DataHistoryJobResult job_results = 21;
+    repeated string result_summaries = 22;
 }
 
 message DataHistoryJobResult {

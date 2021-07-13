@@ -277,6 +277,16 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 		if err != nil {
 			return err
 		}
+
+		var secondaryExchangeID string
+		if jobs[i].SecondarySourceExchangeName != "" {
+			secondaryExchange, err := postgres.Exchanges(
+				qm.Where("name = ?", strings.ToLower(jobs[i].SecondarySourceExchangeName))).One(ctx, tx)
+			if err != nil {
+				return fmt.Errorf("job %v, secondary exchange %v, %w", jobs[i].Nickname, jobs[i].SecondarySourceExchangeName, err)
+			}
+			secondaryExchangeID = secondaryExchange.ID
+		}
 		var tempEvent = postgres.Datahistoryjob{
 			ID:                       jobs[i].ID,
 			Nickname:                 strings.ToLower(jobs[i].Nickname),
@@ -298,7 +308,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			DecimalPlaceComparison:   null.Int{Int: int(jobs[i].DecimalPlaceComparison), Valid: jobs[i].DecimalPlaceComparison > 0},
 			ReplaceOnIssue:           null.Bool{Bool: jobs[i].ReplaceOnIssue, Valid: jobs[i].ReplaceOnIssue},
 			IssueTolerancePercentage: null.Float64{Float64: jobs[i].IssueTolerancePercentage, Valid: jobs[i].IssueTolerancePercentage > 0},
-			SecondaryExchangeID:      null.String{String: jobs[i].SecondarySourceExchangeName, Valid: jobs[i].SecondarySourceExchangeName != ""},
+			SecondaryExchangeID:      null.String{String: secondaryExchangeID, Valid: secondaryExchangeID != ""},
 		}
 		err = tempEvent.Upsert(ctx, tx, true, []string{"nickname"}, boil.Infer(), boil.Infer())
 		if err != nil {
