@@ -230,29 +230,35 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 		if err != nil {
 			return err
 		}
-		var overwrite int64
+		var overwrite, replaceOnIssue int64
 		if jobs[i].OverwriteData {
 			overwrite = 1
 		}
+		if jobs[i].ReplaceOnIssue {
+			replaceOnIssue = 1
+		}
 		var tempEvent = sqlite3.Datahistoryjob{
-			ID:                     jobs[i].ID,
-			ExchangeNameID:         r.ID,
-			Nickname:               strings.ToLower(jobs[i].Nickname),
-			Asset:                  strings.ToLower(jobs[i].Asset),
-			Base:                   strings.ToUpper(jobs[i].Base),
-			Quote:                  strings.ToUpper(jobs[i].Quote),
-			StartTime:              jobs[i].StartDate.UTC().Format(time.RFC3339),
-			EndTime:                jobs[i].EndDate.UTC().Format(time.RFC3339),
-			Interval:               float64(jobs[i].Interval),
-			DataType:               float64(jobs[i].DataType),
-			RequestSize:            float64(jobs[i].RequestSizeLimit),
-			MaxRetries:             float64(jobs[i].MaxRetryAttempts),
-			BatchCount:             float64(jobs[i].BatchSize),
-			Status:                 float64(jobs[i].Status),
-			Created:                time.Now().UTC().Format(time.RFC3339),
-			ConversionInterval:     null.Float64{Float64: float64(jobs[i].ConversionInterval), Valid: true},
-			OverwriteData:          null.Int64{Int64: overwrite, Valid: true},
-			DecimalPlaceComparison: null.Int64{Int64: jobs[i].DecimalPlaceComparison, Valid: true},
+			ID:                       jobs[i].ID,
+			ExchangeNameID:           r.ID,
+			Nickname:                 strings.ToLower(jobs[i].Nickname),
+			Asset:                    strings.ToLower(jobs[i].Asset),
+			Base:                     strings.ToUpper(jobs[i].Base),
+			Quote:                    strings.ToUpper(jobs[i].Quote),
+			StartTime:                jobs[i].StartDate.UTC().Format(time.RFC3339),
+			EndTime:                  jobs[i].EndDate.UTC().Format(time.RFC3339),
+			Interval:                 float64(jobs[i].Interval),
+			DataType:                 float64(jobs[i].DataType),
+			RequestSize:              float64(jobs[i].RequestSizeLimit),
+			MaxRetries:               float64(jobs[i].MaxRetryAttempts),
+			BatchCount:               float64(jobs[i].BatchSize),
+			Status:                   float64(jobs[i].Status),
+			Created:                  time.Now().UTC().Format(time.RFC3339),
+			ConversionInterval:       null.Float64{Float64: float64(jobs[i].ConversionInterval), Valid: jobs[i].ConversionInterval > 0},
+			OverwriteData:            null.Int64{Int64: overwrite, Valid: overwrite == 1},
+			DecimalPlaceComparison:   null.Int64{Int64: jobs[i].DecimalPlaceComparison, Valid: jobs[i].DecimalPlaceComparison > 0},
+			ReplaceOnIssue:           null.Int64{Int64: replaceOnIssue, Valid: replaceOnIssue == 1},
+			IssueTolerancePercentage: null.Float64{Float64: jobs[i].IssueTolerancePercentage, Valid: jobs[i].IssueTolerancePercentage > 0},
+			SecondaryExchangeID:      null.String{String: jobs[i].SecondarySourceExchangeName, Valid: jobs[i].SecondarySourceExchangeName != ""},
 		}
 
 		err = tempEvent.Insert(ctx, tx, boil.Infer())
@@ -272,24 +278,27 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			return err
 		}
 		var tempEvent = postgres.Datahistoryjob{
-			ID:                     jobs[i].ID,
-			Nickname:               strings.ToLower(jobs[i].Nickname),
-			ExchangeNameID:         r.ID,
-			Asset:                  strings.ToLower(jobs[i].Asset),
-			Base:                   strings.ToUpper(jobs[i].Base),
-			Quote:                  strings.ToUpper(jobs[i].Quote),
-			StartTime:              jobs[i].StartDate.UTC(),
-			EndTime:                jobs[i].EndDate.UTC(),
-			Interval:               float64(jobs[i].Interval),
-			DataType:               float64(jobs[i].DataType),
-			BatchCount:             float64(jobs[i].BatchSize),
-			RequestSize:            float64(jobs[i].RequestSizeLimit),
-			MaxRetries:             float64(jobs[i].MaxRetryAttempts),
-			Status:                 float64(jobs[i].Status),
-			Created:                time.Now().UTC(),
-			OverwriteData:          null.Bool{Bool: jobs[i].OverwriteData, Valid: true},
-			ConversionInterval:     null.Float64{Float64: float64(jobs[i].ConversionInterval), Valid: true},
-			DecimalPlaceComparison: null.Int{Int: int(jobs[i].DecimalPlaceComparison), Valid: true},
+			ID:                       jobs[i].ID,
+			Nickname:                 strings.ToLower(jobs[i].Nickname),
+			ExchangeNameID:           r.ID,
+			Asset:                    strings.ToLower(jobs[i].Asset),
+			Base:                     strings.ToUpper(jobs[i].Base),
+			Quote:                    strings.ToUpper(jobs[i].Quote),
+			StartTime:                jobs[i].StartDate.UTC(),
+			EndTime:                  jobs[i].EndDate.UTC(),
+			Interval:                 float64(jobs[i].Interval),
+			DataType:                 float64(jobs[i].DataType),
+			BatchCount:               float64(jobs[i].BatchSize),
+			RequestSize:              float64(jobs[i].RequestSizeLimit),
+			MaxRetries:               float64(jobs[i].MaxRetryAttempts),
+			Status:                   float64(jobs[i].Status),
+			Created:                  time.Now().UTC(),
+			ConversionInterval:       null.Float64{Float64: float64(jobs[i].ConversionInterval), Valid: jobs[i].ConversionInterval > 0},
+			OverwriteData:            null.Bool{Bool: jobs[i].OverwriteData, Valid: jobs[i].OverwriteData},
+			DecimalPlaceComparison:   null.Int{Int: int(jobs[i].DecimalPlaceComparison), Valid: jobs[i].DecimalPlaceComparison > 0},
+			ReplaceOnIssue:           null.Bool{Bool: jobs[i].ReplaceOnIssue, Valid: jobs[i].ReplaceOnIssue},
+			IssueTolerancePercentage: null.Float64{Float64: jobs[i].IssueTolerancePercentage, Valid: jobs[i].IssueTolerancePercentage > 0},
+			SecondaryExchangeID:      null.String{String: jobs[i].SecondarySourceExchangeName, Valid: jobs[i].SecondarySourceExchangeName != ""},
 		}
 		err = tempEvent.Upsert(ctx, tx, true, []string{"nickname"}, boil.Infer(), boil.Infer())
 		if err != nil {
@@ -300,56 +309,12 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 	return nil
 }
 func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, error) {
-	var job *DataHistoryJob
 	result, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", strings.ToLower(nickname))).One(context.Background(), db.sql)
 	if err != nil {
-		return job, err
-	}
-
-	exchangeResult, err := result.ExchangeName().One(context.Background(), db.sql)
-	if err != nil {
-		return job, err
-	}
-
-	ts, err := time.Parse(time.RFC3339, result.StartTime)
-	if err != nil {
 		return nil, err
 	}
 
-	te, err := time.Parse(time.RFC3339, result.EndTime)
-	if err != nil {
-		return nil, err
-	}
-
-	c, err := time.Parse(time.RFC3339, result.Created)
-	if err != nil {
-		return nil, err
-	}
-
-	overwrite := result.OverwriteData.Int64 == 1
-	job = &DataHistoryJob{
-		ID:                     result.ID,
-		Nickname:               result.Nickname,
-		ExchangeID:             result.ExchangeNameID,
-		ExchangeName:           exchangeResult.Name,
-		Asset:                  result.Asset,
-		Base:                   result.Base,
-		Quote:                  result.Quote,
-		StartDate:              ts,
-		EndDate:                te,
-		Interval:               int64(result.Interval),
-		BatchSize:              int64(result.BatchCount),
-		RequestSizeLimit:       int64(result.RequestSize),
-		DataType:               int64(result.DataType),
-		MaxRetryAttempts:       int64(result.MaxRetries),
-		Status:                 int64(result.Status),
-		CreatedDate:            c,
-		ConversionInterval:     int64(result.ConversionInterval.Float64),
-		OverwriteData:          overwrite,
-		DecimalPlaceComparison: result.DecimalPlaceComparison.Int64,
-	}
-
-	return job, nil
+	return db.createSQLiteDataHistoryJobResponse(result)
 }
 
 func (db *DBService) getPrerequisiteJobByRelatedJobID(id string) (string, error) {
@@ -367,85 +332,16 @@ func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, er
 	if err != nil {
 		return job, err
 	}
-
-	exchangeResult, err := result.ExchangeName().One(context.Background(), db.sql)
-	if err != nil {
-		return job, err
-	}
-
-	job = &DataHistoryJob{
-		ID:                     result.ID,
-		Nickname:               result.Nickname,
-		ExchangeID:             result.ExchangeNameID,
-		ExchangeName:           exchangeResult.Name,
-		Asset:                  result.Asset,
-		Base:                   result.Base,
-		Quote:                  result.Quote,
-		StartDate:              result.StartTime,
-		EndDate:                result.EndTime,
-		Interval:               int64(result.Interval),
-		BatchSize:              int64(result.BatchCount),
-		RequestSizeLimit:       int64(result.RequestSize),
-		DataType:               int64(result.DataType),
-		MaxRetryAttempts:       int64(result.MaxRetries),
-		Status:                 int64(result.Status),
-		CreatedDate:            result.Created,
-		ConversionInterval:     int64(result.ConversionInterval.Float64),
-		OverwriteData:          result.OverwriteData.Bool,
-		DecimalPlaceComparison: int64(result.DecimalPlaceComparison.Int),
-	}
-
-	return job, nil
+	return db.createPostgresDataHistoryJobResponse(result)
 }
 
 func (db *DBService) getByIDSQLite(id string) (*DataHistoryJob, error) {
-	var job *DataHistoryJob
 	result, err := sqlite3.Datahistoryjobs(qm.Where("id = ?", id)).One(context.Background(), db.sql)
 	if err != nil {
-		return job, err
-	}
-
-	exchangeResult, err := result.ExchangeName().One(context.Background(), db.sql)
-	if err != nil {
-		return job, err
-	}
-
-	ts, err := time.Parse(time.RFC3339, result.StartTime)
-	if err != nil {
 		return nil, err
 	}
-	te, err := time.Parse(time.RFC3339, result.EndTime)
-	if err != nil {
-		return nil, err
-	}
-	c, err := time.Parse(time.RFC3339, result.Created)
-	if err != nil {
-		return nil, err
-	}
-	overwrite := result.OverwriteData.Int64 == 1
-	job = &DataHistoryJob{
-		ID:                     result.ID,
-		Nickname:               result.Nickname,
-		ExchangeID:             result.ExchangeNameID,
-		ExchangeName:           exchangeResult.Name,
-		Asset:                  result.Asset,
-		Base:                   result.Base,
-		Quote:                  result.Quote,
-		StartDate:              ts,
-		EndDate:                te,
-		Interval:               int64(result.Interval),
-		RequestSizeLimit:       int64(result.RequestSize),
-		DataType:               int64(result.DataType),
-		MaxRetryAttempts:       int64(result.MaxRetries),
-		BatchSize:              int64(result.BatchCount),
-		Status:                 int64(result.Status),
-		CreatedDate:            c,
-		ConversionInterval:     int64(result.ConversionInterval.Float64),
-		OverwriteData:          overwrite,
-		DecimalPlaceComparison: result.DecimalPlaceComparison.Int64,
-	}
 
-	return job, nil
+	return db.createSQLiteDataHistoryJobResponse(result)
 }
 
 func (db *DBService) getByIDPostgres(id string) (*DataHistoryJob, error) {
@@ -456,34 +352,7 @@ func (db *DBService) getByIDPostgres(id string) (*DataHistoryJob, error) {
 		return job, err
 	}
 
-	exchangeResult, err := result.ExchangeName().One(context.Background(), db.sql)
-	if err != nil {
-		return job, err
-	}
-
-	job = &DataHistoryJob{
-		ID:                     result.ID,
-		Nickname:               result.Nickname,
-		ExchangeID:             result.ExchangeNameID,
-		ExchangeName:           exchangeResult.Name,
-		Asset:                  result.Asset,
-		Base:                   result.Base,
-		Quote:                  result.Quote,
-		StartDate:              result.StartTime,
-		EndDate:                result.EndTime,
-		Interval:               int64(result.Interval),
-		BatchSize:              int64(result.BatchCount),
-		RequestSizeLimit:       int64(result.RequestSize),
-		DataType:               int64(result.DataType),
-		MaxRetryAttempts:       int64(result.MaxRetries),
-		Status:                 int64(result.Status),
-		CreatedDate:            result.Created,
-		ConversionInterval:     int64(result.ConversionInterval.Float64),
-		OverwriteData:          result.OverwriteData.Bool,
-		DecimalPlaceComparison: int64(result.DecimalPlaceComparison.Int),
-	}
-
-	return job, nil
+	return db.createPostgresDataHistoryJobResponse(result)
 }
 
 func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataHistoryJob, error) {
@@ -495,47 +364,11 @@ func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataH
 	}
 
 	for i := range results {
-		exchangeResult, err := results[i].ExchangeName(qm.Where("id = ?", results[i].ExchangeNameID)).One(context.Background(), db.sql)
+		job, err := db.createSQLiteDataHistoryJobResponse(results[i])
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not return job %v: %w", results[i].Nickname, err)
 		}
-		ts, err := time.Parse(time.RFC3339, results[i].StartTime)
-		if err != nil {
-			return nil, err
-		}
-
-		te, err := time.Parse(time.RFC3339, results[i].EndTime)
-		if err != nil {
-			return nil, err
-		}
-
-		c, err := time.Parse(time.RFC3339, results[i].Created)
-		if err != nil {
-			return nil, err
-		}
-
-		overwrite := results[i].OverwriteData.Int64 == 1
-		jobs = append(jobs, DataHistoryJob{
-			ID:                     results[i].ID,
-			Nickname:               results[i].Nickname,
-			ExchangeID:             results[i].ExchangeNameID,
-			ExchangeName:           exchangeResult.Name,
-			Asset:                  results[i].Asset,
-			Base:                   results[i].Base,
-			Quote:                  results[i].Quote,
-			StartDate:              ts,
-			EndDate:                te,
-			Interval:               int64(results[i].Interval),
-			RequestSizeLimit:       int64(results[i].RequestSize),
-			BatchSize:              int64(results[i].BatchCount),
-			DataType:               int64(results[i].DataType),
-			MaxRetryAttempts:       int64(results[i].MaxRetries),
-			Status:                 int64(results[i].Status),
-			CreatedDate:            c,
-			ConversionInterval:     int64(results[i].ConversionInterval.Float64),
-			OverwriteData:          overwrite,
-			DecimalPlaceComparison: results[i].DecimalPlaceComparison.Int64,
-		})
+		jobs = append(jobs, *job)
 	}
 
 	return jobs, nil
@@ -550,38 +383,17 @@ func (db *DBService) getJobsBetweenPostgres(startDate, endDate time.Time) ([]Dat
 	}
 
 	for i := range results {
-		exchangeResult, err := results[i].ExchangeName(qm.Where("id = ?", results[i].ExchangeNameID)).One(context.Background(), db.sql)
+		job, err := db.createPostgresDataHistoryJobResponse(results[i])
 		if err != nil {
 			return nil, err
 		}
-		jobs = append(jobs, DataHistoryJob{
-			ID:                     results[i].ID,
-			Nickname:               results[i].Nickname,
-			ExchangeID:             results[i].ExchangeNameID,
-			ExchangeName:           exchangeResult.Name,
-			Asset:                  results[i].Asset,
-			Base:                   results[i].Base,
-			Quote:                  results[i].Quote,
-			StartDate:              results[i].StartTime,
-			EndDate:                results[i].EndTime,
-			Interval:               int64(results[i].Interval),
-			BatchSize:              int64(results[i].BatchCount),
-			RequestSizeLimit:       int64(results[i].RequestSize),
-			DataType:               int64(results[i].DataType),
-			MaxRetryAttempts:       int64(results[i].MaxRetries),
-			Status:                 int64(results[i].Status),
-			CreatedDate:            results[i].Created,
-			ConversionInterval:     int64(results[i].ConversionInterval.Float64),
-			OverwriteData:          results[i].OverwriteData.Bool,
-			DecimalPlaceComparison: int64(results[i].DecimalPlaceComparison.Int),
-		})
+		jobs = append(jobs, *job)
 	}
 
 	return jobs, nil
 }
 
 func (db *DBService) getJobAndAllResultsSQLite(nickname string) (*DataHistoryJob, error) {
-	var job *DataHistoryJob
 	query := sqlite3.Datahistoryjobs(
 		qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults),
 		qm.Load(sqlite3.DatahistoryjobRels.ExchangeName),
@@ -591,76 +403,12 @@ func (db *DBService) getJobAndAllResultsSQLite(nickname string) (*DataHistoryJob
 		return nil, err
 	}
 
-	var jobResults []*datahistoryjobresult.DataHistoryJobResult
-	for i := range result.R.JobDatahistoryjobresults {
-		var start, end, run time.Time
-		start, err = time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].IntervalStartTime)
-		if err != nil {
-			return nil, err
-		}
-		end, err = time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].IntervalEndTime)
-		if err != nil {
-			return nil, err
-		}
-		run, err = time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].RunTime)
-		if err != nil {
-			return nil, err
-		}
-
-		jobResults = append(jobResults, &datahistoryjobresult.DataHistoryJobResult{
-			ID:                result.R.JobDatahistoryjobresults[i].ID,
-			JobID:             result.R.JobDatahistoryjobresults[i].JobID,
-			IntervalStartDate: start,
-			IntervalEndDate:   end,
-			Status:            int64(result.R.JobDatahistoryjobresults[i].Status),
-			Result:            result.R.JobDatahistoryjobresults[i].Result.String,
-			Date:              run,
-		})
-	}
-
-	start, err := time.Parse(time.RFC3339, result.StartTime)
-	if err != nil {
-		return nil, err
-	}
-	end, err := time.Parse(time.RFC3339, result.EndTime)
-	if err != nil {
-		return nil, err
-	}
-	created, err := time.Parse(time.RFC3339, result.Created)
-	if err != nil {
-		return nil, err
-	}
-	overwrite := result.OverwriteData.Int64 == 1
-	job = &DataHistoryJob{
-		ID:                     result.ID,
-		Nickname:               result.Nickname,
-		ExchangeID:             result.ExchangeNameID,
-		ExchangeName:           result.R.ExchangeName.Name,
-		Asset:                  result.Asset,
-		Base:                   result.Base,
-		Quote:                  result.Quote,
-		StartDate:              start,
-		EndDate:                end,
-		Interval:               int64(result.Interval),
-		BatchSize:              int64(result.BatchCount),
-		RequestSizeLimit:       int64(result.RequestSize),
-		DataType:               int64(result.DataType),
-		MaxRetryAttempts:       int64(result.MaxRetries),
-		Status:                 int64(result.Status),
-		CreatedDate:            created,
-		Results:                jobResults,
-		ConversionInterval:     int64(result.ConversionInterval.Float64),
-		OverwriteData:          overwrite,
-		DecimalPlaceComparison: result.DecimalPlaceComparison.Int64,
-	}
-
-	return job, nil
+	return db.createSQLiteDataHistoryJobResponse(result)
 }
 
 func (db *DBService) getJobAndAllResultsPostgres(nickname string) (*DataHistoryJob, error) {
 	var job *DataHistoryJob
 	query := postgres.Datahistoryjobs(
-		qm.Load(postgres.DatahistoryjobRels.ExchangeName),
 		qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults),
 		qm.Where("nickname = ?", strings.ToLower(nickname)))
 	result, err := query.One(context.Background(), db.sql)
@@ -668,43 +416,7 @@ func (db *DBService) getJobAndAllResultsPostgres(nickname string) (*DataHistoryJ
 		return job, err
 	}
 
-	var jobResults []*datahistoryjobresult.DataHistoryJobResult
-	for i := range result.R.JobDatahistoryjobresults {
-		jobResults = append(jobResults, &datahistoryjobresult.DataHistoryJobResult{
-			ID:                result.R.JobDatahistoryjobresults[i].ID,
-			JobID:             result.R.JobDatahistoryjobresults[i].JobID,
-			IntervalStartDate: result.R.JobDatahistoryjobresults[i].IntervalStartTime,
-			IntervalEndDate:   result.R.JobDatahistoryjobresults[i].IntervalEndTime,
-			Status:            int64(result.R.JobDatahistoryjobresults[i].Status),
-			Result:            result.R.JobDatahistoryjobresults[i].Result.String,
-			Date:              result.R.JobDatahistoryjobresults[i].RunTime,
-		})
-	}
-
-	job = &DataHistoryJob{
-		ID:                     result.ID,
-		Nickname:               result.Nickname,
-		ExchangeID:             result.ExchangeNameID,
-		ExchangeName:           result.R.ExchangeName.Name,
-		Asset:                  result.Asset,
-		Base:                   result.Base,
-		Quote:                  result.Quote,
-		StartDate:              result.StartTime,
-		EndDate:                result.EndTime,
-		Interval:               int64(result.Interval),
-		BatchSize:              int64(result.BatchCount),
-		RequestSizeLimit:       int64(result.RequestSize),
-		DataType:               int64(result.DataType),
-		MaxRetryAttempts:       int64(result.MaxRetries),
-		Status:                 int64(result.Status),
-		CreatedDate:            result.Created,
-		Results:                jobResults,
-		ConversionInterval:     int64(result.ConversionInterval.Float64),
-		OverwriteData:          result.OverwriteData.Bool,
-		DecimalPlaceComparison: int64(result.DecimalPlaceComparison.Int),
-	}
-
-	return job, nil
+	return db.createPostgresDataHistoryJobResponse(result)
 }
 
 func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, error) {
@@ -719,69 +431,12 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 	}
 
 	for i := range results {
-		var jobResults []*datahistoryjobresult.DataHistoryJobResult
-		for j := range results[i].R.JobDatahistoryjobresults {
-			var start, end, run time.Time
-			start, err = time.Parse(time.RFC3339, results[i].R.JobDatahistoryjobresults[j].IntervalStartTime)
-			if err != nil {
-				return nil, err
-			}
-			end, err = time.Parse(time.RFC3339, results[i].R.JobDatahistoryjobresults[j].IntervalEndTime)
-			if err != nil {
-				return nil, err
-			}
-			run, err = time.Parse(time.RFC3339, results[i].R.JobDatahistoryjobresults[j].RunTime)
-			if err != nil {
-				return nil, err
-			}
-
-			jobResults = append(jobResults, &datahistoryjobresult.DataHistoryJobResult{
-				ID:                results[i].R.JobDatahistoryjobresults[j].ID,
-				JobID:             results[i].R.JobDatahistoryjobresults[j].JobID,
-				IntervalStartDate: start,
-				IntervalEndDate:   end,
-				Status:            int64(results[i].R.JobDatahistoryjobresults[j].Status),
-				Result:            results[i].R.JobDatahistoryjobresults[j].Result.String,
-				Date:              run,
-			})
+		job, err := db.createSQLiteDataHistoryJobResponse(results[i])
+		if err != nil {
+			return nil, fmt.Errorf("could not return job %v: %w", results[i].Nickname, err)
 		}
 
-		start, err := time.Parse(time.RFC3339, results[i].StartTime)
-		if err != nil {
-			return nil, err
-		}
-		end, err := time.Parse(time.RFC3339, results[i].EndTime)
-		if err != nil {
-			return nil, err
-		}
-		created, err := time.Parse(time.RFC3339, results[i].Created)
-		if err != nil {
-			return nil, err
-		}
-		overwrite := results[i].OverwriteData.Int64 == 1
-
-		jobs = append(jobs, DataHistoryJob{
-			ID:                     results[i].ID,
-			Nickname:               results[i].Nickname,
-			ExchangeID:             results[i].ExchangeNameID,
-			ExchangeName:           results[i].R.ExchangeName.Name,
-			Asset:                  results[i].Asset,
-			Base:                   results[i].Base,
-			Quote:                  results[i].Quote,
-			StartDate:              start,
-			EndDate:                end,
-			Interval:               int64(results[i].Interval),
-			BatchSize:              int64(results[i].BatchCount),
-			RequestSizeLimit:       int64(results[i].RequestSize),
-			DataType:               int64(results[i].DataType),
-			MaxRetryAttempts:       int64(results[i].MaxRetries),
-			Status:                 int64(results[i].Status),
-			CreatedDate:            created,
-			Results:                jobResults,
-			ConversionInterval:     int64(results[i].ConversionInterval.Float64),
-			OverwriteData:          overwrite,
-			DecimalPlaceComparison: results[i].DecimalPlaceComparison.Int64,
-		})
+		jobs = append(jobs, *job)
 	}
 
 	return jobs, nil
@@ -790,7 +445,6 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob, error) {
 	var jobs []DataHistoryJob
 	query := postgres.Datahistoryjobs(
-		qm.Load(postgres.DatahistoryjobRels.ExchangeName),
 		qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults),
 		qm.Where("status = ?", 0))
 	results, err := query.All(context.Background(), db.sql)
@@ -799,48 +453,14 @@ func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob,
 	}
 
 	for i := range results {
-		var jobResults []*datahistoryjobresult.DataHistoryJobResult
-		for j := range results[i].R.JobDatahistoryjobresults {
-			jobResults = append(jobResults, &datahistoryjobresult.DataHistoryJobResult{
-				ID:                results[i].R.JobDatahistoryjobresults[j].ID,
-				JobID:             results[i].R.JobDatahistoryjobresults[j].JobID,
-				IntervalStartDate: results[i].R.JobDatahistoryjobresults[j].IntervalStartTime,
-				IntervalEndDate:   results[i].R.JobDatahistoryjobresults[j].IntervalEndTime,
-				Status:            int64(results[i].R.JobDatahistoryjobresults[j].Status),
-				Result:            results[i].R.JobDatahistoryjobresults[j].Result.String,
-				Date:              results[i].R.JobDatahistoryjobresults[j].RunTime,
-			})
+		job, err := db.createPostgresDataHistoryJobResponse(results[i])
+		if err != nil {
+			return nil, err
 		}
-		job := db.convertBoilToStruct(results[i])
-		job.Results = jobResults
 		jobs = append(jobs, *job)
 	}
 
 	return jobs, nil
-}
-
-func (db *DBService) convertBoilToStruct(result *postgres.Datahistoryjob) *DataHistoryJob {
-	return &DataHistoryJob{
-		ID:                     result.ID,
-		Nickname:               result.Nickname,
-		ExchangeID:             result.ExchangeNameID,
-		ExchangeName:           result.R.ExchangeName.Name,
-		Asset:                  result.Asset,
-		Base:                   result.Base,
-		Quote:                  result.Quote,
-		StartDate:              result.StartTime,
-		EndDate:                result.EndTime,
-		Interval:               int64(result.Interval),
-		BatchSize:              int64(result.BatchCount),
-		RequestSizeLimit:       int64(result.RequestSize),
-		DataType:               int64(result.DataType),
-		MaxRetryAttempts:       int64(result.MaxRetries),
-		Status:                 int64(result.Status),
-		CreatedDate:            result.Created,
-		ConversionInterval:     int64(result.ConversionInterval.Float64),
-		OverwriteData:          result.OverwriteData.Bool,
-		DecimalPlaceComparison: int64(result.DecimalPlaceComparison.Int),
-	}
 }
 
 func (db *DBService) getRelatedUpcomingJobsSQLite(nickname string) ([]*DataHistoryJob, error) {
@@ -848,50 +468,17 @@ func (db *DBService) getRelatedUpcomingJobsSQLite(nickname string) ([]*DataHisto
 	if err != nil {
 		return nil, err
 	}
-	sl, err := job.JobDatahistoryjobs().All(context.Background(), db.sql)
+	results, err := job.JobDatahistoryjobs().All(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
 	}
 	var resp []*DataHistoryJob
-	for i := range sl {
-		start, err := time.Parse(time.RFC3339, sl[i].StartTime)
+	for i := range results {
+		job, err := db.createSQLiteDataHistoryJobResponse(results[i])
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not return job %v: %w", results[i].Nickname, err)
 		}
-		end, err := time.Parse(time.RFC3339, sl[i].EndTime)
-		if err != nil {
-			return nil, err
-		}
-		created, err := time.Parse(time.RFC3339, sl[i].Created)
-		if err != nil {
-			return nil, err
-		}
-		exch, err := sl[i].ExchangeName().One(context.Background(), db.sql)
-		if err != nil {
-			return nil, err
-		}
-		overwrite := sl[i].OverwriteData.Int64 == 1
-		resp = append(resp, &DataHistoryJob{
-			ID:                     sl[i].ID,
-			Nickname:               sl[i].Nickname,
-			ExchangeID:             sl[i].ExchangeNameID,
-			ExchangeName:           exch.Name,
-			Asset:                  sl[i].Asset,
-			Base:                   sl[i].Base,
-			Quote:                  sl[i].Quote,
-			StartDate:              start,
-			EndDate:                end,
-			Interval:               int64(sl[i].Interval),
-			BatchSize:              int64(sl[i].BatchCount),
-			RequestSizeLimit:       int64(sl[i].RequestSize),
-			DataType:               int64(sl[i].DataType),
-			MaxRetryAttempts:       int64(sl[i].MaxRetries),
-			Status:                 int64(sl[i].Status),
-			CreatedDate:            created,
-			ConversionInterval:     int64(sl[i].ConversionInterval.Float64),
-			OverwriteData:          overwrite,
-			DecimalPlaceComparison: sl[i].DecimalPlaceComparison.Int64,
-		})
+		resp = append(resp, job)
 	}
 	return resp, nil
 }
@@ -958,53 +545,16 @@ func setRelationshipByIDPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJo
 }
 
 func (db *DBService) getPrerequisiteJobSQLite(nickname string) (*DataHistoryJob, error) {
-	job, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", nickname)).One(context.Background(), db.sql)
+	result, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", nickname)).One(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
 	}
-	result, err := job.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
+	job, err := result.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
 	if err != nil {
 		return nil, err
 	}
-	start, err := time.Parse(time.RFC3339, result.StartTime)
-	if err != nil {
-		return nil, err
-	}
-	end, err := time.Parse(time.RFC3339, result.EndTime)
-	if err != nil {
-		return nil, err
-	}
-	created, err := time.Parse(time.RFC3339, result.Created)
-	if err != nil {
-		return nil, err
-	}
-	exch, err := result.ExchangeName().One(context.Background(), db.sql)
-	if err != nil {
-		return nil, err
-	}
-	overwrite := result.OverwriteData.Int64 == 1
 
-	return &DataHistoryJob{
-		ID:                     result.ID,
-		Nickname:               result.Nickname,
-		ExchangeID:             result.ExchangeNameID,
-		ExchangeName:           exch.Name,
-		Asset:                  result.Asset,
-		Base:                   result.Base,
-		Quote:                  result.Quote,
-		StartDate:              start,
-		EndDate:                end,
-		Interval:               int64(result.Interval),
-		BatchSize:              int64(result.BatchCount),
-		RequestSizeLimit:       int64(result.RequestSize),
-		DataType:               int64(result.DataType),
-		MaxRetryAttempts:       int64(result.MaxRetries),
-		Status:                 int64(result.Status),
-		CreatedDate:            created,
-		ConversionInterval:     int64(result.ConversionInterval.Float64),
-		OverwriteData:          overwrite,
-		DecimalPlaceComparison: result.DecimalPlaceComparison.Int64,
-	}, nil
+	return db.createSQLiteDataHistoryJobResponse(job)
 }
 
 func (db *DBService) getPrerequisiteJobPostgres(nickname string) (*DataHistoryJob, error) {
@@ -1016,32 +566,8 @@ func (db *DBService) getPrerequisiteJobPostgres(nickname string) (*DataHistoryJo
 	if err != nil {
 		return nil, err
 	}
-	exch, err := result.ExchangeName().One(context.Background(), db.sql)
-	if err != nil {
-		return nil, err
-	}
 
-	return &DataHistoryJob{
-		ID:                     result.ID,
-		Nickname:               result.Nickname,
-		ExchangeID:             result.ExchangeNameID,
-		ExchangeName:           exch.Name,
-		Asset:                  result.Asset,
-		Base:                   result.Base,
-		Quote:                  result.Quote,
-		StartDate:              result.StartTime,
-		EndDate:                result.EndTime,
-		Interval:               int64(result.Interval),
-		BatchSize:              int64(result.BatchCount),
-		RequestSizeLimit:       int64(result.RequestSize),
-		DataType:               int64(result.DataType),
-		MaxRetryAttempts:       int64(result.MaxRetries),
-		Status:                 int64(result.Status),
-		CreatedDate:            result.Created,
-		ConversionInterval:     int64(result.ConversionInterval.Float64),
-		OverwriteData:          result.OverwriteData.Bool,
-		DecimalPlaceComparison: int64(result.DecimalPlaceComparison.Int),
-	}, nil
+	return db.createPostgresDataHistoryJobResponse(result)
 }
 
 func setRelationshipByNicknameSQLite(ctx context.Context, tx *sql.Tx, prerequisiteJobNickname, followingJobNickname string, status int64) error {
@@ -1085,4 +611,182 @@ func setRelationshipByNicknamePostgres(ctx context.Context, tx *sql.Tx, prerequi
 	}
 
 	return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, false, result)
+}
+
+// helpers
+
+func (db *DBService) createSQLiteDataHistoryJobResponse(result *sqlite3.Datahistoryjob) (*DataHistoryJob, error) {
+	var exchange *sqlite3.Exchange
+	var err error
+	if result.R != nil && result.R.ExchangeName != nil {
+		exchange = result.R.ExchangeName
+	} else {
+		exchange, err = result.ExchangeName().One(context.Background(), db.sql)
+		if err != nil {
+			return nil, err
+		}
+	}
+	secondaryExchangeResult, err := result.SecondaryExchange().One(context.Background(), db.sql)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	var secondaryExchangeName string
+	if secondaryExchangeResult != nil {
+		secondaryExchangeName = secondaryExchangeResult.Name
+	}
+
+	ts, err := time.Parse(time.RFC3339, result.StartTime)
+	if err != nil {
+		return nil, err
+	}
+	te, err := time.Parse(time.RFC3339, result.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	c, err := time.Parse(time.RFC3339, result.Created)
+	if err != nil {
+		return nil, err
+	}
+
+	prereqJob, err := result.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	var prereqNickname, prereqID string
+	if prereqJob != nil {
+		prereqID = prereqJob.ID
+		prereqNickname = prereqJob.Nickname
+	}
+
+	var jobResults []*datahistoryjobresult.DataHistoryJobResult
+	if result.R != nil {
+		for i := range result.R.JobDatahistoryjobresults {
+			var start, end, run time.Time
+			start, err = time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].IntervalStartTime)
+			if err != nil {
+				return nil, err
+			}
+			end, err = time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].IntervalEndTime)
+			if err != nil {
+				return nil, err
+			}
+			run, err = time.Parse(time.RFC3339, result.R.JobDatahistoryjobresults[i].RunTime)
+			if err != nil {
+				return nil, err
+			}
+
+			jobResults = append(jobResults, &datahistoryjobresult.DataHistoryJobResult{
+				ID:                result.R.JobDatahistoryjobresults[i].ID,
+				JobID:             result.R.JobDatahistoryjobresults[i].JobID,
+				IntervalStartDate: start,
+				IntervalEndDate:   end,
+				Status:            int64(result.R.JobDatahistoryjobresults[i].Status),
+				Result:            result.R.JobDatahistoryjobresults[i].Result.String,
+				Date:              run,
+			})
+		}
+	}
+
+	return &DataHistoryJob{
+		ID:                          result.ID,
+		Nickname:                    result.Nickname,
+		ExchangeID:                  exchange.ID,
+		ExchangeName:                exchange.Name,
+		Asset:                       result.Asset,
+		Base:                        result.Base,
+		Quote:                       result.Quote,
+		StartDate:                   ts,
+		EndDate:                     te,
+		Interval:                    int64(result.Interval),
+		RequestSizeLimit:            int64(result.RequestSize),
+		DataType:                    int64(result.DataType),
+		MaxRetryAttempts:            int64(result.MaxRetries),
+		BatchSize:                   int64(result.BatchCount),
+		Status:                      int64(result.Status),
+		CreatedDate:                 c,
+		PrerequisiteJobID:           prereqID,
+		PrerequisiteJobNickname:     prereqNickname,
+		ConversionInterval:          int64(result.ConversionInterval.Float64),
+		OverwriteData:               result.OverwriteData.Int64 == 1,
+		DecimalPlaceComparison:      result.DecimalPlaceComparison.Int64,
+		SecondarySourceExchangeName: secondaryExchangeName,
+		IssueTolerancePercentage:    result.IssueTolerancePercentage.Float64,
+		ReplaceOnIssue:              result.ReplaceOnIssue.Int64 == 1,
+		Results:                     jobResults,
+	}, nil
+}
+
+func (db *DBService) createPostgresDataHistoryJobResponse(result *postgres.Datahistoryjob) (*DataHistoryJob, error) {
+	var exchange *postgres.Exchange
+	var err error
+	if result.R != nil && result.R.ExchangeName != nil {
+		exchange = result.R.ExchangeName
+	} else {
+		exchange, err = result.ExchangeName().One(context.Background(), db.sql)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	secondaryExchangeResult, err := result.SecondaryExchange().One(context.Background(), db.sql)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	var secondaryExchangeName string
+	if secondaryExchangeResult != nil {
+		secondaryExchangeName = secondaryExchangeResult.Name
+	}
+
+	prereqJob, err := result.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	var prereqNickname, prereqID string
+	if prereqJob != nil {
+		prereqID = prereqJob.ID
+		prereqNickname = prereqJob.Nickname
+	}
+
+	var jobResults []*datahistoryjobresult.DataHistoryJobResult
+	if result.R != nil {
+		for i := range result.R.JobDatahistoryjobresults {
+			jobResults = append(jobResults, &datahistoryjobresult.DataHistoryJobResult{
+				ID:                result.R.JobDatahistoryjobresults[i].ID,
+				JobID:             result.R.JobDatahistoryjobresults[i].JobID,
+				IntervalStartDate: result.R.JobDatahistoryjobresults[i].IntervalStartTime,
+				IntervalEndDate:   result.R.JobDatahistoryjobresults[i].IntervalEndTime,
+				Status:            int64(result.R.JobDatahistoryjobresults[i].Status),
+				Result:            result.R.JobDatahistoryjobresults[i].Result.String,
+				Date:              result.R.JobDatahistoryjobresults[i].RunTime,
+			})
+		}
+	}
+
+	return &DataHistoryJob{
+		ID:                          result.ID,
+		Nickname:                    result.Nickname,
+		ExchangeID:                  exchange.ID,
+		ExchangeName:                exchange.Name,
+		Asset:                       result.Asset,
+		Base:                        result.Base,
+		Quote:                       result.Quote,
+		StartDate:                   result.StartTime,
+		EndDate:                     result.EndTime,
+		Interval:                    int64(result.Interval),
+		RequestSizeLimit:            int64(result.RequestSize),
+		DataType:                    int64(result.DataType),
+		MaxRetryAttempts:            int64(result.MaxRetries),
+		BatchSize:                   int64(result.BatchCount),
+		Status:                      int64(result.Status),
+		CreatedDate:                 result.Created,
+		Results:                     jobResults,
+		PrerequisiteJobID:           prereqID,
+		PrerequisiteJobNickname:     prereqNickname,
+		ConversionInterval:          int64(result.ConversionInterval.Float64),
+		OverwriteData:               result.OverwriteData.Bool,
+		DecimalPlaceComparison:      int64(result.DecimalPlaceComparison.Int),
+		SecondarySourceExchangeName: secondaryExchangeName,
+		IssueTolerancePercentage:    result.IssueTolerancePercentage.Float64,
+		ReplaceOnIssue:              result.ReplaceOnIssue.Bool,
+	}, nil
 }

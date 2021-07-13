@@ -179,7 +179,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 		}
 		var candles kline.Item
 		switch jobs[i].DataType {
-		case dataHistoryCandleDataType, dataHistoryCandleValidationDataType:
+		case dataHistoryCandleDataType, dataHistoryCandleValidationDataType, dataHistoryCandleValidationSecondarySourceType:
 			candles, err = m.candleLoader(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].Interval, jobs[i].StartDate, jobs[i].EndDate)
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
@@ -289,7 +289,6 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	if job.Status != dataHistoryStatusActive {
 		return fmt.Errorf("job %s %w", job.Nickname, errJobInvalid)
 	}
-	var intervalsProcessed int64
 	if job.rangeHolder == nil || len(job.rangeHolder.Ranges) == 0 {
 		return fmt.Errorf("%s %w invalid start/end range %s-%s",
 			job.Nickname,
@@ -311,167 +310,17 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 			job.Asset,
 			job.Pair)
 	}
-	if m.verbose {
-		log.Debugf(log.DataHistory, "running data history job %v start: %s end: %s interval: %s datatype: %s",
-			job.Nickname,
-			job.StartDate,
-			job.EndDate,
-			job.Interval,
-			job.DataType)
-	}
-	var result *DataHistoryJobResult
-	var err error
 
-	if job.DataType == dataHistoryCandleValidationDataType || job.DataType == dataHistoryCandleValidationSecondarySourceType {
-		// in order to verify that an area has been checked, we need to create a datahistoryresult
-		var failures int64
-		startDate := job.StartDate
-		intervalLength := job.Interval.Duration() * time.Duration(job.RequestSizeLimit)
-	validations:
-		for k, v := range job.Results {
-			if !k.Equal(startDate) {
-				continue
-			}
-			for i := range v {
-				switch v[i].Status {
-				case dataHistoryIntervalMissingData:
-					startDate = k.Add(intervalLength)
-					continue validations
-				case dataHistoryStatusFailed:
-					failures++
-				case dataHistoryStatusComplete:
-					// this can occur in the scenario where data is missing
-					// however no errors were encountered when data is missing
-					// eg an exchange only returns an empty slice
-					// or the exchange is simply missing the data and does not have an error
-					startDate = k.Add(intervalLength)
-					continue validations
-				}
-			}
-			if failures >= job.MaxRetryAttempts {
-				// failure threshold reached, we should not attempt
-				// to check this interval again
-				for x := range v {
-					v[x].Status = dataHistoryIntervalMissingData
-				}
-				job.Results[k] = v
-				startDate = k.Add(intervalLength)
-				continue
-			}
-		}
-		for i := int64(0); i < job.RunBatchLimit; i++ {
-			if err := common.StartEndTimeCheck(startDate, job.EndDate); err != nil {
-				break
-			}
-			requestEnd := startDate.Add(intervalLength)
-			if requestEnd.After(job.EndDate) {
-				requestEnd = job.EndDate
-			}
-			result, err = m.validateCandles(job, exch, startDate, requestEnd)
-			if err != nil {
-				return err
-			}
-
-			lookup := job.Results[result.IntervalStartDate]
-			lookup = append(lookup, *result)
-			job.Results[result.IntervalStartDate] = lookup
-			startDate = startDate.Add(intervalLength)
+	if job.DataType == dataHistoryCandleValidationDataType ||
+		job.DataType == dataHistoryCandleValidationSecondarySourceType {
+		err := m.runValidationJob(job, exch)
+		if err != nil {
+			return err
 		}
 	} else {
-	ranges:
-		for i := range job.rangeHolder.Ranges {
-			skipProcessing := true
-			for j := range job.rangeHolder.Ranges[i].Intervals {
-				if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
-					skipProcessing = false
-					break
-				}
-			}
-			if skipProcessing {
-				_, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
-				if !ok && !job.OverwriteExistingData {
-					// we have determined that data is there, however it is not reflected in
-					// this specific job's results, which is required for a job to be complete
-					id, err := uuid.NewV4()
-					if err != nil {
-						return err
-					}
-					job.Results[job.rangeHolder.Ranges[i].Start.Time] = []DataHistoryJobResult{
-						{
-							ID:                id,
-							JobID:             job.ID,
-							IntervalStartDate: job.rangeHolder.Ranges[i].Start.Time,
-							IntervalEndDate:   job.rangeHolder.Ranges[i].End.Time,
-							Status:            dataHistoryStatusComplete,
-							Date:              time.Now(),
-						},
-					}
-				}
-				if !job.OverwriteExistingData {
-					continue
-				}
-			}
-			if intervalsProcessed >= job.RunBatchLimit {
-				continue
-			}
-
-			var failures int64
-			hasDataInRange := false
-			resultLookup := job.Results[job.rangeHolder.Ranges[i].Start.Time]
-			for x := range resultLookup {
-				switch resultLookup[x].Status {
-				case dataHistoryIntervalMissingData:
-					continue ranges
-				case dataHistoryStatusFailed:
-					failures++
-				case dataHistoryStatusComplete:
-					// this can occur in the scenario where data is missing
-					// however no errors were encountered when data is missing
-					// eg an exchange only returns an empty slice
-					// or the exchange is simply missing the data and does not have an error
-					hasDataInRange = true
-				}
-			}
-			if failures >= job.MaxRetryAttempts {
-				// failure threshold reached, we should not attempt
-				// to check this interval again
-				for x := range resultLookup {
-					resultLookup[x].Status = dataHistoryIntervalMissingData
-				}
-				job.Results[job.rangeHolder.Ranges[i].Start.Time] = resultLookup
-				continue
-			}
-			if hasDataInRange {
-				continue
-			}
-			if m.verbose {
-				log.Debugf(log.DataHistory, "job %s processing range %v-%v", job.Nickname, job.rangeHolder.Ranges[i].Start, job.rangeHolder.Ranges[i].End)
-			}
-			intervalsProcessed++
-
-			// processing the job
-			switch job.DataType {
-			case dataHistoryCandleDataType:
-				result, err = m.processCandleData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, int64(i))
-			case dataHistoryTradeDataType:
-				result, err = m.processTradeData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, int64(i))
-			case dataHistoryConvertTradesDataType:
-				result, err = m.convertJobTradesToCandles(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
-			case dataHistoryConvertCandlesDataType:
-				result, err = m.upscaleJobCandleData(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
-			default:
-				return errUnknownDataType
-			}
-			if err != nil {
-				return err
-			}
-			if result == nil {
-				return errNilResult
-			}
-
-			lookup := job.Results[result.IntervalStartDate]
-			lookup = append(lookup, *result)
-			job.Results[result.IntervalStartDate] = lookup
+		err := m.runDataJob(job, exch)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -506,7 +355,7 @@ completionCheck:
 		}
 	}
 	dbJob := m.convertJobToDBModel(job)
-	err = m.jobDB.Upsert(dbJob)
+	err := m.jobDB.Upsert(dbJob)
 	if err != nil {
 		return fmt.Errorf("job %s failed to update database: %w", job.Nickname, err)
 	}
@@ -515,6 +364,182 @@ completionCheck:
 	err = m.jobResultDB.Upsert(dbJobResults...)
 	if err != nil {
 		return fmt.Errorf("job %s failed to insert job results to database: %w", job.Nickname, err)
+	}
+	return nil
+}
+
+func (m *DataHistoryManager) runDataJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
+	var intervalsProcessed int64
+	var err error
+	var result *DataHistoryJobResult
+ranges:
+	for i := range job.rangeHolder.Ranges {
+		skipProcessing := true
+		for j := range job.rangeHolder.Ranges[i].Intervals {
+			if !job.rangeHolder.Ranges[i].Intervals[j].HasData {
+				skipProcessing = false
+				break
+			}
+		}
+		if skipProcessing {
+			_, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
+			if !ok && !job.OverwriteExistingData {
+				// we have determined that data is there, however it is not reflected in
+				// this specific job's results, which is required for a job to be complete
+				id, err := uuid.NewV4()
+				if err != nil {
+					return err
+				}
+				job.Results[job.rangeHolder.Ranges[i].Start.Time] = []DataHistoryJobResult{
+					{
+						ID:                id,
+						JobID:             job.ID,
+						IntervalStartDate: job.rangeHolder.Ranges[i].Start.Time,
+						IntervalEndDate:   job.rangeHolder.Ranges[i].End.Time,
+						Status:            dataHistoryStatusComplete,
+						Date:              time.Now(),
+					},
+				}
+			}
+			if !job.OverwriteExistingData {
+				continue
+			}
+		}
+		if intervalsProcessed >= job.RunBatchLimit {
+			continue
+		}
+
+		if m.verbose {
+			log.Debugf(log.DataHistory, "running data history job %v start: %s end: %s interval: %s datatype: %s",
+				job.Nickname,
+				job.rangeHolder.Ranges[i].Start.Time,
+				job.rangeHolder.Ranges[i].End.Time,
+				job.Interval,
+				job.DataType)
+		}
+
+		var failures int64
+		hasDataInRange := false
+		resultLookup := job.Results[job.rangeHolder.Ranges[i].Start.Time]
+		for x := range resultLookup {
+			switch resultLookup[x].Status {
+			case dataHistoryIntervalMissingData:
+				continue ranges
+			case dataHistoryStatusFailed:
+				failures++
+			case dataHistoryStatusComplete:
+				// this can occur in the scenario where data is missing
+				// however no errors were encountered when data is missing
+				// eg an exchange only returns an empty slice
+				// or the exchange is simply missing the data and does not have an error
+				hasDataInRange = true
+			}
+		}
+		if failures >= job.MaxRetryAttempts {
+			// failure threshold reached, we should not attempt
+			// to check this interval again
+			for x := range resultLookup {
+				resultLookup[x].Status = dataHistoryIntervalMissingData
+			}
+			job.Results[job.rangeHolder.Ranges[i].Start.Time] = resultLookup
+			continue
+		}
+		if hasDataInRange {
+			continue
+		}
+		if m.verbose {
+			log.Debugf(log.DataHistory, "job %s processing range %v-%v", job.Nickname, job.rangeHolder.Ranges[i].Start, job.rangeHolder.Ranges[i].End)
+		}
+		intervalsProcessed++
+
+		// processing the job
+		switch job.DataType {
+		case dataHistoryCandleDataType:
+			result, err = m.processCandleData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, int64(i))
+		case dataHistoryTradeDataType:
+			result, err = m.processTradeData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, int64(i))
+		case dataHistoryConvertTradesDataType:
+			result, err = m.convertJobTradesToCandles(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+		case dataHistoryConvertCandlesDataType:
+			result, err = m.upscaleJobCandleData(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+		default:
+			return errUnknownDataType
+		}
+		if err != nil {
+			return err
+		}
+		if result == nil {
+			return errNilResult
+		}
+
+		lookup := job.Results[result.IntervalStartDate]
+		lookup = append(lookup, *result)
+		job.Results[result.IntervalStartDate] = lookup
+	}
+	return nil
+}
+
+func (m *DataHistoryManager) runValidationJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
+	var failures int64
+	startDate := job.StartDate
+	intervalLength := job.Interval.Duration() * time.Duration(job.RequestSizeLimit)
+validations:
+	for k, v := range job.Results {
+		if !k.Equal(startDate) {
+			continue
+		}
+		for i := range v {
+			switch v[i].Status {
+			case dataHistoryIntervalMissingData:
+				startDate = k.Add(intervalLength)
+				continue validations
+			case dataHistoryStatusFailed:
+				failures++
+			case dataHistoryStatusComplete:
+				// this can occur in the scenario where data is missing
+				// however no errors were encountered when data is missing
+				// eg an exchange only returns an empty slice
+				// or the exchange is simply missing the data and does not have an error
+				startDate = k.Add(intervalLength)
+				continue validations
+			}
+		}
+		if failures >= job.MaxRetryAttempts {
+			// failure threshold reached, we should not attempt
+			// to check this interval again
+			for x := range v {
+				v[x].Status = dataHistoryIntervalMissingData
+			}
+			job.Results[k] = v
+			startDate = k.Add(intervalLength)
+			continue
+		}
+	}
+	for i := int64(0); i < job.RunBatchLimit; i++ {
+		if err := common.StartEndTimeCheck(startDate, job.EndDate); err != nil {
+			break
+		}
+		requestEnd := startDate.Add(intervalLength)
+		if requestEnd.After(job.EndDate) {
+			requestEnd = job.EndDate
+		}
+		if m.verbose {
+			log.Debugf(log.DataHistory, "running data history job %v start: %s end: %s interval: %s datatype: %s",
+				job.Nickname,
+				startDate,
+				requestEnd,
+				job.Interval,
+				job.DataType)
+		}
+		result, err := m.validateCandles(job, exch, startDate, requestEnd)
+		if err != nil {
+			return err
+		}
+
+		lookup := job.Results[result.IntervalStartDate]
+		lookup = append(lookup, *result)
+		job.Results[result.IntervalStartDate] = lookup
+		startDate = startDate.Add(intervalLength)
 	}
 	return nil
 }
@@ -789,44 +814,44 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 			continue
 		}
 		var candleIssues []string
-		var willReplace bool
+		var replaceCandle bool
 
-		issue, replace := m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Open, can.Open, "Open")
+		issue, shouldReplaceCandle := m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Open, can.Open, "Open")
 		if issue != "" {
 			candleIssues = append(candleIssues, issue)
 		}
-		if replace {
-			willReplace = true
+		if shouldReplaceCandle {
+			replaceCandle = true
 		}
-		issue, replace = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].High, can.High, "High")
+		issue, shouldReplaceCandle = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].High, can.High, "High")
 		if issue != "" {
 			candleIssues = append(candleIssues, issue)
 		}
-		if !willReplace && replace {
-			willReplace = true
+		if shouldReplaceCandle {
+			replaceCandle = true
 		}
-		issue, replace = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Low, can.Low, "Low")
+		issue, shouldReplaceCandle = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Low, can.Low, "Low")
 		if issue != "" {
 			candleIssues = append(candleIssues, issue)
 		}
-		if !willReplace && replace {
-			willReplace = true
+		if shouldReplaceCandle {
+			replaceCandle = true
 		}
-		issue, replace = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Close, can.Close, "Close")
+		issue, shouldReplaceCandle = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Close, can.Close, "Close")
 		if issue != "" {
 			candleIssues = append(candleIssues, issue)
 		}
-		if !willReplace && replace {
-			willReplace = true
+		if shouldReplaceCandle {
+			replaceCandle = true
 		}
-		issue, replace = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Volume, can.Volume, "Volume")
+		issue, shouldReplaceCandle = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Volume, can.Volume, "Volume")
 		if issue != "" {
 			candleIssues = append(candleIssues, issue)
 		}
-		if !willReplace && replace {
-			willReplace = true
+		if shouldReplaceCandle {
+			replaceCandle = true
 		}
-		if willReplace {
+		if replaceCandle {
 			candleIssues = append(candleIssues, "replacing database candle data with API data")
 			apiCandles.Candles[i] = can
 		}
@@ -860,8 +885,13 @@ func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier, a
 	}
 
 	if apiData != dbData {
-		diff := gctmath.CalculatePercentageDifference(apiData, dbData)
-		issue = fmt.Sprintf("%s api: %v db: %v diff: %v%%", candleField, apiData, dbData, diff)
+		var diff float64
+		if apiData > dbData {
+			diff = gctmath.CalculatePercentageGainOrLoss(apiData, dbData)
+		} else {
+			diff = gctmath.CalculatePercentageGainOrLoss(dbData, apiData)
+		}
+		issue = fmt.Sprintf("%s api: %v db: %v diff: %v %%", candleField, apiData, dbData, diff)
 		if job.ReplaceOnIssue &&
 			job.IssueTolerancePercentage != 0 &&
 			diff > job.IssueTolerancePercentage {
@@ -1336,32 +1366,34 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 	if err != nil {
 		return nil, fmt.Errorf("job %s could not format pair %s-%s: %w", dbModel.Nickname, dbModel.Base, dbModel.Quote, err)
 	}
-
 	jobResults, err := m.convertDBResultToJobResult(dbModel.Results)
 	if err != nil {
 		return nil, fmt.Errorf("job %s could not convert database job: %w", dbModel.Nickname, err)
 	}
 
 	resp := &DataHistoryJob{
-		ID:                      id,
-		Nickname:                dbModel.Nickname,
-		Exchange:                dbModel.ExchangeName,
-		Asset:                   asset.Item(dbModel.Asset),
-		Pair:                    cp,
-		StartDate:               dbModel.StartDate,
-		EndDate:                 dbModel.EndDate,
-		Interval:                kline.Interval(dbModel.Interval),
-		RunBatchLimit:           dbModel.BatchSize,
-		RequestSizeLimit:        dbModel.RequestSizeLimit,
-		DataType:                dataHistoryDataType(dbModel.DataType),
-		MaxRetryAttempts:        dbModel.MaxRetryAttempts,
-		Status:                  dataHistoryStatus(dbModel.Status),
-		CreatedDate:             dbModel.CreatedDate,
-		Results:                 jobResults,
-		PrerequisiteJobNickname: dbModel.PrerequisiteJobNickname,
-		OverwriteExistingData:   dbModel.OverwriteData,
-		ConversionInterval:      kline.Interval(dbModel.ConversionInterval),
-		DecimalPlaceComparison:  dbModel.DecimalPlaceComparison,
+		ID:                       id,
+		Nickname:                 dbModel.Nickname,
+		Exchange:                 dbModel.ExchangeName,
+		Asset:                    asset.Item(dbModel.Asset),
+		Pair:                     cp,
+		StartDate:                dbModel.StartDate,
+		EndDate:                  dbModel.EndDate,
+		Interval:                 kline.Interval(dbModel.Interval),
+		RunBatchLimit:            dbModel.BatchSize,
+		RequestSizeLimit:         dbModel.RequestSizeLimit,
+		DataType:                 dataHistoryDataType(dbModel.DataType),
+		MaxRetryAttempts:         dbModel.MaxRetryAttempts,
+		Status:                   dataHistoryStatus(dbModel.Status),
+		CreatedDate:              dbModel.CreatedDate,
+		Results:                  jobResults,
+		OverwriteExistingData:    dbModel.OverwriteData,
+		ConversionInterval:       kline.Interval(dbModel.ConversionInterval),
+		DecimalPlaceComparison:   dbModel.DecimalPlaceComparison,
+		SecondaryExchangeSource:  dbModel.SecondarySourceExchangeName,
+		IssueTolerancePercentage: dbModel.IssueTolerancePercentage,
+		ReplaceOnIssue:           dbModel.ReplaceOnIssue,
+		PrerequisiteJobNickname:  dbModel.PrerequisiteJobNickname,
 	}
 	if resp.PrerequisiteJobNickname != "" {
 		prereqID, err := uuid.FromString(dbModel.PrerequisiteJobID)
@@ -1422,24 +1454,29 @@ func (m *DataHistoryManager) convertJobResultToDBResult(results map[time.Time][]
 
 func (m *DataHistoryManager) convertJobToDBModel(job *DataHistoryJob) *datahistoryjob.DataHistoryJob {
 	model := &datahistoryjob.DataHistoryJob{
-		Nickname:                job.Nickname,
-		ExchangeName:            job.Exchange,
-		Asset:                   job.Asset.String(),
-		Base:                    job.Pair.Base.String(),
-		Quote:                   job.Pair.Quote.String(),
-		StartDate:               job.StartDate,
-		EndDate:                 job.EndDate,
-		Interval:                int64(job.Interval.Duration()),
-		RequestSizeLimit:        job.RequestSizeLimit,
-		DataType:                int64(job.DataType),
-		MaxRetryAttempts:        job.MaxRetryAttempts,
-		BatchSize:               job.RunBatchLimit,
-		Status:                  int64(job.Status),
-		CreatedDate:             job.CreatedDate,
-		Results:                 m.convertJobResultToDBResult(job.Results),
-		PrerequisiteJobNickname: job.PrerequisiteJobNickname,
-		ConversionInterval:      int64(job.ConversionInterval),
-		OverwriteData:           job.OverwriteExistingData,
+		Nickname:                    job.Nickname,
+		ExchangeName:                job.Exchange,
+		Asset:                       job.Asset.String(),
+		Base:                        job.Pair.Base.String(),
+		Quote:                       job.Pair.Quote.String(),
+		StartDate:                   job.StartDate,
+		EndDate:                     job.EndDate,
+		Interval:                    int64(job.Interval.Duration()),
+		RequestSizeLimit:            job.RequestSizeLimit,
+		DataType:                    int64(job.DataType),
+		MaxRetryAttempts:            job.MaxRetryAttempts,
+		BatchSize:                   job.RunBatchLimit,
+		Status:                      int64(job.Status),
+		CreatedDate:                 job.CreatedDate,
+		Results:                     m.convertJobResultToDBResult(job.Results),
+		PrerequisiteJobID:           "",
+		PrerequisiteJobNickname:     job.PrerequisiteJobNickname,
+		ConversionInterval:          int64(job.ConversionInterval),
+		OverwriteData:               job.OverwriteExistingData,
+		DecimalPlaceComparison:      job.DecimalPlaceComparison,
+		SecondarySourceExchangeName: job.SecondaryExchangeSource,
+		IssueTolerancePercentage:    job.IssueTolerancePercentage,
+		ReplaceOnIssue:              job.ReplaceOnIssue,
 	}
 	if job.ID != uuid.Nil {
 		model.ID = job.ID.String()
