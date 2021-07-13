@@ -136,7 +136,7 @@ func (d *Deribit) GetBookSummaryByCurrency(currency, kind string) ([]BookSummary
 	if kind != "" {
 		params.Set("kind", kind)
 	}
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getBookByCurrency, params), &resp)
 }
 
@@ -145,7 +145,7 @@ func (d *Deribit) GetBookSummaryByInstrument(instrument string) ([]BookSummaryDa
 	var resp []BookSummaryData
 	params := url.Values{}
 	params.Set("instrument_name", instrument)
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getBookByInstrument, params), &resp)
 }
 
@@ -154,14 +154,14 @@ func (d *Deribit) GetContractSize(instrument string) (ContractSizeData, error) {
 	var resp ContractSizeData
 	params := url.Values{}
 	params.Set("instrument_name", instrument)
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getContractSize, params), &resp)
 }
 
 // GetCurrencies gets all cryptocurrencies supported by the API
 func (d *Deribit) GetCurrencies() ([]CurrencyData, error) {
 	var resp []CurrencyData
-	return resp, d.SendHTTPRequest(exchange.RestSpot, getCurrencies, &resp)
+	return resp, d.SendHTTPRequest(exchange.RestFutures, getCurrencies, &resp)
 }
 
 // GetFundingChartData gets funding chart data for the requested instrument and timelength
@@ -171,7 +171,7 @@ func (d *Deribit) GetFundingChartData(instrument, length string) (FundingChartDa
 	params := url.Values{}
 	params.Set("instrument_name", instrument)
 	params.Set("length", length)
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getFundingChartData, params), &resp)
 }
 
@@ -187,7 +187,7 @@ func (d *Deribit) GetFundingRateValue(instrument string, startTime, endTime time
 		params.Set("start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
 		params.Set("end_timestamp", strconv.FormatInt(endTime.Unix()*1000, 10))
 	}
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getFundingRateValue, params), &resp)
 }
 
@@ -196,7 +196,7 @@ func (d *Deribit) GetHistoricalVolatility(currency string) ([]HistoricalVolatili
 	var data [][2]interface{}
 	params := url.Values{}
 	params.Set("currency", currency)
-	err := d.SendHTTPRequest(exchange.RestSpot,
+	err := d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getHistoricalVolatility, params), &data)
 	if err != nil {
 		return nil, err
@@ -225,14 +225,14 @@ func (d *Deribit) GetIndexPrice(index string) (IndexPriceData, error) {
 	var resp IndexPriceData
 	params := url.Values{}
 	params.Set("index_name", index)
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getIndexPrice, params), &resp)
 }
 
 // GetIndexPriceNames gets names of indexes
 func (d *Deribit) GetIndexPriceNames() ([]string, error) {
 	var resp []string
-	return resp, d.SendHTTPRequest(exchange.RestSpot, getIndexPriceNames, &resp)
+	return resp, d.SendHTTPRequest(exchange.RestFutures, getIndexPriceNames, &resp)
 }
 
 // GetInstrumentData gets data for a requested instrument
@@ -240,7 +240,7 @@ func (d *Deribit) GetInstrumentData(instrument string) (InstrumentData, error) {
 	var resp InstrumentData
 	params := url.Values{}
 	params.Set("instrument_name", instrument)
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getInstrument, params), &resp)
 }
 
@@ -257,7 +257,7 @@ func (d *Deribit) GetInstrumentsData(currency, kind string, expired bool) ([]Ins
 		expiredString = "true"
 	}
 	params.Set("expired", expiredString)
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getInstruments, params), &resp)
 }
 
@@ -278,7 +278,7 @@ func (d *Deribit) GetLastSettlementsByCurrency(currency, settlementType, continu
 	if !startTime.IsZero() {
 		params.Set("search_start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
 	}
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getLastSettlementsByCurrency, params), &resp)
 }
 
@@ -299,7 +299,7 @@ func (d *Deribit) GetLastSettlementsByInstrument(instrument, settlementType, con
 	if !startTime.IsZero() {
 		params.Set("search_start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
 	}
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getLastSettlementsByInstrument, params), &resp)
 }
 
@@ -328,7 +328,7 @@ func (d *Deribit) GetLastTradesByCurrency(currency, kind, startID, endID, sortin
 		includeOldString = "true"
 	}
 	params.Set("include_old", includeOldString)
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getLastTradesByCurrency, params), &resp)
 }
 
@@ -353,7 +353,7 @@ func (d *Deribit) GetLastTradesByCurrencyAndTime(currency, kind, sorting string,
 		params.Set("start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
 		params.Set("end_timestamp", strconv.FormatInt(endTime.Unix()*1000, 10))
 	}
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getLastTradesByCurrencyAndTime, params), &resp)
 }
 
@@ -379,7 +379,7 @@ func (d *Deribit) GetLastTradesByInstrument(instrumentName, startSeq, endSeq, so
 		includeOldString = "true"
 	}
 	params.Set("include_old", includeOldString)
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getLastTradesByInstrument, params), &resp)
 }
 
@@ -401,7 +401,7 @@ func (d *Deribit) GetLastTradesByInstrumentAndTime(instrument, sorting string, c
 		params.Set("start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
 		params.Set("end_timestamp", strconv.FormatInt(endTime.Unix()*1000, 10))
 	}
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getLastTradesByInstrumentAndTime, params), &resp)
 }
 
@@ -415,7 +415,7 @@ func (d *Deribit) GetMarkPriceHistory(instrument string, startTime, endTime time
 	}
 	params.Set("start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
 	params.Set("end_timestamp", strconv.FormatInt(endTime.Unix()*1000, 10))
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getMarkPriceHistory, params), &resp)
 }
 
@@ -427,7 +427,7 @@ func (d *Deribit) GetOrderbookData(instrument string, depth int64) (OBData, erro
 	if depth != 0 {
 		params.Set("depth", strconv.FormatInt(depth, 10))
 	}
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getOrderbook, params), &resp)
 }
 
@@ -440,7 +440,7 @@ func (d *Deribit) GetTradeVolumes(extended bool) ([]TradeVolumesData, error) {
 		extendedStr = "true"
 	}
 	params.Set("extended", extendedStr)
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getTradeVolumes, params), &resp)
 }
 
@@ -455,7 +455,7 @@ func (d *Deribit) GetTradingViewChartData(instrument, resolution string, startTi
 	params.Set("start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
 	params.Set("end_timestamp", strconv.FormatInt(endTime.Unix()*1000, 10))
 	params.Set("resolution", resolution)
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getTradingViewChartData, params), &resp)
 }
 
@@ -470,7 +470,7 @@ func (d *Deribit) GetVolatilityIndexData(currency, resolution string, startTime,
 	params.Set("start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
 	params.Set("end_timestamp", strconv.FormatInt(endTime.Unix()*1000, 10))
 	params.Set("resolution", resolution)
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getVolatilityIndexData, params), &resp)
 }
 
@@ -479,7 +479,7 @@ func (d *Deribit) GetPublicTicker(instrument string) (TickerData, error) {
 	var resp TickerData
 	params := url.Values{}
 	params.Set("instrument_name", instrument)
-	return resp, d.SendHTTPRequest(exchange.RestSpot,
+	return resp, d.SendHTTPRequest(exchange.RestFutures,
 		common.EncodeURLValues(getTicker, params), &resp)
 }
 
@@ -518,7 +518,7 @@ func (d *Deribit) GetAccountSummary(currency string, extended bool) (AccountSumm
 		extendedStr = "true"
 	}
 	params.Set("extended", extendedStr)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		common.EncodeURLValues(getAccountSummary, params), params, &resp)
 }
 
@@ -528,7 +528,7 @@ func (d *Deribit) CancelWithdrawal(currency string, id int64) (CancelWithdrawalD
 	params := url.Values{}
 	params.Set("currency", currency)
 	params.Set("id", strconv.FormatInt(id, 10))
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		cancelWithdrawal, params, &resp)
 }
 
@@ -541,7 +541,7 @@ func (d *Deribit) CancelTransferByID(currency, tfa string, id int64) (AccountSum
 		params.Set("tfa", tfa)
 	}
 	params.Set("id", strconv.FormatInt(id, 10))
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		common.EncodeURLValues(cancelTransferByID, params), params, &resp)
 }
 
@@ -550,7 +550,7 @@ func (d *Deribit) CreateDepositAddress(currency string) (DepositAddressData, err
 	var resp DepositAddressData
 	params := url.Values{}
 	params.Set("currency", currency)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		createDepositAddress, params, &resp)
 }
 
@@ -559,7 +559,7 @@ func (d *Deribit) GetCurrentDepositAddress(currency string) (DepositAddressData,
 	var resp DepositAddressData
 	params := url.Values{}
 	params.Set("currency", currency)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		createDepositAddress, params, &resp)
 }
 
@@ -574,7 +574,7 @@ func (d *Deribit) GetDeposits(currency string, count, offset int64) (DepositsDat
 	if offset != 0 {
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getDeposits, params, &resp)
 }
 
@@ -589,7 +589,7 @@ func (d *Deribit) GetTransfers(currency string, count, offset int64) (TransferDa
 	if offset != 0 {
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getTransfers, params, &resp)
 }
 
@@ -604,7 +604,7 @@ func (d *Deribit) GetWithdrawals(currency string, count, offset int64) (Withdraw
 	if offset != 0 {
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getWithdrawals, params, &resp)
 }
 
@@ -614,7 +614,7 @@ func (d *Deribit) SubmitTransferToSubAccount(currency string, amount float64, de
 	params := url.Values{}
 	params.Set("currency", currency)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		submitTransferToSubaccount, params, &resp)
 }
 
@@ -627,7 +627,7 @@ func (d *Deribit) SubmitTransferToUser(currency, tfa string, amount float64, des
 		params.Set("tfa", tfa)
 	}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		submitTransferToSubaccount, params, &resp)
 }
 
@@ -644,7 +644,7 @@ func (d *Deribit) SubmitWithdraw(currency, address, priority, tfa string, amount
 		params.Set("tfa", tfa)
 	}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		submitWithdraw, params, &resp)
 }
 
@@ -654,7 +654,7 @@ func (d *Deribit) ChangeAPIKeyName(id int64, name string) (APIKeyData, error) {
 	params := url.Values{}
 	params.Set("id", strconv.FormatInt(id, 10))
 	params.Set("name", name)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		changeAPIKeyName, params, &resp)
 }
 
@@ -664,7 +664,7 @@ func (d *Deribit) ChangeScopeInAPIKey(id int64, maxScope string) (APIKeyData, er
 	params := url.Values{}
 	params.Set("id", strconv.FormatInt(id, 10))
 	params.Set("max_scope", maxScope)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		changeScopeInAPIKey, params, &resp)
 }
 
@@ -674,7 +674,7 @@ func (d *Deribit) ChangeSubAccountName(sid int64, name string) (string, error) {
 	params.Set("sid", strconv.FormatInt(sid, 10))
 	params.Set("name", name)
 	var resp string
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		changeSubAccountName, params, &resp)
 	if err != nil {
 		return "", err
@@ -698,14 +698,14 @@ func (d *Deribit) CreateAPIKey(maxScope, name string, defaultKey bool) (APIKeyDa
 		defaultKeyStr = "true"
 	}
 	params.Set("default", defaultKeyStr)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		createAPIKey, params, &resp)
 }
 
 // CreateSubAccount creates a new subaccount
 func (d *Deribit) CreateSubAccount() (SubAccountData, error) {
 	var resp SubAccountData
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		createSubAccount, nil, &resp)
 }
 
@@ -714,7 +714,7 @@ func (d *Deribit) DisableAPIKey(id int64) (APIKeyData, error) {
 	var resp APIKeyData
 	params := url.Values{}
 	params.Set("id", strconv.FormatInt(id, 10))
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		disableAPIKey, params, &resp)
 }
 
@@ -723,7 +723,7 @@ func (d *Deribit) DisableTFAForSubAccount(sid int64) (string, error) {
 	var resp string
 	params := url.Values{}
 	params.Set("sid", strconv.FormatInt(sid, 10))
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		disableTFAForSubaccount, params, &resp)
 	if err != nil {
 		return "", err
@@ -737,7 +737,7 @@ func (d *Deribit) DisableTFAForSubAccount(sid int64) (string, error) {
 // EnableAffiliateProgram enables the affiliate program
 func (d *Deribit) EnableAffiliateProgram() (string, error) {
 	var resp string
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		enableAffiliateProgram, nil, &resp)
 	if err != nil {
 		return "", err
@@ -753,7 +753,7 @@ func (d *Deribit) EnableAPIKey(id int64) (APIKeyData, error) {
 	var resp APIKeyData
 	params := url.Values{}
 	params.Set("id", strconv.FormatInt(id, 10))
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		enableAPIKey, params, &resp)
 }
 
@@ -762,21 +762,21 @@ func (d *Deribit) GetAffiliateProgramInfo(id int64) (AffiliateProgramInfo, error
 	var resp AffiliateProgramInfo
 	params := url.Values{}
 	params.Set("id", strconv.FormatInt(id, 10))
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getAffiliateProgramInfo, params, &resp)
 }
 
 // GetEmailLanguage gets the current language set for the email
 func (d *Deribit) GetEmailLanguage() (string, error) {
 	var resp string
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getEmailLanguage, nil, &resp)
 }
 
 // GetNewAnnouncements gets new announcements
 func (d *Deribit) GetNewAnnouncements() ([]PrivateAnnouncementsData, error) {
 	var resp []PrivateAnnouncementsData
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getNewAnnouncements, nil, &resp)
 }
 
@@ -785,7 +785,7 @@ func (d *Deribit) GetPosition(instrumentName string) (PositionData, error) {
 	var resp PositionData
 	var params url.Values
 	params.Set("instrument_name", instrumentName)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getPosition, params, &resp)
 }
 
@@ -798,7 +798,7 @@ func (d *Deribit) GetSubAccounts(withPortfolio bool) ([]SubAccountData, error) {
 		withPortfolioStr = "true"
 	}
 	params.Set("with_portfolio", withPortfolioStr)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getSubAccounts, params, &resp)
 }
 
@@ -810,7 +810,7 @@ func (d *Deribit) GetPositions(currency, kind string) ([]PositionData, error) {
 	if kind != "" {
 		params.Set("kind", kind)
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getPositions, params, &resp)
 }
 
@@ -833,7 +833,7 @@ func (d *Deribit) GetTransactionLog(currency, query string, startTime, endTime t
 	if continuation != 0 {
 		params.Set("continuation", strconv.FormatInt(continuation, 10))
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getTransactionLog, params, &resp)
 }
 
@@ -844,7 +844,7 @@ func (d *Deribit) ListAPIKeys(tfa string) ([]APIKeyData, error) {
 	if tfa != "" {
 		params.Set("tfa", tfa)
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		listAPIKeys, params, &resp)
 }
 
@@ -853,7 +853,7 @@ func (d *Deribit) RemoveAPIKey(id int64) (string, error) {
 	var resp string
 	var params url.Values
 	params.Set("id", strconv.FormatInt(id, 10))
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		removeAPIKey, params, &resp)
 	if err != nil {
 		return "", err
@@ -869,7 +869,7 @@ func (d *Deribit) RemoveSubAccount(subAccountID int64) (string, error) {
 	var resp string
 	var params url.Values
 	params.Set("subaccount_id", strconv.FormatInt(subAccountID, 10))
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		removeSubAccount, params, &resp)
 	if err != nil {
 		return "", err
@@ -885,7 +885,7 @@ func (d *Deribit) ResetAPIKey(id int64) (APIKeyData, error) {
 	var resp APIKeyData
 	var params url.Values
 	params.Set("id", strconv.FormatInt(id, 10))
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		resetAPIKey, params, &resp)
 }
 
@@ -894,7 +894,7 @@ func (d *Deribit) SetAnnouncementAsRead(id int64) (string, error) {
 	var resp string
 	var params url.Values
 	params.Set("announcement_id", strconv.FormatInt(id, 10))
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		setAnnouncementAsRead, params, &resp)
 	if err != nil {
 		return "", err
@@ -911,7 +911,7 @@ func (d *Deribit) SetEmailForSubAccount(sid int64, email string) (string, error)
 	var params url.Values
 	params.Set("sid", strconv.FormatInt(sid, 10))
 	params.Set("email", email)
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		setEmailForSubAccount, params, &resp)
 	if err != nil {
 		return "", err
@@ -927,7 +927,7 @@ func (d *Deribit) SetEmailLanguage(language string) (string, error) {
 	var resp string
 	var params url.Values
 	params.Set("language", language)
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		setEmailLanguage, params, &resp)
 	if err != nil {
 		return "", err
@@ -944,7 +944,7 @@ func (d *Deribit) SetPasswordForSubAccount(sid int64, password string) (string, 
 	var params url.Values
 	params.Set("password", password)
 	params.Set("sid", strconv.FormatInt(sid, 10))
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		setPasswordForSubAccount, params, &resp)
 	if err != nil {
 		return "", err
@@ -965,7 +965,7 @@ func (d *Deribit) ToggleNotificationsFromSubAccount(sid int64, state bool) (stri
 		notifStateStr = "true"
 	}
 	params.Set("state", notifStateStr)
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		toggleNotificationsFromSubAccount, params, &resp)
 	if err != nil {
 		return "", err
@@ -986,7 +986,7 @@ func (d *Deribit) ToggleSubAccountLogin(sid int64, state bool) (string, error) {
 		notifStateStr = "true"
 	}
 	params.Set("state", notifStateStr)
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		toggleSubAccountLogin, params, &resp)
 	if err != nil {
 		return "", err
@@ -1044,7 +1044,7 @@ func (d *Deribit) PrivateBuy(instrumentName, orderType, label, timeInForce, trig
 	if advanced != "" {
 		params.Set("advanced", advanced)
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		submitBuy, params, &resp)
 }
 
@@ -1095,7 +1095,7 @@ func (d *Deribit) PrivateSell(instrumentName, orderType, label, timeInForce, tri
 	if advanced != "" {
 		params.Set("advanced", advanced)
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		submitSell, params, &resp)
 }
 
@@ -1131,7 +1131,7 @@ func (d *Deribit) PrivateEdit(orderID, advanced string, amount, price, triggerPr
 	if advanced != "" {
 		params.Set("advanced", advanced)
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		editByLabel, params, &resp)
 }
 
@@ -1170,7 +1170,7 @@ func (d *Deribit) EditOrderByLabel(label, instrumentName, advanced string, amoun
 	if advanced != "" {
 		params.Set("advanced", advanced)
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		editByLabel, params, &resp)
 }
 
@@ -1179,14 +1179,14 @@ func (d *Deribit) SubmitCancel(orderID string) (PrivateCancelData, error) {
 	var resp PrivateCancelData
 	var params url.Values
 	params.Set("order_id", orderID)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		submitCancel, params, &resp)
 }
 
 // SubmitCancelAll sends a request to cancel all user orders in all currencies and instruments
 func (d *Deribit) SubmitCancelAll() (int64, error) {
 	var resp int64
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		submitCancelAll, nil, &resp)
 }
 
@@ -1201,7 +1201,7 @@ func (d *Deribit) SubmitCancelAllByCurrency(currency, kind, orderType string) (i
 	if orderType != "" {
 		params.Set("order_type", orderType)
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		submitCancelAllByCurrency, params, &resp)
 }
 
@@ -1213,7 +1213,7 @@ func (d *Deribit) SubmitCancelAllByInstrument(instrumentName, orderType string) 
 	if orderType != "" {
 		params.Set("order_type", orderType)
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		submitCancelAllByInstrument, params, &resp)
 }
 
@@ -1222,7 +1222,7 @@ func (d *Deribit) SubmitCancelByLabel(label string) (int64, error) {
 	var resp int64
 	var params url.Values
 	params.Set("label", label)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		submitCancelByLabel, params, &resp)
 }
 
@@ -1235,7 +1235,7 @@ func (d *Deribit) SubmitClosePosition(instrumentName, orderType string, price fl
 		params.Set("order_type", orderType)
 	}
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		submitClosePosition, params, &resp)
 }
 
@@ -1246,7 +1246,7 @@ func (d *Deribit) GetMargins(instrumentName string, amount, price float64) (GetM
 	params.Set("instrument_name", instrumentName)
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getMargins, params, &resp)
 }
 
@@ -1255,7 +1255,7 @@ func (d *Deribit) GetMMPConfig(currency string) (MMPConfigData, error) {
 	var resp MMPConfigData
 	var params url.Values
 	params.Set("currency", currency)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getMMPConfig, params, &resp)
 }
 
@@ -1270,7 +1270,7 @@ func (d *Deribit) GetOpenOrdersByCurrency(currency, kind, orderType string) ([]O
 	if orderType != "" {
 		params.Set("type", orderType)
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getOpenOrdersByCurrency, params, &resp)
 }
 
@@ -1282,7 +1282,7 @@ func (d *Deribit) GetOpenOrdersByInstrument(instrumentName, orderType string) ([
 	if orderType != "" {
 		params.Set("type", orderType)
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getOpenOrdersByInstrument, params, &resp)
 }
 
@@ -1310,7 +1310,7 @@ func (d *Deribit) GetOrderHistoryByCurrency(currency, kind string, count, offset
 		includeUnfilledStr = "true"
 	}
 	params.Set("include_unfilled", includeUnfilledStr)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getOrderHistoryByCurrency, params, &resp)
 }
 
@@ -1335,7 +1335,7 @@ func (d *Deribit) GetOrderHistoryByInstrument(instrumentName string, count, offs
 		includeUnfilledStr = "true"
 	}
 	params.Set("include_unfilled", includeUnfilledStr)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getOrderHistoryByInstrument, params, &resp)
 }
 
@@ -1343,7 +1343,7 @@ func (d *Deribit) GetOrderHistoryByInstrument(instrumentName string, count, offs
 func (d *Deribit) GetOrderMarginsByID(ids []string) ([]OrderData, error) {
 	var resp []OrderData
 	// NOTE TO SELF!! need to pass ids params
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getOrderMarginByIDs, nil, &resp)
 }
 
@@ -1352,7 +1352,7 @@ func (d *Deribit) GetOrderState(orderID string) (OrderData, error) {
 	var resp OrderData
 	var params url.Values
 	params.Set("order_id", orderID)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getOrderHistoryByInstrument, params, &resp)
 }
 
@@ -1370,7 +1370,7 @@ func (d *Deribit) GetTriggerOrderHistory(currency, instrumentName, continuation 
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getTriggerOrderHistory, params, &resp)
 }
 
@@ -1400,7 +1400,7 @@ func (d *Deribit) GetUserTradesByCurrency(currency, kind, startID, endID, sortin
 	}
 	params.Set("include_old", includeOldString)
 
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getUserTradesByCurrency, params, &resp)
 }
 
@@ -1425,20 +1425,20 @@ func (d *Deribit) GetUserTradesByCurrencyAndTime(currency, kind, sorting string,
 		params.Set("start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
 		params.Set("end_timestamp", strconv.FormatInt(endTime.Unix()*1000, 10))
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getUserTradesByCurrency, params, &resp)
 }
 
 // GetUserTradesByInstrument sends a request to fetch user trades sorted by instrument
-func (d *Deribit) GetUserTradesByInstrument(instrumentName, startSeq, endSeq, sorting string, count int64, includeOld bool) (UserTradesData, error) {
+func (d *Deribit) GetUserTradesByInstrument(instrumentName, sorting string, startSeq, endSeq, count int64, includeOld bool) (UserTradesData, error) {
 	var resp UserTradesData
 	params := url.Values{}
 	params.Set("instrument_name", instrumentName)
-	if startSeq != "" {
-		params.Set("start_seq", startSeq)
+	if startSeq != 0 {
+		params.Set("start_seq", strconv.FormatInt(startSeq, 10))
 	}
-	if endSeq != "" {
-		params.Set("end_seq", endSeq)
+	if endSeq != 0 {
+		params.Set("end_seq", strconv.FormatInt(endSeq, 10))
 	}
 	if sorting != "" {
 		params.Set("sorting", sorting)
@@ -1451,7 +1451,7 @@ func (d *Deribit) GetUserTradesByInstrument(instrumentName, startSeq, endSeq, so
 		includeOldString = "true"
 	}
 	params.Set("include_old", includeOldString)
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getUserTradesByInstrument, params, &resp)
 }
 
@@ -1473,7 +1473,7 @@ func (d *Deribit) GetUserTradesByInstrumentAndTime(instrument, sorting string, c
 		params.Set("start_timestamp", strconv.FormatInt(startTime.Unix()*1000, 10))
 		params.Set("end_timestamp", strconv.FormatInt(endTime.Unix()*1000, 10))
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getUserTradesByInstrumentAndTime, params, &resp)
 }
 
@@ -1485,7 +1485,7 @@ func (d *Deribit) GetUserTradesByOrder(orderID, sorting string) (UserTradesData,
 	if sorting != "" {
 		params.Set("sorting", sorting)
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getUserTradesByInstrumentAndTime, params, &resp)
 }
 
@@ -1494,7 +1494,7 @@ func (d *Deribit) ResetMMP(currency string) (string, error) {
 	var resp string
 	params := url.Values{}
 	params.Set("currency", currency)
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		resetMMP, params, &resp)
 	if err != nil {
 		return "", err
@@ -1518,7 +1518,7 @@ func (d *Deribit) SetMMPConfig(currency string, interval, frozenTime int64, quan
 	if quantityLimit != 0 {
 		params.Set("delta_limit", strconv.FormatFloat(deltaLimit, 'f', -1, 64))
 	}
-	err := d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		resetMMP, params, &resp)
 	if err != nil {
 		return "", err
@@ -1529,8 +1529,8 @@ func (d *Deribit) SetMMPConfig(currency string, interval, frozenTime int64, quan
 	return resp, nil
 }
 
-// SetMMPConfig sends a request to set the given parameter values to the mmp config for the provided currency
-func (d *Deribit) GetSettlementHistoryByInstrument(instrumentName, settlementType, continuation string, count, searchTimeStamp int64) (PrivateSettlementsHistoryData, error) {
+// GetSettlementHistoryByInstrument sends a request to fetch settlement history data sorted by instrument
+func (d *Deribit) GetSettlementHistoryByInstrument(instrumentName, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (PrivateSettlementsHistoryData, error) {
 	var resp PrivateSettlementsHistoryData
 	params := url.Values{}
 	params.Set("instrument_name", instrumentName)
@@ -1540,8 +1540,35 @@ func (d *Deribit) GetSettlementHistoryByInstrument(instrumentName, settlementTyp
 	if continuation != "" {
 		params.Set("contiuation", continuation)
 	}
-	return resp, d.SendHTTPAuthRequest(exchange.RestSpot, http.MethodGet,
+	if count != 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if !searchStartTimeStamp.IsZero() {
+		params.Set("search_start_timestamp", strconv.FormatInt(searchStartTimeStamp.Unix()*1000, 10))
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
 		getSettlementHistoryByInstrument, params, &resp)
+}
+
+// GetSettlementHistoryByInstrument sends a request to fetch settlement history data sorted by currency
+func (d *Deribit) GetSettlementHistoryByCurency(currency, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (PrivateSettlementsHistoryData, error) {
+	var resp PrivateSettlementsHistoryData
+	params := url.Values{}
+	params.Set("currency", currency)
+	if settlementType != "" {
+		params.Set("settlement_type", settlementType)
+	}
+	if continuation != "" {
+		params.Set("contiuation", continuation)
+	}
+	if count != 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if !searchStartTimeStamp.IsZero() {
+		params.Set("search_start_timestamp", strconv.FormatInt(searchStartTimeStamp.Unix()*1000, 10))
+	}
+	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
+		getSettlementHistoryByCurrency, params, &resp)
 }
 
 // SendAuthHTTPRequest sends an authenticated request to deribit api

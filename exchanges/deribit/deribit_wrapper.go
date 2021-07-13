@@ -1,6 +1,7 @@
 package deribit
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -79,7 +80,7 @@ func (d *Deribit) SetDefaults() {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 	}
 
-	err = d.StoreAssetPairFormat(asset.Spot, fmt1)
+	err = d.StoreAssetPairFormat(asset.Futures, fmt1)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -115,7 +116,7 @@ func (d *Deribit) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	d.API.Endpoints = d.NewEndpoints()
 	d.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot: deribitAPIURL,
+		exchange.RestFutures: deribitAPIURL,
 		// exchange.WebsocketSpot: deribitWSAPIURL,
 	})
 	d.Websocket = stream.New()
@@ -214,8 +215,25 @@ func (d *Deribit) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (d *Deribit) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	// Implement fetching the exchange available pairs if supported
-	return nil, nil
+	if !d.SupportsAsset(asset) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", asset, d.Name)
+	}
+
+	currs, err := d.GetCurrencies()
+	if err != nil {
+		return nil, err
+	}
+	var resp []string
+	for x := range currs {
+		instrumentsData, err := d.GetInstrumentsData(currs[x].Currency, "", false)
+		if err != nil {
+			return nil, err
+		}
+		for y := range instrumentsData {
+			resp = append(resp, instrumentsData[y].InstrumentName)
+		}
+	}
+	return resp, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
