@@ -379,9 +379,7 @@ func (m *OrderManager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.T
 			if v[i].LastUpdated.After(latestUpdate) {
 				latestUpdate = v[i].LastUpdated
 			}
-
-			cpy := *v[i]
-			os = append(os, cpy)
+			os = append(os, *v[i])
 		}
 	}
 
@@ -390,30 +388,15 @@ func (m *OrderManager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.T
 
 // GetOrdersFiltered returns a snapshot of all orders in the order store.
 // Filtering is applied based on the order.Filter unless entries are empty
-func (m *OrderManager) GetOrdersFiltered(f *order.Filter) ([]order.Detail, time.Time, error) {
+func (m *OrderManager) GetOrdersFiltered(f *order.Filter) ([]order.Detail, error) {
 	if m == nil {
-		return nil, time.Time{}, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
 
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
-		return nil, time.Time{}, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
-	var os []order.Detail
-	var latestUpdate time.Time
-	for _, v := range m.orderStore.Orders {
-		for i := range v {
-			if !v[i].MatchFilter(f) {
-				continue
-			}
-			if v[i].LastUpdated.After(latestUpdate) {
-				latestUpdate = v[i].LastUpdated
-			}
-
-			cpy := *v[i]
-			os = append(os, cpy)
-		}
-	}
-	return os, latestUpdate, nil
+	return m.orderStore.getFilteredOrders(f), nil
 }
 
 // processSubmittedOrder adds a new order to the manager
@@ -689,8 +672,8 @@ func (s *store) upsert(od *order.Detail) error {
 
 // getByExchange returns orders by exchange
 func (s *store) getByExchange(exchange string) ([]*order.Detail, error) {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.m.RLock()
+	defer s.m.RUnlock()
 	r, ok := s.Orders[strings.ToLower(exchange)]
 	if !ok {
 		return nil, ErrExchangeNotFound
@@ -701,8 +684,8 @@ func (s *store) getByExchange(exchange string) ([]*order.Detail, error) {
 // getByInternalOrderID will search all orders for our internal orderID
 // and return the order
 func (s *store) getByInternalOrderID(internalOrderID string) (*order.Detail, error) {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.m.RLock()
+	defer s.m.RUnlock()
 	for _, v := range s.Orders {
 		for x := range v {
 			if v[x].InternalOrderID == internalOrderID {
@@ -718,8 +701,8 @@ func (s *store) exists(det *order.Detail) bool {
 	if det == nil {
 		return false
 	}
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.m.RLock()
+	defer s.m.RUnlock()
 	r, ok := s.Orders[strings.ToLower(det.Exchange)]
 	if !ok {
 		return false
@@ -763,4 +746,33 @@ func (s *store) add(det *order.Detail) error {
 	s.Orders[strings.ToLower(det.Exchange)] = orders
 
 	return nil
+}
+
+// getFilteredOrders returns a filtered copy of the orders
+func (s *store) getFilteredOrders(f *order.Filter) []order.Detail {
+	s.m.RLock()
+	defer s.m.RUnlock()
+
+	var os []order.Detail
+	// optimization if Exchange is filtered
+	if f.Exchange != "" {
+		if e, ok := s.Orders[strings.ToLower(f.Exchange)]; ok {
+			for i := range e {
+				if !e[i].MatchFilter(f) {
+					continue
+				}
+				os = append(os, e[i].Copy())
+			}
+		}
+	} else {
+		for _, e := range s.Orders {
+			for i := range e {
+				if !e[i].MatchFilter(f) {
+					continue
+				}
+				os = append(os, e[i].Copy())
+			}
+		}
+	}
+	return os
 }

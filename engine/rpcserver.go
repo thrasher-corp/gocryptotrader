@@ -975,7 +975,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 		Pair:      cp,
 		AssetType: a,
 	}
-	resp, _, err = s.OrderManager.GetOrdersFiltered(&filter)
+	resp, err = s.OrderManager.GetOrdersFiltered(&filter)
 	if err != nil {
 		return nil, err
 	}

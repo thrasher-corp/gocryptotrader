@@ -362,7 +362,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 // MatchFilter will return true if a detail matches the filter criteria
 // empty elements are ignored
 func (d *Detail) MatchFilter(f *Filter) bool {
-	if f.Exchange != "" && d.Exchange != f.Exchange {
+	if f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange) {
 		return false
 	}
 	if f.InternalOrderID != "" && d.InternalOrderID != f.InternalOrderID {
@@ -399,6 +399,13 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 		return false
 	}
 	return true
+}
+
+// Copy will return a copy of Detail
+func (d *Detail) Copy() Detail {
+	c := *d
+	copy(c.Trades, d.Trades)
+	return c
 }
 
 // String implements the stringer interface

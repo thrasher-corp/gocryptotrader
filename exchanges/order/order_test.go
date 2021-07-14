@@ -1196,7 +1196,7 @@ func TestMatchFilter(t *testing.T) {
 		34: {filters[15], orders[15], true},
 		35: {filters[16], orders[15], true},
 	}
-	//specific tests
+	// specific tests
 	for num, tt := range tests {
 		if tt.o.MatchFilter(&tt.f) != tt.expRes {
 			t.Errorf("tests[%v] failed", num)
