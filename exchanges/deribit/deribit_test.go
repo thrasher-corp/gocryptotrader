@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -64,6 +65,52 @@ func TestFetchTradablePairs(t *testing.T) {
 		t.Error(err)
 	}
 	fmt.Println(pairs)
+
+	_, err = d.FetchTradablePairs(asset.Spot)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	pairs, err := d.UpdateTicker(currency.Pair{}, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = d.UpdateTicker(currency.Pair{}, asset.Spot)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
+	}
+	fmt.Println(pairs)
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+
+	cp, err := currency.NewPairFromString(btcInstrument)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmtPair, err := d.FormatExchangeCurrency(cp, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	obData, err := d.UpdateOrderbook(fmtPair, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(obData)
+
+	_, err = d.UpdateOrderbook(fmtPair, asset.Spot)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
+	}
 }
 
 // Implement tests for API endpoints below
@@ -658,6 +705,16 @@ func TestToggleSubAccountLogin(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.ToggleSubAccountLogin(1, false)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(a)
+}
+
+func TestSubmitSell(t *testing.T) {
+	d.Verbose = true
+	t.Parallel()
+	a, err := d.SubmitSell(btcInstrument, "limit", "testOrder", "", "", "", 1, 500000, 0, 0, false, false, false, false)
 	if err != nil {
 		t.Error(err)
 	}

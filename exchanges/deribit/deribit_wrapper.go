@@ -71,20 +71,14 @@ func (d *Deribit) SetDefaults() {
 	// can use this example below:
 
 	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-	}
-
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
+		},
+		ConfigFormat: &currency.PairFormat{Uppercase: true},
 	}
 
 	err = d.StoreAssetPairFormat(asset.Futures, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = d.StoreAssetPairFormat(asset.Margin, fmt2)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -214,11 +208,14 @@ func (d *Deribit) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (d *Deribit) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	if !d.SupportsAsset(asset) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", asset, d.Name)
+func (d *Deribit) FetchTradablePairs(assetType asset.Item) ([]string, error) {
+	if !d.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, d.Name)
 	}
-
+	format, err := d.GetPairFormat(assetType, false)
+	if err != nil {
+		return nil, err
+	}
 	currs, err := d.GetCurrencies()
 	if err != nil {
 		return nil, err
@@ -230,7 +227,11 @@ func (d *Deribit) FetchTradablePairs(asset asset.Item) ([]string, error) {
 			return nil, err
 		}
 		for y := range instrumentsData {
-			resp = append(resp, instrumentsData[y].InstrumentName)
+			curr, err := currency.NewPairFromString(instrumentsData[y].InstrumentName)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, format.Format(curr))
 		}
 	}
 	return resp, nil
@@ -239,42 +240,70 @@ func (d *Deribit) FetchTradablePairs(asset asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (d *Deribit) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := d.FetchTradablePairs(asset.Spot)
-	if err != nil {
-		return err
+	assets := d.GetAssetTypes()
+	fmt.Println(assets)
+	for x := range assets {
+		pairs, err := d.FetchTradablePairs(assets[x])
+		if err != nil {
+			return err
+		}
+		p, err := currency.NewPairsFromStrings(pairs)
+		if err != nil {
+			return err
+		}
+		err = d.UpdatePairs(p, assets[x], false, forceUpdate)
+		if err != nil {
+			return err
+		}
 	}
-
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-
-	return d.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (d *Deribit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-		tickerPrice := new(ticker.Price)
-		tick, err := d.GetTicker(p.String())
+	if !d.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType)
+	}
+
+	switch assetType {
+	case asset.Futures:
+		tradablePairs, err := d.FetchTradablePairs(assetType)
 		if err != nil {
-			return tickerPrice, err
+			return nil, err
 		}
-		tickerPrice = &ticker.Price{
-			High:    tick.High,
-			Low:     tick.Low,
-			Bid:     tick.Bid,
-			Ask:     tick.Ask,
-			Open:    tick.Open,
-			Close:   tick.Close,
-			Pair:    p,
+		for x := range tradablePairs {
+			cp, err := currency.NewPairFromString(tradablePairs[x])
+			if err != nil {
+				return nil, err
+			}
+
+			fmtPair, err := d.FormatExchangeCurrency(cp, assetType)
+			if err != nil {
+				return nil, err
+			}
+
+			tickerData, err := d.GetPublicTicker(fmtPair.String())
+			if err != nil {
+				return nil, err
+			}
+
+			var resp ticker.Price
+			resp.ExchangeName = d.Name
+			resp.Pair = cp
+			resp.AssetType = assetType
+			resp.Ask = tickerData.BestAskPrice
+			resp.AskSize = tickerData.BestAskAmount
+			resp.Bid = tickerData.BestBidPrice
+			resp.BidSize = tickerData.BestBidAmount
+			resp.High = tickerData.Stats.High
+			resp.Low = tickerData.Stats.Low
+			resp.Last = tickerData.LastPrice
+			err = ticker.ProcessTicker(&resp)
+			if err != nil {
+				return nil, err
+			}
 		}
-		err = ticker.ProcessTicker(d.Name, tickerPrice, assetType)
-		if err != nil {
-			return tickerPrice, err
-		}
-	*/
+	}
 	return ticker.GetTicker(d.Name, p, assetType)
 }
 
@@ -305,39 +334,70 @@ func (d *Deribit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 		VerifyOrderbook: d.CanVerifyOrderbook,
 	}
 
-	// NOTE: UPDATE ORDERBOOK EXAMPLE
-	/*
-		orderbookNew, err := d.GetOrderBook(exchange.FormatExchangeCurrency(d.Name, p).String(), 1000)
+	switch assetType {
+	case asset.Futures:
+		fmtPair, err := d.FormatExchangeCurrency(p, assetType)
+		if err != nil {
+			return nil, err
+		}
+
+		obData, err := d.GetOrderbookData(fmtPair.String(), 50)
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range obData.Asks {
+			book.Asks = append(book.Asks, orderbook.Item{
+				Price:  obData.Asks[x][0],
+				Amount: obData.Asks[x][1],
+			})
+		}
+
+		for x := range obData.Bids {
+			book.Bids = append(book.Bids, orderbook.Item{
+				Price:  obData.Bids[x][0],
+				Amount: obData.Bids[x][1],
+			})
+		}
+
+		err = book.Process()
 		if err != nil {
 			return book, err
 		}
-
-		for x := range orderbookNew.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
-				Amount: orderbookNew.Bids[x].Quantity,
-				Price: orderbookNew.Bids[x].Price,
-			})
-		}
-
-		for x := range orderbookNew.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
-				Amount: orderBookNew.Asks[x].Quantity,
-				Price: orderBookNew.Asks[x].Price,
-			})
-		}
-	*/
-
-	err := book.Process()
-	if err != nil {
-		return book, err
+	default:
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
-
 	return orderbook.Get(d.Name, p, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (d *Deribit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, common.ErrNotYetImplemented
+	var resp account.Holdings
+	resp.Exchange = d.Name
+	switch assetType {
+	case asset.Futures:
+		currencies, err := d.GetCurrencies()
+		if err != nil {
+			return resp, err
+		}
+		for x := range currencies {
+			data, err := d.GetAccountSummary(currencies[x].Currency, false)
+			if err != nil {
+				return resp, err
+			}
+
+			var subAcc account.SubAccount
+			subAcc.AssetType = asset.Futures
+			subAcc.Currencies = append(subAcc.Currencies, account.Balance{
+				CurrencyName: currency.NewCode(currencies[x].Currency),
+				TotalValue:   data.Balance,
+				Hold:         data.Balance - data.AvailableFunds,
+			})
+		}
+	default:
+		return resp, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, assetType)
+	}
+	return resp, nil
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies

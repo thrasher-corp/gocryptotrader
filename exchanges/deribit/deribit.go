@@ -1048,8 +1048,8 @@ func (d *Deribit) PrivateBuy(instrumentName, orderType, label, timeInForce, trig
 		submitBuy, params, &resp)
 }
 
-// PrivateSell submits a sell request with the parameters provided
-func (d *Deribit) PrivateSell(instrumentName, orderType, label, timeInForce, trigger, advanced string, amount, price, maxShow, triggerPrice float64, postOnly, rejectPostOnly, reduceOnly, mmp bool) (PrivateTradeData, error) {
+// SubmitSell submits a sell request with the parameters provided
+func (d *Deribit) SubmitSell(instrumentName, orderType, label, timeInForce, trigger, advanced string, amount, price, maxShow, triggerPrice float64, postOnly, rejectPostOnly, reduceOnly, mmp bool) (PrivateTradeData, error) {
 	var resp PrivateTradeData
 	params := url.Values{}
 	params.Set("instrument_name", instrumentName)

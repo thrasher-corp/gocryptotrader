@@ -14,6 +14,7 @@ type UnmarshalError struct {
 var (
 	errTypeAssert                    = errors.New("type assertion failed")
 	errStartTimeCannotBeAfterEndTime = errors.New("start timestamp cannot be after end timestamp")
+	errAssetTypeNotSupported = errors.New("assetType not supported")
 )
 
 // BookSummaryData stores summary data
