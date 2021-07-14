@@ -139,7 +139,7 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) error {
 	return nil
 }
 
-// Start starts the LakeBTC go routine
+// Start starts the Lbank go routine
 func (l *Lbank) Start(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {

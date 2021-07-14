@@ -80,7 +80,6 @@ _b in this context is an `IBotExchange` implemented struct_
 | Huobi.Pro | Yes | Yes | No |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | No |
-| LakeBTC | Yes | No | No |
 | Lbank | Yes | No | Yes |
 | LocalBitcoins | Yes | NA | No |
 | OKCoin International | Yes | Yes | No |
