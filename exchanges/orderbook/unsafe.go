@@ -5,8 +5,9 @@ import "sync"
 // Unsafe is an exported linked list reference to current the current bid/ask
 // heads and a reference to the underlying depth mutex. This allows for the
 // exposure of the internal list to a strategy or subsystem. The bid and ask
-// fields point to the actual in struct head field so that this struct can be
-// reusable and not needed to be called on each inspection.
+// fields point to the actual head fields contained on both linked list structs,
+// so that this struct can be reusable and not needed to be called on each
+// inspection.
 type Unsafe struct {
 	BidHead **Node
 	AskHead **Node
@@ -26,20 +27,16 @@ func (src *Unsafe) Unlock() {
 	src.m.Unlock()
 }
 
-// Locker defines functionality for locking and unlocking unsafe books
-type Locker interface {
-	Lock()
-	Unlock()
-}
-
-// LockWith locks both books for the context of cross orderbook inspection
-func (src *Unsafe) LockWith(dst Locker) {
+// LockWith locks both books for the context of cross orderbook inspection.
+// WARNING: When inspecting diametrically opposed books a higher order mutex
+// MUST be used or a dead lock will occur.
+func (src *Unsafe) LockWith(dst sync.Locker) {
 	src.m.Lock()
 	dst.Lock()
 }
 
 // UnlockWith unlocks both books for the context of cross orderbook inspection
-func (src *Unsafe) UnlockWith(dst Locker) {
+func (src *Unsafe) UnlockWith(dst sync.Locker) {
 	src.m.Unlock()
 	dst.Unlock()
 }

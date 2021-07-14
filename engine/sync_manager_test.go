@@ -198,3 +198,23 @@ func TestPrintOrderbookSummary(t *testing.T) {
 func TestRelayWebsocketEvent(t *testing.T) {
 	relayWebsocketEvent(nil, "", "", "")
 }
+
+func TestWaitForInitialSync(t *testing.T) {
+	var m *syncManager
+	err := m.WaitForInitialSync()
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Fatalf("received %v, but expected: %v", err, ErrNilSubsystem)
+	}
+
+	m = &syncManager{}
+	err = m.WaitForInitialSync()
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Fatalf("received %v, but expected: %v", err, ErrSubSystemNotStarted)
+	}
+
+	m.started = 1
+	err = m.WaitForInitialSync()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+}

@@ -909,3 +909,9 @@ func (bot *Engine) SetupExchanges() error {
 	}
 	return nil
 }
+
+// WaitForInitialSync allows for the initial sync wait for external strategy
+// utilisation
+func (e *Engine) WaitForInitialSync() error {
+	return e.currencyPairSyncer.WaitForInitialSync()
+}

@@ -879,6 +879,21 @@ func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 	)
 }
 
+// WaitForInitialSync allows for a routine to wait for an initial sync to be
+// completed without exposing the underlying type. This needs to be called in a
+// seperate routine.
+func (m *syncManager) WaitForInitialSync() error {
+	if m == nil {
+		return fmt.Errorf("sync manager %w", ErrNilSubsystem)
+	}
+
+	if atomic.LoadInt32(&m.started) == 0 {
+		return fmt.Errorf("sync manager %w", ErrSubSystemNotStarted)
+	}
+	m.initSyncWG.Wait()
+	return nil
+}
+
 func relayWebsocketEvent(result interface{}, event, assetType, exchangeName string) {
 	evt := WebsocketEvent{
 		Data:      result,
