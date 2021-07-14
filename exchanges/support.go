@@ -34,7 +34,6 @@ var Exchanges = []string{
 	"huobi",
 	"itbit",
 	"kraken",
-	"lakebtc",
 	"lbank",
 	"localbitcoins",
 	"okcoin international",
