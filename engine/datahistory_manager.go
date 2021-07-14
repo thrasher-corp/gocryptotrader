@@ -480,58 +480,54 @@ ranges:
 }
 
 func (m *DataHistoryManager) runValidationJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
-	var failures int64
-	startDate := job.StartDate
+	var intervalsProcessed int64
+	var times []time.Time
 	intervalLength := job.Interval.Duration() * time.Duration(job.RequestSizeLimit)
-validations:
+	lastTime := job.StartDate
+timesToFetch:
 	for k, v := range job.Results {
-		if !k.Equal(startDate) {
-			continue
-		}
-		for i := range v {
-			switch v[i].Status {
-			case dataHistoryIntervalMissingData:
-				startDate = k.Add(intervalLength)
-				continue validations
-			case dataHistoryStatusFailed:
-				failures++
-			case dataHistoryStatusComplete:
-				// this can occur in the scenario where data is missing
-				// however no errors were encountered when data is missing
-				// eg an exchange only returns an empty slice
-				// or the exchange is simply missing the data and does not have an error
-				startDate = k.Add(intervalLength)
-				continue validations
+		if len(v) < int(job.MaxRetryAttempts) {
+			for x := range v {
+				if v[x].Status == dataHistoryStatusComplete {
+					continue timesToFetch
+				}
 			}
-		}
-		if failures >= job.MaxRetryAttempts {
-			// failure threshold reached, we should not attempt
-			// to check this interval again
+			times = append(times, k)
+		} else {
 			for x := range v {
 				v[x].Status = dataHistoryIntervalMissingData
 			}
 			job.Results[k] = v
-			startDate = k.Add(intervalLength)
-			continue
+		}
+		if k.After(lastTime) {
+			lastTime = k
 		}
 	}
-	for i := int64(0); i < job.RunBatchLimit; i++ {
-		if err := common.StartEndTimeCheck(startDate, job.EndDate); err != nil {
+	for i := lastTime.Add(intervalLength); i.Before(job.EndDate); i = i.Add(intervalLength) {
+		times = append(times, i)
+	}
+
+	for i := range times {
+		if intervalsProcessed >= job.RunBatchLimit {
 			break
 		}
-		requestEnd := startDate.Add(intervalLength)
+		if err := common.StartEndTimeCheck(times[i], job.EndDate); err != nil {
+			break
+		}
+		requestEnd := times[i].Add(intervalLength)
 		if requestEnd.After(job.EndDate) {
 			requestEnd = job.EndDate
 		}
 		if m.verbose {
 			log.Debugf(log.DataHistory, "running data history job %v start: %s end: %s interval: %s datatype: %s",
 				job.Nickname,
-				startDate,
+				times[i],
 				requestEnd,
 				job.Interval,
 				job.DataType)
 		}
-		result, err := m.validateCandles(job, exch, startDate, requestEnd)
+		intervalsProcessed++
+		result, err := m.validateCandles(job, exch, times[i], requestEnd)
 		if err != nil {
 			return err
 		}
@@ -539,7 +535,6 @@ validations:
 		lookup := job.Results[result.IntervalStartDate]
 		lookup = append(lookup, *result)
 		job.Results[result.IntervalStartDate] = lookup
-		startDate = startDate.Add(intervalLength)
 	}
 	return nil
 }
@@ -796,6 +791,21 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
+	if len(dbCandles.Candles) == 0 {
+		r.Result = fmt.Sprintf("missing database candles for period %v-%v", startRange, endRange)
+		r.Status = dataHistoryIntervalMissingData
+		return r, nil
+	}
+
+	if len(dbCandles.Candles) > 0 && len(apiCandles.Candles) == 0 {
+		r.Result = fmt.Sprintf("no matching API data for database candles for period %v-%v", startRange, endRange)
+		r.Status = dataHistoryStatusFailed
+		return r, nil
+	}
+	if len(dbCandles.Candles) != len(apiCandles.Candles) && m.verbose {
+		log.Warnf(log.DataHistory, "mismatched candle length for period %v-%v. DB: %v, API: %v", startRange, endRange, len(dbCandles.Candles), len(apiCandles.Candles))
+	}
+
 	dbCandleMap := make(map[int64]kline.Candle)
 	for i := range dbCandles.Candles {
 		dbCandleMap[dbCandles.Candles[i].Time.Unix()] = dbCandles.Candles[i]
@@ -805,7 +815,6 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 	for i := int64(0); i < job.DecimalPlaceComparison; i++ {
 		multiplier *= 10
 	}
-	anyCandleModified := false
 	for i := range apiCandles.Candles {
 		can, ok := dbCandleMap[apiCandles.Candles[i].Time.Unix()]
 		if !ok {
@@ -814,65 +823,62 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 			continue
 		}
 		var candleIssues []string
-		var replaceCandle bool
+		var candleModified bool
 
-		issue, shouldReplaceCandle := m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Open, can.Open, "Open")
+		issue, modified := m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Open, can.Open, "Open")
 		if issue != "" {
 			candleIssues = append(candleIssues, issue)
 		}
-		if shouldReplaceCandle {
-			replaceCandle = true
+		if modified {
+			candleModified = true
 		}
-		issue, shouldReplaceCandle = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].High, can.High, "High")
+		issue, modified = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].High, can.High, "High")
 		if issue != "" {
 			candleIssues = append(candleIssues, issue)
 		}
-		if shouldReplaceCandle {
-			replaceCandle = true
+		if modified {
+			candleModified = true
 		}
-		issue, shouldReplaceCandle = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Low, can.Low, "Low")
+		issue, modified = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Low, can.Low, "Low")
 		if issue != "" {
 			candleIssues = append(candleIssues, issue)
 		}
-		if shouldReplaceCandle {
-			replaceCandle = true
+		if modified {
+			candleModified = true
 		}
-		issue, shouldReplaceCandle = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Close, can.Close, "Close")
+		issue, modified = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Close, can.Close, "Close")
 		if issue != "" {
 			candleIssues = append(candleIssues, issue)
 		}
-		if shouldReplaceCandle {
-			replaceCandle = true
+		if modified {
+			candleModified = true
 		}
-		issue, shouldReplaceCandle = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Volume, can.Volume, "Volume")
+		issue, modified = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Volume, can.Volume, "Volume")
 		if issue != "" {
 			candleIssues = append(candleIssues, issue)
 		}
-		if shouldReplaceCandle {
-			replaceCandle = true
+		if modified {
+			candleModified = true
 		}
-		if replaceCandle {
-			candleIssues = append(candleIssues, "replacing database candle data with API data")
-			apiCandles.Candles[i] = can
+		if candleModified {
+			candleIssues = append(candleIssues, "replacing mismatched database candle data with API data")
 		}
+		// we update candles regardless to link candle to validation job
+		apiCandles.Candles[i] = can
 
 		if len(candleIssues) > 0 {
-			anyCandleModified = true
 			candleIssues = append([]string{fmt.Sprintf("issues found at %v", can.Time.Format(common.SimpleTimeFormat))}, candleIssues...)
 			validationIssues = append(validationIssues, candleIssues...)
 			r.Status = dataHistoryStatusFailed
 			apiCandles.Candles[i].ValidationIssues = strings.Join(candleIssues, ", ")
 		}
-
 	}
 	if len(validationIssues) > 0 {
 		r.Result = strings.Join(validationIssues, " -- ")
 	}
-	if anyCandleModified {
-		_, err = m.candleSaver(&apiCandles, true)
-		if err != nil {
-			return nil, err
-		}
+	_, err = m.candleSaver(&apiCandles, true)
+	if err != nil {
+		return nil, err
 	}
 	return r, nil
 }
