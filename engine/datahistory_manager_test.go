@@ -1282,14 +1282,14 @@ func TestCheckCandleIssue(t *testing.T) {
 func TestCompletionCheck(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
-	err := m.completionCheck(nil, false, false)
+	err := m.completeJob(nil, false, false)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
 	}
 	j := &DataHistoryJob{
 		Status: dataHistoryStatusActive,
 	}
-	err = m.completionCheck(j, false, false)
+	err = m.completeJob(j, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -1297,7 +1297,7 @@ func TestCompletionCheck(t *testing.T) {
 		t.Errorf("received %v expected %v", j.Status, dataHistoryIntervalMissingData)
 	}
 
-	err = m.completionCheck(j, true, false)
+	err = m.completeJob(j, true, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -1305,7 +1305,7 @@ func TestCompletionCheck(t *testing.T) {
 		t.Errorf("received %v expected %v", j.Status, dataHistoryStatusComplete)
 	}
 
-	err = m.completionCheck(j, false, true)
+	err = m.completeJob(j, false, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -1313,7 +1313,7 @@ func TestCompletionCheck(t *testing.T) {
 		t.Errorf("received %v expected %v", j.Status, dataHistoryStatusFailed)
 	}
 
-	err = m.completionCheck(j, true, true)
+	err = m.completeJob(j, true, true)
 	if !errors.Is(err, errJobInvalid) {
 		t.Errorf("received %v expected %v", err, errJobInvalid)
 	}

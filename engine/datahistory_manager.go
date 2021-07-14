@@ -324,36 +324,6 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 		}
 	}
 
-	completed := true
-	allResultsSuccessful := true
-	allResultsFailed := true
-completionCheck:
-	for i := range job.rangeHolder.Ranges {
-		result, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
-		if !ok {
-			completed = false
-		}
-	results:
-		for j := range result {
-			switch result[j].Status {
-			case dataHistoryIntervalMissingData:
-				allResultsSuccessful = false
-				break results
-			case dataHistoryStatusComplete:
-				allResultsFailed = false
-				break results
-			default:
-				completed = false
-				break completionCheck
-			}
-		}
-	}
-	if completed {
-		err := m.completionCheck(job, allResultsSuccessful, allResultsFailed)
-		if err != nil {
-			return err
-		}
-	}
 	dbJob := m.convertJobToDBModel(job)
 	err := m.jobDB.Upsert(dbJob)
 	if err != nil {
@@ -368,6 +338,8 @@ completionCheck:
 	return nil
 }
 
+// runDataJob will fetch data from an API endpoint or convert existing database data
+// into a new candle type
 func (m *DataHistoryManager) runDataJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
 	var intervalsProcessed int64
 	var err error
@@ -476,70 +448,139 @@ ranges:
 		lookup = append(lookup, *result)
 		job.Results[result.IntervalStartDate] = lookup
 	}
+	completed := true
+	allResultsSuccessful := true
+	allResultsFailed := true
+completionCheck:
+	for i := range job.rangeHolder.Ranges {
+		result, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
+		if !ok {
+			completed = false
+		}
+	results:
+		for j := range result {
+			switch result[j].Status {
+			case dataHistoryIntervalMissingData:
+				allResultsSuccessful = false
+				break results
+			case dataHistoryStatusComplete:
+				allResultsFailed = false
+				break results
+			default:
+				completed = false
+				break completionCheck
+			}
+		}
+	}
+	if completed {
+		err := m.completeJob(job, allResultsSuccessful, allResultsFailed)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
+// runValidationJob verifies existing database candle data against
+// the original API's data, or a secondary exchange source
 func (m *DataHistoryManager) runValidationJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
 	var intervalsProcessed int64
-	var times []time.Time
+	var jobIntervals, intervalsToCheck []time.Time
 	intervalLength := job.Interval.Duration() * time.Duration(job.RequestSizeLimit)
-	lastTime := job.StartDate
+	for i := job.StartDate; i.Before(job.EndDate); i = i.Add(intervalLength) {
+		jobIntervals = append(jobIntervals, i)
+	}
+	nextIntervalToProcess := job.StartDate
 timesToFetch:
-	for k, v := range job.Results {
-		if len(v) < int(job.MaxRetryAttempts) {
-			for x := range v {
-				if v[x].Status == dataHistoryStatusComplete {
+	for t, results := range job.Results {
+		if len(results) < int(job.MaxRetryAttempts) {
+			for x := range results {
+				if results[x].Status == dataHistoryStatusComplete {
 					continue timesToFetch
 				}
 			}
-			times = append(times, k)
+			intervalsToCheck = append(intervalsToCheck, t)
 		} else {
-			for x := range v {
-				v[x].Status = dataHistoryIntervalMissingData
+			for x := range results {
+				results[x].Status = dataHistoryIntervalMissingData
 			}
-			job.Results[k] = v
+			job.Results[t] = results
 		}
-		if k.After(lastTime) {
-			lastTime = k
+		if t.After(nextIntervalToProcess) {
+			nextIntervalToProcess = t.Add(intervalLength)
 		}
 	}
-	for i := lastTime.Add(intervalLength); i.Before(job.EndDate); i = i.Add(intervalLength) {
-		times = append(times, i)
+	for i := nextIntervalToProcess; i.Before(job.EndDate); i = i.Add(intervalLength) {
+		intervalsToCheck = append(intervalsToCheck, i)
 	}
 
-	for i := range times {
+	for i := range intervalsToCheck {
 		if intervalsProcessed >= job.RunBatchLimit {
 			break
 		}
-		if err := common.StartEndTimeCheck(times[i], job.EndDate); err != nil {
+		if err := common.StartEndTimeCheck(intervalsToCheck[i], job.EndDate); err != nil {
 			break
 		}
-		requestEnd := times[i].Add(intervalLength)
+		requestEnd := intervalsToCheck[i].Add(intervalLength)
 		if requestEnd.After(job.EndDate) {
 			requestEnd = job.EndDate
 		}
 		if m.verbose {
 			log.Debugf(log.DataHistory, "running data history job %v start: %s end: %s interval: %s datatype: %s",
 				job.Nickname,
-				times[i],
+				intervalsToCheck[i],
 				requestEnd,
 				job.Interval,
 				job.DataType)
 		}
 		intervalsProcessed++
-		result, err := m.validateCandles(job, exch, times[i], requestEnd)
+		result, err := m.validateCandles(job, exch, intervalsToCheck[i], requestEnd)
 		if err != nil {
 			return err
 		}
-
 		lookup := job.Results[result.IntervalStartDate]
 		lookup = append(lookup, *result)
 		job.Results[result.IntervalStartDate] = lookup
 	}
+
+	completed := true
+	allResultsSuccessful := true
+	allResultsFailed := true
+completionCheck:
+	for i := range jobIntervals {
+		results, ok := job.Results[jobIntervals[i]]
+		if !ok {
+			completed = false
+			break
+		}
+	results:
+		for j := range results {
+			switch results[j].Status {
+			case dataHistoryIntervalMissingData:
+				allResultsSuccessful = false
+				break results
+			case dataHistoryStatusComplete:
+				allResultsFailed = false
+				break results
+			default:
+				completed = false
+				break completionCheck
+			}
+		}
+	}
+	if completed {
+		err := m.completeJob(job, allResultsSuccessful, allResultsFailed)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func (m *DataHistoryManager) completionCheck(job *DataHistoryJob, allResultsSuccessful, allResultsFailed bool) error {
+// completeJob will set the job's overall status and
+// set any jobs' status where the current job is a prerequisite to 'active'
+func (m *DataHistoryManager) completeJob(job *DataHistoryJob, allResultsSuccessful, allResultsFailed bool) error {
 	if job == nil {
 		return errNilJob
 	}
@@ -853,12 +894,14 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		if modified {
 			candleModified = true
 		}
-		issue, modified = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Volume, can.Volume, "Volume")
-		if issue != "" {
-			candleIssues = append(candleIssues, issue)
-		}
-		if modified {
-			candleModified = true
+		if job.SecondaryExchangeSource == "" {
+			issue, modified = m.CheckCandleIssue(job, multiplier, apiCandles.Candles[i].Volume, can.Volume, "Volume")
+			if issue != "" {
+				candleIssues = append(candleIssues, issue)
+			}
+			if modified {
+				candleModified = true
+			}
 		}
 		if candleModified {
 			candleIssues = append(candleIssues, "replacing mismatched database candle data with API data")
@@ -884,6 +927,8 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 }
 
 // CheckCandleIssue verifies that stored data matches API data
+// a job can specifiy a level of rounding along with a tolerance percentage
+// a job can also replace data with API data if the database data exceeds the tolerance
 func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier int64, apiData, dbData float64, candleField string) (issue string, replace bool) {
 	if m == nil {
 		return ErrNilSubsystem.Error(), false
@@ -896,7 +941,7 @@ func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier in
 	}
 
 	floatiplier := float64(multiplier)
-	if multiplier > 0 {
+	if floatiplier > 0 {
 		apiData = math.Round(apiData*floatiplier) / floatiplier
 		dbData = math.Round(dbData*floatiplier) / floatiplier
 	}
@@ -912,7 +957,8 @@ func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier in
 		}
 		if job.ReplaceOnIssue &&
 			job.IssueTolerancePercentage != 0 &&
-			diff > job.IssueTolerancePercentage {
+			diff > job.IssueTolerancePercentage &&
+			job.SecondaryExchangeSource == "" {
 			replace = true
 		}
 	}
