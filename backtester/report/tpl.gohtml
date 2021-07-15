@@ -736,7 +736,6 @@
 									<th>Price</th>
 									<th>Action</th>
 									<th>Why</th>
-									<th>Candle Validation Issues</th>
 									<th>Committed Funds</th>
 									</thead>
 									<tbody >
@@ -747,13 +746,11 @@
 												<td>${{$ev.FillEvent.GetClosePrice}} {{$pair.Quote}}</td>
 												<td>{{$ev.FillEvent.GetDirection}}</td>
 												<td>{{$ev.FillEvent.GetReason}}</td>
-												<td>{{$ev.FillEvent.GetValidationIssues}}</td>
                                             {{ else if ne $ev.SignalEvent nil}}
 												<td>{{$ev.SignalEvent.GetTime}}</td>
 												<td>${{ printf "%f" $ev.SignalEvent.Price}} {{$pair.Quote}}</td>
 												<td>{{$ev.SignalEvent.GetDirection}}</td>
 												<td>{{$ev.SignalEvent.GetReason}}</td>
-												<td>{{$ev.SignalEvent.GetValidationIssues}}</td>
 											{{ end }}
 											<td>${{printf "%.8f" $ev.Holdings.CommittedFunds}} {{$pair.Quote}}</td>
 										</tr>

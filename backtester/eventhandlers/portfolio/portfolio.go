@@ -73,7 +73,7 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings) (*order.Orde
 		},
 		Direction: s.GetDirection(),
 	}
-	if signal.GetDirection() == "" {
+	if s.GetDirection() == "" {
 		return o, errInvalidDirection
 	}
 

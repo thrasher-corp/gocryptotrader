@@ -51,6 +51,10 @@ func TestMain(m *testing.M) {
 	os.Exit(t)
 }
 
+func TestButts(t *testing.T) {
+	t.Logf("%v", int64(gctkline.FiveMin.Duration()))
+}
+
 func TestLoadDataCandles(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot

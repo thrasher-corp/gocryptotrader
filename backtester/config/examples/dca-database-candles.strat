@@ -37,22 +37,22 @@
   }
  ],
  "data-settings": {
-  "interval": 86400000000000,
+  "interval": 300000000000,
   "data-type": "candle",
   "database-data": {
-   "start-date": "2020-11-01T00:00:00+11:00",
-   "end-date": "2020-12-01T00:00:00+11:00",
+   "start-date": "2020-07-08T00:00:00+10:00",
+   "end-date": "2020-07-08T10:00:00+10:00",
    "config-override": {
     "enabled": true,
     "verbose": false,
-    "driver": "sqlite",
+    "driver": "postgres",
     "connectionDetails": {
      "host": "localhost",
-     "port": 0,
-     "username": "",
-     "password": "",
-     "database": "testsqlite.db",
-     "sslmode": ""
+     "port": 5432,
+     "username": "postgres",
+     "password": "postgres",
+     "database": "postgres",
+     "sslmode": "disable"
     }
    },
    "inclusive-end-date": false

@@ -25,11 +25,14 @@ func (d *Data) GenerateReport() error {
 
 	for i := range d.OriginalCandles {
 		for j := range d.OriginalCandles[i].Candles {
+			if d.OriginalCandles[i].Candles[j].ValidationIssues == "" {
+				continue
+			}
 			d.Warnings = append(d.Warnings, Warning{
 				Exchange: d.OriginalCandles[i].Exchange,
 				Asset:    d.OriginalCandles[i].Asset,
 				Pair:     d.OriginalCandles[i].Pair,
-				Message:  d.OriginalCandles[i].Candles[j].ValidationIssues,
+				Message:  fmt.Sprintf("candle data %v", d.OriginalCandles[i].Candles[j].ValidationIssues),
 			})
 		}
 	}
