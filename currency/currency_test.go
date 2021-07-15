@@ -65,7 +65,7 @@ func TestGetDefaulCryptoCurrencies(t *testing.T) {
 }
 
 func TestGetDefaultFiatCurrencies(t *testing.T) {
-	expected := Currencies{USD, AUD, EUR, CNY}
+	expected := Currencies{BZD, KYD, LRD, SAR, MKD, SRD, BMD, KHR, COP, CRC, GIP, NIO, CHF, VEF, ILS, BSD, CUP, HKD, IDR, SYP, AWG, TTD, DOP, JPY, PAB, SHP, BGN, JEP, AZN, JMD, MXN, CAD, GGP, RUR, GBP, GTQ, LBP, THB, MZN, RSD, ARS, BYN, HRK, GHS, MUR, ANG, QAR, ZWD, CLP, INR, IRR, NOK, PHP, LKR, TRY, BAM, EGP, TVD, SVC, FJD, PEN, RUB, SOS, XCD, KZT, BWP, ISK, KPW, KRW, PKR, UYU, BND, MNT, SEK, UAH, BBD, GYD, NZD, SCR, ZAR, FKP, HUF, RON, AFN, PLN, OMR, USD, CZK, YER, AUD, EUR, TWD, BRL, DKK, KGS, PYG, SBD, UZS, IMP, MYR, NAD, NPR, LAK, VND, ALL, BOB, HNL, SGD, CNY, NGN}
 	if !GetDefaultFiatCurrencies().Match(expected) {
 		t.Errorf("GetDefaultFiatCurrencies() expected %s but received %s",
 			expected, GetDefaultFiatCurrencies())

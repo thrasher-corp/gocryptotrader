@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // IFXProvider enforces standard functions for all foreign exchange providers
@@ -89,20 +90,17 @@ func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (m
 	}
 
 	if len(shunt) != 0 {
-		rateNew, err := f.backupGetRate(baseCurrency, shunt)
-		if err != nil {
-			return nil, fmt.Errorf("failed to update rate map for currencies %v %v",
-				shunt,
-				err)
-		}
-
-		for key, val := range rateNew {
-			rates[key] = val
-		}
-
 		return rates, nil
 	}
 
+	rateNew, err := f.backupGetRate(baseCurrency, shunt)
+	if err != nil {
+		log.Warnf(log.Global, "failed to update rate map for currencies %v %v", shunt, err)
+	}
+
+	for key, val := range rateNew {
+		rates[key] = val
+	}
 	return rates, nil
 }
 
