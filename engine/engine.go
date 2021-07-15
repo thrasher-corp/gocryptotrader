@@ -911,6 +911,6 @@ func (bot *Engine) SetupExchanges() error {
 
 // WaitForInitialSync allows for the initial sync wait for external strategy
 // utilisation
-func (e *Engine) WaitForInitialSync() error {
-	return e.currencyPairSyncer.WaitForInitialSync()
+func (bot *Engine) WaitForInitialSync() error {
+	return bot.currencyPairSyncer.WaitForInitialSync()
 }

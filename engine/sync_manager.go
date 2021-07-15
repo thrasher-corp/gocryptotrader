@@ -885,7 +885,7 @@ func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 
 // WaitForInitialSync allows for a routine to wait for an initial sync to be
 // completed without exposing the underlying type. This needs to be called in a
-// seperate routine.
+// separate routine.
 func (m *syncManager) WaitForInitialSync() error {
 	if m == nil {
 		return fmt.Errorf("sync manager %w", ErrNilSubsystem)
