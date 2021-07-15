@@ -1,6 +1,6 @@
 {{define "engine datahistory_manager" -}}
 {{template "header" .}}
-## Current Features for {{.CapitalName}}
+## What is the data history manager?
 + The data history manager is an engine subsystem responsible for ensuring that the candle/trade history in the range you define is synchronised to your database
 + It is a long running synchronisation task designed to not overwhelm resources and ensure that all data requested is accounted for and saved to the database
 + The data history manager is disabled by default and requires a database connection to function
@@ -11,7 +11,19 @@
 + Jobs will fetch data at sizes you request (which can cater to hardware limitations such as low RAM)
 + Jobs are completed once all data has been fetched/attempted to be fetched in the time range
 
-## What are the prerequisites?
+## Current Features for {{.CapitalName}}
++ Retrieval and storage of exchange API candle data
++ Retrieval and storage of exchange API trade data
++ Conversion of stored trade data into custom candle data
++ Conversion of stored candle data into custom candle data
++ Validation of stored candle data against exchange API data
+  + Optionally can replace data when an issue is found on a customisable threshold
++ Validation of stored candle data against a secondary exchange's API data
++ Pausing and unpause jobs
++ Queue jobs via prerequisite jobs
++ GRPC command support for creating/modifying/checking jobs
+
+## What are the requirements for the data history manager?
 + Ensure you have a database setup, you can read about that [here](/database)
 + Ensure you have run dbmigrate under `/cmd/dbmigrate` via `dbmigrate -command=up`, you can read about that [here](/database#create-and-run-migrations)
 + Ensure you have seeded exchanges to the database via the application dbseed under `/cmd/dbseed`, you can read about it [here](/cmd/dbseed)
@@ -20,7 +32,7 @@
 + Read below on how to enable the data history manager and add data history jobs
 
 ## What is a data history job?
-A job is a set of parameters which will allow GoCryptoTrader to periodically retrieve historical data. Its purpose is to break up the process of retrieving large sets of data for multiple currencies and exchanges into more manageable chunks in a "set and forget" style.
+A job is a set of parameters which will allow GoCryptoTrader to periodically retrieve, convert or validate historical data. Its purpose is to break up the process of retrieving large sets of data for multiple currencies and exchanges into more manageable chunks in a "set and forget" style.
 For a breakdown of what a job consists of and what each parameter does, please review the database tables and the cycle details below.
 
 ### What kind of jobs are there?
@@ -53,7 +65,7 @@ For a breakdown of what a job consists of and what each parameter does, please r
 ### Candle intervals and trade fetching
 + A candle interval is required for a job, even when fetching trade data. This is to appropriately break down requests into time interval chunks. However, it is restricted to only a small range of times. This is to prevent fetching issues as fetching trades over a period of days or weeks will take a significant amount of time. When setting a job to fetch trades, the allowable range is less than 4 hours and greater than 10 minutes. So an interval of 1 hour will then fetch an hour's worth of trade data.
 
-## Job queuing
+## Job queuing and prerequisite jobs
 You can add jobs will will be paused by default by using the parameter `prerequisiteJobNickname`. The prerequisite job will be checked whether it exists and add a relationship.
 + When the prerequisite job status goes is set to `complete`, the data history manager will search for any jobs which are pending its completion and update their status to `active`.
 + If the prerequisite job is deleted or fails, the upcoming job will _not_ be run.

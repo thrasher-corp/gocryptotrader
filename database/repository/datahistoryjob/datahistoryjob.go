@@ -280,7 +280,8 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 
 		var secondaryExchangeID string
 		if jobs[i].SecondarySourceExchangeName != "" {
-			secondaryExchange, err := postgres.Exchanges(
+			var secondaryExchange *postgres.Exchange
+			secondaryExchange, err = postgres.Exchanges(
 				qm.Where("name = ?", strings.ToLower(jobs[i].SecondarySourceExchangeName))).One(ctx, tx)
 			if err != nil {
 				return fmt.Errorf("job %v, secondary exchange %v, %w", jobs[i].Nickname, jobs[i].SecondarySourceExchangeName, err)
@@ -325,14 +326,6 @@ func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, erro
 	}
 
 	return db.createSQLiteDataHistoryJobResponse(result)
-}
-
-func (db *DBService) getPrerequisiteJobByRelatedJobID(id string) (string, error) {
-	result, err := sqlite3.Datahistoryjobs(qm.Load(sqlite3.DatahistoryjobRels.PrerequisiteJobDatahistoryjobs), qm.Where("rel_job_id = ?", id)).One(context.Background(), db.sql)
-	if err != nil {
-		return "", err
-	}
-	return result.ID, nil
 }
 
 func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, error) {

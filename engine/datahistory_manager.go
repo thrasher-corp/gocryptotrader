@@ -186,7 +186,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			}
 			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 		case dataHistoryTradeDataType:
-			err := m.tradeChecker(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].rangeHolder)
+			err = m.tradeChecker(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].rangeHolder)
 			if err != nil && err != sql.ErrNoRows {
 				return fmt.Errorf("%s could not load trade data: %w", jobs[i].Nickname, err)
 			}
@@ -358,7 +358,8 @@ ranges:
 			if !ok && !job.OverwriteExistingData {
 				// we have determined that data is there, however it is not reflected in
 				// this specific job's results, which is required for a job to be complete
-				id, err := uuid.NewV4()
+				var id uuid.UUID
+				id, err = uuid.NewV4()
 				if err != nil {
 					return err
 				}
@@ -927,7 +928,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 }
 
 // CheckCandleIssue verifies that stored data matches API data
-// a job can specifiy a level of rounding along with a tolerance percentage
+// a job can specify a level of rounding along with a tolerance percentage
 // a job can also replace data with API data if the database data exceeds the tolerance
 func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier int64, apiData, dbData float64, candleField string) (issue string, replace bool) {
 	if m == nil {
@@ -1015,7 +1016,8 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		return fmt.Errorf("upsert job %w nickname: %s - status: %s ", errNicknameInUse, j.Nickname, j.Status)
 	}
 	if job.PrerequisiteJobNickname != "" {
-		p, err := m.GetByNickname(job.PrerequisiteJobNickname, false)
+		var p *DataHistoryJob
+		p, err = m.GetByNickname(job.PrerequisiteJobNickname, false)
 		if err != nil {
 			return fmt.Errorf("upsert job %s could not find prerequisite job %v %w", j.Nickname, j.PrerequisiteJobNickname, err)
 		}
