@@ -887,21 +887,22 @@ func (bot *Engine) SetupExchanges() error {
 			continue
 		}
 		wg.Add(1)
-		cfg := configs[x]
-		go func(currCfg config.ExchangeConfig) {
+		go func(c config.ExchangeConfig) {
 			defer wg.Done()
-			err := bot.LoadExchange(currCfg.Name, &wg)
+			err := bot.LoadExchange(c.Name, &wg)
 			if err != nil {
-				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", currCfg.Name, err)
+				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", c.Name, err)
 				return
 			}
+
+			fmt.Println(c.CurrencyPairs.GetPairs(asset.Spot, true))
 			gctlog.Debugf(gctlog.ExchangeSys,
 				"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
-				currCfg.Name,
-				common.IsEnabled(currCfg.API.AuthenticatedSupport),
-				common.IsEnabled(currCfg.Verbose),
+				c.Name,
+				common.IsEnabled(c.API.AuthenticatedSupport),
+				common.IsEnabled(c.Verbose),
 			)
-		}(cfg)
+		}(configs[x])
 	}
 	wg.Wait()
 	if len(bot.ExchangeManager.GetExchanges()) == 0 {

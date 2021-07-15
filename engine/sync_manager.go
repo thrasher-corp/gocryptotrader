@@ -79,6 +79,7 @@ func setupSyncManager(c *Config, exchangeManager iExchangeManager, websocketData
 		s.config.SyncContinuously, s.config.SyncTicker, s.config.SyncOrderbook,
 		s.config.SyncTrades, s.config.NumWorkers, s.config.Verbose, s.config.SyncTimeoutREST,
 		s.config.SyncTimeoutWebsocket)
+	s.inService.Add(1)
 	return s, nil
 }
 
@@ -98,6 +99,8 @@ func (m *syncManager) Start() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return ErrSubSystemAlreadyStarted
 	}
+	m.initSyncWG.Add(1)
+	m.inService.Done()
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
 	exchanges := m.exchangeManager.GetExchanges()
 	for x := range exchanges {
@@ -240,6 +243,7 @@ func (m *syncManager) Start() error {
 	for i := 0; i < m.config.NumWorkers; i++ {
 		go m.worker()
 	}
+	m.initSyncWG.Done()
 	return nil
 }
 
@@ -887,9 +891,11 @@ func (m *syncManager) WaitForInitialSync() error {
 		return fmt.Errorf("sync manager %w", ErrNilSubsystem)
 	}
 
+	m.inService.Wait()
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("sync manager %w", ErrSubSystemNotStarted)
 	}
+
 	m.initSyncWG.Wait()
 	return nil
 }
