@@ -23,6 +23,16 @@ func (d *Data) GenerateReport() error {
 		return err
 	}
 
+	for i := range d.OriginalCandles {
+		for j := range d.OriginalCandles[i].Candles {
+			d.Warnings = append(d.Warnings, Warning{
+				Exchange: d.OriginalCandles[i].Exchange,
+				Asset:    d.OriginalCandles[i].Asset,
+				Pair:     d.OriginalCandles[i].Pair,
+				Message:  d.OriginalCandles[i].Candles[j].ValidationIssues,
+			})
+		}
+	}
 	for i := range d.EnhancedCandles {
 		if len(d.EnhancedCandles[i].Candles) >= maxChartLimit {
 			d.EnhancedCandles[i].IsOverLimit = true

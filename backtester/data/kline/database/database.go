@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // LoadData retrieves data from an existing database using GoCryptoTrader's database handling implementation
@@ -29,6 +30,11 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 			return nil, fmt.Errorf("could not retrieve database candle data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
 		resp.Item = klineItem
+		for i := range klineItem.Candles {
+			if klineItem.Candles[i].ValidationIssues != "" {
+				log.Warnf(log.BackTester, "potential candle issue, results may not be trustworthy. %v", klineItem.Candles[i].ValidationIssues)
+			}
+		}
 	case common.DataTrade:
 		trades, err := trade.GetTradesInRange(
 			exchangeName,

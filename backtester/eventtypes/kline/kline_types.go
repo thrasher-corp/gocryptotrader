@@ -8,9 +8,10 @@ import (
 // a common.DataEventHandler type
 type Kline struct {
 	event.Base
-	Open   float64
-	Close  float64
-	Low    float64
-	High   float64
-	Volume float64
+	Open             float64
+	Close            float64
+	Low              float64
+	High             float64
+	Volume           float64
+	ValidationIssues string
 }
