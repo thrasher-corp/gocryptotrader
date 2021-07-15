@@ -404,7 +404,10 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 // Copy will return a copy of Detail
 func (d *Detail) Copy() Detail {
 	c := *d
-	copy(c.Trades, d.Trades)
+	if len(d.Trades) > 0 {
+		c.Trades = make([]TradeHistory, len(d.Trades))
+		copy(c.Trades, d.Trades)
+	}
 	return c
 }
 

@@ -2,6 +2,7 @@ package order
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -1200,6 +1201,31 @@ func TestMatchFilter(t *testing.T) {
 	for num, tt := range tests {
 		if tt.o.MatchFilter(&tt.f) != tt.expRes {
 			t.Errorf("tests[%v] failed", num)
+		}
+	}
+}
+
+func TestDetail_Copy(t *testing.T) {
+	d := []Detail{
+		{
+			Exchange: "Binance",
+		},
+		{
+			Exchange: "Binance",
+			Trades: []TradeHistory{
+				{Price: 1},
+			},
+		},
+	}
+	for i := range d {
+		r := d[i].Copy()
+		if !reflect.DeepEqual(d[i], r) {
+			t.Errorf("[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)
+		}
+		if len(d[i].Trades) > 0 {
+			if &d[i].Trades[0] == &r.Trades[0] {
+				t.Errorf("[%d]Trades point to the same data elements", i)
+			}
 		}
 	}
 }
