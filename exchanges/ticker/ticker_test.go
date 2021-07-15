@@ -401,28 +401,6 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	wg.Wait()
 }
 
-// func TestSetItemID(t *testing.T) {
-// 	err := service.SetItemID(nil, "")
-// 	if err == nil {
-// 		t.Error("error cannot be nil")
-// 	}
-
-// 	err = service.SetItemID(&Price{}, "")
-// 	if err == nil {
-// 		t.Error("error cannot be nil")
-// 	}
-
-// 	p := currency.NewPair(currency.CYC, currency.CYG)
-
-// 	service.mux = nil
-// 	err = service.SetItemID(&Price{Pair: p, ExchangeName: "SetItemID"}, "setitemid")
-// 	if err == nil {
-// 		t.Error("error cannot be nil")
-// 	}
-
-// 	service.mux = cpyMux
-// }
-
 func TestGetAssociation(t *testing.T) {
 	_, err := service.getAssociations("")
 	if !errors.Is(err, errExchangeNameIsEmpty) {

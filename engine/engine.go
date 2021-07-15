@@ -894,8 +894,6 @@ func (bot *Engine) SetupExchanges() error {
 				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", c.Name, err)
 				return
 			}
-
-			fmt.Println(c.CurrencyPairs.GetPairs(asset.Spot, true))
 			gctlog.Debugf(gctlog.ExchangeSys,
 				"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
 				c.Name,
