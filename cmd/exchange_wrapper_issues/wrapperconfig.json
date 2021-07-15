@@ -136,11 +136,6 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
-  "lakebtc": {
-   "key": "Key",
-   "secret": "Secret",
-   "otpSecret": "-"
-  },
   "lbank": {
    "key": "Key",
    "secret": "Secret",
