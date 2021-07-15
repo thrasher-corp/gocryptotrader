@@ -1342,9 +1342,20 @@ func (d *Deribit) GetOrderHistoryByInstrument(instrumentName string, count, offs
 // GetOrderMarginsByID sends a request to fetch order margins data according to their ids
 func (d *Deribit) GetOrderMarginsByID(ids []string) ([]OrderData, error) {
 	var resp []OrderData
+	var idsString string
 	// NOTE TO SELF!! need to pass ids params
+	for x := range ids {
+		if len(ids)-1 == x {
+			idsString += ids[x]
+			break
+		}
+		idsString += ids[x] + ","
+	}
+	fmt.Println(idsString)
+	params := url.Values{}
+	params.Set("ids", idsString)
 	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
-		getOrderMarginByIDs, nil, &resp)
+		getOrderMarginByIDs, params, &resp)
 }
 
 // GetOrderState sends a request to fetch order state of the order id provided

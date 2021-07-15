@@ -14,7 +14,7 @@ type UnmarshalError struct {
 var (
 	errTypeAssert                    = errors.New("type assertion failed")
 	errStartTimeCannotBeAfterEndTime = errors.New("start timestamp cannot be after end timestamp")
-	errAssetTypeNotSupported = errors.New("assetType not supported")
+	errAssetTypeNotSupported         = errors.New("assetType not supported")
 )
 
 // BookSummaryData stores summary data
@@ -310,7 +310,7 @@ type WithdrawData struct {
 	ID                 int64   `json:"id"`
 	Priority           float64 `json:"priority"`
 	State              string  `json:"state"`
-	TransactionID      int64   `json:"transaction_id"`
+	TransactionID      string  `json:"transaction_id"`
 	UpdatedTimestamp   int64   `json:"updated_timestamp"`
 }
 

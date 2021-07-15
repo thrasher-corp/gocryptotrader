@@ -2,6 +2,8 @@ package deribit
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -402,27 +404,139 @@ func (d *Deribit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (d *Deribit) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, common.ErrNotYetImplemented
+	accountData, err := account.GetHoldings(d.Name, assetType)
+	if err != nil {
+		return d.UpdateAccountInfo(assetType)
+	}
+	return accountData, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (d *Deribit) GetFundingHistory() ([]exchange.FundHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	currencies, err := d.GetCurrencies()
+	if err != nil {
+		return nil, err
+	}
+	var resp []exchange.FundHistory
+	for x := range currencies {
+		deposits, err := d.GetDeposits(currencies[x].Currency, 100, 0)
+		if err != nil {
+			return nil, err
+		}
+		for y := range deposits.Data {
+			resp = append(resp, exchange.FundHistory{
+				ExchangeName:    d.Name,
+				Status:          deposits.Data[y].State,
+				TransferID:      deposits.Data[y].TransactionID,
+				Timestamp:       time.Unix(deposits.Data[y].UpdatedTimestamp/1000, 0),
+				Currency:        currencies[x].Currency,
+				Amount:          deposits.Data[y].Amount,
+				CryptoToAddress: deposits.Data[y].Address,
+				TransferType:    "deposit",
+			})
+		}
+		withdrawalData, err := d.GetWithdrawals(currencies[x].Currency, 100, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		for z := range withdrawalData.Data {
+			resp = append(resp, exchange.FundHistory{
+				ExchangeName:    d.Name,
+				Status:          withdrawalData.Data[z].State,
+				TransferID:      withdrawalData.Data[z].TransactionID,
+				Timestamp:       time.Unix(withdrawalData.Data[z].UpdatedTimestamp/1000, 0),
+				Currency:        currencies[x].Currency,
+				Amount:          withdrawalData.Data[z].Amount,
+				CryptoToAddress: withdrawalData.Data[z].Address,
+				TransferType:    "deposit",
+			})
+		}
+	}
+	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (d *Deribit) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (d *Deribit) GetWithdrawalsHistory(c currency.Code) ([]exchange.WithdrawalHistory, error) {
+	currencies, err := d.GetCurrencies()
+	if err != nil {
+		return nil, err
+	}
+	var resp []exchange.WithdrawalHistory
+	for x := range currencies {
+		if !strings.EqualFold(currencies[x].Currency, c.String()) {
+			continue
+		}
+		withdrawalData, err := d.GetWithdrawals(currencies[x].Currency, 100, 0)
+		if err != nil {
+			return nil, err
+		}
+		for y := range withdrawalData.Data {
+			resp = append(resp, exchange.WithdrawalHistory{
+				Status:          withdrawalData.Data[y].State,
+				TransferID:      withdrawalData.Data[y].TransactionID,
+				Timestamp:       time.Unix(withdrawalData.Data[y].UpdatedTimestamp/1000, 0),
+				Currency:        currencies[x].Currency,
+				Amount:          withdrawalData.Data[y].Amount,
+				CryptoToAddress: withdrawalData.Data[y].Address,
+				TransferType:    "deposit",
+			})
+		}
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (d *Deribit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	if !d.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, d.Name)
+	}
+	format, err := d.GetPairFormat(assetType, true)
+	if err != nil {
+		return nil, err
+	}
+	currs, err := d.GetCurrencies()
+	if err != nil {
+		return nil, err
+	}
+	var resp []TradeData
+	for x := range currs {
+		instrumentsData, err := d.GetInstrumentsData(currs[x].Currency, "", false)
+		if err != nil {
+			return nil, err
+		}
+		for y := range instrumentsData {
+			if strings.EqualFold(format.Format(p), instrumentsData[y].InstrumentName) {
+				trades, err := d.GetLastTradesByInstrument(
+					instrumentsData[y].InstrumentName,
+					"",
+					"",
+					"",
+					0,
+					false)
+				if err != nil {
+					return nil, err
+				}
+				for a := range trades.Trades {
+					tradeIDInt, err := strconv.ParseInt(trades.Trades[a].TradeID, 10, 64)
+					if err != nil {
+						return nil, err
+					}
+					resp = append(resp, TradeData{
+						TradeSequence: int64(trades.Trades[a].TradeSeq),
+						TradeID:       tradeIDInt,
+					})
+				}
+			}
+		}
+	}
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (d *Deribit) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+
 	return nil, common.ErrNotYetImplemented
 }
 

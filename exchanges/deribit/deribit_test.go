@@ -15,7 +15,7 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
+	apiKey                  = "oBWWwO3i"
 	apiSecret               = ""
 	canManipulateRealOrders = false
 	btcInstrument           = "BTC-25MAR22"
@@ -330,6 +330,9 @@ func TestGetPublicTicker(t *testing.T) {
 }
 
 func TestGetAccountSummary(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetAccountSummary(btcCurrency, false)
@@ -340,6 +343,9 @@ func TestGetAccountSummary(t *testing.T) {
 }
 
 func TestCancelTransferByID(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.CancelTransferByID(btcCurrency, "", 23487)
@@ -350,6 +356,9 @@ func TestCancelTransferByID(t *testing.T) {
 }
 
 func TestGetTransfers(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetTransfers(btcCurrency, 0, 0)
@@ -360,6 +369,9 @@ func TestGetTransfers(t *testing.T) {
 }
 
 func TestCancelWithdrawal(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.CancelWithdrawal(btcCurrency, 123844)
@@ -370,6 +382,9 @@ func TestCancelWithdrawal(t *testing.T) {
 }
 
 func TestCreateDepositAddress(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.CreateDepositAddress(btcCurrency)
@@ -380,6 +395,9 @@ func TestCreateDepositAddress(t *testing.T) {
 }
 
 func TestGetCurrentDepositAddress(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetCurrentDepositAddress(btcCurrency)
@@ -391,6 +409,9 @@ func TestGetCurrentDepositAddress(t *testing.T) {
 
 func TestGetDeposits(t *testing.T) {
 	d.Verbose = true
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	t.Parallel()
 	a, err := d.GetDeposits(btcCurrency, 25, 0)
 	if err != nil {
@@ -401,6 +422,9 @@ func TestGetDeposits(t *testing.T) {
 
 func TestGetWithdrawals(t *testing.T) {
 	d.Verbose = true
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	t.Parallel()
 	a, err := d.GetWithdrawals(btcCurrency, 25, 0)
 	if err != nil {
@@ -411,6 +435,9 @@ func TestGetWithdrawals(t *testing.T) {
 
 func TestSubmitTransferToSubAccount(t *testing.T) {
 	d.Verbose = true
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	t.Parallel()
 	a, err := d.SubmitTransferToSubAccount(btcCurrency, 0.01, 13434)
 	if err != nil {
@@ -420,6 +447,9 @@ func TestSubmitTransferToSubAccount(t *testing.T) {
 }
 
 func TestSubmitTransferToUser(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SubmitTransferToUser(btcCurrency, "", 0.001, 13434)
@@ -430,6 +460,9 @@ func TestSubmitTransferToUser(t *testing.T) {
 }
 
 func TestSubmitWithdraw(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SubmitWithdraw(btcCurrency, "incorrectAddress", "", "", 0.001)
@@ -440,6 +473,9 @@ func TestSubmitWithdraw(t *testing.T) {
 }
 
 func TestChangeAPIKeyName(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.ChangeAPIKeyName(1, "TestKey123")
@@ -450,6 +486,9 @@ func TestChangeAPIKeyName(t *testing.T) {
 }
 
 func TestChangeScopeInAPIKey(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.ChangeScopeInAPIKey(1, "account:read_write")
@@ -460,6 +499,9 @@ func TestChangeScopeInAPIKey(t *testing.T) {
 }
 
 func TestChangeSubAccountName(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.ChangeSubAccountName(1, "TestingSubAccount")
@@ -470,6 +512,9 @@ func TestChangeSubAccountName(t *testing.T) {
 }
 
 func TestCreateAPIKey(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.CreateAPIKey("account:read_write", "TestingSubAccount", false)
@@ -480,6 +525,9 @@ func TestCreateAPIKey(t *testing.T) {
 }
 
 func TestCreateSubAccount(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.CreateSubAccount()
@@ -490,6 +538,9 @@ func TestCreateSubAccount(t *testing.T) {
 }
 
 func TestDisableAPIKey(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.DisableAPIKey(1)
@@ -500,6 +551,9 @@ func TestDisableAPIKey(t *testing.T) {
 }
 
 func TestDisableTFAForSubAccount(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	// Use with caution will reduce the security of the account
@@ -511,6 +565,9 @@ func TestDisableTFAForSubAccount(t *testing.T) {
 }
 
 func TestEnableAffiliateProgram(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.EnableAffiliateProgram()
@@ -521,6 +578,9 @@ func TestEnableAffiliateProgram(t *testing.T) {
 }
 
 func TestEnableAPIKey(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.EnableAPIKey(1)
@@ -531,6 +591,9 @@ func TestEnableAPIKey(t *testing.T) {
 }
 
 func TestGetAffiliateProgramInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetAffiliateProgramInfo(1)
@@ -541,6 +604,9 @@ func TestGetAffiliateProgramInfo(t *testing.T) {
 }
 
 func TestGetEmailLanguage(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetEmailLanguage()
@@ -551,6 +617,9 @@ func TestGetEmailLanguage(t *testing.T) {
 }
 
 func TestGetNewAnnouncements(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetNewAnnouncements()
@@ -561,6 +630,9 @@ func TestGetNewAnnouncements(t *testing.T) {
 }
 
 func TestGetPosition(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetPosition(btcInstrument)
@@ -571,6 +643,9 @@ func TestGetPosition(t *testing.T) {
 }
 
 func TestGetSubAccounts(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetSubAccounts(false)
@@ -581,6 +656,9 @@ func TestGetSubAccounts(t *testing.T) {
 }
 
 func TestGetPositions(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetPositions(btcCurrency, "option")
@@ -596,6 +674,9 @@ func TestGetPositions(t *testing.T) {
 }
 
 func TestGetTransactionLog(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetTransactionLog(btcCurrency, "trade", time.Now().Add(-24*time.Hour), time.Now(), 5, 0)
@@ -611,6 +692,9 @@ func TestGetTransactionLog(t *testing.T) {
 }
 
 func TestListAPIKeys(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.ListAPIKeys("")
@@ -621,6 +705,9 @@ func TestListAPIKeys(t *testing.T) {
 }
 
 func TestRemoveAPIKey(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.RemoveAPIKey(1)
@@ -631,6 +718,9 @@ func TestRemoveAPIKey(t *testing.T) {
 }
 
 func TestRemoveSubAccount(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.RemoveSubAccount(1)
@@ -641,6 +731,9 @@ func TestRemoveSubAccount(t *testing.T) {
 }
 
 func TestResetAPIKey(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.ResetAPIKey(1)
@@ -651,6 +744,9 @@ func TestResetAPIKey(t *testing.T) {
 }
 
 func TestSetAnnouncementAsRead(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SetAnnouncementAsRead(1)
@@ -661,6 +757,9 @@ func TestSetAnnouncementAsRead(t *testing.T) {
 }
 
 func TestSetEmailForSubAccount(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SetEmailForSubAccount(1, "wrongemail@wrongemail.com")
@@ -671,6 +770,9 @@ func TestSetEmailForSubAccount(t *testing.T) {
 }
 
 func TestSetEmailLanguage(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SetEmailLanguage("ja")
@@ -681,6 +783,9 @@ func TestSetEmailLanguage(t *testing.T) {
 }
 
 func TestSetPasswordForSubAccount(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	// Caution! This may reduce the security of the subaccount
@@ -692,6 +797,9 @@ func TestSetPasswordForSubAccount(t *testing.T) {
 }
 
 func TestToggleNotificationsFromSubAccount(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.ToggleNotificationsFromSubAccount(1, false)
@@ -702,6 +810,9 @@ func TestToggleNotificationsFromSubAccount(t *testing.T) {
 }
 
 func TestToggleSubAccountLogin(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.ToggleSubAccountLogin(1, false)
@@ -712,6 +823,9 @@ func TestToggleSubAccountLogin(t *testing.T) {
 }
 
 func TestSubmitSell(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SubmitSell(btcInstrument, "limit", "testOrder", "", "", "", 1, 500000, 0, 0, false, false, false, false)
@@ -722,6 +836,9 @@ func TestSubmitSell(t *testing.T) {
 }
 
 func TestEditOrderByLabel(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.EditOrderByLabel("incorrectUserLabel", btcInstrument, "",
@@ -733,6 +850,9 @@ func TestEditOrderByLabel(t *testing.T) {
 }
 
 func TestSubmitCancel(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SubmitCancel("incorrectID")
@@ -743,6 +863,9 @@ func TestSubmitCancel(t *testing.T) {
 }
 
 func TestSubmitCancelAll(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SubmitCancelAll()
@@ -753,6 +876,9 @@ func TestSubmitCancelAll(t *testing.T) {
 }
 
 func TestSubmitCancelAllByCurrency(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SubmitCancelAllByCurrency(btcCurrency, "option", "")
@@ -763,6 +889,9 @@ func TestSubmitCancelAllByCurrency(t *testing.T) {
 }
 
 func TestSubmitCancelAllByInstrument(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SubmitCancelAllByInstrument(btcInstrument, "all")
@@ -773,6 +902,9 @@ func TestSubmitCancelAllByInstrument(t *testing.T) {
 }
 
 func TestSubmitCancelByLabel(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SubmitCancelByLabel("incorrectOrderLabel")
@@ -783,6 +915,9 @@ func TestSubmitCancelByLabel(t *testing.T) {
 }
 
 func TestSubmitClosePosition(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SubmitClosePosition(btcInstrument, "limit", 35000)
@@ -793,6 +928,9 @@ func TestSubmitClosePosition(t *testing.T) {
 }
 
 func TestGetMargins(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetMargins(btcInstrument, 5, 35000)
@@ -803,6 +941,9 @@ func TestGetMargins(t *testing.T) {
 }
 
 func TestGetMMPConfig(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetMMPConfig(ethCurrency)
@@ -813,6 +954,9 @@ func TestGetMMPConfig(t *testing.T) {
 }
 
 func TestGetOpenOrdersByCurrency(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetOpenOrdersByCurrency(btcCurrency, "option", "all")
@@ -823,6 +967,9 @@ func TestGetOpenOrdersByCurrency(t *testing.T) {
 }
 
 func TestGetOpenOrdersByInstrument(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetOpenOrdersByInstrument(btcInstrument, "all")
@@ -833,6 +980,9 @@ func TestGetOpenOrdersByInstrument(t *testing.T) {
 }
 
 func TestGetOrderHistoryByCurrency(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetOrderHistoryByCurrency(btcCurrency, "future", 0, 0, false, false)
@@ -843,6 +993,9 @@ func TestGetOrderHistoryByCurrency(t *testing.T) {
 }
 
 func TestGetOrderHistoryByInstrument(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetOrderHistoryByInstrument(btcInstrument, 0, 0, false, false)
@@ -855,8 +1008,12 @@ func TestGetOrderHistoryByInstrument(t *testing.T) {
 func TestGetOrderMarginsByID(t *testing.T) {
 	d.Verbose = true
 	t.Parallel()
-	// NOTE TO SELF: UPDATE THIS
-	a, err := d.GetOrderMarginsByID([]string{""})
+	d.Verbose = true
+	a, err := d.GetOrderMarginsByID([]string{"id1,id2,id3"})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetOrderMarginsByID([]string{""})
 	if err != nil {
 		t.Error(err)
 	}
@@ -864,6 +1021,9 @@ func TestGetOrderMarginsByID(t *testing.T) {
 }
 
 func TestGetOrderState(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetOrderState("brokenid123")
@@ -874,6 +1034,9 @@ func TestGetOrderState(t *testing.T) {
 }
 
 func TestGetTriggerOrderHistory(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetTriggerOrderHistory(ethCurrency, "", "", 0)
@@ -884,6 +1047,9 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 }
 
 func TestGetUserTradesByCurrency(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetUserTradesByCurrency(ethCurrency, "future", "5000", "5005", "asc", 0, false)
@@ -894,6 +1060,9 @@ func TestGetUserTradesByCurrency(t *testing.T) {
 }
 
 func TestGetUserTradesByCurrencyAndTime(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetUserTradesByCurrencyAndTime(ethCurrency, "future", "default", 5, false, time.Now().Add(-time.Hour), time.Now())
@@ -904,6 +1073,9 @@ func TestGetUserTradesByCurrencyAndTime(t *testing.T) {
 }
 
 func TestGetUserTradesByInstrument(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetUserTradesByInstrument(btcInstrument, "asc", 5, 10, 4, true)
@@ -914,6 +1086,9 @@ func TestGetUserTradesByInstrument(t *testing.T) {
 }
 
 func TestGetUserTradesByInstrumentAndTime(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetUserTradesByInstrumentAndTime(btcInstrument, "asc", 10, false, time.Now().Add(-time.Hour), time.Now())
@@ -924,6 +1099,9 @@ func TestGetUserTradesByInstrumentAndTime(t *testing.T) {
 }
 
 func TestGetUserTradesByOrder(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetUserTradesByOrder("wrongOrderID", "default")
@@ -934,6 +1112,9 @@ func TestGetUserTradesByOrder(t *testing.T) {
 }
 
 func TestResetMMP(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.ResetMMP(btcCurrency)
@@ -944,6 +1125,9 @@ func TestResetMMP(t *testing.T) {
 }
 
 func TestSetMMPConfig(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.SetMMPConfig(btcCurrency, 5, 5, 0, 0)
@@ -954,6 +1138,9 @@ func TestSetMMPConfig(t *testing.T) {
 }
 
 func TestGetSettlementHistoryByCurency(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetSettlementHistoryByCurency(btcCurrency, "settlement", "", 10, time.Now().Add(-time.Hour))
@@ -964,6 +1151,9 @@ func TestGetSettlementHistoryByCurency(t *testing.T) {
 }
 
 func TestGetSettlementHistoryByInstrument(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	d.Verbose = true
 	t.Parallel()
 	a, err := d.GetSettlementHistoryByInstrument(btcInstrument, "settlement", "", 10, time.Now().Add(-time.Hour))
