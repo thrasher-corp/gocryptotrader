@@ -1,6 +1,7 @@
 package ticker
 
 import (
+	"errors"
 	"log"
 	"math/rand"
 	"os"
@@ -80,7 +81,7 @@ func TestSubscribeTicker(t *testing.T) {
 		ExchangeName: "subscribetest",
 		AssetType:    asset.Spot})
 	if err != nil {
-		t.Error("error cannot be nil")
+		t.Fatal(err)
 	}
 
 	_, err = SubscribeTicker("subscribetest", p, asset.Spot)
@@ -195,6 +196,38 @@ func TestGetTicker(t *testing.T) {
 	err = ProcessTicker(&priceStruct)
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
+	}
+}
+
+func TestFindLast(t *testing.T) {
+	cp := currency.NewPair(currency.BTC, currency.XRP)
+	_, err := FindLast(cp, asset.Spot)
+	if !errors.Is(err, errTickerNotFound) {
+		t.Errorf("received: %v but expected: %v", err, errTickerNotFound)
+	}
+
+	err = service.Update(&Price{Last: 0, ExchangeName: "testies", Pair: cp, AssetType: asset.Spot})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = FindLast(cp, asset.Spot)
+	if !errors.Is(err, errInvalidTicker) {
+		t.Errorf("received: %v but expected: %v", err, errInvalidTicker)
+	}
+
+	err = service.Update(&Price{Last: 1337, ExchangeName: "testies", Pair: cp, AssetType: asset.Spot})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	last, err := FindLast(cp, asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v but expected: %v", err, nil)
+	}
+
+	if last != 1337 {
+		t.Fatal("unexpected value")
 	}
 }
 
@@ -368,39 +401,37 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	wg.Wait()
 }
 
-func TestSetItemID(t *testing.T) {
-	err := service.SetItemID(nil, "")
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+// func TestSetItemID(t *testing.T) {
+// 	err := service.SetItemID(nil, "")
+// 	if err == nil {
+// 		t.Error("error cannot be nil")
+// 	}
 
-	err = service.SetItemID(&Price{}, "")
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+// 	err = service.SetItemID(&Price{}, "")
+// 	if err == nil {
+// 		t.Error("error cannot be nil")
+// 	}
 
-	p := currency.NewPair(currency.CYC, currency.CYG)
+// 	p := currency.NewPair(currency.CYC, currency.CYG)
 
-	service.mux = nil
-	err = service.SetItemID(&Price{Pair: p, ExchangeName: "SetItemID"}, "setitemid")
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+// 	service.mux = nil
+// 	err = service.SetItemID(&Price{Pair: p, ExchangeName: "SetItemID"}, "setitemid")
+// 	if err == nil {
+// 		t.Error("error cannot be nil")
+// 	}
 
-	service.mux = cpyMux
-}
+// 	service.mux = cpyMux
+// }
 
 func TestGetAssociation(t *testing.T) {
-	_, err := service.GetAssociations(nil, "")
-	if err == nil {
-		t.Error("error cannot be nil")
+	_, err := service.getAssociations("")
+	if !errors.Is(err, errExchangeNameIsEmpty) {
+		t.Errorf("received: %v but expected: %v", err, errExchangeNameIsEmpty)
 	}
-
-	p := currency.NewPair(currency.CYC, currency.CYG)
 
 	service.mux = nil
 
-	_, err = service.GetAssociations(&Price{Pair: p, ExchangeName: "GetAssociation"}, "getassociation")
+	_, err = service.getAssociations("getassociation")
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
