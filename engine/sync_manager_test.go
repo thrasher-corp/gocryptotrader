@@ -13,6 +13,7 @@ import (
 )
 
 func TestSetupSyncManager(t *testing.T) {
+	t.Parallel()
 	_, err := setupSyncManager(&Config{}, nil, nil, nil)
 	if !errors.Is(err, errNoSyncItemsEnabled) {
 		t.Errorf("error '%v', expected '%v'", err, errNoSyncItemsEnabled)
@@ -38,6 +39,7 @@ func TestSetupSyncManager(t *testing.T) {
 }
 
 func TestSyncManagerStart(t *testing.T) {
+	t.Parallel()
 	m, err := setupSyncManager(&Config{SyncTrades: true}, &ExchangeManager{}, nil, &config.RemoteControlConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -69,6 +71,7 @@ func TestSyncManagerStart(t *testing.T) {
 }
 
 func TestSyncManagerStop(t *testing.T) {
+	t.Parallel()
 	var m *syncManager
 	err := m.Stop()
 	if !errors.Is(err, ErrNilSubsystem) {
@@ -103,6 +106,7 @@ func TestSyncManagerStop(t *testing.T) {
 }
 
 func TestPrintCurrencyFormat(t *testing.T) {
+	t.Parallel()
 	c := printCurrencyFormat(1337, currency.BTC)
 	if c == "" {
 		t.Error("expected formatted currency")
@@ -110,6 +114,7 @@ func TestPrintCurrencyFormat(t *testing.T) {
 }
 
 func TestPrintConvertCurrencyFormat(t *testing.T) {
+	t.Parallel()
 	c := printConvertCurrencyFormat(currency.BTC, 1337, currency.USD)
 	if c == "" {
 		t.Error("expected formatted currency")
@@ -117,6 +122,7 @@ func TestPrintConvertCurrencyFormat(t *testing.T) {
 }
 
 func TestPrintTickerSummary(t *testing.T) {
+	t.Parallel()
 	var m *syncManager
 	m.PrintTickerSummary(&ticker.Price{}, "REST", nil)
 
@@ -155,6 +161,7 @@ func TestPrintTickerSummary(t *testing.T) {
 }
 
 func TestPrintOrderbookSummary(t *testing.T) {
+	t.Parallel()
 	var m *syncManager
 	m.PrintOrderbookSummary(nil, "REST", nil)
 
@@ -196,6 +203,8 @@ func TestPrintOrderbookSummary(t *testing.T) {
 }
 
 func TestRelayWebsocketEvent(t *testing.T) {
+	t.Parallel()
+
 	relayWebsocketEvent(nil, "", "", "")
 }
 

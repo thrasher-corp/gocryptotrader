@@ -86,13 +86,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		return nil, err
 	}
 
-	e, err := bt.setupExchangeSettings(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	bt.Exchange = &e
-
 	buyRule := config.MinMax{
 		MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
 		MaximumSize:  cfg.PortfolioSettings.BuySide.MaximumSize,
@@ -158,22 +151,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	if err != nil {
 		return nil, err
 	}
-	for i := range e.CurrencySettings {
-		var lookup *settings.Settings
-		lookup, err = p.SetupCurrencySettingsMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
-		if err != nil {
-			return nil, err
-		}
-		lookup.Fee = e.CurrencySettings[i].TakerFee
-		lookup.Leverage = e.CurrencySettings[i].Leverage
-		lookup.BuySideSizing = e.CurrencySettings[i].BuySide
-		lookup.SellSideSizing = e.CurrencySettings[i].SellSide
-		lookup.InitialFunds = e.CurrencySettings[i].InitialFunds
-		lookup.ComplianceManager = compliance.Manager{
-			Snapshots: []compliance.Snapshot{},
-		}
-	}
-	bt.Portfolio = p
 
 	bt.Strategy, err = strategies.LoadStrategyByName(cfg.StrategySettings.Name, cfg.StrategySettings.SimultaneousSignalProcessing)
 	if err != nil {
@@ -196,6 +173,29 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	}
 	bt.Statistic = stats
 	reports.Statistics = stats
+
+	e, err := bt.setupExchangeSettings(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	bt.Exchange = &e
+	for i := range e.CurrencySettings {
+		var lookup *settings.Settings
+		lookup, err = p.SetupCurrencySettingsMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
+		if err != nil {
+			return nil, err
+		}
+		lookup.Fee = e.CurrencySettings[i].TakerFee
+		lookup.Leverage = e.CurrencySettings[i].Leverage
+		lookup.BuySideSizing = e.CurrencySettings[i].BuySide
+		lookup.SellSideSizing = e.CurrencySettings[i].SellSide
+		lookup.InitialFunds = e.CurrencySettings[i].InitialFunds
+		lookup.ComplianceManager = compliance.Manager{
+			Snapshots: []compliance.Snapshot{},
+		}
+	}
+	bt.Portfolio = p
 
 	cfg.PrintSetting()
 
@@ -418,7 +418,6 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, take
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
 func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
-	log.Infof(log.BackTester, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
 	if exch == nil {
 		return nil, engine.ErrExchangeNotFound
 	}
@@ -429,7 +428,6 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		cfg.DataSettings.CSVData == nil {
 		return nil, errNoDataSource
 	}
-	resp := &kline.DataFromKline{}
 	if (cfg.DataSettings.APIData != nil && cfg.DataSettings.DatabaseData != nil) ||
 		(cfg.DataSettings.APIData != nil && cfg.DataSettings.LiveData != nil) ||
 		(cfg.DataSettings.APIData != nil && cfg.DataSettings.CSVData != nil) ||
@@ -444,6 +442,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, err
 	}
 
+	log.Infof(log.BackTester, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
+	resp := &kline.DataFromKline{}
 	switch {
 	case cfg.DataSettings.CSVData != nil:
 		if cfg.DataSettings.Interval <= 0 {
@@ -941,18 +941,15 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		return
 	}
 	resp.Item = *candles
-	err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate, dataType)
-	if err != nil {
-		log.Error(log.BackTester, err)
-		return
-	}
 
-	loadNewDataTicker := time.NewTicker(time.Second * 30)
+	loadNewDataTimer := time.NewTimer(time.Second * 5)
 	for {
 		select {
 		case <-bt.shutdown:
 			return
-		case <-loadNewDataTicker.C:
+		case <-loadNewDataTimer.C:
+			log.Infof(log.BackTester, "fetching data for %v %v %v %v", exch.GetName(), a, fPair, cfg.DataSettings.Interval)
+			loadNewDataTimer.Reset(time.Second * 30)
 			err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate, dataType)
 			if err != nil {
 				log.Error(log.BackTester, err)
@@ -963,6 +960,15 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 }
 
 func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, startDate time.Time, dataType int64) error {
+	if resp == nil {
+		return errNilData
+	}
+	if cfg == nil {
+		return errNilConfig
+	}
+	if exch == nil {
+		return errNilExchange
+	}
 	candles, err := live.LoadData(
 		exch,
 		dataType,
@@ -972,6 +978,7 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 	if err != nil {
 		return err
 	}
+
 	resp.Item.Candles = append(resp.Item.Candles, candles.Candles...)
 	_, err = exch.FetchOrderbook(fPair, a)
 	if err != nil {
@@ -983,7 +990,7 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 		return nil
 	}
 	endDate := candles.Candles[len(candles.Candles)-1].Time.Add(cfg.DataSettings.Interval)
-	if resp.Range.Ranges == nil {
+	if resp.Range == nil || resp.Range.Ranges == nil {
 		dataRange, err := gctkline.CalculateCandleDateRanges(
 			startDate,
 			endDate,

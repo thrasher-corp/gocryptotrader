@@ -103,7 +103,7 @@ func tradeSQLTester(t *testing.T) {
 		uu, _ := uuid.NewV4()
 		trades = append(trades, Data{
 			ID:        uu.String(),
-			Timestamp: firstTime.Add(time.Minute * time.Duration(i)),
+			Timestamp: firstTime.Add(time.Minute * time.Duration(i+1)),
 			Exchange:  testExchanges[0].Name,
 			Base:      currency.BTC.String(),
 			Quote:     currency.USD.String(),
@@ -123,7 +123,7 @@ func tradeSQLTester(t *testing.T) {
 		uu, _ := uuid.NewV4()
 		trades2 = append(trades2, Data{
 			ID:        uu.String(),
-			Timestamp: firstTime.Add(time.Minute * time.Duration(i)),
+			Timestamp: firstTime.Add(time.Minute * time.Duration(i+1)),
 			Exchange:  testExchanges[0].Name,
 			Base:      currency.BTC.String(),
 			Quote:     currency.USD.String(),
@@ -171,7 +171,6 @@ func tradeSQLTester(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 	err = VerifyTradeInIntervals(testExchanges[0].Name,
 		asset.Spot.String(),
 		currency.BTC.String(),
@@ -181,15 +180,10 @@ func tradeSQLTester(t *testing.T) {
 		t.Error(err)
 	}
 
-	if !ranges.HasDataAtDate(firstTime) {
-		t.Error("expected data")
-	}
-
 	err = DeleteTrades(trades...)
 	if err != nil {
 		t.Error(err)
 	}
-
 	err = DeleteTrades(trades2...)
 	if err != nil {
 		t.Error(err)

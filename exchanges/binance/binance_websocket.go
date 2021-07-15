@@ -253,6 +253,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					AssetType:       a,
 					Date:            data.Data.OrderCreationTime,
 					Pair:            p,
+					ClientID:        data.Data.ClientOrderID,
 				}
 				return nil
 			case "listStatus":
@@ -421,7 +422,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	switch status {
 	case "NEW":
 		return order.New, nil
-	case "CANCELLED":
+	case "CANCELED":
 		return order.Cancelled, nil
 	case "REJECTED":
 		return order.Rejected, nil

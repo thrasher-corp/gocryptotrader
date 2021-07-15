@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
@@ -151,7 +150,6 @@ func TestPushEvent(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	m.PushEvent(base.Event{})
-	time.Sleep(time.Second)
 	m.PushEvent(base.Event{})
 	m = nil
 	m.PushEvent(base.Event{})

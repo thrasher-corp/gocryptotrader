@@ -107,7 +107,7 @@ func verifyTradeInIntervalsSqlite(ctx context.Context, tx *sql.Tx, exchangeName,
 				quote,
 				irh.Ranges[i].Intervals[j].Start.Time.UTC().Format(time.RFC3339),
 				irh.Ranges[i].Intervals[j].End.Time.UTC().Format(time.RFC3339))).One(ctx, tx)
-			if err != nil {
+			if err != nil && err != sql.ErrNoRows {
 				return err
 			}
 			if result != nil {
@@ -126,14 +126,14 @@ func verifyTradeInIntervalsPostgres(ctx context.Context, tx *sql.Tx, exchangeNam
 	}
 	for i := range irh.Ranges {
 		for j := range irh.Ranges[i].Intervals {
-			result, err := postgres.Trades(qm.Where("exchange_name_id = ? AND asset = ? AND base = ? AND quote = ? timestamp between ? AND ?",
+			result, err := postgres.Trades(qm.Where("exchange_name_id = ? AND asset = ? AND base = ? AND quote = ? AND timestamp between ? AND ?",
 				exch.ID,
 				assetType,
 				base,
 				quote,
-				irh.Ranges[i].Intervals[j].Start.Time.UTC().Format(time.RFC3339),
-				irh.Ranges[i].Intervals[j].End.Time.UTC().Format(time.RFC3339))).One(ctx, tx)
-			if err != nil {
+				irh.Ranges[i].Intervals[j].Start.Time.UTC(),
+				irh.Ranges[i].Intervals[j].End.Time.UTC())).One(ctx, tx)
+			if err != nil && err != sql.ErrNoRows {
 				return err
 			}
 			if result != nil {

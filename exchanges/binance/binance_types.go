@@ -736,7 +736,7 @@ type wsOrderUpdate struct {
 
 // WsOrderUpdateData defines websocket account order update data
 type WsOrderUpdateData struct {
-	ClientOrderID                     string    `json:"C"`
+	ClientOrderID                     string    `json:"c"`
 	EventTime                         time.Time `json:"E"`
 	IcebergQuantity                   float64   `json:"F,string"`
 	LastExecutedPrice                 float64   `json:"L,string"`
@@ -749,7 +749,7 @@ type WsOrderUpdateData struct {
 	OrderStatus                       string    `json:"X"`
 	LastQuoteAssetTransactedQuantity  float64   `json:"Y,string"`
 	CumulativeQuoteTransactedQuantity float64   `json:"Z,string"`
-	CancelledClientOrderID            string    `json:"c"`
+	CancelledClientOrderID            string    `json:"C"`
 	EventType                         string    `json:"e"`
 	TimeInForce                       string    `json:"f"`
 	OrderListID                       int64     `json:"g"`
@@ -763,6 +763,7 @@ type WsOrderUpdateData struct {
 	RejectionReason                   string    `json:"r"`
 	Symbol                            string    `json:"s"`
 	TradeID                           int64     `json:"t"`
+	Ignored                           int64     `json:"I"` // must be ignored explicitly, otherwise it overwrites 'i'
 	IsOnOrderBook                     bool      `json:"w"`
 	CurrentExecutionType              string    `json:"x"`
 	CumulativeFilledQuantity          float64   `json:"z,string"`

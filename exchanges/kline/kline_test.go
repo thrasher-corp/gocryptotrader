@@ -32,6 +32,7 @@ var (
 )
 
 func TestValidateData(t *testing.T) {
+	t.Parallel()
 	err := validateData(nil)
 	if err == nil {
 		t.Error("error cannot be nil")
@@ -90,6 +91,7 @@ func TestValidateData(t *testing.T) {
 }
 
 func TestCreateKline(t *testing.T) {
+	t.Parallel()
 	c, err := CreateKline(nil,
 		OneMin,
 		currency.NewPair(currency.BTC, currency.USD),
@@ -135,24 +137,28 @@ func TestCreateKline(t *testing.T) {
 }
 
 func TestKlineWord(t *testing.T) {
+	t.Parallel()
 	if OneDay.Word() != "oneday" {
 		t.Fatalf("unexpected result: %v", OneDay.Word())
 	}
 }
 
 func TestKlineDuration(t *testing.T) {
+	t.Parallel()
 	if OneDay.Duration() != time.Hour*24 {
 		t.Fatalf("unexpected result: %v", OneDay.Duration())
 	}
 }
 
 func TestKlineShort(t *testing.T) {
+	t.Parallel()
 	if OneDay.Short() != "24h" {
 		t.Fatalf("unexpected result: %v", OneDay.Short())
 	}
 }
 
 func TestDurationToWord(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		interval Interval
@@ -254,6 +260,7 @@ func TestDurationToWord(t *testing.T) {
 }
 
 func TestKlineErrors(t *testing.T) {
+	t.Parallel()
 	v := ErrorKline{
 		Interval: OneYear,
 		Pair:     currency.NewPair(currency.BTC, currency.AUD),
@@ -278,6 +285,7 @@ func TestKlineErrors(t *testing.T) {
 }
 
 func TestTotalCandlesPerInterval(t *testing.T) {
+	t.Parallel()
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
@@ -399,7 +407,8 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 }
 
 func TestCalculateCandleDateRanges(t *testing.T) {
-	pt := time.Date(1999, 1, 1, 0, 0, 0, 0, time.UTC)
+	t.Parallel()
+	pt := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	ft := time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC)
 	et := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
 	nt := time.Time{}
@@ -424,31 +433,31 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 		t.Errorf("received %v expected %v", err, common.ErrStartEqualsEnd)
 	}
 
-	v, err := CalculateCandleDateRanges(pt, et, OneMin, 300)
+	v, err := CalculateCandleDateRanges(pt, et, OneWeek, 300)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if v.Ranges[0].Start.Ticks != time.Unix(915148800, 0).Unix() {
-		t.Errorf("expected %v received %v", 915148800, v.Ranges[0].Start.Ticks)
+	if !v.Ranges[0].Start.Time.Equal(time.Unix(1546214400, 0)) {
+		t.Errorf("expected %v received %v", 1546214400, v.Ranges[0].Start.Ticks)
 	}
 
-	v, err = CalculateCandleDateRanges(pt, et, OneDay, 100)
+	v, err = CalculateCandleDateRanges(pt, et, OneWeek, 100)
 	if err != nil {
 		t.Error(err)
 	}
-	if len(v.Ranges) != 77 {
-		t.Fatalf("expected %v received %v", 77, len(v.Ranges))
+	if len(v.Ranges) != 1 {
+		t.Fatalf("expected %v received %v", 1, len(v.Ranges))
 	}
-	if len(v.Ranges[0].Intervals) != 100 {
-		t.Errorf("expected %v received %v", 100, len(v.Ranges[0].Intervals))
+	if len(v.Ranges[0].Intervals) != 52 {
+		t.Errorf("expected %v received %v", 52, len(v.Ranges[0].Intervals))
 	}
-	v, err = CalculateCandleDateRanges(et, ft, OneDay, 5)
+	v, err = CalculateCandleDateRanges(et, ft, OneWeek, 5)
 	if err != nil {
 		t.Error(err)
 	}
-	if len(v.Ranges) != 14756 {
-		t.Errorf("expected %v received %v", 14756, len(v.Ranges))
+	if len(v.Ranges) != 2108 {
+		t.Errorf("expected %v received %v", 2108, len(v.Ranges))
 	}
 	if len(v.Ranges[0].Intervals) != 5 {
 		t.Errorf("expected %v received %v", 5, len(v.Ranges[0].Intervals))
@@ -458,12 +467,13 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	}
 	lenRanges := len(v.Ranges) - 1
 	lenIntervals := len(v.Ranges[lenRanges].Intervals) - 1
-	if !v.Ranges[lenRanges].Intervals[lenIntervals].End.Equal(ft.Round(OneDay.Duration())) {
+	if !v.Ranges[lenRanges].Intervals[lenIntervals].End.Equal(ft.Round(OneWeek.Duration())) {
 		t.Errorf("expected %v received %v", ft.Round(OneDay.Duration()), v.Ranges[lenRanges].Intervals[lenIntervals].End)
 	}
 }
 
 func TestItem_SortCandlesByTimestamp(t *testing.T) {
+	t.Parallel()
 	var tempKline = Item{
 		Exchange: "testExchange",
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
@@ -742,6 +752,7 @@ func TestLoadCSV(t *testing.T) {
 }
 
 func TestVerifyResultsHaveData(t *testing.T) {
+	t.Parallel()
 	tt2 := time.Now().Round(OneDay.Duration())
 	tt1 := time.Now().Add(-time.Hour * 24).Round(OneDay.Duration())
 	dateRanges, err := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
@@ -770,6 +781,7 @@ func TestVerifyResultsHaveData(t *testing.T) {
 }
 
 func TestDataSummary(t *testing.T) {
+	t.Parallel()
 	tt1 := time.Now().Add(-time.Hour * 24).Round(OneDay.Duration())
 	tt2 := time.Now().Round(OneDay.Duration())
 	tt3 := time.Now().Add(time.Hour * 24).Round(OneDay.Duration())
@@ -797,6 +809,7 @@ func TestDataSummary(t *testing.T) {
 }
 
 func TestHasDataAtDate(t *testing.T) {
+	t.Parallel()
 	tt2 := time.Now().Round(OneDay.Duration())
 	tt1 := time.Now().Add(-time.Hour * 24 * 30).Round(OneDay.Duration())
 	dateRanges, err := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
@@ -826,6 +839,7 @@ func TestHasDataAtDate(t *testing.T) {
 }
 
 func TestIntervalsPerYear(t *testing.T) {
+	t.Parallel()
 	i := OneYear
 	if i.IntervalsPerYear() != 1.0 {
 		t.Error("expected 1")

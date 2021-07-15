@@ -23,6 +23,8 @@ var (
 	errIntervalUnset         = errors.New("candle interval unset")
 	errUnhandledDatatype     = errors.New("unhandled datatype")
 	errLiveDataTimeout       = errors.New("no data returned in 5 minutes, shutting down")
+	errNilData               = errors.New("nil data received")
+	errNilExchange           = errors.New("nil exchange received")
 )
 
 // BackTest is the main holder of all backtesting functionality

@@ -87,6 +87,7 @@ func (d *dodgyConnection) Connect() error {
 }
 
 func TestSetup(t *testing.T) {
+	t.Parallel()
 	var w *Websocket
 	err := w.Setup(nil)
 	if err == nil {
@@ -164,7 +165,7 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ws.trafficTimeout = time.Millisecond
+	ws.trafficTimeout = time.Second * 2
 	ws.ShutdownC = make(chan struct{})
 	ws.trafficMonitor()
 	if !ws.IsTrafficMonitorRunning() {
@@ -187,6 +188,7 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 }
 
 func TestIsDisconnectionError(t *testing.T) {
+	t.Parallel()
 	isADisconnectionError := isDisconnectionError(errors.New("errorText"))
 	if isADisconnectionError {
 		t.Error("Its not")
@@ -215,6 +217,7 @@ func TestIsDisconnectionError(t *testing.T) {
 }
 
 func TestConnectionMessageErrors(t *testing.T) {
+	t.Parallel()
 	var wsWrong = &Websocket{}
 	err := wsWrong.Connect()
 	if err == nil {
@@ -283,6 +286,7 @@ outer:
 }
 
 func TestWebsocket(t *testing.T) {
+	t.Parallel()
 	wsInit := Websocket{}
 	err := wsInit.Setup(&WebsocketSetup{
 		ExchangeName: "test",
@@ -439,6 +443,7 @@ func TestWebsocket(t *testing.T) {
 
 // TestSubscribe logic test
 func TestSubscribeUnsubscribe(t *testing.T) {
+	t.Parallel()
 	ws := *New()
 	err := ws.Setup(defaultSetup)
 	if err != nil {
@@ -497,6 +502,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 }
 
 func TestResubscribe(t *testing.T) {
+	t.Parallel()
 	ws := *New()
 	err := ws.Setup(defaultSetup)
 	if err != nil {
@@ -533,6 +539,7 @@ func TestResubscribe(t *testing.T) {
 
 // TestConnectionMonitorNoConnection logic test
 func TestConnectionMonitorNoConnection(t *testing.T) {
+	t.Parallel()
 	ws := *New()
 	ws.DataHandler = make(chan interface{}, 1)
 	ws.ShutdownC = make(chan struct{}, 1)
@@ -565,6 +572,7 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 
 // TestSliceCopyDoesntImpactBoth logic test
 func TestGetSubscriptions(t *testing.T) {
+	t.Parallel()
 	w := Websocket{
 		subscriptions: []ChannelSubscription{
 			{
@@ -579,6 +587,7 @@ func TestGetSubscriptions(t *testing.T) {
 
 // TestSetCanUseAuthenticatedEndpoints logic test
 func TestSetCanUseAuthenticatedEndpoints(t *testing.T) {
+	t.Parallel()
 	ws := *New()
 	result := ws.CanUseAuthenticatedEndpoints()
 	if result {
@@ -593,6 +602,7 @@ func TestSetCanUseAuthenticatedEndpoints(t *testing.T) {
 
 // TestDial logic test
 func TestDial(t *testing.T) {
+	t.Parallel()
 	var testCases = []testStruct{
 		{Error: nil,
 			WC: WebsocketConnection{
@@ -640,6 +650,7 @@ func TestDial(t *testing.T) {
 
 // TestSendMessage logic test
 func TestSendMessage(t *testing.T) {
+	t.Parallel()
 	var testCases = []testStruct{
 		{Error: nil, WC: WebsocketConnection{
 			ExchangeName:     "test1",
@@ -694,6 +705,7 @@ func TestSendMessage(t *testing.T) {
 
 // TestSendMessageWithResponse logic test
 func TestSendMessageWithResponse(t *testing.T) {
+	t.Parallel()
 	wc := &WebsocketConnection{
 		Verbose:          true,
 		URL:              "wss://ws.kraken.com",
@@ -755,6 +767,7 @@ func readMessages(wc *WebsocketConnection, t *testing.T) {
 
 // TestSetupPingHandler logic test
 func TestSetupPingHandler(t *testing.T) {
+	t.Parallel()
 	wc := &WebsocketConnection{
 		URL:              websocketTestURL,
 		ResponseMaxLimit: time.Second * 5,
@@ -798,6 +811,7 @@ func TestSetupPingHandler(t *testing.T) {
 
 // TestParseBinaryResponse logic test
 func TestParseBinaryResponse(t *testing.T) {
+	t.Parallel()
 	wc := &WebsocketConnection{
 		URL:              websocketTestURL,
 		ResponseMaxLimit: time.Second * 5,
@@ -847,6 +861,7 @@ func TestParseBinaryResponse(t *testing.T) {
 
 // TestCanUseAuthenticatedWebsocketForWrapper logic test
 func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
+	t.Parallel()
 	ws := &Websocket{}
 	resp := ws.CanUseAuthenticatedWebsocketForWrapper()
 	if resp {
@@ -865,6 +880,7 @@ func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
 }
 
 func TestGenerateMessageID(t *testing.T) {
+	t.Parallel()
 	wc := WebsocketConnection{}
 	var id int64
 	for i := 0; i < 10; i++ {
@@ -925,6 +941,7 @@ func TestCheckWebsocketURL(t *testing.T) {
 }
 
 func TestGetChannelDifference(t *testing.T) {
+	t.Parallel()
 	web := Websocket{}
 
 	newChans := []ChannelSubscription{
@@ -1020,6 +1037,7 @@ func (g *GenSubs) UNSUBME(unsubs []ChannelSubscription) error {
 func connect() error { return nil }
 
 func TestFlushChannels(t *testing.T) {
+	t.Parallel()
 	// Enabled pairs/setup system
 	newgen := GenSubs{EnabledPairs: []currency.Pair{
 		currency.NewPair(currency.BTC, currency.AUD),
@@ -1141,6 +1159,7 @@ func TestFlushChannels(t *testing.T) {
 }
 
 func TestDisable(t *testing.T) {
+	t.Parallel()
 	web := Websocket{
 		enabled:   true,
 		connected: true,
@@ -1157,6 +1176,7 @@ func TestDisable(t *testing.T) {
 }
 
 func TestEnable(t *testing.T) {
+	t.Parallel()
 	web := Websocket{
 		connector: connect,
 		Wg:        new(sync.WaitGroup),
@@ -1176,6 +1196,7 @@ func TestEnable(t *testing.T) {
 }
 
 func TestSetupNewConnection(t *testing.T) {
+	t.Parallel()
 	var nonsenseWebsock *Websocket
 	err := nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
 	if err == nil {
@@ -1230,6 +1251,7 @@ func TestSetupNewConnection(t *testing.T) {
 }
 
 func TestWebsocketConnectionShutdown(t *testing.T) {
+	t.Parallel()
 	wc := WebsocketConnection{}
 	err := wc.Shutdown()
 	if err != nil {

@@ -276,23 +276,6 @@
    "Disabled": false
   },
   {
-   "Name": "LakeBTC",
-   "CheckType": "HTML String Check",
-   "Data": {
-    "HTMLData": {
-     "TokenData": "div",
-     "Key": "class",
-     "Val": "flash-message",
-     "TokenDataEnd": "h2",
-     "TextTokenData": "h1",
-     "RegExp": "APIv\\d{1}",
-     "CheckString": "de2491b95ef1f6ea334247b13f0f14f6816fb5961cc63acc0542b07fc0336dd8",
-     "Path": "https://www.lakebtc.com/s/api_v2"
-    }
-   },
-   "Disabled": false
-  },
-  {
    "Name": "Exmo",
    "CheckType": "HTML String Check",
    "Data": {
