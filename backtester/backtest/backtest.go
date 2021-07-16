@@ -137,7 +137,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		}
 		exch := bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		b := exch.GetBase()
-		pFmt, err := b.GetPairFormat(a, true)
+		var pFmt currency.PairFormat
+		pFmt, err = b.GetPairFormat(a, true)
 		if err != nil {
 			return nil, fmt.Errorf("could not fotmat currency %v, %w", curr, err)
 		}
