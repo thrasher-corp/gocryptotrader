@@ -179,7 +179,10 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 		}
 		var candles kline.Item
 		switch jobs[i].DataType {
-		case dataHistoryCandleDataType, dataHistoryCandleValidationDataType, dataHistoryCandleValidationSecondarySourceType:
+		case dataHistoryCandleDataType,
+			dataHistoryCandleValidationDataType,
+			dataHistoryCandleValidationSecondarySourceType,
+			dataHistoryConvertTradesDataType:
 			candles, err = m.candleLoader(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].Interval, jobs[i].StartDate, jobs[i].EndDate)
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
@@ -190,7 +193,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			if err != nil && err != sql.ErrNoRows {
 				return fmt.Errorf("%s could not load trade data: %w", jobs[i].Nickname, err)
 			}
-		case dataHistoryConvertCandlesDataType, dataHistoryConvertTradesDataType:
+		case dataHistoryConvertCandlesDataType:
 			candles, err = m.candleLoader(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].ConversionInterval, jobs[i].StartDate, jobs[i].EndDate)
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
@@ -1096,8 +1099,7 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		}
 	}
 	interval := job.Interval
-	if job.DataType == dataHistoryConvertTradesDataType ||
-		job.DataType == dataHistoryConvertCandlesDataType {
+	if job.DataType == dataHistoryConvertCandlesDataType {
 		interval = job.ConversionInterval
 	}
 	job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, interval, uint32(job.RequestSizeLimit))
