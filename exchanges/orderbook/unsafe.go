@@ -1,6 +1,9 @@
 package orderbook
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 // Unsafe is an exported linked list reference to current the current bid/ask
 // heads and a reference to the underlying depth mutex. This allows for the
@@ -12,6 +15,11 @@ type Unsafe struct {
 	BidHead **Node
 	AskHead **Node
 	m       *sync.Mutex
+
+	// UpdatedViaREST defines if sync manager is updating this book via the REST
+	// protocol then this book is not considered live and cannot be trusted.
+	UpdatedViaREST *bool
+	LastUpdated    *time.Time
 	*Alert
 }
 
@@ -44,9 +52,11 @@ func (src *Unsafe) UnlockWith(dst sync.Locker) {
 // GetUnsafe returns an unsafe orderbook with pointers to the linked list heads.
 func (d *Depth) GetUnsafe() Unsafe {
 	return Unsafe{
-		BidHead: &d.bids.linkedList.head,
-		AskHead: &d.asks.linkedList.head,
-		m:       &d.m,
-		Alert:   &d.Alert,
+		BidHead:        &d.bids.linkedList.head,
+		AskHead:        &d.asks.linkedList.head,
+		m:              &d.m,
+		Alert:          &d.Alert,
+		UpdatedViaREST: &d.options.restSnapshot,
+		LastUpdated:    &d.options.lastUpdated,
 	}
 }
