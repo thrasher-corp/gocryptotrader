@@ -392,11 +392,13 @@ func (m *OrderManager) GetOrdersFiltered(f *order.Filter) ([]order.Detail, error
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
-
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if f == nil {
+		return nil, fmt.Errorf("order manager, GetOrdersFiltered: Filter is nil")
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
-	return m.orderStore.getFilteredOrders(f), nil
+	return m.orderStore.getFilteredOrders(f)
 }
 
 // processSubmittedOrder adds a new order to the manager
@@ -749,7 +751,10 @@ func (s *store) add(det *order.Detail) error {
 }
 
 // getFilteredOrders returns a filtered copy of the orders
-func (s *store) getFilteredOrders(f *order.Filter) []order.Detail {
+func (s *store) getFilteredOrders(f *order.Filter) ([]order.Detail, error) {
+	if f == nil {
+		return nil, errors.New("filter is nil")
+	}
 	s.m.RLock()
 	defer s.m.RUnlock()
 
@@ -774,5 +779,5 @@ func (s *store) getFilteredOrders(f *order.Filter) []order.Detail {
 			}
 		}
 	}
-	return os
+	return os, nil
 }

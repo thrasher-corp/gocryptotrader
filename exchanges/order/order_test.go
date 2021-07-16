@@ -1127,6 +1127,7 @@ func TestMatchFilter(t *testing.T) {
 		14: {Pair: currency.NewPair(currency.BTC, currency.USD)},
 		15: {Exchange: "Binance", Type: Limit, Status: New},
 		16: {Exchange: "Binance", Type: AnyType},
+		17: {AccountID: "8888"},
 	}
 
 	orders := map[int]Detail{
@@ -1146,6 +1147,7 @@ func TestMatchFilter(t *testing.T) {
 		13: {AssetType: asset.Spot},
 		14: {Pair: currency.NewPair(currency.BTC, currency.USD)},
 		15: {Exchange: "Binance", Type: Limit, Status: New},
+		16: {AccountID: "8888"},
 	}
 	// empty filter tests
 	emptyFilter := filters[0]
@@ -1196,6 +1198,8 @@ func TestMatchFilter(t *testing.T) {
 		33: {filters[14], orders[13], false},
 		34: {filters[15], orders[15], true},
 		35: {filters[16], orders[15], true},
+		36: {filters[17], orders[16], true},
+		37: {filters[17], orders[15], false},
 	}
 	// specific tests
 	for num, tt := range tests {

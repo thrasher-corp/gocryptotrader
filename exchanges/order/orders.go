@@ -365,22 +365,13 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 	if f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange) {
 		return false
 	}
-	if f.InternalOrderID != "" && d.InternalOrderID != f.InternalOrderID {
+	if f.AssetType != "" && d.AssetType != f.AssetType {
+		return false
+	}
+	if !f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair) {
 		return false
 	}
 	if f.ID != "" && d.ID != f.ID {
-		return false
-	}
-	if f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID {
-		return false
-	}
-	if f.AccountID != "" && d.AccountID != f.AccountID {
-		return false
-	}
-	if f.ClientID != "" && d.ClientID != f.ClientID {
-		return false
-	}
-	if f.WalletAddress != "" && d.WalletAddress != f.WalletAddress {
 		return false
 	}
 	if f.Type != "" && f.Type != AnyType && d.Type != f.Type {
@@ -392,10 +383,19 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 	if f.Status != "" && f.Status != AnyStatus && d.Status != f.Status {
 		return false
 	}
-	if f.AssetType != "" && d.AssetType != f.AssetType {
+	if f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID {
 		return false
 	}
-	if !f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair) {
+	if f.ClientID != "" && d.ClientID != f.ClientID {
+		return false
+	}
+	if f.InternalOrderID != "" && d.InternalOrderID != f.InternalOrderID {
+		return false
+	}
+	if f.AccountID != "" && d.AccountID != f.AccountID {
+		return false
+	}
+	if f.WalletAddress != "" && d.WalletAddress != f.WalletAddress {
 		return false
 	}
 	return true
