@@ -135,6 +135,14 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
 				err)
 		}
+		exch := bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+		b := exch.GetBase()
+		if b.CurrencyPairs.RequestFormat != nil {
+			curr = curr.Format(b.CurrencyPairs.RequestFormat.Delimiter, b.CurrencyPairs.RequestFormat.Uppercase)
+		} else if b.CurrencyPairs.Pairs[a].RequestFormat != nil {
+			curr = curr.Format(b.CurrencyPairs.Pairs[a].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[a].RequestFormat.Uppercase)
+		}
+
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = &risk.CurrencySettings{
 			MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
 			MaxLeverageRate:                cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,

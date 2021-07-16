@@ -8,10 +8,10 @@
  },
  "currency-settings": [
   {
-   "exchange-name": "binance",
+   "exchange-name": "poloniex",
    "asset": "spot",
    "base": "BTC",
-   "quote": "USDT",
+   "quote": "XRP",
    "initial-funds": 100000,
    "leverage": {
     "can-use-leverage": false,

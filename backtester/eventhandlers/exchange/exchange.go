@@ -265,7 +265,7 @@ func (e *Exchange) SetExchangeAssetCurrencySettings(exch string, a asset.Item, c
 // GetCurrencySettings returns the settings for an exchange, asset currency
 func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pair) (Settings, error) {
 	for i := range e.CurrencySettings {
-		if e.CurrencySettings[i].CurrencyPair == cp {
+		if e.CurrencySettings[i].CurrencyPair.Equal(cp) {
 			if e.CurrencySettings[i].AssetType == a {
 				if exch == e.CurrencySettings[i].ExchangeName {
 					return e.CurrencySettings[i], nil
