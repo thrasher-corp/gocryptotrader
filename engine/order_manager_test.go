@@ -599,5 +599,4 @@ func Test_getFilteredOrders(t *testing.T) {
 	if len(res) != 1 {
 		t.Errorf("Expected 1 result, got: %d", len(res))
 	}
-
 }

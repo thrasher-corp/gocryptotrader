@@ -452,6 +452,7 @@ func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 		ID:                result.OrderID,
 		AccountID:         newOrder.AccountID,
 		ClientID:          newOrder.ClientID,
+		ClientOrderID:     newOrder.ClientOrderID,
 		WalletAddress:     newOrder.WalletAddress,
 		Type:              newOrder.Type,
 		Side:              newOrder.Side,
