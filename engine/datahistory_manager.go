@@ -432,9 +432,9 @@ ranges:
 		case dataHistoryTradeDataType:
 			result, err = m.processTradeData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, int64(i))
 		case dataHistoryConvertTradesDataType:
-			result, err = m.convertJobTradesToCandles(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+			result, err = m.convertTradesToCandles(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		case dataHistoryConvertCandlesDataType:
-			result, err = m.upscaleJobCandleData(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+			result, err = m.convertCandleData(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		default:
 			return errUnknownDataType
 		}
@@ -717,7 +717,7 @@ func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange
 	return r, nil
 }
 
-func (m *DataHistoryManager) convertJobTradesToCandles(job *DataHistoryJob, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
+func (m *DataHistoryManager) convertTradesToCandles(job *DataHistoryJob, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
 	if job == nil {
 		return nil, errNilJob
 	}
@@ -742,7 +742,7 @@ func (m *DataHistoryManager) convertJobTradesToCandles(job *DataHistoryJob, star
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
-	candles, err := trade.ConvertTradesToCandles(job.ConversionInterval, trades...)
+	candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
 	if err != nil {
 		r.Result = "could not convert trades in range: " + err.Error()
 		r.Status = dataHistoryStatusFailed
@@ -757,7 +757,7 @@ func (m *DataHistoryManager) convertJobTradesToCandles(job *DataHistoryJob, star
 	return r, nil
 }
 
-func (m *DataHistoryManager) upscaleJobCandleData(job *DataHistoryJob, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
+func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
 	if job == nil {
 		return nil, errNilJob
 	}
@@ -976,10 +976,10 @@ func (m *DataHistoryManager) SetJobRelationship(prerequisiteJobNickname, jobNick
 	if atomic.LoadInt32(&m.started) == 0 {
 		return ErrSubSystemNotStarted
 	}
-	status := dataHistoryStatusPaused
 	if jobNickname == "" {
 		return errNicknameUnset
 	}
+	status := dataHistoryStatusPaused
 	if prerequisiteJobNickname == "" {
 		status = dataHistoryStatusActive
 	}
@@ -1019,10 +1019,10 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		var p *DataHistoryJob
 		p, err = m.GetByNickname(job.PrerequisiteJobNickname, false)
 		if err != nil {
-			return fmt.Errorf("upsert job %s could not find prerequisite job %v %w", j.Nickname, j.PrerequisiteJobNickname, err)
+			return fmt.Errorf("upsert job %s could not find prerequisite job %v %w", job.Nickname, job.PrerequisiteJobNickname, err)
 		}
 		if p.Status != dataHistoryStatusActive && p.Status != dataHistoryStatusPaused {
-			return fmt.Errorf("upsert job %s prerequisite job already completed %w", j.Nickname, errJobInvalid)
+			return fmt.Errorf("upsert job %s prerequisite job %v already completed %w", job.Nickname, p.Nickname, errJobInvalid)
 		}
 	}
 
@@ -1189,17 +1189,20 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	}
 
 	b := exch.GetBase()
-	if !b.Features.Enabled.Kline.Intervals[job.Interval.Word()] && (job.DataType != dataHistoryTradeDataType && job.DataType != dataHistoryConvertTradesDataType) {
+	if !b.Features.Enabled.Kline.Intervals[job.Interval.Word()] &&
+		(job.DataType == dataHistoryCandleDataType || job.DataType == dataHistoryCandleValidationDataType) {
 		return fmt.Errorf("job interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
+	if job.DataType == dataHistoryConvertTradesDataType && job.Interval <= 0 {
+		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
+	}
 
-	if (job.DataType == dataHistoryConvertTradesDataType || job.DataType == dataHistoryConvertCandlesDataType) &&
-		job.ConversionInterval <= 0 {
+	if job.DataType == dataHistoryConvertCandlesDataType && job.ConversionInterval <= 0 {
 		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.ConversionInterval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 
 	if job.DataType == dataHistoryCandleValidationDataType {
-		if job.DecimalPlaceComparison <= 0 {
+		if job.DecimalPlaceComparison < 0 {
 			log.Warnf(log.DataHistory, "job %s decimal place comparison %v invalid. defaulting to %v", job.Nickname, job.DecimalPlaceComparison, defaultDecimalPlaceComparison)
 			job.DecimalPlaceComparison = defaultDecimalPlaceComparison
 		}
@@ -1339,7 +1342,7 @@ func (m *DataHistoryManager) SetJobStatus(nickname, id string, status dataHistor
 	if status != dataHistoryStatusPaused &&
 		status != dataHistoryStatusRemoved &&
 		status != dataHistoryStatusActive {
-		return fmt.Errorf("%w %s", errCannotSetJobStatus, status.String())
+		return fmt.Errorf("%w received: %s, can only pause, unpause or delete jobs", errBadStatus, status.String())
 	}
 	var dbJob *datahistoryjob.DataHistoryJob
 	var err error
@@ -1369,6 +1372,22 @@ func (m *DataHistoryManager) SetJobStatus(nickname, id string, status dataHistor
 			}
 		}
 	}
+	if dbJob.Status == int64(status) {
+		return fmt.Errorf("%w job %v, status already set to %v", errBadStatus, dbJob.Nickname, dataHistoryStatus(dbJob.Status))
+	}
+	switch dataHistoryStatus(dbJob.Status) {
+	case dataHistoryStatusActive:
+		if status != dataHistoryStatusRemoved && status != dataHistoryStatusPaused {
+			return fmt.Errorf("%w job %v", errBadStatus, dataHistoryStatus(dbJob.Status))
+		}
+	case dataHistoryStatusPaused:
+		if status != dataHistoryStatusRemoved && status != dataHistoryStatusActive {
+			return fmt.Errorf("%w job %v", errBadStatus, dataHistoryStatus(dbJob.Status))
+		}
+	default:
+		return fmt.Errorf("%w job %v, invalid status", errBadStatus, dataHistoryStatus(dbJob.Status))
+	}
+
 	dbJob.Status = int64(status)
 	err = m.jobDB.Upsert(dbJob)
 	if err != nil {

@@ -124,25 +124,25 @@ var dataHistoryJobCommands = &cli.Command{
 		{
 			Name:   "savecandles",
 			Usage:  "will fetch candle data from an exchange and save it to the database",
-			Flags:  append(baseJobSubCommands, candleRetrievalJobSubCommands...),
+			Flags:  append(baseJobSubCommands, dataHandlingJobSubCommands...),
 			Action: upsertDataHistoryJob,
 		},
 		{
 			Name:   "convertcandles",
 			Usage:  "convert candles saved to the database to a new resolution eg 1min -> 5min",
-			Flags:  append(baseJobSubCommands, conversionJobSubCommands...),
+			Flags:  append(baseJobSubCommands, candleConvertJobJobSubCommands...),
 			Action: upsertDataHistoryJob,
 		},
 		{
 			Name:   "savetrades",
 			Usage:  "will fetch trade data from an exchange and save it to the database",
-			Flags:  append(baseJobSubCommands, tradeRetrievalJobSubCommands...),
+			Flags:  append(baseJobSubCommands, dataHandlingJobSubCommands...),
 			Action: upsertDataHistoryJob,
 		},
 		{
 			Name:   "converttrades",
 			Usage:  "convert trades saved to the database to any candle resolution eg 30min",
-			Flags:  append(baseJobSubCommands, conversionJobSubCommands...),
+			Flags:  append(baseJobSubCommands, dataHandlingJobSubCommands...),
 			Action: upsertDataHistoryJob,
 		},
 		{
@@ -242,7 +242,7 @@ var (
 			Usage: "if true, will update an existing job if the nickname is shared. if false, will reject a job if the nickname already exists",
 		},
 	}
-	candleRetrievalJobSubCommands = []cli.Flag{
+	dataHandlingJobSubCommands = []cli.Flag{
 		&cli.Uint64Flag{
 			Name:        "request_size_limit",
 			Usage:       "the number of candles to retrieve per API request",
@@ -254,33 +254,21 @@ var (
 			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
 		},
 	}
-	tradeRetrievalJobSubCommands = []cli.Flag{
+	candleConvertJobJobSubCommands = []cli.Flag{
+		&cli.Uint64Flag{
+			Name:     "conversion_interval",
+			Usage:    "the converted candle interval",
+			Required: true,
+		},
 		&cli.Uint64Flag{
 			Name:        "request_size_limit",
-			Usage:       "the number of intervals of trades to retrieve per processing",
-			Destination: &requestSizeLimit,
-			Value:       50,
-		},
-		&cli.BoolFlag{
-			Name:  "overwrite_existing_data",
-			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
-		},
-	}
-	conversionJobSubCommands = []cli.Flag{
-		&cli.Uint64Flag{
-			Name:        "request_size_limit",
-			Usage:       "the number of candles to convert per processing",
+			Usage:       "the number of candles to retrieve per API request",
 			Destination: &requestSizeLimit,
 			Value:       500,
 		},
 		&cli.BoolFlag{
 			Name:  "overwrite_existing_data",
 			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
-		},
-		&cli.Uint64Flag{
-			Name:     "conversion_interval",
-			Usage:    "data will be converted and saved at this interval",
-			Required: true,
 		},
 	}
 	validationJobSubCommands = []cli.Flag{

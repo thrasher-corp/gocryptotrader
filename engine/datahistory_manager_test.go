@@ -247,19 +247,37 @@ func TestSetJobStatus(t *testing.T) {
 		t.Error("expected 0")
 	}
 	err = m.SetJobStatus("", dhj.ID.String(), dataHistoryStatusActive)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	if len(m.jobs) != 1 {
-		t.Error("expected 1")
+	if !errors.Is(err, errBadStatus) {
+		t.Errorf("error '%v', expected '%v'", err, errBadStatus)
 	}
 
 	err = m.SetJobStatus("", dhj.ID.String(), dataHistoryStatusPaused)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	if len(m.jobs) != 0 {
-		t.Error("expected 0")
+
+	err = m.SetJobStatus("", dhj.ID.String(), dataHistoryStatusFailed)
+	if !errors.Is(err, errBadStatus) {
+		t.Errorf("error '%v', expected '%v'", err, errBadStatus)
+	}
+
+	m.jobs = []*DataHistoryJob{dhj}
+	dhj.Status = dataHistoryStatusPaused
+	err = m.SetJobStatus(dhj.Nickname, "", dataHistoryStatusActive)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+
+	dhj.Status = dataHistoryStatusRemoved
+	err = m.SetJobStatus(dhj.Nickname, "", dataHistoryStatusActive)
+	if !errors.Is(err, errBadStatus) {
+		t.Errorf("error '%v', expected '%v'", err, errBadStatus)
+	}
+
+	dhj.Status = dataHistoryStatusPaused
+	err = m.SetJobStatus(dhj.Nickname, "", dataHistoryStatusRemoved)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
 	atomic.StoreInt32(&m.started, 0)
@@ -1064,7 +1082,7 @@ func TestProcessTradeData(t *testing.T) {
 func TestConvertJobTradesToCandles(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
-	_, err := m.convertJobTradesToCandles(nil, time.Time{}, time.Time{})
+	_, err := m.convertTradesToCandles(nil, time.Time{}, time.Time{})
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
 	}
@@ -1077,13 +1095,13 @@ func TestConvertJobTradesToCandles(t *testing.T) {
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
 	}
-	_, err = m.convertJobTradesToCandles(j, time.Time{}, time.Time{})
+	_, err = m.convertTradesToCandles(j, time.Time{}, time.Time{})
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
 	}
 	m.tradeLoader = dataHistoryTraderLoader
 	m.candleSaver = dataHistoryCandleSaver
-	r, err := m.convertJobTradesToCandles(j, j.StartDate, j.EndDate)
+	r, err := m.convertTradesToCandles(j, j.StartDate, j.EndDate)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -1096,7 +1114,7 @@ func TestUpscaleJobCandleData(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
 	m.candleSaver = dataHistoryCandleSaver
-	_, err := m.upscaleJobCandleData(nil, time.Time{}, time.Time{})
+	_, err := m.convertCandleData(nil, time.Time{}, time.Time{})
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
 	}
@@ -1110,12 +1128,12 @@ func TestUpscaleJobCandleData(t *testing.T) {
 		Interval:           kline.OneHour,
 		ConversionInterval: kline.OneDay,
 	}
-	_, err = m.upscaleJobCandleData(j, time.Time{}, time.Time{})
+	_, err = m.convertCandleData(j, time.Time{}, time.Time{})
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
 	}
 
-	r, err := m.upscaleJobCandleData(j, j.StartDate, j.EndDate)
+	r, err := m.convertCandleData(j, j.StartDate, j.EndDate)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}

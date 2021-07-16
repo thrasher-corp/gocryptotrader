@@ -96,7 +96,7 @@ var (
 	errNicknameIDUnset            = errors.New("must set 'id' OR 'nickname'")
 	errEmptyID                    = errors.New("id not set")
 	errOnlyNicknameOrID           = errors.New("can only set 'id' OR 'nickname'")
-	errCannotSetJobStatus         = errors.New("can only pause, unpause or delete jobs")
+	errBadStatus                  = errors.New("cannot set job status")
 	errNicknameInUse              = errors.New("cannot continue as nickname already in use")
 	errNicknameUnset              = errors.New("cannot continue as nickname unset")
 	errJobInvalid                 = errors.New("job has not been setup properly and cannot be processed")

@@ -237,15 +237,9 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 			return 0, err
 		}
 		tempCandle.ID = tempUUID.String()
-		if in.Candles[x].ValidationJobID != "" {
-			tempCandle.ValidationJobID = null.String{String: in.Candles[x].ValidationJobID, Valid: true}
-			if in.Candles[x].ValidationIssues != "" {
-				tempCandle.ValidationIssues = null.String{String: in.Candles[x].ValidationIssues, Valid: true}
-			}
-		}
-		if in.Candles[x].SourceJobID != "" {
-			tempCandle.SourceJobID = null.String{String: in.Candles[x].SourceJobID, Valid: true}
-		}
+		tempCandle.ValidationJobID = null.String{String: in.Candles[x].ValidationJobID, Valid: in.Candles[x].ValidationJobID != ""}
+		tempCandle.ValidationIssues = null.String{String: in.Candles[x].ValidationIssues, Valid: in.Candles[x].ValidationIssues != ""}
+		tempCandle.SourceJobID = null.String{String: in.Candles[x].SourceJobID, Valid: in.Candles[x].SourceJobID != ""}
 		err = tempCandle.Insert(ctx, tx, boil.Infer())
 		if err != nil {
 			return 0, err
@@ -273,15 +267,9 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 			Close:          in.Candles[x].Close,
 			Volume:         in.Candles[x].Volume,
 		}
-		if in.Candles[x].ValidationJobID != "" {
-			tempCandle.ValidationJobID = null.String{String: in.Candles[x].ValidationJobID, Valid: true}
-			if in.Candles[x].ValidationIssues != "" {
-				tempCandle.ValidationIssues = null.String{String: in.Candles[x].ValidationIssues, Valid: true}
-			}
-		}
-		if in.Candles[x].SourceJobID != "" {
-			tempCandle.SourceJobID = null.String{String: in.Candles[x].SourceJobID, Valid: true}
-		}
+		tempCandle.ValidationJobID = null.String{String: in.Candles[x].ValidationJobID, Valid: in.Candles[x].ValidationJobID != ""}
+		tempCandle.ValidationIssues = null.String{String: in.Candles[x].ValidationIssues, Valid: in.Candles[x].ValidationIssues != ""}
+		tempCandle.SourceJobID = null.String{String: in.Candles[x].SourceJobID, Valid: in.Candles[x].SourceJobID != ""}
 		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_name_id", "base", "quote", "interval", "asset"}, boil.Infer(), boil.Infer())
 		if err != nil {
 			return 0, err

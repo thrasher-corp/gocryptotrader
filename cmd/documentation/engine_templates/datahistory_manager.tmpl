@@ -11,7 +11,7 @@
 + Jobs will fetch data at sizes you request (which can cater to hardware limitations such as low RAM)
 + Jobs are completed once all data has been fetched/attempted to be fetched in the time range
 
-## Current Features for {{.CapitalName}}
+## Current Features for the data history manager
 + Retrieval and storage of exchange API candle data
 + Retrieval and storage of exchange API trade data
 + Conversion of stored trade data into custom candle data
@@ -35,15 +35,8 @@
 A job is a set of parameters which will allow GoCryptoTrader to periodically retrieve, convert or validate historical data. Its purpose is to break up the process of retrieving large sets of data for multiple currencies and exchanges into more manageable chunks in a "set and forget" style.
 For a breakdown of what a job consists of and what each parameter does, please review the database tables and the cycle details below.
 
-### What kind of jobs are there?
-
-| Job name | Description | Job type number |
-| ------ | ----------- | ------- |
-| dataHistoryCandleDataType | This job will fetch and save candles in the ranges you specify | 0 |
-| dataHistoryTradeDataType | This job will fetch and save trades in the ranges you specify | 1 |
-| dataHistoryConvertTradesDataType | This job will use _existing_ trade data and convert the trades to candles in the ranges you specify | 2 |
-| dataHistoryConvertCandlesDataType | This job will use _existing_ candle data and convert the trades to candles in the ranges you specify. Note, it can only convert candles to a lower resolution: 1m -> 1h is valid, 1h -> 1m is invalid | 3 |
-| dataHistoryConvertValidationDataType | This job will compare _existing_ candle data against API candle data and highlight any discrepancies. A useful tool to verify that converted candles and trades match API data and can be used to convert into other candle types | 4 |
+## What kind of data jobs are there?
+A breakdown of each type is under the Add Jobs command list below
 
 ## What happens during a data history cycle?
 + Once the checkInterval ticker timer has finished, the data history manager will process all jobs considered `active`.
@@ -57,20 +50,30 @@ For a breakdown of what a job consists of and what each parameter does, please r
   + The errors for retrieval failures are stored in the database, allowing you to understand why a certain chunk of time is unavailable (eg exchange downtime and missing data)
 + All results are saved to the database, the data history manager will analyse all results and ready jobs for the next round of processing
 
-## How do I add one?
+## How do I add a job?
 + First ensure that the data history monitor is enabled, you can do this via the config (see table `dataHistoryManager` under Config parameters below), via run time parameter (see table Application run time parameters below) or via the RPC command `enablesubsystem --subsystemname="data_history_manager"`
 + The simplest way of adding a new data history job is via the GCTCLI under `/cmd/gctcli`.
-  + Modify the following example command to your needs: `.\gctcli.exe datahistory upsertjob --nickname=binance-spot-bnb-btc-1h-candles --exchange=binance --asset=spot --pair=BNB-BTC --interval=3600 --start_date="2020-06-02 12:00:00" --end_date="2020-12-02 12:00:00" --request_size_limit=10 --data_type=0 --max_retry_attempts=3 --batch_size=3`
+  + Modify the following example command to your needs: `.\gctcli.exe datahistory addjob savecandles --nickname=binance-spot-bnb-btc-1h-candles --exchange=binance --asset=spot --pair=BNB-BTC --interval=3600 --start_date="2020-06-02 12:00:00" --end_date="2020-12-02 12:00:00" --request_size_limit=10 --data_type=0 --max_retry_attempts=3 --batch_size=3`
 
 ### Candle intervals and trade fetching
 + A candle interval is required for a job, even when fetching trade data. This is to appropriately break down requests into time interval chunks. However, it is restricted to only a small range of times. This is to prevent fetching issues as fetching trades over a period of days or weeks will take a significant amount of time. When setting a job to fetch trades, the allowable range is less than 4 hours and greater than 10 minutes. So an interval of 1 hour will then fetch an hour's worth of trade data.
 
 ## Job queuing and prerequisite jobs
-You can add jobs will will be paused by default by using the parameter `prerequisiteJobNickname`. The prerequisite job will be checked whether it exists and add a relationship.
-+ When the prerequisite job status goes is set to `complete`, the data history manager will search for any jobs which are pending its completion and update their status to `active`.
+You can add jobs which will be paused by default by using the parameter `prerequisiteJobNickname`. The prerequisite job will be checked to ensure it exists and has not yet completed and add the relationship.
++ Once you have set a prerequisite job, when the prerequisite job status is set to `complete`, the data history manager will search for any jobs which are pending its completion and update their status to `active`.
 + If the prerequisite job is deleted or fails, the upcoming job will _not_ be run.
-+ Multiple jobs can use the same prerequisite job and you can also queue from one job to the next multiple times.
++ Multiple jobs can use the same prerequisite job, but a job cannot have multiple prerequisites
+  + Attempting to add a new prerequisite will overwrite the existing prerequisite
++ You can chain many queued jobs together allowing for automated and large scale data retrieval projects. For example:
 
+| Job Type | Job Name | Description | Prerequisite Job |
+| -------- | -------- | ----------- | ---------------- |
+| savetrades | save-trades | Save jobs between 01-01-2021 and 01-02-2021 | |
+| converttrades | convert-trades | Convert trades to 5m candles | save-trades |
+| validatecandles | validate-candles | Ensure the converted trades match the exchange's API data | convert-trades |
+| convertcandles | convert-candles-10m | Now that we have confidence in conversion, convert candle to 10m | validate-candles |
+| convertcandles | convert-candles-25m | Now that we have confidence in conversion, convert candle to 25m | validate-candles |
+| convertcandles | convert-candles-1d | Now that we have confidence in conversion, convert candle to 1d | validate-candles |
 
 ### Application run time parameters
 
@@ -94,14 +97,31 @@ The below table is a summary of commands. For more details, view the commands in
 
 | Command | Description |
 | ------ | ----------- |
-| UpsertDataHistoryJob | Updates or Inserts a job to the manager and database |
+| AddJob | Shows a list of subcommands to add a new job type, detailed in the next table |
 | GetDataHistoryJobDetails | Returns a job's details via its nickname or ID. Can optionally return an array of all run results |
 | GetActiveDataHistoryJobs | Will return all jobs that have an `active` status |
 | DeleteJob | Will remove a job for processing. Data is preserved in the database for later reference |
 | GetDataHistoryJobsBetween | Returns all jobs, of all status types between the dates provided |
 | GetDataHistoryJobSummary | Will return an executive summary of the progress of your job by nickname |
+| PauseDataHistoryJob | Will set a job's status to paused |
+| UnpauseDataHistoryJob | Will se a job's status to `active` |
+
+#### AddJob commands
+
+| Command | Description |
+| ------ | ----------- |
+| savecandles | Will fetch candle data from an exchange and save it to the database | 0 |
+| convertcandles | Convert candles saved to the database to a new resolution eg 1min -> 5min | 1 |
+| savetrades | Will fetch trade data from an exchange and save it to the database | 2 |
+| converttrades | Convert trades saved to the database to any candle resolution eg 30min | 3 |
+| validatecandles | Will compare database candle data with API candle data - useful for validating converted trades and candles | 4 |
+| secondaryvalidatecandles | Will compare database candle data with a different exchange's API candle data | 5 |
+
 
 ### Database tables
+The following is a screenshot of the relationship between relevant data history job tables
+![image](https://user-images.githubusercontent.com/9261323/125889821-954b730a-01fd-4eb0-839d-3cc623178f20.png)
+
 #### datahistoryjob
 
 | Field | Description | Example |
@@ -121,10 +141,14 @@ The below table is a summary of commands. For more details, view the commands in
 | batch_count | The number of requests to make when processing a job | `3` |
 | status | A numerical representation for the status. `0` is active, `1` is failed `2` is complete, `3` is removed and `4` is missing data | `0` |
 | created | The date the job was created. | `2020-01-01T13:33:37Z` |
-| overwrite_existing_data | When converting data as a job and data already exists in an interval, this will overwrite it | `2020-01-01T13:33:37Z` |
-| conversion_interval | When converting data as a job, this determines the resulting interval | `2020-01-01T13:33:37Z` |
+| conversion_interval | When converting data as a job, this determines the resulting interval | `86400000000000` |
+| overwrite_data |When converting data as a job and data already exists in an interval, this will overwrite it | `false` |
+| decimal_place_comparison | When validating API candles, this will round the data to the supplied decimal point to check for equality | `3` |
+| secondary_exchange_id | For a `secondaryvalidatecandles` job, the exchange id of the exchange to comapre data to. | `ftx` |
+| replace_on_issue | When there is an issue validating candles for a `validatecandles` job, the API data will overwrite the existing candle data | `false` |
 
 #### datahistoryjobresult
+
 | Field | Description | Example |
 | ------ | ----------- | ------- |
 | id | Unique ID of the job status | `deadbeef-dead-beef-dead-beef13371337` |
@@ -135,11 +159,23 @@ The below table is a summary of commands. For more details, view the commands in
 | interval_end_time  | The end date of the period fetched | `2020-01-02T13:33:37Z` |
 | run_time | The time the job was ran | `2020-01-03T13:33:37Z` |
 
-#### datahistoryjobqueue
+#### datahistoryjobrelations
+
 | Field | Description | Example |
 | ------ | ----------- | ------- |
-|prerequisite_job_id | The job that must be completed before `following_job_id` can be run | `deadbeef-dead-beef-dead-beef13371337` |
-|following_job_id | The job that will be run after `prerequisite_job_id` completes | `deadbeef-dead-beef-dead-beef13371337` |
+|prerequisite_job_id | The job that must be completed before `job_id` can be run | `deadbeef-dead-beef-dead-beef13371337` |
+|job_id | The job that will be run after `prerequisite_job_id` completes | `deadbeef-dead-beef-dead-beef13371337` |
+
+#### candle
+The candle table also has relationships to data history jobs. Only the relevant columns are listed below:
+
+| Field | Description | Example |
+| ------ | ----------- | ------- |
+| source_job_id | The source job id for where the candle data came from. | `deadbeef-dead-beef-dead-beef13371337` |
+| validation_job_id | When job id for what job validated the candle data | `deadbeef-dead-beef-dead-beef13371337` |
+| validation_issues | If any discrepancies are found, the data will be written to the column | `issues found at 2020-07-08 00:00:00, Open api: 9262.62 db: 9262.69 diff: 3%, replacing database candle data with API data` |
+
+
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 {{template "contributions"}}
