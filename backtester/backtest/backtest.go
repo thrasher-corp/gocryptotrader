@@ -137,11 +137,11 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		}
 		exch := bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		b := exch.GetBase()
-		if b.CurrencyPairs.RequestFormat != nil {
-			curr = curr.Format(b.CurrencyPairs.RequestFormat.Delimiter, b.CurrencyPairs.RequestFormat.Uppercase)
-		} else if b.CurrencyPairs.Pairs[a].RequestFormat != nil {
-			curr = curr.Format(b.CurrencyPairs.Pairs[a].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[a].RequestFormat.Uppercase)
+		pFmt, err := b.GetPairFormat(a, true)
+		if err != nil {
+			return nil, fmt.Errorf("could not fotmat currency %v, %w", curr, err)
 		}
+		curr = curr.Format(pFmt.Delimiter, pFmt.Uppercase)
 
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = &risk.CurrencySettings{
 			MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
