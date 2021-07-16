@@ -356,7 +356,7 @@ type OrderData struct {
 	PostOnly            bool    `json:"post_only"`
 	OrderType           string  `json:"order_type"`
 	OrderState          string  `json:"order_state"`
-	OrderID             int64   `json:"order_id"`
+	OrderID             string  `json:"order_id"`
 	MaxShow             int64   `json:"max_show"`
 	LastUpdateTimestamp int64   `json:"last_update_timestamp"`
 	Label               string  `json:"label"`

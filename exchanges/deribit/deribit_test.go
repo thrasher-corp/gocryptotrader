@@ -11,11 +11,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "oBWWwO3i"
+	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
 	btcInstrument           = "BTC-25MAR22"
@@ -111,6 +112,52 @@ func TestUpdateOrderbook(t *testing.T) {
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
 	}
+}
+
+func TestFetchRecentTrades(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+
+	cp, err := currency.NewPairFromString(btcInstrument)
+	if err != nil {
+		t.Error(err)
+	}
+
+	data, err := d.GetRecentTrades(cp, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(data)
+
+	_, err = d.GetRecentTrades(cp, asset.Spot)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
+	}
+}
+
+func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+
+	cp, err := currency.NewPairFromString(btcInstrument)
+	if err != nil {
+		t.Error(err)
+	}
+
+	data, err := d.SubmitOrder(
+		&order.Submit{
+			Price:     10,
+			Amount:    1,
+			Type:      order.Limit,
+			AssetType: asset.Futures,
+			Side:      order.Buy,
+			Pair:      cp,
+		},
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(data)
 }
 
 // Implement tests for API endpoints below

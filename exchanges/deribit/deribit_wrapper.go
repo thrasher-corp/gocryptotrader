@@ -2,7 +2,6 @@ package deribit
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -500,7 +499,7 @@ func (d *Deribit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 	if err != nil {
 		return nil, err
 	}
-	var resp []TradeData
+	var resp []trade.Data
 	for x := range currs {
 		instrumentsData, err := d.GetInstrumentsData(currs[x].Currency, "", false)
 		if err != nil {
@@ -519,19 +518,25 @@ func (d *Deribit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 					return nil, err
 				}
 				for a := range trades.Trades {
-					tradeIDInt, err := strconv.ParseInt(trades.Trades[a].TradeID, 10, 64)
-					if err != nil {
-						return nil, err
+					sideData := order.Sell
+					if trades.Trades[a].Direction == "buy" {
+						sideData = order.Buy
 					}
-					resp = append(resp, TradeData{
-						TradeSequence: int64(trades.Trades[a].TradeSeq),
-						TradeID:       tradeIDInt,
+					resp = append(resp, trade.Data{
+						TID:          trades.Trades[a].TradeID,
+						Exchange:     d.Name,
+						Price:        trades.Trades[a].Price,
+						Amount:       trades.Trades[a].Amount,
+						Timestamp:    time.Unix(trades.Trades[a].Timestamp/1000, 0),
+						AssetType:    assetType,
+						Side:         sideData,
+						CurrencyPair: p,
 					})
 				}
 			}
 		}
 	}
-	return nil, common.ErrNotYetImplemented
+	return resp, nil
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -543,10 +548,103 @@ func (d *Deribit) GetHistoricTrades(p currency.Pair, assetType asset.Item, times
 // SubmitOrder submits a new order
 func (d *Deribit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
+	switch s.AssetType {
+	case asset.Futures:
+		fmtPair, err := d.FormatExchangeCurrency(s.Pair, asset.Futures)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+		switch s.Side {
+		case order.Bid, order.Buy:
+			data, err := d.PrivateBuy(fmtPair.String(),
+				s.Type.String(),
+				s.ClientOrderID,
+				"", "", "",
+				s.Amount,
+				s.Price,
+				0,
+				s.TriggerPrice,
+				s.PostOnly,
+				false,
+				s.ReduceOnly,
+				false)
+			if err != nil {
+				return submitOrderResponse, err
+			}
+			submitOrderResponse.Cost = data.Order.AveragePrice * data.Order.FilledAmount
+			submitOrderResponse.Rate = data.Order.AveragePrice
+			var feeTotal float64
+			submitOrderResponse.FullyMatched = data.Order.Amount == data.Order.FilledAmount
+			submitOrderResponse.OrderID = data.Order.OrderID
+			for t := range data.Trades {
+				// sideData := order.Sell
+				// if data.Trades[t].Direction == "buy" {
+				// 	sideData = order.Buy
+				// }
+				typeData := order.Market
+				if data.Trades[t].OrderType == "limit" {
+					typeData = order.Limit
+				}
+				feeTotal += data.Trades[t].Fee
+				submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
+					Price:     data.Trades[t].Price,
+					Amount:    data.Trades[t].Amount,
+					Fee:       data.Trades[t].Fee,
+					Exchange:  d.Name,
+					Side:      order.Buy,
+					Type:      typeData,
+					FeeAsset:  data.Trades[t].FeeCurrency,
+					Timestamp: time.Unix(data.Trades[t].Timestamp/1000, 0),
+					TID:       data.Trades[t].OrderID,
+				})
+			}
+		case order.Sell, order.Ask:
+			data, err := d.SubmitSell(fmtPair.String(),
+				s.Type.String(),
+				s.ClientOrderID,
+				"", "", "",
+				s.Amount,
+				s.Price,
+				0,
+				s.TriggerPrice,
+				s.PostOnly,
+				false,
+				s.ReduceOnly,
+				false)
+			if err != nil {
+				return submitOrderResponse, err
+			}
+			submitOrderResponse.Cost = data.Order.AveragePrice * data.Order.FilledAmount
+			submitOrderResponse.Rate = data.Order.AveragePrice
+			var feeTotal float64
+			submitOrderResponse.FullyMatched = data.Order.Amount == data.Order.FilledAmount
+			submitOrderResponse.OrderID = data.Order.OrderID
+			for t := range data.Trades {
+				typeData := order.Market
+				if data.Trades[t].OrderType == "limit" {
+					typeData = order.Limit
+				}
+				feeTotal += data.Trades[t].Fee
+				submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
+					Price:     data.Trades[t].Price,
+					Amount:    data.Trades[t].Amount,
+					Fee:       data.Trades[t].Fee,
+					Exchange:  d.Name,
+					Side:      order.Sell,
+					Type:      typeData,
+					FeeAsset:  data.Trades[t].FeeCurrency,
+					Timestamp: time.Unix(data.Trades[t].Timestamp/1000, 0),
+					TID:       data.Trades[t].OrderID,
+				})
+			}
+		}
+	default:
+		return submitOrderResponse, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, s.AssetType)
+	}
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
-	return submitOrderResponse, common.ErrNotYetImplemented
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -560,23 +658,59 @@ func (d *Deribit) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (d *Deribit) CancelOrder(ord *order.Cancel) error {
-	// if err := ord.Validate(ord.StandardCancel()); err != nil {
-	//	 return err
-	// }
-	return common.ErrNotYetImplemented
+	if err := ord.Validate(ord.StandardCancel()); err != nil {
+		return err
+	}
+	_, err := d.SubmitCancel(ord.ID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
 func (d *Deribit) CancelBatchOrders(orders []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+	var resp = order.CancelBatchResponse{
+		Status: make(map[string]string),
+	}
+	for x := range orders {
+		if orders[x].AssetType.IsValid() {
+			_, err := d.SubmitCancel(orders[x].ID)
+			if err != nil {
+				resp.Status[orders[x].ID] = err.Error()
+			} else {
+				resp.Status[orders[x].ID] = "successfully cancelled"
+			}
+		}
+	}
+	return resp, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (d *Deribit) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
-	// if err := orderCancellation.Validate(); err != nil {
-	//	 return err
-	// }
-	return order.CancelAllResponse{}, common.ErrNotYetImplemented
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
+	pairFmt, err := d.GetPairFormat(orderCancellation.AssetType, true)
+	if err != nil {
+		return order.CancelAllResponse{}, err
+	}
+	var orderTypeStr string
+	switch orderCancellation.Type {
+	case order.Limit:
+		orderTypeStr = order.Limit.String()
+	case order.Market:
+		orderTypeStr = order.Market.String()
+	case order.AnyType:
+		orderTypeStr = "all"
+	default:
+		return order.CancelAllResponse{}, fmt.Errorf("%s: orderType %v is not valid", d.Name, orderCancellation.Type)
+	}
+	cancelData, err := d.SubmitCancelAllByInstrument(pairFmt.Format(orderCancellation.Pair), orderTypeStr)
+	if err != nil {
+		return order.CancelAllResponse{}, err
+	}
+	return order.CancelAllResponse{Count: cancelData}, nil
 }
 
 // GetOrderInfo returns order information based on order ID
