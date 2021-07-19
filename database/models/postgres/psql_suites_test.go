@@ -7,24 +7,6 @@ import "testing"
 
 func TestUpsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpsert)
-
-	t.Run("Candles", testCandlesUpsert)
-
-	t.Run("Datahistoryjobs", testDatahistoryjobsUpsert)
-
-	t.Run("Datahistoryjobresults", testDatahistoryjobresultsUpsert)
-
 	t.Run("Exchanges", testExchangesUpsert)
-
 	t.Run("Scripts", testScriptsUpsert)
-
-	t.Run("ScriptExecutions", testScriptExecutionsUpsert)
-
-	t.Run("Trades", testTradesUpsert)
-
-	t.Run("WithdrawalCryptos", testWithdrawalCryptosUpsert)
-
-	t.Run("WithdrawalFiats", testWithdrawalFiatsUpsert)
-
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesUpsert)
 }
