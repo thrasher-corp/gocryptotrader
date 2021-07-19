@@ -146,7 +146,7 @@ The following is a screenshot of the relationship between relevant data history 
 | start_time | When to begin fetching data | `01-01-2017T13:33:37Z` |
 | end_time | When to finish fetching data | `01-01-2018T13:33:37Z`  |
 | interval | A golang `time.Duration` representation of the candle interval to use. | `30000000000` |
-| data_type | The data type to fetch. `0` is candles, `1` is trades, `2` is convert trades to candles, `3` is convert candles to candles, `4` validates candle data against API data | `0` |
+| data_type | The data type to fetch. See job types in table `AddJob commands` above | `0` |
 | request_size | The number of candles to fetch. eg if `500`, the data history manager will break up the request into the appropriate timeframe to ensure the data history run interval will fetch 500 candles to save to the database | `500` |
 | max_retries | For an interval period, the amount of attempts the data history manager is allowed to attempt to fetch data before moving onto the next period. This can be useful for determining whether the exchange is missing the data in that time period or, if just one failure of three, just means that the data history manager couldn't finish one request | `3` |
 | batch_count | The number of requests to make when processing a job | `3` |
