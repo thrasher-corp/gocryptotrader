@@ -1562,7 +1562,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				StartTime: start,
 				EndTime:   start.Add(75 * time.Minute),
 			},
-			numExpected:  4303,
+			numExpected:  12130,
 			lastExpected: expectTime,
 		},
 		{
@@ -1580,11 +1580,11 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			name: "custom limit with start time set, no end time",
 			args: &AggregatedTradeRequestParams{
 				Symbol:    currency.NewPair(currency.BTC, currency.USDT),
-				StartTime: time.Date(2020, 11, 18, 12, 0, 0, 0, time.UTC),
+				StartTime: time.Date(2020, 11, 18, 23, 0, 28, 921, time.UTC),
 				Limit:     1001,
 			},
 			numExpected:  1001,
-			lastExpected: time.Date(2020, 11, 18, 13, 0, 0, int(34*time.Millisecond), time.UTC),
+			lastExpected: time.Date(2020, 11, 18, 23, 1, 33, int(62*time.Millisecond*10), time.UTC),
 		},
 		{
 			name: "mock recent trades",

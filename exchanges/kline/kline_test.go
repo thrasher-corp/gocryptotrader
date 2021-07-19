@@ -935,8 +935,8 @@ func TestConvertToNewInterval(t *testing.T) {
 		t.Errorf("received '%v' expectec '%v'", err, ErrUnsetInterval)
 	}
 	_, err = ConvertToNewInterval(old, OneMin)
-	if !errors.Is(err, ErrCanOnlyUpdootIntervals) {
-		t.Errorf("received '%v' expectec '%v'", err, ErrCanOnlyUpdootIntervals)
+	if !errors.Is(err, ErrCanOnlyDownscaleCandles) {
+		t.Errorf("received '%v' expectec '%v'", err, ErrCanOnlyDownscaleCandles)
 	}
 	old.Interval = ThreeDay
 	_, err = ConvertToNewInterval(old, OneWeek)

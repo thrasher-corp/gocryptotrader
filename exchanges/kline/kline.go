@@ -343,7 +343,7 @@ func ConvertToNewInterval(item *Item, newInterval Interval) (*Item, error) {
 		return nil, ErrUnsetInterval
 	}
 	if newInterval.Duration() <= item.Interval.Duration() {
-		return nil, ErrCanOnlyUpdootIntervals
+		return nil, ErrCanOnlyDownscaleCandles
 	}
 	if newInterval.Duration()%item.Interval.Duration() != 0 {
 		return nil, ErrWholeNumberScaling
