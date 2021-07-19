@@ -1548,8 +1548,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				StartTime: start,
 				EndTime:   start.Add(75 * time.Minute),
 			},
-			numExpected:  12130,
-			lastExpected: time.Date(2020, 1, 2, 16, 19, 4, int(831*time.Millisecond), time.UTC),
+			numExpected:  1012,
+			lastExpected: time.Date(2020, 1, 2, 16, 18, 31, int(919*time.Millisecond), time.UTC),
 		},
 		{
 			name: "batch with timerange",
@@ -1570,7 +1570,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				Limit:     1001,
 			},
 			numExpected:  1001,
-			lastExpected: time.Date(2020, 1, 2, 15, 10, 18, int(311*time.Millisecond), time.UTC),
+			lastExpected: time.Date(2020, 1, 2, 15, 18, 39, int(226*time.Millisecond), time.UTC),
 		},
 		{
 			name: "custom limit with start time set, no end time",
