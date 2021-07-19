@@ -3617,7 +3617,7 @@ func (s *RPCServer) UpdateDataHistoryJobPrerequisite(_ context.Context, r *gctrp
 		return nil, err
 	}
 	if r.PrerequisiteJobNickname == "" {
-		return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Removed prerequisite from job '%v' and set status to active", r.Nickname)}, nil
+		return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Removed prerequisite from job '%v'", r.Nickname)}, nil
 	}
 	return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Set job '%v' prerequisite job to '%v' and set status to paused", r.Nickname, r.PrerequisiteJobNickname)}, nil
 }

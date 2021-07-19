@@ -984,7 +984,22 @@ func (m *DataHistoryManager) SetJobRelationship(prerequisiteJobNickname, jobNick
 	}
 	status := dataHistoryStatusPaused
 	if prerequisiteJobNickname == "" {
-		status = dataHistoryStatusActive
+		j, err := m.GetByNickname(jobNickname, false)
+		if err != nil {
+			return err
+		}
+		status = j.Status
+		if j.Status == dataHistoryStatusPaused {
+			status = dataHistoryStatusActive
+		}
+	} else {
+		j, err := m.GetByNickname(prerequisiteJobNickname, false)
+		if err != nil {
+			return err
+		}
+		if j.Status != dataHistoryStatusActive && j.Status != dataHistoryStatusPaused {
+			return fmt.Errorf("cannot set prerequisite %v to job %v, %w", prerequisiteJobNickname, jobNickname, errJobMustBeActiveOrPaused)
+		}
 	}
 	return m.jobDB.SetRelationshipByNickname(prerequisiteJobNickname, jobNickname, int64(status))
 }

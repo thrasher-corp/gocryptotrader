@@ -8,6 +8,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 )
 
+var errCannotSetSamePrerequisite = errors.New("prerequisite job cannot be the same as the following job")
+
 // DataHistoryJob is a DTO for database data
 type DataHistoryJob struct {
 	ID                          string
@@ -43,8 +45,6 @@ type DBService struct {
 	sql    database.ISQL
 	driver string
 }
-
-var errCannotSetSamePrerequisite = errors.New("prerequisite job cannot be the same as the following job")
 
 // IDBService allows using data history job database service
 // without needing to care about implementation

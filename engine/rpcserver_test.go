@@ -1471,18 +1471,12 @@ func TestSetDataHistoryJobStatus(t *testing.T) {
 		t.Errorf("received %v, expected %v", len(m.jobs), 0)
 	}
 	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusActive)})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
-	if len(m.jobs) != 1 {
-		t.Errorf("received %v, expected %v", len(m.jobs), 1)
+	if !errors.Is(err, errBadStatus) {
+		t.Errorf("received %v, expected %v", err, errBadStatus)
 	}
 	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusPaused)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
-	}
-	if len(m.jobs) != 0 {
-		t.Errorf("received %v, expected %v", len(m.jobs), 0)
 	}
 }
 

@@ -147,7 +147,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [gloriousCode](https://github.com/gloriousCode) | 183 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 17 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 18 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |

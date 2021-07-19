@@ -53,8 +53,24 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 A job is a set of parameters which will allow GoCryptoTrader to periodically retrieve, convert or validate historical data. Its purpose is to break up the process of retrieving large sets of data for multiple currencies and exchanges into more manageable chunks in a "set and forget" style.
 For a breakdown of what a job consists of and what each parameter does, please review the database tables and the cycle details below.
 
-## What kind of data jobs are there?
+### What kind of data jobs are there?
 A breakdown of each type is under the Add Jobs command list below
+
+### What are the different job status types?
+
+| Job Status | Description | Representative value |
+| ---------- | ----------- | -------------------- |
+| active | A job that is ready to processed | 0 |
+| failed | The job has failed to retrieve/covert/validate the data you have specified. See the associated data history job results to understand why | 1 |
+| complete | The job has successfully retrieved/converted/validated all data you have specified | 2 |
+| removed | The job has been deleted. No data is removed, but the job can no longer be processed | 3 |
+| missing data | The job is complete, however there is some missing data. See the associated data history job results to understand why | 4 |
+| paused | The job has been paused and will not be processed. Either it has a prerequisite job that needs to be completed, or a user must unpause the job | 5 |
+
+### How do I add a job?
++ First ensure that the data history monitor is enabled, you can do this via the config (see table `dataHistoryManager` under Config parameters below), via run time parameter (see table Application run time parameters below) or via the RPC command `enablesubsystem --subsystemname="data_history_manager"`
++ The simplest way of adding a new data history job is via the GCTCLI under `/cmd/gctcli`.
+  + Modify the following example command to your needs: `.\gctcli.exe datahistory addjob savecandles --nickname=binance-spot-bnb-btc-1h-candles --exchange=binance --asset=spot --pair=BNB-BTC --interval=3600 --start_date="2020-06-02 12:00:00" --end_date="2020-12-02 12:00:00" --request_size_limit=10 --data_type=0 --max_retry_attempts=3 --batch_size=3`
 
 ## What happens during a data history cycle?
 + Once the checkInterval ticker timer has finished, the data history manager will process all jobs considered `active`.
@@ -67,11 +83,6 @@ A breakdown of each type is under the Add Jobs command list below
   + If it fails, the next attempt will be after the `checkInterval` has finished again.
   + The errors for retrieval failures are stored in the database, allowing you to understand why a certain chunk of time is unavailable (eg exchange downtime and missing data)
 + All results are saved to the database, the data history manager will analyse all results and ready jobs for the next round of processing
-
-## How do I add a job?
-+ First ensure that the data history monitor is enabled, you can do this via the config (see table `dataHistoryManager` under Config parameters below), via run time parameter (see table Application run time parameters below) or via the RPC command `enablesubsystem --subsystemname="data_history_manager"`
-+ The simplest way of adding a new data history job is via the GCTCLI under `/cmd/gctcli`.
-  + Modify the following example command to your needs: `.\gctcli.exe datahistory addjob savecandles --nickname=binance-spot-bnb-btc-1h-candles --exchange=binance --asset=spot --pair=BNB-BTC --interval=3600 --start_date="2020-06-02 12:00:00" --end_date="2020-12-02 12:00:00" --request_size_limit=10 --data_type=0 --max_retry_attempts=3 --batch_size=3`
 
 ### Candle intervals and trade fetching
 + A candle interval is required for a job, even when fetching trade data. This is to appropriately break down requests into time interval chunks. However, it is restricted to only a small range of times. This is to prevent fetching issues as fetching trades over a period of days or weeks will take a significant amount of time. When setting a job to fetch trades, the allowable range is less than 4 hours and greater than 10 minutes. So an interval of 1 hour will then fetch an hour's worth of trade data.
@@ -90,18 +101,18 @@ You can add jobs which will be paused by default by using the parameter `prerequ
 | converttrades | convert-trades | Convert trades to 5m candles | save-trades |
 | validatecandles | validate-candles | Ensure the converted trades match the exchange's API data | convert-trades |
 | convertcandles | convert-candles-10m | Now that we have confidence in conversion, convert candle to 10m | validate-candles |
-| convertcandles | convert-candles-25m | Now that we have confidence in conversion, convert candle to 15m | validate-candles |
+| convertcandles | convert-candles-25m | Now that we have confidence in conversion, convert candle to 25m | validate-candles |
 | convertcandles | convert-candles-1d | Now that we have confidence in conversion, convert candle to 1d | validate-candles |
 
-### Application run time parameters
+## Application run time parameters
 
 | Parameter | Description | Example |
 | ------ | ----------- | ------- |
 | datahistorymanager | A boolean value which determines if the data history manager is enabled. Defaults to `false` | `-datahistorymanager=true` |
 
 
-### Config parameters
-#### dataHistoryManager
+## Config parameters
+### dataHistoryManager
 
 | Config | Description | Example |
 | ------ | ----------- | ------- |
@@ -110,7 +121,7 @@ You can add jobs which will be paused by default by using the parameter `prerequ
 | maxJobsPerCycle | Allows you to control how many jobs are processed after the `checkInterval` timer finishes. Useful if you have many jobs, but don't wish to constantly be retrieving data | `5` |
 | verbose | Displays some extra logs to your logging output to help debug | `false` |
 
-### RPC commands
+## RPC commands
 The below table is a summary of commands. For more details, view the commands in `/cmd/gctcli` or `/gctrpc/rpc.swagger.json`
 
 | Command | Description |
@@ -124,10 +135,10 @@ The below table is a summary of commands. For more details, view the commands in
 | PauseDataHistoryJob | Will set a job's status to paused |
 | UnpauseDataHistoryJob | Will se a job's status to `active` |
 
-#### AddJob commands
+### AddJob commands
 
-| Command | Description |
-| ------ | ----------- |
+| Command | Description | DataHistoryJobDataType |
+| ------- | ----------- | ---------------------- |
 | savecandles | Will fetch candle data from an exchange and save it to the database | 0 |
 | convertcandles | Convert candles saved to the database to a new resolution eg 1min -> 5min | 1 |
 | savetrades | Will fetch trade data from an exchange and save it to the database | 2 |
@@ -136,11 +147,11 @@ The below table is a summary of commands. For more details, view the commands in
 | secondaryvalidatecandles | Will compare database candle data with a different exchange's API candle data | 5 |
 
 
-### Database tables
+## Database tables
 The following is a screenshot of the relationship between relevant data history job tables
 ![image](https://user-images.githubusercontent.com/9261323/125889821-954b730a-01fd-4eb0-839d-3cc623178f20.png)
 
-#### datahistoryjob
+### datahistoryjob
 
 | Field | Description | Example |
 | ------ | ----------- | ------- |
@@ -157,15 +168,15 @@ The following is a screenshot of the relationship between relevant data history 
 | request_size | The number of candles to fetch. eg if `500`, the data history manager will break up the request into the appropriate timeframe to ensure the data history run interval will fetch 500 candles to save to the database | `500` |
 | max_retries | For an interval period, the amount of attempts the data history manager is allowed to attempt to fetch data before moving onto the next period. This can be useful for determining whether the exchange is missing the data in that time period or, if just one failure of three, just means that the data history manager couldn't finish one request | `3` |
 | batch_count | The number of requests to make when processing a job | `3` |
-| status | A numerical representation for the status. `0` is active, `1` is failed `2` is complete, `3` is removed and `4` is missing data | `0` |
+| status | A numerical representation for the status. See data history job status subsection | `0` |
 | created | The date the job was created. | `2020-01-01T13:33:37Z` |
 | conversion_interval | When converting data as a job, this determines the resulting interval | `86400000000000` |
-| overwrite_data |When converting data as a job and data already exists in an interval, this will overwrite it | `false` |
+| overwrite_data | If data already exists, the setting allows you to overwrite it | `true` |
+| secondary_exchange_id | For a `secondaryvalidatecandles` job, the exchange id of the exchange to compare data to. | `ftx` |
 | decimal_place_comparison | When validating API candles, this will round the data to the supplied decimal point to check for equality | `3` |
-| secondary_exchange_id | For a `secondaryvalidatecandles` job, the exchange id of the exchange to comapre data to. | `ftx` |
 | replace_on_issue | When there is an issue validating candles for a `validatecandles` job, the API data will overwrite the existing candle data | `false` |
 
-#### datahistoryjobresult
+### datahistoryjobresult
 
 | Field | Description | Example |
 | ------ | ----------- | ------- |
@@ -177,14 +188,14 @@ The following is a screenshot of the relationship between relevant data history 
 | interval_end_time  | The end date of the period fetched | `2020-01-02T13:33:37Z` |
 | run_time | The time the job was ran | `2020-01-03T13:33:37Z` |
 
-#### datahistoryjobrelations
+### datahistoryjobrelations
 
 | Field | Description | Example |
 | ------ | ----------- | ------- |
-|prerequisite_job_id | The job that must be completed before `job_id` can be run | `deadbeef-dead-beef-dead-beef13371337` |
-|job_id | The job that will be run after `prerequisite_job_id` completes | `deadbeef-dead-beef-dead-beef13371337` |
+| prerequisite_job_id | The job that must be completed before `job_id` can be run | `deadbeef-dead-beef-dead-beef13371337` |
+| job_id | The job that will be run after `prerequisite_job_id` completes | `deadbeef-dead-beef-dead-beef13371337` |
 
-#### candle
+### candle
 The candle table also has relationships to data history jobs. Only the relevant columns are listed below:
 
 | Field | Description | Example |

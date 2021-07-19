@@ -103,6 +103,8 @@ var (
 	errInvalidDataHistoryStatus   = errors.New("unsupported data history status received")
 	errInvalidDataHistoryDataType = errors.New("unsupported data history data type received")
 	errNilResult                  = errors.New("received nil job result")
+	errJobMustBeActiveOrPaused    = errors.New("job must be active or paused to be set as a prerequisite")
+
 	// defaultDataHistoryTradeInterval is the default interval size used to verify whether there is any database data
 	// for a trade job
 	defaultDataHistoryTradeInterval          = kline.FifteenMin

@@ -612,7 +612,6 @@ func setRelationshipByNicknamePostgres(ctx context.Context, tx *sql.Tx, prerequi
 	if err != nil {
 		return err
 	}
-
 	return job.SetPrerequisiteJobDatahistoryjobs(ctx, tx, false, result)
 }
 
