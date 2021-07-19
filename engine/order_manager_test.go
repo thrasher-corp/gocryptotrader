@@ -566,7 +566,28 @@ func TestGetOrdersFiltered(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error from nil filter")
 	}
-	// main functionality testing is done in Test_getFilteredOrders
+	orders := []order.Detail{
+		{
+			Exchange: testExchange,
+			ID:       "Test1",
+		},
+		{
+			Exchange: testExchange,
+			ID:       "Test2",
+		},
+	}
+	for i := range orders {
+		if err = m.orderStore.add(&orders[i]); err != nil {
+			t.Error(err)
+		}
+	}
+	res, err := m.GetOrdersFiltered(&order.Filter{ID: "Test2"})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected 1 result, got: %d", len(res))
+	}
 }
 
 func Test_getFilteredOrders(t *testing.T) {

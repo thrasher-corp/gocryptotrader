@@ -865,14 +865,14 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		default:
 			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
 		}
-		order, err := b.FuturesNewOrder(s.Pair, reqSide,
+		o, err := b.FuturesNewOrder(s.Pair, reqSide,
 			"", oType, "GTC", "",
 			s.ClientOrderID, "", "",
 			s.Amount, s.Price, 0, 0, 0, s.ReduceOnly)
 		if err != nil {
 			return submitOrderResponse, err
 		}
-		submitOrderResponse.OrderID = strconv.FormatInt(order.OrderID, 10)
+		submitOrderResponse.OrderID = strconv.FormatInt(o.OrderID, 10)
 		submitOrderResponse.IsOrderPlaced = true
 	case asset.USDTMarginedFutures:
 		var reqSide string
@@ -1203,7 +1203,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 					Price:         resp[x].Price,
 					Status:        order.Status(resp[x].Status),
 					Pair:          req.Pairs[i],
-					AssetType:     asset.Spot,
+					AssetType:     req.AssetType,
 					LastUpdated:   resp[x].UpdateTime,
 				})
 			}
