@@ -586,7 +586,7 @@ func (m *syncManager) worker() {
 											c.Exchange,
 											m.FormatCurrency(c.Pair).String(),
 											strings.ToUpper(c.AssetType.String()),
-											m.config.SyncTimeoutREST,
+											m.config.SyncTimeoutWebsocket,
 										)
 										switchedToRest = true
 										m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, false)
