@@ -140,7 +140,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		var pFmt currency.PairFormat
 		pFmt, err = b.GetPairFormat(a, true)
 		if err != nil {
-			return nil, fmt.Errorf("could not fotmat currency %v, %w", curr, err)
+			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
 		}
 		curr = curr.Format(pFmt.Delimiter, pFmt.Uppercase)
 
