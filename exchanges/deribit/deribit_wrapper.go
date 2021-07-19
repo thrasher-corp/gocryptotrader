@@ -2,6 +2,7 @@ package deribit
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -541,7 +542,14 @@ func (d *Deribit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (d *Deribit) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-
+	if timestampStart.Equal(timestampEnd) ||
+		timestampEnd.After(time.Now()) ||
+		timestampEnd.Before(timestampStart) ||
+		(timestampStart.IsZero() && !timestampEnd.IsZero()) {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v",
+			timestampStart,
+			timestampEnd)
+	}
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -650,9 +658,10 @@ func (d *Deribit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (d *Deribit) ModifyOrder(action *order.Modify) (string, error) {
-	// if err := action.Validate(); err != nil {
-	// 	return "", err
-	// }
+	if err := action.Validate(); err != nil {
+		return "", err
+	}
+
 	return "", common.ErrNotYetImplemented
 }
 
@@ -715,21 +724,89 @@ func (d *Deribit) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 
 // GetOrderInfo returns order information based on order ID
 func (d *Deribit) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	return order.Detail{}, common.ErrNotYetImplemented
+	var resp order.Detail
+	switch assetType {
+	case asset.Futures:
+		orderInfo, err := d.GetOrderState(orderID)
+		if err != nil {
+			return resp, err
+		}
+		orderSide := order.Sell
+		if orderInfo.Direction == "buy" {
+			orderSide = order.Buy
+		}
+		var orderType order.Type
+		switch orderInfo.OrderType {
+		case "market":
+			orderType = order.Market
+		case "limit":
+			orderType = order.Limit
+		case "stop_limit":
+			orderType = order.StopLimit
+		case "stop_market":
+			orderType = order.StopMarket
+		default:
+			return resp, fmt.Errorf("%v: orderType %s not supported", d.Name, orderInfo.OrderType)
+		}
+		var orderStatus order.Status
+		switch orderInfo.OrderState {
+		case "open":
+			orderStatus = order.Active
+		case "filled":
+			orderStatus = order.Filled
+		case "rejected":
+			orderStatus = order.Rejected
+		case "cancelled":
+			orderStatus = order.Cancelled
+		case "untriggered":
+			orderStatus = order.UnknownStatus
+		default:
+			return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, orderInfo.OrderState)
+		}
+		resp = order.Detail{
+			AssetType:       asset.Futures,
+			Exchange:        d.Name,
+			PostOnly:        orderInfo.PostOnly,
+			Price:           orderInfo.Price,
+			Amount:          orderInfo.Amount,
+			ExecutedAmount:  orderInfo.FilledAmount,
+			Fee:             orderInfo.Commission,
+			RemainingAmount: orderInfo.Amount - orderInfo.FilledAmount,
+			ID:              orderInfo.OrderID,
+			Pair:            pair,
+			LastUpdated:     time.Unix(orderInfo.LastUpdateTimestamp/1000, 0),
+			Side:            orderSide,
+			Type:            orderType,
+			Status:          orderStatus,
+		}
+	default:
+		return resp, fmt.Errorf("%s: orderType %v is not valid", d.Name, assetType)
+	}
+	return resp, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (d *Deribit) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", common.ErrNotYetImplemented
+	addressData, err := d.GetCurrentDepositAddress(cryptocurrency.String())
+	return addressData.Address, err
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (d *Deribit) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+	withdrawData, err := d.SubmitWithdraw(
+		withdrawRequest.Currency.String(),
+		withdrawRequest.Crypto.Address,
+		"",
+		strconv.FormatInt(withdrawRequest.OneTimePassword, 10),
+		withdrawRequest.Amount)
+	return &withdraw.ExchangeResponse{
+		ID:     strconv.FormatInt(withdrawData.ID, 10),
+		Status: withdrawData.State,
+	}, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
@@ -752,10 +829,76 @@ func (d *Deribit) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 
 // GetActiveOrders retrieves any orders that are active/open
 func (d *Deribit) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+	var resp []order.Detail
+	switch getOrdersRequest.AssetType {
+	case asset.Futures:
+		for x := range getOrdersRequest.Pairs {
+			fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Futures)
+			if err != nil {
+				return nil, err
+			}
+			ordersData, err := d.GetOpenOrdersByInstrument(fmtPair.String(), getOrdersRequest.Type.Lower())
+			if err != nil {
+				return nil, err
+			}
+			for y := range ordersData {
+				orderSide := order.Sell
+				if ordersData[y].Direction == "buy" {
+					orderSide = order.Buy
+				}
+				var orderType order.Type
+				switch ordersData[y].OrderType {
+				case "market":
+					orderType = order.Market
+				case "limit":
+					orderType = order.Limit
+				case "stop_limit":
+					orderType = order.StopLimit
+				case "stop_market":
+					orderType = order.StopMarket
+				default:
+					return resp, fmt.Errorf("%v: orderType %s not supported", d.Name, ordersData[y].OrderType)
+				}
+				var orderStatus order.Status
+				switch ordersData[y].OrderState {
+				case "open":
+					orderStatus = order.Active
+				case "filled":
+					orderStatus = order.Filled
+				case "rejected":
+					orderStatus = order.Rejected
+				case "cancelled":
+					orderStatus = order.Cancelled
+				case "untriggered":
+					orderStatus = order.UnknownStatus
+				default:
+					return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, ordersData[y].OrderState)
+				}
+				resp = append(resp, order.Detail{
+					AssetType:       asset.Futures,
+					Exchange:        d.Name,
+					PostOnly:        ordersData[y].PostOnly,
+					Price:           ordersData[y].Price,
+					Amount:          ordersData[y].Amount,
+					ExecutedAmount:  ordersData[y].FilledAmount,
+					Fee:             ordersData[y].Commission,
+					RemainingAmount: ordersData[y].Amount - ordersData[y].FilledAmount,
+					ID:              ordersData[y].OrderID,
+					Pair:            getOrdersRequest.Pairs[x],
+					LastUpdated:     time.Unix(ordersData[y].LastUpdateTimestamp/1000, 0),
+					Side:            orderSide,
+					Type:            orderType,
+					Status:          orderStatus,
+				})
+			}
+		}
+	default:
+		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, getOrdersRequest.AssetType)
+	}
+	return resp, nil
 }
 
 // GetOrderHistory retrieves account order information
