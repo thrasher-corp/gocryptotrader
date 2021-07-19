@@ -646,7 +646,7 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 	case "deletejob":
 		status = 3
 	case "pausejob":
-		status = 4
+		status = 5
 	case "unpausejob":
 		status = 0
 	default:

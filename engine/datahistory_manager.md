@@ -88,7 +88,7 @@ A breakdown of each type is under the Add Jobs command list below
 + A candle interval is required for a job, even when fetching trade data. This is to appropriately break down requests into time interval chunks. However, it is restricted to only a small range of times. This is to prevent fetching issues as fetching trades over a period of days or weeks will take a significant amount of time. When setting a job to fetch trades, the allowable range is less than 4 hours and greater than 10 minutes. So an interval of 1 hour will then fetch an hour's worth of trade data.
 
 ## Job queuing and prerequisite jobs
-You can add jobs which will be paused by default by using the parameter `prerequisiteJobNickname`. The prerequisite job will be checked to ensure it exists and has not yet completed and add the relationship.
+You can add jobs which will be paused by default by using the `prerequisite` subcommand containing the associated job nickname. The prerequisite job will be checked to ensure it exists and has not yet completed and add the relationship.
 + Once you have set a prerequisite job, when the prerequisite job status is set to `complete`, the data history manager will search for any jobs which are pending its completion and update their status to `active`.
 + If the prerequisite job is deleted or fails, the upcoming job will _not_ be run.
 + Multiple jobs can use the same prerequisite job, but a job cannot have multiple prerequisites
@@ -140,9 +140,9 @@ The below table is a summary of commands. For more details, view the commands in
 | Command | Description | DataHistoryJobDataType |
 | ------- | ----------- | ---------------------- |
 | savecandles | Will fetch candle data from an exchange and save it to the database | 0 |
-| convertcandles | Convert candles saved to the database to a new resolution eg 1min -> 5min | 1 |
-| savetrades | Will fetch trade data from an exchange and save it to the database | 2 |
-| converttrades | Convert trades saved to the database to any candle resolution eg 30min | 3 |
+| savetrades | Will fetch trade data from an exchange and save it to the database | 1 |
+| converttrades | Convert trades saved to the database to any candle resolution eg 30min | 2 |
+| convertcandles | Convert candles saved to the database to a new resolution eg 1min -> 5min | 3 |
 | validatecandles | Will compare database candle data with API candle data - useful for validating converted trades and candles | 4 |
 | secondaryvalidatecandles | Will compare database candle data with a different exchange's API candle data | 5 |
 
