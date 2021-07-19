@@ -826,7 +826,7 @@ func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		return kline.Item{}, err
 	}
 
-	hours := end.Sub(start).Hours()
+	hours := time.Since(start).Hours()
 	formattedPair, err := g.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
@@ -847,6 +847,7 @@ func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 	klineData.Asset = a
 
 	klineData.SortCandlesByTimestamp(false)
+	klineData.RemoveOutsideRange(start, end)
 	return klineData, nil
 }
 
