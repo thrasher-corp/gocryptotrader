@@ -1528,10 +1528,6 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mockExpectTime, err := time.Parse(time.RFC3339, "2020-01-02T16:19:04.8Z")
-	if err != nil {
-		t.Fatal(err)
-	}
 	expectTime, err := time.Parse(time.RFC3339Nano, "2020-01-02T16:19:04.831Z")
 	if err != nil {
 		t.Fatal(err)
@@ -1552,8 +1548,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				StartTime: start,
 				EndTime:   start.Add(75 * time.Minute),
 			},
-			numExpected:  3,
-			lastExpected: mockExpectTime,
+			numExpected:  12130,
+			lastExpected: time.Date(2020, 1, 2, 16, 19, 4, int(831*time.Millisecond), time.UTC),
 		},
 		{
 			name: "batch with timerange",
@@ -1573,8 +1569,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				StartTime: start,
 				Limit:     1001,
 			},
-			numExpected:  4,
-			lastExpected: time.Date(2020, 1, 2, 16, 19, 5, int(200*time.Millisecond), time.UTC),
+			numExpected:  1001,
+			lastExpected: time.Date(2020, 1, 2, 15, 10, 18, int(311*time.Millisecond), time.UTC),
 		},
 		{
 			name: "custom limit with start time set, no end time",
@@ -1612,7 +1608,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			}
 			lastTradeTime := result[len(result)-1].TimeStamp
 			if !lastTradeTime.Equal(tt.lastExpected) {
-				t.Errorf("last trade expected %v, got %v", tt.lastExpected, lastTradeTime)
+				t.Errorf("last trade expected %v, got %v", tt.lastExpected.UTC(), lastTradeTime.UTC())
 			}
 		})
 	}
