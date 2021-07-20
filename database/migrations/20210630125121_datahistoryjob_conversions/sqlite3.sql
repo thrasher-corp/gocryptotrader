@@ -14,14 +14,14 @@ ALTER TABLE datahistoryjob
 
 -- +goose Down
 ALTER TABLE datahistoryjob
-    DROP conversion_interval;
-ALTER TABLE datahistoryjob
-    DROP overwrite_data;
-ALTER TABLE datahistoryjob
-    DROP decimal_place_comparison;
-ALTER TABLE datahistoryjob
-    DROP secondary_exchange_id;
+    DROP replace_on_issue;
 ALTER TABLE datahistoryjob
     DROP issue_tolerance_percentage;
 ALTER TABLE datahistoryjob
-    DROP replace_on_issue;
+    DROP secondary_exchange_id;
+ALTER TABLE datahistoryjob
+    DROP decimal_place_comparison;
+ALTER TABLE datahistoryjob
+    DROP overwrite_data;
+ALTER TABLE datahistoryjob
+    DROP conversion_interval;

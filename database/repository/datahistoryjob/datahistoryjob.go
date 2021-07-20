@@ -329,11 +329,10 @@ func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, erro
 }
 
 func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, error) {
-	var job *DataHistoryJob
 	query := postgres.Datahistoryjobs(qm.Where("nickname = ?", strings.ToLower(nickname)))
 	result, err := query.One(context.Background(), db.sql)
 	if err != nil {
-		return job, err
+		return nil, err
 	}
 	return db.createPostgresDataHistoryJobResponse(result)
 }
@@ -348,11 +347,10 @@ func (db *DBService) getByIDSQLite(id string) (*DataHistoryJob, error) {
 }
 
 func (db *DBService) getByIDPostgres(id string) (*DataHistoryJob, error) {
-	var job *DataHistoryJob
 	query := postgres.Datahistoryjobs(qm.Where("id = ?", id))
 	result, err := query.One(context.Background(), db.sql)
 	if err != nil {
-		return job, err
+		return nil, err
 	}
 
 	return db.createPostgresDataHistoryJobResponse(result)
@@ -410,29 +408,28 @@ func (db *DBService) getJobAndAllResultsSQLite(nickname string) (*DataHistoryJob
 }
 
 func (db *DBService) getJobAndAllResultsPostgres(nickname string) (*DataHistoryJob, error) {
-	var job *DataHistoryJob
 	query := postgres.Datahistoryjobs(
 		qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults),
 		qm.Where("nickname = ?", strings.ToLower(nickname)))
 	result, err := query.One(context.Background(), db.sql)
 	if err != nil {
-		return job, err
+		return nil, err
 	}
 
 	return db.createPostgresDataHistoryJobResponse(result)
 }
 
 func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, error) {
-	var jobs []DataHistoryJob
 	query := sqlite3.Datahistoryjobs(
 		qm.Load(sqlite3.DatahistoryjobRels.ExchangeName),
 		qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults),
 		qm.Where("status = ?", 0))
 	results, err := query.All(context.Background(), db.sql)
 	if err != nil {
-		return jobs, err
+		return nil, err
 	}
 
+	var jobs []DataHistoryJob
 	for i := range results {
 		job, err := db.createSQLiteDataHistoryJobResponse(results[i])
 		if err != nil {
@@ -446,15 +443,15 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 }
 
 func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob, error) {
-	var jobs []DataHistoryJob
 	query := postgres.Datahistoryjobs(
 		qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults),
 		qm.Where("status = ?", 0))
 	results, err := query.All(context.Background(), db.sql)
 	if err != nil {
-		return jobs, err
+		return nil, err
 	}
 
+	var jobs []DataHistoryJob
 	for i := range results {
 		job, err := db.createPostgresDataHistoryJobResponse(results[i])
 		if err != nil {

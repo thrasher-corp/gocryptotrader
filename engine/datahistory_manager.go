@@ -611,7 +611,7 @@ func (m *DataHistoryManager) completeJob(job *DataHistoryJob, allResultsSuccessf
 			newJobNames = append(newJobNames, newJobs[i].Nickname)
 		}
 		if len(newJobNames) > 0 {
-			log.Infof(log.DataHistory, "setting the follow jobs to active: %s", strings.Join(newJobNames, ", "))
+			log.Infof(log.DataHistory, "setting the following jobs to active: %s", strings.Join(newJobNames, ", "))
 			err = m.jobDB.Upsert(newJobs...)
 			if err != nil {
 				return err
@@ -1195,7 +1195,7 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		job.RequestSizeLimit = defaultDataHistoryRequestSizeLimit
 	}
 	if job.DataType == dataHistoryTradeDataType {
-		if job.Interval >= kline.FourHour || job.Interval <= kline.OneMin {
+		if job.Interval > kline.FourHour || job.Interval < kline.OneMin {
 			log.Warnf(log.DataHistory, "job %s interval %v outside limit of 4h, defaulting to %v", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
 			job.Interval = defaultDataHistoryTradeInterval
 		}

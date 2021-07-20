@@ -349,13 +349,13 @@ func ConvertToNewInterval(item *Item, newInterval Interval) (*Item, error) {
 		return nil, ErrWholeNumberScaling
 	}
 
-	intervalsToMerge := int64(newInterval / item.Interval)
+	oldIntervalsPerNewCandle := int64(newInterval / item.Interval)
 	var candleBundles [][]Candle
 	var candles []Candle
 	for i := range item.Candles {
 		candles = append(candles, item.Candles[i])
-		thing := int64(i + 1)
-		if intervalsToMerge == thing {
+		intervalCount := int64(i + 1)
+		if oldIntervalsPerNewCandle == intervalCount {
 			candleBundles = append(candleBundles, candles)
 			candles = []Candle{}
 		}

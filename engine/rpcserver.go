@@ -3438,7 +3438,6 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		DataType:                 dataHistoryDataType(r.DataType),
 		MaxRetryAttempts:         r.MaxRetryAttempts,
 		Status:                   dataHistoryStatusActive,
-		CreatedDate:              time.Time{},
 		OverwriteExistingData:    r.OverwriteExistingData,
 		ConversionInterval:       kline.Interval(r.ConversionInterval),
 		DecimalPlaceComparison:   r.DecimalPlaceComparison,
