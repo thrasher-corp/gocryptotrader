@@ -316,7 +316,6 @@ func getInRangeSQLite(exchangeName, assetType, base, quote string, startDate, en
 		"quote":            strings.ToUpper(quote),
 	}
 	q := generateQuery(wheres, startDate, endDate, true)
-	q = append(q, qm.OrderBy("timestamp"))
 	query := sqlite3.Trades(q...)
 	var result []*sqlite3.Trade
 	result, err = query.All(context.Background(), database.DB.SQL)
@@ -360,7 +359,6 @@ func getInRangePostgres(exchangeName, assetType, base, quote string, startDate, 
 	}
 
 	q := generateQuery(wheres, startDate, endDate, false)
-	q = append(q, qm.OrderBy("timestamp"))
 	query := postgres.Trades(q...)
 	var result []*postgres.Trade
 	result, err = query.All(context.Background(), database.DB.SQL)
@@ -436,7 +434,9 @@ func deleteTradesPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error
 }
 
 func generateQuery(clauses map[string]interface{}, start, end time.Time, isSQLite bool) []qm.QueryMod {
-	query := []qm.QueryMod{}
+	query := []qm.QueryMod{
+		qm.OrderBy("timestamp"),
+	}
 	if isSQLite {
 		query = append(query, qm.Where("timestamp BETWEEN ? AND ?", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339)))
 	} else {
@@ -445,5 +445,6 @@ func generateQuery(clauses map[string]interface{}, start, end time.Time, isSQLit
 	for k, v := range clauses {
 		query = append(query, qm.Where(k+` = ?`, v))
 	}
+
 	return query
 }

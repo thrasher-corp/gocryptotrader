@@ -1195,12 +1195,15 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		job.RequestSizeLimit = defaultDataHistoryRequestSizeLimit
 	}
 	if job.DataType == dataHistoryTradeDataType {
-		if job.Interval > kline.FourHour || job.Interval < kline.OneMin {
-			log.Warnf(log.DataHistory, "job %s interval %v outside limit of 4h, defaulting to %v", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
+		if job.Interval > kline.FourHour {
+			log.Warnf(log.DataHistory, "job %s interval %v above the limit of 4h, defaulting to %v", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
+			job.Interval = defaultDataHistoryTradeInterval
+		} else if job.Interval < kline.OneMin {
+			log.Warnf(log.DataHistory, "job %s interval %v below the limit of 1m, defaulting to %v", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
 			job.Interval = defaultDataHistoryTradeInterval
 		}
-		if job.RequestSizeLimit > 20 {
-			log.Warnf(log.DataHistory, "job %s request size %v outside limit of 100, defaulting to %v", job.Nickname, job.RequestSizeLimit, defaultDataHistoryTradeRequestSize)
+		if job.RequestSizeLimit > defaultDataHistoryTradeRequestSize {
+			log.Warnf(log.DataHistory, "job %s request size %v outside limit of %v, defaulting to %v", job.Nickname, job.RequestSizeLimit, defaultDataHistoryTradeRequestSize, defaultDataHistoryTradeRequestSize)
 			job.RequestSizeLimit = defaultDataHistoryTradeRequestSize
 		}
 	}
@@ -1223,8 +1226,8 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 			log.Warnf(log.DataHistory, "job %s decimal place comparison %v invalid. defaulting to %v", job.Nickname, job.DecimalPlaceComparison, defaultDecimalPlaceComparison)
 			job.DecimalPlaceComparison = defaultDecimalPlaceComparison
 		}
-		if job.RequestSizeLimit > 500 {
-			log.Warnf(log.DataHistory, "job %s validation batch limit %v too high. defaulting to %v", job.Nickname, job.RequestSizeLimit, defaultDataHistoryRequestSizeLimit)
+		if job.RequestSizeLimit > defaultDataHistoryRequestSizeLimit {
+			log.Warnf(log.DataHistory, "job %s validation batch %v above limit of %v. defaulting to %v", job.Nickname, job.RequestSizeLimit, defaultDataHistoryRequestSizeLimit, defaultDataHistoryRequestSizeLimit)
 			job.RequestSizeLimit = defaultDataHistoryRequestSizeLimit
 		}
 	}

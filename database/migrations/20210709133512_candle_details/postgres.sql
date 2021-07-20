@@ -5,8 +5,8 @@ ALTER TABLE candle
     ADD validation_issues TEXT;
 -- +goose Down
 ALTER TABLE candle
-    DROP CONSTRAINT candle_source_job_id_fkey,
+    DROP validation_issues,
     DROP CONSTRAINT candle_validation_job_id_fkey,
-    DROP source_job_id,
     DROP validation_job_id,
-    DROP validation_issues;
+    DROP CONSTRAINT candle_source_job_id_fkey,
+    DROP source_job_id;

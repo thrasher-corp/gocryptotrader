@@ -9,11 +9,11 @@ ALTER TABLE datahistoryjob
 
 -- +goose Down
 ALTER TABLE datahistoryjob
-    DROP conversion_interval,
-    DROP overwrite_data,
-    DROP decimal_place_comparison,
-    DROP CONSTRAINT datahistoryjob_secondary_exchange_id_fkey,
-    DROP secondary_exchange_id ,
+    DROP replace_on_issue,
     DROP issue_tolerance_percentage,
-    DROP replace_on_issue;
+    DROP CONSTRAINT datahistoryjob_secondary_exchange_id_fkey,
+    DROP secondary_exchange_id,
+    DROP decimal_place_comparison,
+    DROP overwrite_data,
+    DROP conversion_interval;
 

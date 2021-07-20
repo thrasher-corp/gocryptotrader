@@ -54,10 +54,7 @@ var dataHistoryCommands = &cli.Command{
 			ArgsUsage:   "<nickname>",
 			Action:      getDataHistoryJob,
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "nickname",
-					Usage: "binance-spot-btc-usdt-2019-trades",
-				},
+				nicknameFlag,
 			},
 		},
 		{
@@ -66,10 +63,7 @@ var dataHistoryCommands = &cli.Command{
 			ArgsUsage: "<nickname>",
 			Action:    getDataHistoryJobSummary,
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "nickname",
-					Usage: "binance-spot-btc-usdt-2019-trades",
-				},
+				nicknameFlag,
 			},
 		},
 		dataHistoryJobCommands,
@@ -106,10 +100,7 @@ var dataHistoryCommands = &cli.Command{
 			Usage:     "removes a prerequisite job from the job referenced - if the job is 'paused', it will be set as 'active'",
 			ArgsUsage: "<nickname>",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "nickname",
-					Usage: "binance-spot-btc-usdt-2019-trades",
-				},
+				nicknameFlag,
 			},
 			Action: setPrerequisiteJob,
 		},
@@ -162,33 +153,52 @@ var dataHistoryJobCommands = &cli.Command{
 
 var (
 	maxRetryAttempts, requestSizeLimit, batchSize, comparisonDecimalPlaces uint64
-	prerequisiteJobSubCommands                                             = []cli.Flag{
-		&cli.StringFlag{
-			Name:  "nickname",
-			Usage: "binance-spot-btc-usdt-2019-trades",
-		},
+	guidExample                                                            = "deadbeef-dead-beef-dead-beef13371337"
+	overwriteDataFlag                                                      = &cli.BoolFlag{
+		Name:  "overwrite_existing_data",
+		Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
+	}
+	comparisonDecimalPlacesFlag = &cli.Uint64Flag{
+		Name:        "comparison_decimal_places",
+		Usage:       "the number of decimal places used to compare against API data for accuracy",
+		Destination: &comparisonDecimalPlaces,
+		Value:       3,
+	}
+	intolerancePercentageFlag = &cli.Float64Flag{
+		Name:  "intolerance_percentage",
+		Usage: "the number of decimal places used to compare against API data for accuracy",
+	}
+	requestSize500Flag = &cli.Uint64Flag{
+		Name:        "request_size_limit",
+		Usage:       "the number of candles to retrieve per API request",
+		Destination: &requestSizeLimit,
+		Value:       500,
+	}
+	requestSize50Flag = &cli.Uint64Flag{
+		Name:        "request_size_limit",
+		Usage:       "the number of candles to retrieve per API request",
+		Destination: &requestSizeLimit,
+		Value:       50,
+	}
+	nicknameFlag = &cli.StringFlag{
+		Name:  "nickname",
+		Usage: "binance-spot-btc-usdt-2019-trades",
+	}
+	prerequisiteJobSubCommands = []cli.Flag{
+		nicknameFlag,
 		&cli.StringFlag{
 			Name:  "prerequisite",
 			Usage: "binance-spot-btc-usdt-2018-trades",
 		},
 	}
-	guidExample            = "deadbeef-dead-beef-dead-beef13371337"
 	specificJobSubCommands = []cli.Flag{
 		&cli.StringFlag{
 			Name:  "id",
 			Usage: guidExample,
 		},
-		&cli.StringFlag{
-			Name:  "nickname",
-			Usage: "binance-spot-btc-usdt-2019-trades",
-		},
 	}
 	baseJobSubCommands = []cli.Flag{
-		&cli.StringFlag{
-			Name:     "nickname",
-			Usage:    "binance-spot-btc-usdt-2019-trades",
-			Required: true,
-		},
+		nicknameFlag,
 		&cli.StringFlag{
 			Name:     "exchange",
 			Usage:    "binance",
@@ -243,16 +253,8 @@ var (
 		},
 	}
 	dataHandlingJobSubCommands = []cli.Flag{
-		&cli.Uint64Flag{
-			Name:        "request_size_limit",
-			Usage:       "the number of candles to retrieve per API request",
-			Destination: &requestSizeLimit,
-			Value:       500,
-		},
-		&cli.BoolFlag{
-			Name:  "overwrite_existing_data",
-			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
-		},
+		requestSize500Flag,
+		overwriteDataFlag,
 	}
 	candleConvertJobJobSubCommands = []cli.Flag{
 		&cli.Uint64Flag{
@@ -260,34 +262,13 @@ var (
 			Usage:    "the converted candle interval",
 			Required: true,
 		},
-		&cli.Uint64Flag{
-			Name:        "request_size_limit",
-			Usage:       "the number of candles to retrieve per API request",
-			Destination: &requestSizeLimit,
-			Value:       500,
-		},
-		&cli.BoolFlag{
-			Name:  "overwrite_existing_data",
-			Usage: "will process and overwrite data if matching data exists at an interval period. if false, will not process or save data",
-		},
+		requestSize500Flag,
+		overwriteDataFlag,
 	}
 	validationJobSubCommands = []cli.Flag{
-		&cli.Uint64Flag{
-			Name:        "request_size_limit",
-			Usage:       "the number of candles to retrieve from the API to compare to",
-			Destination: &requestSizeLimit,
-			Value:       50,
-		},
-		&cli.Uint64Flag{
-			Name:        "comparison_decimal_places",
-			Usage:       "the number of decimal places used to compare against API data for accuracy",
-			Destination: &comparisonDecimalPlaces,
-			Value:       3,
-		},
-		&cli.Float64Flag{
-			Name:  "intolerance_percentage",
-			Usage: "the number of decimal places used to compare against API data for accuracy",
-		},
+		requestSize50Flag,
+		comparisonDecimalPlacesFlag,
+		intolerancePercentageFlag,
 		&cli.Uint64Flag{
 			Name:  "replace_on_issue",
 			Usage: "if true, when the intolerance percentage is exceeded, then the comparison API candle will replace the database candle",
@@ -298,22 +279,9 @@ var (
 			Name:  "secondary_exchange",
 			Usage: "the exchange to compare candles data to",
 		},
-		&cli.Uint64Flag{
-			Name:        "request_size_limit",
-			Usage:       "the number of candles to retrieve from the API to compare to",
-			Destination: &requestSizeLimit,
-			Value:       50,
-		},
-		&cli.Uint64Flag{
-			Name:        "comparison_decimal_places",
-			Usage:       "the number of decimal places used to compare against API data for accuracy",
-			Destination: &comparisonDecimalPlaces,
-			Value:       3,
-		},
-		&cli.Float64Flag{
-			Name:  "intolerance_percentage",
-			Usage: "the number of decimal places used to compare against API data for accuracy",
-		},
+		requestSize50Flag,
+		comparisonDecimalPlacesFlag,
+		intolerancePercentageFlag,
 	}
 )
 
@@ -650,7 +618,7 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 	case "unpausejob":
 		status = 0
 	default:
-		return fmt.Errorf("unrecognised data history job status type")
+		return fmt.Errorf("unable to modify data history job status, unrecognised command '%v'", c.Command.Name)
 	}
 
 	conn, err := setupClient()
