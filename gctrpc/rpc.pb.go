@@ -11417,7 +11417,7 @@ var file_rpc_proto_rawDesc = []byte{
 	0x70, 0x72, 0x65, 0x72, 0x65, 0x71, 0x75, 0x69, 0x73, 0x69, 0x74, 0x65, 0x5f, 0x6a, 0x6f, 0x62,
 	0x5f, 0x6e, 0x69, 0x63, 0x6b, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
 	0x17, 0x70, 0x72, 0x65, 0x72, 0x65, 0x71, 0x75, 0x69, 0x73, 0x69, 0x74, 0x65, 0x4a, 0x6f, 0x62,
-	0x4e, 0x69, 0x63, 0x6b, 0x6e, 0x61, 0x6d, 0x65, 0x32, 0xc1, 0x4f, 0x0a, 0x0e, 0x47, 0x6f, 0x43,
+	0x4e, 0x69, 0x63, 0x6b, 0x6e, 0x61, 0x6d, 0x65, 0x32, 0xab, 0x50, 0x0a, 0x0e, 0x47, 0x6f, 0x43,
 	0x72, 0x79, 0x70, 0x74, 0x6f, 0x54, 0x72, 0x61, 0x64, 0x65, 0x72, 0x12, 0x4f, 0x0a, 0x07, 0x47,
 	0x65, 0x74, 0x49, 0x6e, 0x66, 0x6f, 0x12, 0x16, 0x2e, 0x67, 0x63, 0x74, 0x72, 0x70, 0x63, 0x2e,
 	0x47, 0x65, 0x74, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x17,
@@ -12053,11 +12053,17 @@ var file_rpc_proto_rawDesc = []byte{
 	0x72, 0x69, 0x63, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x2f, 0x82, 0xd3, 0xe4,
 	0x93, 0x02, 0x29, 0x22, 0x24, 0x2f, 0x76, 0x31, 0x2f, 0x75, 0x70, 0x64, 0x61, 0x74, 0x65, 0x64,
 	0x61, 0x74, 0x61, 0x68, 0x69, 0x73, 0x74, 0x6f, 0x72, 0x79, 0x6a, 0x6f, 0x62, 0x70, 0x72, 0x65,
-	0x72, 0x65, 0x71, 0x75, 0x69, 0x73, 0x69, 0x74, 0x65, 0x3a, 0x01, 0x2a, 0x42, 0x30, 0x5a, 0x2e,
-	0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x74, 0x68, 0x72, 0x61, 0x73,
-	0x68, 0x65, 0x72, 0x2d, 0x63, 0x6f, 0x72, 0x70, 0x2f, 0x67, 0x6f, 0x63, 0x72, 0x79, 0x70, 0x74,
-	0x6f, 0x74, 0x72, 0x61, 0x64, 0x65, 0x72, 0x2f, 0x67, 0x63, 0x74, 0x72, 0x70, 0x63, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x72, 0x65, 0x71, 0x75, 0x69, 0x73, 0x69, 0x74, 0x65, 0x3a, 0x01, 0x2a, 0x12, 0x68, 0x0a, 0x10,
+	0x47, 0x65, 0x74, 0x4d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x64, 0x4f, 0x72, 0x64, 0x65, 0x72, 0x73,
+	0x12, 0x18, 0x2e, 0x67, 0x63, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x4f, 0x72, 0x64,
+	0x65, 0x72, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x67, 0x63, 0x74,
+	0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x4f, 0x72, 0x64, 0x65, 0x72, 0x73, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1f, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x19, 0x22, 0x14, 0x2f,
+	0x76, 0x31, 0x2f, 0x67, 0x65, 0x74, 0x6d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x64, 0x6f, 0x72, 0x64,
+	0x65, 0x72, 0x73, 0x3a, 0x01, 0x2a, 0x42, 0x30, 0x5a, 0x2e, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
+	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x74, 0x68, 0x72, 0x61, 0x73, 0x68, 0x65, 0x72, 0x2d, 0x63, 0x6f,
+	0x72, 0x70, 0x2f, 0x67, 0x6f, 0x63, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x74, 0x72, 0x61, 0x64, 0x65,
+	0x72, 0x2f, 0x67, 0x63, 0x74, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -12428,94 +12434,96 @@ var file_rpc_proto_depIdxs = []int32{
 	149, // 176: gctrpc.GoCryptoTrader.GetDataHistoryJobSummary:input_type -> gctrpc.GetDataHistoryJobDetailsRequest
 	154, // 177: gctrpc.GoCryptoTrader.SetDataHistoryJobStatus:input_type -> gctrpc.SetDataHistoryJobStatusRequest
 	155, // 178: gctrpc.GoCryptoTrader.UpdateDataHistoryJobPrerequisite:input_type -> gctrpc.UpdateDataHistoryJobPrerequisiteRequest
-	1,   // 179: gctrpc.GoCryptoTrader.GetInfo:output_type -> gctrpc.GetInfoResponse
-	7,   // 180: gctrpc.GoCryptoTrader.GetSubsystems:output_type -> gctrpc.GetSusbsytemsResponse
-	127, // 181: gctrpc.GoCryptoTrader.EnableSubsystem:output_type -> gctrpc.GenericResponse
-	127, // 182: gctrpc.GoCryptoTrader.DisableSubsystem:output_type -> gctrpc.GenericResponse
-	10,  // 183: gctrpc.GoCryptoTrader.GetRPCEndpoints:output_type -> gctrpc.GetRPCEndpointsResponse
-	4,   // 184: gctrpc.GoCryptoTrader.GetCommunicationRelayers:output_type -> gctrpc.GetCommunicationRelayersResponse
-	13,  // 185: gctrpc.GoCryptoTrader.GetExchanges:output_type -> gctrpc.GetExchangesResponse
-	127, // 186: gctrpc.GoCryptoTrader.DisableExchange:output_type -> gctrpc.GenericResponse
-	19,  // 187: gctrpc.GoCryptoTrader.GetExchangeInfo:output_type -> gctrpc.GetExchangeInfoResponse
-	14,  // 188: gctrpc.GoCryptoTrader.GetExchangeOTPCode:output_type -> gctrpc.GetExchangeOTPReponse
-	16,  // 189: gctrpc.GoCryptoTrader.GetExchangeOTPCodes:output_type -> gctrpc.GetExchangeOTPsResponse
-	127, // 190: gctrpc.GoCryptoTrader.EnableExchange:output_type -> gctrpc.GenericResponse
-	22,  // 191: gctrpc.GoCryptoTrader.GetTicker:output_type -> gctrpc.TickerResponse
-	25,  // 192: gctrpc.GoCryptoTrader.GetTickers:output_type -> gctrpc.GetTickersResponse
-	28,  // 193: gctrpc.GoCryptoTrader.GetOrderbook:output_type -> gctrpc.OrderbookResponse
-	31,  // 194: gctrpc.GoCryptoTrader.GetOrderbooks:output_type -> gctrpc.GetOrderbooksResponse
-	35,  // 195: gctrpc.GoCryptoTrader.GetAccountInfo:output_type -> gctrpc.GetAccountInfoResponse
-	35,  // 196: gctrpc.GoCryptoTrader.UpdateAccountInfo:output_type -> gctrpc.GetAccountInfoResponse
-	35,  // 197: gctrpc.GoCryptoTrader.GetAccountInfoStream:output_type -> gctrpc.GetAccountInfoResponse
-	37,  // 198: gctrpc.GoCryptoTrader.GetConfig:output_type -> gctrpc.GetConfigResponse
-	40,  // 199: gctrpc.GoCryptoTrader.GetPortfolio:output_type -> gctrpc.GetPortfolioResponse
-	47,  // 200: gctrpc.GoCryptoTrader.GetPortfolioSummary:output_type -> gctrpc.GetPortfolioSummaryResponse
-	127, // 201: gctrpc.GoCryptoTrader.AddPortfolioAddress:output_type -> gctrpc.GenericResponse
-	127, // 202: gctrpc.GoCryptoTrader.RemovePortfolioAddress:output_type -> gctrpc.GenericResponse
-	52,  // 203: gctrpc.GoCryptoTrader.GetForexProviders:output_type -> gctrpc.GetForexProvidersResponse
-	55,  // 204: gctrpc.GoCryptoTrader.GetForexRates:output_type -> gctrpc.GetForexRatesResponse
-	59,  // 205: gctrpc.GoCryptoTrader.GetOrders:output_type -> gctrpc.GetOrdersResponse
-	56,  // 206: gctrpc.GoCryptoTrader.GetOrder:output_type -> gctrpc.OrderDetails
-	63,  // 207: gctrpc.GoCryptoTrader.SubmitOrder:output_type -> gctrpc.SubmitOrderResponse
-	65,  // 208: gctrpc.GoCryptoTrader.SimulateOrder:output_type -> gctrpc.SimulateOrderResponse
-	65,  // 209: gctrpc.GoCryptoTrader.WhaleBomb:output_type -> gctrpc.SimulateOrderResponse
-	127, // 210: gctrpc.GoCryptoTrader.CancelOrder:output_type -> gctrpc.GenericResponse
-	69,  // 211: gctrpc.GoCryptoTrader.CancelBatchOrders:output_type -> gctrpc.CancelBatchOrdersResponse
-	71,  // 212: gctrpc.GoCryptoTrader.CancelAllOrders:output_type -> gctrpc.CancelAllOrdersResponse
-	74,  // 213: gctrpc.GoCryptoTrader.GetEvents:output_type -> gctrpc.GetEventsResponse
-	76,  // 214: gctrpc.GoCryptoTrader.AddEvent:output_type -> gctrpc.AddEventResponse
-	127, // 215: gctrpc.GoCryptoTrader.RemoveEvent:output_type -> gctrpc.GenericResponse
-	79,  // 216: gctrpc.GoCryptoTrader.GetCryptocurrencyDepositAddresses:output_type -> gctrpc.GetCryptocurrencyDepositAddressesResponse
-	81,  // 217: gctrpc.GoCryptoTrader.GetCryptocurrencyDepositAddress:output_type -> gctrpc.GetCryptocurrencyDepositAddressResponse
-	84,  // 218: gctrpc.GoCryptoTrader.WithdrawFiatFunds:output_type -> gctrpc.WithdrawResponse
-	84,  // 219: gctrpc.GoCryptoTrader.WithdrawCryptocurrencyFunds:output_type -> gctrpc.WithdrawResponse
-	86,  // 220: gctrpc.GoCryptoTrader.WithdrawalEventByID:output_type -> gctrpc.WithdrawalEventByIDResponse
-	89,  // 221: gctrpc.GoCryptoTrader.WithdrawalEventsByExchange:output_type -> gctrpc.WithdrawalEventsByExchangeResponse
-	89,  // 222: gctrpc.GoCryptoTrader.WithdrawalEventsByDate:output_type -> gctrpc.WithdrawalEventsByExchangeResponse
-	96,  // 223: gctrpc.GoCryptoTrader.GetLoggerDetails:output_type -> gctrpc.GetLoggerDetailsResponse
-	96,  // 224: gctrpc.GoCryptoTrader.SetLoggerDetails:output_type -> gctrpc.GetLoggerDetailsResponse
-	99,  // 225: gctrpc.GoCryptoTrader.GetExchangePairs:output_type -> gctrpc.GetExchangePairsResponse
-	127, // 226: gctrpc.GoCryptoTrader.SetExchangePair:output_type -> gctrpc.GenericResponse
-	28,  // 227: gctrpc.GoCryptoTrader.GetOrderbookStream:output_type -> gctrpc.OrderbookResponse
-	28,  // 228: gctrpc.GoCryptoTrader.GetExchangeOrderbookStream:output_type -> gctrpc.OrderbookResponse
-	22,  // 229: gctrpc.GoCryptoTrader.GetTickerStream:output_type -> gctrpc.TickerResponse
-	22,  // 230: gctrpc.GoCryptoTrader.GetExchangeTickerStream:output_type -> gctrpc.TickerResponse
-	106, // 231: gctrpc.GoCryptoTrader.GetAuditEvent:output_type -> gctrpc.GetAuditEventResponse
-	127, // 232: gctrpc.GoCryptoTrader.GCTScriptExecute:output_type -> gctrpc.GenericResponse
-	127, // 233: gctrpc.GoCryptoTrader.GCTScriptUpload:output_type -> gctrpc.GenericResponse
-	126, // 234: gctrpc.GoCryptoTrader.GCTScriptReadScript:output_type -> gctrpc.GCTScriptQueryResponse
-	125, // 235: gctrpc.GoCryptoTrader.GCTScriptStatus:output_type -> gctrpc.GCTScriptStatusResponse
-	126, // 236: gctrpc.GoCryptoTrader.GCTScriptQuery:output_type -> gctrpc.GCTScriptQueryResponse
-	127, // 237: gctrpc.GoCryptoTrader.GCTScriptStop:output_type -> gctrpc.GenericResponse
-	127, // 238: gctrpc.GoCryptoTrader.GCTScriptStopAll:output_type -> gctrpc.GenericResponse
-	125, // 239: gctrpc.GoCryptoTrader.GCTScriptListAll:output_type -> gctrpc.GCTScriptStatusResponse
-	127, // 240: gctrpc.GoCryptoTrader.GCTScriptAutoLoadToggle:output_type -> gctrpc.GenericResponse
-	112, // 241: gctrpc.GoCryptoTrader.GetHistoricCandles:output_type -> gctrpc.GetHistoricCandlesResponse
-	127, // 242: gctrpc.GoCryptoTrader.SetExchangeAsset:output_type -> gctrpc.GenericResponse
-	127, // 243: gctrpc.GoCryptoTrader.SetAllExchangePairs:output_type -> gctrpc.GenericResponse
-	127, // 244: gctrpc.GoCryptoTrader.UpdateExchangeSupportedPairs:output_type -> gctrpc.GenericResponse
-	132, // 245: gctrpc.GoCryptoTrader.GetExchangeAssets:output_type -> gctrpc.GetExchangeAssetsResponse
-	134, // 246: gctrpc.GoCryptoTrader.WebsocketGetInfo:output_type -> gctrpc.WebsocketGetInfoResponse
-	127, // 247: gctrpc.GoCryptoTrader.WebsocketSetEnabled:output_type -> gctrpc.GenericResponse
-	138, // 248: gctrpc.GoCryptoTrader.WebsocketGetSubscriptions:output_type -> gctrpc.WebsocketGetSubscriptionsResponse
-	127, // 249: gctrpc.GoCryptoTrader.WebsocketSetProxy:output_type -> gctrpc.GenericResponse
-	127, // 250: gctrpc.GoCryptoTrader.WebsocketSetURL:output_type -> gctrpc.GenericResponse
-	109, // 251: gctrpc.GoCryptoTrader.GetRecentTrades:output_type -> gctrpc.SavedTradesResponse
-	109, // 252: gctrpc.GoCryptoTrader.GetHistoricTrades:output_type -> gctrpc.SavedTradesResponse
-	109, // 253: gctrpc.GoCryptoTrader.GetSavedTrades:output_type -> gctrpc.SavedTradesResponse
-	112, // 254: gctrpc.GoCryptoTrader.ConvertTradesToCandles:output_type -> gctrpc.GetHistoricCandlesResponse
-	143, // 255: gctrpc.GoCryptoTrader.FindMissingSavedCandleIntervals:output_type -> gctrpc.FindMissingIntervalsResponse
-	143, // 256: gctrpc.GoCryptoTrader.FindMissingSavedTradeIntervals:output_type -> gctrpc.FindMissingIntervalsResponse
-	127, // 257: gctrpc.GoCryptoTrader.SetExchangeTradeProcessing:output_type -> gctrpc.GenericResponse
-	148, // 258: gctrpc.GoCryptoTrader.UpsertDataHistoryJob:output_type -> gctrpc.UpsertDataHistoryJobResponse
-	150, // 259: gctrpc.GoCryptoTrader.GetDataHistoryJobDetails:output_type -> gctrpc.DataHistoryJob
-	152, // 260: gctrpc.GoCryptoTrader.GetActiveDataHistoryJobs:output_type -> gctrpc.DataHistoryJobs
-	152, // 261: gctrpc.GoCryptoTrader.GetDataHistoryJobsBetween:output_type -> gctrpc.DataHistoryJobs
-	150, // 262: gctrpc.GoCryptoTrader.GetDataHistoryJobSummary:output_type -> gctrpc.DataHistoryJob
-	127, // 263: gctrpc.GoCryptoTrader.SetDataHistoryJobStatus:output_type -> gctrpc.GenericResponse
-	127, // 264: gctrpc.GoCryptoTrader.UpdateDataHistoryJobPrerequisite:output_type -> gctrpc.GenericResponse
-	179, // [179:265] is the sub-list for method output_type
-	93,  // [93:179] is the sub-list for method input_type
+	58,  // 179: gctrpc.GoCryptoTrader.GetManagedOrders:input_type -> gctrpc.GetOrdersRequest
+	1,   // 180: gctrpc.GoCryptoTrader.GetInfo:output_type -> gctrpc.GetInfoResponse
+	7,   // 181: gctrpc.GoCryptoTrader.GetSubsystems:output_type -> gctrpc.GetSusbsytemsResponse
+	127, // 182: gctrpc.GoCryptoTrader.EnableSubsystem:output_type -> gctrpc.GenericResponse
+	127, // 183: gctrpc.GoCryptoTrader.DisableSubsystem:output_type -> gctrpc.GenericResponse
+	10,  // 184: gctrpc.GoCryptoTrader.GetRPCEndpoints:output_type -> gctrpc.GetRPCEndpointsResponse
+	4,   // 185: gctrpc.GoCryptoTrader.GetCommunicationRelayers:output_type -> gctrpc.GetCommunicationRelayersResponse
+	13,  // 186: gctrpc.GoCryptoTrader.GetExchanges:output_type -> gctrpc.GetExchangesResponse
+	127, // 187: gctrpc.GoCryptoTrader.DisableExchange:output_type -> gctrpc.GenericResponse
+	19,  // 188: gctrpc.GoCryptoTrader.GetExchangeInfo:output_type -> gctrpc.GetExchangeInfoResponse
+	14,  // 189: gctrpc.GoCryptoTrader.GetExchangeOTPCode:output_type -> gctrpc.GetExchangeOTPReponse
+	16,  // 190: gctrpc.GoCryptoTrader.GetExchangeOTPCodes:output_type -> gctrpc.GetExchangeOTPsResponse
+	127, // 191: gctrpc.GoCryptoTrader.EnableExchange:output_type -> gctrpc.GenericResponse
+	22,  // 192: gctrpc.GoCryptoTrader.GetTicker:output_type -> gctrpc.TickerResponse
+	25,  // 193: gctrpc.GoCryptoTrader.GetTickers:output_type -> gctrpc.GetTickersResponse
+	28,  // 194: gctrpc.GoCryptoTrader.GetOrderbook:output_type -> gctrpc.OrderbookResponse
+	31,  // 195: gctrpc.GoCryptoTrader.GetOrderbooks:output_type -> gctrpc.GetOrderbooksResponse
+	35,  // 196: gctrpc.GoCryptoTrader.GetAccountInfo:output_type -> gctrpc.GetAccountInfoResponse
+	35,  // 197: gctrpc.GoCryptoTrader.UpdateAccountInfo:output_type -> gctrpc.GetAccountInfoResponse
+	35,  // 198: gctrpc.GoCryptoTrader.GetAccountInfoStream:output_type -> gctrpc.GetAccountInfoResponse
+	37,  // 199: gctrpc.GoCryptoTrader.GetConfig:output_type -> gctrpc.GetConfigResponse
+	40,  // 200: gctrpc.GoCryptoTrader.GetPortfolio:output_type -> gctrpc.GetPortfolioResponse
+	47,  // 201: gctrpc.GoCryptoTrader.GetPortfolioSummary:output_type -> gctrpc.GetPortfolioSummaryResponse
+	127, // 202: gctrpc.GoCryptoTrader.AddPortfolioAddress:output_type -> gctrpc.GenericResponse
+	127, // 203: gctrpc.GoCryptoTrader.RemovePortfolioAddress:output_type -> gctrpc.GenericResponse
+	52,  // 204: gctrpc.GoCryptoTrader.GetForexProviders:output_type -> gctrpc.GetForexProvidersResponse
+	55,  // 205: gctrpc.GoCryptoTrader.GetForexRates:output_type -> gctrpc.GetForexRatesResponse
+	59,  // 206: gctrpc.GoCryptoTrader.GetOrders:output_type -> gctrpc.GetOrdersResponse
+	56,  // 207: gctrpc.GoCryptoTrader.GetOrder:output_type -> gctrpc.OrderDetails
+	63,  // 208: gctrpc.GoCryptoTrader.SubmitOrder:output_type -> gctrpc.SubmitOrderResponse
+	65,  // 209: gctrpc.GoCryptoTrader.SimulateOrder:output_type -> gctrpc.SimulateOrderResponse
+	65,  // 210: gctrpc.GoCryptoTrader.WhaleBomb:output_type -> gctrpc.SimulateOrderResponse
+	127, // 211: gctrpc.GoCryptoTrader.CancelOrder:output_type -> gctrpc.GenericResponse
+	69,  // 212: gctrpc.GoCryptoTrader.CancelBatchOrders:output_type -> gctrpc.CancelBatchOrdersResponse
+	71,  // 213: gctrpc.GoCryptoTrader.CancelAllOrders:output_type -> gctrpc.CancelAllOrdersResponse
+	74,  // 214: gctrpc.GoCryptoTrader.GetEvents:output_type -> gctrpc.GetEventsResponse
+	76,  // 215: gctrpc.GoCryptoTrader.AddEvent:output_type -> gctrpc.AddEventResponse
+	127, // 216: gctrpc.GoCryptoTrader.RemoveEvent:output_type -> gctrpc.GenericResponse
+	79,  // 217: gctrpc.GoCryptoTrader.GetCryptocurrencyDepositAddresses:output_type -> gctrpc.GetCryptocurrencyDepositAddressesResponse
+	81,  // 218: gctrpc.GoCryptoTrader.GetCryptocurrencyDepositAddress:output_type -> gctrpc.GetCryptocurrencyDepositAddressResponse
+	84,  // 219: gctrpc.GoCryptoTrader.WithdrawFiatFunds:output_type -> gctrpc.WithdrawResponse
+	84,  // 220: gctrpc.GoCryptoTrader.WithdrawCryptocurrencyFunds:output_type -> gctrpc.WithdrawResponse
+	86,  // 221: gctrpc.GoCryptoTrader.WithdrawalEventByID:output_type -> gctrpc.WithdrawalEventByIDResponse
+	89,  // 222: gctrpc.GoCryptoTrader.WithdrawalEventsByExchange:output_type -> gctrpc.WithdrawalEventsByExchangeResponse
+	89,  // 223: gctrpc.GoCryptoTrader.WithdrawalEventsByDate:output_type -> gctrpc.WithdrawalEventsByExchangeResponse
+	96,  // 224: gctrpc.GoCryptoTrader.GetLoggerDetails:output_type -> gctrpc.GetLoggerDetailsResponse
+	96,  // 225: gctrpc.GoCryptoTrader.SetLoggerDetails:output_type -> gctrpc.GetLoggerDetailsResponse
+	99,  // 226: gctrpc.GoCryptoTrader.GetExchangePairs:output_type -> gctrpc.GetExchangePairsResponse
+	127, // 227: gctrpc.GoCryptoTrader.SetExchangePair:output_type -> gctrpc.GenericResponse
+	28,  // 228: gctrpc.GoCryptoTrader.GetOrderbookStream:output_type -> gctrpc.OrderbookResponse
+	28,  // 229: gctrpc.GoCryptoTrader.GetExchangeOrderbookStream:output_type -> gctrpc.OrderbookResponse
+	22,  // 230: gctrpc.GoCryptoTrader.GetTickerStream:output_type -> gctrpc.TickerResponse
+	22,  // 231: gctrpc.GoCryptoTrader.GetExchangeTickerStream:output_type -> gctrpc.TickerResponse
+	106, // 232: gctrpc.GoCryptoTrader.GetAuditEvent:output_type -> gctrpc.GetAuditEventResponse
+	127, // 233: gctrpc.GoCryptoTrader.GCTScriptExecute:output_type -> gctrpc.GenericResponse
+	127, // 234: gctrpc.GoCryptoTrader.GCTScriptUpload:output_type -> gctrpc.GenericResponse
+	126, // 235: gctrpc.GoCryptoTrader.GCTScriptReadScript:output_type -> gctrpc.GCTScriptQueryResponse
+	125, // 236: gctrpc.GoCryptoTrader.GCTScriptStatus:output_type -> gctrpc.GCTScriptStatusResponse
+	126, // 237: gctrpc.GoCryptoTrader.GCTScriptQuery:output_type -> gctrpc.GCTScriptQueryResponse
+	127, // 238: gctrpc.GoCryptoTrader.GCTScriptStop:output_type -> gctrpc.GenericResponse
+	127, // 239: gctrpc.GoCryptoTrader.GCTScriptStopAll:output_type -> gctrpc.GenericResponse
+	125, // 240: gctrpc.GoCryptoTrader.GCTScriptListAll:output_type -> gctrpc.GCTScriptStatusResponse
+	127, // 241: gctrpc.GoCryptoTrader.GCTScriptAutoLoadToggle:output_type -> gctrpc.GenericResponse
+	112, // 242: gctrpc.GoCryptoTrader.GetHistoricCandles:output_type -> gctrpc.GetHistoricCandlesResponse
+	127, // 243: gctrpc.GoCryptoTrader.SetExchangeAsset:output_type -> gctrpc.GenericResponse
+	127, // 244: gctrpc.GoCryptoTrader.SetAllExchangePairs:output_type -> gctrpc.GenericResponse
+	127, // 245: gctrpc.GoCryptoTrader.UpdateExchangeSupportedPairs:output_type -> gctrpc.GenericResponse
+	132, // 246: gctrpc.GoCryptoTrader.GetExchangeAssets:output_type -> gctrpc.GetExchangeAssetsResponse
+	134, // 247: gctrpc.GoCryptoTrader.WebsocketGetInfo:output_type -> gctrpc.WebsocketGetInfoResponse
+	127, // 248: gctrpc.GoCryptoTrader.WebsocketSetEnabled:output_type -> gctrpc.GenericResponse
+	138, // 249: gctrpc.GoCryptoTrader.WebsocketGetSubscriptions:output_type -> gctrpc.WebsocketGetSubscriptionsResponse
+	127, // 250: gctrpc.GoCryptoTrader.WebsocketSetProxy:output_type -> gctrpc.GenericResponse
+	127, // 251: gctrpc.GoCryptoTrader.WebsocketSetURL:output_type -> gctrpc.GenericResponse
+	109, // 252: gctrpc.GoCryptoTrader.GetRecentTrades:output_type -> gctrpc.SavedTradesResponse
+	109, // 253: gctrpc.GoCryptoTrader.GetHistoricTrades:output_type -> gctrpc.SavedTradesResponse
+	109, // 254: gctrpc.GoCryptoTrader.GetSavedTrades:output_type -> gctrpc.SavedTradesResponse
+	112, // 255: gctrpc.GoCryptoTrader.ConvertTradesToCandles:output_type -> gctrpc.GetHistoricCandlesResponse
+	143, // 256: gctrpc.GoCryptoTrader.FindMissingSavedCandleIntervals:output_type -> gctrpc.FindMissingIntervalsResponse
+	143, // 257: gctrpc.GoCryptoTrader.FindMissingSavedTradeIntervals:output_type -> gctrpc.FindMissingIntervalsResponse
+	127, // 258: gctrpc.GoCryptoTrader.SetExchangeTradeProcessing:output_type -> gctrpc.GenericResponse
+	148, // 259: gctrpc.GoCryptoTrader.UpsertDataHistoryJob:output_type -> gctrpc.UpsertDataHistoryJobResponse
+	150, // 260: gctrpc.GoCryptoTrader.GetDataHistoryJobDetails:output_type -> gctrpc.DataHistoryJob
+	152, // 261: gctrpc.GoCryptoTrader.GetActiveDataHistoryJobs:output_type -> gctrpc.DataHistoryJobs
+	152, // 262: gctrpc.GoCryptoTrader.GetDataHistoryJobsBetween:output_type -> gctrpc.DataHistoryJobs
+	150, // 263: gctrpc.GoCryptoTrader.GetDataHistoryJobSummary:output_type -> gctrpc.DataHistoryJob
+	127, // 264: gctrpc.GoCryptoTrader.SetDataHistoryJobStatus:output_type -> gctrpc.GenericResponse
+	127, // 265: gctrpc.GoCryptoTrader.UpdateDataHistoryJobPrerequisite:output_type -> gctrpc.GenericResponse
+	59,  // 266: gctrpc.GoCryptoTrader.GetManagedOrders:output_type -> gctrpc.GetOrdersResponse
+	180, // [180:267] is the sub-list for method output_type
+	93,  // [93:180] is the sub-list for method input_type
 	93,  // [93:93] is the sub-list for extension type_name
 	93,  // [93:93] is the sub-list for extension extendee
 	0,   // [0:93] is the sub-list for field type_name

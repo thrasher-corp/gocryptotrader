@@ -104,6 +104,7 @@ type GoCryptoTraderClient interface {
 	GetDataHistoryJobSummary(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*DataHistoryJob, error)
 	SetDataHistoryJobStatus(ctx context.Context, in *SetDataHistoryJobStatusRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	UpdateDataHistoryJobPrerequisite(ctx context.Context, in *UpdateDataHistoryJobPrerequisiteRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	GetManagedOrders(ctx context.Context, in *GetOrdersRequest, opts ...grpc.CallOption) (*GetOrdersResponse, error)
 }
 
 type goCryptoTraderClient struct {
@@ -1026,6 +1027,15 @@ func (c *goCryptoTraderClient) UpdateDataHistoryJobPrerequisite(ctx context.Cont
 	return out, nil
 }
 
+func (c *goCryptoTraderClient) GetManagedOrders(ctx context.Context, in *GetOrdersRequest, opts ...grpc.CallOption) (*GetOrdersResponse, error) {
+	out := new(GetOrdersResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetManagedOrders", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServer is the server API for GoCryptoTrader service.
 // All implementations must embed UnimplementedGoCryptoTraderServer
 // for forward compatibility
@@ -1116,6 +1126,7 @@ type GoCryptoTraderServer interface {
 	GetDataHistoryJobSummary(context.Context, *GetDataHistoryJobDetailsRequest) (*DataHistoryJob, error)
 	SetDataHistoryJobStatus(context.Context, *SetDataHistoryJobStatusRequest) (*GenericResponse, error)
 	UpdateDataHistoryJobPrerequisite(context.Context, *UpdateDataHistoryJobPrerequisiteRequest) (*GenericResponse, error)
+	GetManagedOrders(context.Context, *GetOrdersRequest) (*GetOrdersResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
@@ -1380,6 +1391,9 @@ func (UnimplementedGoCryptoTraderServer) SetDataHistoryJobStatus(context.Context
 }
 func (UnimplementedGoCryptoTraderServer) UpdateDataHistoryJobPrerequisite(context.Context, *UpdateDataHistoryJobPrerequisiteRequest) (*GenericResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateDataHistoryJobPrerequisite not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) GetManagedOrders(context.Context, *GetOrdersRequest) (*GetOrdersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetManagedOrders not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) mustEmbedUnimplementedGoCryptoTraderServer() {}
 
@@ -2960,6 +2974,24 @@ func _GoCryptoTrader_UpdateDataHistoryJobPrerequisite_Handler(srv interface{}, c
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTrader_GetManagedOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOrdersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).GetManagedOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/GetManagedOrders",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).GetManagedOrders(ctx, req.(*GetOrdersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoCryptoTrader_ServiceDesc is the grpc.ServiceDesc for GoCryptoTrader service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3286,6 +3318,10 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateDataHistoryJobPrerequisite",
 			Handler:    _GoCryptoTrader_UpdateDataHistoryJobPrerequisite_Handler,
+		},
+		{
+			MethodName: "GetManagedOrders",
+			Handler:    _GoCryptoTrader_GetManagedOrders_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
