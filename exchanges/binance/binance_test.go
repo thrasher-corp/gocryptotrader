@@ -2494,7 +2494,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Amount:          0.00028400,
 		Exchange:        "Binance",
 		ID:              "5340845958",
-		ClientID:        "c4wyKsIhoAaittTYlIVLqk",
+		ClientOrderID:   "c4wyKsIhoAaittTYlIVLqk",
 		Side:            order.Buy,
 		Type:            order.Limit,
 		Status:          order.New,

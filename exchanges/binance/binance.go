@@ -529,7 +529,7 @@ func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderRespons
 	}
 
 	if o.NewClientOrderID != "" {
-		params.Set("newClientOrderID", o.NewClientOrderID)
+		params.Set("newClientOrderId", o.NewClientOrderID)
 	}
 
 	if o.StopPrice != 0 {
