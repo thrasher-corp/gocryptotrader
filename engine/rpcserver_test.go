@@ -1590,3 +1590,101 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 		t.Errorf("received %v, expected %v", nil, "result summaries slice")
 	}
 }
+
+func TestGetManagedOrders(t *testing.T) {
+	exchName := "Binance"
+	engerino := &Engine{}
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(exchName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true}}
+	em.Add(exch)
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	err = om.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
+
+	p := &gctrpc.CurrencyPair{
+		Delimiter: "-",
+		Base:      currency.BTC.String(),
+		Quote:     currency.USDT.String(),
+	}
+
+	_, err = s.GetManagedOrders(context.Background(), nil)
+	if !errors.Is(err, errInvalidArguments) {
+		t.Errorf("received '%v', expected '%v'", err, errInvalidArguments)
+	}
+
+	_, err = s.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		AssetType: asset.Spot.String(),
+		Pair:      p,
+	})
+	if !errors.Is(err, errExchangeNotLoaded) {
+		t.Errorf("received '%v', expected '%v'", errExchangeNotLoaded, err)
+	}
+
+	_, err = s.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  exchName,
+		AssetType: asset.Spot.String(),
+	})
+	if !errors.Is(err, errCurrencyPairUnset) {
+		t.Errorf("received '%v', expected '%v'", err, errCurrencyPairUnset)
+	}
+
+	_, err = s.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange: exchName,
+		Pair:     p,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
+	}
+
+	o := order.Detail{
+		Price:           100000,
+		Amount:          0.002,
+		Exchange:        "Binance",
+		InternalOrderID: "",
+		ID:              "",
+		ClientOrderID:   "",
+		AccountID:       "",
+		ClientID:        "",
+		WalletAddress:   "",
+		Type:            order.Limit,
+		Side:            "SELL",
+		Status:          order.New,
+		AssetType:       asset.Spot,
+		Pair:            currency.NewPair(currency.BTC, currency.USDT),
+	}
+	err = om.Add(&o)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	oo, err := s.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  exchName,
+		AssetType: "spot",
+		Pair:      p,
+	})
+	if err != nil {
+		t.Errorf("non expected Error: %v", err)
+	} else if oo == nil || len(oo.GetOrders()) != 1 {
+		t.Errorf("unexpected order result: %v", oo)
+	}
+}

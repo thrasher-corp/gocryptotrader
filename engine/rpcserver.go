@@ -944,6 +944,90 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 	return &gctrpc.GetOrdersResponse{Orders: orders}, nil
 }
 
+// GetManagedOrders returns all orders from the Order Manager for the provided exchange,
+// asset type  and currency pair
+func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*gctrpc.GetOrdersResponse, error) {
+	if r == nil {
+		return nil, errInvalidArguments
+	}
+
+	a, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.Pair == nil {
+		return nil, errCurrencyPairUnset
+	}
+	cp := currency.NewPairWithDelimiter(
+		r.Pair.Base,
+		r.Pair.Quote,
+		r.Pair.Delimiter)
+	exch := s.GetExchangeByName(r.Exchange)
+	err = checkParams(r.Exchange, exch, a, cp)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []order.Detail
+	filter := order.Filter{
+		Exchange:  exch.GetName(),
+		Pair:      cp,
+		AssetType: a,
+	}
+	resp, err = s.OrderManager.GetOrdersFiltered(&filter)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []*gctrpc.OrderDetails
+	for x := range resp {
+		var trades []*gctrpc.TradeHistory
+		for i := range resp[x].Trades {
+			t := &gctrpc.TradeHistory{
+				Id:        resp[x].Trades[i].TID,
+				Price:     resp[x].Trades[i].Price,
+				Amount:    resp[x].Trades[i].Amount,
+				Exchange:  r.Exchange,
+				AssetType: a.String(),
+				OrderSide: resp[x].Trades[i].Side.String(),
+				Fee:       resp[x].Trades[i].Fee,
+				Total:     resp[x].Trades[i].Total,
+			}
+			if !resp[x].Trades[i].Timestamp.IsZero() {
+				t.CreationTime = resp[x].Trades[i].Timestamp.Unix()
+			}
+			trades = append(trades, t)
+		}
+		o := &gctrpc.OrderDetails{
+			Exchange:      r.Exchange,
+			Id:            resp[x].ID,
+			ClientOrderId: resp[x].ClientOrderID,
+			BaseCurrency:  resp[x].Pair.Base.String(),
+			QuoteCurrency: resp[x].Pair.Quote.String(),
+			AssetType:     resp[x].AssetType.String(),
+			OrderSide:     resp[x].Side.String(),
+			OrderType:     resp[x].Type.String(),
+			Status:        resp[x].Status.String(),
+			Price:         resp[x].Price,
+			Amount:        resp[x].Amount,
+			OpenVolume:    resp[x].Amount - resp[x].ExecutedAmount,
+			Fee:           resp[x].Fee,
+			Cost:          resp[x].Cost,
+			Trades:        trades,
+		}
+		if !resp[x].Date.IsZero() {
+			o.CreationTime = resp[x].Date.Unix()
+		}
+		if !resp[x].LastUpdated.IsZero() {
+			o.UpdateTime = resp[x].LastUpdated.Unix()
+		}
+		orders = append(orders, o)
+	}
+
+	return &gctrpc.GetOrdersResponse{Orders: orders}, nil
+}
+
 // GetOrder returns order information based on exchange and order ID
 func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gctrpc.OrderDetails, error) {
 	if r == nil {
@@ -1001,6 +1085,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	return &gctrpc.OrderDetails{
 		Exchange:      result.Exchange,
 		Id:            result.ID,
+		ClientOrderId: result.ClientOrderID,
 		BaseCurrency:  result.Pair.Base.String(),
 		QuoteCurrency: result.Pair.Quote.String(),
 		AssetType:     result.AssetType.String(),
@@ -1043,14 +1128,15 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 	}
 
 	submission := &order.Submit{
-		Pair:      p,
-		Side:      order.Side(r.Side),
-		Type:      order.Type(r.OrderType),
-		Amount:    r.Amount,
-		Price:     r.Price,
-		ClientID:  r.ClientId,
-		Exchange:  r.Exchange,
-		AssetType: a,
+		Pair:          p,
+		Side:          order.Side(r.Side),
+		Type:          order.Type(r.OrderType),
+		Amount:        r.Amount,
+		Price:         r.Price,
+		ClientID:      r.ClientId,
+		ClientOrderID: r.ClientId,
+		Exchange:      r.Exchange,
+		AssetType:     a,
 	}
 
 	resp, err := s.OrderManager.Submit(submission)
@@ -1196,7 +1282,8 @@ func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest)
 		return nil, err
 	}
 
-	err = exch.CancelOrder(&order.Cancel{
+	err = s.OrderManager.Cancel(&order.Cancel{
+		Exchange:      r.Exchange,
 		AccountID:     r.AccountId,
 		ID:            r.OrderId,
 		Side:          order.Side(r.Side),
