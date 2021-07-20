@@ -550,7 +550,47 @@ func (d *Deribit) GetHistoricTrades(p currency.Pair, assetType asset.Item, times
 			timestampStart,
 			timestampEnd)
 	}
-	return nil, common.ErrNotYetImplemented
+	fmtPair, err := d.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	var tradesData PublicTradesData
+	var hasMore = true
+	for hasMore {
+		tradesData, err = d.GetLastTradesByInstrumentAndTime(fmtPair.String(),
+			"asc",
+			100,
+			false,
+			timestampStart,
+			timestampEnd)
+		if err != nil {
+			return nil, err
+		}
+		if len(tradesData.Trades) != 100 {
+			hasMore = false
+		}
+		for t := range tradesData.Trades {
+			if t == 99 {
+				timestampStart = time.Unix(tradesData.Trades[t].Timestamp/1000, 0)
+			}
+			sideData := order.Sell
+			if tradesData.Trades[t].Direction == "buy" {
+				sideData = order.Buy
+			}
+			resp = append(resp, trade.Data{
+				TID:          tradesData.Trades[t].TradeID,
+				Exchange:     d.Name,
+				Price:        tradesData.Trades[t].Price,
+				Amount:       tradesData.Trades[t].Amount,
+				Timestamp:    time.Unix(tradesData.Trades[t].Timestamp/1000, 0),
+				AssetType:    assetType,
+				Side:         sideData,
+				CurrencyPair: p,
+			})
+		}
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order
@@ -585,10 +625,6 @@ func (d *Deribit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			submitOrderResponse.FullyMatched = data.Order.Amount == data.Order.FilledAmount
 			submitOrderResponse.OrderID = data.Order.OrderID
 			for t := range data.Trades {
-				// sideData := order.Sell
-				// if data.Trades[t].Direction == "buy" {
-				// 	sideData = order.Buy
-				// }
 				typeData := order.Market
 				if data.Trades[t].OrderType == "limit" {
 					typeData = order.Limit
@@ -812,19 +848,13 @@ func (d *Deribit) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (d *Deribit) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
 func (d *Deribit) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
@@ -849,6 +879,9 @@ func (d *Deribit) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]o
 				if ordersData[y].Direction == "buy" {
 					orderSide = order.Buy
 				}
+				if getOrdersRequest.Side != orderSide || getOrdersRequest.Side != order.AnySide {
+					continue
+				}
 				var orderType order.Type
 				switch ordersData[y].OrderType {
 				case "market":
@@ -861,6 +894,9 @@ func (d *Deribit) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]o
 					orderType = order.StopMarket
 				default:
 					return resp, fmt.Errorf("%v: orderType %s not supported", d.Name, ordersData[y].OrderType)
+				}
+				if getOrdersRequest.Type != orderType || getOrdersRequest.Type != order.AnyType {
+					continue
 				}
 				var orderStatus order.Status
 				switch ordersData[y].OrderState {
@@ -904,10 +940,77 @@ func (d *Deribit) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]o
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (d *Deribit) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+	var resp []order.Detail
+	for x := range getOrdersRequest.Pairs {
+		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Futures)
+		if err != nil {
+			return nil, err
+		}
+		ordersData, err := d.GetOrderHistoryByInstrument(fmtPair.String(), 100, 0, true, true)
+		if err != nil {
+			return nil, err
+		}
+		for y := range ordersData {
+			orderSide := order.Sell
+			if ordersData[y].Direction == "buy" {
+				orderSide = order.Buy
+			}
+			if getOrdersRequest.Side != orderSide || getOrdersRequest.Side != order.AnySide {
+				continue
+			}
+			var orderType order.Type
+			switch ordersData[y].OrderType {
+			case "market":
+				orderType = order.Market
+			case "limit":
+				orderType = order.Limit
+			case "stop_limit":
+				orderType = order.StopLimit
+			case "stop_market":
+				orderType = order.StopMarket
+			default:
+				return resp, fmt.Errorf("%v: orderType %s not supported", d.Name, ordersData[y].OrderType)
+			}
+			if getOrdersRequest.Type != orderType || getOrdersRequest.Type != order.AnyType {
+				continue
+			}
+			var orderStatus order.Status
+			switch ordersData[y].OrderState {
+			case "open":
+				orderStatus = order.Active
+			case "filled":
+				orderStatus = order.Filled
+			case "rejected":
+				orderStatus = order.Rejected
+			case "cancelled":
+				orderStatus = order.Cancelled
+			case "untriggered":
+				orderStatus = order.UnknownStatus
+			default:
+				return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, ordersData[y].OrderState)
+			}
+			resp = append(resp, order.Detail{
+				AssetType:       asset.Futures,
+				Exchange:        d.Name,
+				PostOnly:        ordersData[y].PostOnly,
+				Price:           ordersData[y].Price,
+				Amount:          ordersData[y].Amount,
+				ExecutedAmount:  ordersData[y].FilledAmount,
+				Fee:             ordersData[y].Commission,
+				RemainingAmount: ordersData[y].Amount - ordersData[y].FilledAmount,
+				ID:              ordersData[y].OrderID,
+				Pair:            getOrdersRequest.Pairs[x],
+				LastUpdated:     time.Unix(ordersData[y].LastUpdateTimestamp/1000, 0),
+				Side:            orderSide,
+				Type:            orderType,
+				Status:          orderStatus,
+			})
+		}
+	}
+	return resp, nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
@@ -923,7 +1026,26 @@ func (d *Deribit) ValidateCredentials(assetType asset.Item) error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (d *Deribit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	fmtPair, err := d.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	tradingViewData, err := d.GetTradingViewChartData(fmtPair.String(),
+		interval.String(),
+		start,
+		end)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	checkLen := len(tradingViewData.Ticks)
+	if len(tradingViewData.Open) != checkLen ||
+	len(tradingViewData.High) != checkLen ||
+	len(tradingViewData.Low) != checkLen ||
+	len(tradingViewData.Close) != checkLen ||
+	len(tradingViewData.Volume) != checkLen {
+		return kline.Item{}, fmt.Errorf("invalid data received")
+	}
+		return kline.Item{}, common.ErrNotYetImplemented
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

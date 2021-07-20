@@ -135,6 +135,27 @@ func TestFetchRecentTrades(t *testing.T) {
 	}
 }
 
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+
+	cp, err := currency.NewPairFromString(btcInstrument)
+	if err != nil {
+		t.Error(err)
+	}
+
+	hisTradesData, err := d.GetHistoricTrades(
+		cp,
+		asset.Futures,
+		time.Now().Add(-time.Minute*10),
+		time.Now(),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(hisTradesData)
+}
+
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	d.Verbose = true
