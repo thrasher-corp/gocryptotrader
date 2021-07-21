@@ -1425,7 +1425,7 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 
 func TestSetDataHistoryJobStatus(t *testing.T) {
 	t.Parallel()
-	m, _ := createDHM(t)
+	m, j := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1462,6 +1462,7 @@ func TestSetDataHistoryJobStatus(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
 	dhj.ID = id
+	j.Status = int64(dataHistoryStatusActive)
 	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusRemoved)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
@@ -1470,9 +1471,13 @@ func TestSetDataHistoryJobStatus(t *testing.T) {
 	if !errors.Is(err, errBadStatus) {
 		t.Errorf("received %v, expected %v", err, errBadStatus)
 	}
+	j.Status = int64(dataHistoryStatusActive)
 	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusPaused)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
+	}
+	if j.Status != int64(dataHistoryStatusPaused) {
+		t.Errorf("received %v, expected %v", dataHistoryStatus(j.Status), dataHistoryStatusPaused)
 	}
 }
 
