@@ -149,7 +149,7 @@ func TestUpsertJob(t *testing.T) {
 	}
 
 	dhj.Exchange = strings.ToLower(testExchange)
-	dhj.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	dhj.Pair = currency.NewPair(currency.BTC, currency.DOGE)
 	err = m.UpsertJob(dhj, false)
 	if !errors.Is(err, errCurrencyNotEnabled) {
 		t.Errorf("error '%v', expected '%v'", err, errCurrencyNotEnabled)
@@ -183,19 +183,24 @@ func TestUpsertJob(t *testing.T) {
 	}
 
 	newJob := &DataHistoryJob{
-		Nickname:               dhj.Nickname,
-		Exchange:               testExchange,
-		Asset:                  asset.Spot,
-		Pair:                   currency.NewPair(currency.BTC, currency.USD),
-		StartDate:              startDate,
-		EndDate:                time.Now().Add(-time.Minute),
-		Interval:               kline.FifteenMin,
-		RunBatchLimit:          1338,
-		RequestSizeLimit:       1337,
-		DataType:               99,
-		MaxRetryAttempts:       1337,
-		ConversionInterval:     3,
-		DecimalPlaceComparison: 5,
+		Nickname:                 dhj.Nickname,
+		Exchange:                 testExchange,
+		Asset:                    asset.Spot,
+		Pair:                     currency.NewPair(currency.BTC, currency.USD),
+		StartDate:                startDate,
+		EndDate:                  time.Now().Add(-time.Minute),
+		Interval:                 kline.FifteenMin,
+		RunBatchLimit:            1338,
+		RequestSizeLimit:         1337,
+		DataType:                 99,
+		MaxRetryAttempts:         1337,
+		OverwriteExistingData:    true,
+		ConversionInterval:       3,
+		DecimalPlaceComparison:   5,
+		SecondaryExchangeSource:  testExchange,
+		IssueTolerancePercentage: 3,
+		ReplaceOnIssue:           true,
+		PrerequisiteJobNickname:  "hellomoto",
 	}
 	err = m.UpsertJob(newJob, false)
 	if !errors.Is(err, errInvalidDataHistoryDataType) {
@@ -496,7 +501,7 @@ func TestValidateJob(t *testing.T) {
 	}
 
 	dhj.Exchange = testExchange
-	dhj.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	dhj.Pair = currency.NewPair(currency.BTC, currency.XRP)
 	err = m.validateJob(dhj)
 	if !errors.Is(err, errCurrencyNotEnabled) {
 		t.Errorf("error '%v', expected '%v'", err, errCurrencyNotEnabled)
@@ -624,13 +629,14 @@ func TestCompareJobsToData(t *testing.T) {
 	t.Parallel()
 	m := createDHM(t)
 	dhj := &DataHistoryJob{
-		Nickname:  "TestGenerateJobSummary",
-		Exchange:  testExchange,
-		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
-		StartDate: time.Now().Add(-time.Minute * 5),
-		EndDate:   time.Now(),
-		Interval:  kline.OneMin,
+		Nickname:           "TestGenerateJobSummary",
+		Exchange:           testExchange,
+		Asset:              asset.Spot,
+		Pair:               currency.NewPair(currency.BTC, currency.USD),
+		StartDate:          time.Now().Add(-time.Minute * 5),
+		EndDate:            time.Now(),
+		Interval:           kline.OneMin,
+		ConversionInterval: kline.FiveMin,
 	}
 	err := m.compareJobsToData(dhj)
 	if !errors.Is(err, nil) {
@@ -648,6 +654,13 @@ func TestCompareJobsToData(t *testing.T) {
 	if !errors.Is(err, errUnknownDataType) {
 		t.Errorf("error '%v', expected '%v'", err, errUnknownDataType)
 	}
+
+	dhj.DataType = dataHistoryConvertCandlesDataType
+	err = m.compareJobsToData(dhj)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+
 	m.started = 0
 	err = m.compareJobsToData(dhj)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
@@ -714,6 +727,17 @@ func TestRunJob(t *testing.T) {
 			Interval:  kline.OneHour,
 			DataType:  dataHistoryCandleValidationDataType,
 		},
+		{
+			Nickname:                "TestRunJobDataHistoryCandleSecondaryValidationDataType",
+			Exchange:                "Binance",
+			Asset:                   asset.Spot,
+			Pair:                    currency.NewPair(currency.BTC, currency.USDT),
+			StartDate:               time.Now().Add(-time.Hour * 2),
+			EndDate:                 time.Now(),
+			Interval:                kline.OneMin,
+			DataType:                dataHistoryCandleValidationSecondarySourceType,
+			SecondaryExchangeSource: testExchange,
+		},
 	}
 
 	for x := range testCases {
@@ -722,11 +746,6 @@ func TestRunJob(t *testing.T) {
 			t.Parallel()
 			m := createDHM(t)
 			err := m.UpsertJob(test, false)
-			if !errors.Is(err, nil) {
-				t.Errorf("error '%v', expected '%v'", err, nil)
-			}
-
-			err = m.UpsertJob(test, false)
 			if !errors.Is(err, nil) {
 				t.Errorf("error '%v', expected '%v'", err, nil)
 			}
@@ -930,12 +949,13 @@ func createDHM(t *testing.T) *DataHistoryManager {
 		t.Fatalf("error '%v', expected '%v'", err, nil)
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp2 := currency.NewPair(currency.BTC, currency.USDT)
 	exch.SetDefaults()
 	b := exch.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		Available:    currency.Pairs{cp},
-		Enabled:      currency.Pairs{cp},
+		Available:    currency.Pairs{cp, cp2},
+		Enabled:      currency.Pairs{cp, cp2},
 		AssetEnabled: convert.BoolPtr(true)}
 	em.Add(exch)
 
@@ -943,13 +963,12 @@ func createDHM(t *testing.T) *DataHistoryManager {
 	if !errors.Is(err, nil) {
 		t.Fatalf("error '%v', expected '%v'", err, nil)
 	}
-	cp2 := currency.NewPair(currency.BTC, currency.USDT)
 	exch2.SetDefaults()
 	b = exch2.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		Available:     currency.Pairs{cp2},
-		Enabled:       currency.Pairs{cp2},
+		Available:     currency.Pairs{cp, cp2},
+		Enabled:       currency.Pairs{cp, cp2},
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
@@ -964,6 +983,7 @@ func createDHM(t *testing.T) *DataHistoryManager {
 		tradeChecker:    dataHistoryHasDataChecker,
 		candleLoader:    dataHistoryCandleLoader,
 		interval:        time.NewTicker(time.Minute),
+		verbose:         true,
 	}
 	return m
 }

@@ -298,12 +298,13 @@ func genOHCLVData() (out Item, err error) {
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	for x := 0; x < 365; x++ {
 		out.Candles = append(out.Candles, Candle{
-			Timestamp: start.Add(time.Hour * 24 * time.Duration(x)),
-			Open:      1000,
-			High:      1000,
-			Low:       1000,
-			Close:     1000,
-			Volume:    1000,
+			Timestamp:        start.Add(time.Hour * 24 * time.Duration(x)),
+			Open:             1000,
+			High:             1000,
+			Low:              1000,
+			Close:            1000,
+			Volume:           1000,
+			ValidationIssues: "hello world!",
 		})
 	}
 
