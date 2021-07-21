@@ -400,6 +400,9 @@ func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 			"Order manager: Unable to generate UUID. Err: %s",
 			err)
 	}
+	if newOrder.Date.IsZero() {
+		newOrder.Date = time.Now()
+	}
 	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v side=%v type=%v for time %v.",
 		newOrder.Exchange,
 		result.OrderID,
