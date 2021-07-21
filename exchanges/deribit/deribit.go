@@ -997,8 +997,8 @@ func (d *Deribit) ToggleSubAccountLogin(sid int64, state bool) (string, error) {
 	return resp, nil
 }
 
-// PrivateBuy submits submits a private buy request
-func (d *Deribit) PrivateBuy(instrumentName, orderType, label, timeInForce, trigger, advanced string, amount, price, maxShow, triggerPrice float64, postOnly, rejectPostOnly, reduceOnly, mmp bool) (PrivateTradeData, error) {
+// SubmitBuy submits submits a private buy request
+func (d *Deribit) SubmitBuy(instrumentName, orderType, label, timeInForce, trigger, advanced string, amount, price, maxShow, triggerPrice float64, postOnly, rejectPostOnly, reduceOnly, mmp bool) (PrivateTradeData, error) {
 	var resp PrivateTradeData
 	params := url.Values{}
 	params.Set("instrument_name", instrumentName)
@@ -1099,8 +1099,8 @@ func (d *Deribit) SubmitSell(instrumentName, orderType, label, timeInForce, trig
 		submitSell, params, &resp)
 }
 
-// PrivateEdit submits an edit order request
-func (d *Deribit) PrivateEdit(orderID, advanced string, amount, price, triggerPrice float64, postOnly, reduceOnly, rejectPostOnly, mmp bool) (PrivateTradeData, error) {
+// SubmitEdit submits an edit order request
+func (d *Deribit) SubmitEdit(orderID, advanced string, amount, price, triggerPrice float64, postOnly, reduceOnly, rejectPostOnly, mmp bool) (PrivateTradeData, error) {
 	var resp PrivateTradeData
 	params := url.Values{}
 	params.Set("order_id", orderID)
@@ -1343,7 +1343,6 @@ func (d *Deribit) GetOrderHistoryByInstrument(instrumentName string, count, offs
 func (d *Deribit) GetOrderMarginsByID(ids []string) ([]OrderData, error) {
 	var resp []OrderData
 	var idsString string
-	// NOTE TO SELF!! need to pass ids params
 	for x := range ids {
 		if len(ids)-1 == x {
 			idsString += ids[x]

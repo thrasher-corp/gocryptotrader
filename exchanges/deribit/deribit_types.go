@@ -14,7 +14,6 @@ type UnmarshalError struct {
 var (
 	errTypeAssert                    = errors.New("type assertion failed")
 	errStartTimeCannotBeAfterEndTime = errors.New("start timestamp cannot be after end timestamp")
-	errAssetTypeNotSupported         = errors.New("assetType not supported")
 )
 
 // BookSummaryData stores summary data
@@ -95,35 +94,42 @@ type IndexPriceData struct {
 
 // InstrumentData gets data for instruments
 type InstrumentData struct {
+	BaseCurrency         string  `json:"base_currency"`
+	BlockTradeCommission float64 `json:"block_trade_commission"`
+	ContractSize         float64 `json:"contract_size"`
+	CreationTimestamp    int64   `json:"creation_timestamp"`
+	ExpirationTimestamp  int64   `json:"expiration_timestamp"`
+	InstrumentName       string  `json:"instrument_name"`
+	IsActive             bool    `json:"is_active"`
+	Kind                 string  `json:"kind"`
+	Leverage             float64 `json:"leverage"`
+	MakerCommission      float64 `json:"maker_commission"`
+	MinimumTradeAmount   float64 `json:"min_trade_amount"`
+	OptionType           string  `json:"option_type"`
+	QuoteCurrency        string  `json:"quote_currency"`
 	TickSize             float64 `json:"tick_size"`
 	TakerCommission      float64 `json:"taker_commission"`
 	Strike               float64 `json:"strike"`
 	SettlementPeriod     string  `json:"settlement_period"`
-	QuoteCurrency        string  `json:"quote_currency"`
-	OptionType           string  `json:"option_type"`
-	MinimumTradeAmount   float64 `json:"min_trade_amount"`
-	MakerCommission      float64 `json:"maker_commission"`
-	Kind                 string  `json:"kind"`
-	IsActive             bool    `json:"is_active"`
-	InstrumentName       string  `json:"instrument_name"`
-	ExpirationTimestamp  int64   `json:"expiration_timestamp"`
-	CreationTimestamp    int64   `json:"creation_timestamp"`
-	ContractSize         float64 `json:"contract_size"`
-	BlockTradeCommission float64 `json:"block_trade_commission"`
-	BaseCurrency         string  `json:"base_currency"`
 }
 
 // SettlementsData stores data for settlement futures
 type SettlementsData struct {
 	Settlements []struct {
-		Type              string  `json:"type"`
+		Funded            float64 `json:"funded"`
+		Funding           float64 `json:"funding"`
+		IndexPrice        float64 `json:"index_price"`
+		SessionBankrupcy  float64 `json:"session_bankrupcy"`
+		SessionTax        float64 `json:"session_tax"`
+		SessionTaxRate    float64 `json:"session_tax_rate"`
+		Socialized        float64 `json:"socialized"`
+		SettlementType    string  `json:"type"`
 		Timestamp         int64   `json:"timestamp"`
 		SessionProfitLoss float64 `json:"session_profit_loss"`
 		ProfitLoss        float64 `json:"profit_loss"`
 		Position          float64 `json:"position"`
 		MarkPrice         float64 `json:"mark_price"`
 		InstrumentName    string  `json:"instrument_name"`
-		IndexPrice        float64 `json:"index_price"`
 	} `json:"settlements"`
 	Continuation string `json:"continuation"`
 }

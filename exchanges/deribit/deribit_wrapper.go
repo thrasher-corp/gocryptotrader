@@ -604,7 +604,7 @@ func (d *Deribit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		}
 		switch s.Side {
 		case order.Bid, order.Buy:
-			data, err := d.PrivateBuy(fmtPair.String(),
+			data, err := d.SubmitBuy(fmtPair.String(),
 				s.Type.String(),
 				s.ClientOrderID,
 				"", "", "",
@@ -697,8 +697,26 @@ func (d *Deribit) ModifyOrder(action *order.Modify) (string, error) {
 	if err := action.Validate(); err != nil {
 		return "", err
 	}
-
-	return "", common.ErrNotYetImplemented
+	var modify PrivateTradeData
+	var err error
+	switch action.AssetType {
+	case asset.Futures:
+		modify, err = d.SubmitEdit(action.ID,
+			"",
+			action.Amount,
+			action.Price,
+			action.TriggerPrice,
+			action.PostOnly,
+			false,
+			false,
+			false)
+		if err != nil {
+			return "", err
+		}
+	default:
+		return "", fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, action.AssetType)
+	}
+	return modify.Order.OrderID, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -706,9 +724,14 @@ func (d *Deribit) CancelOrder(ord *order.Cancel) error {
 	if err := ord.Validate(ord.StandardCancel()); err != nil {
 		return err
 	}
-	_, err := d.SubmitCancel(ord.ID)
-	if err != nil {
-		return err
+	switch ord.AssetType {
+	case asset.Futures:
+		_, err := d.SubmitCancel(ord.ID)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, ord.AssetType)
 	}
 	return nil
 }
@@ -736,24 +759,30 @@ func (d *Deribit) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
-	pairFmt, err := d.GetPairFormat(orderCancellation.AssetType, true)
-	if err != nil {
-		return order.CancelAllResponse{}, err
-	}
-	var orderTypeStr string
-	switch orderCancellation.Type {
-	case order.Limit:
-		orderTypeStr = order.Limit.String()
-	case order.Market:
-		orderTypeStr = order.Market.String()
-	case order.AnyType:
-		orderTypeStr = "all"
+	var cancelData int64
+	switch orderCancellation.AssetType {
+	case asset.Futures:
+		pairFmt, err := d.GetPairFormat(orderCancellation.AssetType, true)
+		if err != nil {
+			return order.CancelAllResponse{}, err
+		}
+		var orderTypeStr string
+		switch orderCancellation.Type {
+		case order.Limit:
+			orderTypeStr = order.Limit.String()
+		case order.Market:
+			orderTypeStr = order.Market.String()
+		case order.AnyType:
+			orderTypeStr = "all"
+		default:
+			return order.CancelAllResponse{}, fmt.Errorf("%s: orderType %v is not valid", d.Name, orderCancellation.Type)
+		}
+		cancelData, err = d.SubmitCancelAllByInstrument(pairFmt.Format(orderCancellation.Pair), orderTypeStr)
+		if err != nil {
+			return order.CancelAllResponse{}, err
+		}
 	default:
-		return order.CancelAllResponse{}, fmt.Errorf("%s: orderType %v is not valid", d.Name, orderCancellation.Type)
-	}
-	cancelData, err := d.SubmitCancelAllByInstrument(pairFmt.Format(orderCancellation.Pair), orderTypeStr)
-	if err != nil {
-		return order.CancelAllResponse{}, err
+		return order.CancelAllResponse{}, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, orderCancellation.AssetType)
 	}
 	return order.CancelAllResponse{Count: cancelData}, nil
 }
@@ -1039,13 +1068,28 @@ func (d *Deribit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 	}
 	checkLen := len(tradingViewData.Ticks)
 	if len(tradingViewData.Open) != checkLen ||
-	len(tradingViewData.High) != checkLen ||
-	len(tradingViewData.Low) != checkLen ||
-	len(tradingViewData.Close) != checkLen ||
-	len(tradingViewData.Volume) != checkLen {
-		return kline.Item{}, fmt.Errorf("invalid data received")
+		len(tradingViewData.High) != checkLen ||
+		len(tradingViewData.Low) != checkLen ||
+		len(tradingViewData.Close) != checkLen ||
+		len(tradingViewData.Volume) != checkLen {
+		return kline.Item{}, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, pair)
 	}
-		return kline.Item{}, common.ErrNotYetImplemented
+	var resp kline.Item
+	for x := range tradingViewData.Ticks {
+		resp.Candles = append(resp.Candles, kline.Candle{
+			Time:   time.Unix(int64(tradingViewData.Ticks[x])/1000, 0),
+			Open:   tradingViewData.Open[x],
+			High:   tradingViewData.High[x],
+			Low:    tradingViewData.Low[x],
+			Close:  tradingViewData.Close[x],
+			Volume: tradingViewData.Volume[x],
+		})
+	}
+	resp.Pair = pair
+	resp.Asset = a
+	resp.Interval = interval
+	resp.Exchange = d.Name
+	return resp, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

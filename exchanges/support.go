@@ -26,6 +26,7 @@ var Exchanges = []string{
 	"coinbasepro",
 	"coinbene",
 	"coinut",
+	"deribit",
 	"exmo",
 	"ftx",
 	"gateio",
