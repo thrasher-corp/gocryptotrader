@@ -1317,7 +1317,7 @@ func TestParseEvents(t *testing.T) {
 
 func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
@@ -1369,7 +1369,7 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 
 func TestGetDataHistoryJobDetails(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1406,7 +1406,7 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
 
-	_, err = s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: m.jobs[0].ID.String()})
+	_, err = s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: dhj.ID.String()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
@@ -1425,7 +1425,7 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 
 func TestSetDataHistoryJobStatus(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1456,19 +1456,15 @@ func TestSetDataHistoryJobStatus(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, errOnlyNicknameOrID)
 	}
 
-	id := m.jobs[0].ID
+	id := dhj.ID
 	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Nickname: "TestDeleteDataHistoryJob", Status: int64(dataHistoryStatusRemoved)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
 	dhj.ID = id
-	m.jobs = append(m.jobs, dhj)
 	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusRemoved)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
-	}
-	if len(m.jobs) != 0 {
-		t.Errorf("received %v, expected %v", len(m.jobs), 0)
 	}
 	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusActive)})
 	if !errors.Is(err, errBadStatus) {
@@ -1482,7 +1478,7 @@ func TestSetDataHistoryJobStatus(t *testing.T) {
 
 func TestGetActiveDataHistoryJobs(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1511,7 +1507,7 @@ func TestGetActiveDataHistoryJobs(t *testing.T) {
 
 func TestGetDataHistoryJobsBetween(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1556,7 +1552,7 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 
 func TestGetDataHistoryJobSummary(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1699,7 +1695,7 @@ func TestGetManagedOrders(t *testing.T) {
 
 func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 	_, err := s.UpdateDataHistoryJobPrerequisite(context.Background(), nil)
 	if !errors.Is(err, errNilRequestData) {

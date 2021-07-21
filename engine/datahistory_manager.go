@@ -144,8 +144,6 @@ func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, ErrSubSystemNotStarted
 	}
-	m.m.Lock()
-	defer m.m.Unlock()
 	jobs, err := m.retrieveJobs()
 	if err != nil {
 		defer func() {
@@ -208,14 +206,6 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 
 func (m *DataHistoryManager) run() {
 	go func() {
-		validJobs, err := m.PrepareJobs()
-		if err != nil {
-			log.Error(log.DataHistory, err)
-		}
-		m.m.Lock()
-		m.jobs = validJobs
-		m.m.Unlock()
-
 		for {
 			select {
 			case <-m.shutdown:
@@ -257,19 +247,14 @@ func (m *DataHistoryManager) runJobs() error {
 		return nil
 	}
 
-	m.m.Lock()
-	defer func() {
-		m.m.Unlock()
-	}()
-	m.jobs = validJobs
 	log.Infof(log.DataHistory, "processing data history jobs")
-	for i := 0; (i < int(m.maxJobsPerCycle) || m.maxJobsPerCycle == -1) && i < len(m.jobs); i++ {
-		err := m.runJob(m.jobs[i])
+	for i := 0; (i < int(m.maxJobsPerCycle) || m.maxJobsPerCycle == -1) && i < len(validJobs); i++ {
+		err := m.runJob(validJobs[i])
 		if err != nil {
 			log.Error(log.DataHistory, err)
 		}
 		if m.verbose {
-			log.Debugf(log.DataHistory, "completed run of data history job %v", m.jobs[i].Nickname)
+			log.Debugf(log.DataHistory, "completed run of data history job %v", validJobs[i].Nickname)
 		}
 	}
 	log.Infof(log.DataHistory, "completed run of data history jobs")
@@ -1037,10 +1022,10 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		var p *DataHistoryJob
 		p, err = m.GetByNickname(job.PrerequisiteJobNickname, false)
 		if err != nil {
-			return fmt.Errorf("upsert job %s could not find prerequisite job %v %w", job.Nickname, job.PrerequisiteJobNickname, err)
+			return fmt.Errorf("upsert job %s could not find prerequisite job nickname %v %w", job.Nickname, job.PrerequisiteJobNickname, err)
 		}
 		if p.Status != dataHistoryStatusActive && p.Status != dataHistoryStatusPaused {
-			return fmt.Errorf("upsert job %s prerequisite job %v already completed %w", job.Nickname, p.Nickname, errJobInvalid)
+			return fmt.Errorf("upsert job %s prerequisite job nickname %v already completed %w", job.Nickname, p.Nickname, errJobInvalid)
 		}
 	}
 
@@ -1048,64 +1033,12 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	if err != nil {
 		return err
 	}
-	isUpdatingExistingJob := false
-	m.m.Lock()
-	defer m.m.Unlock()
-	if !insertOnly {
-		for i := range m.jobs {
-			if !strings.EqualFold(m.jobs[i].Nickname, job.Nickname) {
-				continue
-			}
-			isUpdatingExistingJob = true
-			job.ID = m.jobs[i].ID
-			m.jobs[i].OverwriteExistingData = job.OverwriteExistingData
-
-			if job.Exchange != "" && m.jobs[i].Exchange != job.Exchange {
-				m.jobs[i].Exchange = job.Exchange
-			}
-			if job.Asset != "" && m.jobs[i].Asset != job.Asset {
-				m.jobs[i].Asset = job.Asset
-			}
-			if !job.Pair.IsEmpty() && !m.jobs[i].Pair.Equal(job.Pair) {
-				m.jobs[i].Pair = job.Pair
-			}
-			if !job.StartDate.IsZero() && !m.jobs[i].StartDate.Equal(job.StartDate) {
-				m.jobs[i].StartDate = job.StartDate
-			}
-			if !job.EndDate.IsZero() && !m.jobs[i].EndDate.Equal(job.EndDate) {
-				m.jobs[i].EndDate = job.EndDate
-			}
-			if job.Interval != 0 && m.jobs[i].Interval != job.Interval {
-				m.jobs[i].Interval = job.Interval
-			}
-			if job.RunBatchLimit != 0 && m.jobs[i].RunBatchLimit != job.RunBatchLimit {
-				m.jobs[i].RunBatchLimit = job.RunBatchLimit
-			}
-			if job.RequestSizeLimit != 0 && m.jobs[i].RequestSizeLimit != job.RequestSizeLimit {
-				m.jobs[i].RequestSizeLimit = job.RequestSizeLimit
-			}
-			if job.MaxRetryAttempts != 0 && m.jobs[i].MaxRetryAttempts != job.MaxRetryAttempts {
-				m.jobs[i].MaxRetryAttempts = job.MaxRetryAttempts
-			}
-			if job.ConversionInterval != 0 && m.jobs[i].ConversionInterval != job.ConversionInterval {
-				m.jobs[i].ConversionInterval = job.ConversionInterval
-			}
-			if job.DecimalPlaceComparison != 0 && m.jobs[i].DecimalPlaceComparison != job.DecimalPlaceComparison {
-				m.jobs[i].DecimalPlaceComparison = job.DecimalPlaceComparison
-			}
-			if job.SecondaryExchangeSource != "" && m.jobs[i].SecondaryExchangeSource != job.SecondaryExchangeSource {
-				m.jobs[i].SecondaryExchangeSource = job.SecondaryExchangeSource
-			}
-			if job.ReplaceOnIssue != m.jobs[i].ReplaceOnIssue {
-				m.jobs[i].ReplaceOnIssue = job.ReplaceOnIssue
-			}
-			if job.IssueTolerancePercentage > 0 && job.IssueTolerancePercentage != m.jobs[i].IssueTolerancePercentage {
-				m.jobs[i].IssueTolerancePercentage = job.IssueTolerancePercentage
-			}
-			m.jobs[i].DataType = job.DataType
-			m.jobs[i].Status = job.Status
-			break
-		}
+	existingJob, err := m.GetByNickname(job.Nickname, false)
+	if err != nil && err != errJobNotFound {
+		return err
+	}
+	if existingJob != nil {
+		job.ID = existingJob.ID
 	}
 	if job.ID == uuid.Nil {
 		job.ID, err = uuid.NewV4()
@@ -1122,10 +1055,6 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		return err
 	}
 
-	if !isUpdatingExistingJob {
-		m.jobs = append(m.jobs, job)
-	}
-
 	dbJob := m.convertJobToDBModel(job)
 	err = m.jobDB.Upsert(dbJob)
 	if err != nil {
@@ -1135,8 +1064,6 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 		return nil
 	}
 	job.Status = dataHistoryStatusPaused
-	// only allow new jobs to create associations.
-	// updating/removing existing associations is its own task
 	return m.jobDB.SetRelationshipByNickname(job.PrerequisiteJobNickname, job.Nickname, int64(dataHistoryStatusPaused))
 }
 
@@ -1252,15 +1179,6 @@ func (m *DataHistoryManager) GetByID(id uuid.UUID) (*DataHistoryJob, error) {
 	if id == uuid.Nil {
 		return nil, errEmptyID
 	}
-	m.m.Lock()
-	for i := range m.jobs {
-		if m.jobs[i].ID == id {
-			cpy := *m.jobs[i]
-			m.m.Unlock()
-			return &cpy, nil
-		}
-	}
-	m.m.Unlock()
 	dbJ, err := m.jobDB.GetByID(id.String())
 	if err != nil {
 		return nil, fmt.Errorf("%w with id %s %s", errJobNotFound, id, err)
@@ -1293,16 +1211,6 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 		}
 		return result, nil
 	}
-	m.m.Lock()
-	for i := range m.jobs {
-		if strings.EqualFold(m.jobs[i].Nickname, nickname) {
-			cpy := m.jobs[i]
-			m.m.Unlock()
-			return cpy, nil
-		}
-	}
-	m.m.Unlock()
-	// now try the database
 	j, err := m.jobDB.GetByNickName(nickname)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1366,30 +1274,15 @@ func (m *DataHistoryManager) SetJobStatus(nickname, id string, status dataHistor
 	}
 	var dbJob *datahistoryjob.DataHistoryJob
 	var err error
-	m.m.Lock()
-	defer m.m.Unlock()
-	for i := range m.jobs {
-		if strings.EqualFold(m.jobs[i].Nickname, nickname) ||
-			m.jobs[i].ID.String() == id {
-			dbJob = m.convertJobToDBModel(m.jobs[i])
-			if status == dataHistoryStatusPaused ||
-				status == dataHistoryStatusRemoved {
-				m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
-			}
-			break
+	if nickname != "" {
+		dbJob, err = m.jobDB.GetByNickName(nickname)
+		if err != nil {
+			return err
 		}
-	}
-	if dbJob == nil {
-		if nickname != "" {
-			dbJob, err = m.jobDB.GetByNickName(nickname)
-			if err != nil {
-				return err
-			}
-		} else {
-			dbJob, err = m.jobDB.GetByID(id)
-			if err != nil {
-				return err
-			}
+	} else {
+		dbJob, err = m.jobDB.GetByID(id)
+		if err != nil {
+			return err
 		}
 	}
 	if dbJob.Status == int64(status) {
@@ -1413,13 +1306,6 @@ func (m *DataHistoryManager) SetJobStatus(nickname, id string, status dataHistor
 	if err != nil {
 		return err
 	}
-	if status == dataHistoryStatusActive {
-		job, err := m.convertDBModelToJob(dbJob)
-		if err != nil {
-			return err
-		}
-		m.jobs = append(m.jobs, job)
-	}
 	log.Infof(log.DataHistory, "set job %v status to %v", dbJob.Nickname, status.String())
 	return nil
 }
@@ -1433,12 +1319,21 @@ func (m *DataHistoryManager) GetActiveJobs() ([]DataHistoryJob, error) {
 		return nil, ErrSubSystemNotStarted
 	}
 
-	m.m.Lock()
-	defer m.m.Unlock()
 	var results []DataHistoryJob
-	for i := range m.jobs {
-		if m.jobs[i].Status == dataHistoryStatusActive {
-			results = append(results, *m.jobs[i])
+	jobs, err := m.jobDB.GetAllIncompleteJobsAndResults()
+	if err != nil {
+		return nil, err
+	}
+	for i := range jobs {
+		if jobs[i].Status == int64(dataHistoryStatusActive) {
+			var job *DataHistoryJob
+			job, err = m.convertDBModelToJob(&jobs[i])
+			if err != nil {
+				return nil, err
+			}
+			if job != nil {
+				results = append(results, *job)
+			}
 		}
 	}
 	return results, nil

@@ -2,7 +2,6 @@ package engine
 
 import (
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -126,8 +125,6 @@ type DataHistoryManager struct {
 	processing                 int32
 	shutdown                   chan struct{}
 	interval                   *time.Ticker
-	jobs                       []*DataHistoryJob
-	m                          sync.Mutex
 	jobDB                      datahistoryjob.IDBService
 	jobResultDB                datahistoryjobresult.IDBService
 	maxJobsPerCycle            int64

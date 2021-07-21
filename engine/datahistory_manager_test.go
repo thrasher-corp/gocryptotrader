@@ -70,7 +70,7 @@ func TestSetupDataHistoryManager(t *testing.T) {
 
 func TestDataHistoryManagerIsRunning(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	m.started = 0
 	if m.IsRunning() {
 		t.Error("expected false")
@@ -87,7 +87,7 @@ func TestDataHistoryManagerIsRunning(t *testing.T) {
 
 func TestDataHistoryManagerStart(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	m.started = 0
 	err := m.Start()
 	if !errors.Is(err, nil) {
@@ -107,7 +107,7 @@ func TestDataHistoryManagerStart(t *testing.T) {
 
 func TestDataHistoryManagerStop(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	m.shutdown = make(chan struct{})
 	err := m.Stop()
 	if !errors.Is(err, nil) {
@@ -126,7 +126,7 @@ func TestDataHistoryManagerStop(t *testing.T) {
 
 func TestUpsertJob(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	err := m.UpsertJob(nil, false)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("error '%v', expected '%v'", err, errNilJob)
@@ -173,10 +173,6 @@ func TestUpsertJob(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	if len(m.jobs) != 1 {
-		t.Error("unexpected jerrb")
-	}
-
 	err = m.UpsertJob(dhj, true)
 	if !errors.Is(err, errNicknameInUse) {
 		t.Errorf("error '%v', expected '%v'", err, errNicknameInUse)
@@ -212,14 +208,11 @@ func TestUpsertJob(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	if !m.jobs[0].StartDate.Equal(startDate) {
-		t.Error(err)
-	}
 }
 
 func TestSetJobStatus(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, j := createDHM(t)
 	dhj := &DataHistoryJob{
 		Nickname:  "TestSetJobStatus",
 		Exchange:  testExchange,
@@ -248,14 +241,12 @@ func TestSetJobStatus(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	if len(m.jobs) != 0 {
-		t.Error("expected 0")
-	}
 	err = m.SetJobStatus("", dhj.ID.String(), dataHistoryStatusActive)
 	if !errors.Is(err, errBadStatus) {
 		t.Errorf("error '%v', expected '%v'", err, errBadStatus)
 	}
 
+	j.Status = int64(dataHistoryStatusActive)
 	err = m.SetJobStatus("", dhj.ID.String(), dataHistoryStatusPaused)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -266,7 +257,6 @@ func TestSetJobStatus(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errBadStatus)
 	}
 
-	m.jobs = []*DataHistoryJob{dhj}
 	dhj.Status = dataHistoryStatusPaused
 	err = m.SetJobStatus(dhj.Nickname, "", dataHistoryStatusActive)
 	if !errors.Is(err, nil) {
@@ -300,7 +290,7 @@ func TestSetJobStatus(t *testing.T) {
 
 func TestGetByNickname(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	dhj := &DataHistoryJob{
 		Nickname:  "TestGetByNickname",
 		Exchange:  testExchange,
@@ -323,7 +313,6 @@ func TestGetByNickname(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	m.jobs = []*DataHistoryJob{}
 	_, err = m.GetByNickname(dhj.Nickname, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -344,7 +333,7 @@ func TestGetByNickname(t *testing.T) {
 
 func TestGetByID(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	dhj := &DataHistoryJob{
 		Nickname:  "TestGetByID",
 		Exchange:  testExchange,
@@ -368,7 +357,6 @@ func TestGetByID(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errEmptyID)
 	}
 
-	m.jobs = []*DataHistoryJob{}
 	_, err = m.GetByID(dhj.ID)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -389,7 +377,7 @@ func TestGetByID(t *testing.T) {
 
 func TestRetrieveJobs(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	dhj := &DataHistoryJob{
 		Nickname:  "TestRetrieveJobs",
 		Exchange:  testExchange,
@@ -427,15 +415,7 @@ func TestRetrieveJobs(t *testing.T) {
 
 func TestGetActiveJobs(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
-
-	jobs, err := m.GetActiveJobs()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	if len(jobs) != 0 {
-		t.Error("expected 0 jobs")
-	}
+	m, j := createDHM(t)
 
 	dhj := &DataHistoryJob{
 		Nickname:  "TestGetActiveJobs",
@@ -446,12 +426,12 @@ func TestGetActiveJobs(t *testing.T) {
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
-	err = m.UpsertJob(dhj, false)
+	err := m.UpsertJob(dhj, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 
-	jobs, err = m.GetActiveJobs()
+	jobs, err := m.GetActiveJobs()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -459,7 +439,7 @@ func TestGetActiveJobs(t *testing.T) {
 		t.Error("expected 1 job")
 	}
 
-	dhj.Status = dataHistoryStatusFailed
+	j.Status = int64(dataHistoryStatusFailed)
 	jobs, err = m.GetActiveJobs()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -483,7 +463,7 @@ func TestGetActiveJobs(t *testing.T) {
 
 func TestValidateJob(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	err := m.validateJob(nil)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("error '%v', expected '%v'", err, errNilJob)
@@ -561,7 +541,7 @@ func TestValidateJob(t *testing.T) {
 
 func TestGetAllJobStatusBetween(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 
 	dhj := &DataHistoryJob{
 		Nickname:  "TestGetActiveJobs",
@@ -605,7 +585,7 @@ func TestGetAllJobStatusBetween(t *testing.T) {
 
 func TestPrepareJobs(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	jobs, err := m.PrepareJobs()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -627,7 +607,7 @@ func TestPrepareJobs(t *testing.T) {
 
 func TestCompareJobsToData(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	dhj := &DataHistoryJob{
 		Nickname:           "TestGenerateJobSummary",
 		Exchange:           testExchange,
@@ -744,7 +724,7 @@ func TestRunJob(t *testing.T) {
 		test := testCases[x]
 		t.Run(test.Nickname, func(t *testing.T) {
 			t.Parallel()
-			m := createDHM(t)
+			m, _ := createDHM(t)
 			err := m.UpsertJob(test, false)
 			if !errors.Is(err, nil) {
 				t.Errorf("error '%v', expected '%v'", err, nil)
@@ -803,7 +783,7 @@ func TestRunJob(t *testing.T) {
 
 func TestGenerateJobSummaryTest(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	dhj := &DataHistoryJob{
 		Nickname:  "TestGenerateJobSummary",
 		Exchange:  testExchange,
@@ -841,7 +821,7 @@ func TestGenerateJobSummaryTest(t *testing.T) {
 
 func TestRunJobs(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	err := m.runJobs()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -861,7 +841,7 @@ func TestRunJobs(t *testing.T) {
 
 func TestConverters(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	id, err := uuid.NewV4()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -942,7 +922,7 @@ func TestConverters(t *testing.T) {
 }
 
 // test helper functions
-func createDHM(t *testing.T) *DataHistoryManager {
+func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJob) {
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
@@ -975,8 +955,32 @@ func createDHM(t *testing.T) *DataHistoryManager {
 	}
 
 	em.Add(exch2)
+	j := &datahistoryjob.DataHistoryJob{
+		ID:               jobID,
+		Nickname:         "datahistoryjob",
+		ExchangeName:     testExchange,
+		Asset:            "spot",
+		Base:             "btc",
+		Quote:            "usd",
+		StartDate:        startDate,
+		EndDate:          endDate,
+		Interval:         int64(kline.OneHour.Duration()),
+		RequestSizeLimit: 3,
+		MaxRetryAttempts: 3,
+		BatchSize:        3,
+		CreatedDate:      endDate,
+		Status:           0,
+		Results: []*datahistoryjobresult.DataHistoryJobResult{
+			{
+				ID:    jobID,
+				JobID: jobID,
+			},
+		},
+	}
 	m := &DataHistoryManager{
-		jobDB:           dataHistoryJobService{},
+		jobDB: dataHistoryJobService{
+			job: j,
+		},
 		jobResultDB:     dataHistoryJobResultService{},
 		started:         1,
 		exchangeManager: em,
@@ -985,12 +989,12 @@ func createDHM(t *testing.T) *DataHistoryManager {
 		interval:        time.NewTicker(time.Minute),
 		verbose:         true,
 	}
-	return m
+	return m, j
 }
 
 func TestProcessCandleData(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	_, err := m.processCandleData(nil, nil, time.Time{}, time.Time{}, 0)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
@@ -1046,7 +1050,7 @@ func TestProcessCandleData(t *testing.T) {
 
 func TestProcessTradeData(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	_, err := m.processTradeData(nil, nil, time.Time{}, time.Time{}, 0)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
@@ -1101,7 +1105,7 @@ func TestProcessTradeData(t *testing.T) {
 
 func TestConvertJobTradesToCandles(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	_, err := m.convertTradesToCandles(nil, time.Time{}, time.Time{})
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
@@ -1132,7 +1136,7 @@ func TestConvertJobTradesToCandles(t *testing.T) {
 
 func TestUpscaleJobCandleData(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	m.candleSaver = dataHistoryCandleSaver
 	_, err := m.convertCandleData(nil, time.Time{}, time.Time{})
 	if !errors.Is(err, errNilJob) {
@@ -1164,7 +1168,7 @@ func TestUpscaleJobCandleData(t *testing.T) {
 
 func TestValidateCandles(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	m.candleSaver = dataHistoryCandleSaver
 	_, err := m.validateCandles(nil, nil, time.Time{}, time.Time{})
 	if !errors.Is(err, errNilJob) {
@@ -1219,12 +1223,19 @@ func TestValidateCandles(t *testing.T) {
 
 func TestSetJobRelationship(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, j := createDHM(t)
 	err := m.SetJobRelationship("test", "123")
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 
+	jID, err := uuid.NewV4()
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	j.ID = jID.String()
+	j.PrerequisiteJobID = ""
+	j.PrerequisiteJobNickname = ""
 	err = m.SetJobRelationship("", "123")
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
@@ -1249,7 +1260,7 @@ func TestSetJobRelationship(t *testing.T) {
 
 func TestCheckCandleIssue(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	issue, replace := m.CheckCandleIssue(nil, 0, 0, 0, "")
 	if issue != errNilJob.Error() {
 		t.Errorf("expected 'nil job' received %v", issue)
@@ -1319,7 +1330,7 @@ func TestCheckCandleIssue(t *testing.T) {
 
 func TestCompletionCheck(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	err := m.completeJob(nil, false, false)
 	if !errors.Is(err, errNilJob) {
 		t.Errorf("received %v expected %v", err, errNilJob)
@@ -1362,6 +1373,7 @@ func TestCompletionCheck(t *testing.T) {
 // results here. see tests in the database folder
 type dataHistoryJobService struct {
 	datahistoryjob.IDBService
+	job *datahistoryjob.DataHistoryJob
 }
 
 type dataHistoryJobResultService struct {
@@ -1378,40 +1390,39 @@ func (d dataHistoryJobService) Upsert(_ ...*datahistoryjob.DataHistoryJob) error
 	return nil
 }
 
-func (d dataHistoryJobService) SetRelationshipByID(string, string, int64) error {
+func (d dataHistoryJobService) SetRelationshipByID(prereq, _ string, status int64) error {
+	d.job.PrerequisiteJobID = prereq
+	d.job.Status = status
 	return nil
 }
 
-func (d dataHistoryJobService) SetRelationshipByNickname(string, string, int64) error {
+func (d dataHistoryJobService) SetRelationshipByNickname(prereq, _ string, status int64) error {
+	d.job.PrerequisiteJobNickname = prereq
+	d.job.Status = status
 	return nil
 }
 
 func (d dataHistoryJobService) GetByNickName(nickname string) (*datahistoryjob.DataHistoryJob, error) {
-	jc := j
-	jc.Nickname = nickname
-	return &jc, nil
+	d.job.Nickname = nickname
+	return d.job, nil
 }
 
 func (d dataHistoryJobService) GetJobsBetween(_, _ time.Time) ([]datahistoryjob.DataHistoryJob, error) {
-	jc := j
-	return []datahistoryjob.DataHistoryJob{jc}, nil
+	return []datahistoryjob.DataHistoryJob{*d.job}, nil
 }
 
 func (d dataHistoryJobService) GetByID(id string) (*datahistoryjob.DataHistoryJob, error) {
-	jc := j
-	jc.ID = id
-	return &jc, nil
+	d.job.ID = id
+	return d.job, nil
 }
 
 func (d dataHistoryJobService) GetAllIncompleteJobsAndResults() ([]datahistoryjob.DataHistoryJob, error) {
-	jc := j
-	return []datahistoryjob.DataHistoryJob{jc}, nil
+	return []datahistoryjob.DataHistoryJob{*d.job}, nil
 }
 
 func (d dataHistoryJobService) GetJobAndAllResults(nickname string) (*datahistoryjob.DataHistoryJob, error) {
-	jc := j
-	jc.Nickname = nickname
-	return &jc, nil
+	d.job.Nickname = nickname
+	return d.job, nil
 }
 
 func (d dataHistoryJobService) GetRelatedUpcomingJobs(_ string) ([]*datahistoryjob.DataHistoryJob, error) {
@@ -1433,29 +1444,6 @@ func (d dataHistoryJobResultService) GetByJobID(_ string) ([]datahistoryjobresul
 
 func (d dataHistoryJobResultService) GetJobResultsBetween(_ string, _, _ time.Time) ([]datahistoryjobresult.DataHistoryJobResult, error) {
 	return nil, nil
-}
-
-var j = datahistoryjob.DataHistoryJob{
-	ID:               jobID,
-	Nickname:         "datahistoryjob",
-	ExchangeName:     testExchange,
-	Asset:            "spot",
-	Base:             "btc",
-	Quote:            "usd",
-	StartDate:        startDate,
-	EndDate:          endDate,
-	Interval:         int64(kline.OneHour.Duration()),
-	RequestSizeLimit: 3,
-	MaxRetryAttempts: 3,
-	BatchSize:        3,
-	CreatedDate:      endDate,
-	Status:           0,
-	Results: []*datahistoryjobresult.DataHistoryJobResult{
-		{
-			ID:    jobID,
-			JobID: jobID,
-		},
-	},
 }
 
 func dataHistoryHasDataChecker(_, _, _, _ string, irh *kline.IntervalRangeHolder) error {

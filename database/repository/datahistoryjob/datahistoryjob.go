@@ -225,11 +225,20 @@ func (db *DBService) SetRelationshipByNickname(prerequisiteNickname, followingNi
 
 func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) error {
 	for i := range jobs {
-		r, err := sqlite3.Exchanges(
+		exch, err := sqlite3.Exchanges(
 			qm.Where("name = ?", strings.ToLower(jobs[i].ExchangeName))).One(ctx, tx)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not retrieve exchange '%v', %w", jobs[i].ExchangeName, err)
 		}
+		var secondaryExch *sqlite3.Exchange
+		if jobs[i].SecondarySourceExchangeName != "" {
+			secondaryExch, err = sqlite3.Exchanges(
+				qm.Where("name = ?", strings.ToLower(jobs[i].SecondarySourceExchangeName))).One(ctx, tx)
+			if err != nil {
+				return fmt.Errorf("could not retrieve secondary exchange '%v', %w", jobs[i].SecondarySourceExchangeName, err)
+			}
+		}
+
 		var overwrite, replaceOnIssue int64
 		if jobs[i].OverwriteData {
 			overwrite = 1
@@ -239,7 +248,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 		}
 		var tempEvent = sqlite3.Datahistoryjob{
 			ID:                       jobs[i].ID,
-			ExchangeNameID:           r.ID,
+			ExchangeNameID:           exch.ID,
 			Nickname:                 strings.ToLower(jobs[i].Nickname),
 			Asset:                    strings.ToLower(jobs[i].Asset),
 			Base:                     strings.ToUpper(jobs[i].Base),
@@ -258,7 +267,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 			DecimalPlaceComparison:   null.Int64{Int64: jobs[i].DecimalPlaceComparison, Valid: jobs[i].DecimalPlaceComparison > 0},
 			ReplaceOnIssue:           null.Int64{Int64: replaceOnIssue, Valid: replaceOnIssue == 1},
 			IssueTolerancePercentage: null.Float64{Float64: jobs[i].IssueTolerancePercentage, Valid: jobs[i].IssueTolerancePercentage > 0},
-			SecondaryExchangeID:      null.String{String: jobs[i].SecondarySourceExchangeName, Valid: jobs[i].SecondarySourceExchangeName != ""},
+			SecondaryExchangeID:      null.String{String: secondaryExch.ID, Valid: secondaryExch != nil},
 		}
 
 		err = tempEvent.Insert(ctx, tx, boil.Infer())
@@ -272,26 +281,24 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 
 func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) error {
 	for i := range jobs {
-		r, err := postgres.Exchanges(
+		exch, err := postgres.Exchanges(
 			qm.Where("name = ?", strings.ToLower(jobs[i].ExchangeName))).One(ctx, tx)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not retrieve exchange '%v', %w", jobs[i].ExchangeName, err)
 		}
-
-		var secondaryExchangeID string
+		var secondaryExch *postgres.Exchange
 		if jobs[i].SecondarySourceExchangeName != "" {
-			var secondaryExchange *postgres.Exchange
-			secondaryExchange, err = postgres.Exchanges(
+			secondaryExch, err = postgres.Exchanges(
 				qm.Where("name = ?", strings.ToLower(jobs[i].SecondarySourceExchangeName))).One(ctx, tx)
 			if err != nil {
-				return fmt.Errorf("job %v, secondary exchange %v, %w", jobs[i].Nickname, jobs[i].SecondarySourceExchangeName, err)
+				return fmt.Errorf("could not retrieve secondary exchange '%v', %w", jobs[i].SecondarySourceExchangeName, err)
 			}
-			secondaryExchangeID = secondaryExchange.ID
 		}
+
 		var tempEvent = postgres.Datahistoryjob{
 			ID:                       jobs[i].ID,
 			Nickname:                 strings.ToLower(jobs[i].Nickname),
-			ExchangeNameID:           r.ID,
+			ExchangeNameID:           exch.ID,
 			Asset:                    strings.ToLower(jobs[i].Asset),
 			Base:                     strings.ToUpper(jobs[i].Base),
 			Quote:                    strings.ToUpper(jobs[i].Quote),
@@ -309,7 +316,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			DecimalPlaceComparison:   null.Int{Int: int(jobs[i].DecimalPlaceComparison), Valid: jobs[i].DecimalPlaceComparison > 0},
 			ReplaceOnIssue:           null.Bool{Bool: jobs[i].ReplaceOnIssue, Valid: jobs[i].ReplaceOnIssue},
 			IssueTolerancePercentage: null.Float64{Float64: jobs[i].IssueTolerancePercentage, Valid: jobs[i].IssueTolerancePercentage > 0},
-			SecondaryExchangeID:      null.String{String: secondaryExchangeID, Valid: secondaryExchangeID != ""},
+			SecondaryExchangeID:      null.String{String: secondaryExch.ID, Valid: secondaryExch != nil},
 		}
 		err = tempEvent.Upsert(ctx, tx, true, []string{"nickname"}, boil.Infer(), boil.Infer())
 		if err != nil {
@@ -622,12 +629,12 @@ func (db *DBService) createSQLiteDataHistoryJobResponse(result *sqlite3.Datahist
 	} else {
 		exchange, err = result.ExchangeName().One(context.Background(), db.sql)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not retrieve exchange '%v' %w", result.ExchangeNameID, err)
 		}
 	}
 	secondaryExchangeResult, err := result.SecondaryExchange().One(context.Background(), db.sql)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve secondary exchange '%v' %w", result.SecondaryExchangeID, err)
 	}
 	var secondaryExchangeName string
 	if secondaryExchangeResult != nil {
@@ -723,13 +730,13 @@ func (db *DBService) createPostgresDataHistoryJobResponse(result *postgres.Datah
 	} else {
 		exchange, err = result.ExchangeName().One(context.Background(), db.sql)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not retrieve exchange '%v' %w", result.ExchangeNameID, err)
 		}
 	}
 
 	secondaryExchangeResult, err := result.SecondaryExchange().One(context.Background(), db.sql)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve secondary exchange '%v' %w", result.SecondaryExchangeID, err)
 	}
 	var secondaryExchangeName string
 	if secondaryExchangeResult != nil {

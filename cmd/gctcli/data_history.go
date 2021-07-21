@@ -187,7 +187,7 @@ var (
 	prerequisiteJobSubCommands = []cli.Flag{
 		nicknameFlag,
 		&cli.StringFlag{
-			Name:  "prerequisite",
+			Name:  "prerequisite_job_nickname",
 			Usage: "binance-spot-btc-usdt-2018-trades",
 		},
 	}
@@ -244,8 +244,8 @@ var (
 			Value:       3,
 		},
 		&cli.StringFlag{
-			Name:  "prerequisite",
-			Usage: "optional - adds or updates the job to have a prerequisite, will only run when prerequisite job is complete - use command 'removeprerequisite' to remove a prerequisite",
+			Name:  "prerequisite_job_nickname",
+			Usage: "if present, adds or updates the job to have a prerequisite, will only run when prerequisite job is complete - use command 'removeprerequisite' to remove a prerequisite",
 		},
 		&cli.BoolFlag{
 			Name:  "upsert",
@@ -259,7 +259,7 @@ var (
 	candleConvertJobJobSubCommands = []cli.Flag{
 		&cli.Uint64Flag{
 			Name:     "conversion_interval",
-			Usage:    "the converted candle interval",
+			Usage:    "the resulting converted candle interval. " + klineMessage,
 			Required: true,
 		},
 		requestSize500Flag,
@@ -437,8 +437,8 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	}
 
 	var prerequisiteJobNickname string
-	if c.IsSet("prerequisite") {
-		prerequisiteJobNickname = c.String("prerequisite")
+	if c.IsSet("prerequisite_job_nickname") {
+		prerequisiteJobNickname = c.String("prerequisite_job_nickname")
 	}
 
 	var intolerancePercentage float64
@@ -694,8 +694,8 @@ func setPrerequisiteJob(c *cli.Context) error {
 	}
 
 	var prerequisite string
-	if c.IsSet("prerequisite") {
-		prerequisite = c.String("prerequisite")
+	if c.IsSet("prerequisite_job_nickname") {
+		prerequisite = c.String("prerequisite_job_nickname")
 	} else {
 		prerequisite = c.Args().Get(1)
 	}
