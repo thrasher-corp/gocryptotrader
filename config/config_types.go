@@ -179,6 +179,7 @@ type GRPCConfig struct {
 	ListenAddress          string `json:"listenAddress"`
 	GRPCProxyEnabled       bool   `json:"grpcProxyEnabled"`
 	GRPCProxyListenAddress string `json:"grpcProxyListenAddress"`
+	TimeInNanoSeconds      bool   `json:"timeInNanoSeconds"`
 }
 
 // DepcrecatedRPCConfig stores the deprecatedRPCConfig settings
