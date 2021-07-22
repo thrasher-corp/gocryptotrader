@@ -739,7 +739,7 @@ func TestRunJob(t *testing.T) {
 				t.Errorf("error '%v', expected '%v'", err, errNilJob)
 			}
 
-			test.Status = dataHistoryIntervalMissingData
+			test.Status = dataHistoryIntervalIssuesFound
 			err = m.runJob(test)
 			if !errors.Is(err, errJobInvalid) {
 				t.Errorf("error '%v', expected '%v'", err, errJobInvalid)
@@ -1209,8 +1209,8 @@ func TestValidateCandles(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	if r.Status != dataHistoryIntervalMissingData {
-		t.Errorf("received %v expected %v", r.Status, dataHistoryIntervalMissingData)
+	if r.Status != dataHistoryIntervalIssuesFound {
+		t.Errorf("received %v expected %v", r.Status, dataHistoryIntervalIssuesFound)
 	}
 	r, err = m.validateCandles(j, exch, j.StartDate, j.EndDate)
 	if !errors.Is(err, nil) {
@@ -1342,8 +1342,8 @@ func TestCompletionCheck(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	if j.Status != dataHistoryIntervalMissingData {
-		t.Errorf("received %v expected %v", j.Status, dataHistoryIntervalMissingData)
+	if j.Status != dataHistoryIntervalIssuesFound {
+		t.Errorf("received %v expected %v", j.Status, dataHistoryIntervalIssuesFound)
 	}
 
 	err = m.completeJob(j, true, false)

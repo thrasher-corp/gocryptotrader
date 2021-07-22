@@ -387,7 +387,7 @@ ranges:
 		resultLookup := job.Results[job.rangeHolder.Ranges[i].Start.Time]
 		for x := range resultLookup {
 			switch resultLookup[x].Status {
-			case dataHistoryIntervalMissingData:
+			case dataHistoryIntervalIssuesFound:
 				continue ranges
 			case dataHistoryStatusFailed:
 				failures++
@@ -403,7 +403,7 @@ ranges:
 			// failure threshold reached, we should not attempt
 			// to check this interval again
 			for x := range resultLookup {
-				resultLookup[x].Status = dataHistoryIntervalMissingData
+				resultLookup[x].Status = dataHistoryIntervalIssuesFound
 			}
 			job.Results[job.rangeHolder.Ranges[i].Start.Time] = resultLookup
 			continue
@@ -452,7 +452,7 @@ completionCheck:
 	results:
 		for j := range result {
 			switch result[j].Status {
-			case dataHistoryIntervalMissingData:
+			case dataHistoryIntervalIssuesFound:
 				allResultsSuccessful = false
 				break results
 			case dataHistoryStatusComplete:
@@ -497,7 +497,7 @@ timesToFetch:
 			intervalsToCheck = append(intervalsToCheck, t)
 		} else {
 			for x := range results {
-				results[x].Status = dataHistoryIntervalMissingData
+				results[x].Status = dataHistoryIntervalIssuesFound
 			}
 			job.Results[t] = results
 		}
@@ -551,7 +551,7 @@ completionCheck:
 	results:
 		for j := range results {
 			switch results[j].Status {
-			case dataHistoryIntervalMissingData:
+			case dataHistoryIntervalIssuesFound:
 				allResultsSuccessful = false
 				break results
 			case dataHistoryStatusComplete:
@@ -591,7 +591,7 @@ func (m *DataHistoryManager) completeJob(job *DataHistoryJob, allResultsSuccessf
 	case allResultsFailed:
 		job.Status = dataHistoryStatusFailed
 	default:
-		job.Status = dataHistoryIntervalMissingData
+		job.Status = dataHistoryIntervalIssuesFound
 	}
 	log.Infof(log.DataHistory, "job %s finished! Status: %s", job.Nickname, job.Status)
 	if job.Status != dataHistoryStatusFailed {
@@ -847,7 +847,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 	}
 	if len(dbCandles.Candles) == 0 {
 		r.Result = fmt.Sprintf("missing database candles for period %v-%v", startRange, endRange)
-		r.Status = dataHistoryIntervalMissingData
+		r.Status = dataHistoryIntervalIssuesFound
 		return r, nil
 	}
 
@@ -873,7 +873,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		can, ok := dbCandleMap[apiCandles.Candles[i].Time.Unix()]
 		if !ok {
 			validationIssues = append(validationIssues, fmt.Sprintf("issues found at %v missing candle data in database", apiCandles.Candles[i].Time.Format(common.SimpleTimeFormatWithTimezone)))
-			r.Status = dataHistoryIntervalMissingData
+			r.Status = dataHistoryIntervalIssuesFound
 			continue
 		}
 		var candleIssues []string
@@ -1143,14 +1143,14 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	}
 	if job.DataType == dataHistoryTradeDataType {
 		if job.Interval > kline.FourHour {
-			log.Warnf(log.DataHistory, "job %s interval %v above the limit of 4h, defaulting to %v", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
+			log.Warnf(log.DataHistory, "job %s interval %v above the limit of 4h, defaulting to %v interval size worth of trades to fetch", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
 			job.Interval = defaultDataHistoryTradeInterval
 		} else if job.Interval < kline.OneMin {
-			log.Warnf(log.DataHistory, "job %s interval %v below the limit of 1m, defaulting to %v", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
+			log.Warnf(log.DataHistory, "job %s interval %v below the limit of 1m, defaulting to %v interval size worth of trades to fetch", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
 			job.Interval = defaultDataHistoryTradeInterval
 		}
 		if job.RequestSizeLimit > defaultDataHistoryTradeRequestSize {
-			log.Warnf(log.DataHistory, "job %s request size %v outside limit of %v, defaulting to %v", job.Nickname, job.RequestSizeLimit, defaultDataHistoryTradeRequestSize, defaultDataHistoryTradeRequestSize)
+			log.Warnf(log.DataHistory, "job %s interval request size %v outside limit of %v, defaulting to %v intervals worth of trades per request", job.Nickname, job.RequestSizeLimit, defaultDataHistoryTradeRequestSize, defaultDataHistoryTradeRequestSize)
 			job.RequestSizeLimit = defaultDataHistoryTradeRequestSize
 		}
 	}
@@ -1170,11 +1170,11 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 
 	if job.DataType == dataHistoryCandleValidationDataType {
 		if job.DecimalPlaceComparison < 0 {
-			log.Warnf(log.DataHistory, "job %s decimal place comparison %v invalid. defaulting to %v", job.Nickname, job.DecimalPlaceComparison, defaultDecimalPlaceComparison)
+			log.Warnf(log.DataHistory, "job %s decimal place comparison %v invalid. defaulting to %v decimal places when comparing data for validation", job.Nickname, job.DecimalPlaceComparison, defaultDecimalPlaceComparison)
 			job.DecimalPlaceComparison = defaultDecimalPlaceComparison
 		}
 		if job.RequestSizeLimit > defaultDataHistoryRequestSizeLimit {
-			log.Warnf(log.DataHistory, "job %s validation batch %v above limit of %v. defaulting to %v", job.Nickname, job.RequestSizeLimit, defaultDataHistoryRequestSizeLimit, defaultDataHistoryRequestSizeLimit)
+			log.Warnf(log.DataHistory, "job %s validation batch %v above limit of %v. defaulting to %v intervals to process per request", job.Nickname, job.RequestSizeLimit, defaultDataHistoryRequestSizeLimit, defaultDataHistoryRequestSizeLimit)
 			job.RequestSizeLimit = defaultDataHistoryRequestSizeLimit
 		}
 	}

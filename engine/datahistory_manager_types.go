@@ -35,7 +35,7 @@ const (
 	dataHistoryStatusFailed
 	dataHistoryStatusComplete
 	dataHistoryStatusRemoved
-	dataHistoryIntervalMissingData
+	dataHistoryIntervalIssuesFound
 	dataHistoryStatusPaused
 )
 
@@ -51,7 +51,7 @@ func (d dataHistoryStatus) String() string {
 	case int64(d) == 3:
 		return "removed"
 	case int64(d) == 4:
-		return "missing data"
+		return "issues found"
 	case int64(d) == 5:
 		return "paused"
 	}
@@ -72,13 +72,13 @@ func (d dataHistoryDataType) String() string {
 	case 1:
 		return "trades"
 	case 2:
-		return "tradeconversion"
+		return "trade conversion"
 	case 3:
-		return "candleconversion"
+		return "candle conversion"
 	case 4:
-		return "conversionvalidation"
+		return "conversion validation"
 	case 5:
-		return "conversionvalidationsecondarysource"
+		return "conversion validation secondary source"
 	}
 	return ""
 }
