@@ -2,7 +2,6 @@ package deribit
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -21,6 +20,7 @@ const (
 	apiSecret               = ""
 	canManipulateRealOrders = false
 	btcInstrument           = "BTC-25MAR22"
+	btcPerpInstrument       = "BTC-PERPETUAL"
 	btcCurrency             = "BTC"
 	ethCurrency             = "ETH"
 )
@@ -73,11 +73,14 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	_, err := d.UpdateTicker(currency.Pair{}, asset.Futures)
+	cp, err := currency.NewPairFromString(btcInstrument)
 	if err != nil {
 		t.Error(err)
 	}
-
+	_, err = d.UpdateTicker(cp, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
 	_, err = d.UpdateTicker(currency.Pair{}, asset.Spot)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
@@ -86,22 +89,18 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-
 	cp, err := currency.NewPairFromString(btcInstrument)
 	if err != nil {
 		t.Error(err)
 	}
-
 	fmtPair, err := d.FormatExchangeCurrency(cp, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-
 	_, err = d.UpdateOrderbook(fmtPair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-
 	_, err = d.UpdateOrderbook(fmtPair, asset.Spot)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
@@ -110,17 +109,14 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestFetchRecentTrades(t *testing.T) {
 	t.Parallel()
-
 	cp, err := currency.NewPairFromString(btcInstrument)
 	if err != nil {
 		t.Error(err)
 	}
-
 	_, err = d.GetRecentTrades(cp, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-
 	_, err = d.GetRecentTrades(cp, asset.Spot)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
@@ -129,13 +125,11 @@ func TestFetchRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-
 	cp, err := currency.NewPairFromString(btcInstrument)
 	if err != nil {
 		t.Error(err)
 	}
-
-	hisTradesData, err := d.GetHistoricTrades(
+	_, err = d.GetHistoricTrades(
 		cp,
 		asset.Futures,
 		time.Now().Add(-time.Minute*10),
@@ -144,18 +138,15 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(hisTradesData)
 }
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-
 	cp, err := currency.NewPairFromString(btcInstrument)
 	if err != nil {
 		t.Error(err)
 	}
-
-	data, err := d.GetHistoricCandles(cp,
+	_, err = d.GetHistoricCandles(cp,
 		asset.Futures,
 		time.Now().Add(-time.Hour),
 		time.Now(),
@@ -163,7 +154,6 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(data)
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -175,8 +165,7 @@ func TestSubmitOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	data, err := d.SubmitOrder(
+	_, err = d.SubmitOrder(
 		&order.Submit{
 			Price:     10,
 			Amount:    1,
@@ -189,7 +178,14 @@ func TestSubmitOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(data)
+}
+
+func TestGetMarkPriceHistory(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetMarkPriceHistory(btcPerpInstrument, time.Now().Add(-24*time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetBookSummaryByCurrency(t *testing.T) {
@@ -202,20 +198,18 @@ func TestGetBookSummaryByCurrency(t *testing.T) {
 
 func TestGetBookSummaryByInstrument(t *testing.T) {
 	t.Parallel()
-	data, err := d.GetBookSummaryByInstrument(btcInstrument)
+	_, err := d.GetBookSummaryByInstrument(btcInstrument)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(data)
 }
 
 func TestGetContractSize(t *testing.T) {
 	t.Parallel()
-	data, err := d.GetContractSize(btcInstrument)
+	_, err := d.GetContractSize(btcInstrument)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(data)
 }
 
 func TestGetCurrencies(t *testing.T) {
@@ -228,7 +222,7 @@ func TestGetCurrencies(t *testing.T) {
 
 func TestGetFundingChartData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFundingChartData("BTC-PERPETUAL", "8h")
+	_, err := d.GetFundingChartData(btcPerpInstrument, "8h")
 	if err != nil {
 		t.Error(err)
 	}
@@ -236,11 +230,11 @@ func TestGetFundingChartData(t *testing.T) {
 
 func TestGetFundingRateValue(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFundingRateValue("BTC-PERPETUAL", time.Now().Add(-time.Hour*8), time.Now())
+	_, err := d.GetFundingRateValue(btcPerpInstrument, time.Now().Add(-time.Hour*8), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetFundingRateValue("BTC-PERPETUAL", time.Now(), time.Now().Add(-time.Hour*8))
+	_, err = d.GetFundingRateValue(btcPerpInstrument, time.Now(), time.Now().Add(-time.Hour*8))
 	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
 		t.Errorf("expected: %v, received %v", errStartTimeCannotBeAfterEndTime, err)
 	}
@@ -411,11 +405,10 @@ func TestGetAccountSummary(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetAccountSummary(btcCurrency, false)
+	_, err := d.GetAccountSummary(btcCurrency, false)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestCancelTransferByID(t *testing.T) {
@@ -423,11 +416,10 @@ func TestCancelTransferByID(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.CancelTransferByID(btcCurrency, "", 23487)
+	_, err := d.CancelTransferByID(btcCurrency, "", 23487)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetTransfers(t *testing.T) {
@@ -435,11 +427,10 @@ func TestGetTransfers(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetTransfers(btcCurrency, 0, 0)
+	_, err := d.GetTransfers(btcCurrency, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestCancelWithdrawal(t *testing.T) {
@@ -447,11 +438,10 @@ func TestCancelWithdrawal(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.CancelWithdrawal(btcCurrency, 123844)
+	_, err := d.CancelWithdrawal(btcCurrency, 123844)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestCreateDepositAddress(t *testing.T) {
@@ -459,11 +449,10 @@ func TestCreateDepositAddress(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.CreateDepositAddress(btcCurrency)
+	_, err := d.CreateDepositAddress(btcCurrency)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetCurrentDepositAddress(t *testing.T) {
@@ -471,11 +460,10 @@ func TestGetCurrentDepositAddress(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetCurrentDepositAddress(btcCurrency)
+	_, err := d.GetCurrentDepositAddress(btcCurrency)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetDeposits(t *testing.T) {
@@ -483,11 +471,10 @@ func TestGetDeposits(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetDeposits(btcCurrency, 25, 0)
+	_, err := d.GetDeposits(btcCurrency, 25, 0)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetWithdrawals(t *testing.T) {
@@ -495,11 +482,10 @@ func TestGetWithdrawals(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetWithdrawals(btcCurrency, 25, 0)
+	_, err := d.GetWithdrawals(btcCurrency, 25, 0)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSubmitTransferToSubAccount(t *testing.T) {
@@ -507,11 +493,10 @@ func TestSubmitTransferToSubAccount(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.SubmitTransferToSubAccount(btcCurrency, 0.01, 13434)
+	_, err := d.SubmitTransferToSubAccount(btcCurrency, 0.01, 13434)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSubmitTransferToUser(t *testing.T) {
@@ -519,11 +504,10 @@ func TestSubmitTransferToUser(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.SubmitTransferToUser(btcCurrency, "", 0.001, 13434)
+	_, err := d.SubmitTransferToUser(btcCurrency, "", 0.001, 13434)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSubmitWithdraw(t *testing.T) {
@@ -531,11 +515,10 @@ func TestSubmitWithdraw(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.SubmitWithdraw(btcCurrency, "incorrectAddress", "", "", 0.001)
+	_, err := d.SubmitWithdraw(btcCurrency, "incorrectAddress", "", "", 0.001)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestChangeAPIKeyName(t *testing.T) {
@@ -543,11 +526,10 @@ func TestChangeAPIKeyName(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.ChangeAPIKeyName(1, "TestKey123")
+	_, err := d.ChangeAPIKeyName(1, "TestKey123")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestChangeScopeInAPIKey(t *testing.T) {
@@ -555,11 +537,10 @@ func TestChangeScopeInAPIKey(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.ChangeScopeInAPIKey(1, "account:read_write")
+	_, err := d.ChangeScopeInAPIKey(1, "account:read_write")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestChangeSubAccountName(t *testing.T) {
@@ -567,11 +548,10 @@ func TestChangeSubAccountName(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.ChangeSubAccountName(1, "TestingSubAccount")
+	_, err := d.ChangeSubAccountName(1, "TestingSubAccount")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestCreateAPIKey(t *testing.T) {
@@ -579,11 +559,10 @@ func TestCreateAPIKey(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.CreateAPIKey("account:read_write", "TestingSubAccount", false)
+	_, err := d.CreateAPIKey("account:read_write", "TestingSubAccount", false)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestCreateSubAccount(t *testing.T) {
@@ -591,11 +570,10 @@ func TestCreateSubAccount(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.CreateSubAccount()
+	_, err := d.CreateSubAccount()
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestDisableAPIKey(t *testing.T) {
@@ -603,11 +581,10 @@ func TestDisableAPIKey(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.DisableAPIKey(1)
+	_, err := d.DisableAPIKey(1)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestDisableTFAForSubAccount(t *testing.T) {
@@ -616,11 +593,10 @@ func TestDisableTFAForSubAccount(t *testing.T) {
 	}
 	t.Parallel()
 	// Use with caution will reduce the security of the account
-	a, err := d.DisableTFAForSubAccount(1)
+	_, err := d.DisableTFAForSubAccount(1)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestEnableAffiliateProgram(t *testing.T) {
@@ -628,11 +604,10 @@ func TestEnableAffiliateProgram(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.EnableAffiliateProgram()
+	_, err := d.EnableAffiliateProgram()
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestEnableAPIKey(t *testing.T) {
@@ -640,11 +615,10 @@ func TestEnableAPIKey(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.EnableAPIKey(1)
+	_, err := d.EnableAPIKey(1)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetAffiliateProgramInfo(t *testing.T) {
@@ -652,11 +626,10 @@ func TestGetAffiliateProgramInfo(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetAffiliateProgramInfo(1)
+	_, err := d.GetAffiliateProgramInfo(1)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetEmailLanguage(t *testing.T) {
@@ -664,11 +637,10 @@ func TestGetEmailLanguage(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetEmailLanguage()
+	_, err := d.GetEmailLanguage()
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetNewAnnouncements(t *testing.T) {
@@ -676,11 +648,10 @@ func TestGetNewAnnouncements(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetNewAnnouncements()
+	_, err := d.GetNewAnnouncements()
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetPosition(t *testing.T) {
@@ -688,11 +659,10 @@ func TestGetPosition(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetPosition(btcInstrument)
+	_, err := d.GetPosition(btcInstrument)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetSubAccounts(t *testing.T) {
@@ -700,11 +670,10 @@ func TestGetSubAccounts(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetSubAccounts(false)
+	_, err := d.GetSubAccounts(false)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetPositions(t *testing.T) {
@@ -712,16 +681,14 @@ func TestGetPositions(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetPositions(btcCurrency, "option")
+	_, err := d.GetPositions(btcCurrency, "option")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 	_, err = d.GetPositions(ethCurrency, "")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetTransactionLog(t *testing.T) {
@@ -729,16 +696,14 @@ func TestGetTransactionLog(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetTransactionLog(btcCurrency, "trade", time.Now().Add(-24*time.Hour), time.Now(), 5, 0)
+	_, err := d.GetTransactionLog(btcCurrency, "trade", time.Now().Add(-24*time.Hour), time.Now(), 5, 0)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
-	a, err = d.GetTransactionLog(btcCurrency, "trade", time.Now().Add(-24*time.Hour), time.Now(), 0, 0)
+	_, err = d.GetTransactionLog(btcCurrency, "trade", time.Now().Add(-24*time.Hour), time.Now(), 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestListAPIKeys(t *testing.T) {
@@ -746,11 +711,10 @@ func TestListAPIKeys(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.ListAPIKeys("")
+	_, err := d.ListAPIKeys("")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestRemoveAPIKey(t *testing.T) {
@@ -758,11 +722,10 @@ func TestRemoveAPIKey(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.RemoveAPIKey(1)
+	_, err := d.RemoveAPIKey(1)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestRemoveSubAccount(t *testing.T) {
@@ -770,11 +733,10 @@ func TestRemoveSubAccount(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.RemoveSubAccount(1)
+	_, err := d.RemoveSubAccount(1)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestResetAPIKey(t *testing.T) {
@@ -782,11 +744,10 @@ func TestResetAPIKey(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.ResetAPIKey(1)
+	_, err := d.ResetAPIKey(1)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSetAnnouncementAsRead(t *testing.T) {
@@ -794,11 +755,10 @@ func TestSetAnnouncementAsRead(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.SetAnnouncementAsRead(1)
+	_, err := d.SetAnnouncementAsRead(1)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSetEmailForSubAccount(t *testing.T) {
@@ -806,11 +766,10 @@ func TestSetEmailForSubAccount(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.SetEmailForSubAccount(1, "wrongemail@wrongemail.com")
+	_, err := d.SetEmailForSubAccount(1, "wrongemail@wrongemail.com")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSetEmailLanguage(t *testing.T) {
@@ -818,11 +777,10 @@ func TestSetEmailLanguage(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.SetEmailLanguage("ja")
+	_, err := d.SetEmailLanguage("ja")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSetPasswordForSubAccount(t *testing.T) {
@@ -831,11 +789,10 @@ func TestSetPasswordForSubAccount(t *testing.T) {
 	}
 	t.Parallel()
 	// Caution! This may reduce the security of the subaccount
-	a, err := d.SetPasswordForSubAccount(1, "randompassword123")
+	_, err := d.SetPasswordForSubAccount(1, "randompassword123")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestToggleNotificationsFromSubAccount(t *testing.T) {
@@ -843,11 +800,10 @@ func TestToggleNotificationsFromSubAccount(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.ToggleNotificationsFromSubAccount(1, false)
+	_, err := d.ToggleNotificationsFromSubAccount(1, false)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestToggleSubAccountLogin(t *testing.T) {
@@ -855,11 +811,10 @@ func TestToggleSubAccountLogin(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.ToggleSubAccountLogin(1, false)
+	_, err := d.ToggleSubAccountLogin(1, false)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSubmitSell(t *testing.T) {
@@ -867,11 +822,10 @@ func TestSubmitSell(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.SubmitSell(btcInstrument, "limit", "testOrder", "", "", "", 1, 500000, 0, 0, false, false, false, false)
+	_, err := d.SubmitSell(btcInstrument, "limit", "testOrder", "", "", "", 1, 500000, 0, 0, false, false, false, false)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestEditOrderByLabel(t *testing.T) {
@@ -879,12 +833,11 @@ func TestEditOrderByLabel(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.EditOrderByLabel("incorrectUserLabel", btcInstrument, "",
+	_, err := d.EditOrderByLabel("incorrectUserLabel", btcInstrument, "",
 		1, 30000, 0, false, false, false, false)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSubmitCancel(t *testing.T) {
@@ -892,11 +845,10 @@ func TestSubmitCancel(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.SubmitCancel("incorrectID")
+	_, err := d.SubmitCancel("incorrectID")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSubmitCancelAll(t *testing.T) {
@@ -904,11 +856,10 @@ func TestSubmitCancelAll(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.SubmitCancelAll()
+	_, err := d.SubmitCancelAll()
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSubmitCancelAllByCurrency(t *testing.T) {
@@ -916,11 +867,10 @@ func TestSubmitCancelAllByCurrency(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.SubmitCancelAllByCurrency(btcCurrency, "option", "")
+	_, err := d.SubmitCancelAllByCurrency(btcCurrency, "option", "")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSubmitCancelAllByInstrument(t *testing.T) {
@@ -928,11 +878,10 @@ func TestSubmitCancelAllByInstrument(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.SubmitCancelAllByInstrument(btcInstrument, "all")
+	_, err := d.SubmitCancelAllByInstrument(btcInstrument, "all")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSubmitCancelByLabel(t *testing.T) {
@@ -940,11 +889,10 @@ func TestSubmitCancelByLabel(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.SubmitCancelByLabel("incorrectOrderLabel")
+	_, err := d.SubmitCancelByLabel("incorrectOrderLabel")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSubmitClosePosition(t *testing.T) {
@@ -952,11 +900,10 @@ func TestSubmitClosePosition(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.SubmitClosePosition(btcInstrument, "limit", 35000)
+	_, err := d.SubmitClosePosition(btcInstrument, "limit", 35000)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetMargins(t *testing.T) {
@@ -964,11 +911,10 @@ func TestGetMargins(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetMargins(btcInstrument, 5, 35000)
+	_, err := d.GetMargins(btcInstrument, 5, 35000)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetMMPConfig(t *testing.T) {
@@ -976,11 +922,10 @@ func TestGetMMPConfig(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetMMPConfig(ethCurrency)
+	_, err := d.GetMMPConfig(ethCurrency)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetOpenOrdersByCurrency(t *testing.T) {
@@ -988,11 +933,10 @@ func TestGetOpenOrdersByCurrency(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetOpenOrdersByCurrency(btcCurrency, "option", "all")
+	_, err := d.GetOpenOrdersByCurrency(btcCurrency, "option", "all")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetOpenOrdersByInstrument(t *testing.T) {
@@ -1000,11 +944,10 @@ func TestGetOpenOrdersByInstrument(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetOpenOrdersByInstrument(btcInstrument, "all")
+	_, err := d.GetOpenOrdersByInstrument(btcInstrument, "all")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetOrderHistoryByCurrency(t *testing.T) {
@@ -1012,11 +955,10 @@ func TestGetOrderHistoryByCurrency(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetOrderHistoryByCurrency(btcCurrency, "future", 0, 0, false, false)
+	_, err := d.GetOrderHistoryByCurrency(btcCurrency, "future", 0, 0, false, false)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetOrderHistoryByInstrument(t *testing.T) {
@@ -1024,11 +966,10 @@ func TestGetOrderHistoryByInstrument(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetOrderHistoryByInstrument(btcInstrument, 0, 0, false, false)
+	_, err := d.GetOrderHistoryByInstrument(btcInstrument, 0, 0, false, false)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetOrderMarginsByID(t *testing.T) {
@@ -1036,7 +977,7 @@ func TestGetOrderMarginsByID(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetOrderMarginsByID([]string{"id1,id2,id3"})
+	_, err := d.GetOrderMarginsByID([]string{"id1,id2,id3"})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1044,7 +985,6 @@ func TestGetOrderMarginsByID(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetOrderState(t *testing.T) {
@@ -1052,11 +992,10 @@ func TestGetOrderState(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetOrderState("brokenid123")
+	_, err := d.GetOrderState("brokenid123")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetTriggerOrderHistory(t *testing.T) {
@@ -1064,11 +1003,10 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetTriggerOrderHistory(ethCurrency, "", "", 0)
+	_, err := d.GetTriggerOrderHistory(ethCurrency, "", "", 0)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetUserTradesByCurrency(t *testing.T) {
@@ -1076,11 +1014,10 @@ func TestGetUserTradesByCurrency(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetUserTradesByCurrency(ethCurrency, "future", "5000", "5005", "asc", 0, false)
+	_, err := d.GetUserTradesByCurrency(ethCurrency, "future", "5000", "5005", "asc", 0, false)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetUserTradesByCurrencyAndTime(t *testing.T) {
@@ -1088,11 +1025,10 @@ func TestGetUserTradesByCurrencyAndTime(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetUserTradesByCurrencyAndTime(ethCurrency, "future", "default", 5, false, time.Now().Add(-time.Hour), time.Now())
+	_, err := d.GetUserTradesByCurrencyAndTime(ethCurrency, "future", "default", 5, false, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetUserTradesByInstrument(t *testing.T) {
@@ -1100,11 +1036,10 @@ func TestGetUserTradesByInstrument(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetUserTradesByInstrument(btcInstrument, "asc", 5, 10, 4, true)
+	_, err := d.GetUserTradesByInstrument(btcInstrument, "asc", 5, 10, 4, true)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetUserTradesByInstrumentAndTime(t *testing.T) {
@@ -1112,11 +1047,10 @@ func TestGetUserTradesByInstrumentAndTime(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetUserTradesByInstrumentAndTime(btcInstrument, "asc", 10, false, time.Now().Add(-time.Hour), time.Now())
+	_, err := d.GetUserTradesByInstrumentAndTime(btcInstrument, "asc", 10, false, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetUserTradesByOrder(t *testing.T) {
@@ -1124,11 +1058,10 @@ func TestGetUserTradesByOrder(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetUserTradesByOrder("wrongOrderID", "default")
+	_, err := d.GetUserTradesByOrder("wrongOrderID", "default")
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestResetMMP(t *testing.T) {
@@ -1136,11 +1069,10 @@ func TestResetMMP(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.ResetMMP(btcCurrency)
+	_, err := d.ResetMMP(btcCurrency)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSetMMPConfig(t *testing.T) {
@@ -1148,11 +1080,10 @@ func TestSetMMPConfig(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.SetMMPConfig(btcCurrency, 5, 5, 0, 0)
+	_, err := d.SetMMPConfig(btcCurrency, 5, 5, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetSettlementHistoryByCurency(t *testing.T) {
@@ -1160,11 +1091,10 @@ func TestGetSettlementHistoryByCurency(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetSettlementHistoryByCurency(btcCurrency, "settlement", "", 10, time.Now().Add(-time.Hour))
+	_, err := d.GetSettlementHistoryByCurency(btcCurrency, "settlement", "", 10, time.Now().Add(-time.Hour))
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestGetSettlementHistoryByInstrument(t *testing.T) {
@@ -1172,11 +1102,10 @@ func TestGetSettlementHistoryByInstrument(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	a, err := d.GetSettlementHistoryByInstrument(btcInstrument, "settlement", "", 10, time.Now().Add(-time.Hour))
+	_, err := d.GetSettlementHistoryByInstrument(btcInstrument, "settlement", "", 10, time.Now().Add(-time.Hour))
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }
 
 func TestSubmitEdit(t *testing.T) {
@@ -1184,7 +1113,7 @@ func TestSubmitEdit(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	t.Parallel()
-	a, err := d.SubmitEdit("incorrectID",
+	_, err := d.SubmitEdit("incorrectID",
 		"",
 		0.001,
 		100000,
@@ -1196,5 +1125,4 @@ func TestSubmitEdit(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(a)
 }

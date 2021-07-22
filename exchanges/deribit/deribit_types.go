@@ -143,9 +143,12 @@ type PublicTradesData struct {
 		TickDirection  int64   `json:"tick_direction"`
 		Price          float64 `json:"price"`
 		MarkPrice      float64 `json:"mark_price"`
+		Liquidation    string  `json:"liquidation"`
+		IV             float64 `json:"iv"`
 		InstrumentName string  `json:"instrument_name"`
 		IndexPrice     float64 `json:"index_price"`
 		Direction      string  `json:"direction"`
+		BlockTradeID   string  `json:"block_trade_id"`
 		Amount         float64 `json:"amount"`
 	} `json:"trades"`
 	HasMore bool `json:"has_more"`
@@ -159,38 +162,57 @@ type MarkPriceHistory struct {
 
 // OBData stores orderbook data
 type OBData struct {
-	Timestamp int64 `json:"timestamp"`
-	Stats     struct {
+	UnderlyingPrice float64 `json:"underlying_price"`
+	UnderlyingIndex float64 `json:"underlying_index"`
+	Timestamp       int64   `json:"timestamp"`
+	Stats           struct {
 		Volume      float64 `json:"volume"`
 		PriceChange float64 `json:"price_change"`
 		Low         float64 `json:"low"`
 		High        float64 `json:"high"`
 	} `json:"stats"`
-	State           string       `json:"state"`
-	SettlementPrice float64      `json:"settlement_price"`
-	OpenInterest    float64      `json:"open_interest"`
-	MinPrice        float64      `json:"min_price"`
-	MaxPrice        float64      `json:"max_price"`
-	MarkPrice       float64      `json:"mark_price"`
-	LastPrice       float64      `json:"last_price"`
-	InstrumentName  string       `json:"instrument_name"`
-	IndexPrice      float64      `json:"index_price"`
-	Funding8H       float64      `json:"funding_8h"`
-	CurrentFunding  float64      `json:"current_funding"`
-	ChangeID        int64        `json:"change_id"`
-	Bids            [][2]float64 `json:"bids"`
-	Asks            [][2]float64 `json:"asks"`
-	BestBidPrice    float64      `json:"best_bid_price"`
-	BestBidAmount   float64      `json:"best_bid_amount"`
-	BestAskAmount   float64      `json:"best_ask_amount"`
+	State           string  `json:"state"`
+	SettlementPrice float64 `json:"settlement_price"`
+	OpenInterest    float64 `json:"open_interest"`
+	MinPrice        float64 `json:"min_price"`
+	MaxPrice        float64 `json:"max_price"`
+	MarkIV          float64 `json:"mark_iv"`
+	MarkPrice       float64 `json:"mark_price"`
+	LastPrice       float64 `json:"last_price"`
+	InterestRate    float64 `json:"interest_rate"`
+	InstrumentName  string  `json:"instrument_name"`
+	IndexPrice      float64 `json:"index_price"`
+	GreeksData      struct {
+		Delta float64 `json:"delta"`
+		Gamma float64 `json:"gamma"`
+		Rho   float64 `json:"rho"`
+		Theta float64 `json:"theta"`
+		Vega  float64 `json:"vega"`
+	} `json:"greeks"`
+	Funding8H      float64      `json:"funding_8h"`
+	CurrentFunding float64      `json:"current_funding"`
+	ChangeID       int64        `json:"change_id"`
+	Bids           [][2]float64 `json:"bids"`
+	Asks           [][2]float64 `json:"asks"`
+	BidIV          float64      `json:"bid_iv"`
+	BestBidPrice   float64      `json:"best_bid_price"`
+	BestBidAmount  float64      `json:"best_bid_amount"`
+	BestAskAmount  float64      `json:"best_ask_amount"`
+	AskIV          float64      `json:"ask_iv"`
 }
 
 // TradeVolumesData stores data for trade volumes
 type TradeVolumesData struct {
-	PutsVolume    float64 `json:"puts_volume"`
-	FuturesVolume float64 `json:"futures_volume"`
-	CurrencyPair  string  `json:"currency_pair"`
-	CallsVolume   float64 `json:"calls_volume"`
+	PutsVolume       float64 `json:"puts_volume"`
+	PutsVolume7D     float64 `json:"puts_volume_7d"`
+	PutsVolume30D    float64 `json:"puts_volume_30d"`
+	FuturesVolume7D  float64 `json:"futures_volume_7d"`
+	FuturesVolume30D float64 `json:"futures_volume_30d"`
+	FuturesVolume    float64 `json:"futures_volume"`
+	CurrencyPair     string  `json:"currency_pair"`
+	CallsVolume7D    float64 `json:"calls_volume_7d"`
+	CallsVolume30D   float64 `json:"calls_volume_30d"`
+	CallsVolume      float64 `json:"calls_volume"`
 }
 
 // TVChartData stores trading view chart data
@@ -212,15 +234,26 @@ type VolatilityIndexData struct {
 
 // TickerData stores data for ticker
 type TickerData struct {
-	BestAskAmount   float64 `json:"best_ask_amount"`
-	BestAskPrice    float64 `json:"best_ask_price"`
-	BestBidAmount   float64 `json:"best_bid_amount"`
-	BestBidPrice    float64 `json:"best_bid_price"`
-	CurrentFunding  float64 `json:"current_funding"`
-	Funding8H       float64 `json:"funding_8h"`
+	AskIV          float64 `json:"ask_iv"`
+	BestAskAmount  float64 `json:"best_ask_amount"`
+	BestAskPrice   float64 `json:"best_ask_price"`
+	BestBidAmount  float64 `json:"best_bid_amount"`
+	BestBidPrice   float64 `json:"best_bid_price"`
+	BidIV          float64 `json:"bid_iv"`
+	CurrentFunding float64 `json:"current_funding"`
+	DeliveryPrice  float64 `json:"delivery_price"`
+	Funding8H      float64 `json:"funding_8h"`
+	GreeksData     struct {
+		Delta float64 `json:"delta"`
+		Gamma float64 `json:"gamma"`
+		Rho   float64 `json:"rho"`
+		Theta float64 `json:"theta"`
+		Vega  float64 `json:"vega"`
+	} `json:"greeks"`
 	IndexPrice      float64 `json:"index_price"`
 	InstrumentName  string  `json:"instrument_name"`
 	LastPrice       float64 `json:"last_price"`
+	MarkIV          float64 `json:"mark_iv"`
 	MarkPrice       float64 `json:"mark_price"`
 	MaxPrice        float64 `json:"max_price"`
 	MinPrice        float64 `json:"min_price"`
@@ -233,7 +266,9 @@ type TickerData struct {
 		Low         float64 `json:"low"`
 		High        float64 `json:"high"`
 	} `json:"stats"`
-	Timestamp int64 `json:"timestamp"`
+	Timestamp       int64   `json:"timestamp"`
+	UnderlyingIndex float64 `json:"underlying_index"`
+	UnderlyingPrice float64 `json:"underlying_price"`
 }
 
 // CancelTransferData stores data for a cancel transfer

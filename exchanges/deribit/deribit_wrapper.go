@@ -269,42 +269,34 @@ func (d *Deribit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 
 	switch assetType {
 	case asset.Futures:
-		tradablePairs, err := d.FetchTradablePairs(assetType)
+		if p.IsEmpty() {
+			return nil, fmt.Errorf("pair provided is empty")
+		}
+		fmtPair, err := d.FormatExchangeCurrency(p, asset.Futures)
 		if err != nil {
 			return nil, err
 		}
-		for x := range tradablePairs {
-			cp, err := currency.NewPairFromString(tradablePairs[x])
-			if err != nil {
-				return nil, err
-			}
-
-			fmtPair, err := d.FormatExchangeCurrency(cp, assetType)
-			if err != nil {
-				return nil, err
-			}
-
-			tickerData, err := d.GetPublicTicker(fmtPair.String())
-			if err != nil {
-				return nil, err
-			}
-
-			var resp ticker.Price
-			resp.ExchangeName = d.Name
-			resp.Pair = cp
-			resp.AssetType = assetType
-			resp.Ask = tickerData.BestAskPrice
-			resp.AskSize = tickerData.BestAskAmount
-			resp.Bid = tickerData.BestBidPrice
-			resp.BidSize = tickerData.BestBidAmount
-			resp.High = tickerData.Stats.High
-			resp.Low = tickerData.Stats.Low
-			resp.Last = tickerData.LastPrice
-			err = ticker.ProcessTicker(&resp)
-			if err != nil {
-				return nil, err
-			}
+		tickerData, err := d.GetPublicTicker(fmtPair.String())
+		if err != nil {
+			return nil, err
 		}
+		var resp ticker.Price
+		resp.ExchangeName = d.Name
+		resp.Pair = p
+		resp.AssetType = assetType
+		resp.Ask = tickerData.BestAskPrice
+		resp.AskSize = tickerData.BestAskAmount
+		resp.Bid = tickerData.BestBidPrice
+		resp.BidSize = tickerData.BestBidAmount
+		resp.High = tickerData.Stats.High
+		resp.Low = tickerData.Stats.Low
+		resp.Last = tickerData.LastPrice
+		err = ticker.ProcessTicker(&resp)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, assetType)
 	}
 	return ticker.GetTicker(d.Name, p, assetType)
 }

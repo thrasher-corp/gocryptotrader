@@ -1350,7 +1350,6 @@ func (d *Deribit) GetOrderMarginsByID(ids []string) ([]OrderData, error) {
 		}
 		idsString += ids[x] + ","
 	}
-	fmt.Println(idsString)
 	params := url.Values{}
 	params.Set("ids", idsString)
 	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
@@ -1591,7 +1590,6 @@ func (d *Deribit) SendHTTPAuthRequest(ep exchange.URL, method, path string, data
 	}
 
 	reqDataStr := method + "\n" + deribitAPIVersion + common.EncodeURLValues(path, data) + "\n" + "" + "\n"
-	fmt.Printf("REQUEST DATA STRRRRRRRRR: %v\n\n\n", reqDataStr)
 
 	n := d.Requester.GetNonce(true)
 
@@ -1599,8 +1597,6 @@ func (d *Deribit) SendHTTPAuthRequest(ep exchange.URL, method, path string, data
 
 	str2Sign := fmt.Sprintf("%s\n%s\n%s", strTS,
 		n, reqDataStr)
-
-	fmt.Printf("STR 2 SIGN: %v\n\n\n", str2Sign)
 
 	hmac := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(str2Sign),
