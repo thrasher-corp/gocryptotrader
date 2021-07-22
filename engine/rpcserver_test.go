@@ -1688,3 +1688,31 @@ func TestGetManagedOrders(t *testing.T) {
 		t.Errorf("unexpected order result: %v", oo)
 	}
 }
+
+func TestRPCServer_unixTimestamp(t *testing.T) {
+	s := RPCServer{
+		Engine: &Engine{
+			Config: &config.Config{
+				RemoteControl: config.RemoteControlConfig{
+					GRPC: config.GRPCConfig{
+						TimeInNanoSeconds: false,
+					},
+				},
+			},
+		},
+	}
+	const sec = 1618888141
+	const nsec = 2
+	x := time.Unix(sec, nsec)
+
+	timestampSeconds := s.unixTimestamp(x)
+	if timestampSeconds != sec {
+		t.Errorf("have %d, want %d", timestampSeconds, sec)
+	}
+
+	s.Config.RemoteControl.GRPC.TimeInNanoSeconds = true
+	timestampNanos := s.unixTimestamp(x)
+	if want := int64(sec*1_000_000_000 + nsec); timestampNanos != want {
+		t.Errorf("have %d, want %d", timestampSeconds, want)
+	}
+}
