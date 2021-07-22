@@ -1716,3 +1716,36 @@ func TestRPCServer_unixTimestamp(t *testing.T) {
 		t.Errorf("have %d, want %d", timestampSeconds, want)
 	}
 }
+
+func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
+	server := RPCServer{Engine: RPCTestSetup(t)}
+
+	request := &gctrpc.GetTickerRequest{
+		Exchange: testExchange,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      currency.BTC.String(),
+			Quote:     currency.USD.String(),
+		},
+		AssetType: asset.Spot.String(),
+	}
+
+	one, err := server.GetTicker(context.Background(), request)
+	if err != nil {
+		t.Error(err)
+	}
+
+	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = true
+	two, err := server.GetTicker(context.Background(), request)
+	if err != nil {
+		t.Error(err)
+	}
+
+	now := time.Now().Unix()
+	if x := now - one.LastUpdated; x > 10 {
+		t.Errorf("have %d, want %d +- 10s", one.LastUpdated, now)
+	}
+	if x := now - two.LastUpdated/1_000_000_000; x > 10 {
+		t.Errorf("have %d, want %d +- 10s", two.LastUpdated, now)
+	}
+}
