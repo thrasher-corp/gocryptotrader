@@ -638,7 +638,8 @@ func (db *DBService) createSQLiteDataHistoryJobResponse(result *sqlite3.Datahist
 	}
 	var secondaryExchangeName string
 	if result.SecondaryExchangeID.String != "" {
-		secondaryExchangeResult, err := result.SecondaryExchange().One(context.Background(), db.sql)
+		var secondaryExchangeResult *sqlite3.Exchange
+		secondaryExchangeResult, err = result.SecondaryExchange().One(context.Background(), db.sql)
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve secondary exchange '%v' %w", result.SecondaryExchangeID, err)
 		}
@@ -742,7 +743,8 @@ func (db *DBService) createPostgresDataHistoryJobResponse(result *postgres.Datah
 
 	var secondaryExchangeName string
 	if result.SecondaryExchangeID.String != "" {
-		secondaryExchangeResult, err := result.SecondaryExchange().One(context.Background(), db.sql)
+		var secondaryExchangeResult *postgres.Exchange
+		secondaryExchangeResult, err = result.SecondaryExchange().One(context.Background(), db.sql)
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve secondary exchange '%v' %w", result.SecondaryExchangeID, err)
 		}
