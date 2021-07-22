@@ -45,8 +45,8 @@ func (src *Unsafe) LockWith(dst sync.Locker) {
 
 // UnlockWith unlocks both books for the context of cross orderbook inspection
 func (src *Unsafe) UnlockWith(dst sync.Locker) {
+	dst.Unlock() // Unlock in reverse order
 	src.m.Unlock()
-	dst.Unlock()
 }
 
 // GetUnsafe returns an unsafe orderbook with pointers to the linked list heads.
