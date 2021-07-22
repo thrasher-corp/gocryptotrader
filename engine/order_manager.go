@@ -186,7 +186,7 @@ func (m *OrderManager) Cancel(cancel *order.Cancel) error {
 		return err
 	}
 
-	if cancel.AssetType.String() != "" && !exch.GetAssetTypes().Contains(cancel.AssetType) {
+	if cancel.AssetType.String() != "" && !exch.GetAssetTypes(false).Contains(cancel.AssetType) {
 		err = errors.New("order asset type not supported by exchange")
 		return err
 	}
@@ -477,7 +477,7 @@ func (m *OrderManager) processOrders() {
 			"Order manager: Processing orders for exchange %v.",
 			exchanges[i].GetName())
 
-		supportedAssets := exchanges[i].GetAssetTypes()
+		supportedAssets := exchanges[i].GetAssetTypes(true)
 		for y := range supportedAssets {
 			pairs, err := exchanges[i].GetEnabledPairs(supportedAssets[y])
 			if err != nil {

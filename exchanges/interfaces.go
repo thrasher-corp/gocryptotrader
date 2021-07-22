@@ -39,7 +39,7 @@ type IBotExchange interface {
 	UpdateAccountInfo(a asset.Item) (account.Holdings, error)
 	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
-	GetAssetTypes() asset.Items
+	GetAssetTypes(enabled bool) asset.Items
 	GetRecentTrades(p currency.Pair, a asset.Item) ([]trade.Data, error)
 	GetHistoricTrades(p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error)
 	SupportsAutoPairUpdates() bool

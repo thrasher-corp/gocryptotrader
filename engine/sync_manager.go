@@ -106,7 +106,6 @@ func (m *syncManager) Start() error {
 	for x := range exchanges {
 		exchangeName := exchanges[x].GetName()
 		supportsWebsocket := exchanges[x].SupportsWebsocket()
-		assetTypes := exchanges[x].GetAssetTypes()
 		supportsREST := exchanges[x].SupportsREST()
 
 		if !supportsREST && !supportsWebsocket {
@@ -153,6 +152,7 @@ func (m *syncManager) Start() error {
 			usingREST = true
 		}
 
+		assetTypes := exchanges[x].GetAssetTypes(false)
 		for y := range assetTypes {
 			if exchanges[x].GetBase().CurrencyPairs.IsAssetEnabled(assetTypes[y]) != nil {
 				log.Warnf(log.SyncMgr,
@@ -486,7 +486,6 @@ func (m *syncManager) worker() {
 		exchanges := m.exchangeManager.GetExchanges()
 		for x := range exchanges {
 			exchangeName := exchanges[x].GetName()
-			assetTypes := exchanges[x].GetAssetTypes()
 			supportsREST := exchanges[x].SupportsREST()
 			supportsRESTTickerBatching := exchanges[x].SupportsRESTTickerBatchUpdates()
 			var usingREST bool
@@ -511,10 +510,8 @@ func (m *syncManager) worker() {
 				usingREST = true
 			}
 
+			assetTypes := exchanges[x].GetAssetTypes(true)
 			for y := range assetTypes {
-				if exchanges[x].GetBase().CurrencyPairs.IsAssetEnabled(assetTypes[y]) != nil {
-					continue
-				}
 				wsAssetSupported := exchanges[x].IsAssetWebsocketSupported(assetTypes[y])
 				enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
 				if err != nil {

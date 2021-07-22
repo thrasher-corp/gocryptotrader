@@ -316,7 +316,7 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 	}
 
 	resp.SupportedAssets = make(map[string]*gctrpc.PairsSupported)
-	assets := exchCfg.CurrencyPairs.GetAssetTypes()
+	assets := exchCfg.CurrencyPairs.GetAssetTypes(false)
 	for i := range assets {
 		ps, err := exchCfg.CurrencyPairs.Get(assets[i])
 		if err != nil {
@@ -473,7 +473,7 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 		if !exchanges[x].IsEnabled() {
 			continue
 		}
-		assets := exchanges[x].GetAssetTypes()
+		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
 		for y := range assets {
 			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
@@ -1571,7 +1571,7 @@ func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePai
 	if err != nil {
 		return nil, err
 	}
-	assetTypes := exchCfg.CurrencyPairs.GetAssetTypes()
+	assetTypes := exchCfg.CurrencyPairs.GetAssetTypes(false)
 
 	var a asset.Item
 	if r.Asset != "" {
@@ -2458,7 +2458,7 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 		return nil, errExchangeBaseNotFound
 	}
 
-	assets := base.CurrencyPairs.GetAssetTypes()
+	assets := base.CurrencyPairs.GetAssetTypes(false)
 
 	if r.Enable {
 		for i := range assets {
@@ -2528,7 +2528,7 @@ func (s *RPCServer) GetExchangeAssets(_ context.Context, r *gctrpc.GetExchangeAs
 	}
 
 	return &gctrpc.GetExchangeAssetsResponse{
-		Assets: exch.GetAssetTypes().JoinToString(","),
+		Assets: exch.GetAssetTypes(false).JoinToString(","),
 	}, nil
 }
 

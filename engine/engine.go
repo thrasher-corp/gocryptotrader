@@ -729,7 +729,7 @@ func (bot *Engine) LoadExchange(name string, optional *sync.WaitGroup) error {
 
 	if bot.Settings.EnableAllPairs &&
 		exchCfg.CurrencyPairs != nil {
-		assets := exchCfg.CurrencyPairs.GetAssetTypes()
+		assets := exchCfg.CurrencyPairs.GetAssetTypes(false)
 		for x := range assets {
 			var pairs currency.Pairs
 			pairs, err = exchCfg.CurrencyPairs.GetPairs(assets[x], false)
@@ -798,7 +798,7 @@ func (bot *Engine) LoadExchange(name string, optional *sync.WaitGroup) error {
 	base := exch.GetBase()
 	if base.API.AuthenticatedSupport ||
 		base.API.AuthenticatedWebsocketSupport {
-		assetTypes := base.GetAssetTypes()
+		assetTypes := base.GetAssetTypes(false)
 		var useAsset asset.Item
 		for a := range assetTypes {
 			err = base.CurrencyPairs.IsAssetEnabled(assetTypes[a])
