@@ -267,7 +267,9 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 			DecimalPlaceComparison:   null.Int64{Int64: jobs[i].DecimalPlaceComparison, Valid: jobs[i].DecimalPlaceComparison > 0},
 			ReplaceOnIssue:           null.Int64{Int64: replaceOnIssue, Valid: replaceOnIssue == 1},
 			IssueTolerancePercentage: null.Float64{Float64: jobs[i].IssueTolerancePercentage, Valid: jobs[i].IssueTolerancePercentage > 0},
-			SecondaryExchangeID:      null.String{String: secondaryExch.ID, Valid: secondaryExch != nil},
+		}
+		if secondaryExch != nil {
+			tempEvent.SecondaryExchangeID = null.String{String: secondaryExch.ID, Valid: true}
 		}
 
 		err = tempEvent.Insert(ctx, tx, boil.Infer())
@@ -316,7 +318,9 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			DecimalPlaceComparison:   null.Int{Int: int(jobs[i].DecimalPlaceComparison), Valid: jobs[i].DecimalPlaceComparison > 0},
 			ReplaceOnIssue:           null.Bool{Bool: jobs[i].ReplaceOnIssue, Valid: jobs[i].ReplaceOnIssue},
 			IssueTolerancePercentage: null.Float64{Float64: jobs[i].IssueTolerancePercentage, Valid: jobs[i].IssueTolerancePercentage > 0},
-			SecondaryExchangeID:      null.String{String: secondaryExch.ID, Valid: secondaryExch != nil},
+		}
+		if secondaryExch != nil {
+			tempEvent.SecondaryExchangeID = null.String{String: secondaryExch.ID, Valid: true}
 		}
 		err = tempEvent.Upsert(ctx, tx, true, []string{"nickname"}, boil.Infer(), boil.Infer())
 		if err != nil {
@@ -632,13 +636,15 @@ func (db *DBService) createSQLiteDataHistoryJobResponse(result *sqlite3.Datahist
 			return nil, fmt.Errorf("could not retrieve exchange '%v' %w", result.ExchangeNameID, err)
 		}
 	}
-	secondaryExchangeResult, err := result.SecondaryExchange().One(context.Background(), db.sql)
-	if err != nil {
-		return nil, fmt.Errorf("could not retrieve secondary exchange '%v' %w", result.SecondaryExchangeID, err)
-	}
 	var secondaryExchangeName string
-	if secondaryExchangeResult != nil {
-		secondaryExchangeName = secondaryExchangeResult.Name
+	if result.SecondaryExchangeID.String != "" {
+		secondaryExchangeResult, err := result.SecondaryExchange().One(context.Background(), db.sql)
+		if err != nil {
+			return nil, fmt.Errorf("could not retrieve secondary exchange '%v' %w", result.SecondaryExchangeID, err)
+		}
+		if secondaryExchangeResult != nil {
+			secondaryExchangeName = secondaryExchangeResult.Name
+		}
 	}
 
 	ts, err := time.Parse(time.RFC3339, result.StartTime)
@@ -734,13 +740,15 @@ func (db *DBService) createPostgresDataHistoryJobResponse(result *postgres.Datah
 		}
 	}
 
-	secondaryExchangeResult, err := result.SecondaryExchange().One(context.Background(), db.sql)
-	if err != nil {
-		return nil, fmt.Errorf("could not retrieve secondary exchange '%v' %w", result.SecondaryExchangeID, err)
-	}
 	var secondaryExchangeName string
-	if secondaryExchangeResult != nil {
-		secondaryExchangeName = secondaryExchangeResult.Name
+	if result.SecondaryExchangeID.String != "" {
+		secondaryExchangeResult, err := result.SecondaryExchange().One(context.Background(), db.sql)
+		if err != nil {
+			return nil, fmt.Errorf("could not retrieve secondary exchange '%v' %w", result.SecondaryExchangeID, err)
+		}
+		if secondaryExchangeResult != nil {
+			secondaryExchangeName = secondaryExchangeResult.Name
+		}
 	}
 
 	prereqJob, err := result.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)

@@ -259,7 +259,7 @@ func main() {
 			{
 				Login:         "tk42",
 				URL:           "https://github.com/tk42",
-				Contributions: 1,
+				Contributions: 2,
 			},
 		}...)
 

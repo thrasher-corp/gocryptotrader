@@ -329,6 +329,9 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 // runDataJob will fetch data from an API endpoint or convert existing database data
 // into a new candle type
 func (m *DataHistoryManager) runDataJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
+	if !m.IsRunning() {
+		return ErrSubSystemNotStarted
+	}
 	var intervalsProcessed int64
 	var err error
 	var result *DataHistoryJobResult
@@ -473,6 +476,9 @@ completionCheck:
 // runValidationJob verifies existing database candle data against
 // the original API's data, or a secondary exchange source
 func (m *DataHistoryManager) runValidationJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
+	if !m.IsRunning() {
+		return ErrSubSystemNotStarted
+	}
 	var intervalsProcessed int64
 	var jobIntervals, intervalsToCheck []time.Time
 	intervalLength := job.Interval.Duration() * time.Duration(job.RequestSizeLimit)
@@ -570,6 +576,9 @@ completionCheck:
 // completeJob will set the job's overall status and
 // set any jobs' status where the current job is a prerequisite to 'active'
 func (m *DataHistoryManager) completeJob(job *DataHistoryJob, allResultsSuccessful, allResultsFailed bool) error {
+	if !m.IsRunning() {
+		return ErrSubSystemNotStarted
+	}
 	if job == nil {
 		return errNilJob
 	}
@@ -607,6 +616,9 @@ func (m *DataHistoryManager) completeJob(job *DataHistoryJob, allResultsSuccessf
 }
 
 func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time, intervalIndex int64) (*DataHistoryJobResult, error) {
+	if !m.IsRunning() {
+		return nil, ErrSubSystemNotStarted
+	}
 	if job == nil {
 		return nil, errNilJob
 	}
@@ -654,6 +666,9 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 }
 
 func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time, intervalIndex int64) (*DataHistoryJobResult, error) {
+	if !m.IsRunning() {
+		return nil, ErrSubSystemNotStarted
+	}
 	if job == nil {
 		return nil, errNilJob
 	}
@@ -706,6 +721,9 @@ func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange
 }
 
 func (m *DataHistoryManager) convertTradesToCandles(job *DataHistoryJob, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
+	if !m.IsRunning() {
+		return nil, ErrSubSystemNotStarted
+	}
 	if job == nil {
 		return nil, errNilJob
 	}
@@ -746,6 +764,9 @@ func (m *DataHistoryManager) convertTradesToCandles(job *DataHistoryJob, startRa
 }
 
 func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
+	if !m.IsRunning() {
+		return nil, ErrSubSystemNotStarted
+	}
 	if job == nil {
 		return nil, errNilJob
 	}
@@ -786,6 +807,9 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 }
 
 func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
+	if !m.IsRunning() {
+		return nil, ErrSubSystemNotStarted
+	}
 	if job == nil {
 		return nil, errNilJob
 	}
@@ -1003,13 +1027,6 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	if job.Nickname == "" {
 		return fmt.Errorf("upsert job %w", errNicknameUnset)
 	}
-
-	if m == nil {
-		return ErrNilSubsystem
-	}
-	if !m.IsRunning() {
-		return ErrSubSystemNotStarted
-	}
 	j, err := m.GetByNickname(job.Nickname, false)
 	if err != nil && !errors.Is(err, errJobNotFound) {
 		return err
@@ -1068,6 +1085,9 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 }
 
 func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
+	if !m.IsRunning() {
+		return ErrSubSystemNotStarted
+	}
 	if job == nil {
 		return errNilJob
 	}
@@ -1344,6 +1364,9 @@ func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJo
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
+	if !m.IsRunning() {
+		return nil, ErrSubSystemNotStarted
+	}
 	job, err := m.GetByNickname(nickname, false)
 	if err != nil {
 		return nil, fmt.Errorf("job: %v %w", nickname, err)
@@ -1370,6 +1393,9 @@ func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJo
 
 // ----------------------------Lovely-converters----------------------------
 func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHistoryJob) (*DataHistoryJob, error) {
+	if !m.IsRunning() {
+		return nil, ErrSubSystemNotStarted
+	}
 	id, err := uuid.FromString(dbModel.ID)
 	if err != nil {
 		return nil, err
@@ -1419,6 +1445,9 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 }
 
 func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryjobresult.DataHistoryJobResult) (map[time.Time][]DataHistoryJobResult, error) {
+	if !m.IsRunning() {
+		return nil, ErrSubSystemNotStarted
+	}
 	result := make(map[time.Time][]DataHistoryJobResult)
 	for i := range dbModels {
 		id, err := uuid.FromString(dbModels[i].ID)

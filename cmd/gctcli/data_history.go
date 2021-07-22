@@ -127,7 +127,7 @@ var dataHistoryJobCommands = &cli.Command{
 		{
 			Name:   "savetrades",
 			Usage:  "will fetch trade data from an exchange and save it to the database",
-			Flags:  append(baseJobSubCommands, dataHandlingJobSubCommands...),
+			Flags:  append(baseJobSubCommands, tradeHandlingJobSubCommands...),
 			Action: upsertDataHistoryJob,
 		},
 		{
@@ -170,15 +170,21 @@ var (
 	}
 	requestSize500Flag = &cli.Uint64Flag{
 		Name:        "request_size_limit",
-		Usage:       "the number of candles to retrieve per API request",
+		Usage:       "the number of candle intervals to retrieve per request. eg if interval is 1d and request_size_limit is 500, then retrieve 500 intervals per batch",
 		Destination: &requestSizeLimit,
 		Value:       500,
 	}
 	requestSize50Flag = &cli.Uint64Flag{
 		Name:        "request_size_limit",
-		Usage:       "the number of candles to retrieve per API request",
+		Usage:       "the number of intervals to retrieve per request. eg if interval is 1d and request_size_limit is 50, then retrieve 50 intervals per batch",
 		Destination: &requestSizeLimit,
 		Value:       50,
+	}
+	requestSize10Flag = &cli.Uint64Flag{
+		Name:        "request_size_limit",
+		Usage:       "the number of intervals worth of trades to retrieve per API request. eg if interval is 1m and request_size_limit is 10, then retrieve 10 minutes of trades per batch",
+		Destination: &requestSizeLimit,
+		Value:       10,
 	}
 	nicknameFlag = &cli.StringFlag{
 		Name:  "nickname",
@@ -201,17 +207,17 @@ var (
 		nicknameFlag,
 		&cli.StringFlag{
 			Name:     "exchange",
-			Usage:    "binance",
+			Usage:    "eg binance",
 			Required: true,
 		},
 		&cli.StringFlag{
 			Name:     "asset",
-			Usage:    "spot",
+			Usage:    "eg spot",
 			Required: true,
 		},
 		&cli.StringFlag{
 			Name:     "pair",
-			Usage:    "btc-usdt",
+			Usage:    "eg btc-usdt",
 			Required: true,
 		},
 		&cli.StringFlag{
@@ -239,7 +245,7 @@ var (
 		},
 		&cli.Uint64Flag{
 			Name:        "batch_size",
-			Usage:       "the amount of API calls to make per run",
+			Usage:       "when a job is processed, the number of processing cycles to run. eg a batch size of 3, an interval of 1m and a request_size_limit of 3 will retrieve 3 batches of 3m per cycle",
 			Destination: &batchSize,
 			Value:       3,
 		},
@@ -256,10 +262,14 @@ var (
 		requestSize500Flag,
 		overwriteDataFlag,
 	}
+	tradeHandlingJobSubCommands = []cli.Flag{
+		requestSize10Flag,
+		overwriteDataFlag,
+	}
 	candleConvertJobJobSubCommands = []cli.Flag{
 		&cli.Uint64Flag{
 			Name:     "conversion_interval",
-			Usage:    "the resulting converted candle interval. " + klineMessage,
+			Usage:    "the resulting converted candle interval. Can be converted to any interval, however the following " + klineMessage,
 			Required: true,
 		},
 		requestSize500Flag,
