@@ -183,7 +183,8 @@
    "enabled": true,
    "listenAddress": "localhost:9052",
    "grpcProxyEnabled": false,
-   "grpcProxyListenAddress": "localhost:9053"
+   "grpcProxyListenAddress": "localhost:9053",
+   "timeInNanoSeconds": false
   },
   "deprecatedRPC": {
    "enabled": true,
