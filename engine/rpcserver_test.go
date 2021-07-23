@@ -1690,6 +1690,8 @@ func TestGetManagedOrders(t *testing.T) {
 }
 
 func TestRPCServer_unixTimestamp(t *testing.T) {
+	t.Parallel()
+
 	s := RPCServer{
 		Engine: &Engine{
 			Config: &config.Config{
@@ -1742,10 +1744,10 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 	}
 
 	now := time.Now().Unix()
-	if x := now - one.LastUpdated; x > 10 {
-		t.Errorf("have %d, want %d +- 10s", one.LastUpdated, now)
+	if x := now - one.LastUpdated; x > 300 {
+		t.Errorf("have %d, want %d +- 300s", one.LastUpdated, now)
 	}
-	if x := now - two.LastUpdated/1_000_000_000; x > 10 {
-		t.Errorf("have %d, want %d +- 10s", two.LastUpdated, now)
+	if x := now - two.LastUpdated/1_000_000_000; x > 300 {
+		t.Errorf("have %d, want %d +- 300s", two.LastUpdated, now*1_000_000_000)
 	}
 }
