@@ -10,9 +10,13 @@ import (
 )
 
 // Connect opens a connection to Postgres database and returns a pointer to database.DB
-func Connect() (*database.Instance, error) {
-	cfg := database.DB.GetConfig()
-
+func Connect(cfg *database.Config) (*database.Instance, error) {
+	if cfg == nil {
+		return nil, database.ErrNilConfig
+	}
+	if !cfg.Enabled {
+		return nil, database.ErrDatabaseSupportDisabled
+	}
 	if cfg.SSLMode == "" {
 		cfg.SSLMode = "disable"
 	}

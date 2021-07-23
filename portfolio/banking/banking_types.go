@@ -7,19 +7,22 @@ import (
 const (
 	// ErrBankAccountNotFound message to return when bank account was not found
 	ErrBankAccountNotFound = "bank account ID: %v not found"
-	// ErrAccountCannotBeNil message to return when bank account is nil
-	ErrAccountCannotBeNil = "Account cannot be nil"
 	// ErrAccountCannotBeEmpty message to return when bank account number is empty
 	ErrAccountCannotBeEmpty = "Bank Account Number cannot be empty"
 	// ErrBankAccountDisabled message to return when bank account is disabled
 	ErrBankAccountDisabled = "Bank Account is disabled"
-	// ErrBSBRequiredforAUD message to return when currency is AUD but no bsb is set
-	ErrBSBRequiredforAUD = "BSB must be set for AUD values"
+	// ErrBSBRequiredForAUD message to return when currency is AUD but no bsb is set
+	ErrBSBRequiredForAUD = "BSB must be set for AUD values"
 	// ErrIBANSwiftNotSet message to return when no iban or swift value set
 	ErrIBANSwiftNotSet = "IBAN/SWIFT values not set"
 	// ErrCurrencyNotSupportedByAccount message to return when the requested
 	// currency is not supported by the bank account
 	ErrCurrencyNotSupportedByAccount = "requested currency is not supported by account"
+)
+
+var (
+	accounts []Account
+	m        sync.Mutex
 )
 
 // Account holds differing bank account details by supported funding
@@ -41,7 +44,3 @@ type Account struct {
 	SupportedCurrencies string  `json:"supportedCurrencies"`
 	SupportedExchanges  string  `json:"supportedExchanges,omitempty"`
 }
-
-// Accounts holds all bank account details
-var Accounts []Account
-var m = &sync.Mutex{}

@@ -1119,7 +1119,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Date(2019, 11, 12, 0, 0, 0, 0, time.UTC)
-	end := start.AddDate(0, 0, 5)
+	end := start.AddDate(0, 0, 2)
 	_, err = f.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
@@ -1133,8 +1133,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Date(2019, 11, 12, 0, 0, 0, 0, time.UTC)
-	end := start.AddDate(0, 0, 5)
-	_, err = f.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneMin)
+	end := start.AddDate(0, 0, 2)
+	_, err = f.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1365,11 +1365,6 @@ func TestGetHistoricTrades(t *testing.T) {
 			t.Fatal(err)
 		}
 		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*15), time.Now())
-		if err != nil {
-			t.Error(err)
-		}
-		// longer term
-		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*60*310), time.Now().Add(-time.Minute*60*300))
 		if err != nil {
 			t.Error(err)
 		}

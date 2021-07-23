@@ -526,7 +526,7 @@ func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderRespons
 	}
 
 	if o.NewClientOrderID != "" {
-		params.Set("newClientOrderID", o.NewClientOrderID)
+		params.Set("newClientOrderId", o.NewClientOrderID)
 	}
 
 	if o.StopPrice != 0 {
@@ -661,6 +661,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 	return &resp.Account, nil
 }
 
+// GetMarginAccount returns account information for margin accounts
 func (b *Binance) GetMarginAccount() (*MarginAccount, error) {
 	var resp MarginAccount
 	params := url.Values{}
@@ -688,6 +689,8 @@ func (b *Binance) SendHTTPRequest(ePath exchange.URL, path string, f request.End
 		Endpoint:      f})
 }
 
+// SendAPIKeyHTTPRequest is a special API request where the api key is
+// appended to the headers without a secret
 func (b *Binance) SendAPIKeyHTTPRequest(ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
 	endpointPath, err := b.API.Endpoints.GetURL(ePath)
 	if err != nil {

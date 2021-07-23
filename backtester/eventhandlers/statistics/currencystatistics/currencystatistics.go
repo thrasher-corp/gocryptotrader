@@ -259,10 +259,14 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 			lowestTime = currTime
 		}
 		if highestPrice < currHigh && highestPrice > 0 {
-			intervals := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[i].GetInterval(), 0)
 			if lowestTime.Equal(highestTime) {
 				// create distinction if the greatest drawdown occurs within the same candle
 				lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
+			}
+			intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[i].GetInterval(), 0)
+			if err != nil {
+				log.Error(log.BackTester, err)
+				continue
 			}
 			swings = append(swings, Swing{
 				Highest: Iteration{
@@ -285,7 +289,14 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 	}
 	if (len(swings) > 0 && swings[len(swings)-1].Lowest.Price != closePrices[len(closePrices)-1].LowPrice()) || swings == nil {
 		// need to close out the final drawdown
-		intervals := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[0].GetInterval(), 0)
+		if lowestTime.Equal(highestTime) {
+			// create distinction if the greatest drawdown occurs within the same candle
+			lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
+		}
+		intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[0].GetInterval(), 0)
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
 		drawdownPercent := 0.0
 		if highestPrice > 0 {
 			drawdownPercent = ((lowestPrice - highestPrice) / highestPrice) * 100

@@ -225,7 +225,7 @@ func (b *Base) Verify() error {
 	}
 
 	// Checking for both ask and bid lengths being zero has been removed and
-	// a warning has been put in place some exchanges e.g. LakeBTC return zero
+	// a warning has been put in place for some exchanges that return zero
 	// level books. In the event that there is a massive liquidity change where
 	// a book dries up, this will still update so we do not traverse potential
 	// incorrect old data.

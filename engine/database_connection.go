@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -16,21 +15,11 @@ import (
 // DatabaseConnectionManagerName is an exported subsystem name
 const DatabaseConnectionManagerName = "database"
 
-var (
-	errDatabaseDisabled = errors.New("database support disabled")
-)
-
 // DatabaseConnectionManager holds the database connection and its status
 type DatabaseConnectionManager struct {
 	started  int32
 	shutdown chan struct{}
-	enabled  bool
-	verbose  bool
-	host     string
-	username string
-	password string
-	database string
-	driver   string
+	cfg      database.Config
 	wg       sync.WaitGroup
 	dbConn   *database.Instance
 }
@@ -43,6 +32,15 @@ func (m *DatabaseConnectionManager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+// GetInstance returns a limited scoped database instance
+func (m *DatabaseConnectionManager) GetInstance() database.IDatabase {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return nil
+	}
+
+	return m.dbConn
+}
+
 // SetupDatabaseConnectionManager creates a new database manager
 func SetupDatabaseConnectionManager(cfg *database.Config) (*DatabaseConnectionManager, error) {
 	if cfg == nil {
@@ -50,13 +48,7 @@ func SetupDatabaseConnectionManager(cfg *database.Config) (*DatabaseConnectionMa
 	}
 	m := &DatabaseConnectionManager{
 		shutdown: make(chan struct{}),
-		enabled:  cfg.Enabled,
-		verbose:  cfg.Verbose,
-		host:     cfg.Host,
-		username: cfg.Username,
-		password: cfg.Password,
-		database: cfg.Database,
-		driver:   cfg.Driver,
+		cfg:      *cfg,
 		dbConn:   database.DB,
 	}
 	err := m.dbConn.SetConfig(cfg)
@@ -65,6 +57,14 @@ func SetupDatabaseConnectionManager(cfg *database.Config) (*DatabaseConnectionMa
 	}
 
 	return m, nil
+}
+
+// IsConnected is an exported check to verify if the database is connected
+func (m *DatabaseConnectionManager) IsConnected() bool {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return false
+	}
+	return m.dbConn.IsConnected()
 }
 
 // Start sets up the database connection manager to maintain a SQL connection
@@ -83,23 +83,23 @@ func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
 
 	log.Debugln(log.DatabaseMgr, "Database manager starting...")
 
-	if m.enabled {
+	if m.cfg.Enabled {
 		m.shutdown = make(chan struct{})
-		switch m.driver {
+		switch m.cfg.Driver {
 		case database.DBPostgreSQL:
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to host %s/%s utilising %s driver\n",
-				m.host,
-				m.database,
-				m.driver)
-			m.dbConn, err = dbpsql.Connect()
+				m.cfg.Host,
+				m.cfg.Database,
+				m.cfg.Driver)
+			m.dbConn, err = dbpsql.Connect(&m.cfg)
 		case database.DBSQLite,
 			database.DBSQLite3:
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to %s utilising %s driver\n",
-				m.database,
-				m.driver)
-			m.dbConn, err = dbsqlite3.Connect()
+				m.cfg.Database,
+				m.cfg.Driver)
+			m.dbConn, err = dbsqlite3.Connect(m.cfg.Database)
 		default:
 			return database.ErrNoDatabaseProvided
 		}
@@ -113,7 +113,7 @@ func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
 		return nil
 	}
 
-	return errDatabaseDisabled
+	return database.ErrDatabaseSupportDisabled
 }
 
 // Stop stops the database manager and closes the connection
@@ -170,7 +170,7 @@ func (m *DatabaseConnectionManager) checkConnection() error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrSubSystemNotStarted)
 	}
-	if !m.enabled {
+	if !m.cfg.Enabled {
 		return database.ErrDatabaseSupportDisabled
 	}
 	if m.dbConn == nil {

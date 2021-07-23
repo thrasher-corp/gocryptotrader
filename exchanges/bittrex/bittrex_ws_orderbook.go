@@ -63,7 +63,7 @@ func (b *Bittrex) ProcessUpdateOB(pair currency.Pair, message *OrderbookUpdateMe
 	})
 }
 
-// UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
+// UpdateLocalOBBuffer updates and returns the most recent iteration of the orderbook
 func (b *Bittrex) UpdateLocalOBBuffer(update *OrderbookUpdateMessage) (bool, error) {
 	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {

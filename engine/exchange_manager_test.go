@@ -65,11 +65,11 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 
 func TestNewExchangeByName(t *testing.T) {
 	m := SetupExchangeManager()
-	exchanges := []string{"binance", "bitfinex", "bitflyer", "bithumb", "bitmex", "bitstamp", "bittrex", "btc markets", "btse", "coinbene", "coinut", "exmo", "coinbasepro", "ftx", "gateio", "gemini", "hitbtc", "huobi", "itbit", "kraken", "lakebtc", "lbank", "localbitcoins", "okcoin international", "okex", "poloniex", "yobit", "zb", "fake"}
+	exchanges := []string{"binance", "bitfinex", "bitflyer", "bithumb", "bitmex", "bitstamp", "bittrex", "btc markets", "btse", "coinbene", "coinut", "exmo", "coinbasepro", "ftx", "gateio", "gemini", "hitbtc", "huobi", "itbit", "kraken", "lbank", "localbitcoins", "okcoin international", "okex", "poloniex", "yobit", "zb", "fake"}
 	for i := range exchanges {
 		exch, err := m.NewExchangeByName(exchanges[i])
 		if err != nil && exchanges[i] != "fake" {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if err == nil {
 			exch.SetDefaults()

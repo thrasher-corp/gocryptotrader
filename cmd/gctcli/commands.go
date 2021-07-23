@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
-	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 )
 
@@ -1347,6 +1347,97 @@ func getOrders(c *cli.Context) error {
 		},
 		StartDate: negateLocalOffset(s),
 		EndDate:   negateLocalOffset(e),
+	})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var getManagedOrdersCommand = &cli.Command{
+	Name:      "getmanagedorders",
+	Usage:     "gets the current orders from the order manager",
+	ArgsUsage: "<exchange> <asset> <pair>",
+	Action:    getManagedOrders,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get orders for",
+		},
+		&cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type to get orders for",
+		},
+		&cli.StringFlag{
+			Name:  "pair",
+			Usage: "the currency pair to get orders for",
+		},
+	},
+}
+
+func getManagedOrders(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "getmanagedorders")
+	}
+
+	var exchangeName string
+	var assetType string
+	var currencyPair string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	var conn *grpc.ClientConn
+	conn, err = setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  exchangeName,
+		AssetType: assetType,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		},
 	})
 	if err != nil {
 		return err
@@ -4058,9 +4149,9 @@ func gctScriptUpload(c *cli.Context) error {
 	return nil
 }
 
-const klineMessage = "%v in seconds supported values are: 15, 60(1min), 180(3min), 300(5min), 600(10min), 900(15min), " +
-	"1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h), 86400(1d), 259200(3d) " +
-	"60480(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)"
+const klineMessage = `interval in seconds. supported values are: 15, 60(1min), 180(3min), 300(5min), 600(10min),
+		900(15min) 1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h),
+		86400(1d), 259200(3d) 604800(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)`
 
 var candleRangeSize, candleGranularity int64
 var getHistoricCandlesCommand = &cli.Command{
@@ -4092,7 +4183,7 @@ var getHistoricCandlesCommand = &cli.Command{
 		&cli.Int64Flag{
 			Name:        "granularity",
 			Aliases:     []string{"g"},
-			Usage:       fmt.Sprintf(klineMessage, "granularity"),
+			Usage:       klineMessage,
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
@@ -4226,7 +4317,7 @@ var getHistoricCandlesExtendedCommand = &cli.Command{
 		&cli.Int64Flag{
 			Name:        "interval",
 			Aliases:     []string{"i"},
-			Usage:       fmt.Sprintf(klineMessage, "interval"),
+			Usage:       klineMessage,
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
@@ -4422,7 +4513,7 @@ var findMissingSavedCandleIntervalsCommand = &cli.Command{
 		&cli.Int64Flag{
 			Name:        "interval",
 			Aliases:     []string{"i"},
-			Usage:       fmt.Sprintf(klineMessage, "interval"),
+			Usage:       klineMessage,
 			Value:       86400,
 			Destination: &candleGranularity,
 		},

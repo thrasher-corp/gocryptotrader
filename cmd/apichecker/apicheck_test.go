@@ -344,22 +344,6 @@ func TestHTMLItBit(t *testing.T) {
 	}
 }
 
-func TestHTMLLakeBTC(t *testing.T) {
-	t.Parallel()
-	data := HTMLScrapingData{TokenData: "div",
-		Key:           "class",
-		Val:           "flash-message",
-		TokenDataEnd:  "h2",
-		TextTokenData: "h1",
-		DateFormat:    "",
-		RegExp:        `APIv\d{1}`,
-		Path:          "https://www.lakebtc.com/s/api_v2"}
-	_, err := htmlScrapeLakeBTC(&data)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestHTMLScrapeExmo(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{RegExp: `Last updated on [\s\S]*, 20\d{2}`,

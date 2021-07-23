@@ -1062,7 +1062,7 @@ func (c *Config) CheckBankAccountConfig() {
 			}
 		}
 	}
-	banking.Accounts = c.BankAccounts
+	banking.SetAccounts(c.BankAccounts...)
 }
 
 // CheckCurrencyConfigValues checks to see if the currency config values are correct or not
@@ -1407,6 +1407,19 @@ func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 		}
 	}
 	return resp, nil
+}
+
+// CheckDataHistoryMonitorConfig ensures the data history config is
+// valid, or sets default values
+func (c *Config) CheckDataHistoryMonitorConfig() {
+	m.Lock()
+	defer m.Unlock()
+	if c.DataHistoryManager.CheckInterval <= 0 {
+		c.DataHistoryManager.CheckInterval = defaultDataHistoryMonitorCheckTimer
+	}
+	if c.DataHistoryManager.MaxJobsPerCycle == 0 {
+		c.DataHistoryManager.MaxJobsPerCycle = defaultMaxJobsPerCycle
+	}
 }
 
 // CheckConnectionMonitorConfig checks and if zero value assigns default values
@@ -1755,6 +1768,7 @@ func (c *Config) CheckConfig() error {
 	}
 
 	c.CheckConnectionMonitorConfig()
+	c.CheckDataHistoryMonitorConfig()
 	c.CheckCommunicationsConfig()
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()

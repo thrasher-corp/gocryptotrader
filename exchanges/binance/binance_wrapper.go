@@ -805,12 +805,13 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		}
 
 		var orderRequest = NewOrderRequest{
-			Symbol:      s.Pair,
-			Side:        sideType,
-			Price:       s.Price,
-			Quantity:    s.Amount,
-			TradeType:   requestParamsOrderType,
-			TimeInForce: timeInForce,
+			Symbol:           s.Pair,
+			Side:             sideType,
+			Price:            s.Price,
+			Quantity:         s.Amount,
+			TradeType:        requestParamsOrderType,
+			TimeInForce:      timeInForce,
+			NewClientOrderID: s.ClientOrderID,
 		}
 		response, err := b.NewOrder(&orderRequest)
 		if err != nil {
@@ -864,14 +865,14 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		default:
 			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
 		}
-		order, err := b.FuturesNewOrder(s.Pair, reqSide,
+		o, err := b.FuturesNewOrder(s.Pair, reqSide,
 			"", oType, "GTC", "",
 			s.ClientOrderID, "", "",
 			s.Amount, s.Price, 0, 0, 0, s.ReduceOnly)
 		if err != nil {
 			return submitOrderResponse, err
 		}
-		submitOrderResponse.OrderID = strconv.FormatInt(order.OrderID, 10)
+		submitOrderResponse.OrderID = strconv.FormatInt(o.OrderID, 10)
 		submitOrderResponse.IsOrderPlaced = true
 	case asset.USDTMarginedFutures:
 		var reqSide string
@@ -1050,6 +1051,7 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 			Amount:         resp.OrigQty,
 			Exchange:       b.Name,
 			ID:             strconv.FormatInt(resp.OrderID, 10),
+			ClientOrderID:  resp.ClientOrderID,
 			Side:           orderSide,
 			Type:           orderType,
 			Pair:           pair,
@@ -1191,17 +1193,18 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				orderSide := order.Side(strings.ToUpper(resp[x].Side))
 				orderType := order.Type(strings.ToUpper(resp[x].Type))
 				orders = append(orders, order.Detail{
-					Amount:      resp[x].OrigQty,
-					Date:        resp[x].Time,
-					Exchange:    b.Name,
-					ID:          strconv.FormatInt(resp[x].OrderID, 10),
-					Side:        orderSide,
-					Type:        orderType,
-					Price:       resp[x].Price,
-					Status:      order.Status(resp[x].Status),
-					Pair:        req.Pairs[i],
-					AssetType:   asset.Spot,
-					LastUpdated: resp[x].UpdateTime,
+					Amount:        resp[x].OrigQty,
+					Date:          resp[x].Time,
+					Exchange:      b.Name,
+					ID:            strconv.FormatInt(resp[x].OrderID, 10),
+					ClientOrderID: resp[x].ClientOrderID,
+					Side:          orderSide,
+					Type:          orderType,
+					Price:         resp[x].Price,
+					Status:        order.Status(resp[x].Status),
+					Pair:          req.Pairs[i],
+					AssetType:     req.AssetType,
+					LastUpdated:   resp[x].UpdateTime,
 				})
 			}
 		case asset.CoinMarginedFutures:
@@ -1522,7 +1525,11 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		Asset:    a,
 		Interval: interval,
 	}
-	dates := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	var candles []CandleStick
 	for x := range dates.Ranges {
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),
@@ -1532,7 +1539,7 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 		}
 
-		candles, err := b.GetSpotKline(&req)
+		candles, err = b.GetSpotKline(&req)
 		if err != nil {
 			return kline.Item{}, err
 		}
@@ -1554,11 +1561,11 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		}
 	}
 
-	err := dates.VerifyResultsHaveData(ret.Candles)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
-
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
