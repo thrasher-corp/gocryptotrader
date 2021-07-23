@@ -37,19 +37,28 @@ Then use `go get` to download the following packages:
 
 ```bash
 go get github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
-go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+go get github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2
 go get google.golang.org/protobuf/cmd/protoc-gen-go
 go get google.golang.org/grpc/cmd/protoc-gen-go-grpc
 ```
 
-This will place three binaries in your `$GOBIN`;
+This will place the following binaries in your `$GOBIN`;
 
 * `protoc-gen-grpc-gateway`
-* `protoc-gen-swagger`
+* `protoc-gen-openapiv2`
 * `protoc-gen-go`
 * `protoc-gen-go-grpc`
 
 Make sure that your `$GOBIN` is in your `$PATH`.
+
+There was a name change we need to address: `protoc-gen-swagger` is
+renamed to `protoc-gen-openapiv2`.  Somewhere in your $PATH add a
+file, named `protoc-gen-swagger`, with the following contents:
+
+```bash
+#!/bin/bash
+/home/d/go/bin/protoc-gen-openapiv2 $@
+```
 
 ## Usage
 
