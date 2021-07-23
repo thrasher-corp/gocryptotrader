@@ -1582,8 +1582,6 @@ func (d *Deribit) GetSettlementHistoryByCurency(currency, settlementType, contin
 
 // SendAuthHTTPRequest sends an authenticated request to deribit api
 func (d *Deribit) SendHTTPAuthRequest(ep exchange.URL, method, path string, data url.Values, result interface{}) error {
-	kee := "" //key here
-	see := "" //secret here
 	endpoint, err := d.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -1600,11 +1598,11 @@ func (d *Deribit) SendHTTPAuthRequest(ep exchange.URL, method, path string, data
 
 	hmac := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(str2Sign),
-		[]byte(see))
+		[]byte(d.API.Credentials.Secret))
 
 	headers := make(map[string]string)
 	headerString := fmt.Sprintf("deri-hmac-sha256 id=%s,ts=%s,sig=%s,nonce=%s",
-		kee,
+		d.API.Credentials.Key,
 		strTS,
 		crypto.HexEncodeToString(hmac),
 		n)
