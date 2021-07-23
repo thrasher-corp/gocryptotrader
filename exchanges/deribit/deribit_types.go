@@ -119,7 +119,7 @@ type SettlementsData struct {
 		Funded            float64 `json:"funded"`
 		Funding           float64 `json:"funding"`
 		IndexPrice        float64 `json:"index_price"`
-		SessionBankruptcy  float64 `json:"session_bankrupcy"`
+		SessionBankruptcy float64 `json:"session_bankrupcy"` // nolint // deribit spelling
 		SessionTax        float64 `json:"session_tax"`
 		SessionTaxRate    float64 `json:"session_tax_rate"`
 		Socialized        float64 `json:"socialized"`
