@@ -129,51 +129,6 @@ func (d *Deribit) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	d.SetupDefaults(exch)
-
-	/*
-		wsRunningEndpoint, err := d.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if err != nil {
-			return err
-		}
-
-		// If websocket is supported, please fill out the following
-
-		err = d.Websocket.Setup(
-			&stream.WebsocketSetup{
-				Enabled:                          exch.Features.Enabled.Websocket,
-				Verbose:                          exch.Verbose,
-				AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-				WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-				DefaultURL:                       deribitWSAPIURL,
-				ExchangeName:                     exch.Name,
-				RunningURL:                       wsRunningEndpoint,
-				Connector:                        d.WsConnect,
-				Subscriber:                       d.Subscribe,
-				UnSubscriber:                     d.Unsubscribe,
-				Features:                         &d.Features.Supports.WebsocketCapabilities,
-			})
-		if err != nil {
-			return err
-		}
-
-		d.WebsocketConn = &stream.WebsocketConnection{
-			ExchangeName:         d.Name,
-			URL:                  d.Websocket.GetWebsocketURL(),
-			ProxyURL:             d.Websocket.GetProxyAddress(),
-			Verbose:              d.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-
-		// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
-		d.Websocket.Orderbook.Setup(
-			exch.OrderbookConfig.WebsocketBufferLimit,
-			true,
-			true,
-			false,
-			false,
-			exch.Name)
-	*/
 	return nil
 }
 

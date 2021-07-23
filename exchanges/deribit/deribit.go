@@ -124,6 +124,9 @@ const (
 	setPasswordForSubAccount          = "/private/set_password_for_subaccount"
 	toggleNotificationsFromSubAccount = "/private/toggle_notifications_from_subaccount"
 	toggleSubAccountLogin             = "/private/toggle_subaccount_login"
+
+	falseStr = "false"
+	trueStr  = "true"
 )
 
 // Start implementing public and private exchange API funcs below
@@ -252,9 +255,9 @@ func (d *Deribit) GetInstrumentsData(currency, kind string, expired bool) ([]Ins
 	if kind != "" {
 		params.Set("kind", kind)
 	}
-	expiredString := "false"
+	expiredString := falseStr
 	if expired {
-		expiredString = "true"
+		expiredString = trueStr
 	}
 	params.Set("expired", expiredString)
 	return resp, d.SendHTTPRequest(exchange.RestFutures,
@@ -323,9 +326,9 @@ func (d *Deribit) GetLastTradesByCurrency(currency, kind, startID, endID, sortin
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	includeOldString := "false"
+	includeOldString := falseStr
 	if includeOld {
-		includeOldString = "true"
+		includeOldString = trueStr
 	}
 	params.Set("include_old", includeOldString)
 	return resp, d.SendHTTPRequest(exchange.RestFutures,
@@ -374,9 +377,9 @@ func (d *Deribit) GetLastTradesByInstrument(instrumentName, startSeq, endSeq, so
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	includeOldString := "false"
+	includeOldString := falseStr
 	if includeOld {
-		includeOldString = "true"
+		includeOldString = trueStr
 	}
 	params.Set("include_old", includeOldString)
 	return resp, d.SendHTTPRequest(exchange.RestFutures,
@@ -435,9 +438,9 @@ func (d *Deribit) GetOrderbookData(instrument string, depth int64) (OBData, erro
 func (d *Deribit) GetTradeVolumes(extended bool) ([]TradeVolumesData, error) {
 	var resp []TradeVolumesData
 	params := url.Values{}
-	extendedStr := "false"
+	extendedStr := falseStr
 	if extended {
-		extendedStr = "true"
+		extendedStr = trueStr
 	}
 	params.Set("extended", extendedStr)
 	return resp, d.SendHTTPRequest(exchange.RestFutures,
@@ -490,7 +493,7 @@ func (d *Deribit) SendHTTPRequest(ep exchange.URL, path string, result interface
 		return err
 	}
 	var data struct {
-		JsonRPC string          `json:"jsonrpc"`
+		JSONRPC string          `json:"jsonrpc"`
 		ID      int64           `json:"id"`
 		Data    json.RawMessage `json:"result"`
 	}
@@ -513,9 +516,9 @@ func (d *Deribit) GetAccountSummary(currency string, extended bool) (AccountSumm
 	var resp AccountSummaryData
 	params := url.Values{}
 	params.Set("currency", currency)
-	extendedStr := "false"
+	extendedStr := falseStr
 	if extended {
-		extendedStr = "true"
+		extendedStr = trueStr
 	}
 	params.Set("extended", extendedStr)
 	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
@@ -693,9 +696,9 @@ func (d *Deribit) CreateAPIKey(maxScope, name string, defaultKey bool) (APIKeyDa
 	if name != "" {
 		params.Set("name", name)
 	}
-	defaultKeyStr := "false"
+	defaultKeyStr := falseStr
 	if defaultKey {
-		defaultKeyStr = "true"
+		defaultKeyStr = trueStr
 	}
 	params.Set("default", defaultKeyStr)
 	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
@@ -793,9 +796,9 @@ func (d *Deribit) GetPosition(instrumentName string) (PositionData, error) {
 func (d *Deribit) GetSubAccounts(withPortfolio bool) ([]SubAccountData, error) {
 	var resp []SubAccountData
 	var params url.Values
-	withPortfolioStr := "false"
+	withPortfolioStr := falseStr
 	if withPortfolio {
-		withPortfolioStr = "true"
+		withPortfolioStr = trueStr
 	}
 	params.Set("with_portfolio", withPortfolioStr)
 	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
@@ -880,7 +883,7 @@ func (d *Deribit) RemoveSubAccount(subAccountID int64) (string, error) {
 	return resp, nil
 }
 
-// ResetAPIKey resets the api key to its defualt settings
+// ResetAPIKey resets the api key to its default settings
 func (d *Deribit) ResetAPIKey(id int64) (APIKeyData, error) {
 	var resp APIKeyData
 	var params url.Values
@@ -960,9 +963,9 @@ func (d *Deribit) ToggleNotificationsFromSubAccount(sid int64, state bool) (stri
 	var resp string
 	var params url.Values
 	params.Set("sid", strconv.FormatInt(sid, 10))
-	notifStateStr := "false"
+	notifStateStr := falseStr
 	if !state {
-		notifStateStr = "true"
+		notifStateStr = trueStr
 	}
 	params.Set("state", notifStateStr)
 	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
@@ -981,9 +984,9 @@ func (d *Deribit) ToggleSubAccountLogin(sid int64, state bool) (string, error) {
 	var resp string
 	var params url.Values
 	params.Set("sid", strconv.FormatInt(sid, 10))
-	notifStateStr := "false"
+	notifStateStr := falseStr
 	if !state {
-		notifStateStr = "true"
+		notifStateStr = trueStr
 	}
 	params.Set("state", notifStateStr)
 	err := d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
@@ -1015,24 +1018,24 @@ func (d *Deribit) SubmitBuy(instrumentName, orderType, label, timeInForce, trigg
 	if maxShow != 0 {
 		params.Set("max_show", strconv.FormatFloat(maxShow, 'f', -1, 64))
 	}
-	postOnlyStr := "false"
+	postOnlyStr := falseStr
 	if postOnly {
-		postOnlyStr = "true"
+		postOnlyStr = trueStr
 	}
 	params.Set("post_only", postOnlyStr)
-	rejectPostOnlyStr := "false"
+	rejectPostOnlyStr := falseStr
 	if rejectPostOnly {
-		rejectPostOnlyStr = "true"
+		rejectPostOnlyStr = trueStr
 	}
 	params.Set("reject_post_only", rejectPostOnlyStr)
-	reduceOnlyStr := "false"
+	reduceOnlyStr := falseStr
 	if reduceOnly {
-		reduceOnlyStr = "true"
+		reduceOnlyStr = trueStr
 	}
 	params.Set("reduce_only", reduceOnlyStr)
-	mmpStr := "false"
+	mmpStr := falseStr
 	if mmp {
-		mmpStr = "true"
+		mmpStr = trueStr
 	}
 	params.Set("mmp", mmpStr)
 	if triggerPrice != 0 {
@@ -1066,24 +1069,24 @@ func (d *Deribit) SubmitSell(instrumentName, orderType, label, timeInForce, trig
 	if maxShow != 0 {
 		params.Set("max_show", strconv.FormatFloat(maxShow, 'f', -1, 64))
 	}
-	postOnlyStr := "false"
+	postOnlyStr := falseStr
 	if postOnly {
-		postOnlyStr = "true"
+		postOnlyStr = trueStr
 	}
 	params.Set("post_only", postOnlyStr)
-	rejectPostOnlyStr := "false"
+	rejectPostOnlyStr := falseStr
 	if rejectPostOnly {
-		rejectPostOnlyStr = "true"
+		rejectPostOnlyStr = trueStr
 	}
 	params.Set("reject_post_only", rejectPostOnlyStr)
-	reduceOnlyStr := "false"
+	reduceOnlyStr := falseStr
 	if reduceOnly {
-		reduceOnlyStr = "true"
+		reduceOnlyStr = trueStr
 	}
 	params.Set("reduce_only", reduceOnlyStr)
-	mmpStr := "false"
+	mmpStr := falseStr
 	if mmp {
-		mmpStr = "true"
+		mmpStr = trueStr
 	}
 	params.Set("mmp", mmpStr)
 	if triggerPrice != 0 {
@@ -1105,24 +1108,24 @@ func (d *Deribit) SubmitEdit(orderID, advanced string, amount, price, triggerPri
 	params := url.Values{}
 	params.Set("order_id", orderID)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	postOnlyStr := "false"
+	postOnlyStr := falseStr
 	if postOnly {
-		postOnlyStr = "true"
+		postOnlyStr = trueStr
 	}
 	params.Set("post_only", postOnlyStr)
-	rejectPostOnlyStr := "false"
+	rejectPostOnlyStr := falseStr
 	if rejectPostOnly {
-		rejectPostOnlyStr = "true"
+		rejectPostOnlyStr = trueStr
 	}
 	params.Set("reject_post_only", rejectPostOnlyStr)
-	reduceOnlyStr := "false"
+	reduceOnlyStr := falseStr
 	if reduceOnly {
-		reduceOnlyStr = "true"
+		reduceOnlyStr = trueStr
 	}
 	params.Set("reduce_only", reduceOnlyStr)
-	mmpStr := "false"
+	mmpStr := falseStr
 	if mmp {
-		mmpStr = "true"
+		mmpStr = trueStr
 	}
 	params.Set("mmp", mmpStr)
 	if triggerPrice != 0 {
@@ -1144,24 +1147,24 @@ func (d *Deribit) EditOrderByLabel(label, instrumentName, advanced string, amoun
 	}
 	params.Set("instrument_name", instrumentName)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	postOnlyStr := "false"
+	postOnlyStr := falseStr
 	if postOnly {
-		postOnlyStr = "true"
+		postOnlyStr = trueStr
 	}
 	params.Set("post_only", postOnlyStr)
-	rejectPostOnlyStr := "false"
+	rejectPostOnlyStr := falseStr
 	if rejectPostOnly {
-		rejectPostOnlyStr = "true"
+		rejectPostOnlyStr = trueStr
 	}
 	params.Set("reject_post_only", rejectPostOnlyStr)
-	reduceOnlyStr := "false"
+	reduceOnlyStr := falseStr
 	if reduceOnly {
-		reduceOnlyStr = "true"
+		reduceOnlyStr = trueStr
 	}
 	params.Set("reduce_only", reduceOnlyStr)
-	mmpStr := "false"
+	mmpStr := falseStr
 	if mmp {
-		mmpStr = "true"
+		mmpStr = trueStr
 	}
 	params.Set("mmp", mmpStr)
 	if triggerPrice != 0 {
@@ -1300,14 +1303,14 @@ func (d *Deribit) GetOrderHistoryByCurrency(currency, kind string, count, offset
 	if offset != 0 {
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
-	includeOldStr := "false"
+	includeOldStr := falseStr
 	if includeOld {
-		includeOldStr = "true"
+		includeOldStr = trueStr
 	}
 	params.Set("include_old", includeOldStr)
-	includeUnfilledStr := "false"
+	includeUnfilledStr := falseStr
 	if includeUnfilled {
-		includeUnfilledStr = "true"
+		includeUnfilledStr = trueStr
 	}
 	params.Set("include_unfilled", includeUnfilledStr)
 	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
@@ -1325,14 +1328,14 @@ func (d *Deribit) GetOrderHistoryByInstrument(instrumentName string, count, offs
 	if offset != 0 {
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
-	includeOldStr := "false"
+	includeOldStr := falseStr
 	if includeOld {
-		includeOldStr = "true"
+		includeOldStr = trueStr
 	}
 	params.Set("include_old", includeOldStr)
-	includeUnfilledStr := "false"
+	includeUnfilledStr := falseStr
 	if includeUnfilled {
-		includeUnfilledStr = "true"
+		includeUnfilledStr = trueStr
 	}
 	params.Set("include_unfilled", includeUnfilledStr)
 	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
@@ -1403,9 +1406,9 @@ func (d *Deribit) GetUserTradesByCurrency(currency, kind, startID, endID, sortin
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	includeOldString := "false"
+	includeOldString := falseStr
 	if includeOld {
-		includeOldString = "true"
+		includeOldString = trueStr
 	}
 	params.Set("include_old", includeOldString)
 
@@ -1455,9 +1458,9 @@ func (d *Deribit) GetUserTradesByInstrument(instrumentName, sorting string, star
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	includeOldString := "false"
+	includeOldString := falseStr
 	if includeOld {
-		includeOldString = "true"
+		includeOldString = trueStr
 	}
 	params.Set("include_old", includeOldString)
 	return resp, d.SendHTTPAuthRequest(exchange.RestFutures, http.MethodGet,
@@ -1610,7 +1613,7 @@ func (d *Deribit) SendHTTPAuthRequest(ep exchange.URL, method, path string, data
 	headers["Content-Type"] = "application/json"
 
 	var tempData struct {
-		JsonRPC string          `json:"jsonrpc"`
+		JSONRPC string          `json:"jsonrpc"`
 		ID      int64           `json:"id"`
 		Data    json.RawMessage `json:"result"`
 	}

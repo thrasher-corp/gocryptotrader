@@ -66,7 +66,7 @@ type FundingChartData struct {
 	} `json:"data"`
 }
 
-//FundingRateHistoryData stores data for funding rate history
+// FundingRateHistoryData stores data for funding rate history
 type FundingRateHistoryData struct {
 	Timestamp      int64   `json:"timestamp"`
 	IndexPrice     float64 `json:"index_price"`
@@ -119,7 +119,7 @@ type SettlementsData struct {
 		Funded            float64 `json:"funded"`
 		Funding           float64 `json:"funding"`
 		IndexPrice        float64 `json:"index_price"`
-		SessionBankrupcy  float64 `json:"session_bankrupcy"`
+		SessionBankruptcy  float64 `json:"session_bankrupcy"`
 		SessionTax        float64 `json:"session_tax"`
 		SessionTaxRate    float64 `json:"session_tax_rate"`
 		Socialized        float64 `json:"socialized"`
