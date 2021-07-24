@@ -947,6 +947,18 @@ message UpdateDataHistoryJobPrerequisiteRequest {
     string prerequisite_job_nickname = 2;
 }
 
+message ModifyOrderRequest {
+    int64 modify_request_id = 1;
+    string exchange = 2;
+    string client_id = 3;
+    double price = 4;
+    double amount = 5;
+}
+
+message ModifyOrderResponse {
+    int64 modify_request_id = 1;
+    bool order_modified = 2;
+}
 
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
