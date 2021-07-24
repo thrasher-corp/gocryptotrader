@@ -2236,6 +2236,31 @@ var cancelAllOrdersCommand = &cli.Command{
 	},
 }
 
+var modifyOrderCommand = &cli.Command{
+	Name:      "modifyorder",
+	Usage:     "modify price and/or amount of a previously submitted order",
+	ArgsUsage: "<exchange> <client_id> <price> <amount>",
+	Action:    modifyOrder,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to submit the order for",
+		},
+		&cli.StringFlag{
+			Name:  "client_id",
+			Usage: "the optional client order ID",
+		},
+		&cli.Float64Flag{
+			Name:  "price",
+			Usage: "the price for the order",
+		},
+		&cli.Float64Flag{
+			Name:  "amount",
+			Usage: "the amount for the order",
+		},
+	},
+}
+
 func cancelAllOrders(c *cli.Context) error {
 	var exchangeName string
 	if c.IsSet("exchange") {
@@ -2266,6 +2291,76 @@ func cancelAllOrders(c *cli.Context) error {
 	}
 
 	jsonOutput(result)
+	return nil
+}
+
+func modifyOrder(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "modifyorder")
+	}
+
+	var exchangeName string
+	var clientID string
+	var price float64
+	var amount float64
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("client_id") {
+		clientID = c.String("client_id")
+	} else {
+		clientID = c.Args().Get(1)
+	}
+
+	if len(clientID) <= 0 {
+		return errors.New("client ID must be specified")
+	}
+
+	if c.IsSet("price") {
+		price = c.Float64("price")
+	} else if c.Args().Get(2) != "" {
+		var err error
+		price, err = strconv.ParseFloat(c.Args().Get(2), 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("amount") {
+		amount = c.Float64("amount")
+	} else if c.Args().Get(3) != "" {
+		var err error
+		amount, err = strconv.ParseFloat(c.Args().Get(3), 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	fmt.Printf("modifyorder: exchange=%s client_id=%s price=%f amount=%f\n",
+		exchangeName, clientID, price, amount)
+
+	// conn, err := setupClient()
+	// if err != nil {
+	// 	return err
+	// }
+	// defer conn.Close()
+	// client := gctrpc.NewGoCryptoTraderClient(conn)
+	// result, err := client.CancelAllOrders(context.Background(), &gctrpc.CancelAllOrdersRequest{
+	// 	Exchange: exchangeName,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
+	// jsonOutput(result)
+
 	return nil
 }
 
