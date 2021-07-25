@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -480,7 +481,9 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, par
 		params = url.Values{}
 	}
 
-	n := b.Requester.GetNonceMilli().String()
+	// This is time window sensitive
+	tnMS := time.Now().UnixNano() / int64(time.Millisecond)
+	n := strconv.FormatInt(tnMS, 10)
 
 	params.Set("endpoint", path)
 	payload := params.Encode()
