@@ -422,11 +422,12 @@ func (b *Bithumb) RequestKRWWithdraw(bank, account string, price int64) (ActionS
 // currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
 // (default value: BTC)
 // units: Order quantity
-func (b *Bithumb) MarketBuyOrder(currency string, units float64) (MarketBuy, error) {
+func (b *Bithumb) MarketBuyOrder(pair currency.Pair, units float64) (MarketBuy, error) {
 	response := MarketBuy{}
 
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(currency))
+	params.Set("order_currency", strings.ToUpper(pair.Base.String()))
+	params.Set("payment_currency", strings.ToUpper(pair.Quote.String()))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 
 	return response,
@@ -438,11 +439,12 @@ func (b *Bithumb) MarketBuyOrder(currency string, units float64) (MarketBuy, err
 // currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
 // (default value: BTC)
 // units: Order quantity
-func (b *Bithumb) MarketSellOrder(currency string, units float64) (MarketSell, error) {
+func (b *Bithumb) MarketSellOrder(pair currency.Pair, units float64) (MarketSell, error) {
 	response := MarketSell{}
 
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(currency))
+	params.Set("order_currency", strings.ToUpper(pair.Base.String()))
+	params.Set("payment_currency", strings.ToUpper(pair.Quote.String()))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 
 	return response,
