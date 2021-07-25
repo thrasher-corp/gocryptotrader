@@ -584,42 +584,44 @@ func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		return nil, err
 	}
 	var orders []order.Detail
-	resp, err := b.GetOrders("", "", "1000", "", "")
-	if err != nil {
-		return nil, err
-	}
-
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range resp.Data {
-		if resp.Data[i].Status != "placed" {
-			continue
+	for x := range req.Pairs {
+		resp, err := b.GetOrders("", "", "1000", "", req.Pairs[x].Base.String())
+		if err != nil {
+			return nil, err
 		}
 
-		orderDate := time.Unix(resp.Data[i].OrderDate, 0)
-		orderDetail := order.Detail{
-			Amount:          resp.Data[i].Units,
-			Exchange:        b.Name,
-			ID:              resp.Data[i].OrderID,
-			Date:            orderDate,
-			Price:           resp.Data[i].Price,
-			RemainingAmount: resp.Data[i].UnitsRemaining,
-			Status:          order.Active,
-			Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
-				resp.Data[i].PaymentCurrency,
-				format.Delimiter),
+		format, err := b.GetPairFormat(asset.Spot, false)
+		if err != nil {
+			return nil, err
 		}
 
-		if resp.Data[i].Type == "bid" {
-			orderDetail.Side = order.Buy
-		} else if resp.Data[i].Type == "ask" {
-			orderDetail.Side = order.Sell
-		}
+		for i := range resp.Data {
+			if resp.Data[i].Status != "placed" {
+				continue
+			}
 
-		orders = append(orders, orderDetail)
+			orderDate := time.Unix(resp.Data[i].OrderDate, 0)
+			orderDetail := order.Detail{
+				Amount:          resp.Data[i].Units,
+				Exchange:        b.Name,
+				ID:              resp.Data[i].OrderID,
+				Date:            orderDate,
+				Price:           resp.Data[i].Price,
+				RemainingAmount: resp.Data[i].UnitsRemaining,
+				Status:          order.Active,
+				Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
+					resp.Data[i].PaymentCurrency,
+					format.Delimiter),
+			}
+
+			if resp.Data[i].Type == "bid" {
+				orderDetail.Side = order.Buy
+			} else if resp.Data[i].Type == "ask" {
+				orderDetail.Side = order.Sell
+			}
+
+			orders = append(orders, orderDetail)
+		}
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
@@ -636,41 +638,43 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	}
 
 	var orders []order.Detail
-	resp, err := b.GetOrders("", "", "1000", "", "")
-	if err != nil {
-		return nil, err
-	}
-
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range resp.Data {
-		if resp.Data[i].Status == "placed" {
-			continue
+	for x := range req.Pairs {
+		resp, err := b.GetOrders("", "", "1000", "", req.Pairs[x].Base.String())
+		if err != nil {
+			return nil, err
 		}
 
-		orderDate := time.Unix(resp.Data[i].OrderDate, 0)
-		orderDetail := order.Detail{
-			Amount:          resp.Data[i].Units,
-			Exchange:        b.Name,
-			ID:              resp.Data[i].OrderID,
-			Date:            orderDate,
-			Price:           resp.Data[i].Price,
-			RemainingAmount: resp.Data[i].UnitsRemaining,
-			Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
-				resp.Data[i].PaymentCurrency,
-				format.Delimiter),
+		format, err := b.GetPairFormat(asset.Spot, false)
+		if err != nil {
+			return nil, err
 		}
 
-		if resp.Data[i].Type == "bid" {
-			orderDetail.Side = order.Buy
-		} else if resp.Data[i].Type == "ask" {
-			orderDetail.Side = order.Sell
-		}
+		for i := range resp.Data {
+			if resp.Data[i].Status == "placed" {
+				continue
+			}
 
-		orders = append(orders, orderDetail)
+			orderDate := time.Unix(resp.Data[i].OrderDate, 0)
+			orderDetail := order.Detail{
+				Amount:          resp.Data[i].Units,
+				Exchange:        b.Name,
+				ID:              resp.Data[i].OrderID,
+				Date:            orderDate,
+				Price:           resp.Data[i].Price,
+				RemainingAmount: resp.Data[i].UnitsRemaining,
+				Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
+					resp.Data[i].PaymentCurrency,
+					format.Delimiter),
+			}
+
+			if resp.Data[i].Type == "bid" {
+				orderDetail.Side = order.Buy
+			} else if resp.Data[i].Type == "ask" {
+				orderDetail.Side = order.Sell
+			}
+
+			orders = append(orders, orderDetail)
+		}
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)

@@ -263,8 +263,14 @@ func (b *Bithumb) GetLastTransaction() (LastTransactionTicker, error) {
 // (2014-11-28 16:40:01 = 1417160401000)
 func (b *Bithumb) GetOrders(orderID, transactionType, count, after, currency string) (Orders, error) {
 	response := Orders{}
-
 	params := url.Values{}
+
+	if currency == "" {
+		return response, errors.New("order currency is required")
+	}
+
+	params.Set("order_currency", strings.ToUpper(currency))
+
 	if len(orderID) > 0 {
 		params.Set("order_id", orderID)
 	}
@@ -279,10 +285,6 @@ func (b *Bithumb) GetOrders(orderID, transactionType, count, after, currency str
 
 	if len(after) > 0 {
 		params.Set("after", after)
-	}
-
-	if len(currency) > 0 {
-		params.Set("currency", strings.ToUpper(currency))
 	}
 
 	return response,
