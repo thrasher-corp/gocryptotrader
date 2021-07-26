@@ -196,7 +196,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		updated = true
 	}
 	if updated {
-		if d.LastUpdated == m.LastUpdated {
+		if d.LastUpdated.Equal(m.LastUpdated) {
 			d.LastUpdated = time.Now()
 		} else {
 			d.LastUpdated = m.LastUpdated
@@ -351,7 +351,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		updated = true
 	}
 	if updated {
-		if d.LastUpdated == m.LastUpdated {
+		if d.LastUpdated.Equal(m.LastUpdated) {
 			d.LastUpdated = time.Now()
 		} else {
 			d.LastUpdated = m.LastUpdated
