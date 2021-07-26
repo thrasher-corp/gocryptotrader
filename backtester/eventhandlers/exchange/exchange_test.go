@@ -429,7 +429,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		Base:      ev,
 		Direction: gctorder.Sell,
 		Amount:    0.02,
-		Funds:     0.0001337,
+		Funds:     0.01337,
 	}
 	cs.SellSide.MaximumSize = 0
 	cs.SellSide.MinimumSize = 0.01
