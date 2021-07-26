@@ -307,6 +307,7 @@ func (b *Bithumb) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 
 	info.Accounts = append(info.Accounts, account.SubAccount{
 		Currencies: exchangeBalances,
+		AssetType:  assetType,
 	})
 
 	info.Exchange = b.Name
