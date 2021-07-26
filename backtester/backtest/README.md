@@ -31,7 +31,7 @@ It is responsible for the following functionality
 
 
 A flow of the application is as follows:
-![workflow](https://user-images.githubusercontent.com/9261323/104982257-61d97900-5a5e-11eb-930e-3b431d6e6bab.png)
+![workflow](https://i.imgur.com/Kup6IA9.png)
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
