@@ -2237,26 +2237,37 @@ var cancelAllOrdersCommand = &cli.Command{
 }
 
 var modifyOrderCommand = &cli.Command{
-	Name:      "modifyorder",
-	Usage:     "modify price and/or amount of a previously submitted order",
-	ArgsUsage: "<exchange> <client_id> <price> <amount>",
-	Action:    modifyOrder,
+	Name:   "modifyorder",
+	Usage:  "modify price and/or amount of a previously submitted order",
+	Action: modifyOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to submit the order for",
+			Name:     "exchange",
+			Required: true,
+			Usage:    "exchange this order is submitted to",
 		},
 		&cli.StringFlag{
-			Name:  "client_id",
-			Usage: "the optional client order ID",
+			Name:     "asset",
+			Required: true,
+			Usage:    "required asset type",
+		},
+		&cli.StringFlag{
+			Name:     "pair",
+			Required: true,
+			Usage:    "required trading pair",
+		},
+		&cli.StringFlag{
+			Name:     "order_id",
+			Required: true,
+			Usage:    "id of the order to be modified",
 		},
 		&cli.Float64Flag{
 			Name:  "price",
-			Usage: "the price for the order",
+			Usage: "new order price",
 		},
 		&cli.Float64Flag{
 			Name:  "amount",
-			Usage: "the amount for the order",
+			Usage: "new order amount",
 		},
 	},
 }
@@ -2299,51 +2310,63 @@ func modifyOrder(c *cli.Context) error {
 		return cli.ShowCommandHelp(c, "modifyorder")
 	}
 
+	// Parse positional arguments.
 	var exchangeName string
-	var clientID string
-	var price float64
-	var amount float64
+	var orderID string
+	var currencyPair string
+	var assetType string
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
-
 	if !validExchange(exchangeName) {
 		return errInvalidExchange
 	}
 
-	if c.IsSet("client_id") {
-		clientID = c.String("client_id")
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
 	} else {
-		clientID = c.Args().Get(1)
+		assetType = c.Args().Get(1)
+	}
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
 	}
 
-	if len(clientID) <= 0 {
-		return errors.New("client ID must be specified")
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
 	}
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	if c.IsSet("order_id") {
+		orderID = c.String("order_id")
+	} else {
+		orderID = c.Args().Get(3)
+	}
+
+	// Parse optional flags.
+	var price float64
+	var amount float64
 
 	if c.IsSet("price") {
 		price = c.Float64("price")
-	} else if c.Args().Get(2) != "" {
-		var err error
-		price, err = strconv.ParseFloat(c.Args().Get(2), 64)
-		if err != nil {
-			return err
-		}
 	}
-
 	if c.IsSet("amount") {
 		amount = c.Float64("amount")
-	} else if c.Args().Get(3) != "" {
-		var err error
-		amount, err = strconv.ParseFloat(c.Args().Get(3), 64)
-		if err != nil {
-			return err
-		}
 	}
 
+	// Setup gRPC, make a request and display response.
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -2353,9 +2376,15 @@ func modifyOrder(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.ModifyOrder(context.Background(), &gctrpc.ModifyOrderRequest{
 		Exchange: exchangeName,
-		ClientId: clientID,
-		Price:    price,
-		Amount:   amount,
+		OrderId:  orderID,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		},
+		Asset:  assetType,
+		Price:  price,
+		Amount: amount,
 	})
 	if err != nil {
 		return err
