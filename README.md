@@ -188,3 +188,5 @@ Binaries will be published once the codebase reaches a stable condition.
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
 | [Daanikus](https://github.com/Daanikus) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
+| [blombard](https://github.com/blombard) | 1 |
+| [tk42](https://github.com/tk42) | 2 |
