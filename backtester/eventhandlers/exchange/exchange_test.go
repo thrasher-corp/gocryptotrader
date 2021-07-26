@@ -463,9 +463,17 @@ func TestReduceAmountToFitPortfolioLimit(t *testing.T) {
 	portfolioAdjustedTotal := initialAmount * initialPrice
 	adjustedPrice := 1000.0
 	amount := 2.0
-	finalAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, portfolioAdjustedTotal)
+	finalAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, portfolioAdjustedTotal, gctorder.Buy)
 	if finalAmount*adjustedPrice != portfolioAdjustedTotal {
 		t.Errorf("expected value %v to match portfolio total %v", finalAmount*adjustedPrice, portfolioAdjustedTotal)
+	}
+	finalAmount = reduceAmountToFitPortfolioLimit(adjustedPrice, 133333333337, portfolioAdjustedTotal, gctorder.Sell)
+	if finalAmount != portfolioAdjustedTotal {
+		t.Errorf("expected value %v to match portfolio total %v", finalAmount, portfolioAdjustedTotal)
+	}
+	finalAmount = reduceAmountToFitPortfolioLimit(adjustedPrice, 1, portfolioAdjustedTotal, gctorder.Sell)
+	if finalAmount != 1 {
+		t.Errorf("expected value %v to match portfolio total %v", finalAmount, portfolioAdjustedTotal)
 	}
 }
 

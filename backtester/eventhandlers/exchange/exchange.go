@@ -86,12 +86,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		}
 	}
 
-	var portfolioLimitedAmount = amount
-	if f.GetDirection() == gctorder.Buy {
-		portfolioLimitedAmount = reduceAmountToFitPortfolioLimit(adjustedPrice, amount, o.GetFunds())
-		if portfolioLimitedAmount != amount {
-			f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within portfolio limits", amount, portfolioLimitedAmount))
-		}
+	portfolioLimitedAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, o.GetFunds(), f.GetDirection())
+	if portfolioLimitedAmount != amount {
+		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within portfolio limits", amount, portfolioLimitedAmount))
 	}
 
 	limitReducedAmount := portfolioLimitedAmount
@@ -185,11 +182,18 @@ func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount float64, cs *Setti
 	return nil
 }
 
-func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal float64) float64 {
-	if adjustedPrice*amount > sizedPortfolioTotal {
-		// adjusted amounts exceeds portfolio manager's allowed funds
-		// the amount has to be reduced to equal the sizedPortfolioTotal
-		amount = sizedPortfolioTotal / adjustedPrice
+func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal float64, side gctorder.Side) float64 {
+	switch side {
+	case gctorder.Buy:
+		if adjustedPrice*amount > sizedPortfolioTotal {
+			// adjusted amounts exceeds portfolio manager's allowed funds
+			// the amount has to be reduced to equal the sizedPortfolioTotal
+			amount = sizedPortfolioTotal / adjustedPrice
+		}
+	case gctorder.Sell:
+		if amount > sizedPortfolioTotal {
+			amount = sizedPortfolioTotal
+		}
 	}
 	return amount
 }
