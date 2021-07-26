@@ -51,15 +51,6 @@ This will place the following binaries in your `$GOBIN`;
 
 Make sure that your `$GOBIN` is in your `$PATH`.
 
-There was a name change we need to address: `protoc-gen-swagger` is
-renamed to `protoc-gen-openapiv2`.  Somewhere in your $PATH add a
-file, named `protoc-gen-swagger`, with the following contents:
-
-```bash
-#!/bin/bash
-/home/d/go/bin/protoc-gen-openapiv2 $@
-```
-
 ## Usage
 
 After the above dependencies are required, make necessary changes to the `rpc.proto`
