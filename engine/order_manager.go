@@ -284,6 +284,30 @@ func (m *OrderManager) validate(newOrder *order.Submit) error {
 	return nil
 }
 
+// Modify depends on the order.Modify.ID and order.Modify.Exchange fields to uniquely
+// identify an order to modify.
+func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) {
+	if m == nil {
+		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+	}
+
+	exch := m.orderStore.exchangeManager.GetExchangeByName(mod.Exchange)
+	if exch == nil {
+		return nil, ErrExchangeNotFound
+	}
+
+	id, err := exch.ModifyOrder(mod)
+	if err != nil {
+		return nil, err
+	} else {
+		// TODO: Update state!
+	}
+	return &order.ModifyResponse{OrderID: id}, nil
+}
+
 // Submit will take in an order struct, send it to the exchange and
 // populate it in the OrderManager if successful
 func (m *OrderManager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, error) {
@@ -653,6 +677,8 @@ func (s *store) updateExisting(od *order.Detail) error {
 	return ErrOrderNotFound
 }
 
+// upsert (1) checks if such an exchange exists in the exchangeManager, (2) checks if
+// order exists and updates/creates it.
 func (s *store) upsert(od *order.Detail) error {
 	lName := strings.ToLower(od.Exchange)
 	exch := s.exchangeManager.GetExchangeByName(lName)
