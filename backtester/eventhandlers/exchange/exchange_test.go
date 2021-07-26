@@ -522,5 +522,4 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
-
 }
