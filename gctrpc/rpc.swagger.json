@@ -2133,33 +2133,50 @@
         },
         "parameters": [
           {
-            "name": "modifyRequestId",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "int64"
-          },
-          {
             "name": "exchange",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "clientId",
+            "name": "orderId",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "price",
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "amount",
             "in": "query",
             "required": false,
             "type": "number",
             "format": "double"
           },
           {
-            "name": "amount",
+            "name": "price",
             "in": "query",
             "required": false,
             "type": "number",
@@ -4093,12 +4110,8 @@
     "gctrpcModifyOrderResponse": {
       "type": "object",
       "properties": {
-        "modifyRequestId": {
-          "type": "string",
-          "format": "int64"
-        },
-        "orderModified": {
-          "type": "boolean"
+        "modifiedOrderId": {
+          "type": "string"
         }
       }
     },

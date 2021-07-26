@@ -948,16 +948,16 @@ message UpdateDataHistoryJobPrerequisiteRequest {
 }
 
 message ModifyOrderRequest {
-    int64 modify_request_id = 1;
-    string exchange = 2;
-    string client_id = 3;
-    double price = 4;
+    string exchange = 1;
+    string order_id = 2;
+    CurrencyPair pair = 3;
+    string asset = 4;
     double amount = 5;
+    double price = 6;
 }
 
 message ModifyOrderResponse {
-    int64 modify_request_id = 1;
-    bool order_modified = 2;
+    string modified_order_id = 1;
 }
 
 service GoCryptoTrader {
