@@ -2344,23 +2344,24 @@ func modifyOrder(c *cli.Context) error {
 		}
 	}
 
-	fmt.Printf("modifyorder: exchange=%s client_id=%s price=%f amount=%f\n",
-		exchangeName, clientID, price, amount)
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
-	// conn, err := setupClient()
-	// if err != nil {
-	// 	return err
-	// }
-	// defer conn.Close()
-	// client := gctrpc.NewGoCryptoTraderClient(conn)
-	// result, err := client.CancelAllOrders(context.Background(), &gctrpc.CancelAllOrdersRequest{
-	// 	Exchange: exchangeName,
-	// })
-	// if err != nil {
-	// 	return err
-	// }
-	// jsonOutput(result)
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.ModifyOrder(context.Background(), &gctrpc.ModifyOrderRequest{
+		Exchange: exchangeName,
+		ClientId: clientID,
+		Price:    price,
+		Amount:   amount,
+	})
+	if err != nil {
+		return err
+	}
 
+	jsonOutput(result)
 	return nil
 }
 
