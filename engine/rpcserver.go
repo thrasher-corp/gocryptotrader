@@ -1361,6 +1361,36 @@ func (s *RPCServer) CancelAllOrders(_ context.Context, r *gctrpc.CancelAllOrders
 	}, nil
 }
 
+func (s *RPCServer) ModifyOrder(_ context.Context, r *gctrpc.ModifyOrderRequest) (*gctrpc.ModifyOrderResponse, error) {
+	assetType, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	pair := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+
+	mod := order.Modify{
+		Exchange:  r.Exchange,
+		AssetType: assetType,
+		Pair:      pair,
+		ID:        r.OrderId,
+
+		Amount: r.Amount,
+		Price:  r.Price,
+	}
+	resp, err := s.OrderManager.Modify(&mod)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.ModifyOrderResponse{
+		ModifiedOrderId: resp.OrderID,
+	}, nil
+}
+
 // GetEvents returns the stored events list
 func (s *RPCServer) GetEvents(_ context.Context, _ *gctrpc.GetEventsRequest) (*gctrpc.GetEventsResponse, error) {
 	return &gctrpc.GetEventsResponse{}, common.ErrNotYetImplemented
