@@ -1512,4 +1512,9 @@ service GoCryptoTrader {
             body: "*"
         };
     }
+    rpc ModifyOrder (ModifyOrderRequest) returns (ModifyOrderResponse) {
+        option (google.api.http) = {
+            get: "/v1/modifyorder"
+        };
+    }
 }

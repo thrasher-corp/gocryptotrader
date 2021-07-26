@@ -2114,6 +2114,63 @@
         ]
       }
     },
+    "/v1/modifyorder": {
+      "get": {
+        "operationId": "GoCryptoTrader_ModifyOrder",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcModifyOrderResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "modifyRequestId",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "price",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "amount",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/removeevent": {
       "post": {
         "operationId": "GoCryptoTrader_RemoveEvent",
@@ -4030,6 +4087,18 @@
           "items": {
             "$ref": "#/definitions/gctrpcTickers"
           }
+        }
+      }
+    },
+    "gctrpcModifyOrderResponse": {
+      "type": "object",
+      "properties": {
+        "modifyRequestId": {
+          "type": "string",
+          "format": "int64"
+        },
+        "orderModified": {
+          "type": "boolean"
         }
       }
     },
