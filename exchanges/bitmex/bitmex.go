@@ -807,35 +807,22 @@ func (b *Bitmex) SendHTTPRequest(ep exchange.URL, path string, params Parameter,
 		return err
 	}
 	path = endpoint + path
-	if params != nil {
-		var encodedPath string
-		if !params.IsNil() {
-			encodedPath, err = params.ToURLVals(path)
-			if err != nil {
-				return err
-			}
-			err = b.SendPayload(context.Background(), &request.Item{
-				Method:        http.MethodGet,
-				Path:          encodedPath,
-				Result:        &respCheck,
-				Verbose:       b.Verbose,
-				HTTPDebugging: b.HTTPDebugging,
-				HTTPRecording: b.HTTPRecording,
-			})
-			if err != nil {
-				return err
-			}
-			return b.CaptureError(respCheck, result)
+	if params != nil && !params.IsNil() {
+		path, err = params.ToURLVals(path)
+		if err != nil {
+			return err
 		}
 	}
 
-	err = b.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          path,
-		Result:        &respCheck,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
+	err = b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          path,
+			Result:        &respCheck,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	})
 	if err != nil {
 		return err
@@ -887,17 +874,19 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ep exchange.URL, verb, path string
 
 	ctx, cancel := context.WithDeadline(context.Background(), expires)
 	defer cancel()
-	err = b.SendPayload(ctx, &request.Item{
-		Method:        verb,
-		Path:          endpoint + path,
-		Headers:       headers,
-		Body:          bytes.NewBuffer([]byte(payload)),
-		Result:        &respCheck,
-		AuthRequest:   true,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-		Endpoint:      request.Auth,
+	fullPath := endpoint + path
+	err = b.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        verb,
+			Path:          fullPath,
+			Headers:       headers,
+			Body:          bytes.NewBuffer([]byte(payload)),
+			Result:        &respCheck,
+			AuthRequest:   true,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	})
 	if err != nil {
 		return err

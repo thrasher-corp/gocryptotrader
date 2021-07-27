@@ -958,13 +958,15 @@ func (k *Kraken) SendHTTPRequest(ep exchange.URL, path string, result interface{
 	if err != nil {
 		return err
 	}
-	return k.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       k.Verbose,
-		HTTPDebugging: k.HTTPDebugging,
-		HTTPRecording: k.HTTPRecording,
+	return k.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          endpoint + path,
+			Result:        result,
+			Verbose:       k.Verbose,
+			HTTPDebugging: k.HTTPDebugging,
+			HTTPRecording: k.HTTPRecording,
+		}, nil
 	})
 }
 
@@ -979,37 +981,40 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 	}
 	path := fmt.Sprintf("/%s/private/%s", krakenAPIVersion, method)
 
-	params.Set("nonce", k.Requester.GetNonce(true).String())
-	encoded := params.Encode()
-	shasum := crypto.GetSHA256([]byte(params.Get("nonce") + encoded))
-	signature := crypto.Base64Encode(crypto.GetHMAC(crypto.HashSHA512,
-		append([]byte(path), shasum...), []byte(k.API.Credentials.Secret)))
-
-	if k.Verbose {
-		log.Debugf(log.ExchangeSys, "Sending POST request to %s, path: %s, params: %s",
-			endpoint,
-			path,
-			encoded)
-	}
-
-	headers := make(map[string]string)
-	headers["API-Key"] = k.API.Credentials.Key
-	headers["API-Sign"] = signature
-
 	interim := json.RawMessage{}
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute))
 	defer cancel()
-	err = k.SendPayload(ctx, &request.Item{
-		Method:        http.MethodPost,
-		Path:          endpoint + path,
-		Headers:       headers,
-		Body:          strings.NewReader(encoded),
-		Result:        &interim,
-		AuthRequest:   true,
-		NonceEnabled:  true,
-		Verbose:       k.Verbose,
-		HTTPDebugging: k.HTTPDebugging,
-		HTTPRecording: k.HTTPRecording,
+	err = k.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		nonce := k.Requester.GetNonce(true).String()
+		params.Set("nonce", nonce)
+		encoded := params.Encode()
+		shasum := crypto.GetSHA256([]byte(nonce + encoded))
+		signature := crypto.Base64Encode(crypto.GetHMAC(crypto.HashSHA512,
+			append([]byte(path), shasum...), []byte(k.API.Credentials.Secret)))
+
+		if k.Verbose {
+			log.Debugf(log.ExchangeSys, "Sending POST request to %s, path: %s, params: %s",
+				endpoint,
+				path,
+				encoded)
+		}
+
+		headers := make(map[string]string)
+		headers["API-Key"] = k.API.Credentials.Key
+		headers["API-Sign"] = signature
+
+		return &request.Item{
+			Method:        http.MethodPost,
+			Path:          endpoint + path,
+			Headers:       headers,
+			Body:          strings.NewReader(encoded),
+			Result:        &interim,
+			AuthRequest:   true,
+			NonceEnabled:  true,
+			Verbose:       k.Verbose,
+			HTTPDebugging: k.HTTPDebugging,
+			HTTPRecording: k.HTTPRecording,
+		}, nil
 	})
 	if err != nil {
 		return err

@@ -269,13 +269,15 @@ func (y *Yobit) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 	if err != nil {
 		return err
 	}
-	return y.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       y.Verbose,
-		HTTPDebugging: y.HTTPDebugging,
-		HTTPRecording: y.HTTPRecording,
+	return y.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          endpoint + path,
+			Result:        result,
+			Verbose:       y.Verbose,
+			HTTPDebugging: y.HTTPDebugging,
+			HTTPRecording: y.HTTPRecording,
+		}, nil
 	})
 }
 
@@ -292,37 +294,39 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, param
 		params = url.Values{}
 	}
 
-	n := y.Requester.GetNonce(false).String()
+	return y.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		n := y.Requester.GetNonce(false).String()
 
-	params.Set("nonce", n)
-	params.Set("method", path)
+		params.Set("nonce", n)
+		params.Set("method", path)
 
-	encoded := params.Encode()
-	hmac := crypto.GetHMAC(crypto.HashSHA512, []byte(encoded), []byte(y.API.Credentials.Secret))
+		encoded := params.Encode()
+		hmac := crypto.GetHMAC(crypto.HashSHA512, []byte(encoded), []byte(y.API.Credentials.Secret))
 
-	if y.Verbose {
-		log.Debugf(log.ExchangeSys, "Sending POST request to %s calling path %s with params %s\n",
-			endpoint,
-			path,
-			encoded)
-	}
+		if y.Verbose {
+			log.Debugf(log.ExchangeSys, "Sending POST request to %s calling path %s with params %s\n",
+				endpoint,
+				path,
+				encoded)
+		}
 
-	headers := make(map[string]string)
-	headers["Key"] = y.API.Credentials.Key
-	headers["Sign"] = crypto.HexEncodeToString(hmac)
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
+		headers := make(map[string]string)
+		headers["Key"] = y.API.Credentials.Key
+		headers["Sign"] = crypto.HexEncodeToString(hmac)
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return y.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodPost,
-		Path:          endpoint,
-		Headers:       headers,
-		Body:          strings.NewReader(encoded),
-		Result:        result,
-		AuthRequest:   true,
-		NonceEnabled:  true,
-		Verbose:       y.Verbose,
-		HTTPDebugging: y.HTTPDebugging,
-		HTTPRecording: y.HTTPRecording,
+		return &request.Item{
+			Method:        http.MethodPost,
+			Path:          endpoint,
+			Headers:       headers,
+			Body:          strings.NewReader(encoded),
+			Result:        result,
+			AuthRequest:   true,
+			NonceEnabled:  true,
+			Verbose:       y.Verbose,
+			HTTPDebugging: y.HTTPDebugging,
+			HTTPRecording: y.HTTPRecording,
+		}, nil
 	})
 }
 

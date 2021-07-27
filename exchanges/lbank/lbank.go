@@ -504,13 +504,15 @@ func (l *Lbank) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 	if err != nil {
 		return err
 	}
-	return l.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       l.Verbose,
-		HTTPDebugging: l.HTTPDebugging,
-		HTTPRecording: l.HTTPRecording,
+	return l.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          endpoint + path,
+			Result:        result,
+			Verbose:       l.Verbose,
+			HTTPDebugging: l.HTTPDebugging,
+			HTTPRecording: l.HTTPRecording,
+		}, nil
 	})
 }
 
@@ -574,15 +576,17 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return l.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          endpoint,
-		Headers:       headers,
-		Body:          bytes.NewBufferString(payload),
-		Result:        result,
-		AuthRequest:   true,
-		Verbose:       l.Verbose,
-		HTTPDebugging: l.HTTPDebugging,
-		HTTPRecording: l.HTTPRecording,
+	return l.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        method,
+			Path:          endpoint,
+			Headers:       headers,
+			Body:          bytes.NewBufferString(payload),
+			Result:        result,
+			AuthRequest:   true,
+			Verbose:       l.Verbose,
+			HTTPDebugging: l.HTTPDebugging,
+			HTTPRecording: l.HTTPRecording,
+		}, nil
 	})
 }

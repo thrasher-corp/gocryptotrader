@@ -525,14 +525,15 @@ func (h *HitBTC) SendHTTPRequest(ep exchange.URL, path string, result interface{
 	if err != nil {
 		return err
 	}
-	return h.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       h.Verbose,
-		HTTPDebugging: h.HTTPDebugging,
-		HTTPRecording: h.HTTPRecording,
-		Endpoint:      marketRequests,
+	return h.SendPayload(context.Background(), marketRequests, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          endpoint + path,
+			Result:        result,
+			Verbose:       h.Verbose,
+			HTTPDebugging: h.HTTPDebugging,
+			HTTPRecording: h.HTTPRecording,
+		}, nil
 	})
 }
 
@@ -550,17 +551,18 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint 
 
 	path := fmt.Sprintf("%s/%s", ePoint, endpoint)
 
-	return h.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          path,
-		Headers:       headers,
-		Body:          bytes.NewBufferString(values.Encode()),
-		Result:        result,
-		AuthRequest:   true,
-		Verbose:       h.Verbose,
-		HTTPDebugging: h.HTTPDebugging,
-		HTTPRecording: h.HTTPRecording,
-		Endpoint:      f,
+	return h.SendPayload(context.Background(), f, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        method,
+			Path:          path,
+			Headers:       headers,
+			Body:          bytes.NewBufferString(values.Encode()),
+			Result:        result,
+			AuthRequest:   true,
+			Verbose:       h.Verbose,
+			HTTPDebugging: h.HTTPDebugging,
+			HTTPRecording: h.HTTPRecording,
+		}, nil
 	})
 }
 

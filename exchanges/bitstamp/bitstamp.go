@@ -598,13 +598,16 @@ func (b *Bitstamp) SendHTTPRequest(ep exchange.URL, path string, result interfac
 	if err != nil {
 		return err
 	}
-	return b.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
+	fullPath := endpoint + path
+	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          fullPath,
+			Result:        result,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	})
 }
 
@@ -617,59 +620,60 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, v2
 	if err != nil {
 		return err
 	}
-	n := b.Requester.GetNonce(true).String()
 
 	if values == nil {
 		values = url.Values{}
 	}
 
-	values.Set("key", b.API.Credentials.Key)
-	values.Set("nonce", n)
-	hmac := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(n+b.API.Credentials.ClientID+b.API.Credentials.Key),
-		[]byte(b.API.Credentials.Secret))
-	values.Set("signature", strings.ToUpper(crypto.HexEncodeToString(hmac)))
-
-	if v2 {
-		path = endpoint + "/v" + bitstampAPIVersion + "/" + path + "/"
-	} else {
-		path = endpoint + "/" + path + "/"
-	}
-
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "Sending POST request to "+path)
-	}
-
-	headers := make(map[string]string)
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
-
-	encodedValues := values.Encode()
-	readerValues := bytes.NewBufferString(encodedValues)
-
 	interim := json.RawMessage{}
+	err = b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		n := b.Requester.GetNonce(true).String()
+
+		values.Set("key", b.API.Credentials.Key)
+		values.Set("nonce", n)
+		hmac := crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(n+b.API.Credentials.ClientID+b.API.Credentials.Key),
+			[]byte(b.API.Credentials.Secret))
+		values.Set("signature", strings.ToUpper(crypto.HexEncodeToString(hmac)))
+
+		if v2 {
+			path = endpoint + "/v" + bitstampAPIVersion + "/" + path + "/"
+		} else {
+			path = endpoint + "/" + path + "/"
+		}
+
+		if b.Verbose {
+			log.Debugf(log.ExchangeSys, "Sending POST request to "+path)
+		}
+
+		headers := make(map[string]string)
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+		encodedValues := values.Encode()
+		readerValues := bytes.NewBufferString(encodedValues)
+
+		return &request.Item{
+			Method:        http.MethodPost,
+			Path:          path,
+			Headers:       headers,
+			Body:          readerValues,
+			Result:        &interim,
+			AuthRequest:   true,
+			NonceEnabled:  true,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording,
+		}, nil
+	})
+	if err != nil {
+		return err
+	}
 
 	errCap := struct {
 		Error  string      `json:"error"`
 		Status string      `json:"status"`
 		Reason interface{} `json:"reason"`
 	}{}
-
-	err = b.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodPost,
-		Path:          path,
-		Headers:       headers,
-		Body:          readerValues,
-		Result:        &interim,
-		AuthRequest:   true,
-		NonceEnabled:  true,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-	})
-	if err != nil {
-		return err
-	}
-
 	if err := json.Unmarshal(interim, &errCap); err == nil {
 		if errCap.Error != "" {
 			return errors.New(errCap.Error)

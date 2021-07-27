@@ -678,13 +678,14 @@ func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, r
 		path = path + "?" + v.Encode()
 	}
 
-	return c.Requester.SendPayload(context.Background(), &request.Item{
-		Method:  method,
-		Path:    path,
-		Headers: headers,
-		Body:    strings.NewReader(""),
-		Result:  result,
-		Verbose: c.Verbose})
+	return c.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:  method,
+			Path:    path,
+			Headers: headers,
+			Result:  result,
+			Verbose: c.Verbose}, nil
+	})
 }
 
 // CheckAccountPlan checks your current account plan to the minimal account

@@ -218,9 +218,11 @@ func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interfa
 	headers["Authorization"] = "Token " + o.APIKey
 	path := APIURL + endpoint + "?" + values.Encode()
 
-	return o.Requester.SendPayload(context.Background(), &request.Item{
-		Method:  http.MethodGet,
-		Path:    path,
-		Result:  result,
-		Verbose: o.Verbose})
+	return o.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:  http.MethodGet,
+			Path:    path,
+			Result:  result,
+			Verbose: o.Verbose}, nil
+	})
 }

@@ -351,13 +351,15 @@ func (g *Gemini) SendHTTPRequest(ep exchange.URL, path string, result interface{
 	if err != nil {
 		return err
 	}
-	return g.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       g.Verbose,
-		HTTPDebugging: g.HTTPDebugging,
-		HTTPRecording: g.HTTPRecording,
+	return g.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          endpoint + path,
+			Result:        result,
+			Verbose:       g.Verbose,
+			HTTPDebugging: g.HTTPDebugging,
+			HTTPRecording: g.HTTPRecording,
+		}, nil
 	})
 }
 
@@ -373,45 +375,46 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path stri
 		return err
 	}
 
-	req := make(map[string]interface{})
-	req["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
-	req["nonce"] = g.Requester.GetNonce(true).String()
+	return g.SendPayload(context.Background(), request.Auth, func() (*request.Item, error) {
+		req := make(map[string]interface{})
+		req["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
+		req["nonce"] = g.Requester.GetNonce(true).String()
 
-	for key, value := range params {
-		req[key] = value
-	}
+		for key, value := range params {
+			req[key] = value
+		}
 
-	PayloadJSON, err := json.Marshal(req)
-	if err != nil {
-		return errors.New("sendAuthenticatedHTTPRequest: Unable to JSON request")
-	}
+		PayloadJSON, err := json.Marshal(req)
+		if err != nil {
+			return nil, err
+		}
 
-	if g.Verbose {
-		log.Debugf(log.ExchangeSys, "Request JSON: %s", PayloadJSON)
-	}
+		if g.Verbose {
+			log.Debugf(log.ExchangeSys, "Request JSON: %s", PayloadJSON)
+		}
 
-	PayloadBase64 := crypto.Base64Encode(PayloadJSON)
-	hmac := crypto.GetHMAC(crypto.HashSHA512_384, []byte(PayloadBase64), []byte(g.API.Credentials.Secret))
+		PayloadBase64 := crypto.Base64Encode(PayloadJSON)
+		hmac := crypto.GetHMAC(crypto.HashSHA512_384, []byte(PayloadBase64), []byte(g.API.Credentials.Secret))
 
-	headers := make(map[string]string)
-	headers["Content-Length"] = "0"
-	headers["Content-Type"] = "text/plain"
-	headers["X-GEMINI-APIKEY"] = g.API.Credentials.Key
-	headers["X-GEMINI-PAYLOAD"] = PayloadBase64
-	headers["X-GEMINI-SIGNATURE"] = crypto.HexEncodeToString(hmac)
-	headers["Cache-Control"] = "no-cache"
+		headers := make(map[string]string)
+		headers["Content-Length"] = "0"
+		headers["Content-Type"] = "text/plain"
+		headers["X-GEMINI-APIKEY"] = g.API.Credentials.Key
+		headers["X-GEMINI-PAYLOAD"] = PayloadBase64
+		headers["X-GEMINI-SIGNATURE"] = crypto.HexEncodeToString(hmac)
+		headers["Cache-Control"] = "no-cache"
 
-	return g.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          endpoint + "/v1/" + path,
-		Headers:       headers,
-		Result:        result,
-		AuthRequest:   true,
-		NonceEnabled:  true,
-		Verbose:       g.Verbose,
-		HTTPDebugging: g.HTTPDebugging,
-		HTTPRecording: g.HTTPRecording,
-		Endpoint:      request.Auth,
+		return &request.Item{
+			Method:        method,
+			Path:          endpoint + "/v1/" + path,
+			Headers:       headers,
+			Result:        result,
+			AuthRequest:   true,
+			NonceEnabled:  true,
+			Verbose:       g.Verbose,
+			HTTPDebugging: g.HTTPDebugging,
+			HTTPRecording: g.HTTPRecording,
+		}, nil
 	})
 }
 

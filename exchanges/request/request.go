@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -18,6 +17,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/log"
+)
+
+var (
+	errRequestSystemIsNil     = errors.New("request system is nil")
+	errMaxRequestJobs         = errors.New("max request jobs reached")
+	errRequestFunctionIsNil   = errors.New("request function is nil")
+	errServiceNameUnset       = errors.New("service name unset")
+	errRequestItemNil         = errors.New("request item is nil")
+	errInvalidPath            = errors.New("invalid path")
+	errHeaderResponseMapIsNil = errors.New("header response map is nil")
 )
 
 // New returns a new Requester
@@ -39,30 +48,22 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) *Requ
 }
 
 // SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(ctx context.Context, i *Item) error {
-	if !i.NonceEnabled {
-		r.timedLock.LockForDuration()
+func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest func() (*Item, error)) error {
+	if r == nil {
+		return errRequestSystemIsNil
 	}
 
-	req, err := i.validateRequest(ctx, r)
-	if err != nil {
-		r.timedLock.UnlockIfLocked()
-		return err
-	}
-
-	if i.HTTPDebugging {
-		// Err not evaluated due to validation check above
-		dump, _ := httputil.DumpRequestOut(req, true)
-		log.Debugf(log.RequestSys, "DumpRequest:\n%s", dump)
+	if newRequest == nil {
+		return errRequestFunctionIsNil
 	}
 
 	if atomic.LoadInt32(&r.jobs) >= MaxRequestJobs {
 		r.timedLock.UnlockIfLocked()
-		return errors.New("max request jobs reached")
+		return errMaxRequestJobs
 	}
 
 	atomic.AddInt32(&r.jobs, 1)
-	err = r.doRequest(req, i)
+	err := r.doRequest(ctx, ep, newRequest)
 	atomic.AddInt32(&r.jobs, -1)
 	r.timedLock.UnlockIfLocked()
 
@@ -71,27 +72,31 @@ func (r *Requester) SendPayload(ctx context.Context, i *Item) error {
 
 // validateRequest validates the requester item fields
 func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request, error) {
-	if r == nil || r.Name == "" {
-		return nil, errors.New("not initialised, SetDefaults() called before making request?")
-	}
-
 	if i == nil {
-		return nil, errors.New("request item cannot be nil")
+		return nil, errRequestItemNil
 	}
 
 	if i.Path == "" {
-		return nil, errors.New("invalid path")
+		return nil, errInvalidPath
 	}
 
-	if i.HeaderResponse != nil {
-		if *i.HeaderResponse == nil {
-			return nil, errors.New("header response is nil")
-		}
+	if i.HeaderResponse != nil && *i.HeaderResponse == nil {
+		return nil, errHeaderResponseMapIsNil
+	}
+
+	if !i.NonceEnabled {
+		r.timedLock.LockForDuration()
 	}
 
 	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
 		return nil, err
+	}
+
+	if i.HTTPDebugging {
+		// Err not evaluated due to validation check above
+		dump, _ := httputil.DumpRequestOut(req, true)
+		log.Debugf(log.RequestSys, "DumpRequest:\n%s", dump)
 	}
 
 	for k, v := range i.Headers {
@@ -105,43 +110,36 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 	return req, nil
 }
 
+var errFailedToRetryRequest = errors.New("failed to retry request")
+
 // DoRequest performs a HTTP/HTTPS request with the supplied params
-func (r *Requester) doRequest(req *http.Request, p *Item) error {
-	if p == nil {
-		return errors.New("request item cannot be nil")
-	}
-
-	if p.Verbose {
-		log.Debugf(log.RequestSys,
-			"%s request path: %s",
-			r.Name,
-			p.Path)
-
-		for k, d := range req.Header {
-			log.Debugf(log.RequestSys,
-				"%s request header [%s]: %s",
-				r.Name,
-				k,
-				d)
-		}
-		log.Debugf(log.RequestSys,
-			"%s request type: %s",
-			r.Name,
-			req.Method)
-
-		if p.Body != nil {
-			log.Debugf(log.RequestSys,
-				"%s request body: %v",
-				r.Name,
-				p.Body)
-		}
-	}
-
+func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRequest Generate) error {
 	for attempt := 1; ; attempt++ {
 		// Initiate a rate limit reservation and sleep on requested endpoint
-		err := r.InitiateRateLimit(p.Endpoint)
+		err := r.InitiateRateLimit(endpoint)
 		if err != nil {
 			return err
+		}
+
+		p, err := newRequest()
+		if err != nil {
+			return err
+		}
+
+		req, err := p.validateRequest(ctx, r)
+		if err != nil {
+			return err
+		}
+
+		if p.Verbose {
+			log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.Name, attempt, p.Path)
+			for k, d := range req.Header {
+				log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.Name, k, d)
+			}
+			log.Debugf(log.RequestSys, "%s request type: %s", r.Name, p.Method)
+			if p.Body != nil {
+				log.Debugf(log.RequestSys, "%s request body: %v", r.Name, p.Body)
+			}
 		}
 
 		resp, err := r.HTTPClient.Do(req)
@@ -153,18 +151,11 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 				r.drainBody(resp.Body)
 			}
 
-			// Can't currently regenerate nonce and signatures with fresh values for retries, so for now, we must not retry
-			if p.NonceEnabled {
-				if timeoutErr, ok := err.(net.Error); !ok || !timeoutErr.Timeout() {
-					return fmt.Errorf("unable to retry request using nonce, err: %v", err)
-				}
-			}
-
 			if attempt > r.maxRetries {
 				if err != nil {
-					return fmt.Errorf("failed to retry request, err: %v", err)
+					return fmt.Errorf("%w, err: %v", errFailedToRetryRequest, err)
 				}
-				return fmt.Errorf("failed to retry request, status: %s", resp.Status)
+				return fmt.Errorf("%w, status: %s", errFailedToRetryRequest, resp.Status)
 			}
 
 			after := RetryAfter(resp, time.Now())

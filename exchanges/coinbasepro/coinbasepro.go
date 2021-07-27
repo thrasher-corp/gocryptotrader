@@ -686,13 +686,15 @@ func (c *CoinbasePro) SendHTTPRequest(ep exchange.URL, path string, result inter
 	if err != nil {
 		return err
 	}
-	return c.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       c.Verbose,
-		HTTPDebugging: c.HTTPDebugging,
-		HTTPRecording: c.HTTPRecording,
+	return c.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          endpoint + path,
+			Result:        result,
+			Verbose:       c.Verbose,
+			HTTPDebugging: c.HTTPDebugging,
+			HTTPRecording: c.HTTPRecording,
+		}, nil
 	})
 }
 
@@ -732,16 +734,18 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path
 	// Timestamp must be within 30 seconds of the api service time
 	ctx, cancel := context.WithDeadline(context.Background(), now.Add(30*time.Second))
 	defer cancel()
-	return c.SendPayload(ctx, &request.Item{
-		Method:        method,
-		Path:          endpoint + path,
-		Headers:       headers,
-		Body:          bytes.NewBuffer(payload),
-		Result:        result,
-		AuthRequest:   true,
-		Verbose:       c.Verbose,
-		HTTPDebugging: c.HTTPDebugging,
-		HTTPRecording: c.HTTPRecording,
+	return c.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        method,
+			Path:          endpoint + path,
+			Headers:       headers,
+			Body:          bytes.NewBuffer(payload),
+			Result:        result,
+			AuthRequest:   true,
+			Verbose:       c.Verbose,
+			HTTPDebugging: c.HTTPDebugging,
+			HTTPRecording: c.HTTPRecording,
+		}, nil
 	})
 }
 

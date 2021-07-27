@@ -161,12 +161,13 @@ func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, 
 		values.Set("apiKey", c.APIKey)
 	}
 	path += values.Encode()
-
-	err := c.Requester.SendPayload(context.Background(), &request.Item{
-		Method:      path,
-		Result:      result,
-		AuthRequest: auth,
-		Verbose:     c.Verbose})
+	err := c.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:      path,
+			Result:      result,
+			AuthRequest: auth,
+			Verbose:     c.Verbose}, nil
+	})
 
 	if err != nil {
 		return fmt.Errorf("currency converter API SendHTTPRequest error %s with path %s",

@@ -683,13 +683,15 @@ func (b *BTCMarkets) CancelBatch(ids []string) (BatchCancelResponse, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          path,
-		Result:        result,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
+	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          path,
+			Result:        result,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	})
 }
 
@@ -732,18 +734,18 @@ func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result 
 	// The timestamp included with an authenticated request must be within +/- 30 seconds of the server timestamp
 	ctx, cancel := context.WithDeadline(context.Background(), now.Add(30*time.Second))
 	defer cancel()
-	return b.SendPayload(ctx, &request.Item{
-		Method:        method,
-		Path:          btcMarketsAPIURL + btcMarketsAPIVersion + path,
-		Headers:       headers,
-		Body:          body,
-		Result:        result,
-		AuthRequest:   true,
-		NonceEnabled:  false,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-		Endpoint:      f,
+	return b.SendPayload(ctx, f, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        method,
+			Path:          btcMarketsAPIURL + btcMarketsAPIVersion + path,
+			Headers:       headers,
+			Body:          body,
+			Result:        result,
+			AuthRequest:   true,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	})
 }
 

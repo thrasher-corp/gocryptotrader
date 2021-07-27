@@ -1088,24 +1088,25 @@ func (c *Coinbene) SendHTTPRequest(ep exchange.URL, path string, f request.Endpo
 	if err != nil {
 		return err
 	}
-	var resp json.RawMessage
-	errCap := struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	}{}
 
-	if err := c.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        &resp,
-		Verbose:       c.Verbose,
-		HTTPDebugging: c.HTTPDebugging,
-		HTTPRecording: c.HTTPRecording,
-		Endpoint:      f,
+	var resp json.RawMessage
+	if err := c.SendPayload(context.Background(), f, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          endpoint + path,
+			Result:        &resp,
+			Verbose:       c.Verbose,
+			HTTPDebugging: c.HTTPDebugging,
+			HTTPRecording: c.HTTPRecording,
+		}, nil
 	}); err != nil {
 		return err
 	}
 
+	errCap := struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}{}
 	if err := json.Unmarshal(resp, &errCap); err == nil {
 		if errCap.Code != 200 && errCap.Message != "" {
 			return errors.New(errCap.Message)
@@ -1179,17 +1180,18 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 	// Expiry of timestamp doesn't appear to be documented, so making a reasonable assumption
 	ctx, cancel := context.WithDeadline(context.Background(), now.Add(15*time.Second))
 	defer cancel()
-	if err := c.SendPayload(ctx, &request.Item{
-		Method:        method,
-		Path:          endpoint + path,
-		Headers:       headers,
-		Body:          finalBody,
-		Result:        &resp,
-		AuthRequest:   true,
-		Verbose:       c.Verbose,
-		HTTPDebugging: c.HTTPDebugging,
-		HTTPRecording: c.HTTPRecording,
-		Endpoint:      f,
+	if err := c.SendPayload(ctx, f, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        method,
+			Path:          endpoint + path,
+			Headers:       headers,
+			Body:          finalBody,
+			Result:        &resp,
+			AuthRequest:   true,
+			Verbose:       c.Verbose,
+			HTTPDebugging: c.HTTPDebugging,
+			HTTPRecording: c.HTTPRecording,
+		}, nil
 	}); err != nil {
 		return err
 	}

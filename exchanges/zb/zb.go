@@ -286,14 +286,15 @@ func (z *ZB) SendHTTPRequest(ep exchange.URL, path string, result interface{}, f
 	if err != nil {
 		return err
 	}
-	return z.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       z.Verbose,
-		HTTPDebugging: z.HTTPDebugging,
-		HTTPRecording: z.HTTPRecording,
-		Endpoint:      f,
+	return z.SendPayload(context.Background(), f, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          endpoint + path,
+			Result:        result,
+			Verbose:       z.Verbose,
+			HTTPDebugging: z.HTTPDebugging,
+			HTTPRecording: z.HTTPRecording,
+		}, nil
 	})
 }
 
@@ -331,16 +332,17 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ep exchange.URL, httpMethod string, pa
 	// Expiry of timestamp doesn't appear to be documented, so making a reasonable assumption
 	ctx, cancel := context.WithDeadline(context.Background(), now.Add(15*time.Second))
 	defer cancel()
-	err = z.SendPayload(ctx, &request.Item{
-		Method:        httpMethod,
-		Path:          urlPath,
-		Body:          strings.NewReader(""),
-		Result:        &intermediary,
-		AuthRequest:   true,
-		Verbose:       z.Verbose,
-		HTTPDebugging: z.HTTPDebugging,
-		HTTPRecording: z.HTTPRecording,
-		Endpoint:      f,
+	err = z.SendPayload(ctx, f, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        httpMethod,
+			Path:          urlPath,
+			Body:          strings.NewReader(""),
+			Result:        &intermediary,
+			AuthRequest:   true,
+			Verbose:       z.Verbose,
+			HTTPDebugging: z.HTTPDebugging,
+			HTTPRecording: z.HTTPRecording,
+		}, nil
 	})
 	if err != nil {
 		return err

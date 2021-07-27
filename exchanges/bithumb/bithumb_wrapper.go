@@ -410,7 +410,7 @@ func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		orderID = result.OrderID
 	} else if s.Side == order.Sell {
 		var result MarketSell
-		result, err = b.MarketSellOrder(fPair.Base.String(), s.Amount)
+		result, err = b.MarketSellOrder(fPair, s.Amount)
 		if err != nil {
 			return submitOrderResponse, err
 		}

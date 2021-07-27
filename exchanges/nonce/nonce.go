@@ -27,8 +27,10 @@ func (n *Nonce) Get() Value {
 
 // GetInc increments and returns the value of the nonce
 func (n *Nonce) GetInc() Value {
-	n.Inc()
-	return n.Get()
+	n.m.Lock()
+	defer n.m.Unlock()
+	n.n++
+	return Value(n.n)
 }
 
 // Set sets the nonce value

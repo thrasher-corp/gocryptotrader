@@ -1501,14 +1501,16 @@ func (b *Bitfinex) SendHTTPRequest(ep exchange.URL, path string, result interfac
 	if err != nil {
 		return err
 	}
-	return b.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-		Endpoint:      e})
+	fullPath := endpoint + path
+	return b.SendPayload(context.Background(), e, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          fullPath,
+			Result:        result,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording}, nil
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated http request and json
@@ -1523,44 +1525,46 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path st
 		return err
 	}
 
-	n := b.Requester.GetNonce(true)
+	fullPath := ePoint + bitfinexAPIVersion + path
+	return b.SendPayload(context.Background(), endpoint, func() (*request.Item, error) {
+		n := b.Requester.GetNonce(true)
+		req := make(map[string]interface{})
+		req["request"] = bitfinexAPIVersion + path
+		req["nonce"] = n.String()
 
-	req := make(map[string]interface{})
-	req["request"] = bitfinexAPIVersion + path
-	req["nonce"] = n.String()
+		for key, value := range params {
+			req[key] = value
+		}
 
-	for key, value := range params {
-		req[key] = value
-	}
+		PayloadJSON, err := json.Marshal(req)
+		if err != nil {
+			return nil, err
+		}
 
-	PayloadJSON, err := json.Marshal(req)
-	if err != nil {
-		return errors.New("sendAuthenticatedAPIRequest: unable to JSON request")
-	}
+		if b.Verbose {
+			log.Debugf(log.ExchangeSys, "Request JSON: %s\n", PayloadJSON)
+		}
 
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "Request JSON: %s\n", PayloadJSON)
-	}
+		PayloadBase64 := crypto.Base64Encode(PayloadJSON)
+		hmac := crypto.GetHMAC(crypto.HashSHA512_384,
+			[]byte(PayloadBase64),
+			[]byte(b.API.Credentials.Secret))
+		headers := make(map[string]string)
+		headers["X-BFX-APIKEY"] = b.API.Credentials.Key
+		headers["X-BFX-PAYLOAD"] = PayloadBase64
+		headers["X-BFX-SIGNATURE"] = crypto.HexEncodeToString(hmac)
 
-	PayloadBase64 := crypto.Base64Encode(PayloadJSON)
-	hmac := crypto.GetHMAC(crypto.HashSHA512_384, []byte(PayloadBase64),
-		[]byte(b.API.Credentials.Secret))
-	headers := make(map[string]string)
-	headers["X-BFX-APIKEY"] = b.API.Credentials.Key
-	headers["X-BFX-PAYLOAD"] = PayloadBase64
-	headers["X-BFX-SIGNATURE"] = crypto.HexEncodeToString(hmac)
-
-	return b.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          ePoint + bitfinexAPIVersion + path,
-		Headers:       headers,
-		Result:        result,
-		AuthRequest:   true,
-		NonceEnabled:  true,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-		Endpoint:      endpoint})
+		return &request.Item{
+			Method:        method,
+			Path:          fullPath,
+			Headers:       headers,
+			Result:        result,
+			AuthRequest:   true,
+			NonceEnabled:  true,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording}, nil
+	})
 }
 
 // SendAuthenticatedHTTPRequestV2 sends an autheticated http request and json
@@ -1583,34 +1587,35 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ep exchange.URL, method, path 
 		body = bytes.NewBuffer(payload)
 	}
 
-	// This is done in a weird way because bitfinex doesn't accept unixnano
-	n := strconv.FormatInt(int64(b.Requester.GetNonce(false))*1e9, 10)
-	headers := make(map[string]string)
-	headers["Content-Type"] = "application/json"
-	headers["Accept"] = "application/json"
-	headers["bfx-apikey"] = b.API.Credentials.Key
-	headers["bfx-nonce"] = n
-	strPath := "/api" + bitfinexAPIVersion2 + path + string(payload)
-	signStr := strPath + n
-	hmac := crypto.GetHMAC(
-		crypto.HashSHA512_384,
-		[]byte(signStr),
-		[]byte(b.API.Credentials.Secret),
-	)
-	headers["bfx-signature"] = crypto.HexEncodeToString(hmac)
+	return b.SendPayload(context.Background(), endpoint, func() (*request.Item, error) {
+		// This is done in a weird way because bitfinex doesn't accept unixnano
+		n := strconv.FormatInt(int64(b.Requester.GetNonce(false))*1e9, 10)
+		headers := make(map[string]string)
+		headers["Content-Type"] = "application/json"
+		headers["Accept"] = "application/json"
+		headers["bfx-apikey"] = b.API.Credentials.Key
+		headers["bfx-nonce"] = n
+		strPath := "/api" + bitfinexAPIVersion2 + path + string(payload)
+		signStr := strPath + n
+		hmac := crypto.GetHMAC(
+			crypto.HashSHA512_384,
+			[]byte(signStr),
+			[]byte(b.API.Credentials.Secret),
+		)
+		headers["bfx-signature"] = crypto.HexEncodeToString(hmac)
 
-	return b.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          ePoint + bitfinexAPIVersion2 + path,
-		Headers:       headers,
-		Body:          body,
-		Result:        result,
-		AuthRequest:   true,
-		NonceEnabled:  true,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-		Endpoint:      endpoint,
+		return &request.Item{
+			Method:        method,
+			Path:          ePoint + bitfinexAPIVersion2 + path,
+			Headers:       headers,
+			Body:          body,
+			Result:        result,
+			AuthRequest:   true,
+			NonceEnabled:  true,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	})
 }
 
