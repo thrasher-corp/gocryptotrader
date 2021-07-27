@@ -88,7 +88,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 
 	portfolioLimitedAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, o.GetFunds(), f.GetDirection())
 	if portfolioLimitedAmount != amount {
-		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within portfolio limits", amount, portfolioLimitedAmount))
+		f.AppendReason(fmt.Sprintf("Order size shrunk from %f to %f to remain within portfolio limits", amount, portfolioLimitedAmount))
 	}
 
 	limitReducedAmount := portfolioLimitedAmount
@@ -97,7 +97,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		// reducing it when needed
 		limitReducedAmount = cs.Limits.ConformToAmount(portfolioLimitedAmount)
 		if limitReducedAmount != portfolioLimitedAmount {
-			f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within exchange step amount limits",
+			f.AppendReason(fmt.Sprintf("Order size shrunk from %f to %f to remain within exchange step amount limits",
 				portfolioLimitedAmount,
 				limitReducedAmount))
 		}
@@ -257,7 +257,7 @@ func (e *Exchange) sizeOfflineOrder(high, low, volume float64, cs *Settings, f *
 	slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
 	f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
 	if adjustedAmount != f.Amount {
-		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to fit candle", f.Amount, adjustedAmount))
+		f.AppendReason(fmt.Sprintf("Order size shrunk from %f to %f to fit candle", f.Amount, adjustedAmount))
 	}
 
 	if adjustedAmount <= 0 && f.Amount > 0 {
