@@ -26,6 +26,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var errNotEnoughPairs = errors.New("at least one currency is required to fetch order history")
+
 // GetDefaultConfig returns a default exchange config
 func (b *Bithumb) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -584,14 +586,19 @@ func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
+
+	if len(req.Pairs) == 0 {
+		return nil, errNotEnoughPairs
+	}
+
+	format, err := b.GetPairFormat(req.AssetType, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for x := range req.Pairs {
 		resp, err := b.GetOrders("", "", "1000", "", req.Pairs[x].Base.String())
-		if err != nil {
-			return nil, err
-		}
-
-		format, err := b.GetPairFormat(asset.Spot, false)
 		if err != nil {
 			return nil, err
 		}
@@ -638,14 +645,18 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		return nil, err
 	}
 
+	if len(req.Pairs) == 0 {
+		return nil, errNotEnoughPairs
+	}
+
+	format, err := b.GetPairFormat(req.AssetType, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for x := range req.Pairs {
 		resp, err := b.GetOrders("", "", "1000", "", req.Pairs[x].Base.String())
-		if err != nil {
-			return nil, err
-		}
-
-		format, err := b.GetPairFormat(asset.Spot, false)
 		if err != nil {
 			return nil, err
 		}
