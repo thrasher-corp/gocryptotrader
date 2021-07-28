@@ -302,26 +302,28 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 	id, err := exch.ModifyOrder(mod)
 	if err != nil {
 		return nil, err
-	} else {
-		// TODO: This is a race condition!
-
-		det, err := m.orderStore.getByExchangeAndID(mod.Exchange, mod.ID)
-		if err != nil {
-			// TODO: How to handle that?  The order is updated on the
-			// exchange, but not found locally.
-			return nil, err
-		}
-
-		// TODO: Is using det.UpdateOrderFromModify() better in this case, since
-		// it can update invalid properties?
-		if mod.Price > 0 && mod.Price != det.Price {
-			det.Amount = mod.Amount
-		}
-		if mod.Amount > 0 && mod.Amount != det.Amount {
-			det.Amount = mod.Amount
-		}
-		det.ID = id
 	}
+
+	// We now have to reflect this change in GCT's internal state of managed orders.
+
+	// TODO: Current implementation is here for illustrative purposes.  It introduces
+	// race conditions.
+	det, err := m.orderStore.getByExchangeAndID(mod.Exchange, mod.ID)
+	if err != nil {
+		// TODO: How to handle that?  The order is updated on the
+		// exchange, but not found locally.
+		return nil, err
+	}
+
+	// TODO: Is using det.UpdateOrderFromModify() better in this case, since
+	// it can update invalid properties?
+	if mod.Price > 0 && mod.Price != det.Price {
+		det.Amount = mod.Amount
+	}
+	if mod.Amount > 0 && mod.Amount != det.Amount {
+		det.Amount = mod.Amount
+	}
+	det.ID = id
 	return &order.ModifyResponse{OrderID: id}, nil
 }
 
