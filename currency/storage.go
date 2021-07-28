@@ -23,15 +23,15 @@ func init() {
 func (s *Storage) SetDefaults() {
 	s.defaultBaseCurrency = USD
 	s.baseCurrency = s.defaultBaseCurrency
-	var fiatcurrencies []Code
+	var fiatCurrencies []Code
 	for item := range symbols {
 		if item == USDT.Item {
 			continue
 		}
-		fiatcurrencies = append(fiatcurrencies, Code{Item: item, UpperCase: true})
+		fiatCurrencies = append(fiatCurrencies, Code{Item: item, UpperCase: true})
 	}
 
-	err := s.SetDefaultFiatCurrencies(fiatcurrencies...)
+	err := s.SetDefaultFiatCurrencies(fiatCurrencies...)
 	if err != nil {
 		log.Errorf(log.Global, "Currency Storage: Setting default fiat currencies error: %s", err)
 	}

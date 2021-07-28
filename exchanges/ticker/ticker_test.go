@@ -206,7 +206,7 @@ func TestFindLast(t *testing.T) {
 		t.Errorf("received: %v but expected: %v", err, errTickerNotFound)
 	}
 
-	err = service.Update(&Price{Last: 0, ExchangeName: "testerinos", Pair: cp, AssetType: asset.Spot})
+	err = service.update(&Price{Last: 0, ExchangeName: "testerinos", Pair: cp, AssetType: asset.Spot})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +216,7 @@ func TestFindLast(t *testing.T) {
 		t.Errorf("received: %v but expected: %v", err, errInvalidTicker)
 	}
 
-	err = service.Update(&Price{Last: 1337, ExchangeName: "testerinos", Pair: cp, AssetType: asset.Spot})
+	err = service.update(&Price{Last: 1337, ExchangeName: "testerinos", Pair: cp, AssetType: asset.Spot})
 	if err != nil {
 		t.Fatal(err)
 	}
