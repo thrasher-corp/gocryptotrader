@@ -707,7 +707,7 @@ func (bot *Engine) GetExchanges() []exchange.IBotExchange {
 
 // LoadExchange loads an exchange by name. Optional wait group can be added for
 // external synchronization.
-func (bot *Engine) LoadExchange(name string, optional *sync.WaitGroup) error {
+func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 	exch, err := bot.ExchangeManager.NewExchangeByName(name)
 	if err != nil {
 		return err
@@ -821,8 +821,8 @@ func (bot *Engine) LoadExchange(name string, optional *sync.WaitGroup) error {
 		}
 	}
 
-	if optional != nil {
-		exch.Start(optional)
+	if wg != nil {
+		exch.Start(wg)
 	} else {
 		tempWG := sync.WaitGroup{}
 		exch.Start(&tempWG)
