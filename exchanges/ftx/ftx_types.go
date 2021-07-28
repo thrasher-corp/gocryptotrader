@@ -55,24 +55,27 @@ type LendingInfoData struct {
 
 // MarketData stores market data
 type MarketData struct {
-	Name           string  `json:"name"`
-	BaseCurrency   string  `json:"baseCurrency"`
-	QuoteCurrency  string  `json:"quoteCurrency"`
-	MarketType     string  `json:"type"`
-	Underlying     string  `json:"underlying"`
-	Change1h       float64 `json:"change1h"`
-	Change24h      float64 `json:"change24h"`
-	ChangeBod      float64 `json:"changeBod"`
-	QuoteVolume24h float64 `json:"quoteVolume24h"`
-	Enabled        bool    `json:"enabled"`
-	Ask            float64 `json:"ask"`
-	Bid            float64 `json:"bid"`
-	Last           float64 `json:"last"`
-	USDVolume24h   float64 `json:"volumeUSD24h"`
-	MinProvideSize float64 `json:"minProvideSize"`
-	PriceIncrement float64 `json:"priceIncrement"`
-	SizeIncrement  float64 `json:"sizeIncrement"`
-	Restricted     bool    `json:"restricted"`
+	Name                  string  `json:"name"`
+	BaseCurrency          string  `json:"baseCurrency"`
+	QuoteCurrency         string  `json:"quoteCurrency"`
+	MarketType            string  `json:"type"`
+	Underlying            string  `json:"underlying"`
+	Change1h              float64 `json:"change1h"`
+	Change24h             float64 `json:"change24h"`
+	ChangeBod             float64 `json:"changeBod"`
+	QuoteVolume24h        float64 `json:"quoteVolume24h"`
+	Enabled               bool    `json:"enabled"`
+	Ask                   float64 `json:"ask"`
+	Bid                   float64 `json:"bid"`
+	Last                  float64 `json:"last"`
+	USDVolume24h          float64 `json:"volumeUSD24h"`
+	MinProvideSize        float64 `json:"minProvideSize"`
+	PriceIncrement        float64 `json:"priceIncrement"`
+	SizeIncrement         float64 `json:"sizeIncrement"`
+	Restricted            bool    `json:"restricted"`
+	PostOnly              bool    `json:"postOnly"`
+	Price                 float64 `json:"price"`
+	HighLeverageFeeExempt bool    `json:"highLeverageFeeExempt"`
 }
 
 // OData stores orderdata in orderbook

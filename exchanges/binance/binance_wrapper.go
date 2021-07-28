@@ -321,7 +321,7 @@ func (b *Binance) Run() {
 			err = b.UpdateOrderExecutionLimits(a[x])
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
-					"Could not set %s exchange exchange limits: %v",
+					"%s failed to set exchange order execution limits. Err: %v",
 					b.Name,
 					err)
 			}
