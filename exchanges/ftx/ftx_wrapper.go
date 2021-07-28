@@ -221,7 +221,7 @@ func (f *FTX) Run() {
 	err := f.UpdateOrderExecutionLimits("")
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
-			"Could not set %s exchange exchange limits: %v",
+			"%s failed to set exchange order execution limits. Err: %v",
 			f.Name,
 			err)
 	}
