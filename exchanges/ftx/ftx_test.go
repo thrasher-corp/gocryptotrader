@@ -1679,3 +1679,29 @@ func TestStakeRequest(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	err := f.UpdateOrderExecutionLimits("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	limit, err := f.GetOrderExecutionLimits(asset.Spot, cp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = limit.Conforms(33000, 0.00001, order.Limit)
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Fatalf("expected error %v but received %v",
+			order.ErrAmountBelowMin,
+			err)
+	}
+
+	err = limit.Conforms(33000, 0.0001, order.Limit)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected error %v but received %v",
+			nil,
+			err)
+	}
+}

@@ -98,6 +98,11 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 	}
 
 	for x := range levels {
+		if !levels[x].Asset.IsValid() {
+			return fmt.Errorf("cannot load levels for '%s': %w",
+				levels[x].Asset,
+				asset.ErrNotSupported)
+		}
 		m1, ok := e.m[levels[x].Asset]
 		if !ok {
 			m1 = make(map[*currency.Item]map[*currency.Item]*Limits)
