@@ -140,11 +140,11 @@ func ProcessTicker(p *Price) error {
 		p.LastUpdated = time.Now()
 	}
 
-	return service.Update(p)
+	return service.update(p)
 }
 
-// Update updates ticker price
-func (s *Service) Update(p *Price) error {
+// update updates ticker price
+func (s *Service) update(p *Price) error {
 	name := strings.ToLower(p.ExchangeName)
 	s.Lock()
 
@@ -169,7 +169,7 @@ func (s *Service) Update(p *Price) error {
 	t, ok := m3[p.AssetType]
 	if !ok || t == nil {
 		newTicker := &Ticker{}
-		err := s.SetItemID(newTicker, p, name)
+		err := s.setItemID(newTicker, p, name)
 		if err != nil {
 			s.Unlock()
 			return err
@@ -185,8 +185,8 @@ func (s *Service) Update(p *Price) error {
 	return s.mux.Publish(ids, p)
 }
 
-// SetItemID retrieves and sets dispatch mux publish IDs
-func (s *Service) SetItemID(t *Ticker, p *Price, exch string) error {
+// setItemID retrieves and sets dispatch mux publish IDs
+func (s *Service) setItemID(t *Ticker, p *Price, exch string) error {
 	ids, err := s.getAssociations(exch)
 	if err != nil {
 		return err
