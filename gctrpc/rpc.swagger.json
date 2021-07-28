@@ -261,48 +261,6 @@
         ]
       }
     },
-    "/v1/deletedatahistoryjob": {
-      "delete": {
-        "operationId": "GoCryptoTrader_DeleteDataHistoryJob",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "nickname",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "fullDetails",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
     "/v1/disableexchange": {
       "post": {
         "operationId": "GoCryptoTrader_DisableExchange",
@@ -2256,6 +2214,38 @@
         ]
       }
     },
+    "/v1/setdatahistoryjobstatus": {
+      "post": {
+        "operationId": "GoCryptoTrader_SetDataHistoryJobStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcSetDataHistoryJobStatusRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/setexchangeasset": {
       "get": {
         "operationId": "GoCryptoTrader_SetExchangeAsset",
@@ -2491,6 +2481,38 @@
             "in": "query",
             "required": false,
             "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/updatedatahistoryjobprerequisite": {
+      "post": {
+        "operationId": "GoCryptoTrader_UpdateDataHistoryJobPrerequisite",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcUpdateDataHistoryJobPrerequisiteRequest"
+            }
           }
         ],
         "tags": [
@@ -3261,6 +3283,30 @@
         },
         "dataType": {
           "type": "string"
+        },
+        "conversionInterval": {
+          "type": "string",
+          "format": "int64"
+        },
+        "overwriteExistingData": {
+          "type": "boolean"
+        },
+        "prerequisiteJobNickname": {
+          "type": "string"
+        },
+        "decimalPlaceComparison": {
+          "type": "string",
+          "format": "int64"
+        },
+        "secondaryExchangeName": {
+          "type": "string"
+        },
+        "issueTolerancePercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "replaceOnIssue": {
+          "type": "boolean"
         },
         "jobResults": {
           "type": "array",
@@ -4270,6 +4316,21 @@
         }
       }
     },
+    "gctrpcSetDataHistoryJobStatusRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "nickname": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
     "gctrpcSetExchangePairRequest": {
       "type": "object",
       "properties": {
@@ -4511,6 +4572,17 @@
         }
       }
     },
+    "gctrpcUpdateDataHistoryJobPrerequisiteRequest": {
+      "type": "object",
+      "properties": {
+        "nickname": {
+          "type": "string"
+        },
+        "prerequisiteJobNickname": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcUpsertDataHistoryJobRequest": {
       "type": "object",
       "properties": {
@@ -4553,6 +4625,30 @@
           "format": "int64"
         },
         "insertOnly": {
+          "type": "boolean"
+        },
+        "conversionInterval": {
+          "type": "string",
+          "format": "int64"
+        },
+        "overwriteExistingData": {
+          "type": "boolean"
+        },
+        "prerequisiteJobNickname": {
+          "type": "string"
+        },
+        "decimalPlaceComparison": {
+          "type": "string",
+          "format": "int64"
+        },
+        "secondaryExchangeName": {
+          "type": "string"
+        },
+        "issueTolerancePercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "replaceOnIssue": {
           "type": "boolean"
         }
       }
