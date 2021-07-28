@@ -36,30 +36,41 @@ manager or by downloading one of the releases from the official repository:
 Then use `go get` to download the following packages:
 
 ```bash
-go get github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
-go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-go get google.golang.org/protobuf/cmd/protoc-gen-go
-go get google.golang.org/grpc/cmd/protoc-gen-go-grpc
+go get \
+    github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
+    github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
+    google.golang.org/protobuf/cmd/protoc-gen-go \
+    google.golang.org/grpc/cmd/protoc-gen-go-grpc
 ```
 
-This will place three binaries in your `$GOBIN`;
+This will place the following binaries in your `$GOBIN`;
 
 * `protoc-gen-grpc-gateway`
-* `protoc-gen-swagger`
+* `protoc-gen-openapiv2`
 * `protoc-gen-go`
 * `protoc-gen-go-grpc`
 
 Make sure that your `$GOBIN` is in your `$PATH`.
 
-## Usage
+### Linux / macOS
+
+GoCryptoTrader requires a local installation of the `buf` cli tool that tries to make Protobuf handling more easier and reliable,
+after [installation](https://docs.buf.build/installation) you'll need to run:
+
+```shell
+buf beta mod update
+```
+
+After previous command, make necessary changes to the `rpc.proto` spec file and run the generation command:
+
+```shell
+buf generate
+```
+
+### Windows
 
 After the above dependencies are required, make necessary changes to the `rpc.proto`
 spec file and run the generation scripts:
 
-### Windows
-
 Run `gen_pb_win.bat`
 
-### Linux and macOS
-
-Run `./gen_pb_linux.sh`

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -35,9 +36,8 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 			Interval:     o.GetInterval(),
 			Reason:       o.GetReason(),
 		},
-		Direction: o.GetDirection(),
-		Amount:    o.GetAmount(),
-
+		Direction:  o.GetDirection(),
+		Amount:     o.GetAmount(),
 		ClosePrice: data.Latest().ClosePrice(),
 	}
 
@@ -85,41 +85,27 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 			return f, err
 		}
 	}
-	reducedAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, o.GetFunds())
-	if reducedAmount != amount {
-		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within portfolio limits", amount, reducedAmount))
+
+	portfolioLimitedAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, o.GetFunds(), f.GetDirection())
+	if portfolioLimitedAmount != amount {
+		f.AppendReason(fmt.Sprintf("Order size shrunk from %f to %f to remain within portfolio limits", amount, portfolioLimitedAmount))
 	}
 
-	var limitReducedAmount float64
+	limitReducedAmount := portfolioLimitedAmount
 	if cs.CanUseExchangeLimits {
 		// Conforms the amount to the exchange order defined step amount
 		// reducing it when needed
-		limitReducedAmount = cs.Limits.ConformToAmount(reducedAmount)
-		if limitReducedAmount != reducedAmount {
-			f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within exchange step amount limits",
-				reducedAmount,
+		limitReducedAmount = cs.Limits.ConformToAmount(portfolioLimitedAmount)
+		if limitReducedAmount != portfolioLimitedAmount {
+			f.AppendReason(fmt.Sprintf("Order size shrunk from %f to %f to remain within exchange step amount limits",
+				portfolioLimitedAmount,
 				limitReducedAmount))
 		}
-	} else {
-		limitReducedAmount = reducedAmount
 	}
-	// Conforms the amount to fall into the minimum size and maximum size limit after reduced
-	switch f.GetDirection() {
-	case gctorder.Buy:
-		if ((limitReducedAmount < cs.BuySide.MinimumSize && cs.BuySide.MinimumSize > 0) || (limitReducedAmount > cs.BuySide.MaximumSize && cs.BuySide.MaximumSize > 0)) && (cs.BuySide.MaximumSize > 0 || cs.BuySide.MinimumSize > 0) {
-			f.SetDirection(common.CouldNotBuy)
-			e := fmt.Sprintf("Order size  %.8f exceed minimum size %.8f or maximum size %.8f ", limitReducedAmount, cs.BuySide.MinimumSize, cs.BuySide.MaximumSize)
-			f.AppendReason(e)
-			return f, fmt.Errorf(e)
-		}
 
-	case gctorder.Sell:
-		if ((limitReducedAmount < cs.SellSide.MinimumSize && cs.SellSide.MinimumSize > 0) || (limitReducedAmount > cs.SellSide.MaximumSize && cs.SellSide.MaximumSize > 0)) && (cs.SellSide.MaximumSize > 0 || cs.SellSide.MinimumSize > 0) {
-			f.SetDirection(common.CouldNotSell)
-			e := fmt.Sprintf("Order size  %.8f exceed minimum size %.8f or maximum size %.8f ", limitReducedAmount, cs.SellSide.MinimumSize, cs.SellSide.MaximumSize)
-			f.AppendReason(e)
-			return f, fmt.Errorf(e)
-		}
+	err = verifyOrderWithinLimits(f, limitReducedAmount, &cs)
+	if err != nil {
+		return f, err
 	}
 
 	orderID, err := e.placeOrder(adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, bot)
@@ -152,11 +138,62 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	return f, nil
 }
 
-func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal float64) float64 {
-	if adjustedPrice*amount > sizedPortfolioTotal {
-		// adjusted amounts exceeds portfolio manager's allowed funds
-		// the amount has to be reduced to equal the sizedPortfolioTotal
-		amount = sizedPortfolioTotal / adjustedPrice
+// verifyOrderWithinLimits conforms the amount to fall into the minimum size and maximum size limit after reduced
+func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount float64, cs *Settings) error {
+	if f == nil {
+		return common.ErrNilEvent
+	}
+	if cs == nil {
+		return errNilCurrencySettings
+	}
+	exceeded := false
+	var minMax config.MinMax
+	var direction gctorder.Side
+	switch f.GetDirection() {
+	case gctorder.Buy:
+		minMax = cs.BuySide
+		direction = common.CouldNotBuy
+	case gctorder.Sell:
+		minMax = cs.SellSide
+		direction = common.CouldNotSell
+	default:
+		direction = f.GetDirection()
+		f.SetDirection(common.DoNothing)
+		return fmt.Errorf("%w: %v", errInvalidDirection, direction)
+	}
+	var exceededLimit string
+	var size float64
+	if limitReducedAmount < minMax.MinimumSize && minMax.MinimumSize > 0 {
+		exceeded = true
+		exceededLimit = "minimum"
+		size = minMax.MinimumSize
+	}
+	if limitReducedAmount > minMax.MaximumSize && minMax.MaximumSize > 0 {
+		exceeded = true
+		exceededLimit = "maximum"
+		size = minMax.MaximumSize
+	}
+	if exceeded {
+		f.SetDirection(direction)
+		e := fmt.Sprintf("Order size %.8f exceeded %v size %.8f", limitReducedAmount, exceededLimit, size)
+		f.AppendReason(e)
+		return fmt.Errorf("%w %v", errExceededPortfolioLimit, e)
+	}
+	return nil
+}
+
+func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal float64, side gctorder.Side) float64 {
+	switch side {
+	case gctorder.Buy:
+		if adjustedPrice*amount > sizedPortfolioTotal {
+			// adjusted amounts exceeds portfolio manager's allowed funds
+			// the amount has to be reduced to equal the sizedPortfolioTotal
+			amount = sizedPortfolioTotal / adjustedPrice
+		}
+	case gctorder.Sell:
+		if amount > sizedPortfolioTotal {
+			amount = sizedPortfolioTotal
+		}
 	}
 	return amount
 }
@@ -220,7 +257,7 @@ func (e *Exchange) sizeOfflineOrder(high, low, volume float64, cs *Settings, f *
 	slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
 	f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
 	if adjustedAmount != f.Amount {
-		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to fit candle", f.Amount, adjustedAmount))
+		f.AppendReason(fmt.Sprintf("Order size shrunk from %f to %f to fit candle", f.Amount, adjustedAmount))
 	}
 
 	if adjustedAmount <= 0 && f.Amount > 0 {

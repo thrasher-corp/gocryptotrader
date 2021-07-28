@@ -4,6 +4,11 @@
     "title": "rpc.proto",
     "version": "version not set"
   },
+  "tags": [
+    {
+      "name": "GoCryptoTrader"
+    }
+  ],
   "consumes": [
     "application/json"
   ],
@@ -24,7 +29,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -56,7 +61,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -88,7 +93,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -120,7 +125,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -152,7 +157,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -184,7 +189,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -214,7 +219,7 @@
             "type": "string"
           },
           {
-            "name": "asset_type",
+            "name": "assetType",
             "in": "query",
             "required": false,
             "type": "string"
@@ -232,7 +237,7 @@
             "type": "string"
           },
           {
-            "name": "time_interval",
+            "name": "timeInterval",
             "in": "query",
             "required": false,
             "type": "string",
@@ -256,6 +261,48 @@
         ]
       }
     },
+    "/v1/deletedatahistoryjob": {
+      "delete": {
+        "operationId": "GoCryptoTrader_DeleteDataHistoryJob",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "nickname",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "fullDetails",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/disableexchange": {
       "post": {
         "operationId": "GoCryptoTrader_DisableExchange",
@@ -269,7 +316,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -301,7 +348,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -331,7 +378,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -363,7 +410,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -393,19 +440,19 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
         "parameters": [
           {
-            "name": "exchange_name",
+            "name": "exchangeName",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "asset_type",
+            "name": "assetType",
             "in": "query",
             "required": false,
             "type": "string"
@@ -466,19 +513,19 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
         "parameters": [
           {
-            "name": "exchange_name",
+            "name": "exchangeName",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "asset_type",
+            "name": "assetType",
             "in": "query",
             "required": false,
             "type": "string"
@@ -532,7 +579,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -564,7 +611,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -588,7 +635,7 @@
             "type": "string"
           },
           {
-            "name": "script.next_run",
+            "name": "script.nextRun",
             "in": "query",
             "required": false,
             "type": "string"
@@ -612,7 +659,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -636,7 +683,7 @@
             "type": "string"
           },
           {
-            "name": "script.next_run",
+            "name": "script.nextRun",
             "in": "query",
             "required": false,
             "type": "string"
@@ -660,7 +707,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -692,7 +739,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -714,7 +761,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -746,7 +793,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -778,7 +825,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -790,7 +837,7 @@
             "type": "string"
           },
           {
-            "name": "asset_type",
+            "name": "assetType",
             "in": "query",
             "required": false,
             "type": "string"
@@ -814,7 +861,7 @@
                   "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
                 },
                 "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
+                  "$ref": "#/definitions/rpcStatus"
                 }
               },
               "title": "Stream result of gctrpcGetAccountInfoResponse"
@@ -823,7 +870,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -835,7 +882,7 @@
             "type": "string"
           },
           {
-            "name": "asset_type",
+            "name": "assetType",
             "in": "query",
             "required": false,
             "type": "string"
@@ -859,7 +906,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -881,25 +928,25 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
         "parameters": [
           {
-            "name": "start_date",
+            "name": "startDate",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "end_date",
+            "name": "endDate",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "order_by",
+            "name": "orderBy",
             "in": "query",
             "required": false,
             "type": "string"
@@ -937,7 +984,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -959,7 +1006,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -981,7 +1028,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1013,7 +1060,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1045,7 +1092,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1087,19 +1134,19 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
         "parameters": [
           {
-            "name": "start_date",
+            "name": "startDate",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "end_date",
+            "name": "endDate",
             "in": "query",
             "required": false,
             "type": "string"
@@ -1123,7 +1170,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1165,7 +1212,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1187,7 +1234,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1217,7 +1264,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1247,7 +1294,7 @@
                   "$ref": "#/definitions/gctrpcOrderbookResponse"
                 },
                 "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
+                  "$ref": "#/definitions/rpcStatus"
                 }
               },
               "title": "Stream result of gctrpcOrderbookResponse"
@@ -1256,7 +1303,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1286,7 +1333,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1316,7 +1363,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1338,7 +1385,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1370,7 +1417,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1400,7 +1447,7 @@
                   "$ref": "#/definitions/gctrpcTickerResponse"
                 },
                 "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
+                  "$ref": "#/definitions/rpcStatus"
                 }
               },
               "title": "Stream result of gctrpcTickerResponse"
@@ -1409,7 +1456,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1439,7 +1486,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1461,7 +1508,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1483,7 +1530,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1513,7 +1560,7 @@
             "type": "string"
           },
           {
-            "name": "asset_type",
+            "name": "assetType",
             "in": "query",
             "required": false,
             "type": "string"
@@ -1531,14 +1578,14 @@
             "type": "string"
           },
           {
-            "name": "time_interval",
+            "name": "timeInterval",
             "in": "query",
             "required": false,
             "type": "string",
             "format": "int64"
           },
           {
-            "name": "ex_request",
+            "name": "exRequest",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -1550,13 +1597,13 @@
             "type": "boolean"
           },
           {
-            "name": "use_db",
+            "name": "useDb",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
-            "name": "fill_missing_with_trades",
+            "name": "fillMissingWithTrades",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -1586,7 +1633,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1608,7 +1655,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1638,7 +1685,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1670,7 +1717,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1702,7 +1749,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1734,7 +1781,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1756,7 +1803,7 @@
                   "$ref": "#/definitions/gctrpcOrderbookResponse"
                 },
                 "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
+                  "$ref": "#/definitions/rpcStatus"
                 }
               },
               "title": "Stream result of gctrpcOrderbookResponse"
@@ -1765,7 +1812,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1795,7 +1842,7 @@
             "type": "string"
           },
           {
-            "name": "asset_type",
+            "name": "assetType",
             "in": "query",
             "required": false,
             "type": "string"
@@ -1819,7 +1866,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1851,7 +1898,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1873,7 +1920,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1895,7 +1942,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1917,7 +1964,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -1947,7 +1994,7 @@
             "type": "string"
           },
           {
-            "name": "asset_type",
+            "name": "assetType",
             "in": "query",
             "required": false,
             "type": "string"
@@ -1983,7 +2030,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2005,7 +2052,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2037,7 +2084,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2059,7 +2106,7 @@
                   "$ref": "#/definitions/gctrpcTickerResponse"
                 },
                 "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
+                  "$ref": "#/definitions/rpcStatus"
                 }
               },
               "title": "Stream result of gctrpcTickerResponse"
@@ -2068,7 +2115,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2098,7 +2145,7 @@
             "type": "string"
           },
           {
-            "name": "asset_type",
+            "name": "assetType",
             "in": "query",
             "required": false,
             "type": "string"
@@ -2122,7 +2169,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2154,7 +2201,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2186,7 +2233,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2209,38 +2256,6 @@
         ]
       }
     },
-    "/v1/setdatahistoryjobstatus": {
-      "post": {
-        "operationId": "GoCryptoTrader_SetDataHistoryJobStatus",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcSetDataHistoryJobStatusRequest"
-            }
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
     "/v1/setexchangeasset": {
       "get": {
         "operationId": "GoCryptoTrader_SetExchangeAsset",
@@ -2254,7 +2269,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2296,7 +2311,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2328,7 +2343,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2364,7 +2379,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2396,7 +2411,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2428,7 +2443,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2460,7 +2475,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2472,42 +2487,10 @@
             "type": "string"
           },
           {
-            "name": "asset_type",
+            "name": "assetType",
             "in": "query",
             "required": false,
             "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
-    "/v1/updatedatahistoryjobprerequisite": {
-      "post": {
-        "operationId": "GoCryptoTrader_UpdateDataHistoryJobPrerequisite",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcUpdateDataHistoryJobPrerequisiteRequest"
-            }
           }
         ],
         "tags": [
@@ -2528,7 +2511,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2558,7 +2541,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2590,7 +2573,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2620,7 +2603,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2650,7 +2633,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2686,7 +2669,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2722,7 +2705,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2758,7 +2741,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2790,7 +2773,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2822,7 +2805,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2854,7 +2837,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2886,7 +2869,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/definitions/rpcStatus"
             }
           }
         },
@@ -2927,7 +2910,7 @@
         "currency": {
           "type": "string"
         },
-        "total_value": {
+        "totalValue": {
           "type": "number",
           "format": "double"
         },
@@ -2946,13 +2929,13 @@
         "item": {
           "type": "string"
         },
-        "condition_params": {
+        "conditionParams": {
           "$ref": "#/definitions/gctrpcConditionParams"
         },
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "asset_type": {
+        "assetType": {
           "type": "string"
         },
         "action": {
@@ -2975,7 +2958,7 @@
         "address": {
           "type": "string"
         },
-        "coin_type": {
+        "coinType": {
           "type": "string"
         },
         "description": {
@@ -2985,10 +2968,10 @@
           "type": "number",
           "format": "double"
         },
-        "supported_exchanges": {
+        "supportedExchanges": {
           "type": "string"
         },
-        "cold_storage": {
+        "coldStorage": {
           "type": "boolean"
         }
       }
@@ -3039,7 +3022,7 @@
         "exchange": {
           "type": "string"
         },
-        "order_status": {
+        "orderStatus": {
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -3053,19 +3036,19 @@
         "exchange": {
           "type": "string"
         },
-        "account_id": {
+        "accountId": {
           "type": "string"
         },
-        "orders_id": {
+        "ordersId": {
           "type": "string"
         },
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "asset_type": {
+        "assetType": {
           "type": "string"
         },
-        "wallet_address": {
+        "walletAddress": {
           "type": "string"
         },
         "side": {
@@ -3087,7 +3070,7 @@
     "gctrpcCancelBatchOrdersResponseOrders": {
       "type": "object",
       "properties": {
-        "order_status": {
+        "orderStatus": {
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -3101,19 +3084,19 @@
         "exchange": {
           "type": "string"
         },
-        "account_id": {
+        "accountId": {
           "type": "string"
         },
-        "order_id": {
+        "orderId": {
           "type": "string"
         },
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "asset_type": {
+        "assetType": {
           "type": "string"
         },
-        "wallet_address": {
+        "walletAddress": {
           "type": "string"
         },
         "side": {
@@ -3189,13 +3172,13 @@
           "type": "number",
           "format": "double"
         },
-        "check_bids": {
+        "checkBids": {
           "type": "boolean"
         },
-        "check_asks": {
+        "checkAsks": {
           "type": "boolean"
         },
-        "orderbook_amount": {
+        "orderbookAmount": {
           "type": "number",
           "format": "double"
         }
@@ -3207,14 +3190,14 @@
         "address": {
           "type": "string"
         },
-        "address_tag": {
+        "addressTag": {
           "type": "string"
         },
         "fee": {
           "type": "number",
           "format": "double"
         },
-        "tx_id": {
+        "txId": {
           "type": "string"
         }
       }
@@ -3251,65 +3234,41 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "start_date": {
+        "startDate": {
           "type": "string"
         },
-        "end_date": {
+        "endDate": {
           "type": "string"
         },
         "interval": {
           "type": "string",
           "format": "int64"
         },
-        "request_size_limit": {
+        "requestSizeLimit": {
           "type": "string",
           "format": "int64"
         },
-        "max_retry_attempts": {
+        "maxRetryAttempts": {
           "type": "string",
           "format": "int64"
         },
-        "batch_size": {
+        "batchSize": {
           "type": "string",
           "format": "int64"
         },
         "status": {
           "type": "string"
         },
-        "data_type": {
+        "dataType": {
           "type": "string"
         },
-        "conversion_interval": {
-          "type": "string",
-          "format": "int64"
-        },
-        "overwrite_existing_data": {
-          "type": "boolean"
-        },
-        "prerequisite_job_nickname": {
-          "type": "string"
-        },
-        "decimal_place_comparison": {
-          "type": "string",
-          "format": "int64"
-        },
-        "secondary_exchange_name": {
-          "type": "string"
-        },
-        "issue_tolerance_percentage": {
-          "type": "number",
-          "format": "double"
-        },
-        "replace_on_issue": {
-          "type": "boolean"
-        },
-        "job_results": {
+        "jobResults": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcDataHistoryJobResult"
           }
         },
-        "result_summaries": {
+        "resultSummaries": {
           "type": "array",
           "items": {
             "type": "string"
@@ -3320,19 +3279,19 @@
     "gctrpcDataHistoryJobResult": {
       "type": "object",
       "properties": {
-        "start_date": {
+        "startDate": {
           "type": "string"
         },
-        "end_date": {
+        "endDate": {
           "type": "string"
         },
-        "has_data": {
+        "hasData": {
           "type": "boolean"
         },
         "message": {
           "type": "string"
         },
-        "run_date": {
+        "runDate": {
           "type": "string"
         }
       }
@@ -3351,13 +3310,13 @@
     "gctrpcFiatWithdrawalEvent": {
       "type": "object",
       "properties": {
-        "bank_name": {
+        "bankName": {
           "type": "string"
         },
-        "account_name": {
+        "accountName": {
           "type": "string"
         },
-        "account_number": {
+        "accountNumber": {
           "type": "string"
         },
         "bsb": {
@@ -3374,16 +3333,16 @@
     "gctrpcFindMissingIntervalsResponse": {
       "type": "object",
       "properties": {
-        "exchange_name": {
+        "exchangeName": {
           "type": "string"
         },
-        "asset_type": {
+        "assetType": {
           "type": "string"
         },
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "missing_periods": {
+        "missingPeriods": {
           "type": "array",
           "items": {
             "type": "string"
@@ -3406,17 +3365,17 @@
         "verbose": {
           "type": "boolean"
         },
-        "rest_polling_delay": {
+        "restPollingDelay": {
           "type": "string"
         },
-        "api_key": {
+        "apiKey": {
           "type": "string"
         },
-        "api_key_level": {
+        "apiKeyLevel": {
           "type": "string",
           "format": "int64"
         },
-        "primary_provider": {
+        "primaryProvider": {
           "type": "boolean"
         }
       }
@@ -3434,7 +3393,7 @@
           "type": "number",
           "format": "double"
         },
-        "inverse_rate": {
+        "inverseRate": {
           "type": "number",
           "format": "double"
         }
@@ -3452,7 +3411,7 @@
         "path": {
           "type": "string"
         },
-        "next_run": {
+        "nextRun": {
           "type": "string"
         }
       }
@@ -3521,10 +3480,10 @@
     "gctrpcGCTScriptUploadRequest": {
       "type": "object",
       "properties": {
-        "script_name": {
+        "scriptName": {
           "type": "string"
         },
-        "script_data": {
+        "scriptData": {
           "type": "string"
         },
         "data": {
@@ -3586,7 +3545,7 @@
     "gctrpcGetCommunicationRelayersResponse": {
       "type": "object",
       "properties": {
-        "communication_relayers": {
+        "communicationRelayers": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/gctrpcCommunicationRelayer"
@@ -3654,7 +3613,7 @@
         "item": {
           "type": "string"
         },
-        "condition_params": {
+        "conditionParams": {
           "$ref": "#/definitions/gctrpcConditionParams"
         },
         "pair": {
@@ -3688,28 +3647,28 @@
         "verbose": {
           "type": "boolean"
         },
-        "using_sandbox": {
+        "usingSandbox": {
           "type": "boolean"
         },
-        "http_timeout": {
+        "httpTimeout": {
           "type": "string"
         },
-        "http_useragent": {
+        "httpUseragent": {
           "type": "string"
         },
-        "http_proxy": {
+        "httpProxy": {
           "type": "string"
         },
-        "base_currencies": {
+        "baseCurrencies": {
           "type": "string"
         },
-        "supported_assets": {
+        "supportedAssets": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/gctrpcPairsSupported"
           }
         },
-        "authenticated_api": {
+        "authenticatedApi": {
           "type": "boolean"
         }
       }
@@ -3717,7 +3676,7 @@
     "gctrpcGetExchangeOTPReponse": {
       "type": "object",
       "properties": {
-        "otp_code": {
+        "otpCode": {
           "type": "string"
         }
       }
@@ -3725,7 +3684,7 @@
     "gctrpcGetExchangeOTPsResponse": {
       "type": "object",
       "properties": {
-        "otp_codes": {
+        "otpCodes": {
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -3747,7 +3706,7 @@
     "gctrpcGetExchangePairsResponse": {
       "type": "object",
       "properties": {
-        "supported_assets": {
+        "supportedAssets": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/gctrpcPairsSupported"
@@ -3766,7 +3725,7 @@
     "gctrpcGetForexProvidersResponse": {
       "type": "object",
       "properties": {
-        "forex_providers": {
+        "forexProviders": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcForexProvider"
@@ -3777,7 +3736,7 @@
     "gctrpcGetForexRatesResponse": {
       "type": "object",
       "properties": {
-        "forex_rates": {
+        "forexRates": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcForexRatesConversion"
@@ -3817,27 +3776,27 @@
         "uptime": {
           "type": "string"
         },
-        "available_exchanges": {
+        "availableExchanges": {
           "type": "string",
           "format": "int64"
         },
-        "enabled_exchanges": {
+        "enabledExchanges": {
           "type": "string",
           "format": "int64"
         },
-        "default_forex_provider": {
+        "defaultForexProvider": {
           "type": "string"
         },
-        "default_fiat_currency": {
+        "defaultFiatCurrency": {
           "type": "string"
         },
-        "subsystem_status": {
+        "subsystemStatus": {
           "type": "object",
           "additionalProperties": {
             "type": "boolean"
           }
         },
-        "rpc_endpoints": {
+        "rpcEndpoints": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/gctrpcRPCEndpoint"
@@ -3868,7 +3827,7 @@
         "exchange": {
           "type": "string"
         },
-        "order_id": {
+        "orderId": {
           "type": "string"
         },
         "pair": {
@@ -3888,7 +3847,7 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "asset_type": {
+        "assetType": {
           "type": "string"
         }
       }
@@ -3910,16 +3869,16 @@
         "exchange": {
           "type": "string"
         },
-        "asset_type": {
+        "assetType": {
           "type": "string"
         },
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "start_date": {
+        "startDate": {
           "type": "string"
         },
-        "end_date": {
+        "endDate": {
           "type": "string"
         }
       }
@@ -3949,31 +3908,31 @@
     "gctrpcGetPortfolioSummaryResponse": {
       "type": "object",
       "properties": {
-        "coin_totals": {
+        "coinTotals": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcCoin"
           }
         },
-        "coins_offline": {
+        "coinsOffline": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcCoin"
           }
         },
-        "coins_offline_summary": {
+        "coinsOfflineSummary": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/gctrpcOfflineCoins"
           }
         },
-        "coins_online": {
+        "coinsOnline": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcCoin"
           }
         },
-        "coins_online_summary": {
+        "coinsOnlineSummary": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/gctrpcOnlineCoins"
@@ -3995,7 +3954,7 @@
     "gctrpcGetSusbsytemsResponse": {
       "type": "object",
       "properties": {
-        "subsystems_status": {
+        "subsystemsStatus": {
           "type": "object",
           "additionalProperties": {
             "type": "boolean"
@@ -4012,7 +3971,7 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "asset_type": {
+        "assetType": {
           "type": "string"
         }
       }
@@ -4088,29 +4047,29 @@
         "id": {
           "type": "string"
         },
-        "client_order_id": {
+        "clientOrderId": {
           "type": "string"
         },
-        "base_currency": {
+        "baseCurrency": {
           "type": "string"
         },
-        "quote_currency": {
+        "quoteCurrency": {
           "type": "string"
         },
-        "asset_type": {
+        "assetType": {
           "type": "string"
         },
-        "order_side": {
+        "orderSide": {
           "type": "string"
         },
-        "order_type": {
+        "orderType": {
           "type": "string"
         },
-        "creation_time": {
+        "creationTime": {
           "type": "string",
           "format": "int64"
         },
-        "update_time": {
+        "updateTime": {
           "type": "string",
           "format": "int64"
         },
@@ -4125,7 +4084,7 @@
           "type": "number",
           "format": "double"
         },
-        "open_volume": {
+        "openVolume": {
           "type": "number",
           "format": "double"
         },
@@ -4168,7 +4127,7 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "currency_pair": {
+        "currencyPair": {
           "type": "string"
         },
         "bids": {
@@ -4183,11 +4142,11 @@
             "$ref": "#/definitions/gctrpcOrderbookItem"
           }
         },
-        "last_updated": {
+        "lastUpdated": {
           "type": "string",
           "format": "int64"
         },
-        "asset_type": {
+        "assetType": {
           "type": "string"
         }
       }
@@ -4209,10 +4168,10 @@
     "gctrpcPairsSupported": {
       "type": "object",
       "properties": {
-        "available_pairs": {
+        "availablePairs": {
           "type": "string"
         },
-        "enabled_pairs": {
+        "enabledPairs": {
           "type": "string"
         }
       }
@@ -4223,7 +4182,7 @@
         "address": {
           "type": "string"
         },
-        "coin_type": {
+        "coinType": {
           "type": "string"
         },
         "description": {
@@ -4241,7 +4200,7 @@
         "started": {
           "type": "boolean"
         },
-        "listen_address": {
+        "listenAddress": {
           "type": "string"
         }
       }
@@ -4261,7 +4220,7 @@
         "address": {
           "type": "string"
         },
-        "coin_type": {
+        "coinType": {
           "type": "string"
         },
         "description": {
@@ -4286,7 +4245,7 @@
         "timestamp": {
           "type": "string"
         },
-        "trade_id": {
+        "tradeId": {
           "type": "string"
         }
       }
@@ -4294,7 +4253,7 @@
     "gctrpcSavedTradesResponse": {
       "type": "object",
       "properties": {
-        "exchange_name": {
+        "exchangeName": {
           "type": "string"
         },
         "asset": {
@@ -4311,28 +4270,13 @@
         }
       }
     },
-    "gctrpcSetDataHistoryJobStatusRequest": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "nickname": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string",
-          "format": "int64"
-        }
-      }
-    },
     "gctrpcSetExchangePairRequest": {
       "type": "object",
       "properties": {
         "exchange": {
           "type": "string"
         },
-        "asset_type": {
+        "assetType": {
           "type": "string"
         },
         "pairs": {
@@ -4388,15 +4332,15 @@
           "type": "number",
           "format": "double"
         },
-        "minimum_price": {
+        "minimumPrice": {
           "type": "number",
           "format": "double"
         },
-        "maximum_price": {
+        "maximumPrice": {
           "type": "number",
           "format": "double"
         },
-        "percentage_gain_loss": {
+        "percentageGainLoss": {
           "type": "number",
           "format": "double"
         },
@@ -4417,7 +4361,7 @@
         "side": {
           "type": "string"
         },
-        "order_type": {
+        "orderType": {
           "type": "string"
         },
         "amount": {
@@ -4428,10 +4372,10 @@
           "type": "number",
           "format": "double"
         },
-        "client_id": {
+        "clientId": {
           "type": "string"
         },
-        "asset_type": {
+        "assetType": {
           "type": "string"
         }
       }
@@ -4439,10 +4383,10 @@
     "gctrpcSubmitOrderResponse": {
       "type": "object",
       "properties": {
-        "order_placed": {
+        "orderPlaced": {
           "type": "boolean"
         },
-        "order_id": {
+        "orderId": {
           "type": "string"
         },
         "trades": {
@@ -4459,11 +4403,11 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "last_updated": {
+        "lastUpdated": {
           "type": "string",
           "format": "int64"
         },
-        "currency_pair": {
+        "currencyPair": {
           "type": "string"
         },
         "last": {
@@ -4490,7 +4434,7 @@
           "type": "number",
           "format": "double"
         },
-        "price_ath": {
+        "priceAth": {
           "type": "number",
           "format": "double"
         }
@@ -4513,7 +4457,7 @@
     "gctrpcTradeHistory": {
       "type": "object",
       "properties": {
-        "creation_time": {
+        "creationTime": {
           "type": "string",
           "format": "int64"
         },
@@ -4531,10 +4475,10 @@
         "exchange": {
           "type": "string"
         },
-        "asset_type": {
+        "assetType": {
           "type": "string"
         },
-        "order_side": {
+        "orderSide": {
           "type": "string"
         },
         "fee": {
@@ -4562,18 +4506,7 @@
           "type": "number",
           "format": "double"
         },
-        "fee_asset": {
-          "type": "string"
-        }
-      }
-    },
-    "gctrpcUpdateDataHistoryJobPrerequisiteRequest": {
-      "type": "object",
-      "properties": {
-        "nickname": {
-          "type": "string"
-        },
-        "prerequisite_job_nickname": {
+        "feeAsset": {
           "type": "string"
         }
       }
@@ -4593,57 +4526,33 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "start_date": {
+        "startDate": {
           "type": "string"
         },
-        "end_date": {
+        "endDate": {
           "type": "string"
         },
         "interval": {
           "type": "string",
           "format": "int64"
         },
-        "request_size_limit": {
+        "requestSizeLimit": {
           "type": "string",
           "format": "int64"
         },
-        "data_type": {
+        "dataType": {
           "type": "string",
           "format": "int64"
         },
-        "max_retry_attempts": {
+        "maxRetryAttempts": {
           "type": "string",
           "format": "int64"
         },
-        "batch_size": {
+        "batchSize": {
           "type": "string",
           "format": "int64"
         },
-        "insert_only": {
-          "type": "boolean"
-        },
-        "conversion_interval": {
-          "type": "string",
-          "format": "int64"
-        },
-        "overwrite_existing_data": {
-          "type": "boolean"
-        },
-        "prerequisite_job_nickname": {
-          "type": "string"
-        },
-        "decimal_place_comparison": {
-          "type": "string",
-          "format": "int64"
-        },
-        "secondary_exchange_name": {
-          "type": "string"
-        },
-        "issue_tolerance_percentage": {
-          "type": "number",
-          "format": "double"
-        },
-        "replace_on_issue": {
+        "insertOnly": {
           "type": "boolean"
         }
       }
@@ -4654,7 +4563,7 @@
         "message": {
           "type": "string"
         },
-        "job_id": {
+        "jobId": {
           "type": "string"
         }
       }
@@ -4671,16 +4580,16 @@
         "enabled": {
           "type": "boolean"
         },
-        "authenticated_supported": {
+        "authenticatedSupported": {
           "type": "boolean"
         },
         "authenticated": {
           "type": "boolean"
         },
-        "running_url": {
+        "runningUrl": {
           "type": "string"
         },
-        "proxy_address": {
+        "proxyAddress": {
           "type": "string"
         }
       }
@@ -4725,7 +4634,7 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "price_target": {
+        "priceTarget": {
           "type": "number",
           "format": "double"
         },
@@ -4743,7 +4652,7 @@
         "address": {
           "type": "string"
         },
-        "address_tag": {
+        "addressTag": {
           "type": "string"
         },
         "currency": {
@@ -4778,7 +4687,7 @@
         "description": {
           "type": "string"
         },
-        "bank_account_id": {
+        "bankAccountId": {
           "type": "string"
         }
       }
@@ -4822,11 +4731,11 @@
         "request": {
           "$ref": "#/definitions/gctrpcWithdrawalRequestEvent"
         },
-        "created_at": {
+        "createdAt": {
           "type": "string",
           "format": "date-time"
         },
-        "updated_at": {
+        "updatedAt": {
           "type": "string",
           "format": "date-time"
         }
@@ -4921,7 +4830,7 @@
     "protobufAny": {
       "type": "object",
       "properties": {
-        "type_url": {
+        "typeUrl": {
           "type": "string"
         },
         "value": {
@@ -4930,42 +4839,14 @@
         }
       }
     },
-    "runtimeError": {
+    "rpcStatus": {
       "type": "object",
       "properties": {
-        "error": {
-          "type": "string"
-        },
         "code": {
           "type": "integer",
           "format": "int32"
         },
         "message": {
-          "type": "string"
-        },
-        "details": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/protobufAny"
-          }
-        }
-      }
-    },
-    "runtimeStreamError": {
-      "type": "object",
-      "properties": {
-        "grpc_code": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "http_code": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "message": {
-          "type": "string"
-        },
-        "http_status": {
           "type": "string"
         },
         "details": {

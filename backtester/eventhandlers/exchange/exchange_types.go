@@ -14,7 +14,10 @@ import (
 )
 
 var (
-	errDataMayBeIncorrect = errors.New("data may be incorrect")
+	errDataMayBeIncorrect     = errors.New("data may be incorrect")
+	errExceededPortfolioLimit = errors.New("exceeded portfolio limit")
+	errNilCurrencySettings    = errors.New("received nil currency settings")
+	errInvalidDirection       = errors.New("received invalid order direction")
 )
 
 // ExecutionHandler interface dictates what functions are required to submit an order

@@ -80,6 +80,11 @@ func TestPrintSettings(t *testing.T) {
 		Goal:     "To demonstrate rendering of settings",
 		StrategySettings: StrategySettings{
 			Name: dca,
+			CustomSettings: map[string]interface{}{
+				"dca-dummy1": 30.0,
+				"dca-dummy2": 30.0,
+				"dca-dummy3": 30.0,
+			},
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -1003,5 +1008,22 @@ func TestValidateCurrencySettings(t *testing.T) {
 	err = c.ValidateCurrencySettings()
 	if err != nil {
 		t.Error(err)
+	}
+	c.CurrencySettings[0].MinimumSlippagePercent = -1.0
+	err = c.ValidateCurrencySettings()
+	if !errors.Is(ErrBadSlippageRates, err) {
+		t.Errorf("expected %v, received %v", ErrBadSlippageRates, err)
+	}
+	c.CurrencySettings[0].MinimumSlippagePercent = 2.0
+	c.CurrencySettings[0].MaximumSlippagePercent = -1.0
+	err = c.ValidateCurrencySettings()
+	if !errors.Is(ErrBadSlippageRates, err) {
+		t.Errorf("expected %v, received %v", ErrBadSlippageRates, err)
+	}
+	c.CurrencySettings[0].MinimumSlippagePercent = 2.0
+	c.CurrencySettings[0].MaximumSlippagePercent = 1.0
+	err = c.ValidateCurrencySettings()
+	if !errors.Is(ErrBadSlippageRates, err) {
+		t.Errorf("expected %v, received %v", ErrBadSlippageRates, err)
 	}
 }
