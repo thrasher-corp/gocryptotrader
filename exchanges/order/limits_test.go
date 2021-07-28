@@ -95,6 +95,32 @@ func TestLoadLimits(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
+
+	noCompare := []MinMaxLevel{
+		{
+			Pair:      btcusd,
+			Asset:     asset.Spot,
+			MinAmount: 10,
+		},
+	}
+
+	err = e.LoadLimits(noCompare)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected error %v but received %v", nil, err)
+	}
+
+	noCompare = []MinMaxLevel{
+		{
+			Pair:     btcusd,
+			Asset:    asset.Spot,
+			MinPrice: 10,
+		},
+	}
+
+	err = e.LoadLimits(noCompare)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected error %v but received %v", nil, err)
+	}
 }
 
 func TestGetOrderExecutionLimits(t *testing.T) {
