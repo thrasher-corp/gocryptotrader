@@ -1380,7 +1380,7 @@ func (f *FTX) SubaccountTransfer(coin currency.Code, source, destination string,
 	return &resp.Data, nil
 }
 
-// FetchSpotExchangeLimits fetches spot order execution limits
+// FetchExchangeLimits fetches spot order execution limits
 func (f *FTX) FetchExchangeLimits() ([]order.MinMaxLevel, error) {
 	data, err := f.GetMarkets()
 	if err != nil {
