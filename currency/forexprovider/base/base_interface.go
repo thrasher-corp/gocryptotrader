@@ -95,7 +95,10 @@ func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (m
 
 	rateNew, err := f.backupGetRate(baseCurrency, shunt)
 	if err != nil {
-		log.Warnf(log.Global, "failed to update rate map for currencies %v %v", shunt, err)
+		log.Warnf(log.Global, "%s and subsequent providers, failed to update rate map for currencies %v %v",
+			f.Primary.Provider.GetName(),
+			shunt,
+			err)
 	}
 
 	for key, val := range rateNew {
