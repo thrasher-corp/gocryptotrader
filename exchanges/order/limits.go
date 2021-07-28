@@ -132,8 +132,8 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 				levels[x].MaxPrice)
 		}
 
-		if levels[x].MinPrice > 0 &&
-			levels[x].MaxPrice > 0 &&
+		if levels[x].MinAmount > 0 &&
+			levels[x].MaxAmount > 0 &&
 			levels[x].MinAmount > levels[x].MaxAmount {
 			return fmt.Errorf("%w for %s %s supplied min: %f max: %f",
 				errInvalidAmountLevels,
