@@ -36,3 +36,9 @@ backup.json
 
 # Designated generated files dir
 target/
+
+# Delve compiled executable
+__debug_bin
+
+# Coverage reports
+coverage.txt
