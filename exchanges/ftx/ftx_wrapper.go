@@ -218,11 +218,19 @@ func (f *FTX) Run() {
 		f.PrintEnabledPairs()
 	}
 
+	err := f.UpdateOrderExecutionLimits("")
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"Could not set %s exchange exchange limits: %v",
+			f.Name,
+			err)
+	}
+
 	if !f.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
 
-	err := f.UpdateTradablePairs(false)
+	err = f.UpdateTradablePairs(false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -1112,4 +1120,13 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (f *FTX) UpdateOrderExecutionLimits(_ asset.Item) error {
+	limits, err := f.FetchExchangeLimits()
+	if err != nil {
+		return fmt.Errorf("cannot update exchange execution limits: %w", err)
+	}
+	return f.LoadLimits(limits)
 }

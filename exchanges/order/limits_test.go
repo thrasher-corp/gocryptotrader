@@ -20,6 +20,22 @@ func TestLoadLimits(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", errCannotLoadLimit, err)
 	}
 
+	invalidAsset := []MinMaxLevel{
+		{
+			Pair:      btcusd,
+			MinPrice:  100000,
+			MaxPrice:  1000000,
+			MinAmount: 1,
+			MaxAmount: 10,
+		},
+	}
+	err = e.LoadLimits(invalidAsset)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("expected error %v but received %v",
+			asset.ErrNotSupported,
+			err)
+	}
+
 	newLimits := []MinMaxLevel{
 		{
 			Pair:      btcusd,
