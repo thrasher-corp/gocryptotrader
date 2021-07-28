@@ -15,7 +15,7 @@ var (
 	defaultAllowance = time.Second * 30
 )
 
-// node defines a linked list node for an orderbook item
+// Node defines a linked list node for an orderbook item
 type Node struct {
 	Value Item
 	Next  *Node
