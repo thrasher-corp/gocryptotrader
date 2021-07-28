@@ -1417,7 +1417,7 @@ func (f *FTX) FetchExchangeLimits() ([]order.MinMaxLevel, error) {
 			Asset:      a,
 			StepPrice:  data[x].PriceIncrement,
 			StepAmount: data[x].SizeIncrement,
-			MinAmount:  data[x].SizeIncrement,
+			MinAmount:  data[x].MinProvideSize,
 		})
 	}
 	return limits, nil
