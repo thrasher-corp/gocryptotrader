@@ -1,6 +1,7 @@
 package bithumb
 
 import (
+	"errors"
 	"log"
 	"os"
 	"testing"
@@ -612,5 +613,31 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
+	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	err := b.UpdateOrderExecutionLimits("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cp := currency.NewPair(currency.BTC, currency.KRW)
+	limit, err := b.GetOrderExecutionLimits(asset.Spot, cp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = limit.Conforms(46241000, 0.00001, order.Limit)
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Fatalf("expected error %v but received %v",
+			order.ErrAmountBelowMin,
+			err)
+	}
+
+	err = limit.Conforms(46241000, 0.0001, order.Limit)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected error %v but received %v",
+			nil,
+			err)
 	}
 }

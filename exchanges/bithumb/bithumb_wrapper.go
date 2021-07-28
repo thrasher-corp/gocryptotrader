@@ -149,11 +149,19 @@ func (b *Bithumb) Run() {
 		b.PrintEnabledPairs()
 	}
 
+	err := b.UpdateOrderExecutionLimits("")
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to set exchange order execution limits. Err: %v",
+			b.Name,
+			err)
+	}
+
 	if !b.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
 
-	err := b.UpdateTradablePairs(false)
+	err = b.UpdateTradablePairs(false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
@@ -780,4 +788,13 @@ func (b *Bithumb) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bithumb) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return b.GetHistoricCandles(pair, a, start, end, interval)
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (b *Bithumb) UpdateOrderExecutionLimits(_ asset.Item) error {
+	limits, err := b.FetchExchangeLimits()
+	if err != nil {
+		return fmt.Errorf("cannot update exchange execution limits: %w", err)
+	}
+	return b.LoadLimits(limits)
 }

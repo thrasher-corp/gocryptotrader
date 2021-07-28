@@ -15,6 +15,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -611,4 +613,78 @@ func (b *Bithumb) GetCandleStick(symbol, interval string) (resp OHLCVResponse, e
 	path := publicCandleStick + symbol + "/" + interval
 	err = b.SendHTTPRequest(exchange.RestSpot, path, &resp)
 	return
+}
+
+// FetchSpotExchangeLimits fetches spot order execution limits
+func (b *Bithumb) FetchExchangeLimits() ([]order.MinMaxLevel, error) {
+	ticks, err := b.GetAllTickers()
+	if err != nil {
+		return nil, err
+	}
+
+	var limits []order.MinMaxLevel
+	for code, data := range ticks {
+		c := currency.NewCode(code)
+		cp := currency.NewPair(c, currency.KRW)
+		if err != nil {
+			return nil, err
+		}
+
+		limits = append(limits, order.MinMaxLevel{
+			Pair:       cp,
+			Asset:      asset.Spot,
+			MinPrice:   getPriceMinimum(data.ClosingPrice),
+			StepPrice:  getPriceMinimum(data.ClosingPrice),
+			MinAmount:  getAmountMinimum(data.ClosingPrice),
+			StepAmount: getAmountMinimum(data.ClosingPrice),
+		})
+	}
+	return limits, nil
+}
+
+// Functions below get the minimum rates as per transaction policy:
+// https://en.bithumb.com/customer_support/info_guide?seq=537&categorySeq=302
+
+func getPriceMinimum(unitPrice float64) float64 {
+	switch {
+	case unitPrice < 1:
+		return 0.0001
+	case unitPrice < 10:
+		return 0.001
+	case unitPrice < 100:
+		return 0.01
+	case unitPrice < 1000:
+		return 0.1
+	case unitPrice < 5000:
+		return 1
+	case unitPrice < 10000:
+		return 5
+	case unitPrice < 50000:
+		return 10
+	case unitPrice < 100000:
+		return 50
+	case unitPrice < 500000:
+		return 100
+	case unitPrice < 1000000:
+		return 500
+	}
+	// Above
+	return 1000
+}
+
+func getAmountMinimum(unitPrice float64) float64 {
+	switch {
+	case unitPrice < 100:
+		return 10
+	case unitPrice < 1000:
+		return 1
+	case unitPrice < 10000:
+		return 0.1
+	case unitPrice < 100000:
+		return 0.01
+	case unitPrice < 1000000:
+		return 0.001
+	}
+	// Above
+	return 0.0001
 }
