@@ -1450,7 +1450,7 @@ func getManagedOrders(c *cli.Context) error {
 var getOrderCommand = &cli.Command{
 	Name:      "getorder",
 	Usage:     "gets the specified order info",
-	ArgsUsage: "<exchange> <order_id> <pair>",
+	ArgsUsage: "<exchange> <asset> <pair> <order_id>",
 	Action:    getOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
