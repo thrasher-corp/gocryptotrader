@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -16,6 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -618,4 +621,42 @@ func (b *Bithumb) GetCandleStick(symbol, interval string) (resp OHLCVResponse, e
 	path := publicCandleStick + symbol + "/" + interval
 	err = b.SendHTTPRequest(exchange.RestSpot, path, &resp)
 	return
+}
+
+// FetchExchangeLimits fetches spot order execution limits
+func (b *Bithumb) FetchExchangeLimits() ([]order.MinMaxLevel, error) {
+	ticks, err := b.GetAllTickers()
+	if err != nil {
+		return nil, err
+	}
+
+	var limits []order.MinMaxLevel
+	for code, data := range ticks {
+		c := currency.NewCode(code)
+		cp := currency.NewPair(c, currency.KRW)
+		if err != nil {
+			return nil, err
+		}
+
+		limits = append(limits, order.MinMaxLevel{
+			Pair:      cp,
+			Asset:     asset.Spot,
+			MinAmount: getAmountMinimum(data.ClosingPrice),
+		})
+	}
+	return limits, nil
+}
+
+// getAmountMinimum derives the minimum amount based on current price. This
+// keeps amount in line with front end, rounded to 4 decimal places. As
+// transaction policy:
+// https://en.bithumb.com/customer_support/info_guide?seq=537&categorySeq=302
+// Seems to not be inline with front end limits.
+func getAmountMinimum(unitPrice float64) float64 {
+	if unitPrice <= 0 {
+		return 0
+	}
+	ratio := 500 / unitPrice
+	pow := math.Pow(10, float64(4))
+	return math.Ceil(ratio*pow) / pow // Round up our units
 }
