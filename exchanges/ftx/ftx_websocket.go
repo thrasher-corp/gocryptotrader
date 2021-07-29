@@ -357,8 +357,8 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			orderVars, err = f.compatibleOrderVars(resultData.OrderData.Side,
 				resultData.OrderData.Status,
 				resultData.OrderData.OrderType,
-				resultData.OrderData.FilledSize,
 				resultData.OrderData.Size,
+				resultData.OrderData.FilledSize,
 				resultData.OrderData.AvgFillPrice)
 			if err != nil {
 				return err
