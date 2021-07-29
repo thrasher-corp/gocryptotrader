@@ -280,7 +280,8 @@ func (c *COINUT) SendHTTPRequest(ep exchange.URL, apiRequest string, params map[
 		params["nonce"] = getNonce()
 		params["request"] = apiRequest
 
-		payload, err := json.Marshal(params)
+		var payload []byte
+		payload, err = json.Marshal(params)
 		if err != nil {
 			return nil, err
 		}

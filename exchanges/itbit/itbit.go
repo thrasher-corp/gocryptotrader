@@ -328,7 +328,9 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 	err = i.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		n := i.Requester.GetNonce(true).String()
 		timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-		message, err := json.Marshal([]string{method, urlPath, string(PayloadJSON), n, timestamp})
+
+		var message []byte
+		message, err = json.Marshal([]string{method, urlPath, string(PayloadJSON), n, timestamp})
 		if err != nil {
 			return nil, err
 		}
