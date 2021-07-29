@@ -318,7 +318,7 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 	// TODO: Is using det.UpdateOrderFromModify() better in this case, since
 	// it can update invalid properties?
 	if mod.Price > 0 && mod.Price != det.Price {
-		det.Amount = mod.Amount
+		det.Price = mod.Price
 	}
 	if mod.Amount > 0 && mod.Amount != det.Amount {
 		det.Amount = mod.Amount
