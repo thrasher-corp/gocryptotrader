@@ -795,15 +795,15 @@ func (f *FTX) DeleteOrderByClientID(clientID string) (string, error) {
 	resp := struct {
 		Result  string `json:"result"`
 		Success bool   `json:"success"`
+		Error   string `json:"error"`
 	}{}
-
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, deleteOrderByClientID+clientID, nil, &resp); err != nil {
-		return "", err
+	err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, deleteOrderByClientID+clientID, nil, &resp)
+	// If there is an error reported, but the resp struct reports one of a very few
+	// specific error causes, we still consider this a successful cancellation.
+	if err != nil && !resp.Success && (resp.Error == "Order already closed" || resp.Error == "Order already queued for cancellation") {
+		return resp.Error, nil
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete order request by client ID unsuccessful")
-	}
-	return resp.Result, nil
+	return resp.Result, err
 }
 
 // DeleteTriggerOrder deletes an order
