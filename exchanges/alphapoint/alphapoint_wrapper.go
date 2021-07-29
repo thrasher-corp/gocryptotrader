@@ -263,8 +263,8 @@ func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (a *Alphapoint) ModifyOrder(_ *order.Modify) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (a *Alphapoint) ModifyOrder(_ *order.Modify) (order.Modify, error) {
+	return order.Modify{}, common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number

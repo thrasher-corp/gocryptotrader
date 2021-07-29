@@ -329,6 +329,8 @@ func (b *Bithumb) ModifyTrade(orderID, orderCurrency, transactionType string, un
 
 	params := url.Values{}
 	params.Set("order_currency", strings.ToUpper(orderCurrency))
+	// XXX: Why "payment_currency" starts with an uppercase letter?  On
+	// https://apidocs.bithumb.com/docs/place it's spelled with a lowercase 'p'.
 	params.Set("Payment_currency", "KRW")
 	params.Set("type", strings.ToUpper(transactionType))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))

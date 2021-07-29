@@ -541,14 +541,14 @@ func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (p *Poloniex) ModifyOrder(action *order.Modify) (string, error) {
+func (p *Poloniex) ModifyOrder(action *order.Modify) (order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
 	oID, err := strconv.ParseInt(action.ID, 10, 64)
 	if err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
 	resp, err := p.MoveOrder(oID,
@@ -557,10 +557,20 @@ func (p *Poloniex) ModifyOrder(action *order.Modify) (string, error) {
 		action.PostOnly,
 		action.ImmediateOrCancel)
 	if err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
-	return strconv.FormatInt(resp.OrderNumber, 10), nil
+	return order.Modify{
+		Exchange:  action.Exchange,
+		AssetType: action.AssetType,
+		Pair:      action.Pair,
+		ID:        strconv.FormatInt(resp.OrderNumber, 10),
+
+		Price:             action.Price,
+		Amount:            action.Amount,
+		PostOnly:          action.PostOnly,
+		ImmediateOrCancel: action.ImmediateOrCancel,
+	}, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number

@@ -299,7 +299,7 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 		return nil, ErrExchangeNotFound
 	}
 
-	id, err := exch.ModifyOrder(mod)
+	res, err := exch.ModifyOrder(mod)
 	if err != nil {
 		return nil, err
 	}
@@ -314,17 +314,8 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 		// exchange, but not found locally.
 		return nil, err
 	}
-
-	// TODO: Is using det.UpdateOrderFromModify() better in this case, since
-	// it can update invalid properties?
-	if mod.Price > 0 && mod.Price != det.Price {
-		det.Price = mod.Price
-	}
-	if mod.Amount > 0 && mod.Amount != det.Amount {
-		det.Amount = mod.Amount
-	}
-	det.ID = id
-	return &order.ModifyResponse{OrderID: id}, nil
+	det.UpdateOrderFromModify(&res)
+	return &order.ModifyResponse{OrderID: res.ID}, nil
 }
 
 // Submit will take in an order struct, send it to the exchange and
