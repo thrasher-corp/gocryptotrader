@@ -641,3 +641,49 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			err)
 	}
 }
+
+func TestGetAmountMinimum(t *testing.T) {
+	testCases := []struct {
+		name      string
+		unitprice float64
+		expected  float64
+	}{
+		{
+			name:      "ETH-KRW",
+			unitprice: 2638000.0,
+			expected:  0.0002,
+		},
+		{
+			name:      "DOGE-KRW",
+			unitprice: 236.5,
+			expected:  2.1142,
+		},
+		{
+			name:      "XRP-KRW",
+			unitprice: 818.8,
+			expected:  0.6106,
+		},
+		{
+			name:      "LTC-KRW",
+			unitprice: 160100,
+			expected:  0.0031,
+		},
+		{
+			name:      "BTC-KRW",
+			unitprice: 46079000,
+			expected:  0.0001,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			minAmount := getAmountMinimum(tt.unitprice)
+			if minAmount != tt.expected {
+				t.Fatalf("expected: %f but received: %f for unit price: %f",
+					tt.expected,
+					minAmount,
+					tt.unitprice)
+			}
+		})
+	}
+}

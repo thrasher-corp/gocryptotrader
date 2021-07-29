@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -631,60 +632,25 @@ func (b *Bithumb) FetchExchangeLimits() ([]order.MinMaxLevel, error) {
 		}
 
 		limits = append(limits, order.MinMaxLevel{
-			Pair:       cp,
-			Asset:      asset.Spot,
-			MinPrice:   getPriceMinimum(data.ClosingPrice),
-			StepPrice:  getPriceMinimum(data.ClosingPrice),
-			MinAmount:  getAmountMinimum(data.ClosingPrice),
-			StepAmount: getAmountMinimum(data.ClosingPrice),
+			Pair:      cp,
+			Asset:     asset.Spot,
+			MinAmount: getAmountMinimum(data.ClosingPrice),
 		})
 	}
 	return limits, nil
 }
 
-// Functions below get the minimum rates as per transaction policy:
+// getAmountMinimum derives the minimum amount based on current price. This
+// keeps amount in line with front end, rounded to 4 decimal places. As
+// transaction policy:
 // https://en.bithumb.com/customer_support/info_guide?seq=537&categorySeq=302
-
-func getPriceMinimum(unitPrice float64) float64 {
-	switch {
-	case unitPrice < 1:
-		return 0.0001
-	case unitPrice < 10:
-		return 0.001
-	case unitPrice < 100:
-		return 0.01
-	case unitPrice < 1000:
-		return 0.1
-	case unitPrice < 5000:
-		return 1
-	case unitPrice < 10000:
-		return 5
-	case unitPrice < 50000:
-		return 10
-	case unitPrice < 100000:
-		return 50
-	case unitPrice < 500000:
-		return 100
-	case unitPrice < 1000000:
-		return 500
-	}
-	// Above
-	return 1000
-}
-
+// Seems to not be inline with front end limits.
 func getAmountMinimum(unitPrice float64) float64 {
-	switch {
-	case unitPrice < 100:
-		return 10
-	case unitPrice < 1000:
-		return 1
-	case unitPrice < 10000:
-		return 0.1
-	case unitPrice < 100000:
-		return 0.01
-	case unitPrice < 1000000:
-		return 0.001
+	ratio := 500 / unitPrice
+	val := gctmath.RoundFloat(ratio, 4)
+	if val == 0 {
+		// Anything that exceeds 4 decimal places will have this base.
+		return 0.0001
 	}
-	// Above
-	return 0.0001
+	return val
 }
