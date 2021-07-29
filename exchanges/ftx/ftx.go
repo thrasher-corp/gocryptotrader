@@ -782,8 +782,8 @@ func (f *FTX) DeleteOrder(orderID string) (string, error) {
 		Error   string `json:"error"`
 	}{}
 	err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, deleteOrder+orderID, nil, &resp)
-	// If there is an error reported, but the resp struct repots one of a very few
-	// specific causes, we still consider this a successful cancellation.
+	// If there is an error reported, but the resp struct reports one of a very few
+	// specific error causes, we still consider this a successful cancellation.
 	if err != nil && !resp.Success && (resp.Error == "Order already closed" || resp.Error == "Order already queued for cancellation") {
 		return resp.Error, nil
 	}
