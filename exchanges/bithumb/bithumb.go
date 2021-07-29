@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -13,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -646,11 +646,10 @@ func (b *Bithumb) FetchExchangeLimits() ([]order.MinMaxLevel, error) {
 // https://en.bithumb.com/customer_support/info_guide?seq=537&categorySeq=302
 // Seems to not be inline with front end limits.
 func getAmountMinimum(unitPrice float64) float64 {
-	ratio := 500 / unitPrice
-	val := gctmath.RoundFloat(ratio, 4)
-	if val == 0 {
-		// Anything that exceeds 4 decimal places will have this base.
-		return 0.0001
+	if unitPrice <= 0 {
+		return 0
 	}
-	return val
+	ratio := 500 / unitPrice
+	pow := math.Pow(10, float64(4))
+	return math.Ceil(ratio*pow) / pow // Round up our units
 }

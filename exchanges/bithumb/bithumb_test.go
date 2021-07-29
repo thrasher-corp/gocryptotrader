@@ -661,17 +661,22 @@ func TestGetAmountMinimum(t *testing.T) {
 		{
 			name:      "XRP-KRW",
 			unitprice: 818.8,
-			expected:  0.6106,
+			expected:  0.6107,
 		},
 		{
 			name:      "LTC-KRW",
 			unitprice: 160100,
-			expected:  0.0031,
+			expected:  0.0032,
 		},
 		{
 			name:      "BTC-KRW",
 			unitprice: 46079000,
 			expected:  0.0001,
+		},
+		{
+			name:      "nonsense",
+			unitprice: 0,
+			expected:  0,
 		},
 	}
 
