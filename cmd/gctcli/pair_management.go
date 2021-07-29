@@ -177,10 +177,6 @@ func enableDisableExchangePair(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
-	if !validExchange(exchange) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("pairs") {
 		pairs = c.String("pairs")
 	} else {
@@ -256,10 +252,6 @@ func getExchangePairs(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
-	if !validExchange(exchange) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("asset") {
 		asset = c.String("asset")
 	} else {
@@ -307,10 +299,6 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 		exchange = c.String("exchange")
 	} else {
 		exchange = c.Args().First()
-	}
-
-	if !validExchange(exchange) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("asset") {
@@ -361,10 +349,6 @@ func enableDisableAllExchangePairs(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
-	if !validExchange(exchange) {
-		return errInvalidExchange
-	}
-
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -397,10 +381,6 @@ func updateExchangeSupportedPairs(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
-	if !validExchange(exchange) {
-		return errInvalidExchange
-	}
-
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -430,10 +410,6 @@ func getExchangeAssets(c *cli.Context) error {
 		exchange = c.String("exchange")
 	} else {
 		exchange = c.Args().First()
-	}
-
-	if !validExchange(exchange) {
-		return errInvalidExchange
 	}
 
 	conn, err := setupClient()
