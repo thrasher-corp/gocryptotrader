@@ -725,7 +725,9 @@ func (b *Binance) SendAuthHTTPRequest(ePath exchange.URL, method, path string, p
 	if params == nil {
 		params = url.Values{}
 	}
-	params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
+	if params.Get("recvWindow") == "" {
+		params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), recvWindow)
 	defer cancel()
 
