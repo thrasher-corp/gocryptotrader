@@ -277,7 +277,11 @@ func (s *RPCServer) DisableExchange(_ context.Context, r *gctrpc.GenericExchange
 
 // EnableExchange enables an exchange
 func (s *RPCServer) EnableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericResponse, error) {
-	err := s.LoadExchange(r.Exchange, nil)
+	exchCfg, err := s.Config.GetExchangeConfig(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+	err = s.LoadExchange(exchCfg, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -33,7 +33,13 @@ func main() {
 	log.Printf("Loading exchanges..")
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
-		err := engine.Bot.LoadExchange(exchange.Exchanges[x], &wg)
+		name := exchange.Exchanges[x]
+		exchCfg, err := engine.Bot.Config.GetExchangeConfig(name)
+		if err != nil {
+			log.Printf("Unable to find exchange %s. Err: %s", name, err)
+			continue
+		}
+		err = engine.Bot.LoadExchange(exchCfg, &wg)
 		if err != nil {
 			log.Printf("Failed to load exchange %s. Err: %s",
 				exchange.Exchanges[x],

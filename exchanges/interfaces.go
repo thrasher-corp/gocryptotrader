@@ -23,6 +23,7 @@ type IBotExchange interface {
 	Setup(exch *config.ExchangeConfig) error
 	Start(wg *sync.WaitGroup)
 	SetDefaults()
+	SetName(string)
 	GetName() string
 	IsEnabled() bool
 	SetEnabled(bool)

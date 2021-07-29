@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"errors"
-	"fmt"
 	"sort"
 	"strconv"
 	"time"
@@ -32,7 +31,7 @@ func (e Exchange) Exchanges(enabledOnly bool) []string {
 func (e Exchange) GetExchange(exch string) (exchange.IBotExchange, error) {
 	ex := engine.Bot.GetExchangeByName(exch)
 	if ex == nil {
-		return nil, fmt.Errorf("%v exchange not found", exch)
+		return nil, engine.ErrExchangeNotFound
 	}
 
 	return ex, nil

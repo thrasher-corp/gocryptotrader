@@ -260,11 +260,11 @@ func TestDryRunParamInteraction(t *testing.T) {
 			},
 		},
 	}
-	if err := bot.LoadExchange(testExchange, nil); err != nil {
-		t.Error(err)
-	}
 	exchCfg, err := bot.Config.GetExchangeConfig(testExchange)
 	if err != nil {
+		t.Error(err)
+	}
+	if err = bot.LoadExchange(exchCfg, nil); err != nil {
 		t.Error(err)
 	}
 	if exchCfg.Verbose {
@@ -280,16 +280,45 @@ func TestDryRunParamInteraction(t *testing.T) {
 	bot.Settings.EnableDryRun = true
 	bot.Settings.CheckParamInteraction = true
 	bot.Settings.EnableExchangeVerbose = true
-	if err = bot.LoadExchange(testExchange, nil); err != nil {
-		t.Error(err)
-	}
-
 	exchCfg, err = bot.Config.GetExchangeConfig(testExchange)
 	if err != nil {
 		t.Error(err)
 	}
+	if err = bot.LoadExchange(exchCfg, nil); err != nil {
+		t.Error(err)
+	}
+
 	if !bot.Settings.EnableDryRun ||
 		!exchCfg.Verbose {
 		t.Error("dryrun should be true and verbose should be true")
+	}
+}
+
+func TestInstanceOfExchange(t *testing.T) {
+	t.Parallel()
+	bot := &Engine{
+		ExchangeManager: SetupExchangeManager(),
+		Settings:        Settings{},
+		Config: &config.Config{
+			Exchanges: []config.ExchangeConfig{
+				{
+					Name:                    "test2",
+					WebsocketTrafficTimeout: time.Second,
+					InstanceOf:              testExchange,
+				},
+			},
+		},
+	}
+	exchCfg, err := bot.Config.GetExchangeConfig("test2")
+	if err != nil {
+		t.Error(err)
+	}
+	if err := bot.LoadExchange(exchCfg, nil); err != nil {
+		t.Error(err)
+	}
+
+	exch := bot.GetExchangeByName("test2")
+	if exch.GetName() != "test2" {
+		t.Error("exchange instance name does not match test2")
 	}
 }

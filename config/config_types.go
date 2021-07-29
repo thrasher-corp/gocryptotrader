@@ -121,6 +121,7 @@ type ConnectionMonitorConfig struct {
 // ExchangeConfig holds all the information needed for each enabled Exchange.
 type ExchangeConfig struct {
 	Name                          string                 `json:"name"`
+	InstanceOf                    string                 `json:"InstanceOf"`
 	Enabled                       bool                   `json:"enabled"`
 	Verbose                       bool                   `json:"verbose"`
 	UseSandbox                    bool                   `json:"useSandbox,omitempty"`

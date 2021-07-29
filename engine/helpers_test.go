@@ -80,7 +80,11 @@ func CreateTestBot(t *testing.T) *Engine {
 				},
 			},
 		}}}
-	err := bot.LoadExchange(testExchange, nil)
+	exchCfg, err := bot.Config.GetExchangeConfig(testExchange)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bot.LoadExchange(exchCfg, nil)
 	if err != nil {
 		t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 	}

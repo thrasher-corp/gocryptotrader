@@ -34,6 +34,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -366,6 +367,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 // as well as process orders
 func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 	var err error
+	var exchCfg *gctconfig.ExchangeConfig
 	bt.Bot = bot
 	err = cfg.ValidateCurrencySettings()
 	if err != nil {
@@ -373,7 +375,12 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 	}
 	bt.Bot.ExchangeManager = engine.SetupExchangeManager()
 	for i := range cfg.CurrencySettings {
-		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, nil)
+		exchCfg, err = bot.Config.GetExchangeConfig(cfg.CurrencySettings[i].ExchangeName)
+		if err != nil {
+			return err
+		}
+
+		err = bt.Bot.LoadExchange(exchCfg, nil)
 		if err != nil && !errors.Is(err, engine.ErrExchangeAlreadyLoaded) {
 			return err
 		}

@@ -108,8 +108,8 @@ func TestNewFromConfig(t *testing.T) {
 
 	cfg.CurrencySettings[0].Asset = asset.Spot.String()
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, engine.ErrExchangeNotFound) {
-		t.Errorf("expected: %v, received %v", engine.ErrExchangeNotFound, err)
+	if !errors.Is(err, gctconfig.ErrExchangeNotFound) {
+		t.Errorf("expected: %v, received %#v", gctconfig.ErrExchangeNotFound, err)
 	}
 
 	cfg.StrategySettings = config.StrategySettings{
