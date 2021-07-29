@@ -281,7 +281,7 @@ func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (f *FTX) UpdateTradablePairs(forceUpdate bool) error {
-	assets := f.GetAssetTypes()
+	assets := f.GetAssetTypes(false)
 	for x := range assets {
 		pairs, err := f.FetchTradablePairs(assets[x])
 		if err != nil {
@@ -396,25 +396,30 @@ func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (f *FTX) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (f *FTX) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
 	var resp account.Holdings
-	data, err := f.GetBalances()
+	// Get all wallet balances used so we can transfer between accounts if
+	// needed.
+	data, err := f.GetAllWalletBalances()
 	if err != nil {
 		return resp, err
 	}
-	var acc account.SubAccount
-	for i := range data {
-		c := currency.NewCode(data[i].Coin)
-		hold := data[i].Total - data[i].Free
-		total := data[i].Total
-		acc.Currencies = append(acc.Currencies,
-			account.Balance{CurrencyName: c,
-				TotalValue: total,
-				Hold:       hold})
-	}
-	resp.Accounts = append(resp.Accounts, acc)
-	resp.Exchange = f.Name
 
+	for subName, balances := range data {
+		// "main" defines the main account in the sub account list
+		var acc = account.SubAccount{ID: subName, AssetType: a}
+		for x := range balances {
+			c := currency.NewCode(balances[x].Coin)
+			hold := balances[x].Total - balances[x].Free
+			acc.Currencies = append(acc.Currencies,
+				account.Balance{CurrencyName: c,
+					TotalValue: balances[x].Total,
+					Hold:       hold})
+		}
+		resp.Accounts = append(resp.Accounts, acc)
+	}
+
+	resp.Exchange = f.Name
 	err = account.Process(&resp)
 	if err != nil {
 		return account.Holdings{}, err

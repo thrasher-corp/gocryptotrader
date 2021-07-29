@@ -375,7 +375,6 @@ func TestWebsocket(t *testing.T) {
 		t.Fatal("should not be connected to able to shut down")
 	}
 
-	ws.verbose = true
 	ws.setConnectedStatus(true)
 	ws.Conn = &dodgyConnection{}
 	err = ws.Shutdown()
@@ -546,7 +545,6 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	ws.ShutdownC = make(chan struct{}, 1)
 	ws.exchangeName = "hello"
 	ws.trafficTimeout = 1
-	ws.verbose = true
 	ws.Wg = &sync.WaitGroup{}
 	ws.connectionMonitor()
 	if !ws.IsConnectionMonitorRunning() {

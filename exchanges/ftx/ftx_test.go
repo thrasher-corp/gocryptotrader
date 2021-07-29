@@ -1358,13 +1358,16 @@ func TestAcceptOTCQuote(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	assets := f.GetAssetTypes()
+	assets := f.GetAssetTypes(false)
 	for i := range assets {
 		enabledPairs, err := f.GetEnabledPairs(assets[i])
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*15), time.Now())
+		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(),
+			assets[i],
+			time.Now().Add(-time.Minute*15),
+			time.Now())
 		if err != nil {
 			t.Error(err)
 		}
@@ -1373,7 +1376,7 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	assets := f.GetAssetTypes()
+	assets := f.GetAssetTypes(false)
 	for i := range assets {
 		enabledPairs, err := f.GetEnabledPairs(assets[i])
 		if err != nil {

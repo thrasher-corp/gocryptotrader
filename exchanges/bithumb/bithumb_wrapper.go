@@ -26,6 +26,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var errNotEnoughPairs = errors.New("at least one currency is required to fetch order history")
+
 // GetDefaultConfig returns a default exchange config
 func (b *Bithumb) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -307,6 +309,7 @@ func (b *Bithumb) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 
 	info.Accounts = append(info.Accounts, account.SubAccount{
 		Currencies: exchangeBalances,
+		AssetType:  assetType,
 	})
 
 	info.Exchange = b.Name
@@ -403,14 +406,14 @@ func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	var orderID string
 	if s.Side == order.Buy {
 		var result MarketBuy
-		result, err = b.MarketBuyOrder(fPair.Base.String(), s.Amount)
+		result, err = b.MarketBuyOrder(fPair, s.Amount)
 		if err != nil {
 			return submitOrderResponse, err
 		}
 		orderID = result.OrderID
 	} else if s.Side == order.Sell {
 		var result MarketSell
-		result, err = b.MarketSellOrder(fPair.Base.String(), s.Amount)
+		result, err = b.MarketSellOrder(fPair, s.Amount)
 		if err != nil {
 			return submitOrderResponse, err
 		}
@@ -583,43 +586,50 @@ func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
+
+	if len(req.Pairs) == 0 {
+		return nil, errNotEnoughPairs
+	}
+
+	format, err := b.GetPairFormat(req.AssetType, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
-	resp, err := b.GetOrders("", "", "1000", "", "")
-	if err != nil {
-		return nil, err
-	}
-
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range resp.Data {
-		if resp.Data[i].Status != "placed" {
-			continue
+	for x := range req.Pairs {
+		resp, err := b.GetOrders("", "", "1000", "", req.Pairs[x].Base.String())
+		if err != nil {
+			return nil, err
 		}
 
-		orderDate := time.Unix(resp.Data[i].OrderDate, 0)
-		orderDetail := order.Detail{
-			Amount:          resp.Data[i].Units,
-			Exchange:        b.Name,
-			ID:              resp.Data[i].OrderID,
-			Date:            orderDate,
-			Price:           resp.Data[i].Price,
-			RemainingAmount: resp.Data[i].UnitsRemaining,
-			Status:          order.Active,
-			Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
-				resp.Data[i].PaymentCurrency,
-				format.Delimiter),
-		}
+		for i := range resp.Data {
+			if resp.Data[i].Status != "placed" {
+				continue
+			}
 
-		if resp.Data[i].Type == "bid" {
-			orderDetail.Side = order.Buy
-		} else if resp.Data[i].Type == "ask" {
-			orderDetail.Side = order.Sell
-		}
+			orderDate := time.Unix(resp.Data[i].OrderDate, 0)
+			orderDetail := order.Detail{
+				Amount:          resp.Data[i].Units,
+				Exchange:        b.Name,
+				ID:              resp.Data[i].OrderID,
+				Date:            orderDate,
+				Price:           resp.Data[i].Price,
+				RemainingAmount: resp.Data[i].UnitsRemaining,
+				Status:          order.Active,
+				Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
+					resp.Data[i].PaymentCurrency,
+					format.Delimiter),
+			}
 
-		orders = append(orders, orderDetail)
+			if resp.Data[i].Type == "bid" {
+				orderDetail.Side = order.Buy
+			} else if resp.Data[i].Type == "ask" {
+				orderDetail.Side = order.Sell
+			}
+
+			orders = append(orders, orderDetail)
+		}
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
@@ -635,42 +645,48 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		return nil, err
 	}
 
+	if len(req.Pairs) == 0 {
+		return nil, errNotEnoughPairs
+	}
+
+	format, err := b.GetPairFormat(req.AssetType, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
-	resp, err := b.GetOrders("", "", "1000", "", "")
-	if err != nil {
-		return nil, err
-	}
-
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range resp.Data {
-		if resp.Data[i].Status == "placed" {
-			continue
+	for x := range req.Pairs {
+		resp, err := b.GetOrders("", "", "1000", "", req.Pairs[x].Base.String())
+		if err != nil {
+			return nil, err
 		}
 
-		orderDate := time.Unix(resp.Data[i].OrderDate, 0)
-		orderDetail := order.Detail{
-			Amount:          resp.Data[i].Units,
-			Exchange:        b.Name,
-			ID:              resp.Data[i].OrderID,
-			Date:            orderDate,
-			Price:           resp.Data[i].Price,
-			RemainingAmount: resp.Data[i].UnitsRemaining,
-			Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
-				resp.Data[i].PaymentCurrency,
-				format.Delimiter),
-		}
+		for i := range resp.Data {
+			if resp.Data[i].Status == "placed" {
+				continue
+			}
 
-		if resp.Data[i].Type == "bid" {
-			orderDetail.Side = order.Buy
-		} else if resp.Data[i].Type == "ask" {
-			orderDetail.Side = order.Sell
-		}
+			orderDate := time.Unix(resp.Data[i].OrderDate, 0)
+			orderDetail := order.Detail{
+				Amount:          resp.Data[i].Units,
+				Exchange:        b.Name,
+				ID:              resp.Data[i].OrderID,
+				Date:            orderDate,
+				Price:           resp.Data[i].Price,
+				RemainingAmount: resp.Data[i].UnitsRemaining,
+				Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
+					resp.Data[i].PaymentCurrency,
+					format.Delimiter),
+			}
 
-		orders = append(orders, orderDetail)
+			if resp.Data[i].Type == "bid" {
+				orderDetail.Side = order.Buy
+			} else if resp.Data[i].Type == "ask" {
+				orderDetail.Side = order.Sell
+			}
+
+			orders = append(orders, orderDetail)
+		}
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)

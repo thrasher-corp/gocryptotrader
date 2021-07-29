@@ -20,7 +20,6 @@ func TestSetup(t *testing.T) {
 	cfg := &config.Config{Communications: base.CommunicationsConfig{}}
 	commsCfg := cfg.GetCommunicationsConfig()
 	s.Setup(&commsCfg)
-	s.Verbose = true
 }
 
 func TestConnect(t *testing.T) {

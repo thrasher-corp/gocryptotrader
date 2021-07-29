@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -262,8 +263,14 @@ func (b *Bithumb) GetLastTransaction() (LastTransactionTicker, error) {
 // (2014-11-28 16:40:01 = 1417160401000)
 func (b *Bithumb) GetOrders(orderID, transactionType, count, after, currency string) (Orders, error) {
 	response := Orders{}
-
 	params := url.Values{}
+
+	if currency == "" {
+		return response, errors.New("order currency is required")
+	}
+
+	params.Set("order_currency", strings.ToUpper(currency))
+
 	if len(orderID) > 0 {
 		params.Set("order_id", orderID)
 	}
@@ -278,10 +285,6 @@ func (b *Bithumb) GetOrders(orderID, transactionType, count, after, currency str
 
 	if len(after) > 0 {
 		params.Set("after", after)
-	}
-
-	if len(currency) > 0 {
-		params.Set("currency", strings.ToUpper(currency))
 	}
 
 	return response,
@@ -422,11 +425,12 @@ func (b *Bithumb) RequestKRWWithdraw(bank, account string, price int64) (ActionS
 // currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
 // (default value: BTC)
 // units: Order quantity
-func (b *Bithumb) MarketBuyOrder(currency string, units float64) (MarketBuy, error) {
+func (b *Bithumb) MarketBuyOrder(pair currency.Pair, units float64) (MarketBuy, error) {
 	response := MarketBuy{}
 
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(currency))
+	params.Set("order_currency", strings.ToUpper(pair.Base.String()))
+	params.Set("payment_currency", strings.ToUpper(pair.Quote.String()))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 
 	return response,
@@ -438,11 +442,12 @@ func (b *Bithumb) MarketBuyOrder(currency string, units float64) (MarketBuy, err
 // currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
 // (default value: BTC)
 // units: Order quantity
-func (b *Bithumb) MarketSellOrder(currency string, units float64) (MarketSell, error) {
+func (b *Bithumb) MarketSellOrder(pair currency.Pair, units float64) (MarketSell, error) {
 	response := MarketSell{}
 
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(currency))
+	params.Set("order_currency", strings.ToUpper(pair.Base.String()))
+	params.Set("payment_currency", strings.ToUpper(pair.Quote.String()))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 
 	return response,
@@ -478,7 +483,9 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, par
 		params = url.Values{}
 	}
 
-	n := b.Requester.GetNonceMilli().String()
+	// This is time window sensitive
+	tnMS := time.Now().UnixNano() / int64(time.Millisecond)
+	n := strconv.FormatInt(tnMS, 10)
 
 	params.Set("endpoint", path)
 	payload := params.Encode()

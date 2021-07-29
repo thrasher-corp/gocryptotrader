@@ -678,7 +678,7 @@ func TestStatusToStandardStatus(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	assets := b.GetAssetTypes()
+	assets := b.GetAssetTypes(false)
 	for i := range assets {
 		data, err := b.FetchTradablePairs(assets[i])
 		if err != nil {

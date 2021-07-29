@@ -243,7 +243,7 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 			}
 			continue
 		}
-		assetTypes := exchanges[x].GetAssetTypes()
+		assetTypes := exchanges[x].GetAssetTypes(false) // left as available for now, to sync the full spectrum
 		var exchangeHoldings account.Holdings
 		for y := range assetTypes {
 			accountHoldings, err := exchanges[x].FetchAccountInfo(assetTypes[y])

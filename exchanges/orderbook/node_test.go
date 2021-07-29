@@ -9,7 +9,7 @@ import (
 
 func TestPushPop(t *testing.T) {
 	s := newStack()
-	var nSlice [100]*node
+	var nSlice [100]*Node
 	for i := 0; i < 100; i++ {
 		nSlice[i] = s.Pop()
 	}
@@ -29,7 +29,7 @@ func TestPushPop(t *testing.T) {
 
 func TestCleaner(t *testing.T) {
 	s := newStack()
-	var nSlice [100]*node
+	var nSlice [100]*Node
 	for i := 0; i < 100; i++ {
 		nSlice[i] = s.Pop()
 	}
@@ -64,20 +64,20 @@ func (s *stack) Display() {
 
 //  158	   9,521,717 ns/op	 9600104 B/op	  100001 allocs/op
 func BenchmarkWithoutStack(b *testing.B) {
-	var n *node
+	var n *Node
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 100000; j++ {
-			n = new(node)
-			n.value.Price = 1337
+			n = new(Node)
+			n.Value.Price = 1337
 		}
 	}
 }
 
 // 316	   3,485,211 ns/op	       1 B/op	       0 allocs/op
 func BenchmarkWithStack(b *testing.B) {
-	var n *node
+	var n *Node
 	stack := newStack()
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -85,7 +85,7 @@ func BenchmarkWithStack(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 100000; j++ {
 			n = stack.Pop()
-			n.value.Price = 1337
+			n.Value.Price = 1337
 			stack.Push(n, tn)
 		}
 	}

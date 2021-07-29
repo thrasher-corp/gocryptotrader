@@ -211,7 +211,8 @@ func TestRequestKRWWithdraw(t *testing.T) {
 
 func TestMarketBuyOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.MarketBuyOrder(testCurrency, 0)
+	p := currency.NewPair(currency.BTC, currency.KRW)
+	_, err := b.MarketBuyOrder(p, 0)
 	if err == nil {
 		t.Error("Bithumb MarketBuyOrder() Expected error")
 	}
@@ -219,7 +220,8 @@ func TestMarketBuyOrder(t *testing.T) {
 
 func TestMarketSellOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.MarketSellOrder(testCurrency, 0)
+	p := currency.NewPair(currency.BTC, currency.KRW)
+	_, err := b.MarketSellOrder(p, 0)
 	if err == nil {
 		t.Error("Bithumb MarketSellOrder() Expected error")
 	}

@@ -705,8 +705,9 @@ func (bot *Engine) GetExchanges() []exchange.IBotExchange {
 	return bot.ExchangeManager.GetExchanges()
 }
 
-// LoadExchange loads an exchange by name
-func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
+// LoadExchange loads an exchange by name. Optional wait group can be added for
+// external synchronization.
+func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 	exch, err := bot.ExchangeManager.NewExchangeByName(name)
 	if err != nil {
 		return err
@@ -728,7 +729,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 
 	if bot.Settings.EnableAllPairs &&
 		exchCfg.CurrencyPairs != nil {
-		assets := exchCfg.CurrencyPairs.GetAssetTypes()
+		assets := exchCfg.CurrencyPairs.GetAssetTypes(false)
 		for x := range assets {
 			var pairs currency.Pairs
 			pairs, err = exchCfg.CurrencyPairs.GetPairs(assets[x], false)
@@ -797,7 +798,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	base := exch.GetBase()
 	if base.API.AuthenticatedSupport ||
 		base.API.AuthenticatedWebsocketSupport {
-		assetTypes := base.GetAssetTypes()
+		assetTypes := base.GetAssetTypes(false)
 		var useAsset asset.Item
 		for a := range assetTypes {
 			err = base.CurrencyPairs.IsAssetEnabled(assetTypes[a])
@@ -820,7 +821,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 		}
 	}
 
-	if useWG {
+	if wg != nil {
 		exch.Start(wg)
 	} else {
 		tempWG := sync.WaitGroup{}
@@ -886,25 +887,30 @@ func (bot *Engine) SetupExchanges() error {
 			continue
 		}
 		wg.Add(1)
-		cfg := configs[x]
-		go func(currCfg config.ExchangeConfig) {
+		go func(c config.ExchangeConfig) {
 			defer wg.Done()
-			err := bot.LoadExchange(currCfg.Name, true, &wg)
+			err := bot.LoadExchange(c.Name, &wg)
 			if err != nil {
-				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", currCfg.Name, err)
+				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", c.Name, err)
 				return
 			}
 			gctlog.Debugf(gctlog.ExchangeSys,
 				"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
-				currCfg.Name,
-				common.IsEnabled(currCfg.API.AuthenticatedSupport),
-				common.IsEnabled(currCfg.Verbose),
+				c.Name,
+				common.IsEnabled(c.API.AuthenticatedSupport),
+				common.IsEnabled(c.Verbose),
 			)
-		}(cfg)
+		}(configs[x])
 	}
 	wg.Wait()
 	if len(bot.ExchangeManager.GetExchanges()) == 0 {
 		return ErrNoExchangesLoaded
 	}
 	return nil
+}
+
+// WaitForInitialCurrencySync allows for a routine to wait for the initial sync
+// of the currency pair syncer management system.
+func (bot *Engine) WaitForInitialCurrencySync() error {
+	return bot.currencyPairSyncer.WaitForInitialSync()
 }
