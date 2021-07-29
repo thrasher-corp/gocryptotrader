@@ -1366,11 +1366,15 @@ func (s *RPCServer) ModifyOrder(_ context.Context, r *gctrpc.ModifyOrderRequest)
 	if err != nil {
 		return nil, err
 	}
-
 	pair := currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
 		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+	exch := s.GetExchangeByName(r.Exchange)
+	err = checkParams(r.Exchange, exch, assetType, pair)
+	if err != nil {
+		return nil, err
 	}
 
 	mod := order.Modify{
