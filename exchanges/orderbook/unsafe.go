@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-// Unsafe is an exported linked list reference to current the current bid/ask
-// heads and a reference to the underlying depth mutex. This allows for the
-// exposure of the internal list to a strategy or subsystem. The bid and ask
+// Unsafe is an exported linked list reference to the current bid/ask heads and
+// a reference to the underlying depth mutex. This allows for the exposure of
+// the internal list to an external strategy or subsystem. The bid and ask
 // fields point to the actual head fields contained on both linked list structs,
 // so that this struct can be reusable and not needed to be called on each
 // inspection.
