@@ -20,7 +20,7 @@ func main() {
 	var printLogo, generateReport bool
 	wd, err := os.Getwd()
 	if err != nil {
-		fmt.Printf("Could get working directory. Error: %v.\n", err)
+		fmt.Printf("Could not get working directory. Error: %v.\n", err)
 		os.Exit(1)
 	}
 	flag.StringVar(

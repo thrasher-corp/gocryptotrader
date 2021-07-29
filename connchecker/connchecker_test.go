@@ -2,22 +2,23 @@ package connchecker
 
 import (
 	"testing"
+	"time"
 )
 
 func TestConnection(t *testing.T) {
 	faultyDomain := []string{"faultyIP"}
 	faultyHost := []string{"faultyHost"}
-	_, err := New(faultyDomain, nil, 100000)
+	_, err := New(faultyDomain, nil, 1*time.Second)
 	if err == nil {
 		t.Fatal("New error cannot be nil")
 	}
 
-	_, err = New(DefaultDNSList, nil, 100000)
+	_, err = New(DefaultDNSList, nil, 1*time.Second)
 	if err != nil {
 		t.Fatal("New error", err)
 	}
 
-	_, err = New(nil, faultyHost, 100000)
+	_, err = New(nil, faultyHost, 1*time.Second)
 	if err != nil {
 		t.Fatal("New error cannot be nil", err)
 	}

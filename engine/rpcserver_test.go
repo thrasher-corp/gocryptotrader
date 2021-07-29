@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -1686,5 +1687,98 @@ func TestGetManagedOrders(t *testing.T) {
 		t.Errorf("non expected Error: %v", err)
 	} else if oo == nil || len(oo.GetOrders()) != 1 {
 		t.Errorf("unexpected order result: %v", oo)
+	}
+}
+
+func TestRPCServer_unixTimestamp(t *testing.T) {
+	t.Parallel()
+
+	s := RPCServer{
+		Engine: &Engine{
+			Config: &config.Config{
+				RemoteControl: config.RemoteControlConfig{
+					GRPC: config.GRPCConfig{
+						TimeInNanoSeconds: false,
+					},
+				},
+			},
+		},
+	}
+	const sec = 1618888141
+	const nsec = 2
+	x := time.Unix(sec, nsec)
+
+	timestampSeconds := s.unixTimestamp(x)
+	if timestampSeconds != sec {
+		t.Errorf("have %d, want %d", timestampSeconds, sec)
+	}
+
+	s.Config.RemoteControl.GRPC.TimeInNanoSeconds = true
+	timestampNanos := s.unixTimestamp(x)
+	if want := int64(sec*1_000_000_000 + nsec); timestampNanos != want {
+		t.Errorf("have %d, want %d", timestampSeconds, want)
+	}
+}
+
+func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
+	// Make a dummy pair we'll be using for this test.
+	pair := currency.NewPairWithDelimiter("XXXXX", "YYYYY", "")
+
+	// Create a mock-up RPCServer and add our newly made pair to its list of available
+	// and enabled pairs.
+	server := RPCServer{Engine: RPCTestSetup(t)}
+	b := server.ExchangeManager.GetExchangeByName(testExchange).GetBase()
+	b.CurrencyPairs.Pairs[asset.Spot].Available = append(
+		b.CurrencyPairs.Pairs[asset.Spot].Available,
+		pair,
+	)
+	b.CurrencyPairs.Pairs[asset.Spot].Enabled = append(
+		b.CurrencyPairs.Pairs[asset.Spot].Enabled,
+		pair,
+	)
+
+	// Push a mock-up ticker.
+	now := time.Now()
+	ticker.ProcessTicker(&ticker.Price{
+		ExchangeName: testExchange,
+		Pair:         pair,
+		AssetType:    asset.Spot,
+		LastUpdated:  now,
+
+		Open:  69,
+		High:  96,
+		Low:   169,
+		Close: 196,
+	})
+
+	// Prepare a ticker request.
+	request := &gctrpc.GetTickerRequest{
+		Exchange: testExchange,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: pair.Delimiter,
+			Base:      pair.Base.String(),
+			Quote:     pair.Quote.String(),
+		},
+		AssetType: asset.Spot.String(),
+	}
+
+	// Check if timestamp returned is in seconds if !TimeInNanoSeconds.
+	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = false
+	one, err := server.GetTicker(context.Background(), request)
+	if err != nil {
+		t.Error(err)
+	}
+	if want := now.Unix(); one.LastUpdated != want {
+		t.Errorf("have %d, want %d", one.LastUpdated, want)
+	}
+
+	// Check if timestamp returned is in nanoseconds if TimeInNanoSeconds.
+	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = true
+	two, err := server.GetTicker(context.Background(), request)
+	if err != nil {
+		t.Error(err)
+	}
+	if want := now.UnixNano(); two.LastUpdated != want {
+		t.Errorf("have %d, want %d", two.LastUpdated, want)
 	}
 }

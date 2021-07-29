@@ -277,7 +277,7 @@ func (s *RPCServer) DisableExchange(_ context.Context, r *gctrpc.GenericExchange
 
 // EnableExchange enables an exchange
 func (s *RPCServer) EnableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericResponse, error) {
-	err := s.LoadExchange(r.Exchange, false, nil)
+	err := s.LoadExchange(r.Exchange, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +316,7 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 	}
 
 	resp.SupportedAssets = make(map[string]*gctrpc.PairsSupported)
-	assets := exchCfg.CurrencyPairs.GetAssetTypes()
+	assets := exchCfg.CurrencyPairs.GetAssetTypes(false)
 	for i := range assets {
 		ps, err := exchCfg.CurrencyPairs.Get(assets[i])
 		if err != nil {
@@ -363,7 +363,7 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 
 	resp := &gctrpc.TickerResponse{
 		Pair:        r.Pair,
-		LastUpdated: t.LastUpdated.Unix(),
+		LastUpdated: s.unixTimestamp(t.LastUpdated),
 		Last:        t.Last,
 		High:        t.High,
 		Low:         t.Low,
@@ -394,7 +394,7 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 					Base:      val.Pair.Base.String(),
 					Quote:     val.Pair.Quote.String(),
 				},
-				LastUpdated: val.LastUpdated.Unix(),
+				LastUpdated: s.unixTimestamp(val.LastUpdated),
 				Last:        val.Last,
 				High:        val.High,
 				Low:         val.Low,
@@ -456,7 +456,7 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 		Pair:        r.Pair,
 		Bids:        bids,
 		Asks:        asks,
-		LastUpdated: ob.LastUpdated.Unix(),
+		LastUpdated: s.unixTimestamp(ob.LastUpdated),
 		AssetType:   r.AssetType,
 	}
 
@@ -473,7 +473,7 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 		if !exchanges[x].IsEnabled() {
 			continue
 		}
-		assets := exchanges[x].GetAssetTypes()
+		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
 		for y := range assets {
 			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
@@ -500,7 +500,7 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 						Quote:     currencies[z].Quote.String(),
 					},
 					AssetType:   assets[y].String(),
-					LastUpdated: resp.LastUpdated.Unix(),
+					LastUpdated: s.unixTimestamp(resp.LastUpdated),
 				}
 				for i := range resp.Bids {
 					ob.Bids = append(ob.Bids, &gctrpc.OrderbookItem{
@@ -911,7 +911,7 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 				Total:     resp[x].Trades[i].Total,
 			}
 			if !resp[x].Trades[i].Timestamp.IsZero() {
-				t.CreationTime = resp[x].Trades[i].Timestamp.Unix()
+				t.CreationTime = s.unixTimestamp(resp[x].Trades[i].Timestamp)
 			}
 			trades = append(trades, t)
 		}
@@ -933,10 +933,10 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 			Trades:        trades,
 		}
 		if !resp[x].Date.IsZero() {
-			o.CreationTime = resp[x].Date.Unix()
+			o.CreationTime = s.unixTimestamp(resp[x].Date)
 		}
 		if !resp[x].LastUpdated.IsZero() {
-			o.UpdateTime = resp[x].LastUpdated.Unix()
+			o.UpdateTime = s.unixTimestamp(resp[x].LastUpdated)
 		}
 		orders = append(orders, o)
 	}
@@ -995,7 +995,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 				Total:     resp[x].Trades[i].Total,
 			}
 			if !resp[x].Trades[i].Timestamp.IsZero() {
-				t.CreationTime = resp[x].Trades[i].Timestamp.Unix()
+				t.CreationTime = s.unixTimestamp(resp[x].Trades[i].Timestamp)
 			}
 			trades = append(trades, t)
 		}
@@ -1017,10 +1017,10 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 			Trades:        trades,
 		}
 		if !resp[x].Date.IsZero() {
-			o.CreationTime = resp[x].Date.Unix()
+			o.CreationTime = s.unixTimestamp(resp[x].Date)
 		}
 		if !resp[x].LastUpdated.IsZero() {
-			o.UpdateTime = resp[x].LastUpdated.Unix()
+			o.UpdateTime = s.unixTimestamp(resp[x].LastUpdated)
 		}
 		orders = append(orders, o)
 	}
@@ -1062,7 +1062,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	var trades []*gctrpc.TradeHistory
 	for i := range result.Trades {
 		trades = append(trades, &gctrpc.TradeHistory{
-			CreationTime: result.Trades[i].Timestamp.Unix(),
+			CreationTime: s.unixTimestamp(result.Trades[i].Timestamp),
 			Id:           result.Trades[i].TID,
 			Price:        result.Trades[i].Price,
 			Amount:       result.Trades[i].Amount,
@@ -1075,11 +1075,11 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	}
 
 	var creationTime, updateTime int64
-	if result.Date.Unix() > 0 {
-		creationTime = result.Date.Unix()
+	if !result.Date.IsZero() {
+		creationTime = s.unixTimestamp(result.Date)
 	}
-	if result.LastUpdated.Unix() > 0 {
-		updateTime = result.LastUpdated.Unix()
+	if !result.LastUpdated.IsZero() {
+		updateTime = s.unixTimestamp(result.LastUpdated)
 	}
 
 	return &gctrpc.OrderDetails{
@@ -1658,7 +1658,7 @@ func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePai
 	if err != nil {
 		return nil, err
 	}
-	assetTypes := exchCfg.CurrencyPairs.GetAssetTypes()
+	assetTypes := exchCfg.CurrencyPairs.GetAssetTypes(false)
 
 	var a asset.Item
 	if r.Asset != "" {
@@ -1924,7 +1924,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 				Base:      t.Pair.Base.String(),
 				Quote:     t.Pair.Quote.String(),
 				Delimiter: t.Pair.Delimiter},
-			LastUpdated: t.LastUpdated.Unix(),
+			LastUpdated: s.unixTimestamp(t.LastUpdated),
 			Last:        t.Last,
 			High:        t.High,
 			Low:         t.Low,
@@ -1969,7 +1969,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 				Base:      t.Pair.Base.String(),
 				Quote:     t.Pair.Quote.String(),
 				Delimiter: t.Pair.Delimiter},
-			LastUpdated: t.LastUpdated.Unix(),
+			LastUpdated: s.unixTimestamp(t.LastUpdated),
 			Last:        t.Last,
 			High:        t.High,
 			Low:         t.Low,
@@ -2545,7 +2545,7 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 		return nil, errExchangeBaseNotFound
 	}
 
-	assets := base.CurrencyPairs.GetAssetTypes()
+	assets := base.CurrencyPairs.GetAssetTypes(false)
 
 	if r.Enable {
 		for i := range assets {
@@ -2615,7 +2615,7 @@ func (s *RPCServer) GetExchangeAssets(_ context.Context, r *gctrpc.GetExchangeAs
 	}
 
 	return &gctrpc.GetExchangeAssetsResponse{
-		Assets: exch.GetAssetTypes().JoinToString(","),
+		Assets: exch.GetAssetTypes(false).JoinToString(","),
 	}, nil
 }
 
@@ -3655,4 +3655,13 @@ func (s *RPCServer) GetDataHistoryJobSummary(_ context.Context, r *gctrpc.GetDat
 		Status:          job.Status.String(),
 		ResultSummaries: job.ResultRanges,
 	}, nil
+}
+
+// unixTimestamp returns given time in either unix seconds or unix nanoseconds, depending
+// on the remoteControl/gRPC/timeInNanoSeconds boolean configuration.
+func (s *RPCServer) unixTimestamp(x time.Time) int64 {
+	if s.Config.RemoteControl.GRPC.TimeInNanoSeconds {
+		return x.UnixNano()
+	}
+	return x.Unix()
 }

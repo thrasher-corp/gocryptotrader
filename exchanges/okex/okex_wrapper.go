@@ -361,7 +361,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
-	assets := o.CurrencyPairs.GetAssetTypes()
+	assets := o.CurrencyPairs.GetAssetTypes(false)
 	for x := range assets {
 		if assets[x] == asset.Index {
 			// Update from futures

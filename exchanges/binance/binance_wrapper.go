@@ -315,16 +315,14 @@ func (b *Binance) Run() {
 		}
 	}
 
-	a := b.GetAssetTypes()
+	a := b.GetAssetTypes(true)
 	for x := range a {
-		if err = b.CurrencyPairs.IsAssetEnabled(a[x]); err == nil {
-			err = b.UpdateOrderExecutionLimits(a[x])
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"Could not set %s exchange exchange limits: %v",
-					b.Name,
-					err)
-			}
+		err = b.UpdateOrderExecutionLimits(a[x])
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to set exchange order execution limits. Err: %v",
+				b.Name,
+				err)
 		}
 	}
 
@@ -404,7 +402,7 @@ func (b *Binance) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
-	assetTypes := b.GetAssetTypes()
+	assetTypes := b.GetAssetTypes(false)
 	for i := range assetTypes {
 		p, err := b.FetchTradablePairs(assetTypes[i])
 		if err != nil {

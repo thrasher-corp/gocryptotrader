@@ -39,6 +39,20 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
 - Helpful statistics to help determine whether a strategy was effective
 - Compliance manager to keep snapshots of every transaction and their changes at every interval
 
+## Planned Features
+We welcome pull requests on any feature for the Backtester! We will be especially appreciative of any contribution towards the following planned features:
+
+| Feature | Description |
+|---------|-------------|
+| Add quote-based portfolio funding feature | Funds are currently currency-pair based which is helpful for running the same strategy against many pairs simultaneously. This feature would allow for shared funding pool for an overarching strategy |
+| Add backtesting support for futures asset types | Spot trading is currently the only supported asset type. Futures trading greatly expands the Backtester's potential |
+| Example futures pairs trading strategy | Providing a basic example will allow for esteemed traders to build and customise their own |
+| Save Backtester results to database | This will allow for easier comparison of results over time |
+| Backtester result comparison report | Providing an executive summary of Backtester database results |
+| Currency correlation | Compare multiple exchange, asset, currencies for a candle interval against indicators to highlight correlated pairs for use in pairs trading |
+| Improve live trading functionality | Live trading is currently only a proof Of concept. Adding live support for running multiple currencies and running off orderbook data will allow for esteemed traders to use their backtested strategies |
+
+
 ## How does it work?
 - The application will load a `.strat` config file as specified at runtime
 - The `.strat` config file will contain
@@ -72,7 +86,7 @@ Creating strategies requires programming skills. [Here](/backtester/eventhandler
 - The readmes linked in the "How does it work" covers the main parts of the application.
   - If you are still unsure, please raise an issue, ask a question in our Slack or open a pull request
 - Here is an overview
-![workflow](https://user-images.githubusercontent.com/9261323/104982257-61d97900-5a5e-11eb-930e-3b431d6e6bab.png)
+![workflow](https://i.imgur.com/Kup6IA9.png)
 
 
 # Important notes

@@ -277,7 +277,7 @@ func (c *Coinbene) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them
 func (c *Coinbene) UpdateTradablePairs(forceUpdate bool) error {
-	assets := c.GetAssetTypes()
+	assets := c.GetAssetTypes(false)
 	for x := range assets {
 		pairs, err := c.FetchTradablePairs(assets[x])
 		if err != nil {

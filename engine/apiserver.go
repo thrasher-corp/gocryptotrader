@@ -306,7 +306,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 	var orderbookData []EnabledExchangeOrderbooks
 	exchanges := m.GetExchanges()
 	for x := range exchanges {
-		assets := exchanges[x].GetAssetTypes()
+		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
 		var exchangeOB EnabledExchangeOrderbooks
 		exchangeOB.ExchangeName = exchName
@@ -343,7 +343,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 	var tickers []EnabledExchangeCurrencies
 	exchanges := m.GetExchanges()
 	for x := range exchanges {
-		assets := exchanges[x].GetAssetTypes()
+		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
 		var exchangeTickers EnabledExchangeCurrencies
 		exchangeTickers.ExchangeName = exchName
@@ -380,7 +380,7 @@ func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
 	var accounts []AllEnabledExchangeAccounts
 	exchanges := m.GetExchanges()
 	for x := range exchanges {
-		assets := exchanges[x].GetAssetTypes()
+		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
 		var exchangeAccounts AllEnabledExchangeAccounts
 		for y := range assets {

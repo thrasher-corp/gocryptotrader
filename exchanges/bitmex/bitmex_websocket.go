@@ -557,7 +557,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		},
 	}
 
-	assets := b.GetAssetTypes()
+	assets := b.GetAssetTypes(true)
 	for x := range assets {
 		contracts, err := b.GetEnabledPairs(assets[x])
 		if err != nil {

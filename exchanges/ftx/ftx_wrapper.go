@@ -218,11 +218,19 @@ func (f *FTX) Run() {
 		f.PrintEnabledPairs()
 	}
 
+	err := f.UpdateOrderExecutionLimits("")
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to set exchange order execution limits. Err: %v",
+			f.Name,
+			err)
+	}
+
 	if !f.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
 
-	err := f.UpdateTradablePairs(false)
+	err = f.UpdateTradablePairs(false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -273,7 +281,7 @@ func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (f *FTX) UpdateTradablePairs(forceUpdate bool) error {
-	assets := f.GetAssetTypes()
+	assets := f.GetAssetTypes(false)
 	for x := range assets {
 		pairs, err := f.FetchTradablePairs(assets[x])
 		if err != nil {
@@ -388,25 +396,30 @@ func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (f *FTX) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (f *FTX) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
 	var resp account.Holdings
-	data, err := f.GetBalances()
+	// Get all wallet balances used so we can transfer between accounts if
+	// needed.
+	data, err := f.GetAllWalletBalances()
 	if err != nil {
 		return resp, err
 	}
-	var acc account.SubAccount
-	for i := range data {
-		c := currency.NewCode(data[i].Coin)
-		hold := data[i].Total - data[i].Free
-		total := data[i].Total
-		acc.Currencies = append(acc.Currencies,
-			account.Balance{CurrencyName: c,
-				TotalValue: total,
-				Hold:       hold})
-	}
-	resp.Accounts = append(resp.Accounts, acc)
-	resp.Exchange = f.Name
 
+	for subName, balances := range data {
+		// "main" defines the main account in the sub account list
+		var acc = account.SubAccount{ID: subName, AssetType: a}
+		for x := range balances {
+			c := currency.NewCode(balances[x].Coin)
+			hold := balances[x].Total - balances[x].Free
+			acc.Currencies = append(acc.Currencies,
+				account.Balance{CurrencyName: c,
+					TotalValue: balances[x].Total,
+					Hold:       hold})
+		}
+		resp.Accounts = append(resp.Accounts, acc)
+	}
+
+	resp.Exchange = f.Name
 	err = account.Process(&resp)
 	if err != nil {
 		return account.Holdings{}, err
@@ -1112,4 +1125,13 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (f *FTX) UpdateOrderExecutionLimits(_ asset.Item) error {
+	limits, err := f.FetchExchangeLimits()
+	if err != nil {
+		return fmt.Errorf("cannot update exchange execution limits: %w", err)
+	}
+	return f.LoadLimits(limits)
 }

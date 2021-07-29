@@ -1358,13 +1358,16 @@ func TestAcceptOTCQuote(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	assets := f.GetAssetTypes()
+	assets := f.GetAssetTypes(false)
 	for i := range assets {
 		enabledPairs, err := f.GetEnabledPairs(assets[i])
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*15), time.Now())
+		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(),
+			assets[i],
+			time.Now().Add(-time.Minute*15),
+			time.Now())
 		if err != nil {
 			t.Error(err)
 		}
@@ -1373,7 +1376,7 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	assets := f.GetAssetTypes()
+	assets := f.GetAssetTypes(false)
 	for i := range assets {
 		enabledPairs, err := f.GetEnabledPairs(assets[i])
 		if err != nil {
@@ -1677,5 +1680,31 @@ func TestStakeRequest(t *testing.T) {
 	_, err := f.StakeRequest(currency.FTT, 0.1)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	err := f.UpdateOrderExecutionLimits("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	limit, err := f.GetOrderExecutionLimits(asset.Spot, cp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = limit.Conforms(33000, 0.00001, order.Limit)
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Fatalf("expected error %v but received %v",
+			order.ErrAmountBelowMin,
+			err)
+	}
+
+	err = limit.Conforms(33000, 0.0001, order.Limit)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected error %v but received %v",
+			nil,
+			err)
 	}
 }

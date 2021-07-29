@@ -209,7 +209,7 @@ func setupEngine() (err error) {
 	em := engine.SetupExchangeManager()
 	engine.Bot.ExchangeManager = em
 
-	return engine.Bot.LoadExchange(exchName, false, nil)
+	return engine.Bot.LoadExchange(exchName, nil)
 }
 
 func cleanup() {

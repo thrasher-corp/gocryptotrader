@@ -1062,7 +1062,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 	}
 
 	var subscriptions []stream.ChannelSubscription
-	assets := b.GetAssetTypes()
+	assets := b.GetAssetTypes(true)
 	for i := range assets {
 		enabledPairs, err := b.GetEnabledPairs(assets[i])
 		if err != nil {

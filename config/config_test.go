@@ -1478,7 +1478,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Error("unexpected request format values")
 	}
 
-	if !cfg.Exchanges[0].CurrencyPairs.GetAssetTypes().Contains(asset.Spot) ||
+	if !cfg.Exchanges[0].CurrencyPairs.GetAssetTypes(false).Contains(asset.Spot) ||
 		!cfg.Exchanges[0].CurrencyPairs.UseGlobalFormat {
 		t.Error("unexpected results")
 	}

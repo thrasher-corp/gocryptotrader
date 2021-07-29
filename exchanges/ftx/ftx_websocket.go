@@ -174,7 +174,7 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 		Channel: wsMarkets,
 	})
 	var channels = []string{wsTicker, wsTrades, wsOrderbook}
-	assets := f.GetAssetTypes()
+	assets := f.GetAssetTypes(true)
 	for a := range assets {
 		pairs, err := f.GetEnabledPairs(assets[a])
 		if err != nil {

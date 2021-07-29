@@ -98,6 +98,11 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 	}
 
 	for x := range levels {
+		if !levels[x].Asset.IsValid() {
+			return fmt.Errorf("cannot load levels for '%s': %w",
+				levels[x].Asset,
+				asset.ErrNotSupported)
+		}
 		m1, ok := e.m[levels[x].Asset]
 		if !ok {
 			m1 = make(map[*currency.Item]map[*currency.Item]*Limits)
@@ -116,7 +121,9 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 			m2[levels[x].Pair.Quote.Item] = limit
 		}
 
-		if levels[x].MinPrice > levels[x].MaxPrice {
+		if levels[x].MinPrice > 0 &&
+			levels[x].MaxPrice > 0 &&
+			levels[x].MinPrice > levels[x].MaxPrice {
 			return fmt.Errorf("%w for %s %s supplied min: %f max: %f",
 				errInvalidPriceLevels,
 				levels[x].Asset,
@@ -125,7 +132,9 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 				levels[x].MaxPrice)
 		}
 
-		if levels[x].MinAmount > levels[x].MaxAmount {
+		if levels[x].MinAmount > 0 &&
+			levels[x].MaxAmount > 0 &&
+			levels[x].MinAmount > levels[x].MaxAmount {
 			return fmt.Errorf("%w for %s %s supplied min: %f max: %f",
 				errInvalidAmountLevels,
 				levels[x].Asset,
