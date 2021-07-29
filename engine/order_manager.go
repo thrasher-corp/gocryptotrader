@@ -309,6 +309,17 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 	}
 
 	err = m.orderStore.modifyExisting(mod.ID, &res)
+	if err != nil {
+		message := fmt.Sprintf(
+			"Order manager: Exchange %s order ID=%v modified.",
+			mod.Exchange,
+			res.ID,
+		)
+		m.orderStore.commsManager.PushEvent(base.Event{
+			Type:    "order",
+			Message: message,
+		})
+	}
 	return &order.ModifyResponse{OrderID: res.ID}, err
 }
 
