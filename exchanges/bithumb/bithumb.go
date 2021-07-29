@@ -616,7 +616,7 @@ func (b *Bithumb) GetCandleStick(symbol, interval string) (resp OHLCVResponse, e
 	return
 }
 
-// FetchSpotExchangeLimits fetches spot order execution limits
+// FetchExchangeLimits fetches spot order execution limits
 func (b *Bithumb) FetchExchangeLimits() ([]order.MinMaxLevel, error) {
 	ticks, err := b.GetAllTickers()
 	if err != nil {

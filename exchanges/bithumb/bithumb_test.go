@@ -680,8 +680,10 @@ func TestGetAmountMinimum(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testCases {
+	for i := range testCases {
+		tt := &testCases[i]
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			minAmount := getAmountMinimum(tt.unitprice)
 			if minAmount != tt.expected {
 				t.Fatalf("expected: %f but received: %f for unit price: %f",
