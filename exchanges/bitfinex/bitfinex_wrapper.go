@@ -654,7 +654,7 @@ func (b *Bitfinex) ModifyOrder(action *order.Modify) (order.Modify, error) {
 
 	orderIDInt, err := strconv.ParseInt(action.ID, 10, 64)
 	if err != nil {
-		return order.Modify{}, err
+		return order.Modify{ID: action.ID}, err
 	}
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		request := WsUpdateOrderRequest{
