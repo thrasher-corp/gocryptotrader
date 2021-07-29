@@ -910,7 +910,7 @@ func (bot *Engine) SetupExchanges() error {
 }
 
 // WaitForInitialCurrencySync allows for a routine to wait for the initial sync
-// of the currency pair management system.
+// of the currency pair syncer management system.
 func (bot *Engine) WaitForInitialCurrencySync() error {
 	return bot.currencyPairSyncer.WaitForInitialSync()
 }
