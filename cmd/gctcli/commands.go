@@ -2237,29 +2237,26 @@ var cancelAllOrdersCommand = &cli.Command{
 }
 
 var modifyOrderCommand = &cli.Command{
-	Name:   "modifyorder",
-	Usage:  "modify price and/or amount of a previously submitted order",
-	Action: modifyOrder,
+	Name:      "modifyorder",
+	Usage:     "modify price and/or amount of a previously submitted order",
+	ArgsUsage: "<exchange> <asset> <pair> <order_id>",
+	Action:    modifyOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:     "exchange",
-			Required: true,
-			Usage:    "exchange this order is submitted to",
+			Name:  "exchange",
+			Usage: "exchange this order is submitted to",
 		},
 		&cli.StringFlag{
-			Name:     "asset",
-			Required: true,
-			Usage:    "required asset type",
+			Name:  "asset",
+			Usage: "required asset type",
 		},
 		&cli.StringFlag{
-			Name:     "pair",
-			Required: true,
-			Usage:    "required trading pair",
+			Name:  "pair",
+			Usage: "required trading pair",
 		},
 		&cli.StringFlag{
-			Name:     "order_id",
-			Required: true,
-			Usage:    "id of the order to be modified",
+			Name:  "order_id",
+			Usage: "id of the order to be modified",
 		},
 		&cli.Float64Flag{
 			Name:  "price",
