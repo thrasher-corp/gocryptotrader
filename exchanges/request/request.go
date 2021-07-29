@@ -200,7 +200,7 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 		// Even in the case of an erroneous condition below, yield the parsed
 		// response to caller.
 		var unmarshallError error
-		if p.Result != nil && len(contents) > 0 {
+		if p.Result != nil {
 			unmarshallError = json.Unmarshal(contents, p.Result)
 		}
 
