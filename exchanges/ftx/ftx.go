@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -1377,4 +1378,47 @@ func (f *FTX) SubaccountTransfer(coin currency.Code, source, destination string,
 		return nil, err
 	}
 	return &resp.Data, nil
+}
+
+// FetchExchangeLimits fetches spot order execution limits
+func (f *FTX) FetchExchangeLimits() ([]order.MinMaxLevel, error) {
+	data, err := f.GetMarkets()
+	if err != nil {
+		return nil, err
+	}
+
+	var limits []order.MinMaxLevel
+	for x := range data {
+		if !data[x].Enabled {
+			continue
+		}
+		var cp currency.Pair
+		var a asset.Item
+		switch data[x].MarketType {
+		case "future":
+			a = asset.Futures
+			cp, err = currency.NewPairFromString(data[x].Name)
+			if err != nil {
+				return nil, err
+			}
+		case "spot":
+			a = asset.Spot
+			cp, err = currency.NewPairFromStrings(data[x].BaseCurrency, data[x].QuoteCurrency)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("unhandled data type %s, cannot process exchange limit",
+				data[x].MarketType)
+		}
+
+		limits = append(limits, order.MinMaxLevel{
+			Pair:       cp,
+			Asset:      a,
+			StepPrice:  data[x].PriceIncrement,
+			StepAmount: data[x].SizeIncrement,
+			MinAmount:  data[x].MinProvideSize,
+		})
+	}
+	return limits, nil
 }

@@ -1356,6 +1356,97 @@ func getOrders(c *cli.Context) error {
 	return nil
 }
 
+var getManagedOrdersCommand = &cli.Command{
+	Name:      "getmanagedorders",
+	Usage:     "gets the current orders from the order manager",
+	ArgsUsage: "<exchange> <asset> <pair>",
+	Action:    getManagedOrders,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get orders for",
+		},
+		&cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type to get orders for",
+		},
+		&cli.StringFlag{
+			Name:  "pair",
+			Usage: "the currency pair to get orders for",
+		},
+	},
+}
+
+func getManagedOrders(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "getmanagedorders")
+	}
+
+	var exchangeName string
+	var assetType string
+	var currencyPair string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	var conn *grpc.ClientConn
+	conn, err = setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  exchangeName,
+		AssetType: assetType,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
 var getOrderCommand = &cli.Command{
 	Name:      "getorder",
 	Usage:     "gets the specified order info",

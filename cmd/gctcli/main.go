@@ -118,6 +118,7 @@ func main() {
 		getForexProvidersCommand,
 		getForexRatesCommand,
 		getOrdersCommand,
+		getManagedOrdersCommand,
 		getOrderCommand,
 		submitOrderCommand,
 		simulateOrderCommand,

@@ -1454,4 +1454,10 @@ service GoCryptoTrader {
             get: "/v1/getdatahistoryjobsummary"
         };
     }
+    rpc GetManagedOrders (GetOrdersRequest) returns (GetOrdersResponse) {
+        option (google.api.http) = {
+            post: "/v1/getmanagedorders"
+            body: "*"
+        };
+    }
 }

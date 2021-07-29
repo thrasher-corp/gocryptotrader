@@ -1,6 +1,7 @@
 package connchecker
 
 import (
+	"context"
 	"net"
 	"strings"
 	"sync"
@@ -169,13 +170,17 @@ func (c *Checker) connectionTest() {
 
 // CheckDNS checks current dns for connectivity
 func (c *Checker) CheckDNS(dns string) error {
-	_, err := net.LookupAddr(dns)
+	ctx, cancel := context.WithTimeout(context.Background(), c.CheckInterval)
+	defer cancel()
+	_, err := net.DefaultResolver.LookupAddr(ctx, dns)
 	return err
 }
 
 // CheckHost checks current host name for connectivity
 func (c *Checker) CheckHost(host string) error {
-	_, err := net.LookupHost(host)
+	ctx, cancel := context.WithTimeout(context.Background(), c.CheckInterval)
+	defer cancel()
+	_, err := net.DefaultResolver.LookupHost(ctx, host)
 	return err
 }
 
