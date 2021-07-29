@@ -214,6 +214,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 // by comparing passed in and existing values
 func (d *Detail) UpdateOrderFromModify(m *Modify) {
 	var updated bool
+	if m.ID != "" && d.ID != m.ID {
+		d.ID = m.ID
+		updated = true
+	}
 	if d.ImmediateOrCancel != m.ImmediateOrCancel {
 		d.ImmediateOrCancel = m.ImmediateOrCancel
 		updated = true
