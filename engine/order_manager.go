@@ -294,6 +294,10 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 
+	det, err := m.orderStore.getByExchangeAndID(mod.Exchange, mod.ID)
+	if det == nil || err != nil {
+		return nil, fmt.Errorf("order does not exist: %w", err)
+	}
 	exch := m.orderStore.exchangeManager.GetExchangeByName(mod.Exchange)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
@@ -304,18 +308,8 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 		return nil, err
 	}
 
-	// We now have to reflect this change in GCT's internal state of managed orders.
-
-	// TODO: Current implementation is here for illustrative purposes.  It introduces
-	// race conditions.
-	det, err := m.orderStore.getByExchangeAndID(mod.Exchange, mod.ID)
-	if err != nil {
-		// TODO: How to handle that?  The order is updated on the
-		// exchange, but not found locally.
-		return nil, err
-	}
-	det.UpdateOrderFromModify(&res)
-	return &order.ModifyResponse{OrderID: res.ID}, nil
+	err = m.orderStore.modifyExisting(mod.ID, &res)
+	return &order.ModifyResponse{OrderID: res.ID}, err
 }
 
 // Submit will take in an order struct, send it to the exchange and
@@ -684,6 +678,22 @@ func (s *store) updateExisting(od *order.Detail) error {
 		}
 	}
 
+	return ErrOrderNotFound
+}
+
+func (s *store) modifyExisting(id string, mod *order.Modify) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+	r, ok := s.Orders[strings.ToLower(mod.Exchange)]
+	if !ok {
+		return ErrExchangeNotFound
+	}
+	for x := range r {
+		if r[x].ID == id {
+			r[x].UpdateOrderFromModify(mod)
+			return nil
+		}
+	}
 	return ErrOrderNotFound
 }
 
