@@ -294,21 +294,36 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 
+	// Fetch details from locally managed order store.
 	det, err := m.orderStore.getByExchangeAndID(mod.Exchange, mod.ID)
 	if det == nil || err != nil {
 		return nil, fmt.Errorf("order does not exist: %w", err)
 	}
+
+	// Populate additional Modify fields as some of them are required by various
+	// exchange implementations.
+	mod.Pair = det.Pair                           // Used by Bithumb.
+	mod.Side = det.Side                           // Used by Bithumb.
+	mod.PostOnly = det.PostOnly                   // Used by Poloniex.
+	mod.ImmediateOrCancel = det.ImmediateOrCancel // Used by Poloniex.
+
+	// Get exchange instance and submit order modification request.
 	exch := m.orderStore.exchangeManager.GetExchangeByName(mod.Exchange)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
-
 	res, err := exch.ModifyOrder(mod)
 	if err != nil {
 		return nil, err
 	}
 
+	// If modification is successful, apply changes to local order store.
+	//
+	// XXX: This comes with a race condition, because [request -> changes] are not
+	// atomic.
 	err = m.orderStore.modifyExisting(mod.ID, &res)
+
+	// Notify observers.
 	if err != nil {
 		message := fmt.Sprintf(
 			"Order manager: Exchange %s order ID=%v modified.",
@@ -320,6 +335,7 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 			Message: message,
 		})
 	}
+
 	return &order.ModifyResponse{OrderID: res.ID}, err
 }
 
