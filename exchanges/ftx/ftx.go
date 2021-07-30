@@ -129,6 +129,7 @@ const (
 )
 
 var (
+	errInvalidOrderID                                    = errors.New("invalid order ID")
 	errStartTimeCannotBeAfterEndTime                     = errors.New("start timestamp cannot be after end timestamp")
 	errSubaccountNameMustBeSpecified                     = errors.New("a subaccount name must be specified")
 	errSubaccountUpdateNameInvalid                       = errors.New("invalid subaccount old/new name")
@@ -791,16 +792,25 @@ func (f *FTX) deleteOrderByPath(path string) (string, error) {
 
 // DeleteOrder deletes an order
 func (f *FTX) DeleteOrder(orderID string) (string, error) {
+	if orderID == "" {
+		return "", errInvalidOrderID
+	}
 	return f.deleteOrderByPath(deleteOrder + orderID)
 }
 
 // DeleteOrderByClientID deletes an order
 func (f *FTX) DeleteOrderByClientID(clientID string) (string, error) {
+	if clientID == "" {
+		return "", errInvalidOrderID
+	}
 	return f.deleteOrderByPath(deleteOrderByClientID + clientID)
 }
 
 // DeleteTriggerOrder deletes an order
 func (f *FTX) DeleteTriggerOrder(orderID string) (string, error) {
+	if orderID == "" {
+		return "", errInvalidOrderID
+	}
 	return f.deleteOrderByPath(cancelTriggerOrder + orderID)
 }
 
