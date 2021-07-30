@@ -438,15 +438,16 @@ func (b *BTSE) SendHTTPRequest(ep exchange.URL, method, endpoint string, result 
 	if !spotEndpoint {
 		p = btseFuturesPath + btseFuturesAPIPath
 	}
+	item := &request.Item{
+		Method:        method,
+		Path:          ePoint + p + endpoint,
+		Result:        result,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	}
 	return b.SendPayload(context.Background(), f, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        method,
-			Path:          ePoint + p + endpoint,
-			Result:        result,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 
@@ -509,18 +510,20 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint st
 			b.Name, method, endpoint)
 	}
 
+	item := &request.Item{
+		Method:        method,
+		Path:          host,
+		Headers:       headers,
+		Body:          body,
+		Result:        result,
+		AuthRequest:   true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	}
+
 	return b.SendPayload(context.Background(), f, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        method,
-			Path:          host,
-			Headers:       headers,
-			Body:          body,
-			Result:        result,
-			AuthRequest:   true,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 

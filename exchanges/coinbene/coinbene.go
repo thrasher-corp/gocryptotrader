@@ -1090,15 +1090,16 @@ func (c *Coinbene) SendHTTPRequest(ep exchange.URL, path string, f request.Endpo
 	}
 
 	var resp json.RawMessage
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        &resp,
+		Verbose:       c.Verbose,
+		HTTPDebugging: c.HTTPDebugging,
+		HTTPRecording: c.HTTPRecording,
+	}
 	if err := c.SendPayload(context.Background(), f, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpoint + path,
-			Result:        &resp,
-			Verbose:       c.Verbose,
-			HTTPDebugging: c.HTTPDebugging,
-			HTTPRecording: c.HTTPRecording,
-		}, nil
+		return item, nil
 	}); err != nil {
 		return err
 	}
@@ -1180,18 +1181,20 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 	// Expiry of timestamp doesn't appear to be documented, so making a reasonable assumption
 	ctx, cancel := context.WithDeadline(context.Background(), now.Add(15*time.Second))
 	defer cancel()
+	item := &request.Item{
+		Method:        method,
+		Path:          endpoint + path,
+		Headers:       headers,
+		Body:          finalBody,
+		Result:        &resp,
+		AuthRequest:   true,
+		Verbose:       c.Verbose,
+		HTTPDebugging: c.HTTPDebugging,
+		HTTPRecording: c.HTTPRecording,
+	}
+
 	if err := c.SendPayload(ctx, f, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        method,
-			Path:          endpoint + path,
-			Headers:       headers,
-			Body:          finalBody,
-			Result:        &resp,
-			AuthRequest:   true,
-			Verbose:       c.Verbose,
-			HTTPDebugging: c.HTTPDebugging,
-			HTTPRecording: c.HTTPRecording,
-		}, nil
+		return item, nil
 	}); err != nil {
 		return err
 	}

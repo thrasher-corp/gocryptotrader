@@ -48,7 +48,7 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) *Requ
 }
 
 // SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest func() (*Item, error)) error {
+func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate) error {
 	if r == nil {
 		return errRequestSystemIsNil
 	}

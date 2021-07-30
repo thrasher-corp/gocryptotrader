@@ -132,16 +132,16 @@ func (b *Bittrex) WsSignalRHandshake(result interface{}) error {
 		return err
 	}
 	path := "/negotiate?connectionData=[{name:\"c3\"}]&clientProtocol=1.5"
-	fullPath := endpoint + path
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        result,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	}
 	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          fullPath,
-			Result:        result,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 

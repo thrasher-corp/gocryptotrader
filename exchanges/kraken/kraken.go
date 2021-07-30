@@ -958,15 +958,18 @@ func (k *Kraken) SendHTTPRequest(ep exchange.URL, path string, result interface{
 	if err != nil {
 		return err
 	}
+
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        result,
+		Verbose:       k.Verbose,
+		HTTPDebugging: k.HTTPDebugging,
+		HTTPRecording: k.HTTPRecording,
+	}
+
 	return k.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpoint + path,
-			Result:        result,
-			Verbose:       k.Verbose,
-			HTTPDebugging: k.HTTPDebugging,
-			HTTPRecording: k.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 
@@ -990,7 +993,8 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 		encoded := params.Encode()
 		shasum := crypto.GetSHA256([]byte(nonce + encoded))
 		signature := crypto.Base64Encode(crypto.GetHMAC(crypto.HashSHA512,
-			append([]byte(path), shasum...), []byte(k.API.Credentials.Secret)))
+			append([]byte(path), shasum...),
+			[]byte(k.API.Credentials.Secret)))
 
 		if k.Verbose {
 			log.Debugf(log.ExchangeSys, "Sending POST request to %s, path: %s, params: %s",

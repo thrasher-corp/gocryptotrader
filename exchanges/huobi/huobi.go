@@ -795,20 +795,24 @@ func (h *HUOBI) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 		return err
 	}
 	var tempResp json.RawMessage
-	var errCap errorCapture
+
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        &tempResp,
+		Verbose:       h.Verbose,
+		HTTPDebugging: h.HTTPDebugging,
+		HTTPRecording: h.HTTPRecording,
+	}
+
 	err = h.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpoint + path,
-			Result:        &tempResp,
-			Verbose:       h.Verbose,
-			HTTPDebugging: h.HTTPDebugging,
-			HTTPRecording: h.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 	if err != nil {
 		return err
 	}
+
+	var errCap errorCapture
 	if err := json.Unmarshal(tempResp, &errCap); err == nil {
 		if errCap.Code != 200 && errCap.ErrMsg != "" {
 			return errors.New(errCap.ErrMsg)
@@ -869,18 +873,21 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint s
 	ctx, cancel := context.WithDeadline(context.Background(), now.Add(time.Minute))
 	defer cancel()
 	interim := json.RawMessage{}
+
+	item := &request.Item{
+		Method:        method,
+		Path:          urlPath,
+		Headers:       headers,
+		Body:          bytes.NewReader(body),
+		Result:        &interim,
+		AuthRequest:   true,
+		Verbose:       h.Verbose,
+		HTTPDebugging: h.HTTPDebugging,
+		HTTPRecording: h.HTTPRecording,
+	}
+
 	err = h.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        method,
-			Path:          urlPath,
-			Headers:       headers,
-			Body:          bytes.NewReader(body),
-			Result:        &interim,
-			AuthRequest:   true,
-			Verbose:       h.Verbose,
-			HTTPDebugging: h.HTTPDebugging,
-			HTTPRecording: h.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 	if err != nil {
 		return err

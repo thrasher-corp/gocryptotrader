@@ -814,15 +814,17 @@ func (b *Bitmex) SendHTTPRequest(ep exchange.URL, path string, params Parameter,
 		}
 	}
 
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        &respCheck,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	}
+
 	err = b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          path,
-			Result:        &respCheck,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 	if err != nil {
 		return err
@@ -875,18 +877,19 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ep exchange.URL, verb, path string
 	ctx, cancel := context.WithDeadline(context.Background(), expires)
 	defer cancel()
 	fullPath := endpoint + path
+	item := &request.Item{
+		Method:        verb,
+		Path:          fullPath,
+		Headers:       headers,
+		Body:          bytes.NewBuffer([]byte(payload)),
+		Result:        &respCheck,
+		AuthRequest:   true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	}
 	err = b.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        verb,
-			Path:          fullPath,
-			Headers:       headers,
-			Body:          bytes.NewBuffer([]byte(payload)),
-			Result:        &respCheck,
-			AuthRequest:   true,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 	if err != nil {
 		return err

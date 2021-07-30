@@ -261,13 +261,14 @@ func (e *ExchangeRates) SendHTTPRequest(endPoint string, values url.Values, resu
 		protocolScheme = "http://"
 	}
 	path := common.EncodeURLValues(protocolScheme+exchangeRatesAPI+"/v1/"+endPoint, values)
+	item := &request.Item{
+		Method:  http.MethodGet,
+		Path:    path,
+		Result:  result,
+		Verbose: e.Verbose,
+	}
 	err := e.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:  http.MethodGet,
-			Path:    path,
-			Result:  result,
-			Verbose: e.Verbose,
-		}, nil
+		return item, nil
 	})
 	if err != nil {
 		return fmt.Errorf("exchangeRatesAPI: SendHTTPRequest error %s with path %s",

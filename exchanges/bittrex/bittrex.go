@@ -347,7 +347,7 @@ func (b *Bittrex) SendHTTPRequest(ep exchange.URL, path string, result interface
 	if err != nil {
 		return err
 	}
-	requestItem := request.Item{
+	item := &request.Item{
 		Method:         http.MethodGet,
 		Path:           endpoint + path,
 		Result:         result,
@@ -356,7 +356,7 @@ func (b *Bittrex) SendHTTPRequest(ep exchange.URL, path string, result interface
 		HTTPRecording:  b.HTTPRecording,
 		HeaderResponse: resultHeader,
 	}
-	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) { return &requestItem, nil })
+	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) { return item, nil })
 }
 
 // SendAuthHTTPRequest sends an authenticated request
@@ -397,19 +397,22 @@ func (b *Bittrex) SendAuthHTTPRequest(ep exchange.URL, method, action string, pa
 	headers["Api-Signature"] = crypto.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/json"
 	headers["Accept"] = "application/json"
+
+	item := &request.Item{
+		Method:         method,
+		Path:           endpoint + path,
+		Headers:        headers,
+		Body:           body,
+		Result:         result,
+		AuthRequest:    true,
+		Verbose:        b.Verbose,
+		HTTPDebugging:  b.HTTPDebugging,
+		HTTPRecording:  b.HTTPRecording,
+		HeaderResponse: resultHeader,
+	}
+
 	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:         method,
-			Path:           endpoint + path,
-			Headers:        headers,
-			Body:           body,
-			Result:         result,
-			AuthRequest:    true,
-			Verbose:        b.Verbose,
-			HTTPDebugging:  b.HTTPDebugging,
-			HTTPRecording:  b.HTTPRecording,
-			HeaderResponse: resultHeader,
-		}, nil
+		return item, nil
 	})
 }
 

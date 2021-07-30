@@ -620,24 +620,26 @@ func (o *OKGroup) SendHTTPRequest(ep exchange.URL, httpMethod, requestType, requ
 		Result       bool   `json:"result,string,omitempty"`
 	}
 
-	errCap := errCapFormat{}
-	errCap.Result = true
+	item := &request.Item{
+		Method:        strings.ToUpper(httpMethod),
+		Path:          path,
+		Headers:       headers,
+		Body:          bytes.NewBuffer(payload),
+		Result:        &intermediary,
+		AuthRequest:   authenticated,
+		Verbose:       o.Verbose,
+		HTTPDebugging: o.HTTPDebugging,
+		HTTPRecording: o.HTTPRecording,
+	}
+
 	err = o.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        strings.ToUpper(httpMethod),
-			Path:          path,
-			Headers:       headers,
-			Body:          bytes.NewBuffer(payload),
-			Result:        &intermediary,
-			AuthRequest:   authenticated,
-			Verbose:       o.Verbose,
-			HTTPDebugging: o.HTTPDebugging,
-			HTTPRecording: o.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 	if err != nil {
 		return err
 	}
+
+	errCap := errCapFormat{Result: true}
 
 	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {

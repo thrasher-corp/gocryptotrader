@@ -1501,15 +1501,16 @@ func (b *Bitfinex) SendHTTPRequest(ep exchange.URL, path string, result interfac
 	if err != nil {
 		return err
 	}
-	fullPath := endpoint + path
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        result,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording}
+
 	return b.SendPayload(context.Background(), e, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          fullPath,
-			Result:        result,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording}, nil
+		return item, nil
 	})
 }
 

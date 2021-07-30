@@ -677,14 +677,14 @@ func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, r
 	if v != nil {
 		path = path + "?" + v.Encode()
 	}
-
+	item := &request.Item{
+		Method:  method,
+		Path:    path,
+		Headers: headers,
+		Result:  result,
+		Verbose: c.Verbose}
 	return c.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:  method,
-			Path:    path,
-			Headers: headers,
-			Result:  result,
-			Verbose: c.Verbose}, nil
+		return item, nil
 	})
 }
 

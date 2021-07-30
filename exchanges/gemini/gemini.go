@@ -351,15 +351,18 @@ func (g *Gemini) SendHTTPRequest(ep exchange.URL, path string, result interface{
 	if err != nil {
 		return err
 	}
+
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        result,
+		Verbose:       g.Verbose,
+		HTTPDebugging: g.HTTPDebugging,
+		HTTPRecording: g.HTTPRecording,
+	}
+
 	return g.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpoint + path,
-			Result:        result,
-			Verbose:       g.Verbose,
-			HTTPDebugging: g.HTTPDebugging,
-			HTTPRecording: g.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 

@@ -1279,12 +1279,13 @@ func sendGetReq(path string, result interface{}) error {
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 			request.WithLimiter(request.NewBasicRateLimit(time.Second, 100)))
 	}
+	item := &request.Item{
+		Method:  http.MethodGet,
+		Path:    path,
+		Result:  result,
+		Verbose: verbose}
 	return requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:  http.MethodGet,
-			Path:    path,
-			Result:  result,
-			Verbose: verbose}, nil
+		return item, nil
 	})
 }
 
@@ -1293,12 +1294,13 @@ func sendAuthReq(method, path string, result interface{}) error {
 	requester := request.New("Apichecker",
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(time.Second*10, 100)))
+	item := &request.Item{
+		Method:  method,
+		Path:    path,
+		Result:  result,
+		Verbose: verbose}
 	return requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:  method,
-			Path:    path,
-			Result:  result,
-			Verbose: verbose}, nil
+		return item, nil
 	})
 }
 

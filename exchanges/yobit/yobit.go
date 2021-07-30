@@ -269,15 +269,18 @@ func (y *Yobit) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 	if err != nil {
 		return err
 	}
+
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        result,
+		Verbose:       y.Verbose,
+		HTTPDebugging: y.HTTPDebugging,
+		HTTPRecording: y.HTTPRecording,
+	}
+
 	return y.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpoint + path,
-			Result:        result,
-			Verbose:       y.Verbose,
-			HTTPDebugging: y.HTTPDebugging,
-			HTTPRecording: y.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 

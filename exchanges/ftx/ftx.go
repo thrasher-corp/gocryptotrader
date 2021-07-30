@@ -334,15 +334,16 @@ func (f *FTX) SendHTTPRequest(ep exchange.URL, path string, result interface{}) 
 	if err != nil {
 		return err
 	}
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        result,
+		Verbose:       f.Verbose,
+		HTTPDebugging: f.HTTPDebugging,
+		HTTPRecording: f.HTTPRecording,
+	}
 	return f.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpoint + path,
-			Result:        result,
-			Verbose:       f.Verbose,
-			HTTPDebugging: f.HTTPDebugging,
-			HTTPRecording: f.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 
@@ -1169,18 +1170,20 @@ func (f *FTX) SendAuthHTTPRequest(ep exchange.URL, method, path string, data, re
 		headers["FTX-SUBACCOUNT"] = url.QueryEscape(f.API.Credentials.Subaccount)
 	}
 	headers["Content-Type"] = "application/json"
+
+	item := &request.Item{
+		Method:        method,
+		Path:          endpoint + path,
+		Headers:       headers,
+		Body:          body,
+		Result:        result,
+		AuthRequest:   true,
+		Verbose:       f.Verbose,
+		HTTPDebugging: f.HTTPDebugging,
+		HTTPRecording: f.HTTPRecording,
+	}
 	return f.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        method,
-			Path:          endpoint + path,
-			Headers:       headers,
-			Body:          body,
-			Result:        result,
-			AuthRequest:   true,
-			Verbose:       f.Verbose,
-			HTTPDebugging: f.HTTPDebugging,
-			HTTPRecording: f.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 

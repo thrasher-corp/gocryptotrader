@@ -730,15 +730,18 @@ func (l *LocalBitcoins) SendHTTPRequest(endpoint exchange.URL, path string, resu
 	if err != nil {
 		return err
 	}
+
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          ePoint + path,
+		Result:        result,
+		Verbose:       l.Verbose,
+		HTTPDebugging: l.HTTPDebugging,
+		HTTPRecording: l.HTTPRecording,
+	}
+
 	return l.SendPayload(context.Background(), ep, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          ePoint + path,
-			Result:        result,
-			Verbose:       l.Verbose,
-			HTTPDebugging: l.HTTPDebugging,
-			HTTPRecording: l.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 

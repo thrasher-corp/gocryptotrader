@@ -1,7 +1,6 @@
 package binance
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -676,15 +675,16 @@ func (b *Binance) SendHTTPRequest(ePath exchange.URL, path string, f request.End
 	if err != nil {
 		return err
 	}
-	pathway := endpointPath + path
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpointPath + path,
+		Result:        result,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording}
+
 	return b.SendPayload(context.Background(), f, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          pathway,
-			Result:        result,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording}, nil
+		return item, nil
 	})
 }
 
@@ -697,20 +697,21 @@ func (b *Binance) SendAPIKeyHTTPRequest(ePath exchange.URL, path string, f reque
 	}
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
-	pathway := endpointPath + path
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpointPath + path,
+		Headers:       headers,
+		Result:        result,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording}
+
 	return b.SendPayload(context.Background(), f, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          pathway,
-			Headers:       headers,
-			Result:        result,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording}, nil
+		return item, nil
 	})
 }
 
-const recvWindow = 5 * time.Second
+const defaultRecvWindow = 5 * time.Second
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 func (b *Binance) SendAuthHTTPRequest(ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result interface{}) error {
@@ -725,9 +726,20 @@ func (b *Binance) SendAuthHTTPRequest(ePath exchange.URL, method, path string, p
 	if params == nil {
 		params = url.Values{}
 	}
-	if params.Get("recvWindow") == "" {
+
+	recvWindow := defaultRecvWindow
+	if params.Get("recvWindow") != "" {
+		// convert recvWindow value into time.Duration
+		var recvWindowParam int64
+		recvWindowParam, err = convert.Int64FromString(params.Get("recvWindow"))
+		if err != nil {
+			return err
+		}
+		recvWindow = time.Duration(recvWindowParam) * time.Millisecond
+	} else {
 		params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), recvWindow)
 	defer cancel()
 
@@ -925,22 +937,23 @@ func (b *Binance) GetWsAuthStreamKey() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	var resp UserAccountStream
-	path := endpointPath + userAccountStream
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
+	item := &request.Item{
+		Method:        http.MethodPost,
+		Path:          endpointPath + userAccountStream,
+		Headers:       headers,
+		Result:        &resp,
+		AuthRequest:   true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	}
+
 	err = b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodPost,
-			Path:          path,
-			Headers:       headers,
-			Body:          bytes.NewBuffer(nil),
-			Result:        &resp,
-			AuthRequest:   true,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 	if err != nil {
 		return "", err
@@ -964,17 +977,18 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 	path = common.EncodeURLValues(path, params)
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
+	item := &request.Item{
+		Method:        http.MethodPut,
+		Path:          path,
+		Headers:       headers,
+		AuthRequest:   true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	}
+
 	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodPut,
-			Path:          path,
-			Headers:       headers,
-			Body:          bytes.NewBuffer(nil),
-			AuthRequest:   true,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 

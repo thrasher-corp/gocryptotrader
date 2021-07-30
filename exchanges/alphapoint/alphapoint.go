@@ -537,16 +537,18 @@ func (a *Alphapoint) SendHTTPRequest(ep exchange.URL, method, path string, data 
 
 	body := bytes.NewBuffer(PayloadJSON)
 
+	item := &request.Item{
+		Method:        method,
+		Path:          path,
+		Headers:       headers,
+		Body:          body,
+		Result:        result,
+		Verbose:       a.Verbose,
+		HTTPDebugging: a.HTTPDebugging,
+		HTTPRecording: a.HTTPRecording}
+
 	return a.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        method,
-			Path:          path,
-			Headers:       headers,
-			Body:          body,
-			Result:        result,
-			Verbose:       a.Verbose,
-			HTTPDebugging: a.HTTPDebugging,
-			HTTPRecording: a.HTTPRecording}, nil
+		return item, nil
 	})
 }
 
@@ -579,17 +581,19 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path 
 	}
 	payload := bytes.NewBuffer(PayloadJSON)
 
+	item := &request.Item{
+		Method:        method,
+		Path:          path,
+		Headers:       headers,
+		Body:          payload,
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  true,
+		Verbose:       a.Verbose,
+		HTTPDebugging: a.HTTPDebugging,
+		HTTPRecording: a.HTTPRecording}
+
 	return a.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        method,
-			Path:          path,
-			Headers:       headers,
-			Body:          payload,
-			Result:        result,
-			AuthRequest:   true,
-			NonceEnabled:  true,
-			Verbose:       a.Verbose,
-			HTTPDebugging: a.HTTPDebugging,
-			HTTPRecording: a.HTTPRecording}, nil
+		return item, nil
 	})
 }

@@ -305,15 +305,17 @@ func (e *EXMO) SendHTTPRequest(endpoint exchange.URL, path string, result interf
 	if err != nil {
 		return err
 	}
+
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          urlPath + path,
+		Result:        result,
+		Verbose:       e.Verbose,
+		HTTPDebugging: e.HTTPDebugging,
+		HTTPRecording: e.HTTPRecording,
+	}
 	return e.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          urlPath + path,
-			Result:        result,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 

@@ -1149,18 +1149,21 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 	var errCap errorCapture
 	ctx, cancel := context.WithDeadline(context.Background(), now.Add(15*time.Second))
 	defer cancel()
+
+	item := &request.Item{
+		Method:        method,
+		Path:          urlPath,
+		Headers:       headers,
+		Body:          body,
+		Result:        &tempResp,
+		AuthRequest:   true,
+		Verbose:       h.Verbose,
+		HTTPDebugging: h.HTTPDebugging,
+		HTTPRecording: h.HTTPRecording,
+	}
+
 	if err := h.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        method,
-			Path:          urlPath,
-			Headers:       headers,
-			Body:          body,
-			Result:        &tempResp,
-			AuthRequest:   true,
-			Verbose:       h.Verbose,
-			HTTPDebugging: h.HTTPDebugging,
-			HTTPRecording: h.HTTPRecording,
-		}, nil
+		return item, nil
 	}); err != nil {
 		return err
 	}

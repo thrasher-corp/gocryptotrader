@@ -283,15 +283,18 @@ func (i *ItBit) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 	if err != nil {
 		return err
 	}
+
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        result,
+		Verbose:       i.Verbose,
+		HTTPDebugging: i.HTTPDebugging,
+		HTTPRecording: i.HTTPRecording,
+	}
+
 	return i.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpoint + path,
-			Result:        result,
-			Verbose:       i.Verbose,
-			HTTPDebugging: i.HTTPDebugging,
-			HTTPRecording: i.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 

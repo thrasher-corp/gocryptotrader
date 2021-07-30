@@ -160,13 +160,15 @@ func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, 
 		path = fmt.Sprintf("%s%s%s?", APIEndpointURL, APIEndpointVersion, endPoint)
 		values.Set("apiKey", c.APIKey)
 	}
+
 	path += values.Encode()
+	item := &request.Item{
+		Method:      path,
+		Result:      result,
+		AuthRequest: auth,
+		Verbose:     c.Verbose}
 	err := c.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:      path,
-			Result:      result,
-			AuthRequest: auth,
-			Verbose:     c.Verbose}, nil
+		return item, nil
 	})
 
 	if err != nil {

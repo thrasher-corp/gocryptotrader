@@ -320,15 +320,16 @@ func (g *Gateio) SendHTTPRequest(ep exchange.URL, path string, result interface{
 	if err != nil {
 		return err
 	}
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        result,
+		Verbose:       g.Verbose,
+		HTTPDebugging: g.HTTPDebugging,
+		HTTPRecording: g.HTTPRecording,
+	}
 	return g.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpoint + path,
-			Result:        result,
-			Verbose:       g.Verbose,
-			HTTPDebugging: g.HTTPDebugging,
-			HTTPRecording: g.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 
@@ -423,18 +424,19 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint,
 	urlPath := fmt.Sprintf("%s/%s/%s", ePoint, gateioAPIVersion, endpoint)
 
 	var intermidiary json.RawMessage
+	item := &request.Item{
+		Method:        method,
+		Path:          urlPath,
+		Headers:       headers,
+		Body:          strings.NewReader(param),
+		Result:        &intermidiary,
+		AuthRequest:   true,
+		Verbose:       g.Verbose,
+		HTTPDebugging: g.HTTPDebugging,
+		HTTPRecording: g.HTTPRecording,
+	}
 	err = g.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        method,
-			Path:          urlPath,
-			Headers:       headers,
-			Body:          strings.NewReader(param),
-			Result:        &intermidiary,
-			AuthRequest:   true,
-			Verbose:       g.Verbose,
-			HTTPDebugging: g.HTTPDebugging,
-			HTTPRecording: g.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 	if err != nil {
 		return err

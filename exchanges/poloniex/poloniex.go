@@ -834,15 +834,18 @@ func (p *Poloniex) SendHTTPRequest(ep exchange.URL, path string, result interfac
 	if err != nil {
 		return err
 	}
+
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        result,
+		Verbose:       p.Verbose,
+		HTTPDebugging: p.HTTPDebugging,
+		HTTPRecording: p.HTTPRecording,
+	}
+
 	return p.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpoint + path,
-			Result:        result,
-			Verbose:       p.Verbose,
-			HTTPDebugging: p.HTTPDebugging,
-			HTTPRecording: p.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 
@@ -869,18 +872,20 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 
 	path := fmt.Sprintf("%s/%s", ePoint, poloniexAPITradingEndpoint)
 
+	item := &request.Item{
+		Method:        method,
+		Path:          path,
+		Headers:       headers,
+		Body:          bytes.NewBufferString(values.Encode()),
+		Result:        result,
+		AuthRequest:   true,
+		Verbose:       p.Verbose,
+		HTTPDebugging: p.HTTPDebugging,
+		HTTPRecording: p.HTTPRecording,
+	}
+
 	return p.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return &request.Item{
-			Method:        method,
-			Path:          path,
-			Headers:       headers,
-			Body:          bytes.NewBufferString(values.Encode()),
-			Result:        result,
-			AuthRequest:   true,
-			Verbose:       p.Verbose,
-			HTTPDebugging: p.HTTPDebugging,
-			HTTPRecording: p.HTTPRecording,
-		}, nil
+		return item, nil
 	})
 }
 
