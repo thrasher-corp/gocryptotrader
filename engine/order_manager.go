@@ -708,6 +708,8 @@ func (s *store) updateExisting(od *order.Detail) error {
 	return ErrOrderNotFound
 }
 
+// modifyExisting depends on mod.Exchange and given ID to uniquely identify an order and
+// modify it.
 func (s *store) modifyExisting(id string, mod *order.Modify) error {
 	s.m.Lock()
 	defer s.m.Unlock()
