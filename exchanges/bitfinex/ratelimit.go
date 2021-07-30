@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -255,156 +256,155 @@ type RateLimit struct {
 }
 
 // Limit limits outbound requests
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	switch f {
 	case platformStatus:
-		time.Sleep(r.PlatformStatus.Reserve().Delay())
+		return r.PlatformStatus.Wait(ctx)
 	case tickerBatch:
-		time.Sleep(r.TickerBatch.Reserve().Delay())
+		return r.TickerBatch.Wait(ctx)
 	case tickerFunction:
-		time.Sleep(r.Ticker.Reserve().Delay())
+		return r.Ticker.Wait(ctx)
 	case tradeRateLimit:
-		time.Sleep(r.Trade.Reserve().Delay())
+		return r.Trade.Wait(ctx)
 	case orderbookFunction:
-		time.Sleep(r.Orderbook.Reserve().Delay())
+		return r.Orderbook.Wait(ctx)
 	case stats:
-		time.Sleep(r.Stats.Reserve().Delay())
+		return r.Stats.Wait(ctx)
 	case candle:
-		time.Sleep(r.Candle.Reserve().Delay())
+		return r.Candle.Wait(ctx)
 	case configs:
-		time.Sleep(r.Configs.Reserve().Delay())
+		return r.Configs.Wait(ctx)
 	case status:
-		time.Sleep(r.Stats.Reserve().Delay())
+		return r.Stats.Wait(ctx)
 	case liquid:
-		time.Sleep(r.Liquid.Reserve().Delay())
+		return r.Liquid.Wait(ctx)
 	case leaderBoard:
-		time.Sleep(r.LeaderBoard.Reserve().Delay())
+		return r.LeaderBoard.Wait(ctx)
 	case marketAveragePrice:
-		time.Sleep(r.MarketAveragePrice.Reserve().Delay())
+		return r.MarketAveragePrice.Wait(ctx)
 	case fx:
-		time.Sleep(r.Fx.Reserve().Delay())
+		return r.Fx.Wait(ctx)
 	case accountWalletBalance:
-		time.Sleep(r.AccountWalletBalance.Reserve().Delay())
+		return r.AccountWalletBalance.Wait(ctx)
 	case accountWalletHistory:
-		time.Sleep(r.AccountWalletHistory.Reserve().Delay())
+		return r.AccountWalletHistory.Wait(ctx)
 	case retrieveOrder:
-		time.Sleep(r.RetrieveOrder.Reserve().Delay())
+		return r.RetrieveOrder.Wait(ctx)
 	case submitOrder:
-		time.Sleep(r.SubmitOrder.Reserve().Delay())
+		return r.SubmitOrder.Wait(ctx)
 	case updateOrder:
-		time.Sleep(r.UpdateOrder.Reserve().Delay())
+		return r.UpdateOrder.Wait(ctx)
 	case cancelOrder:
-		time.Sleep(r.CancelOrder.Reserve().Delay())
+		return r.CancelOrder.Wait(ctx)
 	case orderBatch:
-		time.Sleep(r.OrderBatch.Reserve().Delay())
+		return r.OrderBatch.Wait(ctx)
 	case cancelBatch:
-		time.Sleep(r.CancelBatch.Reserve().Delay())
+		return r.CancelBatch.Wait(ctx)
 	case orderHistory:
-		time.Sleep(r.OrderHistory.Reserve().Delay())
+		return r.OrderHistory.Wait(ctx)
 	case getOrderTrades:
-		time.Sleep(r.GetOrderTrades.Reserve().Delay())
+		return r.GetOrderTrades.Wait(ctx)
 	case getTrades:
-		time.Sleep(r.GetTrades.Reserve().Delay())
+		return r.GetTrades.Wait(ctx)
 	case getLedgers:
-		time.Sleep(r.GetLedgers.Reserve().Delay())
+		return r.GetLedgers.Wait(ctx)
 	case getAccountMarginInfo:
-		time.Sleep(r.GetAccountMarginInfo.Reserve().Delay())
+		return r.GetAccountMarginInfo.Wait(ctx)
 	case getActivePositions:
-		time.Sleep(r.GetActivePositions.Reserve().Delay())
+		return r.GetActivePositions.Wait(ctx)
 	case claimPosition:
-		time.Sleep(r.ClaimPosition.Reserve().Delay())
+		return r.ClaimPosition.Wait(ctx)
 	case getPositionHistory:
-		time.Sleep(r.GetPositionHistory.Reserve().Delay())
+		return r.GetPositionHistory.Wait(ctx)
 	case getPositionAudit:
-		time.Sleep(r.GetPositionAudit.Reserve().Delay())
+		return r.GetPositionAudit.Wait(ctx)
 	case updateCollateralOnPosition:
-		time.Sleep(r.UpdateCollateralOnPosition.Reserve().Delay())
+		return r.UpdateCollateralOnPosition.Wait(ctx)
 	case getActiveFundingOffers:
-		time.Sleep(r.GetActiveFundingOffers.Reserve().Delay())
+		return r.GetActiveFundingOffers.Wait(ctx)
 	case submitFundingOffer:
-		time.Sleep(r.SubmitFundingOffer.Reserve().Delay())
+		return r.SubmitFundingOffer.Wait(ctx)
 	case cancelFundingOffer:
-		time.Sleep(r.CancelFundingOffer.Reserve().Delay())
+		return r.CancelFundingOffer.Wait(ctx)
 	case cancelAllFundingOffer:
-		time.Sleep(r.CancelAllFundingOffer.Reserve().Delay())
+		return r.CancelAllFundingOffer.Wait(ctx)
 	case closeFunding:
-		time.Sleep(r.CloseFunding.Reserve().Delay())
+		return r.CloseFunding.Wait(ctx)
 	case fundingAutoRenew:
-		time.Sleep(r.FundingAutoRenew.Reserve().Delay())
+		return r.FundingAutoRenew.Wait(ctx)
 	case keepFunding:
-		time.Sleep(r.KeepFunding.Reserve().Delay())
+		return r.KeepFunding.Wait(ctx)
 	case getOffersHistory:
-		time.Sleep(r.GetOffersHistory.Reserve().Delay())
+		return r.GetOffersHistory.Wait(ctx)
 	case getFundingLoans:
-		time.Sleep(r.GetFundingLoans.Reserve().Delay())
+		return r.GetFundingLoans.Wait(ctx)
 	case getFundingLoanHistory:
-		time.Sleep(r.GetFundingLoanHistory.Reserve().Delay())
+		return r.GetFundingLoanHistory.Wait(ctx)
 	case getFundingCredits:
-		time.Sleep(r.GetFundingCredits.Reserve().Delay())
+		return r.GetFundingCredits.Wait(ctx)
 	case getFundingCreditsHistory:
-		time.Sleep(r.GetFundingCreditsHistory.Reserve().Delay())
+		return r.GetFundingCreditsHistory.Wait(ctx)
 	case getFundingTrades:
-		time.Sleep(r.GetFundingTrades.Reserve().Delay())
+		return r.GetFundingTrades.Wait(ctx)
 	case getFundingInfo:
-		time.Sleep(r.GetFundingInfo.Reserve().Delay())
+		return r.GetFundingInfo.Wait(ctx)
 	case getUserInfo:
-		time.Sleep(r.GetUserInfo.Reserve().Delay())
+		return r.GetUserInfo.Wait(ctx)
 	case transferBetweenWallets:
-		time.Sleep(r.TransferBetweenWallets.Reserve().Delay())
+		return r.TransferBetweenWallets.Wait(ctx)
 	case getDepositAddress:
-		time.Sleep(r.GetDepositAddress.Reserve().Delay())
+		return r.GetDepositAddress.Wait(ctx)
 	case withdrawal:
-		time.Sleep(r.Withdrawal.Reserve().Delay())
+		return r.Withdrawal.Wait(ctx)
 	case getMovements:
-		time.Sleep(r.GetMovements.Reserve().Delay())
+		return r.GetMovements.Wait(ctx)
 	case getAlertList:
-		time.Sleep(r.GetAlertList.Reserve().Delay())
+		return r.GetAlertList.Wait(ctx)
 	case setPriceAlert:
-		time.Sleep(r.SetPriceAlert.Reserve().Delay())
+		return r.SetPriceAlert.Wait(ctx)
 	case deletePriceAlert:
-		time.Sleep(r.DeletePriceAlert.Reserve().Delay())
+		return r.DeletePriceAlert.Wait(ctx)
 	case getBalanceForOrdersOffers:
-		time.Sleep(r.GetBalanceForOrdersOffers.Reserve().Delay())
+		return r.GetBalanceForOrdersOffers.Wait(ctx)
 	case userSettingsWrite:
-		time.Sleep(r.UserSettingsWrite.Reserve().Delay())
+		return r.UserSettingsWrite.Wait(ctx)
 	case userSettingsRead:
-		time.Sleep(r.UserSettingsRead.Reserve().Delay())
+		return r.UserSettingsRead.Wait(ctx)
 	case userSettingsDelete:
-		time.Sleep(r.UserSettingsDelete.Reserve().Delay())
+		return r.UserSettingsDelete.Wait(ctx)
 
 		//  Bitfinex V1 API
 	case getAccountFees:
-		time.Sleep(r.GetAccountFees.Reserve().Delay())
+		return r.GetAccountFees.Wait(ctx)
 	case getWithdrawalFees:
-		time.Sleep(r.GetWithdrawalFees.Reserve().Delay())
+		return r.GetWithdrawalFees.Wait(ctx)
 	case getAccountSummary:
-		time.Sleep(r.GetAccountSummary.Reserve().Delay())
+		return r.GetAccountSummary.Wait(ctx)
 	case newDepositAddress:
-		time.Sleep(r.NewDepositAddress.Reserve().Delay())
+		return r.NewDepositAddress.Wait(ctx)
 	case getKeyPermissions:
-		time.Sleep(r.GetKeyPermissions.Reserve().Delay())
+		return r.GetKeyPermissions.Wait(ctx)
 	case getMarginInfo:
-		time.Sleep(r.GetMarginInfo.Reserve().Delay())
+		return r.GetMarginInfo.Wait(ctx)
 	case getAccountBalance:
-		time.Sleep(r.GetAccountBalance.Reserve().Delay())
+		return r.GetAccountBalance.Wait(ctx)
 	case walletTransfer:
-		time.Sleep(r.WalletTransfer.Reserve().Delay())
+		return r.WalletTransfer.Wait(ctx)
 	case withdrawV1:
-		time.Sleep(r.WithdrawV1.Reserve().Delay())
+		return r.WithdrawV1.Wait(ctx)
 	case orderV1:
-		time.Sleep(r.OrderV1.Reserve().Delay())
+		return r.OrderV1.Wait(ctx)
 	case orderMulti:
-		time.Sleep(r.OrderMulti.Reserve().Delay())
+		return r.OrderMulti.Wait(ctx)
 	case statsV1:
-		time.Sleep(r.Stats.Reserve().Delay())
+		return r.Stats.Wait(ctx)
 	case fundingbook:
-		time.Sleep(r.Fundingbook.Reserve().Delay())
+		return r.Fundingbook.Wait(ctx)
 	case lends:
-		time.Sleep(r.Lends.Reserve().Delay())
+		return r.Lends.Wait(ctx)
 	default:
 		return errors.New("endpoint rate limit functionality not found")
 	}
-	return nil
 }
 
 // SetRateLimit returns the rate limit for the exchange

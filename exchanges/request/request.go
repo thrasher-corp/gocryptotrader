@@ -62,7 +62,7 @@ func (r *Requester) SendPayload(ctx context.Context, i *Item) error {
 	}
 
 	atomic.AddInt32(&r.jobs, 1)
-	err = r.doRequest(req, i)
+	err = r.doRequest(ctx, req, i)
 	atomic.AddInt32(&r.jobs, -1)
 	r.timedLock.UnlockIfLocked()
 
@@ -106,7 +106,7 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 }
 
 // DoRequest performs a HTTP/HTTPS request with the supplied params
-func (r *Requester) doRequest(req *http.Request, p *Item) error {
+func (r *Requester) doRequest(ctx context.Context, req *http.Request, p *Item) error {
 	if p == nil {
 		return errors.New("request item cannot be nil")
 	}
@@ -139,9 +139,9 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 
 	for attempt := 1; ; attempt++ {
 		// Initiate a rate limit reservation and sleep on requested endpoint
-		err := r.InitiateRateLimit(p.Endpoint)
+		err := r.InitiateRateLimit(ctx, p.Endpoint)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to rate limit HTTP request: %w", err)
 		}
 
 		resp, err := r.HTTPClient.Do(req)

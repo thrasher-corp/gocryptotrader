@@ -178,20 +178,20 @@ type GlobalLimitTest struct {
 	UnAuth *rate.Limiter
 }
 
-func (g *GlobalLimitTest) Limit(e EndpointLimit) error {
+var errEndpointLimitNotFound = errors.New("endpoint limit not found")
+
+func (g *GlobalLimitTest) Limit(ctx context.Context, e EndpointLimit) error {
 	switch e {
 	case Auth:
 		if g.Auth == nil {
 			return errors.New("auth rate not set")
 		}
-		time.Sleep(g.Auth.Reserve().Delay())
-		return nil
+		return g.Auth.Wait(ctx)
 	case UnAuth:
 		if g.UnAuth == nil {
 			return errors.New("unauth rate not set")
 		}
-		time.Sleep(g.UnAuth.Reserve().Delay())
-		return nil
+		return g.UnAuth.Wait(ctx)
 	default:
 		return fmt.Errorf("cannot execute functionality: %d not found", e)
 	}
@@ -505,10 +505,23 @@ func TestBasicLimiter(t *testing.T) {
 	ctx := context.Background()
 
 	tn := time.Now()
-	_ = r.SendPayload(ctx, &i)
-	_ = r.SendPayload(ctx, &i)
+	err := r.SendPayload(ctx, &i)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = r.SendPayload(ctx, &i)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if time.Since(tn) < time.Second {
 		t.Error("rate limit issues")
+	}
+
+	ctx, cancel := context.WithDeadline(ctx, tn.Add(time.Nanosecond))
+	defer cancel()
+	err = r.SendPayload(ctx, &i)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("receieved: %v but expected: %v", err, context.DeadlineExceeded)
 	}
 }
 

@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"context"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -36,7 +37,7 @@ func TestRateLimit_Limit(t *testing.T) {
 			}
 
 			l := SetRateLimit()
-			if err := l.Limit(tt.Limit); err != nil {
+			if err := l.Limit(context.Background(), tt.Limit); err != nil {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})
@@ -56,7 +57,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 			t.Parallel()
 
 			l := SetRateLimit()
-			if err := l.Limit(tt); err != nil {
+			if err := l.Limit(context.Background(), tt); err != nil {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})

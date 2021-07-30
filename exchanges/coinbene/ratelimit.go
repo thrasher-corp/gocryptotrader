@@ -1,6 +1,7 @@
 package coinbene
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -129,82 +130,81 @@ type RateLimit struct {
 }
 
 // Limit limits outbound requests
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	switch f {
 	case contractOrderbook:
-		time.Sleep(r.ContractOrderbook.Reserve().Delay())
+		return r.ContractOrderbook.Wait(ctx)
 	case contractTickers:
-		time.Sleep(r.ContractTickers.Reserve().Delay())
+		return r.ContractTickers.Wait(ctx)
 	case contractKline:
-		time.Sleep(r.ContractKline.Reserve().Delay())
+		return r.ContractKline.Wait(ctx)
 	case contractTrades:
-		time.Sleep(r.ContractTrades.Reserve().Delay())
+		return r.ContractTrades.Wait(ctx)
 	case contractInstruments:
-		time.Sleep(r.ContractInstruments.Reserve().Delay())
+		return r.ContractInstruments.Wait(ctx)
 	case contractAccountInfo:
-		time.Sleep(r.ContractAccountInfo.Reserve().Delay())
+		return r.ContractAccountInfo.Wait(ctx)
 	case contractPositionInfo:
-		time.Sleep(r.ContractPositionInfo.Reserve().Delay())
+		return r.ContractPositionInfo.Wait(ctx)
 	case contractPlaceOrder:
-		time.Sleep(r.ContractPlaceOrder.Reserve().Delay())
+		return r.ContractPlaceOrder.Wait(ctx)
 	case contractCancelOrder:
-		time.Sleep(r.ContractCancelOrder.Reserve().Delay())
+		return r.ContractCancelOrder.Wait(ctx)
 	case contractGetOpenOrders:
-		time.Sleep(r.ContractGetOpenOrders.Reserve().Delay())
+		return r.ContractGetOpenOrders.Wait(ctx)
 	case contractOpenOrdersByPage:
-		time.Sleep(r.ContractOpenOrdersByPage.Reserve().Delay())
+		return r.ContractOpenOrdersByPage.Wait(ctx)
 	case contractGetOrderInfo:
-		time.Sleep(r.ContractGetOrderInfo.Reserve().Delay())
+		return r.ContractGetOrderInfo.Wait(ctx)
 	case contractGetClosedOrders:
-		time.Sleep(r.ContractGetClosedOrders.Reserve().Delay())
+		return r.ContractGetClosedOrders.Wait(ctx)
 	case contractGetClosedOrdersbyPage:
-		time.Sleep(r.ContractGetClosedOrdersbyPage.Reserve().Delay())
+		return r.ContractGetClosedOrdersbyPage.Wait(ctx)
 	case contractCancelMultipleOrders:
-		time.Sleep(r.ContractCancelMultipleOrders.Reserve().Delay())
+		return r.ContractCancelMultipleOrders.Wait(ctx)
 	case contractGetOrderFills:
-		time.Sleep(r.ContractGetOrderFills.Reserve().Delay())
+		return r.ContractGetOrderFills.Wait(ctx)
 	case contractGetFundingRates:
-		time.Sleep(r.ContractGetFundingRates.Reserve().Delay())
+		return r.ContractGetFundingRates.Wait(ctx)
 	case spotPairs:
-		time.Sleep(r.SpotPairs.Reserve().Delay())
+		return r.SpotPairs.Wait(ctx)
 	case spotPairInfo:
-		time.Sleep(r.SpotPairInfo.Reserve().Delay())
+		return r.SpotPairInfo.Wait(ctx)
 	case spotOrderbook:
-		time.Sleep(r.SpotOrderbook.Reserve().Delay())
+		return r.SpotOrderbook.Wait(ctx)
 	case spotTickerList:
-		time.Sleep(r.SpotTickerList.Reserve().Delay())
+		return r.SpotTickerList.Wait(ctx)
 	case spotSpecificTicker:
-		time.Sleep(r.SpotSpecificTicker.Reserve().Delay())
+		return r.SpotSpecificTicker.Wait(ctx)
 	case spotMarketTrades:
-		time.Sleep(r.SpotMarketTrades.Reserve().Delay())
+		return r.SpotMarketTrades.Wait(ctx)
 	// case spotKline: // Not implemented yet
-	// 	time.Sleep(r.SpotKline.Reserve().Delay())
+	// 	return r.SpotKline.Wait(ctx)
 	// case spotExchangeRate:
-	// 	time.Sleep(r.SpotExchangeRate.Reserve().Delay())
+	// 	return r.SpotExchangeRate.Wait(ctx)
 	case spotAccountInfo:
-		time.Sleep(r.SpotAccountInfo.Reserve().Delay())
+		return r.SpotAccountInfo.Wait(ctx)
 	case spotAccountAssetInfo:
-		time.Sleep(r.SpotAccountAssetInfo.Reserve().Delay())
+		return r.SpotAccountAssetInfo.Wait(ctx)
 	case spotPlaceOrder:
-		time.Sleep(r.SpotPlaceOrder.Reserve().Delay())
+		return r.SpotPlaceOrder.Wait(ctx)
 	case spotBatchOrder:
-		time.Sleep(r.SpotBatchOrder.Reserve().Delay())
+		return r.SpotBatchOrder.Wait(ctx)
 	case spotQueryOpenOrders:
-		time.Sleep(r.SpotQueryOpenOrders.Reserve().Delay())
+		return r.SpotQueryOpenOrders.Wait(ctx)
 	case spotQueryClosedOrders:
-		time.Sleep(r.SpotQueryClosedOrders.Reserve().Delay())
+		return r.SpotQueryClosedOrders.Wait(ctx)
 	case spotQuerySpecficOrder:
-		time.Sleep(r.SpotQuerySpecficOrder.Reserve().Delay())
+		return r.SpotQuerySpecficOrder.Wait(ctx)
 	case spotQueryTradeFills:
-		time.Sleep(r.SpotQueryTradeFills.Reserve().Delay())
+		return r.SpotQueryTradeFills.Wait(ctx)
 	case spotCancelOrder:
-		time.Sleep(r.SpotCancelOrder.Reserve().Delay())
+		return r.SpotCancelOrder.Wait(ctx)
 	case spotCancelOrdersBatch:
-		time.Sleep(r.SpotCancelOrdersBatch.Reserve().Delay())
+		return r.SpotCancelOrdersBatch.Wait(ctx)
 	default:
-		return errors.New("rate limit error endpoint functionality not set")
+		return errors.New("rate limit endpoint functionality not set")
 	}
-	return nil
 }
 
 // SetRateLimit returns the rate limit for the exchange

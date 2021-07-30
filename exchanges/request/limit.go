@@ -1,6 +1,7 @@
 package request
 
 import (
+	"context"
 	"errors"
 	"sync/atomic"
 	"time"
@@ -22,9 +23,8 @@ type BasicLimit struct {
 }
 
 // Limit executes a single rate limit set by NewRateLimit
-func (b *BasicLimit) Limit(_ EndpointLimit) error {
-	time.Sleep(b.r.Reserve().Delay())
-	return nil
+func (b *BasicLimit) Limit(ctx context.Context, _ EndpointLimit) error {
+	return b.r.Wait(ctx)
 }
 
 // EndpointLimit defines individual endpoint rate limits that are set when
@@ -35,7 +35,7 @@ type EndpointLimit int
 // wrapper for extended rate limiting configuration i.e. Shells of rate
 // limits with a global rate for sub rates.
 type Limiter interface {
-	Limit(EndpointLimit) error
+	Limit(context.Context, EndpointLimit) error
 }
 
 // NewRateLimit creates a new RateLimit based of time interval and how many
@@ -59,13 +59,13 @@ func NewBasicRateLimit(interval time.Duration, actions int) Limiter {
 }
 
 // InitiateRateLimit sleeps for designated end point rate limits
-func (r *Requester) InitiateRateLimit(e EndpointLimit) error {
+func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) error {
 	if atomic.LoadInt32(&r.disableRateLimiter) == 1 {
 		return nil
 	}
 
 	if r.limiter != nil {
-		return r.limiter.Limit(e)
+		return r.limiter.Limit(ctx, e)
 	}
 
 	return nil

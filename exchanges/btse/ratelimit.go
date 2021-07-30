@@ -1,6 +1,7 @@
 package btse
 
 import (
+	"context"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -23,14 +24,13 @@ type RateLimit struct {
 }
 
 // Limit executes rate limiting functionality for exchange
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	switch f {
 	case orderFunc:
-		time.Sleep(r.Orders.Reserve().Delay())
+		return r.Orders.Wait(ctx)
 	default:
-		time.Sleep(r.Query.Reserve().Delay())
+		return r.Query.Wait(ctx)
 	}
-	return nil
 }
 
 // SetRateLimit returns the rate limit for the exchange
