@@ -11,13 +11,6 @@ type Nonce struct {
 	m sync.Mutex
 }
 
-// Inc increments the nonce value
-func (n *Nonce) Inc() {
-	n.m.Lock()
-	n.n++
-	n.m.Unlock()
-}
-
 // Get retrives the nonce value
 func (n *Nonce) Get() Value {
 	n.m.Lock()

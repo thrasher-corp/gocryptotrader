@@ -252,8 +252,7 @@ func (r *Requester) GetNonce(isNano bool) nonce.Value {
 		}
 		return r.Nonce.Get()
 	}
-	r.Nonce.Inc()
-	return r.Nonce.Get()
+	return r.Nonce.GetInc()
 }
 
 // GetNonceMilli returns a nonce for requests. This locks and enforces concurrent
@@ -264,8 +263,7 @@ func (r *Requester) GetNonceMilli() nonce.Value {
 		r.Nonce.Set(time.Now().UnixNano() / int64(time.Millisecond))
 		return r.Nonce.Get()
 	}
-	r.Nonce.Inc()
-	return r.Nonce.Get()
+	return r.Nonce.GetInc()
 }
 
 // SetProxy sets a proxy address to the client transport
