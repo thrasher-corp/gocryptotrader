@@ -339,6 +339,42 @@ func TestExists(t *testing.T) {
 	}
 }
 
+func Teststore_modifyOrder(t *testing.T) {
+	m := OrdersSetup(t)
+	pair := currency.Pair{
+		Base:  currency.NewCode("XXXXX"),
+		Quote: currency.NewCode("YYYYY"),
+	}
+	err := m.orderStore.add(&order.Detail{
+		Exchange:  testExchange,
+		AssetType: asset.Spot,
+		Pair:      pair,
+		ID:        "fake_order_id",
+
+		Price:  10,
+		Amount: 20,
+	})
+	m.orderStore.modifyExisting("fake_order_id", &order.Modify{
+		Exchange: testExchange,
+
+		ID:     "another_fake_order_id",
+		Price:  11,
+		Amount: 22,
+	})
+	_, err = m.orderStore.getByExchangeAndID(testExchange, "fake_order_id")
+	if err == nil {
+		// Expected error, such an order should not exist anymore in the store.
+		t.Error()
+	}
+	det, err := m.orderStore.getByExchangeAndID(testExchange, "another_fake_order_id")
+	if det == nil || err != nil {
+		t.Error()
+	}
+	if det.ID != "another_fake_order_id" || det.Price != 11 || det.Amount != 22 {
+		t.Error()
+	}
+}
+
 func TestCancelOrder(t *testing.T) {
 	m := OrdersSetup(t)
 
@@ -561,7 +597,7 @@ func TestSubmit(t *testing.T) {
 	}
 }
 
-func TestModify(t *testing.T) {
+func TestOrderManager_Modify(t *testing.T) {
 	m := OrdersSetup(t)
 	pair := currency.Pair{
 		Base:  currency.NewCode("XXXXX"),
