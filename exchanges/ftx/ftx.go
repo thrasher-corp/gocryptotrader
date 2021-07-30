@@ -135,6 +135,8 @@ var (
 	errCoinMustBeSpecified                               = errors.New("a coin must be specified")
 	errSubaccountTransferSizeGreaterThanZero             = errors.New("transfer size must be greater than 0")
 	errSubaccountTransferSourceDestinationMustNotBeEqual = errors.New("subaccount transfer source and destination must not be the same value")
+	errUnrecognisedOrderStatus                           = errors.New("unrecognised order status received")
+	errInvalidOrderAmounts                               = errors.New("filled amount should not exceed order amount")
 
 	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
@@ -1183,6 +1185,9 @@ func (f *FTX) SendAuthHTTPRequest(ep exchange.URL, method, path string, data, re
 // GetFee returns an estimate of fee based on type of transaction
 func (f *FTX) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
+	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	switch feeBuilder.FeeType {
 	case exchange.OfflineTradeFee:
 		fee = getOfflineTradeFee(feeBuilder)
@@ -1213,6 +1218,9 @@ func getOfflineTradeFee(feeBuilder *exchange.FeeBuilder) float64 {
 }
 
 func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amount, filledAmount, avgFillPrice float64) (OrderVars, error) {
+	if filledAmount > amount {
+		return OrderVars{}, fmt.Errorf("%w, amount: %f filled: %f", errInvalidOrderAmounts, amount, filledAmount)
+	}
 	var resp OrderVars
 	switch orderSide {
 	case order.Buy.Lower():
@@ -1228,13 +1236,17 @@ func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amou
 	case closedStatus:
 		if filledAmount != 0 && filledAmount != amount {
 			resp.Status = order.PartiallyCancelled
+			break
 		}
 		if filledAmount == 0 {
 			resp.Status = order.Cancelled
+			break
 		}
 		if filledAmount == amount {
 			resp.Status = order.Filled
 		}
+	default:
+		return resp, fmt.Errorf("%w %s", errUnrecognisedOrderStatus, orderStatus)
 	}
 	var feeBuilder exchange.FeeBuilder
 	feeBuilder.PurchasePrice = avgFillPrice

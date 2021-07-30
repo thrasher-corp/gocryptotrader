@@ -847,11 +847,12 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Price = orderData[y].Price
 			tempResp.RemainingAmount = orderData[y].RemainingSize
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(orderData[y].Side,
+			orderVars, err = f.compatibleOrderVars(
+				orderData[y].Side,
 				orderData[y].Status,
 				orderData[y].OrderType,
-				orderData[y].FilledSize,
 				orderData[y].Size,
+				orderData[y].FilledSize,
 				orderData[y].AvgFillPrice)
 			if err != nil {
 				return resp, err
@@ -884,11 +885,12 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Price = triggerOrderData[z].AvgFillPrice
 			tempResp.RemainingAmount = triggerOrderData[z].Size - triggerOrderData[z].FilledSize
 			tempResp.TriggerPrice = triggerOrderData[z].TriggerPrice
-			orderVars, err := f.compatibleOrderVars(triggerOrderData[z].Side,
+			orderVars, err := f.compatibleOrderVars(
+				triggerOrderData[z].Side,
 				triggerOrderData[z].Status,
 				triggerOrderData[z].OrderType,
-				triggerOrderData[z].FilledSize,
 				triggerOrderData[z].Size,
+				triggerOrderData[z].FilledSize,
 				triggerOrderData[z].AvgFillPrice)
 			if err != nil {
 				return resp, err
@@ -945,11 +947,12 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Price = orderData[y].Price
 			tempResp.RemainingAmount = orderData[y].RemainingSize
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(orderData[y].Side,
+			orderVars, err = f.compatibleOrderVars(
+				orderData[y].Side,
 				orderData[y].Status,
 				orderData[y].OrderType,
-				orderData[y].FilledSize,
 				orderData[y].Size,
+				orderData[y].FilledSize,
 				orderData[y].AvgFillPrice)
 			if err != nil {
 				return resp, err
@@ -985,11 +988,12 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Price = triggerOrderData[z].AvgFillPrice
 			tempResp.RemainingAmount = triggerOrderData[z].Size - triggerOrderData[z].FilledSize
 			tempResp.TriggerPrice = triggerOrderData[z].TriggerPrice
-			orderVars, err := f.compatibleOrderVars(triggerOrderData[z].Side,
+			orderVars, err := f.compatibleOrderVars(
+				triggerOrderData[z].Side,
 				triggerOrderData[z].Status,
 				triggerOrderData[z].OrderType,
-				triggerOrderData[z].FilledSize,
 				triggerOrderData[z].Size,
+				triggerOrderData[z].FilledSize,
 				triggerOrderData[z].AvgFillPrice)
 			if err != nil {
 				return resp, err
