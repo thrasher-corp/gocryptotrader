@@ -40,6 +40,12 @@ func (f omfExchange) GetOrderInfo(orderID string, pair currency.Pair, assetType 
 	}, nil
 }
 
+func (f omfExchange) ModifyOrder(action *order.Modify) (order.Modify, error) {
+	ans := *action
+	ans.ID = "modified_order_id"
+	return ans, nil
+}
+
 func TestSetupOrderManager(t *testing.T) {
 	_, err := SetupOrderManager(nil, nil, nil, false)
 	if !errors.Is(err, errNilExchangeManager) {
@@ -552,6 +558,58 @@ func TestSubmit(t *testing.T) {
 	}
 	if o2.InternalOrderID == "" {
 		t.Error("Failed to assign internal order id")
+	}
+}
+
+func TestModify(t *testing.T) {
+	m := OrdersSetup(t)
+	pair := currency.Pair{
+		Base:  currency.NewCode("XXXXX"),
+		Quote: currency.NewCode("YYYYY"),
+	}
+	err := m.orderStore.add(&order.Detail{
+		Exchange:  testExchange,
+		AssetType: asset.Spot,
+		Pair:      pair,
+		ID:        "fake_order_id",
+
+		Price:  10,
+		Amount: 20,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	mod := order.Modify{
+		// These fields identify the order.
+		Exchange:  testExchange,
+		AssetType: asset.Spot,
+		Pair:      pair,
+		ID:        "nonexistent_order_id",
+
+		// These fields modify the order.
+		Price:  11,
+		Amount: 22,
+	}
+
+	_, err = m.Modify(&mod)
+	if err == nil {
+		// This order should not exist, an error is expected.
+		t.Error()
+	}
+
+	mod.ID = "fake_order_id"
+	_, err = m.Modify(&mod)
+	if err != nil {
+		t.Error(err)
+	}
+
+	det, err := m.orderStore.getByExchangeAndID(testExchange, "modified_order_id")
+	if err != nil {
+		t.Error(err)
+	}
+	if det.ID != "modified_order_id" || det.Price != 11 || det.Amount != 22 {
+		t.Error()
 	}
 }
 
