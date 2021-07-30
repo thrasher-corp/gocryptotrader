@@ -53,20 +53,19 @@ func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newReques
 		return errRequestSystemIsNil
 	}
 
+	defer r.timedLock.UnlockIfLocked()
+
 	if newRequest == nil {
 		return errRequestFunctionIsNil
 	}
 
 	if atomic.LoadInt32(&r.jobs) >= MaxRequestJobs {
-		r.timedLock.UnlockIfLocked()
 		return errMaxRequestJobs
 	}
 
 	atomic.AddInt32(&r.jobs, 1)
 	err := r.doRequest(ctx, ep, newRequest)
 	atomic.AddInt32(&r.jobs, -1)
-	r.timedLock.UnlockIfLocked()
-
 	return err
 }
 
