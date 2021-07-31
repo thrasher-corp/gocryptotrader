@@ -129,6 +129,7 @@ const (
 )
 
 var (
+	errInvalidOrderID                                    = errors.New("invalid order ID")
 	errStartTimeCannotBeAfterEndTime                     = errors.New("start timestamp cannot be after end timestamp")
 	errSubaccountNameMustBeSpecified                     = errors.New("a subaccount name must be specified")
 	errSubaccountUpdateNameInvalid                       = errors.New("invalid subaccount old/new name")
@@ -776,51 +777,43 @@ func (f *FTX) GetOrderStatusByClientID(clientOrderID string) (OrderData, error) 
 	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getOrderStatusByClientID+clientOrderID, nil, &resp)
 }
 
-// DeleteOrder deletes an order
-func (f *FTX) DeleteOrder(orderID string) (string, error) {
+func (f *FTX) deleteOrderByPath(path string) (string, error) {
 	resp := struct {
 		Result  string `json:"result"`
 		Success bool   `json:"success"`
+		Error   string `json:"error"`
 	}{}
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, deleteOrder+orderID, nil, &resp); err != nil {
-		return "", err
+	err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, path, nil, &resp)
+	// If there is an error reported, but the resp struct reports one of a very few
+	// specific error causes, we still consider this a successful cancellation.
+	if err != nil && !resp.Success && (resp.Error == "Order already closed" || resp.Error == "Order already queued for cancellation") {
+		return resp.Error, nil
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete order request by ID unsuccessful")
+	return resp.Result, err
+}
+
+// DeleteOrder deletes an order
+func (f *FTX) DeleteOrder(orderID string) (string, error) {
+	if orderID == "" {
+		return "", errInvalidOrderID
 	}
-	return resp.Result, nil
+	return f.deleteOrderByPath(deleteOrder + orderID)
 }
 
 // DeleteOrderByClientID deletes an order
 func (f *FTX) DeleteOrderByClientID(clientID string) (string, error) {
-	resp := struct {
-		Result  string `json:"result"`
-		Success bool   `json:"success"`
-	}{}
-
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, deleteOrderByClientID+clientID, nil, &resp); err != nil {
-		return "", err
+	if clientID == "" {
+		return "", errInvalidOrderID
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete order request by client ID unsuccessful")
-	}
-	return resp.Result, nil
+	return f.deleteOrderByPath(deleteOrderByClientID + clientID)
 }
 
 // DeleteTriggerOrder deletes an order
 func (f *FTX) DeleteTriggerOrder(orderID string) (string, error) {
-	resp := struct {
-		Result  string `json:"result"`
-		Success bool   `json:"success"`
-	}{}
-
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, cancelTriggerOrder+orderID, nil, &resp); err != nil {
-		return "", err
+	if orderID == "" {
+		return "", errInvalidOrderID
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete trigger order request unsuccessful")
-	}
-	return resp.Result, nil
+	return f.deleteOrderByPath(cancelTriggerOrder + orderID)
 }
 
 // GetFills gets fills' data
