@@ -2,6 +2,7 @@ package binance
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -229,7 +230,9 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		for x := range reserves {
 			reserves[x].Cancel()
 		}
-		return context.DeadlineExceeded
+		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w",
+			finalDelay,
+			context.DeadlineExceeded)
 	}
 
 	time.Sleep(finalDelay)
