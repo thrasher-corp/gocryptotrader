@@ -564,8 +564,8 @@ func (b *Binance) CancelExistingOrder(symbol currency.Pair, orderID int64, origC
 }
 
 // OpenOrders Current open orders. Get all open orders on a symbol.
-// Careful when accessing this with no symbol: The number of requests counted against the rate limiter
-// is significantly higher
+// Careful when accessing this with no symbol: The number of requests counted
+// against the rate limiter is significantly higher
 func (b *Binance) OpenOrders(pair currency.Pair) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 	params := url.Values{}
@@ -577,6 +577,10 @@ func (b *Binance) OpenOrders(pair currency.Pair) ([]QueryOrderData, error) {
 			return nil, err
 		}
 		params.Add("symbol", p)
+	} else {
+		// extend the receive window when all currencies to prevent "recvwindow"
+		// error
+		params.Set("recvWindow", "10000")
 	}
 	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, openOrders, params, openOrdersLimit(p), &resp); err != nil {
 		return resp, err
