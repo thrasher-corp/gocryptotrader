@@ -138,6 +138,13 @@ func (r *Requester) doRequest(ctx context.Context, req *http.Request, p *Item) e
 	}
 
 	for attempt := 1; ; attempt++ {
+		// Check if context has finished before executing new attempt.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		// Initiate a rate limit reservation and sleep on requested endpoint
 		err := r.InitiateRateLimit(ctx, p.Endpoint)
 		if err != nil {
