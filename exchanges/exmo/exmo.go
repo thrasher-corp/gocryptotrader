@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -340,13 +339,6 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(epath exchange.URL, method, endpoint
 		hash := crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(payload),
 			[]byte(e.API.Credentials.Secret))
-
-		if e.Verbose {
-			log.Debugf(log.ExchangeSys, "Sending %s request to %s with params %s\n",
-				method,
-				endpoint,
-				payload)
-		}
 
 		headers := make(map[string]string)
 		headers["Key"] = e.API.Credentials.Key
