@@ -19,7 +19,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // BTSE is the overarching type across this package
@@ -473,58 +472,52 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint st
 		host += btseFuturesPath + btseFuturesAPIPath
 		endpoint += btseFuturesAPIPath
 	}
-	var hmac []byte
-	var body io.Reader
-	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
-	headers := map[string]string{
-		"btse-api":   b.API.Credentials.Key,
-		"btse-nonce": nonce,
-	}
-	if req != nil {
-		reqPayload, err := json.Marshal(req)
-		if err != nil {
-			return err
+
+	newRequest := func() (*request.Item, error) {
+		var hmac []byte
+		var body io.Reader
+		nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
+		headers := map[string]string{
+			"btse-api":   b.API.Credentials.Key,
+			"btse-nonce": nonce,
 		}
-		body = bytes.NewBuffer(reqPayload)
-		hmac = crypto.GetHMAC(
-			crypto.HashSHA512_384,
-			[]byte((endpoint + nonce + string(reqPayload))),
-			[]byte(b.API.Credentials.Secret),
-		)
-		headers["Content-Type"] = "application/json"
-	} else {
-		hmac = crypto.GetHMAC(
-			crypto.HashSHA512_384,
-			[]byte((endpoint + nonce)),
-			[]byte(b.API.Credentials.Secret),
-		)
-		if len(values) > 0 {
-			host += "?" + values.Encode()
+		if req != nil {
+			reqPayload, err := json.Marshal(req)
+			if err != nil {
+				return nil, err
+			}
+			body = bytes.NewBuffer(reqPayload)
+			hmac = crypto.GetHMAC(
+				crypto.HashSHA512_384,
+				[]byte((endpoint + nonce + string(reqPayload))),
+				[]byte(b.API.Credentials.Secret),
+			)
+			headers["Content-Type"] = "application/json"
+		} else {
+			hmac = crypto.GetHMAC(
+				crypto.HashSHA512_384,
+				[]byte((endpoint + nonce)),
+				[]byte(b.API.Credentials.Secret),
+			)
+			if len(values) > 0 {
+				host += "?" + values.Encode()
+			}
 		}
-	}
-	headers["btse-sign"] = crypto.HexEncodeToString(hmac)
+		headers["btse-sign"] = crypto.HexEncodeToString(hmac)
 
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Sending %s request to URL %s",
-			b.Name, method, endpoint)
+		return &request.Item{
+			Method:        method,
+			Path:          host,
+			Headers:       headers,
+			Body:          body,
+			Result:        result,
+			AuthRequest:   true,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	}
-
-	item := &request.Item{
-		Method:        method,
-		Path:          host,
-		Headers:       headers,
-		Body:          body,
-		Result:        result,
-		AuthRequest:   true,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-	}
-
-	return b.SendPayload(context.Background(), f, func() (*request.Item, error) {
-		return item, nil
-	})
+	return b.SendPayload(context.Background(), f, newRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
