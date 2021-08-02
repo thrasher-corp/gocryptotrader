@@ -2,6 +2,7 @@ package bybit
 
 import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 // Bybit is the overarching type across this package
@@ -36,4 +37,43 @@ const (
 	bybitServerTime = "/spot/v1/time"
 )
 
-// Start implementing public and private exchange API funcs below
+// GetAllPairs gets all pairs on the exchange
+func (b *Bybit) GetAllPairs() ([]PairData, error) {
+	resp := struct {
+		Data []PairData `json:"result"`
+	}{}
+	path := bybitSpotGetSymbols
+	return resp.Data, b.SendHTTPRequest(exchange.RestSpot, path, spotPairs, &resp)
+}
+
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (b *Bybit) SendHTTPRequest(ep exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+	endpoint, err := b.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
+	var resp json.RawMessage
+	errCap := struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}{}
+
+	if err := b.SendPayload(context.Background(), &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        &resp,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+		Endpoint:      f,
+	}); err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(resp, &errCap); err == nil {
+		if errCap.Code != 200 && errCap.Message != "" {
+			return errors.New(errCap.Message)
+		}
+	}
+	return json.Unmarshal(resp, result)
+}
