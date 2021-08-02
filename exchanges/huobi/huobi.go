@@ -884,9 +884,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint s
 		}, nil
 	}
 
-	err = h.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		return item, nil
-	})
+	err = h.SendPayload(context.Background(), request.Unset, newRequest)
 	if err != nil {
 		return err
 	}
