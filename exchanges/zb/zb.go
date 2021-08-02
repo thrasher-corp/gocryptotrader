@@ -315,40 +315,37 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ep exchange.URL, httpMethod string, pa
 		[]byte(params.Encode()),
 		[]byte(crypto.Sha1ToHex(z.API.Credentials.Secret)))
 
-	now := time.Now()
-	params.Set("reqTime", fmt.Sprintf("%d", convert.UnixMillis(now)))
-	params.Set("sign", fmt.Sprintf("%x", hmac))
-
-	urlPath := fmt.Sprintf("%s/%s?%s",
-		endpoint,
-		params.Get("method"),
-		params.Encode())
-
 	var intermediary json.RawMessage
+	newRequest := func() (*request.Item, error) {
+		now := time.Now()
+		params.Set("reqTime", fmt.Sprintf("%d", convert.UnixMillis(now)))
+		params.Set("sign", fmt.Sprintf("%x", hmac))
+
+		urlPath := fmt.Sprintf("%s/%s?%s",
+			endpoint,
+			params.Get("method"),
+			params.Encode())
+
+		return &request.Item{
+			Method:        httpMethod,
+			Path:          urlPath,
+			Result:        &intermediary,
+			AuthRequest:   true,
+			Verbose:       z.Verbose,
+			HTTPDebugging: z.HTTPDebugging,
+			HTTPRecording: z.HTTPRecording,
+		}, nil
+	}
+
+	err = z.SendPayload(context.Background(), f, newRequest)
+	if err != nil {
+		return err
+	}
 
 	errCap := struct {
 		Code    int64  `json:"code"`
 		Message string `json:"message"`
 	}{}
-
-	// Expiry of timestamp doesn't appear to be documented, so making a reasonable assumption
-	ctx, cancel := context.WithDeadline(context.Background(), now.Add(15*time.Second))
-	defer cancel()
-
-	item := &request.Item{
-		Method:        httpMethod,
-		Path:          urlPath,
-		Result:        &intermediary,
-		AuthRequest:   true,
-		Verbose:       z.Verbose,
-		HTTPDebugging: z.HTTPDebugging,
-		HTTPRecording: z.HTTPRecording,
-	}
-
-	err = z.SendPayload(ctx, f, func() (*request.Item, error) { return item, nil })
-	if err != nil {
-		return err
-	}
 
 	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {
