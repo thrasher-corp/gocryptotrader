@@ -18,7 +18,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -710,48 +709,40 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path
 	if err != nil {
 		return err
 	}
-	payload := []byte("")
 
-	if params != nil {
-		payload, err = json.Marshal(params)
-		if err != nil {
-			return errors.New("sendAuthenticatedHTTPRequest: Unable to JSON request")
+	newRequest := func() (*request.Item, error) {
+		payload := []byte("")
+		if params != nil {
+			payload, err = json.Marshal(params)
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		if c.Verbose {
-			log.Debugf(log.ExchangeSys, "Request JSON: %s\n", payload)
-		}
+		now := time.Now()
+		n := strconv.FormatInt(now.Unix(), 10)
+		message := n + method + "/" + path + string(payload)
+		hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(c.API.Credentials.Secret))
+		headers := make(map[string]string)
+		headers["CB-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
+		headers["CB-ACCESS-TIMESTAMP"] = n
+		headers["CB-ACCESS-KEY"] = c.API.Credentials.Key
+		headers["CB-ACCESS-PASSPHRASE"] = c.API.Credentials.ClientID
+		headers["Content-Type"] = "application/json"
+
+		return &request.Item{
+			Method:        method,
+			Path:          endpoint + path,
+			Headers:       headers,
+			Body:          bytes.NewBuffer(payload),
+			Result:        result,
+			AuthRequest:   true,
+			Verbose:       c.Verbose,
+			HTTPDebugging: c.HTTPDebugging,
+			HTTPRecording: c.HTTPRecording,
+		}, nil
 	}
-
-	now := time.Now()
-	n := strconv.FormatInt(now.Unix(), 10)
-	message := n + method + "/" + path + string(payload)
-	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(c.API.Credentials.Secret))
-	headers := make(map[string]string)
-	headers["CB-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
-	headers["CB-ACCESS-TIMESTAMP"] = n
-	headers["CB-ACCESS-KEY"] = c.API.Credentials.Key
-	headers["CB-ACCESS-PASSPHRASE"] = c.API.Credentials.ClientID
-	headers["Content-Type"] = "application/json"
-
-	// Timestamp must be within 30 seconds of the api service time
-	ctx, cancel := context.WithDeadline(context.Background(), now.Add(30*time.Second))
-	defer cancel()
-
-	item := &request.Item{
-		Method:        method,
-		Path:          endpoint + path,
-		Headers:       headers,
-		Body:          bytes.NewBuffer(payload),
-		Result:        result,
-		AuthRequest:   true,
-		Verbose:       c.Verbose,
-		HTTPDebugging: c.HTTPDebugging,
-		HTTPRecording: c.HTTPRecording,
-	}
-	return c.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		return item, nil
-	})
+	return c.SendPayload(context.Background(), request.Unset, newRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
