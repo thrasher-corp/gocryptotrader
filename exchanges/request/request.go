@@ -27,6 +27,7 @@ var (
 	errRequestItemNil         = errors.New("request item is nil")
 	errInvalidPath            = errors.New("invalid path")
 	errHeaderResponseMapIsNil = errors.New("header response map is nil")
+	errFailedToRetryRequest   = errors.New("failed to retry request")
 )
 
 // New returns a new Requester
@@ -108,8 +109,6 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 
 	return req, nil
 }
-
-var errFailedToRetryRequest = errors.New("failed to retry request")
 
 // DoRequest performs a HTTP/HTTPS request with the supplied params
 func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRequest Generate) error {
