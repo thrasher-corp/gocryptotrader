@@ -307,6 +307,15 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 	mod.PostOnly = det.PostOnly                   // Used by Poloniex.
 	mod.ImmediateOrCancel = det.ImmediateOrCancel // Used by Poloniex.
 
+	// Following is just a precaution to not modify orders by mistake if exchange
+	// implementations do not check fields of the Modify struct for zero values.
+	if mod.Amount == 0 {
+		mod.Amount = det.Amount
+	}
+	if mod.Price == 0 {
+		mod.Price = det.Price
+	}
+
 	// Get exchange instance and submit order modification request.
 	exch := m.orderStore.exchangeManager.GetExchangeByName(mod.Exchange)
 	if exch == nil {
