@@ -377,7 +377,7 @@ func TestStore_modifyOrder(t *testing.T) {
 
 	det, err := m.orderStore.getByExchangeAndID(testExchange, "another_fake_order_id")
 	if det == nil || err != nil {
-		t.Error("Failed to fetch order details")
+		t.Fatal("Failed to fetch order details")
 	}
 	if det.ID != "another_fake_order_id" || det.Price != 16 || det.Amount != 256 {
 		t.Errorf(
@@ -687,7 +687,7 @@ func TestOrderManager_Modify(t *testing.T) {
 	three.Amount = 0
 	f(three, false, 16, 128)
 
-	// [4] Test if both fields provided set both.
+	// [4] Test if both fields work together.
 	four := model
 	four.Price = 16
 	four.Amount = 256
