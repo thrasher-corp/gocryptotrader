@@ -1,7 +1,6 @@
 package bitmex
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -842,55 +841,52 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ep exchange.URL, verb, path string
 	if err != nil {
 		return err
 	}
-	expires := time.Now().Add(time.Second * 10)
-	timestamp := expires.UnixNano()
-	timestampStr := strconv.FormatInt(timestamp, 10)
-	timestampNew := timestampStr[:13]
-
-	headers := make(map[string]string)
-	headers["Content-Type"] = "application/json"
-	headers["api-expires"] = timestampNew
-	headers["api-key"] = b.API.Credentials.Key
-
-	var payload string
-	if params != nil {
-		err = params.VerifyData()
-		if err != nil {
-			return err
-		}
-		var data []byte
-		data, err = json.Marshal(params)
-		if err != nil {
-			return err
-		}
-		payload = string(data)
-	}
-
-	hmac := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(verb+"/api/v1"+path+timestampNew+payload),
-		[]byte(b.API.Credentials.Secret))
-
-	headers["api-signature"] = crypto.HexEncodeToString(hmac)
 
 	var respCheck interface{}
+	newRequest := func() (*request.Item, error) {
+		expires := time.Now().Add(time.Second * 10)
+		timestamp := expires.UnixNano()
+		timestampStr := strconv.FormatInt(timestamp, 10)
+		timestampNew := timestampStr[:13]
 
-	ctx, cancel := context.WithDeadline(context.Background(), expires)
-	defer cancel()
-	fullPath := endpoint + path
-	item := &request.Item{
-		Method:        verb,
-		Path:          fullPath,
-		Headers:       headers,
-		Body:          bytes.NewBuffer([]byte(payload)),
-		Result:        &respCheck,
-		AuthRequest:   true,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
+		headers := make(map[string]string)
+		headers["Content-Type"] = "application/json"
+		headers["api-expires"] = timestampNew
+		headers["api-key"] = b.API.Credentials.Key
+
+		var payload string
+		if params != nil {
+			err = params.VerifyData()
+			if err != nil {
+				return nil, err
+			}
+			var data []byte
+			data, err = json.Marshal(params)
+			if err != nil {
+				return nil, err
+			}
+			payload = string(data)
+		}
+
+		hmac := crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(verb+"/api/v1"+path+timestampNew+payload),
+			[]byte(b.API.Credentials.Secret))
+
+		headers["api-signature"] = crypto.HexEncodeToString(hmac)
+
+		return &request.Item{
+			Method:        verb,
+			Path:          endpoint + path,
+			Headers:       headers,
+			Body:          strings.NewReader(payload),
+			Result:        &respCheck,
+			AuthRequest:   true,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	}
-	err = b.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
-		return item, nil
-	})
+	err = b.SendPayload(context.Background(), request.Auth, newRequest)
 	if err != nil {
 		return err
 	}
