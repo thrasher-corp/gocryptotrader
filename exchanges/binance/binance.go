@@ -70,6 +70,8 @@ const (
 	assetDetail                            = "/wapi/v3/assetDetail.html"
 	undocumentedInterestHistory            = "/gateway-api/v1/public/isolated-margin/pair/vip-level"
 	undocumentedCrossMarginInterestHistory = "/gateway-api/v1/friendly/margin/vip/spec/list-all"
+
+	defaultRecvWindow = 5 * time.Second
 )
 
 // GetInterestHistory gets interest history for currency/currencies provided
@@ -714,8 +716,6 @@ func (b *Binance) SendAPIKeyHTTPRequest(ePath exchange.URL, path string, f reque
 		return item, nil
 	})
 }
-
-const defaultRecvWindow = 5 * time.Second
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 func (b *Binance) SendAuthHTTPRequest(ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result interface{}) error {
