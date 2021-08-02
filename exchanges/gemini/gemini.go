@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -390,10 +389,6 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path stri
 		PayloadJSON, err := json.Marshal(req)
 		if err != nil {
 			return nil, err
-		}
-
-		if g.Verbose {
-			log.Debugf(log.ExchangeSys, "Request JSON: %s", PayloadJSON)
 		}
 
 		PayloadBase64 := crypto.Base64Encode(PayloadJSON)

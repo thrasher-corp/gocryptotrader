@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -305,13 +304,6 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, param
 
 		encoded := params.Encode()
 		hmac := crypto.GetHMAC(crypto.HashSHA512, []byte(encoded), []byte(y.API.Credentials.Secret))
-
-		if y.Verbose {
-			log.Debugf(log.ExchangeSys, "Sending POST request to %s calling path %s with params %s\n",
-				endpoint,
-				path,
-				encoded)
-		}
 
 		headers := make(map[string]string)
 		headers["Key"] = y.API.Credentials.Key

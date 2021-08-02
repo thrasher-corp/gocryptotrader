@@ -642,10 +642,6 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, v2
 			path = endpoint + "/" + path + "/"
 		}
 
-		if b.Verbose {
-			log.Debugf(log.ExchangeSys, "Sending POST request to "+path)
-		}
-
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 

@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -284,10 +283,6 @@ func (c *COINUT) SendHTTPRequest(ep exchange.URL, apiRequest string, params map[
 		payload, err = json.Marshal(params)
 		if err != nil {
 			return nil, err
-		}
-
-		if c.Verbose {
-			log.Debugf(log.ExchangeSys, "Request JSON: %s", payload)
 		}
 
 		headers := make(map[string]string)

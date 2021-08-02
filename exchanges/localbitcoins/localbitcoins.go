@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -768,16 +767,6 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ep exchange.URL, method, pa
 		headers["Apiauth-Nonce"] = n
 		headers["Apiauth-Signature"] = strings.ToUpper(crypto.HexEncodeToString(hmac))
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
-
-		if l.Verbose {
-			log.Debugf(log.ExchangeSys, "%s Sending `%s` request to `%s`, path: `%s`, params: `%s`.",
-				l.Name,
-				method,
-				endpoint,
-				path,
-				encoded,
-			)
-		}
 
 		if method == http.MethodGet && len(encoded) > 0 {
 			path += "?" + encoded

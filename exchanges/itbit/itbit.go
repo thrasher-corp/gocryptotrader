@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -320,10 +319,6 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 		PayloadJSON, err = json.Marshal(req)
 		if err != nil {
 			return err
-		}
-
-		if i.Verbose {
-			log.Debugf(log.ExchangeSys, "Request JSON: %s\n", PayloadJSON)
 		}
 	}
 

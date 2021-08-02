@@ -19,7 +19,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1540,10 +1539,6 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path st
 		PayloadJSON, err := json.Marshal(req)
 		if err != nil {
 			return nil, err
-		}
-
-		if b.Verbose {
-			log.Debugf(log.ExchangeSys, "Request JSON: %s\n", PayloadJSON)
 		}
 
 		PayloadBase64 := crypto.Base64Encode(PayloadJSON)
