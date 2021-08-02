@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -985,9 +984,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 	path := fmt.Sprintf("/%s/private/%s", krakenAPIVersion, method)
 
 	interim := json.RawMessage{}
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute))
-	defer cancel()
-	err = k.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	err = k.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		nonce := k.Requester.GetNonce(true).String()
 		params.Set("nonce", nonce)
 		encoded := params.Encode()
@@ -995,13 +992,6 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 		signature := crypto.Base64Encode(crypto.GetHMAC(crypto.HashSHA512,
 			append([]byte(path), shasum...),
 			[]byte(k.API.Credentials.Secret)))
-
-		if k.Verbose {
-			log.Debugf(log.ExchangeSys, "Sending POST request to %s, path: %s, params: %s",
-				endpoint,
-				path,
-				encoded)
-		}
 
 		headers := make(map[string]string)
 		headers["API-Key"] = k.API.Credentials.Key
@@ -1024,7 +1014,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 		return err
 	}
 	var errCap SpotAuthError
-	if err := json.Unmarshal(interim, &errCap); err == nil {
+	if err = json.Unmarshal(interim, &errCap); err == nil {
 		if len(errCap.Error) != 0 {
 			return errors.New(errCap.Error[0])
 		}
