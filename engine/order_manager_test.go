@@ -351,8 +351,8 @@ func TestStore_modifyOrder(t *testing.T) {
 		Pair:      pair,
 		ID:        "fake_order_id",
 
-		Price:  10,
-		Amount: 20,
+		Price:  8,
+		Amount: 128,
 	})
 	if err != nil {
 		t.Error(err)
@@ -362,8 +362,8 @@ func TestStore_modifyOrder(t *testing.T) {
 		Exchange: testExchange,
 
 		ID:     "another_fake_order_id",
-		Price:  11,
-		Amount: 22,
+		Price:  16,
+		Amount: 256,
 	})
 	if err != nil {
 		t.Error(err)
@@ -377,10 +377,14 @@ func TestStore_modifyOrder(t *testing.T) {
 
 	det, err := m.orderStore.getByExchangeAndID(testExchange, "another_fake_order_id")
 	if det == nil || err != nil {
-		t.Error()
+		t.Error("Failed to fetch order details")
 	}
-	if det.ID != "another_fake_order_id" || det.Price != 11 || det.Amount != 22 {
-		t.Error()
+	if det.ID != "another_fake_order_id" || det.Price != 16 || det.Amount != 256 {
+		t.Errorf(
+			"have (%s,%f,%f), want (%s,%f,%f)",
+			det.ID, det.Price, det.Amount,
+			"another_fake_order_id", 16., 256.,
+		)
 	}
 }
 
@@ -647,7 +651,11 @@ func TestOrderManager_Modify(t *testing.T) {
 			t.Fatal(err)
 		}
 		if det.ID != resp.OrderID || det.Price != price || det.Amount != amount {
-			t.Error()
+			t.Errorf(
+				"have (%s,%f,%f), want (%s,%f,%f)",
+				det.ID, det.Price, det.Amount,
+				resp.OrderID, price, amount,
+			)
 		}
 	}
 
