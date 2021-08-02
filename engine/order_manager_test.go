@@ -357,18 +357,24 @@ func TestStore_modifyOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	m.orderStore.modifyExisting("fake_order_id", &order.Modify{
+
+	err = m.orderStore.modifyExisting("fake_order_id", &order.Modify{
 		Exchange: testExchange,
 
 		ID:     "another_fake_order_id",
 		Price:  11,
 		Amount: 22,
 	})
+	if err != nil {
+		t.Error(err)
+	}
+
 	_, err = m.orderStore.getByExchangeAndID(testExchange, "fake_order_id")
 	if err == nil {
 		// Expected error, such an order should not exist anymore in the store.
-		t.Error()
+		t.Error("Expected error")
 	}
+
 	det, err := m.orderStore.getByExchangeAndID(testExchange, "another_fake_order_id")
 	if det == nil || err != nil {
 		t.Error()
@@ -625,12 +631,11 @@ func TestOrderManager_Modify(t *testing.T) {
 		resp, err := m.Modify(&mod)
 		if expectError {
 			if err == nil {
-				t.Error("Expected error")
+				t.Fatal("Expected error")
 			}
 			return
 		} else if err != nil {
-			t.Error(err)
-			return
+			t.Fatal(err)
 		}
 
 		if resp.OrderID != "modified_order_id" {
@@ -639,7 +644,7 @@ func TestOrderManager_Modify(t *testing.T) {
 
 		det, err := m.orderStore.getByExchangeAndID(testExchange, resp.OrderID)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if det.ID != resp.OrderID || det.Price != price || det.Amount != amount {
 			t.Error()
