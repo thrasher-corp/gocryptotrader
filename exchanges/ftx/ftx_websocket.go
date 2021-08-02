@@ -174,7 +174,7 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 		Channel: wsMarkets,
 	})
 	var channels = []string{wsTicker, wsTrades, wsOrderbook}
-	assets := f.GetAssetTypes()
+	assets := f.GetAssetTypes(true)
 	for a := range assets {
 		pairs, err := f.GetEnabledPairs(assets[a])
 		if err != nil {
@@ -354,11 +354,12 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			resp.Pair = pair
 			resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(resultData.OrderData.Side,
+			orderVars, err = f.compatibleOrderVars(
+				resultData.OrderData.Side,
 				resultData.OrderData.Status,
 				resultData.OrderData.OrderType,
-				resultData.OrderData.FilledSize,
 				resultData.OrderData.Size,
+				resultData.OrderData.FilledSize,
 				resultData.OrderData.AvgFillPrice)
 			if err != nil {
 				return err

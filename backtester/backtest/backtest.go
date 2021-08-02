@@ -373,7 +373,7 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 	}
 	bt.Bot.ExchangeManager = engine.SetupExchangeManager()
 	for i := range cfg.CurrencySettings {
-		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, false, nil)
+		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, nil)
 		if err != nil && !errors.Is(err, engine.ErrExchangeAlreadyLoaded) {
 			return err
 		}

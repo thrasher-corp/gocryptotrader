@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"reflect"
 	"testing"
 	"time"
 
@@ -52,11 +51,14 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	exchCfg.API.Credentials.Subaccount = subaccount
+	if areTestAPIKeysSet() {
+		// Only set auth to true when keys present as fee online calculation requires authentication
+		exchCfg.API.AuthenticatedSupport = true
+		exchCfg.API.AuthenticatedWebsocketSupport = true
+	}
 	f.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = f.Setup(exchCfg)
 	if err != nil {
@@ -987,36 +989,43 @@ func TestFetchAccountInfo(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	var x exchange.FeeBuilder
-	x.PurchasePrice = 10
-	x.Amount = 1
-	x.IsMaker = true
-	var a float64
-	var err error
-	if areTestAPIKeysSet() {
-		a, err = f.GetFee(&x)
-		if err != nil {
-			t.Error(err)
-		}
-		if a != 0.0039 {
-			t.Errorf("incorrect maker fee value")
-		}
+	feeBuilder := &exchange.FeeBuilder{
+		PurchasePrice: 10,
+		Amount:        1,
+		IsMaker:       true,
 	}
-	x.IsMaker = false
-	if areTestAPIKeysSet() {
-		if _, err = f.GetFee(&x); err != nil {
-			t.Error(err)
-		}
-	}
-	x.FeeType = exchange.OfflineTradeFee
-	_, err = f.GetFee(&x)
+	fee, err := f.GetFee(feeBuilder)
 	if err != nil {
 		t.Error(err)
 	}
-	x.IsMaker = true
-	_, err = f.GetFee(&x)
+	if fee <= 0 {
+		t.Errorf("incorrect maker fee value")
+	}
+
+	feeBuilder.IsMaker = false
+	if fee, err = f.GetFee(feeBuilder); err != nil {
+		t.Error(err)
+	}
+	if fee <= 0 {
+		t.Errorf("incorrect maker fee value")
+	}
+
+	feeBuilder.FeeType = exchange.OfflineTradeFee
+	fee, err = f.GetFee(feeBuilder)
 	if err != nil {
 		t.Error(err)
+	}
+	if fee <= 0 {
+		t.Errorf("incorrect maker fee value")
+	}
+
+	feeBuilder.IsMaker = true
+	fee, err = f.GetFee(feeBuilder)
+	if err != nil {
+		t.Error(err)
+	}
+	if fee <= 0 {
+		t.Errorf("incorrect maker fee value")
 	}
 }
 
@@ -1241,9 +1250,6 @@ func TestParsingWSTickerData(t *testing.T) {
 
 func TestParsingWSOrdersData(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API keys required but not set, skipping test")
-	}
 	data := []byte(`{
 		"channel": "orders",
 		"data": {
@@ -1272,9 +1278,6 @@ func TestParsingWSOrdersData(t *testing.T) {
 
 func TestParsingMarketsData(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API keys required but not set, skipping test")
-	}
 	data := []byte(`{"channel": "markets",
 	 	"type": "partial",
 		"data": {
@@ -1358,13 +1361,16 @@ func TestAcceptOTCQuote(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	assets := f.GetAssetTypes()
+	assets := f.GetAssetTypes(false)
 	for i := range assets {
 		enabledPairs, err := f.GetEnabledPairs(assets[i])
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*15), time.Now())
+		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(),
+			assets[i],
+			time.Now().Add(-time.Minute*15),
+			time.Now())
 		if err != nil {
 			t.Error(err)
 		}
@@ -1373,7 +1379,7 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	assets := f.GetAssetTypes()
+	assets := f.GetAssetTypes(false)
 	for i := range assets {
 		enabledPairs, err := f.GetEnabledPairs(assets[i])
 		if err != nil {
@@ -1398,20 +1404,116 @@ func TestTimestampFromFloat64(t *testing.T) {
 
 func TestCompatibleOrderVars(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API keys required but not set, skipping test")
-	}
-	a, err := f.compatibleOrderVars("buy", "closed", "limit", 0.5, 0.5, 9500)
+	orderVars, err := f.compatibleOrderVars(
+		"buy",
+		"closed",
+		"limit",
+		0.5,
+		0.5,
+		9500)
 	if err != nil {
 		t.Error(err)
 	}
-	var b OrderVars
-	b.Side = order.Buy
-	b.OrderType = order.Limit
-	b.Status = order.Filled
-	b.Fee = a.Fee // having a preset value will fail because fees are calculated live with getaccount
-	if !reflect.DeepEqual(a, b) {
-		t.Errorf("incorrect compatible vars")
+	if orderVars.Side != order.Buy {
+		t.Errorf("received %v expected %v", orderVars.Side, order.Buy)
+	}
+	if orderVars.OrderType != order.Limit {
+		t.Errorf("received %v expected %v", orderVars.OrderType, order.Limit)
+	}
+	if orderVars.Status != order.Filled {
+		t.Errorf("received %v expected %v", orderVars.Status, order.Filled)
+	}
+
+	orderVars, err = f.compatibleOrderVars(
+		"buy",
+		"closed",
+		"limit",
+		0,
+		0,
+		9500)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if orderVars.Status != order.Cancelled {
+		t.Errorf("received %v expected %v", orderVars.Status, order.Cancelled)
+	}
+
+	orderVars, err = f.compatibleOrderVars(
+		"buy",
+		"closed",
+		"limit",
+		0.5,
+		0.2,
+		9500)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if orderVars.Status != order.PartiallyCancelled {
+		t.Errorf("received %v expected %v", orderVars.Status, order.PartiallyCancelled)
+	}
+
+	orderVars, err = f.compatibleOrderVars(
+		"sell",
+		"closed",
+		"limit",
+		1337,
+		1337,
+		9500)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if orderVars.Status != order.Filled {
+		t.Errorf("received %v expected %v", orderVars.Status, order.Filled)
+	}
+
+	orderVars, err = f.compatibleOrderVars(
+		"buy",
+		"closed",
+		"limit",
+		0.1,
+		0.2,
+		9500)
+	if !errors.Is(err, errInvalidOrderAmounts) {
+		t.Errorf("received %v expected %v", err, errInvalidOrderAmounts)
+	}
+
+	orderVars, err = f.compatibleOrderVars(
+		"buy",
+		"fake",
+		"limit",
+		0.3,
+		0.2,
+		9500)
+	if !errors.Is(err, errUnrecognisedOrderStatus) {
+		t.Errorf("received %v expected %v", err, errUnrecognisedOrderStatus)
+	}
+
+	orderVars, err = f.compatibleOrderVars(
+		"buy",
+		"new",
+		"limit",
+		0.3,
+		0.2,
+		9500)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if orderVars.Status != order.New {
+		t.Errorf("received %v expected %v", orderVars.Status, order.New)
+	}
+
+	orderVars, err = f.compatibleOrderVars(
+		"buy",
+		"open",
+		"limit",
+		0.3,
+		0.2,
+		9500)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if orderVars.Status != order.Open {
+		t.Errorf("received %v expected %v", orderVars.Status, order.Open)
 	}
 }
 

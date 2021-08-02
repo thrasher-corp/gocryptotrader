@@ -32,7 +32,7 @@ var ask = Items{
 
 // Display displays depth content for tests
 func (ll *linkedList) display() {
-	for tip := ll.head; tip != nil; tip = tip.next {
+	for tip := ll.head; tip != nil; tip = tip.Next {
 		fmt.Printf("NODE: %+v %p \n", tip, tip)
 	}
 	fmt.Println()
@@ -1261,23 +1261,23 @@ func Check(depth interface{}, liquidity, value float64, nodeCount int, t *testin
 		return
 	}
 
-	var tail *node
+	var tail *Node
 	var price float64
-	for tip := ll.head; ; tip = tip.next {
+	for tip := ll.head; ; tip = tip.Next {
 		switch {
 		case price == 0:
-			price = tip.value.Price
-		case isBid && price < tip.value.Price:
+			price = tip.Value.Price
+		case isBid && price < tip.Value.Price:
 			ll.display()
 			t.Fatal("Bid pricing out of order should be descending")
-		case isAsk && price > tip.value.Price:
+		case isAsk && price > tip.Value.Price:
 			ll.display()
 			t.Fatal("Ask pricing out of order should be ascending")
 		default:
-			price = tip.value.Price
+			price = tip.Value.Price
 		}
 
-		if tip.next == nil {
+		if tip.Next == nil {
 			tail = tip
 			break
 		}
@@ -1285,9 +1285,9 @@ func Check(depth interface{}, liquidity, value float64, nodeCount int, t *testin
 
 	var liqReversed, valReversed float64
 	var nodeReversed int
-	for tip := tail; tip != nil; tip = tip.prev {
-		liqReversed += tip.value.Amount
-		valReversed += tip.value.Amount * tip.value.Price
+	for tip := tail; tip != nil; tip = tip.Prev {
+		liqReversed += tip.Value.Amount
+		valReversed += tip.Value.Amount * tip.Value.Price
 		nodeReversed++
 	}
 
@@ -1339,92 +1339,92 @@ func TestAmount(t *testing.T) {
 }
 
 func TestShiftBookmark(t *testing.T) {
-	bookmarkedNode := &node{
-		value: Item{
+	bookmarkedNode := &Node{
+		Value: Item{
 			ID:     1337,
 			Amount: 1,
 			Price:  2,
 		},
-		next:    nil,
-		prev:    nil,
+		Next:    nil,
+		Prev:    nil,
 		shelved: time.Time{},
 	}
 
-	originalBookmarkPrev := &node{
-		value: Item{
+	originalBookmarkPrev := &Node{
+		Value: Item{
 			ID: 1336,
 		},
-		next:    bookmarkedNode,
-		prev:    nil, // At head
+		Next:    bookmarkedNode,
+		Prev:    nil, // At head
 		shelved: time.Time{},
 	}
-	originalBookmarkNext := &node{
-		value: Item{
+	originalBookmarkNext := &Node{
+		Value: Item{
 			ID: 1338,
 		},
-		next: nil, // This can be left nil in actuality this will be
+		Next: nil, // This can be left nil in actuality this will be
 		// populated
-		prev:    bookmarkedNode,
+		Prev:    bookmarkedNode,
 		shelved: time.Time{},
 	}
 
 	// associate previous and next nodes to bookmarked node
-	bookmarkedNode.prev = originalBookmarkPrev
-	bookmarkedNode.next = originalBookmarkNext
+	bookmarkedNode.Prev = originalBookmarkPrev
+	bookmarkedNode.Next = originalBookmarkNext
 
-	tip := &node{
-		value: Item{
+	tip := &Node{
+		Value: Item{
 			ID: 69420,
 		},
-		next:    nil, // In this case tip will be at tail
-		prev:    nil,
+		Next:    nil, // In this case tip will be at tail
+		Prev:    nil,
 		shelved: time.Time{},
 	}
 
-	tipprev := &node{
-		value: Item{
+	tipprev := &Node{
+		Value: Item{
 			ID: 69419,
 		},
-		next: tip,
-		prev: nil, // This can be left nil in actuality this will be
+		Next: tip,
+		Prev: nil, // This can be left nil in actuality this will be
 		// populated
 		shelved: time.Time{},
 	}
 
 	// associate tips prev field with the correct prev node
-	tip.prev = tipprev
+	tip.Prev = tipprev
 
 	if !shiftBookmark(tip, &bookmarkedNode, nil, Item{Amount: 1336, ID: 1337, Price: 9999}) {
 		t.Fatal("There should be liquidity so we don't need to set tip to bookmark")
 	}
 
-	if bookmarkedNode.value.Price != 9999 ||
-		bookmarkedNode.value.Amount != 1336 ||
-		bookmarkedNode.value.ID != 1337 {
+	if bookmarkedNode.Value.Price != 9999 ||
+		bookmarkedNode.Value.Amount != 1336 ||
+		bookmarkedNode.Value.ID != 1337 {
 		t.Fatal("bookmarked details are not set correctly with shift")
 	}
 
-	if bookmarkedNode.prev != tip {
+	if bookmarkedNode.Prev != tip {
 		t.Fatal("bookmarked prev memory address does not point to tip")
 	}
 
-	if bookmarkedNode.next != nil {
+	if bookmarkedNode.Next != nil {
 		t.Fatal("bookmarked next is at tail and should be nil")
 	}
 
-	if bookmarkedNode.next != nil {
+	if bookmarkedNode.Next != nil {
 		t.Fatal("bookmarked next is at tail and should be nil")
 	}
 
-	if originalBookmarkPrev.next != originalBookmarkNext {
+	if originalBookmarkPrev.Next != originalBookmarkNext {
 		t.Fatal("original bookmarked prev node should be associated with original bookmarked next node")
 	}
 
-	if originalBookmarkNext.prev != originalBookmarkPrev {
+	if originalBookmarkNext.Prev != originalBookmarkPrev {
 		t.Fatal("original bookmarked next node should be associated with original bookmarked prev node")
 	}
 
-	var nilBookmark *node
+	var nilBookmark *Node
 
 	if shiftBookmark(tip, &nilBookmark, nil, Item{Amount: 1336, ID: 1337, Price: 9999}) {
 		t.Fatal("there should not be a bookmarked node")
@@ -1435,9 +1435,9 @@ func TestShiftBookmark(t *testing.T) {
 	}
 
 	head := bookmarkedNode
-	bookmarkedNode.prev = nil
-	bookmarkedNode.next = originalBookmarkNext
-	tip.next = nil
+	bookmarkedNode.Prev = nil
+	bookmarkedNode.Next = originalBookmarkNext
+	tip.Next = nil
 
 	if !shiftBookmark(tip, &bookmarkedNode, &head, Item{Amount: 1336, ID: 1337, Price: 9999}) {
 		t.Fatal("There should be liquidity so we don't need to set tip to bookmark")

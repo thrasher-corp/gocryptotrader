@@ -28,7 +28,7 @@ type Service struct {
 	Tickers  map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Ticker
 	Exchange map[string]uuid.UUID
 	mux      *dispatch.Mux
-	sync.RWMutex
+	sync.Mutex
 }
 
 // Price struct stores the currency pair and pricing information

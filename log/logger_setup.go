@@ -122,8 +122,8 @@ func splitLevel(level string) (l Levels) {
 	return
 }
 
-func registerNewSubLogger(logger string) *subLogger {
-	temp := subLogger{
+func registerNewSubLogger(logger string) *SubLogger {
+	temp := SubLogger{
 		name:   strings.ToUpper(logger),
 		output: os.Stdout,
 	}

@@ -1,6 +1,7 @@
 package bithumb
 
 import (
+	"errors"
 	"log"
 	"os"
 	"testing"
@@ -211,7 +212,8 @@ func TestRequestKRWWithdraw(t *testing.T) {
 
 func TestMarketBuyOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.MarketBuyOrder(testCurrency, 0)
+	p := currency.NewPair(currency.BTC, currency.KRW)
+	_, err := b.MarketBuyOrder(p, 0)
 	if err == nil {
 		t.Error("Bithumb MarketBuyOrder() Expected error")
 	}
@@ -219,7 +221,8 @@ func TestMarketBuyOrder(t *testing.T) {
 
 func TestMarketSellOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.MarketSellOrder(testCurrency, 0)
+	p := currency.NewPair(currency.BTC, currency.KRW)
+	_, err := b.MarketSellOrder(p, 0)
 	if err == nil {
 		t.Error("Bithumb MarketSellOrder() Expected error")
 	}
@@ -612,5 +615,84 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
+	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	err := b.UpdateOrderExecutionLimits("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cp := currency.NewPair(currency.BTC, currency.KRW)
+	limit, err := b.GetOrderExecutionLimits(asset.Spot, cp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = limit.Conforms(46241000, 0.00001, order.Limit)
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Fatalf("expected error %v but received %v",
+			order.ErrAmountBelowMin,
+			err)
+	}
+
+	err = limit.Conforms(46241000, 0.0001, order.Limit)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected error %v but received %v",
+			nil,
+			err)
+	}
+}
+
+func TestGetAmountMinimum(t *testing.T) {
+	testCases := []struct {
+		name      string
+		unitprice float64
+		expected  float64
+	}{
+		{
+			name:      "ETH-KRW",
+			unitprice: 2638000.0,
+			expected:  0.0002,
+		},
+		{
+			name:      "DOGE-KRW",
+			unitprice: 236.5,
+			expected:  2.1142,
+		},
+		{
+			name:      "XRP-KRW",
+			unitprice: 818.8,
+			expected:  0.6107,
+		},
+		{
+			name:      "LTC-KRW",
+			unitprice: 160100,
+			expected:  0.0032,
+		},
+		{
+			name:      "BTC-KRW",
+			unitprice: 46079000,
+			expected:  0.0001,
+		},
+		{
+			name:      "nonsense",
+			unitprice: 0,
+			expected:  0,
+		},
+	}
+
+	for i := range testCases {
+		tt := &testCases[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			minAmount := getAmountMinimum(tt.unitprice)
+			if minAmount != tt.expected {
+				t.Fatalf("expected: %f but received: %f for unit price: %f",
+					tt.expected,
+					minAmount,
+					tt.unitprice)
+			}
+		})
 	}
 }

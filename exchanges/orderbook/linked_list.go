@@ -13,7 +13,7 @@ var errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less or eq
 // to and from a stack.
 type linkedList struct {
 	length int
-	head   *node
+	head   *Node
 }
 
 // comparison defines expected functionality to compare between two reference
@@ -27,43 +27,43 @@ func (ll *linkedList) load(items Items, stack *stack) {
 	// Tip sets up a pointer to a struct field variable pointer. This is used
 	// so when a node is popped from the stack we can reference that current
 	// nodes' struct 'next' field and set on next iteration without utilising
-	// assignment for example `prev.next = *node`.
+	// assignment for example `prev.Next = *node`.
 	var tip = &ll.head
 	// Prev denotes a place holder to node and all of its next references need
 	// to be pushed back onto stack.
-	var prev *node
+	var prev *Node
 	for i := range items {
 		if *tip == nil {
 			// Extend node chain
 			*tip = stack.Pop()
 			// Set current node prev to last node
-			(*tip).prev = prev
+			(*tip).Prev = prev
 			ll.length++
 		}
 		// Set item value
-		(*tip).value = items[i]
+		(*tip).Value = items[i]
 		// Set previous to current node
 		prev = *tip
 		// Set tip to next node
-		tip = &(*tip).next
+		tip = &(*tip).Next
 	}
 
 	// Push has references to dangling nodes that need to be removed and pushed
 	// back onto stack for re-use
-	var push *node
+	var push *Node
 	// Cleave unused reference chain from main chain
 	if prev == nil {
 		// The entire chain will need to be pushed back on to stack
 		push = *tip
 		ll.head = nil
 	} else {
-		push = prev.next
-		prev.next = nil
+		push = prev.Next
+		prev.Next = nil
 	}
 
 	// Push unused pointers back on stack
 	for push != nil {
-		pending := push.next
+		pending := push.Next
 		stack.Push(push, getNow())
 		ll.length--
 		push = pending
@@ -74,16 +74,16 @@ func (ll *linkedList) load(items Items, stack *stack) {
 func (ll *linkedList) updateByID(updts []Item) error {
 updates:
 	for x := range updts {
-		for tip := ll.head; tip != nil; tip = tip.next {
-			if updts[x].ID != tip.value.ID { // Filter IDs that don't match
+		for tip := ll.head; tip != nil; tip = tip.Next {
+			if updts[x].ID != tip.Value.ID { // Filter IDs that don't match
 				continue
 			}
 			if updts[x].Price > 0 {
 				// Only apply changes when zero values are not present, Bitmex
 				// for example sends 0 price values.
-				tip.value.Price = updts[x].Price
+				tip.Value.Price = updts[x].Price
 			}
-			tip.value.Amount = updts[x].Amount
+			tip.Value.Amount = updts[x].Amount
 			continue updates
 		}
 		return fmt.Errorf("update error: %w %d not found",
@@ -97,8 +97,8 @@ updates:
 func (ll *linkedList) deleteByID(updts Items, stack *stack, bypassErr bool) error {
 updates:
 	for x := range updts {
-		for tip := &ll.head; *tip != nil; tip = &(*tip).next {
-			if updts[x].ID != (*tip).value.ID {
+		for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
+			if updts[x].ID != (*tip).Value.ID {
 				continue
 			}
 			stack.Push(deleteAtTip(ll, tip), getNow())
@@ -122,15 +122,15 @@ func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
 	// cleaved after that update, new update might not applied correctly.
 	n := ll.head
 	for i := 0; i < maxChainLength; i++ {
-		if n.next == nil {
+		if n.Next == nil {
 			return
 		}
-		n = n.next
+		n = n.Next
 	}
 
 	// cleave reference to current node
-	if n.prev != nil {
-		n.prev.next = nil
+	if n.Prev != nil {
+		n.Prev.Next = nil
 	} else {
 		ll.head = nil
 	}
@@ -138,7 +138,7 @@ func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
 	var pruned int
 	for n != nil {
 		pruned++
-		pending := n.next
+		pending := n.Next
 		stack.Push(n, getNow())
 		n = pending
 	}
@@ -147,9 +147,9 @@ func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
 
 // amount returns total depth liquidity and value
 func (ll *linkedList) amount() (liquidity, value float64) {
-	for tip := ll.head; tip != nil; tip = tip.next {
-		liquidity += tip.value.Amount
-		value += tip.value.Amount * tip.value.Price
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		liquidity += tip.Value.Amount
+		value += tip.Value.Amount * tip.Value.Price
 	}
 	return
 }
@@ -158,8 +158,8 @@ func (ll *linkedList) amount() (liquidity, value float64) {
 func (ll *linkedList) retrieve() Items {
 	depth := make(Items, ll.length)
 	iterator := 0
-	for tip := ll.head; tip != nil; tip = tip.next {
-		depth[iterator] = tip.value
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		depth[iterator] = tip.Value
 		iterator++
 	}
 	return depth
@@ -169,21 +169,21 @@ func (ll *linkedList) retrieve() Items {
 // updates
 func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, compare func(float64, float64) bool, tn now) {
 	for x := range updts {
-		for tip := &ll.head; ; tip = &(*tip).next {
+		for tip := &ll.head; ; tip = &(*tip).Next {
 			if *tip == nil {
 				insertHeadSpecific(ll, updts[x], stack)
 				break
 			}
-			if (*tip).value.Price == updts[x].Price { // Match check
+			if (*tip).Value.Price == updts[x].Price { // Match check
 				if updts[x].Amount <= 0 { // Capture delete update
 					stack.Push(deleteAtTip(ll, tip), tn)
 				} else { // Amend current amount value
-					(*tip).value.Amount = updts[x].Amount
+					(*tip).Value.Amount = updts[x].Amount
 				}
 				break // Continue updates
 			}
 
-			if compare((*tip).value.Price, updts[x].Price) { // Insert
+			if compare((*tip).Value.Price, updts[x].Price) { // Insert
 				// This check below filters zero values and provides an
 				// optimisation for when select exchanges send a delete update
 				// to a non-existent price level (OTC/Hidden order) so we can
@@ -194,7 +194,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 				break // Continue updates
 			}
 
-			if (*tip).next == nil { // Tip is at tail
+			if (*tip).Next == nil { // Tip is at tail
 				// This check below is just a catch all in the event the above
 				// zero value check fails
 				if updts[x].Amount > 0 {
@@ -229,14 +229,14 @@ updates:
 		// from the stack and then pushing to the stack later for cleanup.
 		// If the ID is not found we can pop from stack then insert into that
 		// price level
-		var bookmark *node
-		for tip := ll.head; tip != nil; tip = tip.next {
-			if tip.value.ID == updts[x].ID {
-				if tip.value.Price != updts[x].Price { // Price level change
-					if tip.next == nil {
+		var bookmark *Node
+		for tip := ll.head; tip != nil; tip = tip.Next {
+			if tip.Value.ID == updts[x].ID {
+				if tip.Value.Price != updts[x].Price { // Price level change
+					if tip.Next == nil {
 						// no movement needed just a re-adjustment
-						tip.value.Price = updts[x].Price
-						tip.value.Amount = updts[x].Amount
+						tip.Value.Price = updts[x].Price
+						tip.Value.Amount = updts[x].Amount
 						continue updates
 					}
 					// bookmark tip to move this node to correct price level
@@ -244,55 +244,55 @@ updates:
 					continue // continue through node depth
 				}
 				// no price change, amend amount and continue update
-				tip.value.Amount = updts[x].Amount
+				tip.Value.Amount = updts[x].Amount
 				continue updates // continue to next update
 			}
 
-			if compare(tip.value.Price, updts[x].Price) {
+			if compare(tip.Value.Price, updts[x].Price) {
 				if bookmark != nil { // shift bookmarked node to current tip
-					bookmark.value = updts[x]
+					bookmark.Value = updts[x]
 					move(&ll.head, bookmark, tip)
 					continue updates
 				}
 
 				// search for ID
-				for n := tip.next; n != nil; n = n.next {
-					if n.value.ID == updts[x].ID {
-						n.value = updts[x]
+				for n := tip.Next; n != nil; n = n.Next {
+					if n.Value.ID == updts[x].ID {
+						n.Value = updts[x]
 						// inserting before the tip
 						move(&ll.head, n, tip)
 						continue updates
 					}
 				}
 				// ID not matched in depth so add correct level for insert
-				if tip.next == nil {
+				if tip.Next == nil {
 					n := stack.Pop()
-					n.value = updts[x]
+					n.Value = updts[x]
 					ll.length++
-					if tip.prev == nil {
-						tip.prev = n
-						n.next = tip
+					if tip.Prev == nil {
+						tip.Prev = n
+						n.Next = tip
 						ll.head = n
 						continue updates
 					}
-					tip.prev.next = n
-					n.prev = tip.prev
-					tip.prev = n
-					n.next = tip
+					tip.Prev.Next = n
+					n.Prev = tip.Prev
+					tip.Prev = n
+					n.Next = tip
 					continue updates
 				}
 				bookmark = tip
 				break
 			}
 
-			if tip.next == nil {
+			if tip.Next == nil {
 				if shiftBookmark(tip, &bookmark, &ll.head, updts[x]) {
 					continue updates
 				}
 			}
 		}
 		n := stack.Pop()
-		n.value = updts[x]
+		n.Value = updts[x]
 		insertNodeAtBookmark(ll, bookmark, n) // Won't inline with stack
 	}
 	return nil
@@ -301,38 +301,38 @@ updates:
 // insertUpdates inserts new updates for bids or asks based on price level
 func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) error {
 	for x := range updts {
-		var prev *node
-		for tip := &ll.head; ; tip = &(*tip).next {
+		var prev *Node
+		for tip := &ll.head; ; tip = &(*tip).Next {
 			if *tip == nil { // Head
 				n := stack.Pop()
-				n.value = updts[x]
-				n.prev = prev
+				n.Value = updts[x]
+				n.Prev = prev
 				ll.length++
 				*tip = n
 				break // Continue updates
 			}
 
-			if (*tip).value.Price == updts[x].Price { // Price already found
+			if (*tip).Value.Price == updts[x].Price { // Price already found
 				return fmt.Errorf("%w for price %f",
 					errCollisionDetected,
 					updts[x].Price)
 			}
 
-			if comp((*tip).value.Price, updts[x].Price) { // Alignment
+			if comp((*tip).Value.Price, updts[x].Price) { // Alignment
 				n := stack.Pop()
-				n.value = updts[x]
-				n.prev = prev
+				n.Value = updts[x]
+				n.Prev = prev
 				ll.length++
 				// Reference current with new node
-				(*tip).prev = n
+				(*tip).Prev = n
 				// Push tip to the right
-				n.next = *tip
-				// This is the same as prev.next = n
+				n.Next = *tip
+				// This is the same as prev.Next = n
 				*tip = n
 				break // Continue updates
 			}
 
-			if (*tip).next == nil { // Tail
+			if (*tip).Next == nil { // Tail
 				insertAtTail(ll, tip, updts[x], stack)
 				break // Continue updates
 			}
@@ -399,80 +399,80 @@ func (ll *asks) insertUpdates(updts Items, stack *stack) error {
 // move moves a node from a point in a node chain to another node position,
 // this left justified towards head as element zero is the top of the depth
 // side. (can inline)
-func move(head **node, from, to *node) {
-	if from.next != nil { // From is at tail
-		from.next.prev = from.prev
+func move(head **Node, from, to *Node) {
+	if from.Next != nil { // From is at tail
+		from.Next.Prev = from.Prev
 	}
-	if from.prev == nil { // From is at head
-		(*head).next.prev = nil
-		*head = (*head).next
+	if from.Prev == nil { // From is at head
+		(*head).Next.Prev = nil
+		*head = (*head).Next
 	} else {
-		from.prev.next = from.next
+		from.Prev.Next = from.Next
 	}
 	// insert from node next to 'to' node
-	if to.prev == nil { // Destination is at head position
+	if to.Prev == nil { // Destination is at head position
 		*head = from
 	} else {
-		to.prev.next = from
+		to.Prev.Next = from
 	}
-	from.prev = to.prev
-	to.prev = from
-	from.next = to
+	from.Prev = to.Prev
+	to.Prev = from
+	from.Next = to
 }
 
 // deleteAtTip removes a node from tip target returns old node (can inline)
-func deleteAtTip(ll *linkedList, tip **node) *node {
+func deleteAtTip(ll *linkedList, tip **Node) *Node {
 	// Old is a placeholder for current tips node value to push
 	// back on to the stack.
 	old := *tip
 	switch {
-	case old.prev == nil: // At head position
+	case old.Prev == nil: // At head position
 		// shift current tip head to the right
-		*tip = old.next
+		*tip = old.Next
 		// Remove reference to node from chain
-		if old.next != nil { // This is when liquidity hits zero
-			old.next.prev = nil
+		if old.Next != nil { // This is when liquidity hits zero
+			old.Next.Prev = nil
 		}
-	case old.next == nil: // At tail position
+	case old.Next == nil: // At tail position
 		// Remove reference to node from chain
-		old.prev.next = nil
+		old.Prev.Next = nil
 	default:
 		// Reference prior node in chain to next node in chain
 		// bypassing current node
-		old.prev.next = old.next
-		old.next.prev = old.prev
+		old.Prev.Next = old.Next
+		old.Next.Prev = old.Prev
 	}
 	ll.length--
 	return old
 }
 
 // insertAtTip inserts at a tip target (can inline)
-func insertAtTip(ll *linkedList, tip **node, updt Item, stack *stack) {
+func insertAtTip(ll *linkedList, tip **Node, updt Item, stack *stack) {
 	n := stack.Pop()
-	n.value = updt
-	n.next = *tip
-	n.prev = (*tip).prev
-	if (*tip).prev == nil { // Tip is at head
+	n.Value = updt
+	n.Next = *tip
+	n.Prev = (*tip).Prev
+	if (*tip).Prev == nil { // Tip is at head
 		// Replace head which will push everything to the right
 		// when this node will reference new node below
 		*tip = n
 	} else {
 		// Reference new node to previous node
-		(*tip).prev.next = n
+		(*tip).Prev.Next = n
 	}
 	// Reference next node to new node
-	n.next.prev = n
+	n.Next.Prev = n
 	ll.length++
 }
 
 // insertAtTail inserts at tail end of node chain (can inline)
-func insertAtTail(ll *linkedList, tip **node, updt Item, stack *stack) {
+func insertAtTail(ll *linkedList, tip **Node, updt Item, stack *stack) {
 	n := stack.Pop()
-	n.value = updt
+	n.Value = updt
 	// Reference tip to new node
-	(*tip).next = n
+	(*tip).Next = n
 	// Reference new node with current tip
-	n.prev = *tip
+	n.Prev = *tip
 	ll.length++
 }
 
@@ -481,50 +481,50 @@ func insertAtTail(ll *linkedList, tip **node, updt Item, stack *stack) {
 // endpoint then it comes back online. (can inline)
 func insertHeadSpecific(ll *linkedList, updt Item, stack *stack) {
 	n := stack.Pop()
-	n.value = updt
+	n.Value = updt
 	ll.head = n
 	ll.length++
 }
 
 // insertNodeAtBookmark inserts a new node at a bookmarked node position
 // returns if a node needs to replace head (can inline)
-func insertNodeAtBookmark(ll *linkedList, bookmark, n *node) {
+func insertNodeAtBookmark(ll *linkedList, bookmark, n *Node) {
 	switch {
 	case bookmark == nil: // Zero liquidity and we are rebuilding from scratch
 		ll.head = n
-	case bookmark.prev == nil:
-		n.prev = bookmark.prev
-		bookmark.prev = n
-		n.next = bookmark
+	case bookmark.Prev == nil:
+		n.Prev = bookmark.Prev
+		bookmark.Prev = n
+		n.Next = bookmark
 		ll.head = n
-	case bookmark.next == nil:
-		n.prev = bookmark
-		bookmark.next = n
+	case bookmark.Next == nil:
+		n.Prev = bookmark
+		bookmark.Next = n
 	default:
-		bookmark.prev.next = n
-		n.prev = bookmark.prev
-		bookmark.prev = n
-		n.next = bookmark
+		bookmark.Prev.Next = n
+		n.Prev = bookmark.Prev
+		bookmark.Prev = n
+		n.Next = bookmark
 	}
 	ll.length++
 }
 
 // shiftBookmark moves a bookmarked node to the tip's next position or if nil,
 // sets tip as bookmark (can inline)
-func shiftBookmark(tip *node, bookmark, head **node, updt Item) bool {
+func shiftBookmark(tip *Node, bookmark, head **Node, updt Item) bool {
 	if *bookmark == nil { // End of the chain and no bookmark set
 		*bookmark = tip // Set tip to bookmark so we can set a new node there
 		return false
 	}
-	(*bookmark).value = updt
-	(*bookmark).next.prev = (*bookmark).prev
-	if (*bookmark).prev == nil { // Bookmark is at head
-		*head = (*bookmark).next
+	(*bookmark).Value = updt
+	(*bookmark).Next.Prev = (*bookmark).Prev
+	if (*bookmark).Prev == nil { // Bookmark is at head
+		*head = (*bookmark).Next
 	} else {
-		(*bookmark).prev.next = (*bookmark).next
+		(*bookmark).Prev.Next = (*bookmark).Next
 	}
-	tip.next = *bookmark
-	(*bookmark).prev = tip
-	(*bookmark).next = nil
+	tip.Next = *bookmark
+	(*bookmark).Prev = tip
+	(*bookmark).Next = nil
 	return true
 }

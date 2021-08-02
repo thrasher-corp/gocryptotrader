@@ -214,16 +214,17 @@ func (b *Base) GetLastPairsUpdateTime() int64 {
 	return b.CurrencyPairs.LastUpdated
 }
 
-// GetAssetTypes returns the available asset types for an individual exchange
-func (b *Base) GetAssetTypes() asset.Items {
-	return b.CurrencyPairs.GetAssetTypes()
+// GetAssetTypes returns the either the enabled or available asset types for an
+// individual exchange
+func (b *Base) GetAssetTypes(enabled bool) asset.Items {
+	return b.CurrencyPairs.GetAssetTypes(enabled)
 }
 
 // GetPairAssetType returns the associated asset type for the currency pair
 // This method is only useful for exchanges that have pair names with multiple delimiters (BTC-USD-0626)
 // Helpful if the exchange has only a single asset type but in that case the asset type can be hard coded
 func (b *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
-	assetTypes := b.GetAssetTypes()
+	assetTypes := b.GetAssetTypes(false)
 	for i := range assetTypes {
 		avail, err := b.GetAvailablePairs(assetTypes[i])
 		if err != nil {
@@ -271,7 +272,7 @@ func (b *Base) SetCurrencyPairFormat() {
 		b.Config.CurrencyPairs.RequestFormat = nil
 	}
 
-	assetTypes := b.GetAssetTypes()
+	assetTypes := b.GetAssetTypes(false)
 	for x := range assetTypes {
 		if _, err := b.Config.CurrencyPairs.Get(assetTypes[x]); err != nil {
 			ps, err := b.CurrencyPairs.Get(assetTypes[x])
@@ -285,8 +286,8 @@ func (b *Base) SetCurrencyPairFormat() {
 
 // SetConfigPairs sets the exchanges currency pairs to the pairs set in the config
 func (b *Base) SetConfigPairs() error {
-	assetTypes := b.Config.CurrencyPairs.GetAssetTypes()
-	exchangeAssets := b.CurrencyPairs.GetAssetTypes()
+	assetTypes := b.Config.CurrencyPairs.GetAssetTypes(false)
+	exchangeAssets := b.CurrencyPairs.GetAssetTypes(false)
 	for x := range assetTypes {
 		if !exchangeAssets.Contains(assetTypes[x]) {
 			log.Warnf(log.ExchangeSys,
@@ -413,7 +414,7 @@ func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 // GetRequestFormattedPairAndAssetType is a method that returns the enabled currency pair of
 // along with its asset type. Only use when there is no chance of the same name crossing over
 func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, asset.Item, error) {
-	assetTypes := b.GetAssetTypes()
+	assetTypes := b.GetAssetTypes(false)
 	var response currency.Pair
 	for i := range assetTypes {
 		format, err := b.GetPairFormat(assetTypes[i], true)
