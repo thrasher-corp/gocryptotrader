@@ -323,6 +323,15 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 	}
 	res, err := exch.ModifyOrder(mod)
 	if err != nil {
+		message := fmt.Sprintf(
+			"Order manager: Exchange %s order ID=%v: failed to modify",
+			mod.Exchange,
+			mod.ID,
+		)
+		m.orderStore.commsManager.PushEvent(base.Event{
+			Type:    "order",
+			Message: message,
+		})
 		return nil, err
 	}
 
@@ -335,7 +344,17 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 	// Notify observers.
 	if err != nil {
 		message := fmt.Sprintf(
-			"Order manager: Exchange %s order ID=%v modified.",
+			"Order manager: Exchange %s order ID=%v: modified successfully",
+			mod.Exchange,
+			res.ID,
+		)
+		m.orderStore.commsManager.PushEvent(base.Event{
+			Type:    "order",
+			Message: message,
+		})
+	} else {
+		message := fmt.Sprintf(
+			"Order manager: Exchange %s order ID=%v: modified on exchange, but failed to modify locally",
 			mod.Exchange,
 			res.ID,
 		)
