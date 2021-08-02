@@ -108,6 +108,7 @@ var (
 	// for a trade job
 	defaultDataHistoryTradeInterval          = kline.FifteenMin
 	defaultDataHistoryMaxJobsPerCycle  int64 = 5
+	defaultMaxResultInsertions         int64 = 10000
 	defaultDataHistoryBatchLimit       int64 = 3
 	defaultDataHistoryRetryAttempts    int64 = 3
 	defaultDataHistoryRequestSizeLimit int64 = 500
@@ -128,6 +129,7 @@ type DataHistoryManager struct {
 	jobDB                      datahistoryjob.IDBService
 	jobResultDB                datahistoryjobresult.IDBService
 	maxJobsPerCycle            int64
+	maxResultInsertions        int64
 	verbose                    bool
 	tradeChecker               func(string, string, string, string, *kline.IntervalRangeHolder) error
 	candleLoader               func(string, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (kline.Item, error)

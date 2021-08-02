@@ -70,7 +70,7 @@ A breakdown of each type is under the Add Jobs command list below
 ### How do I add a job?
 + First ensure that the data history monitor is enabled, you can do this via the config (see table `dataHistoryManager` under Config parameters below), via run time parameter (see table Application run time parameters below) or via the RPC command `enablesubsystem --subsystemname="data_history_manager"`
 + The simplest way of adding a new data history job is via the GCTCLI under `/cmd/gctcli`.
-  + Modify the following example command to your needs: `.\gctcli.exe datahistory addjob savecandles --nickname=binance-spot-bnb-btc-1h-candles --exchange=binance --asset=spot --pair=BNB-BTC --interval=3600 --start_date="2020-06-02 12:00:00" --end_date="2020-12-02 12:00:00" --request_size_limit=10 --data_type=0 --max_retry_attempts=3 --batch_size=3`
+  + Modify the following example command to your needs: `.\gctcli.exe datahistory addjob savecandles --nickname=binance-spot-bnb-btc-1h-candles --exchange=binance --asset=spot --pair=BNB-BTC --interval=3600 --start_date="2020-06-02 12:00:00" --end_date="2020-12-02 12:00:00" --request_size_limit=10 --max_retry_attempts=3 --batch_size=3`
 
 ## What happens during a data history cycle?
 + Once the checkInterval ticker timer has finished, the data history manager will process all jobs considered `active`.
@@ -85,7 +85,7 @@ A breakdown of each type is under the Add Jobs command list below
 + All results are saved to the database, the data history manager will analyse all results and ready jobs for the next round of processing
 
 ### Candle intervals and trade fetching
-+ A candle interval is required for a job, even when fetching trade data. This is to appropriately break down requests into time interval chunks. However, it is restricted to only a small range of times. This is to prevent fetching issues as fetching trades over a period of days or weeks will take a significant amount of time. When setting a job to fetch trades, the allowable range is less than 4 hours and greater than 10 minutes. So an interval of 1 hour will then fetch an hour's worth of trade data.
++ A candle interval is required for a job, even when fetching trade data. This is to appropriately break down requests into time interval chunks. However, it is restricted to only a small range of times. This is to prevent fetching issues as fetching trades over a period of days or weeks will take a significant amount of time. When setting a job to fetch trades, the allowable range is less than 4 hours and greater than 10 minutes.
 
 ## Job queuing and prerequisite jobs
 You can add jobs which will be paused by default by using the `prerequisite` subcommand containing the associated job nickname. The prerequisite job will be checked to ensure it exists and has not yet completed and add the relationship.

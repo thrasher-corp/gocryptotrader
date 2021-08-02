@@ -143,8 +143,8 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 656 |
-| [shazbert](https://github.com/shazbert) | 209 |
-| [gloriousCode](https://github.com/gloriousCode) | 184 |
+| [shazbert](https://github.com/shazbert) | 212 |
+| [gloriousCode](https://github.com/gloriousCode) | 186 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [dependabot[bot]](https://github.com/apps/dependabot) | 18 |
@@ -156,6 +156,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
+| [ydm](https://github.com/ydm) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
@@ -163,6 +164,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
+| [lrascao](https://github.com/lrascao) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
 | [yangrq1018](https://github.com/yangrq1018) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
@@ -170,8 +172,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [if1live](https://github.com/if1live) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
-| [mshogin](https://github.com/mshogin) | 2 |
-| [herenow](https://github.com/herenow) | 2 |
 | [tk42](https://github.com/tk42) | 2 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |

@@ -38,8 +38,11 @@ func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager
 	if cfg.CheckInterval <= 0 {
 		cfg.CheckInterval = defaultDataHistoryTicker
 	}
-	if cfg.MaxJobsPerCycle == 0 {
+	if cfg.MaxJobsPerCycle <= 0 {
 		cfg.MaxJobsPerCycle = defaultDataHistoryMaxJobsPerCycle
+	}
+	if cfg.MaxResultInsertions <= 0 {
+		cfg.MaxResultInsertions = defaultMaxResultInsertions
 	}
 	db := dcm.GetInstance()
 	dhj, err := datahistoryjob.Setup(db)
@@ -60,6 +63,7 @@ func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager
 		jobResultDB:                dhjr,
 		maxJobsPerCycle:            cfg.MaxJobsPerCycle,
 		verbose:                    cfg.Verbose,
+		maxResultInsertions:        cfg.MaxResultInsertions,
 		tradeChecker:               trade.HasTradesInRanges,
 		tradeLoader:                trade.GetTradesInRange,
 		tradeSaver:                 trade.SaveTradesToDatabase,
@@ -319,7 +323,14 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	}
 
 	dbJobResults := m.convertJobResultToDBResult(job.Results)
-	err = m.jobResultDB.Upsert(dbJobResults...)
+	for i := 0; i < len(dbJobResults); i += int(m.maxResultInsertions) + 1 {
+		// do something better than this please
+		if i+int(m.maxResultInsertions) > len(dbJobResults) {
+			err = m.jobResultDB.Upsert(dbJobResults[i:]...)
+			break
+		}
+		err = m.jobResultDB.Upsert(dbJobResults[i : i+int(m.maxResultInsertions)]...)
+	}
 	if err != nil {
 		return fmt.Errorf("job %s failed to insert job results to database: %w", job.Nickname, err)
 	}
