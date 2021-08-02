@@ -369,51 +369,50 @@ func (b *Bittrex) SendAuthHTTPRequest(ep exchange.URL, method, action string, pa
 		return err
 	}
 
-	ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+	newRequest := func() (*request.Item, error) {
+		ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+		path := common.EncodeURLValues(action, params)
 
-	path := common.EncodeURLValues(action, params)
-
-	var body io.Reader
-	var hmac, payload []byte
-	var contentHash string
-	if data == nil {
-		payload = []byte("")
-	} else {
-		var err error
-		payload, err = json.Marshal(data)
-		if err != nil {
-			return err
+		var body io.Reader
+		var hmac, payload []byte
+		var contentHash string
+		if data == nil {
+			payload = []byte("")
+		} else {
+			var err error
+			payload, err = json.Marshal(data)
+			if err != nil {
+				return nil, err
+			}
 		}
+		body = bytes.NewBuffer(payload)
+		contentHash = crypto.HexEncodeToString(crypto.GetSHA512(payload))
+		sigPayload := ts + endpoint + path + method + contentHash
+		hmac = crypto.GetHMAC(crypto.HashSHA512, []byte(sigPayload), []byte(b.API.Credentials.Secret))
+
+		headers := make(map[string]string)
+		headers["Api-Key"] = b.API.Credentials.Key
+		headers["Api-Timestamp"] = ts
+		headers["Api-Content-Hash"] = contentHash
+		headers["Api-Signature"] = crypto.HexEncodeToString(hmac)
+		headers["Content-Type"] = "application/json"
+		headers["Accept"] = "application/json"
+
+		return &request.Item{
+			Method:         method,
+			Path:           endpoint + path,
+			Headers:        headers,
+			Body:           body,
+			Result:         result,
+			AuthRequest:    true,
+			Verbose:        b.Verbose,
+			HTTPDebugging:  b.HTTPDebugging,
+			HTTPRecording:  b.HTTPRecording,
+			HeaderResponse: resultHeader,
+		}, nil
 	}
-	body = bytes.NewBuffer(payload)
-	contentHash = crypto.HexEncodeToString(crypto.GetSHA512(payload))
-	sigPayload := ts + endpoint + path + method + contentHash
-	hmac = crypto.GetHMAC(crypto.HashSHA512, []byte(sigPayload), []byte(b.API.Credentials.Secret))
 
-	headers := make(map[string]string)
-	headers["Api-Key"] = b.API.Credentials.Key
-	headers["Api-Timestamp"] = ts
-	headers["Api-Content-Hash"] = contentHash
-	headers["Api-Signature"] = crypto.HexEncodeToString(hmac)
-	headers["Content-Type"] = "application/json"
-	headers["Accept"] = "application/json"
-
-	item := &request.Item{
-		Method:         method,
-		Path:           endpoint + path,
-		Headers:        headers,
-		Body:           body,
-		Result:         result,
-		AuthRequest:    true,
-		Verbose:        b.Verbose,
-		HTTPDebugging:  b.HTTPDebugging,
-		HTTPRecording:  b.HTTPRecording,
-		HeaderResponse: resultHeader,
-	}
-
-	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-		return item, nil
-	})
+	return b.SendPayload(context.Background(), request.Unset, newRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
