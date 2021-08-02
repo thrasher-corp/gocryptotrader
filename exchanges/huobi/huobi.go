@@ -834,56 +834,54 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint s
 		values = url.Values{}
 	}
 
-	now := time.Now()
-	values.Set("AccessKeyId", h.API.Credentials.Key)
-	values.Set("SignatureMethod", "HmacSHA256")
-	values.Set("SignatureVersion", "2")
-	values.Set("Timestamp", now.UTC().Format("2006-01-02T15:04:05"))
-
-	if isVersion2API {
-		endpoint = "/v" + huobiAPIVersion2 + "/" + endpoint
-	} else {
-		endpoint = "/v" + huobiAPIVersion + "/" + endpoint
-	}
-
-	payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
-		method, endpoint, values.Encode())
-
-	headers := make(map[string]string)
-
-	if method == http.MethodGet {
-		headers["Content-Type"] = "application/x-www-form-urlencoded"
-	} else {
-		headers["Content-Type"] = "application/json"
-	}
-
-	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(h.API.Credentials.Secret))
-	values.Set("Signature", crypto.Base64Encode(hmac))
-	urlPath := ePoint + common.EncodeURLValues(endpoint, values)
-
-	var body []byte
-	if data != nil {
-		body, err = json.Marshal(data)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Time difference between your timestamp and standard should be less than 1 minute.
-	ctx, cancel := context.WithDeadline(context.Background(), now.Add(time.Minute))
-	defer cancel()
 	interim := json.RawMessage{}
+	newRequest := func() (*request.Item, error) {
+		now := time.Now()
+		values.Set("AccessKeyId", h.API.Credentials.Key)
+		values.Set("SignatureMethod", "HmacSHA256")
+		values.Set("SignatureVersion", "2")
+		values.Set("Timestamp", now.UTC().Format("2006-01-02T15:04:05"))
 
-	item := &request.Item{
-		Method:        method,
-		Path:          urlPath,
-		Headers:       headers,
-		Body:          bytes.NewReader(body),
-		Result:        &interim,
-		AuthRequest:   true,
-		Verbose:       h.Verbose,
-		HTTPDebugging: h.HTTPDebugging,
-		HTTPRecording: h.HTTPRecording,
+		if isVersion2API {
+			endpoint = "/v" + huobiAPIVersion2 + "/" + endpoint
+		} else {
+			endpoint = "/v" + huobiAPIVersion + "/" + endpoint
+		}
+
+		payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
+			method, endpoint, values.Encode())
+
+		headers := make(map[string]string)
+
+		if method == http.MethodGet {
+			headers["Content-Type"] = "application/x-www-form-urlencoded"
+		} else {
+			headers["Content-Type"] = "application/json"
+		}
+
+		hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(h.API.Credentials.Secret))
+		values.Set("Signature", crypto.Base64Encode(hmac))
+		urlPath := ePoint + common.EncodeURLValues(endpoint, values)
+
+		var body []byte
+		if data != nil {
+			body, err = json.Marshal(data)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return &request.Item{
+			Method:        method,
+			Path:          urlPath,
+			Headers:       headers,
+			Body:          bytes.NewReader(body),
+			Result:        &interim,
+			AuthRequest:   true,
+			Verbose:       h.Verbose,
+			HTTPDebugging: h.HTTPDebugging,
+			HTTPRecording: h.HTTPRecording,
+		}, nil
 	}
 
 	err = h.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
