@@ -339,7 +339,7 @@ func TestExists(t *testing.T) {
 	}
 }
 
-func Teststore_modifyOrder(t *testing.T) {
+func TestStore_modifyOrder(t *testing.T) {
 	m := OrdersSetup(t)
 	pair := currency.Pair{
 		Base:  currency.NewCode("XXXXX"),
@@ -354,6 +354,9 @@ func Teststore_modifyOrder(t *testing.T) {
 		Price:  10,
 		Amount: 20,
 	})
+	if err != nil {
+		t.Error(err)
+	}
 	m.orderStore.modifyExisting("fake_order_id", &order.Modify{
 		Exchange: testExchange,
 
@@ -598,55 +601,90 @@ func TestSubmit(t *testing.T) {
 }
 
 func TestOrderManager_Modify(t *testing.T) {
-	m := OrdersSetup(t)
 	pair := currency.Pair{
 		Base:  currency.NewCode("XXXXX"),
 		Quote: currency.NewCode("YYYYY"),
 	}
-	err := m.orderStore.add(&order.Detail{
-		Exchange:  testExchange,
-		AssetType: asset.Spot,
-		Pair:      pair,
-		ID:        "fake_order_id",
+	f := func(mod order.Modify, expectError bool, price, amount float64) {
+		t.Helper()
 
-		Price:  10,
-		Amount: 20,
-	})
-	if err != nil {
-		t.Error(err)
+		m := OrdersSetup(t)
+		err := m.orderStore.add(&order.Detail{
+			Exchange:  testExchange,
+			AssetType: asset.Spot,
+			Pair:      pair,
+			ID:        "fake_order_id",
+			//
+			Price:  8,
+			Amount: 128,
+		})
+		if err != nil {
+			t.Error(err)
+		}
+
+		resp, err := m.Modify(&mod)
+		if expectError {
+			if err == nil {
+				t.Error("Expected error")
+			}
+			return
+		} else if err != nil {
+			t.Error(err)
+			return
+		}
+
+		if resp.OrderID != "modified_order_id" {
+			t.Errorf("have \"%s\", want \"modified_order_id\"", resp.OrderID)
+		}
+
+		det, err := m.orderStore.getByExchangeAndID(testExchange, resp.OrderID)
+		if err != nil {
+			t.Error(err)
+		}
+		if det.ID != resp.OrderID || det.Price != price || det.Amount != amount {
+			t.Error()
+		}
 	}
 
-	mod := order.Modify{
+	model := order.Modify{
 		// These fields identify the order.
 		Exchange:  testExchange,
 		AssetType: asset.Spot,
 		Pair:      pair,
-		ID:        "nonexistent_order_id",
-
+		ID:        "fake_order_id",
 		// These fields modify the order.
-		Price:  11,
-		Amount: 22,
+		Price:  0,
+		Amount: 0,
 	}
 
-	_, err = m.Modify(&mod)
-	if err == nil {
-		// This order should not exist, an error is expected.
-		t.Error()
-	}
+	// [1] Test if nonexistent order returns an error.
+	one := model
+	one.ID = "nonexistent_order_id"
+	f(one, true, 0, 0)
 
-	mod.ID = "fake_order_id"
-	_, err = m.Modify(&mod)
-	if err != nil {
-		t.Error(err)
-	}
+	// [2] Test if price of 0 is ignored.
+	two := model
+	two.Price = 0
+	two.Amount = 256
+	f(two, false, 8, 256)
 
-	det, err := m.orderStore.getByExchangeAndID(testExchange, "modified_order_id")
-	if err != nil {
-		t.Error(err)
-	}
-	if det.ID != "modified_order_id" || det.Price != 11 || det.Amount != 22 {
-		t.Error()
-	}
+	// [3] Test if amount of 0 is ignored.
+	three := model
+	three.Price = 16
+	three.Amount = 0
+	f(three, false, 16, 128)
+
+	// [4] Test if both fields provided set both.
+	four := model
+	four.Price = 16
+	four.Amount = 256
+	f(four, false, 16, 256)
+
+	// [5] Test if both fields missing modifies anything but the ID.
+	five := model
+	five.Price = 0
+	five.Amount = 0
+	f(five, false, 8, 128)
 }
 
 func TestProcessOrders(t *testing.T) {
