@@ -1,6 +1,11 @@
 package bybit
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -16,25 +21,25 @@ const (
 
 	// Public endpoints
 	// TODO:
-	bybitSpotGetSymbols = "/spot/v1/symbols"
-	bybitOrderBook = "/spot/quote/v1/depth"
-	bybitMergedOrderBook = "/spot/quote/v1/depth/merged"
-	bybitRecentTrades = "/spot/quote/v1/trades"
+	bybitSpotGetSymbols   = "/spot/v1/symbols"
+	bybitOrderBook        = "/spot/quote/v1/depth"
+	bybitMergedOrderBook  = "/spot/quote/v1/depth/merged"
+	bybitRecentTrades     = "/spot/quote/v1/trades"
 	bybitCandlestickChart = "/spot/quote/v1/kline"
-	bybit24HrsChange = "/spot/quote/v1/ticker/24hr"
-	bybitLastTradedPrice = "/spot/quote/v1/ticker/price"
-	bybitBestBidAskPrice = "/spot/quote/v1/ticker/book_ticker"
+	bybit24HrsChange      = "/spot/quote/v1/ticker/24hr"
+	bybitLastTradedPrice  = "/spot/quote/v1/ticker/price"
+	bybitBestBidAskPrice  = "/spot/quote/v1/ticker/book_ticker"
 
 	// Authenticated endpoints
 	// TODO:
 	bybitAuthenticatedSpotOrder = "/spot/v1/order" // create, query, cancel
-	bybitBatchCancelSpotOrder = "/spot/order/batch-cancel"
-	bybitOpenOrder = "/spot/v1/open-orders"
-	bybitPastOrder = "/spot/v1/history-orders"
-	bybitTradeHistory = "/spot/v1/myTrades"
+	bybitBatchCancelSpotOrder   = "/spot/order/batch-cancel"
+	bybitOpenOrder              = "/spot/v1/open-orders"
+	bybitPastOrder              = "/spot/v1/history-orders"
+	bybitTradeHistory           = "/spot/v1/myTrades"
 
 	bybitWalletBalance = "/spot/v1/account"
-	bybitServerTime = "/spot/v1/time"
+	bybitServerTime    = "/spot/v1/time"
 )
 
 // GetAllPairs gets all pairs on the exchange
