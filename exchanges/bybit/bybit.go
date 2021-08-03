@@ -2,8 +2,6 @@ package bybit
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"net/http"
 
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -37,48 +35,31 @@ const (
 	bybitOpenOrder              = "/spot/v1/open-orders"
 	bybitPastOrder              = "/spot/v1/history-orders"
 	bybitTradeHistory           = "/spot/v1/myTrades"
-
-	bybitWalletBalance = "/spot/v1/account"
-	bybitServerTime    = "/spot/v1/time"
+	bybitWalletBalance          = "/spot/v1/account"
+	bybitServerTime             = "/spot/v1/time"
 )
 
 // GetAllPairs gets all pairs on the exchange
-func (b *Bybit) GetAllPairs() ([]PairData, error) {
+func (by *Bybit) GetAllPairs() ([]PairData, error) {
 	resp := struct {
 		Data []PairData `json:"result"`
 	}{}
 	path := bybitSpotGetSymbols
-	return resp.Data, b.SendHTTPRequest(exchange.RestSpot, path, spotPairs, &resp)
+	return resp.Data, by.SendHTTPRequest(exchange.RestSpot, path, &resp)
 }
 
-// SendHTTPRequest sends an unauthenticated HTTP request
-func (b *Bybit) SendHTTPRequest(ep exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
-	endpoint, err := b.API.Endpoints.GetURL(ep)
+// SendHTTPRequest sends an unauthenticated request
+func (by *Bybit) SendHTTPRequest(ePath exchange.URL, path string, result interface{}) error {
+	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
-	var resp json.RawMessage
-	errCap := struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	}{}
-
-	if err := b.SendPayload(context.Background(), &request.Item{
+	return by.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        &resp,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-		Endpoint:      f,
-	}); err != nil {
-		return err
-	}
-
-	if err := json.Unmarshal(resp, &errCap); err == nil {
-		if errCap.Code != 200 && errCap.Message != "" {
-			return errors.New(errCap.Message)
-		}
-	}
-	return json.Unmarshal(resp, result)
+		Path:          endpointPath + path,
+		Result:        result,
+		Verbose:       by.Verbose,
+		HTTPDebugging: by.HTTPDebugging,
+		HTTPRecording: by.HTTPRecording,
+	})
 }

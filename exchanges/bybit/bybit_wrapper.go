@@ -108,9 +108,10 @@ func (by *Bybit) SetDefaults() {
 			AutoPairUpdates: true,
 		},
 	}
-	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
+
 	by.Requester = request.New(by.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.WithLimiter(SetRateLimit()))
 
 	// NOTE: SET THE URLs HERE
 	by.API.Endpoints = by.NewEndpoints()
