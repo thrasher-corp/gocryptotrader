@@ -68,15 +68,6 @@ func (m *ExchangeManager) Add(exch exchange.IBotExchange) {
 	m.m.Unlock()
 }
 
-func (m *ExchangeManager) ShutdownAllExchangeRequests() {
-	m.m.Lock()
-	defer m.m.Unlock()
-	for _, v := range m.exchanges {
-		b := v.GetBase()
-		b.Requester.Shutdown()
-	}
-}
-
 // GetExchanges returns all stored exchanges
 func (m *ExchangeManager) GetExchanges() []exchange.IBotExchange {
 	m.m.Lock()

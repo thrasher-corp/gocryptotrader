@@ -40,7 +40,6 @@ type Requester struct {
 	backoff            Backoff
 	retryPolicy        RetryPolicy
 	timedLock          *timedmutex.TimedMutex
-	isRunning          bool
 }
 
 // Item is a temp item for requests

@@ -1491,15 +1491,6 @@ func (d dataHistoryJobResultService) GetJobResultsBetween(_ string, _, _ time.Ti
 	return nil, nil
 }
 
-func dataHistoryHasDataChecker(_, _, _, _ string, irh *kline.IntervalRangeHolder) error {
-	for i := range irh.Ranges {
-		for j := range irh.Ranges[i].Intervals {
-			irh.Ranges[i].Intervals[j].HasData = true
-		}
-	}
-	return nil
-}
-
 func dataHistoryTraderLoader(exch, a, base, quote string, start, _ time.Time) ([]trade.Data, error) {
 	cp, err := currency.NewPairFromStrings(base, quote)
 	if err != nil {

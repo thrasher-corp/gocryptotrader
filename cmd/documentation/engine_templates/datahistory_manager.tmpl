@@ -101,6 +101,7 @@ You can add jobs which will be paused by default by using the `prerequisite` sub
 | enabled | If enabled will run the data history manager on startup | `true` |
 | checkInterval | A golang `time.Duration` interval of when to attempt to fetch all active jobs' data | `15000000000` |
 | maxJobsPerCycle | Allows you to control how many jobs are processed after the `checkInterval` timer finishes. Useful if you have many jobs, but don't wish to constantly be retrieving data | `5` |
+| maxResultInsertions | When saving candle/trade results, loop it in batches of this number. | `10000` |
 | verbose | Displays some extra logs to your logging output to help debug | `false` |
 
 ## RPC commands

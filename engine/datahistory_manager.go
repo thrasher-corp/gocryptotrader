@@ -191,7 +191,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 		case dataHistoryTradeDataType:
 			for x := range jobs[i].rangeHolder.Ranges {
-				results, ok := jobs[i].Results[jobs[i].rangeHolder.Ranges[i].Start.Time]
+				results, ok := jobs[i].Results[jobs[i].rangeHolder.Ranges[x].Start.Time]
 				if !ok {
 					continue
 				}
@@ -200,6 +200,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 						for z := range jobs[i].rangeHolder.Ranges[x].Intervals {
 							jobs[i].rangeHolder.Ranges[x].Intervals[z].HasData = true
 						}
+						break
 					}
 				}
 			}
