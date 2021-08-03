@@ -342,28 +342,16 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 	err = m.orderStore.modifyExisting(mod.ID, &res)
 
 	// Notify observers.
+	var message string
 	if err != nil {
-		message := fmt.Sprintf(
-			"Order manager: Exchange %s order ID=%v: modified successfully",
-			mod.Exchange,
-			res.ID,
-		)
-		m.orderStore.commsManager.PushEvent(base.Event{
-			Type:    "order",
-			Message: message,
-		})
+		message = "Order manager: Exchange %s order ID=%v: modified on exchange, but failed to modify locally"
 	} else {
-		message := fmt.Sprintf(
-			"Order manager: Exchange %s order ID=%v: modified on exchange, but failed to modify locally",
-			mod.Exchange,
-			res.ID,
-		)
-		m.orderStore.commsManager.PushEvent(base.Event{
-			Type:    "order",
-			Message: message,
-		})
+		message = "Order manager: Exchange %s order ID=%v: modified successfully"
 	}
-
+	m.orderStore.commsManager.PushEvent(base.Event{
+		Type:    "order",
+		Message: fmt.Sprintf(message, mod.Exchange, res.ID),
+	})
 	return &order.ModifyResponse{OrderID: res.ID}, err
 }
 
