@@ -261,6 +261,16 @@ func main() {
 				URL:           "https://github.com/blombard",
 				Contributions: 1,
 			},
+			{
+				Login:         "mshogin",
+				URL:           "https://github.com/mshogin",
+				Contributions: 1,
+			},
+			{
+				Login:         "herenow",
+				URL:           "https://github.com/herenow",
+				Contributions: 1,
+			},
 		}...)
 
 		if verbose {

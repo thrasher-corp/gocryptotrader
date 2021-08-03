@@ -190,3 +190,5 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Daanikus](https://github.com/Daanikus) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
+| [mshogin](https://github.com/mshogin) | 1 |
+| [herenow](https://github.com/herenow) | 1 |
