@@ -176,6 +176,16 @@ func main() {
 				Contributions: 2,
 			},
 			{
+				Login:         "mshogin",
+				URL:           "https://github.com/mshogin",
+				Contributions: 2,
+			},
+			{
+				Login:         "herenow",
+				URL:           "https://github.com/herenow",
+				Contributions: 2,
+			},
+			{
 				Login:         "daniel-cohen",
 				URL:           "https://github.com/daniel-cohen",
 				Contributions: 1,
@@ -259,16 +269,6 @@ func main() {
 			{
 				Login:         "blombard",
 				URL:           "https://github.com/blombard",
-				Contributions: 1,
-			},
-			{
-				Login:         "mshogin",
-				URL:           "https://github.com/mshogin",
-				Contributions: 1,
-			},
-			{
-				Login:         "herenow",
-				URL:           "https://github.com/herenow",
 				Contributions: 1,
 			},
 		}...)

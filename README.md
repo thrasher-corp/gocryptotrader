@@ -173,6 +173,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
 | [tk42](https://github.com/tk42) | 2 |
+| [mshogin](https://github.com/mshogin) | 2 |
+| [herenow](https://github.com/herenow) | 2 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
 | [frankzougc](https://github.com/frankzougc) | 1 |
@@ -190,5 +192,3 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Daanikus](https://github.com/Daanikus) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
-| [mshogin](https://github.com/mshogin) | 1 |
-| [herenow](https://github.com/herenow) | 1 |
