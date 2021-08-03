@@ -640,6 +640,8 @@ func (bot *Engine) Stop() {
 		}
 	}
 
+	bot.ExchangeManager.ShutdownAllExchangeRequests()
+
 	if dispatch.IsRunning() {
 		if err := dispatch.Stop(); err != nil {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatch system unable to stop. Error: %v", err)

@@ -103,12 +103,13 @@ var (
 	errInvalidDataHistoryDataType = errors.New("unsupported data history data type received")
 	errNilResult                  = errors.New("received nil job result")
 	errJobMustBeActiveOrPaused    = errors.New("job must be active or paused to be set as a prerequisite")
+	errNilCandles                 = errors.New("received nil candles")
 
 	// defaultDataHistoryTradeInterval is the default interval size used to verify whether there is any database data
 	// for a trade job
-	defaultDataHistoryTradeInterval          = kline.FifteenMin
+	defaultDataHistoryTradeInterval          = kline.TenMin
 	defaultDataHistoryMaxJobsPerCycle  int64 = 5
-	defaultMaxResultInsertions         int64 = 10000
+	defaultMaxResultInsertions         int64 = 2000
 	defaultDataHistoryBatchLimit       int64 = 3
 	defaultDataHistoryRetryAttempts    int64 = 3
 	defaultDataHistoryRequestSizeLimit int64 = 500
@@ -131,7 +132,6 @@ type DataHistoryManager struct {
 	maxJobsPerCycle            int64
 	maxResultInsertions        int64
 	verbose                    bool
-	tradeChecker               func(string, string, string, string, *kline.IntervalRangeHolder) error
 	candleLoader               func(string, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (kline.Item, error)
 	tradeLoader                func(string, string, string, string, time.Time, time.Time) ([]trade.Data, error)
 	tradeSaver                 func(...trade.Data) error

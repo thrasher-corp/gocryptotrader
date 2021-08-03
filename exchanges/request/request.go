@@ -29,6 +29,7 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) *Requ
 		retryPolicy: DefaultRetryPolicy,
 		maxRetries:  MaxRetryAttempts,
 		timedLock:   timedmutex.NewTimedMutex(DefaultMutexLockTimeout),
+		isRunning:   true,
 	}
 
 	for _, o := range opts {
@@ -38,8 +39,15 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) *Requ
 	return r
 }
 
+func (r *Requester) Shutdown() {
+	r.isRunning = false
+}
+
 // SendPayload handles sending HTTP/HTTPS requests
 func (r *Requester) SendPayload(ctx context.Context, i *Item) error {
+	if !r.isRunning {
+		return ErrIsShutdown
+	}
 	if !i.NonceEnabled {
 		r.timedLock.LockForDuration()
 	}
@@ -88,7 +96,9 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 			return nil, errors.New("header response is nil")
 		}
 	}
-
+	if !r.isRunning {
+		return nil, ErrIsShutdown
+	}
 	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
 		return nil, err
@@ -110,7 +120,9 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 	if p == nil {
 		return errors.New("request item cannot be nil")
 	}
-
+	if !r.isRunning {
+		return ErrIsShutdown
+	}
 	if p.Verbose {
 		log.Debugf(log.RequestSys,
 			"%s request path: %s",
@@ -138,6 +150,9 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 	}
 
 	for attempt := 1; ; attempt++ {
+		if !r.isRunning {
+			return ErrIsShutdown
+		}
 		// Initiate a rate limit reservation and sleep on requested endpoint
 		err := r.InitiateRateLimit(p.Endpoint)
 		if err != nil {

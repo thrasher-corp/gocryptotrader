@@ -64,7 +64,6 @@ func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager
 		maxJobsPerCycle:            cfg.MaxJobsPerCycle,
 		verbose:                    cfg.Verbose,
 		maxResultInsertions:        cfg.MaxResultInsertions,
-		tradeChecker:               trade.HasTradesInRanges,
 		tradeLoader:                trade.GetTradesInRange,
 		tradeSaver:                 trade.SaveTradesToDatabase,
 		candleLoader:               kline.LoadFromDatabase,
@@ -191,9 +190,18 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			}
 			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 		case dataHistoryTradeDataType:
-			err = m.tradeChecker(jobs[i].Exchange, jobs[i].Asset.String(), jobs[i].Pair.Base.String(), jobs[i].Pair.Quote.String(), jobs[i].rangeHolder)
-			if err != nil && err != sql.ErrNoRows {
-				return fmt.Errorf("%s could not load trade data: %w", jobs[i].Nickname, err)
+			for x := range jobs[i].rangeHolder.Ranges {
+				results, ok := jobs[i].Results[jobs[i].rangeHolder.Ranges[i].Start.Time]
+				if !ok {
+					continue
+				}
+				for y := range results {
+					if results[y].Status == dataHistoryStatusComplete {
+						for z := range jobs[i].rangeHolder.Ranges[x].Intervals {
+							jobs[i].rangeHolder.Ranges[x].Intervals[z].HasData = true
+						}
+					}
+				}
 			}
 		case dataHistoryConvertCandlesDataType:
 			candles, err = m.candleLoader(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].ConversionInterval, jobs[i].StartDate, jobs[i].EndDate)
@@ -236,7 +244,7 @@ func (m *DataHistoryManager) runJobs() error {
 	}
 
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
-		return fmt.Errorf("runJobs %w", errAlreadyRunning)
+		return fmt.Errorf("cannot process jobs, %w", errAlreadyRunning)
 	}
 	defer atomic.StoreInt32(&m.processing, 0)
 
@@ -323,14 +331,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	}
 
 	dbJobResults := m.convertJobResultToDBResult(job.Results)
-	for i := 0; i < len(dbJobResults); i += int(m.maxResultInsertions) + 1 {
-		// do something better than this please
-		if i+int(m.maxResultInsertions) > len(dbJobResults) {
-			err = m.jobResultDB.Upsert(dbJobResults[i:]...)
-			break
-		}
-		err = m.jobResultDB.Upsert(dbJobResults[i : i+int(m.maxResultInsertions)]...)
-	}
+	err = m.jobResultDB.Upsert(dbJobResults...)
 	if err != nil {
 		return fmt.Errorf("job %s failed to insert job results to database: %w", job.Nickname, err)
 	}
@@ -395,29 +396,31 @@ ranges:
 
 		var failures int64
 		hasDataInRange := false
-		resultLookup := job.Results[job.rangeHolder.Ranges[i].Start.Time]
-		for x := range resultLookup {
-			switch resultLookup[x].Status {
-			case dataHistoryIntervalIssuesFound:
-				continue ranges
-			case dataHistoryStatusFailed:
-				failures++
-			case dataHistoryStatusComplete:
-				// this can occur in the scenario where data is missing
-				// however no errors were encountered when data is missing
-				// eg an exchange only returns an empty slice
-				// or the exchange is simply missing the data and does not have an error
-				hasDataInRange = true
-			}
-		}
-		if failures >= job.MaxRetryAttempts {
-			// failure threshold reached, we should not attempt
-			// to check this interval again
+		resultLookup, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
+		if ok {
 			for x := range resultLookup {
-				resultLookup[x].Status = dataHistoryIntervalIssuesFound
+				switch resultLookup[x].Status {
+				case dataHistoryIntervalIssuesFound:
+					continue ranges
+				case dataHistoryStatusFailed:
+					failures++
+				case dataHistoryStatusComplete:
+					// this can occur in the scenario where data is missing
+					// however no errors were encountered when data is missing
+					// eg an exchange only returns an empty slice
+					// or the exchange is simply missing the data and does not have an error
+					hasDataInRange = true
+				}
 			}
-			job.Results[job.rangeHolder.Ranges[i].Start.Time] = resultLookup
-			continue
+			if failures >= job.MaxRetryAttempts {
+				// failure threshold reached, we should not attempt
+				// to check this interval again
+				for x := range resultLookup {
+					resultLookup[x].Status = dataHistoryIntervalIssuesFound
+				}
+				job.Results[job.rangeHolder.Ranges[i].Start.Time] = resultLookup
+				continue
+			}
 		}
 		if hasDataInRange {
 			continue
@@ -626,6 +629,50 @@ func (m *DataHistoryManager) completeJob(job *DataHistoryJob, allResultsSuccessf
 	return nil
 }
 
+func (m *DataHistoryManager) saveCandlesInBatches(job *DataHistoryJob, candles *kline.Item, r *DataHistoryJobResult) error {
+	if !m.IsRunning() {
+		return ErrSubSystemNotStarted
+	}
+	if job == nil {
+		return errNilJob
+	}
+	if candles == nil {
+		return errNilCandles
+	}
+	if r == nil {
+		return errNilResult
+	}
+	if m.maxResultInsertions <= 0 {
+		m.maxResultInsertions = defaultMaxResultInsertions
+	}
+	var err error
+	for i := 0; i < len(candles.Candles); i += int(m.maxResultInsertions) {
+		newCandle := *candles
+		if i+int(m.maxResultInsertions) > len(newCandle.Candles) {
+			if m.verbose {
+				log.Debugf(log.DataHistory, "Saving %v candles. Range %v-%v/%v", len(newCandle.Candles[i:]), i, len(candles.Candles), len(candles.Candles))
+			}
+			newCandle.Candles = newCandle.Candles[i:]
+			_, err = m.candleSaver(&newCandle, job.OverwriteExistingData)
+			if err != nil {
+				r.Result += "could not save results: " + err.Error() + ". "
+				r.Status = dataHistoryStatusFailed
+			}
+			break
+		}
+		if m.verbose {
+			log.Debugf(log.DataHistory, "Saving %v candles. Range %v-%v/%v", m.maxResultInsertions, i, i+int(m.maxResultInsertions), len(candles.Candles))
+		}
+		newCandle.Candles = newCandle.Candles[i : i+int(m.maxResultInsertions)]
+		_, err = m.candleSaver(&newCandle, job.OverwriteExistingData)
+		if err != nil {
+			r.Result += "could not save results: " + err.Error() + ". "
+			r.Status = dataHistoryStatusFailed
+		}
+	}
+	return nil
+}
+
 func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time, intervalIndex int64) (*DataHistoryJobResult, error) {
 	if !m.IsRunning() {
 		return nil, ErrSubSystemNotStarted
@@ -668,12 +715,8 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 		}
 	}
 	candles.SourceJobID = job.ID
-	_, err = m.candleSaver(&candles, job.OverwriteExistingData)
-	if err != nil {
-		r.Result += "could not save results: " + err.Error() + ". "
-		r.Status = dataHistoryStatusFailed
-	}
-	return r, nil
+	err = m.saveCandlesInBatches(job, &candles, r)
+	return r, err
 }
 
 func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time, intervalIndex int64) (*DataHistoryJobResult, error) {
@@ -707,8 +750,7 @@ func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
-	filteredTraders := trade.FilterTradesByTime(trades, startRange, endRange)
-	candles, err := trade.ConvertTradesToCandles(job.Interval, filteredTraders...)
+	candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
 	if err != nil {
 		r.Result += "could not convert candles to trades: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
@@ -723,10 +765,26 @@ func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange
 				job.rangeHolder.Ranges[intervalIndex].Intervals[i].End.Time.Format(common.SimpleTimeFormatWithTimezone))
 		}
 	}
-	err = m.tradeSaver(trades...)
-	if err != nil {
-		r.Result += "could not save results: " + err.Error() + ". "
-		r.Status = dataHistoryStatusFailed
+	for i := 0; i < len(trades); i += int(m.maxResultInsertions) {
+		if i+int(m.maxResultInsertions) > len(trades) {
+			if m.verbose {
+				log.Debugf(log.DataHistory, "Saving %v trades. Range %v-%v/%v", len(trades[i:]), i, len(trades), len(trades))
+			}
+			err = m.tradeSaver(trades[i:]...)
+			if err != nil {
+				r.Result += "could not save results: " + err.Error() + ". "
+				r.Status = dataHistoryStatusFailed
+			}
+			break
+		}
+		if m.verbose {
+			log.Debugf(log.DataHistory, "Saving %v trades. Range %v-%v/%v", m.maxResultInsertions, i, i+int(m.maxResultInsertions), len(trades))
+		}
+		err = m.tradeSaver(trades[i : i+int(m.maxResultInsertions)]...)
+		if err != nil {
+			r.Result += "could not save results: " + err.Error() + ". "
+			r.Status = dataHistoryStatusFailed
+		}
 	}
 	return r, nil
 }
@@ -766,12 +824,8 @@ func (m *DataHistoryManager) convertTradesToCandles(job *DataHistoryJob, startRa
 		return r, nil
 	}
 	candles.SourceJobID = job.ID
-	_, err = m.candleSaver(&candles, job.OverwriteExistingData)
-	if err != nil {
-		r.Result = "could not save candles in range: " + err.Error()
-		r.Status = dataHistoryStatusFailed
-	}
-	return r, nil
+	err = m.saveCandlesInBatches(job, &candles, r)
+	return r, err
 }
 
 func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
@@ -809,12 +863,8 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 		return r, nil
 	}
 	newCandles.SourceJobID = job.ID
-	_, err = m.candleSaver(newCandles, job.OverwriteExistingData)
-	if err != nil {
-		r.Result = "could not save candles in range: " + err.Error()
-		r.Status = dataHistoryStatusFailed
-	}
-	return r, nil
+	err = m.saveCandlesInBatches(job, &candles, r)
+	return r, err
 }
 
 func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
@@ -943,11 +993,8 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 	if len(validationIssues) > 0 {
 		r.Result = strings.Join(validationIssues, " -- ")
 	}
-	_, err = m.candleSaver(&apiCandles, true)
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
+	err = m.saveCandlesInBatches(job, &apiCandles, r)
+	return r, err
 }
 
 // CheckCandleIssue verifies that stored data matches API data

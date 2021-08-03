@@ -732,7 +732,6 @@ func TestRunJob(t *testing.T) {
 			m.tradeSaver = dataHistoryTradeSaver
 			m.candleSaver = dataHistoryCandleSaver
 			m.tradeLoader = dataHistoryTraderLoader
-			m.tradeChecker = dataHistoryHasDataChecker
 
 			err = m.runJob(nil)
 			if !errors.Is(err, errNilJob) {
@@ -981,13 +980,13 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 		jobDB: dataHistoryJobService{
 			job: j,
 		},
-		jobResultDB:     dataHistoryJobResultService{},
-		started:         1,
-		exchangeManager: em,
-		tradeChecker:    dataHistoryHasDataChecker,
-		candleLoader:    dataHistoryCandleLoader,
-		interval:        time.NewTicker(time.Minute),
-		verbose:         true,
+		jobResultDB:         dataHistoryJobResultService{},
+		started:             1,
+		exchangeManager:     em,
+		candleLoader:        dataHistoryCandleLoader,
+		interval:            time.NewTicker(time.Minute),
+		verbose:             true,
+		maxResultInsertions: defaultMaxResultInsertions,
 	}
 	return m, j
 }
@@ -1365,6 +1364,52 @@ func TestCompletionCheck(t *testing.T) {
 	err = m.completeJob(j, true, true)
 	if !errors.Is(err, errJobInvalid) {
 		t.Errorf("received %v expected %v", err, errJobInvalid)
+	}
+}
+
+func TestSaveCandlesInBatches(t *testing.T) {
+	t.Parallel()
+	dhm := DataHistoryManager{
+		candleSaver: dataHistoryCandleSaver,
+	}
+	err := dhm.saveCandlesInBatches(nil, nil, nil)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("received %v expected %v", err, ErrSubSystemNotStarted)
+	}
+
+	dhm.started = 1
+	err = dhm.saveCandlesInBatches(nil, nil, nil)
+	if !errors.Is(err, errNilJob) {
+		t.Errorf("received %v expected %v", err, errNilJob)
+	}
+
+	job := &DataHistoryJob{}
+	err = dhm.saveCandlesInBatches(job, nil, nil)
+	if !errors.Is(err, errNilCandles) {
+		t.Errorf("received %v expected %v", err, errNilCandles)
+	}
+
+	candles := &kline.Item{}
+	err = dhm.saveCandlesInBatches(job, candles, nil)
+	if !errors.Is(err, errNilResult) {
+		t.Errorf("received %v expected %v", err, errNilResult)
+	}
+
+	result := &DataHistoryJobResult{}
+	err = dhm.saveCandlesInBatches(job, candles, result)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+
+	for i := 0; i < 10000; i++ {
+		candles.Candles = append(candles.Candles, kline.Candle{
+			Volume: float64(i),
+		})
+	}
+	dhm.maxResultInsertions = 1337
+	err = dhm.saveCandlesInBatches(job, candles, result)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
 	}
 }
 

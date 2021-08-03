@@ -1,6 +1,7 @@
 package request
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"time"
@@ -23,6 +24,7 @@ const (
 var (
 	MaxRequestJobs   = DefaultMaxRequestJobs
 	MaxRetryAttempts = DefaultMaxRetryAttempts
+	ErrIsShutdown    = errors.New("requester has been shutdown")
 )
 
 // Requester struct for the request client
@@ -38,6 +40,7 @@ type Requester struct {
 	backoff            Backoff
 	retryPolicy        RetryPolicy
 	timedLock          *timedmutex.TimedMutex
+	isRunning          bool
 }
 
 // Item is a temp item for requests
