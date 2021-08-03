@@ -56,4 +56,10 @@ func areTestAPIKeysSet() bool {
 	return by.ValidateAPICredentials()
 }
 
-// Implement tests for API endpoints below
+func TestGetAllPairs(t *testing.T) {
+	by.Verbose = true
+	_, err := by.GetAllPairs()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
