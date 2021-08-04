@@ -274,7 +274,7 @@ func (k *Kraken) SendFuturesAuthRequest(method, path string, postData url.Values
 			if err != nil {
 				return nil, err
 			}
-			postData.Add("json", string(temp))
+			postData.Set("json", string(temp))
 			reqData = "json=" + string(temp)
 		}
 		sig := k.signFuturesRequest(path, nonce, reqData)
