@@ -636,10 +636,11 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, v2
 			[]byte(b.API.Credentials.Secret))
 		values.Set("signature", strings.ToUpper(crypto.HexEncodeToString(hmac)))
 
+		var fullPath string
 		if v2 {
-			path = endpoint + "/v" + bitstampAPIVersion + "/" + path + "/"
+			fullPath = endpoint + "/v" + bitstampAPIVersion + "/" + path + "/"
 		} else {
-			path = endpoint + "/" + path + "/"
+			fullPath = endpoint + "/" + path + "/"
 		}
 
 		headers := make(map[string]string)
@@ -650,7 +651,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, v2
 
 		return &request.Item{
 			Method:        http.MethodPost,
-			Path:          path,
+			Path:          fullPath,
 			Headers:       headers,
 			Body:          readerValues,
 			Result:        &interim,
