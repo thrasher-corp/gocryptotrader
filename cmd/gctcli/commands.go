@@ -2362,6 +2362,9 @@ func modifyOrder(c *cli.Context) error {
 	if c.IsSet("amount") {
 		amount = c.Float64("amount")
 	}
+	if price == 0 && amount == 0 {
+		return errors.New("either --price or --amount should be present")
+	}
 
 	// Setup gRPC, make a request and display response.
 	conn, err := setupClient()
