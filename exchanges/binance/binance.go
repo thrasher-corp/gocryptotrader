@@ -731,17 +731,8 @@ func (b *Binance) SendAuthHTTPRequest(ePath exchange.URL, method, path string, p
 		params = url.Values{}
 	}
 
-	recvWindow := defaultRecvWindow
-	if params.Get("recvWindow") != "" {
-		// convert recvWindow value into time.Duration
-		var recvWindowParam int64
-		recvWindowParam, err = convert.Int64FromString(params.Get("recvWindow"))
-		if err != nil {
-			return err
-		}
-		recvWindow = time.Duration(recvWindowParam) * time.Millisecond
-	} else {
-		params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
+	if params.Get("recvWindow") == "" {
+		params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(defaultRecvWindow), 10))
 	}
 
 	interim := json.RawMessage{}
