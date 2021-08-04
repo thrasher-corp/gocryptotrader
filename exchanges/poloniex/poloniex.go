@@ -859,7 +859,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 		return err
 	}
 
-	newRequest := func() (*request.Item, error) {
+	return p.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 		headers["Key"] = p.API.Credentials.Key
@@ -883,8 +883,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 			HTTPDebugging: p.HTTPDebugging,
 			HTTPRecording: p.HTTPRecording,
 		}, nil
-	}
-	return p.SendPayload(context.Background(), request.Unset, newRequest)
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction
