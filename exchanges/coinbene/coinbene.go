@@ -1158,9 +1158,9 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 			default:
 				i = p
 			}
-			tempBody, err := json.Marshal(i)
-			if err != nil {
-				return nil, err
+			tempBody, err2 := json.Marshal(i)
+			if err2 != nil {
+				return nil, err2
 			}
 			finalBody = bytes.NewBufferString(string(tempBody))
 			preSign = timestamp + method + authPath + epPath + string(tempBody)
@@ -1189,7 +1189,7 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 		}, nil
 	}
 
-	if err = c.SendPayload(context.Background(), f, newRequest); err != nil {
+	if err := c.SendPayload(context.Background(), f, newRequest); err != nil {
 		return err
 	}
 
@@ -1198,7 +1198,7 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 		Message string `json:"message"`
 	}{}
 
-	if err = json.Unmarshal(resp, &errCap); err == nil &&
+	if err := json.Unmarshal(resp, &errCap); err == nil &&
 		errCap.Code != 200 &&
 		errCap.Message != "" {
 		return errors.New(errCap.Message)
