@@ -726,7 +726,7 @@ func (b *Binance) SendAuthHTTPRequest(ePath exchange.URL, method, path string, p
 	if err != nil {
 		return err
 	}
-	path = endpointPath + path
+
 	if params == nil {
 		params = url.Values{}
 	}
@@ -744,22 +744,20 @@ func (b *Binance) SendAuthHTTPRequest(ePath exchange.URL, method, path string, p
 		params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), recvWindow)
-	defer cancel()
-
 	interim := json.RawMessage{}
-	err = b.SendPayload(ctx, f, func() (*request.Item, error) {
+	err = b.SendPayload(context.Background(), f, func() (*request.Item, error) {
+		fullPath := endpointPath + path
 		params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
 		signature := params.Encode()
 		hmacSigned := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(b.API.Credentials.Secret))
 		hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
 		headers := make(map[string]string)
 		headers["X-MBX-APIKEY"] = b.API.Credentials.Key
-		path = common.EncodeURLValues(path, params)
-		path += "&signature=" + hmacSignedStr
+		fullPath = common.EncodeURLValues(fullPath, params)
+		fullPath += "&signature=" + hmacSignedStr
 		return &request.Item{
 			Method:        method,
-			Path:          path,
+			Path:          fullPath,
 			Headers:       headers,
 			Result:        &interim,
 			AuthRequest:   true,
