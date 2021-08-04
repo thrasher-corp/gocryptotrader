@@ -1137,6 +1137,7 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 		timestamp := now.UTC().Format("2006-01-02T15:04:05.999Z")
 		var finalBody io.Reader
 		var preSign string
+		var fullPath string
 		switch {
 		case params != nil && method == http.MethodGet:
 			p, ok := params.(url.Values)
@@ -1144,7 +1145,7 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 				return nil, errors.New("params is not of type url.Values")
 			}
 			preSign = timestamp + method + authPath + epPath + "?" + p.Encode()
-			path = common.EncodeURLValues(path, p)
+			fullPath = common.EncodeURLValues(path, p)
 		case params != nil:
 			var i interface{}
 			switch p := params.(type) {
@@ -1177,7 +1178,7 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 
 		return &request.Item{
 			Method:        method,
-			Path:          endpoint + path,
+			Path:          endpoint + fullPath,
 			Headers:       headers,
 			Body:          finalBody,
 			Result:        &resp,
