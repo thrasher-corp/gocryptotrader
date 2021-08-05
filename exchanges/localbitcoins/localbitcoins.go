@@ -758,9 +758,9 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ep exchange.URL, method, pa
 	return l.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		n := l.Requester.GetNonce(true).String()
 
-		path = "/api/" + path
+		fullPath := "/api/" + path
 		encoded := params.Encode()
-		message := n + l.API.Credentials.Key + path + encoded
+		message := n + l.API.Credentials.Key + fullPath + encoded
 		hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(l.API.Credentials.Secret))
 		headers := make(map[string]string)
 		headers["Apiauth-Key"] = l.API.Credentials.Key
@@ -769,12 +769,12 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ep exchange.URL, method, pa
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 		if method == http.MethodGet && len(encoded) > 0 {
-			path += "?" + encoded
+			fullPath += "?" + encoded
 		}
 
 		return &request.Item{
 			Method:        method,
-			Path:          endpoint + path,
+			Path:          endpoint + fullPath,
 			Headers:       headers,
 			Body:          bytes.NewBufferString(encoded),
 			Result:        result,
