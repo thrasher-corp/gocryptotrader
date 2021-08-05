@@ -607,7 +607,7 @@ func (b *Binance) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 			currencyBalance = append(currencyBalance, account.Balance{
 				CurrencyName: currency.NewCode(raw.Balances[i].Asset),
 				TotalValue:   freeCurrency + lockedCurrency,
-				Hold:         freeCurrency,
+				Hold:         lockedCurrency,
 			})
 		}
 
