@@ -50,8 +50,8 @@ func (p *Portfolio) Reset() {
 // on buy/sell, the portfolio manager will size the order and assess the risk of the order
 // if successful, it will pass on an order.Order to be used by the exchange event handler to place an order based on
 // the portfolio manager's recommendations
-func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order.Order, error) {
-	if signal == nil || cs == nil {
+func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings) (*order.Order, error) {
+	if s == nil || cs == nil {
 		return nil, common.ErrNilArguments
 	}
 	if p.sizeManager == nil {
@@ -63,69 +63,69 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 
 	o := &order.Order{
 		Base: event.Base{
-			Offset:       signal.GetOffset(),
-			Exchange:     signal.GetExchange(),
-			Time:         signal.GetTime(),
-			CurrencyPair: signal.Pair(),
-			AssetType:    signal.GetAssetType(),
-			Interval:     signal.GetInterval(),
-			Reason:       signal.GetReason(),
+			Offset:       s.GetOffset(),
+			Exchange:     s.GetExchange(),
+			Time:         s.GetTime(),
+			CurrencyPair: s.Pair(),
+			AssetType:    s.GetAssetType(),
+			Interval:     s.GetInterval(),
+			Reason:       s.GetReason(),
 		},
-		Direction: signal.GetDirection(),
+		Direction: s.GetDirection(),
 	}
-	if signal.GetDirection() == "" {
+	if s.GetDirection() == "" {
 		return o, errInvalidDirection
 	}
 
-	lookup := p.exchangeAssetPairSettings[signal.GetExchange()][signal.GetAssetType()][signal.Pair()]
+	lookup := p.exchangeAssetPairSettings[s.GetExchange()][s.GetAssetType()][s.Pair()]
 	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v",
 			errNoPortfolioSettings,
-			signal.GetExchange(),
-			signal.GetAssetType(),
-			signal.Pair())
+			s.GetExchange(),
+			s.GetAssetType(),
+			s.Pair())
 	}
 	prevHolding := lookup.GetLatestHoldings()
 	if p.iteration == 0 {
 		prevHolding.InitialFunds = lookup.InitialFunds
 		prevHolding.RemainingFunds = lookup.InitialFunds
-		prevHolding.Exchange = signal.GetExchange()
-		prevHolding.Pair = signal.Pair()
-		prevHolding.Asset = signal.GetAssetType()
-		prevHolding.Timestamp = signal.GetTime()
+		prevHolding.Exchange = s.GetExchange()
+		prevHolding.Pair = s.Pair()
+		prevHolding.Asset = s.GetAssetType()
+		prevHolding.Timestamp = s.GetTime()
 	}
 	p.iteration++
 
-	if signal.GetDirection() == common.DoNothing || signal.GetDirection() == common.MissingData || signal.GetDirection() == "" {
+	if s.GetDirection() == common.DoNothing || s.GetDirection() == common.MissingData || s.GetDirection() == "" {
 		return o, nil
 	}
 
-	if signal.GetDirection() == gctorder.Sell && prevHolding.PositionsSize == 0 {
+	if s.GetDirection() == gctorder.Sell && prevHolding.PositionsSize == 0 {
 		o.AppendReason("no holdings to sell")
 		o.SetDirection(common.CouldNotSell)
-		signal.SetDirection(o.Direction)
+		s.SetDirection(o.Direction)
 		return o, nil
 	}
 
 	// for simplicity, the backtester will round to 8 decimal places
 	remainingFundsRounded := math.Floor(prevHolding.RemainingFunds*100000000) / 100000000
-	if signal.GetDirection() == gctorder.Buy && remainingFundsRounded <= 0 {
+	if s.GetDirection() == gctorder.Buy && remainingFundsRounded <= 0 {
 		o.AppendReason("not enough funds to buy")
 		o.SetDirection(common.CouldNotBuy)
-		signal.SetDirection(o.Direction)
+		s.SetDirection(o.Direction)
 		return o, nil
 	}
 
-	o.Price = signal.GetPrice()
+	o.Price = s.GetPrice()
 	o.OrderType = gctorder.Market
-	o.BuyLimit = signal.GetBuyLimit()
-	o.SellLimit = signal.GetSellLimit()
+	o.BuyLimit = s.GetBuyLimit()
+	o.SellLimit = s.GetSellLimit()
 	sizingFunds := prevHolding.RemainingFunds
-	if signal.GetDirection() == gctorder.Sell {
+	if s.GetDirection() == gctorder.Sell {
 		sizingFunds = prevHolding.PositionsSize
 	}
 
-	sizedOrder := p.sizeOrder(signal, cs, o, sizingFunds)
+	sizedOrder := p.sizeOrder(s, cs, o, sizingFunds)
 	o.Funds = sizingFunds
 	sizedAmountRounded := math.Floor(sizedOrder.Amount*100000000) / 100000000
 	if sizedAmountRounded <= 0 {
@@ -138,7 +138,7 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 		return o, nil
 	}
 
-	return p.evaluateOrder(signal, o, sizedOrder)
+	return p.evaluateOrder(s, o, sizedOrder)
 }
 
 func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, sizedOrder *order.Order) (*order.Order, error) {

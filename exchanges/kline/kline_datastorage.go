@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
@@ -33,13 +34,26 @@ func LoadFromDatabase(exchange string, pair currency.Pair, a asset.Item, interva
 	}
 
 	for x := range retCandle.Candles {
+		if ret.SourceJobID == uuid.Nil && retCandle.Candles[x].SourceJobID != "" {
+			ret.SourceJobID, err = uuid.FromString(retCandle.Candles[x].SourceJobID)
+			if err != nil {
+				return Item{}, err
+			}
+		}
+		if ret.ValidationJobID == uuid.Nil && retCandle.Candles[x].ValidationJobID != "" {
+			ret.ValidationJobID, err = uuid.FromString(retCandle.Candles[x].ValidationJobID)
+			if err != nil {
+				return Item{}, err
+			}
+		}
 		ret.Candles = append(ret.Candles, Candle{
-			Time:   retCandle.Candles[x].Timestamp,
-			Open:   retCandle.Candles[x].Open,
-			High:   retCandle.Candles[x].High,
-			Low:    retCandle.Candles[x].Low,
-			Close:  retCandle.Candles[x].Close,
-			Volume: retCandle.Candles[x].Volume,
+			Time:             retCandle.Candles[x].Timestamp,
+			Open:             retCandle.Candles[x].Open,
+			High:             retCandle.Candles[x].High,
+			Low:              retCandle.Candles[x].Low,
+			Close:            retCandle.Candles[x].Close,
+			Volume:           retCandle.Candles[x].Volume,
+			ValidationIssues: retCandle.Candles[x].ValidationIssues,
 		})
 	}
 	return ret, nil
@@ -50,15 +64,12 @@ func StoreInDatabase(in *Item, force bool) (uint64, error) {
 	if in.Exchange == "" {
 		return 0, errors.New("name cannot be blank")
 	}
-
-	if (in.Pair == currency.Pair{}) {
+	if in.Pair.IsEmpty() {
 		return 0, errors.New("currency pair cannot be empty")
 	}
-
-	if in.Asset == "" {
+	if !in.Asset.IsValid() {
 		return 0, errors.New("asset cannot be blank")
 	}
-
 	if len(in.Candles) < 1 {
 		return 0, errors.New("candle data is empty")
 	}
@@ -77,14 +88,23 @@ func StoreInDatabase(in *Item, force bool) (uint64, error) {
 	}
 
 	for x := range in.Candles {
-		databaseCandles.Candles = append(databaseCandles.Candles, candle.Candle{
+		can := candle.Candle{
 			Timestamp: in.Candles[x].Time.Truncate(in.Interval.Duration()),
 			Open:      in.Candles[x].Open,
 			High:      in.Candles[x].High,
 			Low:       in.Candles[x].Low,
 			Close:     in.Candles[x].Close,
 			Volume:    in.Candles[x].Volume,
-		})
+		}
+		if in.ValidationJobID != uuid.Nil {
+			can.ValidationJobID = in.ValidationJobID.String()
+			can.ValidationIssues = in.Candles[x].ValidationIssues
+		}
+		if in.SourceJobID != uuid.Nil {
+			can.SourceJobID = in.SourceJobID.String()
+		}
+
+		databaseCandles.Candles = append(databaseCandles.Candles, can)
 	}
 	if force {
 		_, err := candle.DeleteCandles(&databaseCandles)

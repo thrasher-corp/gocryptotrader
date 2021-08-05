@@ -87,7 +87,6 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 	if !i.NonceEnabled {
 		r.timedLock.LockForDuration()
 	}
-
 	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
 		return nil, err
@@ -186,6 +185,12 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		if err != nil {
 			return err
 		}
+		// Even in the case of an erroneous condition below, yield the parsed
+		// response to caller.
+		var unmarshallError error
+		if p.Result != nil {
+			unmarshallError = json.Unmarshal(contents, p.Result)
+		}
 
 		if p.HTTPRecording {
 			// This dumps http responses for future mocking implementations
@@ -231,10 +236,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 					string(contents))
 			}
 		}
-		if p.Result != nil {
-			return json.Unmarshal(contents, p.Result)
-		}
-		return nil
+		return unmarshallError
 	}
 }
 

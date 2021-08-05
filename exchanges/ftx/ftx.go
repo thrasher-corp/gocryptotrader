@@ -129,12 +129,15 @@ const (
 )
 
 var (
+	errInvalidOrderID                                    = errors.New("invalid order ID")
 	errStartTimeCannotBeAfterEndTime                     = errors.New("start timestamp cannot be after end timestamp")
 	errSubaccountNameMustBeSpecified                     = errors.New("a subaccount name must be specified")
 	errSubaccountUpdateNameInvalid                       = errors.New("invalid subaccount old/new name")
 	errCoinMustBeSpecified                               = errors.New("a coin must be specified")
 	errSubaccountTransferSizeGreaterThanZero             = errors.New("transfer size must be greater than 0")
 	errSubaccountTransferSourceDestinationMustNotBeEqual = errors.New("subaccount transfer source and destination must not be the same value")
+	errUnrecognisedOrderStatus                           = errors.New("unrecognised order status received")
+	errInvalidOrderAmounts                               = errors.New("filled amount should not exceed order amount")
 
 	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
@@ -777,51 +780,43 @@ func (f *FTX) GetOrderStatusByClientID(clientOrderID string) (OrderData, error) 
 	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getOrderStatusByClientID+clientOrderID, nil, &resp)
 }
 
-// DeleteOrder deletes an order
-func (f *FTX) DeleteOrder(orderID string) (string, error) {
+func (f *FTX) deleteOrderByPath(path string) (string, error) {
 	resp := struct {
 		Result  string `json:"result"`
 		Success bool   `json:"success"`
+		Error   string `json:"error"`
 	}{}
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, deleteOrder+orderID, nil, &resp); err != nil {
-		return "", err
+	err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, path, nil, &resp)
+	// If there is an error reported, but the resp struct reports one of a very few
+	// specific error causes, we still consider this a successful cancellation.
+	if err != nil && !resp.Success && (resp.Error == "Order already closed" || resp.Error == "Order already queued for cancellation") {
+		return resp.Error, nil
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete order request by ID unsuccessful")
+	return resp.Result, err
+}
+
+// DeleteOrder deletes an order
+func (f *FTX) DeleteOrder(orderID string) (string, error) {
+	if orderID == "" {
+		return "", errInvalidOrderID
 	}
-	return resp.Result, nil
+	return f.deleteOrderByPath(deleteOrder + orderID)
 }
 
 // DeleteOrderByClientID deletes an order
 func (f *FTX) DeleteOrderByClientID(clientID string) (string, error) {
-	resp := struct {
-		Result  string `json:"result"`
-		Success bool   `json:"success"`
-	}{}
-
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, deleteOrderByClientID+clientID, nil, &resp); err != nil {
-		return "", err
+	if clientID == "" {
+		return "", errInvalidOrderID
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete order request by client ID unsuccessful")
-	}
-	return resp.Result, nil
+	return f.deleteOrderByPath(deleteOrderByClientID + clientID)
 }
 
 // DeleteTriggerOrder deletes an order
 func (f *FTX) DeleteTriggerOrder(orderID string) (string, error) {
-	resp := struct {
-		Result  string `json:"result"`
-		Success bool   `json:"success"`
-	}{}
-
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, cancelTriggerOrder+orderID, nil, &resp); err != nil {
-		return "", err
+	if orderID == "" {
+		return "", errInvalidOrderID
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete trigger order request unsuccessful")
-	}
-	return resp.Result, nil
+	return f.deleteOrderByPath(cancelTriggerOrder + orderID)
 }
 
 // GetFills gets fills' data
@@ -1191,6 +1186,9 @@ func (f *FTX) SendAuthHTTPRequest(ep exchange.URL, method, path string, data, re
 // GetFee returns an estimate of fee based on type of transaction
 func (f *FTX) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
+	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	switch feeBuilder.FeeType {
 	case exchange.OfflineTradeFee:
 		fee = getOfflineTradeFee(feeBuilder)
@@ -1221,6 +1219,9 @@ func getOfflineTradeFee(feeBuilder *exchange.FeeBuilder) float64 {
 }
 
 func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amount, filledAmount, avgFillPrice float64) (OrderVars, error) {
+	if filledAmount > amount {
+		return OrderVars{}, fmt.Errorf("%w, amount: %f filled: %f", errInvalidOrderAmounts, amount, filledAmount)
+	}
 	var resp OrderVars
 	switch orderSide {
 	case order.Buy.Lower():
@@ -1236,13 +1237,17 @@ func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amou
 	case closedStatus:
 		if filledAmount != 0 && filledAmount != amount {
 			resp.Status = order.PartiallyCancelled
+			break
 		}
 		if filledAmount == 0 {
 			resp.Status = order.Cancelled
+			break
 		}
 		if filledAmount == amount {
 			resp.Status = order.Filled
 		}
+	default:
+		return resp, fmt.Errorf("%w %s", errUnrecognisedOrderStatus, orderStatus)
 	}
 	var feeBuilder exchange.FeeBuilder
 	feeBuilder.PurchasePrice = avgFillPrice

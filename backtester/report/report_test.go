@@ -37,7 +37,15 @@ func TestGenerateReport(t *testing.T) {
 		OriginalCandles: []*gctkline.Item{
 			{
 				Candles: []gctkline.Candle{
-					{},
+					{
+						Time:             time.Now(),
+						Open:             1337,
+						High:             1337,
+						Low:              1337,
+						Close:            1337,
+						Volume:           1337,
+						ValidationIssues: "hello world!",
+					},
 				},
 			},
 		},

@@ -866,11 +866,26 @@ message UpsertDataHistoryJobRequest {
     int64	max_retry_attempts = 10;
     int64	batch_size = 11;
     bool insert_only = 12;
+    int64	conversion_interval = 13;
+    bool overwrite_existing_data = 14;
+    string prerequisite_job_nickname = 15;
+    int64 decimal_place_comparison = 16;
+    string secondary_exchange_name = 17;
+    double issue_tolerance_percentage = 18;
+    bool replace_on_issue = 19;
+}
+
+message InsertSequentialJobsRequest {
+    repeated UpsertDataHistoryJobRequest jobs = 1;
+}
+
+message InsertSequentialJobsResponse {
+    repeated  UpsertDataHistoryJobResponse jobs = 1;
 }
 
 message UpsertDataHistoryJobResponse {
-   string message = 1;
-   string job_id = 2;
+    string message = 1;
+    string job_id = 2;
 }
 
 message GetDataHistoryJobDetailsRequest {
@@ -893,10 +908,16 @@ message DataHistoryJob {
     int64	batch_size = 11;
     string status = 12;
     string data_type = 13;
-    repeated DataHistoryJobResult job_results = 14;
-    repeated string result_summaries = 15;
+    int64	conversion_interval = 14;
+    bool overwrite_existing_data = 15;
+    string prerequisite_job_nickname = 16;
+    int64 decimal_place_comparison = 17;
+    string secondary_exchange_name = 18;
+    double issue_tolerance_percentage = 19;
+    bool replace_on_issue = 20;
+    repeated DataHistoryJobResult job_results = 21;
+    repeated string result_summaries = 22;
 }
-
 
 message DataHistoryJobResult {
     string	start_date = 1;
@@ -914,6 +935,18 @@ message GetDataHistoryJobsBetweenRequest {
     string start_date = 1;
     string end_date = 2;
 }
+
+message SetDataHistoryJobStatusRequest {
+    string id = 1;
+    string nickname = 2;
+    int64 status = 3;
+}
+
+message UpdateDataHistoryJobPrerequisiteRequest {
+    string nickname = 1;
+    string prerequisite_job_nickname = 2;
+}
+
 
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
@@ -1424,8 +1457,8 @@ service GoCryptoTrader {
 
     rpc UpsertDataHistoryJob (UpsertDataHistoryJobRequest) returns (UpsertDataHistoryJobResponse) {
         option (google.api.http) = {
-            post: "/v1/upsertdatahistoryjob"
-                 body: "*"
+            post: "/v1/upsertdatahistoryjob",
+            body: "*"
         };
     }
 
@@ -1439,11 +1472,6 @@ service GoCryptoTrader {
             get: "/v1/getactivedatahistoryjobs"
         };
     }
-    rpc DeleteDataHistoryJob (GetDataHistoryJobDetailsRequest) returns (GenericResponse) {
-        option (google.api.http) = {
-            delete: "/v1/deletedatahistoryjob"
-        };
-    }
     rpc GetDataHistoryJobsBetween (GetDataHistoryJobsBetweenRequest) returns (DataHistoryJobs) {
         option (google.api.http) = {
             get: "/v1/getdatahistoryjobsbetween"
@@ -1452,6 +1480,18 @@ service GoCryptoTrader {
     rpc GetDataHistoryJobSummary (GetDataHistoryJobDetailsRequest) returns (DataHistoryJob) {
         option (google.api.http) = {
             get: "/v1/getdatahistoryjobsummary"
+        };
+    }
+    rpc SetDataHistoryJobStatus (SetDataHistoryJobStatusRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/setdatahistoryjobstatus",
+            body: "*"
+        };
+    }
+    rpc UpdateDataHistoryJobPrerequisite (UpdateDataHistoryJobPrerequisiteRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/updatedatahistoryjobprerequisite",
+            body: "*"
         };
     }
     rpc GetManagedOrders (GetOrdersRequest) returns (GetOrdersResponse) {

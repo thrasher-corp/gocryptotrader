@@ -23,6 +23,19 @@ func (d *Data) GenerateReport() error {
 		return err
 	}
 
+	for i := range d.OriginalCandles {
+		for j := range d.OriginalCandles[i].Candles {
+			if d.OriginalCandles[i].Candles[j].ValidationIssues == "" {
+				continue
+			}
+			d.Warnings = append(d.Warnings, Warning{
+				Exchange: d.OriginalCandles[i].Exchange,
+				Asset:    d.OriginalCandles[i].Asset,
+				Pair:     d.OriginalCandles[i].Pair,
+				Message:  fmt.Sprintf("candle data %v", d.OriginalCandles[i].Candles[j].ValidationIssues),
+			})
+		}
+	}
 	for i := range d.EnhancedCandles {
 		if len(d.EnhancedCandles[i].Candles) >= maxChartLimit {
 			d.EnhancedCandles[i].IsOverLimit = true
