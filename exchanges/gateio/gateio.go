@@ -428,7 +428,6 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint,
 		Method:        method,
 		Path:          urlPath,
 		Headers:       headers,
-		Body:          strings.NewReader(param),
 		Result:        &intermidiary,
 		AuthRequest:   true,
 		Verbose:       g.Verbose,
@@ -436,6 +435,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint,
 		HTTPRecording: g.HTTPRecording,
 	}
 	err = g.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		item.Body = strings.NewReader(param)
 		return item, nil
 	})
 	if err != nil {
