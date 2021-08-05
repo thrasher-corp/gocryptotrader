@@ -129,6 +129,9 @@ func GetTradesInRange(exchangeName, assetType, base, quote string, startDate, en
 	if exchangeName == "" || assetType == "" || base == "" || quote == "" || startDate.IsZero() || endDate.IsZero() {
 		return nil, errors.New("invalid arguments received")
 	}
+	if !database.DB.IsConnected() {
+		return nil, fmt.Errorf("cannot process trades in range %s-%s as %w", startDate, endDate, database.ErrDatabaseNotConnected)
+	}
 	results, err := tradesql.GetInRange(exchangeName, assetType, base, quote, startDate, endDate)
 	if err != nil {
 		return nil, err

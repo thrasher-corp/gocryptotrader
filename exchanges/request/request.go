@@ -88,7 +88,6 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 			return nil, errors.New("header response is nil")
 		}
 	}
-
 	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
 		return nil, err
@@ -110,7 +109,6 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 	if p == nil {
 		return errors.New("request item cannot be nil")
 	}
-
 	if p.Verbose {
 		log.Debugf(log.RequestSys,
 			"%s request path: %s",

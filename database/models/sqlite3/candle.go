@@ -18,53 +18,63 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 	"github.com/thrasher-corp/sqlboiler/queries/qmhelper"
 	"github.com/thrasher-corp/sqlboiler/strmangle"
+	"github.com/volatiletech/null"
 )
 
 // Candle is an object representing the database table.
 type Candle struct {
-	ID             string  `boil:"id" json:"id" toml:"id" yaml:"id"`
-	ExchangeNameID string  `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
-	Base           string  `boil:"Base" json:"Base" toml:"Base" yaml:"Base"`
-	Quote          string  `boil:"Quote" json:"Quote" toml:"Quote" yaml:"Quote"`
-	Interval       string  `boil:"Interval" json:"Interval" toml:"Interval" yaml:"Interval"`
-	Timestamp      string  `boil:"Timestamp" json:"Timestamp" toml:"Timestamp" yaml:"Timestamp"`
-	Open           float64 `boil:"Open" json:"Open" toml:"Open" yaml:"Open"`
-	High           float64 `boil:"High" json:"High" toml:"High" yaml:"High"`
-	Low            float64 `boil:"Low" json:"Low" toml:"Low" yaml:"Low"`
-	Close          float64 `boil:"Close" json:"Close" toml:"Close" yaml:"Close"`
-	Volume         float64 `boil:"Volume" json:"Volume" toml:"Volume" yaml:"Volume"`
-	Asset          string  `boil:"Asset" json:"Asset" toml:"Asset" yaml:"Asset"`
+	ID               string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	ExchangeNameID   string      `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
+	Base             string      `boil:"Base" json:"Base" toml:"Base" yaml:"Base"`
+	Quote            string      `boil:"Quote" json:"Quote" toml:"Quote" yaml:"Quote"`
+	Interval         string      `boil:"Interval" json:"Interval" toml:"Interval" yaml:"Interval"`
+	Timestamp        string      `boil:"Timestamp" json:"Timestamp" toml:"Timestamp" yaml:"Timestamp"`
+	Open             float64     `boil:"Open" json:"Open" toml:"Open" yaml:"Open"`
+	High             float64     `boil:"High" json:"High" toml:"High" yaml:"High"`
+	Low              float64     `boil:"Low" json:"Low" toml:"Low" yaml:"Low"`
+	Close            float64     `boil:"Close" json:"Close" toml:"Close" yaml:"Close"`
+	Volume           float64     `boil:"Volume" json:"Volume" toml:"Volume" yaml:"Volume"`
+	Asset            string      `boil:"Asset" json:"Asset" toml:"Asset" yaml:"Asset"`
+	SourceJobID      null.String `boil:"source_job_id" json:"source_job_id,omitempty" toml:"source_job_id" yaml:"source_job_id,omitempty"`
+	ValidationJobID  null.String `boil:"validation_job_id" json:"validation_job_id,omitempty" toml:"validation_job_id" yaml:"validation_job_id,omitempty"`
+	ValidationIssues null.String `boil:"validation_issues" json:"validation_issues,omitempty" toml:"validation_issues" yaml:"validation_issues,omitempty"`
 
 	R *candleR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L candleL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var CandleColumns = struct {
-	ID             string
-	ExchangeNameID string
-	Base           string
-	Quote          string
-	Interval       string
-	Timestamp      string
-	Open           string
-	High           string
-	Low            string
-	Close          string
-	Volume         string
-	Asset          string
+	ID               string
+	ExchangeNameID   string
+	Base             string
+	Quote            string
+	Interval         string
+	Timestamp        string
+	Open             string
+	High             string
+	Low              string
+	Close            string
+	Volume           string
+	Asset            string
+	SourceJobID      string
+	ValidationJobID  string
+	ValidationIssues string
 }{
-	ID:             "id",
-	ExchangeNameID: "exchange_name_id",
-	Base:           "Base",
-	Quote:          "Quote",
-	Interval:       "Interval",
-	Timestamp:      "Timestamp",
-	Open:           "Open",
-	High:           "High",
-	Low:            "Low",
-	Close:          "Close",
-	Volume:         "Volume",
-	Asset:          "Asset",
+	ID:               "id",
+	ExchangeNameID:   "exchange_name_id",
+	Base:             "Base",
+	Quote:            "Quote",
+	Interval:         "Interval",
+	Timestamp:        "Timestamp",
+	Open:             "Open",
+	High:             "High",
+	Low:              "Low",
+	Close:            "Close",
+	Volume:           "Volume",
+	Asset:            "Asset",
+	SourceJobID:      "source_job_id",
+	ValidationJobID:  "validation_job_id",
+	ValidationIssues: "validation_issues",
 }
 
 // Generated where
@@ -84,44 +94,79 @@ func (w whereHelperfloat64) GTE(x float64) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
+type whereHelpernull_String struct{ field string }
+
+func (w whereHelpernull_String) EQ(x null.String) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_String) NEQ(x null.String) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_String) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_String) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+func (w whereHelpernull_String) LT(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_String) LTE(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_String) GT(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
 var CandleWhere = struct {
-	ID             whereHelperstring
-	ExchangeNameID whereHelperstring
-	Base           whereHelperstring
-	Quote          whereHelperstring
-	Interval       whereHelperstring
-	Timestamp      whereHelperstring
-	Open           whereHelperfloat64
-	High           whereHelperfloat64
-	Low            whereHelperfloat64
-	Close          whereHelperfloat64
-	Volume         whereHelperfloat64
-	Asset          whereHelperstring
+	ID               whereHelperstring
+	ExchangeNameID   whereHelperstring
+	Base             whereHelperstring
+	Quote            whereHelperstring
+	Interval         whereHelperstring
+	Timestamp        whereHelperstring
+	Open             whereHelperfloat64
+	High             whereHelperfloat64
+	Low              whereHelperfloat64
+	Close            whereHelperfloat64
+	Volume           whereHelperfloat64
+	Asset            whereHelperstring
+	SourceJobID      whereHelpernull_String
+	ValidationJobID  whereHelpernull_String
+	ValidationIssues whereHelpernull_String
 }{
-	ID:             whereHelperstring{field: "\"candle\".\"id\""},
-	ExchangeNameID: whereHelperstring{field: "\"candle\".\"exchange_name_id\""},
-	Base:           whereHelperstring{field: "\"candle\".\"Base\""},
-	Quote:          whereHelperstring{field: "\"candle\".\"Quote\""},
-	Interval:       whereHelperstring{field: "\"candle\".\"Interval\""},
-	Timestamp:      whereHelperstring{field: "\"candle\".\"Timestamp\""},
-	Open:           whereHelperfloat64{field: "\"candle\".\"Open\""},
-	High:           whereHelperfloat64{field: "\"candle\".\"High\""},
-	Low:            whereHelperfloat64{field: "\"candle\".\"Low\""},
-	Close:          whereHelperfloat64{field: "\"candle\".\"Close\""},
-	Volume:         whereHelperfloat64{field: "\"candle\".\"Volume\""},
-	Asset:          whereHelperstring{field: "\"candle\".\"Asset\""},
+	ID:               whereHelperstring{field: "\"candle\".\"id\""},
+	ExchangeNameID:   whereHelperstring{field: "\"candle\".\"exchange_name_id\""},
+	Base:             whereHelperstring{field: "\"candle\".\"Base\""},
+	Quote:            whereHelperstring{field: "\"candle\".\"Quote\""},
+	Interval:         whereHelperstring{field: "\"candle\".\"Interval\""},
+	Timestamp:        whereHelperstring{field: "\"candle\".\"Timestamp\""},
+	Open:             whereHelperfloat64{field: "\"candle\".\"Open\""},
+	High:             whereHelperfloat64{field: "\"candle\".\"High\""},
+	Low:              whereHelperfloat64{field: "\"candle\".\"Low\""},
+	Close:            whereHelperfloat64{field: "\"candle\".\"Close\""},
+	Volume:           whereHelperfloat64{field: "\"candle\".\"Volume\""},
+	Asset:            whereHelperstring{field: "\"candle\".\"Asset\""},
+	SourceJobID:      whereHelpernull_String{field: "\"candle\".\"source_job_id\""},
+	ValidationJobID:  whereHelpernull_String{field: "\"candle\".\"validation_job_id\""},
+	ValidationIssues: whereHelpernull_String{field: "\"candle\".\"validation_issues\""},
 }
 
 // CandleRels is where relationship names are stored.
 var CandleRels = struct {
-	ExchangeName string
+	ValidationJob string
+	SourceJob     string
+	ExchangeName  string
 }{
-	ExchangeName: "ExchangeName",
+	ValidationJob: "ValidationJob",
+	SourceJob:     "SourceJob",
+	ExchangeName:  "ExchangeName",
 }
 
 // candleR is where relationships are stored.
 type candleR struct {
-	ExchangeName *Exchange
+	ValidationJob *Datahistoryjob
+	SourceJob     *Datahistoryjob
+	ExchangeName  *Exchange
 }
 
 // NewStruct creates a new relationship struct
@@ -133,8 +178,8 @@ func (*candleR) NewStruct() *candleR {
 type candleL struct{}
 
 var (
-	candleAllColumns            = []string{"id", "exchange_name_id", "Base", "Quote", "Interval", "Timestamp", "Open", "High", "Low", "Close", "Volume", "Asset"}
-	candleColumnsWithoutDefault = []string{"id", "exchange_name_id", "Base", "Quote", "Interval", "Timestamp", "Open", "High", "Low", "Close", "Volume", "Asset"}
+	candleAllColumns            = []string{"id", "exchange_name_id", "Base", "Quote", "Interval", "Timestamp", "Open", "High", "Low", "Close", "Volume", "Asset", "source_job_id", "validation_job_id", "validation_issues"}
+	candleColumnsWithoutDefault = []string{"id", "exchange_name_id", "Base", "Quote", "Interval", "Timestamp", "Open", "High", "Low", "Close", "Volume", "Asset", "source_job_id", "validation_job_id", "validation_issues"}
 	candleColumnsWithDefault    = []string{}
 	candlePrimaryKeyColumns     = []string{"id"}
 )
@@ -414,6 +459,34 @@ func (q candleQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (boo
 	return count > 0, nil
 }
 
+// ValidationJob pointed to by the foreign key.
+func (o *Candle) ValidationJob(mods ...qm.QueryMod) datahistoryjobQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.ValidationJobID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Datahistoryjobs(queryMods...)
+	queries.SetFrom(query.Query, "\"datahistoryjob\"")
+
+	return query
+}
+
+// SourceJob pointed to by the foreign key.
+func (o *Candle) SourceJob(mods ...qm.QueryMod) datahistoryjobQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.SourceJobID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Datahistoryjobs(queryMods...)
+	queries.SetFrom(query.Query, "\"datahistoryjob\"")
+
+	return query
+}
+
 // ExchangeName pointed to by the foreign key.
 func (o *Candle) ExchangeName(mods ...qm.QueryMod) exchangeQuery {
 	queryMods := []qm.QueryMod{
@@ -426,6 +499,216 @@ func (o *Candle) ExchangeName(mods ...qm.QueryMod) exchangeQuery {
 	queries.SetFrom(query.Query, "\"exchange\"")
 
 	return query
+}
+
+// LoadValidationJob allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (candleL) LoadValidationJob(ctx context.Context, e boil.ContextExecutor, singular bool, maybeCandle interface{}, mods queries.Applicator) error {
+	var slice []*Candle
+	var object *Candle
+
+	if singular {
+		object = maybeCandle.(*Candle)
+	} else {
+		slice = *maybeCandle.(*[]*Candle)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &candleR{}
+		}
+		if !queries.IsNil(object.ValidationJobID) {
+			args = append(args, object.ValidationJobID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &candleR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ValidationJobID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.ValidationJobID) {
+				args = append(args, obj.ValidationJobID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`datahistoryjob`), qm.WhereIn(`datahistoryjob.id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Datahistoryjob")
+	}
+
+	var resultSlice []*Datahistoryjob
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Datahistoryjob")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for datahistoryjob")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for datahistoryjob")
+	}
+
+	if len(candleAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.ValidationJob = foreign
+		if foreign.R == nil {
+			foreign.R = &datahistoryjobR{}
+		}
+		foreign.R.ValidationJobCandles = append(foreign.R.ValidationJobCandles, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.ValidationJobID, foreign.ID) {
+				local.R.ValidationJob = foreign
+				if foreign.R == nil {
+					foreign.R = &datahistoryjobR{}
+				}
+				foreign.R.ValidationJobCandles = append(foreign.R.ValidationJobCandles, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadSourceJob allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (candleL) LoadSourceJob(ctx context.Context, e boil.ContextExecutor, singular bool, maybeCandle interface{}, mods queries.Applicator) error {
+	var slice []*Candle
+	var object *Candle
+
+	if singular {
+		object = maybeCandle.(*Candle)
+	} else {
+		slice = *maybeCandle.(*[]*Candle)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &candleR{}
+		}
+		if !queries.IsNil(object.SourceJobID) {
+			args = append(args, object.SourceJobID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &candleR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.SourceJobID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.SourceJobID) {
+				args = append(args, obj.SourceJobID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`datahistoryjob`), qm.WhereIn(`datahistoryjob.id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Datahistoryjob")
+	}
+
+	var resultSlice []*Datahistoryjob
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Datahistoryjob")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for datahistoryjob")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for datahistoryjob")
+	}
+
+	if len(candleAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.SourceJob = foreign
+		if foreign.R == nil {
+			foreign.R = &datahistoryjobR{}
+		}
+		foreign.R.SourceJobCandles = append(foreign.R.SourceJobCandles, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.SourceJobID, foreign.ID) {
+				local.R.SourceJob = foreign
+				if foreign.R == nil {
+					foreign.R = &datahistoryjobR{}
+				}
+				foreign.R.SourceJobCandles = append(foreign.R.SourceJobCandles, local)
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadExchangeName allows an eager lookup of values, cached into the
@@ -526,6 +809,162 @@ func (candleL) LoadExchangeName(ctx context.Context, e boil.ContextExecutor, sin
 		}
 	}
 
+	return nil
+}
+
+// SetValidationJob of the candle to the related item.
+// Sets o.R.ValidationJob to related.
+// Adds o to related.R.ValidationJobCandles.
+func (o *Candle) SetValidationJob(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Datahistoryjob) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"candle\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 0, []string{"validation_job_id"}),
+		strmangle.WhereClause("\"", "\"", 0, candlePrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.ValidationJobID, related.ID)
+	if o.R == nil {
+		o.R = &candleR{
+			ValidationJob: related,
+		}
+	} else {
+		o.R.ValidationJob = related
+	}
+
+	if related.R == nil {
+		related.R = &datahistoryjobR{
+			ValidationJobCandles: CandleSlice{o},
+		}
+	} else {
+		related.R.ValidationJobCandles = append(related.R.ValidationJobCandles, o)
+	}
+
+	return nil
+}
+
+// RemoveValidationJob relationship.
+// Sets o.R.ValidationJob to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *Candle) RemoveValidationJob(ctx context.Context, exec boil.ContextExecutor, related *Datahistoryjob) error {
+	var err error
+
+	queries.SetScanner(&o.ValidationJobID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("validation_job_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.R.ValidationJob = nil
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.ValidationJobCandles {
+		if queries.Equal(o.ValidationJobID, ri.ValidationJobID) {
+			continue
+		}
+
+		ln := len(related.R.ValidationJobCandles)
+		if ln > 1 && i < ln-1 {
+			related.R.ValidationJobCandles[i] = related.R.ValidationJobCandles[ln-1]
+		}
+		related.R.ValidationJobCandles = related.R.ValidationJobCandles[:ln-1]
+		break
+	}
+	return nil
+}
+
+// SetSourceJob of the candle to the related item.
+// Sets o.R.SourceJob to related.
+// Adds o to related.R.SourceJobCandles.
+func (o *Candle) SetSourceJob(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Datahistoryjob) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"candle\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 0, []string{"source_job_id"}),
+		strmangle.WhereClause("\"", "\"", 0, candlePrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.SourceJobID, related.ID)
+	if o.R == nil {
+		o.R = &candleR{
+			SourceJob: related,
+		}
+	} else {
+		o.R.SourceJob = related
+	}
+
+	if related.R == nil {
+		related.R = &datahistoryjobR{
+			SourceJobCandles: CandleSlice{o},
+		}
+	} else {
+		related.R.SourceJobCandles = append(related.R.SourceJobCandles, o)
+	}
+
+	return nil
+}
+
+// RemoveSourceJob relationship.
+// Sets o.R.SourceJob to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *Candle) RemoveSourceJob(ctx context.Context, exec boil.ContextExecutor, related *Datahistoryjob) error {
+	var err error
+
+	queries.SetScanner(&o.SourceJobID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("source_job_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.R.SourceJob = nil
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.SourceJobCandles {
+		if queries.Equal(o.SourceJobID, ri.SourceJobID) {
+			continue
+		}
+
+		ln := len(related.R.SourceJobCandles)
+		if ln > 1 && i < ln-1 {
+			related.R.SourceJobCandles[i] = related.R.SourceJobCandles[ln-1]
+		}
+		related.R.SourceJobCandles = related.R.SourceJobCandles[:ln-1]
+		break
+	}
 	return nil
 }
 
