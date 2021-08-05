@@ -461,19 +461,20 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint st
 		return err
 	}
 
-	// The concatenation is done this way because BTSE expect endpoint+nonce or endpoint+nonce+body
-	// when signing the data but the full path of the request  is /spot/api/v3.2/<endpoint>
-	// its messy but it works and supports futures as well
-	host := ePoint
-	if isSpot {
-		host += btseSPOTPath + btseSPOTAPIPath + endpoint
-		endpoint = btseSPOTAPIPath + endpoint
-	} else {
-		host += btseFuturesPath + btseFuturesAPIPath
-		endpoint += btseFuturesAPIPath
-	}
-
 	newRequest := func() (*request.Item, error) {
+		// The concatenation is done this way because BTSE expect endpoint+nonce or endpoint+nonce+body
+		// when signing the data but the full path of the request  is /spot/api/v3.2/<endpoint>
+		// its messy but it works and supports futures as well
+		host := ePoint
+		var expandedEndpoint string
+		if isSpot {
+			host += btseSPOTPath + btseSPOTAPIPath + endpoint
+			expandedEndpoint = btseSPOTAPIPath + endpoint
+		} else {
+			host += btseFuturesPath + btseFuturesAPIPath
+			expandedEndpoint = endpoint + btseFuturesAPIPath
+		}
+
 		var hmac []byte
 		var body io.Reader
 		nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
@@ -489,14 +490,14 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint st
 			body = bytes.NewBuffer(reqPayload)
 			hmac = crypto.GetHMAC(
 				crypto.HashSHA512_384,
-				[]byte((endpoint + nonce + string(reqPayload))),
+				[]byte((expandedEndpoint + nonce + string(reqPayload))),
 				[]byte(b.API.Credentials.Secret),
 			)
 			headers["Content-Type"] = "application/json"
 		} else {
 			hmac = crypto.GetHMAC(
 				crypto.HashSHA512_384,
-				[]byte((endpoint + nonce)),
+				[]byte((expandedEndpoint + nonce)),
 				[]byte(b.API.Credentials.Secret),
 			)
 			if len(values) > 0 {
