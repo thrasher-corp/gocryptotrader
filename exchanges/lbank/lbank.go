@@ -583,7 +583,6 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 		Method:        method,
 		Path:          endpoint,
 		Headers:       headers,
-		Body:          bytes.NewBufferString(payload),
 		Result:        result,
 		AuthRequest:   true,
 		Verbose:       l.Verbose,
@@ -592,6 +591,7 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 	}
 
 	return l.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		item.Body = bytes.NewBufferString(payload)
 		return item, nil
 	})
 }
