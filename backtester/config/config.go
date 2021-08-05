@@ -49,16 +49,31 @@ func (c *Config) PrintSetting() {
 		log.Info(log.BackTester, "Custom strategy variables: unset")
 	}
 	log.Infof(log.BackTester, "Simultaneous Signal Processing: %v", c.StrategySettings.SimultaneousSignalProcessing)
+	log.Infof(log.BackTester, "Use Exchange Level Funding: %v", c.StrategySettings.UseExchangeLevelFunding)
+	if c.StrategySettings.UseExchangeLevelFunding && c.StrategySettings.SimultaneousSignalProcessing {
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Info(log.BackTester, "------------------Funding Settings---------------------------")
+		for i := range c.StrategySettings.ExchangeLevelFunding {
+			log.Infof(log.BackTester, "Initial funds for %v %v %v: %v",
+				c.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
+				c.StrategySettings.ExchangeLevelFunding[i].Asset,
+				c.StrategySettings.ExchangeLevelFunding[i].Quote,
+				c.StrategySettings.ExchangeLevelFunding[i].InitialFunds)
+		}
+	}
+
 	for i := range c.CurrencySettings {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		currStr := fmt.Sprintf("------------------%v %v-%v Settings---------------------------------------------------------",
+		currStr := fmt.Sprintf("------------------%v %v-%v Currency Settings---------------------------------------------------------",
 			c.CurrencySettings[i].Asset,
 			c.CurrencySettings[i].Base,
 			c.CurrencySettings[i].Quote)
 		log.Infof(log.BackTester, currStr[:61])
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Infof(log.BackTester, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
-		log.Infof(log.BackTester, "Initial funds: %.4f", c.CurrencySettings[i].InitialFunds)
+		if !c.StrategySettings.UseExchangeLevelFunding {
+			log.Infof(log.BackTester, "Initial funds: %.4f", c.CurrencySettings[i].InitialFunds)
+		}
 		log.Infof(log.BackTester, "Maker fee: %.2f", c.CurrencySettings[i].TakerFee)
 		log.Infof(log.BackTester, "Taker fee: %.2f", c.CurrencySettings[i].MakerFee)
 		log.Infof(log.BackTester, "Minimum slippage percent %.2f", c.CurrencySettings[i].MinimumSlippagePercent)
@@ -68,6 +83,7 @@ func (c *Config) PrintSetting() {
 		log.Infof(log.BackTester, "Leverage rules: %+v", c.CurrencySettings[i].Leverage)
 		log.Infof(log.BackTester, "Can use exchange defined order execution limits: %+v", c.CurrencySettings[i].CanUseExchangeLimits)
 	}
+
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Info(log.BackTester, "------------------Portfolio Settings-------------------------")
 	log.Info(log.BackTester, "-------------------------------------------------------------")
@@ -163,7 +179,7 @@ func (c *Config) ValidateCurrencySettings() error {
 		return ErrNoCurrencySettings
 	}
 	for i := range c.CurrencySettings {
-		if c.CurrencySettings[i].InitialFunds <= 0 {
+		if c.CurrencySettings[i].InitialFunds <= 0 && !c.StrategySettings.UseExchangeLevelFunding {
 			return ErrBadInitialFunds
 		}
 		if c.CurrencySettings[i].Base == "" {

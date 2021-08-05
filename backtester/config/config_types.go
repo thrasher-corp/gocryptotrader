@@ -48,7 +48,24 @@ type DataSettings struct {
 type StrategySettings struct {
 	Name                         string                 `json:"name"`
 	SimultaneousSignalProcessing bool                   `json:"use-simultaneous-signal-processing"`
+	UseExchangeLevelFunding      bool                   `json:"use-exchange-level-funding"`
+	ExchangeLevelFunding         []ExchangeLevelFunding `json:"exchange-level-funding"`
 	CustomSettings               map[string]interface{} `json:"custom-settings"`
+}
+
+// ExchangeLevelFunding allows the portfolio manager to access
+// a shared pool. For example, The base currencies BTC and LTC can both
+// access the same USDT funding to make purchasing decisions
+// Similarly, when a BTC is sold, LTC can now utilise the increased funding
+// Importantly, exchange level funding is all-inclusive, you cannot have it for only some uses
+// It also is required to use SimultaneousSignalProcessing, otherwise the first currency processed
+// will have dibs
+type ExchangeLevelFunding struct {
+	ExchangeName string `json:"exchange-name"`
+	Asset        string `json:"asset"`
+	Quote        string `json:"quote"`
+
+	InitialFunds float64 `json:"initial-funds"`
 }
 
 // StatisticSettings holds configurable varialbes to adjust ratios where

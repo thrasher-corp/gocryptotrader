@@ -33,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -104,6 +105,29 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		SellSide: sellRule,
 	}
 
+	funds := funding.Funderoo{
+		ExchangeLevelFunding: cfg.StrategySettings.UseExchangeLevelFunding,
+	}
+	useExchangeLevelFunding := cfg.StrategySettings.UseExchangeLevelFunding
+	if useExchangeLevelFunding {
+		if !cfg.StrategySettings.SimultaneousSignalProcessing {
+			return nil, errors.New("Woah nelly!")
+		}
+		for i := range cfg.StrategySettings.ExchangeLevelFunding {
+			a, err := asset.New(cfg.StrategySettings.ExchangeLevelFunding[i].Asset)
+			if err != nil {
+				return nil, err
+			}
+			cq := currency.NewCode(cfg.StrategySettings.ExchangeLevelFunding[i].Quote)
+			funds.Fundos = append(funds.Fundos, funding.Funderino{
+				Exchange: cfg.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
+				Funding:  cfg.StrategySettings.ExchangeLevelFunding[i].InitialFunds,
+				Asset:    a,
+				Quote:    cq,
+			})
+		}
+	}
+
 	portfolioRisk := &risk.Risk{
 		CurrencySettings: make(map[string]map[asset.Item]map[currency.Pair]*risk.CurrencySettings),
 	}
@@ -159,7 +183,24 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				cfg.CurrencySettings[i].MakerFee,
 				cfg.CurrencySettings[i].TakerFee)
 		}
+
+		if !useExchangeLevelFunding {
+			a, err := asset.New(cfg.CurrencySettings[i].Asset)
+			if err != nil {
+				return nil, err
+			}
+			cq := currency.NewCode(cfg.CurrencySettings[i].Quote)
+			cb := currency.NewCode(cfg.CurrencySettings[i].Base)
+			funds.Fundos = append(funds.Fundos, funding.Funderino{
+				Exchange: cfg.CurrencySettings[i].ExchangeName,
+				Funding:  cfg.CurrencySettings[i].InitialFunds,
+				Asset:    a,
+				Base:     cb,
+				Quote:    cq,
+			})
+		}
 	}
+	bt.Funding = funds
 	var p *portfolio.Portfolio
 	p, err = portfolio.Setup(sizeManager, portfolioRisk, cfg.StatisticSettings.RiskFreeRate)
 	if err != nil {
@@ -841,7 +882,7 @@ func (bt *BackTest) processSignalEvent(ev signal.Event) {
 
 func (bt *BackTest) processOrderEvent(ev order.Event) {
 	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.Bot)
+	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.Bot, bt.Funding.GetFundingForEvent(ev))
 	if err != nil {
 		if f == nil {
 			log.Errorf(log.BackTester, "fill event should always be returned, please fix, %v", err)
