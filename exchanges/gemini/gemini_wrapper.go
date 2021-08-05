@@ -317,7 +317,7 @@ func (g *Gemini) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Amount
-		exchangeCurrency.Hold = accountBalance[i].Available
+		exchangeCurrency.Hold = accountBalance[i].Amount - accountBalance[i].Available
 		currencies = append(currencies, exchangeCurrency)
 	}
 

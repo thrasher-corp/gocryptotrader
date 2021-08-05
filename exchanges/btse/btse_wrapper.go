@@ -392,7 +392,7 @@ func (b *BTSE) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error)
 			account.Balance{
 				CurrencyName: currency.NewCode(balance[b].Currency),
 				TotalValue:   balance[b].Total,
-				Hold:         balance[b].Available,
+				Hold:         balance[b].Total - balance[b].Available,
 			},
 		)
 	}
