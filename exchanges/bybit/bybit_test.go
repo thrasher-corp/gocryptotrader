@@ -58,8 +58,25 @@ func areTestAPIKeysSet() bool {
 
 func TestGetAllPairs(t *testing.T) {
 	by.Verbose = true
-	_, err := by.GetAllPairs()
+	r, err := by.GetAllPairs()
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log(r)
+}
+
+func TestGetOrderBook(t *testing.T) {
+	r, err := by.GetOrderBook("BTCUSDT", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(r)
+}
+
+func TestGetTrades(t *testing.T) {
+	r, err := by.GetTrades("BTCUSDT", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(r)
 }
