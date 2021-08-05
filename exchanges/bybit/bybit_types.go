@@ -1,6 +1,14 @@
 package bybit
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+var (
+	errTypeAssert = errors.New("type assertion failed")
+	errStrParsing = errors.New("parsing string failed")
+)
 
 // PairData stores pair data
 type PairData struct {
@@ -39,4 +47,19 @@ type TradeItem struct {
 	Side         string
 	Volume       float64
 	TradeTime    time.Time
+}
+
+// KlineItem stores an individual kline data item
+type KlineItem struct {
+	StartTime        time.Time
+	EndTime          time.Time
+	Open             float64
+	Close            float64
+	High             float64
+	Low              float64
+	Volume           float64
+	QuoteAssetVolume float64
+	TakerBaseVolume  float64
+	TakerQuoteVolume float64
+	TradesCount      int64
 }

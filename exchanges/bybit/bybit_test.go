@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -75,6 +76,14 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	r, err := by.GetTrades("BTCUSDT", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(r)
+}
+
+func TestGetKlines(t *testing.T) {
+	r, err := by.GetKlines("BTCUSDT", "5m", 2000, time.Now().Add(-time.Hour*1), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
