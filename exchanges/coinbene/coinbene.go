@@ -1133,11 +1133,10 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 
 	var resp json.RawMessage
 	newRequest := func() (*request.Item, error) {
-		now := time.Now()
-		timestamp := now.UTC().Format("2006-01-02T15:04:05.999Z")
+		timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999Z")
 		var finalBody io.Reader
 		var preSign string
-		var fullPath string
+		var fullPath = path
 		switch {
 		case params != nil && method == http.MethodGet:
 			p, ok := params.(url.Values)
