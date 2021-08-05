@@ -1573,17 +1573,18 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ep exchange.URL, method, path 
 	if err != nil {
 		return err
 	}
-	var body io.Reader
-	var payload []byte
-	if len(params) != 0 {
-		payload, err = json.Marshal(params)
-		if err != nil {
-			return err
-		}
-		body = bytes.NewBuffer(payload)
-	}
 
 	return b.SendPayload(context.Background(), endpoint, func() (*request.Item, error) {
+		var body io.Reader
+		var payload []byte
+		if len(params) != 0 {
+			payload, err = json.Marshal(params)
+			if err != nil {
+				return nil, err
+			}
+			body = bytes.NewBuffer(payload)
+		}
+
 		// This is done in a weird way because bitfinex doesn't accept unixnano
 		n := strconv.FormatInt(int64(b.Requester.GetNonce(false))*1e9, 10)
 		headers := make(map[string]string)

@@ -558,7 +558,6 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint 
 		Method:        method,
 		Path:          path,
 		Headers:       headers,
-		Body:          bytes.NewBufferString(values.Encode()),
 		Result:        result,
 		AuthRequest:   true,
 		Verbose:       h.Verbose,
@@ -567,6 +566,7 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint 
 	}
 
 	return h.SendPayload(context.Background(), f, func() (*request.Item, error) {
+		item.Body = bytes.NewBufferString(values.Encode())
 		return item, nil
 	})
 }

@@ -314,7 +314,6 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 	}
 
 	PayloadJSON := []byte("")
-
 	if params != nil {
 		PayloadJSON, err = json.Marshal(req)
 		if err != nil {
