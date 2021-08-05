@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	zbTradeURL                        = "http://api.zb.live"
-	zbMarketURL                       = "https://trade.zb.live/api"
+	zbTradeURL                        = "http://api.zb.land"
+	zbMarketURL                       = "https://trade.zb.land/api"
 	zbAPIVersion                      = "v1"
 	zbData                            = "data"
 	zbAccountInfo                     = "getAccountInfo"
