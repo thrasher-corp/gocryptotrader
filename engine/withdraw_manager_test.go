@@ -2,13 +2,13 @@ package engine
 
 import (
 	"errors"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	dbWithdraw "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
@@ -167,12 +167,11 @@ func TestWithdrawalEventByExchange(t *testing.T) {
 	}
 
 	_, err = m.WithdrawalEventByExchange(exchangeName, 1)
-	if os.Getenv("POSTGRES_DB") != "" {
-		if !errors.Is(err, nil) {
-			t.Errorf("received: %v but expected: %v", err, nil)
-		}
-	} else if err == nil {
-		t.Errorf("received: %v but expected: %v", err, nil)
+	if !errors.Is(err, nil) && !errors.Is(err, dbWithdraw.ErrNoResults) {
+		t.Errorf("received: %v but due to racing to populate the database expected either: %v or %v",
+			err,
+			nil,
+			dbWithdraw.ErrNoResults)
 	}
 }
 
@@ -199,12 +198,11 @@ func TestWithdrawEventByDate(t *testing.T) {
 	}
 
 	_, err = m.WithdrawEventByDate(exchangeName, time.Now(), time.Now(), 1)
-	if os.Getenv("POSTGRES_DB") != "" {
-		if !errors.Is(err, nil) {
-			t.Errorf("received: %v but expected: %v", err, nil)
-		}
-	} else if err == nil {
-		t.Errorf("received: %v but expected: %v", err, nil)
+	if !errors.Is(err, nil) && !errors.Is(err, dbWithdraw.ErrNoResults) {
+		t.Errorf("received: %v but due to racing to populate the database expected either: %v or %v",
+			err,
+			nil,
+			dbWithdraw.ErrNoResults)
 	}
 }
 
@@ -231,11 +229,10 @@ func TestWithdrawalEventByExchangeID(t *testing.T) {
 	}
 
 	_, err = m.WithdrawalEventByExchangeID(exchangeName, exchangeName)
-	if os.Getenv("POSTGRES_DB") != "" {
-		if !errors.Is(err, nil) {
-			t.Errorf("received: %v but expected: %v", err, nil)
-		}
-	} else if err == nil {
-		t.Errorf("received: %v but expected: %v", err, nil)
+	if !errors.Is(err, nil) && !errors.Is(err, dbWithdraw.ErrNoResults) {
+		t.Errorf("received: %v but due to racing to populate the database expected either: %v or %v",
+			err,
+			nil,
+			dbWithdraw.ErrNoResults)
 	}
 }
