@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -150,9 +151,28 @@ func TestWithdrawalEventByExchange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	_, err = (*WithdrawManager)(nil).WithdrawalEventByExchange("xxx", 0)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received: %v but expected: %v",
+			err,
+			ErrNilSubsystem)
+	}
+
+	_, err = m.WithdrawalEventByExchange("xxx", 0)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received: %v but expected: %v",
+			err,
+			ErrExchangeNotFound)
+	}
+
 	_, err = m.WithdrawalEventByExchange(exchangeName, 1)
-	if err == nil {
-		t.Error(err)
+	if os.Getenv("POSTGRES_DB") != "" {
+		if !errors.Is(err, nil) {
+			t.Errorf("received: %v but expected: %v", err, nil)
+		}
+	} else if err == nil {
+		t.Errorf("received: %v but expected: %v", err, nil)
 	}
 }
 
@@ -163,9 +183,28 @@ func TestWithdrawEventByDate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	_, err = (*WithdrawManager)(nil).WithdrawEventByDate("xxx", time.Now(), time.Now(), 1)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received: %v but expected: %v",
+			err,
+			ErrNilSubsystem)
+	}
+
+	_, err = m.WithdrawEventByDate("xxx", time.Now(), time.Now(), 1)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received: %v but expected: %v",
+			err,
+			ErrExchangeNotFound)
+	}
+
 	_, err = m.WithdrawEventByDate(exchangeName, time.Now(), time.Now(), 1)
-	if err == nil {
-		t.Error(err)
+	if os.Getenv("POSTGRES_DB") != "" {
+		if !errors.Is(err, nil) {
+			t.Errorf("received: %v but expected: %v", err, nil)
+		}
+	} else if err == nil {
+		t.Errorf("received: %v but expected: %v", err, nil)
 	}
 }
 
@@ -176,8 +215,27 @@ func TestWithdrawalEventByExchangeID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	_, err = (*WithdrawManager)(nil).WithdrawalEventByExchangeID("xxx", "xxx")
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received: %v but expected: %v",
+			err,
+			ErrNilSubsystem)
+	}
+
+	_, err = m.WithdrawalEventByExchangeID("xxx", "xxx")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received: %v but expected: %v",
+			err,
+			ErrExchangeNotFound)
+	}
+
 	_, err = m.WithdrawalEventByExchangeID(exchangeName, exchangeName)
-	if err == nil {
-		t.Error(err)
+	if os.Getenv("POSTGRES_DB") != "" {
+		if !errors.Is(err, nil) {
+			t.Errorf("received: %v but expected: %v", err, nil)
+		}
+	} else if err == nil {
+		t.Errorf("received: %v but expected: %v", err, nil)
 	}
 }
