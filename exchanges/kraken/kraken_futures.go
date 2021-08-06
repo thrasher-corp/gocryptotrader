@@ -264,40 +264,45 @@ func (k *Kraken) SendFuturesAuthRequest(method, path string, postData url.Values
 	if postData == nil {
 		postData = url.Values{}
 	}
-	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	reqData := ""
-	if len(data) > 0 {
-		temp, err := json.Marshal(data)
-		if err != nil {
-			return err
-		}
-		postData.Add("json", string(temp))
-		reqData = "json=" + string(temp)
-	}
-	sig := k.signFuturesRequest(path, nonce, reqData)
-	headers := map[string]string{
-		"APIKey":  k.API.Credentials.Key,
-		"Authent": sig,
-		"Nonce":   nonce,
-	}
+
 	interim := json.RawMessage{}
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute))
-	defer cancel()
-	err := k.SendPayload(ctx, &request.Item{
-		Method:        method,
-		Path:          futuresURL + common.EncodeURLValues(path, postData),
-		Headers:       headers,
-		Result:        &interim,
-		AuthRequest:   true,
-		Verbose:       k.Verbose,
-		HTTPDebugging: k.HTTPDebugging,
-		HTTPRecording: k.HTTPRecording,
-	})
+	newRequest := func() (*request.Item, error) {
+		nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+		reqData := ""
+		if len(data) > 0 {
+			temp, err := json.Marshal(data)
+			if err != nil {
+				return nil, err
+			}
+			postData.Set("json", string(temp))
+			reqData = "json=" + string(temp)
+		}
+		sig := k.signFuturesRequest(path, nonce, reqData)
+		headers := map[string]string{
+			"APIKey":  k.API.Credentials.Key,
+			"Authent": sig,
+			"Nonce":   nonce,
+		}
+
+		return &request.Item{
+			Method:        method,
+			Path:          futuresURL + common.EncodeURLValues(path, postData),
+			Headers:       headers,
+			Result:        &interim,
+			AuthRequest:   true,
+			Verbose:       k.Verbose,
+			HTTPDebugging: k.HTTPDebugging,
+			HTTPRecording: k.HTTPRecording,
+		}, nil
+	}
+
+	err := k.SendPayload(context.Background(), request.Unset, newRequest)
 	if err != nil {
 		return err
 	}
+
 	var errCap AuthErrorData
-	if err := json.Unmarshal(interim, &errCap); err == nil {
+	if err = json.Unmarshal(interim, &errCap); err == nil {
 		if errCap.Result != "success" && errCap.Error != "" {
 			return errors.New(errCap.Error)
 		}

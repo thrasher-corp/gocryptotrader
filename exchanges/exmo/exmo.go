@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -305,13 +304,17 @@ func (e *EXMO) SendHTTPRequest(endpoint exchange.URL, path string, result interf
 	if err != nil {
 		return err
 	}
-	return e.SendPayload(context.Background(), &request.Item{
+
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          urlPath + path,
 		Result:        result,
 		Verbose:       e.Verbose,
 		HTTPDebugging: e.HTTPDebugging,
 		HTTPRecording: e.HTTPRecording,
+	}
+	return e.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
@@ -326,39 +329,34 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(epath exchange.URL, method, endpoint
 		return err
 	}
 
-	n := e.Requester.GetNonce(true).String()
-	vals.Set("nonce", n)
+	path := urlPath + fmt.Sprintf("/v%s/%s", exmoAPIVersion, endpoint)
 
-	payload := vals.Encode()
-	hash := crypto.GetHMAC(crypto.HashSHA512,
-		[]byte(payload),
-		[]byte(e.API.Credentials.Secret))
+	return e.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		n := e.Requester.GetNonce(true).String()
+		vals.Set("nonce", n)
 
-	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "Sending %s request to %s with params %s\n",
-			method,
-			endpoint,
-			payload)
-	}
+		payload := vals.Encode()
+		hash := crypto.GetHMAC(crypto.HashSHA512,
+			[]byte(payload),
+			[]byte(e.API.Credentials.Secret))
 
-	headers := make(map[string]string)
-	headers["Key"] = e.API.Credentials.Key
-	headers["Sign"] = crypto.HexEncodeToString(hash)
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
+		headers := make(map[string]string)
+		headers["Key"] = e.API.Credentials.Key
+		headers["Sign"] = crypto.HexEncodeToString(hash)
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	path := fmt.Sprintf("/v%s/%s", exmoAPIVersion, endpoint)
-
-	return e.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          urlPath + path,
-		Headers:       headers,
-		Body:          strings.NewReader(payload),
-		Result:        result,
-		AuthRequest:   true,
-		NonceEnabled:  true,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		return &request.Item{
+			Method:        method,
+			Path:          path,
+			Headers:       headers,
+			Body:          strings.NewReader(payload),
+			Result:        result,
+			AuthRequest:   true,
+			NonceEnabled:  true,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
+		}, nil
 	})
 }
 

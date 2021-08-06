@@ -463,13 +463,16 @@ func (b *Bithumb) SendHTTPRequest(ep exchange.URL, path string, result interface
 	if err != nil {
 		return err
 	}
-	return b.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
+	}
+	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
@@ -486,47 +489,47 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, par
 		params = url.Values{}
 	}
 
-	// This is time window sensitive
-	tnMS := time.Now().UnixNano() / int64(time.Millisecond)
-	n := strconv.FormatInt(tnMS, 10)
-
-	params.Set("endpoint", path)
-	payload := params.Encode()
-	hmacPayload := path + string('\x00') + payload + string('\x00') + n
-	hmac := crypto.GetHMAC(crypto.HashSHA512,
-		[]byte(hmacPayload),
-		[]byte(b.API.Credentials.Secret))
-	hmacStr := crypto.HexEncodeToString(hmac)
-
-	headers := make(map[string]string)
-	headers["Api-Key"] = b.API.Credentials.Key
-	headers["Api-Sign"] = crypto.Base64Encode([]byte(hmacStr))
-	headers["Api-Nonce"] = n
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
-
 	var intermediary json.RawMessage
+	err = b.SendPayload(context.Background(), request.Auth, func() (*request.Item, error) {
+		// This is time window sensitive
+		tnMS := time.Now().UnixNano() / int64(time.Millisecond)
+		n := strconv.FormatInt(tnMS, 10)
+
+		params.Set("endpoint", path)
+
+		payload := params.Encode()
+		hmacPayload := path + string('\x00') + payload + string('\x00') + n
+		hmac := crypto.GetHMAC(crypto.HashSHA512,
+			[]byte(hmacPayload),
+			[]byte(b.API.Credentials.Secret))
+		hmacStr := crypto.HexEncodeToString(hmac)
+
+		headers := make(map[string]string)
+		headers["Api-Key"] = b.API.Credentials.Key
+		headers["Api-Sign"] = crypto.Base64Encode([]byte(hmacStr))
+		headers["Api-Nonce"] = n
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+		return &request.Item{
+			Method:        http.MethodPost,
+			Path:          endpoint + path,
+			Headers:       headers,
+			Body:          bytes.NewBufferString(payload),
+			Result:        &intermediary,
+			AuthRequest:   true,
+			NonceEnabled:  true,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording}, nil
+	})
+	if err != nil {
+		return err
+	}
 
 	errCapture := struct {
 		Status  string `json:"status"`
 		Message string `json:"message"`
 	}{}
-
-	err = b.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodPost,
-		Path:          endpoint + path,
-		Headers:       headers,
-		Body:          bytes.NewBufferString(payload),
-		Result:        &intermediary,
-		AuthRequest:   true,
-		NonceEnabled:  true,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-		Endpoint:      request.Auth})
-	if err != nil {
-		return err
-	}
-
 	err = json.Unmarshal(intermediary, &errCapture)
 	if err == nil {
 		if errCapture.Status != "" && errCapture.Status != noError {

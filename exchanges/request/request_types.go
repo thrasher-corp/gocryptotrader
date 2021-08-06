@@ -56,7 +56,6 @@ type Item struct {
 	// HeaderResponse for inspection of header contents package side useful for
 	// pagination
 	HeaderResponse *http.Header
-	Endpoint       EndpointLimit
 }
 
 // Backoff determines how long to wait between request attempts.
@@ -67,3 +66,9 @@ type RetryPolicy func(resp *http.Response, err error) (bool, error)
 
 // RequesterOption is a function option that can be applied to configure a Requester when creating it.
 type RequesterOption func(*Requester)
+
+// Generate defines a closure for functionality outside of the requester to
+// to generate new *http.Request on every attempt. This minimizes the chance of
+// being outside of receive window if application rate limiting reduces outbound
+// requests.
+type Generate func() (*Item, error)

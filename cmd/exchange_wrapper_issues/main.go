@@ -40,6 +40,7 @@ func main() {
 		log.Fatalf("Failed to initialise engine. Err: %s", err)
 	}
 	engine.Bot = bot
+	bot.ExchangeManager = engine.SetupExchangeManager()
 
 	bot.Settings = engine.Settings{
 		DisableExchangeAutoPairUpdates: true,

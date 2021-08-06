@@ -683,13 +683,16 @@ func (b *BTCMarkets) CancelBatch(ids []string) (BatchCancelResponse, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
+	}
+	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
@@ -699,52 +702,51 @@ func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result 
 		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
-	now := time.Now()
-	strTime := strconv.FormatInt(now.UTC().UnixNano()/1000000, 10)
+	newRequest := func() (*request.Item, error) {
+		now := time.Now()
+		strTime := strconv.FormatInt(now.UTC().UnixNano()/1000000, 10)
 
-	var body io.Reader
-	var payload, hmac []byte
-	switch data.(type) {
-	case map[string]interface{}, []interface{}:
-		payload, err = json.Marshal(data)
-		if err != nil {
-			return err
+		var body io.Reader
+		var payload, hmac []byte
+		switch data.(type) {
+		case map[string]interface{}, []interface{}:
+			payload, err = json.Marshal(data)
+			if err != nil {
+				return nil, err
+			}
+			body = bytes.NewBuffer(payload)
+			strMsg := method + btcMarketsAPIVersion + path + strTime + string(payload)
+			hmac = crypto.GetHMAC(crypto.HashSHA512,
+				[]byte(strMsg), []byte(b.API.Credentials.Secret))
+		default:
+			strArray := strings.Split(path, "?")
+			hmac = crypto.GetHMAC(crypto.HashSHA512,
+				[]byte(method+btcMarketsAPIVersion+strArray[0]+strTime),
+				[]byte(b.API.Credentials.Secret))
 		}
-		body = bytes.NewBuffer(payload)
-		strMsg := method + btcMarketsAPIVersion + path + strTime + string(payload)
-		hmac = crypto.GetHMAC(crypto.HashSHA512,
-			[]byte(strMsg), []byte(b.API.Credentials.Secret))
-	default:
-		strArray := strings.Split(path, "?")
-		hmac = crypto.GetHMAC(crypto.HashSHA512,
-			[]byte(method+btcMarketsAPIVersion+strArray[0]+strTime),
-			[]byte(b.API.Credentials.Secret))
+
+		headers := make(map[string]string)
+		headers["Accept"] = "application/json"
+		headers["Accept-Charset"] = "UTF-8"
+		headers["Content-Type"] = "application/json"
+		headers["BM-AUTH-APIKEY"] = b.API.Credentials.Key
+		headers["BM-AUTH-TIMESTAMP"] = strTime
+		headers["BM-AUTH-SIGNATURE"] = crypto.Base64Encode(hmac)
+
+		return &request.Item{
+			Method:        method,
+			Path:          btcMarketsAPIURL + btcMarketsAPIVersion + path,
+			Headers:       headers,
+			Body:          body,
+			Result:        result,
+			AuthRequest:   true,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	}
 
-	headers := make(map[string]string)
-	headers["Accept"] = "application/json"
-	headers["Accept-Charset"] = "UTF-8"
-	headers["Content-Type"] = "application/json"
-	headers["BM-AUTH-APIKEY"] = b.API.Credentials.Key
-	headers["BM-AUTH-TIMESTAMP"] = strTime
-	headers["BM-AUTH-SIGNATURE"] = crypto.Base64Encode(hmac)
-
-	// The timestamp included with an authenticated request must be within +/- 30 seconds of the server timestamp
-	ctx, cancel := context.WithDeadline(context.Background(), now.Add(30*time.Second))
-	defer cancel()
-	return b.SendPayload(ctx, &request.Item{
-		Method:        method,
-		Path:          btcMarketsAPIURL + btcMarketsAPIVersion + path,
-		Headers:       headers,
-		Body:          body,
-		Result:        result,
-		AuthRequest:   true,
-		NonceEnabled:  false,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-		Endpoint:      f,
-	})
+	return b.SendPayload(context.Background(), f, newRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

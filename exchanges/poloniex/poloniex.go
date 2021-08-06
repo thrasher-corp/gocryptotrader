@@ -834,13 +834,18 @@ func (p *Poloniex) SendHTTPRequest(ep exchange.URL, path string, result interfac
 	if err != nil {
 		return err
 	}
-	return p.SendPayload(context.Background(), &request.Item{
+
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       p.Verbose,
 		HTTPDebugging: p.HTTPDebugging,
 		HTTPRecording: p.HTTPRecording,
+	}
+
+	return p.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
@@ -853,30 +858,31 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 	if err != nil {
 		return err
 	}
-	headers := make(map[string]string)
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
-	headers["Key"] = p.API.Credentials.Key
-	values.Set("nonce", strconv.FormatInt(time.Now().UnixNano(), 10))
-	values.Set("command", endpoint)
 
-	hmac := crypto.GetHMAC(crypto.HashSHA512,
-		[]byte(values.Encode()),
-		[]byte(p.API.Credentials.Secret))
+	return p.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		headers := make(map[string]string)
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
+		headers["Key"] = p.API.Credentials.Key
+		values.Set("nonce", strconv.FormatInt(time.Now().UnixNano(), 10))
+		values.Set("command", endpoint)
 
-	headers["Sign"] = crypto.HexEncodeToString(hmac)
+		hmac := crypto.GetHMAC(crypto.HashSHA512,
+			[]byte(values.Encode()),
+			[]byte(p.API.Credentials.Secret))
+		headers["Sign"] = crypto.HexEncodeToString(hmac)
 
-	path := fmt.Sprintf("%s/%s", ePoint, poloniexAPITradingEndpoint)
-
-	return p.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          path,
-		Headers:       headers,
-		Body:          bytes.NewBufferString(values.Encode()),
-		Result:        result,
-		AuthRequest:   true,
-		Verbose:       p.Verbose,
-		HTTPDebugging: p.HTTPDebugging,
-		HTTPRecording: p.HTTPRecording,
+		path := fmt.Sprintf("%s/%s", ePoint, poloniexAPITradingEndpoint)
+		return &request.Item{
+			Method:        method,
+			Path:          path,
+			Headers:       headers,
+			Body:          bytes.NewBufferString(values.Encode()),
+			Result:        result,
+			AuthRequest:   true,
+			Verbose:       p.Verbose,
+			HTTPDebugging: p.HTTPDebugging,
+			HTTPRecording: p.HTTPRecording,
+		}, nil
 	})
 }
 

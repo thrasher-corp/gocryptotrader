@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -730,14 +729,18 @@ func (l *LocalBitcoins) SendHTTPRequest(endpoint exchange.URL, path string, resu
 	if err != nil {
 		return err
 	}
-	return l.SendPayload(context.Background(), &request.Item{
+
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          ePoint + path,
 		Result:        result,
 		Verbose:       l.Verbose,
 		HTTPDebugging: l.HTTPDebugging,
 		HTTPRecording: l.HTTPRecording,
-		Endpoint:      ep,
+	}
+
+	return l.SendPayload(context.Background(), ep, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
@@ -751,43 +754,36 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ep exchange.URL, method, pa
 	if err != nil {
 		return err
 	}
-	n := l.Requester.GetNonce(true).String()
 
-	path = "/api/" + path
-	encoded := params.Encode()
-	message := n + l.API.Credentials.Key + path + encoded
-	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(l.API.Credentials.Secret))
-	headers := make(map[string]string)
-	headers["Apiauth-Key"] = l.API.Credentials.Key
-	headers["Apiauth-Nonce"] = n
-	headers["Apiauth-Signature"] = strings.ToUpper(crypto.HexEncodeToString(hmac))
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
+	return l.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		n := l.Requester.GetNonce(true).String()
 
-	if l.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Sending `%s` request to `%s`, path: `%s`, params: `%s`.",
-			l.Name,
-			method,
-			endpoint,
-			path,
-			encoded,
-		)
-	}
+		fullPath := "/api/" + path
+		encoded := params.Encode()
+		message := n + l.API.Credentials.Key + fullPath + encoded
+		hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(l.API.Credentials.Secret))
+		headers := make(map[string]string)
+		headers["Apiauth-Key"] = l.API.Credentials.Key
+		headers["Apiauth-Nonce"] = n
+		headers["Apiauth-Signature"] = strings.ToUpper(crypto.HexEncodeToString(hmac))
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	if method == http.MethodGet && len(encoded) > 0 {
-		path += "?" + encoded
-	}
+		if method == http.MethodGet && len(encoded) > 0 {
+			fullPath += "?" + encoded
+		}
 
-	return l.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          endpoint + path,
-		Headers:       headers,
-		Body:          bytes.NewBufferString(encoded),
-		Result:        result,
-		AuthRequest:   true,
-		NonceEnabled:  true,
-		Verbose:       l.Verbose,
-		HTTPDebugging: l.HTTPDebugging,
-		HTTPRecording: l.HTTPRecording,
+		return &request.Item{
+			Method:        method,
+			Path:          endpoint + fullPath,
+			Headers:       headers,
+			Body:          bytes.NewBufferString(encoded),
+			Result:        result,
+			AuthRequest:   true,
+			NonceEnabled:  true,
+			Verbose:       l.Verbose,
+			HTTPDebugging: l.HTTPDebugging,
+			HTTPRecording: l.HTTPRecording,
+		}, nil
 	})
 }
 

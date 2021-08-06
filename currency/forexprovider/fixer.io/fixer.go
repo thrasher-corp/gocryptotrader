@@ -230,11 +230,13 @@ func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result interf
 		path = fixerAPISSL + endpoint + "?" + v.Encode()
 		auth = true
 	}
-
-	return f.Requester.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:      http.MethodGet,
 		Path:        path,
 		Result:      &result,
 		AuthRequest: auth,
-		Verbose:     f.Verbose})
+		Verbose:     f.Verbose}
+	return f.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
+	})
 }

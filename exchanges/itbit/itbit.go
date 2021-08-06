@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -283,13 +282,18 @@ func (i *ItBit) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 	if err != nil {
 		return err
 	}
-	return i.SendPayload(context.Background(), &request.Item{
+
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       i.Verbose,
 		HTTPDebugging: i.HTTPDebugging,
 		HTTPRecording: i.HTTPRecording,
+	}
+
+	return i.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
@@ -310,59 +314,56 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 	}
 
 	PayloadJSON := []byte("")
-
 	if params != nil {
 		PayloadJSON, err = json.Marshal(req)
 		if err != nil {
 			return err
 		}
-
-		if i.Verbose {
-			log.Debugf(log.ExchangeSys, "Request JSON: %s\n", PayloadJSON)
-		}
 	}
 
-	n := i.Requester.GetNonce(true).String()
-	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	message, err := json.Marshal([]string{method, urlPath, string(PayloadJSON), n, timestamp})
+	var intermediary json.RawMessage
+	err = i.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		n := i.Requester.GetNonce(true).String()
+		timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+
+		var message []byte
+		message, err = json.Marshal([]string{method, urlPath, string(PayloadJSON), n, timestamp})
+		if err != nil {
+			return nil, err
+		}
+
+		hash := crypto.GetSHA256([]byte(n + string(message)))
+		hmac := crypto.GetHMAC(crypto.HashSHA512, []byte(urlPath+string(hash)), []byte(i.API.Credentials.Secret))
+		signature := crypto.Base64Encode(hmac)
+
+		headers := make(map[string]string)
+		headers["Authorization"] = i.API.Credentials.ClientID + ":" + signature
+		headers["X-Auth-Timestamp"] = timestamp
+		headers["X-Auth-Nonce"] = n
+		headers["Content-Type"] = "application/json"
+
+		return &request.Item{
+			Method:        method,
+			Path:          urlPath,
+			Headers:       headers,
+			Body:          bytes.NewBuffer(PayloadJSON),
+			Result:        &intermediary,
+			AuthRequest:   true,
+			NonceEnabled:  true,
+			Verbose:       i.Verbose,
+			HTTPDebugging: i.HTTPDebugging,
+			HTTPRecording: i.HTTPRecording,
+		}, nil
+	})
 	if err != nil {
 		return err
 	}
-
-	hash := crypto.GetSHA256([]byte(n + string(message)))
-	hmac := crypto.GetHMAC(crypto.HashSHA512, []byte(urlPath+string(hash)), []byte(i.API.Credentials.Secret))
-	signature := crypto.Base64Encode(hmac)
-
-	headers := make(map[string]string)
-	headers["Authorization"] = i.API.Credentials.ClientID + ":" + signature
-	headers["X-Auth-Timestamp"] = timestamp
-	headers["X-Auth-Nonce"] = n
-	headers["Content-Type"] = "application/json"
-
-	var intermediary json.RawMessage
 
 	errCheck := struct {
 		Code        int    `json:"code"`
 		Description string `json:"description"`
 		RequestID   string `json:"requestId"`
 	}{}
-
-	err = i.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          urlPath,
-		Headers:       headers,
-		Body:          bytes.NewBuffer(PayloadJSON),
-		Result:        &intermediary,
-		AuthRequest:   true,
-		NonceEnabled:  true,
-		Verbose:       i.Verbose,
-		HTTPDebugging: i.HTTPDebugging,
-		HTTPRecording: i.HTTPRecording,
-	})
-	if err != nil {
-		return err
-	}
-
 	err = json.Unmarshal(intermediary, &errCheck)
 	if err == nil {
 		if errCheck.Code != 0 || errCheck.Description != "" {

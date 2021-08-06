@@ -1,20 +1,9 @@
 package nonce
 
 import (
+	"sync"
 	"testing"
-	"time"
 )
-
-func TestInc(t *testing.T) {
-	var nonce Nonce
-	nonce.Set(1)
-	nonce.Inc()
-	expected := Value(2)
-	result := nonce.Get()
-	if result != expected {
-		t.Errorf("Expected %d got %d", expected, result)
-	}
-}
 
 func TestGet(t *testing.T) {
 	var nonce Nonce
@@ -65,12 +54,13 @@ func TestNonceConcurrency(t *testing.T) {
 	var nonce Nonce
 	nonce.Set(12312)
 
+	var wg sync.WaitGroup
+	wg.Add(1000)
 	for i := 0; i < 1000; i++ {
-		go nonce.Inc()
+		go func() { nonce.GetInc(); wg.Done() }()
 	}
 
-	// Allow sufficient time for all routines to finish
-	time.Sleep(time.Second)
+	wg.Wait()
 
 	result := nonce.Get()
 	expected := Value(12312 + 1000)

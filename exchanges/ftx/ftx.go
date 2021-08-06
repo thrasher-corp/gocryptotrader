@@ -337,13 +337,16 @@ func (f *FTX) SendHTTPRequest(ep exchange.URL, path string, result interface{}) 
 	if err != nil {
 		return err
 	}
-	return f.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       f.Verbose,
 		HTTPDebugging: f.HTTPDebugging,
 		HTTPRecording: f.HTTPRecording,
+	}
+	return f.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
@@ -1139,40 +1142,45 @@ func (f *FTX) SendAuthHTTPRequest(ep exchange.URL, method, path string, data, re
 	if err != nil {
 		return err
 	}
-	ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	var body io.Reader
-	var hmac, payload []byte
-	if data != nil {
-		payload, err = json.Marshal(data)
-		if err != nil {
-			return err
+
+	newRequest := func() (*request.Item, error) {
+		ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+		var body io.Reader
+		var hmac, payload []byte
+		if data != nil {
+			payload, err = json.Marshal(data)
+			if err != nil {
+				return nil, err
+			}
+			body = bytes.NewBuffer(payload)
+			sigPayload := ts + method + "/api" + path + string(payload)
+			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+		} else {
+			sigPayload := ts + method + "/api" + path
+			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
 		}
-		body = bytes.NewBuffer(payload)
-		sigPayload := ts + method + "/api" + path + string(payload)
-		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
-	} else {
-		sigPayload := ts + method + "/api" + path
-		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+		headers := make(map[string]string)
+		headers["FTX-KEY"] = f.API.Credentials.Key
+		headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
+		headers["FTX-TS"] = ts
+		if f.API.Credentials.Subaccount != "" {
+			headers["FTX-SUBACCOUNT"] = url.QueryEscape(f.API.Credentials.Subaccount)
+		}
+		headers["Content-Type"] = "application/json"
+
+		return &request.Item{
+			Method:        method,
+			Path:          endpoint + path,
+			Headers:       headers,
+			Body:          body,
+			Result:        result,
+			AuthRequest:   true,
+			Verbose:       f.Verbose,
+			HTTPDebugging: f.HTTPDebugging,
+			HTTPRecording: f.HTTPRecording,
+		}, nil
 	}
-	headers := make(map[string]string)
-	headers["FTX-KEY"] = f.API.Credentials.Key
-	headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
-	headers["FTX-TS"] = ts
-	if f.API.Credentials.Subaccount != "" {
-		headers["FTX-SUBACCOUNT"] = url.QueryEscape(f.API.Credentials.Subaccount)
-	}
-	headers["Content-Type"] = "application/json"
-	return f.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          endpoint + path,
-		Headers:       headers,
-		Body:          body,
-		Result:        result,
-		AuthRequest:   true,
-		Verbose:       f.Verbose,
-		HTTPDebugging: f.HTTPDebugging,
-		HTTPRecording: f.HTTPRecording,
-	})
+	return f.SendPayload(context.Background(), request.Unset, newRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
