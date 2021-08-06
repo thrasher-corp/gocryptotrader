@@ -242,10 +242,8 @@ func TestSeries(t *testing.T) {
 			}
 
 			ret, err = Series("", "", "", 0, "", start, end)
-			if err != nil {
-				if !errors.Is(err, errInvalidInput) {
-					t.Fatal(err)
-				}
+			if !errors.Is(err, errInvalidInput) {
+				t.Fatal(err)
 			}
 
 			ret, err = Series(testExchanges[0].Name,
@@ -254,9 +252,7 @@ func TestSeries(t *testing.T) {
 				start, end)
 			if err != nil {
 				if !errors.Is(err, errInvalidInput) {
-					if err.Error() != fmt.Errorf(errNoCandleDataFound, testExchanges[0].Name,
-						"BTC", "MOON",
-						"864000", "spot").Error() {
+					if !errors.Is(err, ErrNoCandleDataFound) {
 						t.Fatal(err)
 					}
 				}
@@ -302,12 +298,13 @@ func genOHCLVData() (out Item, err error) {
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	for x := 0; x < 365; x++ {
 		out.Candles = append(out.Candles, Candle{
-			Timestamp: start.Add(time.Hour * 24 * time.Duration(x)),
-			Open:      1000,
-			High:      1000,
-			Low:       1000,
-			Close:     1000,
-			Volume:    1000,
+			Timestamp:        start.Add(time.Hour * 24 * time.Duration(x)),
+			Open:             1000,
+			High:             1000,
+			Low:              1000,
+			Close:            1000,
+			Volume:           1000,
+			ValidationIssues: "hello world!",
 		})
 	}
 

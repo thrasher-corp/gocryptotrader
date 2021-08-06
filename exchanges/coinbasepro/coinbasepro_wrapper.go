@@ -550,8 +550,8 @@ func (c *CoinbasePro) SubmitOrder(s *order.Submit) (order.SubmitResponse, error)
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (c *CoinbasePro) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (c *CoinbasePro) ModifyOrder(action *order.Modify) (order.Modify, error) {
+	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -908,7 +908,10 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 	if err != nil {
 		return kline.Item{}, err
 	}
-	dates := kline.CalculateCandleDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
 
 	formattedPair, err := c.FormatExchangeCurrency(p, a)
 	if err != nil {
@@ -936,9 +939,10 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 			})
 		}
 	}
-	err = dates.VerifyResultsHaveData(ret.Candles)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", c.Name, err)
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", c.Name, summary)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

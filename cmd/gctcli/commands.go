@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
-	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 )
 
@@ -1356,10 +1356,101 @@ func getOrders(c *cli.Context) error {
 	return nil
 }
 
+var getManagedOrdersCommand = &cli.Command{
+	Name:      "getmanagedorders",
+	Usage:     "gets the current orders from the order manager",
+	ArgsUsage: "<exchange> <asset> <pair>",
+	Action:    getManagedOrders,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get orders for",
+		},
+		&cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type to get orders for",
+		},
+		&cli.StringFlag{
+			Name:  "pair",
+			Usage: "the currency pair to get orders for",
+		},
+	},
+}
+
+func getManagedOrders(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "getmanagedorders")
+	}
+
+	var exchangeName string
+	var assetType string
+	var currencyPair string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	var conn *grpc.ClientConn
+	conn, err = setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  exchangeName,
+		AssetType: assetType,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
 var getOrderCommand = &cli.Command{
 	Name:      "getorder",
 	Usage:     "gets the specified order info",
-	ArgsUsage: "<exchange> <order_id> <pair>",
+	ArgsUsage: "<exchange> <asset> <pair> <order_id>",
 	Action:    getOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -2171,6 +2262,39 @@ var cancelAllOrdersCommand = &cli.Command{
 	},
 }
 
+var modifyOrderCommand = &cli.Command{
+	Name:      "modifyorder",
+	Usage:     "modify price and/or amount of a previously submitted order",
+	ArgsUsage: "<exchange> <asset> <pair> <order_id>",
+	Action:    modifyOrder,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "exchange",
+			Usage: "exchange this order is submitted to",
+		},
+		&cli.StringFlag{
+			Name:  "asset",
+			Usage: "required asset type",
+		},
+		&cli.StringFlag{
+			Name:  "pair",
+			Usage: "required trading pair",
+		},
+		&cli.StringFlag{
+			Name:  "order_id",
+			Usage: "id of the order to be modified",
+		},
+		&cli.Float64Flag{
+			Name:  "price",
+			Usage: "new order price",
+		},
+		&cli.Float64Flag{
+			Name:  "amount",
+			Usage: "new order amount",
+		},
+	},
+}
+
 func cancelAllOrders(c *cli.Context) error {
 	var exchangeName string
 	if c.IsSet("exchange") {
@@ -2195,6 +2319,98 @@ func cancelAllOrders(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.CancelAllOrders(context.Background(), &gctrpc.CancelAllOrdersRequest{
 		Exchange: exchangeName,
+	})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+func modifyOrder(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "modifyorder")
+	}
+
+	// Parse positional arguments.
+	var exchangeName string
+	var orderID string
+	var currencyPair string
+	var assetType string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	if c.IsSet("order_id") {
+		orderID = c.String("order_id")
+	} else {
+		orderID = c.Args().Get(3)
+	}
+
+	// Parse optional flags.
+	var price float64
+	var amount float64
+
+	if c.IsSet("price") {
+		price = c.Float64("price")
+	}
+	if c.IsSet("amount") {
+		amount = c.Float64("amount")
+	}
+	if price == 0 && amount == 0 {
+		return errors.New("either --price or --amount should be present")
+	}
+
+	// Setup gRPC, make a request and display response.
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.ModifyOrder(context.Background(), &gctrpc.ModifyOrderRequest{
+		Exchange: exchangeName,
+		OrderId:  orderID,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		},
+		Asset:  assetType,
+		Price:  price,
+		Amount: amount,
 	})
 	if err != nil {
 		return err
@@ -4084,9 +4300,9 @@ func gctScriptUpload(c *cli.Context) error {
 	return nil
 }
 
-const klineMessage = "%v in seconds supported values are: 15, 60(1min), 180(3min), 300(5min), 600(10min), 900(15min), " +
-	"1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h), 86400(1d), 259200(3d) " +
-	"60480(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)"
+const klineMessage = `interval in seconds. supported values are: 15, 60(1min), 180(3min), 300(5min), 600(10min),
+		900(15min) 1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h),
+		86400(1d), 259200(3d) 604800(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)`
 
 var candleRangeSize, candleGranularity int64
 var getHistoricCandlesCommand = &cli.Command{
@@ -4118,7 +4334,7 @@ var getHistoricCandlesCommand = &cli.Command{
 		&cli.Int64Flag{
 			Name:        "granularity",
 			Aliases:     []string{"g"},
-			Usage:       fmt.Sprintf(klineMessage, "granularity"),
+			Usage:       klineMessage,
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
@@ -4252,7 +4468,7 @@ var getHistoricCandlesExtendedCommand = &cli.Command{
 		&cli.Int64Flag{
 			Name:        "interval",
 			Aliases:     []string{"i"},
-			Usage:       fmt.Sprintf(klineMessage, "interval"),
+			Usage:       klineMessage,
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
@@ -4448,7 +4664,7 @@ var findMissingSavedCandleIntervalsCommand = &cli.Command{
 		&cli.Int64Flag{
 			Name:        "interval",
 			Aliases:     []string{"i"},
-			Usage:       fmt.Sprintf(klineMessage, "interval"),
+			Usage:       klineMessage,
 			Value:       86400,
 			Destination: &candleGranularity,
 		},

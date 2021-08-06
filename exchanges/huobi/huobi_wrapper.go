@@ -336,14 +336,14 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 
 	var pairs []string
 
+	format, err := h.GetPairFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
+
 	switch a {
 	case asset.Spot:
 		symbols, err := h.GetSymbols()
-		if err != nil {
-			return nil, err
-		}
-
-		format, err := h.GetPairFormat(a, false)
 		if err != nil {
 			return nil, err
 		}
@@ -365,10 +365,13 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 
 		for z := range symbols {
 			if symbols[z].ContractStatus == 1 {
-				pairs = append(pairs, symbols[z].ContractCode)
+				curr, err := currency.NewPairFromString(symbols[z].ContractCode)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
-
 	case asset.Futures:
 		symbols, err := h.FGetContractInfo("", "", currency.Pair{})
 		if err != nil {
@@ -377,7 +380,11 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 
 		for c := range symbols.Data {
 			if symbols.Data[c].ContractStatus == 1 {
-				pairs = append(pairs, symbols.Data[c].ContractCode)
+				curr, err := currency.NewPairFromString(symbols.Data[c].ContractCode)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
 	}
@@ -908,8 +915,8 @@ func (h *HUOBI) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (h *HUOBI) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (h *HUOBI) ModifyOrder(action *order.Modify) (order.Modify, error) {
+	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number

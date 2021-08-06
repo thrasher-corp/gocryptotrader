@@ -32,7 +32,8 @@ var (
 	// DefaultSyncerWorkers limits the number of sync workers
 	DefaultSyncerWorkers = 15
 	// DefaultSyncerTimeoutREST the default time to switch from REST to websocket protocols without a response
-	DefaultSyncerTimeoutREST      = time.Second * 15
+	DefaultSyncerTimeoutREST = time.Second * 15
+	// DefaultSyncerTimeoutWebsocket the default time to switch from websocket to REST protocols without a response
 	DefaultSyncerTimeoutWebsocket = time.Minute
 	errNoSyncItemsEnabled         = errors.New("no sync items enabled")
 	errUnknownSyncItem            = errors.New("unknown sync item")
@@ -78,6 +79,7 @@ func setupSyncManager(c *Config, exchangeManager iExchangeManager, websocketData
 		s.config.SyncContinuously, s.config.SyncTicker, s.config.SyncOrderbook,
 		s.config.SyncTrades, s.config.NumWorkers, s.config.Verbose, s.config.SyncTimeoutREST,
 		s.config.SyncTimeoutWebsocket)
+	s.inService.Add(1)
 	return s, nil
 }
 
@@ -97,12 +99,13 @@ func (m *syncManager) Start() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return ErrSubSystemAlreadyStarted
 	}
+	m.initSyncWG.Add(1)
+	m.inService.Done()
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
 	exchanges := m.exchangeManager.GetExchanges()
 	for x := range exchanges {
 		exchangeName := exchanges[x].GetName()
 		supportsWebsocket := exchanges[x].SupportsWebsocket()
-		assetTypes := exchanges[x].GetAssetTypes(false)
 		supportsREST := exchanges[x].SupportsREST()
 
 		if !supportsREST && !supportsWebsocket {
@@ -149,6 +152,7 @@ func (m *syncManager) Start() error {
 			usingREST = true
 		}
 
+		assetTypes := exchanges[x].GetAssetTypes(false)
 		for y := range assetTypes {
 			if exchanges[x].GetBase().CurrencyPairs.IsAssetEnabled(assetTypes[y]) != nil {
 				log.Warnf(log.SyncMgr,
@@ -239,6 +243,7 @@ func (m *syncManager) Start() error {
 	for i := 0; i < m.config.NumWorkers; i++ {
 		go m.worker()
 	}
+	m.initSyncWG.Done()
 	return nil
 }
 
@@ -251,6 +256,7 @@ func (m *syncManager) Stop() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrSubSystemNotStarted)
 	}
+	m.inService.Add(1)
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
 	return nil
 }
@@ -578,7 +584,7 @@ func (m *syncManager) worker() {
 											c.Exchange,
 											m.FormatCurrency(c.Pair).String(),
 											strings.ToUpper(c.AssetType.String()),
-											m.config.SyncTimeoutREST,
+											m.config.SyncTimeoutWebsocket,
 										)
 										switchedToRest = true
 										m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, false)
@@ -873,6 +879,23 @@ func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 		result.Pair.Base,
 		askValueResult,
 	)
+}
+
+// WaitForInitialSync allows for a routine to wait for an initial sync to be
+// completed without exposing the underlying type. This needs to be called in a
+// separate routine.
+func (m *syncManager) WaitForInitialSync() error {
+	if m == nil {
+		return fmt.Errorf("sync manager %w", ErrNilSubsystem)
+	}
+
+	m.inService.Wait()
+	if atomic.LoadInt32(&m.started) == 0 {
+		return fmt.Errorf("sync manager %w", ErrSubSystemNotStarted)
+	}
+
+	m.initSyncWG.Wait()
+	return nil
 }
 
 func relayWebsocketEvent(result interface{}, event, assetType, exchangeName string) {

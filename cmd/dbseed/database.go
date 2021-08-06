@@ -28,7 +28,7 @@ func load(c *cli.Context) error {
 		return database.ErrDatabaseSupportDisabled
 	}
 
-	err = openDBConnection(c, conf.Database.Driver)
+	err = openDBConnection(c, &conf.Database)
 	if err != nil {
 		return err
 	}
@@ -43,18 +43,18 @@ func load(c *cli.Context) error {
 	return nil
 }
 
-func openDBConnection(c *cli.Context, driver string) (err error) {
+func openDBConnection(c *cli.Context, cfg *database.Config) (err error) {
 	if c.IsSet("verbose") {
 		boil.DebugMode = true
 	}
-	if driver == database.DBPostgreSQL {
-		dbConn, err = dbPSQL.Connect()
+	if cfg.Driver == database.DBPostgreSQL {
+		dbConn, err = dbPSQL.Connect(cfg)
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
 		}
 		return nil
-	} else if driver == database.DBSQLite || driver == database.DBSQLite3 {
-		dbConn, err = dbsqlite3.Connect()
+	} else if cfg.Driver == database.DBSQLite || cfg.Driver == database.DBSQLite3 {
+		dbConn, err = dbsqlite3.Connect(cfg.Database)
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
 		}

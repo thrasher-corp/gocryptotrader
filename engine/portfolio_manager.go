@@ -30,6 +30,7 @@ type portfolioManager struct {
 	exchangeManager       *ExchangeManager
 	shutdown              chan struct{}
 	base                  *portfolio.Base
+	m                     sync.Mutex
 }
 
 // setupPortfolioManager creates a new portfolio manager
@@ -122,6 +123,8 @@ func (m *portfolioManager) processPortfolio() {
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
 		return
 	}
+	m.m.Lock()
+	defer m.m.Unlock()
 	data := m.base.GetPortfolioGroupedCoin()
 	for key, value := range data {
 		err := m.base.UpdatePortfolio(value, key)
@@ -242,6 +245,8 @@ func (m *portfolioManager) AddAddress(address, description string, coinType curr
 	if !m.IsRunning() {
 		return fmt.Errorf("portfolio manager %w", ErrSubSystemNotStarted)
 	}
+	m.m.Lock()
+	defer m.m.Unlock()
 	return m.base.AddAddress(address, description, coinType, balance)
 }
 
@@ -253,6 +258,8 @@ func (m *portfolioManager) RemoveAddress(address, description string, coinType c
 	if !m.IsRunning() {
 		return fmt.Errorf("portfolio manager %w", ErrSubSystemNotStarted)
 	}
+	m.m.Lock()
+	defer m.m.Unlock()
 	return m.base.RemoveAddress(address, description, coinType)
 }
 

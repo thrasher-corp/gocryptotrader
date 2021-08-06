@@ -13,6 +13,9 @@ import (
 // HasDataAtTime verifies checks the underlying range data
 // To determine whether there is any candle data present at the time provided
 func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
+	if d.Range == nil {
+		return false
+	}
 	return d.Range.HasDataAtDate(t)
 }
 
@@ -34,11 +37,12 @@ func (d *DataFromKline) Load() error {
 				CurrencyPair: d.Item.Pair,
 				AssetType:    d.Item.Asset,
 			},
-			Open:   d.Item.Candles[i].Open,
-			High:   d.Item.Candles[i].High,
-			Low:    d.Item.Candles[i].Low,
-			Close:  d.Item.Candles[i].Close,
-			Volume: d.Item.Candles[i].Volume,
+			Open:             d.Item.Candles[i].Open,
+			High:             d.Item.Candles[i].High,
+			Low:              d.Item.Candles[i].Low,
+			Close:            d.Item.Candles[i].Close,
+			Volume:           d.Item.Candles[i].Volume,
+			ValidationIssues: d.Item.Candles[i].ValidationIssues,
 		}
 		d.addedTimes[d.Item.Candles[i].Time] = true
 	}
@@ -72,11 +76,12 @@ func (d *DataFromKline) Append(ki *gctkline.Item) {
 				CurrencyPair: ki.Pair,
 				AssetType:    ki.Asset,
 			},
-			Open:   gctCandles[i].Open,
-			High:   gctCandles[i].High,
-			Low:    gctCandles[i].Low,
-			Close:  gctCandles[i].Close,
-			Volume: gctCandles[i].Volume,
+			Open:             gctCandles[i].Open,
+			High:             gctCandles[i].High,
+			Low:              gctCandles[i].Low,
+			Close:            gctCandles[i].Close,
+			Volume:           gctCandles[i].Volume,
+			ValidationIssues: gctCandles[i].ValidationIssues,
 		})
 		candleTimes = append(candleTimes, gctCandles[i].Time)
 	}

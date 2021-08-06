@@ -206,7 +206,7 @@ func (s *Statistic) PrintTotalResults() {
 		log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
 		log.Infof(log.BackTester, "Highest Price: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price)
 		log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
-		log.Infof(log.BackTester, "Lowest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
+		log.Infof(log.BackTester, "Lowest Price: $%.2f", s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
 		log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
 		log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent)
 		log.Infof(log.BackTester, "Difference: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price-s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
@@ -214,8 +214,8 @@ func (s *Statistic) PrintTotalResults() {
 	}
 	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {
 		log.Info(log.BackTester, "------------------Orders----------------------------------")
-		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement)
-		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement)
+		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %f%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement)
+		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %f%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement)
 	}
 }
 
@@ -272,13 +272,13 @@ func (s *Statistic) PrintAllEvents() {
 							direction == common.DoNothing ||
 							direction == common.MissingData ||
 							direction == "" {
-							log.Infof(log.BackTester, "%v | Price: $%v - Direction: %v - Reason: %s",
+							log.Infof(log.BackTester, "%v | Price: $%f - Direction: %v - Reason: %s",
 								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 								c.Events[i].FillEvent.GetClosePrice(),
 								c.Events[i].FillEvent.GetDirection(),
 								c.Events[i].FillEvent.GetReason())
 						} else {
-							log.Infof(log.BackTester, "%v | Price: $%v - Amount: %v - Fee: $%v - Total: $%v - Direction %v - Reason: %s",
+							log.Infof(log.BackTester, "%v | Price: $%f - Amount: %f - Fee: $%f - Total: $%f - Direction %v - Reason: %s",
 								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 								c.Events[i].FillEvent.GetPurchasePrice(),
 								c.Events[i].FillEvent.GetAmount(),
@@ -289,12 +289,12 @@ func (s *Statistic) PrintAllEvents() {
 							)
 						}
 					case c.Events[i].SignalEvent != nil:
-						log.Infof(log.BackTester, "%v | Price: $%v - Reason: %v",
+						log.Infof(log.BackTester, "%v | Price: $%f - Reason: %v",
 							c.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 							c.Events[i].SignalEvent.GetPrice(),
 							c.Events[i].SignalEvent.GetReason())
 					case c.Events[i].DataEvent != nil:
-						log.Infof(log.BackTester, "%v | Price: $%v - Reason: %v",
+						log.Infof(log.BackTester, "%v | Price: $%f - Reason: %v",
 							c.Events[i].DataEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 							c.Events[i].DataEvent.ClosePrice(),
 							c.Events[i].DataEvent.GetReason())

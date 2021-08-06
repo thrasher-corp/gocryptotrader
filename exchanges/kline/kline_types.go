@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -39,8 +40,16 @@ const (
 )
 
 var (
-	// ErrMissingCandleData is an error for missing candle data
-	ErrMissingCandleData = errors.New("missing candle data")
+	// ErrUnsetInterval is an error for date range calculation
+	ErrUnsetInterval = errors.New("cannot calculate range, interval unset")
+	// ErrUnsupportedInterval returns when the provided interval is not supported by an exchange
+	ErrUnsupportedInterval = errors.New("interval unsupported by exchange")
+	// ErrCanOnlyDownscaleCandles returns when attempting to upscale candles
+	ErrCanOnlyDownscaleCandles = errors.New("interval must be a longer duration to scale")
+	// ErrWholeNumberScaling returns when old interval data cannot neatly fit into new interval size
+	ErrWholeNumberScaling = errors.New("new interval must scale properly into new candle")
+	errNilKline           = errors.New("kline item is nil")
+
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{
 		FifteenSecond,
@@ -69,21 +78,24 @@ var (
 
 // Item holds all the relevant information for internal kline elements
 type Item struct {
-	Exchange string
-	Pair     currency.Pair
-	Asset    asset.Item
-	Interval Interval
-	Candles  []Candle
+	Exchange        string
+	Pair            currency.Pair
+	Asset           asset.Item
+	Interval        Interval
+	Candles         []Candle
+	SourceJobID     uuid.UUID
+	ValidationJobID uuid.UUID
 }
 
 // Candle holds historic rate information.
 type Candle struct {
-	Time   time.Time
-	Open   float64
-	High   float64
-	Low    float64
-	Close  float64
-	Volume float64
+	Time             time.Time
+	Open             float64
+	High             float64
+	Low              float64
+	Close            float64
+	Volume           float64
+	ValidationIssues string
 }
 
 // ByDate allows for sorting candle entries by date

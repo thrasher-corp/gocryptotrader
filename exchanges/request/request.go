@@ -88,7 +88,6 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 			return nil, errors.New("header response is nil")
 		}
 	}
-
 	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
 		return nil, err
@@ -110,7 +109,6 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 	if p == nil {
 		return errors.New("request item cannot be nil")
 	}
-
 	if p.Verbose {
 		log.Debugf(log.RequestSys,
 			"%s request path: %s",
@@ -197,6 +195,12 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 		if err != nil {
 			return err
 		}
+		// Even in the case of an erroneous condition below, yield the parsed
+		// response to caller.
+		var unmarshallError error
+		if p.Result != nil {
+			unmarshallError = json.Unmarshal(contents, p.Result)
+		}
 
 		if p.HTTPRecording {
 			// This dumps http responses for future mocking implementations
@@ -242,10 +246,7 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 					string(contents))
 			}
 		}
-		if p.Result != nil {
-			return json.Unmarshal(contents, p.Result)
-		}
-		return nil
+		return unmarshallError
 	}
 }
 

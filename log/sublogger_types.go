@@ -4,33 +4,34 @@ import "io"
 
 // Global vars related to the logger package
 var (
-	subLoggers = map[string]*subLogger{}
+	subLoggers = map[string]*SubLogger{}
 
-	Global           *subLogger
-	Accounts         *subLogger
-	BackTester       *subLogger
-	ConnectionMgr    *subLogger
-	CommunicationMgr *subLogger
-	APIServerMgr     *subLogger
-	ConfigMgr        *subLogger
-	DatabaseMgr      *subLogger
-	GCTScriptMgr     *subLogger
-	OrderMgr         *subLogger
-	PortfolioMgr     *subLogger
-	SyncMgr          *subLogger
-	TimeMgr          *subLogger
-	WebsocketMgr     *subLogger
-	EventMgr         *subLogger
-	DispatchMgr      *subLogger
+	Global           *SubLogger
+	Accounts         *SubLogger
+	BackTester       *SubLogger
+	ConnectionMgr    *SubLogger
+	CommunicationMgr *SubLogger
+	APIServerMgr     *SubLogger
+	ConfigMgr        *SubLogger
+	DatabaseMgr      *SubLogger
+	DataHistory      *SubLogger
+	GCTScriptMgr     *SubLogger
+	OrderMgr         *SubLogger
+	PortfolioMgr     *SubLogger
+	SyncMgr          *SubLogger
+	TimeMgr          *SubLogger
+	WebsocketMgr     *SubLogger
+	EventMgr         *SubLogger
+	DispatchMgr      *SubLogger
 
-	RequestSys  *subLogger
-	ExchangeSys *subLogger
-	GRPCSys     *subLogger
-	RESTSys     *subLogger
+	RequestSys  *SubLogger
+	ExchangeSys *SubLogger
+	GRPCSys     *SubLogger
+	RESTSys     *SubLogger
 
-	Ticker    *subLogger
-	OrderBook *subLogger
-	Trade     *subLogger
+	Ticker    *SubLogger
+	OrderBook *SubLogger
+	Trade     *SubLogger
 )
 
 // logFields is used to store data in a non-global and thread-safe manner

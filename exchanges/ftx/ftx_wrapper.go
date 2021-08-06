@@ -1,6 +1,7 @@
 package ftx
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -217,11 +218,19 @@ func (f *FTX) Run() {
 		f.PrintEnabledPairs()
 	}
 
+	err := f.UpdateOrderExecutionLimits("")
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to set exchange order execution limits. Err: %v",
+			f.Name,
+			err)
+	}
+
 	if !f.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
 
-	err := f.UpdateTradablePairs(false)
+	err = f.UpdateTradablePairs(false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -239,18 +248,30 @@ func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	format, err := f.GetPairFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
 	var pairs []string
 	switch a {
 	case asset.Spot:
 		for x := range markets {
 			if markets[x].MarketType == spotString {
-				pairs = append(pairs, markets[x].Name)
+				curr, err := currency.NewPairFromString(markets[x].Name)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
 	case asset.Futures:
 		for x := range markets {
 			if markets[x].MarketType == futuresString {
-				pairs = append(pairs, markets[x].Name)
+				curr, err := currency.NewPairFromString(markets[x].Name)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
 	}
@@ -376,6 +397,8 @@ func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (f *FTX) UpdateAccountInfo(accountName account.Designation, assetType asset.Item) (account.HoldingsSnapshot, error) {
+	// Get all wallet balances used so we can transfer between accounts if
+	// needed.
 	data, err := f.GetAllWalletBalances()
 	if err != nil {
 		return nil, err
@@ -459,18 +482,14 @@ func (f *FTX) GetWithdrawalsHistory(c currency.Code) (resp []exchange.Withdrawal
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (f *FTX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return f.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
+	return f.GetHistoricTrades(p, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
+// FTX returns trades from the end date and iterates towards the start date
 func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if timestampStart.Equal(timestampEnd) ||
-		timestampEnd.After(time.Now()) ||
-		timestampEnd.Before(timestampStart) ||
-		(timestampStart.IsZero() && !timestampEnd.IsZero()) {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v",
-			timestampStart,
-			timestampEnd)
+	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
 	var err error
 	p, err = f.FormatExchangeCurrency(p, assetType)
@@ -478,23 +497,31 @@ func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestamp
 		return nil, err
 	}
 
-	ts := timestampStart
+	ts := timestampEnd
 	var resp []trade.Data
-	limit := 100
 allTrades:
 	for {
 		var trades []TradeData
 		trades, err = f.GetTrades(p.String(),
+			timestampStart.Unix(),
 			ts.Unix(),
-			timestampEnd.Unix(),
 			100)
 		if err != nil {
+			if errors.Is(err, errStartTimeCannotBeAfterEndTime) {
+				break
+			}
 			return nil, err
 		}
-
+		if len(trades) == 0 {
+			break
+		}
 		for i := 0; i < len(trades); i++ {
-			if trades[i].Time.Before(timestampStart) || trades[i].Time.After(timestampEnd) {
+			if timestampStart.Equal(trades[i].Time) || trades[i].Time.Before(timestampStart) {
+				// reached end of trades to crawl
 				break allTrades
+			}
+			if trades[i].Time.After(ts) {
+				continue
 			}
 			var side order.Side
 			side, err = order.StringToOrderSide(trades[i].Side)
@@ -511,16 +538,10 @@ allTrades:
 				Amount:       trades[i].Size,
 				Timestamp:    trades[i].Time,
 			})
+
 			if i == len(trades)-1 {
-				if ts.Equal(trades[i].Time) {
-					// reached end of trades to crawl
-					break allTrades
-				}
 				ts = trades[i].Time
 			}
-		}
-		if len(trades) != limit {
-			break allTrades
 		}
 	}
 
@@ -571,9 +592,9 @@ func (f *FTX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (f *FTX) ModifyOrder(action *order.Modify) (string, error) {
+func (f *FTX) ModifyOrder(action *order.Modify) (order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
 	if action.TriggerPrice != 0 {
@@ -584,25 +605,42 @@ func (f *FTX) ModifyOrder(action *order.Modify) (string, error) {
 			action.Price,
 			0)
 		if err != nil {
-			return "", err
+			return order.Modify{}, err
 		}
-		return strconv.FormatInt(a.ID, 10), err
+		return order.Modify{
+			Exchange:  action.Exchange,
+			AssetType: action.AssetType,
+			Pair:      action.Pair,
+			ID:        strconv.FormatInt(a.ID, 10),
+
+			Price:        action.Price,
+			Amount:       action.Amount,
+			TriggerPrice: action.TriggerPrice,
+			Type:         action.Type,
+		}, err
 	}
 	var o OrderData
 	var err error
-	switch action.ID {
-	case "":
+	if action.ID == "" {
 		o, err = f.ModifyOrderByClientID(action.ClientOrderID, action.ClientOrderID, action.Price, action.Amount)
 		if err != nil {
-			return "", err
+			return order.Modify{}, err
 		}
-	default:
+	} else {
 		o, err = f.ModifyPlacedOrder(action.ID, action.ClientOrderID, action.Price, action.Amount)
 		if err != nil {
-			return "", err
+			return order.Modify{}, err
 		}
 	}
-	return strconv.FormatInt(o.ID, 10), err
+	return order.Modify{
+		Exchange:  action.Exchange,
+		AssetType: action.AssetType,
+		Pair:      action.Pair,
+		ID:        strconv.FormatInt(o.ID, 10),
+
+		Price:  action.Price,
+		Amount: action.Amount,
+	}, err
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -824,11 +862,12 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Price = orderData[y].Price
 			tempResp.RemainingAmount = orderData[y].RemainingSize
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(orderData[y].Side,
+			orderVars, err = f.compatibleOrderVars(
+				orderData[y].Side,
 				orderData[y].Status,
 				orderData[y].OrderType,
-				orderData[y].FilledSize,
 				orderData[y].Size,
+				orderData[y].FilledSize,
 				orderData[y].AvgFillPrice)
 			if err != nil {
 				return resp, err
@@ -861,11 +900,12 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Price = triggerOrderData[z].AvgFillPrice
 			tempResp.RemainingAmount = triggerOrderData[z].Size - triggerOrderData[z].FilledSize
 			tempResp.TriggerPrice = triggerOrderData[z].TriggerPrice
-			orderVars, err := f.compatibleOrderVars(triggerOrderData[z].Side,
+			orderVars, err := f.compatibleOrderVars(
+				triggerOrderData[z].Side,
 				triggerOrderData[z].Status,
 				triggerOrderData[z].OrderType,
-				triggerOrderData[z].FilledSize,
 				triggerOrderData[z].Size,
+				triggerOrderData[z].FilledSize,
 				triggerOrderData[z].AvgFillPrice)
 			if err != nil {
 				return resp, err
@@ -922,11 +962,12 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Price = orderData[y].Price
 			tempResp.RemainingAmount = orderData[y].RemainingSize
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(orderData[y].Side,
+			orderVars, err = f.compatibleOrderVars(
+				orderData[y].Side,
 				orderData[y].Status,
 				orderData[y].OrderType,
-				orderData[y].FilledSize,
 				orderData[y].Size,
+				orderData[y].FilledSize,
 				orderData[y].AvgFillPrice)
 			if err != nil {
 				return resp, err
@@ -962,11 +1003,12 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Price = triggerOrderData[z].AvgFillPrice
 			tempResp.RemainingAmount = triggerOrderData[z].Size - triggerOrderData[z].FilledSize
 			tempResp.TriggerPrice = triggerOrderData[z].TriggerPrice
-			orderVars, err := f.compatibleOrderVars(triggerOrderData[z].Side,
+			orderVars, err := f.compatibleOrderVars(
+				triggerOrderData[z].Side,
 				triggerOrderData[z].Status,
 				triggerOrderData[z].OrderType,
-				triggerOrderData[z].FilledSize,
 				triggerOrderData[z].Size,
+				triggerOrderData[z].FilledSize,
 				triggerOrderData[z].AvgFillPrice)
 			if err != nil {
 				return resp, err
@@ -1015,8 +1057,8 @@ func (f *FTX) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.
 	}
 
 	ohlcData, err := f.GetHistoricalData(formattedPair.String(),
-		f.FormatExchangeKlineInterval(interval),
-		strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
+		int64(interval.Duration().Seconds()),
+		int64(f.Features.Enabled.Kline.ResultLimit),
 		start, end)
 	if err != nil {
 		return kline.Item{}, err
@@ -1055,7 +1097,10 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
-	dates := kline.CalculateCandleDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
 
 	formattedPair, err := f.FormatExchangeCurrency(p, a)
 	if err != nil {
@@ -1065,8 +1110,8 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 	for x := range dates.Ranges {
 		var ohlcData []OHLCVData
 		ohlcData, err = f.GetHistoricalData(formattedPair.String(),
-			f.FormatExchangeKlineInterval(interval),
-			strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
+			int64(interval.Duration().Seconds()),
+			int64(f.Features.Enabled.Kline.ResultLimit),
 			dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
 		if err != nil {
 			return kline.Item{}, err
@@ -1083,12 +1128,22 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 			})
 		}
 	}
-	err = dates.VerifyResultsHaveData(ret.Candles)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", f.Name, err)
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", f.Name, summary)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (f *FTX) UpdateOrderExecutionLimits(_ asset.Item) error {
+	limits, err := f.FetchExchangeLimits()
+	if err != nil {
+		return fmt.Errorf("cannot update exchange execution limits: %w", err)
+	}
+	return f.LoadLimits(limits)
 }

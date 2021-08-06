@@ -3,7 +3,6 @@ package portfolio
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -14,6 +13,7 @@ const (
 )
 
 func TestGetEthereumBalance(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	address := "0xb794f5ea0ba39494ce839613fffba74279579268"
 	nonsenseAddress := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -34,6 +34,7 @@ func TestGetEthereumBalance(t *testing.T) {
 }
 
 func TestGetCryptoIDBalance(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	ltcAddress := "LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1"
 	_, err := b.GetCryptoIDAddress(ltcAddress, currency.LTC)
@@ -43,6 +44,7 @@ func TestGetCryptoIDBalance(t *testing.T) {
 }
 
 func TestGetAddressBalance(t *testing.T) {
+	t.Parallel()
 	ltcAddress := "LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL"
 	ltc := currency.LTC
 	description := "Description of Wallet"
@@ -75,6 +77,7 @@ func TestGetAddressBalance(t *testing.T) {
 }
 
 func TestGetRippleBalance(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	nonsenseAddress := "Wigwham"
 	_, err := b.GetRippleBalance(nonsenseAddress)
@@ -90,6 +93,7 @@ func TestGetRippleBalance(t *testing.T) {
 }
 
 func TestExchangeExists(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	err := newBase.AddAddress("someaddress",
 		currency.LTC.String(),
@@ -108,6 +112,7 @@ func TestExchangeExists(t *testing.T) {
 }
 
 func TestAddressExists(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	err := newBase.AddAddress("someaddress",
 		currency.LTC.String(),
@@ -126,6 +131,7 @@ func TestAddressExists(t *testing.T) {
 }
 
 func TestExchangeAddressExists(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	err := newBase.AddAddress("someaddress",
 		currency.LTC.String(),
@@ -144,6 +150,7 @@ func TestExchangeAddressExists(t *testing.T) {
 }
 
 func TestAddExchangeAddress(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	newBase.AddExchangeAddress("OKEX", currency.BTC, 100)
 	newBase.AddExchangeAddress("OKEX", currency.BTC, 200)
@@ -154,6 +161,7 @@ func TestAddExchangeAddress(t *testing.T) {
 }
 
 func TestUpdateAddressBalance(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	err := newBase.AddAddress("someaddress",
 		currency.LTC.String(),
@@ -173,6 +181,7 @@ func TestUpdateAddressBalance(t *testing.T) {
 }
 
 func TestRemoveAddress(t *testing.T) {
+	t.Parallel()
 	var newBase Base
 	if err := newBase.RemoveAddress("", "MEOW", currency.LTC); err == nil {
 		t.Error("invalid address should throw an error")
@@ -210,6 +219,7 @@ func TestRemoveAddress(t *testing.T) {
 }
 
 func TestRemoveExchangeAddress(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	exchangeName := "BallerExchange"
 	coinType := currency.LTC
@@ -227,6 +237,7 @@ func TestRemoveExchangeAddress(t *testing.T) {
 }
 
 func TestUpdateExchangeAddressBalance(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	newBase.AddExchangeAddress("someaddress", currency.LTC, 0.02)
 	b := Base{}
@@ -240,6 +251,7 @@ func TestUpdateExchangeAddressBalance(t *testing.T) {
 }
 
 func TestAddAddress(t *testing.T) {
+	t.Parallel()
 	var newBase Base
 	if err := newBase.AddAddress("", "MEOW", currency.LTC, 1); err == nil {
 		t.Error("invalid address should throw an error")
@@ -298,22 +310,9 @@ func TestAddAddress(t *testing.T) {
 }
 
 func TestUpdatePortfolio(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
-	err := newBase.AddAddress("someaddress",
-		currency.LTC.String(),
-		currency.NewCode("LTCWALLETTEST"),
-		0.02)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = newBase.UpdatePortfolio(
-		[]string{"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL"},
-		currency.LTC)
-	if err != nil {
-		t.Error("UpdatePortfolio error", err)
-	}
-	err = newBase.UpdatePortfolio([]string{"Testy"}, currency.LTC)
+	err := newBase.UpdatePortfolio([]string{"Testy"}, currency.LTC)
 	if err == nil {
 		t.Error("UpdatePortfolio error cannot be nil")
 	}
@@ -326,22 +325,19 @@ func TestUpdatePortfolio(t *testing.T) {
 		t.Error("UpdatePortfolio error", err)
 	}
 	err = newBase.UpdatePortfolio(
-		[]string{"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL", "Testy"}, currency.LTC,
+		[]string{"Testy"}, currency.LTC,
 	)
 	if err == nil {
 		t.Error("UpdatePortfolio error cannot be nil")
 	}
 
-	time.Sleep(time.Second * 5)
 	err = newBase.UpdatePortfolio([]string{
-		"0xb794f5ea0ba39494ce839613fffba74279579268",
-		"0xe853c56864a2ebe4576a807d26fdc4a0ada51919"},
+		"0xb794f5ea0ba39494ce839613fffba74279579268"},
 		currency.ETH)
 	if err != nil {
 		t.Error(err)
 	}
 	err = newBase.UpdatePortfolio([]string{
-		"0xb794f5ea0ba39494ce839613fffba74279579268",
 		"TESTY"},
 		currency.ETH)
 	if err == nil {
@@ -363,7 +359,6 @@ func TestUpdatePortfolio(t *testing.T) {
 	}
 
 	err = newBase.UpdatePortfolio([]string{
-		"r962iS5subzbVeXZN8MTzyEuuaQKo5qksh",
 		"TESTY"},
 		currency.XRP)
 	if err == nil {
@@ -372,6 +367,7 @@ func TestUpdatePortfolio(t *testing.T) {
 }
 
 func TestGetPortfolioByExchange(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	newBase.AddExchangeAddress("OKEX", currency.LTC, 0.07)
 	newBase.AddExchangeAddress("Bitfinex", currency.LTC, 0.05)
@@ -401,6 +397,7 @@ func TestGetPortfolioByExchange(t *testing.T) {
 }
 
 func TestGetExchangePortfolio(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	err := newBase.AddAddress("OKEX", ExchangeAddress, currency.LTC, 0.03)
 	if err != nil {
@@ -428,6 +425,7 @@ func TestGetExchangePortfolio(t *testing.T) {
 }
 
 func TestGetPersonalPortfolio(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	err := newBase.AddAddress("someaddress", PersonalAddress, currency.N2O, 0.02)
 	if err != nil {
@@ -454,6 +452,7 @@ func TestGetPersonalPortfolio(t *testing.T) {
 }
 
 func TestGetPortfolioSummary(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	// Personal holdings
 	err := newBase.AddAddress("someaddress", PersonalAddress, currency.LTC, 1)
@@ -513,6 +512,7 @@ func TestGetPortfolioSummary(t *testing.T) {
 }
 
 func TestGetPortfolioGroupedCoin(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	err := newBase.AddAddress("someaddress", currency.LTC.String(), currency.LTC, 0.02)
 	if err != nil {
@@ -530,6 +530,7 @@ func TestGetPortfolioGroupedCoin(t *testing.T) {
 }
 
 func TestSeed(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	err := newBase.AddAddress("someaddress", currency.LTC.String(), currency.LTC, 0.02)
 	if err != nil {
@@ -541,6 +542,7 @@ func TestSeed(t *testing.T) {
 }
 
 func TestIsExchangeSupported(t *testing.T) {
+	t.Parallel()
 	newBase := seedPortFolioForTest(t)
 	ret := newBase.IsExchangeSupported("BTC Markets", core.BitcoinDonationAddress)
 	if !ret {
@@ -553,6 +555,7 @@ func TestIsExchangeSupported(t *testing.T) {
 }
 
 func TestIsColdStorage(t *testing.T) {
+	t.Parallel()
 	newBase := seedPortFolioForTest(t)
 	ret := newBase.IsColdStorage(core.BitcoinDonationAddress)
 	if !ret {
@@ -569,6 +572,7 @@ func TestIsColdStorage(t *testing.T) {
 }
 
 func TestIsWhiteListed(t *testing.T) {
+	t.Parallel()
 	b := seedPortFolioForTest(t)
 	ret := b.IsWhiteListed(core.BitcoinDonationAddress)
 	if !ret {
@@ -585,6 +589,7 @@ func TestIsWhiteListed(t *testing.T) {
 }
 
 func TestStartPortfolioWatcher(t *testing.T) {
+	t.Parallel()
 	newBase := Base{}
 	err := newBase.AddAddress("LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1",
 		currency.LTC.String(),

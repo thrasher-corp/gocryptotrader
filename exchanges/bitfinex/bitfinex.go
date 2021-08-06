@@ -66,6 +66,7 @@ const (
 	bitfinexV2MarginFunding = "calc/trade/avg?"
 	bitfinexV2Balances      = "auth/r/wallets"
 	bitfinexV2AccountInfo   = "auth/r/info/user"
+	bitfinexV2MarginInfo    = "auth/r/info/margin/"
 	bitfinexV2FundingInfo   = "auth/r/info/funding/%s"
 	bitfinexDerivativeData  = "status/deriv?"
 	bitfinexPlatformStatus  = "platform/status"
@@ -118,6 +119,141 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	return -1, fmt.Errorf("unexpected platform status value %d", response[0])
 }
 
+func baseMarginInfo(data []interface{}) (MarginInfoV2, error) {
+	var resp MarginInfoV2
+	tempData, ok := data[1].([]interface{})
+	if !ok {
+		return resp, fmt.Errorf("%w", errTypeAssert)
+	}
+	resp.UserPNL, ok = tempData[0].(float64)
+	if !ok {
+		return resp, fmt.Errorf("%w for UserPNL", errTypeAssert)
+	}
+	resp.UserSwaps, ok = tempData[1].(float64)
+	if !ok {
+		return resp, fmt.Errorf("%w for UserSwaps", errTypeAssert)
+	}
+	resp.MarginBalance, ok = tempData[2].(float64)
+	if !ok {
+		return resp, fmt.Errorf("%w for MarginBalance", errTypeAssert)
+	}
+	resp.MarginNet, ok = tempData[3].(float64)
+	if !ok {
+		return resp, fmt.Errorf("%w for MarginNet", errTypeAssert)
+	}
+	resp.MarginMin, ok = tempData[4].(float64)
+	if !ok {
+		return resp, fmt.Errorf("%w for MarginMin", errTypeAssert)
+	}
+	return resp, nil
+}
+
+func symbolMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
+	var resp []MarginInfoV2
+	for x := range data {
+		var tempResp MarginInfoV2
+		tempData, ok := data[x].([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("%w for all sym", errTypeAssert)
+		}
+		var check bool
+		tempResp.Symbol, check = tempData[1].(string)
+		if !check {
+			return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
+		}
+		tempFloatData, check := tempData[2].([]interface{})
+		if !check {
+			return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
+		}
+		if len(tempFloatData) < 4 {
+			return nil, errors.New("invalid data received")
+		}
+		tempResp.TradableBalance, ok = tempFloatData[0].(float64)
+		if !ok {
+			return nil, fmt.Errorf("%w for TradableBalance", errTypeAssert)
+		}
+		tempResp.GrossBalance, ok = tempFloatData[1].(float64)
+		if !ok {
+			return nil, fmt.Errorf("%w for GrossBalance", errTypeAssert)
+		}
+		tempResp.BestAskAmount, ok = tempFloatData[2].(float64)
+		if !ok {
+			return nil, fmt.Errorf("%w for BestAskAmount", errTypeAssert)
+		}
+		tempResp.BestBidAmount, ok = tempFloatData[3].(float64)
+		if !ok {
+			return nil, fmt.Errorf("%w for BestBidAmount", errTypeAssert)
+		}
+		resp = append(resp, tempResp)
+	}
+	return resp, nil
+}
+
+func defaultMarginV2Info(data []interface{}) (MarginInfoV2, error) {
+	var resp MarginInfoV2
+	var ok bool
+	resp.Symbol, ok = data[1].(string)
+	if !ok {
+		return resp, fmt.Errorf("%w for symbol", errTypeAssert)
+	}
+	tempData, check := data[2].([]interface{})
+	if !check {
+		return resp, fmt.Errorf("%w for symbol data", errTypeAssert)
+	}
+	if len(tempData) < 4 {
+		return resp, errors.New("invalid data received")
+	}
+	resp.TradableBalance, ok = tempData[0].(float64)
+	if !ok {
+		return resp, fmt.Errorf("%w for TradableBalance", errTypeAssert)
+	}
+	resp.GrossBalance, ok = tempData[1].(float64)
+	if !ok {
+		return resp, fmt.Errorf("%w for GrossBalance", errTypeAssert)
+	}
+	resp.BestAskAmount, ok = tempData[2].(float64)
+	if !ok {
+		return resp, fmt.Errorf("%w for BestAskAmount", errTypeAssert)
+	}
+	resp.BestBidAmount, ok = tempData[3].(float64)
+	if !ok {
+		return resp, fmt.Errorf("%w for BestBidAmount", errTypeAssert)
+	}
+	return resp, nil
+}
+
+// GetV2MarginInfo gets v2 margin info for a symbol provided
+// symbol: base, sym_all, any other trading symbol example tBTCUSD
+func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]MarginInfoV2, error) {
+	var data []interface{}
+	err := b.SendAuthenticatedHTTPRequestV2(exchange.RestSpot, http.MethodPost,
+		bitfinexV2MarginInfo+symbol,
+		nil,
+		&data,
+		getMarginInfoRate)
+	if err != nil {
+		return nil, err
+	}
+	var tempResp MarginInfoV2
+	switch symbol {
+	case "base":
+		tempResp, err = baseMarginInfo(data)
+		if err != nil {
+			return nil, fmt.Errorf("%v - %s: %w", b.Name, symbol, err)
+		}
+	case "sym_all":
+		var resp []MarginInfoV2
+		resp, err = symbolMarginInfo(data)
+		return resp, err
+	default:
+		tempResp, err = defaultMarginV2Info(data)
+		if err != nil {
+			return nil, fmt.Errorf("%v - %s: %w", b.Name, symbol, err)
+		}
+	}
+	return []MarginInfoV2{tempResp}, nil
+}
+
 // GetV2MarginFunding gets borrowing rates for margin trading
 func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (MarginV2FundingData, error) {
 	var resp []interface{}
@@ -130,7 +266,7 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 		bitfinexV2MarginFunding,
 		params,
 		&resp,
-		getAccountFees)
+		getMarginInfoRate)
 	if err != nil {
 		return response, err
 	}
@@ -139,11 +275,11 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 	}
 	avgRate, ok := resp[0].(float64)
 	if !ok {
-		return response, errors.New("failed type assertion for rate")
+		return response, fmt.Errorf("%v - %v: %w for rate", b.Name, symbol, errTypeAssert)
 	}
 	avgAmount, ok := resp[1].(float64)
 	if !ok {
-		return response, errors.New("failed type assertion for amount")
+		return response, fmt.Errorf("%v - %v: %w for amount", b.Name, symbol, errTypeAssert)
 	}
 	response.Symbol = symbol
 	response.RateAverage = avgRate
@@ -168,20 +304,20 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginFundingDataV2, error) {
 	}
 	sym, ok := resp[0].(string)
 	if !ok {
-		return response, errors.New("failed type assertion for sym")
+		return response, fmt.Errorf("%v GetV2FundingInfo: %w for sym", b.Name, errTypeAssert)
 	}
 	symbol, ok := resp[1].(string)
 	if !ok {
-		return response, errors.New("failed type assertion for symbol")
+		return response, fmt.Errorf("%v GetV2FundingInfo: %w for symbol", b.Name, errTypeAssert)
 	}
 	fundingData, ok := resp[2].([]interface{})
 	if !ok {
-		return response, errors.New("failed type assertion for fundingData")
+		return response, fmt.Errorf("%v GetV2FundingInfo: %w for fundingData", b.Name, errTypeAssert)
 	}
 	response.Sym = sym
 	response.Symbol = symbol
 	if len(fundingData) < 4 {
-		return response, errors.New("invalid length of fundingData")
+		return response, fmt.Errorf("%v GetV2FundingInfo: invalid length of fundingData", b.Name)
 	}
 	for x := 0; x < 3; x++ {
 		_, ok := fundingData[x].(float64)
@@ -209,33 +345,33 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 		return resp, err
 	}
 	if len(data) < 8 {
-		return resp, errors.New("invalid length of data")
+		return resp, fmt.Errorf("%v GetAccountInfoV2: invalid length of data", b.Name)
 	}
 	var ok bool
 	var tempString string
 	var tempFloat float64
 	if tempFloat, ok = data[0].(float64); !ok {
-		return resp, errors.New("type assertion failed for id, check for api updates")
+		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for id", b.Name, errTypeAssert)
 	}
 	resp.ID = int64(tempFloat)
 	if tempString, ok = data[1].(string); !ok {
-		return resp, errors.New("type assertion failed for email, check for api updates")
+		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for email", b.Name, errTypeAssert)
 	}
 	resp.Email = tempString
 	if tempString, ok = data[2].(string); !ok {
-		return resp, errors.New("type assertion failed for username, check for api updates")
+		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for username", b.Name, errTypeAssert)
 	}
 	resp.Username = tempString
 	if tempFloat, ok = data[3].(float64); !ok {
-		return resp, errors.New("type assertion failed for accountcreate, check for api updates")
+		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for accountcreate", b.Name, errTypeAssert)
 	}
 	resp.MTSAccountCreate = int64(tempFloat)
 	if tempFloat, ok = data[4].(float64); !ok {
-		return resp, errors.New("type assertion failed for verified, check for api updates")
+		return resp, fmt.Errorf("%v GetAccountInfoV2: %w failed for verified", b.Name, errTypeAssert)
 	}
 	resp.Verified = int64(tempFloat)
 	if tempString, ok = data[7].(string); !ok {
-		return resp, errors.New("type assertion failed for timezone, check for api updates")
+		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for timezone", b.Name, errTypeAssert)
 	}
 	resp.Timezone = tempString
 	return resp, nil
@@ -256,19 +392,19 @@ func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
 	for x := range data {
 		wType, ok := data[x][0].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for walletType, check for api updates")
+			return resp, fmt.Errorf("%v GetV2Balances: %w for walletType", b.Name, errTypeAssert)
 		}
 		curr, ok := data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for currency, check for api updates")
+			return resp, fmt.Errorf("%v GetV2Balances: %w for currency", b.Name, errTypeAssert)
 		}
 		bal, ok := data[x][2].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for balance, check for api updates")
+			return resp, fmt.Errorf("%v GetV2Balances: %w for balance", b.Name, errTypeAssert)
 		}
 		unsettledInterest, ok := data[x][3].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for unsettledInterest, check for api updates")
+			return resp, fmt.Errorf("%v GetV2Balances: %w for unsettledInterest", b.Name, errTypeAssert)
 		}
 		resp = append(resp, WalletDataV2{
 			WalletType:        wType,
@@ -294,10 +430,10 @@ func (b *Bitfinex) GetMarginPairs() ([]string, error) {
 	return resp[0], nil
 }
 
-// GetDerivativeData gets data for the queried derivative
-func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limit int64) (DerivativeDataResponse, error) {
-	var result [][19]interface{}
-	var response DerivativeDataResponse
+// GetDerivativeStatusInfo gets status data for the queried derivative
+func (b *Bitfinex) GetDerivativeStatusInfo(keys, startTime, endTime string, sort, limit int64) ([]DerivativeDataResponse, error) {
+	var result [][]interface{}
+	var finalResp []DerivativeDataResponse
 
 	params := url.Values{}
 	params.Set("keys", keys)
@@ -317,62 +453,51 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 		params.Encode()
 	err := b.SendHTTPRequest(exchange.RestSpot, path, &result, status)
 	if err != nil {
-		return response, err
+		return finalResp, err
 	}
-	if len(result) < 1 {
-		return response, errors.New("invalid response, array length too small, check api docs for updates")
+	for z := range result {
+		if len(result[z]) < 19 {
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: invalid response, array length too small, check api docs for updates", b.Name)
+		}
+		var response DerivativeDataResponse
+		var ok bool
+		if response.Key, ok = result[z][0].(string); !ok {
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for Key", b.Name, errTypeAssert)
+		}
+		if response.MTS, ok = result[z][1].(float64); !ok {
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for MTS", b.Name, errTypeAssert)
+		}
+		if response.DerivPrice, ok = result[z][3].(float64); !ok {
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for DerivPrice", b.Name, errTypeAssert)
+		}
+		if response.SpotPrice, ok = result[z][4].(float64); !ok {
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for SpotPrice", b.Name, errTypeAssert)
+		}
+		if response.InsuranceFundBalance, ok = result[z][6].(float64); !ok {
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for Insurance fund balance", b.Name, errTypeAssert)
+		}
+		if response.NextFundingEventTS, ok = result[z][8].(float64); !ok {
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for NextFundingEventTS", b.Name, errTypeAssert)
+		}
+		if response.NextFundingAccured, ok = result[z][9].(float64); !ok {
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for NextFundingAccrued", b.Name, errTypeAssert)
+		}
+		if response.NextFundingStep, ok = result[z][10].(float64); !ok {
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for NextFundingStep", b.Name, errTypeAssert)
+		}
+		if response.CurrentFunding, ok = result[z][12].(float64); !ok {
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for CurrentFunding", b.Name, errTypeAssert)
+		}
+		if response.MarkPrice, ok = result[z][15].(float64); !ok {
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for MarkPrice", b.Name, errTypeAssert)
+		}
+
+		if response.OpenInterest, ok = result[z][18].(float64); !ok {
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for OpenInterest", b.Name, errTypeAssert)
+		}
+		finalResp = append(finalResp, response)
 	}
-	if len(result[0]) < 19 {
-		return response, errors.New("invalid response, array length too small, check api docs for updates")
-	}
-	var floatData float64
-	var stringData string
-	var ok bool
-	if stringData, ok = result[0][0].(string); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.Key = stringData
-	if floatData, ok = result[0][1].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.MTS = floatData
-	if floatData, ok = result[0][3].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.DerivPrice = floatData
-	if floatData, ok = result[0][4].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.SpotPrice = floatData
-	if floatData, ok = result[0][6].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.InsuranceFundBalance = floatData
-	if floatData, ok = result[0][8].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.NextFundingEventTS = floatData
-	if floatData, ok = result[0][9].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.NextFundingAccured = floatData
-	if floatData, ok = result[0][10].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.NextFundingStep = floatData
-	if floatData, ok = result[0][12].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.CurrentFunding = floatData
-	if floatData, ok = result[0][15].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.MarkPrice = floatData
-	if floatData, ok = result[0][18].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.OpenInterest = floatData
-	return response, nil
+	return finalResp, nil
 }
 
 // GetTickerBatch returns all supported ticker information
@@ -545,7 +670,6 @@ func (b *Bitfinex) GetOrderbook(symbol, precision string, limit int64) (Orderboo
 		u.Set("len", strconv.FormatInt(limit, 10))
 	}
 	path := bitfinexAPIVersion2 + bitfinexOrderbook + symbol + "/" + precision + "?" + u.Encode()
-
 	var response [][]interface{}
 	err := b.SendHTTPRequest(exchange.RestSpot, path, &response, orderbookFunction)
 	if err != nil {

@@ -219,7 +219,7 @@ func TestPrintResults(t *testing.T) {
 }
 
 func TestCalculateMaxDrawdown(t *testing.T) {
-	tt1 := time.Now().Round(gctkline.OneDay.Duration())
+	tt1 := time.Now().Add(-gctkline.OneDay.Duration() * 7).Round(gctkline.OneDay.Duration())
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)

@@ -110,7 +110,7 @@ func TestOnSignal(t *testing.T) {
 	da := &kline.DataFromKline{
 		Item:  gctkline.Item{},
 		Base:  d,
-		Range: gctkline.IntervalRangeHolder{},
+		Range: &gctkline.IntervalRangeHolder{},
 	}
 	var resp signal.Event
 	_, err = s.OnSignal(da, nil)
@@ -145,9 +145,12 @@ func TestOnSignal(t *testing.T) {
 		t.Error(err)
 	}
 
-	ranger := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
+	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
+	if err != nil {
+		t.Error(err)
+	}
 	da.Range = ranger
-	_ = da.Range.VerifyResultsHaveData(da.Item.Candles)
+	da.Range.SetHasDataFromCandles(da.Item.Candles)
 	resp, err = s.OnSignal(da, nil)
 	if err != nil {
 		t.Error(err)
@@ -186,7 +189,7 @@ func TestOnSignals(t *testing.T) {
 	da := &kline.DataFromKline{
 		Item:  gctkline.Item{},
 		Base:  d,
-		Range: gctkline.IntervalRangeHolder{},
+		Range: &gctkline.IntervalRangeHolder{},
 	}
 	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
 	if !errors.Is(err, base.ErrSimultaneousProcessingNotSupported) {

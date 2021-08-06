@@ -87,13 +87,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		return nil, err
 	}
 
-	e, err := bt.setupExchangeSettings(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	bt.Exchange = &e
-
 	buyRule := config.MinMax{
 		MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
 		MaximumSize:  cfg.PortfolioSettings.BuySide.MaximumSize,
@@ -143,6 +136,15 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
 				err)
 		}
+		exch := bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+		b := exch.GetBase()
+		var pFmt currency.PairFormat
+		pFmt, err = b.GetPairFormat(a, true)
+		if err != nil {
+			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
+		}
+		curr = curr.Format(pFmt.Delimiter, pFmt.Uppercase)
+
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = &risk.CurrencySettings{
 			MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
 			MaxLeverageRate:                cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
@@ -159,22 +161,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	if err != nil {
 		return nil, err
 	}
-	for i := range e.CurrencySettings {
-		var lookup *settings.Settings
-		lookup, err = p.SetupCurrencySettingsMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
-		if err != nil {
-			return nil, err
-		}
-		lookup.Fee = e.CurrencySettings[i].TakerFee
-		lookup.Leverage = e.CurrencySettings[i].Leverage
-		lookup.BuySideSizing = e.CurrencySettings[i].BuySide
-		lookup.SellSideSizing = e.CurrencySettings[i].SellSide
-		lookup.InitialFunds = e.CurrencySettings[i].InitialFunds
-		lookup.ComplianceManager = compliance.Manager{
-			Snapshots: []compliance.Snapshot{},
-		}
-	}
-	bt.Portfolio = p
 
 	bt.Strategy, err = strategies.LoadStrategyByName(cfg.StrategySettings.Name, cfg.StrategySettings.SimultaneousSignalProcessing)
 	if err != nil {
@@ -197,6 +183,29 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	}
 	bt.Statistic = stats
 	reports.Statistics = stats
+
+	e, err := bt.setupExchangeSettings(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	bt.Exchange = &e
+	for i := range e.CurrencySettings {
+		var lookup *settings.Settings
+		lookup, err = p.SetupCurrencySettingsMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
+		if err != nil {
+			return nil, err
+		}
+		lookup.Fee = e.CurrencySettings[i].TakerFee
+		lookup.Leverage = e.CurrencySettings[i].Leverage
+		lookup.BuySideSizing = e.CurrencySettings[i].BuySide
+		lookup.SellSideSizing = e.CurrencySettings[i].SellSide
+		lookup.InitialFunds = e.CurrencySettings[i].InitialFunds
+		lookup.ComplianceManager = compliance.Manager{
+			Snapshots: []compliance.Snapshot{},
+		}
+	}
+	bt.Portfolio = p
 
 	cfg.PrintSetting()
 
@@ -243,7 +252,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 
 		if cfg.CurrencySettings[i].MaximumSlippagePercent < 0 {
-			log.Warnf(log.BackTester, "invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
+			log.Warnf(log.BackTester, "invalid maximum slippage percent '%f'. Slippage percent is defined as a number, eg '100.00', defaulting to '%f'",
 				cfg.CurrencySettings[i].MaximumSlippagePercent,
 				slippage.DefaultMaximumSlippagePercent)
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
@@ -252,7 +261,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 		if cfg.CurrencySettings[i].MinimumSlippagePercent < 0 {
-			log.Warnf(log.BackTester, "invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
+			log.Warnf(log.BackTester, "invalid minimum slippage percent '%f'. Slippage percent is defined as a number, eg '80.00', defaulting to '%f'",
 				cfg.CurrencySettings[i].MinimumSlippagePercent,
 				slippage.DefaultMinimumSlippagePercent)
 			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
@@ -387,7 +396,7 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 	}
 	bt.Bot.ExchangeManager = engine.SetupExchangeManager()
 	for i := range cfg.CurrencySettings {
-		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, false, nil)
+		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, nil)
 		if err != nil && !errors.Is(err, engine.ErrExchangeAlreadyLoaded) {
 			return err
 		}
@@ -441,7 +450,6 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, take
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
 func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
-	log.Infof(log.BackTester, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
 	if exch == nil {
 		return nil, engine.ErrExchangeNotFound
 	}
@@ -452,7 +460,6 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		cfg.DataSettings.CSVData == nil {
 		return nil, errNoDataSource
 	}
-	resp := &kline.DataFromKline{}
 	if (cfg.DataSettings.APIData != nil && cfg.DataSettings.DatabaseData != nil) ||
 		(cfg.DataSettings.APIData != nil && cfg.DataSettings.LiveData != nil) ||
 		(cfg.DataSettings.APIData != nil && cfg.DataSettings.CSVData != nil) ||
@@ -467,6 +474,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, err
 	}
 
+	log.Infof(log.BackTester, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
+	resp := &kline.DataFromKline{}
 	switch {
 	case cfg.DataSettings.CSVData != nil:
 		if cfg.DataSettings.Interval <= 0 {
@@ -484,19 +493,19 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		}
 		resp.Item.RemoveDuplicates()
 		resp.Item.SortCandlesByTimestamp(false)
-		resp.Range = gctkline.CalculateCandleDateRanges(
+		resp.Range, err = gctkline.CalculateCandleDateRanges(
 			resp.Item.Candles[0].Time,
 			resp.Item.Candles[len(resp.Item.Candles)-1].Time.Add(cfg.DataSettings.Interval),
 			gctkline.Interval(cfg.DataSettings.Interval),
 			0,
 		)
-		err = resp.Range.VerifyResultsHaveData(resp.Item.Candles)
 		if err != nil {
-			if strings.Contains(err.Error(), "missing candles data between") {
-				log.Warn(log.BackTester, err.Error())
-			} else {
-				return nil, err
-			}
+			return nil, err
+		}
+		resp.Range.SetHasDataFromCandles(resp.Item.Candles)
+		summary := resp.Range.DataSummary(false)
+		if len(summary) > 0 {
+			log.Warnf(log.BackTester, "%v", summary)
 		}
 	case cfg.DataSettings.DatabaseData != nil:
 		if cfg.DataSettings.DatabaseData.InclusiveEndDate {
@@ -532,19 +541,19 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 
 		resp.Item.RemoveDuplicates()
 		resp.Item.SortCandlesByTimestamp(false)
-		resp.Range = gctkline.CalculateCandleDateRanges(
+		resp.Range, err = gctkline.CalculateCandleDateRanges(
 			cfg.DataSettings.DatabaseData.StartDate,
 			cfg.DataSettings.DatabaseData.EndDate,
 			gctkline.Interval(cfg.DataSettings.Interval),
 			0,
 		)
-		err = resp.Range.VerifyResultsHaveData(resp.Item.Candles)
 		if err != nil {
-			if strings.Contains(err.Error(), "missing candles data between") {
-				log.Warn(log.BackTester, err.Error())
-			} else {
-				return nil, err
-			}
+			return nil, err
+		}
+		resp.Range.SetHasDataFromCandles(resp.Item.Candles)
+		summary := resp.Range.DataSummary(false)
+		if len(summary) > 0 {
+			log.Warnf(log.BackTester, "%v", summary)
 		}
 	case cfg.DataSettings.APIData != nil:
 		if cfg.DataSettings.APIData.InclusiveEndDate {
@@ -624,11 +633,14 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}
-	dates := gctkline.CalculateCandleDateRanges(
+	dates, err := gctkline.CalculateCandleDateRanges(
 		cfg.DataSettings.APIData.StartDate,
 		cfg.DataSettings.APIData.EndDate,
 		gctkline.Interval(cfg.DataSettings.Interval),
 		resultLimit)
+	if err != nil {
+		return nil, err
+	}
 	candles, err := api.LoadData(
 		dataType,
 		cfg.DataSettings.APIData.StartDate,
@@ -640,14 +652,12 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if err != nil {
 		return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 	}
-	err = dates.VerifyResultsHaveData(candles.Candles)
-	if err != nil && errors.Is(err, gctkline.ErrMissingCandleData) {
-		log.Warn(log.BackTester, err.Error())
-	} else if err != nil {
-		return nil, err
+	dates.SetHasDataFromCandles(candles.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.BackTester, "%v", summary)
 	}
-
-	candles.FillMissingDataWithEmptyEntries(&dates)
+	candles.FillMissingDataWithEmptyEntries(dates)
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
 	return &kline.DataFromKline{
 		Item:  *candles,
@@ -963,18 +973,15 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		return
 	}
 	resp.Item = *candles
-	err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate, dataType)
-	if err != nil {
-		log.Error(log.BackTester, err)
-		return
-	}
 
-	loadNewDataTicker := time.NewTicker(time.Second * 30)
+	loadNewDataTimer := time.NewTimer(time.Second * 5)
 	for {
 		select {
 		case <-bt.shutdown:
 			return
-		case <-loadNewDataTicker.C:
+		case <-loadNewDataTimer.C:
+			log.Infof(log.BackTester, "fetching data for %v %v %v %v", exch.GetName(), a, fPair, cfg.DataSettings.Interval)
+			loadNewDataTimer.Reset(time.Second * 30)
 			err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate, dataType)
 			if err != nil {
 				log.Error(log.BackTester, err)
@@ -985,6 +992,15 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 }
 
 func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, startDate time.Time, dataType int64) error {
+	if resp == nil {
+		return errNilData
+	}
+	if cfg == nil {
+		return errNilConfig
+	}
+	if exch == nil {
+		return errNilExchange
+	}
 	candles, err := live.LoadData(
 		exch,
 		dataType,
@@ -994,6 +1010,7 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 	if err != nil {
 		return err
 	}
+
 	resp.Item.Candles = append(resp.Item.Candles, candles.Candles...)
 	_, err = exch.FetchOrderbook(fPair, a)
 	if err != nil {
@@ -1005,14 +1022,17 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 		return nil
 	}
 	endDate := candles.Candles[len(candles.Candles)-1].Time.Add(cfg.DataSettings.Interval)
-	if resp.Range.Ranges == nil {
-		dataRange := gctkline.CalculateCandleDateRanges(
+	if resp.Range == nil || resp.Range.Ranges == nil {
+		dataRange, err := gctkline.CalculateCandleDateRanges(
 			startDate,
 			endDate,
 			gctkline.Interval(cfg.DataSettings.Interval),
 			0,
 		)
-		resp.Range = gctkline.IntervalRangeHolder{
+		if err != nil {
+			return err
+		}
+		resp.Range = &gctkline.IntervalRangeHolder{
 			Start:  gctkline.CreateIntervalTime(startDate),
 			End:    gctkline.CreateIntervalTime(endDate),
 			Ranges: dataRange.Ranges,

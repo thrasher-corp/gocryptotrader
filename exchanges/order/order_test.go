@@ -2,6 +2,7 @@ package order
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -276,6 +277,12 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	}
+
+	currencies = []currency.Pair{currency.NewPair(currency.USD, currency.BTC)}
+	FilterOrdersByCurrencies(&orders, currencies)
+	if len(orders) != 1 {
+		t.Errorf("Reverse Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
 	currencies = []currency.Pair{}
@@ -1099,6 +1106,132 @@ func TestValidationOnOrderTypes(t *testing.T) {
 		return nil
 	})) != nil {
 		t.Fatal("unexpected error")
+	}
+}
+
+func TestMatchFilter(t *testing.T) {
+	filters := map[int]Filter{
+		0:  {},
+		1:  {Exchange: "Binance"},
+		2:  {InternalOrderID: "1234"},
+		3:  {ID: "2222"},
+		4:  {ClientOrderID: "3333"},
+		5:  {ClientID: "4444"},
+		6:  {WalletAddress: "5555"},
+		7:  {Type: AnyType},
+		8:  {Type: Limit},
+		9:  {Side: AnySide},
+		10: {Side: Sell},
+		11: {Status: AnyStatus},
+		12: {Status: New},
+		13: {AssetType: asset.Spot},
+		14: {Pair: currency.NewPair(currency.BTC, currency.USD)},
+		15: {Exchange: "Binance", Type: Limit, Status: New},
+		16: {Exchange: "Binance", Type: AnyType},
+		17: {AccountID: "8888"},
+	}
+
+	orders := map[int]Detail{
+		0:  {},
+		1:  {Exchange: "Binance"},
+		2:  {InternalOrderID: "1234"},
+		3:  {ID: "2222"},
+		4:  {ClientOrderID: "3333"},
+		5:  {ClientID: "4444"},
+		6:  {WalletAddress: "5555"},
+		7:  {Type: AnyType},
+		8:  {Type: Limit},
+		9:  {Side: AnySide},
+		10: {Side: Sell},
+		11: {Status: AnyStatus},
+		12: {Status: New},
+		13: {AssetType: asset.Spot},
+		14: {Pair: currency.NewPair(currency.BTC, currency.USD)},
+		15: {Exchange: "Binance", Type: Limit, Status: New},
+		16: {AccountID: "8888"},
+	}
+	// empty filter tests
+	emptyFilter := filters[0]
+	for _, o := range orders {
+		if !o.MatchFilter(&emptyFilter) {
+			t.Error("empty filter should match everything")
+		}
+	}
+
+	tests := map[int]struct {
+		f      Filter
+		o      Detail
+		expRes bool
+	}{
+		0:  {filters[1], orders[1], true},
+		1:  {filters[1], orders[0], false},
+		2:  {filters[2], orders[2], true},
+		3:  {filters[2], orders[3], false},
+		4:  {filters[3], orders[3], true},
+		5:  {filters[3], orders[4], false},
+		6:  {filters[4], orders[4], true},
+		7:  {filters[4], orders[5], false},
+		8:  {filters[5], orders[5], true},
+		9:  {filters[5], orders[6], false},
+		10: {filters[6], orders[6], true},
+		11: {filters[6], orders[7], false},
+		12: {filters[7], orders[7], true},
+		13: {filters[7], orders[8], true},
+		14: {filters[7], orders[9], true},
+		15: {filters[8], orders[7], false},
+		16: {filters[8], orders[8], true},
+		17: {filters[8], orders[9], false},
+		18: {filters[9], orders[9], true},
+		19: {filters[9], orders[10], true},
+		20: {filters[9], orders[11], true},
+		21: {filters[10], orders[10], true},
+		22: {filters[10], orders[11], false},
+		23: {filters[10], orders[9], false},
+		24: {filters[11], orders[11], true},
+		25: {filters[11], orders[12], true},
+		26: {filters[11], orders[10], true},
+		27: {filters[12], orders[12], true},
+		28: {filters[12], orders[13], false},
+		29: {filters[12], orders[11], false},
+		30: {filters[13], orders[13], true},
+		31: {filters[13], orders[12], false},
+		32: {filters[14], orders[14], true},
+		33: {filters[14], orders[13], false},
+		34: {filters[15], orders[15], true},
+		35: {filters[16], orders[15], true},
+		36: {filters[17], orders[16], true},
+		37: {filters[17], orders[15], false},
+	}
+	// specific tests
+	for num, tt := range tests {
+		if tt.o.MatchFilter(&tt.f) != tt.expRes {
+			t.Errorf("tests[%v] failed", num)
+		}
+	}
+}
+
+func TestDetail_Copy(t *testing.T) {
+	d := []Detail{
+		{
+			Exchange: "Binance",
+		},
+		{
+			Exchange: "Binance",
+			Trades: []TradeHistory{
+				{Price: 1},
+			},
+		},
+	}
+	for i := range d {
+		r := d[i].Copy()
+		if !reflect.DeepEqual(d[i], r) {
+			t.Errorf("[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)
+		}
+		if len(d[i].Trades) > 0 {
+			if &d[i].Trades[0] == &r.Trades[0] {
+				t.Errorf("[%d]Trades point to the same data elements", i)
+			}
+		}
 	}
 }
 

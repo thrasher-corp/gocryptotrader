@@ -271,13 +271,16 @@ func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params
 	if arg.FromID > 0 {
 		fromID = arg.FromID
 	} else {
-		for start := arg.StartTime; len(resp) == 0; start = start.Add(time.Hour) {
+		// Only 10 seconds is used to prevent limit of 1000 being reached in the first request,
+		// cutting off trades for high activity pairs
+		increment := time.Second * 10
+		for start := arg.StartTime; len(resp) == 0; start = start.Add(increment) {
 			if !arg.EndTime.IsZero() && !start.Before(arg.EndTime) {
 				// All requests returned empty
 				return nil, nil
 			}
 			params.Set("startTime", timeString(start))
-			params.Set("endTime", timeString(start.Add(time.Hour)))
+			params.Set("endTime", timeString(start.Add(increment)))
 			path := aggregatedTrades + "?" + params.Encode()
 			err := b.SendHTTPRequest(exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
@@ -526,7 +529,7 @@ func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderRespons
 	}
 
 	if o.NewClientOrderID != "" {
-		params.Set("newClientOrderID", o.NewClientOrderID)
+		params.Set("newClientOrderId", o.NewClientOrderID)
 	}
 
 	if o.StopPrice != 0 {
@@ -661,6 +664,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 	return &resp.Account, nil
 }
 
+// GetMarginAccount returns account information for margin accounts
 func (b *Binance) GetMarginAccount() (*MarginAccount, error) {
 	var resp MarginAccount
 	params := url.Values{}
@@ -688,6 +692,8 @@ func (b *Binance) SendHTTPRequest(ePath exchange.URL, path string, f request.End
 		Endpoint:      f})
 }
 
+// SendAPIKeyHTTPRequest is a special API request where the api key is
+// appended to the headers without a secret
 func (b *Binance) SendAPIKeyHTTPRequest(ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
 	endpointPath, err := b.API.Endpoints.GetURL(ePath)
 	if err != nil {

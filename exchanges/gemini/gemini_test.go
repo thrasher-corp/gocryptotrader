@@ -1189,8 +1189,8 @@ func TestGetHistoricTrades(t *testing.T) {
 	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
 	tEnd := time.Date(2020, 6, 7, 0, 0, 0, 0, time.UTC)
 	if !mockTests {
-		tStart = time.Date(time.Now().Year(), time.Now().Month(), 6, 0, 0, 0, 0, time.UTC)
-		tEnd = time.Date(time.Now().Year(), time.Now().Month(), 7, 0, 0, 0, 0, time.UTC)
+		tStart = time.Date(time.Now().Year(), time.Now().Month(), 1, 0, 0, 0, 0, time.UTC)
+		tEnd = time.Date(time.Now().Year(), time.Now().Month(), 1, 0, 15, 0, 0, time.UTC)
 	}
 	_, err = g.GetHistoricTrades(currencyPair, asset.Spot, tStart, tEnd)
 	if err != nil {

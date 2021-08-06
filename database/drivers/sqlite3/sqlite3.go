@@ -10,20 +10,21 @@ import (
 )
 
 // Connect opens a connection to sqlite database and returns a pointer to database.DB
-func Connect() (*database.Instance, error) {
-	cfg := database.DB.GetConfig()
-	if cfg.Database == "" {
+func Connect(db string) (*database.Instance, error) {
+	if db == "" {
 		return nil, database.ErrNoDatabaseProvided
 	}
 
-	databaseFullLocation := filepath.Join(database.DB.DataPath, cfg.Database)
-
+	databaseFullLocation := filepath.Join(database.DB.DataPath, db)
 	dbConn, err := sql.Open("sqlite3", databaseFullLocation)
 	if err != nil {
 		return nil, err
 	}
 
-	database.DB.SetSQLiteConnection(dbConn)
+	err = database.DB.SetSQLiteConnection(dbConn)
+	if err != nil {
+		return nil, err
+	}
 
 	return database.DB, nil
 }

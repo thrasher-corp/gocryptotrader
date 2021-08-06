@@ -215,8 +215,8 @@ func (b *Base) GetLastPairsUpdateTime() int64 {
 	return b.CurrencyPairs.LastUpdated
 }
 
-// GetAssetTypes returns the enabled or available asset types for an individual
-// exchange
+// GetAssetTypes returns the either the enabled or available asset types for an
+// individual exchange
 func (b *Base) GetAssetTypes(enabled bool) asset.Items {
 	return b.CurrencyPairs.GetAssetTypes(enabled)
 }

@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"errors"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -133,14 +133,15 @@ func TestSizeOrder(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
-	bot, err := engine.NewFromSettings(&engine.Settings{
-		ConfigFile:   filepath.Join("..", "..", "..", "testdata", "configtest.json"),
-		EnableDryRun: true,
-	}, nil)
+	bot := &engine.Engine{}
+	var err error
+	em := engine.SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
-	em := engine.SetupExchangeManager()
+	exch.SetDefaults()
+	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false)
 	if err != nil {
@@ -149,15 +150,6 @@ func TestPlaceOrder(t *testing.T) {
 	err = bot.OrderManager.Start()
 	if err != nil {
 		t.Error(err)
-	}
-	err = bot.LoadExchange(testExchange, false, nil)
-	if err != nil {
-		t.Error(err)
-	}
-
-	exch := bot.GetExchangeByName(testExchange)
-	if exch == nil {
-		t.Fatal("unexpected value")
 	}
 
 	err = exch.GetBase().LoadHoldings(account.Main,
@@ -202,15 +194,15 @@ func TestPlaceOrder(t *testing.T) {
 
 func TestExecuteOrder(t *testing.T) {
 	t.Parallel()
-	bot, err := engine.NewFromSettings(&engine.Settings{
-		ConfigFile:   filepath.Join("..", "..", "..", "testdata", "configtest.json"),
-		EnableDryRun: true,
-	}, nil)
+	bot := &engine.Engine{}
+	var err error
+	em := engine.SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	em := engine.SetupExchangeManager()
+	exch.SetDefaults()
+	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false)
 	if err != nil {
@@ -220,7 +212,7 @@ func TestExecuteOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bot.LoadExchange(testExchange, false, nil)
+	err = bot.LoadExchange(testExchange, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -236,12 +228,7 @@ func TestExecuteOrder(t *testing.T) {
 	}
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
-	_, err = b.FetchOrderbook(p, a)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	limits, err := b.GetOrderExecutionLimits(a, p)
+	_, err = exch.FetchOrderbook(p, a)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +247,6 @@ func TestExecuteOrder(t *testing.T) {
 		Leverage:            config.Leverage{},
 		MinimumSlippageRate: 0,
 		MaximumSlippageRate: 1,
-		Limits:              limits,
 	}
 	e := Exchange{
 		CurrencySettings: []Settings{cs},
@@ -318,27 +304,29 @@ func TestExecuteOrder(t *testing.T) {
 
 func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	t.Parallel()
-	bot, err := engine.NewFromSettings(&engine.Settings{
-		ConfigFile:   filepath.Join("..", "..", "..", "testdata", "configtest.json"),
-		EnableDryRun: true,
-	}, nil)
+	bot := &engine.Engine{}
+	var err error
+	em := engine.SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
-	em := engine.SetupExchangeManager()
+	exch.SetDefaults()
+	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false)
 	if err != nil {
 		t.Error(err)
 	}
-
 	err = bot.OrderManager.Start()
 	if err != nil {
 		t.Error(err)
 	}
-	err = bot.LoadExchange(testExchange, false, nil)
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	a := asset.Spot
+	_, err = exch.FetchOrderbook(p, a)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	b := bot.GetExchangeByName(testExchange)
 	err = b.GetBase().LoadHoldings(account.Main,
@@ -351,14 +339,12 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p := currency.NewPair(currency.BTC, currency.USDT)
-	a := asset.Spot
-	_, err = b.FetchOrderbook(p, a)
+	err = exch.UpdateOrderExecutionLimits(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	limits, err := b.GetOrderExecutionLimits(a, p)
+	limits, err := exch.GetOrderExecutionLimits(a, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -424,11 +410,8 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 	d.Next()
 	_, err = e.ExecuteOrder(o, d, bot)
-	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
-		t.Error(err)
-	}
-	if err == nil {
-		t.Error("Order size  0.99999999 should exceed minimum size 0.00000000 or maximum size 0.01000000")
+	if !errors.Is(err, errExceededPortfolioLimit) {
+		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
 	o = &order.Order{
 		Base:      ev,
@@ -473,19 +456,15 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.SellSide.MinimumSize = 1
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot)
-	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
-		t.Error(err)
-	}
-
-	if err == nil {
-		t.Error(" Order size  0.50000000 should exceed minimum size 1.00000000")
+	if !errors.Is(err, errExceededPortfolioLimit) {
+		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
 
 	o = &order.Order{
 		Base:      ev,
 		Direction: gctorder.Sell,
 		Amount:    0.02,
-		Funds:     1337,
+		Funds:     0.01337,
 	}
 	cs.SellSide.MaximumSize = 0
 	cs.SellSide.MinimumSize = 0.01
@@ -496,8 +475,8 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot)
-	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
-		t.Error(err)
+	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
+		t.Errorf("received %v expected %v", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 }
 
@@ -520,8 +499,71 @@ func TestReduceAmountToFitPortfolioLimit(t *testing.T) {
 	portfolioAdjustedTotal := initialAmount * initialPrice
 	adjustedPrice := 1000.0
 	amount := 2.0
-	finalAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, portfolioAdjustedTotal)
+	finalAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, portfolioAdjustedTotal, gctorder.Buy)
 	if finalAmount*adjustedPrice != portfolioAdjustedTotal {
 		t.Errorf("expected value %v to match portfolio total %v", finalAmount*adjustedPrice, portfolioAdjustedTotal)
+	}
+	finalAmount = reduceAmountToFitPortfolioLimit(adjustedPrice, 133333333337, portfolioAdjustedTotal, gctorder.Sell)
+	if finalAmount != portfolioAdjustedTotal {
+		t.Errorf("expected value %v to match portfolio total %v", finalAmount, portfolioAdjustedTotal)
+	}
+	finalAmount = reduceAmountToFitPortfolioLimit(adjustedPrice, 1, portfolioAdjustedTotal, gctorder.Sell)
+	if finalAmount != 1 {
+		t.Errorf("expected value %v to match portfolio total %v", finalAmount, portfolioAdjustedTotal)
+	}
+}
+
+func TestVerifyOrderWithinLimits(t *testing.T) {
+	t.Parallel()
+	err := verifyOrderWithinLimits(nil, 0, nil)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("received %v expected %v", err, common.ErrNilEvent)
+	}
+
+	err = verifyOrderWithinLimits(&fill.Fill{}, 0, nil)
+	if !errors.Is(err, errNilCurrencySettings) {
+		t.Errorf("received %v expected %v", err, errNilCurrencySettings)
+	}
+
+	err = verifyOrderWithinLimits(&fill.Fill{}, 0, &Settings{})
+	if !errors.Is(err, errInvalidDirection) {
+		t.Errorf("received %v expected %v", err, errInvalidDirection)
+	}
+	f := &fill.Fill{
+		Direction: gctorder.Buy,
+	}
+	err = verifyOrderWithinLimits(f, 0, &Settings{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	s := &Settings{
+		BuySide: config.MinMax{
+			MinimumSize: 1,
+			MaximumSize: 1,
+		},
+	}
+	err = verifyOrderWithinLimits(f, 0.5, s)
+	if !errors.Is(err, errExceededPortfolioLimit) {
+		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
+	}
+	f.Direction = gctorder.Buy
+	err = verifyOrderWithinLimits(f, 2, s)
+	if !errors.Is(err, errExceededPortfolioLimit) {
+		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
+	}
+
+	f.Direction = gctorder.Sell
+	s.SellSide = config.MinMax{
+		MinimumSize: 1,
+		MaximumSize: 1,
+	}
+	err = verifyOrderWithinLimits(f, 0.5, s)
+	if !errors.Is(err, errExceededPortfolioLimit) {
+		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
+	}
+	f.Direction = gctorder.Sell
+	err = verifyOrderWithinLimits(f, 2, s)
+	if !errors.Is(err, errExceededPortfolioLimit) {
+		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
 }

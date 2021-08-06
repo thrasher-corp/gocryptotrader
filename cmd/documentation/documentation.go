@@ -171,6 +171,21 @@ func main() {
 		// Github API missing contributors
 		contributors = append(contributors, []Contributor{
 			{
+				Login:         "tk42",
+				URL:           "https://github.com/tk42",
+				Contributions: 2,
+			},
+			{
+				Login:         "mshogin",
+				URL:           "https://github.com/mshogin",
+				Contributions: 2,
+			},
+			{
+				Login:         "herenow",
+				URL:           "https://github.com/herenow",
+				Contributions: 2,
+			},
+			{
 				Login:         "daniel-cohen",
 				URL:           "https://github.com/daniel-cohen",
 				Contributions: 1,
@@ -245,6 +260,15 @@ func main() {
 			{
 				Login:         "Daanikus",
 				URL:           "https://github.com/Daanikus",
+				Contributions: 1,
+			}, {
+				Login:         "CodeLingoBot",
+				URL:           "https://github.com/CodeLingoBot",
+				Contributions: 1,
+			},
+			{
+				Login:         "blombard",
+				URL:           "https://github.com/blombard",
 				Contributions: 1,
 			},
 			{
@@ -444,7 +468,7 @@ func GetPackageName(name string, capital bool) string {
 		i = len(newStrings) - 1
 	}
 	if capital {
-		return strings.Title(newStrings[i])
+		return strings.Replace(strings.Title(newStrings[i]), "_", " ", -1)
 	}
 	return newStrings[i]
 }

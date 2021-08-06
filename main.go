@@ -35,6 +35,7 @@ func main() {
 	flag.BoolVar(&settings.EnableAllExchanges, "enableallexchanges", false, "enables all exchanges")
 	flag.BoolVar(&settings.EnableAllPairs, "enableallpairs", false, "enables all pairs for enabled exchanges")
 	flag.BoolVar(&settings.EnablePortfolioManager, "portfoliomanager", true, "enables the portfolio manager")
+	flag.BoolVar(&settings.EnableDataHistoryManager, "datahistorymanager", false, "enables the data history manager")
 	flag.DurationVar(&settings.PortfolioManagerDelay, "portfoliomanagerdelay", time.Duration(0), "sets the portfolio managers sleep delay between updates")
 	flag.BoolVar(&settings.EnableGRPC, "grpc", true, "enables the grpc server")
 	flag.BoolVar(&settings.EnableGRPCProxy, "grpcproxy", false, "enables the grpc proxy server")

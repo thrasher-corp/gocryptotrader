@@ -240,6 +240,10 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
+				clientOrderID := data.Data.ClientOrderID
+				if oStatus == order.Cancelled {
+					clientOrderID = data.Data.CancelledClientOrderID
+				}
 				b.Websocket.DataHandler <- &order.Detail{
 					Price:           data.Data.Price,
 					Amount:          data.Data.Quantity,
@@ -253,6 +257,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					AssetType:       a,
 					Date:            data.Data.OrderCreationTime,
 					Pair:            p,
+					ClientOrderID:   clientOrderID,
 				}
 				return nil
 			case "listStatus":
@@ -421,7 +426,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	switch status {
 	case "NEW":
 		return order.New, nil
-	case "CANCELLED":
+	case "CANCELED":
 		return order.Cancelled, nil
 	case "REJECTED":
 		return order.Rejected, nil

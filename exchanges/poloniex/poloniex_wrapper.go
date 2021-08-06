@@ -452,8 +452,8 @@ func (p *Poloniex) GetRecentTrades(currencyPair currency.Pair, assetType asset.I
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (p *Poloniex) GetHistoricTrades(currencyPair currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
 	var err error
 	currencyPair, err = p.FormatExchangeCurrency(currencyPair, assetType)
@@ -553,14 +553,14 @@ func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (p *Poloniex) ModifyOrder(action *order.Modify) (string, error) {
+func (p *Poloniex) ModifyOrder(action *order.Modify) (order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
 	oID, err := strconv.ParseInt(action.ID, 10, 64)
 	if err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
 	resp, err := p.MoveOrder(oID,
@@ -569,10 +569,20 @@ func (p *Poloniex) ModifyOrder(action *order.Modify) (string, error) {
 		action.PostOnly,
 		action.ImmediateOrCancel)
 	if err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
-	return strconv.FormatInt(resp.OrderNumber, 10), nil
+	return order.Modify{
+		Exchange:  action.Exchange,
+		AssetType: action.AssetType,
+		Pair:      action.Pair,
+		ID:        strconv.FormatInt(resp.OrderNumber, 10),
+
+		Price:             action.Price,
+		Amount:            action.Amount,
+		PostOnly:          action.PostOnly,
+		ImmediateOrCancel: action.ImmediateOrCancel,
+	}, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number

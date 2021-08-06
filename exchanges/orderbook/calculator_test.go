@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -89,4 +90,67 @@ func TestOrderSummary(t *testing.T) {
 	}
 
 	o.Print()
+}
+
+func TestGetAveragePrice(t *testing.T) {
+	var b Base
+	b.Exchange = "Binance"
+	cp, err := currency.NewPairFromString("ETH-USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	b.Pair = cp
+	b.Bids = []Item{}
+	_, err = b.GetAveragePrice(false, 5)
+	if errors.Is(errNotEnoughLiquidity, err) {
+		t.Error("expected: %w, received %w", errNotEnoughLiquidity, err)
+	}
+	b = Base{}
+	b.Pair = cp
+	b.Asks = []Item{
+		{Amount: 5, Price: 1},
+		{Amount: 5, Price: 2},
+		{Amount: 5, Price: 3},
+		{Amount: 5, Price: 4},
+	}
+	_, err = b.GetAveragePrice(true, -2)
+	if !errors.Is(err, errAmountInvalid) {
+		t.Errorf("expected: %v, received %v", errAmountInvalid, err)
+	}
+	avgPrice, err := b.GetAveragePrice(true, 15)
+	if err != nil {
+		t.Error(err)
+	}
+	if avgPrice != 2 {
+		t.Errorf("avg price calculation failed: expected 2, received %f", avgPrice)
+	}
+	avgPrice, err = b.GetAveragePrice(true, 18)
+	if err != nil {
+		t.Error(err)
+	}
+	if math.Round(avgPrice*1000)/1000 != 2.333 {
+		t.Errorf("avg price calculation failed: expected 2.333, received %f", math.Round(avgPrice*1000)/1000)
+	}
+	_, err = b.GetAveragePrice(true, 25)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Errorf("expected: %v, received %v", errNotEnoughLiquidity, err)
+	}
+}
+
+func TestFindNominalAmount(t *testing.T) {
+	b := Items{
+		{Amount: 5, Price: 1},
+		{Amount: 5, Price: 2},
+		{Amount: 5, Price: 3},
+		{Amount: 5, Price: 4},
+	}
+	nomAmt, remainingAmt := b.FindNominalAmount(15)
+	if nomAmt != 30 && remainingAmt != 0 {
+		t.Errorf("invalid return")
+	}
+	b = Items{}
+	nomAmt, remainingAmt = b.FindNominalAmount(15)
+	if nomAmt != 0 && remainingAmt != 30 {
+		t.Errorf("invalid return")
+	}
 }

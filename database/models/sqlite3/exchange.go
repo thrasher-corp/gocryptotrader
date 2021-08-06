@@ -49,20 +49,26 @@ var ExchangeWhere = struct {
 
 // ExchangeRels is where relationship names are stored.
 var ExchangeRels = struct {
-	ExchangeNameCandle              string
-	ExchangeNameTrade               string
-	ExchangeNameWithdrawalHistories string
+	ExchangeNameCandle               string
+	ExchangeNameTrade                string
+	ExchangeNameDatahistoryjobs      string
+	SecondaryExchangeDatahistoryjobs string
+	ExchangeNameWithdrawalHistories  string
 }{
-	ExchangeNameCandle:              "ExchangeNameCandle",
-	ExchangeNameTrade:               "ExchangeNameTrade",
-	ExchangeNameWithdrawalHistories: "ExchangeNameWithdrawalHistories",
+	ExchangeNameCandle:               "ExchangeNameCandle",
+	ExchangeNameTrade:                "ExchangeNameTrade",
+	ExchangeNameDatahistoryjobs:      "ExchangeNameDatahistoryjobs",
+	SecondaryExchangeDatahistoryjobs: "SecondaryExchangeDatahistoryjobs",
+	ExchangeNameWithdrawalHistories:  "ExchangeNameWithdrawalHistories",
 }
 
 // exchangeR is where relationships are stored.
 type exchangeR struct {
-	ExchangeNameCandle              *Candle
-	ExchangeNameTrade               *Trade
-	ExchangeNameWithdrawalHistories WithdrawalHistorySlice
+	ExchangeNameCandle               *Candle
+	ExchangeNameTrade                *Trade
+	ExchangeNameDatahistoryjobs      DatahistoryjobSlice
+	SecondaryExchangeDatahistoryjobs DatahistoryjobSlice
+	ExchangeNameWithdrawalHistories  WithdrawalHistorySlice
 }
 
 // NewStruct creates a new relationship struct
@@ -383,6 +389,48 @@ func (o *Exchange) ExchangeNameTrade(mods ...qm.QueryMod) tradeQuery {
 	return query
 }
 
+// ExchangeNameDatahistoryjobs retrieves all the datahistoryjob's Datahistoryjobs with an executor via exchange_name_id column.
+func (o *Exchange) ExchangeNameDatahistoryjobs(mods ...qm.QueryMod) datahistoryjobQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"datahistoryjob\".\"exchange_name_id\"=?", o.ID),
+	)
+
+	query := Datahistoryjobs(queryMods...)
+	queries.SetFrom(query.Query, "\"datahistoryjob\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"datahistoryjob\".*"})
+	}
+
+	return query
+}
+
+// SecondaryExchangeDatahistoryjobs retrieves all the datahistoryjob's Datahistoryjobs with an executor via secondary_exchange_id column.
+func (o *Exchange) SecondaryExchangeDatahistoryjobs(mods ...qm.QueryMod) datahistoryjobQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"datahistoryjob\".\"secondary_exchange_id\"=?", o.ID),
+	)
+
+	query := Datahistoryjobs(queryMods...)
+	queries.SetFrom(query.Query, "\"datahistoryjob\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"datahistoryjob\".*"})
+	}
+
+	return query
+}
+
 // ExchangeNameWithdrawalHistories retrieves all the withdrawal_history's WithdrawalHistories with an executor via exchange_name_id column.
 func (o *Exchange) ExchangeNameWithdrawalHistories(mods ...qm.QueryMod) withdrawalHistoryQuery {
 	var queryMods []qm.QueryMod
@@ -600,6 +648,196 @@ func (exchangeL) LoadExchangeNameTrade(ctx context.Context, e boil.ContextExecut
 	return nil
 }
 
+// LoadExchangeNameDatahistoryjobs allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (exchangeL) LoadExchangeNameDatahistoryjobs(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExchange interface{}, mods queries.Applicator) error {
+	var slice []*Exchange
+	var object *Exchange
+
+	if singular {
+		object = maybeExchange.(*Exchange)
+	} else {
+		slice = *maybeExchange.(*[]*Exchange)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &exchangeR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &exchangeR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`datahistoryjob`), qm.WhereIn(`datahistoryjob.exchange_name_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load datahistoryjob")
+	}
+
+	var resultSlice []*Datahistoryjob
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice datahistoryjob")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on datahistoryjob")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for datahistoryjob")
+	}
+
+	if len(datahistoryjobAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.ExchangeNameDatahistoryjobs = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &datahistoryjobR{}
+			}
+			foreign.R.ExchangeName = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.ExchangeNameID {
+				local.R.ExchangeNameDatahistoryjobs = append(local.R.ExchangeNameDatahistoryjobs, foreign)
+				if foreign.R == nil {
+					foreign.R = &datahistoryjobR{}
+				}
+				foreign.R.ExchangeName = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadSecondaryExchangeDatahistoryjobs allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (exchangeL) LoadSecondaryExchangeDatahistoryjobs(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExchange interface{}, mods queries.Applicator) error {
+	var slice []*Exchange
+	var object *Exchange
+
+	if singular {
+		object = maybeExchange.(*Exchange)
+	} else {
+		slice = *maybeExchange.(*[]*Exchange)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &exchangeR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &exchangeR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ID) {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`datahistoryjob`), qm.WhereIn(`datahistoryjob.secondary_exchange_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load datahistoryjob")
+	}
+
+	var resultSlice []*Datahistoryjob
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice datahistoryjob")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on datahistoryjob")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for datahistoryjob")
+	}
+
+	if len(datahistoryjobAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.SecondaryExchangeDatahistoryjobs = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &datahistoryjobR{}
+			}
+			foreign.R.SecondaryExchange = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if queries.Equal(local.ID, foreign.SecondaryExchangeID) {
+				local.R.SecondaryExchangeDatahistoryjobs = append(local.R.SecondaryExchangeDatahistoryjobs, foreign)
+				if foreign.R == nil {
+					foreign.R = &datahistoryjobR{}
+				}
+				foreign.R.SecondaryExchange = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // LoadExchangeNameWithdrawalHistories allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
 func (exchangeL) LoadExchangeNameWithdrawalHistories(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExchange interface{}, mods queries.Applicator) error {
@@ -794,6 +1032,182 @@ func (o *Exchange) SetExchangeNameTrade(ctx context.Context, exec boil.ContextEx
 	} else {
 		related.R.ExchangeName = o
 	}
+	return nil
+}
+
+// AddExchangeNameDatahistoryjobs adds the given related objects to the existing relationships
+// of the exchange, optionally inserting them as new records.
+// Appends related to o.R.ExchangeNameDatahistoryjobs.
+// Sets related.R.ExchangeName appropriately.
+func (o *Exchange) AddExchangeNameDatahistoryjobs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Datahistoryjob) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ExchangeNameID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"datahistoryjob\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"exchange_name_id"}),
+				strmangle.WhereClause("\"", "\"", 0, datahistoryjobPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ExchangeNameID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &exchangeR{
+			ExchangeNameDatahistoryjobs: related,
+		}
+	} else {
+		o.R.ExchangeNameDatahistoryjobs = append(o.R.ExchangeNameDatahistoryjobs, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &datahistoryjobR{
+				ExchangeName: o,
+			}
+		} else {
+			rel.R.ExchangeName = o
+		}
+	}
+	return nil
+}
+
+// AddSecondaryExchangeDatahistoryjobs adds the given related objects to the existing relationships
+// of the exchange, optionally inserting them as new records.
+// Appends related to o.R.SecondaryExchangeDatahistoryjobs.
+// Sets related.R.SecondaryExchange appropriately.
+func (o *Exchange) AddSecondaryExchangeDatahistoryjobs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Datahistoryjob) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			queries.Assign(&rel.SecondaryExchangeID, o.ID)
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"datahistoryjob\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"secondary_exchange_id"}),
+				strmangle.WhereClause("\"", "\"", 0, datahistoryjobPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			queries.Assign(&rel.SecondaryExchangeID, o.ID)
+		}
+	}
+
+	if o.R == nil {
+		o.R = &exchangeR{
+			SecondaryExchangeDatahistoryjobs: related,
+		}
+	} else {
+		o.R.SecondaryExchangeDatahistoryjobs = append(o.R.SecondaryExchangeDatahistoryjobs, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &datahistoryjobR{
+				SecondaryExchange: o,
+			}
+		} else {
+			rel.R.SecondaryExchange = o
+		}
+	}
+	return nil
+}
+
+// SetSecondaryExchangeDatahistoryjobs removes all previously related items of the
+// exchange replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.SecondaryExchange's SecondaryExchangeDatahistoryjobs accordingly.
+// Replaces o.R.SecondaryExchangeDatahistoryjobs with related.
+// Sets related.R.SecondaryExchange's SecondaryExchangeDatahistoryjobs accordingly.
+func (o *Exchange) SetSecondaryExchangeDatahistoryjobs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Datahistoryjob) error {
+	query := "update \"datahistoryjob\" set \"secondary_exchange_id\" = null where \"secondary_exchange_id\" = ?"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.ExecContext(ctx, query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.SecondaryExchangeDatahistoryjobs {
+			queries.SetScanner(&rel.SecondaryExchangeID, nil)
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.SecondaryExchange = nil
+		}
+
+		o.R.SecondaryExchangeDatahistoryjobs = nil
+	}
+	return o.AddSecondaryExchangeDatahistoryjobs(ctx, exec, insert, related...)
+}
+
+// RemoveSecondaryExchangeDatahistoryjobs relationships from objects passed in.
+// Removes related items from R.SecondaryExchangeDatahistoryjobs (uses pointer comparison, removal does not keep order)
+// Sets related.R.SecondaryExchange.
+func (o *Exchange) RemoveSecondaryExchangeDatahistoryjobs(ctx context.Context, exec boil.ContextExecutor, related ...*Datahistoryjob) error {
+	var err error
+	for _, rel := range related {
+		queries.SetScanner(&rel.SecondaryExchangeID, nil)
+		if rel.R != nil {
+			rel.R.SecondaryExchange = nil
+		}
+		if _, err = rel.Update(ctx, exec, boil.Whitelist("secondary_exchange_id")); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.SecondaryExchangeDatahistoryjobs {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.SecondaryExchangeDatahistoryjobs)
+			if ln > 1 && i < ln-1 {
+				o.R.SecondaryExchangeDatahistoryjobs[i] = o.R.SecondaryExchangeDatahistoryjobs[ln-1]
+			}
+			o.R.SecondaryExchangeDatahistoryjobs = o.R.SecondaryExchangeDatahistoryjobs[:ln-1]
+			break
+		}
+	}
+
 	return nil
 }
 

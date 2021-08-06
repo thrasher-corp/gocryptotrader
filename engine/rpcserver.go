@@ -63,6 +63,7 @@ var (
 	errCurrencyNotEnabled   = errors.New("currency not enabled")
 	errCurrencyPairInvalid  = errors.New("currency provided is not found in the available pairs list")
 	errNoTrades             = errors.New("no trades returned from supplied params")
+	errNilRequestData       = errors.New("nil request data received, cannot continue")
 )
 
 // RPCServer struct
@@ -276,7 +277,7 @@ func (s *RPCServer) DisableExchange(_ context.Context, r *gctrpc.GenericExchange
 
 // EnableExchange enables an exchange
 func (s *RPCServer) EnableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericResponse, error) {
-	err := s.LoadExchange(r.Exchange, false, nil)
+	err := s.LoadExchange(r.Exchange, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -315,7 +316,7 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 	}
 
 	resp.SupportedAssets = make(map[string]*gctrpc.PairsSupported)
-	assets := exchCfg.CurrencyPairs.GetAssetTypes(true)
+	assets := exchCfg.CurrencyPairs.GetAssetTypes(false)
 	for i := range assets {
 		ps, err := exchCfg.CurrencyPairs.Get(assets[i])
 		if err != nil {
@@ -362,7 +363,7 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 
 	resp := &gctrpc.TickerResponse{
 		Pair:        r.Pair,
-		LastUpdated: t.LastUpdated.Unix(),
+		LastUpdated: s.unixTimestamp(t.LastUpdated),
 		Last:        t.Last,
 		High:        t.High,
 		Low:         t.Low,
@@ -393,7 +394,7 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 					Base:      val.Pair.Base.String(),
 					Quote:     val.Pair.Quote.String(),
 				},
-				LastUpdated: val.LastUpdated.Unix(),
+				LastUpdated: s.unixTimestamp(val.LastUpdated),
 				Last:        val.Last,
 				High:        val.High,
 				Low:         val.Low,
@@ -455,7 +456,7 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 		Pair:        r.Pair,
 		Bids:        bids,
 		Asks:        asks,
-		LastUpdated: ob.LastUpdated.Unix(),
+		LastUpdated: s.unixTimestamp(ob.LastUpdated),
 		AssetType:   r.AssetType,
 	}
 
@@ -499,7 +500,7 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 						Quote:     currencies[z].Quote.String(),
 					},
 					AssetType:   assets[y].String(),
-					LastUpdated: resp.LastUpdated.Unix(),
+					LastUpdated: s.unixTimestamp(resp.LastUpdated),
 				}
 				for i := range resp.Bids {
 					ob.Bids = append(ob.Bids, &gctrpc.OrderbookItem{
@@ -872,8 +873,9 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 			return nil, err
 		}
 	}
-	if !start.IsZero() && !end.IsZero() && start.After(end) {
-		return nil, errInvalidTimes
+	err = common.StartEndTimeCheck(start, end)
+	if err != nil {
+		return nil, err
 	}
 
 	request := &order.GetOrdersRequest{
@@ -908,7 +910,7 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 				Total:     resp[x].Trades[i].Total,
 			}
 			if !resp[x].Trades[i].Timestamp.IsZero() {
-				t.CreationTime = resp[x].Trades[i].Timestamp.Unix()
+				t.CreationTime = s.unixTimestamp(resp[x].Trades[i].Timestamp)
 			}
 			trades = append(trades, t)
 		}
@@ -930,10 +932,94 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 			Trades:        trades,
 		}
 		if !resp[x].Date.IsZero() {
-			o.CreationTime = resp[x].Date.Unix()
+			o.CreationTime = s.unixTimestamp(resp[x].Date)
 		}
 		if !resp[x].LastUpdated.IsZero() {
-			o.UpdateTime = resp[x].LastUpdated.Unix()
+			o.UpdateTime = s.unixTimestamp(resp[x].LastUpdated)
+		}
+		orders = append(orders, o)
+	}
+
+	return &gctrpc.GetOrdersResponse{Orders: orders}, nil
+}
+
+// GetManagedOrders returns all orders from the Order Manager for the provided exchange,
+// asset type  and currency pair
+func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*gctrpc.GetOrdersResponse, error) {
+	if r == nil {
+		return nil, errInvalidArguments
+	}
+
+	a, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.Pair == nil {
+		return nil, errCurrencyPairUnset
+	}
+	cp := currency.NewPairWithDelimiter(
+		r.Pair.Base,
+		r.Pair.Quote,
+		r.Pair.Delimiter)
+	exch := s.GetExchangeByName(r.Exchange)
+	err = checkParams(r.Exchange, exch, a, cp)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []order.Detail
+	filter := order.Filter{
+		Exchange:  exch.GetName(),
+		Pair:      cp,
+		AssetType: a,
+	}
+	resp, err = s.OrderManager.GetOrdersFiltered(&filter)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []*gctrpc.OrderDetails
+	for x := range resp {
+		var trades []*gctrpc.TradeHistory
+		for i := range resp[x].Trades {
+			t := &gctrpc.TradeHistory{
+				Id:        resp[x].Trades[i].TID,
+				Price:     resp[x].Trades[i].Price,
+				Amount:    resp[x].Trades[i].Amount,
+				Exchange:  r.Exchange,
+				AssetType: a.String(),
+				OrderSide: resp[x].Trades[i].Side.String(),
+				Fee:       resp[x].Trades[i].Fee,
+				Total:     resp[x].Trades[i].Total,
+			}
+			if !resp[x].Trades[i].Timestamp.IsZero() {
+				t.CreationTime = s.unixTimestamp(resp[x].Trades[i].Timestamp)
+			}
+			trades = append(trades, t)
+		}
+		o := &gctrpc.OrderDetails{
+			Exchange:      r.Exchange,
+			Id:            resp[x].ID,
+			ClientOrderId: resp[x].ClientOrderID,
+			BaseCurrency:  resp[x].Pair.Base.String(),
+			QuoteCurrency: resp[x].Pair.Quote.String(),
+			AssetType:     resp[x].AssetType.String(),
+			OrderSide:     resp[x].Side.String(),
+			OrderType:     resp[x].Type.String(),
+			Status:        resp[x].Status.String(),
+			Price:         resp[x].Price,
+			Amount:        resp[x].Amount,
+			OpenVolume:    resp[x].Amount - resp[x].ExecutedAmount,
+			Fee:           resp[x].Fee,
+			Cost:          resp[x].Cost,
+			Trades:        trades,
+		}
+		if !resp[x].Date.IsZero() {
+			o.CreationTime = s.unixTimestamp(resp[x].Date)
+		}
+		if !resp[x].LastUpdated.IsZero() {
+			o.UpdateTime = s.unixTimestamp(resp[x].LastUpdated)
 		}
 		orders = append(orders, o)
 	}
@@ -975,7 +1061,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	var trades []*gctrpc.TradeHistory
 	for i := range result.Trades {
 		trades = append(trades, &gctrpc.TradeHistory{
-			CreationTime: result.Trades[i].Timestamp.Unix(),
+			CreationTime: s.unixTimestamp(result.Trades[i].Timestamp),
 			Id:           result.Trades[i].TID,
 			Price:        result.Trades[i].Price,
 			Amount:       result.Trades[i].Amount,
@@ -988,16 +1074,17 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	}
 
 	var creationTime, updateTime int64
-	if result.Date.Unix() > 0 {
-		creationTime = result.Date.Unix()
+	if !result.Date.IsZero() {
+		creationTime = s.unixTimestamp(result.Date)
 	}
-	if result.LastUpdated.Unix() > 0 {
-		updateTime = result.LastUpdated.Unix()
+	if !result.LastUpdated.IsZero() {
+		updateTime = s.unixTimestamp(result.LastUpdated)
 	}
 
 	return &gctrpc.OrderDetails{
 		Exchange:      result.Exchange,
 		Id:            result.ID,
+		ClientOrderId: result.ClientOrderID,
 		BaseCurrency:  result.Pair.Base.String(),
 		QuoteCurrency: result.Pair.Quote.String(),
 		AssetType:     result.AssetType.String(),
@@ -1047,6 +1134,7 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 		Amount:             r.Amount,
 		Price:              r.Price,
 		ClientID:           r.ClientId,
+		ClientOrderID:      r.ClientId,
 		Exchange:           r.Exchange,
 		AssetType:          a,
 		FullAmountRequired: r.FullAmountRequired,
@@ -1195,7 +1283,8 @@ func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest)
 		return nil, err
 	}
 
-	err = exch.CancelOrder(&order.Cancel{
+	err = s.OrderManager.Cancel(&order.Cancel{
+		Exchange:      r.Exchange,
 		AccountID:     r.AccountId,
 		ID:            r.OrderId,
 		Side:          order.Side(r.Side),
@@ -1270,6 +1359,40 @@ func (s *RPCServer) CancelAllOrders(_ context.Context, r *gctrpc.CancelAllOrders
 
 	return &gctrpc.CancelAllOrdersResponse{
 		Count: resp.Count, // count of deleted orders
+	}, nil
+}
+
+func (s *RPCServer) ModifyOrder(_ context.Context, r *gctrpc.ModifyOrderRequest) (*gctrpc.ModifyOrderResponse, error) {
+	assetType, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	pair := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+	exch := s.GetExchangeByName(r.Exchange)
+	err = checkParams(r.Exchange, exch, assetType, pair)
+	if err != nil {
+		return nil, err
+	}
+
+	mod := order.Modify{
+		Exchange:  r.Exchange,
+		AssetType: assetType,
+		Pair:      pair,
+		ID:        r.OrderId,
+
+		Amount: r.Amount,
+		Price:  r.Price,
+	}
+	resp, err := s.OrderManager.Modify(&mod)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.ModifyOrderResponse{
+		ModifiedOrderId: resp.OrderID,
 	}, nil
 }
 
@@ -1514,17 +1637,20 @@ func (s *RPCServer) WithdrawalEventsByExchange(_ context.Context, r *gctrpc.With
 
 // WithdrawalEventsByDate returns previous withdrawal request details by exchange
 func (s *RPCServer) WithdrawalEventsByDate(_ context.Context, r *gctrpc.WithdrawalEventsByDateRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
-	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	var UTCEndTime time.Time
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
 	var ret []*withdraw.Response
-	ret, err = s.WithdrawManager.WithdrawEventByDate(r.Exchange, UTCStartTime, UTCEndTime, int(r.Limit))
+	ret, err = s.WithdrawManager.WithdrawEventByDate(r.Exchange, start, end, int(r.Limit))
 	if err != nil {
 		return nil, err
 	}
@@ -1833,7 +1959,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 				Base:      t.Pair.Base.String(),
 				Quote:     t.Pair.Quote.String(),
 				Delimiter: t.Pair.Delimiter},
-			LastUpdated: t.LastUpdated.Unix(),
+			LastUpdated: s.unixTimestamp(t.LastUpdated),
 			Last:        t.Last,
 			High:        t.High,
 			Low:         t.Low,
@@ -1878,7 +2004,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 				Base:      t.Pair.Base.String(),
 				Quote:     t.Pair.Quote.String(),
 				Delimiter: t.Pair.Delimiter},
-			LastUpdated: t.LastUpdated.Unix(),
+			LastUpdated: s.unixTimestamp(t.LastUpdated),
 			Last:        t.Last,
 			High:        t.High,
 			Low:         t.Low,
@@ -1895,16 +2021,19 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 
 // GetAuditEvent returns matching audit events from database
 func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequest) (*gctrpc.GetAuditEventResponse, error) {
-	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	start, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
+	}
+	end, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
-
-	UTCEndTime, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
-	if err != nil {
-		return nil, err
-	}
-	events, err := audit.GetEvent(UTCStartTime, UTCEndTime, r.OrderBy, int(r.Limit))
+	events, err := audit.GetEvent(start, end, r.OrderBy, int(r.Limit))
 	if err != nil {
 		return nil, err
 	}
@@ -1940,19 +2069,18 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 
 // GetHistoricCandles returns historical candles for a given exchange
 func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
-	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
+	}
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
-	var UTCEndTime time.Time
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
-	if err != nil {
-		return nil, err
-	}
-	if UTCStartTime.After(UTCEndTime) || UTCStartTime.Equal(UTCEndTime) {
-		return nil, errInvalidTimes
-	}
-
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
@@ -1989,8 +2117,8 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 			pair,
 			a,
 			interval,
-			UTCStartTime,
-			UTCEndTime)
+			start,
+			end)
 		if err != nil {
 			return nil, err
 		}
@@ -1998,14 +2126,14 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 		if r.ExRequest {
 			klineItem, err = exch.GetHistoricCandlesExtended(pair,
 				a,
-				UTCStartTime,
-				UTCEndTime,
+				start,
+				end,
 				interval)
 		} else {
 			klineItem, err = exch.GetHistoricCandles(pair,
 				a,
-				UTCStartTime,
-				UTCEndTime,
+				start,
+				end,
 				interval)
 		}
 	}
@@ -2016,7 +2144,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 
 	if r.FillMissingWithTrades {
 		var tradeDataKline *kline.Item
-		tradeDataKline, err = fillMissingCandlesWithStoredTrades(UTCStartTime, UTCEndTime, &klineItem)
+		tradeDataKline, err = fillMissingCandlesWithStoredTrades(start, end, &klineItem)
 		if err != nil {
 			return nil, err
 		}
@@ -2680,17 +2808,20 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 		return nil, err
 	}
 
-	var UTCStartTime, UTCEndTime time.Time
-	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
 	var trades []trade.Data
-	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, UTCStartTime, UTCEndTime)
+	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -2720,12 +2851,15 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if r.End == "" || r.Start == "" || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.TimeInterval == 0 {
 		return nil, errInvalidArguments
 	}
-	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	var UTCEndTime time.Time
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -2747,7 +2881,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	}
 
 	var trades []trade.Data
-	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, UTCStartTime, UTCEndTime)
+	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -2814,12 +2948,15 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		return nil, err
 	}
 
-	var UTCStartTime, UTCEndTime time.Time
-	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -2828,8 +2965,8 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		p,
 		a,
 		kline.Interval(r.Interval),
-		UTCStartTime,
-		UTCEndTime,
+		start,
+		end,
 	)
 	if err != nil {
 		return nil, err
@@ -2845,7 +2982,7 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		candleTimes = append(candleTimes, klineItem.Candles[i].Time)
 	}
 	var ranges []timeperiods.TimeRange
-	ranges, err = timeperiods.FindTimeRangesContainingData(UTCStartTime, UTCEndTime, klineItem.Interval.Duration(), candleTimes)
+	ranges, err = timeperiods.FindTimeRangesContainingData(start, end, klineItem.Interval.Duration(), candleTimes)
 	if err != nil {
 		return nil, err
 	}
@@ -2870,8 +3007,8 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		resp.Status = fmt.Sprintf("Found %v candles. Missing %v candles in requested timeframe starting %v ending %v",
 			foundCount,
 			len(resp.MissingPeriods),
-			UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
-			UTCEndTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
+			start.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			end.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
 	}
 
 	return resp, nil
@@ -2898,22 +3035,24 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	if err != nil {
 		return nil, err
 	}
-	var UTCStartTime, UTCEndTime time.Time
-	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
+	}
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
 	}
-	UTCStartTime = UTCStartTime.Truncate(time.Hour)
-
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
-	if err != nil {
-		return nil, err
-	}
-	UTCEndTime = UTCEndTime.Truncate(time.Hour)
+	start = start.Truncate(time.Hour)
+	end = end.Truncate(time.Hour)
 
 	intervalMap := make(map[time.Time]bool)
-	iterationTime := UTCStartTime
-	for iterationTime.Before(UTCEndTime) {
+	iterationTime := start
+	for iterationTime.Before(end) {
 		intervalMap[iterationTime] = false
 		iterationTime = iterationTime.Add(time.Hour)
 	}
@@ -2924,8 +3063,8 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		r.AssetType,
 		r.Pair.Base,
 		r.Pair.Quote,
-		UTCStartTime,
-		UTCEndTime,
+		start,
+		end,
 	)
 	if err != nil {
 		return nil, err
@@ -2941,7 +3080,7 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		tradeTimes = append(tradeTimes, trades[i].Timestamp)
 	}
 	var ranges []timeperiods.TimeRange
-	ranges, err = timeperiods.FindTimeRangesContainingData(UTCStartTime, UTCEndTime, time.Hour, tradeTimes)
+	ranges, err = timeperiods.FindTimeRangesContainingData(start, end, time.Hour, tradeTimes)
 	if err != nil {
 		return nil, err
 	}
@@ -2966,8 +3105,8 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		resp.Status = fmt.Sprintf("Found %v periods. Missing %v periods between %v and %v",
 			foundCount,
 			len(resp.MissingPeriods),
-			UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
-			UTCEndTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
+			start.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			end.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
 	}
 
 	return resp, nil
@@ -3009,13 +3148,15 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 		return err
 	}
 	var trades []trade.Data
-	var UTCStartTime, UTCEndTime time.Time
-	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
 	}
-
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	end, err := time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return err
 	}
@@ -3025,7 +3166,7 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 		Pair:         r.Pair,
 	}
 
-	for iterateStartTime := UTCStartTime; iterateStartTime.Before(UTCEndTime); iterateStartTime = iterateStartTime.Add(time.Hour) {
+	for iterateStartTime := start; iterateStartTime.Before(end); iterateStartTime = iterateStartTime.Add(time.Hour) {
 		iterateEndTime := iterateStartTime.Add(time.Hour)
 		trades, err = exch.GetHistoricTrades(cp, a, iterateStartTime, iterateEndTime)
 		if err != nil {
@@ -3041,7 +3182,7 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 		}
 		for i := range trades {
 			tradeTS := trades[i].Timestamp.In(time.UTC)
-			if tradeTS.After(UTCEndTime) {
+			if tradeTS.After(end) {
 				break
 			}
 			grpcTrades.Trades = append(grpcTrades.Trades, &gctrpc.SavedTrades{
@@ -3281,4 +3422,331 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 	return &gctrpc.WithdrawalEventsByExchangeResponse{
 		Event: []*gctrpc.WithdrawalEventResponse{tempEvent},
 	}
+}
+
+// UpsertDataHistoryJob adds or updates a data history job for the data history manager
+// It will upsert the entry in the database and allow for the processing of the job
+func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertDataHistoryJobRequest) (*gctrpc.UpsertDataHistoryJobResponse, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+	a, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	p := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+	e := s.GetExchangeByName(r.Exchange)
+	err = checkParams(r.Exchange, e, a, p)
+	if err != nil {
+		return nil, err
+	}
+
+	start, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
+	}
+	end, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	job := DataHistoryJob{
+		Nickname:                 r.Nickname,
+		Exchange:                 r.Exchange,
+		Asset:                    a,
+		Pair:                     p,
+		StartDate:                start,
+		EndDate:                  end,
+		Interval:                 kline.Interval(r.Interval),
+		RunBatchLimit:            r.BatchSize,
+		RequestSizeLimit:         r.RequestSizeLimit,
+		DataType:                 dataHistoryDataType(r.DataType),
+		MaxRetryAttempts:         r.MaxRetryAttempts,
+		Status:                   dataHistoryStatusActive,
+		OverwriteExistingData:    r.OverwriteExistingData,
+		ConversionInterval:       kline.Interval(r.ConversionInterval),
+		DecimalPlaceComparison:   r.DecimalPlaceComparison,
+		SecondaryExchangeSource:  r.SecondaryExchangeName,
+		IssueTolerancePercentage: r.IssueTolerancePercentage,
+		ReplaceOnIssue:           r.ReplaceOnIssue,
+		PrerequisiteJobNickname:  r.PrerequisiteJobNickname,
+	}
+
+	err = s.dataHistoryManager.UpsertJob(&job, r.InsertOnly)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := s.dataHistoryManager.GetByNickname(r.Nickname, false)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w", r.Nickname, err)
+	}
+
+	return &gctrpc.UpsertDataHistoryJobResponse{
+		JobId:   result.ID.String(),
+		Message: "successfully upserted job: " + result.Nickname,
+	}, nil
+}
+
+// GetDataHistoryJobDetails returns a data history job's details
+// can request all data history results with r.FullDetails
+func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDataHistoryJobDetailsRequest) (*gctrpc.DataHistoryJob, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+	if r.Id == "" && r.Nickname == "" {
+		return nil, errNicknameIDUnset
+	}
+	if r.Nickname != "" && r.Id != "" {
+		return nil, errOnlyNicknameOrID
+	}
+	var (
+		result     *DataHistoryJob
+		err        error
+		jobResults []*gctrpc.DataHistoryJobResult
+	)
+
+	if r.Id != "" {
+		var id uuid.UUID
+		id, err = uuid.FromString(r.Id)
+		if err != nil {
+			return nil, fmt.Errorf("%s %w", r.Id, err)
+		}
+		result, err = s.dataHistoryManager.GetByID(id)
+		if err != nil {
+			return nil, fmt.Errorf("%s %w", r.Id, err)
+		}
+	} else {
+		result, err = s.dataHistoryManager.GetByNickname(r.Nickname, r.FullDetails)
+		if err != nil {
+			return nil, fmt.Errorf("%s %w", r.Nickname, err)
+		}
+		if r.FullDetails {
+			for _, v := range result.Results {
+				for i := range v {
+					jobResults = append(jobResults, &gctrpc.DataHistoryJobResult{
+						StartDate: v[i].IntervalStartDate.Format(common.SimpleTimeFormat),
+						EndDate:   v[i].IntervalEndDate.Format(common.SimpleTimeFormat),
+						HasData:   v[i].Status == dataHistoryStatusComplete,
+						Message:   v[i].Result,
+						RunDate:   v[i].Date.Format(common.SimpleTimeFormat),
+					})
+				}
+			}
+		}
+	}
+	return &gctrpc.DataHistoryJob{
+		Id:       result.ID.String(),
+		Nickname: result.Nickname,
+		Exchange: result.Exchange,
+		Asset:    result.Asset.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: result.Pair.Delimiter,
+			Base:      result.Pair.Base.String(),
+			Quote:     result.Pair.Quote.String(),
+		},
+		StartDate:                result.StartDate.Format(common.SimpleTimeFormat),
+		EndDate:                  result.EndDate.Format(common.SimpleTimeFormat),
+		Interval:                 int64(result.Interval.Duration()),
+		RequestSizeLimit:         result.RequestSizeLimit,
+		MaxRetryAttempts:         result.MaxRetryAttempts,
+		BatchSize:                result.RunBatchLimit,
+		Status:                   result.Status.String(),
+		DataType:                 result.DataType.String(),
+		ConversionInterval:       int64(result.ConversionInterval.Duration()),
+		OverwriteExistingData:    result.OverwriteExistingData,
+		PrerequisiteJobNickname:  result.PrerequisiteJobNickname,
+		DecimalPlaceComparison:   result.DecimalPlaceComparison,
+		SecondaryExchangeName:    result.SecondaryExchangeSource,
+		IssueTolerancePercentage: result.IssueTolerancePercentage,
+		ReplaceOnIssue:           result.ReplaceOnIssue,
+		JobResults:               jobResults,
+	}, nil
+}
+
+// GetActiveDataHistoryJobs returns any active data history job details
+func (s *RPCServer) GetActiveDataHistoryJobs(_ context.Context, _ *gctrpc.GetInfoRequest) (*gctrpc.DataHistoryJobs, error) {
+	jobs, err := s.dataHistoryManager.GetActiveJobs()
+	if err != nil {
+		return nil, err
+	}
+
+	var response []*gctrpc.DataHistoryJob
+	for i := range jobs {
+		response = append(response, &gctrpc.DataHistoryJob{
+			Id:       jobs[i].ID.String(),
+			Nickname: jobs[i].Nickname,
+			Exchange: jobs[i].Exchange,
+			Asset:    jobs[i].Asset.String(),
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: jobs[i].Pair.Delimiter,
+				Base:      jobs[i].Pair.Base.String(),
+				Quote:     jobs[i].Pair.Quote.String(),
+			},
+			StartDate:                jobs[i].StartDate.Format(common.SimpleTimeFormat),
+			EndDate:                  jobs[i].EndDate.Format(common.SimpleTimeFormat),
+			Interval:                 int64(jobs[i].Interval.Duration()),
+			RequestSizeLimit:         jobs[i].RequestSizeLimit,
+			MaxRetryAttempts:         jobs[i].MaxRetryAttempts,
+			BatchSize:                jobs[i].RunBatchLimit,
+			Status:                   jobs[i].Status.String(),
+			DataType:                 jobs[i].DataType.String(),
+			ConversionInterval:       int64(jobs[i].ConversionInterval.Duration()),
+			OverwriteExistingData:    jobs[i].OverwriteExistingData,
+			PrerequisiteJobNickname:  jobs[i].PrerequisiteJobNickname,
+			DecimalPlaceComparison:   jobs[i].DecimalPlaceComparison,
+			SecondaryExchangeName:    jobs[i].SecondaryExchangeSource,
+			IssueTolerancePercentage: jobs[i].IssueTolerancePercentage,
+			ReplaceOnIssue:           jobs[i].ReplaceOnIssue,
+		})
+	}
+	return &gctrpc.DataHistoryJobs{Results: response}, nil
+}
+
+// GetDataHistoryJobsBetween returns all jobs created between supplied dates
+func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDataHistoryJobsBetweenRequest) (*gctrpc.DataHistoryJobs, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+	start, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
+	}
+	end, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	if err != nil {
+		return nil, fmt.Errorf("%w cannot parse end time %v", errInvalidTimes, err)
+	}
+	err = common.StartEndTimeCheck(start.Local(), end)
+	if err != nil {
+		return nil, err
+	}
+
+	jobs, err := s.dataHistoryManager.GetAllJobStatusBetween(start, end)
+	if err != nil {
+		return nil, err
+	}
+	var respJobs []*gctrpc.DataHistoryJob
+	for i := range jobs {
+		respJobs = append(respJobs, &gctrpc.DataHistoryJob{
+			Id:       jobs[i].ID.String(),
+			Nickname: jobs[i].Nickname,
+			Exchange: jobs[i].Exchange,
+			Asset:    jobs[i].Asset.String(),
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: jobs[i].Pair.Delimiter,
+				Base:      jobs[i].Pair.Base.String(),
+				Quote:     jobs[i].Pair.Quote.String(),
+			},
+			StartDate:                jobs[i].StartDate.Format(common.SimpleTimeFormat),
+			EndDate:                  jobs[i].EndDate.Format(common.SimpleTimeFormat),
+			Interval:                 int64(jobs[i].Interval.Duration()),
+			RequestSizeLimit:         jobs[i].RequestSizeLimit,
+			MaxRetryAttempts:         jobs[i].MaxRetryAttempts,
+			BatchSize:                jobs[i].RunBatchLimit,
+			Status:                   jobs[i].Status.String(),
+			DataType:                 jobs[i].DataType.String(),
+			ConversionInterval:       int64(jobs[i].ConversionInterval.Duration()),
+			OverwriteExistingData:    jobs[i].OverwriteExistingData,
+			PrerequisiteJobNickname:  jobs[i].PrerequisiteJobNickname,
+			DecimalPlaceComparison:   jobs[i].DecimalPlaceComparison,
+			SecondaryExchangeName:    jobs[i].SecondaryExchangeSource,
+			IssueTolerancePercentage: jobs[i].IssueTolerancePercentage,
+			ReplaceOnIssue:           jobs[i].ReplaceOnIssue,
+		})
+	}
+	return &gctrpc.DataHistoryJobs{
+		Results: respJobs,
+	}, nil
+}
+
+// GetDataHistoryJobSummary provides a general look at how a data history job is going with the "resultSummaries" property
+func (s *RPCServer) GetDataHistoryJobSummary(_ context.Context, r *gctrpc.GetDataHistoryJobDetailsRequest) (*gctrpc.DataHistoryJob, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+	if r.Nickname == "" {
+		return nil, fmt.Errorf("get job summary %w", errNicknameUnset)
+	}
+	job, err := s.dataHistoryManager.GenerateJobSummary(r.Nickname)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.DataHistoryJob{
+		Nickname: job.Nickname,
+		Exchange: job.Exchange,
+		Asset:    job.Asset.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: job.Pair.Delimiter,
+			Base:      job.Pair.Base.String(),
+			Quote:     job.Pair.Quote.String(),
+		},
+		StartDate:               job.StartDate.Format(common.SimpleTimeFormat),
+		EndDate:                 job.EndDate.Format(common.SimpleTimeFormat),
+		Interval:                int64(job.Interval.Duration()),
+		Status:                  job.Status.String(),
+		DataType:                job.DataType.String(),
+		ConversionInterval:      int64(job.ConversionInterval.Duration()),
+		OverwriteExistingData:   job.OverwriteExistingData,
+		PrerequisiteJobNickname: job.PrerequisiteJobNickname,
+		ResultSummaries:         job.ResultRanges,
+	}, nil
+}
+
+// unixTimestamp returns given time in either unix seconds or unix nanoseconds, depending
+// on the remoteControl/gRPC/timeInNanoSeconds boolean configuration.
+func (s *RPCServer) unixTimestamp(x time.Time) int64 {
+	if s.Config.RemoteControl.GRPC.TimeInNanoSeconds {
+		return x.UnixNano()
+	}
+	return x.Unix()
+}
+
+// SetDataHistoryJobStatus sets a data history job's status
+func (s *RPCServer) SetDataHistoryJobStatus(_ context.Context, r *gctrpc.SetDataHistoryJobStatusRequest) (*gctrpc.GenericResponse, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+	if r.Nickname == "" && r.Id == "" {
+		return nil, errNicknameIDUnset
+	}
+	if r.Nickname != "" && r.Id != "" {
+		return nil, errOnlyNicknameOrID
+	}
+	status := "success"
+	err := s.dataHistoryManager.SetJobStatus(r.Nickname, r.Id, dataHistoryStatus(r.Status))
+	if err != nil {
+		log.Error(log.GRPCSys, err)
+		status = "failed"
+	}
+
+	return &gctrpc.GenericResponse{Status: status}, err
+}
+
+// UpdateDataHistoryJobPrerequisite sets or removes a prerequisite job for an existing job
+// if the prerequisite job is "", then the relationship is removed
+func (s *RPCServer) UpdateDataHistoryJobPrerequisite(_ context.Context, r *gctrpc.UpdateDataHistoryJobPrerequisiteRequest) (*gctrpc.GenericResponse, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+	if r.Nickname == "" {
+		return nil, errNicknameUnset
+	}
+	status := "success"
+	err := s.dataHistoryManager.SetJobRelationship(r.PrerequisiteJobNickname, r.Nickname)
+	if err != nil {
+		return nil, err
+	}
+	if r.PrerequisiteJobNickname == "" {
+		return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Removed prerequisite from job '%v'", r.Nickname)}, nil
+	}
+	return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Set job '%v' prerequisite job to '%v' and set status to paused", r.Nickname, r.PrerequisiteJobNickname)}, nil
 }

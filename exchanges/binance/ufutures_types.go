@@ -13,11 +13,6 @@ var (
 		"ALL", "CURRENT_QUARTER", "NEXT_QUARTER",
 	}
 
-	validOrderType = []string{
-		"LIMIT", "MARKET", "STOP", "TAKE_PROFIT",
-		"STOP_MARKET", "TAKE_PROFIT_MARKET", "TRAILING_STOP_MARKET",
-	}
-
 	validNewOrderRespType = []string{"ACK", "RESULT"}
 
 	validWorkingType = []string{"MARK_PRICE", "CONTRACT_TYPE"}

@@ -14,10 +14,10 @@ func BenchmarkTimedMutexTime(b *testing.B) {
 
 func TestConsistencyOfPanicFreeUnlock(t *testing.T) {
 	t.Parallel()
-	duration := 20 * time.Millisecond
+	duration := 20 * time.Microsecond
 	tm := NewTimedMutex(duration)
 	for i := 1; i <= 50; i++ {
-		testUnlockTime := time.Duration(i) * time.Millisecond
+		testUnlockTime := time.Duration(i) * time.Microsecond
 		tm.LockForDuration()
 		time.Sleep(testUnlockTime)
 		tm.UnlockIfLocked()
@@ -26,9 +26,9 @@ func TestConsistencyOfPanicFreeUnlock(t *testing.T) {
 
 func TestUnlockAfterTimeout(t *testing.T) {
 	t.Parallel()
-	tm := NewTimedMutex(time.Second)
+	tm := NewTimedMutex(time.Nanosecond)
 	tm.LockForDuration()
-	time.Sleep(2 * time.Second)
+	time.Sleep(time.Millisecond * 200)
 	wasUnlocked := tm.UnlockIfLocked()
 	if wasUnlocked {
 		t.Error("Mutex should have been unlocked by timeout, not command")
@@ -37,9 +37,8 @@ func TestUnlockAfterTimeout(t *testing.T) {
 
 func TestUnlockBeforeTimeout(t *testing.T) {
 	t.Parallel()
-	tm := NewTimedMutex(2 * time.Second)
+	tm := NewTimedMutex(20 * time.Millisecond)
 	tm.LockForDuration()
-	time.Sleep(time.Second)
 	wasUnlocked := tm.UnlockIfLocked()
 	if !wasUnlocked {
 		t.Error("Mutex should have been unlocked by command, not timeout")
@@ -53,7 +52,7 @@ func TestUnlockBeforeTimeout(t *testing.T) {
 // the unlock occurs without this test panicking
 func TestUnlockAtSameTimeAsTimeout(t *testing.T) {
 	t.Parallel()
-	duration := time.Second
+	duration := time.Millisecond
 	tm := NewTimedMutex(duration)
 	tm.LockForDuration()
 	time.Sleep(duration)
@@ -80,7 +79,7 @@ func TestMultipleUnlocks(t *testing.T) {
 
 func TestJustWaitItOut(t *testing.T) {
 	t.Parallel()
-	tm := NewTimedMutex(1 * time.Second)
+	tm := NewTimedMutex(1 * time.Millisecond)
 	tm.LockForDuration()
-	time.Sleep(2 * time.Second)
+	time.Sleep(2 * time.Millisecond)
 }

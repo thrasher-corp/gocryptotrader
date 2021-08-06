@@ -39,7 +39,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Huobi.Pro | Yes | Yes | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
-| LakeBTC | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
@@ -143,20 +142,21 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 655 |
-| [shazbert](https://github.com/shazbert) | 207 |
-| [gloriousCode](https://github.com/gloriousCode) | 180 |
+| [thrasher-](https://github.com/thrasher-) | 656 |
+| [shazbert](https://github.com/shazbert) | 212 |
+| [gloriousCode](https://github.com/gloriousCode) | 186 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 18 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
-| [MadCozBadd](https://github.com/MadCozBadd) | 12 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 12 |
+| [MadCozBadd](https://github.com/MadCozBadd) | 13 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
+| [ydm](https://github.com/ydm) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
@@ -164,15 +164,17 @@ Binaries will be published once the codebase reaches a stable condition.
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
+| [lrascao](https://github.com/lrascao) | 2 |
+| [MarkDzulko](https://github.com/MarkDzulko) | 2 |
 | [yangrq1018](https://github.com/yangrq1018) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
+| [tk42](https://github.com/tk42) | 2 |
 | [mshogin](https://github.com/mshogin) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
-| [tk42](https://github.com/tk42) | 2 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
 | [frankzougc](https://github.com/frankzougc) | 1 |

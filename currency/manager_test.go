@@ -3,6 +3,7 @@ package currency
 import (
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -19,31 +20,36 @@ func initTest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.Store(asset.Spot,
-		PairStore{
-			Available: spotAvailable,
-			Enabled:   spotEnabled,
-			RequestFormat: &PairFormat{
-				Uppercase: true,
-			},
-			ConfigFormat: &PairFormat{
-				Uppercase: true,
-				Delimiter: "-",
-			},
-		},
-	)
+	spot := PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		Available:     spotAvailable,
+		Enabled:       spotEnabled,
+		RequestFormat: &PairFormat{Uppercase: true},
+		ConfigFormat:  &PairFormat{Uppercase: true, Delimiter: "-"},
+	}
+
+	futures := PairStore{
+		AssetEnabled:  convert.BoolPtr(false),
+		Available:     spotAvailable,
+		Enabled:       spotEnabled,
+		RequestFormat: &PairFormat{Uppercase: true},
+		ConfigFormat:  &PairFormat{Uppercase: true, Delimiter: "-"},
+	}
+
+	p.Store(asset.Spot, spot)
+	p.Store(asset.Futures, futures)
 }
 
 func TestGetAssetTypes(t *testing.T) {
 	initTest(t)
 
-	a := p.GetAssetTypes(true)
-	if len(a) != 0 {
-		t.Errorf("GetAssetTypes shouldn't be nil")
+	a := p.GetAssetTypes(false)
+	if len(a) != 2 {
+		t.Errorf("expected 2 but received: %d", len(a))
 	}
 
-	a = p.GetAssetTypes(false)
-	if len(a) == 0 {
+	a = p.GetAssetTypes(true)
+	if len(a) != 1 {
 		t.Errorf("GetAssetTypes shouldn't be nil")
 	}
 
@@ -60,9 +66,9 @@ func TestGet(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = p.Get(asset.Futures)
+	_, err = p.Get(asset.CoinMarginedFutures)
 	if err == nil {
-		t.Error("Futures should be nil")
+		t.Error("CoinMarginedFutures should be nil")
 	}
 }
 
@@ -316,6 +322,8 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 
 	// Test asset type which doesn't exist
 	initTest(t)
+
+	p.Pairs[asset.Spot].AssetEnabled = nil
 
 	err = p.IsAssetEnabled(asset.Spot)
 	if err == nil {

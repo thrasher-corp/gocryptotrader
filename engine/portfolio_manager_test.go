@@ -104,7 +104,7 @@ func TestProcessPortfolio(t *testing.T) {
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName("Bitstamp")
 	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
+		t.Fatalf("error '%v', expected '%v'", err, nil)
 	}
 	exch.SetDefaults()
 	em.Add(exch)

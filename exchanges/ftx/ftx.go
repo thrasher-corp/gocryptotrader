@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -41,6 +42,7 @@ const (
 	getFundingRates      = "/funding_rates"
 	getIndexWeights      = "/indexes/%s/weights"
 	getAllWalletBalances = "/wallet/all_balances"
+	getIndexCandles      = "/indexes/%s/candles"
 
 	// Authenticated endpoints
 	getAccountInfo           = "/account"
@@ -127,13 +129,53 @@ const (
 )
 
 var (
+	errInvalidOrderID                                    = errors.New("invalid order ID")
 	errStartTimeCannotBeAfterEndTime                     = errors.New("start timestamp cannot be after end timestamp")
 	errSubaccountNameMustBeSpecified                     = errors.New("a subaccount name must be specified")
 	errSubaccountUpdateNameInvalid                       = errors.New("invalid subaccount old/new name")
 	errCoinMustBeSpecified                               = errors.New("a coin must be specified")
 	errSubaccountTransferSizeGreaterThanZero             = errors.New("transfer size must be greater than 0")
 	errSubaccountTransferSourceDestinationMustNotBeEqual = errors.New("subaccount transfer source and destination must not be the same value")
+	errUnrecognisedOrderStatus                           = errors.New("unrecognised order status received")
+	errInvalidOrderAmounts                               = errors.New("filled amount should not exceed order amount")
+
+	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
+
+// GetHistoricalIndex gets historical index data
+func (f *FTX) GetHistoricalIndex(indexName string, resolution int64, startTime, endTime time.Time) ([]OHLCVData, error) {
+	params := url.Values{}
+	if indexName == "" {
+		return nil, errors.New("indexName is a mandatory field")
+	}
+	params.Set("index_name", indexName)
+	err := checkResolution(resolution)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("resolution", strconv.FormatInt(resolution, 10))
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return nil, errStartTimeCannotBeAfterEndTime
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	resp := struct {
+		Data []OHLCVData `json:"result"`
+	}{}
+	endpoint := common.EncodeURLValues(fmt.Sprintf(getIndexCandles, indexName), params)
+	return resp.Data, f.SendHTTPRequest(exchange.RestSpot, endpoint, &resp)
+}
+
+func checkResolution(res int64) error {
+	for x := range validResolutionData {
+		if validResolutionData[x] == res {
+			return nil
+		}
+	}
+	return errors.New("resolution data is a mandatory field and the data provided is invalid")
+}
 
 // GetMarkets gets market data
 func (f *FTX) GetMarkets() ([]MarketData, error) {
@@ -210,19 +252,20 @@ func (f *FTX) GetTrades(marketName string, startTime, endTime, limit int64) ([]T
 }
 
 // GetHistoricalData gets historical OHLCV data for a given market pair
-func (f *FTX) GetHistoricalData(marketName, timeInterval, limit string, startTime, endTime time.Time) ([]OHLCVData, error) {
+func (f *FTX) GetHistoricalData(marketName string, timeInterval, limit int64, startTime, endTime time.Time) ([]OHLCVData, error) {
 	if marketName == "" {
 		return nil, errors.New("a market pair must be specified")
 	}
 
-	if timeInterval == "" {
-		return nil, errors.New("a time interval must be specified")
+	err := checkResolution(timeInterval)
+	if err != nil {
+		return nil, err
 	}
 
 	params := url.Values{}
-	params.Set("resolution", timeInterval)
-	if limit != "" {
-		params.Set("limit", limit)
+	params.Set("resolution", strconv.FormatInt(timeInterval, 10))
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
@@ -734,51 +777,43 @@ func (f *FTX) GetOrderStatusByClientID(clientOrderID string) (OrderData, error) 
 	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getOrderStatusByClientID+clientOrderID, nil, &resp)
 }
 
-// DeleteOrder deletes an order
-func (f *FTX) DeleteOrder(orderID string) (string, error) {
+func (f *FTX) deleteOrderByPath(path string) (string, error) {
 	resp := struct {
 		Result  string `json:"result"`
 		Success bool   `json:"success"`
+		Error   string `json:"error"`
 	}{}
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, deleteOrder+orderID, nil, &resp); err != nil {
-		return "", err
+	err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, path, nil, &resp)
+	// If there is an error reported, but the resp struct reports one of a very few
+	// specific error causes, we still consider this a successful cancellation.
+	if err != nil && !resp.Success && (resp.Error == "Order already closed" || resp.Error == "Order already queued for cancellation") {
+		return resp.Error, nil
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete order request by ID unsuccessful")
+	return resp.Result, err
+}
+
+// DeleteOrder deletes an order
+func (f *FTX) DeleteOrder(orderID string) (string, error) {
+	if orderID == "" {
+		return "", errInvalidOrderID
 	}
-	return resp.Result, nil
+	return f.deleteOrderByPath(deleteOrder + orderID)
 }
 
 // DeleteOrderByClientID deletes an order
 func (f *FTX) DeleteOrderByClientID(clientID string) (string, error) {
-	resp := struct {
-		Result  string `json:"result"`
-		Success bool   `json:"success"`
-	}{}
-
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, deleteOrderByClientID+clientID, nil, &resp); err != nil {
-		return "", err
+	if clientID == "" {
+		return "", errInvalidOrderID
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete order request by client ID unsuccessful")
-	}
-	return resp.Result, nil
+	return f.deleteOrderByPath(deleteOrderByClientID + clientID)
 }
 
 // DeleteTriggerOrder deletes an order
 func (f *FTX) DeleteTriggerOrder(orderID string) (string, error) {
-	resp := struct {
-		Result  string `json:"result"`
-		Success bool   `json:"success"`
-	}{}
-
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, cancelTriggerOrder+orderID, nil, &resp); err != nil {
-		return "", err
+	if orderID == "" {
+		return "", errInvalidOrderID
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete trigger order request unsuccessful")
-	}
-	return resp.Result, nil
+	return f.deleteOrderByPath(cancelTriggerOrder + orderID)
 }
 
 // GetFills gets fills' data
@@ -1146,6 +1181,9 @@ func (f *FTX) SendAuthHTTPRequest(ep exchange.URL, method, path string, data, re
 // GetFee returns an estimate of fee based on type of transaction
 func (f *FTX) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
+	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	switch feeBuilder.FeeType {
 	case exchange.OfflineTradeFee:
 		fee = getOfflineTradeFee(feeBuilder)
@@ -1176,6 +1214,9 @@ func getOfflineTradeFee(feeBuilder *exchange.FeeBuilder) float64 {
 }
 
 func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amount, filledAmount, avgFillPrice float64) (OrderVars, error) {
+	if filledAmount > amount {
+		return OrderVars{}, fmt.Errorf("%w, amount: %f filled: %f", errInvalidOrderAmounts, amount, filledAmount)
+	}
 	var resp OrderVars
 	switch orderSide {
 	case order.Buy.Lower():
@@ -1191,13 +1232,17 @@ func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amou
 	case closedStatus:
 		if filledAmount != 0 && filledAmount != amount {
 			resp.Status = order.PartiallyCancelled
+			break
 		}
 		if filledAmount == 0 {
 			resp.Status = order.Cancelled
+			break
 		}
 		if filledAmount == amount {
 			resp.Status = order.Filled
 		}
+	default:
+		return resp, fmt.Errorf("%w %s", errUnrecognisedOrderStatus, orderStatus)
 	}
 	var feeBuilder exchange.FeeBuilder
 	feeBuilder.PurchasePrice = avgFillPrice
@@ -1341,4 +1386,47 @@ func (f *FTX) SubaccountTransfer(coin currency.Code, source, destination string,
 		return nil, err
 	}
 	return &resp.Data, nil
+}
+
+// FetchExchangeLimits fetches spot order execution limits
+func (f *FTX) FetchExchangeLimits() ([]order.MinMaxLevel, error) {
+	data, err := f.GetMarkets()
+	if err != nil {
+		return nil, err
+	}
+
+	var limits []order.MinMaxLevel
+	for x := range data {
+		if !data[x].Enabled {
+			continue
+		}
+		var cp currency.Pair
+		var a asset.Item
+		switch data[x].MarketType {
+		case "future":
+			a = asset.Futures
+			cp, err = currency.NewPairFromString(data[x].Name)
+			if err != nil {
+				return nil, err
+			}
+		case "spot":
+			a = asset.Spot
+			cp, err = currency.NewPairFromStrings(data[x].BaseCurrency, data[x].QuoteCurrency)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("unhandled data type %s, cannot process exchange limit",
+				data[x].MarketType)
+		}
+
+		limits = append(limits, order.MinMaxLevel{
+			Pair:       cp,
+			Asset:      a,
+			StepPrice:  data[x].PriceIncrement,
+			StepAmount: data[x].SizeIncrement,
+			MinAmount:  data[x].MinProvideSize,
+		})
+	}
+	return limits, nil
 }

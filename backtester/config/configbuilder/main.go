@@ -400,13 +400,13 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 			return fmt.Errorf("database failed to set config: %w", err)
 		}
 		if cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBPostgreSQL {
-			_, err = dbPSQL.Connect()
+			_, err = dbPSQL.Connect(cfg.DataSettings.DatabaseData.ConfigOverride)
 			if err != nil {
 				return fmt.Errorf("database failed to connect: %v", err)
 			}
 		} else if cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBSQLite ||
 			cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBSQLite3 {
-			_, err = dbsqlite3.Connect()
+			_, err = dbsqlite3.Connect(cfg.DataSettings.DatabaseData.ConfigOverride.Database)
 			if err != nil {
 				return fmt.Errorf("database failed to connect: %v", err)
 			}

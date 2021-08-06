@@ -65,7 +65,7 @@ func main() {
 			wrapperConfig.Exchanges[strings.ToLower(name)] = &config.APICredentialsConfig{}
 		}
 		if shouldLoadExchange(name) {
-			err = bot.LoadExchange(name, true, &wg)
+			err = bot.LoadExchange(name, &wg)
 			if err != nil {
 				log.Printf("Failed to load exchange %s. Err: %s", name, err)
 				continue
@@ -572,8 +572,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Price:  config.OrderSubmission.Price,
 			Amount: config.OrderSubmission.Amount,
 		}
-		var modifyOrderResponse string
-		modifyOrderResponse, err = e.ModifyOrder(&modifyRequest)
+		modifyOrderResponse, err := e.ModifyOrder(&modifyRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()

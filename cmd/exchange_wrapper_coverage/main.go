@@ -34,7 +34,7 @@ func main() {
 	log.Printf("Loading exchanges..")
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
-		err := engine.Bot.LoadExchange(exchange.Exchanges[x], true, &wg)
+		err := engine.Bot.LoadExchange(exchange.Exchanges[x], &wg)
 		if err != nil {
 			log.Printf("Failed to load exchange %s. Err: %s",
 				exchange.Exchanges[x],

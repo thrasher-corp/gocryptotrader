@@ -444,7 +444,7 @@ func (b *Bitmex) GetWithdrawalsHistory(c currency.Code) (resp []exchange.Withdra
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitmex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
+	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -452,8 +452,8 @@ func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 	if assetType == asset.Index {
 		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
 	}
-	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
 	var err error
 	p, err = b.FormatExchangeCurrency(p, assetType)
@@ -566,27 +566,35 @@ func (b *Bitmex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitmex) ModifyOrder(action *order.Modify) (string, error) {
+func (b *Bitmex) ModifyOrder(action *order.Modify) (order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
 	var params OrderAmendParams
 
 	if math.Mod(action.Amount, 1) != 0 {
-		return "", errors.New("contract amount can not have decimals")
+		return order.Modify{}, errors.New("contract amount can not have decimals")
 	}
 
 	params.OrderID = action.ID
 	params.OrderQty = int32(action.Amount)
 	params.Price = action.Price
 
-	order, err := b.AmendOrder(&params)
+	o, err := b.AmendOrder(&params)
 	if err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
-	return order.OrderID, nil
+	return order.Modify{
+		Exchange:  action.Exchange,
+		AssetType: action.AssetType,
+		Pair:      action.Pair,
+		ID:        o.OrderID,
+
+		Price:  action.Price,
+		Amount: float64(params.OrderQty),
+	}, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number

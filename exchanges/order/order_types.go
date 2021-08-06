@@ -155,6 +155,23 @@ type Detail struct {
 	Trades            []TradeHistory
 }
 
+// Filter contains all properties an order can be filtered for
+// empty strings indicate to ignore the property otherwise all need to match
+type Filter struct {
+	Exchange        string
+	InternalOrderID string
+	ID              string
+	ClientOrderID   string
+	AccountID       string
+	ClientID        string
+	WalletAddress   string
+	Type            Type
+	Side            Side
+	Status          Status
+	AssetType       asset.Item
+	Pair            currency.Pair
+}
+
 // Cancel contains all properties that may be required
 // to cancel an order on an exchange
 // Each exchange has their own requirements, so not all fields

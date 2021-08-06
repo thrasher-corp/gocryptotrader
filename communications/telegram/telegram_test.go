@@ -11,15 +11,18 @@ const (
 	testErrNotFound = "Not Found"
 )
 
-var T Telegram
-
 func TestSetup(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Parallel()
+	cfg := &config.Config{Communications: base.CommunicationsConfig{
+		TelegramConfig: base.TelegramConfig{
+			Name:              "Telegram",
+			Enabled:           false,
+			Verbose:           false,
+			VerificationToken: "testest",
+		},
+	}}
 	commsCfg := cfg.GetCommunicationsConfig()
+	var T Telegram
 	T.Setup(&commsCfg)
 	if T.Name != "Telegram" || T.Enabled || T.Token != "testest" || T.Verbose {
 		t.Error("telegram Setup() error, unexpected setup values",
@@ -31,6 +34,8 @@ func TestSetup(t *testing.T) {
 }
 
 func TestConnect(t *testing.T) {
+	t.Parallel()
+	var T Telegram
 	err := T.Connect()
 	if err == nil {
 		t.Error("telegram Connect() error")
@@ -38,6 +43,8 @@ func TestConnect(t *testing.T) {
 }
 
 func TestPushEvent(t *testing.T) {
+	t.Parallel()
+	var T Telegram
 	err := T.PushEvent(base.Event{})
 	if err != nil {
 		t.Error("telegram PushEvent() error", err)
@@ -52,6 +59,7 @@ func TestPushEvent(t *testing.T) {
 
 func TestHandleMessages(t *testing.T) {
 	t.Parallel()
+	var T Telegram
 	chatID := int64(1337)
 	err := T.HandleMessages(cmdHelp, chatID)
 	if err.Error() != testErrNotFound {
@@ -82,6 +90,7 @@ func TestHandleMessages(t *testing.T) {
 
 func TestGetUpdates(t *testing.T) {
 	t.Parallel()
+	var T Telegram
 	_, err := T.GetUpdates()
 	if err != nil {
 		t.Error("telegram GetUpdates() error", err)
@@ -90,6 +99,7 @@ func TestGetUpdates(t *testing.T) {
 
 func TestTestConnection(t *testing.T) {
 	t.Parallel()
+	var T Telegram
 	err := T.TestConnection()
 	if err.Error() != testErrNotFound {
 		t.Errorf("telegram TestConnection() error, expected 'Not found' got '%s'",
@@ -99,6 +109,7 @@ func TestTestConnection(t *testing.T) {
 
 func TestSendMessage(t *testing.T) {
 	t.Parallel()
+	var T Telegram
 	err := T.SendMessage("Test message", int64(1337))
 	if err.Error() != testErrNotFound {
 		t.Errorf("telegram SendMessage() error, expected 'Not found' got '%s'",
@@ -108,6 +119,7 @@ func TestSendMessage(t *testing.T) {
 
 func TestSendHTTPRequest(t *testing.T) {
 	t.Parallel()
+	var T Telegram
 	err := T.SendHTTPRequest("0.0.0.0", nil, nil)
 	if err == nil {
 		t.Error("telegram SendHTTPRequest() error")

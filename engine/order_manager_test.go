@@ -43,6 +43,12 @@ func (f omfExchange) GetOrderInfo(orderID string, pair currency.Pair, assetType 
 	}, nil
 }
 
+func (f omfExchange) ModifyOrder(action *order.Modify) (order.Modify, error) {
+	ans := *action
+	ans.ID = "modified_order_id"
+	return ans, nil
+}
+
 func TestSetupOrderManager(t *testing.T) {
 	_, err := SetupOrderManager(nil, nil, nil, false)
 	if !errors.Is(err, errNilExchangeManager) {
@@ -140,52 +146,60 @@ var orderManager *OrderManager
 var m sync.Mutex
 
 func OrdersSetup(t *testing.T) *OrderManager {
-	m.Lock()
-	defer m.Unlock()
-	if orderManager == nil {
-		var wg sync.WaitGroup
-		em := SetupExchangeManager()
-		exch, err := em.NewExchangeByName("ftx")
-		if err != nil {
-			t.Error(err)
-		}
-		exch.SetDefaults()
-		conf, err := exch.GetDefaultConfig()
-		if err != nil {
-			t.Error(err)
-		}
+	// m.Lock()
+	// defer m.Unlock()
+	// if orderManager == nil {
+	// 	var wg sync.WaitGroup
+	// 	em := SetupExchangeManager()
+	// 	exch, err := em.NewExchangeByName("ftx")
+	// 	if err != nil {
+	// 		t.Error(err)
+	// 	}
+	// 	exch.SetDefaults()
+	// 	conf, err := exch.GetDefaultConfig()
+	// 	if err != nil {
+	// 		t.Error(err)
+	// 	}
+	// var wg sync.WaitGroup
+	// em := SetupExchangeManager()
+	// exch, err := em.NewExchangeByName(testExchange)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// exch.SetDefaults()
 
-		err = exch.Setup(conf)
-		if err != nil {
-			t.Error(err)
-		}
+	// 	err = exch.Setup(conf)
+	// 	if err != nil {
+	// 		t.Error(err)
+	// 	}
 
-		b := exch.GetBase()
-		err = b.Holdings.LoadHoldings(account.Main,
-			true,
-			asset.Spot,
-			account.HoldingsSnapshot{
-				currency.BTC: account.Balance{Total: 10},
-				currency.USD: account.Balance{Total: 100000},
-			})
-		if err != nil {
-			t.Error(err)
-		}
+	// 	b := exch.GetBase()
+	// 	err = b.Holdings.LoadHoldings(account.Main,
+	// 		true,
+	// 		asset.Spot,
+	// 		account.HoldingsSnapshot{
+	// 			currency.BTC: account.Balance{Total: 10},
+	// 			currency.USD: account.Balance{Total: 100000},
+	// 		})
+	// 	if err != nil {
+	// 		t.Error(err)
+	// 	}
 
-		fakeExchange := omfExchange{
-			IBotExchange: exch,
-		}
-		em.Add(&fakeExchange)
-		orderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, false)
-		if !errors.Is(err, nil) {
-			t.Errorf("error '%v', expected '%v'", err, nil)
-		}
-		err = orderManager.Start()
-		if !errors.Is(err, nil) {
-			t.Errorf("error '%v', expected '%v'", err, nil)
-		}
-	}
-	return orderManager
+	// 	fakeExchange := omfExchange{
+	// 		IBotExchange: exch,
+	// 	}
+	// 	em.Add(&fakeExchange)
+	// 	orderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, false)
+	// 	if !errors.Is(err, nil) {
+	// 		t.Errorf("error '%v', expected '%v'", err, nil)
+	// 	}
+	// 	err = orderManager.Start()
+	// 	if !errors.Is(err, nil) {
+	// 		t.Errorf("error '%v', expected '%v'", err, nil)
+	// 	}
+	// }
+	// return orderManager
+	return nil
 }
 
 func TestOrdersGet(t *testing.T) {
@@ -360,6 +374,55 @@ func TestExists(t *testing.T) {
 	b := m.orderStore.exists(o)
 	if !b {
 		t.Error("Expected true")
+	}
+}
+
+func TestStore_modifyOrder(t *testing.T) {
+	m := OrdersSetup(t)
+	pair := currency.Pair{
+		Base:  currency.NewCode("XXXXX"),
+		Quote: currency.NewCode("YYYYY"),
+	}
+	err := m.orderStore.add(&order.Detail{
+		Exchange:  testExchange,
+		AssetType: asset.Spot,
+		Pair:      pair,
+		ID:        "fake_order_id",
+
+		Price:  8,
+		Amount: 128,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = m.orderStore.modifyExisting("fake_order_id", &order.Modify{
+		Exchange: testExchange,
+
+		ID:     "another_fake_order_id",
+		Price:  16,
+		Amount: 256,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = m.orderStore.getByExchangeAndID(testExchange, "fake_order_id")
+	if err == nil {
+		// Expected error, such an order should not exist anymore in the store.
+		t.Error("Expected error")
+	}
+
+	det, err := m.orderStore.getByExchangeAndID(testExchange, "another_fake_order_id")
+	if det == nil || err != nil {
+		t.Fatal("Failed to fetch order details")
+	}
+	if det.ID != "another_fake_order_id" || det.Price != 16 || det.Amount != 256 {
+		t.Errorf(
+			"have (%s,%f,%f), want (%s,%f,%f)",
+			det.ID, det.Price, det.Amount,
+			"another_fake_order_id", 16., 256.,
+		)
 	}
 }
 
@@ -593,7 +656,159 @@ func TestSubmit(t *testing.T) {
 	}
 }
 
+func TestOrderManager_Modify(t *testing.T) {
+	pair := currency.Pair{
+		Base:  currency.NewCode("XXXXX"),
+		Quote: currency.NewCode("YYYYY"),
+	}
+	f := func(mod order.Modify, expectError bool, price, amount float64) {
+		t.Helper()
+
+		m := OrdersSetup(t)
+		err := m.orderStore.add(&order.Detail{
+			Exchange:  testExchange,
+			AssetType: asset.Spot,
+			Pair:      pair,
+			ID:        "fake_order_id",
+			//
+			Price:  8,
+			Amount: 128,
+		})
+		if err != nil {
+			t.Error(err)
+		}
+
+		resp, err := m.Modify(&mod)
+		if expectError {
+			if err == nil {
+				t.Fatal("Expected error")
+			}
+			return
+		} else if err != nil {
+			t.Fatal(err)
+		}
+
+		if resp.OrderID != "modified_order_id" {
+			t.Errorf("have \"%s\", want \"modified_order_id\"", resp.OrderID)
+		}
+
+		det, err := m.orderStore.getByExchangeAndID(testExchange, resp.OrderID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if det.ID != resp.OrderID || det.Price != price || det.Amount != amount {
+			t.Errorf(
+				"have (%s,%f,%f), want (%s,%f,%f)",
+				det.ID, det.Price, det.Amount,
+				resp.OrderID, price, amount,
+			)
+		}
+	}
+
+	model := order.Modify{
+		// These fields identify the order.
+		Exchange:  testExchange,
+		AssetType: asset.Spot,
+		Pair:      pair,
+		ID:        "fake_order_id",
+		// These fields modify the order.
+		Price:  0,
+		Amount: 0,
+	}
+
+	// [1] Test if nonexistent order returns an error.
+	one := model
+	one.ID = "nonexistent_order_id"
+	f(one, true, 0, 0)
+
+	// [2] Test if price of 0 is ignored.
+	two := model
+	two.Price = 0
+	two.Amount = 256
+	f(two, false, 8, 256)
+
+	// [3] Test if amount of 0 is ignored.
+	three := model
+	three.Price = 16
+	three.Amount = 0
+	f(three, false, 16, 128)
+
+	// [4] Test if both fields work together.
+	four := model
+	four.Price = 16
+	four.Amount = 256
+	f(four, false, 16, 256)
+
+	// [5] Test if both fields missing modifies anything but the ID.
+	five := model
+	five.Price = 0
+	five.Amount = 0
+	f(five, false, 8, 128)
+}
+
 func TestProcessOrders(t *testing.T) {
 	m := OrdersSetup(t)
 	m.processOrders()
+}
+
+func TestGetOrdersFiltered(t *testing.T) {
+	m := OrdersSetup(t)
+	_, err := m.GetOrdersFiltered(nil)
+	if err == nil {
+		t.Error("Expected error from nil filter")
+	}
+	orders := []order.Detail{
+		{
+			Exchange: testExchange,
+			ID:       "Test1",
+		},
+		{
+			Exchange: testExchange,
+			ID:       "Test2",
+		},
+	}
+	for i := range orders {
+		if err = m.orderStore.add(&orders[i]); err != nil {
+			t.Error(err)
+		}
+	}
+	res, err := m.GetOrdersFiltered(&order.Filter{ID: "Test2"})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected 1 result, got: %d", len(res))
+	}
+}
+
+func Test_getFilteredOrders(t *testing.T) {
+	m := OrdersSetup(t)
+
+	_, err := m.orderStore.getFilteredOrders(nil)
+	if err == nil {
+		t.Error("Error expected when Filter is nil")
+	}
+
+	orders := []order.Detail{
+		{
+			Exchange: testExchange,
+			ID:       "Test1",
+		},
+		{
+			Exchange: testExchange,
+			ID:       "Test2",
+		},
+	}
+	for i := range orders {
+		if err = m.orderStore.add(&orders[i]); err != nil {
+			t.Error(err)
+		}
+	}
+	res, err := m.orderStore.getFilteredOrders(&order.Filter{ID: "Test1"})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected 1 result, got: %d", len(res))
+	}
 }

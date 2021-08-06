@@ -15,11 +15,11 @@ var (
 	defaultAllowance = time.Second * 30
 )
 
-// node defines a linked list node for an orderbook item
-type node struct {
-	value Item
-	next  *node
-	prev  *node
+// Node defines a linked list node for an orderbook item
+type Node struct {
+	Value Item
+	Next  *Node
+	Prev  *Node
 	// Denotes time pushed to stack, this will influence cleanup routine when
 	// there is a pause or minimal actions during period
 	shelved time.Time
@@ -27,7 +27,7 @@ type node struct {
 
 // stack defines a FILO list of reusable nodes
 type stack struct {
-	nodes []*node
+	nodes []*Node
 	sema  uint32
 	count int32
 }
@@ -51,7 +51,7 @@ func getNow() now {
 // Push pushes a node pointer into the stack to be reused the time is passed in
 // to allow for inlining which sets the time at which the node is theoretically
 // pushed to a stack.
-func (s *stack) Push(n *node, tn now) {
+func (s *stack) Push(n *Node, tn now) {
 	if !atomic.CompareAndSwapUint32(&s.sema, neutral, active) {
 		// Stack is in use, for now we can dereference pointer
 		n = nil
@@ -59,9 +59,9 @@ func (s *stack) Push(n *node, tn now) {
 	}
 	// Adds a time when its placed back on to stack.
 	n.shelved = time.Time(tn)
-	n.next = nil
-	n.prev = nil
-	n.value = Item{}
+	n.Next = nil
+	n.Prev = nil
+	n.Value = Item{}
 
 	// Allows for resize when overflow TODO: rethink this
 	s.nodes = append(s.nodes[:s.count], n)
@@ -71,17 +71,17 @@ func (s *stack) Push(n *node, tn now) {
 
 // Pop returns the last pointer off the stack and reduces the count and if empty
 // will produce a lovely fresh node
-func (s *stack) Pop() *node {
+func (s *stack) Pop() *Node {
 	if !atomic.CompareAndSwapUint32(&s.sema, neutral, active) {
 		// Stack is in use, for now we can allocate a new node pointer
-		return &node{}
+		return &Node{}
 	}
 
 	if s.count == 0 {
 		// Create an empty node when no nodes are in slice or when cleaning
 		// service is running
 		atomic.StoreUint32(&s.sema, neutral)
-		return &node{}
+		return &Node{}
 	}
 	s.count--
 	n := s.nodes[s.count]

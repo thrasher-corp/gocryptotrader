@@ -1,10 +1,13 @@
 package bitfinex
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
+
+var errTypeAssert = errors.New("type assertion failed")
 
 // AccountV2Data stores account v2 data
 type AccountV2Data struct {
@@ -14,6 +17,20 @@ type AccountV2Data struct {
 	MTSAccountCreate int64
 	Verified         int64
 	Timezone         string
+}
+
+// MarginInfoV2 stores V2 margin data
+type MarginInfoV2 struct {
+	Symbol          string
+	UserPNL         float64
+	UserSwaps       float64
+	MarginBalance   float64
+	MarginNet       float64
+	MarginMin       float64
+	TradableBalance float64
+	GrossBalance    float64
+	BestAskAmount   float64
+	BestBidAmount   float64
 }
 
 // WalletDataV2 stores wallet data for v2

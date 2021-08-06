@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -116,19 +117,19 @@ func (c *Config) PrintSetting() {
 func (m *MinMax) Validate() {
 	if m.MaximumSize < 0 {
 		m.MaximumSize *= -1
-		log.Warnf(log.BackTester, "invalid maximum size set to %v", m.MaximumSize)
+		log.Warnf(log.BackTester, "invalid maximum size set to %f", m.MaximumSize)
 	}
 	if m.MinimumSize < 0 {
 		m.MinimumSize *= -1
-		log.Warnf(log.BackTester, "invalid minimum size set to %v", m.MinimumSize)
+		log.Warnf(log.BackTester, "invalid minimum size set to %f", m.MinimumSize)
 	}
 	if m.MaximumSize <= m.MinimumSize && m.MinimumSize != 0 && m.MaximumSize != 0 {
 		m.MaximumSize = m.MinimumSize + 1
-		log.Warnf(log.BackTester, "invalid maximum size set to %v", m.MaximumSize)
+		log.Warnf(log.BackTester, "invalid maximum size set to %f", m.MaximumSize)
 	}
 	if m.MaximumTotal < 0 {
 		m.MaximumTotal *= -1
-		log.Warnf(log.BackTester, "invalid maximum total set to %v", m.MaximumTotal)
+		log.Warnf(log.BackTester, "invalid maximum total set to %f", m.MaximumTotal)
 	}
 }
 
@@ -180,6 +181,7 @@ func (c *Config) ValidateCurrencySettings() error {
 			c.CurrencySettings[i].MinimumSlippagePercent > c.CurrencySettings[i].MaximumSlippagePercent {
 			return ErrBadSlippageRates
 		}
+		c.CurrencySettings[i].ExchangeName = strings.ToLower(c.CurrencySettings[i].ExchangeName)
 	}
 	return nil
 }

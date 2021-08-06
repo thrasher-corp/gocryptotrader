@@ -44,6 +44,7 @@ type Engine struct {
 	websocketRoutineManager *websocketRoutineManager
 	WithdrawManager         *WithdrawManager
 	AccountManager          *AccountManager
+	dataHistoryManager      *DataHistoryManager
 	Settings                Settings
 	uptime                  time.Time
 	ServicesWG              sync.WaitGroup
@@ -139,6 +140,8 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	b.Settings = *s
 
+	b.Settings.EnableDataHistoryManager = (flagSet["datahistorymanager"] && b.Settings.EnableDatabaseManager) || b.Config.DataHistoryManager.Enabled
+
 	b.Settings.EnableGCTScriptManager = b.Settings.EnableGCTScriptManager &&
 		(flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
 
@@ -205,7 +208,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	if b.Settings.GlobalHTTPTimeout <= 0 {
 		b.Settings.GlobalHTTPTimeout = b.Config.GlobalHTTPTimeout
 	}
-	common.HTTPClient = common.NewHTTPClientWithTimeout(b.Settings.GlobalHTTPTimeout)
+	common.SetHTTPClientWithTimeout(b.Settings.GlobalHTTPTimeout)
 
 	if b.Settings.GlobalHTTPUserAgent != "" {
 		common.HTTPUserAgent = b.Settings.GlobalHTTPUserAgent
@@ -223,6 +226,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable all pairs: %v", s.EnableAllPairs)
 	gctlog.Debugf(gctlog.Global, "\t Enable coinmarketcap analaysis: %v", s.EnableCoinmarketcapAnalysis)
 	gctlog.Debugf(gctlog.Global, "\t Enable portfolio manager: %v", s.EnablePortfolioManager)
+	gctlog.Debugf(gctlog.Global, "\t Enable data history manager: %v", s.EnableDataHistoryManager)
 	gctlog.Debugf(gctlog.Global, "\t Portfolio manager sleep delay: %v\n", s.PortfolioManagerDelay)
 	gctlog.Debugf(gctlog.Global, "\t Enable gPRC: %v", s.EnableGRPC)
 	gctlog.Debugf(gctlog.Global, "\t Enable gRPC Proxy: %v", s.EnableGRPCProxy)
@@ -425,6 +429,20 @@ func (bot *Engine) Start() error {
 		}
 	}
 
+	if bot.Settings.EnableDataHistoryManager {
+		if bot.dataHistoryManager == nil {
+			bot.dataHistoryManager, err = SetupDataHistoryManager(bot.ExchangeManager, bot.DatabaseManager, &bot.Config.DataHistoryManager)
+			if err != nil {
+				gctlog.Errorf(gctlog.Global, "database history manager unable to setup: %s", err)
+			} else {
+				err = bot.dataHistoryManager.Start()
+				if err != nil {
+					gctlog.Errorf(gctlog.Global, "database history manager unable to start: %s", err)
+				}
+			}
+		}
+	}
+
 	bot.WithdrawManager, err = SetupWithdrawManager(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
 	if err != nil {
 		return err
@@ -613,6 +631,11 @@ func (bot *Engine) Stop() {
 			gctlog.Errorf(gctlog.Global, "API Server unable to stop websocket server. Error: %s", err)
 		}
 	}
+	if bot.dataHistoryManager.IsRunning() {
+		if err := bot.dataHistoryManager.Stop(); err != nil {
+			gctlog.Errorf(gctlog.DataHistory, "data history manager unable to stop. Error: %v", err)
+		}
+	}
 	if bot.DatabaseManager.IsRunning() {
 		if err := bot.DatabaseManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to stop. Error: %v", err)
@@ -688,8 +711,9 @@ func (bot *Engine) GetExchanges() []exchange.IBotExchange {
 	return bot.ExchangeManager.GetExchanges()
 }
 
-// LoadExchange loads an exchange by name
-func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
+// LoadExchange loads an exchange by name. Optional wait group can be added for
+// external synchronization.
+func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 	exch, err := bot.ExchangeManager.NewExchangeByName(name)
 	if err != nil {
 		return err
@@ -813,7 +837,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 		}
 	}
 
-	if useWG {
+	if wg != nil {
 		exch.Start(wg)
 	} else {
 		tempWG := sync.WaitGroup{}
@@ -879,25 +903,30 @@ func (bot *Engine) SetupExchanges() error {
 			continue
 		}
 		wg.Add(1)
-		cfg := configs[x]
-		go func(currCfg config.ExchangeConfig) {
+		go func(c config.ExchangeConfig) {
 			defer wg.Done()
-			err := bot.LoadExchange(currCfg.Name, true, &wg)
+			err := bot.LoadExchange(c.Name, &wg)
 			if err != nil {
-				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", currCfg.Name, err)
+				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", c.Name, err)
 				return
 			}
 			gctlog.Debugf(gctlog.ExchangeSys,
 				"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
-				currCfg.Name,
-				common.IsEnabled(currCfg.API.AuthenticatedSupport),
-				common.IsEnabled(currCfg.Verbose),
+				c.Name,
+				common.IsEnabled(c.API.AuthenticatedSupport),
+				common.IsEnabled(c.Verbose),
 			)
-		}(cfg)
+		}(configs[x])
 	}
 	wg.Wait()
 	if len(bot.ExchangeManager.GetExchanges()) == 0 {
 		return ErrNoExchangesLoaded
 	}
 	return nil
+}
+
+// WaitForInitialCurrencySync allows for a routine to wait for the initial sync
+// of the currency pair syncer management system.
+func (bot *Engine) WaitForInitialCurrencySync() error {
+	return bot.currencyPairSyncer.WaitForInitialSync()
 }

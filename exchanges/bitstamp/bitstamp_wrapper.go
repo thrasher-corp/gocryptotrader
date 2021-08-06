@@ -481,8 +481,8 @@ func (b *Bitstamp) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitstamp) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (b *Bitstamp) ModifyOrder(action *order.Modify) (order.Modify, error) {
+	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -831,7 +831,10 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 		Interval: interval,
 	}
 
-	dates := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
 	formattedPair, err := b.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
@@ -865,9 +868,10 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			})
 		}
 	}
-	err = dates.VerifyResultsHaveData(ret.Candles)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", b.Name, err)
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

@@ -128,24 +128,22 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	p.Addresses[1].SupportedExchanges = "BTC Markets,Binance"
-
-	banking.Accounts = append(banking.Accounts,
-		banking.Account{
-			Enabled:             true,
-			ID:                  "test-bank-01",
-			BankName:            "Test Bank",
-			BankAddress:         "42 Bank Street",
-			BankPostalCode:      "13337",
-			BankPostalCity:      "Satoshiville",
-			BankCountry:         "Japan",
-			AccountName:         "Satoshi Nakamoto",
-			AccountNumber:       "0234",
-			BSBNumber:           "123456",
-			SWIFTCode:           "91272837",
-			IBAN:                "98218738671897",
-			SupportedCurrencies: "AUD,USD",
-			SupportedExchanges:  "test-exchange",
-		},
+	banking.AppendAccounts(banking.Account{
+		Enabled:             true,
+		ID:                  "test-bank-01",
+		BankName:            "Test Bank",
+		BankAddress:         "42 Bank Street",
+		BankPostalCode:      "13337",
+		BankPostalCity:      "Satoshiville",
+		BankCountry:         "Japan",
+		AccountName:         "Satoshi Nakamoto",
+		AccountNumber:       "0234",
+		BSBNumber:           "123456",
+		SWIFTCode:           "91272837",
+		IBAN:                "98218738671897",
+		SupportedCurrencies: "AUD,USD",
+		SupportedExchanges:  "test-exchange",
+	},
 	)
 
 	os.Exit(m.Run())

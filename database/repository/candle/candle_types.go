@@ -5,13 +5,11 @@ import (
 	"time"
 )
 
-const (
-	errNoCandleDataFound = "no candle data found: %v %v %v %v %v"
-)
-
 var (
 	errInvalidInput = errors.New("exchange, base, quote, asset, interval, start & end cannot be empty")
 	errNoCandleData = errors.New("no candle data provided")
+	// ErrNoCandleDataFound returns when no candle data is found
+	ErrNoCandleDataFound = errors.New("no candle data found")
 )
 
 // Item generic candle holder for modelPSQL & modelSQLite
@@ -27,10 +25,13 @@ type Item struct {
 
 // Candle holds each interval
 type Candle struct {
-	Timestamp time.Time
-	Open      float64
-	High      float64
-	Low       float64
-	Close     float64
-	Volume    float64
+	Timestamp        time.Time
+	Open             float64
+	High             float64
+	Low              float64
+	Close            float64
+	Volume           float64
+	SourceJobID      string
+	ValidationJobID  string
+	ValidationIssues string
 }

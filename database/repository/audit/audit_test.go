@@ -83,16 +83,13 @@ func TestAudit(t *testing.T) {
 			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}
-
 			dbConn, err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
-
 			if test.runner != nil {
 				test.runner(t)
 			}
-
 			if test.closer != nil {
 				err = test.closer(dbConn)
 				if err != nil {

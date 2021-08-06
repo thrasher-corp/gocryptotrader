@@ -20,6 +20,7 @@ type Settings struct {
 	EnableAllPairs              bool
 	EnableCoinmarketcapAnalysis bool
 	EnablePortfolioManager      bool
+	EnableDataHistoryManager    bool
 	PortfolioManagerDelay       time.Duration
 	EnableGRPC                  bool
 	EnableGRPCProxy             bool

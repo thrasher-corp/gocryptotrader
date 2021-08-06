@@ -824,7 +824,6 @@ func TestOrderBookUpdateChecksumCalculator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second)
 	err = o.WsProcessOrderBook([]byte(update))
 	if err != nil {
 		t.Error(err)
@@ -842,7 +841,6 @@ func TestOrderBookUpdateChecksumCalculatorWith8DecimalPlaces(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second)
 	err = o.WsProcessOrderBook([]byte(update))
 	if err != nil {
 		t.Error(err)

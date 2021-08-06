@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -332,13 +331,82 @@ func (i *Interval) IntervalsPerYear() float64 {
 	return float64(OneYear.Duration().Nanoseconds()) / float64(i.Duration().Nanoseconds())
 }
 
+// ConvertToNewInterval allows the scaling of candles to larger candles
+// eg convert OneDay candles to ThreeDay candles, if there are adequate candles
+// incomplete candles are NOT converted
+// eg an 4 OneDay candles will convert to one ThreeDay candle, skipping the fourth
+func ConvertToNewInterval(item *Item, newInterval Interval) (*Item, error) {
+	if item == nil {
+		return nil, errNilKline
+	}
+	if newInterval <= 0 {
+		return nil, ErrUnsetInterval
+	}
+	if newInterval.Duration() <= item.Interval.Duration() {
+		return nil, ErrCanOnlyDownscaleCandles
+	}
+	if newInterval.Duration()%item.Interval.Duration() != 0 {
+		return nil, ErrWholeNumberScaling
+	}
+
+	oldIntervalsPerNewCandle := int64(newInterval / item.Interval)
+	var candleBundles [][]Candle
+	var candles []Candle
+	for i := range item.Candles {
+		candles = append(candles, item.Candles[i])
+		intervalCount := int64(i + 1)
+		if oldIntervalsPerNewCandle == intervalCount {
+			candleBundles = append(candleBundles, candles)
+			candles = []Candle{}
+		}
+	}
+	responseCandle := &Item{
+		Exchange: item.Exchange,
+		Pair:     item.Pair,
+		Asset:    item.Asset,
+		Interval: newInterval,
+	}
+	for i := range candleBundles {
+		var lowest, highest, volume float64
+		lowest = candleBundles[i][0].Low
+		highest = candleBundles[i][0].High
+		for j := range candleBundles[i] {
+			volume += candleBundles[i][j].Volume
+			if candleBundles[i][j].Low < lowest {
+				lowest = candleBundles[i][j].Low
+			}
+			if candleBundles[i][j].High > highest {
+				lowest = candleBundles[i][j].High
+			}
+			volume += candleBundles[i][j].Volume
+		}
+		responseCandle.Candles = append(responseCandle.Candles, Candle{
+			Time:   candleBundles[i][0].Time,
+			Open:   candleBundles[i][0].Open,
+			High:   highest,
+			Low:    lowest,
+			Close:  candleBundles[i][len(candleBundles[i])-1].Close,
+			Volume: volume,
+		})
+	}
+
+	return responseCandle, nil
+}
+
 // CalculateCandleDateRanges will calculate the expected candle data in intervals in a date range
 // If an API is limited in the amount of candles it can make in a request, it will automatically separate
 // ranges into the limit
-func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit uint32) IntervalRangeHolder {
+func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit uint32) (*IntervalRangeHolder, error) {
+	if err := common.StartEndTimeCheck(start, end); err != nil && !errors.Is(err, common.ErrStartAfterTimeNow) {
+		return nil, err
+	}
+	if interval <= 0 {
+		return nil, ErrUnsetInterval
+	}
+
 	start = start.Round(interval.Duration())
 	end = end.Round(interval.Duration())
-	resp := IntervalRangeHolder{
+	resp := &IntervalRangeHolder{
 		Start: CreateIntervalTime(start),
 		End:   CreateIntervalTime(end),
 	}
@@ -355,7 +423,7 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 			End:       CreateIntervalTime(end),
 			Intervals: intervalsInWholePeriod,
 		}}
-		return resp
+		return resp, nil
 	}
 
 	var intervals []IntervalData
@@ -376,7 +444,7 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 		})
 	}
 
-	return resp
+	return resp, nil
 }
 
 // HasDataAtDate determines whether a there is any data at a set
@@ -404,44 +472,74 @@ func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 	return false
 }
 
-// VerifyResultsHaveData will calculate whether there is data in each candle
+// SetHasDataFromCandles will calculate whether there is data in each candle
 // allowing any missing data from an API request to be highlighted
-func (h *IntervalRangeHolder) VerifyResultsHaveData(c []Candle) error {
-	var wg sync.WaitGroup
-	wg.Add(len(h.Ranges))
+func (h *IntervalRangeHolder) SetHasDataFromCandles(c []Candle) {
 	for x := range h.Ranges {
-		go func(iVal int) {
-			for y := range h.Ranges[iVal].Intervals {
-				for z := range c {
-					cu := c[z].Time.Unix()
-					if cu >= h.Ranges[iVal].Intervals[y].Start.Ticks && cu < h.Ranges[iVal].Intervals[y].End.Ticks {
-						h.Ranges[iVal].Intervals[y].HasData = true
-						break
-					}
+	intervals:
+		for y := range h.Ranges[x].Intervals {
+			for z := range c {
+				cu := c[z].Time.Unix()
+				if cu >= h.Ranges[x].Intervals[y].Start.Ticks && cu < h.Ranges[x].Intervals[y].End.Ticks {
+					h.Ranges[x].Intervals[y].HasData = true
+					continue intervals
 				}
 			}
-			wg.Done()
-		}(x)
-	}
-	wg.Wait()
-
-	var errs common.Errors
-	for x := range h.Ranges {
-		for y := range h.Ranges[x].Intervals {
-			if !h.Ranges[x].Intervals[y].HasData {
-				errs = append(errs, fmt.Errorf("between %v (%v) & %v (%v)",
-					h.Ranges[x].Intervals[y].Start.Time,
-					h.Ranges[x].Intervals[y].Start.Ticks,
-					h.Ranges[x].Intervals[y].End.Time,
-					h.Ranges[x].Intervals[y].End.Ticks))
-			}
+			h.Ranges[x].Intervals[y].HasData = false
 		}
 	}
-	if len(errs) > 0 {
-		return fmt.Errorf("%w - %v", ErrMissingCandleData, errs)
+}
+
+// DataSummary returns a summary of a data range to highlight where data is missing
+func (h *IntervalRangeHolder) DataSummary(includeHasData bool) []string {
+	var (
+		rangeStart, rangeEnd, prevStart, prevEnd time.Time
+		rangeHasData                             bool
+		rangeTexts                               []string
+	)
+	rangeStart = h.Start.Time
+	for i := range h.Ranges {
+		for j := range h.Ranges[i].Intervals {
+			if h.Ranges[i].Intervals[j].HasData {
+				if !rangeHasData && !rangeEnd.IsZero() {
+					rangeTexts = append(rangeTexts, h.createDateSummaryRange(rangeStart, rangeEnd, rangeHasData))
+					prevStart = rangeStart
+					prevEnd = rangeEnd
+					rangeStart = h.Ranges[i].Intervals[j].Start.Time
+				}
+				rangeHasData = true
+			} else {
+				if rangeHasData && !rangeEnd.IsZero() {
+					if includeHasData {
+						rangeTexts = append(rangeTexts, h.createDateSummaryRange(rangeStart, rangeEnd, rangeHasData))
+					}
+					prevStart = rangeStart
+					prevEnd = rangeEnd
+					rangeStart = h.Ranges[i].Intervals[j].Start.Time
+				}
+				rangeHasData = false
+			}
+			rangeEnd = h.Ranges[i].Intervals[j].End.Time
+		}
+	}
+	if !rangeStart.Equal(prevStart) || !rangeEnd.Equal(prevEnd) {
+		if (rangeHasData && includeHasData) || !rangeHasData {
+			rangeTexts = append(rangeTexts, h.createDateSummaryRange(rangeStart, rangeEnd, rangeHasData))
+		}
+	}
+	return rangeTexts
+}
+
+func (h *IntervalRangeHolder) createDateSummaryRange(start, end time.Time, hasData bool) string {
+	dataString := "missing"
+	if hasData {
+		dataString = "has"
 	}
 
-	return nil
+	return fmt.Sprintf("%s data between %s and %s",
+		dataString,
+		start.Format(common.SimpleTimeFormat),
+		end.Format(common.SimpleTimeFormat))
 }
 
 // CreateIntervalTime is a simple helper function to set the time twice

@@ -40,29 +40,25 @@ func TestSubmitWithdrawal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	banking.Accounts = append(banking.Accounts,
-		banking.Account{
-			Enabled:             true,
-			ID:                  "test-bank-01",
-			BankName:            "Test Bank",
-			BankAddress:         "42 Bank Street",
-			BankPostalCode:      "13337",
-			BankPostalCity:      "Satoshiville",
-			BankCountry:         "Japan",
-			AccountName:         "Satoshi Nakamoto",
-			AccountNumber:       "0234",
-			BSBNumber:           "123456",
-			SWIFTCode:           "91272837",
-			IBAN:                "98218738671897",
-			SupportedCurrencies: "AUD,USD",
-			SupportedExchanges:  "Binance",
-		},
-	)
-	bank, err := banking.GetBankAccountByID("test-bank-01")
-	if err != nil {
-		t.Error(err)
+	bank := banking.Account{
+		Enabled:             true,
+		ID:                  "test-bank-01",
+		BankName:            "Test Bank",
+		BankAddress:         "42 Bank Street",
+		BankPostalCode:      "13337",
+		BankPostalCity:      "Satoshiville",
+		BankCountry:         "Japan",
+		AccountName:         "Satoshi Nakamoto",
+		AccountNumber:       "0234",
+		BSBNumber:           "123456",
+		SWIFTCode:           "91272837",
+		IBAN:                "98218738671897",
+		SupportedCurrencies: "AUD,USD",
+		SupportedExchanges:  "Binance",
 	}
+
+	banking.AppendAccounts(bank)
+
 	req := &withdraw.Request{
 		Exchange:    exchangeName,
 		Currency:    currency.AUD,
@@ -70,7 +66,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 		Amount:      1.0,
 		Type:        withdraw.Fiat,
 		Fiat: withdraw.FiatRequest{
-			Bank: *bank,
+			Bank: bank,
 		},
 	}
 	_, err = m.SubmitWithdrawal(req)

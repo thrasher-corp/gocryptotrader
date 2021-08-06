@@ -53,6 +53,7 @@ type syncManager struct {
 	fiatDisplayCurrency currency.Code
 	mux                 sync.Mutex
 	initSyncWG          sync.WaitGroup
+	inService           sync.WaitGroup
 
 	currencyPairs            []currencyPairSyncAgent
 	tickerBatchLastRequested map[string]time.Time

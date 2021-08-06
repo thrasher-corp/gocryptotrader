@@ -6,6 +6,7 @@ import (
 )
 
 func TestMatch(t *testing.T) {
+	t.Parallel()
 	bm := &Match{}
 	if bm.Incoming("wow") {
 		t.Fatal("Should not have matched")

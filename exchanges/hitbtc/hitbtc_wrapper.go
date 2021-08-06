@@ -456,13 +456,13 @@ func (h *HitBTC) GetWithdrawalsHistory(c currency.Code) (resp []exchange.Withdra
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (h *HitBTC) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return h.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
+	return h.GetHistoricTrades(p, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (h *HitBTC) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
 	var err error
 	p, err = h.FormatExchangeCurrency(p, assetType)
@@ -566,8 +566,8 @@ func (h *HitBTC) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (h *HitBTC) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (h *HitBTC) ModifyOrder(action *order.Modify) (order.Modify, error) {
+	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -835,7 +835,10 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 		Interval: interval,
 	}
 
-	dates := kline.CalculateCandleDateRanges(start, end, interval, h.Features.Enabled.Kline.ResultLimit)
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, h.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
 	formattedPair, err := h.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
@@ -862,9 +865,10 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 			})
 		}
 	}
-	err = dates.VerifyResultsHaveData(ret.Candles)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - %s", h.Name, err)
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", h.Name, summary)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

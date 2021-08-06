@@ -110,12 +110,13 @@ func TestLoadDataCandles(t *testing.T) {
 		Interval: gctkline.FifteenMin,
 		Candles: []gctkline.Candle{
 			{
-				Time:   dInsert,
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
+				Time:             dInsert,
+				Open:             1337,
+				High:             1337,
+				Low:              1337,
+				Close:            1337,
+				Volume:           1337,
+				ValidationIssues: "hello world",
 			},
 		},
 	}

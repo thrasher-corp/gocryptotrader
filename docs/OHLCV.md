@@ -84,8 +84,7 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | Huobi          | Y           |      
 | FTX            | Y           | 
 | itBIT          |             |          
-| Kraken         | Y           |           
-| LakeBTC        |             |           
+| Kraken         | Y           |                 
 | lBank          | Y           |          
 | Localbitcoins  |             |          
 | Okcoin         | Y           |           

@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -31,9 +32,11 @@ var (
 	// ErrSubSystemNotStarted message to return when subsystem not started
 	ErrSubSystemNotStarted = errors.New("subsystem not started")
 	// ErrNilSubsystem is returned when a subsystem hasn't had its Setup() func run
-	ErrNilSubsystem       = errors.New("subsystem not setup")
-	errNilWaitGroup       = errors.New("nil wait group received")
-	errNilExchangeManager = errors.New("cannot start with nil exchange manager")
+	ErrNilSubsystem                 = errors.New("subsystem not setup")
+	errNilWaitGroup                 = errors.New("nil wait group received")
+	errNilExchangeManager           = errors.New("cannot start with nil exchange manager")
+	errNilDatabaseConnectionManager = errors.New("cannot start with nil database connection manager")
+	errNilConfig                    = errors.New("received nil config")
 )
 
 // iExchangeManager limits exposure of accessible functions to exchange manager
@@ -82,4 +85,9 @@ type iCurrencyPairSyncer interface {
 	PrintTickerSummary(*ticker.Price, string, error)
 	PrintOrderbookSummary(*orderbook.Base, string, error)
 	Update(string, currency.Pair, asset.Item, int, error) error
+}
+
+// iDatabaseConnectionManager defines a limited scoped databaseConnectionManager
+type iDatabaseConnectionManager interface {
+	GetInstance() database.IDatabase
 }

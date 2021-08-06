@@ -36,6 +36,8 @@ const (
 	DefaultAPIKey                        = "Key"
 	DefaultAPISecret                     = "Secret"
 	DefaultAPIClientID                   = "ClientID"
+	defaultDataHistoryMonitorCheckTimer  = time.Minute
+	defaultMaxJobsPerCycle               = 5
 )
 
 // Constants here hold some messages
@@ -70,22 +72,23 @@ var (
 // prestart management of Portfolio, Communications, Webserver and Enabled
 // Exchanges
 type Config struct {
-	Name              string                    `json:"name"`
-	DataDirectory     string                    `json:"dataDirectory"`
-	EncryptConfig     int                       `json:"encryptConfig"`
-	GlobalHTTPTimeout time.Duration             `json:"globalHTTPTimeout"`
-	Database          database.Config           `json:"database"`
-	Logging           log.Config                `json:"logging"`
-	ConnectionMonitor ConnectionMonitorConfig   `json:"connectionMonitor"`
-	Profiler          Profiler                  `json:"profiler"`
-	NTPClient         NTPClientConfig           `json:"ntpclient"`
-	GCTScript         gctscript.Config          `json:"gctscript"`
-	Currency          CurrencyConfig            `json:"currencyConfig"`
-	Communications    base.CommunicationsConfig `json:"communications"`
-	RemoteControl     RemoteControlConfig       `json:"remoteControl"`
-	Portfolio         portfolio.Base            `json:"portfolioAddresses"`
-	Exchanges         []ExchangeConfig          `json:"exchanges"`
-	BankAccounts      []banking.Account         `json:"bankAccounts"`
+	Name               string                    `json:"name"`
+	DataDirectory      string                    `json:"dataDirectory"`
+	EncryptConfig      int                       `json:"encryptConfig"`
+	GlobalHTTPTimeout  time.Duration             `json:"globalHTTPTimeout"`
+	Database           database.Config           `json:"database"`
+	Logging            log.Config                `json:"logging"`
+	ConnectionMonitor  ConnectionMonitorConfig   `json:"connectionMonitor"`
+	DataHistoryManager DataHistoryManager        `json:"dataHistoryManager"`
+	Profiler           Profiler                  `json:"profiler"`
+	NTPClient          NTPClientConfig           `json:"ntpclient"`
+	GCTScript          gctscript.Config          `json:"gctscript"`
+	Currency           CurrencyConfig            `json:"currencyConfig"`
+	Communications     base.CommunicationsConfig `json:"communications"`
+	RemoteControl      RemoteControlConfig       `json:"remoteControl"`
+	Portfolio          portfolio.Base            `json:"portfolioAddresses"`
+	Exchanges          []ExchangeConfig          `json:"exchanges"`
+	BankAccounts       []banking.Account         `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
 	Webserver           *WebserverConfig          `json:"webserver,omitempty"`
@@ -96,6 +99,15 @@ type Config struct {
 	// encryption session values
 	storedSalt []byte
 	sessionDK  []byte
+}
+
+// DataHistoryManager holds all information required for the data history manager
+type DataHistoryManager struct {
+	Enabled             bool          `json:"enabled"`
+	CheckInterval       time.Duration `json:"checkInterval"`
+	MaxJobsPerCycle     int64         `json:"maxJobsPerCycle"`
+	MaxResultInsertions int64         `json:"maxResultInsertions"`
+	Verbose             bool          `json:"verbose"`
 }
 
 // ConnectionMonitorConfig defines the connection monitor variables to ensure
@@ -168,6 +180,7 @@ type GRPCConfig struct {
 	ListenAddress          string `json:"listenAddress"`
 	GRPCProxyEnabled       bool   `json:"grpcProxyEnabled"`
 	GRPCProxyListenAddress string `json:"grpcProxyListenAddress"`
+	TimeInNanoSeconds      bool   `json:"timeInNanoSeconds"`
 }
 
 // DepcrecatedRPCConfig stores the deprecatedRPCConfig settings

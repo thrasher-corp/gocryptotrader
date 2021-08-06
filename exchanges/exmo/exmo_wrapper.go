@@ -467,8 +467,8 @@ func (e *EXMO) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (e *EXMO) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (e *EXMO) ModifyOrder(action *order.Modify) (order.Modify, error) {
+	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number

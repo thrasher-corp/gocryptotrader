@@ -498,8 +498,8 @@ func (g *Gateio) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (g *Gateio) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (g *Gateio) ModifyOrder(action *order.Modify) (order.Modify, error) {
+	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -799,7 +799,7 @@ func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		return kline.Item{}, err
 	}
 
-	hours := end.Sub(start).Hours()
+	hours := time.Since(start).Hours()
 	formattedPair, err := g.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
@@ -820,6 +820,7 @@ func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 	klineData.Asset = a
 
 	klineData.SortCandlesByTimestamp(false)
+	klineData.RemoveOutsideRange(start, end)
 	return klineData, nil
 }
 
