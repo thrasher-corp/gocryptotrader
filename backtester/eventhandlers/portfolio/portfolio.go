@@ -3,7 +3,6 @@ package portfolio
 import (
 	"errors"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -16,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -23,7 +23,7 @@ import (
 )
 
 // Setup creates a portfolio manager instance and sets private fields
-func Setup(sh SizeHandler, r risk.Handler, riskFreeRate float64) (*Portfolio, error) {
+func Setup(sh SizeHandler, r risk.Handler, riskFreeRate float64, funds *funding.AllFunds) (*Portfolio, error) {
 	if sh == nil {
 		return nil, errSizeManagerUnset
 	}
@@ -37,6 +37,7 @@ func Setup(sh SizeHandler, r risk.Handler, riskFreeRate float64) (*Portfolio, er
 	p.sizeManager = sh
 	p.riskManager = r
 	p.riskFreeRate = riskFreeRate
+	p.funds = funds
 
 	return p, nil
 }
@@ -85,10 +86,16 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings) (*order.Orde
 			s.GetAssetType(),
 			s.Pair())
 	}
+
+	funds, err := p.funds.GetFundingForEvent(s)
+	if err != nil {
+		return nil, fmt.Errorf("portfolio cannot process signal event for %v %v %v: %w", s.GetExchange(), s.GetAssetType(), s.Pair(), err)
+	}
+
 	prevHolding := lookup.GetLatestHoldings()
 	if p.iteration == 0 {
-		prevHolding.InitialFunds = lookup.InitialFunds
-		prevHolding.RemainingFunds = lookup.InitialFunds
+		prevHolding.InitialFunds = funds.Quote.InitialFunds
+		prevHolding.RemainingFunds = funds.Quote.InitialFunds
 		prevHolding.Exchange = s.GetExchange()
 		prevHolding.Pair = s.Pair()
 		prevHolding.Asset = s.GetAssetType()
@@ -107,9 +114,7 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings) (*order.Orde
 		return o, nil
 	}
 
-	// for simplicity, the backtester will round to 8 decimal places
-	remainingFundsRounded := math.Floor(prevHolding.RemainingFunds*100000000) / 100000000
-	if s.GetDirection() == gctorder.Buy && remainingFundsRounded <= 0 {
+	if s.GetDirection() == gctorder.Buy && funds.Quote.Available <= 0 {
 		o.AppendReason("not enough funds to buy")
 		o.SetDirection(common.CouldNotBuy)
 		s.SetDirection(o.Direction)
@@ -120,24 +125,23 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings) (*order.Orde
 	o.OrderType = gctorder.Market
 	o.BuyLimit = s.GetBuyLimit()
 	o.SellLimit = s.GetSellLimit()
-	sizingFunds := prevHolding.RemainingFunds
+	var sizingFunds float64
 	if s.GetDirection() == gctorder.Sell {
-		sizingFunds = prevHolding.PositionsSize
+		sizingFunds = funds.Base.Available
+	} else {
+		sizingFunds = funds.Quote.Available
 	}
 
 	sizedOrder := p.sizeOrder(s, cs, o, sizingFunds)
-	o.Funds = sizingFunds
-	sizedAmountRounded := math.Floor(sizedOrder.Amount*100000000) / 100000000
-	if sizedAmountRounded <= 0 {
-		o.AppendReason("sized amount is zero")
-		if o.Direction == gctorder.Buy {
-			o.SetDirection(common.CouldNotBuy)
-		} else if o.Direction == gctorder.Sell {
-			o.SetDirection(common.CouldNotSell)
-		}
-		return o, nil
+	o.Funds = sizedOrder.Amount
+	if s.GetDirection() == gctorder.Sell {
+		err = funds.Base.Reserve(sizedOrder.Amount)
+	} else {
+		err = funds.Quote.Reserve(sizedOrder.Amount)
 	}
-
+	if err != nil {
+		return nil, err
+	}
 	return p.evaluateOrder(s, o, sizedOrder)
 }
 
@@ -200,55 +204,58 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 }
 
 // OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions.
-func (p *Portfolio) OnFill(fillEvent fill.Event) (*fill.Fill, error) {
-	if fillEvent == nil {
+func (p *Portfolio) OnFill(f fill.Event) (*fill.Fill, error) {
+	if f == nil {
 		return nil, common.ErrNilEvent
 	}
-	lookup := p.exchangeAssetPairSettings[fillEvent.GetExchange()][fillEvent.GetAssetType()][fillEvent.Pair()]
+	lookup := p.exchangeAssetPairSettings[f.GetExchange()][f.GetAssetType()][f.Pair()]
 	if lookup == nil {
-		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair())
+		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, f.GetExchange(), f.GetAssetType(), f.Pair())
 	}
-	var err error
+	funds, err := p.funds.GetFundingForEvent(f)
+	if err != nil {
+		return nil, fmt.Errorf("portfolio cannot process signal event for %v %v %v: %w", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
+	}
 	// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
-	h := lookup.GetHoldingsForTime(fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration()))
+	h := lookup.GetHoldingsForTime(f.GetTime().Add(-f.GetInterval().Duration()))
 	if !h.Timestamp.IsZero() {
-		h.Update(fillEvent)
+		h.Update(f)
 	} else {
 		h = lookup.GetLatestHoldings()
 		if !h.Timestamp.IsZero() {
-			h.Update(fillEvent)
+			h.Update(f)
 		} else {
-			h, err = holdings.Create(fillEvent, lookup.InitialFunds, p.riskFreeRate)
+			h, err = holdings.Create(f, funds.Quote.Available, p.riskFreeRate)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
-	err = p.setHoldingsForOffset(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), &h, true)
+	err = p.setHoldingsForOffset(f.GetExchange(), f.GetAssetType(), f.Pair(), &h, true)
 	if errors.Is(err, errNoHoldings) {
-		err = p.setHoldingsForOffset(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), &h, false)
+		err = p.setHoldingsForOffset(f.GetExchange(), f.GetAssetType(), f.Pair(), &h, false)
 	}
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
 
-	err = p.addComplianceSnapshot(fillEvent)
+	err = p.addComplianceSnapshot(f)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
 
-	direction := fillEvent.GetDirection()
+	direction := f.GetDirection()
 	if direction == common.DoNothing ||
 		direction == common.CouldNotBuy ||
 		direction == common.CouldNotSell ||
 		direction == common.MissingData ||
 		direction == "" {
-		fe := fillEvent.(*fill.Fill)
+		fe := f.(*fill.Fill)
 		fe.ExchangeFee = 0
 		return fe, nil
 	}
 
-	return fillEvent.(*fill.Fill), nil
+	return f.(*fill.Fill), nil
 }
 
 // addComplianceSnapshot gets the previous snapshot of compliance events, updates with the latest fillevent
@@ -333,28 +340,13 @@ func (p *Portfolio) Update(d common.DataEventHandler) error {
 	return err
 }
 
-// SetInitialFunds sets the initial funds
-func (p *Portfolio) SetInitialFunds(exch string, a asset.Item, cp currency.Pair, funds float64) error {
-	lookup, ok := p.exchangeAssetPairSettings[exch][a][cp]
-	if !ok {
-		var err error
-		lookup, err = p.SetupCurrencySettingsMap(exch, a, cp)
-		if err != nil {
-			return err
-		}
-	}
-	lookup.InitialFunds = funds
-
-	return nil
-}
-
 // GetInitialFunds returns the initial funds
-func (p *Portfolio) GetInitialFunds(exch string, a asset.Item, cp currency.Pair) float64 {
-	lookup, ok := p.exchangeAssetPairSettings[exch][a][cp]
-	if !ok {
+func (p *Portfolio) GetInitialFunds(exch string, a asset.Item, c currency.Code) float64 {
+	funds, err := p.funds.GetFundingForEAC(exch, a, c)
+	if err != nil {
 		return 0
 	}
-	return lookup.InitialFunds
+	return funds.InitialFunds
 }
 
 // GetLatestHoldingsForAllCurrencies will return the current holdings for all loaded currencies

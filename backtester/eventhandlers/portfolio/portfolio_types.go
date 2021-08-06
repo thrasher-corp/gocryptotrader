@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -39,6 +40,7 @@ type Portfolio struct {
 	sizeManager               SizeHandler
 	riskManager               risk.Handler
 	exchangeAssetPairSettings map[string]map[asset.Item]map[currency.Pair]*settings.Settings
+	funds                     *funding.AllFunds
 }
 
 // Handler contains all functions expected to operate a portfolio manager
@@ -47,8 +49,7 @@ type Handler interface {
 	OnFill(fill.Event) (*fill.Fill, error)
 	Update(common.DataEventHandler) error
 
-	SetInitialFunds(string, asset.Item, currency.Pair, float64) error
-	GetInitialFunds(string, asset.Item, currency.Pair) float64
+	GetInitialFunds(string, asset.Item, currency.Code) float64
 
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 

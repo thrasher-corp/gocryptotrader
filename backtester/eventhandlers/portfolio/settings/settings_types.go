@@ -9,7 +9,6 @@ import (
 // Settings holds all important information for the portfolio manager
 // to assess purchasing decisions
 type Settings struct {
-	InitialFunds      float64
 	Fee               float64
 	BuySideSizing     config.MinMax
 	SellSideSizing    config.MinMax

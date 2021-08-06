@@ -2,6 +2,7 @@ package size
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
@@ -55,6 +56,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Se
 			amount = portfolioSize
 		}
 	}
+	amount = math.Floor(amount*100000000) / 100000000
 	if amount <= 0 {
 		return retOrder, fmt.Errorf("%w at %v for %v %v %v", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
 	}
