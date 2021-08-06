@@ -387,9 +387,9 @@ func (b *Bitstamp) PlaceOrder(currencyPair string, price, amount float64, buy, m
 
 	var path string
 	if market {
-		path = orderType + "/" + bitstampAPIMarket + strings.ToLower(currencyPair)
+		path = orderType + "/" + bitstampAPIMarket + "/" + strings.ToLower(currencyPair)
 	} else {
-		path = orderType + "/" + orderType + strings.ToLower(currencyPair)
+		path = orderType + "/" + strings.ToLower(currencyPair)
 	}
 
 	return response,
