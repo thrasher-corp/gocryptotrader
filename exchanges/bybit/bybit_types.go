@@ -63,3 +63,33 @@ type KlineItem struct {
 	TakerQuoteVolume float64
 	TradesCount      int64
 }
+
+// PriceChangeStats contains statistics for the last 24 hours trade
+type PriceChangeStats struct {
+	Time         time.Time
+	Symbol       string
+	BestBidPrice float64
+	BestAskPrice float64
+	LastPrice    float64
+	OpenPrice    float64
+	HighPrice    float64
+	LowPrice     float64
+	Volume       float64
+	QuoteVolume  float64
+}
+
+// LastTradePrice contains price for last trade
+type LastTradePrice struct {
+	Symbol string  `json:"symbol"`
+	Price  float64 `json:"price,string"`
+}
+
+// TickerData stores ticker data
+type TickerData struct {
+	Symbol      string
+	BidPrice    float64
+	BidQuantity float64
+	AskPrice    float64
+	AskQuantity float64
+	Time        time.Time
+}

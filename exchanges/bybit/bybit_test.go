@@ -58,34 +58,79 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestGetAllPairs(t *testing.T) {
-	by.Verbose = true
-	r, err := by.GetAllPairs()
+	t.Parallel()
+
+	_, err := by.GetAllPairs()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(r)
 }
 
 func TestGetOrderBook(t *testing.T) {
-	r, err := by.GetOrderBook("BTCUSDT", 100)
+	t.Parallel()
+
+	_, err := by.GetOrderBook("BTCUSDT", 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(r)
 }
 
 func TestGetTrades(t *testing.T) {
-	r, err := by.GetTrades("BTCUSDT", 100)
+	t.Parallel()
+
+	_, err := by.GetTrades("BTCUSDT", 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(r)
 }
 
 func TestGetKlines(t *testing.T) {
-	r, err := by.GetKlines("BTCUSDT", "5m", 2000, time.Now().Add(-time.Hour*1), time.Now())
+	t.Parallel()
+
+	_, err := by.GetKlines("BTCUSDT", "5m", 2000, time.Now().Add(-time.Hour*1), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(r)
+}
+
+func TestGet24HrsChange(t *testing.T) {
+	t.Parallel()
+
+	_, err := by.Get24HrsChange("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.Get24HrsChange("")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetLastTradedPrice(t *testing.T) {
+	t.Parallel()
+
+	_, err := by.GetLastTradedPrice("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetLastTradedPrice("")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetBestBidAskPrice(t *testing.T) {
+	t.Parallel()
+
+	_, err := by.GetBestBidAskPrice("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetBestBidAskPrice("")
+	if err != nil {
+		t.Fatal(err)
+	}
 }

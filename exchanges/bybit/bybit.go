@@ -26,7 +26,6 @@ const (
 	sideSell = "SELL"
 
 	// Public endpoints
-	// TODO:
 	bybitSpotGetSymbols   = "/spot/v1/symbols"
 	bybitOrderBook        = "/spot/quote/v1/depth"
 	bybitMergedOrderBook  = "/spot/quote/v1/depth/merged"
@@ -325,6 +324,171 @@ func (by *Bybit) GetKlines(symbol, period string, limit int64, start, end time.T
 		klines = append(klines, kline)
 	}
 	return klines, nil
+}
+
+// Get24HrsChange returns price change statistics for the last 24 hours
+// If symbol not passed then it will return price change statistics for all pairs
+func (by *Bybit) Get24HrsChange(symbol string) ([]PriceChangeStats, error) {
+	type priceChangeStats struct {
+		Time         int64   `json:"time"`
+		Symbol       string  `json:"symbol"`
+		BestBidPrice float64 `json:"bestBidPrice,string"`
+		BestAskPrice float64 `json:"bestAskPrice,string"`
+		LastPrice    float64 `json:"lastPrice,string"`
+		OpenPrice    float64 `json:"openPrice,string"`
+		HighPrice    float64 `json:"highPrice,string"`
+		LowPrice     float64 `json:"lowPrice,string"`
+		Volume       float64 `json:"volume,string"`
+		QuoteVolume  float64 `json:"quoteVolume,string"`
+	}
+
+	var stats []PriceChangeStats
+	if symbol != "" {
+		resp := struct {
+			Data priceChangeStats `json:"result"`
+		}{}
+
+		params := url.Values{}
+		params.Set("symbol", symbol)
+		path := common.EncodeURLValues(bybit24HrsChange, params)
+		err := by.SendHTTPRequest(exchange.RestSpot, path, &resp)
+		if err != nil {
+			return nil, err
+		}
+
+		stats = append(stats, PriceChangeStats{
+			time.Unix(0, resp.Data.Time*int64(time.Millisecond)),
+			resp.Data.Symbol,
+			resp.Data.BestAskPrice,
+			resp.Data.BestAskPrice,
+			resp.Data.LastPrice,
+			resp.Data.OpenPrice,
+			resp.Data.HighPrice,
+			resp.Data.LowPrice,
+			resp.Data.Volume,
+			resp.Data.QuoteVolume,
+		})
+	} else {
+		resp := struct {
+			Data []priceChangeStats `json:"result"`
+		}{}
+
+		err := by.SendHTTPRequest(exchange.RestSpot, bybit24HrsChange, &resp)
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range resp.Data {
+			stats = append(stats, PriceChangeStats{
+				time.Unix(0, resp.Data[x].Time*int64(time.Millisecond)),
+				resp.Data[x].Symbol,
+				resp.Data[x].BestAskPrice,
+				resp.Data[x].BestAskPrice,
+				resp.Data[x].LastPrice,
+				resp.Data[x].OpenPrice,
+				resp.Data[x].HighPrice,
+				resp.Data[x].LowPrice,
+				resp.Data[x].Volume,
+				resp.Data[x].QuoteVolume,
+			})
+		}
+	}
+	return stats, nil
+}
+
+// GetLastTradedPrice returns last trading price
+// If symbol not passed then it will return last trading price for all pairs
+func (by *Bybit) GetLastTradedPrice(symbol string) ([]LastTradePrice, error) {
+	var lastTradePrices []LastTradePrice
+	if symbol != "" {
+		resp := struct {
+			Data LastTradePrice `json:"result"`
+		}{}
+
+		params := url.Values{}
+		params.Set("symbol", symbol)
+		path := common.EncodeURLValues(bybitLastTradedPrice, params)
+		err := by.SendHTTPRequest(exchange.RestSpot, path, &resp)
+		if err != nil {
+			return nil, err
+		}
+		lastTradePrices = append(lastTradePrices, LastTradePrice{
+			resp.Data.Symbol,
+			resp.Data.Price,
+		})
+	} else {
+		resp := struct {
+			Data []LastTradePrice `json:"result"`
+		}{}
+
+		err := by.SendHTTPRequest(exchange.RestSpot, bybitLastTradedPrice, &resp)
+		if err != nil {
+			return nil, err
+		}
+		for x := range resp.Data {
+			lastTradePrices = append(lastTradePrices, LastTradePrice{
+				resp.Data[x].Symbol,
+				resp.Data[x].Price,
+			})
+		}
+	}
+	return lastTradePrices, nil
+}
+
+// GetBestBidAskPrice returns best BID and ASK price
+// If symbol not passed then it will return best BID and ASK price for all pairs
+func (by *Bybit) GetBestBidAskPrice(symbol string) ([]TickerData, error) {
+	type bestTicker struct {
+		Symbol      string  `json:"symbol"`
+		BidPrice    float64 `json:"bidPrice,string"`
+		BidQuantity float64 `json:"bidQty,string"`
+		AskPrice    float64 `json:"askPrice,string"`
+		AskQuantity float64 `json:"askQty,string"`
+		Time        int64   `json:"time"`
+	}
+
+	var tickers []TickerData
+	if symbol != "" {
+		resp := struct {
+			Data bestTicker `json:"result"`
+		}{}
+
+		params := url.Values{}
+		params.Set("symbol", symbol)
+		path := common.EncodeURLValues(bybitBestBidAskPrice, params)
+		err := by.SendHTTPRequest(exchange.RestSpot, path, &resp)
+		if err != nil {
+			return nil, err
+		}
+		tickers = append(tickers, TickerData{
+			resp.Data.Symbol,
+			resp.Data.BidPrice,
+			resp.Data.BidQuantity,
+			resp.Data.AskPrice,
+			resp.Data.AskQuantity,
+			time.Unix(0, resp.Data.Time*int64(time.Millisecond)),
+		})
+	} else {
+		resp := struct {
+			Data []bestTicker `json:"result"`
+		}{}
+
+		err := by.SendHTTPRequest(exchange.RestSpot, bybitBestBidAskPrice, &resp)
+		if err != nil {
+			return nil, err
+		}
+		for x := range resp.Data {
+			tickers = append(tickers, TickerData{
+				resp.Data[x].Symbol,
+				resp.Data[x].BidPrice,
+				resp.Data[x].BidQuantity,
+				resp.Data[x].AskPrice,
+				resp.Data[x].AskQuantity,
+				time.Unix(0, resp.Data[x].Time*int64(time.Millisecond)),
+			})
+		}
+	}
+	return tickers, nil
 }
 
 // SendHTTPRequest sends an unauthenticated request
