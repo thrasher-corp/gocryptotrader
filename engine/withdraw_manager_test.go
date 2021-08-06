@@ -8,7 +8,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	dbWithdraw "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
@@ -165,14 +164,6 @@ func TestWithdrawalEventByExchange(t *testing.T) {
 			err,
 			ErrExchangeNotFound)
 	}
-
-	_, err = m.WithdrawalEventByExchange(exchangeName, 1)
-	if !errors.Is(err, nil) && !errors.Is(err, dbWithdraw.ErrNoResults) {
-		t.Errorf("received: %v but due to racing to populate the database expected either: %v or %v",
-			err,
-			nil,
-			dbWithdraw.ErrNoResults)
-	}
 }
 
 func TestWithdrawEventByDate(t *testing.T) {
@@ -196,14 +187,6 @@ func TestWithdrawEventByDate(t *testing.T) {
 			err,
 			ErrExchangeNotFound)
 	}
-
-	_, err = m.WithdrawEventByDate(exchangeName, time.Now(), time.Now(), 1)
-	if !errors.Is(err, nil) && !errors.Is(err, dbWithdraw.ErrNoResults) {
-		t.Errorf("received: %v but due to racing to populate the database expected either: %v or %v",
-			err,
-			nil,
-			dbWithdraw.ErrNoResults)
-	}
 }
 
 func TestWithdrawalEventByExchangeID(t *testing.T) {
@@ -226,13 +209,5 @@ func TestWithdrawalEventByExchangeID(t *testing.T) {
 		t.Errorf("received: %v but expected: %v",
 			err,
 			ErrExchangeNotFound)
-	}
-
-	_, err = m.WithdrawalEventByExchangeID(exchangeName, exchangeName)
-	if !errors.Is(err, nil) && !errors.Is(err, dbWithdraw.ErrNoResults) {
-		t.Errorf("received: %v but due to racing to populate the database expected either: %v or %v",
-			err,
-			nil,
-			dbWithdraw.ErrNoResults)
 	}
 }
