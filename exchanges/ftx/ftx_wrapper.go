@@ -578,9 +578,9 @@ func (f *FTX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	tempResp, err := f.Order(fPair.String(),
 		s.Side.Lower(),
 		s.Type.Lower(),
-		"",
-		"",
-		"",
+		s.ReduceOnly,
+		s.ImmediateOrCancel,
+		s.PostOnly,
 		s.ClientOrderID,
 		s.Price,
 		s.Amount)

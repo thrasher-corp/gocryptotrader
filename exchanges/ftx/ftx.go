@@ -659,20 +659,26 @@ func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.
 }
 
 // Order places an order
-func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clientID string, price, size float64) (OrderData, error) {
+func (f *FTX) Order(
+	marketName, side, orderType string,
+	reduceOnly, ioc, postOnly bool,
+	clientID string,
+	price, size float64,
+) (OrderData, error) {
+	//
 	req := make(map[string]interface{})
 	req["market"] = marketName
 	req["side"] = side
 	req["price"] = price
 	req["type"] = orderType
 	req["size"] = size
-	if reduceOnly != "" {
+	if reduceOnly {
 		req["reduceOnly"] = reduceOnly
 	}
-	if ioc != "" {
+	if ioc {
 		req["ioc"] = ioc
 	}
-	if postOnly != "" {
+	if postOnly {
 		req["postOnly"] = postOnly
 	}
 	if clientID != "" {
