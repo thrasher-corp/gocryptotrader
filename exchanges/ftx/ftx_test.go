@@ -540,7 +540,7 @@ func TestOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := f.Order(spotPair, order.Buy.Lower(), "limit", "", "", "", "", 0.0001, 500)
+	_, err := f.Order(spotPair, order.Buy.Lower(), "limit", false, false, false, "", 0.0001, 500)
 	if err != nil {
 		t.Error(err)
 	}
