@@ -1450,7 +1450,7 @@ func getManagedOrders(c *cli.Context) error {
 var getOrderCommand = &cli.Command{
 	Name:      "getorder",
 	Usage:     "gets the specified order info",
-	ArgsUsage: "<exchange> <order_id> <pair>",
+	ArgsUsage: "<exchange> <asset> <pair> <order_id>",
 	Action:    getOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -2236,6 +2236,39 @@ var cancelAllOrdersCommand = &cli.Command{
 	},
 }
 
+var modifyOrderCommand = &cli.Command{
+	Name:      "modifyorder",
+	Usage:     "modify price and/or amount of a previously submitted order",
+	ArgsUsage: "<exchange> <asset> <pair> <order_id>",
+	Action:    modifyOrder,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "exchange",
+			Usage: "exchange this order is submitted to",
+		},
+		&cli.StringFlag{
+			Name:  "asset",
+			Usage: "required asset type",
+		},
+		&cli.StringFlag{
+			Name:  "pair",
+			Usage: "required trading pair",
+		},
+		&cli.StringFlag{
+			Name:  "order_id",
+			Usage: "id of the order to be modified",
+		},
+		&cli.Float64Flag{
+			Name:  "price",
+			Usage: "new order price",
+		},
+		&cli.Float64Flag{
+			Name:  "amount",
+			Usage: "new order amount",
+		},
+	},
+}
+
 func cancelAllOrders(c *cli.Context) error {
 	var exchangeName string
 	if c.IsSet("exchange") {
@@ -2260,6 +2293,98 @@ func cancelAllOrders(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.CancelAllOrders(context.Background(), &gctrpc.CancelAllOrdersRequest{
 		Exchange: exchangeName,
+	})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+func modifyOrder(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "modifyorder")
+	}
+
+	// Parse positional arguments.
+	var exchangeName string
+	var orderID string
+	var currencyPair string
+	var assetType string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	if c.IsSet("order_id") {
+		orderID = c.String("order_id")
+	} else {
+		orderID = c.Args().Get(3)
+	}
+
+	// Parse optional flags.
+	var price float64
+	var amount float64
+
+	if c.IsSet("price") {
+		price = c.Float64("price")
+	}
+	if c.IsSet("amount") {
+		amount = c.Float64("amount")
+	}
+	if price == 0 && amount == 0 {
+		return errors.New("either --price or --amount should be present")
+	}
+
+	// Setup gRPC, make a request and display response.
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.ModifyOrder(context.Background(), &gctrpc.ModifyOrderRequest{
+		Exchange: exchangeName,
+		OrderId:  orderID,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		},
+		Asset:  assetType,
+		Price:  price,
+		Amount: amount,
 	})
 	if err != nil {
 		return err

@@ -284,6 +284,77 @@ func (m *OrderManager) validate(newOrder *order.Submit) error {
 	return nil
 }
 
+// Modify depends on the order.Modify.ID and order.Modify.Exchange fields to uniquely
+// identify an order to modify.
+func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) {
+	if m == nil {
+		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+	}
+
+	// Fetch details from locally managed order store.
+	det, err := m.orderStore.getByExchangeAndID(mod.Exchange, mod.ID)
+	if det == nil || err != nil {
+		return nil, fmt.Errorf("order does not exist: %w", err)
+	}
+
+	// Populate additional Modify fields as some of them are required by various
+	// exchange implementations.
+	mod.Pair = det.Pair                           // Used by Bithumb.
+	mod.Side = det.Side                           // Used by Bithumb.
+	mod.PostOnly = det.PostOnly                   // Used by Poloniex.
+	mod.ImmediateOrCancel = det.ImmediateOrCancel // Used by Poloniex.
+
+	// Following is just a precaution to not modify orders by mistake if exchange
+	// implementations do not check fields of the Modify struct for zero values.
+	if mod.Amount == 0 {
+		mod.Amount = det.Amount
+	}
+	if mod.Price == 0 {
+		mod.Price = det.Price
+	}
+
+	// Get exchange instance and submit order modification request.
+	exch := m.orderStore.exchangeManager.GetExchangeByName(mod.Exchange)
+	if exch == nil {
+		return nil, ErrExchangeNotFound
+	}
+	res, err := exch.ModifyOrder(mod)
+	if err != nil {
+		message := fmt.Sprintf(
+			"Order manager: Exchange %s order ID=%v: failed to modify",
+			mod.Exchange,
+			mod.ID,
+		)
+		m.orderStore.commsManager.PushEvent(base.Event{
+			Type:    "order",
+			Message: message,
+		})
+		return nil, err
+	}
+
+	// If modification is successful, apply changes to local order store.
+	//
+	// XXX: This comes with a race condition, because [request -> changes] are not
+	// atomic.
+	err = m.orderStore.modifyExisting(mod.ID, &res)
+
+	// Notify observers.
+	var message string
+	if err != nil {
+		message = "Order manager: Exchange %s order ID=%v: modified on exchange, but failed to modify locally"
+	} else {
+		message = "Order manager: Exchange %s order ID=%v: modified successfully"
+	}
+	m.orderStore.commsManager.PushEvent(base.Event{
+		Type:    "order",
+		Message: fmt.Sprintf(message, mod.Exchange, res.ID),
+	})
+	return &order.ModifyResponse{OrderID: res.ID}, err
+}
+
 // Submit will take in an order struct, send it to the exchange and
 // populate it in the OrderManager if successful
 func (m *OrderManager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, error) {
@@ -653,6 +724,26 @@ func (s *store) updateExisting(od *order.Detail) error {
 	return ErrOrderNotFound
 }
 
+// modifyExisting depends on mod.Exchange and given ID to uniquely identify an order and
+// modify it.
+func (s *store) modifyExisting(id string, mod *order.Modify) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+	r, ok := s.Orders[strings.ToLower(mod.Exchange)]
+	if !ok {
+		return ErrExchangeNotFound
+	}
+	for x := range r {
+		if r[x].ID == id {
+			r[x].UpdateOrderFromModify(mod)
+			return nil
+		}
+	}
+	return ErrOrderNotFound
+}
+
+// upsert (1) checks if such an exchange exists in the exchangeManager, (2) checks if
+// order exists and updates/creates it.
 func (s *store) upsert(od *order.Detail) error {
 	lName := strings.ToLower(od.Exchange)
 	exch := s.exchangeManager.GetExchangeByName(lName)

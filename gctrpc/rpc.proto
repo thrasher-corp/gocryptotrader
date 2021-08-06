@@ -947,6 +947,18 @@ message UpdateDataHistoryJobPrerequisiteRequest {
     string prerequisite_job_nickname = 2;
 }
 
+message ModifyOrderRequest {
+    string exchange = 1;
+    string order_id = 2;
+    CurrencyPair pair = 3;
+    string asset = 4;
+    double amount = 5;
+    double price = 6;
+}
+
+message ModifyOrderResponse {
+    string modified_order_id = 1;
+}
 
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
@@ -1498,6 +1510,11 @@ service GoCryptoTrader {
         option (google.api.http) = {
             post: "/v1/getmanagedorders"
             body: "*"
+        };
+    }
+    rpc ModifyOrder (ModifyOrderRequest) returns (ModifyOrderResponse) {
+        option (google.api.http) = {
+            get: "/v1/modifyorder"
         };
     }
 }

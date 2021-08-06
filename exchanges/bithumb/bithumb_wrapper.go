@@ -438,22 +438,31 @@ func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bithumb) ModifyOrder(action *order.Modify) (string, error) {
+func (b *Bithumb) ModifyOrder(action *order.Modify) (order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
-	order, err := b.ModifyTrade(action.ID,
+	o, err := b.ModifyTrade(action.ID,
 		action.Pair.Base.String(),
 		action.Side.Lower(),
 		action.Amount,
 		int64(action.Price))
 
 	if err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
-	return order.Data[0].ContID, nil
+	return order.Modify{
+		Exchange:  action.Exchange,
+		AssetType: action.AssetType,
+		Pair:      action.Pair,
+		ID:        o.Data[0].ContID,
+
+		Price:  float64(int64(action.Price)),
+		Amount: action.Amount,
+		Side:   action.Side,
+	}, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number

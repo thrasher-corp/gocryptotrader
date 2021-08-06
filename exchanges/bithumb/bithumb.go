@@ -314,7 +314,7 @@ func (b *Bithumb) PlaceTrade(orderCurrency, transactionType string, units float6
 
 	params := url.Values{}
 	params.Set("order_currency", strings.ToUpper(orderCurrency))
-	params.Set("Payment_currency", "KRW")
+	params.Set("payment_currency", "KRW")
 	params.Set("type", strings.ToUpper(transactionType))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 	params.Set("price", strconv.FormatInt(price, 10))
@@ -329,7 +329,7 @@ func (b *Bithumb) ModifyTrade(orderID, orderCurrency, transactionType string, un
 
 	params := url.Values{}
 	params.Set("order_currency", strings.ToUpper(orderCurrency))
-	params.Set("Payment_currency", "KRW")
+	params.Set("payment_currency", "KRW")
 	params.Set("type", strings.ToUpper(transactionType))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 	params.Set("price", strconv.FormatInt(price, 10))
