@@ -678,7 +678,7 @@ type WsOrderDataStore struct {
 type WsFillsDataStore struct {
 	Channel     string  `json:"channel"`
 	MessageType string  `json:"type"`
-	FillsData   WsFills `json:"fills"`
+	FillsData   WsFills `json:"data"`
 }
 
 // TimeInterval represents interval enum.
