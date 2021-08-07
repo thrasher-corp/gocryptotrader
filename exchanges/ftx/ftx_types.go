@@ -621,19 +621,22 @@ type WsOrders struct {
 
 // WsFills stores websocket fills' data
 type WsFills struct {
-	Fee       float64   `json:"fee"`
-	FeeRate   float64   `json:"feeRate"`
-	Future    string    `json:"future"`
-	ID        int64     `json:"id"`
-	Liquidity string    `json:"liquidity"`
-	Market    string    `json:"market"`
-	OrderID   int64     `json:"orderId"`
-	TradeID   int64     `json:"tradeId"`
-	Price     float64   `json:"price"`
-	Side      string    `json:"side"`
-	Size      float64   `json:"size"`
-	Time      time.Time `json:"time"`
-	OrderType string    `json:"orderType"`
+	ID            int64     `json:"id"`
+	Market        string    `json:"market"`
+	Future        string    `json:"future"`
+	BaseCurrency  string    `json:"baseCurrency"`
+	QuoteCurrency string    `json:"quoteCurrency"`
+	Type          string    `json:"type"`
+	Side          string    `json:"side"`
+	Price         float64   `json:"price"`
+	Size          float64   `json:"size"`
+	OrderID       int64     `json:"orderId"`
+	Time          time.Time `json:"time"`
+	TradeID       int64     `json:"tradeId"`
+	FeeRate       float64   `json:"feeRate"`
+	Fee           float64   `json:"fee"`
+	FeeCurrency   string    `json:"feeCurrency"`
+	Liquidity     string    `json:"liquidity"`
 }
 
 // WsSub has the data used to subscribe to a channel
