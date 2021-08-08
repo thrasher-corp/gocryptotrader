@@ -32,11 +32,6 @@ func parseRaw(t *testing.T, input string) interface{} {
 						},
 					},
 				},
-				// RequestFormat: &currency.PairFormat{
-				// 	Delimiter: ">",
-				// 	Uppercase: false,
-				// },
-				// UseGlobalFormat: true,
 			},
 			Websocket: &stream.Websocket{
 				DataHandler: make(chan interface{}),
