@@ -86,6 +86,8 @@ func TestFTX_wsHandleData_Details(t *testing.T) {
 	if !ok {
 		t.Fatalf("have %T, want order.Detail", p)
 	}
+	// "reduceOnly" and "liquidation" do not have corresponding fields in
+	// order.Detail.
 	if x.ID != "69350095302" ||
 		x.ClientOrderID != "192ab87ae99970b79f624ef8bd783351" ||
 		x.Pair.Base.Item.Symbol != "BTC" ||
@@ -97,8 +99,6 @@ func TestFTX_wsHandleData_Details(t *testing.T) {
 		x.Status != order.PartiallyCancelled ||
 		x.ExecutedAmount != 4 ||
 		x.RemainingAmount != 8 ||
-		// reduceOnly
-		// liquidation
 		x.AverageExecutedPrice != 32768 ||
 		!x.PostOnly ||
 		!x.Date.Equal(time.Unix(1628418902, 649437000).UTC()) {

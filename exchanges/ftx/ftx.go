@@ -1242,11 +1242,19 @@ func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amou
 	case strings.ToLower(order.Open.String()):
 		resp.Status = order.Open
 	case closedStatus:
-		if filledAmount <= 0 {
+		switch {
+		case filledAmount <= 0:
+			// Order is closed with a filled amount of 0, which means it's
+			// cancelled.
 			resp.Status = order.Cancelled
-		} else if math.Abs(filledAmount-amount) > 1e-6 {
+		case math.Abs(filledAmount-amount) > 1e-6:
+			// Order is closed with filledAmount above 0, but not equal to the
+			// full amount, which means it's partially executed and then
+			// cancelled.
 			resp.Status = order.PartiallyCancelled
-		} else {
+		default:
+			// Order is closed and filledAmount == amount, which means it's
+			// fully executed.
 			resp.Status = order.Filled
 		}
 	default:
