@@ -347,38 +347,23 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			var resp order.Detail
-			// ImmediateOrCancel
-			// HiddenOrder
-			// FillOrKill
 			resp.PostOnly = resultData.OrderData.PostOnly
-			// Leverage
 			resp.Price = resultData.OrderData.Price
 			resp.Amount = resultData.OrderData.Size
-			// LimitPriceUpper
-			// LimitPriceLower
-			// TriggerPrice
 			resp.AverageExecutedPrice = resultData.OrderData.AvgFillPrice
-			// TargetAmount
 			resp.ExecutedAmount = resultData.OrderData.FilledSize
 			resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
 			resp.Cost = resp.AverageExecutedPrice * resp.Amount
 			// Fee: orderVars.Fee is incorrect.
 			resp.Exchange = f.Name
-			// InternalOrderID
 			resp.ID = strconv.FormatInt(resultData.OrderData.ID, 10)
 			resp.ClientOrderID = resultData.OrderData.ClientID
-			// AccountID
-			// ClientID
-			// WalletAddress
 			resp.Type = orderVars.OrderType
 			resp.Side = orderVars.Side
 			resp.Status = orderVars.Status
 			resp.AssetType = assetType
 			resp.Date = resultData.OrderData.CreatedAt
-			// CloseTime
-			// LastUpdated
 			resp.Pair = pair
-			// Trades
 			f.Websocket.DataHandler <- &resp
 		case wsFills:
 			var resultData WsFillsDataStore
