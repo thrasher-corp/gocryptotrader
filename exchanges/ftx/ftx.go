@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -1241,16 +1242,11 @@ func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amou
 	case strings.ToLower(order.Open.String()):
 		resp.Status = order.Open
 	case closedStatus:
-		// FIXME: Do not compare floats for equality, use approximation instead!
-		if filledAmount != 0 && filledAmount != amount {
+		if filledAmount <= 0 {
+			resp.Status = order.Cancelled
+		} else if math.Abs(filledAmount-amount) > 1e-6 {
 			resp.Status = order.PartiallyCancelled
-			break
-		}
-		if filledAmount == 0 {
-			resp.Status = order.Closed
-			break
-		}
-		if filledAmount == amount {
+		} else {
 			resp.Status = order.Filled
 		}
 	default:
