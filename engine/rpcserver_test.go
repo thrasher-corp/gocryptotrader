@@ -1318,7 +1318,7 @@ func TestParseEvents(t *testing.T) {
 
 func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
@@ -1370,7 +1370,7 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 
 func TestGetDataHistoryJobDetails(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1407,7 +1407,7 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
 
-	_, err = s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: m.jobs[0].ID.String()})
+	_, err = s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: dhj.ID.String()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
@@ -1424,9 +1424,9 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 	}
 }
 
-func TestDeleteDataHistoryJob(t *testing.T) {
+func TestSetDataHistoryJobStatus(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, j := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1442,40 +1442,49 @@ func TestDeleteDataHistoryJob(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, expected %v", err, nil)
 	}
-	_, err = s.DeleteDataHistoryJob(context.Background(), nil)
+	_, err = s.SetDataHistoryJobStatus(context.Background(), nil)
 	if !errors.Is(err, errNilRequestData) {
 		t.Errorf("received %v, expected %v", err, errNilRequestData)
 	}
 
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{})
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{})
 	if !errors.Is(err, errNicknameIDUnset) {
 		t.Errorf("received %v, expected %v", err, errNicknameIDUnset)
 	}
 
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: "123", Nickname: "123"})
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: "123", Nickname: "123"})
 	if !errors.Is(err, errOnlyNicknameOrID) {
 		t.Errorf("received %v, expected %v", err, errOnlyNicknameOrID)
 	}
 
-	id := m.jobs[0].ID
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestDeleteDataHistoryJob"})
+	id := dhj.ID
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Nickname: "TestDeleteDataHistoryJob", Status: int64(dataHistoryStatusRemoved)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
 	dhj.ID = id
-	m.jobs = append(m.jobs, dhj)
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: id.String()})
+	j.Status = int64(dataHistoryStatusActive)
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusRemoved)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
-	if len(m.jobs) != 0 {
-		t.Errorf("received %v, expected %v", len(m.jobs), 0)
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusActive)})
+	if !errors.Is(err, errBadStatus) {
+		t.Errorf("received %v, expected %v", err, errBadStatus)
+	}
+	j.Status = int64(dataHistoryStatusActive)
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusPaused)})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+	if j.Status != int64(dataHistoryStatusPaused) {
+		t.Errorf("received %v, expected %v", dataHistoryStatus(j.Status), dataHistoryStatusPaused)
 	}
 }
 
 func TestGetActiveDataHistoryJobs(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1504,7 +1513,7 @@ func TestGetActiveDataHistoryJobs(t *testing.T) {
 
 func TestGetDataHistoryJobsBetween(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1549,7 +1558,7 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 
 func TestGetDataHistoryJobSummary(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1780,5 +1789,35 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 	}
 	if want := now.UnixNano(); two.LastUpdated != want {
 		t.Errorf("have %d, want %d", two.LastUpdated, want)
+	}
+}
+
+func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {
+	t.Parallel()
+	m, _ := createDHM(t)
+	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
+	_, err := s.UpdateDataHistoryJobPrerequisite(context.Background(), nil)
+	if !errors.Is(err, errNilRequestData) {
+		t.Errorf("received %v, expected %v", err, errNilRequestData)
+	}
+
+	_, err = s.UpdateDataHistoryJobPrerequisite(context.Background(), &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{})
+	if !errors.Is(err, errNicknameUnset) {
+		t.Errorf("received %v, expected %v", err, errNicknameUnset)
+	}
+
+	_, err = s.UpdateDataHistoryJobPrerequisite(context.Background(), &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
+		Nickname: "test456",
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+
+	_, err = s.UpdateDataHistoryJobPrerequisite(context.Background(), &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
+		Nickname:                "test456",
+		PrerequisiteJobNickname: "test123",
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
 	}
 }

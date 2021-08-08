@@ -594,9 +594,9 @@ func (f *FTX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (f *FTX) ModifyOrder(action *order.Modify) (string, error) {
+func (f *FTX) ModifyOrder(action *order.Modify) (order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
 	if action.TriggerPrice != 0 {
@@ -607,25 +607,42 @@ func (f *FTX) ModifyOrder(action *order.Modify) (string, error) {
 			action.Price,
 			0)
 		if err != nil {
-			return "", err
+			return order.Modify{}, err
 		}
-		return strconv.FormatInt(a.ID, 10), err
+		return order.Modify{
+			Exchange:  action.Exchange,
+			AssetType: action.AssetType,
+			Pair:      action.Pair,
+			ID:        strconv.FormatInt(a.ID, 10),
+
+			Price:        action.Price,
+			Amount:       action.Amount,
+			TriggerPrice: action.TriggerPrice,
+			Type:         action.Type,
+		}, err
 	}
 	var o OrderData
 	var err error
-	switch action.ID {
-	case "":
+	if action.ID == "" {
 		o, err = f.ModifyOrderByClientID(action.ClientOrderID, action.ClientOrderID, action.Price, action.Amount)
 		if err != nil {
-			return "", err
+			return order.Modify{}, err
 		}
-	default:
+	} else {
 		o, err = f.ModifyPlacedOrder(action.ID, action.ClientOrderID, action.Price, action.Amount)
 		if err != nil {
-			return "", err
+			return order.Modify{}, err
 		}
 	}
-	return strconv.FormatInt(o.ID, 10), err
+	return order.Modify{
+		Exchange:  action.Exchange,
+		AssetType: action.AssetType,
+		Pair:      action.Pair,
+		ID:        strconv.FormatInt(o.ID, 10),
+
+		Price:  action.Price,
+		Amount: action.Amount,
+	}, err
 }
 
 // CancelOrder cancels an order by its corresponding ID number

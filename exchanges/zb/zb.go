@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -19,8 +18,8 @@ import (
 )
 
 const (
-	zbTradeURL                        = "http://api.zb.live"
-	zbMarketURL                       = "https://trade.zb.live/api"
+	zbTradeURL                        = "http://api.zb.land"
+	zbMarketURL                       = "https://trade.zb.land/api"
 	zbAPIVersion                      = "v1"
 	zbData                            = "data"
 	zbAccountInfo                     = "getAccountInfo"
@@ -286,14 +285,18 @@ func (z *ZB) SendHTTPRequest(ep exchange.URL, path string, result interface{}, f
 	if err != nil {
 		return err
 	}
-	return z.SendPayload(context.Background(), &request.Item{
+
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       z.Verbose,
 		HTTPDebugging: z.HTTPDebugging,
 		HTTPRecording: z.HTTPRecording,
-		Endpoint:      f,
+	}
+
+	return z.SendPayload(context.Background(), f, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
@@ -312,39 +315,37 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ep exchange.URL, httpMethod string, pa
 		[]byte(params.Encode()),
 		[]byte(crypto.Sha1ToHex(z.API.Credentials.Secret)))
 
-	now := time.Now()
-	params.Set("reqTime", fmt.Sprintf("%d", convert.UnixMillis(now)))
-	params.Set("sign", fmt.Sprintf("%x", hmac))
-
-	urlPath := fmt.Sprintf("%s/%s?%s",
-		endpoint,
-		params.Get("method"),
-		params.Encode())
-
 	var intermediary json.RawMessage
+	newRequest := func() (*request.Item, error) {
+		now := time.Now()
+		params.Set("reqTime", fmt.Sprintf("%d", convert.UnixMillis(now)))
+		params.Set("sign", fmt.Sprintf("%x", hmac))
+
+		urlPath := fmt.Sprintf("%s/%s?%s",
+			endpoint,
+			params.Get("method"),
+			params.Encode())
+
+		return &request.Item{
+			Method:        httpMethod,
+			Path:          urlPath,
+			Result:        &intermediary,
+			AuthRequest:   true,
+			Verbose:       z.Verbose,
+			HTTPDebugging: z.HTTPDebugging,
+			HTTPRecording: z.HTTPRecording,
+		}, nil
+	}
+
+	err = z.SendPayload(context.Background(), f, newRequest)
+	if err != nil {
+		return err
+	}
 
 	errCap := struct {
 		Code    int64  `json:"code"`
 		Message string `json:"message"`
 	}{}
-
-	// Expiry of timestamp doesn't appear to be documented, so making a reasonable assumption
-	ctx, cancel := context.WithDeadline(context.Background(), now.Add(15*time.Second))
-	defer cancel()
-	err = z.SendPayload(ctx, &request.Item{
-		Method:        httpMethod,
-		Path:          urlPath,
-		Body:          strings.NewReader(""),
-		Result:        &intermediary,
-		AuthRequest:   true,
-		Verbose:       z.Verbose,
-		HTTPDebugging: z.HTTPDebugging,
-		HTTPRecording: z.HTTPRecording,
-		Endpoint:      f,
-	})
-	if err != nil {
-		return err
-	}
 
 	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {

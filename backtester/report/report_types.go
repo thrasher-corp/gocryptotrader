@@ -33,6 +33,15 @@ type Data struct {
 	Config          *config.Config
 	TemplatePath    string
 	OutputPath      string
+	Warnings        []Warning
+}
+
+// Warning holds any candle warnings
+type Warning struct {
+	Exchange string
+	Asset    asset.Item
+	Pair     currency.Pair
+	Message  string
 }
 
 // DetailedKline enhances kline details for the purpose of rich reporting results

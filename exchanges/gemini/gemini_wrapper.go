@@ -317,7 +317,7 @@ func (g *Gemini) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Amount
-		exchangeCurrency.Hold = accountBalance[i].Available
+		exchangeCurrency.Hold = accountBalance[i].Amount - accountBalance[i].Available
 		currencies = append(currencies, exchangeCurrency)
 	}
 
@@ -551,8 +551,8 @@ func (g *Gemini) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (g *Gemini) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (g *Gemini) ModifyOrder(action *order.Modify) (order.Modify, error) {
+	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number

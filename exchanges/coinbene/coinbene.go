@@ -1088,24 +1088,26 @@ func (c *Coinbene) SendHTTPRequest(ep exchange.URL, path string, f request.Endpo
 	if err != nil {
 		return err
 	}
-	var resp json.RawMessage
-	errCap := struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	}{}
 
-	if err := c.SendPayload(context.Background(), &request.Item{
+	var resp json.RawMessage
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
 		Result:        &resp,
 		Verbose:       c.Verbose,
 		HTTPDebugging: c.HTTPDebugging,
 		HTTPRecording: c.HTTPRecording,
-		Endpoint:      f,
+	}
+	if err := c.SendPayload(context.Background(), f, func() (*request.Item, error) {
+		return item, nil
 	}); err != nil {
 		return err
 	}
 
+	errCap := struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}{}
 	if err := json.Unmarshal(resp, &errCap); err == nil {
 		if errCap.Code != 200 && errCap.Message != "" {
 			return errors.New(errCap.Message)
@@ -1128,76 +1130,77 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 	if isSwap {
 		authPath = coinbeneSwapAuthPath
 	}
-	now := time.Now()
-	timestamp := now.UTC().Format("2006-01-02T15:04:05.999Z")
-	var finalBody io.Reader
-	var preSign string
-	switch {
-	case params != nil && method == http.MethodGet:
-		p, ok := params.(url.Values)
-		if !ok {
-			return fmt.Errorf("params is not of type url.Values")
-		}
-		preSign = timestamp + method + authPath + epPath + "?" + p.Encode()
-		path = common.EncodeURLValues(path, p)
-	case params != nil:
-		var i interface{}
-		switch p := params.(type) {
-		case url.Values:
-			m := make(map[string]string)
-			for k, v := range p {
-				m[k] = strings.Join(v, "")
-			}
-			i = m
-		default:
-			i = p
-		}
-		tempBody, err := json.Marshal(i)
-		if err != nil {
-			return err
-		}
-		finalBody = bytes.NewBufferString(string(tempBody))
-		preSign = timestamp + method + authPath + epPath + string(tempBody)
-	default:
-		preSign = timestamp + method + authPath + epPath
-	}
-	tempSign := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(preSign),
-		[]byte(c.API.Credentials.Secret))
-	headers := make(map[string]string)
-	headers["Content-Type"] = "application/json"
-	headers["ACCESS-KEY"] = c.API.Credentials.Key
-	headers["ACCESS-SIGN"] = crypto.HexEncodeToString(tempSign)
-	headers["ACCESS-TIMESTAMP"] = timestamp
 
 	var resp json.RawMessage
+	newRequest := func() (*request.Item, error) {
+		timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999Z")
+		var finalBody io.Reader
+		var preSign string
+		var fullPath = path
+		switch {
+		case params != nil && method == http.MethodGet:
+			p, ok := params.(url.Values)
+			if !ok {
+				return nil, errors.New("params is not of type url.Values")
+			}
+			preSign = timestamp + method + authPath + epPath + "?" + p.Encode()
+			fullPath = common.EncodeURLValues(path, p)
+		case params != nil:
+			var i interface{}
+			switch p := params.(type) {
+			case url.Values:
+				m := make(map[string]string)
+				for k, v := range p {
+					m[k] = strings.Join(v, "")
+				}
+				i = m
+			default:
+				i = p
+			}
+			tempBody, err2 := json.Marshal(i)
+			if err2 != nil {
+				return nil, err2
+			}
+			finalBody = bytes.NewBufferString(string(tempBody))
+			preSign = timestamp + method + authPath + epPath + string(tempBody)
+		default:
+			preSign = timestamp + method + authPath + epPath
+		}
+		tempSign := crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(preSign),
+			[]byte(c.API.Credentials.Secret))
+		headers := make(map[string]string)
+		headers["Content-Type"] = "application/json"
+		headers["ACCESS-KEY"] = c.API.Credentials.Key
+		headers["ACCESS-SIGN"] = crypto.HexEncodeToString(tempSign)
+		headers["ACCESS-TIMESTAMP"] = timestamp
+
+		return &request.Item{
+			Method:        method,
+			Path:          endpoint + fullPath,
+			Headers:       headers,
+			Body:          finalBody,
+			Result:        &resp,
+			AuthRequest:   true,
+			Verbose:       c.Verbose,
+			HTTPDebugging: c.HTTPDebugging,
+			HTTPRecording: c.HTTPRecording,
+		}, nil
+	}
+
+	if err := c.SendPayload(context.Background(), f, newRequest); err != nil {
+		return err
+	}
+
 	errCap := struct {
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 	}{}
 
-	// Expiry of timestamp doesn't appear to be documented, so making a reasonable assumption
-	ctx, cancel := context.WithDeadline(context.Background(), now.Add(15*time.Second))
-	defer cancel()
-	if err := c.SendPayload(ctx, &request.Item{
-		Method:        method,
-		Path:          endpoint + path,
-		Headers:       headers,
-		Body:          finalBody,
-		Result:        &resp,
-		AuthRequest:   true,
-		Verbose:       c.Verbose,
-		HTTPDebugging: c.HTTPDebugging,
-		HTTPRecording: c.HTTPRecording,
-		Endpoint:      f,
-	}); err != nil {
-		return err
-	}
-
-	if err := json.Unmarshal(resp, &errCap); err == nil {
-		if errCap.Code != 200 && errCap.Message != "" {
-			return errors.New(errCap.Message)
-		}
+	if err := json.Unmarshal(resp, &errCap); err == nil &&
+		errCap.Code != 200 &&
+		errCap.Message != "" {
+		return errors.New(errCap.Message)
 	}
 	return json.Unmarshal(resp, result)
 }

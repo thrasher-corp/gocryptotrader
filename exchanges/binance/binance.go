@@ -1,7 +1,6 @@
 package binance
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -71,6 +70,8 @@ const (
 	assetDetail                            = "/wapi/v3/assetDetail.html"
 	undocumentedInterestHistory            = "/gateway-api/v1/public/isolated-margin/pair/vip-level"
 	undocumentedCrossMarginInterestHistory = "/gateway-api/v1/friendly/margin/vip/spec/list-all"
+
+	defaultRecvWindow = 5 * time.Second
 )
 
 // GetInterestHistory gets interest history for currency/currencies provided
@@ -271,13 +272,16 @@ func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params
 	if arg.FromID > 0 {
 		fromID = arg.FromID
 	} else {
-		for start := arg.StartTime; len(resp) == 0; start = start.Add(time.Hour) {
+		// Only 10 seconds is used to prevent limit of 1000 being reached in the first request,
+		// cutting off trades for high activity pairs
+		increment := time.Second * 10
+		for start := arg.StartTime; len(resp) == 0; start = start.Add(increment) {
 			if !arg.EndTime.IsZero() && !start.Before(arg.EndTime) {
 				// All requests returned empty
 				return nil, nil
 			}
 			params.Set("startTime", timeString(start))
-			params.Set("endTime", timeString(start.Add(time.Hour)))
+			params.Set("endTime", timeString(start.Add(increment)))
 			path := aggregatedTrades + "?" + params.Encode()
 			err := b.SendHTTPRequest(exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
@@ -565,8 +569,8 @@ func (b *Binance) CancelExistingOrder(symbol currency.Pair, orderID int64, origC
 }
 
 // OpenOrders Current open orders. Get all open orders on a symbol.
-// Careful when accessing this with no symbol: The number of requests counted against the rate limiter
-// is significantly higher
+// Careful when accessing this with no symbol: The number of requests counted
+// against the rate limiter is significantly higher
 func (b *Binance) OpenOrders(pair currency.Pair) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 	params := url.Values{}
@@ -579,7 +583,8 @@ func (b *Binance) OpenOrders(pair currency.Pair) ([]QueryOrderData, error) {
 		}
 		params.Add("symbol", p)
 	} else {
-		// extend the receive window when all currencies to prevent "recvwindow" error
+		// extend the receive window when all currencies to prevent "recvwindow"
+		// error
 		params.Set("recvWindow", "10000")
 	}
 	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, openOrders, params, openOrdersLimit(p), &resp); err != nil {
@@ -679,14 +684,17 @@ func (b *Binance) SendHTTPRequest(ePath exchange.URL, path string, f request.End
 	if err != nil {
 		return err
 	}
-	return b.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpointPath + path,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-		Endpoint:      f})
+		HTTPRecording: b.HTTPRecording}
+
+	return b.SendPayload(context.Background(), f, func() (*request.Item, error) {
+		return item, nil
+	})
 }
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
@@ -698,15 +706,18 @@ func (b *Binance) SendAPIKeyHTTPRequest(ePath exchange.URL, path string, f reque
 	}
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
-	return b.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpointPath + path,
 		Headers:       headers,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-		Endpoint:      f})
+		HTTPRecording: b.HTTPRecording}
+
+	return b.SendPayload(context.Background(), f, func() (*request.Item, error) {
+		return item, nil
+	})
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -718,57 +729,45 @@ func (b *Binance) SendAuthHTTPRequest(ePath exchange.URL, method, path string, p
 	if err != nil {
 		return err
 	}
-	path = endpointPath + path
+
 	if params == nil {
 		params = url.Values{}
 	}
-	recvWindow := 5 * time.Second
-	if params.Get("recvWindow") != "" {
-		// convert recvWindow value into time.Duration
-		var recvWindowParam int64
-		recvWindowParam, err = convert.Int64FromString(params.Get("recvWindow"))
-		if err != nil {
-			return err
-		}
-		recvWindow = time.Duration(recvWindowParam) * time.Millisecond
-	} else {
-		params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
-	}
-	params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
-	params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
-	signature := params.Encode()
-	hmacSigned := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(b.API.Credentials.Secret))
-	hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
-	headers := make(map[string]string)
-	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "sent path: %s", path)
+
+	if params.Get("recvWindow") == "" {
+		params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(defaultRecvWindow), 10))
 	}
 
-	path = common.EncodeURLValues(path, params)
-	path += "&signature=" + hmacSignedStr
 	interim := json.RawMessage{}
+	err = b.SendPayload(context.Background(), f, func() (*request.Item, error) {
+		fullPath := endpointPath + path
+		params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
+		signature := params.Encode()
+		hmacSigned := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(b.API.Credentials.Secret))
+		hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
+		headers := make(map[string]string)
+		headers["X-MBX-APIKEY"] = b.API.Credentials.Key
+		fullPath = common.EncodeURLValues(fullPath, params)
+		fullPath += "&signature=" + hmacSignedStr
+		return &request.Item{
+			Method:        method,
+			Path:          fullPath,
+			Headers:       headers,
+			Result:        &interim,
+			AuthRequest:   true,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording}, nil
+	})
+	if err != nil {
+		return err
+	}
 	errCap := struct {
 		Success bool   `json:"success"`
 		Message string `json:"msg"`
 		Code    int64  `json:"code"`
 	}{}
-	ctx, cancel := context.WithTimeout(context.Background(), recvWindow)
-	defer cancel()
-	err = b.SendPayload(ctx, &request.Item{
-		Method:        method,
-		Path:          path,
-		Headers:       headers,
-		Body:          bytes.NewBuffer(nil),
-		Result:        &interim,
-		AuthRequest:   true,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-		Endpoint:      f})
-	if err != nil {
-		return err
-	}
+
 	if err := json.Unmarshal(interim, &errCap); err == nil {
 		if !errCap.Success && errCap.Message != "" && errCap.Code != 200 {
 			return errors.New(errCap.Message)
@@ -934,20 +933,23 @@ func (b *Binance) GetWsAuthStreamKey() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	var resp UserAccountStream
-	path := endpointPath + userAccountStream
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
-	err = b.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:        http.MethodPost,
-		Path:          path,
+		Path:          endpointPath + userAccountStream,
 		Headers:       headers,
-		Body:          bytes.NewBuffer(nil),
 		Result:        &resp,
 		AuthRequest:   true,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
+	}
+
+	err = b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 	if err != nil {
 		return "", err
@@ -971,15 +973,18 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 	path = common.EncodeURLValues(path, params)
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
-	return b.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:        http.MethodPut,
 		Path:          path,
 		Headers:       headers,
-		Body:          bytes.NewBuffer(nil),
 		AuthRequest:   true,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
+	}
+
+	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 

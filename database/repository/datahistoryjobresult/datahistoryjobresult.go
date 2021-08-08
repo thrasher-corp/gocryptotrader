@@ -154,7 +154,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, results ...*DataHistoryJobR
 			IntervalEndTime:   results[i].IntervalEndDate.UTC(),
 			RunTime:           results[i].Date.UTC(),
 		}
-		err = tempEvent.Upsert(ctx, tx, true, nil, boil.Infer(), boil.Infer())
+		err = tempEvent.Upsert(ctx, tx, false, nil, boil.Infer(), boil.Infer())
 		if err != nil {
 			return err
 		}

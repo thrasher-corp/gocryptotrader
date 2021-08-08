@@ -576,66 +576,59 @@ func (o *OKGroup) SendHTTPRequest(ep exchange.URL, httpMethod, requestType, requ
 	if err != nil {
 		return err
 	}
-	now := time.Now()
-	utcTime := now.UTC().Format(time.RFC3339)
-	payload := []byte("")
 
-	if data != nil {
-		payload, err = json.Marshal(data)
-		if err != nil {
-			return errors.New("sendHTTPRequest: Unable to JSON request")
-		}
-
-		if o.Verbose {
-			log.Debugf(log.ExchangeSys, "Request JSON: %s\n", payload)
-		}
-	}
-
-	path := endpoint + requestType + o.APIVersion + requestPath
-	if o.Verbose {
-		log.Debugf(log.ExchangeSys, "Sending %v request to %s \n", requestType, path)
-	}
-
-	headers := make(map[string]string)
-	headers["Content-Type"] = "application/json"
-	if authenticated {
-		signPath := fmt.Sprintf("/%v%v%v%v", OKGroupAPIPath,
-			requestType, o.APIVersion, requestPath)
-		hmac := crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(utcTime+httpMethod+signPath+string(payload)),
-			[]byte(o.API.Credentials.Secret))
-		headers["OK-ACCESS-KEY"] = o.API.Credentials.Key
-		headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
-		headers["OK-ACCESS-TIMESTAMP"] = utcTime
-		headers["OK-ACCESS-PASSPHRASE"] = o.API.Credentials.ClientID
-	}
-
-	// Requests that have a 30+ second difference between the timestamp and the API service time will be considered expired or rejected
-	ctx, cancel := context.WithDeadline(context.Background(), now.Add(30*time.Second))
-	defer cancel()
 	var intermediary json.RawMessage
+	newRequest := func() (*request.Item, error) {
+		now := time.Now()
+		utcTime := now.UTC().Format(time.RFC3339)
+		payload := []byte("")
+
+		if data != nil {
+			payload, err = json.Marshal(data)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		path := endpoint + requestType + o.APIVersion + requestPath
+		headers := make(map[string]string)
+		headers["Content-Type"] = "application/json"
+		if authenticated {
+			signPath := fmt.Sprintf("/%v%v%v%v", OKGroupAPIPath,
+				requestType, o.APIVersion, requestPath)
+			hmac := crypto.GetHMAC(crypto.HashSHA256,
+				[]byte(utcTime+httpMethod+signPath+string(payload)),
+				[]byte(o.API.Credentials.Secret))
+			headers["OK-ACCESS-KEY"] = o.API.Credentials.Key
+			headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
+			headers["OK-ACCESS-TIMESTAMP"] = utcTime
+			headers["OK-ACCESS-PASSPHRASE"] = o.API.Credentials.ClientID
+		}
+
+		return &request.Item{
+			Method:        strings.ToUpper(httpMethod),
+			Path:          path,
+			Headers:       headers,
+			Body:          bytes.NewBuffer(payload),
+			Result:        &intermediary,
+			AuthRequest:   authenticated,
+			Verbose:       o.Verbose,
+			HTTPDebugging: o.HTTPDebugging,
+			HTTPRecording: o.HTTPRecording,
+		}, nil
+	}
+
+	err = o.SendPayload(context.Background(), request.Unset, newRequest)
+	if err != nil {
+		return err
+	}
+
 	type errCapFormat struct {
 		Error        int64  `json:"error_code,omitempty"`
 		ErrorMessage string `json:"error_message,omitempty"`
 		Result       bool   `json:"result,string,omitempty"`
 	}
-
-	errCap := errCapFormat{}
-	errCap.Result = true
-	err = o.SendPayload(ctx, &request.Item{
-		Method:        strings.ToUpper(httpMethod),
-		Path:          path,
-		Headers:       headers,
-		Body:          bytes.NewBuffer(payload),
-		Result:        &intermediary,
-		AuthRequest:   authenticated,
-		Verbose:       o.Verbose,
-		HTTPDebugging: o.HTTPDebugging,
-		HTTPRecording: o.HTTPRecording,
-	})
-	if err != nil {
-		return err
-	}
+	errCap := errCapFormat{Result: true}
 
 	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {

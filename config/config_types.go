@@ -103,10 +103,11 @@ type Config struct {
 
 // DataHistoryManager holds all information required for the data history manager
 type DataHistoryManager struct {
-	Enabled         bool          `json:"enabled"`
-	CheckInterval   time.Duration `json:"checkInterval"`
-	MaxJobsPerCycle int64         `json:"maxJobsPerCycle"`
-	Verbose         bool          `json:"verbose"`
+	Enabled             bool          `json:"enabled"`
+	CheckInterval       time.Duration `json:"checkInterval"`
+	MaxJobsPerCycle     int64         `json:"maxJobsPerCycle"`
+	MaxResultInsertions int64         `json:"maxResultInsertions"`
+	Verbose             bool          `json:"verbose"`
 }
 
 // ConnectionMonitorConfig defines the connection monitor variables to ensure

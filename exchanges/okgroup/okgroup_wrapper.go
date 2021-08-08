@@ -312,8 +312,8 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (o *OKGroup) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (o *OKGroup) ModifyOrder(action *order.Modify) (order.Modify, error) {
+	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -736,7 +736,7 @@ func (o *OKGroup) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 	dates.SetHasDataFromCandles(ret.Candles)
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", o.ExchangeName, summary)
+		log.Warnf(log.ExchangeSys, "%v - %v", o.Base.Name, summary)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

@@ -150,9 +150,19 @@ func TestWithdrawalEventByExchange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = m.WithdrawalEventByExchange(exchangeName, 1)
-	if err == nil {
-		t.Error(err)
+
+	_, err = (*WithdrawManager)(nil).WithdrawalEventByExchange("xxx", 0)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received: %v but expected: %v",
+			err,
+			ErrNilSubsystem)
+	}
+
+	_, err = m.WithdrawalEventByExchange("xxx", 0)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received: %v but expected: %v",
+			err,
+			ErrExchangeNotFound)
 	}
 }
 
@@ -163,9 +173,19 @@ func TestWithdrawEventByDate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = m.WithdrawEventByDate(exchangeName, time.Now(), time.Now(), 1)
-	if err == nil {
-		t.Error(err)
+
+	_, err = (*WithdrawManager)(nil).WithdrawEventByDate("xxx", time.Now(), time.Now(), 1)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received: %v but expected: %v",
+			err,
+			ErrNilSubsystem)
+	}
+
+	_, err = m.WithdrawEventByDate("xxx", time.Now(), time.Now(), 1)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received: %v but expected: %v",
+			err,
+			ErrExchangeNotFound)
 	}
 }
 
@@ -176,8 +196,18 @@ func TestWithdrawalEventByExchangeID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = m.WithdrawalEventByExchangeID(exchangeName, exchangeName)
-	if err == nil {
-		t.Error(err)
+
+	_, err = (*WithdrawManager)(nil).WithdrawalEventByExchangeID("xxx", "xxx")
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received: %v but expected: %v",
+			err,
+			ErrNilSubsystem)
+	}
+
+	_, err = m.WithdrawalEventByExchangeID("xxx", "xxx")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received: %v but expected: %v",
+			err,
+			ErrExchangeNotFound)
 	}
 }

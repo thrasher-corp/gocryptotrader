@@ -126,6 +126,7 @@ func main() {
 		cancelOrderCommand,
 		cancelBatchOrdersCommand,
 		cancelAllOrdersCommand,
+		modifyOrderCommand,
 		getEventsCommand,
 		addEventCommand,
 		removeEventCommand,

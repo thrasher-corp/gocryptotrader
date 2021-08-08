@@ -129,6 +129,7 @@ const (
 )
 
 var (
+	errInvalidOrderID                                    = errors.New("invalid order ID")
 	errStartTimeCannotBeAfterEndTime                     = errors.New("start timestamp cannot be after end timestamp")
 	errSubaccountNameMustBeSpecified                     = errors.New("a subaccount name must be specified")
 	errSubaccountUpdateNameInvalid                       = errors.New("invalid subaccount old/new name")
@@ -336,13 +337,16 @@ func (f *FTX) SendHTTPRequest(ep exchange.URL, path string, result interface{}) 
 	if err != nil {
 		return err
 	}
-	return f.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       f.Verbose,
 		HTTPDebugging: f.HTTPDebugging,
 		HTTPRecording: f.HTTPRecording,
+	}
+	return f.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
@@ -776,51 +780,43 @@ func (f *FTX) GetOrderStatusByClientID(clientOrderID string) (OrderData, error) 
 	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getOrderStatusByClientID+clientOrderID, nil, &resp)
 }
 
-// DeleteOrder deletes an order
-func (f *FTX) DeleteOrder(orderID string) (string, error) {
+func (f *FTX) deleteOrderByPath(path string) (string, error) {
 	resp := struct {
 		Result  string `json:"result"`
 		Success bool   `json:"success"`
+		Error   string `json:"error"`
 	}{}
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, deleteOrder+orderID, nil, &resp); err != nil {
-		return "", err
+	err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, path, nil, &resp)
+	// If there is an error reported, but the resp struct reports one of a very few
+	// specific error causes, we still consider this a successful cancellation.
+	if err != nil && !resp.Success && (resp.Error == "Order already closed" || resp.Error == "Order already queued for cancellation") {
+		return resp.Error, nil
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete order request by ID unsuccessful")
+	return resp.Result, err
+}
+
+// DeleteOrder deletes an order
+func (f *FTX) DeleteOrder(orderID string) (string, error) {
+	if orderID == "" {
+		return "", errInvalidOrderID
 	}
-	return resp.Result, nil
+	return f.deleteOrderByPath(deleteOrder + orderID)
 }
 
 // DeleteOrderByClientID deletes an order
 func (f *FTX) DeleteOrderByClientID(clientID string) (string, error) {
-	resp := struct {
-		Result  string `json:"result"`
-		Success bool   `json:"success"`
-	}{}
-
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, deleteOrderByClientID+clientID, nil, &resp); err != nil {
-		return "", err
+	if clientID == "" {
+		return "", errInvalidOrderID
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete order request by client ID unsuccessful")
-	}
-	return resp.Result, nil
+	return f.deleteOrderByPath(deleteOrderByClientID + clientID)
 }
 
 // DeleteTriggerOrder deletes an order
 func (f *FTX) DeleteTriggerOrder(orderID string) (string, error) {
-	resp := struct {
-		Result  string `json:"result"`
-		Success bool   `json:"success"`
-	}{}
-
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, cancelTriggerOrder+orderID, nil, &resp); err != nil {
-		return "", err
+	if orderID == "" {
+		return "", errInvalidOrderID
 	}
-	if !resp.Success {
-		return resp.Result, errors.New("delete trigger order request unsuccessful")
-	}
-	return resp.Result, nil
+	return f.deleteOrderByPath(cancelTriggerOrder + orderID)
 }
 
 // GetFills gets fills' data
@@ -1146,40 +1142,45 @@ func (f *FTX) SendAuthHTTPRequest(ep exchange.URL, method, path string, data, re
 	if err != nil {
 		return err
 	}
-	ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	var body io.Reader
-	var hmac, payload []byte
-	if data != nil {
-		payload, err = json.Marshal(data)
-		if err != nil {
-			return err
+
+	newRequest := func() (*request.Item, error) {
+		ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+		var body io.Reader
+		var hmac, payload []byte
+		if data != nil {
+			payload, err = json.Marshal(data)
+			if err != nil {
+				return nil, err
+			}
+			body = bytes.NewBuffer(payload)
+			sigPayload := ts + method + "/api" + path + string(payload)
+			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+		} else {
+			sigPayload := ts + method + "/api" + path
+			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
 		}
-		body = bytes.NewBuffer(payload)
-		sigPayload := ts + method + "/api" + path + string(payload)
-		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
-	} else {
-		sigPayload := ts + method + "/api" + path
-		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+		headers := make(map[string]string)
+		headers["FTX-KEY"] = f.API.Credentials.Key
+		headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
+		headers["FTX-TS"] = ts
+		if f.API.Credentials.Subaccount != "" {
+			headers["FTX-SUBACCOUNT"] = url.QueryEscape(f.API.Credentials.Subaccount)
+		}
+		headers["Content-Type"] = "application/json"
+
+		return &request.Item{
+			Method:        method,
+			Path:          endpoint + path,
+			Headers:       headers,
+			Body:          body,
+			Result:        result,
+			AuthRequest:   true,
+			Verbose:       f.Verbose,
+			HTTPDebugging: f.HTTPDebugging,
+			HTTPRecording: f.HTTPRecording,
+		}, nil
 	}
-	headers := make(map[string]string)
-	headers["FTX-KEY"] = f.API.Credentials.Key
-	headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
-	headers["FTX-TS"] = ts
-	if f.API.Credentials.Subaccount != "" {
-		headers["FTX-SUBACCOUNT"] = url.QueryEscape(f.API.Credentials.Subaccount)
-	}
-	headers["Content-Type"] = "application/json"
-	return f.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          endpoint + path,
-		Headers:       headers,
-		Body:          body,
-		Result:        result,
-		AuthRequest:   true,
-		Verbose:       f.Verbose,
-		HTTPDebugging: f.HTTPDebugging,
-		HTTPRecording: f.HTTPRecording,
-	})
+	return f.SendPayload(context.Background(), request.Unset, newRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

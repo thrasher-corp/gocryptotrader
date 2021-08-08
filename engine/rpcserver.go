@@ -1361,6 +1361,40 @@ func (s *RPCServer) CancelAllOrders(_ context.Context, r *gctrpc.CancelAllOrders
 	}, nil
 }
 
+func (s *RPCServer) ModifyOrder(_ context.Context, r *gctrpc.ModifyOrderRequest) (*gctrpc.ModifyOrderResponse, error) {
+	assetType, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	pair := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+	exch := s.GetExchangeByName(r.Exchange)
+	err = checkParams(r.Exchange, exch, assetType, pair)
+	if err != nil {
+		return nil, err
+	}
+
+	mod := order.Modify{
+		Exchange:  r.Exchange,
+		AssetType: assetType,
+		Pair:      pair,
+		ID:        r.OrderId,
+
+		Amount: r.Amount,
+		Price:  r.Price,
+	}
+	resp, err := s.OrderManager.Modify(&mod)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.ModifyOrderResponse{
+		ModifiedOrderId: resp.OrderID,
+	}, nil
+}
+
 // GetEvents returns the stored events list
 func (s *RPCServer) GetEvents(_ context.Context, _ *gctrpc.GetEventsRequest) (*gctrpc.GetEventsResponse, error) {
 	return &gctrpc.GetEventsResponse{}, common.ErrNotYetImplemented
@@ -3426,18 +3460,25 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 	}
 
 	job := DataHistoryJob{
-		Nickname:         r.Nickname,
-		Exchange:         r.Exchange,
-		Asset:            a,
-		Pair:             p,
-		StartDate:        start,
-		EndDate:          end,
-		Interval:         kline.Interval(r.Interval),
-		RunBatchLimit:    r.BatchSize,
-		RequestSizeLimit: r.RequestSizeLimit,
-		DataType:         dataHistoryDataType(r.DataType),
-		Status:           dataHistoryStatusActive,
-		MaxRetryAttempts: r.MaxRetryAttempts,
+		Nickname:                 r.Nickname,
+		Exchange:                 r.Exchange,
+		Asset:                    a,
+		Pair:                     p,
+		StartDate:                start,
+		EndDate:                  end,
+		Interval:                 kline.Interval(r.Interval),
+		RunBatchLimit:            r.BatchSize,
+		RequestSizeLimit:         r.RequestSizeLimit,
+		DataType:                 dataHistoryDataType(r.DataType),
+		MaxRetryAttempts:         r.MaxRetryAttempts,
+		Status:                   dataHistoryStatusActive,
+		OverwriteExistingData:    r.OverwriteExistingData,
+		ConversionInterval:       kline.Interval(r.ConversionInterval),
+		DecimalPlaceComparison:   r.DecimalPlaceComparison,
+		SecondaryExchangeSource:  r.SecondaryExchangeName,
+		IssueTolerancePercentage: r.IssueTolerancePercentage,
+		ReplaceOnIssue:           r.ReplaceOnIssue,
+		PrerequisiteJobNickname:  r.PrerequisiteJobNickname,
 	}
 
 	err = s.dataHistoryManager.UpsertJob(&job, r.InsertOnly)
@@ -3513,37 +3554,23 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 			Base:      result.Pair.Base.String(),
 			Quote:     result.Pair.Quote.String(),
 		},
-		StartDate:        result.StartDate.Format(common.SimpleTimeFormat),
-		EndDate:          result.EndDate.Format(common.SimpleTimeFormat),
-		Interval:         int64(result.Interval.Duration()),
-		RequestSizeLimit: result.RequestSizeLimit,
-		DataType:         result.DataType.String(),
-		MaxRetryAttempts: result.MaxRetryAttempts,
-		BatchSize:        result.RunBatchLimit,
-		JobResults:       jobResults,
-		Status:           result.Status.String(),
+		StartDate:                result.StartDate.Format(common.SimpleTimeFormat),
+		EndDate:                  result.EndDate.Format(common.SimpleTimeFormat),
+		Interval:                 int64(result.Interval.Duration()),
+		RequestSizeLimit:         result.RequestSizeLimit,
+		MaxRetryAttempts:         result.MaxRetryAttempts,
+		BatchSize:                result.RunBatchLimit,
+		Status:                   result.Status.String(),
+		DataType:                 result.DataType.String(),
+		ConversionInterval:       int64(result.ConversionInterval.Duration()),
+		OverwriteExistingData:    result.OverwriteExistingData,
+		PrerequisiteJobNickname:  result.PrerequisiteJobNickname,
+		DecimalPlaceComparison:   result.DecimalPlaceComparison,
+		SecondaryExchangeName:    result.SecondaryExchangeSource,
+		IssueTolerancePercentage: result.IssueTolerancePercentage,
+		ReplaceOnIssue:           result.ReplaceOnIssue,
+		JobResults:               jobResults,
 	}, nil
-}
-
-// DeleteDataHistoryJob deletes a data history job from the database
-func (s *RPCServer) DeleteDataHistoryJob(_ context.Context, r *gctrpc.GetDataHistoryJobDetailsRequest) (*gctrpc.GenericResponse, error) {
-	if r == nil {
-		return nil, errNilRequestData
-	}
-	if r.Nickname == "" && r.Id == "" {
-		return nil, errNicknameIDUnset
-	}
-	if r.Nickname != "" && r.Id != "" {
-		return nil, errOnlyNicknameOrID
-	}
-	status := "success"
-	err := s.dataHistoryManager.DeleteJob(r.Nickname, r.Id)
-	if err != nil {
-		log.Error(log.GRPCSys, err)
-		status = "failed"
-	}
-
-	return &gctrpc.GenericResponse{Status: status}, err
 }
 
 // GetActiveDataHistoryJobs returns any active data history job details
@@ -3565,14 +3592,21 @@ func (s *RPCServer) GetActiveDataHistoryJobs(_ context.Context, _ *gctrpc.GetInf
 				Base:      jobs[i].Pair.Base.String(),
 				Quote:     jobs[i].Pair.Quote.String(),
 			},
-			StartDate:        jobs[i].StartDate.Format(common.SimpleTimeFormat),
-			EndDate:          jobs[i].EndDate.Format(common.SimpleTimeFormat),
-			Interval:         int64(jobs[i].Interval.Duration()),
-			RequestSizeLimit: jobs[i].RequestSizeLimit,
-			DataType:         jobs[i].DataType.String(),
-			MaxRetryAttempts: jobs[i].MaxRetryAttempts,
-			BatchSize:        jobs[i].RunBatchLimit,
-			Status:           jobs[i].Status.String(),
+			StartDate:                jobs[i].StartDate.Format(common.SimpleTimeFormat),
+			EndDate:                  jobs[i].EndDate.Format(common.SimpleTimeFormat),
+			Interval:                 int64(jobs[i].Interval.Duration()),
+			RequestSizeLimit:         jobs[i].RequestSizeLimit,
+			MaxRetryAttempts:         jobs[i].MaxRetryAttempts,
+			BatchSize:                jobs[i].RunBatchLimit,
+			Status:                   jobs[i].Status.String(),
+			DataType:                 jobs[i].DataType.String(),
+			ConversionInterval:       int64(jobs[i].ConversionInterval.Duration()),
+			OverwriteExistingData:    jobs[i].OverwriteExistingData,
+			PrerequisiteJobNickname:  jobs[i].PrerequisiteJobNickname,
+			DecimalPlaceComparison:   jobs[i].DecimalPlaceComparison,
+			SecondaryExchangeName:    jobs[i].SecondaryExchangeSource,
+			IssueTolerancePercentage: jobs[i].IssueTolerancePercentage,
+			ReplaceOnIssue:           jobs[i].ReplaceOnIssue,
 		})
 	}
 	return &gctrpc.DataHistoryJobs{Results: response}, nil
@@ -3612,14 +3646,21 @@ func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDa
 				Base:      jobs[i].Pair.Base.String(),
 				Quote:     jobs[i].Pair.Quote.String(),
 			},
-			StartDate:        jobs[i].StartDate.Format(common.SimpleTimeFormat),
-			EndDate:          jobs[i].EndDate.Format(common.SimpleTimeFormat),
-			Interval:         int64(jobs[i].Interval.Duration()),
-			RequestSizeLimit: jobs[i].RequestSizeLimit,
-			DataType:         jobs[i].DataType.String(),
-			MaxRetryAttempts: jobs[i].MaxRetryAttempts,
-			BatchSize:        jobs[i].RunBatchLimit,
-			Status:           jobs[i].Status.String(),
+			StartDate:                jobs[i].StartDate.Format(common.SimpleTimeFormat),
+			EndDate:                  jobs[i].EndDate.Format(common.SimpleTimeFormat),
+			Interval:                 int64(jobs[i].Interval.Duration()),
+			RequestSizeLimit:         jobs[i].RequestSizeLimit,
+			MaxRetryAttempts:         jobs[i].MaxRetryAttempts,
+			BatchSize:                jobs[i].RunBatchLimit,
+			Status:                   jobs[i].Status.String(),
+			DataType:                 jobs[i].DataType.String(),
+			ConversionInterval:       int64(jobs[i].ConversionInterval.Duration()),
+			OverwriteExistingData:    jobs[i].OverwriteExistingData,
+			PrerequisiteJobNickname:  jobs[i].PrerequisiteJobNickname,
+			DecimalPlaceComparison:   jobs[i].DecimalPlaceComparison,
+			SecondaryExchangeName:    jobs[i].SecondaryExchangeSource,
+			IssueTolerancePercentage: jobs[i].IssueTolerancePercentage,
+			ReplaceOnIssue:           jobs[i].ReplaceOnIssue,
 		})
 	}
 	return &gctrpc.DataHistoryJobs{
@@ -3648,12 +3689,15 @@ func (s *RPCServer) GetDataHistoryJobSummary(_ context.Context, r *gctrpc.GetDat
 			Base:      job.Pair.Base.String(),
 			Quote:     job.Pair.Quote.String(),
 		},
-		StartDate:       job.StartDate.Format(common.SimpleTimeFormat),
-		EndDate:         job.EndDate.Format(common.SimpleTimeFormat),
-		Interval:        int64(job.Interval.Duration()),
-		DataType:        job.DataType.String(),
-		Status:          job.Status.String(),
-		ResultSummaries: job.ResultRanges,
+		StartDate:               job.StartDate.Format(common.SimpleTimeFormat),
+		EndDate:                 job.EndDate.Format(common.SimpleTimeFormat),
+		Interval:                int64(job.Interval.Duration()),
+		Status:                  job.Status.String(),
+		DataType:                job.DataType.String(),
+		ConversionInterval:      int64(job.ConversionInterval.Duration()),
+		OverwriteExistingData:   job.OverwriteExistingData,
+		PrerequisiteJobNickname: job.PrerequisiteJobNickname,
+		ResultSummaries:         job.ResultRanges,
 	}, nil
 }
 
@@ -3664,4 +3708,45 @@ func (s *RPCServer) unixTimestamp(x time.Time) int64 {
 		return x.UnixNano()
 	}
 	return x.Unix()
+}
+
+// SetDataHistoryJobStatus sets a data history job's status
+func (s *RPCServer) SetDataHistoryJobStatus(_ context.Context, r *gctrpc.SetDataHistoryJobStatusRequest) (*gctrpc.GenericResponse, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+	if r.Nickname == "" && r.Id == "" {
+		return nil, errNicknameIDUnset
+	}
+	if r.Nickname != "" && r.Id != "" {
+		return nil, errOnlyNicknameOrID
+	}
+	status := "success"
+	err := s.dataHistoryManager.SetJobStatus(r.Nickname, r.Id, dataHistoryStatus(r.Status))
+	if err != nil {
+		log.Error(log.GRPCSys, err)
+		status = "failed"
+	}
+
+	return &gctrpc.GenericResponse{Status: status}, err
+}
+
+// UpdateDataHistoryJobPrerequisite sets or removes a prerequisite job for an existing job
+// if the prerequisite job is "", then the relationship is removed
+func (s *RPCServer) UpdateDataHistoryJobPrerequisite(_ context.Context, r *gctrpc.UpdateDataHistoryJobPrerequisiteRequest) (*gctrpc.GenericResponse, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+	if r.Nickname == "" {
+		return nil, errNicknameUnset
+	}
+	status := "success"
+	err := s.dataHistoryManager.SetJobRelationship(r.PrerequisiteJobNickname, r.Nickname)
+	if err != nil {
+		return nil, err
+	}
+	if r.PrerequisiteJobNickname == "" {
+		return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Removed prerequisite from job '%v'", r.Nickname)}, nil
+	}
+	return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Set job '%v' prerequisite job to '%v' and set status to paused", r.Nickname, r.PrerequisiteJobNickname)}, nil
 }

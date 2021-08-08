@@ -607,7 +607,7 @@ func (b *Binance) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 			currencyBalance = append(currencyBalance, account.Balance{
 				CurrencyName: currency.NewCode(raw.Balances[i].Asset),
 				TotalValue:   freeCurrency + lockedCurrency,
-				Hold:         freeCurrency,
+				Hold:         lockedCurrency,
 			})
 		}
 
@@ -919,8 +919,8 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Binance) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (b *Binance) ModifyOrder(action *order.Modify) (order.Modify, error) {
+	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number

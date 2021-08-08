@@ -19,7 +19,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // BTSE is the overarching type across this package
@@ -438,14 +437,16 @@ func (b *BTSE) SendHTTPRequest(ep exchange.URL, method, endpoint string, result 
 	if !spotEndpoint {
 		p = btseFuturesPath + btseFuturesAPIPath
 	}
-	return b.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:        method,
 		Path:          ePoint + p + endpoint,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
-		Endpoint:      f,
+	}
+	return b.SendPayload(context.Background(), f, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
@@ -460,66 +461,64 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint st
 		return err
 	}
 
-	// The concatenation is done this way because BTSE expect endpoint+nonce or endpoint+nonce+body
-	// when signing the data but the full path of the request  is /spot/api/v3.2/<endpoint>
-	// its messy but it works and supports futures as well
-	host := ePoint
-	if isSpot {
-		host += btseSPOTPath + btseSPOTAPIPath + endpoint
-		endpoint = btseSPOTAPIPath + endpoint
-	} else {
-		host += btseFuturesPath + btseFuturesAPIPath
-		endpoint += btseFuturesAPIPath
-	}
-	var hmac []byte
-	var body io.Reader
-	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
-	headers := map[string]string{
-		"btse-api":   b.API.Credentials.Key,
-		"btse-nonce": nonce,
-	}
-	if req != nil {
-		reqPayload, err := json.Marshal(req)
-		if err != nil {
-			return err
+	newRequest := func() (*request.Item, error) {
+		// The concatenation is done this way because BTSE expect endpoint+nonce or endpoint+nonce+body
+		// when signing the data but the full path of the request  is /spot/api/v3.2/<endpoint>
+		// its messy but it works and supports futures as well
+		host := ePoint
+		var expandedEndpoint string
+		if isSpot {
+			host += btseSPOTPath + btseSPOTAPIPath + endpoint
+			expandedEndpoint = btseSPOTAPIPath + endpoint
+		} else {
+			host += btseFuturesPath + btseFuturesAPIPath
+			expandedEndpoint = endpoint + btseFuturesAPIPath
 		}
-		body = bytes.NewBuffer(reqPayload)
-		hmac = crypto.GetHMAC(
-			crypto.HashSHA512_384,
-			[]byte((endpoint + nonce + string(reqPayload))),
-			[]byte(b.API.Credentials.Secret),
-		)
-		headers["Content-Type"] = "application/json"
-	} else {
-		hmac = crypto.GetHMAC(
-			crypto.HashSHA512_384,
-			[]byte((endpoint + nonce)),
-			[]byte(b.API.Credentials.Secret),
-		)
-		if len(values) > 0 {
-			host += "?" + values.Encode()
+
+		var hmac []byte
+		var body io.Reader
+		nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
+		headers := map[string]string{
+			"btse-api":   b.API.Credentials.Key,
+			"btse-nonce": nonce,
 		}
-	}
-	headers["btse-sign"] = crypto.HexEncodeToString(hmac)
+		if req != nil {
+			reqPayload, err := json.Marshal(req)
+			if err != nil {
+				return nil, err
+			}
+			body = bytes.NewBuffer(reqPayload)
+			hmac = crypto.GetHMAC(
+				crypto.HashSHA512_384,
+				[]byte((expandedEndpoint + nonce + string(reqPayload))),
+				[]byte(b.API.Credentials.Secret),
+			)
+			headers["Content-Type"] = "application/json"
+		} else {
+			hmac = crypto.GetHMAC(
+				crypto.HashSHA512_384,
+				[]byte((expandedEndpoint + nonce)),
+				[]byte(b.API.Credentials.Secret),
+			)
+			if len(values) > 0 {
+				host += "?" + values.Encode()
+			}
+		}
+		headers["btse-sign"] = crypto.HexEncodeToString(hmac)
 
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Sending %s request to URL %s",
-			b.Name, method, endpoint)
+		return &request.Item{
+			Method:        method,
+			Path:          host,
+			Headers:       headers,
+			Body:          body,
+			Result:        result,
+			AuthRequest:   true,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	}
-
-	return b.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          host,
-		Headers:       headers,
-		Body:          body,
-		Result:        result,
-		AuthRequest:   true,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
-		Endpoint:      f,
-	})
+	return b.SendPayload(context.Background(), f, newRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

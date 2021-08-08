@@ -291,13 +291,16 @@ func (b *Bitflyer) SendHTTPRequest(ep exchange.URL, path string, result interfac
 	if err != nil {
 		return err
 	}
-	return b.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
+	}
+	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 

@@ -196,7 +196,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		updated = true
 	}
 	if updated {
-		if d.LastUpdated == m.LastUpdated {
+		if d.LastUpdated.Equal(m.LastUpdated) {
 			d.LastUpdated = time.Now()
 		} else {
 			d.LastUpdated = m.LastUpdated
@@ -214,6 +214,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 // by comparing passed in and existing values
 func (d *Detail) UpdateOrderFromModify(m *Modify) {
 	var updated bool
+	if m.ID != "" && d.ID != m.ID {
+		d.ID = m.ID
+		updated = true
+	}
 	if d.ImmediateOrCancel != m.ImmediateOrCancel {
 		d.ImmediateOrCancel = m.ImmediateOrCancel
 		updated = true
@@ -351,7 +355,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		updated = true
 	}
 	if updated {
-		if d.LastUpdated == m.LastUpdated {
+		if d.LastUpdated.Equal(m.LastUpdated) {
 			d.LastUpdated = time.Now()
 		} else {
 			d.LastUpdated = m.LastUpdated
