@@ -1241,12 +1241,13 @@ func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amou
 	case strings.ToLower(order.Open.String()):
 		resp.Status = order.Open
 	case closedStatus:
+		// FIXME: Do not compare floats for equality, use approximation instead!
 		if filledAmount != 0 && filledAmount != amount {
 			resp.Status = order.PartiallyCancelled
 			break
 		}
 		if filledAmount == 0 {
-			resp.Status = order.Cancelled
+			resp.Status = order.Closed
 			break
 		}
 		if filledAmount == amount {
