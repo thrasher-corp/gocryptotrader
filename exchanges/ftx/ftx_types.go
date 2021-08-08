@@ -603,20 +603,22 @@ type WsOrderbookData struct {
 
 // WsOrders stores ws orders' data
 type WsOrders struct {
-	ID            int64   `json:"id"`
-	ClientID      string  `json:"clientId"`
-	Market        string  `json:"market"`
-	OrderType     string  `json:"type"`
-	Side          string  `json:"side"`
-	Size          float64 `json:"size"`
-	Price         float64 `json:"price"`
-	ReduceOnly    bool    `json:"reduceOnly"`
-	IOC           bool    `json:"ioc"`
-	PostOnly      bool    `json:"postOnly"`
-	Status        string  `json:"status"`
-	FilledSize    float64 `json:"filedSize"`
-	RemainingSize float64 `json:"remainingSize"`
-	AvgFillPrice  float64 `json:"avgFillPrice"`
+	ID            int64     `json:"id"`
+	ClientID      string    `json:"clientId"`
+	Market        string    `json:"market"`
+	OrderType     string    `json:"type"`
+	Side          string    `json:"side"`
+	Price         float64   `json:"price"`
+	Size          float64   `json:"size"`
+	Status        string    `json:"status"`
+	FilledSize    float64   `json:"filledSize"`
+	RemainingSize float64   `json:"remainingSize"`
+	ReduceOnly    bool      `json:"reduceOnly"`
+	Liquidation   bool      `json:"liquidation"`
+	AvgFillPrice  float64   `json:"avgFillPrice"`
+	PostOnly      bool      `json:"postOnly"`
+	IOC           bool      `json:"ioc"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 // WsFills stores websocket fills' data
