@@ -123,14 +123,13 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings, funds fundin
 	} else {
 		sizingFunds = funds.QuoteAvailable()
 	}
-
+	o.Funds = sizingFunds
 	sizedOrder := p.sizeOrder(s, cs, o, sizingFunds)
-	o.Funds = sizedOrder.Amount
 	var err error
 	if s.GetDirection() == gctorder.Sell {
 		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
 	} else {
-		err = funds.Reserve(sizedOrder.Amount, gctorder.Buy)
+		err = funds.Reserve(sizedOrder.Amount*o.Price, gctorder.Buy)
 	}
 	if err != nil {
 		return nil, err
