@@ -1,7 +1,9 @@
 package bybit
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -9,8 +11,11 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Bybit is the overarching type across this package
@@ -491,6 +496,75 @@ func (by *Bybit) GetBestBidAskPrice(symbol string) ([]TickerData, error) {
 	return tickers, nil
 }
 
+func (by *Bybit) CreatePostOrder(o *PlaceOrderRequest) (*PlaceOrderResponse, error) {
+	params := url.Values{}
+	params.Set("symbol", o.Symbol)
+	params.Set("qty", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
+	params.Set("side", o.Side)
+	params.Set("type", string(o.TradeType))
+
+	if o.TimeInForce != "" {
+		params.Set("timeInForce", string(o.TimeInForce))
+	}
+	if o.TradeType == BybitRequestParamsOrderLimit || o.TradeType == BybitRequestParamsOrderLimitMaker {
+		if o.Price == 0 {
+			return nil, errors.New("price should be present for Limit and LimitMaker orders")
+		}
+		params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
+	}
+	if o.OrderLinkID != "" {
+		params.Set("orderLinkId", string(o.OrderLinkID))
+	}
+	var resp PlaceOrderResponse
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, "POST", bybitAuthenticatedSpotOrder, params, resp, bithumbAuthRate)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+func (by *Bybit) QueryOrder(orderID, orderLinkID string) (*QueryOrderResponse, error) {
+	if orderID == "" && orderLinkID == "" {
+		return nil, errors.New("atleast one should be present among orderID and orderLinkID")
+	}
+
+	params := url.Values{}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if orderID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+
+	var resp QueryOrderResponse
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, "GET", bybitAuthenticatedSpotOrder, params, resp, bithumbAuthRate)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+func (by *Bybit) CancelOrder(orderID, orderLinkID string) (*CancelOrderResponse, error) {
+	if orderID == "" && orderLinkID == "" {
+		return nil, errors.New("atleast one should be present among orderID and orderLinkID")
+	}
+
+	params := url.Values{}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if orderID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+
+	var resp CancelOrderResponse
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, "DELETE", bybitAuthenticatedSpotOrder, params, resp, bithumbAuthRate)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // SendHTTPRequest sends an unauthenticated request
 func (by *Bybit) SendHTTPRequest(ePath exchange.URL, path string, result interface{}) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
@@ -504,5 +578,58 @@ func (by *Bybit) SendHTTPRequest(ePath exchange.URL, path string, result interfa
 		Verbose:       by.Verbose,
 		HTTPDebugging: by.HTTPDebugging,
 		HTTPRecording: by.HTTPRecording,
+	})
+}
+
+// SendAuthHTTPRequest sends an authenticated HTTP request
+func (by *Bybit) SendAuthHTTPRequest(ePath exchange.URL, method, path string, params url.Values, result interface{}, f request.EndpointLimit) error {
+	endpointPath, err := by.API.Endpoints.GetURL(ePath)
+	if err != nil {
+		return err
+	}
+
+	recvWindow := 5 * time.Second
+	if params.Get("recvWindow") != "" {
+		// convert recvWindow value into time.Duration
+		var recvWindowParam int64
+		recvWindowParam, err = convert.Int64FromString(params.Get("recvWindow"))
+		if err != nil {
+			return err
+		}
+		recvWindow = time.Duration(recvWindowParam) * time.Millisecond
+	} else {
+		params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
+	}
+	params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
+	params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
+	params.Set("api_key", by.API.Credentials.Key)
+	signature := params.Encode()
+	hmacSigned := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(b.API.Credentials.Secret))
+	hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
+	if by.Verbose {
+		log.Debugf(log.ExchangeSys, "sent path: %s", path)
+	}
+
+	path = common.EncodeURLValues(path, params)
+	path += "&sign=" + hmacSignedStr
+
+	headers := make(map[string]string)
+
+	switch {
+	case method == http.MethodPost:
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
+	}
+
+	return by.SendPayload(context.Background(), &request.Item{
+		Method:        method,
+		Path:          endpointPath + path,
+		Headers:       headers,
+		Body:          bytes.NewBuffer(nil),
+		Result:        &result,
+		AuthRequest:   true,
+		Verbose:       by.Verbose,
+		HTTPDebugging: by.HTTPDebugging,
+		HTTPRecording: by.HTTPRecording,
+		Endpoint:      f,
 	})
 }
