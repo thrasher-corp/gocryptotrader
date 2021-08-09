@@ -23,7 +23,7 @@ import (
 )
 
 // Setup creates a portfolio manager instance and sets private fields
-func Setup(sh SizeHandler, r risk.Handler, riskFreeRate float64, funds *funding.AllFunds) (*Portfolio, error) {
+func Setup(sh SizeHandler, r risk.Handler, riskFreeRate float64) (*Portfolio, error) {
 	if sh == nil {
 		return nil, errSizeManagerUnset
 	}
@@ -37,7 +37,6 @@ func Setup(sh SizeHandler, r risk.Handler, riskFreeRate float64, funds *funding.
 	p.sizeManager = sh
 	p.riskManager = r
 	p.riskFreeRate = riskFreeRate
-	p.funds = funds
 
 	return p, nil
 }
@@ -51,7 +50,7 @@ func (p *Portfolio) Reset() {
 // on buy/sell, the portfolio manager will size the order and assess the risk of the order
 // if successful, it will pass on an order.Order to be used by the exchange event handler to place an order based on
 // the portfolio manager's recommendations
-func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings) (*order.Order, error) {
+func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings, funds funding.IPairReserver) (*order.Order, error) {
 	if s == nil || cs == nil {
 		return nil, common.ErrNilArguments
 	}
@@ -87,15 +86,10 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings) (*order.Orde
 			s.Pair())
 	}
 
-	funds, err := p.funds.GetFundingForEvent(s)
-	if err != nil {
-		return nil, fmt.Errorf("portfolio cannot process signal event for %v %v %v: %w", s.GetExchange(), s.GetAssetType(), s.Pair(), err)
-	}
-
 	prevHolding := lookup.GetLatestHoldings()
 	if p.iteration == 0 {
-		prevHolding.InitialFunds = funds.Quote.InitialFunds
-		prevHolding.RemainingFunds = funds.Quote.InitialFunds
+		prevHolding.InitialFunds = funds.QuoteInitialFunds()
+		prevHolding.RemainingFunds = funds.QuoteInitialFunds()
 		prevHolding.Exchange = s.GetExchange()
 		prevHolding.Pair = s.Pair()
 		prevHolding.Asset = s.GetAssetType()
@@ -107,16 +101,14 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings) (*order.Orde
 		return o, nil
 	}
 
-	if s.GetDirection() == gctorder.Sell && prevHolding.PositionsSize == 0 {
-		o.AppendReason("no holdings to sell")
-		o.SetDirection(common.CouldNotSell)
-		s.SetDirection(o.Direction)
-		return o, nil
-	}
-
-	if s.GetDirection() == gctorder.Buy && funds.Quote.Available <= 0 {
-		o.AppendReason("not enough funds to buy")
-		o.SetDirection(common.CouldNotBuy)
+	if !funds.CanPlaceOrder(s.GetDirection()) {
+		if s.GetDirection() == gctorder.Sell {
+			o.AppendReason("no holdings to sell")
+			o.SetDirection(common.CouldNotSell)
+		} else if s.GetDirection() == gctorder.Buy {
+			o.AppendReason("not enough funds to buy")
+			o.SetDirection(common.CouldNotBuy)
+		}
 		s.SetDirection(o.Direction)
 		return o, nil
 	}
@@ -127,17 +119,18 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings) (*order.Orde
 	o.SellLimit = s.GetSellLimit()
 	var sizingFunds float64
 	if s.GetDirection() == gctorder.Sell {
-		sizingFunds = funds.Base.Available
+		sizingFunds = funds.BaseAvailable()
 	} else {
-		sizingFunds = funds.Quote.Available
+		sizingFunds = funds.QuoteAvailable()
 	}
 
 	sizedOrder := p.sizeOrder(s, cs, o, sizingFunds)
 	o.Funds = sizedOrder.Amount
+	var err error
 	if s.GetDirection() == gctorder.Sell {
-		err = funds.Base.Reserve(sizedOrder.Amount)
+		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
 	} else {
-		err = funds.Quote.Reserve(sizedOrder.Amount)
+		err = funds.Reserve(sizedOrder.Amount, gctorder.Buy)
 	}
 	if err != nil {
 		return nil, err
@@ -204,7 +197,7 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 }
 
 // OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions.
-func (p *Portfolio) OnFill(f fill.Event) (*fill.Fill, error) {
+func (p *Portfolio) OnFill(f fill.Event, funds funding.IPairReader) (*fill.Fill, error) {
 	if f == nil {
 		return nil, common.ErrNilEvent
 	}
@@ -212,10 +205,7 @@ func (p *Portfolio) OnFill(f fill.Event) (*fill.Fill, error) {
 	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, f.GetExchange(), f.GetAssetType(), f.Pair())
 	}
-	funds, err := p.funds.GetFundingForEvent(f)
-	if err != nil {
-		return nil, fmt.Errorf("portfolio cannot process signal event for %v %v %v: %w", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
-	}
+	var err error
 	// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
 	h := lookup.GetHoldingsForTime(f.GetTime().Add(-f.GetInterval().Duration()))
 	if !h.Timestamp.IsZero() {
@@ -225,7 +215,8 @@ func (p *Portfolio) OnFill(f fill.Event) (*fill.Fill, error) {
 		if !h.Timestamp.IsZero() {
 			h.Update(f)
 		} else {
-			h, err = holdings.Create(f, funds.Quote.Available, p.riskFreeRate)
+
+			h, err = holdings.Create(f, funds.QuoteAvailable(), p.riskFreeRate)
 			if err != nil {
 				return nil, err
 			}
@@ -338,15 +329,6 @@ func (p *Portfolio) Update(d common.DataEventHandler) error {
 		err = p.setHoldingsForOffset(d.GetExchange(), d.GetAssetType(), d.Pair(), &h, false)
 	}
 	return err
-}
-
-// GetInitialFunds returns the initial funds
-func (p *Portfolio) GetInitialFunds(exch string, a asset.Item, c currency.Code) float64 {
-	funds, err := p.funds.GetFundingForEAC(exch, a, c)
-	if err != nil {
-		return 0
-	}
-	return funds.InitialFunds
 }
 
 // GetLatestHoldingsForAllCurrencies will return the current holdings for all loaded currencies

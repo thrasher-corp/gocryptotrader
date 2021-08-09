@@ -153,30 +153,6 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 	}
 }
 
-func TestGetInitialFunds(t *testing.T) {
-	t.Parallel()
-	p := Portfolio{}
-	f := p.GetInitialFunds("", "", currency.Code{})
-	if f != 0 {
-		t.Error("expected zero")
-	}
-
-	//err := p.SetInitialFunds("", "", currency.Code{}, 1)
-	//if !errors.Is(err, errExchangeUnset) {
-	//	t.Errorf("expected: %v, received %v", errExchangeUnset, err)
-	//}
-
-	//err = p.SetInitialFunds(testExchange, asset.Spot, currency.BTC, 1)
-	//if err != nil {
-	//	t.Error(err)
-	//}
-
-	f = p.GetInitialFunds(testExchange, asset.Spot, currency.BTC)
-	if f != 1 {
-		t.Error("expected 1")
-	}
-}
-
 func TestViewHoldingAtTimePeriod(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}

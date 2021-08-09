@@ -40,5 +40,5 @@ type BackTest struct {
 	Statistic       statistics.Handler
 	EventQueue      eventholder.EventHolder
 	Reports         report.Handler
-	Funding         funding.AllFunds
+	Funding         funding.IFundingManager
 }

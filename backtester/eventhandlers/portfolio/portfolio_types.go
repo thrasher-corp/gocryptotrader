@@ -40,16 +40,13 @@ type Portfolio struct {
 	sizeManager               SizeHandler
 	riskManager               risk.Handler
 	exchangeAssetPairSettings map[string]map[asset.Item]map[currency.Pair]*settings.Settings
-	funds                     *funding.AllFunds
 }
 
 // Handler contains all functions expected to operate a portfolio manager
 type Handler interface {
-	OnSignal(signal.Event, *exchange.Settings) (*order.Order, error)
-	OnFill(fill.Event) (*fill.Fill, error)
+	OnSignal(signal.Event, *exchange.Settings, funding.IPairReserver) (*order.Order, error)
+	OnFill(fill.Event, funding.IPairReader) (*fill.Fill, error)
 	Update(common.DataEventHandler) error
-
-	GetInitialFunds(string, asset.Item, currency.Code) float64
 
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 

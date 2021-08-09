@@ -1,7 +1,6 @@
 package funding
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -10,16 +9,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var (
-	ErrCannotAllocate = errors.New("cannot allocate funds")
-	ErrFundsNotFound  = errors.New("funding not found")
-)
-
-// AllFunds is the benevolent holder of all funding levels across all
-// currencies used in the backtester
-type AllFunds struct {
-	UsingExchangeLevelFunding bool
-	Items                     []*Item
+func Setup(usingExchangeLevelFunding bool) *AllFunds {
+	return &AllFunds{usingExchangeLevelFunding: usingExchangeLevelFunding}
 }
 
 func (a *AllFunds) AddItem(exch string, ass asset.Item, ci currency.Code, initialFunds float64) error {
@@ -30,7 +21,7 @@ func (a *AllFunds) AddItem(exch string, ass asset.Item, ci currency.Code, initia
 		InitialFunds: initialFunds,
 		Available:    initialFunds,
 	}
-	a.Items = append(a.Items, item)
+	a.items = append(a.items, item)
 	return nil
 }
 
@@ -49,13 +40,13 @@ func (a *AllFunds) AddPair(exch string, ass asset.Item, cp currency.Pair, initia
 		PairedWith:   base,
 	}
 	base.PairedWith = quote
-	a.Items = append(a.Items, base, quote)
+	a.items = append(a.items, base, quote)
 	return nil
 }
 
-// IsUsingExchangeLevelFunding returns if using UsingExchangeLevelFunding
-func (a *AllFunds) IsUsingExchangeLevelFunding(e common.EventHandler) bool {
-	return a.UsingExchangeLevelFunding
+// IsUsingExchangeLevelFunding returns if using usingExchangeLevelFunding
+func (a *AllFunds) IsUsingExchangeLevelFunding() bool {
+	return a.usingExchangeLevelFunding
 }
 
 // GetFundingForEvent This will construct a funding based on a backtesting event
@@ -65,11 +56,11 @@ func (a *AllFunds) GetFundingForEvent(e common.EventHandler) (*Pair, error) {
 
 // GetFundingForEAC This will construct a funding based on the exchange, asset, currency code
 func (a *AllFunds) GetFundingForEAC(exch string, ass asset.Item, c currency.Code) (*Item, error) {
-	for i := range a.Items {
-		if a.Items[i].Item == c &&
-			a.Items[i].Exchange == exch &&
-			a.Items[i].Asset == ass {
-			return a.Items[i], nil
+	for i := range a.items {
+		if a.items[i].Item == c &&
+			a.items[i].Exchange == exch &&
+			a.items[i].Asset == ass {
+			return a.items[i], nil
 		}
 	}
 	return nil, ErrFundsNotFound
@@ -78,19 +69,19 @@ func (a *AllFunds) GetFundingForEAC(exch string, ass asset.Item, c currency.Code
 // GetFundingForEAP This will construct a funding based on the exchange, asset, currency pair
 func (a *AllFunds) GetFundingForEAP(exch string, ass asset.Item, p currency.Pair) (*Pair, error) {
 	var resp Pair
-	for i := range a.Items {
-		if a.Items[i].Item == p.Quote &&
-			a.Items[i].Exchange == exch &&
-			a.Items[i].Asset == ass &&
-			(!a.UsingExchangeLevelFunding || (a.Items[i].PairedWith != nil && a.Items[i].PairedWith.Item == p.Quote)) {
-			resp.Quote = a.Items[i]
+	for i := range a.items {
+		if a.items[i].Item == p.Quote &&
+			a.items[i].Exchange == exch &&
+			a.items[i].Asset == ass &&
+			(!a.usingExchangeLevelFunding || (a.items[i].PairedWith != nil && a.items[i].PairedWith.Item == p.Quote)) {
+			resp.Quote = a.items[i]
 			continue
 		}
-		if a.Items[i].Item == p.Base &&
-			a.Items[i].Exchange == exch &&
-			a.Items[i].Asset == ass &&
-			(!a.UsingExchangeLevelFunding || (a.Items[i].PairedWith != nil && a.Items[i].PairedWith.Item == p.Quote)) {
-			resp.Base = a.Items[i]
+		if a.items[i].Item == p.Base &&
+			a.items[i].Exchange == exch &&
+			a.items[i].Asset == ass &&
+			(!a.usingExchangeLevelFunding || (a.items[i].PairedWith != nil && a.items[i].PairedWith.Item == p.Quote)) {
+			resp.Base = a.items[i]
 		}
 	}
 	if resp.Base == nil || resp.Quote == nil {
@@ -102,6 +93,23 @@ func (a *AllFunds) GetFundingForEAP(exch string, ass asset.Item, p currency.Pair
 type Pair struct {
 	Base  *Item
 	Quote *Item
+}
+
+func (p *Pair) BaseInitialFunds() float64 {
+	return p.Base.InitialFunds
+}
+
+func (p *Pair) QuoteInitialFunds() float64 {
+	return p.Quote.InitialFunds
+
+}
+
+func (p *Pair) BaseAvailable() float64 {
+	return p.Base.Available
+}
+
+func (p *Pair) QuoteAvailable() float64 {
+	return p.Quote.Available
 }
 
 func (p *Pair) Reserve(amount float64, side order.Side) error {
@@ -181,7 +189,7 @@ func (i *Item) Increase(amount float64) {
 	i.Available += amount
 }
 
-// Item
+// Item holds funding data per currency item
 type Item struct {
 	Exchange     string
 	Asset        asset.Item
@@ -192,42 +200,14 @@ type Item struct {
 	PairedWith   *Item
 }
 
-// IFundingReserver limits funding usage for portfolio event handling
-type IFundingReserver interface {
-	IsUsingExchangeLevelFunding() bool
-	GetFundingForEAC(string, asset.Item, currency.Code) (IItemReserver, error)
-	GetFundingForEvent(common.EventHandler) (IPairReserver, error)
-	GetFundingForEAP(string, asset.Item, currency.Pair) (IPairReserver, error)
-}
-
-// IFundingReleaser limits funding usage for exchange event handling
-type IFundingReleaser interface {
-	IsUsingExchangeLevelFunding() bool
-	GetFundingForEAC(string, asset.Item, currency.Code) (IItemReleaser, error)
-	GetFundingForEvent(common.EventHandler) (IPairReleaser, error)
-	GetFundingForEAP(string, asset.Item, currency.Pair) (IPairReleaser, error)
-}
-
-// IPairReserver limits funding usage for portfolio event handling
-type IPairReserver interface {
-	Reserve(float64, order.Side) error
-}
-
-// IPairReleaser limits funding usage for exchange event handling
-type IPairReleaser interface {
-	Increase(float64, order.Side)
-	Release(float64, float64, order.Side) error
-}
-
-// IItemReserver limits funding usage for portfolio event handling
-type IItemReserver interface {
-	Reserve(float64) error
-}
-
-// IItemReleaser limits funding usage for exchange event handling
-type IItemReleaser interface {
-	Increase(float64)
-	Release(float64, float64) error
+func (p *Pair) CanPlaceOrder(side order.Side) bool {
+	switch side {
+	case order.Buy:
+		return p.Quote.Available > 0
+	case order.Sell:
+		return p.Base.Available > 0
+	}
+	return false
 }
 
 // perhaps funding should also include sizing? This would allow sizing to easily occur across portfolio and exchange and stay within size

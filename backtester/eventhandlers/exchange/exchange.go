@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -26,7 +27,7 @@ func (e *Exchange) Reset() {
 
 // ExecuteOrder assesses the portfolio manager's order event and if it passes validation
 // will send an order to the exchange/fake order manager to be stored and raise a fill event
-func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.Engine) (*fill.Fill, error) {
+func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.Engine, funds funding.IPairReleaser) (*fill.Fill, error) {
 	f := &fill.Fill{
 		Base: event.Base{
 			Offset:       o.GetOffset(),
@@ -41,7 +42,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		Amount:     o.GetAmount(),
 		ClosePrice: data.Latest().ClosePrice(),
 	}
-
+	eventFunds := o.GetFunds()
 	cs, err := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	if err != nil {
 		return f, err
@@ -69,7 +70,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 			return f, err
 		}
 		// calculate an estimated slippage rate
-		adjustedPrice, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), o.GetFunds(), f.ExchangeFee)
+		adjustedPrice, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), eventFunds, f.ExchangeFee)
 		f.Slippage = ((adjustedPrice - f.ClosePrice) / f.ClosePrice) * 100
 	} else {
 		adjustedPrice, amount, err = e.sizeOfflineOrder(high, low, volume, &cs, f)
@@ -87,7 +88,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		}
 	}
 
-	portfolioLimitedAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, o.GetFunds(), f.GetDirection())
+	portfolioLimitedAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, eventFunds, f.GetDirection())
 	if portfolioLimitedAmount != amount {
 		f.AppendReason(fmt.Sprintf("Order size shrunk from %f to %f to remain within portfolio limits", amount, portfolioLimitedAmount))
 	}
@@ -111,11 +112,19 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 
 	orderID, err := e.placeOrder(context.TODO(), adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, bot)
 	if err != nil {
+		fundErr := funds.Release(eventFunds, eventFunds, f.GetDirection())
+		if fundErr != nil {
+			f.AppendReason(fundErr.Error())
+		}
 		if f.GetDirection() == gctorder.Buy {
 			f.SetDirection(common.CouldNotBuy)
 		} else if f.GetDirection() == gctorder.Sell {
 			f.SetDirection(common.CouldNotSell)
 		}
+		return f, err
+	}
+	err = funds.Release(eventFunds, eventFunds-limitReducedAmount, f.GetDirection())
+	if err != nil {
 		return f, err
 	}
 

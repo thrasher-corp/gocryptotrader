@@ -105,10 +105,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		SellSide: sellRule,
 	}
 
-	funds := funding.AllFunds{
-		UsingExchangeLevelFunding: cfg.StrategySettings.UseExchangeLevelFunding,
-	}
 	useExchangeLevelFunding := cfg.StrategySettings.UseExchangeLevelFunding
+	funds := funding.Setup(useExchangeLevelFunding)
 	if useExchangeLevelFunding {
 		if !cfg.StrategySettings.SimultaneousSignalProcessing {
 			return nil, errors.New("Woah nelly!")
@@ -119,13 +117,13 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				return nil, err
 			}
 			cq := currency.NewCode(cfg.StrategySettings.ExchangeLevelFunding[i].Quote)
-			funds.Items = append(funds.Items, &funding.Item{
-				Exchange:     cfg.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
-				InitialFunds: cfg.StrategySettings.ExchangeLevelFunding[i].InitialFunds,
-				Available:    cfg.StrategySettings.ExchangeLevelFunding[i].InitialFunds,
-				Asset:        a,
-				Item:         cq,
-			})
+			err = funds.AddItem(cfg.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
+				a,
+				cq,
+				cfg.StrategySettings.ExchangeLevelFunding[i].InitialFunds)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -190,29 +188,19 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			if err != nil {
 				return nil, err
 			}
-			cb := currency.NewCode(cfg.CurrencySettings[i].Base)
-			cq := currency.NewCode(cfg.CurrencySettings[i].Quote)
-			funds.Items = append(funds.Items, &funding.Item{
-				Exchange:     cfg.CurrencySettings[i].ExchangeName,
-				InitialFunds: 0,
-				Available:    0,
-				Asset:        a,
-				Item:         cb,
-			})
-			funds.Items = append(funds.Items, &funding.Item{
-				Exchange:     cfg.CurrencySettings[i].ExchangeName,
-				InitialFunds: cfg.CurrencySettings[i].InitialFunds,
-				Available:    cfg.CurrencySettings[i].InitialFunds,
-				Asset:        a,
-				Item:         cq,
-			})
-
+			cp := currency.NewPair(currency.NewCode(cfg.CurrencySettings[i].Base), currency.NewCode(cfg.CurrencySettings[i].Quote))
+			err = funds.AddPair(cfg.CurrencySettings[i].ExchangeName,
+				a,
+				cp,
+				cfg.CurrencySettings[i].InitialFunds)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
-	// unsure yet if global or just local to portfolio
 	bt.Funding = funds
 	var p *portfolio.Portfolio
-	p, err = portfolio.Setup(sizeManager, portfolioRisk, cfg.StatisticSettings.RiskFreeRate, &funds)
+	p, err = portfolio.Setup(sizeManager, portfolioRisk, cfg.StatisticSettings.RiskFreeRate)
 	if err != nil {
 		return nil, err
 	}
@@ -877,7 +865,12 @@ func (bt *BackTest) processSignalEvent(ev signal.Event) {
 		return
 	}
 	var o *order.Order
-	o, err = bt.Portfolio.OnSignal(ev, &cs)
+	funds, err := bt.Funding.GetFundingForEvent(ev)
+	if err != nil {
+		log.Error(log.BackTester, err)
+		return
+	}
+	o, err = bt.Portfolio.OnSignal(ev, &cs, funds)
 	if err != nil {
 		log.Error(log.BackTester, err)
 		return
@@ -892,7 +885,12 @@ func (bt *BackTest) processSignalEvent(ev signal.Event) {
 
 func (bt *BackTest) processOrderEvent(ev order.Event) {
 	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.Bot)
+	funds, err := bt.Funding.GetFundingForEvent(ev)
+	if err != nil {
+		log.Error(log.BackTester, err)
+		return
+	}
+	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.Bot, funds)
 	if err != nil {
 		if f == nil {
 			log.Errorf(log.BackTester, "fill event should always be returned, please fix, %v", err)
@@ -908,7 +906,12 @@ func (bt *BackTest) processOrderEvent(ev order.Event) {
 }
 
 func (bt *BackTest) processFillEvent(ev fill.Event) {
-	t, err := bt.Portfolio.OnFill(ev)
+	funds, err := bt.Funding.GetFundingForEvent(ev)
+	if err != nil {
+		log.Error(log.BackTester, err)
+		return
+	}
+	t, err := bt.Portfolio.OnFill(ev, funds)
 	if err != nil {
 		log.Error(log.BackTester, err)
 		return
