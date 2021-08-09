@@ -1,6 +1,7 @@
 package btse
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -47,7 +48,7 @@ func (b *BTSE) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(true)
+		err = b.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -237,7 +238,7 @@ func (b *BTSE) Run() {
 		return
 	}
 
-	err := b.UpdateTradablePairs(false)
+	err := b.UpdateTradablePairs(context.TODO(), false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s Failed to update tradable pairs. Error: %s", b.Name, err)
@@ -245,7 +246,7 @@ func (b *BTSE) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *BTSE) FetchTradablePairs(a asset.Item) ([]string, error) {
+func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
 	var currencies []string
 	m, err := b.GetMarketSummary("", a == asset.Spot)
 	if err != nil {
@@ -263,10 +264,10 @@ func (b *BTSE) FetchTradablePairs(a asset.Item) ([]string, error) {
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
+func (b *BTSE) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	a := b.GetAssetTypes(false)
 	for i := range a {
-		pairs, err := b.FetchTradablePairs(a[i])
+		pairs, err := b.FetchTradablePairs(ctx, a[i])
 		if err != nil {
 			return err
 		}
@@ -285,7 +286,7 @@ func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickers, err := b.GetMarketSummary("", assetType == asset.Spot)
 	if err != nil {
 		return nil, err
@@ -316,25 +317,25 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *BTSE) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *BTSE) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
-		return b.UpdateTicker(p, assetType)
+		return b.UpdateTicker(ctx, p, assetType)
 	}
 	return tickerNew, nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *BTSE) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
-		return b.UpdateOrderbook(p, assetType)
+		return b.UpdateOrderbook(ctx, p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
@@ -379,7 +380,7 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // BTSE exchange
-func (b *BTSE) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var a account.Holdings
 	balance, err := b.GetWalletInformation()
 	if err != nil {
@@ -412,10 +413,10 @@ func (b *BTSE) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *BTSE) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (b *BTSE) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo(assetType)
+		return b.UpdateAccountInfo(ctx, assetType)
 	}
 
 	return acc, nil
@@ -423,7 +424,7 @@ func (b *BTSE) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) 
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *BTSE) GetFundingHistory() ([]exchange.FundHistory, error) {
+func (b *BTSE) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -438,12 +439,12 @@ func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTSE) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *BTSE) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (b *BTSE) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -489,12 +490,12 @@ func (b *BTSE) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (b *BTSE) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (b *BTSE) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
-func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
 	var resp order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return resp, err
@@ -530,12 +531,12 @@ func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *BTSE) ModifyOrder(action *order.Modify) (order.Modify, error) {
+func (b *BTSE) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
 	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *BTSE) CancelOrder(o *order.Cancel) error {
+func (b *BTSE) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
@@ -555,14 +556,14 @@ func (b *BTSE) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *BTSE) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+func (b *BTSE) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 // If product ID is sent, all orders of that specified market will be cancelled
 // If not specified, all orders of all markets will be cancelled
-func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (b *BTSE) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -599,7 +600,7 @@ func orderIntToType(i int) order.Type {
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *BTSE) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	o, err := b.GetOrders("", orderID, "")
 	if err != nil {
 		return order.Detail{}, err
@@ -675,13 +676,13 @@ func (b *BTSE) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *BTSE) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	address, err := b.GetWalletAddress(cryptocurrency.String())
+func (b *BTSE) GetDepositAddress(ctx context.Context, c currency.Code, accountID string) (string, error) {
+	address, err := b.GetWalletAddress(c.String())
 	if err != nil {
 		return "", err
 	}
 	if len(address) == 0 {
-		addressCreate, err := b.CreateWalletAddress(cryptocurrency.String())
+		addressCreate, err := b.CreateWalletAddress(c.String())
 		if err != nil {
 			return "", err
 		}
@@ -695,7 +696,7 @@ func (b *BTSE) GetDepositAddress(cryptocurrency currency.Code, accountID string)
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *BTSE) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *BTSE) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -715,18 +716,18 @@ func (b *BTSE) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *BTSE) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *BTSE) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *BTSE) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *BTSE) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -834,7 +835,7 @@ func matchType(input int, required order.Type) bool {
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTSE) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -886,7 +887,7 @@ func (b *BTSE) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]orde
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (b *BTSE) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (b *BTSE) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !b.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
@@ -896,8 +897,8 @@ func (b *BTSE) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (b *BTSE) ValidateCredentials(assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(assetType)
+func (b *BTSE) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := b.UpdateAccountInfo(ctx, assetType)
 	return b.CheckTransientError(err)
 }
 
@@ -907,7 +908,7 @@ func (b *BTSE) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *BTSE) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if err := b.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
@@ -958,7 +959,7 @@ func (b *BTSE) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *BTSE) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (b *BTSE) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if err := b.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}

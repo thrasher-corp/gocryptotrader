@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -23,6 +25,8 @@ var (
 	pairDelimiter string
 	certPath      string
 )
+
+const defaultTimeout = time.Second * 5
 
 func jsonOutput(in interface{}) {
 	j, err := json.MarshalIndent(in, "", " ")
@@ -152,7 +156,10 @@ func main() {
 		dataHistoryCommands,
 	}
 
-	err := app.Run(os.Args)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	err := app.RunContext(ctx, os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}

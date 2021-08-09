@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -700,7 +701,12 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 		Status:            dataHistoryStatusComplete,
 		Date:              time.Now(),
 	}
-	candles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, startRange, endRange, job.Interval)
+	candles, err := exch.GetHistoricCandlesExtended(context.TODO(),
+		job.Pair,
+		job.Asset,
+		startRange,
+		endRange,
+		job.Interval)
 	if err != nil {
 		r.Result += "could not get candles: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
@@ -745,7 +751,11 @@ func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange
 		Status:            dataHistoryStatusComplete,
 		Date:              time.Now(),
 	}
-	trades, err := exch.GetHistoricTrades(job.Pair, job.Asset, startRange, endRange)
+	trades, err := exch.GetHistoricTrades(context.TODO(),
+		job.Pair,
+		job.Asset,
+		startRange,
+		endRange)
 	if err != nil {
 		r.Result += "could not get trades: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
@@ -894,7 +904,12 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		Date:              time.Now(),
 	}
 
-	apiCandles, err := exch.GetHistoricCandlesExtended(job.Pair, job.Asset, startRange, endRange, job.Interval)
+	apiCandles, err := exch.GetHistoricCandlesExtended(context.TODO(),
+		job.Pair,
+		job.Asset,
+		startRange,
+		endRange,
+		job.Interval)
 	if err != nil {
 		r.Result = "could not get API candles: " + err.Error()
 		r.Status = dataHistoryStatusFailed

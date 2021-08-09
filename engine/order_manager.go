@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -86,7 +87,8 @@ func (m *OrderManager) Stop() error {
 func (m *OrderManager) gracefulShutdown() {
 	if m.cfg.CancelOrdersOnShutdown {
 		log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
-		m.CancelAllOrders(m.orderStore.exchangeManager.GetExchanges())
+		m.CancelAllOrders(context.TODO(),
+			m.orderStore.exchangeManager.GetExchanges())
 	}
 }
 
@@ -113,7 +115,7 @@ func (m *OrderManager) run() {
 }
 
 // CancelAllOrders iterates and cancels all orders for each exchange provided
-func (m *OrderManager) CancelAllOrders(exchangeNames []exchange.IBotExchange) {
+func (m *OrderManager) CancelAllOrders(ctx context.Context, exchangeNames []exchange.IBotExchange) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
@@ -130,7 +132,7 @@ func (m *OrderManager) CancelAllOrders(exchangeNames []exchange.IBotExchange) {
 		}
 		for j := range exchangeOrders {
 			log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", exchangeNames[i].GetName())
-			err := m.Cancel(&order.Cancel{
+			err := m.Cancel(ctx, &order.Cancel{
 				Exchange:      exchangeOrders[j].Exchange,
 				ID:            exchangeOrders[j].ID,
 				AccountID:     exchangeOrders[j].AccountID,
@@ -150,7 +152,7 @@ func (m *OrderManager) CancelAllOrders(exchangeNames []exchange.IBotExchange) {
 
 // Cancel will find the order in the OrderManager, send a cancel request
 // to the exchange and if successful, update the status of the order
-func (m *OrderManager) Cancel(cancel *order.Cancel) error {
+func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 	if m == nil {
 		return fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
@@ -194,7 +196,7 @@ func (m *OrderManager) Cancel(cancel *order.Cancel) error {
 	log.Debugf(log.OrderMgr, "Order manager: Cancelling order ID %v [%+v]",
 		cancel.ID, cancel)
 
-	err = exch.CancelOrder(cancel)
+	err = exch.CancelOrder(ctx, cancel)
 	if err != nil {
 		err = fmt.Errorf("%v - Failed to cancel order: %w", cancel.Exchange, err)
 		return err
@@ -220,7 +222,7 @@ func (m *OrderManager) Cancel(cancel *order.Cancel) error {
 
 // GetOrderInfo calls the exchange's wrapper GetOrderInfo function
 // and stores the result in the order manager
-func (m *OrderManager) GetOrderInfo(exchangeName, orderID string, cp currency.Pair, a asset.Item) (order.Detail, error) {
+func (m *OrderManager) GetOrderInfo(ctx context.Context, exchangeName, orderID string, cp currency.Pair, a asset.Item) (order.Detail, error) {
 	if m == nil {
 		return order.Detail{}, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
@@ -236,7 +238,7 @@ func (m *OrderManager) GetOrderInfo(exchangeName, orderID string, cp currency.Pa
 	if exch == nil {
 		return order.Detail{}, ErrExchangeNotFound
 	}
-	result, err := exch.GetOrderInfo(orderID, cp, a)
+	result, err := exch.GetOrderInfo(ctx, orderID, cp, a)
 	if err != nil {
 		return order.Detail{}, err
 	}
@@ -286,7 +288,7 @@ func (m *OrderManager) validate(newOrder *order.Submit) error {
 
 // Modify depends on the order.Modify.ID and order.Modify.Exchange fields to uniquely
 // identify an order to modify.
-func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) {
+func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.ModifyResponse, error) {
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
@@ -321,7 +323,7 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
-	res, err := exch.ModifyOrder(mod)
+	res, err := exch.ModifyOrder(ctx, mod)
 	if err != nil {
 		message := fmt.Sprintf(
 			"Order manager: Exchange %s order ID=%v: failed to modify",
@@ -357,7 +359,7 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 
 // Submit will take in an order struct, send it to the exchange and
 // populate it in the OrderManager if successful
-func (m *OrderManager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, error) {
+func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*OrderSubmitResponse, error) {
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
@@ -387,7 +389,7 @@ func (m *OrderManager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, err
 			err)
 	}
 
-	result, err := exch.SubmitOrder(newOrder)
+	result, err := exch.SubmitOrder(ctx, newOrder)
 	if err != nil {
 		return nil, err
 	}
@@ -590,7 +592,7 @@ func (m *OrderManager) processOrders() {
 				Pairs:     pairs,
 				AssetType: supportedAssets[y],
 			}
-			result, err := exchanges[i].GetActiveOrders(&req)
+			result, err := exchanges[i].GetActiveOrders(context.TODO(), &req)
 			if err != nil {
 				log.Warnf(log.OrderMgr,
 					"Order manager: Unable to get active orders for %s and asset type %s: %s",

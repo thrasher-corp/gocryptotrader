@@ -1,6 +1,7 @@
 package lbank
 
 import (
+	"context"
 	"log"
 	"os"
 	"strconv"
@@ -117,7 +118,7 @@ func TestUpdateOrderbook(t *testing.T) {
 		Base:      currency.ETH,
 		Quote:     currency.BTC}
 
-	_, err := l.UpdateOrderbook(p.Lower(), asset.Spot)
+	_, err := l.UpdateOrderbook(context.Background(), p.Lower(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -323,7 +324,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "meowOrder",
 		AssetType: asset.Spot,
 	}
-	response, err := l.SubmitOrder(orderSubmission)
+	response, err := l.SubmitOrder(context.Background(), orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -341,7 +342,7 @@ func TestCancelOrder(t *testing.T) {
 	a.Pair = cp
 	a.AssetType = asset.Spot
 	a.ID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
-	err := l.CancelOrder(&a)
+	err := l.CancelOrder(context.Background(), &a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -352,7 +353,8 @@ func TestGetOrderInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.GetOrderInfo("9ead39f5-701a-400b-b635-d7349eb0f6b", currency.Pair{}, asset.Spot)
+	_, err := l.GetOrderInfo(context.Background(),
+		"9ead39f5-701a-400b-b635-d7349eb0f6b", currency.Pair{}, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -376,7 +378,7 @@ func TestGetFeeByType(t *testing.T) {
 	input.Amount = 2
 	input.FeeType = exchange.CryptocurrencyWithdrawalFee
 	input.Pair = cp
-	_, err := l.GetFeeByType(&input)
+	_, err := l.GetFeeByType(context.Background(), &input)
 	if err != nil {
 		t.Error(err)
 	}
@@ -387,7 +389,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.UpdateAccountInfo(asset.Spot)
+	_, err := l.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -401,7 +403,7 @@ func TestGetOrderHistory(t *testing.T) {
 	var input order.GetOrdersRequest
 	input.Side = order.Buy
 	input.AssetType = asset.Spot
-	_, err := l.GetOrderHistory(&input)
+	_, err := l.GetOrderHistory(context.Background(), &input)
 	if err != nil {
 		t.Error(err)
 	}
@@ -413,12 +415,14 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = l.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneMin)
+	_, err = l.GetHistoricCandles(context.Background(),
+		pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = l.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneHour)
+	_, err = l.GetHistoricCandles(context.Background(),
+		pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -433,7 +437,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = l.GetHistoricCandlesExtended(pair, asset.Spot, startTime, end, kline.OneMin)
+	_, err = l.GetHistoricCandlesExtended(context.Background(),
+		pair, asset.Spot, startTime, end, kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -491,7 +496,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = l.GetRecentTrades(currencyPair, asset.Spot)
+	_, err = l.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -503,12 +508,14 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = l.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err = l.GetHistoricTrades(context.Background(),
+		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
 	// longer term
-	_, err = l.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*60*200), time.Now().Add(-time.Minute*60*199))
+	_, err = l.GetHistoricTrades(context.Background(),
+		currencyPair, asset.Spot, time.Now().Add(-time.Minute*60*200), time.Now().Add(-time.Minute*60*199))
 	if err != nil {
 		t.Error(err)
 	}

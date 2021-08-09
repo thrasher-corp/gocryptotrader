@@ -1,6 +1,7 @@
 package zb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -42,7 +43,7 @@ func (z *ZB) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	}
 
 	if z.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = z.UpdateTradablePairs(true)
+		err = z.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -208,14 +209,14 @@ func (z *ZB) Run() {
 		return
 	}
 
-	err := z.UpdateTradablePairs(false)
+	err := z.UpdateTradablePairs(context.TODO(), false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", z.Name, err)
 	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (z *ZB) FetchTradablePairs(asset asset.Item) ([]string, error) {
+func (z *ZB) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
 	markets, err := z.GetMarkets()
 	if err != nil {
 		return nil, err
@@ -231,8 +232,8 @@ func (z *ZB) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (z *ZB) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := z.FetchTradablePairs(asset.Spot)
+func (z *ZB) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+	pairs, err := z.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
@@ -244,7 +245,7 @@ func (z *ZB) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (z *ZB) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	result, err := z.GetTickers()
 	if err != nil {
 		return nil, err
@@ -281,25 +282,25 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price,
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (z *ZB) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (z *ZB) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(z.Name, p, assetType)
 	if err != nil {
-		return z.UpdateTicker(p, assetType)
+		return z.UpdateTicker(ctx, p, assetType)
 	}
 	return tickerNew, nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (z *ZB) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (z *ZB) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(z.Name, p, assetType)
 	if err != nil {
-		return z.UpdateOrderbook(p, assetType)
+		return z.UpdateOrderbook(ctx, p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (z *ZB) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
 		Exchange:        z.Name,
 		Pair:            p,
@@ -338,7 +339,7 @@ func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
-func (z *ZB) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var balances []account.Balance
 	var coins []AccountsResponseCoin
@@ -388,10 +389,10 @@ func (z *ZB) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (z *ZB) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (z *ZB) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(z.Name, assetType)
 	if err != nil {
-		return z.UpdateAccountInfo(assetType)
+		return z.UpdateAccountInfo(ctx, assetType)
 	}
 
 	return acc, nil
@@ -399,17 +400,17 @@ func (z *ZB) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (z *ZB) GetFundingHistory() ([]exchange.FundHistory, error) {
+func (z *ZB) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (z *ZB) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (z *ZB) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (z *ZB) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (z *ZB) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = z.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -450,12 +451,12 @@ func (z *ZB) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Dat
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (z *ZB) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (z *ZB) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
-func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
+func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
 	err := o.Validate()
 	if err != nil {
@@ -511,12 +512,12 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (z *ZB) ModifyOrder(action *order.Modify) (order.Modify, error) {
+func (z *ZB) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
 	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (z *ZB) CancelOrder(o *order.Cancel) error {
+func (z *ZB) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
@@ -545,12 +546,12 @@ func (z *ZB) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (z *ZB) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+func (z *ZB) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
+func (z *ZB) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
@@ -593,11 +594,12 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 			continue
 		}
 
-		err = z.CancelOrder(&order.Cancel{
-			ID:        strconv.FormatInt(allOpenOrders[i].ID, 10),
-			Pair:      p,
-			AssetType: asset.Spot,
-		})
+		err = z.CancelOrder(ctx,
+			&order.Cancel{
+				ID:        strconv.FormatInt(allOpenOrders[i].ID, 10),
+				Pair:      p,
+				AssetType: asset.Spot,
+			})
 		if err != nil {
 			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
 		}
@@ -607,13 +609,13 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 }
 
 // GetOrderInfo returns order information based on order ID
-func (z *ZB) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (z *ZB) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (z *ZB) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
+func (z *ZB) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
 	address, err := z.GetCryptoAddress(cryptocurrency)
 	if err != nil {
 		return "", err
@@ -624,7 +626,7 @@ func (z *ZB) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, 
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (z *ZB) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -644,18 +646,18 @@ func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*wi
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (z *ZB) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (z *ZB) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (z *ZB) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (z *ZB) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (z *ZB) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if (!z.AllowAuthenticatedRequest() || z.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
@@ -665,7 +667,7 @@ func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -731,7 +733,7 @@ func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -812,8 +814,8 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (z *ZB) ValidateCredentials(assetType asset.Item) error {
-	_, err := z.UpdateAccountInfo(assetType)
+func (z *ZB) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := z.UpdateAccountInfo(ctx, assetType)
 	return z.CheckTransientError(err)
 }
 
@@ -836,7 +838,7 @@ func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (z *ZB) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (z *ZB) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	ret, err := z.validateCandlesRequest(p, a, start, end, interval)
 	if err != nil {
 		return kline.Item{}, err
@@ -878,7 +880,7 @@ func (z *ZB) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.T
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (z *ZB) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (z *ZB) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	ret, err := z.validateCandlesRequest(p, a, start, end, interval)
 	if err != nil {
 		return kline.Item{}, err

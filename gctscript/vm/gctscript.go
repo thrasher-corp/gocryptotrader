@@ -41,7 +41,7 @@ func (g *GctScriptManager) Validate(file string) (err error) {
 	if err != nil {
 		return
 	}
-	return tempVM.Run()
+	return tempVM.RunCtx()
 }
 
 // ShutdownAll shutdown all

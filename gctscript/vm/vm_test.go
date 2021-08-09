@@ -219,7 +219,7 @@ func TestVMRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = testVM.Run()
+	err = testVM.RunCtx()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -416,7 +416,7 @@ func TestVM_CompileInvalid(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = testVM.Run()
+	err = testVM.RunCtx()
 	if err == nil {
 		t.Fatal("unexpected result broken script compiled successfully ")
 	}

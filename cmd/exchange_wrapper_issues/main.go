@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -342,7 +343,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 
 		if !authenticatedOnly {
 			var fetchTickerResponse *ticker.Price
-			fetchTickerResponse, err = e.FetchTicker(p, assetTypes[i])
+			fetchTickerResponse, err = e.FetchTicker(context.TODO(), p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -356,7 +357,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 
 			var updateTickerResponse *ticker.Price
-			updateTickerResponse, err = e.UpdateTicker(p, assetTypes[i])
+			updateTickerResponse, err = e.UpdateTicker(context.TODO(), p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -370,7 +371,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 
 			var fetchOrderbookResponse *orderbook.Base
-			fetchOrderbookResponse, err = e.FetchOrderbook(p, assetTypes[i])
+			fetchOrderbookResponse, err = e.FetchOrderbook(context.TODO(), p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -384,7 +385,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 
 			var updateOrderbookResponse *orderbook.Base
-			updateOrderbookResponse, err = e.UpdateOrderbook(p, assetTypes[i])
+			updateOrderbookResponse, err = e.UpdateOrderbook(context.TODO(), p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -398,7 +399,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 
 			var fetchTradablePairsResponse []string
-			fetchTradablePairsResponse, err = e.FetchTradablePairs(assetTypes[i])
+			fetchTradablePairsResponse, err = e.FetchTradablePairs(context.TODO(), assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -411,7 +412,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{fetchTradablePairsResponse}),
 			})
 			// r6
-			err = e.UpdateTradablePairs(false)
+			err = e.UpdateTradablePairs(context.TODO(), false)
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -425,7 +426,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 
 			var getHistoricTradesResponse []trade.Data
-			getHistoricTradesResponse, err = e.GetHistoricTrades(p, assetTypes[i], time.Now().Add(-time.Hour), time.Now())
+			getHistoricTradesResponse, err = e.GetHistoricTrades(context.TODO(), p, assetTypes[i], time.Now().Add(-time.Hour), time.Now())
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -439,7 +440,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 
 			var getRecentTradesResponse []trade.Data
-			getRecentTradesResponse, err = e.GetRecentTrades(p, assetTypes[i])
+			getRecentTradesResponse, err = e.GetRecentTrades(context.TODO(), p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -454,7 +455,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 
 			var getHistoricCandlesResponse kline.Item
 			startTime, endTime := time.Now().AddDate(0, 0, -1), time.Now()
-			getHistoricCandlesResponse, err = e.GetHistoricCandles(p, assetTypes[i], startTime, endTime, kline.OneDay)
+			getHistoricCandlesResponse, err = e.GetHistoricCandles(context.TODO(), p, assetTypes[i], startTime, endTime, kline.OneDay)
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -468,7 +469,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 
 			var getHisotirCandlesExtendedResponse kline.Item
-			getHisotirCandlesExtendedResponse, err = e.GetHistoricCandlesExtended(p, assetTypes[i], startTime, endTime, kline.OneDay)
+			getHisotirCandlesExtendedResponse, err = e.GetHistoricCandlesExtended(context.TODO(), p, assetTypes[i], startTime, endTime, kline.OneDay)
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -497,7 +498,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 
 		var fetchAccountInfoResponse account.Holdings
-		fetchAccountInfoResponse, err = e.FetchAccountInfo(assetTypes[i])
+		fetchAccountInfoResponse, err = e.FetchAccountInfo(context.TODO(), assetTypes[i])
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -510,7 +511,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var getFundingHistoryResponse []exchange.FundHistory
-		getFundingHistoryResponse, err = e.GetFundingHistory()
+		getFundingHistoryResponse, err = e.GetFundingHistory(context.TODO())
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -529,7 +530,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Amount:        config.OrderSubmission.Amount,
 		}
 		var getFeeByTypeResponse float64
-		getFeeByTypeResponse, err = e.GetFeeByType(&feeType)
+		getFeeByTypeResponse, err = e.GetFeeByType(context.TODO(), &feeType)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -552,7 +553,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			AssetType: assetTypes[i],
 		}
 		var submitOrderResponse order.SubmitResponse
-		submitOrderResponse, err = e.SubmitOrder(s)
+		submitOrderResponse, err = e.SubmitOrder(context.TODO(), s)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -573,7 +574,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Price:  config.OrderSubmission.Price,
 			Amount: config.OrderSubmission.Amount,
 		}
-		modifyOrderResponse, err := e.ModifyOrder(&modifyRequest)
+		modifyOrderResponse, err := e.ModifyOrder(context.TODO(), &modifyRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -592,7 +593,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			ID:        config.OrderSubmission.OrderID,
 			AssetType: assetTypes[i],
 		}
-		err = e.CancelOrder(&cancelRequest)
+		err = e.CancelOrder(context.TODO(), &cancelRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -614,7 +615,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var CancelBatchOrdersResponse order.CancelBatchResponse
-		CancelBatchOrdersResponse, err = e.CancelBatchOrders(request)
+		CancelBatchOrdersResponse, err = e.CancelBatchOrders(context.TODO(), request)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -628,7 +629,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var cancellAllOrdersResponse order.CancelAllResponse
-		cancellAllOrdersResponse, err = e.CancelAllOrders(&cancelRequest)
+		cancellAllOrdersResponse, err = e.CancelAllOrders(context.TODO(), &cancelRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -642,7 +643,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var r15 order.Detail
-		r15, err = e.GetOrderInfo(config.OrderSubmission.OrderID, p, assetTypes[i])
+		r15, err = e.GetOrderInfo(context.TODO(), config.OrderSubmission.OrderID, p, assetTypes[i])
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -661,7 +662,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Pairs: []currency.Pair{p},
 		}
 		var getOrderHistoryResponse []order.Detail
-		getOrderHistoryResponse, err = e.GetOrderHistory(&historyRequest)
+		getOrderHistoryResponse, err = e.GetOrderHistory(context.TODO(), &historyRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -680,7 +681,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Pairs: []currency.Pair{p},
 		}
 		var getActiveOrdersResponse []order.Detail
-		getActiveOrdersResponse, err = e.GetActiveOrders(&orderRequest)
+		getActiveOrdersResponse, err = e.GetActiveOrders(context.TODO(), &orderRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -694,7 +695,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var getDepositAddressResponse string
-		getDepositAddressResponse, err = e.GetDepositAddress(p.Base, "")
+		getDepositAddressResponse, err = e.GetDepositAddress(context.TODO(), p.Base, "")
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -714,7 +715,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Amount:        config.OrderSubmission.Amount,
 		}
 		var GetFeeByTypeResponse float64
-		GetFeeByTypeResponse, err = e.GetFeeByType(&feeType)
+		GetFeeByTypeResponse, err = e.GetFeeByType(context.TODO(), &feeType)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -740,7 +741,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
-		withdrawCryptocurrencyFundsResponse, err := e.WithdrawCryptocurrencyFunds(&withdrawRequest)
+		withdrawCryptocurrencyFundsResponse, err := e.WithdrawCryptocurrencyFunds(context.TODO(), &withdrawRequest)
 		if err != nil {
 			msg += ", " + err.Error()
 			responseContainer.ErrorCount++
@@ -761,7 +762,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			BankTransactionType: exchange.WireTransfer,
 		}
 		var getFeeByTypeFiatResponse float64
-		getFeeByTypeFiatResponse, err = e.GetFeeByType(&feeType)
+		getFeeByTypeFiatResponse, err = e.GetFeeByType(context.TODO(), &feeType)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -804,7 +805,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				IntermediaryBankCode:          config.BankDetails.IntermediaryBankCode,
 			},
 		}
-		withdrawFiatFundsResponse, err := e.WithdrawFiatFunds(&withdrawRequestFiat)
+		withdrawFiatFundsResponse, err := e.WithdrawFiatFunds(context.TODO(), &withdrawRequestFiat)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -817,7 +818,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   withdrawFiatFundsResponse,
 		})
 
-		withdrawFiatFundsInternationalResponse, err := e.WithdrawFiatFundsToInternationalBank(&withdrawRequestFiat)
+		withdrawFiatFundsInternationalResponse, err := e.WithdrawFiatFundsToInternationalBank(context.TODO(), &withdrawRequestFiat)
 		msg = ""
 		if err != nil {
 			msg = err.Error()

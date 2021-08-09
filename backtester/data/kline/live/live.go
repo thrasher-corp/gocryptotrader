@@ -1,6 +1,7 @@
 package live
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -14,12 +15,12 @@ import (
 )
 
 // LoadData retrieves data from a GoCryptoTrader exchange wrapper which calls the exchange's API for the latest interval
-func LoadData(exch exchange.IBotExchange, dataType int64, interval time.Duration, fPair currency.Pair, a asset.Item) (*kline.Item, error) {
+func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, interval time.Duration, fPair currency.Pair, a asset.Item) (*kline.Item, error) {
 	var candles kline.Item
 	var err error
 	switch dataType {
 	case common.DataCandle:
-		candles, err = exch.GetHistoricCandles(
+		candles, err = exch.GetHistoricCandles(ctx,
 			fPair,
 			a,
 			time.Now().Add(-interval*2), // multiplied by 2 to ensure the latest candle is always included
@@ -30,7 +31,11 @@ func LoadData(exch exchange.IBotExchange, dataType int64, interval time.Duration
 		}
 	case common.DataTrade:
 		var trades []trade.Data
-		trades, err = exch.GetHistoricTrades(fPair, a, time.Now().Add(-interval*2), time.Now()) // multiplied by 2 to ensure the latest candle is always included
+		trades, err = exch.GetHistoricTrades(ctx,
+			fPair,
+			a,
+			time.Now().Add(-interval*2),
+			time.Now()) // multiplied by 2 to ensure the latest candle is always included
 		if err != nil {
 			return nil, err
 		}
@@ -41,7 +46,7 @@ func LoadData(exch exchange.IBotExchange, dataType int64, interval time.Duration
 		}
 		base := exch.GetBase()
 		if len(candles.Candles) <= 1 && base.GetSupportedFeatures().RESTCapabilities.TradeHistory {
-			trades, err = exch.GetHistoricTrades(
+			trades, err = exch.GetHistoricTrades(ctx,
 				fPair,
 				a,
 				time.Now().Add(-interval), // multiplied by 2 to ensure the latest candle is always included

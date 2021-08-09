@@ -50,7 +50,7 @@ type fExchange struct {
 	exchange.IBotExchange
 }
 
-func (f fExchange) GetHistoricCandles(p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
+func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
 		Exchange: "fake",
 		Pair:     p,
@@ -69,7 +69,7 @@ func (f fExchange) GetHistoricCandles(p currency.Pair, a asset.Item, timeStart, 
 	}, nil
 }
 
-func (f fExchange) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
+func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
 		Exchange: "fake",
 		Pair:     p,
@@ -90,7 +90,7 @@ func (f fExchange) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, tim
 
 // FetchAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) FetchAccountInfo(a asset.Item) (account.Holdings, error) {
+func (f fExchange) FetchAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
 	return account.Holdings{
 		Exchange: f.GetName(),
 		Accounts: []account.SubAccount{
@@ -105,7 +105,7 @@ func (f fExchange) FetchAccountInfo(a asset.Item) (account.Holdings, error) {
 
 // UpdateAccountInfo overrides testExchange's update account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
+func (f fExchange) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
 	if a == asset.Futures {
 		return account.Holdings{}, errAssetTypeDisabled
 	}

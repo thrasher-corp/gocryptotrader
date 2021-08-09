@@ -1,6 +1,7 @@
 package okex
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -37,7 +38,7 @@ func (o *OKEX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	}
 
 	if o.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = o.UpdateTradablePairs(true)
+		err = o.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -291,7 +292,7 @@ func (o *OKEX) Run() {
 		return
 	}
 
-	err = o.UpdateTradablePairs(forceUpdate)
+	err = o.UpdateTradablePairs(context.TODO(), forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -301,7 +302,7 @@ func (o *OKEX) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
+func (o *OKEX) FetchTradablePairs(ctx context.Context, i asset.Item) ([]string, error) {
 	var pairs []string
 
 	format, err := o.GetPairFormat(i, false)
@@ -360,7 +361,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
+func (o *OKEX) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := o.CurrencyPairs.GetAssetTypes(false)
 	for x := range assets {
 		if assets[x] == asset.Index {
@@ -368,7 +369,7 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 			continue
 		}
 
-		pairs, err := o.FetchTradablePairs(assets[x])
+		pairs, err := o.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
 			return err
 		}
@@ -425,7 +426,7 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (o *OKEX) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerPrice := new(ticker.Price)
 	switch assetType {
 	case asset.Spot:
@@ -539,7 +540,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
+func (o *OKEX) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
 	if assetType == asset.Index {
 		return tickerData, errors.New("ticker fetching not supported for index")
 	}
@@ -550,13 +551,13 @@ func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData *t
 
 	tickerData, err = ticker.GetTicker(o.Name, fPair, assetType)
 	if err != nil {
-		return o.UpdateTicker(fPair, assetType)
+		return o.UpdateTicker(ctx, fPair, assetType)
 	}
 	return
 }
 
 // GetRecentTrades returns recent trade data
-func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (o *OKEX) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = o.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -651,6 +652,6 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (o *OKEX) CancelBatchOrders(_ []order.Cancel) (order.CancelBatchResponse, error) {
+func (o *OKEX) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }

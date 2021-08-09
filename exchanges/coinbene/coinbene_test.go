@@ -1,6 +1,7 @@
 package coinbene
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -230,7 +231,7 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.UpdateTicker(cp, asset.Spot)
+	_, err = c.UpdateTicker(context.Background(), cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -238,7 +239,7 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.UpdateTicker(cp, asset.PerpetualSwap)
+	_, err = c.UpdateTicker(context.Background(), cp, asset.PerpetualSwap)
 	if err != nil {
 		t.Error(err)
 	}
@@ -249,7 +250,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.UpdateAccountInfo(asset.Spot)
+	_, err := c.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -261,7 +262,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.UpdateOrderbook(cp, asset.Spot)
+	_, err = c.UpdateOrderbook(context.Background(), cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -269,7 +270,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.UpdateOrderbook(cp, asset.PerpetualSwap)
+	_, err = c.UpdateOrderbook(context.Background(), cp, asset.PerpetualSwap)
 	if err != nil {
 		t.Error(err)
 	}
@@ -633,7 +634,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 24)
-	_, err = c.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	_, err = c.GetHistoricCandles(context.Background(),
+		currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -642,7 +644,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.GetHistoricCandles(currencyPairSwap, asset.PerpetualSwap, startTime, time.Now(), kline.OneHour)
+	_, err = c.GetHistoricCandles(context.Background(),
+		currencyPairSwap, asset.PerpetualSwap, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -654,7 +657,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 2)
-	_, err = c.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	_, err = c.GetHistoricCandlesExtended(context.Background(),
+		currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -765,7 +769,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.GetRecentTrades(currencyPair, asset.Spot)
+	_, err = c.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -777,7 +781,8 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err = c.GetHistoricTrades(context.Background(),
+		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}

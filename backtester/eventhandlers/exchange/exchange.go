@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gofrs/uuid"
@@ -108,7 +109,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		return f, err
 	}
 
-	orderID, err := e.placeOrder(adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, bot)
+	orderID, err := e.placeOrder(context.TODO(), adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, bot)
 	if err != nil {
 		if f.GetDirection() == gctorder.Buy {
 			f.SetDirection(common.CouldNotBuy)
@@ -198,7 +199,7 @@ func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal 
 	return amount
 }
 
-func (e *Exchange) placeOrder(price, amount float64, useRealOrders, useExchangeLimits bool, f *fill.Fill, bot *engine.Engine) (string, error) {
+func (e *Exchange) placeOrder(ctx context.Context, price, amount float64, useRealOrders, useExchangeLimits bool, f *fill.Fill, bot *engine.Engine) (string, error) {
 	if f == nil {
 		return "", common.ErrNilEvent
 	}
@@ -222,7 +223,7 @@ func (e *Exchange) placeOrder(price, amount float64, useRealOrders, useExchangeL
 	}
 
 	if useRealOrders {
-		resp, err := bot.OrderManager.Submit(o)
+		resp, err := bot.OrderManager.Submit(ctx, o)
 		if resp != nil {
 			orderID = resp.OrderID
 		}

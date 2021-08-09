@@ -1,6 +1,7 @@
 package ftx
 
 import (
+	"context"
 	"errors"
 	"log"
 	"os"
@@ -567,7 +568,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType:     asset.Spot,
 		ClientOrderID: "order12345679$$$$$",
 	}
-	_, err = f.SubmitOrder(orderSubmission)
+	_, err = f.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {
 		t.Error(err)
 	}
@@ -600,12 +601,12 @@ func TestCancelOrder(t *testing.T) {
 		Pair:      currencyPair,
 		AssetType: asset.Spot,
 	}
-	if err := f.CancelOrder(&c); err != nil {
+	if err := f.CancelOrder(context.Background(), &c); err != nil {
 		t.Error(err)
 	}
 
 	c.ClientOrderID = "1337"
-	if err := f.CancelOrder(&c); err != nil {
+	if err := f.CancelOrder(context.Background(), &c); err != nil {
 		t.Error(err)
 	}
 }
@@ -920,7 +921,7 @@ func TestGetOptionsFills(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
-	_, err := f.UpdateOrderbook(cp, asset.Spot)
+	_, err := f.UpdateOrderbook(context.Background(), cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -929,7 +930,7 @@ func TestUpdateOrderbook(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
-	_, err := f.UpdateTicker(cp, asset.Spot)
+	_, err := f.UpdateTicker(context.Background(), cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -944,7 +945,7 @@ func TestGetActiveOrders(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
 	orderReq.Pairs = append(orderReq.Pairs, cp)
 	orderReq.AssetType = asset.Spot
-	_, err := f.GetActiveOrders(&orderReq)
+	_, err := f.GetActiveOrders(context.Background(), &orderReq)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -959,7 +960,7 @@ func TestGetOrderHistory(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
 	orderReq.Pairs = append(orderReq.Pairs, cp)
 	orderReq.AssetType = asset.Spot
-	_, err := f.GetOrderHistory(&orderReq)
+	_, err := f.GetOrderHistory(context.Background(), &orderReq)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -970,7 +971,7 @@ func TestUpdateAccountHoldings(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.UpdateAccountInfo(asset.Spot)
+	_, err := f.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -981,7 +982,7 @@ func TestFetchAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.FetchAccountInfo(asset.Spot)
+	_, err := f.FetchAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1093,7 +1094,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	request.Crypto = cryptoData
 	request.OneTimePassword = 123456
 	request.TradePassword = "incorrectTradePassword"
-	_, err := f.WithdrawCryptocurrencyFunds(request)
+	_, err := f.WithdrawCryptocurrencyFunds(context.Background(), request)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1104,7 +1105,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.GetDepositAddress(currency.NewCode("FTT"), "")
+	_, err := f.GetDepositAddress(context.Background(), currency.NewCode("FTT"), "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1115,7 +1116,7 @@ func TestGetFundingHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.GetFundingHistory()
+	_, err := f.GetFundingHistory(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -1129,7 +1130,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 	start := time.Date(2019, 11, 12, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 2)
-	_, err = f.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneDay)
+	_, err = f.GetHistoricCandles(context.Background(),
+		currencyPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1143,7 +1145,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	start := time.Date(2019, 11, 12, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 2)
-	_, err = f.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneDay)
+	_, err = f.GetHistoricCandlesExtended(context.Background(),
+		currencyPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1367,7 +1370,8 @@ func TestGetHistoricTrades(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(),
+		_, err = f.GetHistoricTrades(context.Background(),
+			enabledPairs.GetRandomPair(),
 			assets[i],
 			time.Now().Add(-time.Minute*15),
 			time.Now())
@@ -1385,7 +1389,8 @@ func TestGetRecentTrades(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = f.GetRecentTrades(enabledPairs.GetRandomPair(), assets[i])
+		_, err = f.GetRecentTrades(context.Background(),
+			enabledPairs.GetRandomPair(), assets[i])
 		if err != nil {
 			t.Error(err)
 		}

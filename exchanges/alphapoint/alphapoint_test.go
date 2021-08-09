@@ -1,6 +1,7 @@
 package alphapoint
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"testing"
@@ -320,7 +321,7 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.UpdateAccountInfo(asset.Spot)
+	_, err := a.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}
@@ -438,7 +439,7 @@ func TestGetActiveOrders(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
-	_, err := a.GetActiveOrders(&getOrdersRequest)
+	_, err := a.GetActiveOrders(context.Background(), &getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -453,7 +454,7 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
-	_, err := a.GetOrderHistory(&getOrdersRequest)
+	_, err := a.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -484,7 +485,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
-	response, err := a.SubmitOrder(orderSubmission)
+	response, err := a.SubmitOrder(context.Background(), orderSubmission)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -512,7 +513,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		AssetType:     asset.Spot,
 	}
 
-	err := a.CancelOrder(orderCancellation)
+	err := a.CancelOrder(context.Background(), orderCancellation)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -536,7 +537,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AssetType:     asset.Spot,
 	}
 
-	resp, err := a.CancelAllOrders(orderCancellation)
+	resp, err := a.CancelAllOrders(context.Background(), orderCancellation)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -562,7 +563,8 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-	_, err := a.WithdrawCryptocurrencyFunds(&withdraw.Request{})
+	_, err := a.WithdrawCryptocurrencyFunds(context.Background(),
+		&withdraw.Request{})
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not implemented', received %v", err)
 	}
@@ -574,7 +576,8 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := a.WithdrawFiatFunds(&withdraw.Request{})
+	_, err := a.WithdrawFiatFunds(context.Background(),
+		&withdraw.Request{})
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
 	}
@@ -610,7 +613,8 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = a.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err = a.GetHistoricTrades(context.Background(),
+		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrNotYetImplemented {
 		t.Error(err)
 	}

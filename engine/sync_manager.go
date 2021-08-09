@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -592,7 +593,9 @@ func (m *syncManager) worker() {
 								}
 
 								m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
-								result, err := exchanges[x].UpdateOrderbook(c.Pair, c.AssetType)
+								result, err := exchanges[x].UpdateOrderbook(context.TODO(),
+									c.Pair,
+									c.AssetType)
 								m.PrintOrderbookSummary(result, "REST", err)
 								if err == nil {
 									if m.remoteConfig.WebsocketRPC.Enabled {
@@ -652,17 +655,23 @@ func (m *syncManager) worker() {
 												if m.config.Verbose {
 													log.Debugf(log.SyncMgr, "%s Init'ing REST ticker batching\n", exchangeName)
 												}
-												result, err = exchanges[x].UpdateTicker(c.Pair, c.AssetType)
+												result, err = exchanges[x].UpdateTicker(context.TODO(),
+													c.Pair,
+													c.AssetType)
 												m.tickerBatchLastRequested[exchangeName] = time.Now()
 												m.mux.Unlock()
 											} else {
 												if m.config.Verbose {
 													log.Debugf(log.SyncMgr, "%s Using recent batching cache\n", exchangeName)
 												}
-												result, err = exchanges[x].FetchTicker(c.Pair, c.AssetType)
+												result, err = exchanges[x].FetchTicker(context.TODO(),
+													c.Pair,
+													c.AssetType)
 											}
 										} else {
-											result, err = exchanges[x].UpdateTicker(c.Pair, c.AssetType)
+											result, err = exchanges[x].UpdateTicker(context.TODO(),
+												c.Pair,
+												c.AssetType)
 										}
 										m.PrintTickerSummary(result, "REST", err)
 										if err == nil {

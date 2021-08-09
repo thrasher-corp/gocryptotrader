@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -95,7 +96,7 @@ func TestExchange_Ticker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = exchangeTest.Ticker(exchName, c, assetType)
+	_, err = exchangeTest.Ticker(context.Background(), exchName, c, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +108,7 @@ func TestExchange_Orderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = exchangeTest.Orderbook(exchName, c, assetType)
+	_, err = exchangeTest.Orderbook(context.Background(), exchName, c, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +130,8 @@ func TestExchange_AccountInformation(t *testing.T) {
 	if !configureExchangeKeys() {
 		t.Skip("no exchange configured test skipped")
 	}
-	_, err := exchangeTest.AccountInformation(exchName, asset.Spot)
+	_, err := exchangeTest.AccountInformation(context.Background(),
+		exchName, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +142,8 @@ func TestExchange_QueryOrder(t *testing.T) {
 		t.Skip("no exchange configured test skipped")
 	}
 	t.Parallel()
-	_, err := exchangeTest.QueryOrder(exchName, orderID, currency.Pair{}, assetType)
+	_, err := exchangeTest.QueryOrder(context.Background(),
+		exchName, orderID, currency.Pair{}, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +171,7 @@ func TestExchange_SubmitOrder(t *testing.T) {
 		Exchange:     exchName,
 		AssetType:    asset.Spot,
 	}
-	_, err = exchangeTest.SubmitOrder(tempOrder)
+	_, err = exchangeTest.SubmitOrder(context.Background(), tempOrder)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +184,8 @@ func TestExchange_CancelOrder(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Spot
-	_, err := exchangeTest.CancelOrder(exchName, orderID, cp, a)
+	_, err := exchangeTest.CancelOrder(context.Background(),
+		exchName, orderID, cp, a)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +195,7 @@ func TestOHLCV(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPair(currency.BTC, currency.AUD)
 	cp.Delimiter = currency.DashDelimiter
-	calvinKline, err := exchangeTest.OHLCV(exchName, cp, assetType, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.OneHour)
+	calvinKline, err := exchangeTest.OHLCV(context.Background(), exchName, cp, assetType, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.OneHour)
 	if err != nil {
 		t.Error(err)
 	}
