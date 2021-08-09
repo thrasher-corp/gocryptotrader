@@ -666,7 +666,6 @@ func (f *FTX) Order(
 	clientID string,
 	price, size float64,
 ) (OrderData, error) {
-	//
 	req := make(map[string]interface{})
 	req["market"] = marketName
 	req["side"] = side
