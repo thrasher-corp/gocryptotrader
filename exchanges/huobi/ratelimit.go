@@ -1,6 +1,7 @@
 package huobi
 
 import (
+	"context"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -41,24 +42,23 @@ type RateLimit struct {
 }
 
 // Limit limits outbound requests
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	switch f {
 	// TODO: Add futures and swap functionality
 	case huobiFuturesAuth:
-		time.Sleep(r.FuturesAuth.Reserve().Delay())
+		return r.FuturesAuth.Wait(ctx)
 	case huobiFuturesUnAuth:
-		time.Sleep(r.FuturesUnauth.Reserve().Delay())
+		return r.FuturesUnauth.Wait(ctx)
 	case huobiFuturesTransfer:
-		time.Sleep(r.FuturesXfer.Reserve().Delay())
+		return r.FuturesXfer.Wait(ctx)
 	case huobiSwapAuth:
-		time.Sleep(r.SwapAuth.Reserve().Delay())
+		return r.SwapAuth.Wait(ctx)
 	case huobiSwapUnauth:
-		time.Sleep(r.SwapUnauth.Reserve().Delay())
+		return r.SwapUnauth.Wait(ctx)
 	default:
 		// Spot calls
-		time.Sleep(r.Spot.Reserve().Delay())
+		return r.Spot.Wait(ctx)
 	}
-	return nil
 }
 
 // SetRateLimit returns the rate limit for the exchange
