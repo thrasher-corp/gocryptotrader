@@ -1,7 +1,6 @@
 package ftx
 
 import (
-	"sync"
 	"testing"
 	"time"
 
@@ -35,36 +34,15 @@ func parseRaw(t *testing.T, input string) interface{} {
 				},
 			},
 			Websocket: &stream.Websocket{
-				DataHandler: make(chan interface{}),
+				DataHandler: make(chan interface{}, 1),
 			},
 		},
 	}
-	var (
-		wg  sync.WaitGroup
-		err error
-		ans interface{}
-	)
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err = x.wsHandleData([]byte(input))
-	}()
-
-	// Give the channel limited time to yield the data.
-	ticker := time.NewTicker(1 * time.Second)
-	select {
-	case <-ticker.C:
-		t.Fatal("timeout")
-	case ans = <-f.Websocket.DataHandler:
-	}
-
-	// Wait for the gouroutine to finish so we can check if there was an error.
-	wg.Wait()
-	if err != nil {
+	if err := x.wsHandleData([]byte(input)); err != nil {
 		t.Fatal(err)
 	}
-	return ans
+	return <-x.Websocket.DataHandler
 }
 
 func TestFTX_wsHandleData_Details(t *testing.T) {
@@ -112,7 +90,7 @@ func TestFTX_wsHandleData_Details(t *testing.T) {
 		x.AverageExecutedPrice != 32768 ||
 		!x.PostOnly ||
 		!x.Date.Equal(time.Unix(1628418902, 649437000).UTC()) {
-		//
+
 		t.Error("parsed values do not match")
 	}
 
