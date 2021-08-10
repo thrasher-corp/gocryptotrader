@@ -51,6 +51,7 @@ var (
 	ErrStartEqualsEnd = errors.New("start date equals end date")
 	// ErrStartAfterTimeNow is an error for start end check calculations
 	ErrStartAfterTimeNow = errors.New("start date is after current time")
+	errContextRequired   = errors.New("context is required")
 )
 
 func initialiseHTTPClient() {
@@ -184,6 +185,9 @@ func YesOrNo(input string) bool {
 // SendHTTPRequest sends a request using the http package and returns a response
 // as a string and an error
 func SendHTTPRequest(ctx context.Context, method, urlPath string, headers map[string]string, body io.Reader) (string, error) {
+	if ctx == nil {
+		return "", errContextRequired
+	}
 	result := strings.ToUpper(method)
 
 	if result != http.MethodOptions && result != http.MethodGet &&
