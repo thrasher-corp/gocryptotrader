@@ -188,3 +188,39 @@ type CancelOrderResponse struct {
 	TradeType   RequestParamsOrderType     `json:"type"`
 	Side        string                     `json:"side"`
 }
+
+// HistoricalTrade holds recent trade data
+type HistoricalTrade struct {
+	Symbol          string  `json:"symbol"`
+	ID              int64   `json:"id"`
+	OrderID         int64   `json:"orderId"`
+	Price           float64 `json:"price,string"`
+	Quantity        float64 `json:"qty,string"`
+	Commission      float64 `json:"commission,string"`
+	CommissionAsset float64 `json:"commissionAsset,string"`
+	Time            int64   `json:"time"`
+	IsBuyer         bool    `json:"isBuyer"`
+	IsMaker         bool    `json:"isMaker"`
+	SymbolName      string  `json:"symbolName"`
+	MatchOrderId    int64   `json:"matchOrderId"`
+	Fee             FeeData `json:""fee`
+	FeeTokenId      string  `json:"feeTokenId"`
+	FeeAmount       float64 `json:"feeAmount,string"`
+	MakerRebate     float64 `json:"makerRebate,string"`
+}
+
+type FeeData struct {
+	FeeTokenId   int64   `json:"feeTokenId"`
+	FeeTokenName string  `json:"feeTokenName"`
+	Fee          float64 `json:"fee,string"`
+}
+
+// Balance holds wallet balance
+type Balance struct {
+	Coin     string  `json:"coin"`
+	CoinID   string  `json:"coinId"`
+	CoinName string  `json:"coinName"`
+	Total    string  `json:"total"`
+	Free     float64 `json:"free,string"`
+	Locked   float64 `json:"locked,string"`
+}

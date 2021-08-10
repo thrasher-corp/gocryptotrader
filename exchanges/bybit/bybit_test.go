@@ -58,6 +58,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestGetAllPairs(t *testing.T) {
+	by.Verbose = true
 	t.Parallel()
 
 	_, err := by.GetAllPairs()
@@ -167,6 +168,56 @@ func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
 	r, err := by.CancelExistingOrder("", "linkID")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", r)
+}
+
+func TestBatchCancelOrder(t *testing.T) {
+	t.Parallel()
+
+	r, err := by.BatchCancelOrder("", "BUY", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", r)
+}
+
+func TestListOpenOrders(t *testing.T) {
+	t.Parallel()
+
+	r, err := by.ListOpenOrders("", "BUY", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", r)
+}
+
+func TestListPastOrders(t *testing.T) {
+	t.Parallel()
+
+	r, err := by.ListPastOrders("", "BUY", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", r)
+}
+
+func TestGetTradeHistory(t *testing.T) {
+	t.Parallel()
+
+	r, err := by.GetTradeHistory("", 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", r)
+}
+
+func TestGetWalletBalance(t *testing.T) {
+	t.Parallel()
+
+	r, err := by.GetWalletBalance()
 	if err != nil {
 		t.Fatal(err)
 	}

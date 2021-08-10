@@ -572,6 +572,109 @@ func (by *Bybit) CancelExistingOrder(orderID, orderLinkID string) (*CancelOrderR
 	return &resp.Data, nil
 }
 
+func (by *Bybit) BatchCancelOrder(symbol, side, orderTypes string) (bool, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderTypes != "" {
+		params.Set("orderTypes", orderTypes)
+	}
+
+	resp := struct {
+		Success bool `json:"success"`
+	}{}
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, "DELETE", bybitBatchCancelSpotOrder, params, resp, bithumbAuthRate)
+	if err != nil {
+		return false, err
+	}
+	return resp.Success, nil
+}
+
+func (by *Bybit) ListOpenOrders(symbol, orderID string, limit int64) ([]QueryOrderResponse, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	resp := struct {
+		Data []QueryOrderResponse `json:"result"`
+	}{}
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, "GET", bybitOpenOrder, params, resp, bithumbAuthRate)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
+}
+
+func (by *Bybit) ListPastOrders(symbol, orderID string, limit int64) ([]QueryOrderResponse, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	resp := struct {
+		Data []QueryOrderResponse `json:"result"`
+	}{}
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, "GET", bybitPastOrder, params, resp, bithumbAuthRate)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
+}
+
+func (by *Bybit) GetTradeHistory(symbol string, limit, formID, told int64) ([]HistoricalTrade, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if formID != 0 {
+		params.Set("formId", strconv.FormatInt(formID, 10))
+	}
+	if told != 0 {
+		params.Set("told", strconv.FormatInt(told, 10))
+	}
+
+	resp := struct {
+		Data []HistoricalTrade `json:"result"`
+	}{}
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, "GET", bybitPastOrder, params, resp, bithumbAuthRate)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
+}
+
+func (by *Bybit) GetWalletBalance() ([]Balance, error) {
+	resp := struct {
+		Data struct {
+			Balances []Balance `json:"balances"`
+		} `json:"result"`
+	}{}
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, "GET", bybitWalletBalance, url.Values{}, resp, bithumbAuthRate)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Data.Balances, nil
+}
+
 // SendHTTPRequest sends an unauthenticated request
 func (by *Bybit) SendHTTPRequest(ePath exchange.URL, path string, result interface{}) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
