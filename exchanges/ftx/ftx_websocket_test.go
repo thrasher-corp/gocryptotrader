@@ -15,8 +15,8 @@ func parseRaw(t *testing.T, input string) interface{} {
 	t.Helper()
 	pairs := currency.Pairs{
 		currency.Pair{
-			Base:  currency.NewCode("BTC"),
-			Quote: currency.NewCode("USDT"),
+			Base:  currency.BTC,
+			Quote: currency.USDT,
 		},
 	}
 	x := FTX{
