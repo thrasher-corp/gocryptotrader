@@ -190,7 +190,6 @@ func TestFTX_wsHandleData_wsFills(t *testing.T) {
 		x.Fee != 16 ||
 		x.FeeCurrency != "FTT" ||
 		x.Liquidity != "maker" {
-		//
 		t.Error("parsed values do not match")
 	}
 }
