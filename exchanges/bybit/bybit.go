@@ -515,12 +515,15 @@ func (by *Bybit) CreatePostOrder(o *PlaceOrderRequest) (*PlaceOrderResponse, err
 	if o.OrderLinkID != "" {
 		params.Set("orderLinkId", string(o.OrderLinkID))
 	}
-	var resp PlaceOrderResponse
+
+	resp := struct {
+		Data PlaceOrderResponse `json:"result"`
+	}{}
 	err := by.SendAuthHTTPRequest(exchange.RestSpot, "POST", bybitAuthenticatedSpotOrder, params, resp, bithumbAuthRate)
 	if err != nil {
 		return nil, err
 	}
-	return &resp, nil
+	return &resp.Data, nil
 }
 
 func (by *Bybit) QueryOrder(orderID, orderLinkID string) (*QueryOrderResponse, error) {
@@ -536,12 +539,14 @@ func (by *Bybit) QueryOrder(orderID, orderLinkID string) (*QueryOrderResponse, e
 		params.Set("orderLinkId", orderLinkID)
 	}
 
-	var resp QueryOrderResponse
+	resp := struct {
+		Data QueryOrderResponse `json:"result"`
+	}{}
 	err := by.SendAuthHTTPRequest(exchange.RestSpot, "GET", bybitAuthenticatedSpotOrder, params, resp, bithumbAuthRate)
 	if err != nil {
 		return nil, err
 	}
-	return &resp, nil
+	return &resp.Data, nil
 }
 
 func (by *Bybit) CancelExistingOrder(orderID, orderLinkID string) (*CancelOrderResponse, error) {
@@ -557,12 +562,14 @@ func (by *Bybit) CancelExistingOrder(orderID, orderLinkID string) (*CancelOrderR
 		params.Set("orderLinkId", orderLinkID)
 	}
 
-	var resp CancelOrderResponse
+	resp := struct {
+		Data CancelOrderResponse `json:"result"`
+	}{}
 	err := by.SendAuthHTTPRequest(exchange.RestSpot, "DELETE", bybitAuthenticatedSpotOrder, params, resp, bithumbAuthRate)
 	if err != nil {
 		return nil, err
 	}
-	return &resp, nil
+	return &resp.Data, nil
 }
 
 // SendHTTPRequest sends an unauthenticated request
