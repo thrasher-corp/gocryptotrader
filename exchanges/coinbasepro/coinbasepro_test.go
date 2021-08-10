@@ -62,21 +62,21 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetProducts(t *testing.T) {
-	_, err := c.GetProducts()
+	_, err := c.GetProducts(context.Background())
 	if err != nil {
 		t.Errorf("Coinbase, GetProducts() Error: %s", err)
 	}
 }
 
 func TestGetTicker(t *testing.T) {
-	_, err := c.GetTicker(testPair.String())
+	_, err := c.GetTicker(context.Background(), testPair.String())
 	if err != nil {
 		t.Error("GetTicker() error", err)
 	}
 }
 
 func TestGetTrades(t *testing.T) {
-	_, err := c.GetTrades(testPair.String())
+	_, err := c.GetTrades(context.Background(), testPair.String())
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
@@ -104,21 +104,21 @@ func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
 }
 
 func TestGetStats(t *testing.T) {
-	_, err := c.GetStats(testPair.String())
+	_, err := c.GetStats(context.Background(), testPair.String())
 	if err != nil {
 		t.Error("GetStats() error", err)
 	}
 }
 
 func TestGetCurrencies(t *testing.T) {
-	_, err := c.GetCurrencies()
+	_, err := c.GetCurrencies(context.Background())
 	if err != nil {
 		t.Error("GetCurrencies() error", err)
 	}
 }
 
 func TestGetServerTime(t *testing.T) {
-	_, err := c.GetServerTime()
+	_, err := c.GetServerTime(context.Background())
 	if err != nil {
 		t.Error("GetServerTime() error", err)
 	}
@@ -128,32 +128,36 @@ func TestAuthRequests(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	_, err := c.GetAccounts()
+	_, err := c.GetAccounts(context.Background())
 	if err != nil {
 		t.Error("GetAccounts() error", err)
 	}
-	accountResponse, err := c.GetAccount("13371337-1337-1337-1337-133713371337")
+	accountResponse, err := c.GetAccount(context.Background(),
+		"13371337-1337-1337-1337-133713371337")
 	if accountResponse.ID != "" {
 		t.Error("Expecting no data returned")
 	}
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	accountHistoryResponse, err := c.GetAccountHistory("13371337-1337-1337-1337-133713371337")
+	accountHistoryResponse, err := c.GetAccountHistory(context.Background(),
+		"13371337-1337-1337-1337-133713371337")
 	if len(accountHistoryResponse) > 0 {
 		t.Error("Expecting no data returned")
 	}
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	getHoldsResponse, err := c.GetHolds("13371337-1337-1337-1337-133713371337")
+	getHoldsResponse, err := c.GetHolds(context.Background(),
+		"13371337-1337-1337-1337-133713371337")
 	if len(getHoldsResponse) > 0 {
 		t.Error("Expecting no data returned")
 	}
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	orderResponse, err := c.PlaceLimitOrder("", 0.001, 0.001,
+	orderResponse, err := c.PlaceLimitOrder(context.Background(),
+		"", 0.001, 0.001,
 		order.Buy.Lower(), "", "", testPair.String(), "", false)
 	if orderResponse != "" {
 		t.Error("Expecting no data returned")
@@ -161,7 +165,8 @@ func TestAuthRequests(t *testing.T) {
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	marketOrderResponse, err := c.PlaceMarketOrder("", 1, 0,
+	marketOrderResponse, err := c.PlaceMarketOrder(context.Background(),
+		"", 1, 0,
 		order.Buy.Lower(), testPair.String(), "")
 	if marketOrderResponse != "" {
 		t.Error("Expecting no data returned")
@@ -169,37 +174,39 @@ func TestAuthRequests(t *testing.T) {
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	fillsResponse, err := c.GetFills("1337", testPair.String())
+	fillsResponse, err := c.GetFills(context.Background(),
+		"1337", testPair.String())
 	if len(fillsResponse) > 0 {
 		t.Error("Expecting no data returned")
 	}
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	_, err = c.GetFills("", "")
+	_, err = c.GetFills(context.Background(), "", "")
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	marginTransferResponse, err := c.MarginTransfer(1, "withdraw", "13371337-1337-1337-1337-133713371337", "BTC")
+	marginTransferResponse, err := c.MarginTransfer(context.Background(),
+		1, "withdraw", "13371337-1337-1337-1337-133713371337", "BTC")
 	if marginTransferResponse.ID != "" {
 		t.Error("Expecting no data returned")
 	}
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	_, err = c.GetPosition()
+	_, err = c.GetPosition(context.Background())
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	_, err = c.ClosePosition(false)
+	_, err = c.ClosePosition(context.Background(), false)
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	_, err = c.GetPayMethods()
+	_, err = c.GetPayMethods(context.Background())
 	if err != nil {
 		t.Error("GetPayMethods() error", err)
 	}
-	_, err = c.GetCoinbaseAccounts()
+	_, err = c.GetCoinbaseAccounts(context.Background())
 	if err != nil {
 		t.Error("GetCoinbaseAccounts() error", err)
 	}
@@ -234,7 +241,7 @@ func TestGetFee(t *testing.T) {
 
 	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
-		if _, err := c.GetFee(feeBuilder); err != nil {
+		if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 
@@ -242,21 +249,21 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
-		if _, err := c.GetFee(feeBuilder); err != nil {
+		if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee IsMaker
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
-		if _, err := c.GetFee(feeBuilder); err != nil {
+		if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee Negative purchase price
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
-		if _, err := c.GetFee(feeBuilder); err != nil {
+		if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 	}
@@ -264,14 +271,14 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := c.GetFee(feeBuilder); err != nil {
+	if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
-	if _, err := c.GetFee(feeBuilder); err != nil {
+	if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -279,7 +286,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.EUR
-	if _, err := c.GetFee(feeBuilder); err != nil {
+	if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -287,7 +294,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
-	if _, err := c.GetFee(feeBuilder); err != nil {
+	if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 }

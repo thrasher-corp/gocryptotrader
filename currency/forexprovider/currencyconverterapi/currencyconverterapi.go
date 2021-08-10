@@ -167,7 +167,7 @@ func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, 
 		Result:      result,
 		AuthRequest: auth,
 		Verbose:     c.Verbose}
-	err := c.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+	err := c.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	})
 

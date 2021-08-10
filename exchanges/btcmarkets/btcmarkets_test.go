@@ -65,7 +65,7 @@ func areTestAPIKeysSet() bool {
 
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarkets()
+	_, err := b.GetMarkets(context.Background())
 	if err != nil {
 		t.Error("GetTicker() error", err)
 	}
@@ -73,7 +73,7 @@ func TestGetMarkets(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker(BTCAUD)
+	_, err := b.GetTicker(context.Background(), BTCAUD)
 	if err != nil {
 		t.Error("GetOrderbook() error", err)
 	}
@@ -81,7 +81,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTrades(BTCAUD, 0, 0, 5)
+	_, err := b.GetTrades(context.Background(), BTCAUD, 0, 0, 5)
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
@@ -89,7 +89,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderbook(BTCAUD, 2)
+	_, err := b.GetOrderbook(context.Background(), BTCAUD, 2)
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
@@ -97,7 +97,8 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetMarketCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketCandles(BTCAUD, "1h", time.Now().UTC().Add(-time.Hour*24), time.Now().UTC(), -1, -1, -1)
+	_, err := b.GetMarketCandles(context.Background(),
+		BTCAUD, "1h", time.Now().UTC().Add(-time.Hour*24), time.Now().UTC(), -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -109,7 +110,7 @@ func TestGetTickers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetTickers(temp)
+	_, err = b.GetTickers(context.Background(), temp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -118,7 +119,7 @@ func TestGetTickers(t *testing.T) {
 func TestGetMultipleOrderbooks(t *testing.T) {
 	t.Parallel()
 	temp := []string{BTCAUD, LTCAUD, ETHAUD}
-	_, err := b.GetMultipleOrderbooks(temp)
+	_, err := b.GetMultipleOrderbooks(context.Background(), temp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -126,7 +127,7 @@ func TestGetMultipleOrderbooks(t *testing.T) {
 
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetServerTime()
+	_, err := b.GetServerTime(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,7 +138,7 @@ func TestGetAccountBalance(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetAccountBalance()
+	_, err := b.GetAccountBalance(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -148,7 +149,7 @@ func TestGetTradingFees(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetTradingFees()
+	_, err := b.GetTradingFees(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -159,15 +160,15 @@ func TestGetTradeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetTradeHistory(ETHAUD, "", -1, -1, -1)
+	_, err := b.GetTradeHistory(context.Background(), ETHAUD, "", -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetTradeHistory(BTCAUD, "", -1, -1, 1)
+	_, err = b.GetTradeHistory(context.Background(), BTCAUD, "", -1, -1, 1)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetTradeHistory(fakePair, "", -1, -1, -1)
+	_, err = b.GetTradeHistory(context.Background(), fakePair, "", -1, -1, -1)
 	if err == nil {
 		t.Error("expected an error due to invalid trading pair")
 	}
@@ -178,7 +179,7 @@ func TestGetTradeByID(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetTradeByID("4712043732")
+	_, err := b.GetTradeByID(context.Background(), "4712043732")
 	if err != nil {
 		t.Error(err)
 	}
@@ -189,15 +190,18 @@ func TestNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := b.NewOrder(BTCAUD, 100, 1, limit, bid, 0, 0, "", true, "", "")
+	_, err := b.NewOrder(context.Background(),
+		BTCAUD, 100, 1, limit, bid, 0, 0, "", true, "", "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.NewOrder(BTCAUD, 100, 1, "invalid", bid, 0, 0, "", true, "", "")
+	_, err = b.NewOrder(context.Background(),
+		BTCAUD, 100, 1, "invalid", bid, 0, 0, "", true, "", "")
 	if err == nil {
 		t.Error("expected an error due to invalid ordertype")
 	}
-	_, err = b.NewOrder(BTCAUD, 100, 1, limit, "invalid", 0, 0, "", true, "", "")
+	_, err = b.NewOrder(context.Background(),
+		BTCAUD, 100, 1, limit, "invalid", 0, 0, "", true, "", "")
 	if err == nil {
 		t.Error("expected an error due to invalid orderside")
 	}
@@ -208,11 +212,11 @@ func TestGetOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetOrders("", -1, -1, 2, false)
+	_, err := b.GetOrders(context.Background(), "", -1, -1, 2, false)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOrders(LTCAUD, -1, -1, -1, true)
+	_, err = b.GetOrders(context.Background(), LTCAUD, -1, -1, -1, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -224,12 +228,12 @@ func TestCancelOpenOrders(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	temp := []string{BTCAUD, LTCAUD}
-	_, err := b.CancelAllOpenOrdersByPairs(temp)
+	_, err := b.CancelAllOpenOrdersByPairs(context.Background(), temp)
 	if err != nil {
 		t.Error(err)
 	}
 	temp = []string{BTCAUD, fakePair}
-	_, err = b.CancelAllOpenOrdersByPairs(temp)
+	_, err = b.CancelAllOpenOrdersByPairs(context.Background(), temp)
 	if err == nil {
 		t.Error("expected an error due to invalid marketID")
 	}
@@ -240,11 +244,11 @@ func TestFetchOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.FetchOrder("4477045999")
+	_, err := b.FetchOrder(context.Background(), "4477045999")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.FetchOrder("696969")
+	_, err = b.FetchOrder(context.Background(), "696969")
 	if err == nil {
 		t.Error(err)
 	}
@@ -255,7 +259,7 @@ func TestRemoveOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := b.RemoveOrder("")
+	_, err := b.RemoveOrder(context.Background(), "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -266,7 +270,7 @@ func TestListWithdrawals(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.ListWithdrawals(-1, -1, -1)
+	_, err := b.ListWithdrawals(context.Background(), -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -277,7 +281,7 @@ func TestGetWithdrawal(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetWithdrawal("4477381751")
+	_, err := b.GetWithdrawal(context.Background(), "4477381751")
 	if err != nil {
 		t.Error(err)
 	}
@@ -288,7 +292,7 @@ func TestListDeposits(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.ListDeposits(-1, -1, -1)
+	_, err := b.ListDeposits(context.Background(), -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -299,7 +303,7 @@ func TestGetDeposit(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetDeposit("4476769607")
+	_, err := b.GetDeposit(context.Background(), "4476769607")
 	if err != nil {
 		t.Error(err)
 	}
@@ -310,7 +314,7 @@ func TestListTransfers(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.ListTransfers(-1, -1, -1)
+	_, err := b.ListTransfers(context.Background(), -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -321,11 +325,11 @@ func TestGetTransfer(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetTransfer("4476769607")
+	_, err := b.GetTransfer(context.Background(), "4476769607")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetTransfer("6969696")
+	_, err = b.GetTransfer(context.Background(), "6969696")
 	if err == nil {
 		t.Error("expected an error due to invalid transferID")
 	}
@@ -336,11 +340,11 @@ func TestFetchDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.FetchDepositAddress("LTC", -1, -1, -1)
+	_, err := b.FetchDepositAddress(context.Background(), "LTC", -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.FetchDepositAddress(fakePair, -1, -1, -1)
+	_, err = b.FetchDepositAddress(context.Background(), fakePair, -1, -1, -1)
 	if err != nil {
 		t.Error("expected an error due to invalid assetID")
 	}
@@ -348,7 +352,7 @@ func TestFetchDepositAddress(t *testing.T) {
 
 func TestGetWithdrawalFees(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetWithdrawalFees()
+	_, err := b.GetWithdrawalFees(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -359,7 +363,7 @@ func TestListAssets(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.ListAssets()
+	_, err := b.ListAssets(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -370,7 +374,7 @@ func TestGetTransactions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetTransactions("", -1, -1, -1)
+	_, err := b.GetTransactions(context.Background(), "", -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -381,7 +385,7 @@ func TestCreateNewReport(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.CreateNewReport("TransactionReport", "json")
+	_, err := b.CreateNewReport(context.Background(), "TransactionReport", "json")
 	if err != nil {
 		t.Error(err)
 	}
@@ -392,7 +396,7 @@ func TestGetReport(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetReport("1kv38epne5v7lek9f18m60idg6")
+	_, err := b.GetReport(context.Background(), "1kv38epne5v7lek9f18m60idg6")
 	if err != nil {
 		t.Error(err)
 	}
@@ -403,7 +407,7 @@ func TestRequestWithdaw(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := b.RequestWithdraw("BTC", 1, "sdjflajdslfjld", "", "", "", "")
+	_, err := b.RequestWithdraw(context.Background(), "BTC", 1, "sdjflajdslfjld", "", "", "", "")
 	if err == nil {
 		t.Error("expected an error due to invalid toAddress")
 	}
@@ -422,7 +426,7 @@ func TestBatchPlaceCancelOrders(t *testing.T) {
 		OrderType: order.Limit.String(),
 		Side:      bid,
 	}
-	_, err := b.BatchPlaceCancelOrders(nil, append(temp, o))
+	_, err := b.BatchPlaceCancelOrders(context.Background(), nil, append(temp, o))
 	if err != nil {
 		t.Error(err)
 	}
@@ -434,7 +438,7 @@ func TestGetBatchTrades(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 	temp := []string{"4477045999", "4477381751", "4476769607"}
-	_, err := b.GetBatchTrades(temp)
+	_, err := b.GetBatchTrades(context.Background(), temp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -446,7 +450,7 @@ func TestCancelBatch(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	temp := []string{"4477045999", "4477381751", "4477381751"}
-	_, err := b.CancelBatch(temp)
+	_, err := b.CancelBatch(context.Background(), temp)
 	if err != nil {
 		t.Error(err)
 	}

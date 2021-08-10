@@ -42,12 +42,12 @@ func TestGetTicker(t *testing.T) {
 	var ticker Ticker
 	var err error
 	if onlineTest {
-		ticker, err = a.GetTicker("BTCUSD")
+		ticker, err = a.GetTicker(context.Background(), "BTCUSD")
 		if err != nil {
 			t.Fatal("Alphapoint GetTicker init error: ", err)
 		}
 
-		_, err = a.GetTicker("wigwham")
+		_, err = a.GetTicker(context.Background(), "wigwham")
 		if err == nil {
 			t.Error("Alphapoint GetTicker Expected error")
 		}
@@ -76,12 +76,12 @@ func TestGetTrades(t *testing.T) {
 	var trades Trades
 	var err error
 	if onlineTest {
-		trades, err = a.GetTrades("BTCUSD", 0, 10)
+		trades, err = a.GetTrades(context.Background(), "BTCUSD", 0, 10)
 		if err != nil {
 			t.Fatalf("Init error: %s", err)
 		}
 
-		_, err = a.GetTrades("wigwham", 0, 10)
+		_, err = a.GetTrades(context.Background(), "wigwham", 0, 10)
 		if err == nil {
 			t.Fatal("GetTrades Expected error")
 		}
@@ -114,11 +114,13 @@ func TestGetTradesByDate(t *testing.T) {
 	var trades Trades
 	var err error
 	if onlineTest {
-		trades, err = a.GetTradesByDate("BTCUSD", 1414799400, 1414800000)
+		trades, err = a.GetTradesByDate(context.Background(),
+			"BTCUSD", 1414799400, 1414800000)
 		if err != nil {
 			t.Errorf("Init error: %s", err)
 		}
-		_, err = a.GetTradesByDate("wigwham", 1414799400, 1414800000)
+		_, err = a.GetTradesByDate(context.Background(),
+			"wigwham", 1414799400, 1414800000)
 		if err == nil {
 			t.Error("GetTradesByDate Expected error")
 		}
@@ -158,12 +160,12 @@ func TestGetOrderbook(t *testing.T) {
 	var orderBook Orderbook
 	var err error
 	if onlineTest {
-		orderBook, err = a.GetOrderbook("BTCUSD")
+		orderBook, err = a.GetOrderbook(context.Background(), "BTCUSD")
 		if err != nil {
 			t.Errorf("Init error: %s", err)
 		}
 
-		_, err = a.GetOrderbook("wigwham")
+		_, err = a.GetOrderbook(context.Background(), "wigwham")
 		if err == nil {
 			t.Error("GetOrderbook() Expected error")
 		}
@@ -201,7 +203,7 @@ func TestGetProductPairs(t *testing.T) {
 	var err error
 
 	if onlineTest {
-		products, err = a.GetProductPairs()
+		products, err = a.GetProductPairs(context.Background())
 		if err != nil {
 			t.Errorf("Init error: %s", err)
 		}
@@ -239,7 +241,7 @@ func TestGetProducts(t *testing.T) {
 	var err error
 
 	if onlineTest {
-		products, err = a.GetProducts()
+		products, err = a.GetProducts(context.Background())
 		if err != nil {
 			t.Errorf("Init error: %s", err)
 		}
@@ -277,15 +279,17 @@ func TestCreateAccount(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	err := a.CreateAccount("test", "account", "something@something.com", "0292383745", "lolcat123")
+	err := a.CreateAccount(context.Background(),
+		"test", "account", "something@something.com", "0292383745", "lolcat123")
 	if err != nil {
 		t.Errorf("Init error: %s", err)
 	}
-	err = a.CreateAccount("test", "account", "something@something.com", "0292383745", "bla")
+	err = a.CreateAccount(context.Background(),
+		"test", "account", "something@something.com", "0292383745", "bla")
 	if err == nil {
 		t.Errorf("CreateAccount() Expected error")
 	}
-	err = a.CreateAccount("", "", "", "", "lolcat123")
+	err = a.CreateAccount(context.Background(), "", "", "", "", "lolcat123")
 	if err == nil {
 		t.Errorf("CreateAccount() Expected error")
 	}
@@ -297,7 +301,7 @@ func TestGetUserInfo(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.GetUserInfo()
+	_, err := a.GetUserInfo(context.Background())
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}
@@ -309,7 +313,8 @@ func TestSetUserInfo(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.SetUserInfo("bla", "bla", "1", "meh", true, true)
+	_, err := a.SetUserInfo(context.Background(),
+		"bla", "bla", "1", "meh", true, true)
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}
@@ -333,7 +338,7 @@ func TestGetAccountTrades(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.GetAccountTrades("", 1, 2)
+	_, err := a.GetAccountTrades(context.Background(), "", 1, 2)
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}
@@ -345,7 +350,7 @@ func TestGetDepositAddresses(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.GetDepositAddresses()
+	_, err := a.GetDepositAddresses(context.Background())
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}
@@ -357,7 +362,7 @@ func TestWithdrawCoins(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	err := a.WithdrawCoins("", "", "", 0.01)
+	err := a.WithdrawCoins(context.Background(), "", "", "", 0.01)
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}
@@ -369,7 +374,8 @@ func TestCreateOrder(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.CreateOrder("", "", order.Limit.String(), 0.01, 0)
+	_, err := a.CreateOrder(context.Background(),
+		"", "", order.Limit.String(), 0.01, 0)
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}
@@ -381,7 +387,7 @@ func TestModifyExistingOrder(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.ModifyExistingOrder("", 1, 1)
+	_, err := a.ModifyExistingOrder(context.Background(), "", 1, 1)
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}
@@ -393,7 +399,7 @@ func TestCancelAllExistingOrders(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	err := a.CancelAllExistingOrders("")
+	err := a.CancelAllExistingOrders(context.Background(), "")
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}
@@ -405,7 +411,7 @@ func TestGetOrders(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.GetOrders()
+	_, err := a.GetOrders(context.Background())
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}
@@ -417,7 +423,7 @@ func TestGetOrderFee(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.GetOrderFee("", "", 1, 1)
+	_, err := a.GetOrderFee(context.Background(), "", "", 1, 1)
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}

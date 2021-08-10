@@ -220,7 +220,7 @@ func (b *Bitstamp) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *Bitstamp) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	pairs, err := b.GetTradingPairs()
+	pairs, err := b.GetTradingPairs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +261,7 @@ func (b *Bitstamp) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		return nil, err
 	}
 
-	tick, err := b.GetTicker(fPair.String(), false)
+	tick, err := b.GetTicker(ctx, fPair.String(), false)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +305,7 @@ func (b *Bitstamp) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return b.GetFee(feeBuilder)
+	return b.GetFee(ctx, feeBuilder)
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
@@ -335,7 +335,7 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return book, err
 	}
 
-	orderbookNew, err := b.GetOrderbook(fPair.String())
+	orderbookNew, err := b.GetOrderbook(ctx, fPair.String())
 	if err != nil {
 		return book, err
 	}
@@ -365,7 +365,7 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = b.Name
-	accountBalance, err := b.GetBalance()
+	accountBalance, err := b.GetBalance(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -419,7 +419,7 @@ func (b *Bitstamp) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 	var tradeData []Transactions
-	tradeData, err = b.GetTransactions(p.String(), "")
+	tradeData, err = b.GetTransactions(ctx, p.String(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -469,7 +469,8 @@ func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (order.Subm
 
 	buy := s.Side == order.Buy
 	market := s.Type == order.Market
-	response, err := b.PlaceOrder(fPair.String(),
+	response, err := b.PlaceOrder(ctx,
+		fPair.String(),
 		s.Price,
 		s.Amount,
 		buy,
@@ -504,7 +505,7 @@ func (b *Bitstamp) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = b.CancelExistingOrder(orderIDInt)
+	_, err = b.CancelExistingOrder(ctx, orderIDInt)
 	return err
 }
 
@@ -515,7 +516,7 @@ func (b *Bitstamp) CancelBatchOrders(ctx context.Context, o []order.Cancel) (ord
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Bitstamp) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	success, err := b.CancelAllExistingOrders()
+	success, err := b.CancelAllExistingOrders(ctx)
 	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -534,7 +535,7 @@ func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, pair curren
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *Bitstamp) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	return b.GetCryptoDepositAddress(cryptocurrency)
+	return b.GetCryptoDepositAddress(ctx, cryptocurrency)
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -543,7 +544,8 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := b.CryptoWithdrawal(withdrawRequest.Amount,
+	resp, err := b.CryptoWithdrawal(ctx,
+		withdrawRequest.Amount,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.AddressTag,
@@ -570,7 +572,8 @@ func (b *Bitstamp) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withd
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := b.OpenBankWithdrawal(withdrawRequest.Amount,
+	resp, err := b.OpenBankWithdrawal(ctx,
+		withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Fiat.Bank.AccountName,
 		withdrawRequest.Fiat.Bank.IBAN,
@@ -604,7 +607,8 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(ctx context.Context, wit
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := b.OpenInternationalBankWithdrawal(withdrawRequest.Amount,
+	resp, err := b.OpenInternationalBankWithdrawal(ctx,
+		withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Fiat.Bank.AccountName,
 		withdrawRequest.Fiat.Bank.IBAN,
@@ -655,7 +659,7 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		currPair = fPair.String()
 	}
 
-	resp, err := b.GetOpenOrders(currPair)
+	resp, err := b.GetOpenOrders(ctx, currPair)
 	if err != nil {
 		return nil, err
 	}
@@ -716,7 +720,7 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		return nil, err
 	}
 
-	resp, err := b.GetUserTransactions(currPair)
+	resp, err := b.GetUserTransactions(ctx, currPair)
 	if err != nil {
 		return nil, err
 	}
@@ -803,7 +807,7 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		return kline.Item{}, err
 	}
 
-	candles, err := b.OHLC(
+	candles, err := b.OHLC(ctx,
 		formattedPair.Lower().String(),
 		start,
 		end,
@@ -858,7 +862,7 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 
 	for x := range dates.Ranges {
 		var candles OHLCResponse
-		candles, err = b.OHLC(
+		candles, err = b.OHLC(ctx,
 			formattedPair.Lower().String(),
 			dates.Ranges[x].Start.Time,
 			dates.Ranges[x].End.Time,

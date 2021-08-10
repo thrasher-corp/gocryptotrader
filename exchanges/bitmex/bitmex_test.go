@@ -64,12 +64,14 @@ func TestStart(t *testing.T) {
 
 func TestGetFullFundingHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFullFundingHistory("", "", "", "", "", true, time.Now().Add(-time.Minute), time.Now())
+	_, err := b.GetFullFundingHistory(context.Background(),
+		"", "", "", "", "", true, time.Now().Add(-time.Minute), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetFullFundingHistory("LTCUSD", "1", "", "", "", true, time.Now().Add(-time.Minute), time.Now())
+	_, err = b.GetFullFundingHistory(context.Background(),
+		"LTCUSD", "1", "", "", "", true, time.Now().Add(-time.Minute), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -80,7 +82,7 @@ func TestGetUrgentAnnouncement(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.GetUrgentAnnouncement()
+	_, err := b.GetUrgentAnnouncement(context.Background())
 	if err == nil {
 		t.Error("GetUrgentAnnouncement() Expected error")
 	}
@@ -91,7 +93,7 @@ func TestGetAPIKeys(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.GetAPIKeys()
+	_, err := b.GetAPIKeys(context.Background())
 	if err == nil {
 		t.Error("GetAPIKeys() Expected error")
 	}
@@ -100,7 +102,7 @@ func TestGetAPIKeys(t *testing.T) {
 func TestRemoveAPIKey(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.RemoveAPIKey(APIKeyParams{APIKeyID: "1337"})
+	_, err := b.RemoveAPIKey(context.Background(), APIKeyParams{APIKeyID: "1337"})
 	if err == nil {
 		t.Error("RemoveAPIKey() Expected error")
 	}
@@ -111,7 +113,7 @@ func TestDisableAPIKey(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.DisableAPIKey(APIKeyParams{APIKeyID: "1337"})
+	_, err := b.DisableAPIKey(context.Background(), APIKeyParams{APIKeyID: "1337"})
 	if err == nil {
 		t.Error("DisableAPIKey() Expected error")
 	}
@@ -122,7 +124,7 @@ func TestEnableAPIKey(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.EnableAPIKey(APIKeyParams{APIKeyID: "1337"})
+	_, err := b.EnableAPIKey(context.Background(), APIKeyParams{APIKeyID: "1337"})
 	if err == nil {
 		t.Error("EnableAPIKey() Expected error")
 	}
@@ -130,7 +132,7 @@ func TestEnableAPIKey(t *testing.T) {
 
 func TestGetTrollboxMessages(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTrollboxMessages(ChatGetParams{Count: 1})
+	_, err := b.GetTrollboxMessages(context.Background(), ChatGetParams{Count: 1})
 	if err != nil {
 		t.Error("GetTrollboxMessages() error", err)
 	}
@@ -141,9 +143,10 @@ func TestSendTrollboxMessage(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.SendTrollboxMessage(ChatSendParams{
-		ChannelID: 1337,
-		Message:   "Hello,World!"})
+	_, err := b.SendTrollboxMessage(context.Background(),
+		ChatSendParams{
+			ChannelID: 1337,
+			Message:   "Hello,World!"})
 	if err == nil {
 		t.Error("SendTrollboxMessage() Expected error")
 	}
@@ -151,7 +154,7 @@ func TestSendTrollboxMessage(t *testing.T) {
 
 func TestGetTrollboxChannels(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTrollboxChannels()
+	_, err := b.GetTrollboxChannels(context.Background())
 	if err != nil {
 		t.Error("GetTrollboxChannels() error", err)
 	}
@@ -159,7 +162,7 @@ func TestGetTrollboxChannels(t *testing.T) {
 
 func TestGetTrollboxConnectedUsers(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTrollboxConnectedUsers()
+	_, err := b.GetTrollboxConnectedUsers(context.Background())
 	if err == nil {
 		t.Error("GetTrollboxConnectedUsers() Expected error")
 	}
@@ -170,7 +173,8 @@ func TestGetAccountExecutions(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.GetAccountExecutions(&GenericRequestParams{})
+	_, err := b.GetAccountExecutions(context.Background(),
+		&GenericRequestParams{})
 	if err == nil {
 		t.Error("GetAccountExecutions() Expected error")
 	}
@@ -181,7 +185,8 @@ func TestGetAccountExecutionTradeHistory(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.GetAccountExecutionTradeHistory(&GenericRequestParams{})
+	_, err := b.GetAccountExecutionTradeHistory(context.Background(),
+		&GenericRequestParams{})
 	if err == nil {
 		t.Error("GetAccountExecutionTradeHistory() Expected error")
 	}
@@ -197,9 +202,10 @@ func TestGetFundingHistory(t *testing.T) {
 
 func TestGetInstruments(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetInstruments(&GenericRequestParams{
-		Symbol: "XRPUSD",
-	})
+	_, err := b.GetInstruments(context.Background(),
+		&GenericRequestParams{
+			Symbol: "XRPUSD",
+		})
 	if err != nil {
 		t.Error("GetInstruments() error", err)
 	}
@@ -207,7 +213,8 @@ func TestGetInstruments(t *testing.T) {
 
 func TestGetActiveInstruments(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetActiveInstruments(&GenericRequestParams{})
+	_, err := b.GetActiveInstruments(context.Background(),
+		&GenericRequestParams{})
 	if err != nil {
 		t.Error("GetActiveInstruments() error", err)
 	}
@@ -215,7 +222,7 @@ func TestGetActiveInstruments(t *testing.T) {
 
 func TestGetActiveAndIndexInstruments(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetActiveAndIndexInstruments()
+	_, err := b.GetActiveAndIndexInstruments(context.Background())
 	if err != nil {
 		t.Error("GetActiveAndIndexInstruments() error", err)
 	}
@@ -223,7 +230,7 @@ func TestGetActiveAndIndexInstruments(t *testing.T) {
 
 func TestGetActiveIntervals(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetActiveIntervals()
+	_, err := b.GetActiveIntervals(context.Background())
 	if err == nil {
 		t.Error("GetActiveIntervals() Expected error")
 	}
@@ -231,7 +238,8 @@ func TestGetActiveIntervals(t *testing.T) {
 
 func TestGetCompositeIndex(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetCompositeIndex(".XBT", "", "", "", "", "", time.Time{}, time.Time{})
+	_, err := b.GetCompositeIndex(context.Background(),
+		".XBT", "", "", "", "", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetCompositeIndex() Expected error", err)
 	}
@@ -239,7 +247,7 @@ func TestGetCompositeIndex(t *testing.T) {
 
 func TestGetIndices(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetIndices()
+	_, err := b.GetIndices(context.Background())
 	if err != nil {
 		t.Error("GetIndices() error", err)
 	}
@@ -247,7 +255,8 @@ func TestGetIndices(t *testing.T) {
 
 func TestGetInsuranceFundHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetInsuranceFundHistory(&GenericRequestParams{})
+	_, err := b.GetInsuranceFundHistory(context.Background(),
+		&GenericRequestParams{})
 	if err != nil {
 		t.Error("GetInsuranceFundHistory() error", err)
 	}
@@ -255,7 +264,7 @@ func TestGetInsuranceFundHistory(t *testing.T) {
 
 func TestGetLeaderboard(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetLeaderboard(LeaderboardGetParams{})
+	_, err := b.GetLeaderboard(context.Background(), LeaderboardGetParams{})
 	if err != nil {
 		t.Error("GetLeaderboard() error", err)
 	}
@@ -263,7 +272,7 @@ func TestGetLeaderboard(t *testing.T) {
 
 func TestGetAliasOnLeaderboard(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetAliasOnLeaderboard()
+	_, err := b.GetAliasOnLeaderboard(context.Background())
 	if err == nil {
 		t.Error("GetAliasOnLeaderboard() Expected error")
 	}
@@ -271,7 +280,8 @@ func TestGetAliasOnLeaderboard(t *testing.T) {
 
 func TestGetLiquidationOrders(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetLiquidationOrders(&GenericRequestParams{})
+	_, err := b.GetLiquidationOrders(context.Background(),
+		&GenericRequestParams{})
 	if err != nil {
 		t.Error("GetLiquidationOrders() error", err)
 	}
@@ -282,7 +292,7 @@ func TestGetCurrentNotifications(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.GetCurrentNotifications()
+	_, err := b.GetCurrentNotifications(context.Background())
 	if err == nil {
 		t.Error("GetCurrentNotifications() Expected error")
 	}
@@ -293,7 +303,7 @@ func TestAmendOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.AmendOrder(&OrderAmendParams{})
+	_, err := b.AmendOrder(context.Background(), &OrderAmendParams{})
 	if err == nil {
 		t.Error("AmendOrder() Expected error")
 	}
@@ -304,10 +314,11 @@ func TestCreateOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.CreateOrder(&OrderNewParams{Symbol: "XBTM15",
-		Price:         219.0,
-		ClientOrderID: "mm_bitmex_1a/oemUeQ4CAJZgP3fjHsA",
-		OrderQuantity: 98})
+	_, err := b.CreateOrder(context.Background(),
+		&OrderNewParams{Symbol: "XBTM15",
+			Price:         219.0,
+			ClientOrderID: "mm_bitmex_1a/oemUeQ4CAJZgP3fjHsA",
+			OrderQuantity: 98})
 	if err == nil {
 		t.Error("CreateOrder() Expected error")
 	}
@@ -318,7 +329,7 @@ func TestCancelOrders(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.CancelOrders(&OrderCancelParams{})
+	_, err := b.CancelOrders(context.Background(), &OrderCancelParams{})
 	if err == nil {
 		t.Error("CancelOrders() Expected error")
 	}
@@ -329,7 +340,8 @@ func TestCancelAllOrders(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.CancelAllExistingOrders(OrderCancelAllParams{})
+	_, err := b.CancelAllExistingOrders(context.Background(),
+		OrderCancelAllParams{})
 	if err == nil {
 		t.Error("CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error)", err)
 	}
@@ -340,7 +352,7 @@ func TestAmendBulkOrders(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.AmendBulkOrders(OrderAmendBulkParams{})
+	_, err := b.AmendBulkOrders(context.Background(), OrderAmendBulkParams{})
 	if err == nil {
 		t.Error("AmendBulkOrders() Expected error")
 	}
@@ -351,7 +363,7 @@ func TestCreateBulkOrders(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.CreateBulkOrders(OrderNewBulkParams{})
+	_, err := b.CreateBulkOrders(context.Background(), OrderNewBulkParams{})
 	if err == nil {
 		t.Error("CreateBulkOrders() Expected error")
 	}
@@ -362,7 +374,8 @@ func TestCancelAllOrdersAfterTime(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.CancelAllOrdersAfterTime(OrderCancelAllAfterParams{})
+	_, err := b.CancelAllOrdersAfterTime(context.Background(),
+		OrderCancelAllAfterParams{})
 	if err == nil {
 		t.Error("CancelAllOrdersAfterTime() Expected error")
 	}
@@ -370,7 +383,7 @@ func TestCancelAllOrdersAfterTime(t *testing.T) {
 
 func TestClosePosition(t *testing.T) {
 	t.Parallel()
-	_, err := b.ClosePosition(OrderClosePositionParams{})
+	_, err := b.ClosePosition(context.Background(), OrderClosePositionParams{})
 	if err == nil {
 		t.Error("ClosePosition() Expected error")
 	}
@@ -378,7 +391,8 @@ func TestClosePosition(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderbook(OrderBookGetL2Params{Symbol: "XBT"})
+	_, err := b.GetOrderbook(context.Background(),
+		OrderBookGetL2Params{Symbol: "XBT"})
 	if err != nil {
 		t.Error("GetOrderbook() error", err)
 	}
@@ -386,7 +400,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetPositions(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetPositions(PositionGetParams{})
+	_, err := b.GetPositions(context.Background(), PositionGetParams{})
 	if err == nil {
 		t.Error("GetPositions() Expected error")
 	}
@@ -394,7 +408,8 @@ func TestGetPositions(t *testing.T) {
 
 func TestIsolatePosition(t *testing.T) {
 	t.Parallel()
-	_, err := b.IsolatePosition(PositionIsolateMarginParams{Symbol: "XBT"})
+	_, err := b.IsolatePosition(context.Background(),
+		PositionIsolateMarginParams{Symbol: "XBT"})
 	if err == nil {
 		t.Error("IsolatePosition() Expected error")
 	}
@@ -402,7 +417,8 @@ func TestIsolatePosition(t *testing.T) {
 
 func TestLeveragePosition(t *testing.T) {
 	t.Parallel()
-	_, err := b.LeveragePosition(PositionUpdateLeverageParams{})
+	_, err := b.LeveragePosition(context.Background(),
+		PositionUpdateLeverageParams{})
 	if err == nil {
 		t.Error("LeveragePosition() Expected error")
 	}
@@ -410,7 +426,8 @@ func TestLeveragePosition(t *testing.T) {
 
 func TestUpdateRiskLimit(t *testing.T) {
 	t.Parallel()
-	_, err := b.UpdateRiskLimit(PositionUpdateRiskLimitParams{})
+	_, err := b.UpdateRiskLimit(context.Background(),
+		PositionUpdateRiskLimitParams{})
 	if err == nil {
 		t.Error("UpdateRiskLimit() Expected error")
 	}
@@ -418,7 +435,8 @@ func TestUpdateRiskLimit(t *testing.T) {
 
 func TestTransferMargin(t *testing.T) {
 	t.Parallel()
-	_, err := b.TransferMargin(PositionTransferIsolatedMarginParams{})
+	_, err := b.TransferMargin(context.Background(),
+		PositionTransferIsolatedMarginParams{})
 	if err == nil {
 		t.Error("TransferMargin() Expected error")
 	}
@@ -426,7 +444,8 @@ func TestTransferMargin(t *testing.T) {
 
 func TestGetQuotesByBuckets(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetQuotesByBuckets(&QuoteGetBucketedParams{})
+	_, err := b.GetQuotesByBuckets(context.Background(),
+		&QuoteGetBucketedParams{})
 	if err == nil {
 		t.Error("GetQuotesByBuckets() Expected error")
 	}
@@ -434,7 +453,8 @@ func TestGetQuotesByBuckets(t *testing.T) {
 
 func TestGetSettlementHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetSettlementHistory(&GenericRequestParams{})
+	_, err := b.GetSettlementHistory(context.Background(),
+		&GenericRequestParams{})
 	if err != nil {
 		t.Error("GetSettlementHistory() error", err)
 	}
@@ -442,7 +462,7 @@ func TestGetSettlementHistory(t *testing.T) {
 
 func TestGetStats(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetStats()
+	_, err := b.GetStats(context.Background())
 	if err != nil {
 		t.Error("GetStats() error", err)
 	}
@@ -450,7 +470,7 @@ func TestGetStats(t *testing.T) {
 
 func TestGetStatsHistorical(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetStatsHistorical()
+	_, err := b.GetStatsHistorical(context.Background())
 	if err != nil {
 		t.Error("GetStatsHistorical() error", err)
 	}
@@ -458,7 +478,7 @@ func TestGetStatsHistorical(t *testing.T) {
 
 func TestGetStatSummary(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetStatSummary()
+	_, err := b.GetStatSummary(context.Background())
 	if err != nil {
 		t.Error("GetStatSummary() error", err)
 	}
@@ -466,11 +486,12 @@ func TestGetStatSummary(t *testing.T) {
 
 func TestGetTrade(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTrade(&GenericRequestParams{
-		Symbol:    "XBT",
-		Reverse:   false,
-		StartTime: time.Now().Add(-time.Minute).Format(time.RFC3339),
-	})
+	_, err := b.GetTrade(context.Background(),
+		&GenericRequestParams{
+			Symbol:    "XBT",
+			Reverse:   false,
+			StartTime: time.Now().Add(-time.Minute).Format(time.RFC3339),
+		})
 	if err != nil {
 		t.Error("GetTrade() error", err)
 	}
@@ -478,11 +499,12 @@ func TestGetTrade(t *testing.T) {
 
 func TestGetPreviousTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetPreviousTrades(&TradeGetBucketedParams{
-		Symbol:  "XBTBTC",
-		Start:   int32(time.Now().Add(-time.Hour).Unix()),
-		Columns: "open,high,low,close,volume",
-	})
+	_, err := b.GetPreviousTrades(context.Background(),
+		&TradeGetBucketedParams{
+			Symbol:  "XBTBTC",
+			Start:   int32(time.Now().Add(-time.Hour).Unix()),
+			Columns: "open,high,low,close,volume",
+		})
 	if err == nil {
 		t.Error("GetPreviousTrades() Expected error")
 	}

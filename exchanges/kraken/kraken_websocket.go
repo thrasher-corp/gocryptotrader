@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -100,7 +101,7 @@ func (k *Kraken) WsConnect() error {
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 
 	if k.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		authToken, err = k.GetWebsocketToken()
+		authToken, err = k.GetWebsocketToken(context.TODO())
 		if err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,

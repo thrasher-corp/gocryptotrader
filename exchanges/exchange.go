@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -1091,7 +1092,7 @@ func (b *Base) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Base) AuthenticateWebsocket() error {
+func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -1275,7 +1276,7 @@ func (u URL) String() string {
 }
 
 // UpdateOrderExecutionLimits updates order execution limits this is overridable
-func (b *Base) UpdateOrderExecutionLimits(a asset.Item) error {
+func (b *Base) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 

@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -36,7 +37,7 @@ func (b *Bitstamp) WsConnect() error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
-	err = b.seedOrderBook()
+	err = b.seedOrderBook(context.TODO())
 	if err != nil {
 		b.Websocket.DataHandler <- err
 	}
@@ -249,14 +250,14 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 	})
 }
 
-func (b *Bitstamp) seedOrderBook() error {
+func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 	p, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
 	for x := range p {
-		orderbookSeed, err := b.GetOrderbook(p[x].String())
+		orderbookSeed, err := b.GetOrderbook(ctx, p[x].String())
 		if err != nil {
 			return err
 		}

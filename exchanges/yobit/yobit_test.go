@@ -60,7 +60,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestGetInfo(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetInfo()
+	_, err := y.GetInfo(context.Background())
 	if err != nil {
 		t.Error("GetInfo() error")
 	}
@@ -68,7 +68,7 @@ func TestGetInfo(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetTicker("btc_usd")
+	_, err := y.GetTicker(context.Background(), "btc_usd")
 	if err != nil {
 		t.Error("GetTicker() error", err)
 	}
@@ -76,7 +76,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetDepth("btc_usd")
+	_, err := y.GetDepth(context.Background(), "btc_usd")
 	if err != nil {
 		t.Error("GetDepth() error", err)
 	}
@@ -84,7 +84,7 @@ func TestGetDepth(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetTrades("btc_usd")
+	_, err := y.GetTrades(context.Background(), "btc_usd")
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
@@ -100,7 +100,7 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetOpenOrders("")
+	_, err := y.GetOpenOrders(context.Background(), "")
 	if err == nil {
 		t.Error("GetOpenOrders() Expected error")
 	}
@@ -117,7 +117,7 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	err := y.CancelExistingOrder(1337)
+	err := y.CancelExistingOrder(context.Background(), 1337)
 	if err == nil {
 		t.Error("CancelOrder() Expected error")
 	}
@@ -125,7 +125,7 @@ func TestCancelOrder(t *testing.T) {
 
 func TestTrade(t *testing.T) {
 	t.Parallel()
-	_, err := y.Trade("", order.Buy.String(), 0, 0)
+	_, err := y.Trade(context.Background(), "", order.Buy.String(), 0, 0)
 	if err == nil {
 		t.Error("Trade() Expected error")
 	}
@@ -133,7 +133,7 @@ func TestTrade(t *testing.T) {
 
 func TestWithdrawCoinsToAddress(t *testing.T) {
 	t.Parallel()
-	_, err := y.WithdrawCoinsToAddress("", 0, "")
+	_, err := y.WithdrawCoinsToAddress(context.Background(), "", 0, "")
 	if err == nil {
 		t.Error("WithdrawCoinsToAddress() Expected error")
 	}
@@ -141,7 +141,7 @@ func TestWithdrawCoinsToAddress(t *testing.T) {
 
 func TestCreateYobicode(t *testing.T) {
 	t.Parallel()
-	_, err := y.CreateCoupon("bla", 0)
+	_, err := y.CreateCoupon(context.Background(), "bla", 0)
 	if err == nil {
 		t.Error("CreateYobicode() Expected error")
 	}
@@ -149,7 +149,7 @@ func TestCreateYobicode(t *testing.T) {
 
 func TestRedeemYobicode(t *testing.T) {
 	t.Parallel()
-	_, err := y.RedeemCoupon("bla2")
+	_, err := y.RedeemCoupon(context.Background(), "bla2")
 	if err == nil {
 		t.Error("RedeemYobicode() Expected error")
 	}

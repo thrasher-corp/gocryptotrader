@@ -213,7 +213,7 @@ func (g *Gateio) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (g *Gateio) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	return g.GetSymbols()
+	return g.GetSymbols(ctx)
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -233,7 +233,7 @@ func (g *Gateio) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	result, err := g.GetTickers()
+	result, err := g.GetTickers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +298,7 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
-	orderbookNew, err := g.GetOrderbook(curr.String())
+	orderbookNew, err := g.GetOrderbook(ctx, curr.String())
 	if err != nil {
 		return book, err
 	}
@@ -346,7 +346,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			Currencies: currData,
 		})
 	} else {
-		balance, err := g.GetBalances()
+		balance, err := g.GetBalances(ctx)
 		if err != nil {
 			return info, err
 		}
@@ -438,7 +438,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 		return nil, err
 	}
 	var tradeData TradeHistory
-	tradeData, err = g.GetTrades(p.String())
+	tradeData, err = g.GetTrades(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +502,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		Type:   orderTypeFormat,
 	}
 
-	response, err := g.SpotNewOrder(spotNewOrderRequestParams)
+	response, err := g.SpotNewOrder(ctx, spotNewOrderRequestParams)
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -539,7 +539,7 @@ func (g *Gateio) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	_, err = g.CancelExistingOrder(orderIDInt, fpair.String())
+	_, err = g.CancelExistingOrder(ctx, orderIDInt, fpair.String())
 	return err
 }
 
@@ -553,7 +553,7 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	openOrders, err := g.GetOpenOrders("")
+	openOrders, err := g.GetOpenOrders(ctx, "")
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
@@ -564,7 +564,7 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 	}
 
 	for unique := range uniqueSymbols {
-		err = g.CancelAllExistingOrders(-1, unique)
+		err = g.CancelAllExistingOrders(ctx, -1, unique)
 		if err != nil {
 			cancelAllOrdersResponse.Status[unique] = err.Error()
 		}
@@ -576,7 +576,7 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 // GetOrderInfo returns order information based on order ID
 func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
-	orders, err := g.GetOpenOrders("")
+	orders, err := g.GetOpenOrders(ctx, "")
 	if err != nil {
 		return orderDetail, errors.New("failed to get open orders")
 	}
@@ -619,7 +619,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (g *Gateio) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	addr, err := g.GetCryptoDepositAddress(cryptocurrency.String())
+	addr, err := g.GetCryptoDepositAddress(ctx, cryptocurrency.String())
 	if err != nil {
 		return "", err
 	}
@@ -637,7 +637,8 @@ func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	return g.WithdrawCrypto(withdrawRequest.Currency.String(),
+	return g.WithdrawCrypto(ctx,
+		withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Amount)
 }
@@ -660,7 +661,7 @@ func (g *Gateio) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return g.GetFee(feeBuilder)
+	return g.GetFee(ctx, feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
@@ -718,7 +719,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			}
 		}
 	} else {
-		resp, err := g.GetOpenOrders(currPair)
+		resp, err := g.GetOpenOrders(ctx, currPair)
 		if err != nil {
 			return nil, err
 		}
@@ -767,7 +768,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var trades []TradesResponse
 	for i := range req.Pairs {
-		resp, err := g.GetTradeHistory(req.Pairs[i].String())
+		resp, err := g.GetTradeHistory(ctx, req.Pairs[i].String())
 		if err != nil {
 			return nil, err
 		}
@@ -805,7 +806,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (g *Gateio) AuthenticateWebsocket() error {
+func (g *Gateio) AuthenticateWebsocket(_ context.Context) error {
 	return g.wsServerSignIn()
 }
 
@@ -839,7 +840,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		HourSize: int(hours),
 	}
 
-	klineData, err := g.GetSpotKline(params)
+	klineData, err := g.GetSpotKline(ctx, params)
 	if err != nil {
 		return kline.Item{}, err
 	}

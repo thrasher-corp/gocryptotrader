@@ -268,7 +268,7 @@ func (g *Gemini) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (g *Gemini) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	pairs, err := g.GetSymbols()
+	pairs, err := g.GetSymbols(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +308,7 @@ func (g *Gemini) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = g.Name
-	accountBalance, err := g.GetBalances()
+	accountBalance, err := g.GetBalances(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -351,7 +351,7 @@ func (g *Gemini) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		return nil, err
 	}
 
-	tick, err := g.GetTicker(fPair.String())
+	tick, err := g.GetTicker(ctx, fPair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -414,7 +414,7 @@ func (g *Gemini) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
-	orderbookNew, err := g.GetOrderbook(fPair.String(), url.Values{})
+	orderbookNew, err := g.GetOrderbook(ctx, fPair.String(), url.Values{})
 	if err != nil {
 		return book, err
 	}
@@ -469,7 +469,11 @@ func (g *Gemini) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTy
 allTrades:
 	for {
 		var tradeData []Trade
-		tradeData, err = g.GetTrades(p.String(), ts.Unix(), int64(limit), false)
+		tradeData, err = g.GetTrades(ctx,
+			p.String(),
+			ts.Unix(),
+			int64(limit),
+			false)
 		if err != nil {
 			return nil, err
 		}
@@ -533,7 +537,8 @@ func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		return submitOrderResponse, err
 	}
 
-	response, err := g.NewOrder(fpair.String(),
+	response, err := g.NewOrder(ctx,
+		fpair.String(),
 		s.Amount,
 		s.Price,
 		s.Side.String(),
@@ -567,7 +572,7 @@ func (g *Gemini) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	_, err = g.CancelExistingOrder(orderIDInt)
+	_, err = g.CancelExistingOrder(ctx, orderIDInt)
 	return err
 }
 
@@ -581,7 +586,7 @@ func (g *Gemini) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	resp, err := g.CancelExistingOrders(false)
+	resp, err := g.CancelExistingOrders(ctx, false)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
@@ -601,7 +606,7 @@ func (g *Gemini) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (g *Gemini) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	addr, err := g.GetCryptoDepositAddress("", cryptocurrency.String())
+	addr, err := g.GetCryptoDepositAddress(ctx, "", cryptocurrency.String())
 	if err != nil {
 		return "", err
 	}
@@ -614,7 +619,10 @@ func (g *Gemini) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := g.WithdrawCrypto(withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(), withdrawRequest.Amount)
+	resp, err := g.WithdrawCrypto(ctx,
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Currency.String(),
+		withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -645,7 +653,7 @@ func (g *Gemini) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return g.GetFee(feeBuilder)
+	return g.GetFee(ctx, feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
@@ -654,7 +662,7 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
-	resp, err := g.GetOrders()
+	resp, err := g.GetOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -725,7 +733,9 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			return nil, err
 		}
 
-		resp, err := g.GetTradeHistory(fpair.String(), req.StartTime.Unix())
+		resp, err := g.GetTradeHistory(ctx,
+			fpair.String(),
+			req.StartTime.Unix())
 		if err != nil {
 			return nil, err
 		}

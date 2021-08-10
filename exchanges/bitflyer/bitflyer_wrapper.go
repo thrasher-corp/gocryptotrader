@@ -141,7 +141,7 @@ func (b *Bitflyer) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *Bitflyer) FetchTradablePairs(ctx context.Context, assetType asset.Item) ([]string, error) {
-	pairs, err := b.GetMarkets()
+	pairs, err := b.GetMarkets(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func (b *Bitflyer) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		return nil, err
 	}
 
-	tickerNew, err := b.GetTicker(b.CheckFXString(fPair).String())
+	tickerNew, err := b.GetTicker(ctx, b.CheckFXString(fPair).String())
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return book, err
 	}
 
-	orderbookNew, err := b.GetOrderBook(b.CheckFXString(fPair).String())
+	orderbookNew, err := b.GetOrderBook(ctx, b.CheckFXString(fPair).String())
 	if err != nil {
 		return book, err
 	}
@@ -325,7 +325,7 @@ func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	if err != nil {
 		return nil, err
 	}
-	tradeData, err := b.GetExecutionHistory(p.String())
+	tradeData, err := b.GetExecutionHistory(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -182,7 +183,7 @@ func YesOrNo(input string) bool {
 
 // SendHTTPRequest sends a request using the http package and returns a response
 // as a string and an error
-func SendHTTPRequest(method, urlPath string, headers map[string]string, body io.Reader) (string, error) {
+func SendHTTPRequest(ctx context.Context, method, urlPath string, headers map[string]string, body io.Reader) (string, error) {
 	result := strings.ToUpper(method)
 
 	if result != http.MethodOptions && result != http.MethodGet &&
@@ -194,7 +195,7 @@ func SendHTTPRequest(method, urlPath string, headers map[string]string, body io.
 
 	initialiseHTTPClient()
 
-	req, err := http.NewRequest(method, urlPath, body)
+	req, err := http.NewRequestWithContext(ctx, method, urlPath, body)
 	if err != nil {
 		return "", err
 	}

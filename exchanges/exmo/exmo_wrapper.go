@@ -154,7 +154,7 @@ func (e *EXMO) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (e *EXMO) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	pairs, err := e.GetPairSettings()
+	pairs, err := e.GetPairSettings(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func (e *EXMO) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *EXMO) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	result, err := e.GetTicker()
+	result, err := e.GetTicker(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +256,7 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 		return callingBook, err
 	}
 
-	result, err := e.GetOrderbook(pairsCollated)
+	result, err := e.GetOrderbook(ctx, pairsCollated)
 	if err != nil {
 		return callingBook, err
 	}
@@ -328,7 +328,7 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = e.Name
-	result, err := e.GetUserInfo()
+	result, err := e.GetUserInfo(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -389,7 +389,7 @@ func (e *EXMO) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 		return nil, err
 	}
 	var tradeData map[string][]Trades
-	tradeData, err = e.GetTrades(p.String())
+	tradeData, err = e.GetTrades(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
@@ -451,7 +451,7 @@ func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRe
 		return submitOrderResponse, err
 	}
 
-	response, err := e.CreateOrder(fPair.String(), oT, s.Price, s.Amount)
+	response, err := e.CreateOrder(ctx, fPair.String(), oT, s.Price, s.Amount)
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -483,7 +483,7 @@ func (e *EXMO) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	return e.CancelExistingOrder(orderIDInt)
+	return e.CancelExistingOrder(ctx, orderIDInt)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -497,13 +497,13 @@ func (e *EXMO) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Canc
 		Status: make(map[string]string),
 	}
 
-	openOrders, err := e.GetOpenOrders()
+	openOrders, err := e.GetOpenOrders(ctx)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
 	for i := range openOrders {
-		err = e.CancelExistingOrder(openOrders[i].OrderID)
+		err = e.CancelExistingOrder(ctx, openOrders[i].OrderID)
 		if err != nil {
 			cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
 		}
@@ -520,11 +520,12 @@ func (e *EXMO) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (e *EXMO) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	fullAddr, err := e.GetCryptoDepositAddress()
+	fullAddr, err := e.GetCryptoDepositAddress(ctx)
 	if err != nil {
 		return "", err
 	}
 
+	// TODO: Protect map with mutex
 	addr, ok := fullAddr[cryptocurrency.String()]
 	if !ok {
 		return "", fmt.Errorf("currency %s could not be found, please generate via the exmo website", cryptocurrency.String())
@@ -539,7 +540,8 @@ func (e *EXMO) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest 
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := e.WithdrawCryptocurrency(withdrawRequest.Currency.String(),
+	resp, err := e.WithdrawCryptocurrency(ctx,
+		withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.Amount)
@@ -576,7 +578,7 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 		return nil, err
 	}
 
-	resp, err := e.GetOpenOrders()
+	resp, err := e.GetOpenOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -624,7 +626,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			return nil, err
 		}
 
-		resp, err := e.GetUserTrades(fpair.String(), "", "10000")
+		resp, err := e.GetUserTrades(ctx, fpair.String(), "", "10000")
 		if err != nil {
 			return nil, err
 		}

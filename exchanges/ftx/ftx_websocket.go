@@ -1,6 +1,7 @@
 package ftx
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -354,7 +355,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			resp.Pair = pair
 			resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(
+			orderVars, err = f.compatibleOrderVars(context.TODO(),
 				resultData.OrderData.Side,
 				resultData.OrderData.Status,
 				resultData.OrderData.OrderType,

@@ -71,7 +71,7 @@ func (b *Bittrex) WsConnect() error {
 	}
 
 	var wsHandshakeData WsSignalRHandshakeData
-	err := b.WsSignalRHandshake(&wsHandshakeData)
+	err := b.WsSignalRHandshake(context.TODO(), &wsHandshakeData)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (b *Bittrex) WsConnect() error {
 }
 
 // WsSignalRHandshake requests the SignalR connection token over https
-func (b *Bittrex) WsSignalRHandshake(result interface{}) error {
+func (b *Bittrex) WsSignalRHandshake(ctx context.Context, result interface{}) error {
 	endpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	if err != nil {
 		return err
@@ -140,7 +140,7 @@ func (b *Bittrex) WsSignalRHandshake(result interface{}) error {
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 	}
-	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
 	})
 }

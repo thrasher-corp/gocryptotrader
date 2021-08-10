@@ -272,7 +272,7 @@ func (h *HitBTC) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (h *HitBTC) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	symbols, err := h.GetSymbolsDetailed()
+	symbols, err := h.GetSymbolsDetailed(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +308,7 @@ func (h *HitBTC) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HitBTC) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	tick, err := h.GetTickers()
+	tick, err := h.GetTickers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +387,7 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 		return book, err
 	}
 
-	orderbookNew, err := h.GetOrderbook(fpair.String(), 1000)
+	orderbookNew, err := h.GetOrderbook(ctx, fpair.String(), 1000)
 	if err != nil {
 		return book, err
 	}
@@ -417,7 +417,7 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 func (h *HitBTC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = h.Name
-	accountBalance, err := h.GetBalances()
+	accountBalance, err := h.GetBalances(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -485,7 +485,14 @@ func (h *HitBTC) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTy
 allTrades:
 	for {
 		var tradeData []TradeHistory
-		tradeData, err = h.GetTrades(p.String(), "", "", ts.UnixNano()/int64(time.Millisecond), timestampEnd.UnixNano()/int64(time.Millisecond), int64(limit), 0)
+		tradeData, err = h.GetTrades(ctx,
+			p.String(),
+			"",
+			"",
+			ts.UnixNano()/int64(time.Millisecond),
+			timestampEnd.UnixNano()/int64(time.Millisecond),
+			int64(limit),
+			0)
 		if err != nil {
 			return nil, err
 		}
@@ -554,7 +561,8 @@ func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (order.Submit
 		}
 
 		var response OrderResponse
-		response, err = h.PlaceOrder(fPair.String(),
+		response, err = h.PlaceOrder(ctx,
+			fPair.String(),
 			o.Price,
 			o.Amount,
 			strings.ToLower(o.Type.String()),
@@ -591,7 +599,7 @@ func (h *HitBTC) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	_, err = h.CancelExistingOrder(orderIDInt)
+	_, err = h.CancelExistingOrder(ctx, orderIDInt)
 	return err
 }
 
@@ -606,7 +614,7 @@ func (h *HitBTC) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 		Status: make(map[string]string),
 	}
 
-	resp, err := h.CancelAllExistingOrders()
+	resp, err := h.CancelAllExistingOrders(ctx)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
@@ -631,7 +639,7 @@ func (h *HitBTC) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (h *HitBTC) GetDepositAddress(ctx context.Context, c currency.Code, _ string) (string, error) {
-	resp, err := h.GetDepositAddresses(c.String())
+	resp, err := h.GetDepositAddresses(ctx, c.String())
 	if err != nil {
 		return "", err
 	}
@@ -645,7 +653,10 @@ func (h *HitBTC) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	v, err := h.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, withdrawRequest.Amount)
+	v, err := h.Withdraw(ctx,
+		withdrawRequest.Currency.String(),
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -672,7 +683,7 @@ func (h *HitBTC) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return h.GetFee(feeBuilder)
+	return h.GetFee(ctx, feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
@@ -687,7 +698,7 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 	var allOrders []OrderHistoryResponse
 	for i := range req.Pairs {
-		resp, err := h.GetOpenOrders(req.Pairs[i].String())
+		resp, err := h.GetOpenOrders(ctx, req.Pairs[i].String())
 		if err != nil {
 			return nil, err
 		}
@@ -737,7 +748,7 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var allOrders []OrderHistoryResponse
 	for i := range req.Pairs {
-		resp, err := h.GetOrders(req.Pairs[i].String())
+		resp, err := h.GetOrders(ctx, req.Pairs[i].String())
 		if err != nil {
 			return nil, err
 		}
@@ -775,7 +786,7 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (h *HitBTC) AuthenticateWebsocket() error {
+func (h *HitBTC) AuthenticateWebsocket(_ context.Context) error {
 	return h.wsLogin()
 }
 
@@ -811,10 +822,12 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		return kline.Item{}, err
 	}
 
-	data, err := h.GetCandles(formattedPair.String(),
+	data, err := h.GetCandles(ctx,
+		formattedPair.String(),
 		strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
 		h.FormatExchangeKlineInterval(interval),
-		start, end)
+		start,
+		end)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -863,10 +876,12 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 
 	for y := range dates.Ranges {
 		var data []ChartData
-		data, err = h.GetCandles(formattedPair.String(),
+		data, err = h.GetCandles(ctx,
+			formattedPair.String(),
 			strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
 			h.FormatExchangeKlineInterval(interval),
-			dates.Ranges[y].Start.Time, dates.Ranges[y].End.Time)
+			dates.Ranges[y].Start.Time,
+			dates.Ranges[y].End.Time)
 		if err != nil {
 			return kline.Item{}, err
 		}

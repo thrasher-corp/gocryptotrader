@@ -244,7 +244,7 @@ func (p *Poloniex) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (p *Poloniex) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	resp, err := p.GetTicker()
+	resp, err := p.GetTicker(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +273,7 @@ func (p *Poloniex) UpdateTradablePairs(ctx context.Context, forceUpgrade bool) e
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (p *Poloniex) UpdateTicker(ctx context.Context, currencyPair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := p.GetTicker()
+	tick, err := p.GetTicker(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +336,7 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, c currency.Pair, assetTy
 		Asset:           assetType,
 		VerifyOrderbook: p.CanVerifyOrderbook,
 	}
-	orderbookNew, err := p.GetOrderbook("", poloniexMaxOrderbookDepth)
+	orderbookNew, err := p.GetOrderbook(ctx, "", poloniexMaxOrderbookDepth)
 	if err != nil {
 		return callingBook, err
 	}
@@ -388,7 +388,7 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, c currency.Pair, assetTy
 func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = p.Name
-	accountBalance, err := p.GetBalances()
+	accountBalance, err := p.GetBalances(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -454,7 +454,10 @@ func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 allTrades:
 	for {
 		var tradeData []TradeHistory
-		tradeData, err = p.GetTradeHistory(pair.String(), ts.Unix(), timestampEnd.Unix())
+		tradeData, err = p.GetTradeHistory(ctx,
+			pair.String(),
+			ts.Unix(),
+			timestampEnd.Unix())
 		if err != nil {
 			return nil, err
 		}
@@ -519,7 +522,8 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Subm
 
 	fillOrKill := s.Type == order.Market
 	isBuyOrder := s.Side == order.Buy
-	response, err := p.PlaceOrder(fPair.String(),
+	response, err := p.PlaceOrder(ctx,
+		fPair.String(),
 		s.Price,
 		s.Amount,
 		false,
@@ -551,7 +555,8 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (order
 		return order.Modify{}, err
 	}
 
-	resp, err := p.MoveOrder(oID,
+	resp, err := p.MoveOrder(ctx,
+		oID,
 		action.Price,
 		action.Amount,
 		action.PostOnly,
@@ -584,7 +589,7 @@ func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	return p.CancelExistingOrder(orderIDInt)
+	return p.CancelExistingOrder(ctx, orderIDInt)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -597,14 +602,14 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	openOrders, err := p.GetOpenOrdersForAllCurrencies()
+	openOrders, err := p.GetOpenOrdersForAllCurrencies(ctx)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
 	for key := range openOrders.Data {
 		for i := range openOrders.Data[key] {
-			err = p.CancelExistingOrder(openOrders.Data[key][i].OrderNumber)
+			err = p.CancelExistingOrder(ctx, openOrders.Data[key][i].OrderNumber)
 			if err != nil {
 				id := strconv.FormatInt(openOrders.Data[key][i].OrderNumber, 10)
 				cancelAllOrdersResponse.Status[id] = err.Error()
@@ -622,7 +627,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		Pair:     pair,
 	}
 
-	trades, err := p.GetAuthenticatedOrderTrades(orderID)
+	trades, err := p.GetAuthenticatedOrderTrades(ctx, orderID)
 	if err != nil && !strings.Contains(err.Error(), "Order not found") {
 		return orderInfo, err
 	}
@@ -646,7 +651,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		orderInfo.Trades = append(orderInfo.Trades, tradeHistory)
 	}
 
-	resp, err := p.GetAuthenticatedOrderStatus(orderID)
+	resp, err := p.GetAuthenticatedOrderStatus(ctx, orderID)
 	if err != nil {
 		if len(orderInfo.Trades) > 0 { // on closed orders return trades only
 			if strings.Contains(err.Error(), "Order not found") {
@@ -679,7 +684,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	a, err := p.GetDepositAddresses()
+	a, err := p.GetDepositAddresses(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -699,7 +704,7 @@ func (p *Poloniex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	v, err := p.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, withdrawRequest.Amount)
+	v, err := p.Withdraw(ctx, withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -726,7 +731,7 @@ func (p *Poloniex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return p.GetFee(feeBuilder)
+	return p.GetFee(ctx, feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
@@ -735,7 +740,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		return nil, err
 	}
 
-	resp, err := p.GetOpenOrdersForAllCurrencies()
+	resp, err := p.GetOpenOrdersForAllCurrencies(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -790,7 +795,8 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		return nil, err
 	}
 
-	resp, err := p.GetAuthenticatedTradeHistory(req.StartTime.Unix(),
+	resp, err := p.GetAuthenticatedTradeHistory(ctx,
+		req.StartTime.Unix(),
 		req.EndTime.Unix(),
 		10000)
 	if err != nil {
@@ -862,7 +868,8 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	// we use Truncate here to round star to the nearest even number that matches the requested interval
 	// example 10:17 with an interval of 15 minutes will go down 10:15
 	// this is due to poloniex returning a non-complete candle if the time does not match
-	candles, err := p.GetChartData(formattedPair.String(),
+	candles, err := p.GetChartData(ctx,
+		formattedPair.String(),
 		start.Truncate(interval.Duration()), end,
 		p.FormatExchangeKlineInterval(interval))
 	if err != nil {

@@ -93,7 +93,7 @@ func (a *Alphapoint) UpdateTradablePairs(ctx context.Context, forceUpdate bool) 
 func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = a.Name
-	acc, err := a.GetAccountInformation()
+	acc, err := a.GetAccountInformation(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -133,7 +133,7 @@ func (a *Alphapoint) FetchAccountInfo(ctx context.Context, assetType asset.Item)
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (a *Alphapoint) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := a.GetTicker(p.String())
+	tick, err := a.GetTicker(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (a *Alphapoint) FetchTicker(ctx context.Context, p currency.Pair, assetType
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-	orderbookNew, err := a.GetOrderbook(p.String())
+	orderbookNew, err := a.GetOrderbook(ctx, p.String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -243,7 +243,8 @@ func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 		return submitOrderResponse, err
 	}
 
-	response, err := a.CreateOrder(fPair.String(),
+	response, err := a.CreateOrder(ctx,
+		fPair.String(),
 		s.Side.String(),
 		s.Type.String(),
 		s.Amount,
@@ -277,7 +278,7 @@ func (a *Alphapoint) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = a.CancelExistingOrder(orderIDInt, o.AccountID)
+	_, err = a.CancelExistingOrder(ctx, orderIDInt, o.AccountID)
 	return err
 }
 
@@ -292,12 +293,12 @@ func (a *Alphapoint) CancelAllOrders(ctx context.Context, orderCancellation *ord
 		return order.CancelAllResponse{}, err
 	}
 	return order.CancelAllResponse{},
-		a.CancelAllExistingOrders(orderCancellation.AccountID)
+		a.CancelAllExistingOrders(ctx, orderCancellation.AccountID)
 }
 
 // GetOrderInfo returns order information based on order ID
-func (a *Alphapoint) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (float64, error) {
-	orders, err := a.GetOrders()
+func (a *Alphapoint) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (float64, error) {
+	orders, err := a.GetOrders(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -314,7 +315,7 @@ func (a *Alphapoint) GetOrderInfo(orderID string, pair currency.Pair, assetType 
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (a *Alphapoint) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	addreses, err := a.GetDepositAddresses()
+	addreses, err := a.GetDepositAddresses(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -355,7 +356,7 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := a.GetOrders()
+	resp, err := a.GetOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -401,7 +402,7 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 		return nil, err
 	}
 
-	resp, err := a.GetOrders()
+	resp, err := a.GetOrders(ctx)
 	if err != nil {
 		return nil, err
 	}

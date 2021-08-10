@@ -238,7 +238,7 @@ func (o *OKCoin) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (o *OKCoin) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	prods, err := o.GetSpotTokenPairDetails()
+	prods, err := o.GetSpotTokenPairDetails(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +275,7 @@ func (o *OKCoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 // UpdateTicker updates and returns the ticker for a currency pair
 func (o *OKCoin) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if assetType == asset.Spot {
-		resp, err := o.GetSpotAllTokenPairsInformation()
+		resp, err := o.GetSpotAllTokenPairsInformation(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -331,9 +331,10 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	switch assetType {
 	case asset.Spot:
 		var tradeData []okgroup.GetSpotFilledOrdersInformationResponse
-		tradeData, err = o.GetSpotFilledOrdersInformation(okgroup.GetSpotFilledOrdersInformationRequest{
-			InstrumentID: p.String(),
-		})
+		tradeData, err = o.GetSpotFilledOrdersInformation(ctx,
+			okgroup.GetSpotFilledOrdersInformationRequest{
+				InstrumentID: p.String(),
+			})
 		if err != nil {
 			return nil, err
 		}

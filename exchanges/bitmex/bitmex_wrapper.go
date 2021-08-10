@@ -218,7 +218,7 @@ func (b *Bitmex) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *Bitmex) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	marketInfo, err := b.GetActiveAndIndexInstruments()
+	marketInfo, err := b.GetActiveAndIndexInstruments(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (b *Bitmex) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		return nil, err
 	}
 
-	tick, err := b.GetActiveAndIndexInstruments()
+	tick, err := b.GetActiveAndIndexInstruments(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -367,9 +367,10 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
-	orderbookNew, err := b.GetOrderbook(OrderBookGetL2Params{
-		Symbol: fpair.String(),
-		Depth:  500})
+	orderbookNew, err := b.GetOrderbook(ctx,
+		OrderBookGetL2Params{
+			Symbol: fpair.String(),
+			Depth:  500})
 	if err != nil {
 		return book, err
 	}
@@ -404,7 +405,7 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 func (b *Bitmex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 
-	bal, err := b.GetAllUserMargin()
+	bal, err := b.GetAllUserMargin(ctx)
 	if err != nil {
 		return info, err
 	}
@@ -482,7 +483,7 @@ allTrades:
 	for {
 		req.StartTime = ts.UTC().Format("2006-01-02T15:04:05.000Z")
 		var tradeData []Trade
-		tradeData, err = b.GetTrade(req)
+		tradeData, err = b.GetTrade(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -559,7 +560,7 @@ func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		orderNewParams.Price = s.Price
 	}
 
-	response, err := b.CreateOrder(&orderNewParams)
+	response, err := b.CreateOrder(ctx, &orderNewParams)
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -591,7 +592,7 @@ func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (order.M
 	params.OrderQty = int32(action.Amount)
 	params.Price = action.Price
 
-	o, err := b.AmendOrder(&params)
+	o, err := b.AmendOrder(ctx, &params)
 	if err != nil {
 		return order.Modify{}, err
 	}
@@ -615,7 +616,7 @@ func (b *Bitmex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	var params = OrderCancelParams{
 		OrderID: o.ID,
 	}
-	_, err := b.CancelOrders(&params)
+	_, err := b.CancelOrders(ctx, &params)
 	return err
 }
 
@@ -630,7 +631,7 @@ func (b *Bitmex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 		Status: make(map[string]string),
 	}
 	var emptyParams OrderCancelAllParams
-	orders, err := b.CancelAllExistingOrders(emptyParams)
+	orders, err := b.CancelAllExistingOrders(ctx, emptyParams)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
@@ -652,7 +653,7 @@ func (b *Bitmex) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *Bitmex) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	return b.GetCryptoDepositAddress(cryptocurrency.String())
+	return b.GetCryptoDepositAddress(ctx, cryptocurrency.String())
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -671,7 +672,7 @@ func (b *Bitmex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 		r.Fee = withdrawRequest.Crypto.FeeAmount
 	}
 
-	resp, err := b.UserRequestWithdrawal(r)
+	resp, err := b.UserRequestWithdrawal(ctx, r)
 	if err != nil {
 		return nil, err
 	}
@@ -714,7 +715,7 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	params := OrdersRequest{}
 	params.Filter = "{\"open\":true}"
 
-	resp, err := b.GetOrders(&params)
+	resp, err := b.GetOrders(ctx, &params)
 	if err != nil {
 		return nil, err
 	}
@@ -765,7 +766,7 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var orders []order.Detail
 	params := OrdersRequest{}
-	resp, err := b.GetOrders(&params)
+	resp, err := b.GetOrders(ctx, &params)
 	if err != nil {
 		return nil, err
 	}
@@ -806,7 +807,7 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Bitmex) AuthenticateWebsocket() error {
+func (b *Bitmex) AuthenticateWebsocket(_ context.Context) error {
 	return b.websocketSendAuth()
 }
 

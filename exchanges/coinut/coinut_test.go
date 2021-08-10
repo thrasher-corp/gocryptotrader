@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Coinut setup error", err)
 	}
-	err = c.SeedInstruments()
+	err = c.SeedInstruments(context.Background())
 	if err != nil {
 		log.Fatal("Coinut setup error ", err)
 	}
@@ -88,14 +88,14 @@ func setupWSTestAuth(t *testing.T) {
 }
 
 func TestGetInstruments(t *testing.T) {
-	_, err := c.GetInstruments()
+	_, err := c.GetInstruments(context.Background())
 	if err != nil {
 		t.Error("GetInstruments() error", err)
 	}
 }
 
 func TestSeedInstruments(t *testing.T) {
-	err := c.SeedInstruments()
+	err := c.SeedInstruments(context.Background())
 	if err != nil {
 		// No point checking the next condition
 		t.Fatal(err)

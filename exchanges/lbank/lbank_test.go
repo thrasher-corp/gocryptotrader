@@ -53,7 +53,7 @@ func areTestAPIKeysSet() bool {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetTicker(testCurrencyPair)
+	_, err := l.GetTicker(context.Background(), testCurrencyPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -61,7 +61,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	tickers, err := l.GetTickers()
+	tickers, err := l.GetTickers(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestGetTickers(t *testing.T) {
 
 func TestGetCurrencyPairs(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetCurrencyPairs()
+	_, err := l.GetCurrencyPairs(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -80,11 +80,11 @@ func TestGetCurrencyPairs(t *testing.T) {
 
 func TestGetMarketDepths(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetMarketDepths(testCurrencyPair, "600", "1")
+	_, err := l.GetMarketDepths(context.Background(), testCurrencyPair, "600", "1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, _ := l.GetMarketDepths(testCurrencyPair, "4", "0")
+	a, _ := l.GetMarketDepths(context.Background(), testCurrencyPair, "4", "0")
 	if len(a.Data.Asks) != 4 {
 		t.Errorf("asks length requested doesnt match the output")
 	}
@@ -92,11 +92,11 @@ func TestGetMarketDepths(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetTrades(testCurrencyPair, 600, time.Now().Unix())
+	_, err := l.GetTrades(context.Background(), testCurrencyPair, 600, time.Now().Unix())
 	if err != nil {
 		t.Error(err)
 	}
-	a, err := l.GetTrades(testCurrencyPair, 600, 0)
+	a, err := l.GetTrades(context.Background(), testCurrencyPair, 600, 0)
 	if len(a) != 600 && err != nil {
 		t.Error(err)
 	}
@@ -104,7 +104,8 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetKlines(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetKlines(testCurrencyPair, "600", "minute1",
+	_, err := l.GetKlines(context.Background(),
+		testCurrencyPair, "600", "minute1",
 		strconv.FormatInt(time.Now().Unix(), 10))
 	if err != nil {
 		t.Error(err)
@@ -129,7 +130,7 @@ func TestGetUserInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.GetUserInfo()
+	_, err := l.GetUserInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -141,19 +142,19 @@ func TestCreateOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
-	_, err := l.CreateOrder(cp.Lower().String(), "what", 1231, 12314)
+	_, err := l.CreateOrder(context.Background(), cp.Lower().String(), "what", 1231, 12314)
 	if err == nil {
 		t.Error("CreateOrder error cannot be nil")
 	}
-	_, err = l.CreateOrder(cp.Lower().String(), order.Buy.Lower(), 0, 0)
+	_, err = l.CreateOrder(context.Background(), cp.Lower().String(), order.Buy.Lower(), 0, 0)
 	if err == nil {
 		t.Error("CreateOrder error cannot be nil")
 	}
-	_, err = l.CreateOrder(cp.Lower().String(), order.Sell.Lower(), 1231, 0)
+	_, err = l.CreateOrder(context.Background(), cp.Lower().String(), order.Sell.Lower(), 1231, 0)
 	if err == nil {
 		t.Error("CreateOrder error cannot be nil")
 	}
-	_, err = l.CreateOrder(cp.Lower().String(), order.Buy.Lower(), 58, 681)
+	_, err = l.CreateOrder(context.Background(), cp.Lower().String(), order.Buy.Lower(), 58, 681)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -165,7 +166,8 @@ func TestRemoveOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
-	_, err := l.RemoveOrder(cp.Lower().String(), "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23")
+	_, err := l.RemoveOrder(context.Background(),
+		cp.Lower().String(), "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23")
 	if err != nil {
 		t.Error(err)
 	}
@@ -177,7 +179,7 @@ func TestQueryOrder(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
-	_, err := l.QueryOrder(cp.Lower().String(), "1")
+	_, err := l.QueryOrder(context.Background(), cp.Lower().String(), "1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -189,7 +191,8 @@ func TestQueryOrderHistory(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
-	_, err := l.QueryOrderHistory(cp.Lower().String(), "1", "100")
+	_, err := l.QueryOrderHistory(context.Background(),
+		cp.Lower().String(), "1", "100")
 	if err != nil {
 		t.Error(err)
 	}
@@ -197,7 +200,7 @@ func TestQueryOrderHistory(t *testing.T) {
 
 func TestGetPairInfo(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetPairInfo()
+	_, err := l.GetPairInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -208,7 +211,8 @@ func TestOrderTransactionDetails(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.OrderTransactionDetails(testCurrencyPair, "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23")
+	_, err := l.OrderTransactionDetails(context.Background(),
+		testCurrencyPair, "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23")
 	if err != nil {
 		t.Error(err)
 	}
@@ -219,7 +223,8 @@ func TestTransactionHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.TransactionHistory(testCurrencyPair, "", "", "", "", "", "")
+	_, err := l.TransactionHistory(context.Background(),
+		testCurrencyPair, "", "", "", "", "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -231,7 +236,7 @@ func TestGetOpenOrders(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
-	_, err := l.GetOpenOrders(cp.Lower().String(), "1", "50")
+	_, err := l.GetOpenOrders(context.Background(), cp.Lower().String(), "1", "50")
 	if err != nil {
 		t.Error(err)
 	}
@@ -239,7 +244,7 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestUSD2RMBRate(t *testing.T) {
 	t.Parallel()
-	_, err := l.USD2RMBRate()
+	_, err := l.USD2RMBRate(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -247,7 +252,8 @@ func TestUSD2RMBRate(t *testing.T) {
 
 func TestGetWithdrawConfig(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetWithdrawConfig(currency.ETH.Lower().String())
+	_, err := l.GetWithdrawConfig(context.Background(),
+		currency.ETH.Lower().String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -258,7 +264,7 @@ func TestWithdraw(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := l.Withdraw("", "", "", "", "", "")
+	_, err := l.Withdraw(context.Background(), "", "", "", "", "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -269,7 +275,8 @@ func TestGetWithdrawRecords(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.GetWithdrawalRecords(currency.ETH.Lower().String(),
+	_, err := l.GetWithdrawalRecords(context.Background(),
+		currency.ETH.Lower().String(),
 		"0", "1", "20")
 	if err != nil {
 		t.Error(err)
@@ -365,7 +372,7 @@ func TestGetAllOpenOrderID(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.getAllOpenOrderID()
+	_, err := l.getAllOpenOrderID(context.Background())
 	if err != nil {
 		t.Error(err)
 	}

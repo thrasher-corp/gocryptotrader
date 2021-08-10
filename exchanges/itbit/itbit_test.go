@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := i.GetTicker("XBTUSD")
+	_, err := i.GetTicker(context.Background(), "XBTUSD")
 	if err != nil {
 		t.Error("GetTicker() error", err)
 	}
@@ -62,7 +62,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := i.GetOrderbook("XBTUSD")
+	_, err := i.GetOrderbook(context.Background(), "XBTUSD")
 	if err != nil {
 		t.Error("GetOrderbook() error", err)
 	}
@@ -70,56 +70,57 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := i.GetTradeHistory("XBTUSD", "0")
+	_, err := i.GetTradeHistory(context.Background(), "XBTUSD", "0")
 	if err != nil {
 		t.Error("GetTradeHistory() error", err)
 	}
 }
 
 func TestGetWallets(t *testing.T) {
-	_, err := i.GetWallets(url.Values{})
+	_, err := i.GetWallets(context.Background(), url.Values{})
 	if err == nil {
 		t.Error("GetWallets() Expected error")
 	}
 }
 
 func TestCreateWallet(t *testing.T) {
-	_, err := i.CreateWallet("test")
+	_, err := i.CreateWallet(context.Background(), "test")
 	if err == nil {
 		t.Error("CreateWallet() Expected error")
 	}
 }
 
 func TestGetWallet(t *testing.T) {
-	_, err := i.GetWallet("1337")
+	_, err := i.GetWallet(context.Background(), "1337")
 	if err == nil {
 		t.Error("GetWallet() Expected error")
 	}
 }
 
 func TestGetWalletBalance(t *testing.T) {
-	_, err := i.GetWalletBalance("1337", "XRT")
+	_, err := i.GetWalletBalance(context.Background(), "1337", "XRT")
 	if err == nil {
 		t.Error("GetWalletBalance() Expected error")
 	}
 }
 
 func TestGetWalletTrades(t *testing.T) {
-	_, err := i.GetWalletTrades("1337", url.Values{})
+	_, err := i.GetWalletTrades(context.Background(), "1337", url.Values{})
 	if err == nil {
 		t.Error("GetWalletTrades() Expected error")
 	}
 }
 
 func TestGetFundingHistory(t *testing.T) {
-	_, err := i.GetFundingHistoryForWallet("1337", url.Values{})
+	_, err := i.GetFundingHistoryForWallet(context.Background(), "1337", url.Values{})
 	if err == nil {
 		t.Error("GetFundingHistory() Expected error")
 	}
 }
 
 func TestPlaceOrder(t *testing.T) {
-	_, err := i.PlaceOrder("1337", order.Buy.Lower(),
+	_, err := i.PlaceOrder(context.Background(),
+		"1337", order.Buy.Lower(),
 		order.Limit.Lower(), "USD", 1, 0.2, "banjo",
 		"sauce")
 	if err == nil {
@@ -128,7 +129,7 @@ func TestPlaceOrder(t *testing.T) {
 }
 
 func TestGetOrder(t *testing.T) {
-	_, err := i.GetOrder("1337", url.Values{})
+	_, err := i.GetOrder(context.Background(), "1337", url.Values{})
 	if err == nil {
 		t.Error("GetOrder() Expected error")
 	}
@@ -136,21 +137,22 @@ func TestGetOrder(t *testing.T) {
 
 func TestCancelExistingOrder(t *testing.T) {
 	t.Skip()
-	err := i.CancelExistingOrder("1337", "1337order")
+	err := i.CancelExistingOrder(context.Background(), "1337", "1337order")
 	if err == nil {
 		t.Error("CancelOrder() Expected error")
 	}
 }
 
 func TestGetCryptoDepositAddress(t *testing.T) {
-	_, err := i.GetCryptoDepositAddress("1337", "AUD")
+	_, err := i.GetCryptoDepositAddress(context.Background(), "1337", "AUD")
 	if err == nil {
 		t.Error("GetCryptoDepositAddress() Expected error")
 	}
 }
 
 func TestWalletTransfer(t *testing.T) {
-	_, err := i.WalletTransfer("1337", "mywallet", "anotherwallet", 200, "USD")
+	_, err := i.WalletTransfer(context.Background(),
+		"1337", "mywallet", "anotherwallet", 200, "USD")
 	if err == nil {
 		t.Error("WalletTransfer() Expected error")
 	}

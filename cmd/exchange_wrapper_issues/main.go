@@ -482,7 +482,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
 			})
 
-			err = e.UpdateOrderExecutionLimits(assetTypes[i])
+			err = e.UpdateOrderExecutionLimits(context.TODO(), assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()

@@ -265,7 +265,7 @@ func (c *COINUT) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]st
 			return nil, err
 		}
 	} else {
-		resp, err = c.GetInstruments()
+		resp, err = c.GetInstruments(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -316,7 +316,7 @@ func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		}
 		bal = resp
 	} else {
-		bal, err = c.GetUserBalance()
+		bal, err = c.GetUserBalance(ctx)
 		if err != nil {
 			return info, err
 		}
@@ -420,7 +420,7 @@ func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		return nil, errors.New("unable to lookup instrument ID")
 	}
 	var tick Ticker
-	tick, err = c.GetInstrumentTicker(instID)
+	tick, err = c.GetInstrumentTicker(ctx, instID)
 	if err != nil {
 		return nil, err
 	}
@@ -484,7 +484,7 @@ func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, errLookupInstrumentID
 	}
 
-	orderbookNew, err := c.GetInstrumentOrderbook(instID, 200)
+	orderbookNew, err := c.GetInstrumentOrderbook(ctx, instID, 200)
 	if err != nil {
 		return book, err
 	}
@@ -530,7 +530,7 @@ func (c *COINUT) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 		return nil, errLookupInstrumentID
 	}
 	var tradeData Trades
-	tradeData, err = c.GetTrades(currencyID)
+	tradeData, err = c.GetTrades(ctx, currencyID)
 	if err != nil {
 		return nil, err
 	}
@@ -616,8 +616,12 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (order.Submit
 			return submitOrderResponse, err
 		}
 		clientIDUint := uint32(clientIDInt)
-		APIResponse, err = c.NewOrder(currencyID, o.Amount, o.Price,
-			isBuyOrder, clientIDUint)
+		APIResponse, err = c.NewOrder(ctx,
+			currencyID,
+			o.Amount,
+			o.Price,
+			isBuyOrder,
+			clientIDUint)
 		if err != nil {
 			return submitOrderResponse, err
 		}
@@ -685,7 +689,7 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		if currencyID == 0 {
 			return errLookupInstrumentID
 		}
-		_, err = c.CancelExistingOrder(currencyID, orderIDInt)
+		_, err = c.CancelExistingOrder(ctx, currencyID, orderIDInt)
 		if err != nil {
 			return err
 		}
@@ -748,7 +752,7 @@ func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (or
 				return cancelAllOrdersResponse, err
 			}
 			if ids[x] == c.instrumentMap.LookupID(fpair.String()) {
-				openOrders, err := c.GetOpenOrders(ids[x])
+				openOrders, err := c.GetOpenOrders(ctx, ids[x])
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
@@ -766,7 +770,7 @@ func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (or
 		}
 
 		if len(allTheOrdersToCancel) > 0 {
-			resp, err := c.CancelOrders(allTheOrdersToCancel)
+			resp, err := c.CancelOrders(ctx, allTheOrdersToCancel)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -901,7 +905,7 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		}
 
 		for x := range instrumentsToUse {
-			openOrders, err := c.GetOpenOrders(instrumentsToUse[x])
+			openOrders, err := c.GetOpenOrders(ctx, instrumentsToUse[x])
 			if err != nil {
 				return nil, err
 			}
@@ -1007,7 +1011,7 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		}
 
 		for x := range instrumentsToUse {
-			orders, err := c.GetTradeHistory(instrumentsToUse[x], -1, -1)
+			orders, err := c.GetTradeHistory(ctx, instrumentsToUse[x], -1, -1)
 			if err != nil {
 				return nil, err
 			}
@@ -1041,7 +1045,7 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (c *COINUT) AuthenticateWebsocket() error {
+func (c *COINUT) AuthenticateWebsocket(_ context.Context) error {
 	return c.wsAuthenticate()
 }
 
@@ -1053,7 +1057,7 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 				return err
 			}
 		} else {
-			err := c.SeedInstruments()
+			err := c.SeedInstruments(context.TODO())
 			if err != nil {
 				return err
 			}

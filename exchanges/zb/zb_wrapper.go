@@ -217,7 +217,7 @@ func (z *ZB) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (z *ZB) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	markets, err := z.GetMarkets()
+	markets, err := z.GetMarkets(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ func (z *ZB) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (z *ZB) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	result, err := z.GetTickers()
+	result, err := z.GetTickers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +312,7 @@ func (z *ZB) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType ass
 		return book, err
 	}
 
-	orderbookNew, err := z.GetOrderbook(currFormat.String())
+	orderbookNew, err := z.GetOrderbook(ctx, currFormat.String())
 	if err != nil {
 		return book, err
 	}
@@ -350,7 +350,7 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 		}
 		coins = resp.Data.Coins
 	} else {
-		bal, err := z.GetAccountInformation()
+		bal, err := z.GetAccountInformation(ctx)
 		if err != nil {
 			return info, err
 		}
@@ -417,7 +417,7 @@ func (z *ZB) GetRecentTrades(ctx context.Context, p currency.Pair, assetType ass
 		return nil, err
 	}
 	var tradeData TradeHistory
-	tradeData, err = z.GetTrades(p.String())
+	tradeData, err = z.GetTrades(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
@@ -495,7 +495,7 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResp
 			Type:   oT,
 		}
 		var response int64
-		response, err = z.SpotNewOrder(params)
+		response, err = z.SpotNewOrder(ctx, params)
 		if err != nil {
 			return submitOrderResponse, err
 		}
@@ -542,7 +542,7 @@ func (z *ZB) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	return z.CancelExistingOrder(orderIDInt, fpair.String())
+	return z.CancelExistingOrder(ctx, orderIDInt, fpair.String())
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -567,7 +567,8 @@ func (z *ZB) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Cancel
 			return cancelAllOrdersResponse, err
 		}
 		for y := int64(1); ; y++ {
-			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(fPair.String(), y, 10)
+			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(ctx,
+				fPair.String(), y, 10)
 			if err != nil {
 				if strings.Contains(err.Error(), "3001") {
 					break
@@ -616,7 +617,7 @@ func (z *ZB) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pai
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (z *ZB) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	address, err := z.GetCryptoAddress(cryptocurrency)
+	address, err := z.GetCryptoAddress(ctx, cryptocurrency)
 	if err != nil {
 		return "", err
 	}
@@ -630,7 +631,8 @@ func (z *ZB) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *w
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	v, err := z.Withdraw(withdrawRequest.Currency.Lower().String(),
+	v, err := z.Withdraw(ctx,
+		withdrawRequest.Currency.Lower().String(),
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.TradePassword,
 		withdrawRequest.Amount,
@@ -679,7 +681,8 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 			if err != nil {
 				return nil, err
 			}
-			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(fPair.String(), i, 10)
+			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(ctx,
+				fPair.String(), i, 10)
 			if err != nil {
 				if strings.Contains(err.Error(), "3001") {
 					break
@@ -768,7 +771,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 				if err != nil {
 					return nil, err
 				}
-				resp, err := z.GetOrders(fPair.String(), y, side)
+				resp, err := z.GetOrders(ctx, fPair.String(), y, side)
 				if err != nil {
 					return nil, err
 				}
@@ -856,7 +859,7 @@ func (z *ZB) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.It
 		Size:   int64(z.Features.Enabled.Kline.ResultLimit),
 	}
 	var candles KLineResponse
-	candles, err = z.GetSpotKline(klineParams)
+	candles, err = z.GetSpotKline(ctx, klineParams)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -901,7 +904,7 @@ allKlines:
 			Size:   int64(z.Features.Enabled.Kline.ResultLimit),
 		}
 
-		candles, err := z.GetSpotKline(klineParams)
+		candles, err := z.GetSpotKline(ctx, klineParams)
 		if err != nil {
 			return kline.Item{}, err
 		}

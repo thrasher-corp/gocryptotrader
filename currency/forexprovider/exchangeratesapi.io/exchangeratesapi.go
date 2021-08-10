@@ -267,7 +267,7 @@ func (e *ExchangeRates) SendHTTPRequest(endPoint string, values url.Values, resu
 		Result:  result,
 		Verbose: e.Verbose,
 	}
-	err := e.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+	err := e.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	})
 	if err != nil {

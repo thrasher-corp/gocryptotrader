@@ -2,6 +2,7 @@
 package smsglobal
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"net/http"
@@ -179,7 +180,8 @@ func (s *SMSGlobal) SendMessage(to, message string) error {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := common.SendHTTPRequest(http.MethodPost,
+	resp, err := common.SendHTTPRequest(context.TODO(),
+		http.MethodPost,
 		smsGlobalAPIURL,
 		headers,
 		strings.NewReader(values.Encode()))

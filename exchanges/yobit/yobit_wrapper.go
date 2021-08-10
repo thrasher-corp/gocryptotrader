@@ -148,7 +148,7 @@ func (y *Yobit) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (y *Yobit) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	info, err := y.GetInfo()
+	info, err := y.GetInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func (y *Yobit) UpdateTicker(ctx context.Context, p currency.Pair, assetType ass
 		return nil, err
 	}
 
-	result, err := y.GetTicker(pairsCollated)
+	result, err := y.GetTicker(ctx, pairsCollated)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +250,7 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 	if err != nil {
 		return book, err
 	}
-	orderbookNew, err := y.GetDepth(fpair.String())
+	orderbookNew, err := y.GetDepth(ctx, fpair.String())
 	if err != nil {
 		return book, err
 	}
@@ -282,7 +282,7 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 func (y *Yobit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = y.Name
-	accountBalance, err := y.GetAccountInformation()
+	accountBalance, err := y.GetAccountInformation(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -344,7 +344,7 @@ func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 	}
 	var resp []trade.Data
 	var tradeData []Trade
-	tradeData, err = y.GetTrades(p.String())
+	tradeData, err = y.GetTrades(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +397,8 @@ func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		return submitOrderResponse, err
 	}
 
-	response, err := y.Trade(fPair.String(),
+	response, err := y.Trade(ctx,
+		fPair.String(),
 		s.Side.String(),
 		s.Amount,
 		s.Price)
@@ -429,7 +430,7 @@ func (y *Yobit) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	return y.CancelExistingOrder(orderIDInt)
+	return y.CancelExistingOrder(ctx, orderIDInt)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -453,7 +454,7 @@ func (y *Yobit) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Can
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-		activeOrdersForPair, err := y.GetOpenOrders(fCurr.String())
+		activeOrdersForPair, err := y.GetOpenOrders(ctx, fCurr.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -469,7 +470,7 @@ func (y *Yobit) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Can
 				continue
 			}
 
-			err = y.CancelExistingOrder(orderIDInt)
+			err = y.CancelExistingOrder(ctx, orderIDInt)
 			if err != nil {
 				cancelAllOrdersResponse.Status[key] = err.Error()
 			}
@@ -487,7 +488,7 @@ func (y *Yobit) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (y *Yobit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	a, err := y.GetCryptoDepositAddress(cryptocurrency.String())
+	a, err := y.GetCryptoDepositAddress(ctx, cryptocurrency.String())
 	if err != nil {
 		return "", err
 	}
@@ -501,7 +502,8 @@ func (y *Yobit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := y.WithdrawCoinsToAddress(withdrawRequest.Currency.String(),
+	resp, err := y.WithdrawCoinsToAddress(ctx,
+		withdrawRequest.Currency.String(),
 		withdrawRequest.Amount,
 		withdrawRequest.Crypto.Address)
 	if err != nil {
@@ -552,7 +554,7 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		if err != nil {
 			return nil, err
 		}
-		resp, err := y.GetOpenOrders(fCurr.String())
+		resp, err := y.GetOpenOrders(ctx, fCurr.String())
 		if err != nil {
 			return nil, err
 		}
@@ -595,7 +597,8 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		if err != nil {
 			return nil, err
 		}
-		resp, err := y.GetTradeHistory(0,
+		resp, err := y.GetTradeHistory(ctx,
+			0,
 			10000,
 			math.MaxInt64,
 			req.StartTime.Unix(),

@@ -250,7 +250,7 @@ func (c *Coinbene) FetchTradablePairs(ctx context.Context, a asset.Item) ([]stri
 	var currencies []string
 	switch a {
 	case asset.Spot:
-		pairs, err := c.GetAllPairs()
+		pairs, err := c.GetAllPairs(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -259,7 +259,7 @@ func (c *Coinbene) FetchTradablePairs(ctx context.Context, a asset.Item) ([]stri
 			currencies = append(currencies, pairs[x].Symbol)
 		}
 	case asset.PerpetualSwap:
-		instruments, err := c.GetSwapInstruments()
+		instruments, err := c.GetSwapInstruments(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -312,7 +312,7 @@ func (c *Coinbene) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 
 	switch assetType {
 	case asset.Spot:
-		tickers, err := c.GetTickers()
+		tickers, err := c.GetTickers(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -343,7 +343,7 @@ func (c *Coinbene) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 			}
 		}
 	case asset.PerpetualSwap:
-		tickers, err := c.GetSwapTickers()
+		tickers, err := c.GetSwapTickers(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -430,11 +430,13 @@ func (c *Coinbene) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	var tempResp Orderbook
 	switch assetType {
 	case asset.Spot:
-		tempResp, err = c.GetOrderbook(fpair.String(),
+		tempResp, err = c.GetOrderbook(ctx,
+			fpair.String(),
 			100, // TO-DO: Update this once we support configurable orderbook depth
 		)
 	case asset.PerpetualSwap:
-		tempResp, err = c.GetSwapOrderbook(fpair.String(),
+		tempResp, err = c.GetSwapOrderbook(ctx,
+			fpair.String(),
 			100, // TO-DO: Update this once we support configurable orderbook depth
 		)
 	}
@@ -472,7 +474,7 @@ func (c *Coinbene) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 // Coinbene exchange
 func (c *Coinbene) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
-	balance, err := c.GetAccountBalances()
+	balance, err := c.GetAccountBalances(ctx)
 	if err != nil {
 		return info, err
 	}
@@ -528,7 +530,7 @@ func (c *Coinbene) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 	var tradeData Trades
-	tradeData, err = c.GetTrades(p.String(), 100)
+	tradeData, err = c.GetTrades(ctx, p.String(), 100)
 	if err != nil {
 		return nil, err
 	}
@@ -581,7 +583,8 @@ func (c *Coinbene) SubmitOrder(ctx context.Context, s *order.Submit) (order.Subm
 		return resp, err
 	}
 
-	tempResp, err := c.PlaceSpotOrder(s.Price,
+	tempResp, err := c.PlaceSpotOrder(ctx,
+		s.Price,
 		s.Amount,
 		fpair.String(),
 		s.Side.String(),
@@ -607,7 +610,7 @@ func (c *Coinbene) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	_, err := c.CancelSpotOrder(o.ID)
+	_, err := c.CancelSpotOrder(ctx, o.ID)
 	return err
 }
 
@@ -629,14 +632,14 @@ func (c *Coinbene) CancelAllOrders(ctx context.Context, orderCancellation *order
 		return resp, err
 	}
 
-	orders, err := c.FetchOpenSpotOrders(fpair.String())
+	orders, err := c.FetchOpenSpotOrders(ctx, fpair.String())
 	if err != nil {
 		return resp, err
 	}
 
 	tempMap := make(map[string]string)
 	for x := range orders {
-		_, err := c.CancelSpotOrder(orders[x].OrderID)
+		_, err := c.CancelSpotOrder(ctx, orders[x].OrderID)
 		if err != nil {
 			tempMap[orders[x].OrderID] = "Failed"
 		} else {
@@ -650,7 +653,7 @@ func (c *Coinbene) CancelAllOrders(ctx context.Context, orderCancellation *order
 // GetOrderInfo returns order information based on order ID
 func (c *Coinbene) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
-	tempResp, err := c.FetchSpotOrderInfo(orderID)
+	tempResp, err := c.FetchSpotOrderInfo(ctx, orderID)
 	if err != nil {
 		return resp, err
 	}
@@ -696,7 +699,7 @@ func (c *Coinbene) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 	}
 
 	if len(getOrdersRequest.Pairs) == 0 {
-		allPairs, err := c.GetAllPairs()
+		allPairs, err := c.GetAllPairs(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -718,7 +721,7 @@ func (c *Coinbene) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 		}
 
 		var tempData OrdersInfo
-		tempData, err = c.FetchOpenSpotOrders(fpair.String())
+		tempData, err = c.FetchOpenSpotOrders(ctx, fpair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -752,7 +755,7 @@ func (c *Coinbene) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	}
 
 	if len(getOrdersRequest.Pairs) == 0 {
-		allPairs, err := c.GetAllPairs()
+		allPairs, err := c.GetAllPairs(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -775,7 +778,7 @@ func (c *Coinbene) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			return nil, err
 		}
 
-		tempData, err = c.FetchClosedOrders(fpair.String(), "")
+		tempData, err = c.FetchClosedOrders(ctx, fpair.String(), "")
 		if err != nil {
 			return nil, err
 		}
@@ -808,7 +811,7 @@ func (c *Coinbene) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 		return 0, err
 	}
 
-	tempData, err := c.GetPairInfo(fpair.String())
+	tempData, err := c.GetPairInfo(ctx, fpair.String())
 	if err != nil {
 		return 0, err
 	}
@@ -820,7 +823,7 @@ func (c *Coinbene) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (c *Coinbene) AuthenticateWebsocket() error {
+func (c *Coinbene) AuthenticateWebsocket(_ context.Context) error {
 	return c.Login()
 }
 
@@ -860,11 +863,13 @@ func (c *Coinbene) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 	var candles CandleResponse
 	if a == asset.PerpetualSwap {
-		candles, err = c.GetSwapKlines(formattedPair.String(),
+		candles, err = c.GetSwapKlines(ctx,
+			formattedPair.String(),
 			start, end,
 			c.FormatExchangeKlineInterval(interval))
 	} else {
-		candles, err = c.GetKlines(formattedPair.String(),
+		candles, err = c.GetKlines(ctx,
+			formattedPair.String(),
 			start, end,
 			c.FormatExchangeKlineInterval(interval))
 	}

@@ -45,7 +45,7 @@ type ZB struct {
 }
 
 // SpotNewOrder submits an order to ZB
-func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
+func (z *ZB) SpotNewOrder(ctx context.Context, arg SpotNewOrderRequestParams) (int64, error) {
 	var result SpotNewOrderResponse
 
 	vals := url.Values{}
@@ -56,7 +56,7 @@ func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	vals.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	vals.Set("tradeType", string(arg.Type))
 
-	err := z.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
+	err := z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
 	if err != nil {
 		return 0, err
 	}
@@ -71,7 +71,7 @@ func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 }
 
 // CancelExistingOrder cancels an order
-func (z *ZB) CancelExistingOrder(orderID int64, symbol string) error {
+func (z *ZB) CancelExistingOrder(ctx context.Context, orderID int64, symbol string) error {
 	type response struct {
 		Code    int    `json:"code"`    // Result code
 		Message string `json:"message"` // Result Message
@@ -84,7 +84,7 @@ func (z *ZB) CancelExistingOrder(orderID int64, symbol string) error {
 	vals.Set("currency", symbol)
 
 	var result response
-	err := z.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
+	err := z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
 	if err != nil {
 		return err
 	}
@@ -97,18 +97,18 @@ func (z *ZB) CancelExistingOrder(orderID int64, symbol string) error {
 
 // GetAccountInformation returns account information including coin information
 // and pricing
-func (z *ZB) GetAccountInformation() (AccountsResponse, error) {
+func (z *ZB) GetAccountInformation(ctx context.Context) (AccountsResponse, error) {
 	var result AccountsResponse
 
 	vals := url.Values{}
 	vals.Set("accesskey", z.API.Credentials.Key)
 	vals.Set("method", "getAccountInfo")
 
-	return result, z.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
+	return result, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
 }
 
 // GetUnfinishedOrdersIgnoreTradeType returns unfinished orders
-func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(currency string, pageindex, pagesize int64) ([]Order, error) {
+func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(ctx context.Context, currency string, pageindex, pagesize int64) ([]Order, error) {
 	var result []Order
 	vals := url.Values{}
 	vals.Set("accesskey", z.API.Credentials.Key)
@@ -117,12 +117,12 @@ func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(currency string, pageindex, page
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
 	vals.Set("pageSize", strconv.FormatInt(pagesize, 10))
 
-	err := z.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
+	err := z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
 	return result, err
 }
 
 // GetOrders returns finished orders
-func (z *ZB) GetOrders(currency string, pageindex, side int64) ([]Order, error) {
+func (z *ZB) GetOrders(ctx context.Context, currency string, pageindex, side int64) ([]Order, error) {
 	var response []Order
 	vals := url.Values{}
 	vals.Set("accesskey", z.API.Credentials.Key)
@@ -130,16 +130,16 @@ func (z *ZB) GetOrders(currency string, pageindex, side int64) ([]Order, error) 
 	vals.Set("currency", currency)
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
 	vals.Set("tradeType", strconv.FormatInt(side, 10))
-	return response, z.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, vals, &response, request.Auth)
+	return response, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &response, request.Auth)
 }
 
 // GetMarkets returns market information including pricing, symbols and
 // each symbols decimal precision
-func (z *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
+func (z *ZB) GetMarkets(ctx context.Context) (map[string]MarketResponseItem, error) {
 	endpoint := fmt.Sprintf("/%s/%s/%s", zbData, zbAPIVersion, zbMarkets)
 
 	var res map[string]MarketResponseItem
-	err := z.SendHTTPRequest(exchange.RestSpot, endpoint, &res, request.UnAuth)
+	err := z.SendHTTPRequest(ctx, exchange.RestSpot, endpoint, &res, request.UnAuth)
 	if err != nil {
 		return nil, err
 	}
@@ -151,9 +151,8 @@ func (z *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
 //
 // symbol: string of currency pair
 // 获取最新价格
-func (z *ZB) GetLatestSpotPrice(symbol string) (float64, error) {
-	res, err := z.GetTicker(symbol)
-
+func (z *ZB) GetLatestSpotPrice(ctx context.Context, symbol string) (float64, error) {
+	res, err := z.GetTicker(ctx, symbol)
 	if err != nil {
 		return 0, err
 	}
@@ -162,35 +161,35 @@ func (z *ZB) GetLatestSpotPrice(symbol string) (float64, error) {
 }
 
 // GetTicker returns a ticker for a given symbol
-func (z *ZB) GetTicker(symbol string) (TickerResponse, error) {
+func (z *ZB) GetTicker(ctx context.Context, symbol string) (TickerResponse, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s?market=%s", zbData, zbAPIVersion, zbTicker, symbol)
 	var res TickerResponse
-	err := z.SendHTTPRequest(exchange.RestSpot, urlPath, &res, request.UnAuth)
+	err := z.SendHTTPRequest(ctx, exchange.RestSpot, urlPath, &res, request.UnAuth)
 	return res, err
 }
 
 // GetTrades returns trades for a given symbol
-func (z *ZB) GetTrades(symbol string) (TradeHistory, error) {
+func (z *ZB) GetTrades(ctx context.Context, symbol string) (TradeHistory, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s?market=%s", zbData, zbAPIVersion, zbTrades, symbol)
 	var res TradeHistory
-	err := z.SendHTTPRequest(exchange.RestSpot, urlPath, &res, request.UnAuth)
+	err := z.SendHTTPRequest(ctx, exchange.RestSpot, urlPath, &res, request.UnAuth)
 	return res, err
 }
 
 // GetTickers returns ticker data for all supported symbols
-func (z *ZB) GetTickers() (map[string]TickerChildResponse, error) {
+func (z *ZB) GetTickers(ctx context.Context) (map[string]TickerChildResponse, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s", zbData, zbAPIVersion, zbTickers)
 	resp := make(map[string]TickerChildResponse)
-	err := z.SendHTTPRequest(exchange.RestSpot, urlPath, &resp, request.UnAuth)
+	err := z.SendHTTPRequest(ctx, exchange.RestSpot, urlPath, &resp, request.UnAuth)
 	return resp, err
 }
 
 // GetOrderbook returns the orderbook for a given symbol
-func (z *ZB) GetOrderbook(symbol string) (OrderbookResponse, error) {
+func (z *ZB) GetOrderbook(ctx context.Context, symbol string) (OrderbookResponse, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s?market=%s", zbData, zbAPIVersion, zbDepth, symbol)
 	var res OrderbookResponse
 
-	err := z.SendHTTPRequest(exchange.RestSpot, urlPath, &res, request.UnAuth)
+	err := z.SendHTTPRequest(ctx, exchange.RestSpot, urlPath, &res, request.UnAuth)
 	if err != nil {
 		return res, err
 	}
@@ -214,7 +213,7 @@ func (z *ZB) GetOrderbook(symbol string) (OrderbookResponse, error) {
 }
 
 // GetSpotKline returns Kline data
-func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
+func (z *ZB) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (KLineResponse, error) {
 	vals := url.Values{}
 	vals.Set("type", arg.Type)
 	vals.Set("market", arg.Symbol)
@@ -229,7 +228,7 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 
 	var res KLineResponse
 	var rawKlines map[string]interface{}
-	err := z.SendHTTPRequest(exchange.RestSpot, urlPath, &rawKlines, klineFunc)
+	err := z.SendHTTPRequest(ctx, exchange.RestSpot, urlPath, &rawKlines, klineFunc)
 	if err != nil {
 		return res, err
 	}
@@ -268,7 +267,7 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 // NOTE - PLEASE BE AWARE THAT YOU NEED TO GENERATE A DEPOSIT ADDRESS VIA
 // LOGGING IN AND NOT BY USING THIS ENDPOINT OTHERWISE THIS WILL GIVE YOU A
 // GENERAL ERROR RESPONSE.
-func (z *ZB) GetCryptoAddress(currency currency.Code) (UserAddress, error) {
+func (z *ZB) GetCryptoAddress(ctx context.Context, currency currency.Code) (UserAddress, error) {
 	var resp UserAddress
 
 	vals := url.Values{}
@@ -276,11 +275,11 @@ func (z *ZB) GetCryptoAddress(currency currency.Code) (UserAddress, error) {
 	vals.Set("currency", currency.Lower().String())
 
 	return resp,
-		z.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)
+		z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (z *ZB) SendHTTPRequest(ep exchange.URL, path string, result interface{}, f request.EndpointLimit) error {
+func (z *ZB) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}, f request.EndpointLimit) error {
 	endpoint, err := z.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -295,13 +294,13 @@ func (z *ZB) SendHTTPRequest(ep exchange.URL, path string, result interface{}, f
 		HTTPRecording: z.HTTPRecording,
 	}
 
-	return z.SendPayload(context.Background(), f, func() (*request.Item, error) {
+	return z.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
 	})
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
-func (z *ZB) SendAuthenticatedHTTPRequest(ep exchange.URL, httpMethod string, params url.Values, result interface{}, f request.EndpointLimit) error {
+func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod string, params url.Values, result interface{}, f request.EndpointLimit) error {
 	if !z.AllowAuthenticatedRequest() {
 		return fmt.Errorf("%s %w", z.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
@@ -337,7 +336,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ep exchange.URL, httpMethod string, pa
 		}, nil
 	}
 
-	err = z.SendPayload(context.Background(), f, newRequest)
+	err = z.SendPayload(ctx, f, newRequest)
 	if err != nil {
 		return err
 	}
@@ -423,7 +422,7 @@ var errorCode = map[int64]string{
 }
 
 // Withdraw transfers funds
-func (z *ZB) Withdraw(currency, address, safepassword string, amount, fees float64, itransfer bool) (string, error) {
+func (z *ZB) Withdraw(ctx context.Context, currency, address, safepassword string, amount, fees float64, itransfer bool) (string, error) {
 	type response struct {
 		Code    int    `json:"code"`    // Result code
 		Message string `json:"message"` // Result Message
@@ -441,7 +440,7 @@ func (z *ZB) Withdraw(currency, address, safepassword string, amount, fees float
 	vals.Set("safePwd", safepassword)
 
 	var resp response
-	err := z.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)
+	err := z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)
 	if err != nil {
 		return "", err
 	}

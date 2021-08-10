@@ -147,7 +147,7 @@ func (i *ItBit) UpdateTicker(ctx context.Context, p currency.Pair, assetType ass
 		return nil, err
 	}
 
-	tick, err := i.GetTicker(fpair.String())
+	tick, err := i.GetTicker(ctx, fpair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		return book, err
 	}
 
-	orderbookNew, err := i.GetOrderbook(fpair.String())
+	orderbookNew, err := i.GetOrderbook(ctx, fpair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func (i *ItBit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	var info account.Holdings
 	info.Exchange = i.Name
 
-	wallets, err := i.GetWallets(url.Values{})
+	wallets, err := i.GetWallets(ctx, url.Values{})
 	if err != nil {
 		return info, err
 	}
@@ -326,7 +326,7 @@ func (i *ItBit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 		return nil, err
 	}
 	var tradeData Trades
-	tradeData, err = i.GetTradeHistory(p.String(), "")
+	tradeData, err = i.GetTradeHistory(ctx, p.String(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -366,7 +366,7 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 	}
 
 	var wallet string
-	wallets, err := i.GetWallets(url.Values{})
+	wallets, err := i.GetWallets(ctx, url.Values{})
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -393,7 +393,8 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		return submitOrderResponse, err
 	}
 
-	response, err := i.PlaceOrder(wallet,
+	response, err := i.PlaceOrder(ctx,
+		wallet,
 		s.Side.String(),
 		s.Type.String(),
 		fPair.Base.String(),
@@ -426,7 +427,7 @@ func (i *ItBit) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	return i.CancelExistingOrder(o.WalletAddress, o.ID)
+	return i.CancelExistingOrder(ctx, o.WalletAddress, o.ID)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -442,13 +443,20 @@ func (i *ItBit) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	openOrders, err := i.GetOrders(orderCancellation.WalletAddress, "", "open", 0, 0)
+	openOrders, err := i.GetOrders(ctx,
+		orderCancellation.WalletAddress,
+		"",
+		"open",
+		0,
+		0)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
 	for j := range openOrders {
-		err = i.CancelExistingOrder(orderCancellation.WalletAddress, openOrders[j].ID)
+		err = i.CancelExistingOrder(ctx,
+			orderCancellation.WalletAddress,
+			openOrders[j].ID)
 		if err != nil {
 			cancelAllOrdersResponse.Status[openOrders[j].ID] = err.Error()
 		}
@@ -503,7 +511,7 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	wallets, err := i.GetWallets(url.Values{})
+	wallets, err := i.GetWallets(ctx, url.Values{})
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +519,7 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	var allOrders []Order
 	for x := range wallets {
 		var resp []Order
-		resp, err = i.GetOrders(wallets[x].ID, "", "open", 0, 0)
+		resp, err = i.GetOrders(ctx, wallets[x].ID, "", "open", 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -567,7 +575,7 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		return nil, err
 	}
 
-	wallets, err := i.GetWallets(url.Values{})
+	wallets, err := i.GetWallets(ctx, url.Values{})
 	if err != nil {
 		return nil, err
 	}
@@ -575,7 +583,7 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 	var allOrders []Order
 	for x := range wallets {
 		var resp []Order
-		resp, err = i.GetOrders(wallets[x].ID, "", "", 0, 0)
+		resp, err = i.GetOrders(ctx, wallets[x].ID, "", "", 0, 0)
 		if err != nil {
 			return nil, err
 		}

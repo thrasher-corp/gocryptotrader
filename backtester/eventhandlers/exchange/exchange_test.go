@@ -304,7 +304,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = exch.UpdateOrderExecutionLimits(asset.Spot)
+	err = exch.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -66,11 +66,9 @@ type IBotExchange interface {
 	// FlushWebsocketChannels checks and flushes subscriptions if there is a
 	// pair,asset, url/proxy or subscription change
 	FlushWebsocketChannels() error
-	AuthenticateWebsocket() error
 	// Exchange order related execution limits
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*order.Limits, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
-	UpdateOrderExecutionLimits(a asset.Item) error
 }
 
 // APIManager defines required API management functionality for exchange
@@ -119,4 +117,8 @@ type APIManager interface {
 	GetFundingHistory(ctx context.Context) ([]FundHistory, error)
 
 	GetFeeByType(ctx context.Context, f *FeeBuilder) (float64, error)
+
+	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
+
+	AuthenticateWebsocket(ctx context.Context) error
 }

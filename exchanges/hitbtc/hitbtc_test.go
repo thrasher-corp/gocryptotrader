@@ -56,21 +56,22 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetOrderbook(t *testing.T) {
-	_, err := h.GetOrderbook("BTCUSD", 50)
+	_, err := h.GetOrderbook(context.Background(), "BTCUSD", 50)
 	if err != nil {
 		t.Error("Test faild - HitBTC GetOrderbook() error", err)
 	}
 }
 
 func TestGetTrades(t *testing.T) {
-	_, err := h.GetTrades("BTCUSD", "", "", 0, 0, 0, 0)
+	_, err := h.GetTrades(context.Background(), "BTCUSD", "", "", 0, 0, 0, 0)
 	if err != nil {
 		t.Error("Test faild - HitBTC GetTradeHistory() error", err)
 	}
 }
 
 func TestGetChartCandles(t *testing.T) {
-	_, err := h.GetCandles("BTCUSD", "", "D1", time.Now().Add(-24*time.Hour), time.Now())
+	_, err := h.GetCandles(context.Background(),
+		"BTCUSD", "", "D1", time.Now().Add(-24*time.Hour), time.Now())
 	if err != nil {
 		t.Error("Test faild - HitBTC GetChartData() error", err)
 	}
@@ -117,7 +118,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 }
 
 func TestGetCurrencies(t *testing.T) {
-	_, err := h.GetCurrencies()
+	_, err := h.GetCurrencies(context.Background())
 	if err != nil {
 		t.Error("Test faild - HitBTC GetCurrencies() error", err)
 	}
@@ -170,14 +171,14 @@ func TestUpdateTicker(t *testing.T) {
 }
 
 func TestGetAllTickers(t *testing.T) {
-	_, err := h.GetTickers()
+	_, err := h.GetTickers(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSingularTicker(t *testing.T) {
-	_, err := h.GetTicker("BTCUSD")
+	_, err := h.GetTicker(context.Background(), "BTCUSD")
 	if err != nil {
 		t.Error(err)
 	}
@@ -187,7 +188,7 @@ func TestGetFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
-		if _, err := h.GetFee(feeBuilder); err != nil {
+		if _, err := h.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 
@@ -195,32 +196,32 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
-		if _, err := h.GetFee(feeBuilder); err != nil {
+		if _, err := h.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 		// CryptocurrencyTradeFee IsMaker
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
-		if _, err := h.GetFee(feeBuilder); err != nil {
+		if _, err := h.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 		// CryptocurrencyTradeFee Negative purchase price
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
-		if _, err := h.GetFee(feeBuilder); err != nil {
+		if _, err := h.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 		// CryptocurrencyWithdrawalFee Basic
 		feeBuilder = setFeeBuilder()
 		feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-		if _, err := h.GetFee(feeBuilder); err != nil {
+		if _, err := h.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 		// CryptocurrencyWithdrawalFee Invalid currency
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Pair.Base = currency.NewCode("hello")
 		feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-		if _, err := h.GetFee(feeBuilder); err != nil {
+		if _, err := h.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 	}
@@ -230,14 +231,14 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
 	feeBuilder.Pair.Base = currency.BTC
 	feeBuilder.Pair.Quote = currency.LTC
-	if _, err := h.GetFee(feeBuilder); err != nil {
+	if _, err := h.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	if _, err := h.GetFee(feeBuilder); err != nil {
+	if _, err := h.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -245,7 +246,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
-	if _, err := h.GetFee(feeBuilder); err != nil {
+	if _, err := h.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 }

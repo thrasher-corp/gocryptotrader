@@ -266,7 +266,7 @@ func (b *Bitfinex) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *Bitfinex) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
-	items, err := b.GetTickerBatch()
+	items, err := b.GetTickerBatch(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +331,7 @@ func (b *Bitfinex) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		return nil, err
 	}
 
-	tickerNew, err := b.GetTickerBatch()
+	tickerNew, err := b.GetTickerBatch(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -416,7 +416,7 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		prefix = "f"
 	}
 	var orderbookNew Orderbook
-	orderbookNew, err = b.GetOrderbook(prefix+fPair.String(), "R0", 100)
+	orderbookNew, err = b.GetOrderbook(ctx, prefix+fPair.String(), "R0", 100)
 	if err != nil {
 		return nil, err
 	}
@@ -467,7 +467,7 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	var response account.Holdings
 	response.Exchange = b.Name
 
-	accountBalance, err := b.GetAccountBalance()
+	accountBalance, err := b.GetAccountBalance(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -552,7 +552,8 @@ func (b *Bitfinex) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 allTrades:
 	for {
 		var tradeData []Trade
-		tradeData, err = b.GetTrades(currString, int64(limit), 0, ts.Unix()*1000, false)
+		tradeData, err = b.GetTrades(ctx,
+			currString, int64(limit), 0, ts.Unix()*1000, false)
 		if err != nil {
 			return nil, err
 		}
@@ -625,7 +626,8 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (order.Subm
 		if o.AssetType == asset.Spot {
 			orderType = "exchange " + orderType
 		}
-		response, err = b.NewOrder(fpair.String(),
+		response, err = b.NewOrder(ctx,
+			fpair.String(),
 			orderType,
 			o.Amount,
 			o.Price,
@@ -693,7 +695,7 @@ func (b *Bitfinex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		err = b.WsCancelOrder(orderIDInt)
 	} else {
-		_, err = b.CancelExistingOrder(orderIDInt)
+		_, err = b.CancelExistingOrder(ctx, orderIDInt)
 	}
 	return err
 }
@@ -709,7 +711,7 @@ func (b *Bitfinex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		err = b.WsCancelAllOrders()
 	} else {
-		_, err = b.CancelAllExistingOrders()
+		_, err = b.CancelAllExistingOrders(ctx)
 	}
 	return order.CancelAllResponse{}, err
 }
@@ -726,12 +728,12 @@ func (b *Bitfinex) GetDepositAddress(ctx context.Context, c currency.Code, accou
 		accountID = "deposit"
 	}
 
-	method, err := b.ConvertSymbolToDepositMethod(c)
+	method, err := b.ConvertSymbolToDepositMethod(ctx, c)
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := b.NewDeposit(method, accountID, 0)
+	resp, err := b.NewDeposit(ctx, method, accountID, 0)
 	return resp.Address, err
 }
 
@@ -744,7 +746,8 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	// As this is for trading, I've made the wrapper default 'exchange'
 	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
 	walletType := "exchange"
-	resp, err := b.WithdrawCryptocurrency(walletType,
+	resp, err := b.WithdrawCryptocurrency(ctx,
+		walletType,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Description,
 		withdrawRequest.Amount,
@@ -770,7 +773,7 @@ func (b *Bitfinex) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withd
 	// As this is for trading, I've made the wrapper default 'exchange'
 	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
 	walletType := "exchange"
-	resp, err := b.WithdrawFIAT(withdrawalType, walletType, withdrawRequest)
+	resp, err := b.WithdrawFIAT(ctx, withdrawalType, walletType, withdrawRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -803,7 +806,7 @@ func (b *Bitfinex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return b.GetFee(feeBuilder)
+	return b.GetFee(ctx, feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
@@ -813,7 +816,7 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 	}
 
 	var orders []order.Detail
-	resp, err := b.GetOpenOrders()
+	resp, err := b.GetOpenOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -882,7 +885,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 	}
 
 	var orders []order.Detail
-	resp, err := b.GetInactiveOrders()
+	resp, err := b.GetInactiveOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -946,7 +949,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Bitfinex) AuthenticateWebsocket() error {
+func (b *Bitfinex) AuthenticateWebsocket(_ context.Context) error {
 	return b.WsSendAuth()
 }
 
@@ -994,7 +997,8 @@ func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		return kline.Item{}, err
 	}
 
-	candles, err := b.GetCandles(cf, b.FormatExchangeKlineInterval(interval),
+	candles, err := b.GetCandles(ctx,
+		cf, b.FormatExchangeKlineInterval(interval),
 		start.Unix()*1000, end.Unix()*1000,
 		b.Features.Enabled.Kline.ResultLimit, true)
 	if err != nil {
@@ -1046,7 +1050,8 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 
 	for x := range dates.Ranges {
 		var candles []Candle
-		candles, err = b.GetCandles(cf, b.FormatExchangeKlineInterval(interval),
+		candles, err = b.GetCandles(ctx,
+			cf, b.FormatExchangeKlineInterval(interval),
 			dates.Ranges[x].Start.Ticks*1000, dates.Ranges[x].End.Ticks*1000,
 			b.Features.Enabled.Kline.ResultLimit, true)
 		if err != nil {

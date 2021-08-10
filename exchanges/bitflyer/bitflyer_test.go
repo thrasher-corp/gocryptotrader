@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 
 func TestGetLatestBlockCA(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetLatestBlockCA()
+	_, err := b.GetLatestBlockCA(context.Background())
 	if err != nil {
 		t.Error("Bitflyer - GetLatestBlockCA() error:", err)
 	}
@@ -59,7 +59,7 @@ func TestGetLatestBlockCA(t *testing.T) {
 
 func TestGetBlockCA(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetBlockCA("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f")
+	_, err := b.GetBlockCA(context.Background(), "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f")
 	if err != nil {
 		t.Error("Bitflyer - GetBlockCA() error:", err)
 	}
@@ -67,7 +67,7 @@ func TestGetBlockCA(t *testing.T) {
 
 func TestGetBlockbyHeightCA(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetBlockbyHeightCA(0)
+	_, err := b.GetBlockbyHeightCA(context.Background(), 0)
 	if err != nil {
 		t.Error("Bitflyer - GetBlockbyHeightCA() error:", err)
 	}
@@ -75,7 +75,7 @@ func TestGetBlockbyHeightCA(t *testing.T) {
 
 func TestGetTransactionByHashCA(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTransactionByHashCA("0562d1f063cd4127053d838b165630445af5e480ceb24e1fd9ecea52903cb772")
+	_, err := b.GetTransactionByHashCA(context.Background(), "0562d1f063cd4127053d838b165630445af5e480ceb24e1fd9ecea52903cb772")
 	if err != nil {
 		t.Error("Bitflyer - GetTransactionByHashCA() error:", err)
 	}
@@ -83,7 +83,7 @@ func TestGetTransactionByHashCA(t *testing.T) {
 
 func TestGetAddressInfoCA(t *testing.T) {
 	t.Parallel()
-	v, err := b.GetAddressInfoCA(core.BitcoinDonationAddress)
+	v, err := b.GetAddressInfoCA(context.Background(), core.BitcoinDonationAddress)
 	if err != nil {
 		t.Error("Bitflyer - GetAddressInfoCA() error:", err)
 	}
@@ -94,7 +94,7 @@ func TestGetAddressInfoCA(t *testing.T) {
 
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
-	markets, err := b.GetMarkets()
+	markets, err := b.GetMarkets(context.Background())
 	if err != nil {
 		t.Error("Bitflyer - GetMarkets() error:", err)
 	}
@@ -110,7 +110,7 @@ func TestGetMarkets(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderBook("BTC_JPY")
+	_, err := b.GetOrderBook(context.Background(), "BTC_JPY")
 	if err != nil {
 		t.Error("Bitflyer - GetOrderBook() error:", err)
 	}
@@ -118,7 +118,7 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker("BTC_JPY")
+	_, err := b.GetTicker(context.Background(), "BTC_JPY")
 	if err != nil {
 		t.Error("Bitflyer - GetTicker() error:", err)
 	}
@@ -126,7 +126,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetExecutionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetExecutionHistory("BTC_JPY")
+	_, err := b.GetExecutionHistory(context.Background(), "BTC_JPY")
 	if err != nil {
 		t.Error("Bitflyer - GetExecutionHistory() error:", err)
 	}
@@ -134,7 +134,7 @@ func TestGetExecutionHistory(t *testing.T) {
 
 func TestGetExchangeStatus(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetExchangeStatus()
+	_, err := b.GetExchangeStatus(context.Background())
 	if err != nil {
 		t.Error("Bitflyer - GetExchangeStatus() error:", err)
 	}

@@ -27,7 +27,7 @@ var l LocalBitcoins
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 
-	_, err := l.GetTicker()
+	_, err := l.GetTicker(context.Background())
 	if err != nil {
 		t.Errorf("GetTicker() returned: %s", err)
 	}
@@ -36,7 +36,7 @@ func TestGetTicker(t *testing.T) {
 func TestGetTradableCurrencies(t *testing.T) {
 	t.Parallel()
 
-	_, err := l.GetTradableCurrencies()
+	_, err := l.GetTradableCurrencies(context.Background())
 	if err != nil {
 		t.Errorf("GetTradableCurrencies() returned: %s", err)
 	}
@@ -44,7 +44,7 @@ func TestGetTradableCurrencies(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetAccountInformation("", true)
+	_, err := l.GetAccountInformation(context.Background(), "", true)
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Errorf("Could not get AccountInformation: %s", err)
@@ -57,7 +57,7 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestGetads(t *testing.T) {
 	t.Parallel()
-	_, err := l.Getads("")
+	_, err := l.Getads(context.Background(), "")
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Errorf("Could not get ads: %s", err)
@@ -72,7 +72,7 @@ func TestEditAd(t *testing.T) {
 	t.Parallel()
 
 	var edit AdEdit
-	err := l.EditAd(&edit, "1337")
+	err := l.EditAd(context.Background(), &edit, "1337")
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Errorf("Could not edit order: %s", err)
@@ -98,7 +98,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetTrades("LTC", nil)
+	_, err := l.GetTrades(context.Background(), "LTC", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -106,7 +106,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	ob, err := l.GetOrderbook("AUD")
+	ob, err := l.GetOrderbook(context.Background(), "AUD")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -66,7 +66,7 @@ func TestSpotNewOrder(t *testing.T) {
 		Amount: 0.01,
 		Price:  10246.1,
 	}
-	_, err := z.SpotNewOrder(arg)
+	_, err := z.SpotNewOrder(context.Background(), arg)
 	if err != nil {
 		t.Errorf("ZB SpotNewOrder: %s", err)
 	}
@@ -79,7 +79,7 @@ func TestCancelExistingOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	err := z.CancelExistingOrder(20180629145864850, testCurrency)
+	err := z.CancelExistingOrder(context.Background(), 20180629145864850, testCurrency)
 	if err != nil {
 		t.Errorf("ZB CancelExistingOrder: %s", err)
 	}
@@ -87,7 +87,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetLatestSpotPrice(testCurrency)
+	_, err := z.GetLatestSpotPrice(context.Background(), testCurrency)
 	if err != nil {
 		t.Errorf("ZB GetLatestSpotPrice: %s", err)
 	}
@@ -95,7 +95,7 @@ func TestGetLatestSpotPrice(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetTicker(testCurrency)
+	_, err := z.GetTicker(context.Background(), testCurrency)
 	if err != nil {
 		t.Errorf("ZB GetTicker: %s", err)
 	}
@@ -103,7 +103,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetTickers()
+	_, err := z.GetTickers(context.Background())
 	if err != nil {
 		t.Errorf("ZB GetTicker: %s", err)
 	}
@@ -111,7 +111,7 @@ func TestGetTickers(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetOrderbook(testCurrency)
+	_, err := z.GetOrderbook(context.Background(), testCurrency)
 	if err != nil {
 		t.Errorf("ZB GetTicker: %s", err)
 	}
@@ -119,7 +119,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetMarkets()
+	_, err := z.GetMarkets(context.Background())
 	if err != nil {
 		t.Errorf("ZB GetMarkets: %s", err)
 	}
@@ -834,7 +834,7 @@ func TestGetSpotKline(t *testing.T) {
 		arg.Type = "1day"
 	}
 
-	_, err := z.GetSpotKline(arg)
+	_, err := z.GetSpotKline(context.Background(), arg)
 	if err != nil {
 		t.Errorf("ZB GetSpotKline: %s", err)
 	}
@@ -974,7 +974,7 @@ func TestValidateCandlesRequest(t *testing.T) {
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 
-	trades, err := z.GetTrades("btc_usdt")
+	trades, err := z.GetTrades(context.Background(), "btc_usdt")
 	if err != nil {
 		t.Error(err)
 	}

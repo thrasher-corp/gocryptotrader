@@ -102,10 +102,11 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 		return nil, err
 	}
 
-	orderbookNew, err := o.GetOrderBook(GetOrderBookRequest{
-		InstrumentID: fPair.String(),
-		Size:         200,
-	}, a)
+	orderbookNew, err := o.GetOrderBook(ctx,
+		GetOrderBookRequest{
+			InstrumentID: fPair.String(),
+			Size:         200,
+		}, a)
 	if err != nil {
 		return book, err
 	}
@@ -184,7 +185,7 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	currencies, err := o.GetSpotTradingAccounts()
+	currencies, err := o.GetSpotTradingAccounts(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -233,7 +234,7 @@ func (o *OKGroup) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (o *OKGroup) GetFundingHistory(ctx context.Context) (resp []exchange.FundHistory, err error) {
-	accountDepositHistory, err := o.GetAccountDepositHistory("")
+	accountDepositHistory, err := o.GetAccountDepositHistory(ctx, "")
 	if err != nil {
 		return
 	}
@@ -258,7 +259,7 @@ func (o *OKGroup) GetFundingHistory(ctx context.Context) (resp []exchange.FundHi
 			TransferType: "deposit",
 		})
 	}
-	accountWithdrawlHistory, err := o.GetAccountWithdrawalHistory("")
+	accountWithdrawlHistory, err := o.GetAccountWithdrawalHistory(ctx, "")
 	for i := range accountWithdrawlHistory {
 		resp = append(resp, exchange.FundHistory{
 			Amount:       accountWithdrawlHistory[i].Amount,
@@ -296,7 +297,7 @@ func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		request.Price = strconv.FormatFloat(s.Price, 'f', -1, 64)
 	}
 
-	orderResponse, err := o.PlaceSpotOrder(&request)
+	orderResponse, err := o.PlaceSpotOrder(ctx, &request)
 	if err != nil {
 		return order.SubmitResponse{}, err
 	}
@@ -335,10 +336,11 @@ func (o *OKGroup) CancelOrder(ctx context.Context, cancel *order.Cancel) (err er
 		return
 	}
 
-	orderCancellationResponse, err := o.CancelSpotOrder(CancelSpotOrderRequest{
-		InstrumentID: fpair.String(),
-		OrderID:      orderID,
-	})
+	orderCancellationResponse, err := o.CancelSpotOrder(ctx,
+		CancelSpotOrderRequest{
+			InstrumentID: fpair.String(),
+			OrderID:      orderID,
+		})
 
 	if !orderCancellationResponse.Result {
 		err = fmt.Errorf("order %d failed to be cancelled",
@@ -373,10 +375,11 @@ func (o *OKGroup) CancelAllOrders(ctx context.Context, orderCancellation *order.
 		return resp, err
 	}
 
-	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(CancelMultipleSpotOrdersRequest{
-		InstrumentID: fpair.String(),
-		OrderIDs:     orderIDNumbers,
-	})
+	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(ctx,
+		CancelMultipleSpotOrdersRequest{
+			InstrumentID: fpair.String(),
+			OrderIDs:     orderIDNumbers,
+		})
 	if err != nil {
 		return resp, err
 	}
@@ -392,7 +395,7 @@ func (o *OKGroup) CancelAllOrders(ctx context.Context, orderCancellation *order.
 
 // GetOrderInfo returns order information based on order ID
 func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (resp order.Detail, err error) {
-	mOrder, err := o.GetSpotOrder(GetSpotOrderRequest{OrderID: orderID})
+	mOrder, err := o.GetSpotOrder(ctx, GetSpotOrderRequest{OrderID: orderID})
 	if err != nil {
 		return
 	}
@@ -425,7 +428,7 @@ func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (o *OKGroup) GetDepositAddress(ctx context.Context, p currency.Code, _ string) (string, error) {
-	wallet, err := o.GetAccountDepositAddressForCurrency(p.Lower().String())
+	wallet, err := o.GetAccountDepositAddressForCurrency(ctx, p.Lower().String())
 	if err != nil || len(wallet) == 0 {
 		return "", err
 	}
@@ -438,14 +441,15 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
-		Amount:      withdrawRequest.Amount,
-		Currency:    withdrawRequest.Currency.Lower().String(),
-		Destination: 4, // 1, 2, 3 are all internal
-		Fee:         withdrawRequest.Crypto.FeeAmount,
-		ToAddress:   withdrawRequest.Crypto.Address,
-		TradePwd:    withdrawRequest.TradePassword,
-	})
+	withdrawal, err := o.AccountWithdraw(ctx,
+		AccountWithdrawRequest{
+			Amount:      withdrawRequest.Amount,
+			Currency:    withdrawRequest.Currency.Lower().String(),
+			Destination: 4, // 1, 2, 3 are all internal
+			Fee:         withdrawRequest.Crypto.FeeAmount,
+			ToAddress:   withdrawRequest.Crypto.Address,
+			TradePwd:    withdrawRequest.TradePassword,
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -492,9 +496,10 @@ func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			return nil, err
 		}
 		var spotOpenOrders []GetSpotOrderResponse
-		spotOpenOrders, err = o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
-			InstrumentID: fPair.String(),
-		})
+		spotOpenOrders, err = o.GetSpotOpenOrders(ctx,
+			GetSpotOpenOrdersRequest{
+				InstrumentID: fPair.String(),
+			})
 		if err != nil {
 			return resp, err
 		}
@@ -531,10 +536,11 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			return nil, err
 		}
 		var spotOpenOrders []GetSpotOrderResponse
-		spotOpenOrders, err = o.GetSpotOrders(GetSpotOrdersRequest{
-			Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
-			InstrumentID: fPair.String(),
-		})
+		spotOpenOrders, err = o.GetSpotOrders(ctx,
+			GetSpotOrdersRequest{
+				Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
+				InstrumentID: fPair.String(),
+			})
 		if err != nil {
 			return resp, err
 		}
@@ -562,7 +568,7 @@ func (o *OKGroup) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return o.GetFee(feeBuilder)
+	return o.GetFee(ctx, feeBuilder)
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
@@ -571,7 +577,7 @@ func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (o *OKGroup) AuthenticateWebsocket() error {
+func (o *OKGroup) AuthenticateWebsocket(_ context.Context) error {
 	return o.WsLogin()
 }
 
@@ -606,7 +612,7 @@ func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		InstrumentID: formattedPair.String(),
 	}
 
-	candles, err := o.GetMarketData(req)
+	candles, err := o.GetMarketData(ctx, req)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -691,7 +697,7 @@ func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		}
 
 		var candles GetMarketDataResponse
-		candles, err = o.GetMarketData(req)
+		candles, err = o.GetMarketData(ctx, req)
 		if err != nil {
 			return kline.Item{}, err
 		}

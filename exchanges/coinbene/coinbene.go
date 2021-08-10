@@ -77,27 +77,27 @@ const (
 )
 
 // GetAllPairs gets all pairs on the exchange
-func (c *Coinbene) GetAllPairs() ([]PairData, error) {
+func (c *Coinbene) GetAllPairs(ctx context.Context) ([]PairData, error) {
 	resp := struct {
 		Data []PairData `json:"data"`
 	}{}
 	path := coinbeneAPIVersion + coinbeneGetAllPairs
-	return resp.Data, c.SendHTTPRequest(exchange.RestSpot, path, spotPairs, &resp)
+	return resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, path, spotPairs, &resp)
 }
 
 // GetPairInfo gets info about a single pair
-func (c *Coinbene) GetPairInfo(symbol string) (PairData, error) {
+func (c *Coinbene) GetPairInfo(ctx context.Context, symbol string) (PairData, error) {
 	resp := struct {
 		Data PairData `json:"data"`
 	}{}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := common.EncodeURLValues(coinbeneAPIVersion+coinbenePairInfo, params)
-	return resp.Data, c.SendHTTPRequest(exchange.RestSpot, path, spotPairInfo, &resp)
+	return resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, path, spotPairInfo, &resp)
 }
 
 // GetOrderbook gets and stores orderbook data for given pair
-func (c *Coinbene) GetOrderbook(symbol string, size int64) (Orderbook, error) {
+func (c *Coinbene) GetOrderbook(ctx context.Context, symbol string, size int64) (Orderbook, error) {
 	resp := struct {
 		Data struct {
 			Asks [][]string `json:"asks"`
@@ -110,7 +110,7 @@ func (c *Coinbene) GetOrderbook(symbol string, size int64) (Orderbook, error) {
 	params.Set("symbol", symbol)
 	params.Set("depth", strconv.FormatInt(size, 10))
 	path := common.EncodeURLValues(coinbeneAPIVersion+coinbeneGetOrderBook, params)
-	err := c.SendHTTPRequest(exchange.RestSpot, path, spotOrderbook, &resp)
+	err := c.SendHTTPRequest(ctx, exchange.RestSpot, path, spotOrderbook, &resp)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -149,28 +149,28 @@ func (c *Coinbene) GetOrderbook(symbol string, size int64) (Orderbook, error) {
 }
 
 // GetTicker gets and stores ticker data for a currency pair
-func (c *Coinbene) GetTicker(symbol string) (TickerData, error) {
+func (c *Coinbene) GetTicker(ctx context.Context, symbol string) (TickerData, error) {
 	resp := struct {
 		TickerData TickerData `json:"data"`
 	}{}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := common.EncodeURLValues(coinbeneAPIVersion+coinbeneGetTicker, params)
-	return resp.TickerData, c.SendHTTPRequest(exchange.RestSpot, path, spotSpecificTicker, &resp)
+	return resp.TickerData, c.SendHTTPRequest(ctx, exchange.RestSpot, path, spotSpecificTicker, &resp)
 }
 
 // GetTickers gets and all spot tickers supported by the exchange
-func (c *Coinbene) GetTickers() ([]TickerData, error) {
+func (c *Coinbene) GetTickers(ctx context.Context) ([]TickerData, error) {
 	resp := struct {
 		TickerData []TickerData `json:"data"`
 	}{}
 
 	path := coinbeneAPIVersion + coinbeneGetTickersSpot
-	return resp.TickerData, c.SendHTTPRequest(exchange.RestSpot, path, spotTickerList, &resp)
+	return resp.TickerData, c.SendHTTPRequest(ctx, exchange.RestSpot, path, spotTickerList, &resp)
 }
 
 // GetTrades gets recent trades from the exchange
-func (c *Coinbene) GetTrades(symbol string, limit int64) (Trades, error) {
+func (c *Coinbene) GetTrades(ctx context.Context, symbol string, limit int64) (Trades, error) {
 	resp := struct {
 		Data [][]string `json:"data"`
 	}{}
@@ -179,7 +179,7 @@ func (c *Coinbene) GetTrades(symbol string, limit int64) (Trades, error) {
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.FormatInt(limit, 10))
 	path := common.EncodeURLValues(coinbeneAPIVersion+coinbeneGetTrades, params)
-	err := c.SendHTTPRequest(exchange.RestSpot, path, spotMarketTrades, &resp)
+	err := c.SendHTTPRequest(ctx, exchange.RestSpot, path, spotMarketTrades, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -210,12 +210,12 @@ func (c *Coinbene) GetTrades(symbol string, limit int64) (Trades, error) {
 }
 
 // GetAccountBalances gets user balanace info
-func (c *Coinbene) GetAccountBalances() ([]UserBalanceData, error) {
+func (c *Coinbene) GetAccountBalances(ctx context.Context) ([]UserBalanceData, error) {
 	resp := struct {
 		Data []UserBalanceData `json:"data"`
 	}{}
 	path := coinbeneAPIVersion + coinbeneGetUserBalance
-	err := c.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		path,
 		coinbeneGetUserBalance,
 		false,
@@ -229,14 +229,16 @@ func (c *Coinbene) GetAccountBalances() ([]UserBalanceData, error) {
 }
 
 // GetAccountAssetBalance gets user balanace info
-func (c *Coinbene) GetAccountAssetBalance(symbol string) (UserBalanceData, error) {
+func (c *Coinbene) GetAccountAssetBalance(ctx context.Context, symbol string) (UserBalanceData, error) {
 	v := url.Values{}
 	v.Set("asset", symbol)
 	resp := struct {
 		Data UserBalanceData `json:"data"`
 	}{}
 	path := coinbeneAPIVersion + coinbeneAccountBalanceOne
-	err := c.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSpot,
+		http.MethodGet,
 		path,
 		coinbeneAccountBalanceOne,
 		false,
@@ -250,7 +252,7 @@ func (c *Coinbene) GetAccountAssetBalance(symbol string) (UserBalanceData, error
 }
 
 // PlaceSpotOrder creates an order
-func (c *Coinbene) PlaceSpotOrder(price, quantity float64, symbol, direction,
+func (c *Coinbene) PlaceSpotOrder(ctx context.Context, price, quantity float64, symbol, direction,
 	orderType, clientID string, notional int) (OrderPlacementResponse, error) {
 	var resp OrderPlacementResponse
 	params := url.Values{}
@@ -291,7 +293,7 @@ func (c *Coinbene) PlaceSpotOrder(price, quantity float64, symbol, direction,
 		params.Set("notional", strconv.Itoa(notional))
 	}
 	path := coinbeneAPIVersion + coinbenePlaceOrder
-	err := c.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost,
+	err := c.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
 		path,
 		coinbenePlaceOrder,
 		false,
@@ -305,7 +307,7 @@ func (c *Coinbene) PlaceSpotOrder(price, quantity float64, symbol, direction,
 }
 
 // PlaceSpotOrders sets a batchful order request
-func (c *Coinbene) PlaceSpotOrders(orders []PlaceOrderRequest) ([]OrderPlacementResponse, error) {
+func (c *Coinbene) PlaceSpotOrders(ctx context.Context, orders []PlaceOrderRequest) ([]OrderPlacementResponse, error) {
 	if len(orders) == 0 {
 		return nil, errors.New("orders is nil")
 	}
@@ -361,7 +363,9 @@ func (c *Coinbene) PlaceSpotOrders(orders []PlaceOrderRequest) ([]OrderPlacement
 		Data []OrderPlacementResponse `json:"data"`
 	}{}
 	path := coinbeneAPIVersion + coinbeneBatchPlaceOrder
-	err := c.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSpot,
+		http.MethodPost,
 		path,
 		coinbeneBatchPlaceOrder,
 		false,
@@ -375,7 +379,7 @@ func (c *Coinbene) PlaceSpotOrders(orders []PlaceOrderRequest) ([]OrderPlacement
 }
 
 // FetchOpenSpotOrders finds open orders
-func (c *Coinbene) FetchOpenSpotOrders(symbol string) (OrdersInfo, error) {
+func (c *Coinbene) FetchOpenSpotOrders(ctx context.Context, symbol string) (OrdersInfo, error) {
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := coinbeneAPIVersion + coinbeneOpenOrders
@@ -385,7 +389,7 @@ func (c *Coinbene) FetchOpenSpotOrders(symbol string) (OrdersInfo, error) {
 			Data OrdersInfo `json:"data"`
 		}{}
 		params.Set("pageNum", strconv.FormatInt(i, 10))
-		err := c.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet,
+		err := c.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 			path,
 			coinbeneOpenOrders,
 			false,
@@ -407,7 +411,7 @@ func (c *Coinbene) FetchOpenSpotOrders(symbol string) (OrdersInfo, error) {
 }
 
 // FetchClosedOrders finds open orders
-func (c *Coinbene) FetchClosedOrders(symbol, latestID string) (OrdersInfo, error) {
+func (c *Coinbene) FetchClosedOrders(ctx context.Context, symbol, latestID string) (OrdersInfo, error) {
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("latestOrderId", latestID)
@@ -418,7 +422,9 @@ func (c *Coinbene) FetchClosedOrders(symbol, latestID string) (OrdersInfo, error
 			Data OrdersInfo `json:"data"`
 		}{}
 		params.Set("pageNum", strconv.FormatInt(i, 10))
-		err := c.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet,
+		err := c.SendAuthHTTPRequest(ctx,
+			exchange.RestSpot,
+			http.MethodGet,
 			path,
 			coinbeneClosedOrders,
 			false,
@@ -439,14 +445,16 @@ func (c *Coinbene) FetchClosedOrders(symbol, latestID string) (OrdersInfo, error
 }
 
 // FetchSpotOrderInfo gets order info
-func (c *Coinbene) FetchSpotOrderInfo(orderID string) (OrderInfo, error) {
+func (c *Coinbene) FetchSpotOrderInfo(ctx context.Context, orderID string) (OrderInfo, error) {
 	resp := struct {
 		Data OrderInfo `json:"data"`
 	}{}
 	params := url.Values{}
 	params.Set("orderId", orderID)
 	path := coinbeneAPIVersion + coinbeneOrderInfo
-	err := c.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSpot,
+		http.MethodGet,
 		path,
 		coinbeneOrderInfo,
 		false,
@@ -464,14 +472,16 @@ func (c *Coinbene) FetchSpotOrderInfo(orderID string) (OrderInfo, error) {
 }
 
 // GetSpotOrderFills returns a list of fills related to an order ID
-func (c *Coinbene) GetSpotOrderFills(orderID string) ([]OrderFills, error) {
+func (c *Coinbene) GetSpotOrderFills(ctx context.Context, orderID string) ([]OrderFills, error) {
 	resp := struct {
 		Data []OrderFills `json:"data"`
 	}{}
 	params := url.Values{}
 	params.Set("orderId", orderID)
 	path := coinbeneAPIVersion + coinbeneTradeFills
-	err := c.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSpot,
+		http.MethodGet,
 		path,
 		coinbeneTradeFills,
 		false,
@@ -485,14 +495,16 @@ func (c *Coinbene) GetSpotOrderFills(orderID string) ([]OrderFills, error) {
 }
 
 // CancelSpotOrder removes a given order
-func (c *Coinbene) CancelSpotOrder(orderID string) (string, error) {
+func (c *Coinbene) CancelSpotOrder(ctx context.Context, orderID string) (string, error) {
 	resp := struct {
 		Data string `json:"data"`
 	}{}
 	req := make(map[string]interface{})
 	req["orderId"] = orderID
 	path := coinbeneAPIVersion + coinbeneCancelOrder
-	err := c.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSpot,
+		http.MethodPost,
 		path,
 		coinbeneCancelOrder,
 		false,
@@ -506,7 +518,7 @@ func (c *Coinbene) CancelSpotOrder(orderID string) (string, error) {
 }
 
 // CancelSpotOrders cancels a batch of orders
-func (c *Coinbene) CancelSpotOrders(orderIDs []string) ([]OrderCancellationResponse, error) {
+func (c *Coinbene) CancelSpotOrders(ctx context.Context, orderIDs []string) ([]OrderCancellationResponse, error) {
 	req := make(map[string]interface{})
 	req["orderIds"] = orderIDs
 	type resp struct {
@@ -515,7 +527,9 @@ func (c *Coinbene) CancelSpotOrders(orderIDs []string) ([]OrderCancellationRespo
 
 	var r resp
 	path := coinbeneAPIVersion + coinbeneBatchCancel
-	err := c.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSpot,
+		http.MethodPost,
 		path,
 		coinbeneBatchCancel,
 		false,
@@ -529,13 +543,13 @@ func (c *Coinbene) CancelSpotOrders(orderIDs []string) ([]OrderCancellationRespo
 }
 
 // GetSwapTickers returns a map of swap tickers
-func (c *Coinbene) GetSwapTickers() (SwapTickers, error) {
+func (c *Coinbene) GetSwapTickers(ctx context.Context) (SwapTickers, error) {
 	type resp struct {
 		Data SwapTickers `json:"data"`
 	}
 	var r resp
 	path := coinbeneAPIVersion + coinbeneGetTickers
-	err := c.SendHTTPRequest(exchange.RestSwap, path, contractTickers, &r)
+	err := c.SendHTTPRequest(ctx, exchange.RestSwap, path, contractTickers, &r)
 	if err != nil {
 		return nil, err
 	}
@@ -543,8 +557,8 @@ func (c *Coinbene) GetSwapTickers() (SwapTickers, error) {
 }
 
 // GetSwapTicker returns a specific swap ticker
-func (c *Coinbene) GetSwapTicker(symbol string) (SwapTicker, error) {
-	tickers, err := c.GetSwapTickers()
+func (c *Coinbene) GetSwapTicker(ctx context.Context, symbol string) (SwapTicker, error) {
+	tickers, err := c.GetSwapTickers(ctx)
 	if err != nil {
 		return SwapTicker{}, err
 	}
@@ -557,16 +571,20 @@ func (c *Coinbene) GetSwapTicker(symbol string) (SwapTicker, error) {
 }
 
 // GetSwapInstruments returns a list of tradable instruments
-func (c *Coinbene) GetSwapInstruments() ([]Instrument, error) {
+func (c *Coinbene) GetSwapInstruments(ctx context.Context) ([]Instrument, error) {
 	resp := struct {
 		Data []Instrument `json:"data"`
 	}{}
-	return resp.Data, c.SendHTTPRequest(exchange.RestSwap,
-		coinbeneAPIVersion+coinbeneGetInstruments, contractInstruments, &resp)
+	return resp.Data,
+		c.SendHTTPRequest(ctx,
+			exchange.RestSwap,
+			coinbeneAPIVersion+coinbeneGetInstruments,
+			contractInstruments,
+			&resp)
 }
 
 // GetSwapOrderbook returns an orderbook for the specified currency
-func (c *Coinbene) GetSwapOrderbook(symbol string, size int64) (Orderbook, error) {
+func (c *Coinbene) GetSwapOrderbook(ctx context.Context, symbol string, size int64) (Orderbook, error) {
 	var s Orderbook
 	if symbol == "" {
 		return s, fmt.Errorf("a symbol must be specified")
@@ -589,7 +607,7 @@ func (c *Coinbene) GetSwapOrderbook(symbol string, size int64) (Orderbook, error
 
 	var r resp
 	path := common.EncodeURLValues(coinbeneAPIVersion+coinbeneGetOrderBook, v)
-	err := c.SendHTTPRequest(exchange.RestSwap, path, contractOrderbook, &r)
+	err := c.SendHTTPRequest(ctx, exchange.RestSwap, path, contractOrderbook, &r)
 	if err != nil {
 		return s, err
 	}
@@ -633,7 +651,7 @@ func (c *Coinbene) GetSwapOrderbook(symbol string, size int64) (Orderbook, error
 }
 
 // GetKlines data returns the kline data for a specific symbol
-func (c *Coinbene) GetKlines(pair string, start, end time.Time, period string) (resp CandleResponse, err error) {
+func (c *Coinbene) GetKlines(ctx context.Context, pair string, start, end time.Time, period string) (resp CandleResponse, err error) {
 	v := url.Values{}
 	v.Add("symbol", pair)
 	if !start.IsZero() {
@@ -645,7 +663,7 @@ func (c *Coinbene) GetKlines(pair string, start, end time.Time, period string) (
 	v.Add("period", period)
 
 	path := common.EncodeURLValues(coinbeneAPIVersion+coinbeneSpotKlines, v)
-	if err = c.SendHTTPRequest(exchange.RestSpot, path, contractKline, &resp); err != nil {
+	if err = c.SendHTTPRequest(ctx, exchange.RestSpot, path, contractKline, &resp); err != nil {
 		return
 	}
 
@@ -657,7 +675,7 @@ func (c *Coinbene) GetKlines(pair string, start, end time.Time, period string) (
 }
 
 // GetSwapKlines data returns the kline data for a specific symbol
-func (c *Coinbene) GetSwapKlines(symbol string, start, end time.Time, resolution string) (resp CandleResponse, err error) {
+func (c *Coinbene) GetSwapKlines(ctx context.Context, symbol string, start, end time.Time, resolution string) (resp CandleResponse, err error) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
 	if !start.IsZero() {
@@ -669,7 +687,7 @@ func (c *Coinbene) GetSwapKlines(symbol string, start, end time.Time, resolution
 	v.Set("resolution", resolution)
 
 	path := common.EncodeURLValues(coinbeneAPIVersion+coinbeneGetKlines, v)
-	if err = c.SendHTTPRequest(exchange.RestSwap, path, contractKline, &resp); err != nil {
+	if err = c.SendHTTPRequest(ctx, exchange.RestSwap, path, contractKline, &resp); err != nil {
 		return
 	}
 
@@ -677,7 +695,7 @@ func (c *Coinbene) GetSwapKlines(symbol string, start, end time.Time, resolution
 }
 
 // GetSwapTrades returns a list of trades for a swap symbol
-func (c *Coinbene) GetSwapTrades(symbol string, limit int) (SwapTrades, error) {
+func (c *Coinbene) GetSwapTrades(ctx context.Context, symbol string, limit int) (SwapTrades, error) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
 	if limit != 0 {
@@ -688,7 +706,7 @@ func (c *Coinbene) GetSwapTrades(symbol string, limit int) (SwapTrades, error) {
 	}
 	var r resp
 	path := common.EncodeURLValues(coinbeneAPIVersion+coinbeneGetTrades, v)
-	if err := c.SendHTTPRequest(exchange.RestSwap, path, contractTrades, &r); err != nil {
+	if err := c.SendHTTPRequest(ctx, exchange.RestSwap, path, contractTrades, &r); err != nil {
 		return nil, err
 	}
 
@@ -721,13 +739,13 @@ func (c *Coinbene) GetSwapTrades(symbol string, limit int) (SwapTrades, error) {
 }
 
 // GetSwapAccountInfo returns a users swap account balance info
-func (c *Coinbene) GetSwapAccountInfo() (SwapAccountInfo, error) {
+func (c *Coinbene) GetSwapAccountInfo(ctx context.Context) (SwapAccountInfo, error) {
 	type resp struct {
 		Data SwapAccountInfo `json:"data"`
 	}
 	var r resp
 	path := coinbeneAPIVersion + coinbeneAccountInfo
-	err := c.SendAuthHTTPRequest(exchange.RestSwap, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx, exchange.RestSwap, http.MethodGet,
 		path,
 		coinbeneAccountInfo,
 		true,
@@ -741,7 +759,7 @@ func (c *Coinbene) GetSwapAccountInfo() (SwapAccountInfo, error) {
 }
 
 // GetSwapPositions returns a list of open swap positions
-func (c *Coinbene) GetSwapPositions(symbol string) (SwapPositions, error) {
+func (c *Coinbene) GetSwapPositions(ctx context.Context, symbol string) (SwapPositions, error) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
 	type resp struct {
@@ -749,7 +767,7 @@ func (c *Coinbene) GetSwapPositions(symbol string) (SwapPositions, error) {
 	}
 	var r resp
 	path := coinbeneAPIVersion + coinbeneListSwapPositions
-	err := c.SendAuthHTTPRequest(exchange.RestSwap, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx, exchange.RestSwap, http.MethodGet,
 		path,
 		coinbeneListSwapPositions,
 		true,
@@ -763,7 +781,7 @@ func (c *Coinbene) GetSwapPositions(symbol string) (SwapPositions, error) {
 }
 
 // PlaceSwapOrder places a swap order
-func (c *Coinbene) PlaceSwapOrder(symbol, direction, orderType, marginMode,
+func (c *Coinbene) PlaceSwapOrder(ctx context.Context, symbol, direction, orderType, marginMode,
 	clientID string, price, quantity float64, leverage int) (SwapPlaceOrderResponse, error) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
@@ -804,7 +822,9 @@ func (c *Coinbene) PlaceSwapOrder(symbol, direction, orderType, marginMode,
 	}
 	var r resp
 	path := coinbeneAPIVersion + coinbenePlaceOrder
-	err := c.SendAuthHTTPRequest(exchange.RestSwap, http.MethodPost,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSwap,
+		http.MethodPost,
 		path,
 		coinbenePlaceOrder,
 		true,
@@ -818,7 +838,7 @@ func (c *Coinbene) PlaceSwapOrder(symbol, direction, orderType, marginMode,
 }
 
 // CancelSwapOrder cancels a swap order
-func (c *Coinbene) CancelSwapOrder(orderID string) (string, error) {
+func (c *Coinbene) CancelSwapOrder(ctx context.Context, orderID string) (string, error) {
 	params := make(map[string]interface{})
 	params["orderId"] = orderID
 	type resp struct {
@@ -826,7 +846,7 @@ func (c *Coinbene) CancelSwapOrder(orderID string) (string, error) {
 	}
 	var r resp
 	path := coinbeneAPIVersion + coinbeneCancelOrder
-	err := c.SendAuthHTTPRequest(exchange.RestSwap, http.MethodPost,
+	err := c.SendAuthHTTPRequest(ctx, exchange.RestSwap, http.MethodPost,
 		path,
 		coinbeneCancelOrder,
 		true,
@@ -840,7 +860,7 @@ func (c *Coinbene) CancelSwapOrder(orderID string) (string, error) {
 }
 
 // GetSwapOpenOrders gets a list of open swap orders
-func (c *Coinbene) GetSwapOpenOrders(symbol string, pageNum, pageSize int) (SwapOrders, error) {
+func (c *Coinbene) GetSwapOpenOrders(ctx context.Context, symbol string, pageNum, pageSize int) (SwapOrders, error) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
 	if pageNum != 0 {
@@ -854,7 +874,9 @@ func (c *Coinbene) GetSwapOpenOrders(symbol string, pageNum, pageSize int) (Swap
 	}
 	var r resp
 	path := coinbeneAPIVersion + coinbeneOpenOrders
-	err := c.SendAuthHTTPRequest(exchange.RestSwap, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSwap,
+		http.MethodGet,
 		path,
 		coinbeneOpenOrders,
 		true,
@@ -868,7 +890,7 @@ func (c *Coinbene) GetSwapOpenOrders(symbol string, pageNum, pageSize int) (Swap
 }
 
 // GetSwapOpenOrdersByPage gets a list of open orders by page
-func (c *Coinbene) GetSwapOpenOrdersByPage(symbol string, latestOrderID int64) (SwapOrders, error) {
+func (c *Coinbene) GetSwapOpenOrdersByPage(ctx context.Context, symbol string, latestOrderID int64) (SwapOrders, error) {
 	v := url.Values{}
 	if symbol != "" {
 		v.Set("symbol", symbol)
@@ -881,7 +903,9 @@ func (c *Coinbene) GetSwapOpenOrdersByPage(symbol string, latestOrderID int64) (
 	}
 	var r resp
 	path := coinbeneAPIVersion + coinbeneOpenOrdersByPage
-	err := c.SendAuthHTTPRequest(exchange.RestSwap, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSwap,
+		http.MethodGet,
 		path,
 		coinbeneOpenOrdersByPage,
 		true,
@@ -895,7 +919,7 @@ func (c *Coinbene) GetSwapOpenOrdersByPage(symbol string, latestOrderID int64) (
 }
 
 // GetSwapOrderInfo gets order info for a specific order
-func (c *Coinbene) GetSwapOrderInfo(orderID string) (SwapOrder, error) {
+func (c *Coinbene) GetSwapOrderInfo(ctx context.Context, orderID string) (SwapOrder, error) {
 	v := url.Values{}
 	v.Set("orderId", orderID)
 	type resp struct {
@@ -903,7 +927,9 @@ func (c *Coinbene) GetSwapOrderInfo(orderID string) (SwapOrder, error) {
 	}
 	var r resp
 	path := coinbeneAPIVersion + coinbeneOrderInfo
-	err := c.SendAuthHTTPRequest(exchange.RestSwap, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSwap,
+		http.MethodGet,
 		path,
 		coinbeneOrderInfo,
 		true,
@@ -917,7 +943,7 @@ func (c *Coinbene) GetSwapOrderInfo(orderID string) (SwapOrder, error) {
 }
 
 // GetSwapOrderHistory returns the swap order history for a given symbol
-func (c *Coinbene) GetSwapOrderHistory(beginTime, endTime, symbol string, pageNum,
+func (c *Coinbene) GetSwapOrderHistory(ctx context.Context, beginTime, endTime, symbol string, pageNum,
 	pageSize int, direction, orderType string) (SwapOrders, error) {
 	v := url.Values{}
 	if beginTime != "" {
@@ -946,7 +972,7 @@ func (c *Coinbene) GetSwapOrderHistory(beginTime, endTime, symbol string, pageNu
 
 	var r resp
 	path := coinbeneAPIVersion + coinbeneClosedOrders
-	err := c.SendAuthHTTPRequest(exchange.RestSwap, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx, exchange.RestSwap, http.MethodGet,
 		path,
 		coinbeneClosedOrders,
 		true,
@@ -960,7 +986,7 @@ func (c *Coinbene) GetSwapOrderHistory(beginTime, endTime, symbol string, pageNu
 }
 
 // GetSwapOrderHistoryByOrderID returns a list of historic orders based on user params
-func (c *Coinbene) GetSwapOrderHistoryByOrderID(beginTime, endTime, symbol, status string,
+func (c *Coinbene) GetSwapOrderHistoryByOrderID(ctx context.Context, beginTime, endTime, symbol, status string,
 	latestOrderID int64) (SwapOrders, error) {
 	v := url.Values{}
 	if beginTime != "" {
@@ -984,7 +1010,9 @@ func (c *Coinbene) GetSwapOrderHistoryByOrderID(beginTime, endTime, symbol, stat
 
 	var r resp
 	path := coinbeneAPIVersion + coinbeneClosedOrdersByPage
-	err := c.SendAuthHTTPRequest(exchange.RestSwap, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSwap,
+		http.MethodGet,
 		path,
 		coinbeneClosedOrdersByPage,
 		true,
@@ -998,7 +1026,7 @@ func (c *Coinbene) GetSwapOrderHistoryByOrderID(beginTime, endTime, symbol, stat
 }
 
 // CancelSwapOrders cancels multiple swap order IDs
-func (c *Coinbene) CancelSwapOrders(orderIDs []string) ([]OrderCancellationResponse, error) {
+func (c *Coinbene) CancelSwapOrders(ctx context.Context, orderIDs []string) ([]OrderCancellationResponse, error) {
 	if len(orderIDs) > 10 {
 		return nil, errors.New("only 10 orderIDs are allowed at a time")
 	}
@@ -1010,7 +1038,9 @@ func (c *Coinbene) CancelSwapOrders(orderIDs []string) ([]OrderCancellationRespo
 
 	var r resp
 	path := coinbeneAPIVersion + coinbeneBatchCancel
-	err := c.SendAuthHTTPRequest(exchange.RestSwap, http.MethodPost,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSwap,
+		http.MethodPost,
 		path,
 		coinbeneBatchCancel,
 		true,
@@ -1024,7 +1054,7 @@ func (c *Coinbene) CancelSwapOrders(orderIDs []string) ([]OrderCancellationRespo
 }
 
 // GetSwapOrderFills returns a list of swap order fills
-func (c *Coinbene) GetSwapOrderFills(symbol, orderID string, lastTradeID int64) (SwapOrderFills, error) {
+func (c *Coinbene) GetSwapOrderFills(ctx context.Context, symbol, orderID string, lastTradeID int64) (SwapOrderFills, error) {
 	v := url.Values{}
 	if symbol != "" {
 		v.Set("symbol", symbol)
@@ -1041,7 +1071,9 @@ func (c *Coinbene) GetSwapOrderFills(symbol, orderID string, lastTradeID int64) 
 
 	var r resp
 	path := coinbeneAPIVersion + coinbeneOrderFills
-	err := c.SendAuthHTTPRequest(exchange.RestSwap, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSwap,
+		http.MethodGet,
 		path,
 		coinbeneOrderFills,
 		true,
@@ -1055,7 +1087,7 @@ func (c *Coinbene) GetSwapOrderFills(symbol, orderID string, lastTradeID int64) 
 }
 
 // GetSwapFundingRates returns a list of funding rates
-func (c *Coinbene) GetSwapFundingRates(pageNum, pageSize int) ([]SwapFundingRate, error) {
+func (c *Coinbene) GetSwapFundingRates(ctx context.Context, pageNum, pageSize int) ([]SwapFundingRate, error) {
 	v := url.Values{}
 	if pageNum != 0 {
 		v.Set("pageNum", strconv.Itoa(pageNum))
@@ -1069,7 +1101,9 @@ func (c *Coinbene) GetSwapFundingRates(pageNum, pageSize int) ([]SwapFundingRate
 
 	var r resp
 	path := coinbeneAPIVersion + coinbenePositionFeeRate
-	err := c.SendAuthHTTPRequest(exchange.RestSwap, http.MethodGet,
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSwap,
+		http.MethodGet,
 		path,
 		coinbenePositionFeeRate,
 		true,
@@ -1083,7 +1117,7 @@ func (c *Coinbene) GetSwapFundingRates(pageNum, pageSize int) ([]SwapFundingRate
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (c *Coinbene) SendHTTPRequest(ep exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (c *Coinbene) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
 	endpoint, err := c.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -1098,7 +1132,7 @@ func (c *Coinbene) SendHTTPRequest(ep exchange.URL, path string, f request.Endpo
 		HTTPDebugging: c.HTTPDebugging,
 		HTTPRecording: c.HTTPRecording,
 	}
-	if err := c.SendPayload(context.Background(), f, func() (*request.Item, error) {
+	if err := c.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
 	}); err != nil {
 		return err
@@ -1117,7 +1151,7 @@ func (c *Coinbene) SendHTTPRequest(ep exchange.URL, path string, f request.Endpo
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath string, isSwap bool,
+func (c *Coinbene) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, path, epPath string, isSwap bool,
 	params, result interface{}, f request.EndpointLimit) error {
 	if !c.AllowAuthenticatedRequest() {
 		return fmt.Errorf("%s %w", c.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
@@ -1188,7 +1222,7 @@ func (c *Coinbene) SendAuthHTTPRequest(ep exchange.URL, method, path, epPath str
 		}, nil
 	}
 
-	if err := c.SendPayload(context.Background(), f, newRequest); err != nil {
+	if err := c.SendPayload(ctx, f, newRequest); err != nil {
 		return err
 	}
 

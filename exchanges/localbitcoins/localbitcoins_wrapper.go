@@ -139,7 +139,7 @@ func (l *LocalBitcoins) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (l *LocalBitcoins) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	currencies, err := l.GetTradableCurrencies()
+	currencies, err := l.GetTradableCurrencies(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (l *LocalBitcoins) UpdateTradablePairs(ctx context.Context, forceUpdate boo
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (l *LocalBitcoins) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := l.GetTicker()
+	tick, err := l.GetTicker(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +225,7 @@ func (l *LocalBitcoins) UpdateOrderbook(ctx context.Context, p currency.Pair, as
 		VerifyOrderbook: l.CanVerifyOrderbook,
 	}
 
-	orderbookNew, err := l.GetOrderbook(p.Quote.String())
+	orderbookNew, err := l.GetOrderbook(ctx, p.Quote.String())
 	if err != nil {
 		return book, err
 	}
@@ -258,7 +258,7 @@ func (l *LocalBitcoins) UpdateOrderbook(ctx context.Context, p currency.Pair, as
 func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = l.Name
-	accountBalance, err := l.GetWalletBalance()
+	accountBalance, err := l.GetWalletBalance(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -307,7 +307,7 @@ func (l *LocalBitcoins) GetRecentTrades(ctx context.Context, p currency.Pair, as
 		return nil, err
 	}
 	var tradeData []Trade
-	tradeData, err = l.GetTrades(p.Quote.String(), nil)
+	tradeData, err = l.GetTrades(ctx, p.Quote.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +373,7 @@ func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (order
 	}
 
 	// Does not return any orderID, so create the add, then get the order
-	err = l.CreateAd(&params)
+	err = l.CreateAd(ctx, &params)
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -383,7 +383,7 @@ func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (order
 	// Now to figure out what ad we just submitted
 	// The only details we have are the params above
 	var adID string
-	ads, err := l.Getads()
+	ads, err := l.Getads(ctx)
 	for i := range ads.AdList {
 		if ads.AdList[i].Data.PriceEquation == params.PriceEquation &&
 			ads.AdList[i].Data.Lat == float64(params.Latitude) &&
@@ -424,7 +424,7 @@ func (l *LocalBitcoins) CancelOrder(ctx context.Context, o *order.Cancel) error 
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	return l.DeleteAd(o.ID)
+	return l.DeleteAd(ctx, o.ID)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -437,14 +437,14 @@ func (l *LocalBitcoins) CancelAllOrders(ctx context.Context, _ *order.Cancel) (o
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	ads, err := l.Getads()
+	ads, err := l.Getads(ctx)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
 	for i := range ads.AdList {
 		adIDString := strconv.FormatInt(ads.AdList[i].Data.AdID, 10)
-		err = l.DeleteAd(adIDString)
+		err = l.DeleteAd(ctx, adIDString)
 		if err != nil {
 			cancelAllOrdersResponse.Status[adIDString] = err.Error()
 		}
@@ -466,7 +466,7 @@ func (l *LocalBitcoins) GetDepositAddress(ctx context.Context, cryptocurrency cu
 			l.Name, cryptocurrency)
 	}
 
-	return l.GetWalletAddress()
+	return l.GetWalletAddress(ctx)
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -475,7 +475,8 @@ func (l *LocalBitcoins) WithdrawCryptocurrencyFunds(ctx context.Context, withdra
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	err := l.WalletSend(withdrawRequest.Crypto.Address,
+	err := l.WalletSend(ctx,
+		withdrawRequest.Crypto.Address,
 		withdrawRequest.Amount,
 		withdrawRequest.PIN)
 	if err != nil {
@@ -511,7 +512,7 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 		return nil, err
 	}
 
-	resp, err := l.GetDashboardInfo()
+	resp, err := l.GetDashboardInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -568,19 +569,19 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 	}
 
 	var allTrades []DashBoardInfo
-	resp, err := l.GetDashboardCancelledTrades()
+	resp, err := l.GetDashboardCancelledTrades(ctx)
 	if err != nil {
 		return nil, err
 	}
 	allTrades = append(allTrades, resp...)
 
-	resp, err = l.GetDashboardClosedTrades()
+	resp, err = l.GetDashboardClosedTrades(ctx)
 	if err != nil {
 		return nil, err
 	}
 	allTrades = append(allTrades, resp...)
 
-	resp, err = l.GetDashboardReleasedTrades()
+	resp, err = l.GetDashboardReleasedTrades(ctx)
 	if err != nil {
 		return nil, err
 	}

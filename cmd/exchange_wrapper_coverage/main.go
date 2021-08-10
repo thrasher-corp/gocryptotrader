@@ -213,7 +213,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetFeeByType")
 	}
 
-	err = e.UpdateOrderExecutionLimits(asset.DownsideProfitContract)
+	err = e.UpdateOrderExecutionLimits(context.TODO(), asset.DownsideProfitContract)
 	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "UpdateOrderExecutionLimits")
 	}

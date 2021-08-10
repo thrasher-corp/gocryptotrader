@@ -36,7 +36,7 @@ func areTestAPIKeysSet() bool {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetTicker()
+	_, err := p.GetTicker(context.Background())
 	if err != nil {
 		t.Error("Poloniex GetTicker() error", err)
 	}
@@ -44,7 +44,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetVolume(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetVolume()
+	_, err := p.GetVolume(context.Background())
 	if err != nil {
 		t.Error("Test faild - Poloniex GetVolume() error")
 	}
@@ -52,7 +52,7 @@ func TestGetVolume(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetOrderbook("BTC_XMR", 50)
+	_, err := p.GetOrderbook(context.Background(), "BTC_XMR", 50)
 	if err != nil {
 		t.Error("Test faild - Poloniex GetOrderbook() error", err)
 	}
@@ -60,7 +60,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetTradeHistory("BTC_XMR", 0, 0)
+	_, err := p.GetTradeHistory(context.Background(), "BTC_XMR", 0, 0)
 	if err != nil {
 		t.Error("Test faild - Poloniex GetTradeHistory() error", err)
 	}
@@ -68,7 +68,8 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetChartData(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetChartData("BTC_XMR",
+	_, err := p.GetChartData(context.Background(),
+		"BTC_XMR",
 		time.Unix(1405699200, 0), time.Unix(1405699400, 0), "300")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetChartData() error", err)
@@ -77,7 +78,7 @@ func TestGetChartData(t *testing.T) {
 
 func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetCurrencies()
+	_, err := p.GetCurrencies(context.Background())
 	if err != nil {
 		t.Error("Test faild - Poloniex GetCurrencies() error", err)
 	}
@@ -85,7 +86,7 @@ func TestGetCurrencies(t *testing.T) {
 
 func TestGetLoanOrders(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetLoanOrders("BTC")
+	_, err := p.GetLoanOrders(context.Background(), "BTC")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetLoanOrders() error", err)
 	}
@@ -131,7 +132,7 @@ func TestGetFee(t *testing.T) {
 
 	if areTestAPIKeysSet() || mockTests {
 		// CryptocurrencyTradeFee Basic
-		if _, err := p.GetFee(feeBuilder); err != nil {
+		if _, err := p.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 
@@ -139,21 +140,21 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
-		if _, err := p.GetFee(feeBuilder); err != nil {
+		if _, err := p.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee Negative purchase price
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
-		if _, err := p.GetFee(feeBuilder); err != nil {
+		if _, err := p.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 	}
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := p.GetFee(feeBuilder); err != nil {
+	if _, err := p.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -161,21 +162,21 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := p.GetFee(feeBuilder); err != nil {
+	if _, err := p.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
-	if _, err := p.GetFee(feeBuilder); err != nil {
+	if _, err := p.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	if _, err := p.GetFee(feeBuilder); err != nil {
+	if _, err := p.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -183,7 +184,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
-	if _, err := p.GetFee(feeBuilder); err != nil {
+	if _, err := p.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 }
@@ -270,8 +271,8 @@ func TestGetOrderStatus(t *testing.T) {
 				t.Skip()
 			}
 
-			_, err := p.GetAuthenticatedOrderStatus(tt.orderID)
-
+			_, err := p.GetAuthenticatedOrderStatus(context.Background(),
+				tt.orderID)
 			switch {
 			case areTestAPIKeysSet() && err != nil:
 				t.Errorf("Could not get order status: %s", err)
@@ -325,7 +326,7 @@ func TestGetOrderTrades(t *testing.T) {
 				t.Skip()
 			}
 
-			_, err := p.GetAuthenticatedOrderTrades(tt.orderID)
+			_, err := p.GetAuthenticatedOrderTrades(context.Background(), tt.orderID)
 			switch {
 			case areTestAPIKeysSet() && err != nil:
 				t.Errorf("Could not get order trades: %s", err)
@@ -553,7 +554,7 @@ func TestWsSubAck(t *testing.T) {
 }
 
 func TestWsTicker(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -565,7 +566,7 @@ func TestWsTicker(t *testing.T) {
 }
 
 func TestWsExchangeVolume(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -578,7 +579,7 @@ func TestWsExchangeVolume(t *testing.T) {
 
 func TestWsTrades(t *testing.T) {
 	p.SetSaveTradeDataStatus(true)
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -590,7 +591,7 @@ func TestWsTrades(t *testing.T) {
 }
 
 func TestWsPriceAggregateOrderbook(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -709,7 +710,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestProcessAccountMarginPosition(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -746,7 +747,7 @@ func TestProcessAccountMarginPosition(t *testing.T) {
 }
 
 func TestProcessAccountPendingOrder(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -858,7 +859,7 @@ func TestProcessAccountOrderUpdate(t *testing.T) {
 }
 
 func TestProcessAccountOrderLimit(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -919,7 +920,7 @@ func TestProcessAccountOrderLimit(t *testing.T) {
 }
 
 func TestProcessAccountBalanceUpdate(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -1029,7 +1030,7 @@ func TestGetCompleteBalances(t *testing.T) {
 	if !mockTests && !areTestAPIKeysSet() {
 		t.Skip("API keys not set, mockTests false, skipping test")
 	}
-	_, err := p.GetCompleteBalances()
+	_, err := p.GetCompleteBalances(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

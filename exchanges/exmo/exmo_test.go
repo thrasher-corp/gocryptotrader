@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTrades("BTC_USD")
+	_, err := e.GetTrades(context.Background(), "BTC_USD")
 	if err != nil {
 		t.Errorf("Err: %s", err)
 	}
@@ -61,7 +61,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOrderbook("BTC_USD")
+	_, err := e.GetOrderbook(context.Background(), "BTC_USD")
 	if err != nil {
 		t.Errorf("Err: %s", err)
 	}
@@ -69,7 +69,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTicker()
+	_, err := e.GetTicker(context.Background())
 	if err != nil {
 		t.Errorf("Err: %s", err)
 	}
@@ -77,7 +77,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetPairSettings(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPairSettings()
+	_, err := e.GetPairSettings(context.Background())
 	if err != nil {
 		t.Errorf("Err: %s", err)
 	}
@@ -85,7 +85,7 @@ func TestGetPairSettings(t *testing.T) {
 
 func TestGetCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCurrency()
+	_, err := e.GetCurrency(context.Background())
 	if err != nil {
 		t.Errorf("Err: %s", err)
 	}
@@ -96,7 +96,7 @@ func TestGetUserInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := e.GetUserInfo()
+	_, err := e.GetUserInfo(context.Background())
 	if err != nil {
 		t.Errorf("Err: %s", err)
 	}
@@ -107,7 +107,7 @@ func TestGetRequiredAmount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := e.GetRequiredAmount("BTC_USD", 100)
+	_, err := e.GetRequiredAmount(context.Background(), "BTC_USD", 100)
 	if err != nil {
 		t.Errorf("Err: %s", err)
 	}

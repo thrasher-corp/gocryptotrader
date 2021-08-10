@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetSymbols()
+	_, err := g.GetSymbols(context.Background())
 	if err != nil {
 		t.Errorf("Gateio TestGetSymbols: %s", err)
 	}
@@ -68,7 +68,7 @@ func TestGetSymbols(t *testing.T) {
 
 func TestGetMarketInfo(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetMarketInfo()
+	_, err := g.GetMarketInfo(context.Background())
 	if err != nil {
 		t.Errorf("Gateio GetMarketInfo: %s", err)
 	}
@@ -81,12 +81,13 @@ func TestSpotNewOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := g.SpotNewOrder(SpotNewOrderRequestParams{
-		Symbol: "btc_usdt",
-		Amount: -1,
-		Price:  100000,
-		Type:   order.Sell.Lower(),
-	})
+	_, err := g.SpotNewOrder(context.Background(),
+		SpotNewOrderRequestParams{
+			Symbol: "btc_usdt",
+			Amount: -1,
+			Price:  100000,
+			Type:   order.Sell.Lower(),
+		})
 	if err != nil {
 		t.Errorf("Gateio SpotNewOrder: %s", err)
 	}
@@ -99,7 +100,7 @@ func TestCancelExistingOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := g.CancelExistingOrder(917591554, "btc_usdt")
+	_, err := g.CancelExistingOrder(context.Background(), 917591554, "btc_usdt")
 	if err != nil {
 		t.Errorf("Gateio CancelExistingOrder: %s", err)
 	}
@@ -112,7 +113,7 @@ func TestGetBalances(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := g.GetBalances()
+	_, err := g.GetBalances(context.Background())
 	if err != nil {
 		t.Errorf("Gateio GetBalances: %s", err)
 	}
@@ -120,7 +121,7 @@ func TestGetBalances(t *testing.T) {
 
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetLatestSpotPrice("btc_usdt")
+	_, err := g.GetLatestSpotPrice(context.Background(), "btc_usdt")
 	if err != nil {
 		t.Errorf("Gateio GetLatestSpotPrice: %s", err)
 	}
@@ -128,7 +129,7 @@ func TestGetLatestSpotPrice(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTicker("btc_usdt")
+	_, err := g.GetTicker(context.Background(), "btc_usdt")
 	if err != nil {
 		t.Errorf("Gateio GetTicker: %s", err)
 	}
@@ -136,7 +137,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTickers()
+	_, err := g.GetTickers(context.Background())
 	if err != nil {
 		t.Errorf("Gateio GetTicker: %s", err)
 	}
@@ -144,7 +145,7 @@ func TestGetTickers(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetOrderbook("btc_usdt")
+	_, err := g.GetOrderbook(context.Background(), "btc_usdt")
 	if err != nil {
 		t.Errorf("Gateio GetTicker: %s", err)
 	}
@@ -152,11 +153,12 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetSpotKline(KlinesRequestParams{
-		Symbol:   "btc_usdt",
-		GroupSec: "5", // 5 minutes or less
-		HourSize: 1,   // 1 hour data
-	})
+	_, err := g.GetSpotKline(context.Background(),
+		KlinesRequestParams{
+			Symbol:   "btc_usdt",
+			GroupSec: "5", // 5 minutes or less
+			HourSize: 1,   // 1 hour data
+		})
 
 	if err != nil {
 		t.Errorf("Gateio GetSpotKline: %s", err)
@@ -177,8 +179,9 @@ func setFeeBuilder() *exchange.FeeBuilder {
 }
 
 func TestGetTradeHistory(t *testing.T) {
-	_, err := g.GetTrades(currency.NewPairWithDelimiter(currency.BTC.String(),
-		currency.USDT.String(), "_").String())
+	_, err := g.GetTrades(context.Background(),
+		currency.NewPairWithDelimiter(currency.BTC.String(),
+			currency.USDT.String(), "_").String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -203,7 +206,7 @@ func TestGetFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
-		if _, err := g.GetFee(feeBuilder); err != nil {
+		if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 
@@ -211,28 +214,28 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
-		if _, err := g.GetFee(feeBuilder); err != nil {
+		if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee IsMaker
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
-		if _, err := g.GetFee(feeBuilder); err != nil {
+		if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee Negative purchase price
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
-		if _, err := g.GetFee(feeBuilder); err != nil {
+		if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 	}
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := g.GetFee(feeBuilder); err != nil {
+	if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -240,21 +243,21 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := g.GetFee(feeBuilder); err != nil {
+	if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
-	if _, err := g.GetFee(feeBuilder); err != nil {
+	if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	if _, err := g.GetFee(feeBuilder); err != nil {
+	if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -262,7 +265,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
-	if _, err := g.GetFee(feeBuilder); err != nil {
+	if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 }

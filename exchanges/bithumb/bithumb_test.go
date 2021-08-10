@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 
 func TestGetTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTradablePairs()
+	_, err := b.GetTradablePairs(context.Background())
 	if err != nil {
 		t.Error("Bithumb GetTradablePairs() error", err)
 	}
@@ -63,7 +63,7 @@ func TestGetTradablePairs(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker(testCurrency)
+	_, err := b.GetTicker(context.Background(), testCurrency)
 	if err != nil {
 		t.Error("Bithumb GetTicker() error", err)
 	}
@@ -71,7 +71,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetAllTickers(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetAllTickers()
+	_, err := b.GetAllTickers(context.Background())
 	if err != nil {
 		t.Error("Bithumb GetAllTickers() error", err)
 	}
@@ -79,7 +79,7 @@ func TestGetAllTickers(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderBook(testCurrency)
+	_, err := b.GetOrderBook(context.Background(), testCurrency)
 	if err != nil {
 		t.Error("Bithumb GetOrderBook() error", err)
 	}
@@ -87,7 +87,7 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetTransactionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTransactionHistory(testCurrency)
+	_, err := b.GetTransactionHistory(context.Background(), testCurrency)
 	if err != nil {
 		t.Error("Bithumb GetTransactionHistory() error", err)
 	}
@@ -97,7 +97,7 @@ func TestGetAccountInformation(t *testing.T) {
 	t.Parallel()
 
 	// Offline test
-	_, err := b.GetAccountInformation("", "")
+	_, err := b.GetAccountInformation(context.Background(), "", "")
 	if err == nil {
 		t.Error("expected error when no order currency is specified")
 	}
@@ -106,7 +106,9 @@ func TestGetAccountInformation(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err = b.GetAccountInformation(testCurrency, currency.KRW.String())
+	_, err = b.GetAccountInformation(context.Background(),
+		testCurrency,
+		currency.KRW.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -118,7 +120,7 @@ func TestGetAccountBalance(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := b.GetAccountBalance(testCurrency)
+	_, err := b.GetAccountBalance(context.Background(), testCurrency)
 	if err == nil {
 		t.Error("Bithumb GetAccountBalance() Expected error")
 	}
@@ -130,7 +132,7 @@ func TestGetWalletAddress(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := b.GetWalletAddress("")
+	_, err := b.GetWalletAddress(context.Background(), "")
 	if err == nil {
 		t.Error("Bithumb GetWalletAddress() Expected error")
 	}
@@ -138,7 +140,7 @@ func TestGetWalletAddress(t *testing.T) {
 
 func TestGetLastTransaction(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetLastTransaction()
+	_, err := b.GetLastTransaction(context.Background())
 	if err == nil {
 		t.Error("Bithumb GetLastTransaction() Expected error")
 	}
@@ -146,7 +148,8 @@ func TestGetLastTransaction(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrders("1337", order.Bid.Lower(), "100", "", testCurrency)
+	_, err := b.GetOrders(context.Background(),
+		"1337", order.Bid.Lower(), "100", "", testCurrency)
 	if err == nil {
 		t.Error("Bithumb GetOrders() Expected error")
 	}
@@ -154,7 +157,7 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetUserTransactions(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetUserTransactions()
+	_, err := b.GetUserTransactions(context.Background())
 	if err == nil {
 		t.Error("Bithumb GetUserTransactions() Expected error")
 	}
@@ -162,7 +165,8 @@ func TestGetUserTransactions(t *testing.T) {
 
 func TestPlaceTrade(t *testing.T) {
 	t.Parallel()
-	_, err := b.PlaceTrade(testCurrency, order.Bid.Lower(), 0, 0)
+	_, err := b.PlaceTrade(context.Background(),
+		testCurrency, order.Bid.Lower(), 0, 0)
 	if err == nil {
 		t.Error("Bithumb PlaceTrade() Expected error")
 	}
@@ -170,7 +174,8 @@ func TestPlaceTrade(t *testing.T) {
 
 func TestGetOrderDetails(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderDetails("1337", order.Bid.Lower(), testCurrency)
+	_, err := b.GetOrderDetails(context.Background(),
+		"1337", order.Bid.Lower(), testCurrency)
 	if err == nil {
 		t.Error("Bithumb GetOrderDetails() Expected error")
 	}
@@ -178,7 +183,7 @@ func TestGetOrderDetails(t *testing.T) {
 
 func TestCancelTrade(t *testing.T) {
 	t.Parallel()
-	_, err := b.CancelTrade("", "", "")
+	_, err := b.CancelTrade(context.Background(), "", "", "")
 	if err == nil {
 		t.Error("Bithumb CancelTrade() Expected error")
 	}
@@ -186,7 +191,8 @@ func TestCancelTrade(t *testing.T) {
 
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
-	_, err := b.WithdrawCrypto("LQxiDhKU7idKiWQhx4ALKYkBx8xKEQVxJR", "", "ltc", 0)
+	_, err := b.WithdrawCrypto(context.Background(),
+		"LQxiDhKU7idKiWQhx4ALKYkBx8xKEQVxJR", "", "ltc", 0)
 	if err == nil {
 		t.Error("Bithumb WithdrawCrypto() Expected error")
 	}
@@ -197,7 +203,7 @@ func TestRequestKRWDepositDetails(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := b.RequestKRWDepositDetails()
+	_, err := b.RequestKRWDepositDetails(context.Background())
 	if err == nil {
 		t.Error("Bithumb RequestKRWDepositDetails() Expected error")
 	}
@@ -205,7 +211,8 @@ func TestRequestKRWDepositDetails(t *testing.T) {
 
 func TestRequestKRWWithdraw(t *testing.T) {
 	t.Parallel()
-	_, err := b.RequestKRWWithdraw("102_bank", "1337", 1000)
+	_, err := b.RequestKRWWithdraw(context.Background(),
+		"102_bank", "1337", 1000)
 	if err == nil {
 		t.Error("Bithumb RequestKRWWithdraw() Expected error")
 	}
@@ -214,7 +221,7 @@ func TestRequestKRWWithdraw(t *testing.T) {
 func TestMarketBuyOrder(t *testing.T) {
 	t.Parallel()
 	p := currency.NewPair(currency.BTC, currency.KRW)
-	_, err := b.MarketBuyOrder(p, 0)
+	_, err := b.MarketBuyOrder(context.Background(), p, 0)
 	if err == nil {
 		t.Error("Bithumb MarketBuyOrder() Expected error")
 	}
@@ -223,7 +230,7 @@ func TestMarketBuyOrder(t *testing.T) {
 func TestMarketSellOrder(t *testing.T) {
 	t.Parallel()
 	p := currency.NewPair(currency.BTC, currency.KRW)
-	_, err := b.MarketSellOrder(p, 0)
+	_, err := b.MarketSellOrder(context.Background(), p, 0)
 	if err == nil {
 		t.Error("Bithumb MarketSellOrder() Expected error")
 	}
@@ -567,7 +574,7 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestGetCandleStick(t *testing.T) {
-	_, err := b.GetCandleStick("BTC_KRW", "1m")
+	_, err := b.GetCandleStick(context.Background(), "BTC_KRW", "1m")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -625,7 +632,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
-	err := b.UpdateOrderExecutionLimits("")
+	err := b.UpdateOrderExecutionLimits(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}

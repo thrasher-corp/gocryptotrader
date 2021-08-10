@@ -66,7 +66,7 @@ func TestGetFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 
 	// CryptocurrencyTradeFee Basic
-	if _, err := b.GetFee(feeBuilder); err != nil {
+	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -74,35 +74,35 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
-	if _, err := b.GetFee(feeBuilder); err != nil {
+	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if _, err := b.GetFee(feeBuilder); err != nil {
+	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyTradeFee Negative purchase price
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
-	if _, err := b.GetFee(feeBuilder); err != nil {
+	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := b.GetFee(feeBuilder); err != nil {
+	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
-	if _, err := b.GetFee(feeBuilder); err != nil {
+	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -110,7 +110,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.HKD
-	if _, err := b.GetFee(feeBuilder); err != nil {
+	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -118,7 +118,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.HKD
-	if _, err := b.GetFee(feeBuilder); err != nil {
+	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 }
@@ -151,7 +151,8 @@ func TestCalculateTradingFee(t *testing.T) {
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetTicker(currency.BTC.String()+currency.USD.String(), false)
+	_, err := b.GetTicker(context.Background(),
+		currency.BTC.String()+currency.USD.String(), false)
 	if err != nil {
 		t.Error("GetTicker() error", err)
 	}
@@ -159,7 +160,8 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderbook(currency.BTC.String() + currency.USD.String())
+	_, err := b.GetOrderbook(context.Background(),
+		currency.BTC.String()+currency.USD.String())
 	if err != nil {
 		t.Error("GetOrderbook() error", err)
 	}
@@ -168,7 +170,7 @@ func TestGetOrderbook(t *testing.T) {
 func TestGetTradingPairs(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetTradingPairs()
+	_, err := b.GetTradingPairs(context.Background())
 	if err != nil {
 		t.Error("GetTradingPairs() error", err)
 	}
@@ -176,7 +178,8 @@ func TestGetTradingPairs(t *testing.T) {
 
 func TestGetTransactions(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTransactions(currency.BTC.String()+currency.USD.String(), "hour")
+	_, err := b.GetTransactions(context.Background(),
+		currency.BTC.String()+currency.USD.String(), "hour")
 	if err != nil {
 		t.Error("GetTransactions() error", err)
 	}
@@ -185,7 +188,7 @@ func TestGetTransactions(t *testing.T) {
 func TestGetEURUSDConversionRate(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetEURUSDConversionRate()
+	_, err := b.GetEURUSDConversionRate(context.Background())
 	if err != nil {
 		t.Error("GetEURUSDConversionRate() error", err)
 	}
@@ -193,7 +196,7 @@ func TestGetEURUSDConversionRate(t *testing.T) {
 
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetBalance()
+	_, err := b.GetBalance(context.Background())
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Error("GetBalance() error", err)
@@ -207,7 +210,7 @@ func TestGetBalance(t *testing.T) {
 func TestGetUserTransactions(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetUserTransactions("btcusd")
+	_, err := b.GetUserTransactions(context.Background(), "btcusd")
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Error("GetUserTransactions() error", err)
@@ -221,7 +224,7 @@ func TestGetUserTransactions(t *testing.T) {
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetOpenOrders("btcusd")
+	_, err := b.GetOpenOrders(context.Background(), "btcusd")
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Error("GetOpenOrders() error", err)
@@ -235,7 +238,7 @@ func TestGetOpenOrders(t *testing.T) {
 func TestGetOrderStatus(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetOrderStatus(1337)
+	_, err := b.GetOrderStatus(context.Background(), 1337)
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Error("GetOrderStatus() error", err)
@@ -249,7 +252,7 @@ func TestGetOrderStatus(t *testing.T) {
 func TestGetWithdrawalRequests(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetWithdrawalRequests(0)
+	_, err := b.GetWithdrawalRequests(context.Background(), 0)
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Error("GetWithdrawalRequests() error", err)
@@ -263,7 +266,7 @@ func TestGetWithdrawalRequests(t *testing.T) {
 func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetUnconfirmedBitcoinDeposits()
+	_, err := b.GetUnconfirmedBitcoinDeposits(context.Background())
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Error("GetUnconfirmedBitcoinDeposits() error", err)
@@ -281,7 +284,8 @@ func TestTransferAccountBalance(t *testing.T) {
 		t.Skip()
 	}
 
-	err := b.TransferAccountBalance(0.01, "btc", "testAccount", true)
+	err := b.TransferAccountBalance(context.Background(),
+		0.01, "btc", "testAccount", true)
 	if !mockTests && err != nil {
 		t.Error("TransferAccountBalance() error", err)
 	}
@@ -648,7 +652,7 @@ func TestWsRequestReconnect(t *testing.T) {
 func TestBitstamp_OHLC(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	_, err := b.OHLC("btcusd", start, end, "60", "10")
+	_, err := b.OHLC(context.Background(), "btcusd", start, end, "60", "10")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -208,7 +208,7 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.seedOrderSizeLimits()
+	err = b.seedOrderSizeLimits(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func (b *BTSE) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
 	var currencies []string
-	m, err := b.GetMarketSummary("", a == asset.Spot)
+	m, err := b.GetMarketSummary(ctx, "", a == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (b *BTSE) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickers, err := b.GetMarketSummary("", assetType == asset.Spot)
+	tickers, err := b.GetMarketSummary(ctx, "", assetType == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +346,7 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 	if err != nil {
 		return book, err
 	}
-	a, err := b.FetchOrderBook(fPair.String(), 0, 0, 0, assetType == asset.Spot)
+	a, err := b.FetchOrderBook(ctx, fPair.String(), 0, 0, 0, assetType == asset.Spot)
 	if err != nil {
 		return book, err
 	}
@@ -382,7 +382,7 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 // BTSE exchange
 func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var a account.Holdings
-	balance, err := b.GetWalletInformation()
+	balance, err := b.GetWalletInformation(ctx)
 	if err != nil {
 		return a, err
 	}
@@ -454,7 +454,8 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	limit := 500
 
 	var tradeData []Trade
-	tradeData, err = b.GetTrades(p.String(),
+	tradeData, err = b.GetTrades(ctx,
+		p.String(),
 		time.Time{}, time.Time{},
 		0, 0, limit,
 		false,
@@ -510,12 +511,18 @@ func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRe
 		return resp, errors.New("order outside of limits")
 	}
 
-	r, err := b.CreateOrder(s.ClientID, 0.0,
+	r, err := b.CreateOrder(ctx,
+		s.ClientID, 0.0,
 		false,
-		s.Price, s.Side.String(), s.Amount, 0, 0,
-		fPair.String(), goodTillCancel,
-		0.0, s.TriggerPrice,
-		"", s.Type.String())
+		s.Price,
+		s.Side.String(),
+		s.Amount, 0, 0,
+		fPair.String(),
+		goodTillCancel,
+		0.0,
+		s.TriggerPrice,
+		"",
+		s.Type.String())
 	if err != nil {
 		return resp, err
 	}
@@ -547,7 +554,7 @@ func (b *BTSE) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	_, err = b.CancelExistingOrder(o.ID, fPair.String(), o.ClientOrderID)
+	_, err = b.CancelExistingOrder(ctx, o.ID, fPair.String(), o.ClientOrderID)
 	if err != nil {
 		return err
 	}
@@ -576,7 +583,7 @@ func (b *BTSE) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 		return resp, err
 	}
 
-	allOrders, err := b.CancelExistingOrder("", fPair.String(), "")
+	allOrders, err := b.CancelExistingOrder(ctx, "", fPair.String(), "")
 	if err != nil {
 		return resp, nil
 	}
@@ -601,7 +608,7 @@ func orderIntToType(i int) order.Type {
 
 // GetOrderInfo returns order information based on order ID
 func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	o, err := b.GetOrders("", orderID, "")
+	o, err := b.GetOrders(ctx, "", orderID, "")
 	if err != nil {
 		return order.Detail{}, err
 	}
@@ -645,7 +652,8 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		od.Price = o[i].Price
 		od.Status = order.Status(o[i].OrderState)
 
-		th, err := b.TradeHistory("",
+		th, err := b.TradeHistory(ctx,
+			"",
 			time.Time{}, time.Time{},
 			0, 0, 0,
 			false,
@@ -677,12 +685,12 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *BTSE) GetDepositAddress(ctx context.Context, c currency.Code, accountID string) (string, error) {
-	address, err := b.GetWalletAddress(c.String())
+	address, err := b.GetWalletAddress(ctx, c.String())
 	if err != nil {
 		return "", err
 	}
 	if len(address) == 0 {
-		addressCreate, err := b.CreateWalletAddress(c.String())
+		addressCreate, err := b.CreateWalletAddress(ctx, c.String())
 		if err != nil {
 			return "", err
 		}
@@ -701,7 +709,8 @@ func (b *BTSE) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest 
 		return nil, err
 	}
 	amountToString := strconv.FormatFloat(withdrawRequest.Amount, 'f', 8, 64)
-	resp, err := b.WalletWithdrawal(withdrawRequest.Currency.String(),
+	resp, err := b.WalletWithdrawal(ctx,
+		withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
 		amountToString)
@@ -742,7 +751,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 		if err != nil {
 			return nil, err
 		}
-		resp, err := b.GetOrders(formattedPair.String(), "", "")
+		resp, err := b.GetOrders(ctx, formattedPair.String(), "", "")
 		if err != nil {
 			return nil, err
 		}
@@ -784,7 +793,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 				openOrder.Type = order.Limit
 			}
 
-			fills, err := b.TradeHistory(
+			fills, err := b.TradeHistory(ctx,
 				"",
 				time.Time{}, time.Time{},
 				0, 0, 0,
@@ -854,7 +863,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 		if err != nil {
 			return nil, err
 		}
-		currentOrder, err := b.GetOrders(fPair.String(), "", "")
+		currentOrder, err := b.GetOrders(ctx, fPair.String(), "", "")
 		if err != nil {
 			return nil, err
 		}
@@ -892,7 +901,7 @@ func (b *BTSE) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return b.GetFee(feeBuilder)
+	return b.GetFee(ctx, feeBuilder)
 }
 
 // ValidateCredentials validates current credentials used for wrapper
@@ -931,7 +940,8 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 
 	switch a {
 	case asset.Spot:
-		req, err := b.OHLCV(fPair.String(),
+		req, err := b.OHLCV(ctx,
+			fPair.String(),
 			start,
 			end,
 			intervalInt)
@@ -986,7 +996,8 @@ func (b *BTSE) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 
 	switch a {
 	case asset.Spot:
-		req, err := b.OHLCV(fPair.String(),
+		req, err := b.OHLCV(ctx,
+			fPair.String(),
 			start,
 			end,
 			intervalInt)
@@ -1013,8 +1024,8 @@ func (b *BTSE) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 	return klineRet, nil
 }
 
-func (b *BTSE) seedOrderSizeLimits() error {
-	pairs, err := b.GetMarketSummary("", true)
+func (b *BTSE) seedOrderSizeLimits(ctx context.Context) error {
+	pairs, err := b.GetMarketSummary(ctx, "", true)
 	if err != nil {
 		return err
 	}
@@ -1027,7 +1038,7 @@ func (b *BTSE) seedOrderSizeLimits() error {
 		orderSizeLimitMap.Store(pairs[x].Symbol, tempValues)
 	}
 
-	pairs, err = b.GetMarketSummary("", false)
+	pairs, err = b.GetMarketSummary(ctx, "", false)
 	if err != nil {
 		return err
 	}

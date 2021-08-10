@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -51,7 +52,7 @@ func (b *Binance) WsConnect() error {
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err = b.GetWsAuthStreamKey()
+		listenKey, err = b.GetWsAuthStreamKey(context.TODO())
 		if err != nil {
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,
@@ -117,7 +118,7 @@ func (b *Binance) KeepAuthKeyAlive() {
 			ticks.Stop()
 			return
 		case <-ticks.C:
-			err := b.MaintainWsAuthStreamKey()
+			err := b.MaintainWsAuthStreamKey(context.TODO())
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				log.Warnf(log.ExchangeSys,
@@ -440,11 +441,12 @@ func stringToOrderStatus(status string) (order.Status, error) {
 }
 
 // SeedLocalCache seeds depth data
-func (b *Binance) SeedLocalCache(p currency.Pair) error {
-	ob, err := b.GetOrderBook(OrderBookDataRequestParams{
-		Symbol: p,
-		Limit:  1000,
-	})
+func (b *Binance) SeedLocalCache(ctx context.Context, p currency.Pair) error {
+	ob, err := b.GetOrderBook(ctx,
+		OrderBookDataRequestParams{
+			Symbol: p,
+			Limit:  1000,
+		})
 	if err != nil {
 		return err
 	}
@@ -687,7 +689,7 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 
 // processJob fetches and processes orderbook updates
 func (b *Binance) processJob(p currency.Pair) error {
-	err := b.SeedLocalCache(p)
+	err := b.SeedLocalCache(context.TODO(), p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)
