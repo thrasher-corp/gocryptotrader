@@ -90,7 +90,6 @@ func TestFTX_wsHandleData_Details(t *testing.T) {
 		x.AverageExecutedPrice != 32768 ||
 		!x.PostOnly ||
 		!x.Date.Equal(time.Unix(1628418902, 649437000).UTC()) {
-
 		t.Error("parsed values do not match")
 	}
 
