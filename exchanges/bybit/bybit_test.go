@@ -134,3 +134,41 @@ func TestGetBestBidAskPrice(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestCreatePostOrder(t *testing.T) {
+	t.Parallel()
+
+	r, err := by.CreatePostOrder(&PlaceOrderRequest{
+		Symbol:      "BTCUSDT",
+		Quantity:    1,
+		Side:        "BUY",
+		TradeType:   "LIMIT",
+		TimeInForce: "GTC",
+		Price:       100,
+		OrderLinkID: "linkID",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", r)
+}
+
+func TestQueryOrder(t *testing.T) {
+	t.Parallel()
+
+	r, err := by.QueryOrder("0", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", r)
+}
+
+func TestCancelExistingOrder(t *testing.T) {
+	t.Parallel()
+
+	r, err := by.CancelExistingOrder("", "linkID")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", r)
+}

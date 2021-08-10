@@ -544,7 +544,7 @@ func (by *Bybit) QueryOrder(orderID, orderLinkID string) (*QueryOrderResponse, e
 	return &resp, nil
 }
 
-func (by *Bybit) CancelOrder(orderID, orderLinkID string) (*CancelOrderResponse, error) {
+func (by *Bybit) CancelExistingOrder(orderID, orderLinkID string) (*CancelOrderResponse, error) {
 	if orderID == "" && orderLinkID == "" {
 		return nil, errors.New("atleast one should be present among orderID and orderLinkID")
 	}
@@ -604,7 +604,7 @@ func (by *Bybit) SendAuthHTTPRequest(ePath exchange.URL, method, path string, pa
 	params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
 	params.Set("api_key", by.API.Credentials.Key)
 	signature := params.Encode()
-	hmacSigned := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(b.API.Credentials.Secret))
+	hmacSigned := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(by.API.Credentials.Secret))
 	hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
 	if by.Verbose {
 		log.Debugf(log.ExchangeSys, "sent path: %s", path)
