@@ -2,7 +2,6 @@ package engine
 
 import (
 	"fmt"
-	"sync"
 	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
