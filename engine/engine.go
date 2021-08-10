@@ -513,7 +513,6 @@ func (bot *Engine) Start() error {
 		bot.currencyPairSyncer, err = setupSyncManager(
 			exchangeSyncCfg,
 			bot.ExchangeManager,
-			bot.websocketRoutineManager,
 			&bot.Config.RemoteControl)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)

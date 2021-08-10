@@ -58,8 +58,7 @@ type syncManager struct {
 	currencyPairs            []currencyPairSyncAgent
 	tickerBatchLastRequested map[string]time.Time
 
-	remoteConfig          *config.RemoteControlConfig
-	config                Config
-	exchangeManager       iExchangeManager
-	websocketDataReceiver iWebsocketDataReceiver
+	remoteConfig    *config.RemoteControlConfig
+	config          Config
+	exchangeManager iExchangeManager
 }
