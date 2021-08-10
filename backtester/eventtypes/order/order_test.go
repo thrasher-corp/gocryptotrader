@@ -69,9 +69,9 @@ func TestLeverage(t *testing.T) {
 
 func TestGetFunds(t *testing.T) {
 	o := Order{
-		Funds: 1337,
+		AllocatedFunds: 1337,
 	}
-	funds := o.GetFunds()
+	funds := o.GetAllocatedFunds()
 	if funds != 1337 {
 		t.Error("expected 1337")
 	}

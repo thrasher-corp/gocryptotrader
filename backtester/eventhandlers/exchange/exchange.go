@@ -42,7 +42,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		Amount:     o.GetAmount(),
 		ClosePrice: data.Latest().ClosePrice(),
 	}
-	eventFunds := o.GetFunds()
+	eventFunds := o.GetAllocatedFunds()
 	cs, err := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	if err != nil {
 		return f, err
@@ -123,9 +123,17 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		}
 		return f, err
 	}
-	err = funds.Release(eventFunds, eventFunds-limitReducedAmount, f.GetDirection())
-	if err != nil {
-		return f, err
+	switch f.GetDirection() {
+	case gctorder.Buy:
+		err = funds.Release(eventFunds, eventFunds-(limitReducedAmount*adjustedPrice), f.GetDirection())
+		if err != nil {
+			return f, err
+		}
+	case gctorder.Sell:
+		err = funds.Release(eventFunds, eventFunds-limitReducedAmount, f.GetDirection())
+		if err != nil {
+			return f, err
+		}
 	}
 
 	ords, _ := bot.OrderManager.GetOrdersSnapshot("")

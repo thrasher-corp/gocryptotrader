@@ -9,16 +9,16 @@ import (
 // Order contains all details for an order event
 type Order struct {
 	event.Base
-	ID        string
-	Direction order.Side
-	Status    order.Status
-	Price     float64
-	Amount    float64
-	OrderType order.Type
-	Leverage  float64
-	Funds     float64
-	BuyLimit  float64
-	SellLimit float64
+	ID             string
+	Direction      order.Side
+	Status         order.Status
+	Price          float64
+	Amount         float64
+	OrderType      order.Type
+	Leverage       float64
+	AllocatedFunds float64
+	BuyLimit       float64
+	SellLimit      float64
 }
 
 // Event inherits common event interfaces along with extra functions related to handling orders
@@ -34,5 +34,5 @@ type Event interface {
 	SetID(id string)
 	GetID() string
 	IsLeveraged() bool
-	GetFunds() float64
+	GetAllocatedFunds() float64
 }

@@ -77,6 +77,6 @@ func (o *Order) SetLeverage(l float64) {
 
 // GetFunds returns the amount of funds the portfolio manager
 // has allocated to this potential position
-func (o *Order) GetFunds() float64 {
-	return o.Funds
+func (o *Order) GetAllocatedFunds() float64 {
+	return o.AllocatedFunds
 }
