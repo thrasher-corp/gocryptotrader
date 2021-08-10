@@ -157,10 +157,9 @@ func main() {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
-
 	err := app.RunContext(ctx, os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}
+	cancel()
 }
