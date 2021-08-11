@@ -180,7 +180,8 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 				bot.currencyPairSyncer, err = setupSyncManager(
 					exchangeSyncCfg,
 					bot.ExchangeManager,
-					&bot.Config.RemoteControl)
+					&bot.Config.RemoteControl,
+					bot.Settings.EnableWebsocketRoutine)
 				if err != nil {
 					return err
 				}

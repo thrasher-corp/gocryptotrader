@@ -41,7 +41,7 @@ var (
 )
 
 // setupSyncManager starts a new CurrencyPairSyncer
-func setupSyncManager(c *Config, exchangeManager iExchangeManager, remoteConfig *config.RemoteControlConfig) (*syncManager, error) {
+func setupSyncManager(c *Config, exchangeManager iExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*syncManager, error) {
 	if !c.SyncOrderbook && !c.SyncTicker && !c.SyncTrades {
 		return nil, errNoSyncItemsEnabled
 	}
@@ -65,9 +65,10 @@ func setupSyncManager(c *Config, exchangeManager iExchangeManager, remoteConfig 
 	}
 
 	s := &syncManager{
-		config:          *c,
-		remoteConfig:    remoteConfig,
-		exchangeManager: exchangeManager,
+		config:                         *c,
+		remoteConfig:                   remoteConfig,
+		exchangeManager:                exchangeManager,
+		websocketRoutineManagerEnabled: websocketRoutineManagerEnabled,
 	}
 
 	s.tickerBatchLastRequested = make(map[string]time.Time)
@@ -117,7 +118,9 @@ func (m *syncManager) Start() error {
 
 		var usingWebsocket bool
 		var usingREST bool
-		if supportsWebsocket && exchanges[x].IsWebsocketEnabled() {
+		if m.websocketRoutineManagerEnabled &&
+			supportsWebsocket &&
+			exchanges[x].IsWebsocketEnabled() {
 			usingWebsocket = true
 		} else if supportsREST {
 			usingREST = true
@@ -215,7 +218,6 @@ func (m *syncManager) Start() error {
 }
 
 // Stop shuts down the exchange currency pair syncer
-// Stop attempts to shutdown the subsystem
 func (m *syncManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
