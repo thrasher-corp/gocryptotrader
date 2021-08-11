@@ -117,10 +117,17 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 // DoRequest performs a HTTP/HTTPS request with the supplied params
 func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRequest Generate) error {
 	for attempt := 1; ; attempt++ {
+		// Check if context has finished before executing new attempt.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		// Initiate a rate limit reservation and sleep on requested endpoint
-		err := r.InitiateRateLimit(endpoint)
+		err := r.InitiateRateLimit(ctx, endpoint)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to rate limit HTTP request: %w", err)
 		}
 
 		p, err := newRequest()
@@ -167,7 +174,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 				delay = after
 			}
 
-			if d, ok := req.Context().Deadline(); ok && d.After(time.Now()) && time.Now().Add(delay).After(d) {
+			if dl, ok := req.Context().Deadline(); ok && dl.Before(time.Now().Add(delay)) {
 				if err != nil {
 					return fmt.Errorf("deadline would be exceeded by retry, err: %v", err)
 				}

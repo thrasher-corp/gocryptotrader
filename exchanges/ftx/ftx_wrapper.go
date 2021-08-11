@@ -581,9 +581,9 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRes
 		fPair.String(),
 		s.Side.Lower(),
 		s.Type.Lower(),
-		"",
-		"",
-		"",
+		s.ReduceOnly,
+		s.ImmediateOrCancel,
+		s.PostOnly,
 		s.ClientOrderID,
 		s.Price,
 		s.Amount)

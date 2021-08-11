@@ -1,6 +1,7 @@
 package btcmarkets
 
 import (
+	"context"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -35,22 +36,21 @@ type RateLimit struct {
 }
 
 // Limit limits the outbound requests
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	switch f {
 	case request.Auth:
-		time.Sleep(r.Auth.Reserve().Delay())
+		return r.Auth.Wait(ctx)
 	case orderFunc:
-		time.Sleep(r.OrderPlacement.Reserve().Delay())
+		return r.OrderPlacement.Wait(ctx)
 	case batchFunc:
-		time.Sleep(r.BatchOrders.Reserve().Delay())
+		return r.BatchOrders.Wait(ctx)
 	case withdrawFunc:
-		time.Sleep(r.WithdrawRequest.Reserve().Delay())
+		return r.WithdrawRequest.Wait(ctx)
 	case newReportFunc:
-		time.Sleep(r.CreateNewReport.Reserve().Delay())
+		return r.CreateNewReport.Wait(ctx)
 	default:
-		time.Sleep(r.UnAuth.Reserve().Delay())
+		return r.UnAuth.Wait(ctx)
 	}
-	return nil
 }
 
 // SetRateLimit returns the rate limit for the exchange

@@ -1,6 +1,7 @@
 package hitbtc
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -27,18 +28,17 @@ type RateLimit struct {
 }
 
 // Limit limits outbound requests
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	switch f {
 	case marketRequests:
-		time.Sleep(r.MarketData.Reserve().Delay())
+		return r.MarketData.Wait(ctx)
 	case tradingRequests:
-		time.Sleep(r.Trading.Reserve().Delay())
+		return r.Trading.Wait(ctx)
 	case otherRequests:
-		time.Sleep(r.Other.Reserve().Delay())
+		return r.Other.Wait(ctx)
 	default:
 		return errors.New("functionality not found")
 	}
-	return nil
 }
 
 // SetRateLimit returns the rate limit for the exchange

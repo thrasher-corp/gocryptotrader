@@ -1,6 +1,8 @@
 package binance
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -103,7 +105,7 @@ type RateLimit struct {
 }
 
 // Limit executes rate limiting functionality for Binance
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	var limiter *rate.Limiter
 	var tokens int
 	switch f {
@@ -214,11 +216,25 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 	}
 
 	var finalDelay time.Duration
+	var reserves = make([]*rate.Reservation, tokens)
 	for i := 0; i < tokens; i++ {
 		// Consume tokens 1 at a time as this avoids needing burst capacity in the limiter,
 		// which would otherwise allow the rate limit to be exceeded over short periods
-		finalDelay = limiter.Reserve().Delay()
+		reserves[i] = limiter.Reserve()
+		finalDelay = reserves[i].Delay()
 	}
+
+	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(finalDelay)) {
+		// Cancel all potential reservations to free up rate limiter if deadline
+		// is exceeded.
+		for x := range reserves {
+			reserves[x].Cancel()
+		}
+		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w",
+			finalDelay,
+			context.DeadlineExceeded)
+	}
+
 	time.Sleep(finalDelay)
 	return nil
 }

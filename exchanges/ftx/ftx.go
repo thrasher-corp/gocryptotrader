@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -659,20 +660,26 @@ func (f *FTX) GetTriggerOrderHistory(ctx context.Context, marketName string, sta
 }
 
 // Order places an order
-func (f *FTX) Order(ctx context.Context, marketName, side, orderType, reduceOnly, ioc, postOnly, clientID string, price, size float64) (OrderData, error) {
+func (f *FTX) Order(
+	ctx context.Context,
+	marketName, side, orderType string,
+	reduceOnly, ioc, postOnly bool,
+	clientID string,
+	price, size float64,
+) (OrderData, error) {
 	req := make(map[string]interface{})
 	req["market"] = marketName
 	req["side"] = side
 	req["price"] = price
 	req["type"] = orderType
 	req["size"] = size
-	if reduceOnly != "" {
+	if reduceOnly {
 		req["reduceOnly"] = reduceOnly
 	}
-	if ioc != "" {
+	if ioc {
 		req["ioc"] = ioc
 	}
-	if postOnly != "" {
+	if postOnly {
 		req["postOnly"] = postOnly
 	}
 	if clientID != "" {
@@ -1235,15 +1242,19 @@ func (f *FTX) compatibleOrderVars(ctx context.Context, orderSide, orderStatus, o
 	case strings.ToLower(order.Open.String()):
 		resp.Status = order.Open
 	case closedStatus:
-		if filledAmount != 0 && filledAmount != amount {
-			resp.Status = order.PartiallyCancelled
-			break
-		}
-		if filledAmount == 0 {
+		switch {
+		case filledAmount <= 0:
+			// Order is closed with a filled amount of 0, which means it's
+			// cancelled.
 			resp.Status = order.Cancelled
-			break
-		}
-		if filledAmount == amount {
+		case math.Abs(filledAmount-amount) > 1e-6:
+			// Order is closed with filledAmount above 0, but not equal to the
+			// full amount, which means it's partially executed and then
+			// cancelled.
+			resp.Status = order.PartiallyCancelled
+		default:
+			// Order is closed and filledAmount == amount, which means it's
+			// fully executed.
 			resp.Status = order.Filled
 		}
 	default:

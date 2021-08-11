@@ -336,24 +336,6 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			var oSide order.Side
-			oSide, err = order.StringToOrderSide(resultData.OrderData.Side)
-			if err != nil {
-				f.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: f.Name,
-					Err:      err,
-				}
-			}
-			var resp order.Detail
-			resp.Side = oSide
-			resp.Amount = resultData.OrderData.Size
-			resp.AssetType = assetType
-			resp.ClientOrderID = resultData.OrderData.ClientID
-			resp.Exchange = f.Name
-			resp.ExecutedAmount = resultData.OrderData.FilledSize
-			resp.ID = strconv.FormatInt(resultData.OrderData.ID, 10)
-			resp.Pair = pair
-			resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
 			var orderVars OrderVars
 			orderVars, err = f.compatibleOrderVars(context.TODO(),
 				resultData.OrderData.Side,
@@ -365,10 +347,24 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			resp.Status = orderVars.Status
-			resp.Side = orderVars.Side
+			var resp order.Detail
+			resp.PostOnly = resultData.OrderData.PostOnly
+			resp.Price = resultData.OrderData.Price
+			resp.Amount = resultData.OrderData.Size
+			resp.AverageExecutedPrice = resultData.OrderData.AvgFillPrice
+			resp.ExecutedAmount = resultData.OrderData.FilledSize
+			resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
+			resp.Cost = resp.AverageExecutedPrice * resp.Amount
+			// Fee: orderVars.Fee is incorrect.
+			resp.Exchange = f.Name
+			resp.ID = strconv.FormatInt(resultData.OrderData.ID, 10)
+			resp.ClientOrderID = resultData.OrderData.ClientID
 			resp.Type = orderVars.OrderType
-			resp.Fee = orderVars.Fee
+			resp.Side = orderVars.Side
+			resp.Status = orderVars.Status
+			resp.AssetType = assetType
+			resp.Date = resultData.OrderData.CreatedAt
+			resp.Pair = pair
 			f.Websocket.DataHandler <- &resp
 		case wsFills:
 			var resultData WsFillsDataStore

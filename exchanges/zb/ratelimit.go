@@ -1,6 +1,7 @@
 package zb
 
 import (
+	"context"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -27,16 +28,15 @@ type RateLimit struct {
 }
 
 // Limit limits the outbound requests
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	switch f {
 	case request.Auth:
-		time.Sleep(r.Auth.Reserve().Delay())
+		return r.Auth.Wait(ctx)
 	case klineFunc:
-		time.Sleep(r.KlineData.Reserve().Delay())
+		return r.KlineData.Wait(ctx)
 	default:
-		time.Sleep(r.UnAuth.Reserve().Delay())
+		return r.UnAuth.Wait(ctx)
 	}
-	return nil
 }
 
 // SetRateLimit returns the rate limit for the exchange
