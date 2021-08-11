@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -26,9 +27,9 @@ const (
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
-	rsiPeriod float64
-	rsiLow    float64
-	rsiHigh   float64
+	rsiPeriod decimal.Decimal
+	rsiLow    decimal.Decimal
+	rsiHigh   decimal.Decimal
 }
 
 // Name returns the name of the strategy
@@ -114,13 +115,13 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 			}
 			s.rsiHigh = rsiHigh
 		case rsiLowKey:
-			rsiLow, ok := v.(float64)
+			rsiLow, ok := v.(decimal.Decimal)
 			if !ok || rsiLow <= 0 {
 				return fmt.Errorf("%w provided rsi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
 			s.rsiLow = rsiLow
 		case rsiPeriodKey:
-			rsiPeriod, ok := v.(float64)
+			rsiPeriod, ok := v.(decimal.Decimal)
 			if !ok || rsiPeriod <= 0 {
 				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
@@ -144,9 +145,9 @@ func (s *Strategy) SetDefaults() {
 // this will ensure that RSI can be calculated correctly
 // the decision to handle missing data occurs at the strategy level, not all strategies
 // may wish to modify data
-func (s *Strategy) massageMissingData(data []float64, t time.Time) ([]float64, error) {
-	var resp []float64
-	var missingDataStreak float64
+func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]decimal.Decimal, error) {
+	var resp []decimal.Decimal
+	var missingDataStreak decimal.Decimal
 	for i := range data {
 		if data[i] == 0 && i > int(s.rsiPeriod) {
 			data[i] = data[i-1]

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/math"
@@ -42,8 +43,8 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	c.StrategyMovement = ((last.Holdings.TotalValue - last.Holdings.InitialFunds) / last.Holdings.InitialFunds) * 100
 	c.calculateHighestCommittedFunds()
 	c.RiskFreeRate = last.Holdings.RiskFreeRate * 100
-	returnPerCandle := make([]float64, len(c.Events))
-	benchmarkRates := make([]float64, len(c.Events))
+	returnPerCandle := make([]decimal.Decimal, len(c.Events))
+	benchmarkRates := make([]decimal.Decimal, len(c.Events))
 
 	var allDataEvents []common.DataEventHandler
 	for i := range c.Events {
@@ -63,7 +64,7 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	benchmarkRates = benchmarkRates[1:]
 	returnPerCandle = returnPerCandle[1:]
 
-	var arithmeticBenchmarkAverage, geometricBenchmarkAverage float64
+	var arithmeticBenchmarkAverage, geometricBenchmarkAverage decimal.Decimal
 	var err error
 	arithmeticBenchmarkAverage, err = math.ArithmeticMean(benchmarkRates)
 	if err != nil {
@@ -79,10 +80,10 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	intervalsPerYear := interval.IntervalsPerYear()
 
 	riskFreeRatePerCandle := first.Holdings.RiskFreeRate / intervalsPerYear
-	riskFreeRateForPeriod := riskFreeRatePerCandle * float64(len(benchmarkRates))
+	riskFreeRateForPeriod := riskFreeRatePerCandle * decimal.Decimal(len(benchmarkRates))
 
 	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
-		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar float64
+		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar decimal.Decimal
 
 	arithmeticReturnsPerCandle, err = math.ArithmeticMean(returnPerCandle)
 	if err != nil {
@@ -143,7 +144,7 @@ func (c *CurrencyStatistic) CalculateResults() error {
 		last.Holdings.InitialFunds,
 		last.Holdings.TotalValue,
 		intervalsPerYear,
-		float64(len(c.Events)))
+		decimal.Decimal(len(c.Events)))
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -241,7 +242,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 }
 
 func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
-	var lowestPrice, highestPrice float64
+	var lowestPrice, highestPrice decimal.Decimal
 	var lowestTime, highestTime time.Time
 	var swings []Swing
 	if len(closePrices) > 0 {
@@ -254,11 +255,11 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 		currHigh := closePrices[i].HighPrice()
 		currLow := closePrices[i].LowPrice()
 		currTime := closePrices[i].GetTime()
-		if lowestPrice > currLow && currLow != 0 {
+		if lowestPrice.GreaterThan(currLow) && !currLow.IsZero() {
 			lowestPrice = currLow
 			lowestTime = currTime
 		}
-		if highestPrice < currHigh && highestPrice > 0 {
+		if highestPrice.LessThan(currHigh) && highestPrice.IsPositive() {
 			if lowestTime.Equal(highestTime) {
 				// create distinction if the greatest drawdown occurs within the same candle
 				lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))

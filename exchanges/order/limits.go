@@ -362,7 +362,7 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 }
 
 // ConformToAmount (POC) conforms amount to its amount interval
-func (l *Limits) ConformToAmount(amount float64) float64 {
+func (l *Limits) ConformToAmount(amount decimal.Decimal) decimal.Decimal {
 	if l == nil {
 		// For when we return a nil pointer we can assume there's nothing to
 		// check
@@ -370,21 +370,18 @@ func (l *Limits) ConformToAmount(amount float64) float64 {
 	}
 	l.m.Lock()
 	defer l.m.Unlock()
-	if l.stepIncrementSizeAmount == 0 || amount == l.stepIncrementSizeAmount {
+	if l.stepIncrementSizeAmount == 0 || amount.Equal(l.stepIncrementSizeAmount) {
 		return amount
 	}
 
-	if amount < l.stepIncrementSizeAmount {
-		return 0
+	if amount.LessThan(l.stepIncrementSizeAmount) {
+		return decimal.Zero
 	}
 
 	// Convert floats to decimal types
-	dAmount := decimal.NewFromFloat(amount)
 	dStep := decimal.NewFromFloat(l.stepIncrementSizeAmount)
 	// derive modulus
-	mod := dAmount.Mod(dStep)
+	mod := amount.Mod(dStep)
 	// subtract modulus to get the floor
-	rVal := dAmount.Sub(mod)
-	fVal, _ := rVal.Float64()
-	return fVal
+	return amount.Sub(mod)
 }

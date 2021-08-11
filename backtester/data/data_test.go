@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -211,18 +212,18 @@ func (t fakeDataHandler) GetReason() string {
 func (t fakeDataHandler) AppendReason(string) {
 }
 
-func (t fakeDataHandler) ClosePrice() float64 {
-	return 0
+func (t fakeDataHandler) ClosePrice() decimal.Decimal {
+	return decimal.Zero
 }
 
-func (t fakeDataHandler) HighPrice() float64 {
-	return 0
+func (t fakeDataHandler) HighPrice() decimal.Decimal {
+	return decimal.Zero
 }
 
-func (t fakeDataHandler) LowPrice() float64 {
-	return 0
+func (t fakeDataHandler) LowPrice() decimal.Decimal {
+	return decimal.Zero
 }
 
-func (t fakeDataHandler) OpenPrice() float64 {
-	return 0
+func (t fakeDataHandler) OpenPrice() decimal.Decimal {
+	return decimal.Zero
 }

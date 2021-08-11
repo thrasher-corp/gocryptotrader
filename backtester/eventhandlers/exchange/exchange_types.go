@@ -3,6 +3,7 @@ package exchange
 import (
 	"errors"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -39,22 +40,22 @@ type Settings struct {
 	ExchangeName  string
 	UseRealOrders bool
 
-	InitialFunds float64
+	InitialFunds decimal.Decimal
 
 	CurrencyPair currency.Pair
 	AssetType    asset.Item
 
-	ExchangeFee float64
-	MakerFee    float64
-	TakerFee    float64
+	ExchangeFee decimal.Decimal
+	MakerFee    decimal.Decimal
+	TakerFee    decimal.Decimal
 
 	BuySide  config.MinMax
 	SellSide config.MinMax
 
 	Leverage config.Leverage
 
-	MinimumSlippageRate float64
-	MaximumSlippageRate float64
+	MinimumSlippageRate decimal.Decimal
+	MaximumSlippageRate decimal.Decimal
 
 	Limits               *gctorder.Limits
 	CanUseExchangeLimits bool

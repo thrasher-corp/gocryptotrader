@@ -3,6 +3,7 @@ package risk
 import (
 	"fmt"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -49,21 +50,21 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 // existingLeverageRatio compares orders with leverage to the total number of orders
 // a proof of concept to demonstrate risk manager's ability to prevent an order from being placed
 // when an order exceeds a config setting
-func existingLeverageRatio(s compliance.Snapshot) float64 {
+func existingLeverageRatio(s compliance.Snapshot) decimal.Decimal {
 	if len(s.Orders) == 0 {
 		return 0
 	}
-	var ordersWithLeverage float64
+	var ordersWithLeverage decimal.Decimal
 	for o := range s.Orders {
 		if s.Orders[o].Leverage != 0 {
 			ordersWithLeverage++
 		}
 	}
-	return ordersWithLeverage / float64(len(s.Orders))
+	return ordersWithLeverage / decimal.Decimal(len(s.Orders))
 }
 
-func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) float64 {
-	resp := make(map[currency.Pair]float64)
+func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) decimal.Decimal {
+	resp := make(map[currency.Pair]decimal.Decimal)
 	totalPosition := 0.0
 	for i := range h {
 		resp[h[i].Pair] += h[i].PositionsValue

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
@@ -65,13 +66,13 @@ type ExchangeLevelFunding struct {
 	Asset        string `json:"asset"`
 	Quote        string `json:"quote"`
 
-	InitialFunds float64 `json:"initial-funds"`
+	InitialFunds decimal.Decimal `json:"initial-funds"`
 }
 
 // StatisticSettings holds configurable varialbes to adjust ratios where
 // proper data is currently lacking
 type StatisticSettings struct {
-	RiskFreeRate float64 `json:"risk-free-rate"`
+	RiskFreeRate decimal.Decimal `json:"risk-free-rate"`
 }
 
 // PortfolioSettings act as a global protector for strategies
@@ -86,16 +87,16 @@ type PortfolioSettings struct {
 // Leverage rules are used to allow or limit the use of leverage in orders
 // when supported
 type Leverage struct {
-	CanUseLeverage                 bool    `json:"can-use-leverage"`
-	MaximumOrdersWithLeverageRatio float64 `json:"maximum-orders-with-leverage-ratio"`
-	MaximumLeverageRate            float64 `json:"maximum-leverage-rate"`
+	CanUseLeverage                 bool            `json:"can-use-leverage"`
+	MaximumOrdersWithLeverageRatio decimal.Decimal `json:"maximum-orders-with-leverage-ratio"`
+	MaximumLeverageRate            decimal.Decimal `json:"maximum-leverage-rate"`
 }
 
 // MinMax are the rules which limit the placement of orders.
 type MinMax struct {
-	MinimumSize  float64 `json:"minimum-size"` // will not place an order if under this amount
-	MaximumSize  float64 `json:"maximum-size"` // can only place an order up to this amount
-	MaximumTotal float64 `json:"maximum-total"`
+	MinimumSize  decimal.Decimal `json:"minimum-size"` // will not place an order if under this amount
+	MaximumSize  decimal.Decimal `json:"maximum-size"` // can only place an order up to this amount
+	MaximumTotal decimal.Decimal `json:"maximum-total"`
 }
 
 // CurrencySettings stores pair based variables
@@ -108,19 +109,19 @@ type CurrencySettings struct {
 	Base         string `json:"base"`
 	Quote        string `json:"quote"`
 
-	InitialFunds float64 `json:"initial-funds"`
+	InitialFunds decimal.Decimal `json:"initial-funds"`
 
 	Leverage Leverage `json:"leverage"`
 	BuySide  MinMax   `json:"buy-side"`
 	SellSide MinMax   `json:"sell-side"`
 
-	MinimumSlippagePercent float64 `json:"min-slippage-percent"`
-	MaximumSlippagePercent float64 `json:"max-slippage-percent"`
+	MinimumSlippagePercent decimal.Decimal `json:"min-slippage-percent"`
+	MaximumSlippagePercent decimal.Decimal `json:"max-slippage-percent"`
 
-	MakerFee float64 `json:"maker-fee-override"`
-	TakerFee float64 `json:"taker-fee-override"`
+	MakerFee decimal.Decimal `json:"maker-fee-override"`
+	TakerFee decimal.Decimal `json:"taker-fee-override"`
 
-	MaximumHoldingsRatio float64 `json:"maximum-holdings-ratio"`
+	MaximumHoldingsRatio decimal.Decimal `json:"maximum-holdings-ratio"`
 
 	CanUseExchangeLimits          bool `json:"use-exchange-order-limits"`
 	ShowExchangeOrderLimitWarning bool `json:"-"`

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gofrs/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -60,7 +61,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 
 	volStr := data.StreamVol()
 	volume := volStr[len(volStr)-1]
-	var adjustedPrice, amount float64
+	var adjustedPrice, amount decimal.Decimal
 
 	if cs.UseRealOrders {
 		// get current orderbook
@@ -71,7 +72,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		}
 		// calculate an estimated slippage rate
 		adjustedPrice, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), eventFunds, f.ExchangeFee)
-		f.Slippage = ((adjustedPrice - f.ClosePrice) / f.ClosePrice) * 100
+		f.Slippage = adjustedPrice.Sub(f.ClosePrice).Div(f.ClosePrice).Mul(decimal.NewFromInt(100))
 	} else {
 		adjustedPrice, amount, err = e.sizeOfflineOrder(high, low, volume, &cs, f)
 		if err != nil {
@@ -157,7 +158,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 }
 
 // verifyOrderWithinLimits conforms the amount to fall into the minimum size and maximum size limit after reduced
-func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount float64, cs *Settings) error {
+func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount decimal.Decimal, cs *Settings) error {
 	if f == nil {
 		return common.ErrNilEvent
 	}
@@ -180,7 +181,7 @@ func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount float64, cs *Setti
 		return fmt.Errorf("%w: %v", errInvalidDirection, direction)
 	}
 	var exceededLimit string
-	var size float64
+	var size decimal.Decimal
 	if limitReducedAmount < minMax.MinimumSize && minMax.MinimumSize > 0 {
 		exceeded = true
 		exceededLimit = "minimum"
@@ -200,7 +201,7 @@ func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount float64, cs *Setti
 	return nil
 }
 
-func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal float64, side gctorder.Side) float64 {
+func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal decimal.Decimal, side gctorder.Side) decimal.Decimal {
 	switch side {
 	case gctorder.Buy:
 		if adjustedPrice*amount > sizedPortfolioTotal {
@@ -216,7 +217,7 @@ func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal 
 	return amount
 }
 
-func (e *Exchange) placeOrder(ctx context.Context, price, amount float64, useRealOrders, useExchangeLimits bool, f *fill.Fill, bot *engine.Engine) (string, error) {
+func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal, useRealOrders, useExchangeLimits bool, f *fill.Fill, bot *engine.Engine) (string, error) {
 	if f == nil {
 		return "", common.ErrNilEvent
 	}
@@ -267,7 +268,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount float64, useRea
 	return orderID, nil
 }
 
-func (e *Exchange) sizeOfflineOrder(high, low, volume float64, cs *Settings, f *fill.Fill) (adjustedPrice, adjustedAmount float64, err error) {
+func (e *Exchange) sizeOfflineOrder(high, low, volume decimal.Decimal, cs *Settings, f *fill.Fill) (adjustedPrice, adjustedAmount decimal.Decimal, err error) {
 	if cs == nil || f == nil {
 		return 0, 0, common.ErrNilArguments
 	}
@@ -288,7 +289,7 @@ func (e *Exchange) sizeOfflineOrder(high, low, volume float64, cs *Settings, f *
 	return adjustedPrice, adjustedAmount, nil
 }
 
-func applySlippageToPrice(direction gctorder.Side, price, slippageRate float64) float64 {
+func applySlippageToPrice(direction gctorder.Side, price, slippageRate decimal.Decimal) decimal.Decimal {
 	adjustedPrice := price
 	if direction == gctorder.Buy {
 		adjustedPrice = price + (price * (1 - slippageRate))
@@ -331,7 +332,7 @@ func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pa
 	return Settings{}, fmt.Errorf("no currency settings found for %v %v %v", exch, a, cp)
 }
 
-func ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) (adjustedPrice, adjustedAmount float64) {
+func ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume decimal.Decimal) (adjustedPrice, adjustedAmount decimal.Decimal) {
 	adjustedPrice = slippagePrice
 	if adjustedPrice < low {
 		adjustedPrice = low
@@ -356,6 +357,6 @@ func ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) 
 	return adjustedPrice, adjustedAmount
 }
 
-func calculateExchangeFee(price, amount, fee float64) float64 {
+func calculateExchangeFee(price, amount, fee decimal.Decimal) decimal.Decimal {
 	return fee * price * amount
 }

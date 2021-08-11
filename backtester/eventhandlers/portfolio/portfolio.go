@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
@@ -23,11 +24,11 @@ import (
 )
 
 // Setup creates a portfolio manager instance and sets private fields
-func Setup(sh SizeHandler, r risk.Handler, riskFreeRate float64) (*Portfolio, error) {
+func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portfolio, error) {
 	if sh == nil {
 		return nil, errSizeManagerUnset
 	}
-	if riskFreeRate < 0 {
+	if riskFreeRate.IsNegative {
 		return nil, errNegativeRiskFreeRate
 	}
 	if r == nil {
@@ -117,7 +118,7 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings, funds fundin
 	o.OrderType = gctorder.Market
 	o.BuyLimit = s.GetBuyLimit()
 	o.SellLimit = s.GetSellLimit()
-	var sizingFunds float64
+	var sizingFunds decimal.Decimal
 	if s.GetDirection() == gctorder.Sell {
 		sizingFunds = funds.BaseAvailable()
 	} else {
@@ -164,7 +165,7 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, siz
 	return evaluatedOrder, nil
 }
 
-func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds float64) *order.Order {
+func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal) *order.Order {
 	sizedOrder, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
 	if err != nil {
 		originalOrderSignal.AppendReason(err.Error())
@@ -284,13 +285,13 @@ func (p *Portfolio) GetComplianceManager(exchangeName string, a asset.Item, cp c
 }
 
 // SetFee sets the fee rate
-func (p *Portfolio) SetFee(exch string, a asset.Item, cp currency.Pair, fee float64) {
+func (p *Portfolio) SetFee(exch string, a asset.Item, cp currency.Pair, fee decimal.Decimal) {
 	lookup := p.exchangeAssetPairSettings[exch][a][cp]
 	lookup.Fee = fee
 }
 
 // GetFee can panic for bad requests, but why are you getting things that don't exist?
-func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) float64 {
+func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) decimal.Decimal {
 	if p.exchangeAssetPairSettings == nil {
 		return 0
 	}

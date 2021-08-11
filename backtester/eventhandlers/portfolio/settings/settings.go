@@ -3,6 +3,7 @@ package settings
 import (
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 )
 
@@ -31,7 +32,7 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 }
 
 // Value returns the total value of the latest holdings
-func (e *Settings) Value() float64 {
+func (e *Settings) Value() decimal.Decimal {
 	latest := e.GetLatestHoldings()
 	return latest.TotalValue
 }

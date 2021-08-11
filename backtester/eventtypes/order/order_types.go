@@ -1,6 +1,7 @@
 package order
 
 import (
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -12,27 +13,27 @@ type Order struct {
 	ID             string
 	Direction      order.Side
 	Status         order.Status
-	Price          float64
-	Amount         float64
+	Price          decimal.Decimal
+	Amount         decimal.Decimal
 	OrderType      order.Type
-	Leverage       float64
-	AllocatedFunds float64
-	BuyLimit       float64
-	SellLimit      float64
+	Leverage       decimal.Decimal
+	AllocatedFunds decimal.Decimal
+	BuyLimit       decimal.Decimal
+	SellLimit      decimal.Decimal
 }
 
 // Event inherits common event interfaces along with extra functions related to handling orders
 type Event interface {
 	common.EventHandler
 	common.Directioner
-	GetBuyLimit() float64
-	GetSellLimit() float64
-	SetAmount(float64)
-	GetAmount() float64
+	GetBuyLimit() decimal.Decimal
+	GetSellLimit() decimal.Decimal
+	SetAmount(decimal.Decimal)
+	GetAmount() decimal.Decimal
 	IsOrder() bool
 	GetStatus() order.Status
 	SetID(id string)
 	GetID() string
 	IsLeveraged() bool
-	GetAllocatedFunds() float64
+	GetAllocatedFunds() decimal.Decimal
 }

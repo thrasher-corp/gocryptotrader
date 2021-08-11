@@ -1,8 +1,10 @@
 package slippage
 
+import "github.com/shopspring/decimal"
+
 // Default slippage rates. It works on a percentage basis
 // 100 means unaffected, 95 would mean 95%
-const (
-	DefaultMaximumSlippagePercent float64 = 100
-	DefaultMinimumSlippagePercent float64 = 100
+var (
+	DefaultMaximumSlippagePercent = decimal.NewFromInt(100)
+	DefaultMinimumSlippagePercent = decimal.NewFromInt(100)
 )

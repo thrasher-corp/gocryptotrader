@@ -3,6 +3,7 @@ package funding
 import (
 	"errors"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -30,22 +31,22 @@ type AllFunds struct {
 }
 
 type IPairReader interface {
-	BaseInitialFunds() float64
-	QuoteInitialFunds() float64
-	BaseAvailable() float64
-	QuoteAvailable() float64
+	BaseInitialFunds() decimal.Decimal
+	QuoteInitialFunds() decimal.Decimal
+	BaseAvailable() decimal.Decimal
+	QuoteAvailable() decimal.Decimal
 }
 
 // IPairReserver limits funding usage for portfolio event handling
 type IPairReserver interface {
 	IPairReader
 	CanPlaceOrder(order.Side) bool
-	Reserve(float64, order.Side) error
+	Reserve(decimal.Decimal, order.Side) error
 }
 
 // IPairReleaser limits funding usage for exchange event handling
 type IPairReleaser interface {
 	IPairReader
-	Increase(float64, order.Side)
-	Release(float64, float64, order.Side) error
+	Increase(decimal.Decimal, order.Side)
+	Release(decimal.Decimal, decimal.Decimal, order.Side) error
 }

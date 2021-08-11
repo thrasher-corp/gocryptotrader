@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -27,7 +28,7 @@ type Statistic struct {
 	StrategyNickname            string                                                                            `json:"strategy-nickname"`
 	StrategyGoal                string                                                                            `json:"strategy-goal"`
 	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic `json:"-"`
-	RiskFreeRate                float64                                                                           `json:"risk-free-rate"`
+	RiskFreeRate                decimal.Decimal                                                                   `json:"risk-free-rate"`
 	TotalBuyOrders              int64                                                                             `json:"total-buy-orders"`
 	TotalSellOrders             int64                                                                             `json:"total-sell-orders"`
 	TotalOrders                 int64                                                                             `json:"total-orders"`
@@ -44,8 +45,8 @@ type FinalResultsHolder struct {
 	Asset            asset.Item               `json:"asset"`
 	Pair             currency.Pair            `json:"currency"`
 	MaxDrawdown      currencystatistics.Swing `json:"max-drawdown"`
-	MarketMovement   float64                  `json:"market-movement"`
-	StrategyMovement float64                  `json:"strategy-movement"`
+	MarketMovement   decimal.Decimal          `json:"market-movement"`
+	StrategyMovement decimal.Decimal          `json:"strategy-movement"`
 }
 
 // Handler interface details what a statistic is expected to do
@@ -72,11 +73,11 @@ type Results struct {
 
 // ResultTransactions stores details on a transaction
 type ResultTransactions struct {
-	Time      time.Time     `json:"time"`
-	Direction gctorder.Side `json:"direction"`
-	Price     float64       `json:"price"`
-	Amount    float64       `json:"amount"`
-	Reason    string        `json:"reason,omitempty"`
+	Time      time.Time       `json:"time"`
+	Direction gctorder.Side   `json:"direction"`
+	Price     decimal.Decimal `json:"price"`
+	Amount    decimal.Decimal `json:"amount"`
+	Reason    string          `json:"reason,omitempty"`
 }
 
 // ResultEvent stores the time

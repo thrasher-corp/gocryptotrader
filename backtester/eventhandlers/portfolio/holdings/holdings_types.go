@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -15,31 +16,31 @@ var ErrInitialFundsZero = errors.New("initial funds <= 0")
 // for a given exchange asset pair
 type Holding struct {
 	Offset         int64
-	Pair           currency.Pair `json:"pair"`
-	Asset          asset.Item    `json:"asset"`
-	Exchange       string        `json:"exchange"`
-	Timestamp      time.Time     `json:"timestamp"`
-	InitialFunds   float64       `json:"initial-funds"`
-	PositionsSize  float64       `json:"positions-size"`
-	PositionsValue float64       `json:"postions-value"`
-	SoldAmount     float64       `json:"sold-amount"`
-	SoldValue      float64       `json:"sold-value"`
-	BoughtAmount   float64       `json:"bought-amount"`
-	BoughtValue    float64       `json:"bought-value"`
-	RemainingFunds float64       `json:"remaining-funds"`
-	CommittedFunds float64       `json:"committed-funds"`
+	Pair           currency.Pair   `json:"pair"`
+	Asset          asset.Item      `json:"asset"`
+	Exchange       string          `json:"exchange"`
+	Timestamp      time.Time       `json:"timestamp"`
+	InitialFunds   decimal.Decimal `json:"initial-funds"`
+	PositionsSize  decimal.Decimal `json:"positions-size"`
+	PositionsValue decimal.Decimal `json:"postions-value"`
+	SoldAmount     decimal.Decimal `json:"sold-amount"`
+	SoldValue      decimal.Decimal `json:"sold-value"`
+	BoughtAmount   decimal.Decimal `json:"bought-amount"`
+	BoughtValue    decimal.Decimal `json:"bought-value"`
+	RemainingFunds decimal.Decimal `json:"remaining-funds"`
+	CommittedFunds decimal.Decimal `json:"committed-funds"`
 
-	TotalValueDifference      float64
-	ChangeInTotalValuePercent float64
-	BoughtValueDifference     float64
-	SoldValueDifference       float64
-	PositionsValueDifference  float64
+	TotalValueDifference      decimal.Decimal
+	ChangeInTotalValuePercent decimal.Decimal
+	BoughtValueDifference     decimal.Decimal
+	SoldValueDifference       decimal.Decimal
+	PositionsValueDifference  decimal.Decimal
 
-	TotalValue                   float64 `json:"total-value"`
-	TotalFees                    float64 `json:"total-fees"`
-	TotalValueLostToVolumeSizing float64 `json:"total-value-lost-to-volume-sizing"`
-	TotalValueLostToSlippage     float64 `json:"total-value-lost-to-slippage"`
-	TotalValueLost               float64 `json:"total-value-lost"`
+	TotalValue                   decimal.Decimal `json:"total-value"`
+	TotalFees                    decimal.Decimal `json:"total-fees"`
+	TotalValueLostToVolumeSizing decimal.Decimal `json:"total-value-lost-to-volume-sizing"`
+	TotalValueLostToSlippage     decimal.Decimal `json:"total-value-lost-to-slippage"`
+	TotalValueLost               decimal.Decimal `json:"total-value-lost"`
 
-	RiskFreeRate float64 `json:"risk-free-rate"`
+	RiskFreeRate decimal.Decimal `json:"risk-free-rate"`
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -12,15 +13,15 @@ import (
 )
 
 // SizeOrder is responsible for ensuring that the order size is within config limits
-func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Settings) (*order.Order, error) {
+func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exchange.Settings) (*order.Order, error) {
 	if o == nil || cs == nil {
 		return nil, common.ErrNilArguments
 	}
-	if amountAvailable <= 0 {
+	if amountAvailable.LessThanOrEqual(decimal.Zero) {
 		return nil, errNoFunds
 	}
 	retOrder := o.(*order.Order)
-	var amount float64
+	var amount decimal.Decimal
 	var err error
 	switch retOrder.GetDirection() {
 	case gctorder.Buy:
@@ -30,7 +31,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Se
 			return nil, err
 		}
 		// check size against portfolio specific settings
-		var portfolioSize float64
+		var portfolioSize decimal.Decimal
 		portfolioSize, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), s.BuySide)
 		if err != nil {
 			return nil, err
@@ -69,7 +70,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Se
 // that is allowed to be spent/sold for an event.
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
-func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit float64, minMaxSettings config.MinMax) (float64, error) {
+func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal.Decimal, minMaxSettings config.MinMax) (decimal.Decimal, error) {
 	if availableFunds <= 0 {
 		return 0, errNoFunds
 	}
@@ -98,7 +99,7 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit float64
 // eg BTC-USD baseAmount will be BTC to be sold
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
-func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit float64, minMaxSettings config.MinMax) (float64, error) {
+func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit decimal.Decimal, minMaxSettings config.MinMax) (decimal.Decimal, error) {
 	if baseAmount <= 0 {
 		return 0, errNoFunds
 	}

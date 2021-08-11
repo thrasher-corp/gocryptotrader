@@ -3,6 +3,7 @@ package funding
 import (
 	"fmt"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -13,7 +14,7 @@ func Setup(usingExchangeLevelFunding bool) *AllFunds {
 	return &AllFunds{usingExchangeLevelFunding: usingExchangeLevelFunding}
 }
 
-func (a *AllFunds) AddItem(exch string, ass asset.Item, ci currency.Code, initialFunds float64) error {
+func (a *AllFunds) AddItem(exch string, ass asset.Item, ci currency.Code, initialFunds decimal.Decimal) error {
 	item := &Item{
 		Exchange:     exch,
 		Asset:        ass,
@@ -25,7 +26,7 @@ func (a *AllFunds) AddItem(exch string, ass asset.Item, ci currency.Code, initia
 	return nil
 }
 
-func (a *AllFunds) AddPair(exch string, ass asset.Item, cp currency.Pair, initialFunds float64) error {
+func (a *AllFunds) AddPair(exch string, ass asset.Item, cp currency.Pair, initialFunds decimal.Decimal) error {
 	base := &Item{
 		Exchange: exch,
 		Asset:    ass,
@@ -95,24 +96,24 @@ type Pair struct {
 	Quote *Item
 }
 
-func (p *Pair) BaseInitialFunds() float64 {
+func (p *Pair) BaseInitialFunds() decimal.Decimal {
 	return p.Base.InitialFunds
 }
 
-func (p *Pair) QuoteInitialFunds() float64 {
+func (p *Pair) QuoteInitialFunds() decimal.Decimal {
 	return p.Quote.InitialFunds
 
 }
 
-func (p *Pair) BaseAvailable() float64 {
+func (p *Pair) BaseAvailable() decimal.Decimal {
 	return p.Base.Available
 }
 
-func (p *Pair) QuoteAvailable() float64 {
+func (p *Pair) QuoteAvailable() decimal.Decimal {
 	return p.Quote.Available
 }
 
-func (p *Pair) Reserve(amount float64, side order.Side) error {
+func (p *Pair) Reserve(amount decimal.Decimal, side order.Side) error {
 	switch side {
 	case order.Buy:
 		return p.Quote.Reserve(amount)
@@ -128,7 +129,7 @@ func (p *Pair) Reserve(amount float64, side order.Side) error {
 	}
 }
 
-func (p *Pair) Release(amount, diff float64, side order.Side) error {
+func (p *Pair) Release(amount, diff decimal.Decimal, side order.Side) error {
 	switch side {
 	case order.Buy:
 		return p.Quote.Release(amount, diff)
@@ -144,7 +145,7 @@ func (p *Pair) Release(amount, diff float64, side order.Side) error {
 	}
 }
 
-func (p *Pair) Increase(amount float64, side order.Side) {
+func (p *Pair) Increase(amount decimal.Decimal, side order.Side) {
 	switch side {
 	case order.Buy:
 		p.Base.Increase(amount)
@@ -153,8 +154,8 @@ func (p *Pair) Increase(amount float64, side order.Side) {
 	}
 }
 
-func (i *Item) Reserve(amount float64) error {
-	if amount > i.Available {
+func (i *Item) Reserve(amount decimal.Decimal) error {
+	if amount.GreaterThan(i.Available) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Available: %v",
 			ErrCannotAllocate,
 			i.Exchange,
@@ -163,15 +164,15 @@ func (i *Item) Reserve(amount float64) error {
 			amount,
 			i.Available)
 	}
-	i.Available -= amount
-	i.Reserved += amount
+	i.Available.Add(amount.Neg())
+	i.Reserved.Add(amount)
 	return nil
 }
 
 // Release lowers the reserved amount and appends any differences
 // as a result of any exchange level modifications when ordering
-func (i *Item) Release(amount, diff float64) error {
-	if amount > i.Reserved {
+func (i *Item) Release(amount, diff decimal.Decimal) error {
+	if amount.GreaterThan(i.Reserved) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Reserved: %v",
 			ErrCannotAllocate,
 			i.Exchange,
@@ -180,13 +181,13 @@ func (i *Item) Release(amount, diff float64) error {
 			amount,
 			i.Reserved)
 	}
-	i.Reserved -= amount
-	i.Available += diff
+	i.Reserved.Add(amount.Neg())
+	i.Available.Add(diff)
 	return nil
 }
 
-func (i *Item) Increase(amount float64) {
-	i.Available += amount
+func (i *Item) Increase(amount decimal.Decimal) {
+	i.Available.Add(amount)
 }
 
 // Item holds funding data per currency item
@@ -194,18 +195,18 @@ type Item struct {
 	Exchange     string
 	Asset        asset.Item
 	Item         currency.Code
-	InitialFunds float64
-	Available    float64
-	Reserved     float64
+	InitialFunds decimal.Decimal
+	Available    decimal.Decimal
+	Reserved     decimal.Decimal
 	PairedWith   *Item
 }
 
 func (p *Pair) CanPlaceOrder(side order.Side) bool {
 	switch side {
 	case order.Buy:
-		return p.Quote.Available > 0
+		return p.Quote.Available.GreaterThan(decimal.Zero)
 	case order.Sell:
-		return p.Base.Available > 0
+		return p.Base.Available.GreaterThan(decimal.Zero)
 	}
 	return false
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -118,7 +119,7 @@ func TestSizeOrder(t *testing.T) {
 	if !errors.Is(err, errDataMayBeIncorrect) {
 		t.Errorf("expected: %v, received %v", errDataMayBeIncorrect, err)
 	}
-	var p, a float64
+	var p, a decimal.Decimal
 	p, a, err = e.sizeOfflineOrder(10, 2, 10, cs, f)
 	if err != nil {
 		t.Error(err)

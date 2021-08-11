@@ -3,6 +3,7 @@ package kline
 import (
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -37,11 +38,11 @@ func (d *DataFromKline) Load() error {
 				CurrencyPair: d.Item.Pair,
 				AssetType:    d.Item.Asset,
 			},
-			Open:             d.Item.Candles[i].Open,
-			High:             d.Item.Candles[i].High,
-			Low:              d.Item.Candles[i].Low,
-			Close:            d.Item.Candles[i].Close,
-			Volume:           d.Item.Candles[i].Volume,
+			Open:             decimal.NewFromFloat(d.Item.Candles[i].Open),
+			High:             decimal.NewFromFloat(d.Item.Candles[i].High),
+			Low:              decimal.NewFromFloat(d.Item.Candles[i].Low),
+			Close:            decimal.NewFromFloat(d.Item.Candles[i].Close),
+			Volume:           decimal.NewFromFloat(d.Item.Candles[i].Volume),
 			ValidationIssues: d.Item.Candles[i].ValidationIssues,
 		}
 		d.addedTimes[d.Item.Candles[i].Time] = true
@@ -76,11 +77,11 @@ func (d *DataFromKline) Append(ki *gctkline.Item) {
 				CurrencyPair: ki.Pair,
 				AssetType:    ki.Asset,
 			},
-			Open:             gctCandles[i].Open,
-			High:             gctCandles[i].High,
-			Low:              gctCandles[i].Low,
-			Close:            gctCandles[i].Close,
-			Volume:           gctCandles[i].Volume,
+			Open:             decimal.NewFromFloat(gctCandles[i].Open),
+			High:             decimal.NewFromFloat(gctCandles[i].High),
+			Low:              decimal.NewFromFloat(gctCandles[i].Low),
+			Close:            decimal.NewFromFloat(gctCandles[i].Close),
+			Volume:           decimal.NewFromFloat(gctCandles[i].Volume),
 			ValidationIssues: gctCandles[i].ValidationIssues,
 		})
 		candleTimes = append(candleTimes, gctCandles[i].Time)
@@ -91,11 +92,11 @@ func (d *DataFromKline) Append(ki *gctkline.Item) {
 }
 
 // StreamOpen returns all Open prices from the beginning until the current iteration
-func (d *DataFromKline) StreamOpen() []float64 {
+func (d *DataFromKline) StreamOpen() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
-	ret := make([]float64, o)
+	ret := make([]decimal.Decimal, o)
 	for x := range s[:o] {
 		ret[x] = s[x].(*kline.Kline).Open
 	}
@@ -103,11 +104,11 @@ func (d *DataFromKline) StreamOpen() []float64 {
 }
 
 // StreamHigh returns all High prices from the beginning until the current iteration
-func (d *DataFromKline) StreamHigh() []float64 {
+func (d *DataFromKline) StreamHigh() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
-	ret := make([]float64, o)
+	ret := make([]decimal.Decimal, o)
 	for x := range s[:o] {
 		ret[x] = s[x].(*kline.Kline).High
 	}
@@ -115,11 +116,11 @@ func (d *DataFromKline) StreamHigh() []float64 {
 }
 
 // StreamLow returns all Low prices from the beginning until the current iteration
-func (d *DataFromKline) StreamLow() []float64 {
+func (d *DataFromKline) StreamLow() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
-	ret := make([]float64, o)
+	ret := make([]decimal.Decimal, o)
 	for x := range s[:o] {
 		ret[x] = s[x].(*kline.Kline).Low
 	}
@@ -127,11 +128,11 @@ func (d *DataFromKline) StreamLow() []float64 {
 }
 
 // StreamClose returns all Close prices from the beginning until the current iteration
-func (d *DataFromKline) StreamClose() []float64 {
+func (d *DataFromKline) StreamClose() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
-	ret := make([]float64, o)
+	ret := make([]decimal.Decimal, o)
 	for x := range s[:o] {
 		ret[x] = s[x].(*kline.Kline).Close
 	}
@@ -139,11 +140,11 @@ func (d *DataFromKline) StreamClose() []float64 {
 }
 
 // StreamVol returns all Volume prices from the beginning until the current iteration
-func (d *DataFromKline) StreamVol() []float64 {
+func (d *DataFromKline) StreamVol() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
-	ret := make([]float64, o)
+	ret := make([]decimal.Decimal, o)
 	for x := range s[:o] {
 		ret[x] = s[x].(*kline.Kline).Volume
 	}

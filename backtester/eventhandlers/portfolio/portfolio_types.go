@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
@@ -35,8 +36,8 @@ var (
 // Portfolio stores all holdings and rules to assess orders, allowing the portfolio manager to
 // modify, accept or reject strategy signals
 type Portfolio struct {
-	iteration                 float64
-	riskFreeRate              float64
+	iteration                 decimal.Decimal
+	riskFreeRate              decimal.Decimal
 	sizeManager               SizeHandler
 	riskManager               risk.Handler
 	exchangeAssetPairSettings map[string]map[asset.Item]map[currency.Pair]*settings.Settings
@@ -52,12 +53,12 @@ type Handler interface {
 
 	setHoldingsForOffset(string, asset.Item, currency.Pair, *holdings.Holding, bool) error
 	ViewHoldingAtTimePeriod(string, asset.Item, currency.Pair, time.Time) (holdings.Holding, error)
-	SetFee(string, asset.Item, currency.Pair, float64)
-	GetFee(string, asset.Item, currency.Pair) float64
+	SetFee(string, asset.Item, currency.Pair, decimal.Decimal)
+	GetFee(string, asset.Item, currency.Pair) decimal.Decimal
 	Reset()
 }
 
 // SizeHandler is the interface to help size orders
 type SizeHandler interface {
-	SizeOrder(order.Event, float64, *exchange.Settings) (*order.Order, error)
+	SizeOrder(order.Event, decimal.Decimal, *exchange.Settings) (*order.Order, error)
 }

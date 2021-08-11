@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/shopspring/decimal"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -130,20 +131,20 @@ func (c *Config) PrintSetting() {
 
 // Validate ensures no one sets bad config values on purpose
 func (m *MinMax) Validate() {
-	if m.MaximumSize < 0 {
-		m.MaximumSize *= -1
+	if m.MaximumSize.LessThan(decimal.Zero) {
+		m.MaximumSize = m.MaximumSize.Mul(decimal.NewFromFloat(-1))
 		log.Warnf(log.BackTester, "invalid maximum size set to %f", m.MaximumSize)
 	}
-	if m.MinimumSize < 0 {
-		m.MinimumSize *= -1
+	if m.MinimumSize.IsNegative() {
+		m.MinimumSize = m.MinimumSize.Mul(decimal.NewFromFloat(-1))
 		log.Warnf(log.BackTester, "invalid minimum size set to %f", m.MinimumSize)
 	}
-	if m.MaximumSize <= m.MinimumSize && m.MinimumSize != 0 && m.MaximumSize != 0 {
-		m.MaximumSize = m.MinimumSize + 1
+	if m.MaximumSize.LessThanOrEqual(m.MinimumSize) && !m.MinimumSize.IsZero() && !m.MaximumSize.IsZero() {
+		m.MaximumSize = m.MinimumSize.Add(decimal.NewFromInt(1))
 		log.Warnf(log.BackTester, "invalid maximum size set to %f", m.MaximumSize)
 	}
-	if m.MaximumTotal < 0 {
-		m.MaximumTotal *= -1
+	if m.MaximumTotal.LessThan(decimal.Zero) {
+		m.MaximumTotal = m.MaximumTotal.Mul(decimal.NewFromFloat(-1))
 		log.Warnf(log.BackTester, "invalid maximum total set to %f", m.MaximumTotal)
 	}
 }
@@ -179,7 +180,7 @@ func (c *Config) ValidateCurrencySettings() error {
 		return ErrNoCurrencySettings
 	}
 	for i := range c.CurrencySettings {
-		if c.CurrencySettings[i].InitialFunds <= 0 && !c.StrategySettings.UseExchangeLevelFunding {
+		if c.CurrencySettings[i].InitialFunds.LessThanOrEqual(decimal.Zero) && !c.StrategySettings.UseExchangeLevelFunding {
 			return ErrBadInitialFunds
 		}
 		if c.CurrencySettings[i].Base == "" {
@@ -191,9 +192,9 @@ func (c *Config) ValidateCurrencySettings() error {
 		if c.CurrencySettings[i].ExchangeName == "" {
 			return ErrUnsetExchange
 		}
-		if c.CurrencySettings[i].MinimumSlippagePercent < 0 ||
-			c.CurrencySettings[i].MaximumSlippagePercent < 0 ||
-			c.CurrencySettings[i].MinimumSlippagePercent > c.CurrencySettings[i].MaximumSlippagePercent {
+		if c.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) ||
+			c.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) ||
+			c.CurrencySettings[i].MinimumSlippagePercent.GreaterThan(c.CurrencySettings[i].MaximumSlippagePercent) {
 			return ErrBadSlippageRates
 		}
 		c.CurrencySettings[i].ExchangeName = strings.ToLower(c.CurrencySettings[i].ExchangeName)

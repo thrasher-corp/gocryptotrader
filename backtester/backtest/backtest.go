@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -177,7 +178,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			MaxLeverageRate:                cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
 			MaximumHoldingRatio:            cfg.CurrencySettings[i].MaximumHoldingsRatio,
 		}
-		if cfg.CurrencySettings[i].MakerFee > cfg.CurrencySettings[i].TakerFee {
+		if cfg.CurrencySettings[i].MakerFee.GreaterThan(cfg.CurrencySettings[i].TakerFee) {
 			log.Warnf(log.BackTester, "maker fee '%v' should not exceed taker fee '%v'. Please review config",
 				cfg.CurrencySettings[i].MakerFee,
 				cfg.CurrencySettings[i].TakerFee)
@@ -275,43 +276,43 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			return resp, err
 		}
 		bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
-		var makerFee, takerFee float64
-		if cfg.CurrencySettings[i].MakerFee > 0 {
+		var makerFee, takerFee decimal.Decimal
+		if cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {
 			makerFee = cfg.CurrencySettings[i].MakerFee
 		}
-		if cfg.CurrencySettings[i].TakerFee > 0 {
+		if cfg.CurrencySettings[i].TakerFee.GreaterThan(decimal.Zero) {
 			takerFee = cfg.CurrencySettings[i].TakerFee
 		}
-		if makerFee == 0 || takerFee == 0 {
-			var apiMakerFee, apiTakerFee float64
+		if makerFee.IsZero() || takerFee.IsZero() {
+			var apiMakerFee, apiTakerFee decimal.Decimal
 			apiMakerFee, apiTakerFee = getFees(context.TODO(), exch, pair)
-			if makerFee == 0 {
+			if makerFee.IsZero() {
 				makerFee = apiMakerFee
 			}
-			if takerFee == 0 {
+			if takerFee.IsZero() {
 				takerFee = apiTakerFee
 			}
 		}
 
-		if cfg.CurrencySettings[i].MaximumSlippagePercent < 0 {
+		if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) {
 			log.Warnf(log.BackTester, "invalid maximum slippage percent '%f'. Slippage percent is defined as a number, eg '100.00', defaulting to '%f'",
 				cfg.CurrencySettings[i].MaximumSlippagePercent,
 				slippage.DefaultMaximumSlippagePercent)
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
-		if cfg.CurrencySettings[i].MaximumSlippagePercent == 0 {
+		if cfg.CurrencySettings[i].MaximumSlippagePercent.IsZero() {
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
-		if cfg.CurrencySettings[i].MinimumSlippagePercent < 0 {
+		if cfg.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) {
 			log.Warnf(log.BackTester, "invalid minimum slippage percent '%f'. Slippage percent is defined as a number, eg '80.00', defaulting to '%f'",
 				cfg.CurrencySettings[i].MinimumSlippagePercent,
 				slippage.DefaultMinimumSlippagePercent)
 			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
 		}
-		if cfg.CurrencySettings[i].MinimumSlippagePercent == 0 {
+		if cfg.CurrencySettings[i].MinimumSlippagePercent.IsZero() {
 			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
 		}
-		if cfg.CurrencySettings[i].MaximumSlippagePercent < cfg.CurrencySettings[i].MinimumSlippagePercent {
+		if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(cfg.CurrencySettings[i].MinimumSlippagePercent) {
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 
@@ -439,19 +440,20 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 }
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
-func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee float64) {
+func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee decimal.Decimal) {
 	var err error
 	takerFee, err = exch.GetFeeByType(ctx,
 		&gctexchange.FeeBuilder{
-			FeeType:       gctexchange.OfflineTradeFee,
-			Pair:          fPair,
-			IsMaker:       false,
-			PurchasePrice: 1,
-			Amount:        1,
-		})
+		FeeType:       gctexchange.OfflineTradeFee,
+		Pair:          fPair,
+		IsMaker:       false,
+		PurchasePrice: 1,
+		Amount:        1,
+	})
 	if err != nil {
 		log.Errorf(log.BackTester, "Could not retrieve taker fee for %v. %v", exch.GetName(), err)
 	}
+
 
 	makerFee, err = exch.GetFeeByType(ctx,
 		&gctexchange.FeeBuilder{
@@ -465,7 +467,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 		log.Errorf(log.BackTester, "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
 	}
 
-	return makerFee, takerFee
+	return decimal.NewFromFloat(makerFee), decimal.NewFromFloat(takerFee)
 }
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints

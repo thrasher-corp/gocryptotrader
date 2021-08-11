@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -63,10 +64,10 @@ type EventHandler interface {
 // DataEventHandler interface used for loading and interacting with Data
 type DataEventHandler interface {
 	EventHandler
-	ClosePrice() float64
-	HighPrice() float64
-	LowPrice() float64
-	OpenPrice() float64
+	ClosePrice() decimal.Decimal
+	HighPrice() decimal.Decimal
+	LowPrice() decimal.Decimal
+	OpenPrice() decimal.Decimal
 }
 
 // Directioner dictates the side of an order
