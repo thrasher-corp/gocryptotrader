@@ -51,6 +51,7 @@ const (
 // Bithumb is the overarching type across the Bithumb package
 type Bithumb struct {
 	exchange.Base
+	obm orderbookManager
 }
 
 // GetTradablePairs returns a list of tradable currencies
