@@ -603,37 +603,42 @@ type WsOrderbookData struct {
 
 // WsOrders stores ws orders' data
 type WsOrders struct {
-	ID            int64   `json:"id"`
-	ClientID      string  `json:"clientId"`
-	Market        string  `json:"market"`
-	OrderType     string  `json:"type"`
-	Side          string  `json:"side"`
-	Size          float64 `json:"size"`
-	Price         float64 `json:"price"`
-	ReduceOnly    bool    `json:"reduceOnly"`
-	IOC           bool    `json:"ioc"`
-	PostOnly      bool    `json:"postOnly"`
-	Status        string  `json:"status"`
-	FilledSize    float64 `json:"filedSize"`
-	RemainingSize float64 `json:"remainingSize"`
-	AvgFillPrice  float64 `json:"avgFillPrice"`
+	ID            int64     `json:"id"`
+	ClientID      string    `json:"clientId"`
+	Market        string    `json:"market"`
+	OrderType     string    `json:"type"`
+	Side          string    `json:"side"`
+	Price         float64   `json:"price"`
+	Size          float64   `json:"size"`
+	Status        string    `json:"status"`
+	FilledSize    float64   `json:"filledSize"`
+	RemainingSize float64   `json:"remainingSize"`
+	ReduceOnly    bool      `json:"reduceOnly"`
+	Liquidation   bool      `json:"liquidation"`
+	AvgFillPrice  float64   `json:"avgFillPrice"`
+	PostOnly      bool      `json:"postOnly"`
+	IOC           bool      `json:"ioc"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 // WsFills stores websocket fills' data
 type WsFills struct {
-	Fee       float64   `json:"fee"`
-	FeeRate   float64   `json:"feeRate"`
-	Future    string    `json:"future"`
-	ID        int64     `json:"id"`
-	Liquidity string    `json:"liquidity"`
-	Market    string    `json:"market"`
-	OrderID   int64     `json:"orderId"`
-	TradeID   int64     `json:"tradeId"`
-	Price     float64   `json:"price"`
-	Side      string    `json:"side"`
-	Size      float64   `json:"size"`
-	Time      time.Time `json:"time"`
-	OrderType string    `json:"orderType"`
+	ID            int64     `json:"id"`
+	Market        string    `json:"market"`
+	Future        string    `json:"future"`
+	BaseCurrency  string    `json:"baseCurrency"`
+	QuoteCurrency string    `json:"quoteCurrency"`
+	Type          string    `json:"type"`
+	Side          string    `json:"side"`
+	Price         float64   `json:"price"`
+	Size          float64   `json:"size"`
+	OrderID       int64     `json:"orderId"`
+	Time          time.Time `json:"time"`
+	TradeID       int64     `json:"tradeId"`
+	FeeRate       float64   `json:"feeRate"`
+	Fee           float64   `json:"fee"`
+	FeeCurrency   string    `json:"feeCurrency"`
+	Liquidity     string    `json:"liquidity"`
 }
 
 // WsSub has the data used to subscribe to a channel
@@ -678,7 +683,7 @@ type WsOrderDataStore struct {
 type WsFillsDataStore struct {
 	Channel     string  `json:"channel"`
 	MessageType string  `json:"type"`
-	FillsData   WsFills `json:"fills"`
+	FillsData   WsFills `json:"data"`
 }
 
 // TimeInterval represents interval enum.
