@@ -237,3 +237,37 @@ type WsSub struct {
 	Market    string `json:"market,omitempty"`
 	Operation string `json:"op,omitempty"`
 }
+
+// WsTickerData stores ws ticker data
+type WsTickerData struct {
+	Bid     float64 `json:"bidPrice"`
+	Ask     float64 `json:"askPrice"`
+	BidSize float64 `json:"bidQty"`
+	AskSize float64 `json:"askQty"`
+	Time    float64 `json:"time"`
+}
+
+// WsTickerDataStore stores ws ticker data
+type WsTickerDataStore struct {
+	Symbol       string       `json:"symbol"`
+	SymbolName   string       `json:"symbolName"`
+	IsBinaryData bool         `json:"binary"`
+	Ticker       WsTickerData `json:"data"`
+}
+
+// WsOrderbookData stores ws orderbook data
+type WsOrderbookData struct {
+	Action   string       `json:"action"`
+	Bids     [][2]float64 `json:"bids"`
+	Asks     [][2]float64 `json:"asks"`
+	Time     float64      `json:"time"`
+	Checksum int64        `json:"checksum"`
+}
+
+// WsOrderbookDataStore stores ws orderbook data
+type WsOrderbookDataStore struct {
+	Symbol       string          `json:"symbol"`
+	SymbolName   string          `json:"symbolName"`
+	IsBinaryData bool            `json:"binary"`
+	OBData       WsOrderbookData `json:"data"`
+}
