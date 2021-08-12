@@ -118,7 +118,7 @@ func main() {
 		}
 	}
 
-	err = bt.Statistic.CalculateAllResults()
+	err = bt.Statistic.CalculateAllResults(bt.Funding)
 	if err != nil {
 		gctlog.Error(gctlog.BackTester, err)
 		os.Exit(1)

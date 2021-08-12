@@ -85,7 +85,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 	default:
 		es.SetDirection(common.DoNothing)
 	}
-	es.AppendReason(fmt.Sprintf("RSI at %.2v", latestRSIValue))
+	es.AppendReason(fmt.Sprintf("RSI at %v", latestRSIValue))
 
 	return &es, nil
 }

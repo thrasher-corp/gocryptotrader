@@ -686,7 +686,7 @@
 							</div>
 							<div >
 								<table class="table table-hover table-bordered table-striped">
-									<thead>
+									<tr>
 									<th>Date</th>
 									<th>Close Price</th>
 									<th>Side</th>
@@ -695,7 +695,7 @@
 									<th>Amount</th>
 									<th>Fees</th>
 									<th>Cost Basis</th>
-									</thead>
+									</tr>
 									<tbody >
                                     {{range $val.FinalOrders.Orders}}
 										<tr>
@@ -732,13 +732,13 @@
 							</div>
 							<div >
 								<table class="table table-hover table-bordered table-striped">
-									<thead>
+									<tr>
 									<th>Date</th>
 									<th>Price</th>
 									<th>Action</th>
 									<th>Why</th>
 									<th>Committed Funds</th>
-									</thead>
+									</tr>
 									<tbody >
                                     {{range $ev := $data.Events}}
 										<tr>

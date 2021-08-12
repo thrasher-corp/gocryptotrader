@@ -90,7 +90,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	}
 
 	portfolioLimitedAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, eventFunds, f.GetDirection())
-	if portfolioLimitedAmount != amount {
+	if !portfolioLimitedAmount.Equal(amount) {
 		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within portfolio limits", amount, portfolioLimitedAmount))
 	}
 
@@ -99,7 +99,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		// Conforms the amount to the exchange order defined step amount
 		// reducing it when needed
 		limitReducedAmount = cs.Limits.ConformToAmount(portfolioLimitedAmount)
-		if limitReducedAmount != portfolioLimitedAmount {
+		if !limitReducedAmount.Equal(portfolioLimitedAmount) {
 			f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within exchange step amount limits",
 				portfolioLimitedAmount,
 				limitReducedAmount))
@@ -194,7 +194,7 @@ func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount decimal.Decimal, c
 	}
 	if exceeded {
 		f.SetDirection(direction)
-		e := fmt.Sprintf("Order size %.8v exceeded %v size %.8v", limitReducedAmount, exceededLimit, size)
+		e := fmt.Sprintf("Order size %v exceeded %v size %v", limitReducedAmount, exceededLimit, size)
 		f.AppendReason(e)
 		return fmt.Errorf("%w %v", errExceededPortfolioLimit, e)
 	}

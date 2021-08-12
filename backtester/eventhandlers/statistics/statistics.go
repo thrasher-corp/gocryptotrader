@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -143,7 +144,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 
 // CalculateAllResults calculates the statistics of all exchange asset pair holdings,
 // orders, ratios and drawdowns
-func (s *Statistic) CalculateAllResults() error {
+func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 	log.Info(log.BackTester, "calculating backtesting results")
 	s.PrintAllEvents()
 	currCount := 0
@@ -152,7 +153,7 @@ func (s *Statistic) CalculateAllResults() error {
 		for assetItem, assetMap := range exchangeMap {
 			for pair, stats := range assetMap {
 				currCount++
-				err := stats.CalculateResults()
+				err := stats.CalculateResults(funds)
 				if err != nil {
 					return err
 				}
@@ -204,12 +205,12 @@ func (s *Statistic) PrintTotalResults() {
 	if s.BiggestDrawdown != nil {
 		log.Info(log.BackTester, "------------------Biggest Drawdown------------------------")
 		log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
-		log.Infof(log.BackTester, "Highest Price: $%.2v", s.BiggestDrawdown.MaxDrawdown.Highest.Price)
+		log.Infof(log.BackTester, "Highest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Highest.Price)
 		log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
-		log.Infof(log.BackTester, "Lowest Price: $%.2v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
+		log.Infof(log.BackTester, "Lowest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
 		log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
-		log.Infof(log.BackTester, "Calculated Drawdown: %.2v%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent)
-		log.Infof(log.BackTester, "Difference: $%.2v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Price))
+		log.Infof(log.BackTester, "Calculated Drawdown: %v%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent)
+		log.Infof(log.BackTester, "Difference: $%v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Price))
 		log.Infof(log.BackTester, "Drawdown length: %v\n\n", s.BiggestDrawdown.MaxDrawdown.IntervalDuration)
 	}
 	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {

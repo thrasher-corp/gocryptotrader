@@ -56,7 +56,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 			amount = portfolioSize
 		}
 	}
-	amount = amount.Round(8).Floor()
+	amount = amount.Round(8)
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return retOrder, fmt.Errorf("%w at %v for %v %v %v", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
 	}
@@ -90,7 +90,7 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal
 		amount = minMaxSettings.MaximumTotal.Mul(decimal.NewFromInt(1).Sub(feeRate)).Div(price)
 	}
 	if amount.LessThan(minMaxSettings.MinimumSize) && minMaxSettings.MinimumSize.GreaterThan(decimal.Zero) {
-		return decimal.Zero, fmt.Errorf("%w. Sized: '%.8v' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
+		return decimal.Zero, fmt.Errorf("%w. Sized: '%v' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
 	}
 	return amount, nil
 }
@@ -123,7 +123,7 @@ func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit decimal.D
 		amount = minMaxSettings.MaximumTotal.Mul(oneMFeeRate).Div(price)
 	}
 	if amount.LessThan(minMaxSettings.MinimumSize) && minMaxSettings.MinimumSize.GreaterThan(decimal.Zero) {
-		return decimal.Zero, fmt.Errorf("%w. Sized: '%.8v' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
+		return decimal.Zero, fmt.Errorf("%w. Sized: '%v' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
 	}
 
 	return amount, nil

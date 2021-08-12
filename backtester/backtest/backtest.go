@@ -61,6 +61,7 @@ func (bt *BackTest) Reset() {
 	bt.Portfolio.Reset()
 	bt.Statistic.Reset()
 	bt.Exchange.Reset()
+	bt.Funding.Reset()
 	bt.Bot = nil
 }
 

@@ -59,7 +59,7 @@ func (c *Config) PrintSetting() {
 				c.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
 				c.StrategySettings.ExchangeLevelFunding[i].Asset,
 				c.StrategySettings.ExchangeLevelFunding[i].Quote,
-				c.StrategySettings.ExchangeLevelFunding[i].InitialFunds)
+				c.StrategySettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
 		}
 	}
 
@@ -73,12 +73,12 @@ func (c *Config) PrintSetting() {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Infof(log.BackTester, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
 		if !c.StrategySettings.UseExchangeLevelFunding {
-			log.Infof(log.BackTester, "Initial funds: %.4v", c.CurrencySettings[i].InitialFunds)
+			log.Infof(log.BackTester, "Initial funds: %v", c.CurrencySettings[i].InitialFunds.Round(8))
 		}
-		log.Infof(log.BackTester, "Maker fee: %.2v", c.CurrencySettings[i].TakerFee)
-		log.Infof(log.BackTester, "Taker fee: %.2v", c.CurrencySettings[i].MakerFee)
-		log.Infof(log.BackTester, "Minimum slippage percent %.2v", c.CurrencySettings[i].MinimumSlippagePercent)
-		log.Infof(log.BackTester, "Maximum slippage percent: %.2v", c.CurrencySettings[i].MaximumSlippagePercent)
+		log.Infof(log.BackTester, "Maker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
+		log.Infof(log.BackTester, "Taker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
+		log.Infof(log.BackTester, "Minimum slippage percent %v", c.CurrencySettings[i].MinimumSlippagePercent.Round(8))
+		log.Infof(log.BackTester, "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.Round(8))
 		log.Infof(log.BackTester, "Buy rules: %+v", c.CurrencySettings[i].BuySide)
 		log.Infof(log.BackTester, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
 		log.Infof(log.BackTester, "Leverage rules: %+v", c.CurrencySettings[i].Leverage)

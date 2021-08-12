@@ -7,6 +7,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -17,7 +18,7 @@ import (
 )
 
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
-func (c *CurrencyStatistic) CalculateResults() error {
+func (c *CurrencyStatistic) CalculateResults(funds funding.IFundingManager) error {
 	var errs gctcommon.Errors
 	first := c.Events[0]
 	firstPrice := first.DataEvent.ClosePrice()
@@ -39,10 +40,15 @@ func (c *CurrencyStatistic) CalculateResults() error {
 			c.HighestClosePrice = price
 		}
 	}
-	c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(decimal.NewFromInt(100))
-	c.StrategyMovement = last.Holdings.TotalValue.Sub(last.Holdings.InitialFunds).Div(last.Holdings.InitialFunds).Mul(decimal.NewFromInt(100))
+	f, err := funds.GetFundingForEvent(last.FillEvent)
+	if err != nil {
+		return err
+	}
+	oneHundred := decimal.NewFromInt(100)
+	c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(oneHundred)
+	c.StrategyMovement = last.Holdings.TotalValue.Sub(f.QuoteInitialFunds()).Div(f.QuoteInitialFunds()).Mul(oneHundred)
 	c.calculateHighestCommittedFunds()
-	c.RiskFreeRate = last.Holdings.RiskFreeRate.Mul(decimal.NewFromInt(100))
+	c.RiskFreeRate = last.Holdings.RiskFreeRate.Mul(oneHundred)
 	returnPerCandle := make([]float64, len(c.Events))
 	benchmarkRates := make([]float64, len(c.Events))
 
@@ -65,8 +71,6 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	returnPerCandle = returnPerCandle[1:]
 
 	var arithmeticBenchmarkAverage, geometricBenchmarkAverage float64
-	var err error
-
 	arithmeticBenchmarkAverage, err = math.ArithmeticMean(benchmarkRates)
 	if err != nil {
 		errs = append(errs, err)
@@ -143,10 +147,10 @@ func (c *CurrencyStatistic) CalculateResults() error {
 		CalmarRatio:      decimal.NewFromFloat(geomCalmar),
 	}
 
-	lastInital, _ := last.Holdings.InitialFunds.Float64()
+	lastInitial, _ := last.Holdings.InitialFunds.Float64()
 	lastTotal, _ := last.Holdings.TotalValue.Float64()
 	cagr, err := math.CompoundAnnualGrowthRate(
-		lastInital,
+		lastInitial,
 		lastTotal,
 		intervalsPerYear,
 		float64(len(c.Events)),
@@ -178,69 +182,69 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	currStr := fmt.Sprintf("------------------Stats for %v %v %v------------------------------------------", e, a, p)
 
 	log.Infof(log.BackTester, currStr[:61])
-	log.Infof(log.BackTester, "Initial funds: $%.2v", last.Holdings.InitialFunds)
-	log.Infof(log.BackTester, "Highest committed funds: $%.2v at %v\n\n", c.HighestCommittedFunds.Value, c.HighestCommittedFunds.Time)
+	log.Infof(log.BackTester, "Initial funds: $%v", last.Holdings.InitialFunds)
+	log.Infof(log.BackTester, "Highest committed funds: $%v at %v\n\n", c.HighestCommittedFunds.Value.Round(roundTo8), c.HighestCommittedFunds.Time)
 
 	log.Infof(log.BackTester, "Buy orders: %d", c.BuyOrders)
-	log.Infof(log.BackTester, "Buy value: $%.2v", last.Holdings.BoughtValue)
-	log.Infof(log.BackTester, "Buy amount: %.2v %v", last.Holdings.BoughtAmount, last.Holdings.Pair.Base)
+	log.Infof(log.BackTester, "Buy value: $%v", last.Holdings.BoughtValue.Round(roundTo8))
+	log.Infof(log.BackTester, "Buy amount: %v %v", last.Holdings.BoughtAmount.Round(roundTo8), last.Holdings.Pair.Base)
 	log.Infof(log.BackTester, "Sell orders: %d", c.SellOrders)
-	log.Infof(log.BackTester, "Sell value: $%.2v", last.Holdings.SoldValue)
-	log.Infof(log.BackTester, "Sell amount: %.2v %v", last.Holdings.SoldAmount, last.Holdings.Pair.Base)
+	log.Infof(log.BackTester, "Sell value: $%v", last.Holdings.SoldValue.Round(roundTo8))
+	log.Infof(log.BackTester, "Sell amount: %v %v", last.Holdings.SoldAmount.Round(roundTo8), last.Holdings.Pair.Base)
 	log.Infof(log.BackTester, "Total orders: %d\n\n", c.TotalOrders)
 
 	log.Info(log.BackTester, "------------------Max Drawdown-------------------------------")
-	log.Infof(log.BackTester, "Highest Price of drawdown: $%.2v", c.MaxDrawdown.Highest.Price)
+	log.Infof(log.BackTester, "Highest Price of drawdown: $%v", c.MaxDrawdown.Highest.Price.Round(roundTo8))
 	log.Infof(log.BackTester, "Time of highest price of drawdown: %v", c.MaxDrawdown.Highest.Time)
-	log.Infof(log.BackTester, "Lowest Price of drawdown: $%.2v", c.MaxDrawdown.Lowest.Price)
+	log.Infof(log.BackTester, "Lowest Price of drawdown: $%v", c.MaxDrawdown.Lowest.Price.Round(roundTo8))
 	log.Infof(log.BackTester, "Time of lowest price of drawdown: %v", c.MaxDrawdown.Lowest.Time)
-	log.Infof(log.BackTester, "Calculated Drawdown: %.2v%%", c.MaxDrawdown.DrawdownPercent)
-	log.Infof(log.BackTester, "Difference: $%.2v", c.MaxDrawdown.Highest.Price.Sub(c.MaxDrawdown.Lowest.Price))
+	log.Infof(log.BackTester, "Calculated Drawdown: %v%%", c.MaxDrawdown.DrawdownPercent.Round(roundTo2))
+	log.Infof(log.BackTester, "Difference: $%v", c.MaxDrawdown.Highest.Price.Sub(c.MaxDrawdown.Lowest.Price).Round(roundTo2))
 	log.Infof(log.BackTester, "Drawdown length: %d\n\n", c.MaxDrawdown.IntervalDuration)
 
 	log.Info(log.BackTester, "------------------Rates-------------------------------------------------")
-	log.Infof(log.BackTester, "Risk free rate: %.2v%%", c.RiskFreeRate)
-	log.Infof(log.BackTester, "Compound Annual Growth Rate: %.2v\n\n", c.CompoundAnnualGrowthRate)
+	log.Infof(log.BackTester, "Risk free rate: %v%%", c.RiskFreeRate.Round(roundTo2))
+	log.Infof(log.BackTester, "Compound Annual Growth Rate: %v\n\n", c.CompoundAnnualGrowthRate.Round(roundTo2))
 
 	log.Info(log.BackTester, "------------------Arithmetic Ratios-------------------------------------")
 	if c.ShowMissingDataWarning {
 		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
 		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
 	}
-	log.Infof(log.BackTester, "Sharpe ratio: %.2v", c.ArithmeticRatios.SharpeRatio)
-	log.Infof(log.BackTester, "Sortino ratio: %.2v", c.ArithmeticRatios.SortinoRatio)
-	log.Infof(log.BackTester, "Information ratio: %.2v", c.ArithmeticRatios.InformationRatio)
-	log.Infof(log.BackTester, "Calmar ratio: %.2v\n\n", c.ArithmeticRatios.CalmarRatio)
+	log.Infof(log.BackTester, "Sharpe ratio: %v", c.ArithmeticRatios.SharpeRatio.Round(roundTo2))
+	log.Infof(log.BackTester, "Sortino ratio: %v", c.ArithmeticRatios.SortinoRatio.Round(roundTo2))
+	log.Infof(log.BackTester, "Information ratio: %v", c.ArithmeticRatios.InformationRatio.Round(roundTo2))
+	log.Infof(log.BackTester, "Calmar ratio: %v\n\n", c.ArithmeticRatios.CalmarRatio.Round(roundTo2))
 
 	log.Info(log.BackTester, "------------------Geometric Ratios-------------------------------------")
 	if c.ShowMissingDataWarning {
 		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
 		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
 	}
-	log.Infof(log.BackTester, "Sharpe ratio: %.2v", c.GeometricRatios.SharpeRatio)
-	log.Infof(log.BackTester, "Sortino ratio: %.2v", c.GeometricRatios.SortinoRatio)
-	log.Infof(log.BackTester, "Information ratio: %.2v", c.GeometricRatios.InformationRatio)
-	log.Infof(log.BackTester, "Calmar ratio: %.2v\n\n", c.GeometricRatios.CalmarRatio)
+	log.Infof(log.BackTester, "Sharpe ratio: %v", c.GeometricRatios.SharpeRatio.Round(roundTo2))
+	log.Infof(log.BackTester, "Sortino ratio: %v", c.GeometricRatios.SortinoRatio.Round(roundTo2))
+	log.Infof(log.BackTester, "Information ratio: %v", c.GeometricRatios.InformationRatio.Round(roundTo2))
+	log.Infof(log.BackTester, "Calmar ratio: %v\n\n", c.GeometricRatios.CalmarRatio.Round(roundTo2))
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
-	log.Infof(log.BackTester, "Starting Close Price: $%.2v", c.StartingClosePrice)
-	log.Infof(log.BackTester, "Finishing Close Price: $%.2v", c.EndingClosePrice)
-	log.Infof(log.BackTester, "Lowest Close Price: $%.2v", c.LowestClosePrice)
-	log.Infof(log.BackTester, "Highest Close Price: $%.2v", c.HighestClosePrice)
+	log.Infof(log.BackTester, "Starting Close Price: $%v", c.StartingClosePrice.Round(roundTo8))
+	log.Infof(log.BackTester, "Finishing Close Price: $%v", c.EndingClosePrice.Round(roundTo8))
+	log.Infof(log.BackTester, "Lowest Close Price: $%v", c.LowestClosePrice.Round(roundTo8))
+	log.Infof(log.BackTester, "Highest Close Price: $%v", c.HighestClosePrice.Round(roundTo8))
 
-	log.Infof(log.BackTester, "Market movement: %.4v%%", c.MarketMovement)
-	log.Infof(log.BackTester, "Strategy movement: %.4v%%", c.StrategyMovement)
+	log.Infof(log.BackTester, "Market movement: %v%%", c.MarketMovement.Round(roundTo2))
+	log.Infof(log.BackTester, "Strategy movement: %v%%", c.StrategyMovement.Round(roundTo2))
 	log.Infof(log.BackTester, "Did it beat the market: %v", c.StrategyMovement.GreaterThan(c.MarketMovement))
 
-	log.Infof(log.BackTester, "Value lost to volume sizing: $%.2v", last.Holdings.TotalValueLostToVolumeSizing)
-	log.Infof(log.BackTester, "Value lost to slippage: $%.2v", last.Holdings.TotalValueLostToSlippage)
-	log.Infof(log.BackTester, "Total Value lost: $%.2v", last.Holdings.TotalValueLost)
-	log.Infof(log.BackTester, "Total Fees: $%.2v\n\n", last.Holdings.TotalFees)
+	log.Infof(log.BackTester, "Value lost to volume sizing: $%v", last.Holdings.TotalValueLostToVolumeSizing.Round(roundTo2))
+	log.Infof(log.BackTester, "Value lost to slippage: $%v", last.Holdings.TotalValueLostToSlippage.Round(roundTo2))
+	log.Infof(log.BackTester, "Total Value lost: $%v", last.Holdings.TotalValueLost.Round(roundTo2))
+	log.Infof(log.BackTester, "Total Fees: $%v\n\n", last.Holdings.TotalFees.Round(roundTo8))
 
-	log.Infof(log.BackTester, "Final funds: $%.2v", last.Holdings.RemainingFunds)
-	log.Infof(log.BackTester, "Final holdings: %.2v", last.Holdings.PositionsSize)
-	log.Infof(log.BackTester, "Final holdings value: $%.2v", last.Holdings.PositionsValue)
-	log.Infof(log.BackTester, "Final total value: $%.2v\n\n", last.Holdings.TotalValue)
+	log.Infof(log.BackTester, "Final funds: $%v", last.Holdings.RemainingFunds.Round(roundTo8))
+	log.Infof(log.BackTester, "Final holdings: %v", last.Holdings.PositionsSize.Round(roundTo8))
+	log.Infof(log.BackTester, "Final holdings value: $%v", last.Holdings.PositionsValue.Round(roundTo8))
+	log.Infof(log.BackTester, "Final total value: $%v\n\n", last.Holdings.TotalValue.Round(roundTo8))
 
 	if len(errs) > 0 {
 		log.Info(log.BackTester, "------------------Errors-------------------------------------")

@@ -17,6 +17,7 @@ var (
 
 // IFundingManager limits funding usage for portfolio event handling
 type IFundingManager interface {
+	Reset()
 	IsUsingExchangeLevelFunding() bool
 	GetFundingForEAC(string, asset.Item, currency.Code) (*Item, error)
 	GetFundingForEvent(common.EventHandler) (*Pair, error)

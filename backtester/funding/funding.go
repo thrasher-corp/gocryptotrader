@@ -14,6 +14,10 @@ func Setup(usingExchangeLevelFunding bool) *AllFunds {
 	return &AllFunds{usingExchangeLevelFunding: usingExchangeLevelFunding}
 }
 
+func (a *AllFunds) Reset() {
+	*a = AllFunds{}
+}
+
 func (a *AllFunds) AddItem(exch string, ass asset.Item, ci currency.Code, initialFunds decimal.Decimal) error {
 	item := &Item{
 		Exchange:     exch,
@@ -164,8 +168,8 @@ func (i *Item) Reserve(amount decimal.Decimal) error {
 			amount,
 			i.Available)
 	}
-	i.Available.Add(amount.Neg())
-	i.Reserved.Add(amount)
+	i.Available = i.Available.Sub(amount)
+	i.Reserved = i.Reserved.Add(amount)
 	return nil
 }
 
@@ -181,13 +185,13 @@ func (i *Item) Release(amount, diff decimal.Decimal) error {
 			amount,
 			i.Reserved)
 	}
-	i.Reserved.Add(amount.Neg())
-	i.Available.Add(diff)
+	i.Reserved = i.Reserved.Sub(amount)
+	i.Available = i.Available.Add(diff)
 	return nil
 }
 
 func (i *Item) Increase(amount decimal.Decimal) {
-	i.Available.Add(amount)
+	i.Available = i.Available.Add(amount)
 }
 
 // Item holds funding data per currency item
