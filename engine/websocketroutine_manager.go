@@ -51,7 +51,7 @@ func (m *websocketRoutineManager) Start() error {
 		return ErrSubSystemAlreadyStarted
 	}
 	m.shutdown = make(chan struct{})
-	go m.websocketRoutine()
+	m.websocketRoutine()
 	return nil
 }
 
@@ -87,7 +87,7 @@ func (m *websocketRoutineManager) websocketRoutine() {
 			if exchanges[i].SupportsWebsocket() {
 				if m.verbose {
 					log.Debugf(log.WebsocketMgr,
-						"Exchange %s websocket support: Yes Enabled: %v\n",
+						"Exchange %s websocket support: Yes Enabled: %v",
 						exchanges[i].GetName(),
 						common.IsEnabled(exchanges[i].IsWebsocketEnabled()),
 					)
@@ -97,35 +97,27 @@ func (m *websocketRoutineManager) websocketRoutine() {
 				if err != nil {
 					log.Errorf(
 						log.WebsocketMgr,
-						"Exchange %s GetWebsocket error: %s\n",
+						"Exchange %s GetWebsocket error: %s",
 						exchanges[i].GetName(),
 						err,
 					)
 					return
 				}
 
-				// Exchange sync manager might have already started ws
-				// service or is in the process of connecting, so check
-				if ws.IsConnected() || ws.IsConnecting() {
-					return
-				}
-
-				// Data handler routine
-				go m.WebsocketDataReceiver(ws)
-
 				if ws.IsEnabled() {
 					err = ws.Connect()
 					if err != nil {
-						log.Errorf(log.WebsocketMgr, "%v\n", err)
+						log.Errorf(log.WebsocketMgr, "%v", err)
 					}
+					go m.WebsocketDataReceiver(ws)
 					err = ws.FlushChannels()
 					if err != nil {
-						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v\n", err)
+						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v", err)
 					}
 				}
 			} else if m.verbose {
 				log.Debugf(log.WebsocketMgr,
-					"Exchange %s websocket support: No\n",
+					"Exchange %s websocket support: No",
 					exchanges[i].GetName(),
 				)
 			}
