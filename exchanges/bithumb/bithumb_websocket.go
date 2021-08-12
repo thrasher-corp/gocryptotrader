@@ -86,7 +86,6 @@ func (b *Bithumb) wsReadData() {
 }
 
 func (b *Bithumb) wsHandleData(respRaw []byte) error {
-
 	var resp WsReponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -107,8 +106,8 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-
-		lu, err := time.ParseInLocation(tickerTimeLayout,
+		var lu time.Time
+		lu, err = time.ParseInLocation(tickerTimeLayout,
 			tick.Date+tick.Time,
 			location)
 		if err != nil {
@@ -138,8 +137,9 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
+		var lu time.Time
 		for x := range trades.List {
-			lu, err := time.ParseInLocation(tradeTimeLayout,
+			lu, err = time.ParseInLocation(tradeTimeLayout,
 				trades.List[x].ContractTime,
 				location)
 			if err != nil {

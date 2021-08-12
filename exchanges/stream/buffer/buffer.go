@@ -184,7 +184,6 @@ func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *Update) (bool, er
 // price level
 func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
 	if w.updateEntriesByID {
-		fmt.Println("PEWP")
 		return o.updateByIDAndAction(u)
 	}
 	o.updateByPrice(u)
