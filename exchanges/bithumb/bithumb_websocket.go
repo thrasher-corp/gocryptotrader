@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	wsDefaultTickTypes = []string{"30M", "1H", "12H", "24H", "MID"}
+	wsDefaultTickTypes = []string{"30M"} // alternatives "1H", "12H", "24H", "MID"
 	tickerTimeLayout   = "20060102150405"
 	tradeTimeLayout    = "2006-01-02 15:04:05.000000"
 )
@@ -86,10 +86,18 @@ func (b *Bithumb) wsReadData() {
 }
 
 func (b *Bithumb) wsHandleData(respRaw []byte) error {
+
 	var resp WsReponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
+	}
+
+	if len(resp.Status) > 0 {
+		if resp.Status == "0000" {
+			return nil
+		}
+		return errors.New(resp.ResponseMessage)
 	}
 
 	switch resp.Type {
@@ -232,6 +240,7 @@ func (b *Bithumb) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 		if err != nil {
 			return err
 		}
+		time.Sleep(time.Second) // Undocumented rate limiting.
 	}
 	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil

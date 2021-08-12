@@ -115,7 +115,6 @@ func (w *Orderbook) Update(u *Update) error {
 			return nil
 		}
 	} else {
-		fmt.Println("MEOW")
 		err := w.processObUpdate(book, u)
 		if err != nil {
 			return err
