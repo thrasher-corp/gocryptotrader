@@ -28,7 +28,7 @@ func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portf
 	if sh == nil {
 		return nil, errSizeManagerUnset
 	}
-	if riskFreeRate.IsNegative {
+	if riskFreeRate.IsNegative() {
 		return nil, errNegativeRiskFreeRate
 	}
 	if r == nil {
@@ -88,7 +88,7 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings, funds fundin
 	}
 
 	prevHolding := lookup.GetLatestHoldings()
-	if p.iteration == 0 {
+	if p.iteration.IsZero() {
 		prevHolding.InitialFunds = funds.QuoteInitialFunds()
 		prevHolding.RemainingFunds = funds.QuoteInitialFunds()
 		prevHolding.Exchange = s.GetExchange()
@@ -96,7 +96,7 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings, funds fundin
 		prevHolding.Asset = s.GetAssetType()
 		prevHolding.Timestamp = s.GetTime()
 	}
-	p.iteration++
+	p.iteration = p.iteration.Add(decimal.NewFromInt(1))
 
 	if s.GetDirection() == common.DoNothing || s.GetDirection() == common.MissingData || s.GetDirection() == "" {
 		return o, nil
@@ -130,8 +130,8 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings, funds fundin
 		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
 		o.AllocatedFunds = sizedOrder.Amount
 	} else {
-		err = funds.Reserve(sizedOrder.Amount*o.Price, gctorder.Buy)
-		o.AllocatedFunds = sizedOrder.Amount * o.Price
+		err = funds.Reserve(sizedOrder.Amount.Mul(o.Price), gctorder.Buy)
+		o.AllocatedFunds = sizedOrder.Amount.Mul(o.Price)
 	}
 	if err != nil {
 		return nil, err
@@ -181,7 +181,7 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 		return originalOrderSignal
 	}
 
-	if sizedOrder.Amount == 0 {
+	if sizedOrder.Amount.IsZero() {
 		switch originalOrderSignal.Direction {
 		case gctorder.Buy:
 			originalOrderSignal.Direction = common.CouldNotBuy
@@ -243,7 +243,7 @@ func (p *Portfolio) OnFill(f fill.Event, funds funding.IPairReader) (*fill.Fill,
 		direction == common.MissingData ||
 		direction == "" {
 		fe := f.(*fill.Fill)
-		fe.ExchangeFee = 0
+		fe.ExchangeFee = decimal.Zero
 		return fe, nil
 	}
 
@@ -263,12 +263,15 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 	prevSnap := complianceManager.GetLatestSnapshot()
 	fo := fillEvent.GetOrder()
 	if fo != nil {
+		price := decimal.NewFromFloat(fo.Price)
+		amount := decimal.NewFromFloat(fo.Amount)
+		fee := decimal.NewFromFloat(fo.Fee)
 		snapOrder := compliance.SnapshotOrder{
 			ClosePrice:          fillEvent.GetClosePrice(),
 			VolumeAdjustedPrice: fillEvent.GetVolumeAdjustedPrice(),
 			SlippageRate:        fillEvent.GetSlippageRate(),
 			Detail:              fo,
-			CostBasis:           (fo.Price * fo.Amount) + fo.Fee,
+			CostBasis:           price.Mul(amount).Add(fee),
 		}
 		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
 	}
@@ -293,11 +296,11 @@ func (p *Portfolio) SetFee(exch string, a asset.Item, cp currency.Pair, fee deci
 // GetFee can panic for bad requests, but why are you getting things that don't exist?
 func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) decimal.Decimal {
 	if p.exchangeAssetPairSettings == nil {
-		return 0
+		return decimal.Zero
 	}
 	lookup := p.exchangeAssetPairSettings[exchangeName][a][cp]
 	if lookup == nil {
-		return 0
+		return decimal.Zero
 	}
 	return lookup.Fee
 }
@@ -309,7 +312,7 @@ func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pa
 		return holdings.Holding{}, false
 	}
 	h := s.GetLatestHoldings()
-	if h.PositionsSize > 0 {
+	if h.PositionsSize.GreaterThan(decimal.Zero) {
 		return h, true
 	}
 	return h, false

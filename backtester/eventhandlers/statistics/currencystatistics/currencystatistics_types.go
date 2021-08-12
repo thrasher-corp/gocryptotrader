@@ -35,25 +35,27 @@ type EventStore struct {
 
 // CurrencyStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair
 type CurrencyStatistic struct {
-	Events                   []EventStore          `json:"-"`
-	MaxDrawdown              Swing                 `json:"max-drawdown,omitempty"`
-	StartingClosePrice       decimal.Decimal       `json:"starting-close-price"`
-	EndingClosePrice         decimal.Decimal       `json:"ending-close-price"`
-	LowestClosePrice         decimal.Decimal       `json:"lowest-close-price"`
-	HighestClosePrice        decimal.Decimal       `json:"highest-close-price"`
-	MarketMovement           decimal.Decimal       `json:"market-movement"`
-	StrategyMovement         decimal.Decimal       `json:"strategy-movement"`
-	HighestCommittedFunds    HighestCommittedFunds `json:"highest-committed-funds"`
-	RiskFreeRate             decimal.Decimal       `json:"risk-free-rate"`
-	BuyOrders                int64                 `json:"buy-orders"`
-	GeometricRatios          Ratios                `json:"geometric-ratios"`
-	ArithmeticRatios         Ratios                `json:"arithmetic-ratios"`
-	CompoundAnnualGrowthRate decimal.Decimal       `json:"compound-annual-growth-rate"`
-	SellOrders               int64                 `json:"sell-orders"`
-	TotalOrders              int64                 `json:"total-orders"`
-	FinalHoldings            holdings.Holding      `json:"final-holdings"`
-	FinalOrders              compliance.Snapshot   `json:"final-orders"`
-	ShowMissingDataWarning   bool                  `json:"-"`
+	Events                       []EventStore          `json:"-"`
+	MaxDrawdown                  Swing                 `json:"max-drawdown,omitempty"`
+	StartingClosePrice           decimal.Decimal       `json:"starting-close-price"`
+	EndingClosePrice             decimal.Decimal       `json:"ending-close-price"`
+	LowestClosePrice             decimal.Decimal       `json:"lowest-close-price"`
+	HighestClosePrice            decimal.Decimal       `json:"highest-close-price"`
+	MarketMovement               decimal.Decimal       `json:"market-movement"`
+	StrategyMovement             decimal.Decimal       `json:"strategy-movement"`
+	HighestCommittedFunds        HighestCommittedFunds `json:"highest-committed-funds"`
+	RiskFreeRate                 decimal.Decimal       `json:"risk-free-rate"`
+	BuyOrders                    int64                 `json:"buy-orders"`
+	GeometricRatios              Ratios                `json:"geometric-ratios"`
+	ArithmeticRatios             Ratios                `json:"arithmetic-ratios"`
+	CompoundAnnualGrowthRate     decimal.Decimal       `json:"compound-annual-growth-rate"`
+	SellOrders                   int64                 `json:"sell-orders"`
+	TotalOrders                  int64                 `json:"total-orders"`
+	FinalHoldings                holdings.Holding      `json:"final-holdings"`
+	FinalOrders                  compliance.Snapshot   `json:"final-orders"`
+	ShowMissingDataWarning       bool                  `json:"-"`
+	IsStrategyProfitable         bool                  `json:"is-strategy-profitable"`
+	DoesPerformanceBeatTheMarket bool                  `json:"does-performance-beat-the-market"`
 }
 
 // Ratios stores all the ratios used for statistics

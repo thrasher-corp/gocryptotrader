@@ -2,7 +2,6 @@ package size
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -37,7 +36,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 			return nil, err
 		}
 		// global settings overrule individual currency settings
-		if amount > portfolioSize {
+		if amount.GreaterThan(portfolioSize) {
 			amount = portfolioSize
 		}
 
@@ -53,12 +52,12 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 			return nil, err
 		}
 		// global settings overrule individual currency settings
-		if amount > portfolioSize {
+		if amount.GreaterThan(portfolioSize) {
 			amount = portfolioSize
 		}
 	}
-	amount = math.Floor(amount*100000000) / 100000000
-	if amount <= 0 {
+	amount = amount.Round(8).Floor()
+	if amount.LessThanOrEqual(decimal.Zero) {
 		return retOrder, fmt.Errorf("%w at %v for %v %v %v", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
 	}
 	retOrder.SetAmount(amount)
@@ -71,24 +70,27 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
 func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal.Decimal, minMaxSettings config.MinMax) (decimal.Decimal, error) {
-	if availableFunds <= 0 {
-		return 0, errNoFunds
+	if availableFunds.LessThanOrEqual(decimal.Zero) {
+		return decimal.Zero, errNoFunds
 	}
-	if price == 0 {
-		return 0, nil
+	if price.IsZero() {
+		return decimal.Zero, nil
 	}
-	amount := availableFunds * (1 - feeRate) / price
-	if buyLimit != 0 && buyLimit >= minMaxSettings.MinimumSize && (buyLimit <= minMaxSettings.MaximumSize || minMaxSettings.MaximumSize == 0) && buyLimit <= amount {
+	amount := availableFunds.Mul(decimal.NewFromInt(1).Sub(feeRate)).Div(price)
+	if !buyLimit.IsZero() &&
+		buyLimit.GreaterThanOrEqual(minMaxSettings.MinimumSize) &&
+		(buyLimit.LessThanOrEqual(minMaxSettings.MaximumSize) || minMaxSettings.MaximumSize.IsZero()) &&
+		buyLimit.LessThanOrEqual(amount) {
 		amount = buyLimit
 	}
-	if minMaxSettings.MaximumSize > 0 && amount > minMaxSettings.MaximumSize {
-		amount = minMaxSettings.MaximumSize * (1 - feeRate)
+	if minMaxSettings.MaximumSize.GreaterThan(decimal.Zero) && amount.GreaterThan(minMaxSettings.MaximumSize) {
+		amount = minMaxSettings.MaximumSize.Mul(decimal.NewFromInt(1).Sub(feeRate))
 	}
-	if minMaxSettings.MaximumTotal > 0 && (amount+feeRate)*price > minMaxSettings.MaximumTotal {
-		amount = minMaxSettings.MaximumTotal * (1 - feeRate) / price
+	if minMaxSettings.MaximumTotal.GreaterThan(decimal.Zero) && amount.Add(feeRate).Mul(price).GreaterThan(minMaxSettings.MaximumTotal) {
+		amount = minMaxSettings.MaximumTotal.Mul(decimal.NewFromInt(1).Sub(feeRate)).Div(price)
 	}
-	if amount < minMaxSettings.MinimumSize && minMaxSettings.MinimumSize > 0 {
-		return 0, fmt.Errorf("%w. Sized: '%.8f' Minimum: '%f'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
+	if amount.LessThan(minMaxSettings.MinimumSize) && minMaxSettings.MinimumSize.GreaterThan(decimal.Zero) {
+		return decimal.Zero, fmt.Errorf("%w. Sized: '%.8v' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
 	}
 	return amount, nil
 }
@@ -100,24 +102,28 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
 func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit decimal.Decimal, minMaxSettings config.MinMax) (decimal.Decimal, error) {
-	if baseAmount <= 0 {
-		return 0, errNoFunds
+	if baseAmount.LessThanOrEqual(decimal.Zero) {
+		return decimal.Zero, errNoFunds
 	}
-	if price == 0 {
-		return 0, nil
+	if price.IsZero() {
+		return decimal.Zero, nil
 	}
-	amount := baseAmount * (1 - feeRate)
-	if sellLimit != 0 && sellLimit >= minMaxSettings.MinimumSize && (sellLimit <= minMaxSettings.MaximumSize || minMaxSettings.MaximumSize == 0) && sellLimit <= amount {
+	oneMFeeRate := decimal.NewFromInt(1).Sub(feeRate)
+	amount := baseAmount.Mul(oneMFeeRate)
+	if !sellLimit.IsZero() &&
+		sellLimit.GreaterThanOrEqual(minMaxSettings.MinimumSize) &&
+		(sellLimit.LessThanOrEqual(minMaxSettings.MaximumSize) || minMaxSettings.MaximumSize.IsZero()) &&
+		sellLimit.LessThanOrEqual(amount) {
 		amount = sellLimit
 	}
-	if minMaxSettings.MaximumSize > 0 && amount > minMaxSettings.MaximumSize {
-		amount = minMaxSettings.MaximumSize * (1 - feeRate)
+	if minMaxSettings.MaximumSize.GreaterThan(decimal.Zero) && amount.GreaterThan(minMaxSettings.MaximumSize) {
+		amount = minMaxSettings.MaximumSize.Mul(oneMFeeRate)
 	}
-	if minMaxSettings.MaximumTotal > 0 && amount*price > minMaxSettings.MaximumTotal {
-		amount = minMaxSettings.MaximumTotal * (1 - feeRate) / price
+	if minMaxSettings.MaximumTotal.GreaterThan(decimal.Zero) && amount.Mul(price).GreaterThan(minMaxSettings.MaximumTotal) {
+		amount = minMaxSettings.MaximumTotal.Mul(oneMFeeRate).Div(price)
 	}
-	if amount < minMaxSettings.MinimumSize && minMaxSettings.MinimumSize > 0 {
-		return 0, fmt.Errorf("%w. Sized: '%.8f' Minimum: '%f'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
+	if amount.LessThan(minMaxSettings.MinimumSize) && minMaxSettings.MinimumSize.GreaterThan(decimal.Zero) {
+		return decimal.Zero, fmt.Errorf("%w. Sized: '%.8v' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
 	}
 
 	return amount, nil

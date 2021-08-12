@@ -73,12 +73,12 @@ func (c *Config) PrintSetting() {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Infof(log.BackTester, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
 		if !c.StrategySettings.UseExchangeLevelFunding {
-			log.Infof(log.BackTester, "Initial funds: %.4f", c.CurrencySettings[i].InitialFunds)
+			log.Infof(log.BackTester, "Initial funds: %.4v", c.CurrencySettings[i].InitialFunds)
 		}
-		log.Infof(log.BackTester, "Maker fee: %.2f", c.CurrencySettings[i].TakerFee)
-		log.Infof(log.BackTester, "Taker fee: %.2f", c.CurrencySettings[i].MakerFee)
-		log.Infof(log.BackTester, "Minimum slippage percent %.2f", c.CurrencySettings[i].MinimumSlippagePercent)
-		log.Infof(log.BackTester, "Maximum slippage percent: %.2f", c.CurrencySettings[i].MaximumSlippagePercent)
+		log.Infof(log.BackTester, "Maker fee: %.2v", c.CurrencySettings[i].TakerFee)
+		log.Infof(log.BackTester, "Taker fee: %.2v", c.CurrencySettings[i].MakerFee)
+		log.Infof(log.BackTester, "Minimum slippage percent %.2v", c.CurrencySettings[i].MinimumSlippagePercent)
+		log.Infof(log.BackTester, "Maximum slippage percent: %.2v", c.CurrencySettings[i].MaximumSlippagePercent)
 		log.Infof(log.BackTester, "Buy rules: %+v", c.CurrencySettings[i].BuySide)
 		log.Infof(log.BackTester, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
 		log.Infof(log.BackTester, "Leverage rules: %+v", c.CurrencySettings[i].Leverage)
@@ -133,19 +133,19 @@ func (c *Config) PrintSetting() {
 func (m *MinMax) Validate() {
 	if m.MaximumSize.LessThan(decimal.Zero) {
 		m.MaximumSize = m.MaximumSize.Mul(decimal.NewFromFloat(-1))
-		log.Warnf(log.BackTester, "invalid maximum size set to %f", m.MaximumSize)
+		log.Warnf(log.BackTester, "invalid maximum size set to %v", m.MaximumSize)
 	}
 	if m.MinimumSize.IsNegative() {
 		m.MinimumSize = m.MinimumSize.Mul(decimal.NewFromFloat(-1))
-		log.Warnf(log.BackTester, "invalid minimum size set to %f", m.MinimumSize)
+		log.Warnf(log.BackTester, "invalid minimum size set to %v", m.MinimumSize)
 	}
 	if m.MaximumSize.LessThanOrEqual(m.MinimumSize) && !m.MinimumSize.IsZero() && !m.MaximumSize.IsZero() {
 		m.MaximumSize = m.MinimumSize.Add(decimal.NewFromInt(1))
-		log.Warnf(log.BackTester, "invalid maximum size set to %f", m.MaximumSize)
+		log.Warnf(log.BackTester, "invalid maximum size set to %v", m.MaximumSize)
 	}
 	if m.MaximumTotal.LessThan(decimal.Zero) {
 		m.MaximumTotal = m.MaximumTotal.Mul(decimal.NewFromFloat(-1))
-		log.Warnf(log.BackTester, "invalid maximum total set to %f", m.MaximumTotal)
+		log.Warnf(log.BackTester, "invalid maximum total set to %v", m.MaximumTotal)
 	}
 }
 

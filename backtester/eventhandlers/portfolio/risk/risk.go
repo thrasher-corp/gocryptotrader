@@ -31,17 +31,17 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 			return nil, errLeverageNotAllowed
 		}
 		ratio := existingLeverageRatio(s)
-		if ratio > lookup.MaximumOrdersWithLeverageRatio && lookup.MaximumOrdersWithLeverageRatio > 0 {
-			return nil, fmt.Errorf("proceeding with the order would put maximum orders using leverage ratio beyond its limit of %f to %f and %w", lookup.MaximumOrdersWithLeverageRatio, ratio, errCannotPlaceLeverageOrder)
+		if ratio.GreaterThan(lookup.MaximumOrdersWithLeverageRatio) && lookup.MaximumOrdersWithLeverageRatio.GreaterThan(decimal.Zero) {
+			return nil, fmt.Errorf("proceeding with the order would put maximum orders using leverage ratio beyond its limit of %v to %v and %w", lookup.MaximumOrdersWithLeverageRatio, ratio, errCannotPlaceLeverageOrder)
 		}
-		if retOrder.GetLeverage() > lookup.MaxLeverageRate && lookup.MaxLeverageRate > 0 {
-			return nil, fmt.Errorf("proceeding with the order would put leverage rate beyond its limit of %f to %f and %w", lookup.MaxLeverageRate, retOrder.GetLeverage(), errCannotPlaceLeverageOrder)
+		if retOrder.GetLeverage().GreaterThan(lookup.MaxLeverageRate) && lookup.MaxLeverageRate.GreaterThan(decimal.Zero) {
+			return nil, fmt.Errorf("proceeding with the order would put leverage rate beyond its limit of %v to %v and %w", lookup.MaxLeverageRate, retOrder.GetLeverage(), errCannotPlaceLeverageOrder)
 		}
 	}
 	if len(latestHoldings) > 1 {
 		ratio := assessHoldingsRatio(o.Pair(), latestHoldings)
-		if lookup.MaximumHoldingRatio > 0 && ratio != 1 && ratio > lookup.MaximumHoldingRatio {
-			return nil, fmt.Errorf("order would exceed maximum holding ratio of %f to %f for %v %v %v. %w", lookup.MaximumHoldingRatio, ratio, ex, a, p, errCannotPlaceLeverageOrder)
+		if lookup.MaximumHoldingRatio.GreaterThan(decimal.Zero) && !ratio.Equal(decimal.NewFromInt(1)) && ratio.GreaterThan(lookup.MaximumHoldingRatio) {
+			return nil, fmt.Errorf("order would exceed maximum holding ratio of %v to %v for %v %v %v. %w", lookup.MaximumHoldingRatio, ratio, ex, a, p, errCannotPlaceLeverageOrder)
 		}
 	}
 	return retOrder, nil
@@ -52,29 +52,29 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 // when an order exceeds a config setting
 func existingLeverageRatio(s compliance.Snapshot) decimal.Decimal {
 	if len(s.Orders) == 0 {
-		return 0
+		return decimal.Zero
 	}
 	var ordersWithLeverage decimal.Decimal
 	for o := range s.Orders {
 		if s.Orders[o].Leverage != 0 {
-			ordersWithLeverage++
+			ordersWithLeverage = ordersWithLeverage.Add(decimal.NewFromInt(1))
 		}
 	}
-	return ordersWithLeverage / decimal.Decimal(len(s.Orders))
+	return ordersWithLeverage.Div(decimal.NewFromInt(int64(len(s.Orders))))
 }
 
 func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) decimal.Decimal {
 	resp := make(map[currency.Pair]decimal.Decimal)
-	totalPosition := 0.0
+	totalPosition := decimal.Zero
 	for i := range h {
-		resp[h[i].Pair] += h[i].PositionsValue
-		totalPosition += h[i].PositionsValue
+		resp[h[i].Pair] = resp[h[i].Pair].Add(h[i].PositionsValue)
+		totalPosition = totalPosition.Add(h[i].PositionsValue)
 	}
 
-	if totalPosition == 0 {
-		return 0
+	if totalPosition.IsZero() {
+		return decimal.Zero
 	}
-	ratio := resp[c] / totalPosition
+	ratio := resp[c].Div(totalPosition)
 
 	return ratio
 }

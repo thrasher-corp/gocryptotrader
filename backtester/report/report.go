@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -96,7 +97,7 @@ func (d *Data) enhanceCandles() error {
 	if d.Statistics == nil {
 		return errStatisticsUnset
 	}
-	d.Statistics.RiskFreeRate *= 100
+	d.Statistics.RiskFreeRate = d.Statistics.RiskFreeRate.Mul(decimal.NewFromInt(100))
 
 	for intVal := range d.OriginalCandles {
 		lookup := d.OriginalCandles[intVal]
@@ -123,11 +124,11 @@ func (d *Data) enhanceCandles() error {
 			tt := d.OriginalCandles[intVal].Candles[j].Time.Add(time.Duration(offset) * time.Second)
 			enhancedCandle := DetailedCandle{
 				Time:         tt.Unix(),
-				Open:         d.OriginalCandles[intVal].Candles[j].Open,
-				High:         d.OriginalCandles[intVal].Candles[j].High,
-				Low:          d.OriginalCandles[intVal].Candles[j].Low,
-				Close:        d.OriginalCandles[intVal].Candles[j].Close,
-				Volume:       d.OriginalCandles[intVal].Candles[j].Volume,
+				Open:         decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Open),
+				High:         decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].High),
+				Low:          decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Low),
+				Close:        decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Close),
+				Volume:       decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Volume),
 				VolumeColour: "rgba(47, 194, 27, 0.8)",
 			}
 			if j != 0 {
@@ -157,8 +158,8 @@ func (d *Data) enhanceCandles() error {
 				}
 				// an order was placed here, can enhance chart!
 				enhancedCandle.MadeOrder = true
-				enhancedCandle.OrderAmount = statsForCandles.FinalOrders.Orders[k].Amount
-				enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Price
+				enhancedCandle.OrderAmount = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Amount)
+				enhancedCandle.PurchasePrice = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Price)
 				enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Side
 				if enhancedCandle.OrderDirection == order.Buy {
 					enhancedCandle.Colour = "green"

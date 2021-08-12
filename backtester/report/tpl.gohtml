@@ -159,12 +159,12 @@
 									<td>{{ $exchange}}</td>
 									<td>{{ $asset}}</td>
 									<td>{{ $pair}}</td>
-									<td>${{ printf "%.8f" .FinalHoldings.InitialFunds }} {{.FinalHoldings.Pair.Quote}}</td>
-									<td>${{ printf "%.8f" .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>
-									<td>{{ gt  .FinalHoldings.TotalValue .FinalHoldings.InitialFunds }}</td>
-									<td> {{ gt .StrategyMovement  .MarketMovement }}</td>
-									<td>{{ printf "%.2f" .StrategyMovement }}%</td>
-									<td>{{ printf "%.2f" .MarketMovement }}%</td>
+									<td>${{ printf "%.8v" .FinalHoldings.InitialFunds }} {{.FinalHoldings.Pair.Quote}}</td>
+									<td>${{ printf "%.8v" .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>
+									<td>{{  .IsStrategyProfitable }}</td>
+									<td> {{ .DoesPerformanceBeatTheMarket }}</td>
+									<td>{{ printf "%.2v" .StrategyMovement }}%</td>
+									<td>{{ printf "%.2v" .MarketMovement }}%</td>
 								</tr>
                             {{end}}
                         {{end}}
@@ -238,13 +238,13 @@
 							<td>{{.Asset}}</td>
 							<td>{{.Base}}</td>
 							<td>{{.Quote}}</td>
-							<td>{{ printf "$%.8f" .InitialFunds}} {{.Quote}}</td>
+							<td>{{ printf "$%.8v" .InitialFunds}} {{.Quote}}</td>
 							<td>{{.BuySide.MinimumSize}} {{.Base}}</td>
 							<td>{{.BuySide.MaximumSize}} {{.Base}}</td>
-							<td>${{printf "%.8f" .BuySide.MaximumTotal}} {{.Quote}}</td>
+							<td>${{printf "%.8v" .BuySide.MaximumTotal}} {{.Quote}}</td>
 							<td>{{.SellSide.MinimumSize}} {{.Base}}</td>
 							<td>{{.SellSide.MaximumSize}} {{.Base}}</td>
-							<td>${{printf "%.8f" .SellSide.MaximumTotal}} {{.Quote}}</td>
+							<td>${{printf "%.8v" .SellSide.MaximumTotal}} {{.Quote}}</td>
 							<td>{{.MinimumSlippagePercent}}%</td>
 							<td>{{.MaximumSlippagePercent}}%</td>
 							<td>{{.TakerFee}}</td>
@@ -317,10 +317,10 @@
 						<td>{{.Config.PortfolioSettings.Leverage.MaximumOrdersWithLeverageRatio}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MinimumSize}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MaximumSize}}</td>
-						<td>${{printf "%.8f" .Config.PortfolioSettings.BuySide.MaximumTotal}}</td>
+						<td>${{printf "%.8v" .Config.PortfolioSettings.BuySide.MaximumTotal}}</td>
 						<td>{{.Config.PortfolioSettings.SellSide.MinimumSize}}</td>
 						<td>{{.Config.PortfolioSettings.SellSide.MaximumSize}}</td>
-						<td>${{printf "%.8f" .Config.PortfolioSettings.SellSide.MaximumTotal}}</td>
+						<td>${{printf "%.8v" .Config.PortfolioSettings.SellSide.MaximumTotal}}</td>
 					</tr>
 					</tbody>
 				</table>
@@ -503,7 +503,7 @@
 								<tbody>
 								<tr>
 									<td><b>Initial Funds</b></td>
-									<td>${{printf "%.8f" $val.FinalHoldings.InitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8v" $val.FinalHoldings.InitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Buy Orders</b></td>
@@ -511,11 +511,11 @@
 								</tr>
 								<tr>
 									<td><b>Buy Value</b></td>
-									<td>${{printf "%.8f" $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8v" $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Buy Amount</b></td>
-									<td>{{printf "%.8f" $val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
+									<td>{{printf "%.8v" $val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
 								</tr>
 								<tr>
 									<td><b>Sell Orders</b></td>
@@ -523,85 +523,86 @@
 								</tr>
 								<tr>
 									<td><b>Sell Value</b></td>
-									<td>${{printf "%.8f" $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8v" $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Sell Amount</b></td>
-									<td>{{printf "%.8f" $val.FinalHoldings.SoldAmount}} {{$val.FinalHoldings.Pair.Base}}</td>
+									<td>{{printf "%.8v" $val.FinalHoldings.SoldAmount}} {{$val.FinalHoldings.Pair.Base}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Orders</b></td>
 									<td>{{$val.TotalOrders}}</td>
 								</tr>
-                                {{ if gt $val.MaxDrawdown.Highest.Price 0.0 }}
+                                {{ if $val.MaxDrawdown.Highest.Price.IsZero }}
+									{{else}}
 									<tr>
 										<td><b>Biggest Drawdown</b></td>
-										<td><b>Start:</b> {{ $val.MaxDrawdown.Highest.Time }} <b>End:</b> {{ $val.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{printf "%.2f" $val.MaxDrawdown.DrawdownPercent}}%</td>
+										<td><b>Start:</b> {{ $val.MaxDrawdown.Highest.Time }} <b>End:</b> {{ $val.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{printf "%.2v" $val.MaxDrawdown.DrawdownPercent}}%</td>
 									</tr>
                                 {{ end }}
 								<tr>
 									<td><b>Starting Close Price</b></td>
-									<td>${{printf "%.8f" $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8v" $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Ending Close Price</b></td>
-									<td>${{printf "%.8f" $val.EndingClosePrice}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									<td>${{printf "%.8v" $val.EndingClosePrice}} {{ $val.FinalHoldings.Pair.Quote }}</td>
 								</tr>
 								<tr>
 									<td><b>Lowest Close Price</b></td>
-									<td>${{printf "%.8f" $val.LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8v" $val.LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Highest Close Price</b></td>
-									<td>${{printf "%.8f" $val.HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8v" $val.HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Highest Committed Funds</b></td>
-									<td>${{printf "%.8f" $val.HighestCommittedFunds.Value}} at {{ $val.HighestCommittedFunds.Time}}</td>
+									<td>${{printf "%.8v" $val.HighestCommittedFunds.Value}} at {{ $val.HighestCommittedFunds.Time}}</td>
 								</tr>
 								<tr>
 									<td><b>Market Movement</b></td>
-									<td>{{printf "%.2f" $val.MarketMovement}}%</td>
+									<td>{{printf "%.2v" $val.MarketMovement}}%</td>
 								</tr>
 								<tr>
 									<td><b>Strategy Movement</b></td>
-									<td>{{ printf "%.2f" $val.StrategyMovement}}%</td>
+									<td>{{ printf "%.2v" $val.StrategyMovement}}%</td>
 								</tr>
 								<tr>
 									<td><b>Did it beat the market?</b></td>
-									<td>{{ gt .StrategyMovement $val.MarketMovement}}</td>
+									<td>{{ .DoesPerformanceBeatTheMarket }}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value Lost to Volume Sizing</b></td>
-									<td>${{printf "%.8f" $val.FinalHoldings.TotalValueLostToVolumeSizing}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8v" $val.FinalHoldings.TotalValueLostToVolumeSizing}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value Lost to Slippage</b></td>
-									<td>${{printf "%.8f" $val.FinalHoldings.TotalValueLostToSlippage}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									<td>${{printf "%.8v" $val.FinalHoldings.TotalValueLostToSlippage}} {{ $val.FinalHoldings.Pair.Quote }}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value Lost</b></td>
-									<td>${{printf "%.8f" $val.FinalHoldings.TotalValueLost}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8v" $val.FinalHoldings.TotalValueLost}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Fees</b></td>
-									<td>${{printf "%.8f" $val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									<td>${{printf "%.8v" $val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
 								</tr>
 								<tr>
 									<td><b>Final Funds</b></td>
-									<td>${{printf "%.8f" $val.FinalHoldings.RemainingFunds}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8v" $val.FinalHoldings.RemainingFunds}} {{ $val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Final Holdings</b></td>
-									<td>{{printf "%.8f" $val.FinalHoldings.PositionsSize}} {{$val.FinalHoldings.Pair.Base}}</td>
+									<td>{{printf "%.8v" $val.FinalHoldings.PositionsSize}} {{$val.FinalHoldings.Pair.Base}}</td>
 								</tr>
 								<tr>
 									<td><b>Final Holdings Value</b></td>
-									<td>${{printf "%.8f" $val.FinalHoldings.PositionsValue}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									<td>${{printf "%.8v" $val.FinalHoldings.PositionsValue}} {{ $val.FinalHoldings.Pair.Quote }}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value</b></td>
-									<td><b>${{printf "%.8f" $val.FinalHoldings.TotalValue}} {{ $val.FinalHoldings.Pair.Quote}}</b></td>
+									<td><b>${{printf "%.8v" $val.FinalHoldings.TotalValue}} {{ $val.FinalHoldings.Pair.Quote}}</b></td>
 								</tr>
 								</tbody>
 							</table>
@@ -703,9 +704,9 @@
 											<td>{{ .Detail.Side }}</td>
 											<td>${{ .Detail.Price }} {{$pair.Quote}}</td>
 											<td>{{ .SlippageRate }}%</td>
-											<td>{{printf "%.8f" .Detail.Amount }} {{$pair.Base}}</td>
-											<td>${{printf "%.8f" .Detail.Fee }} {{$pair.Quote}}</td>
-											<td>${{printf "%.8f" .CostBasis }} {{$pair.Quote}}</td>
+											<td>{{printf "%.8v" .Detail.Amount }} {{$pair.Base}}</td>
+											<td>${{printf "%.8v" .Detail.Fee }} {{$pair.Quote}}</td>
+											<td>${{printf "%.8v" .CostBasis }} {{$pair.Quote}}</td>
 										</tr>
                                     {{end}}
 									</tbody>
@@ -748,11 +749,11 @@
 												<td>{{$ev.FillEvent.GetReason}}</td>
                                             {{ else if ne $ev.SignalEvent nil}}
 												<td>{{$ev.SignalEvent.GetTime}}</td>
-												<td>${{ printf "%f" $ev.SignalEvent.Price}} {{$pair.Quote}}</td>
+												<td>${{ printf "%v" $ev.SignalEvent.Price}} {{$pair.Quote}}</td>
 												<td>{{$ev.SignalEvent.GetDirection}}</td>
 												<td>{{$ev.SignalEvent.GetReason}}</td>
 											{{ end }}
-											<td>${{printf "%.8f" $ev.Holdings.CommittedFunds}} {{$pair.Quote}}</td>
+											<td>${{printf "%.8v" $ev.Holdings.CommittedFunds}} {{$pair.Quote}}</td>
 										</tr>
                                     {{end}}
 									</tbody>

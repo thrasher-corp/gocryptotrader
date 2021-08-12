@@ -47,28 +47,31 @@ func (h *Holding) UpdateValue(d common.DataEventHandler) {
 
 func (h *Holding) update(f fill.Event) {
 	direction := f.GetDirection()
+
 	o := f.GetOrder()
-	amount := decimal.NewFromFloat(o.Amount)
-	fee := decimal.NewFromFloat(o.Fee)
-	price := decimal.NewFromFloat(o.Price)
-	switch direction {
-	case order.Buy:
-		h.CommittedFunds = h.CommittedFunds.Add(amount.Mul(price).Add(fee))
-		h.PositionsSize = h.PositionsSize.Add(amount)
-		h.PositionsValue = h.PositionsValue.Add(amount.Mul(price))
-		h.RemainingFunds = h.RemainingFunds.Sub(amount.Mul(price).Add(fee))
-		h.TotalFees = h.TotalFees.Add(fee)
-		h.BoughtAmount = h.BoughtAmount.Add(amount)
-		h.BoughtValue = h.BoughtValue.Add(amount.Mul(price))
-	case order.Sell:
-		h.CommittedFunds = h.CommittedFunds.Sub(amount.Mul(price).Add(fee))
-		h.PositionsSize = h.PositionsSize.Sub(amount)
-		h.PositionsValue = h.PositionsValue.Sub(amount.Mul(price))
-		h.RemainingFunds = h.RemainingFunds.Add(amount.Mul(price).Sub(fee))
-		h.TotalFees = h.TotalFees.Add(fee)
-		h.SoldAmount = h.SoldAmount.Add(amount)
-		h.SoldValue = h.SoldValue.Add(amount.Mul(price))
-	case common.DoNothing, common.CouldNotSell, common.CouldNotBuy, common.MissingData, "":
+	if o != nil {
+		amount := decimal.NewFromFloat(o.Amount)
+		fee := decimal.NewFromFloat(o.Fee)
+		price := decimal.NewFromFloat(o.Price)
+		switch direction {
+		case order.Buy:
+			h.CommittedFunds = h.CommittedFunds.Add(amount.Mul(price).Add(fee))
+			h.PositionsSize = h.PositionsSize.Add(amount)
+			h.PositionsValue = h.PositionsValue.Add(amount.Mul(price))
+			h.RemainingFunds = h.RemainingFunds.Sub(amount.Mul(price).Add(fee))
+			h.TotalFees = h.TotalFees.Add(fee)
+			h.BoughtAmount = h.BoughtAmount.Add(amount)
+			h.BoughtValue = h.BoughtValue.Add(amount.Mul(price))
+		case order.Sell:
+			h.CommittedFunds = h.CommittedFunds.Sub(amount.Mul(price).Add(fee))
+			h.PositionsSize = h.PositionsSize.Sub(amount)
+			h.PositionsValue = h.PositionsValue.Sub(amount.Mul(price))
+			h.RemainingFunds = h.RemainingFunds.Add(amount.Mul(price).Sub(fee))
+			h.TotalFees = h.TotalFees.Add(fee)
+			h.SoldAmount = h.SoldAmount.Add(amount)
+			h.SoldValue = h.SoldValue.Add(amount.Mul(price))
+		case common.DoNothing, common.CouldNotSell, common.CouldNotBuy, common.MissingData, "":
+		}
 	}
 	h.TotalValueLostToVolumeSizing = h.TotalValueLostToVolumeSizing.Add(f.GetClosePrice().Sub(f.GetVolumeAdjustedPrice()).Mul(f.GetAmount()))
 	h.TotalValueLostToSlippage = h.TotalValueLostToSlippage.Add(f.GetVolumeAdjustedPrice().Sub(f.GetPurchasePrice()).Mul(f.GetAmount()))
