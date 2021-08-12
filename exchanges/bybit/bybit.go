@@ -41,7 +41,6 @@ const (
 	bybitBestBidAskPrice  = "/spot/quote/v1/ticker/book_ticker"
 
 	// Authenticated endpoints
-	// TODO:
 	bybitAuthenticatedSpotOrder = "/spot/v1/order" // create, query, cancel
 	bybitBatchCancelSpotOrder   = "/spot/order/batch-cancel"
 	bybitOpenOrder              = "/spot/v1/open-orders"

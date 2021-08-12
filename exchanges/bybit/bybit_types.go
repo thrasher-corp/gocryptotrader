@@ -224,3 +224,16 @@ type Balance struct {
 	Free     float64 `json:"free,string"`
 	Locked   float64 `json:"locked,string"`
 }
+
+// Authenticate stores authentication variables required
+type Authenticate struct {
+	Args      []string `json:"args"`
+	Operation string   `json:"op"`
+}
+
+// WsSub has the data used to subscribe to a channel
+type WsSub struct {
+	Channel   string `json:"channel,omitempty"`
+	Market    string `json:"market,omitempty"`
+	Operation string `json:"op,omitempty"`
+}
