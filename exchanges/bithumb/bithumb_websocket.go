@@ -10,7 +10,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
@@ -19,12 +18,34 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const wsEndpoint = "wss://pubwss.bithumb.com/pub/ws"
-const maxWSUpdateBuffer = 10
+const (
+	wsEndpoint = "wss://pubwss.bithumb.com/pub/ws"
+	// maxWSUpdateBuffer defines max websocket updates to apply when an
+	// orderbook is initially fetched
+	maxWSUpdateBuffer = 150
+	// maxWSOrderbookJobs defines max websocket orderbook jobs in queue to fetch
+	// an orderbook snapshot via REST
+	maxWSOrderbookJobs = 2000
+	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
+	// jobs from the job channel
+	maxWSOrderbookWorkers = 10
+)
 
-var wsDefaultTickTypes = []string{"30M", "1H", "12H", "24H", "MID"}
-var tickerTimeLayout = "20060102150405"
-var tradeTimeLayout = "2006-01-02 15:04:05.000000"
+var (
+	wsDefaultTickTypes = []string{"30M", "1H", "12H", "24H", "MID"}
+	tickerTimeLayout   = "20060102150405"
+	tradeTimeLayout    = "2006-01-02 15:04:05.000000"
+)
+
+var location *time.Location
+
+func init() {
+	var err error
+	location, err = time.LoadLocation("Asia/Seoul")
+	if err != nil {
+		panic(err)
+	}
+}
 
 // WsConnect initiates a websocket connection
 func (b *Bithumb) WsConnect() error {
@@ -43,6 +64,7 @@ func (b *Bithumb) WsConnect() error {
 			err)
 	}
 	go b.wsReadData()
+	b.setupOrderbookManager()
 	return nil
 }
 
@@ -78,17 +100,16 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		loc, err := time.LoadLocation("Asia/Seoul")
-		if err != nil {
-			return err
-		}
-		lu, err := time.ParseInLocation(tickerTimeLayout, tick.Date+tick.Time, loc)
+		lu, err := time.ParseInLocation(tickerTimeLayout,
+			tick.Date+tick.Time,
+			location)
 		if err != nil {
 			return err
 		}
 		b.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: b.Name,
 			AssetType:    asset.Spot,
+			Last:         tick.PreviousClosePrice,
 			Pair:         tick.Symbol,
 			Open:         tick.OpenPrice,
 			Close:        tick.ClosePrice,
@@ -110,11 +131,9 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 		}
 
 		for x := range trades.List {
-			loc, err := time.LoadLocation("Asia/Seoul")
-			if err != nil {
-				return err
-			}
-			lu, err := time.ParseInLocation(tradeTimeLayout, trades.List[x].ContractTime, loc)
+			lu, err := time.ParseInLocation(tradeTimeLayout,
+				trades.List[x].ContractTime,
+				location)
 			if err != nil {
 				return err
 			}
@@ -132,14 +151,16 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 			}
 		}
 	case "orderbookdepth":
-		fmt.Printf("BRUH: %s\n", string(resp.Content))
 		var orderbooks WsOrderbooks
-
 		err = json.Unmarshal(resp.Content, &orderbooks)
 		if err != nil {
 			return err
 		}
-		// return b.processBooks(orderbooks.List)
+		init, err := b.UpdateLocalBuffer(&orderbooks)
+		if err != nil && !init {
+			return fmt.Errorf("%v - UpdateLocalCache error: %s", b.Name, err)
+		}
+		return nil
 	default:
 		return fmt.Errorf("unhandled response type %s", resp.Type)
 	}
@@ -151,7 +172,7 @@ func (b *Bithumb) processBooks(updates *WsOrderbooks) error {
 	var bids, asks []orderbook.Item
 	for x := range updates.List {
 		i := orderbook.Item{Price: updates.List[x].Price, Amount: updates.List[x].Quantity}
-		if updates.List[x].OrderSide == order.Bid {
+		if updates.List[x].OrderSide == "bid" {
 			bids = append(bids, i)
 			continue
 		}
@@ -162,13 +183,13 @@ func (b *Bithumb) processBooks(updates *WsOrderbooks) error {
 		Asset:      asset.Spot,
 		Bids:       bids,
 		Asks:       asks,
-		UpdateTime: time.Unix(0, updates.DateTime),
+		UpdateTime: updates.DateTime.Time(),
 	})
 }
 
 // GenerateSubscriptions generates the default subscription set
 func (b *Bithumb) GenerateSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{ /*"ticker"  "transaction" */ "orderbookdepth"}
+	var channels = []string{"ticker", "transaction", "orderbookdepth"}
 	var subscriptions []stream.ChannelSubscription
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -216,29 +237,25 @@ func (b *Bithumb) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	return nil
 }
 
-// Unsubscribe unsubscribes from a set of channels
-func (b *Bithumb) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	// payload := WsPayload{
-	// 	Method: "UNSUBSCRIBE",
-	// }
-	// for i := range channelsToUnsubscribe {
-	// 	payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
-	// 	if i%50 == 0 && i != 0 {
-	// 		err := b.Websocket.Conn.SendJSONMessage(payload)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 		payload.Params = []string{}
-	// 	}
-	// }
-	// if len(payload.Params) > 0 {
-	// 	err := b.Websocket.Conn.SendJSONMessage(payload)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	// b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
-	return nil
+// UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
+func (b *Bithumb) UpdateLocalBuffer(wsdp *WsOrderbooks) (bool, error) {
+	if len(wsdp.List) < 1 {
+		return false, errors.New("insufficient data to process")
+	}
+	err := b.obm.stageWsUpdate(wsdp, wsdp.List[0].Symbol, asset.Spot)
+	if err != nil {
+		init, err2 := b.obm.checkIsInitialSync(wsdp.List[0].Symbol)
+		if err2 != nil {
+			return false, err2
+		}
+		return init, err
+	}
+
+	err = b.applyBufferUpdate(wsdp.List[0].Symbol)
+	if err != nil {
+		b.flushAndCleanup(wsdp.List[0].Symbol)
+	}
+	return false, err
 }
 
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
@@ -322,6 +339,18 @@ func (b *Bithumb) flushAndCleanup(p currency.Pair) {
 	}
 }
 
+func (b *Bithumb) setupOrderbookManager() {
+	if b.obm.state == nil {
+		b.obm.state = make(map[currency.Code]map[currency.Code]map[asset.Item]*update)
+		b.obm.jobs = make(chan job, maxWSOrderbookJobs)
+
+		for i := 0; i < maxWSOrderbookWorkers; i++ {
+			// 10 workers for synchronising book
+			b.SynchroniseWebsocketOrderbook()
+		}
+	}
+}
+
 // stageWsUpdate stages websocket update to roll through updates that need to
 // be applied to a fetched orderbook via REST.
 func (o *orderbookManager) stageWsUpdate(u *WsOrderbooks, pair currency.Pair, a asset.Item) error {
@@ -343,7 +372,7 @@ func (o *orderbookManager) stageWsUpdate(u *WsOrderbooks, pair currency.Pair, a 
 	if !ok {
 		state = &update{
 			// 100ms update assuming we might have up to a 10 second delay.
-			// There could be a potential 100 updates for the currency.
+			// There could be a potential 150 updates for the currency.
 			buffer:       make(chan *WsOrderbooks, maxWSUpdateBuffer),
 			fetchingBook: false,
 			initialSync:  true,
@@ -351,12 +380,10 @@ func (o *orderbookManager) stageWsUpdate(u *WsOrderbooks, pair currency.Pair, a 
 		m2[a] = state
 	}
 
-	if state.lastUpdateID != 0 && u.DateTime < state.lastUpdateID {
-		// While listening to the stream, each new event's U should be
-		// equal to the previous event's u+1.
+	if !state.lastUpdated.IsZero() && u.DateTime.Time().Before(state.lastUpdated) {
 		return fmt.Errorf("websocket orderbook synchronisation failure for pair %s and asset %s", pair, a)
 	}
-	state.lastUpdateID = u.DateTime
+	state.lastUpdated = u.DateTime.Time()
 
 	select {
 	// Put update in the channel buffer to be processed
@@ -479,12 +506,13 @@ buffer:
 	for {
 		select {
 		case d := <-state.buffer:
-			if state.validate(d, recent) {
-				err := processor(d)
-				if err != nil {
-					return fmt.Errorf("%s %s processing update error: %w",
-						pair, asset.Spot, err)
-				}
+			if !state.validate(d, recent) {
+				continue
+			}
+			err := processor(d)
+			if err != nil {
+				return fmt.Errorf("%s %s processing update error: %w",
+					pair, asset.Spot, err)
 			}
 		default:
 			break buffer
@@ -495,8 +523,7 @@ buffer:
 
 // validate checks for correct update alignment
 func (u *update) validate(updt *WsOrderbooks, recent *orderbook.Base) bool {
-	// Drop any event where u is <= lastUpdateId in the snapshot.
-	return updt.DateTime >= recent.LastUpdateID
+	return updt.DateTime.Time().After(recent.LastUpdated)
 }
 
 // cleanup cleans up buffer and reset fetch and init
@@ -554,7 +581,7 @@ func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o Orderbook) error {
 	newOrderBook.Pair = p
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Exchange = b.Name
-	newOrderBook.LastUpdated = time.Unix(0, o.Data.Timestamp)
+	newOrderBook.LastUpdated = time.Unix(0, o.Data.Timestamp*int64(time.Millisecond))
 	newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
 
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)

@@ -3,6 +3,7 @@ package bithumb
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -41,7 +42,7 @@ type WsTicker struct {
 // WsOrderbooks defines an amalgamated bid ask orderbook tranche list
 type WsOrderbooks struct {
 	List     []WsOrderbook `json:"list"`
-	DateTime int64         `json:"datetime"`
+	DateTime bithumbTime   `json:"datetime"`
 }
 
 // WsOrderbook defines a singular orderbook tranche
@@ -89,7 +90,7 @@ type update struct {
 	buffer       chan *WsOrderbooks
 	fetchingBook bool
 	initialSync  bool
-	lastUpdateID int64
+	lastUpdated  time.Time
 }
 
 // job defines a synchonisation job that tells a go routine to fetch an

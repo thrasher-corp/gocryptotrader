@@ -99,7 +99,7 @@ func (b *Bithumb) SetDefaults() {
 				TickerFetching:    true,
 				OrderbookFetching: true,
 				Subscribe:         true,
-				Unsubscribe:       true,
+				Unsubscribe:       false, // No unsubscribe functionality
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
@@ -166,13 +166,10 @@ func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
 		RunningURL:                       ePoint,
 		Connector:                        b.WsConnect,
 		Subscriber:                       b.Subscribe,
-		UnSubscriber:                     b.Unsubscribe,
 		GenerateSubscriptions:            b.GenerateSubscriptions,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
 		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		// SortBuffer:                       true,
-		// SortBufferByUpdateIDs:            true,
 	})
 	if err != nil {
 		return err
@@ -181,7 +178,6 @@ func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		// RateLimit:            wsRateLimitMilliseconds,
 	})
 }
 
