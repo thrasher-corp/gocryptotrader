@@ -27,23 +27,43 @@ type IBotExchange interface {
 	GetName() string
 	IsEnabled() bool
 	SetEnabled(bool)
-
-	APIManager
-
+	ValidateCredentials(ctx context.Context, a asset.Item) error
+	FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
+	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
+	FetchOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
+	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
+	FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error)
+	UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
-
+	FetchAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
+	UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
 	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
 	GetAssetTypes(enabled bool) asset.Items
-
+	GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error)
+	GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error)
 	SupportsAutoPairUpdates() bool
 	SupportsRESTTickerBatchUpdates() bool
+	GetFeeByType(ctx context.Context, f *FeeBuilder) (float64, error)
 	GetLastPairsUpdateTime() int64
 	GetWithdrawPermissions() uint32
 	FormatWithdrawPermissions() string
 	SupportsWithdrawPermissions(permissions uint32) bool
-
+	GetFundingHistory(ctx context.Context) ([]FundHistory, error)
+	SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error)
+	ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error)
+	CancelOrder(ctx context.Context, o *order.Cancel) error
+	CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error)
+	CancelAllOrders(ctx context.Context, orders *order.Cancel) (order.CancelAllResponse, error)
+	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error)
+	GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID string) (string, error)
+	GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
+	GetWithdrawalsHistory(ctx context.Context, code currency.Code) ([]WithdrawalHistory, error)
+	GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
+	WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
+	WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
+	WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	SetHTTPClientUserAgent(ua string)
 	GetHTTPClientUserAgent() string
 	SetClientProxyAddress(addr string) error
@@ -52,73 +72,21 @@ type IBotExchange interface {
 	GetDefaultConfig() (*config.ExchangeConfig, error)
 	GetBase() *Base
 	SupportsAsset(assetType asset.Item) bool
-
+	GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)
+	GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
-	// Websocket specific wrapper functionality
-	// GetWebsocket returns a pointer to the websocket
+
 	GetWebsocket() (*stream.Websocket, error)
 	IsWebsocketEnabled() bool
 	SupportsWebsocket() bool
 	SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
 	UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
 	IsAssetWebsocketSupported(aType asset.Item) bool
-	// FlushWebsocketChannels checks and flushes subscriptions if there is a
-	// pair,asset, url/proxy or subscription change
 	FlushWebsocketChannels() error
-	// Exchange order related execution limits
+	AuthenticateWebsocket(ctx context.Context) error
+
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*order.Limits, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
-}
-
-// APIManager defines required API management functionality for exchange
-// implementations.
-type APIManager interface {
-	ValidateCredentials(ctx context.Context, a asset.Item) error
-
-	FetchAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
-	UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
-
-	FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
-	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
-
-	FetchOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
-	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
-
-	FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error)
-	UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
-
-	GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error)
-	GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error)
-
-	GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID string) (string, error)
-
-	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error)
-	GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
-
-	SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error)
-	ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error)
-
-	CancelOrder(ctx context.Context, o *order.Cancel) error
-	CancelAllOrders(ctx context.Context, orders *order.Cancel) (order.CancelAllResponse, error)
-
-	CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error)
-
-	GetWithdrawalsHistory(ctx context.Context, code currency.Code) ([]WithdrawalHistory, error)
-	GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
-
-	WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
-	WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
-	WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
-
-	GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)
-	GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)
-
-	GetFundingHistory(ctx context.Context) ([]FundHistory, error)
-
-	GetFeeByType(ctx context.Context, f *FeeBuilder) (float64, error)
-
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
-
-	AuthenticateWebsocket(ctx context.Context) error
 }

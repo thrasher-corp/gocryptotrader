@@ -178,10 +178,11 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					SyncTimeoutREST:      bot.Settings.SyncTimeoutREST,
 					SyncTimeoutWebsocket: bot.Settings.SyncTimeoutWebsocket,
 				}
-				bot.currencyPairSyncer, err = setupSyncManager(exchangeSyncCfg,
+				bot.currencyPairSyncer, err = setupSyncManager(
+					exchangeSyncCfg,
 					bot.ExchangeManager,
-					bot.websocketRoutineManager,
-					&bot.Config.RemoteControl)
+					&bot.Config.RemoteControl,
+					bot.Settings.EnableWebsocketRoutine)
 				if err != nil {
 					return err
 				}

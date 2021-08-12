@@ -38,10 +38,11 @@ var (
 	DefaultSyncerTimeoutWebsocket = time.Minute
 	errNoSyncItemsEnabled         = errors.New("no sync items enabled")
 	errUnknownSyncItem            = errors.New("unknown sync item")
+	errSyncPairNotFound           = errors.New("exchange currency pair syncer not found")
 )
 
 // setupSyncManager starts a new CurrencyPairSyncer
-func setupSyncManager(c *Config, exchangeManager iExchangeManager, websocketDataReceiver iWebsocketDataReceiver, remoteConfig *config.RemoteControlConfig) (*syncManager, error) {
+func setupSyncManager(c *Config, exchangeManager iExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*syncManager, error) {
 	if !c.SyncOrderbook && !c.SyncTicker && !c.SyncTrades {
 		return nil, errNoSyncItemsEnabled
 	}
@@ -65,10 +66,10 @@ func setupSyncManager(c *Config, exchangeManager iExchangeManager, websocketData
 	}
 
 	s := &syncManager{
-		config:                *c,
-		remoteConfig:          remoteConfig,
-		exchangeManager:       exchangeManager,
-		websocketDataReceiver: websocketDataReceiver,
+		config:                         *c,
+		remoteConfig:                   remoteConfig,
+		exchangeManager:                exchangeManager,
+		websocketRoutineManagerEnabled: websocketRoutineManagerEnabled,
 	}
 
 	s.tickerBatchLastRequested = make(map[string]time.Time)
@@ -76,7 +77,7 @@ func setupSyncManager(c *Config, exchangeManager iExchangeManager, websocketData
 	log.Debugf(log.SyncMgr,
 		"Exchange currency pair syncer config: continuous: %v ticker: %v"+
 			" orderbook: %v trades: %v workers: %v verbose: %v timeout REST: %v"+
-			" timeout Websocket: %v\n",
+			" timeout Websocket: %v",
 		s.config.SyncContinuously, s.config.SyncTicker, s.config.SyncOrderbook,
 		s.config.SyncTrades, s.config.NumWorkers, s.config.Verbose, s.config.SyncTimeoutREST,
 		s.config.SyncTimeoutWebsocket)
@@ -111,44 +112,17 @@ func (m *syncManager) Start() error {
 
 		if !supportsREST && !supportsWebsocket {
 			log.Warnf(log.SyncMgr,
-				"Loaded exchange %s does not support REST or Websocket.\n",
+				"Loaded exchange %s does not support REST or Websocket.",
 				exchangeName)
 			continue
 		}
 
 		var usingWebsocket bool
 		var usingREST bool
-		if supportsWebsocket && exchanges[x].IsWebsocketEnabled() {
-			ws, err := exchanges[x].GetWebsocket()
-			if err != nil {
-				log.Errorf(log.SyncMgr,
-					"%s failed to get websocket. Err: %s\n",
-					exchangeName,
-					err)
-				usingREST = true
-			}
-
-			if !ws.IsConnected() && !ws.IsConnecting() {
-				if m.websocketDataReceiver.IsRunning() {
-					go m.websocketDataReceiver.WebsocketDataReceiver(ws)
-				}
-
-				err = ws.Connect()
-				if err == nil {
-					err = ws.FlushChannels()
-				}
-				if err != nil {
-					log.Errorf(log.SyncMgr,
-						"%s websocket failed to connect. Err: %s\n",
-						exchangeName,
-						err)
-					usingREST = true
-				} else {
-					usingWebsocket = true
-				}
-			} else {
-				usingWebsocket = true
-			}
+		if m.websocketRoutineManagerEnabled &&
+			supportsWebsocket &&
+			exchanges[x].IsWebsocketEnabled() {
+			usingWebsocket = true
 		} else if supportsREST {
 			usingREST = true
 		}
@@ -173,7 +147,7 @@ func (m *syncManager) Start() error {
 			enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
 			if err != nil {
 				log.Errorf(log.SyncMgr,
-					"%s failed to get enabled pairs. Err: %s\n",
+					"%s failed to get enabled pairs. Err: %s",
 					exchangeName,
 					err)
 				continue
@@ -183,37 +157,33 @@ func (m *syncManager) Start() error {
 					continue
 				}
 
-				c := currencyPairSyncAgent{
+				c := &currencyPairSyncAgent{
 					AssetType: assetTypes[y],
 					Exchange:  exchangeName,
 					Pair:      enabledPairs[i],
 				}
-
 				sBase := syncBase{
 					IsUsingREST:      usingREST || !wsAssetSupported,
 					IsUsingWebsocket: usingWebsocket && wsAssetSupported,
 				}
-
 				if m.config.SyncTicker {
 					c.Ticker = sBase
 				}
-
 				if m.config.SyncOrderbook {
 					c.Orderbook = sBase
 				}
-
 				if m.config.SyncTrades {
 					c.Trade = sBase
 				}
 
-				m.add(&c)
+				m.add(c)
 			}
 		}
 	}
 
 	if atomic.CompareAndSwapInt32(&m.initSyncStarted, 0, 1) {
 		log.Debugf(log.SyncMgr,
-			"Exchange CurrencyPairSyncer initial sync started. %d items to process.\n",
+			"Exchange CurrencyPairSyncer initial sync started. %d items to process.",
 			createdCounter)
 		m.initSyncStartTime = time.Now()
 	}
@@ -221,9 +191,9 @@ func (m *syncManager) Start() error {
 	go func() {
 		m.initSyncWG.Wait()
 		if atomic.CompareAndSwapInt32(&m.initSyncCompleted, 0, 1) {
-			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.\n")
+			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.")
 			completedTime := time.Now()
-			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].\n",
+			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].",
 				completedTime.Sub(m.initSyncStartTime), createdCounter)
 
 			if !m.config.SyncContinuously {
@@ -249,7 +219,6 @@ func (m *syncManager) Start() error {
 }
 
 // Stop shuts down the exchange currency pair syncer
-// Stop attempts to shutdown the subsystem
 func (m *syncManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
@@ -274,7 +243,7 @@ func (m *syncManager) get(exchangeName string, p currency.Pair, a asset.Item) (*
 		}
 	}
 
-	return nil, errors.New("exchange currency pair syncer not found")
+	return nil, fmt.Errorf("%v %v %v %w", exchangeName, a, p, errSyncPairNotFound)
 }
 
 func (m *syncManager) exists(exchangeName string, p currency.Pair, a asset.Item) bool {
@@ -298,7 +267,7 @@ func (m *syncManager) add(c *currencyPairSyncAgent) {
 	if m.config.SyncTicker {
 		if m.config.Verbose {
 			log.Debugf(log.SyncMgr,
-				"%s: Added ticker sync item %v: using websocket: %v using REST: %v\n",
+				"%s: Added ticker sync item %v: using websocket: %v using REST: %v",
 				c.Exchange, m.FormatCurrency(c.Pair).String(), c.Ticker.IsUsingWebsocket,
 				c.Ticker.IsUsingREST)
 		}
@@ -311,7 +280,7 @@ func (m *syncManager) add(c *currencyPairSyncAgent) {
 	if m.config.SyncOrderbook {
 		if m.config.Verbose {
 			log.Debugf(log.SyncMgr,
-				"%s: Added orderbook sync item %v: using websocket: %v using REST: %v\n",
+				"%s: Added orderbook sync item %v: using websocket: %v using REST: %v",
 				c.Exchange, m.FormatCurrency(c.Pair).String(), c.Orderbook.IsUsingWebsocket,
 				c.Orderbook.IsUsingREST)
 		}
@@ -324,7 +293,7 @@ func (m *syncManager) add(c *currencyPairSyncAgent) {
 	if m.config.SyncTrades {
 		if m.config.Verbose {
 			log.Debugf(log.SyncMgr,
-				"%s: Added trade sync item %v: using websocket: %v using REST: %v\n",
+				"%s: Added trade sync item %v: using websocket: %v using REST: %v",
 				c.Exchange, m.FormatCurrency(c.Pair).String(), c.Trade.IsUsingWebsocket,
 				c.Trade.IsUsingREST)
 		}
@@ -428,7 +397,7 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 				m.currencyPairs[x].Ticker.IsProcessing = false
 				if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
 					removedCounter++
-					log.Debugf(log.SyncMgr, "%s ticker sync complete %v [%d/%d].\n",
+					log.Debugf(log.SyncMgr, "%s ticker sync complete %v [%d/%d].",
 						exchangeName,
 						m.FormatCurrency(p).String(),
 						removedCounter,
@@ -446,7 +415,7 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 				m.currencyPairs[x].Orderbook.IsProcessing = false
 				if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
 					removedCounter++
-					log.Debugf(log.SyncMgr, "%s orderbook sync complete %v [%d/%d].\n",
+					log.Debugf(log.SyncMgr, "%s orderbook sync complete %v [%d/%d].",
 						exchangeName,
 						m.FormatCurrency(p).String(),
 						removedCounter,
@@ -464,7 +433,7 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 				m.currencyPairs[x].Trade.IsProcessing = false
 				if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
 					removedCounter++
-					log.Debugf(log.SyncMgr, "%s trade sync complete %v [%d/%d].\n",
+					log.Debugf(log.SyncMgr, "%s trade sync complete %v [%d/%d].",
 						exchangeName,
 						m.FormatCurrency(p).String(),
 						removedCounter,
@@ -497,7 +466,7 @@ func (m *syncManager) worker() {
 				ws, err := exchanges[x].GetWebsocket()
 				if err != nil {
 					log.Errorf(log.SyncMgr,
-						"%s unable to get websocket pointer. Err: %s\n",
+						"%s unable to get websocket pointer. Err: %s",
 						exchangeName,
 						err)
 					usingREST = true
@@ -518,7 +487,7 @@ func (m *syncManager) worker() {
 				enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
 				if err != nil {
 					log.Errorf(log.SyncMgr,
-						"%s failed to get enabled pairs. Err: %s\n",
+						"%s failed to get enabled pairs. Err: %s",
 						exchangeName,
 						err)
 					continue
@@ -528,41 +497,41 @@ func (m *syncManager) worker() {
 						return
 					}
 
-					if !m.exists(exchangeName, enabledPairs[i], assetTypes[y]) {
-						c := currencyPairSyncAgent{
-							AssetType: assetTypes[y],
-							Exchange:  exchangeName,
-							Pair:      enabledPairs[i],
-						}
-
-						sBase := syncBase{
-							IsUsingREST:      usingREST || !wsAssetSupported,
-							IsUsingWebsocket: usingWebsocket && wsAssetSupported,
-						}
-
-						if m.config.SyncTicker {
-							c.Ticker = sBase
-						}
-
-						if m.config.SyncOrderbook {
-							c.Orderbook = sBase
-						}
-
-						if m.config.SyncTrades {
-							c.Trade = sBase
-						}
-
-						m.add(&c)
-					}
-
 					c, err := m.get(exchangeName, enabledPairs[i], assetTypes[y])
 					if err != nil {
-						log.Errorf(log.SyncMgr, "failed to get item. Err: %s\n", err)
-						continue
+						if err == errSyncPairNotFound {
+							c = &currencyPairSyncAgent{
+								AssetType: assetTypes[y],
+								Exchange:  exchangeName,
+								Pair:      enabledPairs[i],
+							}
+
+							sBase := syncBase{
+								IsUsingREST:      usingREST || !wsAssetSupported,
+								IsUsingWebsocket: usingWebsocket && wsAssetSupported,
+							}
+
+							if m.config.SyncTicker {
+								c.Ticker = sBase
+							}
+
+							if m.config.SyncOrderbook {
+								c.Orderbook = sBase
+							}
+
+							if m.config.SyncTrades {
+								c.Trade = sBase
+							}
+
+							m.add(c)
+						} else {
+							log.Error(log.SyncMgr, err)
+							continue
+						}
 					}
 					if switchedToRest && usingWebsocket {
 						log.Warnf(log.SyncMgr,
-							"%s %s: Websocket re-enabled, switching from rest to websocket\n",
+							"%s %s: Websocket re-enabled, switching from rest to websocket",
 							c.Exchange, m.FormatCurrency(enabledPairs[i]).String())
 						switchedToRest = false
 					}
@@ -581,7 +550,7 @@ func (m *syncManager) worker() {
 										c.Orderbook.IsUsingWebsocket = false
 										c.Orderbook.IsUsingREST = true
 										log.Warnf(log.SyncMgr,
-											"%s %s %s: No orderbook update after %s, switching from websocket to rest\n",
+											"%s %s %s: No orderbook update after %s, switching from websocket to rest",
 											c.Exchange,
 											m.FormatCurrency(c.Pair).String(),
 											strings.ToUpper(c.AssetType.String()),
@@ -626,7 +595,7 @@ func (m *syncManager) worker() {
 											c.Ticker.IsUsingWebsocket = false
 											c.Ticker.IsUsingREST = true
 											log.Warnf(log.SyncMgr,
-												"%s %s %s: No ticker update after %s, switching from websocket to rest\n",
+												"%s %s %s: No ticker update after %s, switching from websocket to rest",
 												c.Exchange,
 												m.FormatCurrency(enabledPairs[i]).String(),
 												strings.ToUpper(c.AssetType.String()),
@@ -653,7 +622,7 @@ func (m *syncManager) worker() {
 											if batchLastDone.IsZero() || time.Since(batchLastDone) > m.config.SyncTimeoutREST {
 												m.mux.Lock()
 												if m.config.Verbose {
-													log.Debugf(log.SyncMgr, "%s Init'ing REST ticker batching\n", exchangeName)
+													log.Debugf(log.SyncMgr, "Initialising %s REST ticker batching", exchangeName)
 												}
 												result, err = exchanges[x].UpdateTicker(context.TODO(),
 													c.Pair,
@@ -662,7 +631,7 @@ func (m *syncManager) worker() {
 												m.mux.Unlock()
 											} else {
 												if m.config.Verbose {
-													log.Debugf(log.SyncMgr, "%s Using recent batching cache\n", exchangeName)
+													log.Debugf(log.SyncMgr, "%s Using recent batching cache", exchangeName)
 												}
 												result, err = exchanges[x].FetchTicker(context.TODO(),
 													c.Pair,
@@ -711,7 +680,7 @@ func (m *syncManager) worker() {
 func printCurrencyFormat(price float64, displayCurrency currency.Code) string {
 	displaySymbol, err := currency.GetSymbolByCurrencyName(displayCurrency)
 	if err != nil {
-		log.Errorf(log.SyncMgr, "Failed to get display symbol: %s\n", err)
+		log.Errorf(log.SyncMgr, "Failed to get display symbol: %s", err)
 	}
 
 	return fmt.Sprintf("%s%.8f", displaySymbol, price)
@@ -722,17 +691,17 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64, d
 		origCurrency,
 		displayCurrency)
 	if err != nil {
-		log.Errorf(log.SyncMgr, "Failed to convert currency: %s\n", err)
+		log.Errorf(log.SyncMgr, "Failed to convert currency: %s", err)
 	}
 
 	displaySymbol, err := currency.GetSymbolByCurrencyName(displayCurrency)
 	if err != nil {
-		log.Errorf(log.SyncMgr, "Failed to get display symbol: %s\n", err)
+		log.Errorf(log.SyncMgr, "Failed to get display symbol: %s", err)
 	}
 
 	origSymbol, err := currency.GetSymbolByCurrencyName(origCurrency)
 	if err != nil {
-		log.Errorf(log.SyncMgr, "Failed to get original currency symbol for %s: %s\n",
+		log.Errorf(log.SyncMgr, "Failed to get original currency symbol for %s: %s",
 			origCurrency,
 			err)
 	}
@@ -754,12 +723,12 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 	}
 	if err != nil {
 		if err == common.ErrNotYetImplemented {
-			log.Warnf(log.SyncMgr, "Failed to get %s ticker. Error: %s\n",
+			log.Warnf(log.SyncMgr, "Failed to get %s ticker. Error: %s",
 				protocol,
 				err)
 			return
 		}
-		log.Errorf(log.SyncMgr, "Failed to get %s ticker. Error: %s\n",
+		log.Errorf(log.SyncMgr, "Failed to get %s ticker. Error: %s",
 			protocol,
 			err)
 		return
@@ -772,7 +741,7 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 		result.Pair.Quote != m.fiatDisplayCurrency &&
 		!m.fiatDisplayCurrency.IsEmpty() {
 		origCurrency := result.Pair.Quote.Upper()
-		log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
+		log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 			result.ExchangeName,
 			protocol,
 			m.FormatCurrency(result.Pair),
@@ -787,7 +756,7 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 		if result.Pair.Quote.IsFiatCurrency() &&
 			result.Pair.Quote == m.fiatDisplayCurrency &&
 			!m.fiatDisplayCurrency.IsEmpty() {
-			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
+			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 				result.ExchangeName,
 				protocol,
 				m.FormatCurrency(result.Pair),
@@ -799,7 +768,7 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 				printCurrencyFormat(result.Low, m.fiatDisplayCurrency),
 				result.Volume)
 		} else {
-			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f\n",
+			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f",
 				result.ExchangeName,
 				protocol,
 				m.FormatCurrency(result.Pair),
@@ -824,7 +793,7 @@ func (m *syncManager) FormatCurrency(p currency.Pair) currency.Pair {
 }
 
 const (
-	book = "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n"
+	book = "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s"
 )
 
 // PrintOrderbookSummary outputs orderbook results
@@ -834,13 +803,13 @@ func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 	}
 	if err != nil {
 		if result == nil {
-			log.Errorf(log.OrderBook, "Failed to get %s orderbook. Error: %s\n",
+			log.Errorf(log.OrderBook, "Failed to get %s orderbook. Error: %s",
 				protocol,
 				err)
 			return
 		}
 		if err == common.ErrNotYetImplemented {
-			log.Warnf(log.OrderBook, "Failed to get %s orderbook for %s %s %s. Error: %s\n",
+			log.Warnf(log.OrderBook, "Failed to get %s orderbook for %s %s %s. Error: %s",
 				protocol,
 				result.Exchange,
 				result.Pair,
@@ -848,7 +817,7 @@ func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 				err)
 			return
 		}
-		log.Errorf(log.OrderBook, "Failed to get %s orderbook for %s %s %s. Error: %s\n",
+		log.Errorf(log.OrderBook, "Failed to get %s orderbook for %s %s %s. Error: %s",
 			protocol,
 			result.Exchange,
 			result.Pair,
@@ -916,7 +885,7 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 	}
 	err := BroadcastWebsocketMessage(evt)
 	if !errors.Is(err, ErrWebsocketServiceNotRunning) {
-		log.Errorf(log.APIServerMgr, "Failed to broadcast websocket event %v. Error: %s\n",
+		log.Errorf(log.APIServerMgr, "Failed to broadcast websocket event %v. Error: %s",
 			event, err)
 	}
 }
