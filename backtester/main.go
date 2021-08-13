@@ -76,6 +76,12 @@ func main() {
 	if cfg.GoCryptoTraderConfigPath != "" {
 		path = cfg.GoCryptoTraderConfigPath
 	}
+	err = cfg.Validate()
+	if err != nil {
+		fmt.Printf("Could not read config. Error: %v.\n", err)
+		os.Exit(1)
+	}
+
 	var bot *engine.Engine
 	flags := map[string]bool{
 		"tickersync":    false,

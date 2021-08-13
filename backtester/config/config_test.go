@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -18,8 +19,6 @@ import (
 )
 
 const (
-	makerFee     = 0.001
-	takerFee     = 0.002
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
@@ -29,6 +28,13 @@ const (
 var (
 	startDate time.Time
 	endDate   time.Time
+	makerFee  = decimal.NewFromFloat(0.001)
+	takerFee  = decimal.NewFromFloat(0.002)
+	minMax    = MinMax{
+		MinimumSize:  decimal.NewFromFloat(0.1),
+		MaximumSize:  decimal.NewFromFloat(1),
+		MaximumTotal: decimal.NewFromFloat(10000),
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -92,17 +98,9 @@ func TestPrintSettings(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 100000,
-				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
+				InitialFunds: decimal.NewFromInt(100000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -137,22 +135,14 @@ func TestPrintSettings(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
-			SellSide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
+			BuySide:  minMax,
+			SellSide: minMax,
 			Leverage: Leverage{
 				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: 0.03,
+			RiskFreeRate: decimal.NewFromFloat(0.03),
 		},
 	}
 	cfg.PrintSetting()
@@ -171,17 +161,9 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 100000,
-				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
+				InitialFunds: decimal.NewFromFloat(100000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -199,22 +181,14 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
-			SellSide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
+			BuySide:  minMax,
+			SellSide: minMax,
 			Leverage: Leverage{
 				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: 0.03,
+			RiskFreeRate: decimal.NewFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -246,17 +220,9 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 100000,
-				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
+				InitialFunds: decimal.NewFromFloat(100000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -275,21 +241,21 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 		},
 		PortfolioSettings: PortfolioSettings{
 			BuySide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
+				MinimumSize:  decimal.NewFromFloat(0.1),
+				MaximumSize:  decimal.NewFromFloat(1),
+				MaximumTotal: decimal.NewFromFloat(10000),
 			},
 			SellSide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
+				MinimumSize:  decimal.NewFromFloat(0.1),
+				MaximumSize:  decimal.NewFromFloat(1),
+				MaximumTotal: decimal.NewFromFloat(10000),
 			},
 			Leverage: Leverage{
 				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: 0.03,
+			RiskFreeRate: decimal.NewFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -321,17 +287,9 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 100000,
-				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
+				InitialFunds: decimal.NewFromFloat(100000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -343,17 +301,9 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.ETH.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 100000,
-				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
+				InitialFunds: decimal.NewFromFloat(100000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -371,22 +321,14 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
-			SellSide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
+			BuySide:  minMax,
+			SellSide: minMax,
 			Leverage: Leverage{
 				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: 0.03,
+			RiskFreeRate: decimal.NewFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -419,17 +361,9 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 1000000,
-				BuySide: MinMax{
-					MinimumSize:  0,
-					MaximumSize:  0,
-					MaximumTotal: 1000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0,
-					MaximumSize:  0,
-					MaximumTotal: 1000,
-				},
+				InitialFunds: decimal.NewFromFloat(1000000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -441,17 +375,9 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.ETH.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 100000,
-				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
+				InitialFunds: decimal.NewFromFloat(100000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -469,22 +395,14 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
-			SellSide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
+			BuySide:  minMax,
+			SellSide: minMax,
 			Leverage: Leverage{
 				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: 0.03,
+			RiskFreeRate: decimal.NewFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -516,17 +434,9 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 100000,
-				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
+				InitialFunds: decimal.NewFromFloat(100000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -547,22 +457,14 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
-			SellSide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
+			BuySide:  minMax,
+			SellSide: minMax,
 			Leverage: Leverage{
 				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: 0.03,
+			RiskFreeRate: decimal.NewFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -599,17 +501,9 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 1000000,
-				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
+				InitialFunds: decimal.NewFromFloat(1000000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -621,17 +515,9 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.ETH.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 100000,
-				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
+				InitialFunds: decimal.NewFromFloat(100000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -649,22 +535,14 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
-			SellSide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
+			BuySide:  minMax,
+			SellSide: minMax,
 			Leverage: Leverage{
 				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: 0.03,
+			RiskFreeRate: decimal.NewFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -697,17 +575,9 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 100000,
-				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
+				InitialFunds: decimal.NewFromFloat(100000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -723,22 +593,14 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
-			SellSide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
+			BuySide:  minMax,
+			SellSide: minMax,
 			Leverage: Leverage{
 				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: 0.03,
+			RiskFreeRate: decimal.NewFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -771,17 +633,9 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 100000,
-				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
+				InitialFunds: decimal.NewFromFloat(100000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -797,22 +651,14 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
-			SellSide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
+			BuySide:  minMax,
+			SellSide: minMax,
 			Leverage: Leverage{
 				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: 0.03,
+			RiskFreeRate: decimal.NewFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -844,17 +690,9 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: 100000,
-				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
-				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
-					MaximumTotal: 10000,
-				},
+				InitialFunds: decimal.NewFromFloat(100000),
+				BuySide:      minMax,
+				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -881,22 +719,14 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
-			SellSide: MinMax{
-				MinimumSize:  0.1,
-				MaximumSize:  1,
-				MaximumTotal: 10000,
-			},
+			BuySide:  minMax,
+			SellSide: minMax,
 			Leverage: Leverage{
 				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: 0.03,
+			RiskFreeRate: decimal.NewFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -915,23 +745,82 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 	}
 }
 
+func TestGenerateConfigForDCAExchangeLevelFunding(t *testing.T) {
+	cfg := Config{
+		Nickname: "TestGenerateConfigForDCAAPICandles",
+		Goal:     "To demonstrate DCA strategy using API candles",
+		StrategySettings: StrategySettings{
+			Name: dca,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				InitialFunds: decimal.NewFromFloat(100000),
+				BuySide:      minMax,
+				SellSide:     minMax,
+				Leverage: Leverage{
+					CanUseLeverage: false,
+				},
+				MakerFee: makerFee,
+				TakerFee: takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay.Duration(),
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Error(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Error(err)
+		}
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, 0770)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
 func TestValidate(t *testing.T) {
 	m := MinMax{
-		MinimumSize:  -1,
-		MaximumSize:  -1,
-		MaximumTotal: -1,
+		MinimumSize:  decimal.NewFromFloat(-1),
+		MaximumSize:  decimal.NewFromFloat(-1),
+		MaximumTotal: decimal.NewFromFloat(-1),
 	}
 	m.Validate()
-	if m.MinimumSize > m.MaximumSize {
+	if m.MinimumSize.GreaterThan(m.MaximumSize) {
 		t.Errorf("expected %v > %v", m.MaximumSize, m.MinimumSize)
 	}
-	if m.MinimumSize < 0 {
+	if m.MinimumSize.IsNegative() {
 		t.Errorf("expected %v > %v", m.MinimumSize, 0)
 	}
-	if m.MaximumSize < 0 {
+	if m.MaximumSize.IsNegative() {
 		t.Errorf("expected %v > %v", m.MaximumSize, 0)
 	}
-	if m.MaximumTotal < 0 {
+	if m.MaximumTotal.IsNegative() {
 		t.Errorf("expected %v > %v", m.MaximumTotal, 0)
 	}
 }
@@ -989,7 +878,7 @@ func TestValidateCurrencySettings(t *testing.T) {
 	if !errors.Is(ErrBadInitialFunds, err) {
 		t.Errorf("expected %v, received %v", ErrBadInitialFunds, err)
 	}
-	c.CurrencySettings[0].InitialFunds = 1337
+	c.CurrencySettings[0].InitialFunds = decimal.NewFromFloat(1337)
 	err = c.ValidateCurrencySettings()
 	if !errors.Is(ErrUnsetCurrency, err) {
 		t.Errorf("expected %v, received %v", ErrUnsetCurrency, err)
@@ -1009,19 +898,19 @@ func TestValidateCurrencySettings(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	c.CurrencySettings[0].MinimumSlippagePercent = -1.0
+	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromFloat(-1)
 	err = c.ValidateCurrencySettings()
 	if !errors.Is(ErrBadSlippageRates, err) {
 		t.Errorf("expected %v, received %v", ErrBadSlippageRates, err)
 	}
-	c.CurrencySettings[0].MinimumSlippagePercent = 2.0
-	c.CurrencySettings[0].MaximumSlippagePercent = -1.0
+	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromFloat(2)
+	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromFloat(-1)
 	err = c.ValidateCurrencySettings()
 	if !errors.Is(ErrBadSlippageRates, err) {
 		t.Errorf("expected %v, received %v", ErrBadSlippageRates, err)
 	}
-	c.CurrencySettings[0].MinimumSlippagePercent = 2.0
-	c.CurrencySettings[0].MaximumSlippagePercent = 1.0
+	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromFloat(2)
+	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromFloat(1)
 	err = c.ValidateCurrencySettings()
 	if !errors.Is(ErrBadSlippageRates, err) {
 		t.Errorf("expected %v, received %v", ErrBadSlippageRates, err)

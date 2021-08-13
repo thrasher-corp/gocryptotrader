@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -34,6 +35,8 @@ import (
 )
 
 const testExchange = "Bitstamp"
+
+var leet = decimal.NewFromFloat(1337)
 
 func newBotWithExchange() *engine.Engine {
 	bot := &engine.Engine{
@@ -100,7 +103,7 @@ func TestNewFromConfig(t *testing.T) {
 		t.Errorf("expected: %v, received %v", config.ErrBadInitialFunds, err)
 	}
 
-	cfg.CurrencySettings[0].InitialFunds = 1337
+	cfg.CurrencySettings[0].InitialFunds = leet
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, config.ErrUnsetAsset) {
 		t.Errorf("expected: %v, received %v", config.ErrUnsetAsset, err)
@@ -150,8 +153,8 @@ func TestNewFromConfig(t *testing.T) {
 	}
 
 	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
-	cfg.CurrencySettings[0].MakerFee = 1337
-	cfg.CurrencySettings[0].TakerFee = 1337
+	cfg.CurrencySettings[0].MakerFee = leet
+	cfg.CurrencySettings[0].TakerFee = leet
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if err != nil {
 		t.Error(err)
@@ -172,12 +175,12 @@ func TestLoadDataAPI(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         cp.Base.String(),
 				Quote:        cp.Quote.String(),
-				InitialFunds: 1337,
+				InitialFunds: leet,
 				Leverage:     config.Leverage{},
 				BuySide:      config.MinMax{},
 				SellSide:     config.MinMax{},
-				MakerFee:     1337,
-				TakerFee:     1337,
+				MakerFee:     leet,
+				TakerFee:     leet,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -231,12 +234,12 @@ func TestLoadDataDatabase(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         cp.Base.String(),
 				Quote:        cp.Quote.String(),
-				InitialFunds: 1337,
+				InitialFunds: leet,
 				Leverage:     config.Leverage{},
 				BuySide:      config.MinMax{},
 				SellSide:     config.MinMax{},
-				MakerFee:     1337,
-				TakerFee:     1337,
+				MakerFee:     leet,
+				TakerFee:     leet,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -296,12 +299,12 @@ func TestLoadDataCSV(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         cp.Base.String(),
 				Quote:        cp.Quote.String(),
-				InitialFunds: 1337,
+				InitialFunds: leet,
 				Leverage:     config.Leverage{},
 				BuySide:      config.MinMax{},
 				SellSide:     config.MinMax{},
-				MakerFee:     1337,
-				TakerFee:     1337,
+				MakerFee:     leet,
+				TakerFee:     leet,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -354,12 +357,12 @@ func TestLoadDataLive(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         cp.Base.String(),
 				Quote:        cp.Quote.String(),
-				InitialFunds: 1337,
+				InitialFunds: leet,
 				Leverage:     config.Leverage{},
 				BuySide:      config.MinMax{},
 				SellSide:     config.MinMax{},
-				MakerFee:     1337,
-				TakerFee:     1337,
+				MakerFee:     leet,
+				TakerFee:     leet,
 			},
 		},
 		DataSettings: config.DataSettings{

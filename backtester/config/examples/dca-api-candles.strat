@@ -8,7 +8,7 @@
  },
  "currency-settings": [
   {
-   "exchange-name": "binance",
+   "exchange-name": "ftx",
    "asset": "spot",
    "base": "BTC",
    "quote": "USDT",

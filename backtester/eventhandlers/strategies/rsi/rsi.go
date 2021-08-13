@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -100,8 +101,59 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 // For rsi, multi-currency signal processing is unsupported for demonstration purposes
-func (s *Strategy) OnSimultaneousSignals(_ []data.Handler, _ portfolio.Handler) ([]signal.Event, error) {
-	return nil, base.ErrSimultaneousProcessingNotSupported
+// An important notes is that the order of signals raised is important for processing
+// For example, you have pairs ETH-USDT and BTC-USDT. If you signal to sell BTC as the first signal
+// you can then add a signal for ETH to make a purchase as the funds are released from BTC-USDT
+
+func (s *Strategy) OnSimultaneousSignals(d []data.Handler, p portfolio.Handler, f funding.IFundingManager) ([]signal.Event, error) {
+	var resp []signal.Event
+	type superCool struct {
+		funds          funding.IPairReader
+		rsi            decimal.Decimal
+		direction      order.Side
+		proposedAmount decimal.Decimal
+	}
+	mapperino := make(map[data.Handler]superCool)
+	for i := range d {
+		cool := superCool{}
+		b, err := s.GetBaseData(d[i])
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, &b)
+		cool.funds, err = f.GetFundingForEAP(b.Exchange, b.AssetType, b.CurrencyPair)
+		if err != nil {
+			return nil, err
+		}
+
+		b.SetPrice(d[i].Latest().ClosePrice())
+		offset := d[i].Offset()
+
+		if offset <= int(s.rsiPeriod.IntPart()) {
+			b.AppendReason("Not enough data for signal generation")
+			b.SetDirection(common.DoNothing)
+			return resp, nil
+		}
+
+		dataRange := d[i].StreamClose()
+		var massagedData []float64
+		massagedData, err = s.massageMissingData(dataRange, b.GetTime())
+		if err != nil {
+			return nil, err
+		}
+		rsi := indicators.RSI(massagedData, int(s.rsiPeriod.IntPart()))
+		cool.rsi = decimal.NewFromFloat(rsi[len(rsi)-1])
+		switch {
+		case cool.rsi.GreaterThanOrEqual(s.rsiHigh):
+			cool.direction = order.Sell
+		case cool.rsi.LessThanOrEqual(s.rsiLow):
+			cool.direction = order.Buy
+		default:
+			cool.direction = common.DoNothing
+		}
+	}
+
+	return resp, nil
 }
 
 // SetCustomSettings allows a user to modify the RSI limits in their config

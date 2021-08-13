@@ -78,7 +78,7 @@ func (a *AllFunds) GetFundingForEAP(exch string, ass asset.Item, p currency.Pair
 		if a.items[i].Item == p.Quote &&
 			a.items[i].Exchange == exch &&
 			a.items[i].Asset == ass &&
-			(!a.usingExchangeLevelFunding || (a.items[i].PairedWith != nil && a.items[i].PairedWith.Item == p.Quote)) {
+			(!a.usingExchangeLevelFunding || (a.items[i].PairedWith != nil && a.items[i].PairedWith.Item == p.Base)) {
 			resp.Quote = a.items[i]
 			continue
 		}
@@ -152,9 +152,9 @@ func (p *Pair) Release(amount, diff decimal.Decimal, side order.Side) error {
 func (p *Pair) Increase(amount decimal.Decimal, side order.Side) {
 	switch side {
 	case order.Buy:
-		p.Base.Increase(amount)
+		p.Base.IncreaseAvailable(amount)
 	case order.Sell:
-		p.Quote.Increase(amount)
+		p.Quote.IncreaseAvailable(amount)
 	}
 }
 
@@ -190,7 +190,10 @@ func (i *Item) Release(amount, diff decimal.Decimal) error {
 	return nil
 }
 
-func (i *Item) Increase(amount decimal.Decimal) {
+func (i *Item) IncreaseAvailable(amount decimal.Decimal) {
+	if amount.IsNegative() {
+		return
+	}
 	i.Available = i.Available.Add(amount)
 }
 

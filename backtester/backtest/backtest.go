@@ -74,7 +74,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	if bot == nil {
 		return nil, errNilBot
 	}
-
 	bt := New()
 	bt.Datas = &data.HandlerPerCurrency{}
 	bt.EventQueue = &eventholder.Holder{}

@@ -149,6 +149,23 @@ func (m *MinMax) Validate() {
 	}
 }
 
+func (c *Config) Validate() error {
+	err := c.ValidateDate()
+	if err != nil {
+		return err
+	}
+	err = c.ValidateStrategy()
+	if err != nil {
+		return err
+	}
+
+	err = c.ValidateCurrencySettings()
+	if err != nil {
+		return err
+	}
+
+}
+
 // ValidateDate checks whether someone has set a date poorly in their config
 func (c *Config) ValidateDate() error {
 	if c.DataSettings.DatabaseData != nil {
