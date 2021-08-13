@@ -20,9 +20,9 @@ var (
 	wsDefaultTickTypes = []string{"30M"} // alternatives "1H", "12H", "24H", "MID"
 	tickerTimeLayout   = "20060102150405"
 	tradeTimeLayout    = "2006-01-02 15:04:05.000000"
+	location           *time.Location
+	errWsSubFailure    = errors.New("subscription failure")
 )
-
-var location *time.Location
 
 func init() {
 	var err error
@@ -81,7 +81,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 		if resp.Status == "0000" {
 			return nil
 		}
-		return errors.New(resp.ResponseMessage)
+		return fmt.Errorf("%s: %w", resp.ResponseMessage, errWsSubFailure)
 	}
 
 	switch resp.Type {
