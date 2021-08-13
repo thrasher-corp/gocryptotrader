@@ -105,6 +105,8 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 		return nil, fmt.Errorf("failed to create script manager. Err: %s", err)
 	}
 
+	b.ExchangeManager = SetupExchangeManager()
+
 	validateSettings(&b, settings, flagSet)
 
 	return &b, nil
@@ -363,7 +365,6 @@ func (bot *Engine) Start() error {
 		bot.Config.PurgeExchangeAPICredentials()
 	}
 
-	bot.ExchangeManager = SetupExchangeManager()
 	gctlog.Debugln(gctlog.Global, "Setting up exchanges..")
 	err = bot.SetupExchanges()
 	if err != nil {
