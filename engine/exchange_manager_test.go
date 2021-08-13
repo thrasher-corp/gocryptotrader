@@ -1,10 +1,13 @@
 package engine
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 func TestSetupExchangeManager(t *testing.T) {
@@ -76,6 +79,37 @@ func TestNewExchangeByName(t *testing.T) {
 			if !strings.EqualFold(exch.GetName(), exchanges[i]) {
 				t.Error("did not load expected exchange")
 			}
+		}
+	}
+}
+
+type ExchangeBuilder struct{}
+
+func (n ExchangeBuilder) NewExchangeByName(name string) (exchange.IBotExchange, error) {
+	var exch exchange.IBotExchange
+
+	switch name {
+	case "customex":
+		exch = new(sharedtestvalues.CustomEx)
+	default:
+		return nil, fmt.Errorf("%s, %w", name, ErrExchangeNotFound)
+	}
+
+	return exch, nil
+}
+
+func TestNewCustomExchangeByName(t *testing.T) {
+	m := SetupExchangeManager()
+	m.Builder = ExchangeBuilder{}
+	name := "customex"
+	exch, err := m.NewExchangeByName(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err == nil {
+		exch.SetDefaults()
+		if !strings.EqualFold(exch.GetName(), name) {
+			t.Error("did not load expected exchange")
 		}
 	}
 }
