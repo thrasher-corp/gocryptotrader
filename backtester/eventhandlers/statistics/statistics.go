@@ -149,15 +149,22 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 	s.PrintAllEvents()
 	currCount := 0
 	var finalResults []FinalResultsHolder
+	var err error
+
 	for exchangeName, exchangeMap := range s.ExchangeAssetPairStatistics {
 		for assetItem, assetMap := range exchangeMap {
 			for pair, stats := range assetMap {
 				currCount++
-				err := stats.CalculateResults(funds)
+				var f funding.IPairReader
+				f, err = funds.GetFundingForEvent(stats.Events[len(stats.Events)-1].FillEvent)
 				if err != nil {
 					return err
 				}
-				stats.PrintResults(exchangeName, assetItem, pair)
+				err = stats.CalculateResults(f)
+				if err != nil {
+					return err
+				}
+				stats.PrintResults(exchangeName, assetItem, pair, f)
 				last := stats.Events[len(stats.Events)-1]
 				stats.FinalHoldings = last.Holdings
 				stats.FinalOrders = last.Transactions
@@ -205,18 +212,18 @@ func (s *Statistic) PrintTotalResults() {
 	if s.BiggestDrawdown != nil {
 		log.Info(log.BackTester, "------------------Biggest Drawdown------------------------")
 		log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
-		log.Infof(log.BackTester, "Highest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Highest.Price)
+		log.Infof(log.BackTester, "Highest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Round(8))
 		log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
-		log.Infof(log.BackTester, "Lowest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
+		log.Infof(log.BackTester, "Lowest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price.Round(8))
 		log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
-		log.Infof(log.BackTester, "Calculated Drawdown: %v%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent)
-		log.Infof(log.BackTester, "Difference: $%v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Price))
+		log.Infof(log.BackTester, "Calculated Drawdown: %v%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent.Round(2))
+		log.Infof(log.BackTester, "Difference: $%v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Price).Round(8))
 		log.Infof(log.BackTester, "Drawdown length: %v\n\n", s.BiggestDrawdown.MaxDrawdown.IntervalDuration)
 	}
 	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {
 		log.Info(log.BackTester, "------------------Orders----------------------------------")
-		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement)
-		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement)
+		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement.Round(2))
+		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement.Round(2))
 	}
 }
 
@@ -275,16 +282,16 @@ func (s *Statistic) PrintAllEvents() {
 							direction == "" {
 							log.Infof(log.BackTester, "%v | Price: $%v - Direction: %v - Reason: %s",
 								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-								c.Events[i].FillEvent.GetClosePrice(),
+								c.Events[i].FillEvent.GetClosePrice().Round(8),
 								c.Events[i].FillEvent.GetDirection(),
 								c.Events[i].FillEvent.GetReason())
 						} else {
 							log.Infof(log.BackTester, "%v | Price: $%v - Amount: %v - Fee: $%v - Total: $%v - Direction %v - Reason: %s",
 								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-								c.Events[i].FillEvent.GetPurchasePrice(),
-								c.Events[i].FillEvent.GetAmount(),
-								c.Events[i].FillEvent.GetExchangeFee(),
-								c.Events[i].FillEvent.GetTotal(),
+								c.Events[i].FillEvent.GetPurchasePrice().Round(8),
+								c.Events[i].FillEvent.GetAmount().Round(8),
+								c.Events[i].FillEvent.GetExchangeFee().Round(8),
+								c.Events[i].FillEvent.GetTotal().Round(8),
 								c.Events[i].FillEvent.GetDirection(),
 								c.Events[i].FillEvent.GetReason(),
 							)
@@ -292,12 +299,12 @@ func (s *Statistic) PrintAllEvents() {
 					case c.Events[i].SignalEvent != nil:
 						log.Infof(log.BackTester, "%v | Price: $%v - Reason: %v",
 							c.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-							c.Events[i].SignalEvent.GetPrice(),
+							c.Events[i].SignalEvent.GetPrice().Round(8),
 							c.Events[i].SignalEvent.GetReason())
 					case c.Events[i].DataEvent != nil:
 						log.Infof(log.BackTester, "%v | Price: $%v - Reason: %v",
 							c.Events[i].DataEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-							c.Events[i].DataEvent.ClosePrice(),
+							c.Events[i].DataEvent.ClosePrice().Round(8),
 							c.Events[i].DataEvent.GetReason())
 					default:
 						errs = append(errs, fmt.Errorf("%v %v %v unexpected data received %+v", e, a, p, c.Events[i]))

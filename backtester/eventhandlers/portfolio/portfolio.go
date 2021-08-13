@@ -216,8 +216,7 @@ func (p *Portfolio) OnFill(f fill.Event, funds funding.IPairReader) (*fill.Fill,
 		if !h.Timestamp.IsZero() {
 			h.Update(f)
 		} else {
-
-			h, err = holdings.Create(f, funds.QuoteAvailable(), p.riskFreeRate)
+			h, err = holdings.Create(f, funds.QuoteInitialFunds(), p.riskFreeRate)
 			if err != nil {
 				return nil, err
 			}

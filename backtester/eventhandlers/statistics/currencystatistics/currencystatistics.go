@@ -18,8 +18,9 @@ import (
 )
 
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
-func (c *CurrencyStatistic) CalculateResults(funds funding.IFundingManager) error {
+func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 	var errs gctcommon.Errors
+	var err error
 	first := c.Events[0]
 	firstPrice := first.DataEvent.ClosePrice()
 	last := c.Events[len(c.Events)-1]
@@ -40,10 +41,7 @@ func (c *CurrencyStatistic) CalculateResults(funds funding.IFundingManager) erro
 			c.HighestClosePrice = price
 		}
 	}
-	f, err := funds.GetFundingForEvent(last.FillEvent)
-	if err != nil {
-		return err
-	}
+
 	oneHundred := decimal.NewFromInt(100)
 	c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(oneHundred)
 	c.StrategyMovement = last.Holdings.TotalValue.Sub(f.QuoteInitialFunds()).Div(f.QuoteInitialFunds()).Mul(oneHundred)
@@ -168,7 +166,7 @@ func (c *CurrencyStatistic) CalculateResults(funds funding.IFundingManager) erro
 }
 
 // PrintResults outputs all calculated statistics to the command line
-func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair) {
+func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair, f funding.IPairReader) {
 	var errs gctcommon.Errors
 	sort.Slice(c.Events, func(i, j int) bool {
 		return c.Events[i].DataEvent.GetTime().Before(c.Events[j].DataEvent.GetTime())
@@ -182,7 +180,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	currStr := fmt.Sprintf("------------------Stats for %v %v %v------------------------------------------", e, a, p)
 
 	log.Infof(log.BackTester, currStr[:61])
-	log.Infof(log.BackTester, "Initial funds: $%v", last.Holdings.InitialFunds)
+	log.Infof(log.BackTester, "Initial funds: $%v", f.QuoteInitialFunds())
 	log.Infof(log.BackTester, "Highest committed funds: $%v at %v\n\n", c.HighestCommittedFunds.Value.Round(roundTo8), c.HighestCommittedFunds.Time)
 
 	log.Infof(log.BackTester, "Buy orders: %d", c.BuyOrders)
