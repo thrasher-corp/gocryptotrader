@@ -94,8 +94,11 @@ func (d *Depth) TotalAskAmounts() (liquidity, value float64) {
 }
 
 // LoadSnapshot flushes the bids and asks with a snapshot
-func (d *Depth) LoadSnapshot(bids, asks []Item) {
+func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated time.Time, updateByREST bool) {
 	d.m.Lock()
+	d.lastUpdateID = lastUpdateID
+	d.lastUpdated = lastUpdated
+	d.restSnapshot = updateByREST
 	d.bids.load(bids, d.stack)
 	d.asks.load(asks, d.stack)
 	d.alert()
@@ -105,6 +108,8 @@ func (d *Depth) LoadSnapshot(bids, asks []Item) {
 // Flush flushes the bid and ask depths
 func (d *Depth) Flush() {
 	d.m.Lock()
+	d.lastUpdateID = 0
+	d.lastUpdated = time.Time{}
 	d.bids.load(nil, d.stack)
 	d.asks.load(nil, d.stack)
 	d.alert()
@@ -113,11 +118,13 @@ func (d *Depth) Flush() {
 
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
 // will trim total length of depth level to a specified supplied number
-func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int) {
+func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int, lastUpdateID int64, lastUpdated time.Time) {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return
 	}
 	d.m.Lock()
+	d.lastUpdateID = lastUpdateID
+	d.lastUpdated = lastUpdated
 	tn := getNow()
 	if len(bidUpdts) != 0 {
 		d.bids.updateInsertByPrice(bidUpdts, d.stack, maxDepth, tn)
@@ -130,11 +137,12 @@ func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int) {
 }
 
 // UpdateBidAskByID amends details by ID
-func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items) error {
+func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items, lastUpdateID int64, lastUpdated time.Time) error {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return nil
 	}
 	d.m.Lock()
+
 	defer d.m.Unlock()
 	if len(bidUpdts) != 0 {
 		err := d.bids.updateByID(bidUpdts)
@@ -148,16 +156,19 @@ func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items) error {
 			return err
 		}
 	}
+	d.lastUpdateID = lastUpdateID
+	d.lastUpdated = lastUpdated
 	d.alert()
 	return nil
 }
 
 // DeleteBidAskByID deletes a price level by ID
-func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool) error {
+func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool, lastUpdateID int64, lastUpdated time.Time) error {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return nil
 	}
 	d.m.Lock()
+
 	defer d.m.Unlock()
 	if len(bidUpdts) != 0 {
 		err := d.bids.deleteByID(bidUpdts, d.stack, bypassErr)
@@ -171,12 +182,14 @@ func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool) error
 			return err
 		}
 	}
+	d.lastUpdateID = lastUpdateID
+	d.lastUpdated = lastUpdated
 	d.alert()
 	return nil
 }
 
 // InsertBidAskByID inserts new updates
-func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) error {
+func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items, lastUpdateID int64, lastUpdated time.Time) error {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return nil
 	}
@@ -194,12 +207,14 @@ func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) error {
 			return err
 		}
 	}
+	d.lastUpdateID = lastUpdateID
+	d.lastUpdated = lastUpdated
 	d.alert()
 	return nil
 }
 
 // UpdateInsertByID updates or inserts by ID at current price level.
-func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items) error {
+func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items, lastUpdateID int64, lastUpdated time.Time) error {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return nil
 	}
@@ -218,6 +233,8 @@ func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items) error {
 		}
 	}
 	d.alert()
+	d.lastUpdateID = lastUpdateID
+	d.lastUpdated = lastUpdated
 	return nil
 }
 
@@ -236,15 +253,6 @@ func (d *Depth) AssignOptions(b *Base) {
 		restSnapshot:     b.RestSnapshot,
 		idAligned:        b.IDAlignment,
 	}
-	d.m.Unlock()
-}
-
-// SetLastUpdate sets details of last update information
-func (d *Depth) SetLastUpdate(lastUpdate time.Time, lastUpdateID int64, updateByREST bool) {
-	d.m.Lock()
-	d.lastUpdated = lastUpdate
-	d.lastUpdateID = lastUpdateID
-	d.restSnapshot = updateByREST
 	d.m.Unlock()
 }
 

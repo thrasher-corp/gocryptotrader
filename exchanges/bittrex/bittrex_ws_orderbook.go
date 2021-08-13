@@ -130,16 +130,7 @@ func (b *Bittrex) SeedLocalCacheWithOrderBook(p currency.Pair, sequence int64, o
 	newOrderBook.LastUpdateID = sequence
 	newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
 
-	err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-	if err != nil {
-		return err
-	}
-	depth, err := orderbook.GetDepth(b.Name, p, asset.Spot)
-	if err != nil {
-		return err
-	}
-	depth.AssignOptions(&newOrderBook)
-	return nil
+	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
@@ -154,7 +145,7 @@ func (b *Bittrex) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	if err != nil || (recent.Asks == nil && recent.Bids == nil) || (len(recent.Asks) == 0 && len(recent.Bids) == 0) {
+	if err != nil || (len(recent.Asks) == 0 && len(recent.Bids) == 0) {
 		if b.Verbose {
 			log.Debugf(log.WebsocketMgr, "Orderbook: Fetching via REST\n")
 		}
