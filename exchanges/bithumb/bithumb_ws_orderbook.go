@@ -369,7 +369,7 @@ func (b *Bithumb) SeedLocalCache(p currency.Pair) error {
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o Orderbook) error {
+func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
 	var newOrderBook orderbook.Base
 	for i := range o.Data.Bids {
 		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
@@ -389,6 +389,5 @@ func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o Orderbook) error {
 	newOrderBook.Exchange = b.Name
 	newOrderBook.LastUpdated = time.Unix(0, o.Data.Timestamp*int64(time.Millisecond))
 	newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
-
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
