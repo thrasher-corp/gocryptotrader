@@ -61,8 +61,10 @@ func TestWsHandleData(t *testing.T) {
 	}
 
 	err = dummy.wsHandleData([]byte(`{"status":"1336","resmsg":"Failed"}`))
-	if !errors.Is(err, errWsSubFailure) {
-		t.Fatalf("received: %v but expected: %v", err, errWsSubFailure)
+	if !errors.Is(err, stream.ErrSubscriptionFailure) {
+		t.Fatalf("received: %v but expected: %v",
+			err,
+			stream.ErrSubscriptionFailure)
 	}
 
 	err = dummy.wsHandleData(wsTickerResp)

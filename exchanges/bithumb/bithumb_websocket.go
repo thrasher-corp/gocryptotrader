@@ -14,17 +14,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
-const wsEndpoint = "wss://pubwss.bithumb.com/pub/ws"
+const (
+	wsEndpoint       = "wss://pubwss.bithumb.com/pub/ws"
+	tickerTimeLayout = "20060102150405"
+	tradeTimeLayout  = "2006-01-02 15:04:05.000000"
+)
 
 var (
 	wsDefaultTickTypes = []string{"30M"} // alternatives "1H", "12H", "24H", "MID"
 	location           *time.Location
-	// errWsSubFailure    = errors.New("subscription failure")
-)
-
-const (
-	tickerTimeLayout = "20060102150405"
-	tradeTimeLayout  = "2006-01-02 15:04:05.000000"
 )
 
 // WsConnect initiates a websocket connection
