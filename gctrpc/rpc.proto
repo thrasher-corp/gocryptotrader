@@ -61,7 +61,7 @@ message GetExchangesResponse {
     string exchanges = 1;
 }
 
-message GetExchangeOTPReponse {
+message GetExchangeOTPResponse {
     string otp_code = 1;
 }
 
@@ -1016,7 +1016,7 @@ service GoCryptoTrader {
         };
     }
 
-    rpc GetExchangeOTPCode (GenericExchangeNameRequest) returns (GetExchangeOTPReponse) {
+    rpc GetExchangeOTPCode (GenericExchangeNameRequest) returns (GetExchangeOTPResponse) {
         option (google.api.http) = {
             get: "/v1/getexchangeotp"
         };

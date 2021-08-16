@@ -64,7 +64,7 @@ func (b *Bithumb) wsReadData() {
 }
 
 func (b *Bithumb) wsHandleData(respRaw []byte) error {
-	var resp WsReponse
+	var resp WsResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err

@@ -10,9 +10,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// WsReponse is a generalised reponse data structure which will defer
+// WsResponse is a generalised response data structure which will defer
 // unmarshalling of different contents.
-type WsReponse struct {
+type WsResponse struct {
 	Status          string          `json:"status"`
 	ResponseMessage string          `json:"resmsg"`
 	Type            string          `json:"type"`
