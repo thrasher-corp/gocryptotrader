@@ -23,7 +23,11 @@ const (
 	defaultTrafficPeriod = time.Second
 )
 
-var errClosedConnection = errors.New("use of closed network connection")
+var (
+	errClosedConnection = errors.New("use of closed network connection")
+	// ErrSubscriptionFailure defines an error when a subscription fails
+	ErrSubscriptionFailure = errors.New("subscription failure")
+)
 
 // New initialises the websocket struct
 func New() *Websocket {
@@ -210,7 +214,7 @@ func (w *Websocket) Connect() error {
 	if len(w.subscriptions) != 0 {
 		err = w.Subscriber(w.subscriptions)
 		if err != nil {
-			return fmt.Errorf("%v Error subscribing %s", w.exchangeName, err)
+			return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
 		}
 	}
 
@@ -836,7 +840,11 @@ func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) error {
 			}
 		}
 	}
-	return w.Subscriber(channels)
+	err := w.Subscriber(channels)
+	if err != nil {
+		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
+	}
+	return nil
 }
 
 // AddSuccessfulSubscriptions adds subscriptions to the subscription lists that

@@ -20,11 +20,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
+
+const wsRateLimitMillisecond = 1000
 
 var errNotEnoughPairs = errors.New("at least one currency is required to fetch order history")
 
@@ -92,6 +95,13 @@ func (b *Bithumb) SetDefaults() {
 				CryptoWithdrawalFee: true,
 				KlineFetching:       true,
 			},
+			Websocket: true,
+			WebsocketCapabilities: protocol.Features{
+				TradeFetching:     true,
+				TickerFetching:    true,
+				OrderbookFetching: true,
+				Subscribe:         true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
 			Kline: kline.ExchangeCapabilitiesSupported{
@@ -120,11 +130,16 @@ func (b *Bithumb) SetDefaults() {
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot: apiURL,
+		exchange.RestSpot:      apiURL,
+		exchange.WebsocketSpot: wsEndpoint,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+
+	b.Websocket = stream.New()
+	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -133,7 +148,44 @@ func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
 		b.SetEnabled(false)
 		return nil
 	}
-	return b.SetupDefaults(exch)
+	err := b.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	location, err = time.LoadLocation("Asia/Seoul")
+	if err != nil {
+		return err
+	}
+
+	ePoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	err = b.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       wsEndpoint,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       ePoint,
+		Connector:                        b.WsConnect,
+		Subscriber:                       b.Subscribe,
+		GenerateSubscriptions:            b.GenerateSubscriptions,
+		Features:                         &b.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+	})
+	if err != nil {
+		return err
+	}
+
+	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            wsRateLimitMillisecond,
+	})
 }
 
 // Start starts the Bithumb go routine
