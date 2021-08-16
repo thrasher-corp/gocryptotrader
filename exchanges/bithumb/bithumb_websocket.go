@@ -19,7 +19,7 @@ const wsEndpoint = "wss://pubwss.bithumb.com/pub/ws"
 var (
 	wsDefaultTickTypes = []string{"30M"} // alternatives "1H", "12H", "24H", "MID"
 	location           *time.Location
-	errWsSubFailure    = errors.New("subscription failure")
+	// errWsSubFailure    = errors.New("subscription failure")
 )
 
 const (
@@ -76,7 +76,9 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 		if resp.Status == "0000" {
 			return nil
 		}
-		return fmt.Errorf("%s: %w", resp.ResponseMessage, errWsSubFailure)
+		return fmt.Errorf("%s: %w",
+			resp.ResponseMessage,
+			stream.ErrSubscriptionFailure)
 	}
 
 	switch resp.Type {
@@ -204,7 +206,6 @@ func (b *Bithumb) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 		if err != nil {
 			return err
 		}
-		time.Sleep(time.Second) // Undocumented rate limiting.
 	}
 	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
