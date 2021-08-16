@@ -153,12 +153,19 @@ func (b *Bittrex) applyBufferUpdate(pair currency.Pair) error {
 	}
 	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	if err != nil {
-		log.Debugf(log.WebsocketMgr, "Orderbook: Could not get recent book\n")
+		log.Errorf(
+			log.WebsocketMgr,
+			"Could not fetch recent orderbook when applying updates: %s\n",
+			err)
 	}
 
 	if recent != nil {
 		err = b.obm.checkAndProcessUpdate(b.ProcessUpdateOB, pair, recent)
 		if err != nil {
+			log.Errorf(
+				log.WebsocketMgr,
+				"Unable to process update - initiating new orderbook sync via REST: %s\n",
+				err)
 			b.obm.setNeedsFetchingBook(pair)
 		}
 	}
@@ -316,9 +323,9 @@ func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair) error {
 	return nil
 }
 
-// handleFetchingBook checks if a full book is beeing fetched or needs being
+// handleFetchingBook checks if a full book is being fetched or needs to be
 // fetched
-func (o *orderbookManager) handleFetchingBook(pair currency.Pair) (fetching bool, needsFetching bool, err error) {
+func (o *orderbookManager) handleFetchingBook(pair currency.Pair) (fetching, needsFetching bool, err error) {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]

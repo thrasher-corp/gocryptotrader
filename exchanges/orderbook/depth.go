@@ -142,7 +142,6 @@ func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items, lastUpdateID int64, l
 		return nil
 	}
 	d.m.Lock()
-
 	defer d.m.Unlock()
 	if len(bidUpdts) != 0 {
 		err := d.bids.updateByID(bidUpdts)
@@ -168,7 +167,6 @@ func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool, lastU
 		return nil
 	}
 	d.m.Lock()
-
 	defer d.m.Unlock()
 	if len(bidUpdts) != 0 {
 		err := d.bids.deleteByID(bidUpdts, d.stack, bypassErr)
