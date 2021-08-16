@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -65,7 +66,7 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 // For dollarcostaverage, the strategy is always "buy", so it uses the OnSignal function
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, p portfolio.Handler) ([]signal.Event, error) {
+func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingManager) ([]signal.Event, error) {
 	var resp []signal.Event
 	var errs gctcommon.Errors
 	for i := range d {

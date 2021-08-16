@@ -2,6 +2,7 @@ package rsi
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -98,6 +99,36 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 	return false
 }
 
+type superCool struct {
+	funds          funding.IPairReader
+	rsi            decimal.Decimal
+	direction      order.Side
+	proposedAmount decimal.Decimal
+	event          data.Handler
+}
+
+type byRSI []superCool
+
+func (b byRSI) Len() int {
+	return len(b)
+}
+
+func (b byRSI) Less(i, j int) bool {
+	return b[i].rsi.LessThan(b[j].rsi)
+}
+
+func (b byRSI) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+func sortByRSI(orders *[]superCool, reverse bool) {
+	if reverse {
+		sort.Sort(sort.Reverse(byRSI(*orders)))
+	} else {
+		sort.Sort(byRSI(*orders))
+	}
+}
+
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 // For rsi, multi-currency signal processing is unsupported for demonstration purposes
@@ -105,15 +136,10 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 // For example, you have pairs ETH-USDT and BTC-USDT. If you signal to sell BTC as the first signal
 // you can then add a signal for ETH to make a purchase as the funds are released from BTC-USDT
 
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, p portfolio.Handler, f funding.IFundingManager) ([]signal.Event, error) {
+func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingManager) ([]signal.Event, error) {
 	var resp []signal.Event
-	type superCool struct {
-		funds          funding.IPairReader
-		rsi            decimal.Decimal
-		direction      order.Side
-		proposedAmount decimal.Decimal
-	}
-	mapperino := make(map[data.Handler]superCool)
+
+	slicerino := []superCool{}
 	for i := range d {
 		cool := superCool{}
 		b, err := s.GetBaseData(d[i])
@@ -151,6 +177,14 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, p portfolio.Handler, 
 		default:
 			cool.direction = common.DoNothing
 		}
+		slicerino = append(slicerino, cool)
+	}
+	sortByRSI(&slicerino, true)
+	//filter by lower threshold and upper threshold
+	// sort the slices
+	// perform acts based on most important
+	for i := range slicerino {
+		slicerino[i].rsi = slicerino[i].rsi
 	}
 
 	return resp, nil

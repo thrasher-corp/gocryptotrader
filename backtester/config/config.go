@@ -154,7 +154,7 @@ func (c *Config) Validate() error {
 	if err != nil {
 		return err
 	}
-	err = c.ValidateStrategy()
+	//err = c.ValidateStrategy()
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (c *Config) Validate() error {
 	if err != nil {
 		return err
 	}
-
+	return nil
 }
 
 // ValidateDate checks whether someone has set a date poorly in their config

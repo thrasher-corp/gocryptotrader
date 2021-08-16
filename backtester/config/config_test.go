@@ -22,7 +22,7 @@ const (
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = true
 )
 
 var (
@@ -747,10 +747,26 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 
 func TestGenerateConfigForDCAExchangeLevelFunding(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateConfigForDCAAPICandles",
+		Nickname: "TestGenerateConfigForDCAExchangeLevelFunding",
 		Goal:     "To demonstrate DCA strategy using API candles",
 		StrategySettings: StrategySettings{
-			Name: dca,
+			Name:                         dca,
+			UseExchangeLevelFunding:      true,
+			SimultaneousSignalProcessing: true,
+			ExchangeLevelFunding: []ExchangeLevelFunding{
+				{
+					ExchangeName: testExchange,
+					Asset:        asset.Spot.String(),
+					Quote:        currency.BTC.String(),
+					InitialFunds: decimal.NewFromFloat(3),
+				},
+				{
+					ExchangeName: testExchange,
+					Asset:        asset.Spot.String(),
+					Quote:        currency.USDT.String(),
+					InitialFunds: decimal.NewFromFloat(5000),
+				},
+			},
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -758,7 +774,6 @@ func TestGenerateConfigForDCAExchangeLevelFunding(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NewFromFloat(100000),
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -797,7 +812,7 @@ func TestGenerateConfigForDCAExchangeLevelFunding(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, 0770)
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-exchange-funding.strat"), result, 0770)
 		if err != nil {
 			t.Error(err)
 		}

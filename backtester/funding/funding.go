@@ -78,14 +78,14 @@ func (a *AllFunds) GetFundingForEAP(exch string, ass asset.Item, p currency.Pair
 		if a.items[i].Item == p.Quote &&
 			a.items[i].Exchange == exch &&
 			a.items[i].Asset == ass &&
-			(!a.usingExchangeLevelFunding || (a.items[i].PairedWith != nil && a.items[i].PairedWith.Item == p.Base)) {
+			(a.usingExchangeLevelFunding || (a.items[i].PairedWith != nil && a.items[i].PairedWith.Item == p.Base)) {
 			resp.Quote = a.items[i]
 			continue
 		}
 		if a.items[i].Item == p.Base &&
 			a.items[i].Exchange == exch &&
 			a.items[i].Asset == ass &&
-			(!a.usingExchangeLevelFunding || (a.items[i].PairedWith != nil && a.items[i].PairedWith.Item == p.Quote)) {
+			(a.usingExchangeLevelFunding || (a.items[i].PairedWith != nil && a.items[i].PairedWith.Item == p.Quote)) {
 			resp.Base = a.items[i]
 		}
 	}
