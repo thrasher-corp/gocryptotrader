@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// WsReponse is a generalised repose data structure which will defer
+// WsReponse is a generalised reponse data structure which will defer
 // unmarshalling of different contents.
 type WsReponse struct {
 	Status          string          `json:"status"`
@@ -54,7 +54,7 @@ type WsOrderbook struct {
 	Total     int32         `json:"total,string"`
 }
 
-// WsTransaction defines a transaction list
+// WsTransactions defines a transaction list
 type WsTransactions struct {
 	List []WsTransaction `json:"list"`
 }

@@ -23,7 +23,10 @@ const (
 	defaultTrafficPeriod = time.Second
 )
 
-var errClosedConnection = errors.New("use of closed network connection")
+var (
+	errClosedConnection = errors.New("use of closed network connection")
+	// errSubscriptionFailure     = errors.New("subscription failure")
+)
 
 // New initialises the websocket struct
 func New() *Websocket {

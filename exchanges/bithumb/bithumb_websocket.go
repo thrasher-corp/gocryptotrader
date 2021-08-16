@@ -18,19 +18,14 @@ const wsEndpoint = "wss://pubwss.bithumb.com/pub/ws"
 
 var (
 	wsDefaultTickTypes = []string{"30M"} // alternatives "1H", "12H", "24H", "MID"
-	tickerTimeLayout   = "20060102150405"
-	tradeTimeLayout    = "2006-01-02 15:04:05.000000"
 	location           *time.Location
 	errWsSubFailure    = errors.New("subscription failure")
 )
 
-func init() {
-	var err error
-	location, err = time.LoadLocation("Asia/Seoul")
-	if err != nil {
-		panic(err)
-	}
-}
+const (
+	tickerTimeLayout = "20060102150405"
+	tradeTimeLayout  = "2006-01-02 15:04:05.000000"
+)
 
 // WsConnect initiates a websocket connection
 func (b *Bithumb) WsConnect() error {
@@ -122,6 +117,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
+		toBuffer := make([]trade.Data, len(trades.List))
 		var lu time.Time
 		for x := range trades.List {
 			lu, err = time.ParseInLocation(tradeTimeLayout,
@@ -131,17 +127,19 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 				return err
 			}
 
-			err = b.AddTradesToBuffer(trade.Data{
+			toBuffer[x] = trade.Data{
 				Exchange:     b.Name,
 				AssetType:    asset.Spot,
 				CurrencyPair: trades.List[x].Symbol,
 				Timestamp:    lu,
 				Price:        trades.List[x].ContractPrice,
 				Amount:       trades.List[x].ContractAmount,
-			})
-			if err != nil {
-				return err
 			}
+		}
+
+		err = b.AddTradesToBuffer(toBuffer...)
+		if err != nil {
+			return err
 		}
 	case "orderbookdepth":
 		var orderbooks WsOrderbooks

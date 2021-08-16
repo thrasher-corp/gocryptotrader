@@ -177,8 +177,6 @@ func (o *orderbookManager) stageWsUpdate(u *WsOrderbooks, pair currency.Pair, a 
 	state, ok := m2[a]
 	if !ok {
 		state = &update{
-			// 100ms update assuming we might have up to a 10 second delay.
-			// There could be a potential 150 updates for the currency.
 			buffer:       make(chan *WsOrderbooks, maxWSUpdateBuffer),
 			fetchingBook: false,
 			initialSync:  true,

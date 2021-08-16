@@ -27,6 +27,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const wsRateLimitMillisecond = 1000
+
 var errNotEnoughPairs = errors.New("at least one currency is required to fetch order history")
 
 // GetDefaultConfig returns a default exchange config
@@ -99,7 +101,6 @@ func (b *Bithumb) SetDefaults() {
 				TickerFetching:    true,
 				OrderbookFetching: true,
 				Subscribe:         true,
-				Unsubscribe:       false, // No unsubscribe functionality
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
@@ -152,6 +153,11 @@ func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	location, err = time.LoadLocation("Asia/Seoul")
+	if err != nil {
+		return err
+	}
+
 	ePoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -178,6 +184,7 @@ func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            wsRateLimitMillisecond,
 	})
 }
 

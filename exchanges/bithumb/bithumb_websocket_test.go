@@ -13,14 +13,13 @@ import (
 )
 
 var (
-	a                 = `{"status":"5100","resmsg":"Invalid Filter Syntax"}`
-	wsSuccesfulFilter = `{"status":"0000","resmsg":"Filter Registered Successfully"}`
-	wsTickerResp      = []byte(`{"type":"ticker","content":{"tickType":"24H","date":"20210811","time":"132017","openPrice":"33400","closePrice":"34010","lowPrice":"32660","highPrice":"34510","value":"45741663716.89916828275244531","volume":"1359398.496892086826189907","sellVolume":"198021.237915860451480504","buyVolume":"1161377.258976226374709403","prevClosePrice":"33530","chgRate":"1.83","chgAmt":"610","volumePower":"500","symbol":"UNI_KRW"}}`)
-	wsTransResp       = []byte(`{"type":"transaction","content":{"list":[{"buySellGb":"1","contPrice":"1166","contQty":"125.2400","contAmt":"146029.8400","contDtm":"2021-08-13 15:23:42.911273","updn":"dn","symbol":"DAI_KRW"}]}}`)
-	wsOrderbookResp   = []byte(`{"type":"orderbookdepth","content":{"list":[{"symbol":"XLM_KRW","orderType":"ask","price":"401.2","quantity":"0","total":"0"},{"symbol":"XLM_KRW","orderType":"ask","price":"401.6","quantity":"21277.735","total":"1"},{"symbol":"XLM_KRW","orderType":"ask","price":"403.3","quantity":"4000","total":"1"},{"symbol":"XLM_KRW","orderType":"bid","price":"399.5","quantity":"0","total":"0"},{"symbol":"XLM_KRW","orderType":"bid","price":"398.2","quantity":"0","total":"0"},{"symbol":"XLM_KRW","orderType":"bid","price":"399.8","quantity":"31416.8779","total":"1"},{"symbol":"XLM_KRW","orderType":"bid","price":"398.5","quantity":"34328.387","total":"1"}],"datetime":"1628835823604483"}}`)
+	wsTickerResp    = []byte(`{"type":"ticker","content":{"tickType":"24H","date":"20210811","time":"132017","openPrice":"33400","closePrice":"34010","lowPrice":"32660","highPrice":"34510","value":"45741663716.89916828275244531","volume":"1359398.496892086826189907","sellVolume":"198021.237915860451480504","buyVolume":"1161377.258976226374709403","prevClosePrice":"33530","chgRate":"1.83","chgAmt":"610","volumePower":"500","symbol":"UNI_KRW"}}`)
+	wsTransResp     = []byte(`{"type":"transaction","content":{"list":[{"buySellGb":"1","contPrice":"1166","contQty":"125.2400","contAmt":"146029.8400","contDtm":"2021-08-13 15:23:42.911273","updn":"dn","symbol":"DAI_KRW"}]}}`)
+	wsOrderbookResp = []byte(`{"type":"orderbookdepth","content":{"list":[{"symbol":"XLM_KRW","orderType":"ask","price":"401.2","quantity":"0","total":"0"},{"symbol":"XLM_KRW","orderType":"ask","price":"401.6","quantity":"21277.735","total":"1"},{"symbol":"XLM_KRW","orderType":"ask","price":"403.3","quantity":"4000","total":"1"},{"symbol":"XLM_KRW","orderType":"bid","price":"399.5","quantity":"0","total":"0"},{"symbol":"XLM_KRW","orderType":"bid","price":"398.2","quantity":"0","total":"0"},{"symbol":"XLM_KRW","orderType":"bid","price":"399.8","quantity":"31416.8779","total":"1"},{"symbol":"XLM_KRW","orderType":"bid","price":"398.5","quantity":"34328.387","total":"1"}],"datetime":"1628835823604483"}}`)
 )
 
 func TestWsHandleData(t *testing.T) {
+	t.Parallel()
 	pairs := currency.Pairs{
 		currency.Pair{
 			Base:  currency.BTC,
@@ -89,6 +88,7 @@ func TestWsHandleData(t *testing.T) {
 }
 
 func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
 	sub, err := b.GenerateSubscriptions()
 	if err != nil {
 		t.Fatal(err)
