@@ -133,6 +133,7 @@ type Detail struct {
 	ExecutedAmount       float64
 	RemainingAmount      float64
 	Cost                 float64
+	CostAsset            string
 	Fee                  float64
 	Exchange             string
 	InternalOrderID      string
