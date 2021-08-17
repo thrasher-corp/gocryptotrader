@@ -60,6 +60,7 @@ var exchangePairManagerCommand = &cli.Command{
 				&cli.BoolFlag{
 					Name:   "enable",
 					Hidden: true,
+					Value:  true,
 				},
 			},
 			Action: enableDisableExchangeAsset,
@@ -102,6 +103,7 @@ var exchangePairManagerCommand = &cli.Command{
 				&cli.BoolFlag{
 					Name:   "enable",
 					Hidden: true,
+					Value:  true,
 				},
 			},
 			Action: enableDisableExchangePair,
@@ -117,6 +119,7 @@ var exchangePairManagerCommand = &cli.Command{
 				&cli.BoolFlag{
 					Name:   "enable",
 					Hidden: true,
+					Value:  true,
 				},
 			},
 			Action: enableDisableAllExchangePairs,

@@ -46,6 +46,7 @@ var websocketManagerCommand = &cli.Command{
 				&cli.BoolFlag{
 					Name:   "enable",
 					Hidden: true,
+					Value:  true,
 				},
 			},
 			Action: enableDisableWebsocket,
