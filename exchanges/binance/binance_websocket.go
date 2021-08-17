@@ -234,6 +234,9 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						Err:      err,
 					}
 				}
+				if oStatus == order.PartiallyFilled && data.Data.CumulativeFilledQuantity == data.Data.Quantity {
+					oStatus = order.Filled
+				}
 				var p currency.Pair
 				var a asset.Item
 				p, a, err = b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
