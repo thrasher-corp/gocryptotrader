@@ -254,6 +254,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Cost:                 averagePrice * data.Data.Quantity,
 					CostAsset:            p.Quote,
 					Fee:                  data.Data.Commission,
+					FeeAsset:             currency.NewCode(data.Data.CommissionAsset),
 					Exchange:             b.Name,
 					ID:                   orderID,
 					ClientOrderID:        clientOrderID,
