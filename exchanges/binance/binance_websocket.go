@@ -244,6 +244,10 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				if oStatus == order.Cancelled {
 					clientOrderID = data.Data.CancelledClientOrderID
 				}
+				var costAsset currency.Code
+				if data.Data.CommissionAsset != "" {
+					costAsset = currency.NewCode(data.Data.CommissionAsset)
+				}
 				b.Websocket.DataHandler <- &order.Detail{
 					Price:           data.Data.Price,
 					Amount:          data.Data.Quantity,
@@ -259,7 +263,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Pair:            p,
 					ClientOrderID:   clientOrderID,
 					Cost:            data.Data.Commission,
-					CostAsset:       currency.NewCode(data.Data.CommissionAsset),
+					CostAsset:       costAsset,
 				}
 				return nil
 			case "listStatus":
