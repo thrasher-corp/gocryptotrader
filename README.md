@@ -22,7 +22,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Binance| Yes  | Yes        | NA  |
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
-| Bithumb | Yes  | NA       | NA  |
+| Bithumb | Yes  | Yes       | NA  |
 | BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | Bittrex | Yes | Yes | NA |
@@ -143,11 +143,11 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 656 |
-| [shazbert](https://github.com/shazbert) | 212 |
-| [gloriousCode](https://github.com/gloriousCode) | 186 |
+| [shazbert](https://github.com/shazbert) | 214 |
+| [gloriousCode](https://github.com/gloriousCode) | 189 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 18 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 20 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
@@ -155,8 +155,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
+| [ydm](https://github.com/ydm) | 8 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
-| [ydm](https://github.com/ydm) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |

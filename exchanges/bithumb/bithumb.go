@@ -51,6 +51,7 @@ const (
 // Bithumb is the overarching type across the Bithumb package
 type Bithumb struct {
 	exchange.Base
+	obm orderbookManager
 }
 
 // GetTradablePairs returns a list of tradable currencies
@@ -114,18 +115,18 @@ func (b *Bithumb) GetAllTickers(ctx context.Context) (map[string]Ticker, error) 
 // GetOrderBook returns current orderbook
 //
 // symbol e.g. "btc"
-func (b *Bithumb) GetOrderBook(ctx context.Context, symbol string) (Orderbook, error) {
+func (b *Bithumb) GetOrderBook(ctx context.Context, symbol string) (*Orderbook, error) {
 	response := Orderbook{}
 	err := b.SendHTTPRequest(ctx, exchange.RestSpot, publicOrderBook+strings.ToUpper(symbol), &response)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
 	if response.Status != noError {
-		return response, errors.New(response.Message)
+		return nil, errors.New(response.Message)
 	}
 
-	return response, nil
+	return &response, nil
 }
 
 // GetTransactionHistory returns recent transactions

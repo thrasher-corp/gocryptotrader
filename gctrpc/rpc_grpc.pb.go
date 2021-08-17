@@ -27,7 +27,7 @@ type GoCryptoTraderClient interface {
 	GetExchanges(ctx context.Context, in *GetExchangesRequest, opts ...grpc.CallOption) (*GetExchangesResponse, error)
 	DisableExchange(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetExchangeInfo(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GetExchangeInfoResponse, error)
-	GetExchangeOTPCode(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GetExchangeOTPReponse, error)
+	GetExchangeOTPCode(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GetExchangeOTPResponse, error)
 	GetExchangeOTPCodes(ctx context.Context, in *GetExchangeOTPsRequest, opts ...grpc.CallOption) (*GetExchangeOTPsResponse, error)
 	EnableExchange(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetTicker(ctx context.Context, in *GetTickerRequest, opts ...grpc.CallOption) (*TickerResponse, error)
@@ -197,8 +197,8 @@ func (c *goCryptoTraderClient) GetExchangeInfo(ctx context.Context, in *GenericE
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) GetExchangeOTPCode(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GetExchangeOTPReponse, error) {
-	out := new(GetExchangeOTPReponse)
+func (c *goCryptoTraderClient) GetExchangeOTPCode(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GetExchangeOTPResponse, error) {
+	out := new(GetExchangeOTPResponse)
 	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetExchangeOTPCode", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1059,7 +1059,7 @@ type GoCryptoTraderServer interface {
 	GetExchanges(context.Context, *GetExchangesRequest) (*GetExchangesResponse, error)
 	DisableExchange(context.Context, *GenericExchangeNameRequest) (*GenericResponse, error)
 	GetExchangeInfo(context.Context, *GenericExchangeNameRequest) (*GetExchangeInfoResponse, error)
-	GetExchangeOTPCode(context.Context, *GenericExchangeNameRequest) (*GetExchangeOTPReponse, error)
+	GetExchangeOTPCode(context.Context, *GenericExchangeNameRequest) (*GetExchangeOTPResponse, error)
 	GetExchangeOTPCodes(context.Context, *GetExchangeOTPsRequest) (*GetExchangeOTPsResponse, error)
 	EnableExchange(context.Context, *GenericExchangeNameRequest) (*GenericResponse, error)
 	GetTicker(context.Context, *GetTickerRequest) (*TickerResponse, error)
@@ -1172,7 +1172,7 @@ func (UnimplementedGoCryptoTraderServer) DisableExchange(context.Context, *Gener
 func (UnimplementedGoCryptoTraderServer) GetExchangeInfo(context.Context, *GenericExchangeNameRequest) (*GetExchangeInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetExchangeInfo not implemented")
 }
-func (UnimplementedGoCryptoTraderServer) GetExchangeOTPCode(context.Context, *GenericExchangeNameRequest) (*GetExchangeOTPReponse, error) {
+func (UnimplementedGoCryptoTraderServer) GetExchangeOTPCode(context.Context, *GenericExchangeNameRequest) (*GetExchangeOTPResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetExchangeOTPCode not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) GetExchangeOTPCodes(context.Context, *GetExchangeOTPsRequest) (*GetExchangeOTPsResponse, error) {

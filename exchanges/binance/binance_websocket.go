@@ -235,6 +235,9 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						Err:      err,
 					}
 				}
+				if oStatus == order.PartiallyFilled && data.Data.CumulativeFilledQuantity == data.Data.Quantity {
+					oStatus = order.Filled
+				}
 				var p currency.Pair
 				var a asset.Item
 				p, a, err = b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
@@ -244,6 +247,10 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				clientOrderID := data.Data.ClientOrderID
 				if oStatus == order.Cancelled {
 					clientOrderID = data.Data.CancelledClientOrderID
+				}
+				var costAsset currency.Code
+				if data.Data.CommissionAsset != "" {
+					costAsset = currency.NewCode(data.Data.CommissionAsset)
 				}
 				b.Websocket.DataHandler <- &order.Detail{
 					Price:           data.Data.Price,
@@ -259,6 +266,8 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Date:            data.Data.OrderCreationTime,
 					Pair:            p,
 					ClientOrderID:   clientOrderID,
+					Cost:            data.Data.Commission,
+					CostAsset:       costAsset,
 				}
 				return nil
 			case "listStatus":

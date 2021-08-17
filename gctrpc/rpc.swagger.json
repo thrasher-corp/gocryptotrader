@@ -1285,7 +1285,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGetExchangeOTPReponse"
+              "$ref": "#/definitions/gctrpcGetExchangeOTPResponse"
             }
           },
           "default": {
@@ -3793,7 +3793,7 @@
         }
       }
     },
-    "gctrpcGetExchangeOTPReponse": {
+    "gctrpcGetExchangeOTPResponse": {
       "type": "object",
       "properties": {
         "otpCode": {
