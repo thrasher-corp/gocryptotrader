@@ -207,7 +207,11 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						b.Name,
 						err)
 				}
-				var averagePrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
+				averagePrice := data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
+				remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
+				cost := averagePrice * data.Data.Quantity
+				feeAsset := currency.NewCode(data.Data.CommissionAsset)
+
 				var orderID = strconv.FormatInt(data.Data.OrderID, 10)
 				oType, err := order.StringToOrderType(data.Data.OrderType)
 				if err != nil {
@@ -249,12 +253,13 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Price:                data.Data.Price,
 					Amount:               data.Data.Quantity,
 					AverageExecutedPrice: averagePrice,
+					TargetAmount:         data.Data.Quantity,
 					ExecutedAmount:       data.Data.CumulativeFilledQuantity,
-					RemainingAmount:      data.Data.Quantity - data.Data.CumulativeFilledQuantity,
-					Cost:                 averagePrice * data.Data.Quantity,
+					RemainingAmount:      remainingAmount,
+					Cost:                 cost,
 					CostAsset:            p.Quote,
 					Fee:                  data.Data.Commission,
-					FeeAsset:             currency.NewCode(data.Data.CommissionAsset),
+					FeeAsset:             feeAsset,
 					Exchange:             b.Name,
 					ID:                   orderID,
 					ClientOrderID:        clientOrderID,
@@ -262,7 +267,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Side:                 oSide,
 					Status:               oStatus,
 					AssetType:            a,
-					Date:                 data.Data.EventTime,
+					Date:                 data.Data.TransactionTime,
 					Pair:                 p,
 				}
 				return nil
