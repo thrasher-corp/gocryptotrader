@@ -736,37 +736,38 @@ type wsOrderUpdate struct {
 
 // WsOrderUpdateData defines websocket account order update data
 type WsOrderUpdateData struct {
-	ClientOrderID                     string    `json:"c"`
-	EventTime                         time.Time `json:"E"`
-	IcebergQuantity                   float64   `json:"F,string"`
-	LastExecutedPrice                 float64   `json:"L,string"`
-	CommissionAsset                   string    `json:"N"`
+	EventType                string    `json:"e"`
+	EventTime                time.Time `json:"E"`
+	Symbol                   string    `json:"s"`
+	ClientOrderID            string    `json:"c"`
+	Side                     string    `json:"S"`
+	OrderType                string    `json:"o"`
+	TimeInForce              string    `json:"f"`
+	Quantity                 float64   `json:"q,string"`
+	Price                    float64   `json:"p,string"`
+	StopPrice                float64   `json:"P,string"`
+	IcebergQuantity          float64   `json:"F,string"`
+	OrderListID              int64     `json:"g"`
+	CancelledClientOrderID   string    `json:"C"`
+	CurrentExecutionType     string    `json:"x"`
+	OrderStatus              string    `json:"X"`
+	RejectionReason          string    `json:"r"`
+	OrderID                  int64     `json:"i"`
+	LastExecutedQuantity     float64   `json:"l,string"`
+	CumulativeFilledQuantity float64   `json:"z,string"`
+	LastExecutedPrice        float64   `json:"L,string"`
+	Commission               float64   `json:"n,string"`
+	CommissionAsset          string    `json:"N"`
+	TransactionTime          time.Time `json:"T"`
+	TradeID                  int64     `json:"t"`
+	Ignored                  int64     `json:"I"` // must be ignored explicitly, otherwise it overwrites 'i'
+	IsOnOrderBook            bool      `json:"w"`
+	IsMaker                  bool      `json:"m"`
+	// TODO: M
 	OrderCreationTime                 time.Time `json:"O"`
-	StopPrice                         float64   `json:"P,string"`
-	QuoteOrderQuantity                float64   `json:"Q,string"`
-	Side                              string    `json:"S"`
-	TransactionTime                   time.Time `json:"T"`
-	OrderStatus                       string    `json:"X"`
-	LastQuoteAssetTransactedQuantity  float64   `json:"Y,string"`
 	CumulativeQuoteTransactedQuantity float64   `json:"Z,string"`
-	CancelledClientOrderID            string    `json:"C"`
-	EventType                         string    `json:"e"`
-	TimeInForce                       string    `json:"f"`
-	OrderListID                       int64     `json:"g"`
-	OrderID                           int64     `json:"i"`
-	LastExecutedQuantity              float64   `json:"l,string"`
-	IsMaker                           bool      `json:"m"`
-	Commission                        float64   `json:"n,string"`
-	OrderType                         string    `json:"o"`
-	Price                             float64   `json:"p,string"`
-	Quantity                          float64   `json:"q,string"`
-	RejectionReason                   string    `json:"r"`
-	Symbol                            string    `json:"s"`
-	TradeID                           int64     `json:"t"`
-	Ignored                           int64     `json:"I"` // must be ignored explicitly, otherwise it overwrites 'i'
-	IsOnOrderBook                     bool      `json:"w"`
-	CurrentExecutionType              string    `json:"x"`
-	CumulativeFilledQuantity          float64   `json:"z,string"`
+	LastQuoteAssetTransactedQuantity  float64   `json:"Y,string"`
+	QuoteOrderQuantity                float64   `json:"Q,string"`
 }
 
 type wsListStatus struct {
