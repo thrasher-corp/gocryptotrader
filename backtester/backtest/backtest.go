@@ -807,7 +807,7 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
 				}
 			}
 		}
-		signals, err := bt.Strategy.OnSimultaneousSignals(dataEvents, bt.Portfolio)
+		signals, err := bt.Strategy.OnSimultaneousSignals(dataEvents, bt.Funding)
 		if err != nil {
 			if errors.Is(err, base.ErrTooMuchBadData) {
 				// too much bad data is a severe error and backtesting must cease

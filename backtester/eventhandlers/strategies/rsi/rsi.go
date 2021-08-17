@@ -2,7 +2,6 @@ package rsi
 
 import (
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -96,97 +95,26 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 // There is nothing actually stopping this strategy from considering multiple currencies at once
 // but for demonstration purposes, this strategy does not
 func (s *Strategy) SupportsSimultaneousProcessing() bool {
-	return false
-}
-
-type superCool struct {
-	funds          funding.IPairReader
-	rsi            decimal.Decimal
-	direction      order.Side
-	proposedAmount decimal.Decimal
-	event          data.Handler
-}
-
-type byRSI []superCool
-
-func (b byRSI) Len() int {
-	return len(b)
-}
-
-func (b byRSI) Less(i, j int) bool {
-	return b[i].rsi.LessThan(b[j].rsi)
-}
-
-func (b byRSI) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-func sortByRSI(orders *[]superCool, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(byRSI(*orders)))
-	} else {
-		sort.Sort(byRSI(*orders))
-	}
+	return true
 }
 
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
-// For rsi, multi-currency signal processing is unsupported for demonstration purposes
-// An important notes is that the order of signals raised is important for processing
-// For example, you have pairs ETH-USDT and BTC-USDT. If you signal to sell BTC as the first signal
-// you can then add a signal for ETH to make a purchase as the funds are released from BTC-USDT
-
 func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingManager) ([]signal.Event, error) {
 	var resp []signal.Event
-
-	slicerino := []superCool{}
+	var errs gctcommon.Errors
 	for i := range d {
-		cool := superCool{}
-		b, err := s.GetBaseData(d[i])
+		sigEvent, err := s.OnSignal(d[i], nil)
 		if err != nil {
-			return nil, err
+			errs = append(errs, err)
+		} else {
+			resp = append(resp, sigEvent)
 		}
-		resp = append(resp, &b)
-		cool.funds, err = f.GetFundingForEAP(b.Exchange, b.AssetType, b.CurrencyPair)
-		if err != nil {
-			return nil, err
-		}
-
-		b.SetPrice(d[i].Latest().ClosePrice())
-		offset := d[i].Offset()
-
-		if offset <= int(s.rsiPeriod.IntPart()) {
-			b.AppendReason("Not enough data for signal generation")
-			b.SetDirection(common.DoNothing)
-			return resp, nil
-		}
-
-		dataRange := d[i].StreamClose()
-		var massagedData []float64
-		massagedData, err = s.massageMissingData(dataRange, b.GetTime())
-		if err != nil {
-			return nil, err
-		}
-		rsi := indicators.RSI(massagedData, int(s.rsiPeriod.IntPart()))
-		cool.rsi = decimal.NewFromFloat(rsi[len(rsi)-1])
-		switch {
-		case cool.rsi.GreaterThanOrEqual(s.rsiHigh):
-			cool.direction = order.Sell
-		case cool.rsi.LessThanOrEqual(s.rsiLow):
-			cool.direction = order.Buy
-		default:
-			cool.direction = common.DoNothing
-		}
-		slicerino = append(slicerino, cool)
-	}
-	sortByRSI(&slicerino, true)
-	//filter by lower threshold and upper threshold
-	// sort the slices
-	// perform acts based on most important
-	for i := range slicerino {
-		slicerino[i].rsi = slicerino[i].rsi
 	}
 
+	if len(errs) > 0 {
+		return nil, errs
+	}
 	return resp, nil
 }
 

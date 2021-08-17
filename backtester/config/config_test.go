@@ -745,12 +745,12 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 	}
 }
 
-func TestGenerateConfigForDCAExchangeLevelFunding(t *testing.T) {
+func TestGenerateConfigForRSIExchangeLevelFunding(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateConfigForDCAExchangeLevelFunding",
-		Goal:     "To demonstrate DCA strategy using API candles",
+		Nickname: "TestGenerateConfigForRSIExchangeLevelFunding",
+		Goal:     "To demonstrate RSI strategy using API candles and Exchange level funding",
 		StrategySettings: StrategySettings{
-			Name:                         dca,
+			Name:                         "rsi",
 			UseExchangeLevelFunding:      true,
 			SimultaneousSignalProcessing: true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
@@ -764,7 +764,7 @@ func TestGenerateConfigForDCAExchangeLevelFunding(t *testing.T) {
 					ExchangeName: testExchange,
 					Asset:        asset.Spot.String(),
 					Quote:        currency.USDT.String(),
-					InitialFunds: decimal.NewFromFloat(5000),
+					InitialFunds: decimal.NewFromFloat(10000),
 				},
 			},
 		},
@@ -776,28 +776,34 @@ func TestGenerateConfigForDCAExchangeLevelFunding(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
-				},
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				Leverage:     Leverage{},
+				MakerFee:     makerFee,
+				TakerFee:     takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.DOGE.String(),
+				Quote:        currency.USDT.String(),
+				BuySide:      minMax,
+				SellSide:     minMax,
+				Leverage:     Leverage{},
+				MakerFee:     makerFee,
+				TakerFee:     takerFee,
 			},
 		},
 		DataSettings: DataSettings{
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate:        startDate,
-				EndDate:          endDate,
-				InclusiveEndDate: false,
+				StartDate: startDate,
+				EndDate:   endDate,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
+			Leverage: Leverage{},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -812,7 +818,7 @@ func TestGenerateConfigForDCAExchangeLevelFunding(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-exchange-funding.strat"), result, 0770)
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "rsi-api-candles-exchange-funding.strat"), result, 0770)
 		if err != nil {
 			t.Error(err)
 		}

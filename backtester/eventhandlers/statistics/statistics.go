@@ -156,7 +156,17 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 			for pair, stats := range assetMap {
 				currCount++
 				var f funding.IPairReader
-				f, err = funds.GetFundingForEvent(stats.Events[len(stats.Events)-1].FillEvent)
+				last := stats.Events[len(stats.Events)-1]
+				var event common.EventHandler
+				if last.FillEvent != nil {
+					event = last.FillEvent
+				} else if last.SignalEvent != nil {
+					event = last.SignalEvent
+
+				} else if last.DataEvent != nil {
+					event = last.DataEvent
+				}
+				f, err = funds.GetFundingForEvent(event)
 				if err != nil {
 					return err
 				}
@@ -165,7 +175,6 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 					return err
 				}
 				stats.PrintResults(exchangeName, assetItem, pair, f)
-				last := stats.Events[len(stats.Events)-1]
 				stats.FinalHoldings = last.Holdings
 				stats.FinalOrders = last.Transactions
 				s.AllStats = append(s.AllStats, *stats)
