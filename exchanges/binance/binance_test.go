@@ -2266,9 +2266,11 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 	}
 	testCases := []TestCases{
 		{Case: "NEW", Result: order.New},
+		{Case: "PARTIALLY_FILLED", Result: order.PartiallyFilled},
+		{Case: "FILLED", Result: order.Filled},
 		{Case: "CANCELED", Result: order.Cancelled},
+		{Case: "PENDING_CANCEL", Result: order.PendingCancel},
 		{Case: "REJECTED", Result: order.Rejected},
-		{Case: "TRADE", Result: order.PartiallyFilled},
 		{Case: "EXPIRED", Result: order.Expired},
 		{Case: "LOL", Result: order.UnknownStatus},
 	}
@@ -2491,20 +2493,25 @@ func TestWsOrderExecutionReport(t *testing.T) {
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616627567900,"s":"BTCUSDT","c":"c4wyKsIhoAaittTYlIVLqk","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028400","p":"52789.10000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":5340845958,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":"BTC","T":1616627567900,"t":-1,"I":11388173160,"w":true,"m":false,"M":false,"O":1616627567900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}}`)
 	// this is a buy BTC order, normally commission is charged in BTC, vice versa.
 	expRes := order.Detail{
-		Price:           52789.1,
-		Amount:          0.00028400,
-		Exchange:        "Binance",
-		ID:              "5340845958",
-		ClientOrderID:   "c4wyKsIhoAaittTYlIVLqk",
-		Side:            order.Buy,
-		Type:            order.Limit,
-		Status:          order.New,
-		AssetType:       asset.Spot,
-		Pair:            currency.NewPair(currency.BTC, currency.USDT),
-		RemainingAmount: 0.000284,
-		Date:            time.Unix(0, 1616627567900*int64(time.Millisecond)),
-		Cost:            0,
-		CostAsset:       currency.BTC,
+		Price:                52789.1,
+		Amount:               0.00028400,
+		AverageExecutedPrice: 0,
+		TargetAmount:         0.00028400,
+		ExecutedAmount:       0,
+		RemainingAmount:      0.00028400,
+		Cost:                 0,
+		CostAsset:            currency.USDT,
+		Fee:                  0,
+		FeeAsset:             currency.BTC,
+		Exchange:             "Binance",
+		ID:                   "5340845958",
+		ClientOrderID:        "c4wyKsIhoAaittTYlIVLqk",
+		Type:                 order.Limit,
+		Side:                 order.Buy,
+		Status:               order.New,
+		AssetType:            asset.Spot,
+		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		Date:                 time.Unix(0, 1616627567900*int64(time.Millisecond)),
 	}
 	// empty the channel. otherwise mock_test will fail
 	for len(b.Websocket.DataHandler) > 0 {
