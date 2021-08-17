@@ -207,6 +207,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						b.Name,
 						err)
 				}
+				var averagePrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
 				var orderID = strconv.FormatInt(data.Data.OrderID, 10)
 				oType, err := order.StringToOrderType(data.Data.OrderType)
 				if err != nil {
@@ -226,16 +227,13 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					}
 				}
 				var oStatus order.Status
-				oStatus, err = stringToOrderStatus(data.Data.CurrentExecutionType)
+				oStatus, err = stringToOrderStatus(data.Data.OrderStatus)
 				if err != nil {
 					b.Websocket.DataHandler <- order.ClassificationError{
 						Exchange: b.Name,
 						OrderID:  orderID,
 						Err:      err,
 					}
-				}
-				if oStatus == order.PartiallyFilled && data.Data.CumulativeFilledQuantity == data.Data.Quantity {
-					oStatus = order.Filled
 				}
 				var p currency.Pair
 				var a asset.Item
@@ -247,26 +245,24 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				if oStatus == order.Cancelled {
 					clientOrderID = data.Data.CancelledClientOrderID
 				}
-				var costAsset currency.Code
-				if data.Data.CommissionAsset != "" {
-					costAsset = currency.NewCode(data.Data.CommissionAsset)
-				}
 				b.Websocket.DataHandler <- &order.Detail{
-					Price:           data.Data.Price,
-					Amount:          data.Data.Quantity,
-					ExecutedAmount:  data.Data.CumulativeFilledQuantity,
-					RemainingAmount: data.Data.Quantity - data.Data.CumulativeFilledQuantity,
-					Exchange:        b.Name,
-					ID:              orderID,
-					Type:            oType,
-					Side:            oSide,
-					Status:          oStatus,
-					AssetType:       a,
-					Date:            data.Data.OrderCreationTime,
-					Pair:            p,
-					ClientOrderID:   clientOrderID,
-					Cost:            data.Data.Commission,
-					CostAsset:       costAsset,
+					Price:                data.Data.Price,
+					Amount:               data.Data.Quantity,
+					AverageExecutedPrice: averagePrice,
+					ExecutedAmount:       data.Data.CumulativeFilledQuantity,
+					RemainingAmount:      data.Data.Quantity - data.Data.CumulativeFilledQuantity,
+					Cost:                 averagePrice * data.Data.Quantity,
+					CostAsset:            p.Quote,
+					Fee:                  data.Data.Commission,
+					Exchange:             b.Name,
+					ID:                   orderID,
+					ClientOrderID:        clientOrderID,
+					Type:                 oType,
+					Side:                 oSide,
+					Status:               oStatus,
+					AssetType:            a,
+					Date:                 data.Data.EventTime,
+					Pair:                 p,
 				}
 				return nil
 			case "listStatus":
@@ -435,12 +431,16 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	switch status {
 	case "NEW":
 		return order.New, nil
+	case "PARTIALLY_FILLED":
+		return order.PartiallyFilled, nil
+	case "FILLED":
+		return order.Filled, nil
 	case "CANCELED":
 		return order.Cancelled, nil
+	case "PENDING_CANCEL":
+		return order.PendingCancel, nil
 	case "REJECTED":
 		return order.Rejected, nil
-	case "TRADE":
-		return order.PartiallyFilled, nil
 	case "EXPIRED":
 		return order.Expired, nil
 	default:
