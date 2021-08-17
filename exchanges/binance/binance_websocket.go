@@ -207,7 +207,10 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						b.Name,
 						err)
 				}
-				averagePrice := data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
+				averagePrice := 0.0
+				if data.Data.CumulativeFilledQuantity != 0 {
+					averagePrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
+				}
 				remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
 				cost := averagePrice * data.Data.Quantity
 				pair, assetType, err := b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
