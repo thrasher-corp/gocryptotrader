@@ -93,9 +93,7 @@ func (b *Bittrex) UpdateLocalOBBuffer(update *OrderbookUpdateMessage) (bool, err
 
 	err = b.applyBufferUpdate(currencyPair)
 	if err != nil {
-		if b.Verbose {
-			log.Debugf(log.WebsocketMgr, "UpdateLocalOBBuffer: Could not apply buffer update\n")
-		}
+		log.Errorf(log.WebsocketMgr, "%s websocket UpdateLocalOBBuffer: Could not apply buffer update\n", b.Name)
 	}
 
 	return false, err
@@ -147,7 +145,7 @@ func (b *Bittrex) applyBufferUpdate(pair currency.Pair) error {
 	}
 	if needsFetching {
 		if b.Verbose {
-			log.Debugf(log.WebsocketMgr, "Orderbook: Fetching via REST\n")
+			log.Debugf(log.WebsocketMgr, "%s Orderbook: Fetching via REST\n", b.Name)
 		}
 		return b.obm.fetchBookViaREST(pair)
 	}
@@ -155,7 +153,8 @@ func (b *Bittrex) applyBufferUpdate(pair currency.Pair) error {
 	if err != nil {
 		log.Errorf(
 			log.WebsocketMgr,
-			"Could not fetch recent orderbook when applying updates: %s\n",
+			"%s error fetching recent orderbook when applying updates: %s\n",
+			b.Name,
 			err)
 	}
 
@@ -164,7 +163,8 @@ func (b *Bittrex) applyBufferUpdate(pair currency.Pair) error {
 		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
-				"Unable to process update - initiating new orderbook sync via REST: %s\n",
+				"%s error processing update - initiating new orderbook sync via REST: %s\n",
+				b.Name,
 				err)
 			b.obm.setNeedsFetchingBook(pair)
 		}
