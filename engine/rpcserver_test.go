@@ -36,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/goose"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -861,6 +862,16 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
+type dummyServer struct{}
+
+func (d *dummyServer) Send(*gctrpc.SavedTradesResponse) error { return nil }
+func (d *dummyServer) SetHeader(metadata.MD) error            { return nil }
+func (d *dummyServer) SendHeader(metadata.MD) error           { return nil }
+func (d *dummyServer) SetTrailer(metadata.MD)                 {}
+func (d *dummyServer) Context() context.Context               { return context.Background() }
+func (d *dummyServer) SendMsg(m interface{}) error            { return nil }
+func (d *dummyServer) RecvMsg(m interface{}) error            { return nil }
+
 func TestGetHistoricTrades(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
@@ -893,7 +904,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-	}, nil)
+	}, &dummyServer{})
 	if err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
