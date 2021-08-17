@@ -210,44 +210,39 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				averagePrice := data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
 				remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
 				cost := averagePrice * data.Data.Quantity
-				feeAsset := currency.NewCode(data.Data.CommissionAsset)
-
-				var orderID = strconv.FormatInt(data.Data.OrderID, 10)
-				oType, err := order.StringToOrderType(data.Data.OrderType)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				var oSide order.Side
-				oSide, err = order.StringToOrderSide(data.Data.Side)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				var oStatus order.Status
-				oStatus, err = stringToOrderStatus(data.Data.OrderStatus)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				var p currency.Pair
-				var a asset.Item
-				p, a, err = b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
+				pair, assetType, err := b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
 				if err != nil {
 					return err
 				}
+				feeAsset := currency.NewCode(data.Data.CommissionAsset)
+				orderID := strconv.FormatInt(data.Data.OrderID, 10)
+				orderStatus, err := stringToOrderStatus(data.Data.OrderStatus)
+				if err != nil {
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
 				clientOrderID := data.Data.ClientOrderID
-				if oStatus == order.Cancelled {
+				if orderStatus == order.Cancelled {
 					clientOrderID = data.Data.CancelledClientOrderID
+				}
+				orderType, err := order.StringToOrderType(data.Data.OrderType)
+				if err != nil {
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
+				orderSide, err := order.StringToOrderSide(data.Data.Side)
+				if err != nil {
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
 				}
 				b.Websocket.DataHandler <- &order.Detail{
 					Price:                data.Data.Price,
@@ -257,18 +252,18 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					ExecutedAmount:       data.Data.CumulativeFilledQuantity,
 					RemainingAmount:      remainingAmount,
 					Cost:                 cost,
-					CostAsset:            p.Quote,
+					CostAsset:            pair.Quote,
 					Fee:                  data.Data.Commission,
 					FeeAsset:             feeAsset,
 					Exchange:             b.Name,
 					ID:                   orderID,
 					ClientOrderID:        clientOrderID,
-					Type:                 oType,
-					Side:                 oSide,
-					Status:               oStatus,
-					AssetType:            a,
+					Type:                 orderType,
+					Side:                 orderSide,
+					Status:               orderStatus,
+					AssetType:            assetType,
 					Date:                 data.Data.TransactionTime,
-					Pair:                 p,
+					Pair:                 pair,
 				}
 				return nil
 			case "listStatus":
