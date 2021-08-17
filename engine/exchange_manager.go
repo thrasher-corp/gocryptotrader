@@ -45,10 +45,17 @@ var (
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
 )
 
+// CustomExchangeBuilder interface allows external applications to create
+// custom/unsupported exchanges that satisfy the IBotExchange interface.
+type CustomExchangeBuilder interface {
+	NewExchangeByName(name string) (exchange.IBotExchange, error)
+}
+
 // ExchangeManager manages what exchanges are loaded
 type ExchangeManager struct {
 	m         sync.Mutex
 	exchanges map[string]exchange.IBotExchange
+	Builder   CustomExchangeBuilder
 }
 
 // SetupExchangeManager creates a new exchange manager
@@ -183,6 +190,9 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 	case "zb":
 		exch = new(zb.ZB)
 	default:
+		if m.Builder != nil {
+			return m.Builder.NewExchangeByName(nameLower)
+		}
 		return nil, fmt.Errorf("%s, %w", nameLower, ErrExchangeNotFound)
 	}
 
