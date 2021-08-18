@@ -216,7 +216,10 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				feeAsset := currency.NewCode(data.Data.CommissionAsset)
+				var feeAsset currency.Code
+				if data.Data.CommissionAsset != "" {
+					feeAsset = currency.NewCode(data.Data.CommissionAsset)
+				}
 				orderID := strconv.FormatInt(data.Data.OrderID, 10)
 				orderStatus, err := stringToOrderStatus(data.Data.OrderStatus)
 				if err != nil {
