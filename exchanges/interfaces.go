@@ -24,6 +24,7 @@ type IBotExchange interface {
 	Start(wg *sync.WaitGroup)
 	SetDefaults()
 	GetName() string
+	SetName(string)
 	IsEnabled() bool
 	SetEnabled(bool)
 	ValidateCredentials(a asset.Item) error
