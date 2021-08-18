@@ -135,6 +135,7 @@ type Detail struct {
 	Cost                 float64
 	CostAsset            currency.Code
 	Fee                  float64
+	FeeAsset             currency.Code
 	Exchange             string
 	InternalOrderID      string
 	ID                   string
