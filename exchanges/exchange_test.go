@@ -1300,13 +1300,15 @@ func TestSetupDefaults(t *testing.T) {
 	b.Features.Supports.Websocket = true
 	b.SetupDefaults(&cfg)
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:          false,
-		WebsocketTimeout: time.Second * 30,
-		Features:         &protocol.Features{},
-		DefaultURL:       "ws://something.com",
-		RunningURL:       "ws://something.com",
-		ExchangeName:     "test",
-		Connector:        func() error { return nil },
+		Enabled:               false,
+		WebsocketTimeout:      time.Second * 30,
+		Features:              &protocol.Features{},
+		DefaultURL:            "ws://something.com",
+		RunningURL:            "ws://something.com",
+		ExchangeName:          "test",
+		Connector:             func() error { return nil },
+		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return []stream.ChannelSubscription{}, nil },
+		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
