@@ -153,8 +153,14 @@ func TestSetup(t *testing.T) {
 	}
 	websocketSetup.WebsocketTimeout = time.Minute
 	err = w.Setup(websocketSetup)
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, errGenerateSubsciptionsUnset) {
+		t.Fatalf("received: %v but expected: %v", err, errGenerateSubsciptionsUnset)
+	}
+
+	websocketSetup.GenerateSubscriptions = func() ([]ChannelSubscription, error) { return nil, nil }
+	err = w.Setup(websocketSetup)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 }
 

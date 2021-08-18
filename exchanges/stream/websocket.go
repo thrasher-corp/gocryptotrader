@@ -43,6 +43,11 @@ func New() *Websocket {
 	}
 }
 
+var (
+	errSubscriberUnset           = errors.New("subscriber function needs to be set")
+	errGenerateSubsciptionsUnset = errors.New("generate subscriptions function needs to be set")
+)
+
 // Setup sets main variables for websocket connection
 func (w *Websocket) Setup(s *WebsocketSetup) error {
 	if w == nil {
@@ -65,8 +70,8 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 
 	w.features = s.Features
 
-	if w.features.Subscribe && s.Subscriber == nil {
-		return errors.New("features have been set yet channel subscriber is not set")
+	if s.Subscriber == nil {
+		return errSubscriberUnset
 	}
 	w.Subscriber = s.Subscriber
 
@@ -75,6 +80,9 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	}
 	w.Unsubscriber = s.UnSubscriber
 
+	if s.GenerateSubscriptions == nil {
+		return errGenerateSubsciptionsUnset
+	}
 	w.GenerateSubs = s.GenerateSubscriptions
 
 	w.enabled = s.Enabled
