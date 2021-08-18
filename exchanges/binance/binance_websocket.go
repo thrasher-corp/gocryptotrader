@@ -250,7 +250,6 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Price:                data.Data.Price,
 					Amount:               data.Data.Quantity,
 					AverageExecutedPrice: averagePrice,
-					TargetAmount:         data.Data.Quantity,
 					ExecutedAmount:       data.Data.CumulativeFilledQuantity,
 					RemainingAmount:      remainingAmount,
 					Cost:                 data.Data.CumulativeQuoteTransactedQuantity,
