@@ -10,7 +10,7 @@ import (
 )
 
 // ErrInitialFundsZero is an error when initial funds are zero or less
-var ErrInitialFundsZero = errors.New("initial funds <= 0")
+var ErrInitialFundsZero = errors.New("initial funds < 0")
 
 // Holding contains pricing statistics for a given time
 // for a given exchange asset pair

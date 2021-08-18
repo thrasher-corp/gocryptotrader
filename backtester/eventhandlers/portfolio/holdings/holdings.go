@@ -12,7 +12,7 @@ func Create(f fill.Event, initialFunds, riskFreeRate decimal.Decimal) (Holding, 
 	if f == nil {
 		return Holding{}, common.ErrNilEvent
 	}
-	if initialFunds.LessThanOrEqual(decimal.Zero) {
+	if initialFunds.LessThan(decimal.Zero) {
 		return Holding{}, ErrInitialFundsZero
 	}
 	h := Holding{

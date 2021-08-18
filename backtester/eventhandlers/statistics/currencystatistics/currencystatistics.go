@@ -44,7 +44,9 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 
 	oneHundred := decimal.NewFromInt(100)
 	c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(oneHundred)
-	c.StrategyMovement = last.Holdings.TotalValue.Sub(f.QuoteInitialFunds()).Div(f.QuoteInitialFunds()).Mul(oneHundred)
+	if f.QuoteInitialFunds().GreaterThan(decimal.Zero) {
+		c.StrategyMovement = last.Holdings.TotalValue.Sub(f.QuoteInitialFunds()).Div(f.QuoteInitialFunds()).Mul(oneHundred)
+	}
 	c.calculateHighestCommittedFunds()
 	c.RiskFreeRate = last.Holdings.RiskFreeRate.Mul(oneHundred)
 	returnPerCandle := make([]float64, len(c.Events))
@@ -147,16 +149,18 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 
 	lastInitial, _ := last.Holdings.InitialFunds.Float64()
 	lastTotal, _ := last.Holdings.TotalValue.Float64()
-	cagr, err := math.CompoundAnnualGrowthRate(
-		lastInitial,
-		lastTotal,
-		intervalsPerYear,
-		float64(len(c.Events)),
-	)
-	if err != nil {
-		errs = append(errs, err)
+	if lastInitial > 0 {
+		cagr, err := math.CompoundAnnualGrowthRate(
+			lastInitial,
+			lastTotal,
+			intervalsPerYear,
+			float64(len(c.Events)),
+		)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		c.CompoundAnnualGrowthRate = decimal.NewFromFloat(cagr)
 	}
-	c.CompoundAnnualGrowthRate = decimal.NewFromFloat(cagr)
 	c.IsStrategyProfitable = c.FinalHoldings.TotalValue.GreaterThan(c.FinalHoldings.InitialFunds)
 	c.DoesPerformanceBeatTheMarket = c.StrategyMovement.GreaterThan(c.MarketMovement)
 	if len(errs) > 0 {

@@ -12,6 +12,8 @@ import (
 // that declares the asset is already enabled.
 var ErrAssetAlreadyEnabled = errors.New("asset already enabled")
 
+var ErrPairAlreadyEnabled = errors.New("pair already enabled")
+
 // GetAssetTypes returns a list of stored asset types
 func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
 	p.m.RLock()
@@ -144,7 +146,7 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 	}
 
 	if c.Enabled.Contains(pair, true) {
-		return fmt.Errorf("%s pair is already enabled", pair)
+		return fmt.Errorf("%s %w", pair, ErrPairAlreadyEnabled)
 	}
 
 	c.Enabled = c.Enabled.Add(pair)

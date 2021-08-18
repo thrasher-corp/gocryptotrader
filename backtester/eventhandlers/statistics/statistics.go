@@ -172,7 +172,7 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 				}
 				err = stats.CalculateResults(f)
 				if err != nil {
-					return err
+					log.Error(log.BackTester, err)
 				}
 				stats.PrintResults(exchangeName, assetItem, pair, f)
 				stats.FinalHoldings = last.Holdings

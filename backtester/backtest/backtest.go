@@ -151,11 +151,22 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] = make(map[currency.Pair]*risk.CurrencySettings)
 		}
 		var curr currency.Pair
-		curr, err = currency.NewPairFromString(cfg.CurrencySettings[i].Base + cfg.CurrencySettings[i].Quote)
+		var b, q currency.Code
+		b = currency.NewCode(cfg.CurrencySettings[i].Base)
+		q = currency.NewCode(cfg.CurrencySettings[i].Quote)
+		curr = currency.NewPair(b, q)
+		exch := bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+		exchBase := exch.GetBase()
+		var requestFormat currency.PairFormat
+		requestFormat, err = exchBase.GetPairFormat(a, true)
 		if err != nil {
+			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
+		}
+		curr = curr.Format(requestFormat.Delimiter, requestFormat.Uppercase)
+		err = exchBase.CurrencyPairs.EnablePair(a, curr)
+		if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 			return nil, fmt.Errorf(
-				"%w for %v %v %v. Err %v",
-				errInvalidConfigCurrency,
+				"could not enable currency %v %v %v. Err %w",
 				cfg.CurrencySettings[i].ExchangeName,
 				cfg.CurrencySettings[i].Asset,
 				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
@@ -196,6 +207,23 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				cp,
 				cfg.CurrencySettings[i].InitialFunds)
 			if err != nil {
+				return nil, err
+			}
+		} else {
+			err = funds.AddItem(
+				cfg.CurrencySettings[i].ExchangeName,
+				a,
+				b,
+				decimal.Zero)
+			if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
+				return nil, err
+			}
+			err = funds.AddItem(
+				cfg.CurrencySettings[i].ExchangeName,
+				a,
+				q,
+				decimal.Zero)
+			if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
 				return nil, err
 			}
 		}

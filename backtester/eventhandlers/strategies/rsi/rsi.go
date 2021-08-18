@@ -106,7 +106,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingMan
 	for i := range d {
 		sigEvent, err := s.OnSignal(d[i], nil)
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("%v %v %v %w", d[i].Latest().GetExchange(), d[i].Latest().GetAssetType(), d[i].Latest().Pair(), err))
 		} else {
 			resp = append(resp, sigEvent)
 		}
@@ -129,17 +129,17 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 			}
 			s.rsiHigh = decimal.NewFromFloat(rsiHigh)
 		case rsiLowKey:
-			rsiLow, ok := v.(decimal.Decimal)
-			if !ok || rsiLow.LessThanOrEqual(decimal.Zero) {
+			rsiLow, ok := v.(float64)
+			if !ok || rsiLow <= 0 {
 				return fmt.Errorf("%w provided rsi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.rsiLow = rsiLow
+			s.rsiLow = decimal.NewFromFloat(rsiLow)
 		case rsiPeriodKey:
-			rsiPeriod, ok := v.(decimal.Decimal)
-			if !ok || rsiPeriod.LessThanOrEqual(decimal.Zero) {
+			rsiPeriod, ok := v.(float64)
+			if !ok || rsiPeriod <= 0 {
 				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.rsiPeriod = rsiPeriod
+			s.rsiPeriod = decimal.NewFromFloat(rsiPeriod)
 		default:
 			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}

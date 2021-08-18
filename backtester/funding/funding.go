@@ -1,6 +1,7 @@
 package funding
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/shopspring/decimal"
@@ -9,6 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
+
+var ErrAlreadyExists = errors.New("already exists")
 
 func Setup(usingExchangeLevelFunding bool) *AllFunds {
 	return &AllFunds{usingExchangeLevelFunding: usingExchangeLevelFunding}
@@ -19,6 +22,9 @@ func (a *AllFunds) Reset() {
 }
 
 func (a *AllFunds) AddItem(exch string, ass asset.Item, ci currency.Code, initialFunds decimal.Decimal) error {
+	if a.Exists(exch, ass, ci) {
+		return fmt.Errorf("cannot add item %v %v %v %w", exch, ass, ci, ErrAlreadyExists)
+	}
 	item := &Item{
 		Exchange:     exch,
 		Asset:        ass,
@@ -28,6 +34,17 @@ func (a *AllFunds) AddItem(exch string, ass asset.Item, ci currency.Code, initia
 	}
 	a.items = append(a.items, item)
 	return nil
+}
+
+func (a *AllFunds) Exists(exch string, ass asset.Item, ci currency.Code) bool {
+	for i := range a.items {
+		if a.items[i].Item == ci &&
+			a.items[i].Exchange == exch &&
+			a.items[i].Asset == ass {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *AllFunds) AddPair(exch string, ass asset.Item, cp currency.Pair, initialFunds decimal.Decimal) error {
