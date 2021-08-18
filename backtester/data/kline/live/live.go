@@ -34,8 +34,8 @@ func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, i
 		trades, err = exch.GetHistoricTrades(ctx,
 			fPair,
 			a,
-			time.Now().Add(-interval*2),
-			time.Now()) // multiplied by 2 to ensure the latest candle is always included
+			time.Now().Add(-interval*2), // multiplied by 2 to ensure the latest candle is always included
+			time.Now())
 		if err != nil {
 			return nil, err
 		}
@@ -49,7 +49,7 @@ func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, i
 			trades, err = exch.GetHistoricTrades(ctx,
 				fPair,
 				a,
-				time.Now().Add(-interval), // multiplied by 2 to ensure the latest candle is always included
+				time.Now().Add(-interval),
 				time.Now())
 			if err != nil {
 				return nil, fmt.Errorf("could not retrieve live trade data for %v %v %v, %v", exch.GetName(), a, fPair, err)
