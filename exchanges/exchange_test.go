@@ -1648,13 +1648,15 @@ func TestIsWebsocketEnabled(t *testing.T) {
 
 	b.Websocket = stream.New()
 	err := b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:          true,
-		WebsocketTimeout: time.Second * 30,
-		Features:         &protocol.Features{},
-		DefaultURL:       "ws://something.com",
-		RunningURL:       "ws://something.com",
-		ExchangeName:     "test",
-		Connector:        func() error { return nil },
+		Enabled:               true,
+		WebsocketTimeout:      time.Second * 30,
+		Features:              &protocol.Features{},
+		DefaultURL:            "ws://something.com",
+		RunningURL:            "ws://something.com",
+		ExchangeName:          "test",
+		Connector:             func() error { return nil },
+		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return nil, nil },
+		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
 	})
 	if err != nil {
 		t.Error(err)
