@@ -86,7 +86,9 @@ func (b *Binance) WsConnect() error {
 		Delay:             pingDelay,
 	})
 
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
+
 	b.setupOrderbookManager()
 	return nil
 }
@@ -101,6 +103,15 @@ func (b *Binance) setupOrderbookManager() {
 		for i := 0; i < maxWSOrderbookWorkers; i++ {
 			// 10 workers for synchronising book
 			b.SynchroniseWebsocketOrderbook()
+		}
+	} else {
+		// Change state on reconnect for initial sync.
+		for _, m1 := range b.obm.state {
+			for _, m2 := range m1 {
+				for _, update := range m2 {
+					update.initialSync = true
+				}
+			}
 		}
 	}
 }
@@ -129,7 +140,6 @@ func (b *Binance) KeepAuthKeyAlive() {
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Binance) wsReadData() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
 	for {

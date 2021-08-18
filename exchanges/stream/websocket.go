@@ -210,14 +210,14 @@ func (w *Websocket) Connect() error {
 		w.connectionMonitor()
 	}
 
-	// Resubscribe after re-connection
-	if len(w.subscriptions) != 0 {
-		err = w.Subscriber(w.subscriptions)
-		if err != nil {
-			return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
-		}
+	subs, err := w.GenerateSubs() // regenerate state on new connection
+	if err != nil {
+		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
 	}
-
+	err = w.Subscriber(subs)
+	if err != nil {
+		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
+	}
 	return nil
 }
 
@@ -527,7 +527,10 @@ func (w *Websocket) trafficMonitor() {
 				// Routine pausing mechanism
 				go func(p chan<- struct{}) {
 					time.Sleep(defaultTrafficPeriod)
-					p <- struct{}{}
+					select {
+					case p <- struct{}{}:
+					default:
+					}
 				}(pause)
 				select {
 				case <-w.ShutdownC:
