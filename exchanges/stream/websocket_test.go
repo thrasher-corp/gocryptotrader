@@ -1083,6 +1083,9 @@ func TestFlushChannels(t *testing.T) {
 	// Disable pair and flush system
 	newgen.EnabledPairs = []currency.Pair{
 		currency.NewPair(currency.BTC, currency.AUD)}
+	web.GenerateSubs = func() ([]ChannelSubscription, error) {
+		return []ChannelSubscription{{Channel: "test"}}, nil
+	}
 	err = web.FlushChannels()
 	if err != nil {
 		t.Fatal(err)
@@ -1181,7 +1184,12 @@ func TestEnable(t *testing.T) {
 		connector: connect,
 		Wg:        new(sync.WaitGroup),
 		ShutdownC: make(chan struct{}),
+		GenerateSubs: func() ([]ChannelSubscription, error) {
+			return []ChannelSubscription{{Channel: "test"}}, nil
+		},
+		Subscriber: func(cs []ChannelSubscription) error { return nil },
 	}
+
 	err := web.Enable()
 	if err != nil {
 		t.Fatal(err)
