@@ -1,7 +1,7 @@
 # Websocket trade events
 
-GoCryptoTrader unifies trading and order-updating events by composing
-an order.Detail object.  This is the full list of order.Detail fields
+GoCryptoTrader unifies trades and order update events by composing an
+order.Detail object.  This is the full list of order.Detail fields
 that exchange implementations should populate on streamed
 trade/order-update events.  As exchanges provide different APIs, not
 all fields are mandatory.
