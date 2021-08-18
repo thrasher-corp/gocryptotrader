@@ -211,6 +211,10 @@ func (w *WebsocketConnection) ReadMessage() Response {
 			default:
 				// bypass if there is no receiver, as this stops it returning
 				// when shutdown is called.
+				log.Warnf(log.WebsocketMgr,
+					"%w failed to relay error: %v",
+					w.ExchangeName,
+					err)
 			}
 		}
 		return Response{}
