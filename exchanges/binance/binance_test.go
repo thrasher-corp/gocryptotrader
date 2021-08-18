@@ -2496,7 +2496,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Price:                52789.1,
 		Amount:               0.00028400,
 		AverageExecutedPrice: 0,
-		TargetAmount:         0.00028400,
+		TargetAmount:         0,
 		ExecutedAmount:       0,
 		RemainingAmount:      0.00028400,
 		Cost:                 0,
@@ -2510,8 +2510,9 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Side:                 order.Buy,
 		Status:               order.New,
 		AssetType:            asset.Spot,
-		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
 		Date:                 time.Unix(0, 1616627567900*int64(time.Millisecond)),
+		LastUpdated:          time.Unix(0, 1616627567900*int64(time.Millisecond)),
+		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
 	}
 	// empty the channel. otherwise mock_test will fail
 	for len(b.Websocket.DataHandler) > 0 {
