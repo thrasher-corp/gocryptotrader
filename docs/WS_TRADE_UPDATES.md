@@ -1,18 +1,10 @@
 # Websocket trade events
 
 GoCryptoTrader unifies trading and order-updating events by composing
-an order.Detail object.
-
-This is the full list of order.Detail fields that exchange
-implementations should populate on streamed trade events.
-
-Every once in a while an exchange changes its API.  This list is a
-guide for developers to keep GCT reporting unified across exchanges.
-
-Some fields are mandatory and are expected from all exchange
-implementations.
-
-Some fields are optional as not all exchanges report them.
+an order.Detail object.  This is the full list of order.Detail fields
+that exchange implementations should populate on streamed
+trade/order-update events.  As exchanges provide different APIs, not
+all fields are mandatory.
 
 ```
 | order.Detail field   | Description                                                       | Condition                                               | Presence  |
