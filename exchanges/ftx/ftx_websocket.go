@@ -363,6 +363,8 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			resp.Status = orderVars.Status
 			resp.AssetType = assetType
 			resp.Date = resultData.OrderData.CreatedAt
+			// There's no current timestamp, so this is the best we can get.
+			resp.LastUpdated = resultData.OrderData.CreatedAt
 			resp.Pair = pair
 			f.Websocket.DataHandler <- &resp
 		case wsFills:

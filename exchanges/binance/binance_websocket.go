@@ -263,7 +263,8 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Side:                 orderSide,
 					Status:               orderStatus,
 					AssetType:            assetType,
-					Date:                 data.Data.TransactionTime,
+					Date:                 data.Data.OrderCreationTime,
+					LastUpdated:          data.Data.TransactionTime,
 					Pair:                 pair,
 				}
 				return nil
