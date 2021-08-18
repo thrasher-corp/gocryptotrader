@@ -802,7 +802,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...))
+	book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Time{}, true)
 
 	err = book.Retrieve().Verify()
 	if err != nil {
@@ -924,7 +924,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal("did not adjust ask item placement and details")
 	}
 
-	book.LoadSnapshot(append(bids[:0:0], bids...), append(bids[:0:0], bids...)) // nolint:gocritic
+	book.LoadSnapshot(append(bids[:0:0], bids...), append(bids[:0:0], bids...), 0, time.Time{}, true) // nolint:gocritic
 
 	// Delete - not found
 	err = holder.updateByIDAndAction(&Update{

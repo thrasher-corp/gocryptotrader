@@ -284,9 +284,10 @@ type orderbookManager struct {
 }
 
 type update struct {
-	buffer       chan *OrderbookUpdateMessage
-	fetchingBook bool
-	initialSync  bool
+	buffer            chan *OrderbookUpdateMessage
+	fetchingBook      bool
+	initialSync       bool
+	needsFetchingBook bool
 }
 
 // job defines a synchonisation job that tells a go routine to fetch an
