@@ -99,6 +99,7 @@ func (g *Gateio) SetDefaults() {
 				MessageCorrelation:     true,
 				GetOrder:               true,
 				AccountBalance:         true,
+				Subscribe:              true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
