@@ -108,7 +108,9 @@ func (b *Bittrex) WsConnect() error {
 
 	// This reader routine is called prior to initiating a subscription for
 	// efficient processing.
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
+
 	b.setupOrderbookManager()
 	b.tickerCache = &TickerCache{
 		MarketSummaries: make(map[string]*MarketSummaryData),
@@ -372,7 +374,6 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 
 // wsReadData gets and passes on websocket messages for processing
 func (b *Bittrex) wsReadData() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
 	for {

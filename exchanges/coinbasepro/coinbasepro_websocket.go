@@ -38,17 +38,14 @@ func (c *CoinbasePro) WsConnect() error {
 		return err
 	}
 
+	c.Websocket.Wg.Add(1)
 	go c.wsReadData()
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
 func (c *CoinbasePro) wsReadData() {
-	c.Websocket.Wg.Add(1)
-
-	defer func() {
-		c.Websocket.Wg.Done()
-	}()
+	defer c.Websocket.Wg.Done()
 
 	for {
 		resp := c.Websocket.Conn.ReadMessage()

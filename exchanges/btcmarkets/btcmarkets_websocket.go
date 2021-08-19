@@ -39,13 +39,14 @@ func (b *BTCMarkets) WsConnect() error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
+
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *BTCMarkets) wsReadData() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
 	for {

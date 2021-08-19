@@ -96,6 +96,7 @@ func (k *Kraken) WsConnect() error {
 	}
 
 	comms := make(chan stream.Response)
+	k.Websocket.Wg.Add(2)
 	go k.wsReadData(comms)
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 
@@ -116,6 +117,7 @@ func (k *Kraken) WsConnect() error {
 					k.Name,
 					err)
 			} else {
+				k.Websocket.Wg.Add(1)
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
 				err = k.wsAuthPingHandler()
 				if err != nil {
@@ -140,7 +142,6 @@ func (k *Kraken) WsConnect() error {
 
 // wsFunnelConnectionData funnels both auth and public ws data into one manageable place
 func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.Response) {
-	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -153,7 +154,6 @@ func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.
 
 // wsReadData receives and passes on websocket messages for processing
 func (k *Kraken) wsReadData(comms chan stream.Response) {
-	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 
 	for {

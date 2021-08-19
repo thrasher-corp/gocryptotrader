@@ -41,7 +41,9 @@ func (b *BTSE) WsConnect() error {
 		Delay:       btseWebsocketTimer,
 	})
 
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
+
 	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = b.WsAuthenticate()
 		if err != nil {
@@ -92,7 +94,6 @@ func stringToOrderStatus(status string) (order.Status, error) {
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *BTSE) wsReadData() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
 	for {

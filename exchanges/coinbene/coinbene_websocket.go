@@ -41,7 +41,9 @@ func (c *Coinbene) WsConnect() error {
 		return err
 	}
 
+	c.Websocket.Wg.Add(1)
 	go c.wsReadData()
+
 	if c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = c.Login()
 		if err != nil {
@@ -101,7 +103,6 @@ func (c *Coinbene) GenerateAuthSubs() ([]stream.ChannelSubscription, error) {
 
 // wsReadData receives and passes on websocket messages for processing
 func (c *Coinbene) wsReadData() {
-	c.Websocket.Wg.Add(1)
 	defer c.Websocket.Wg.Done()
 	for {
 		resp := c.Websocket.Conn.ReadMessage()

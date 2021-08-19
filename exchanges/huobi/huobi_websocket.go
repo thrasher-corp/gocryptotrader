@@ -83,6 +83,7 @@ func (h *HUOBI) WsConnect() error {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 
+	h.Websocket.Wg.Add(1)
 	go h.wsReadData()
 	return nil
 }
@@ -105,6 +106,8 @@ func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 	if err != nil {
 		return err
 	}
+
+	h.Websocket.Wg.Add(1)
 	go h.wsFunnelConnectionData(h.Websocket.AuthConn, wsAccountsOrdersURL)
 	return nil
 }
@@ -112,7 +115,6 @@ func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 // wsFunnelConnectionData manages data from multiple endpoints and passes it to
 // a channel
 func (h *HUOBI) wsFunnelConnectionData(ws stream.Connection, url string) {
-	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -125,7 +127,6 @@ func (h *HUOBI) wsFunnelConnectionData(ws stream.Connection, url string) {
 
 // wsReadData receives and passes on websocket messages for processing
 func (h *HUOBI) wsReadData() {
-	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {
 		resp := <-comms

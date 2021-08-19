@@ -41,6 +41,7 @@ func (z *ZB) WsConnect() error {
 		return err
 	}
 
+	z.Websocket.Wg.Add(1)
 	go z.wsReadData()
 	return nil
 }
@@ -48,9 +49,7 @@ func (z *ZB) WsConnect() error {
 // wsReadData handles all the websocket data coming from the websocket
 // connection
 func (z *ZB) wsReadData() {
-	z.Websocket.Wg.Add(1)
 	defer z.Websocket.Wg.Done()
-
 	for {
 		resp := z.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {

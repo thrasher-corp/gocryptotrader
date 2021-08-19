@@ -39,6 +39,8 @@ func (g *Gateio) WsConnect() error {
 	if err != nil {
 		return err
 	}
+
+	g.Websocket.Wg.Add(1)
 	go g.wsReadData()
 
 	if g.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
@@ -98,7 +100,6 @@ func (g *Gateio) wsServerSignIn() error {
 
 // wsReadData receives and passes on websocket messages for processing
 func (g *Gateio) wsReadData() {
-	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 
 	for {

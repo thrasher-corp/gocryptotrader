@@ -52,6 +52,7 @@ func (b *Bitfinex) WsConnect() error {
 			err)
 	}
 
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData(b.Websocket.Conn)
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
@@ -63,6 +64,7 @@ func (b *Bitfinex) WsConnect() error {
 				err)
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
+		b.Websocket.Wg.Add(1)
 		go b.wsReadData(b.Websocket.AuthConn)
 		err = b.WsSendAuth()
 		if err != nil {
@@ -74,13 +76,13 @@ func (b *Bitfinex) WsConnect() error {
 		}
 	}
 
+	b.Websocket.Wg.Add(1)
 	go b.WsDataHandler()
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bitfinex) wsReadData(ws stream.Connection) {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -93,7 +95,6 @@ func (b *Bitfinex) wsReadData(ws stream.Connection) {
 
 // WsDataHandler handles data from wsReadData
 func (b *Bitfinex) WsDataHandler() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 	for {
 		select {

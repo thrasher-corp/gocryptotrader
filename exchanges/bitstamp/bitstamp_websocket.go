@@ -40,13 +40,15 @@ func (b *Bitstamp) WsConnect() error {
 	if err != nil {
 		b.Websocket.DataHandler <- err
 	}
+
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
+
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bitstamp) wsReadData() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
 	for {
