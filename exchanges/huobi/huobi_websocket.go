@@ -93,6 +93,7 @@ func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
 	if err != nil {
 		return err
 	}
+	h.Websocket.Wg.Add(1)
 	go h.wsFunnelConnectionData(h.Websocket.Conn, wsMarketURL)
 	return nil
 }
