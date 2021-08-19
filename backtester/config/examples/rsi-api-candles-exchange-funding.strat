@@ -19,11 +19,7 @@
     "initial-funds": "0"
    }
   ],
-   "custom-settings": {
-       "rsi-high": 65,
-       "rsi-low": 55,
-       "rsi-period": 14
-      }
+   "custom-settings": null
  },
  "currency-settings": [
   {
@@ -36,16 +32,12 @@
     "maximum-orders-with-leverage-ratio": "0",
     "maximum-leverage-rate": "0"
    },
-   "buy-side": {
-    "minimum-size": "0.1",
-    "maximum-size": "1",
-    "maximum-total": "10000"
-   },
-   "sell-side": {
-    "minimum-size": "0.1",
-    "maximum-size": "1",
-    "maximum-total": "10000"
-   },
+     "buy-side": {
+      "minimum-size": "0.0001"
+     },
+     "sell-side": {
+      "minimum-size": "0.0001"
+     },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
    "maker-fee-override": "0.001",
@@ -63,16 +55,12 @@
     "maximum-orders-with-leverage-ratio": "0",
     "maximum-leverage-rate": "0"
    },
-   "buy-side": {
-    "minimum-size": "0.1",
-    "maximum-size": "1",
-    "maximum-total": "10000"
-   },
-   "sell-side": {
-    "minimum-size": "0.1",
-    "maximum-size": "1",
-    "maximum-total": "10000"
-   },
+     "buy-side": {
+      "minimum-size": "0.0001"
+     },
+     "sell-side": {
+      "minimum-size": "0.0001"
+     },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
    "maker-fee-override": "0.001",
@@ -85,8 +73,8 @@
   "interval": 86400000000000,
   "data-type": "candle",
   "api-data": {
-   "start-date": "2020-11-01T00:00:00+11:00",
-   "end-date": "2020-12-01T00:00:00+11:00",
+   "start-date": "2020-12-01T00:00:00+11:00",
+   "end-date": "2021-08-01T00:00:00+11:00",
    "inclusive-end-date": false
   }
  },
@@ -97,14 +85,10 @@
    "maximum-leverage-rate": "0"
   },
   "buy-side": {
-   "minimum-size": "0.1",
-   "maximum-size": "1",
-   "maximum-total": "10000"
+   "minimum-size": "0.0001"
   },
   "sell-side": {
-   "minimum-size": "0.1",
-   "maximum-size": "1",
-   "maximum-total": "10000"
+   "minimum-size": "0.0001"
   }
  },
  "statistic-settings": {

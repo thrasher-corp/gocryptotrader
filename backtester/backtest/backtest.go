@@ -901,6 +901,7 @@ func (bt *BackTest) processSignalEvent(ev signal.Event) {
 		log.Error(log.BackTester, err)
 		return
 	}
+	log.Debugf(log.BackTester, "%v %v, %v %v", funds.Base.Available.Round(8), funds.Base.Item.String(), funds.Quote.Available.Round(8), funds.Quote.Item.String())
 	o, err = bt.Portfolio.OnSignal(ev, &cs, funds)
 	if err != nil {
 		log.Error(log.BackTester, err)

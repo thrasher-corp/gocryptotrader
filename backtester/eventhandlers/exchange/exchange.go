@@ -130,11 +130,13 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		if err != nil {
 			return f, err
 		}
+		funds.Increase(limitReducedAmount, f.GetDirection())
 	case gctorder.Sell:
 		err = funds.Release(eventFunds, eventFunds.Sub(limitReducedAmount), f.GetDirection())
 		if err != nil {
 			return f, err
 		}
+		funds.Increase(limitReducedAmount.Mul(adjustedPrice), f.GetDirection())
 	}
 
 	ords, _ := bot.OrderManager.GetOrdersSnapshot("")

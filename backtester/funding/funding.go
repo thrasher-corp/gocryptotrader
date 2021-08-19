@@ -216,14 +216,13 @@ func (i *Item) IncreaseAvailable(amount decimal.Decimal) {
 
 // Item holds funding data per currency item
 type Item struct {
-	Exchange         string
-	Asset            asset.Item
-	Item             currency.Code
-	InitialFunds     decimal.Decimal
-	Available        decimal.Decimal
-	Reserved         decimal.Decimal
-	StrategyReserved decimal.Decimal
-	PairedWith       *Item
+	Exchange     string
+	Asset        asset.Item
+	Item         currency.Code
+	InitialFunds decimal.Decimal
+	Available    decimal.Decimal
+	Reserved     decimal.Decimal
+	PairedWith   *Item
 }
 
 func (p *Pair) CanPlaceOrder(side order.Side) bool {
