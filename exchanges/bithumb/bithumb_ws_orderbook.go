@@ -154,6 +154,15 @@ func (b *Bithumb) setupOrderbookManager() {
 			// 10 workers for synchronising book
 			b.SynchroniseWebsocketOrderbook()
 		}
+	} else {
+		// Change state on reconnect for initial sync.
+		for _, m1 := range b.obm.state {
+			for _, m2 := range m1 {
+				for _, update := range m2 {
+					update.initialSync = true
+				}
+			}
+		}
 	}
 }
 

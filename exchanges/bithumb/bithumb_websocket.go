@@ -54,13 +54,18 @@ func (b *Bithumb) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-b.Websocket.ShutdownC:
 			return
-		}
-		err := b.wsHandleData(resp.Raw)
-		if err != nil {
-			b.Websocket.DataHandler <- err
+		default:
+			resp := b.Websocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			err := b.wsHandleData(resp.Raw)
+			if err != nil {
+				b.Websocket.DataHandler <- err
+			}
 		}
 	}
 }
