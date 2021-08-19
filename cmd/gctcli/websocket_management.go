@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -110,14 +109,14 @@ func getwebsocketInfo(c *cli.Context) error {
 		return fmt.Errorf("[%s] is not a valid exchange", exchange)
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.WebsocketGetInfo(context.Background(),
+	result, err := client.WebsocketGetInfo(c.Context,
 		&gctrpc.WebsocketGetInfoRequest{Exchange: exchange})
 	if err != nil {
 		return err
@@ -143,14 +142,14 @@ func enableDisableWebsocket(c *cli.Context) error {
 		return fmt.Errorf("[%s] is not a valid exchange", exchange)
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.WebsocketSetEnabled(context.Background(),
+	result, err := client.WebsocketSetEnabled(c.Context,
 		&gctrpc.WebsocketSetEnabledRequest{Exchange: exchange, Enable: enable})
 	if err != nil {
 		return err
@@ -175,14 +174,14 @@ func getSubscriptions(c *cli.Context) error {
 		return fmt.Errorf("[%s] is not a valid exchange", exchange)
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.WebsocketGetSubscriptions(context.Background(),
+	result, err := client.WebsocketGetSubscriptions(c.Context,
 		&gctrpc.WebsocketGetSubscriptionsRequest{Exchange: exchange})
 	if err != nil {
 		return err
@@ -214,14 +213,14 @@ func setProxy(c *cli.Context) error {
 		proxy = c.Args().Get(1)
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.WebsocketSetProxy(context.Background(),
+	result, err := client.WebsocketSetProxy(c.Context,
 		&gctrpc.WebsocketSetProxyRequest{Exchange: exchange, Proxy: proxy})
 	if err != nil {
 		return err
@@ -253,14 +252,14 @@ func setURL(c *cli.Context) error {
 		url = c.Args().Get(1)
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.WebsocketSetURL(context.Background(),
+	result, err := client.WebsocketSetURL(c.Context,
 		&gctrpc.WebsocketSetURLRequest{Exchange: exchange, Url: url})
 	if err != nil {
 		return err

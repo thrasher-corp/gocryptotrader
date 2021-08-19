@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -218,15 +217,15 @@ func enableDisableExchangePair(c *cli.Context) error {
 		})
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	result, err := client.SetExchangePair(context.Background(),
+	result, err := client.SetExchangePair(c.Context,
 		&gctrpc.SetExchangePairRequest{
 			Exchange:  exchange,
 			Pairs:     validPairs,
@@ -271,14 +270,14 @@ func getExchangePairs(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetExchangePairs(context.Background(),
+	result, err := client.GetExchangePairs(c.Context,
 		&gctrpc.GetExchangePairsRequest{
 			Exchange: exchange,
 			Asset:    asset,
@@ -324,14 +323,14 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.SetExchangeAsset(context.Background(),
+	result, err := client.SetExchangeAsset(c.Context,
 		&gctrpc.SetExchangeAssetRequest{
 			Exchange: exchange,
 			Asset:    asset,
@@ -365,14 +364,14 @@ func enableDisableAllExchangePairs(c *cli.Context) error {
 		return errInvalidExchange
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.SetAllExchangePairs(context.Background(),
+	result, err := client.SetAllExchangePairs(c.Context,
 		&gctrpc.SetExchangeAllPairsRequest{
 			Exchange: exchange,
 			Enable:   enable,
@@ -401,14 +400,14 @@ func updateExchangeSupportedPairs(c *cli.Context) error {
 		return errInvalidExchange
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.UpdateExchangeSupportedPairs(context.Background(),
+	result, err := client.UpdateExchangeSupportedPairs(c.Context,
 		&gctrpc.UpdateExchangeSupportedPairsRequest{
 			Exchange: exchange,
 		},
@@ -436,14 +435,14 @@ func getExchangeAssets(c *cli.Context) error {
 		return errInvalidExchange
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetExchangeAssets(context.Background(),
+	result, err := client.GetExchangeAssets(c.Context,
 		&gctrpc.GetExchangeAssetsRequest{
 			Exchange: exchange,
 		},

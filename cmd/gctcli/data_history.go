@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -315,16 +314,12 @@ func getDataHistoryJob(c *cli.Context) error {
 		return errors.New("can only set 'id' OR 'nickname'")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	request := &gctrpc.GetDataHistoryJobDetailsRequest{
 		Id:       id,
@@ -334,7 +329,7 @@ func getDataHistoryJob(c *cli.Context) error {
 		request.FullDetails = true
 	}
 
-	result, err := client.GetDataHistoryJobDetails(context.Background(), request)
+	result, err := client.GetDataHistoryJobDetails(c.Context, request)
 	if err != nil {
 		return err
 	}
@@ -342,20 +337,15 @@ func getDataHistoryJob(c *cli.Context) error {
 	return nil
 }
 
-func getActiveDataHistoryJobs(_ *cli.Context) error {
-	conn, err := setupClient()
+func getActiveDataHistoryJobs(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetActiveDataHistoryJobs(context.Background(),
+	result, err := client.GetActiveDataHistoryJobs(c.Context,
 		&gctrpc.GetInfoRequest{})
 	if err != nil {
 		return err
@@ -501,16 +491,12 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		}
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	request := &gctrpc.UpsertDataHistoryJobRequest{
 		Nickname: nickname,
@@ -538,7 +524,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		ReplaceOnIssue:           replaceOnIssue,
 	}
 
-	result, err := client.UpsertDataHistoryJob(context.Background(), request)
+	result, err := client.UpsertDataHistoryJob(c.Context, request)
 	if err != nil {
 		return err
 	}
@@ -574,19 +560,14 @@ func getDataHistoryJobsBetween(c *cli.Context) error {
 		return errors.New("start cannot be after end")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetDataHistoryJobsBetween(context.Background(),
+	result, err := client.GetDataHistoryJobsBetween(c.Context,
 		&gctrpc.GetDataHistoryJobsBetweenRequest{
 			StartDate: negateLocalOffset(s),
 			EndDate:   negateLocalOffset(e),
@@ -631,16 +612,12 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 		return fmt.Errorf("unable to modify data history job status, unrecognised command '%v'", c.Command.Name)
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	request := &gctrpc.SetDataHistoryJobStatusRequest{
 		Id:       id,
@@ -648,7 +625,7 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 		Status:   status,
 	}
 
-	result, err := client.SetDataHistoryJobStatus(context.Background(), request)
+	result, err := client.SetDataHistoryJobStatus(c.Context, request)
 	if err != nil {
 		return err
 	}
@@ -668,22 +645,18 @@ func getDataHistoryJobSummary(c *cli.Context) error {
 		nickname = c.Args().First()
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	request := &gctrpc.GetDataHistoryJobDetailsRequest{
 		Nickname: nickname,
 	}
 
-	result, err := client.GetDataHistoryJobSummary(context.Background(), request)
+	result, err := client.GetDataHistoryJobSummary(c.Context, request)
 	if err != nil {
 		return err
 	}
@@ -714,23 +687,19 @@ func setPrerequisiteJob(c *cli.Context) error {
 		return errors.New("prerequisite required")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	request := &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
 		PrerequisiteJobNickname: prerequisite,
 		Nickname:                nickname,
 	}
 
-	result, err := client.UpdateDataHistoryJobPrerequisite(context.Background(), request)
+	result, err := client.UpdateDataHistoryJobPrerequisite(c.Context, request)
 	if err != nil {
 		return err
 	}
