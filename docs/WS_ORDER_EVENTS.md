@@ -6,11 +6,16 @@ that exchange implementations should populate on streamed
 trade/order-update events.  As exchanges provide different APIs, not
 all fields are mandatory.
 
+Note to developers: a special mention is the AverageExecutedPrice,
+which is not always provided, but its presence is important and highly
+desirable.  Even if not reported, effort should be made to compute it
+out of reported trades.
+
 | order.Detail field   | Description                                                       | Condition                                               | Presence  |
 |----------------------|-------------------------------------------------------------------|---------------------------------------------------------|-----------|
 | Price                | Original price assigned to order                                  | Depends on order type (e.g. limit orders have prices)   | Mandatory |
 | Amount               | Original quantity assigned to order                               |                                                         | Mandatory |
-| AverageExecutedPrice | Average price of what's traded thus far                           | Order is filled, partially filled or partially canceled | Mandatory |
+| AverageExecutedPrice | Average price of what's traded thus far                           | Order is filled, partially filled or partially canceled | Desirable |
 | ExecutedAmount       | How much of the original order quantity is filled                 | Order is filled, partially filled or partially canceled | Mandatory |
 | RemainingAmount      | Amount - ExecutedAmount                                           |                                                         | Mandatory |
 | Cost                 | How much is spent thus far (cumulative transacted quote currency) | Order is filled, partially filled or partially canceled | Mandatory |
