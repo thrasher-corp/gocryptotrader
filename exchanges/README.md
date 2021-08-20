@@ -42,6 +42,9 @@ When submitting a PR, please abide by our coding guidelines:
 + Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/doc/coding_style.md).
 + Pull requests need to be based on and opened against the `master` branch.
 
+If contributing websocket improvements, please make sure order reports
+follow [these rules](../docs/WS_ORDER_EVENTS.md).
+
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
