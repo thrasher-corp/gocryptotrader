@@ -6,9 +6,8 @@ that exchange implementations should populate on streamed
 trade/order-update events.  As exchanges provide different APIs, not
 all fields are mandatory.
 
-```
 | order.Detail field   | Description                                                       | Condition                                               | Presence  |
-|----------------------+-------------------------------------------------------------------+---------------------------------------------------------+-----------|
+|----------------------|-------------------------------------------------------------------|---------------------------------------------------------|-----------|
 | Price                | Original price assigned to order                                  | Depends on order type (e.g. limit orders have prices)   | Mandatory |
 | Amount               | Original quantity assigned to order                               |                                                         | Mandatory |
 | AverageExecutedPrice | Average price of what's traded thus far                           | Order is filled, partially filled or partially canceled | Mandatory |
@@ -28,4 +27,3 @@ all fields are mandatory.
 | Date                 | Time of order creation (as reported by the exchange)              |                                                         | Optional  |
 | LastUpdated          | Time of last order event (as reported by the exchange)            |                                                         | Optional  |
 | Pair                 | Tradable pair                                                     |                                                         | Mandatory |
-```
