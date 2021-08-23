@@ -862,6 +862,8 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
+// dummyServer implements a basic RPC server interface for deployment in a test
+// when streaming occurs, so we can deliver a context value.
 type dummyServer struct{}
 
 func (d *dummyServer) Send(*gctrpc.SavedTradesResponse) error { return nil }
