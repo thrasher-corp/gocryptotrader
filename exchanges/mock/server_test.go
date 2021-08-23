@@ -93,7 +93,7 @@ func TestNewVCRServer(t *testing.T) {
 	}
 
 	var res responsePayload
-	err = json.Unmarshal([]byte(r), &res)
+	err = json.Unmarshal(r, &res)
 	if err != nil {
 		t.Error("unmarshal error", err)
 	}

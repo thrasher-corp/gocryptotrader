@@ -256,5 +256,5 @@ func (t *Telegram) SendHTTPRequest(path string, data []byte, result interface{})
 		return err
 	}
 
-	return json.Unmarshal([]byte(resp), result)
+	return json.Unmarshal(resp, result)
 }
