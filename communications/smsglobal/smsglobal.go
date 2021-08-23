@@ -184,12 +184,13 @@ func (s *SMSGlobal) SendMessage(to, message string) error {
 		http.MethodPost,
 		smsGlobalAPIURL,
 		headers,
-		strings.NewReader(values.Encode()))
+		strings.NewReader(values.Encode()),
+		s.Verbose)
 	if err != nil {
 		return err
 	}
 
-	if !strings.Contains(resp, "OK: 0; Sent queued message") {
+	if !strings.Contains(string(resp), "OK: 0; Sent queued message") {
 		return errSMSNotSent
 	}
 	return nil

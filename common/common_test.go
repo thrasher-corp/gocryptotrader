@@ -15,6 +15,19 @@ import (
 	"time"
 )
 
+func TestSetHTTPClientWithTimeout(t *testing.T) {
+	t.Parallel()
+	err := SetHTTPClientWithTimeout(-0)
+	if !errors.Is(err, errCannotSetInvalidTimeout) {
+		t.Fatalf("received: %v but expected: %v", err, errCannotSetInvalidTimeout)
+	}
+
+	err = SetHTTPClientWithTimeout(time.Second * 15)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+}
+
 func TestIsEnabled(t *testing.T) {
 	t.Parallel()
 	expected := "Enabled"
@@ -243,82 +256,49 @@ func TestSendHTTPRequest(t *testing.T) {
 
 	_, err := SendHTTPRequest(context.Background(),
 		methodGarbage, "https://www.google.com", headers,
-		strings.NewReader(""),
+		strings.NewReader(""), true,
 	)
 	if err == nil {
 		t.Error("Expected error 'invalid HTTP method specified'")
 	}
 	_, err = SendHTTPRequest(context.Background(),
 		methodPost, "https://www.google.com", headers,
-		strings.NewReader(""),
+		strings.NewReader(""), true,
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = SendHTTPRequest(context.Background(),
 		methodGet, "https://www.google.com", headers,
-		strings.NewReader(""),
+		strings.NewReader(""), true,
 	)
 	if err != nil {
 		t.Error(err)
 	}
+
+	m.Lock()
+	HTTPUserAgent = "GCTbot/1337.69 (+http://www.lol.com/)"
+	m.Unlock()
 	_, err = SendHTTPRequest(context.Background(),
 		methodDelete, "https://www.google.com", headers,
-		strings.NewReader(""),
+		strings.NewReader(""), true,
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = SendHTTPRequest(context.Background(),
 		methodGet, ":missingprotocolscheme", headers,
-		strings.NewReader(""),
+		strings.NewReader(""), true,
 	)
 	if err == nil {
 		t.Error("Common HTTPRequest accepted missing protocol")
 	}
 	_, err = SendHTTPRequest(context.Background(),
 		methodGet, "test://unsupportedprotocolscheme", headers,
-		strings.NewReader(""),
+		strings.NewReader(""), true,
 	)
 	if err == nil {
 		t.Error("Common HTTPRequest accepted invalid protocol")
-	}
-}
-
-func TestSendHTTPGetRequest(t *testing.T) {
-	t.Parallel()
-	type test struct {
-		Address string `json:"address"`
-		ETH     struct {
-			Balance  float64 `json:"balance"`
-			TotalIn  float64 `json:"totalIn"`
-			TotalOut float64 `json:"totalOut"`
-		} `json:"ETH"`
-	}
-	ethURL := `https://api.ethplorer.io/getAddressInfo/0xff71cb760666ab06aa73f34995b42dd4b85ea07b?apiKey=freekey`
-	result := test{}
-
-	var badresult int
-
-	err := SendHTTPGetRequest(ethURL, true, true, &result)
-	if err != nil {
-		t.Errorf("common SendHTTPGetRequest error: %s", err)
-	}
-	err = SendHTTPGetRequest("DINGDONG", true, false, &result)
-	if err == nil {
-		t.Error("common SendHTTPGetRequest error")
-	}
-	err = SendHTTPGetRequest(ethURL, false, false, &result)
-	if err != nil {
-		t.Errorf("common SendHTTPGetRequest error: %s", err)
-	}
-	err = SendHTTPGetRequest("https://httpstat.us/202", false, false, &result)
-	if err == nil {
-		t.Error("= common SendHTTPGetRequest error: Ignored unexpected status code")
-	}
-	err = SendHTTPGetRequest(ethURL, true, false, &badresult)
-	if err == nil {
-		t.Error("common SendHTTPGetRequest error: Unmarshalled into bad type")
 	}
 }
 

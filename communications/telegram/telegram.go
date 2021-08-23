@@ -250,7 +250,8 @@ func (t *Telegram) SendHTTPRequest(path string, data []byte, result interface{})
 		http.MethodPost,
 		path,
 		headers,
-		bytes.NewBuffer(data))
+		bytes.NewBuffer(data),
+		t.Verbose)
 	if err != nil {
 		return err
 	}

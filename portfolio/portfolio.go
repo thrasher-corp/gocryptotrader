@@ -1,8 +1,11 @@
 package portfolio
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -39,7 +42,17 @@ func (b *Base) GetEthereumBalance(address string) (EthplorerResponse, error) {
 	)
 
 	result := EthplorerResponse{}
-	return result, common.SendHTTPGetRequest(urlPath, true, b.Verbose, &result)
+	contents, err := common.SendHTTPRequest(context.TODO(),
+		http.MethodGet,
+		urlPath,
+		nil,
+		nil,
+		b.Verbose)
+	if err != nil {
+		return result, err
+	}
+
+	return result, json.Unmarshal(contents, &result)
 }
 
 // GetCryptoIDAddress queries CryptoID for an address balance for a
@@ -50,23 +63,39 @@ func (b *Base) GetCryptoIDAddress(address string, coinType currency.Code) (float
 		return 0, errors.New("invalid address")
 	}
 
-	var result interface{}
 	url := fmt.Sprintf("%s/%s/api.dws?q=getbalance&a=%s",
 		cryptoIDAPIURL,
 		coinType.Lower(),
 		address)
 
-	err = common.SendHTTPGetRequest(url, true, b.Verbose, &result)
+	contents, err := common.SendHTTPRequest(context.TODO(),
+		http.MethodGet,
+		url,
+		nil,
+		nil,
+		b.Verbose)
 	if err != nil {
 		return 0, err
 	}
-	return result.(float64), nil
+
+	var result float64
+	return result, json.Unmarshal(contents, &result)
 }
 
 // GetRippleBalance returns the value for a ripple address
 func (b *Base) GetRippleBalance(address string) (float64, error) {
 	var result XRPScanAccount
-	err := common.SendHTTPGetRequest(xrpScanAPIURL+address, true, b.Verbose, &result)
+	contents, err := common.SendHTTPRequest(context.TODO(),
+		http.MethodGet,
+		xrpScanAPIURL+address,
+		nil,
+		nil,
+		b.Verbose)
+	if err != nil {
+		return 0, err
+	}
+
+	err = json.Unmarshal(contents, &result)
 	if err != nil {
 		return 0, err
 	}

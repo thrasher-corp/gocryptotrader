@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -50,11 +49,11 @@ var (
 	// ErrStartEqualsEnd is an error for start end check calculations
 	ErrStartEqualsEnd = errors.New("start date equals end date")
 	// ErrStartAfterTimeNow is an error for start end check calculations
-	ErrStartAfterTimeNow = errors.New("start date is after current time")
-	errContextRequired   = errors.New("context is required")
+	ErrStartAfterTimeNow       = errors.New("start date is after current time")
+	errCannotSetInvalidTimeout = errors.New("cannot set new HTTP client with timeout that is equal or less than 0")
 )
 
-func initialiseHTTPClient() {
+func init() {
 	m.Lock()
 	// If the HTTPClient isn't set, start a new client with a default timeout of 15 seconds
 	if HTTPClient == nil {
@@ -65,10 +64,14 @@ func initialiseHTTPClient() {
 
 // SetHTTPClientWithTimeout protects the setting of the
 // global HTTPClient
-func SetHTTPClientWithTimeout(t time.Duration) {
+func SetHTTPClientWithTimeout(t time.Duration) error {
+	if t <= 0 {
+		return errCannotSetInvalidTimeout
+	}
 	m.Lock()
-	defer m.Unlock()
 	HTTPClient = NewHTTPClientWithTimeout(t)
+	m.Unlock()
+	return nil
 }
 
 // NewHTTPClientWithTimeout initialises a new HTTP client and its underlying
@@ -182,30 +185,36 @@ func YesOrNo(input string) bool {
 	return false
 }
 
-// SendHTTPRequest sends a request using the http package and returns a response
-// as a string and an error
-func SendHTTPRequest(ctx context.Context, method, urlPath string, headers map[string]string, body io.Reader) (string, error) {
-	if ctx == nil {
-		return "", errContextRequired
-	}
-	result := strings.ToUpper(method)
+// SendHTTPRequest sends a request using the http package and returns the body
+// contents
+func SendHTTPRequest(ctx context.Context, method, urlPath string, headers map[string]string, body io.Reader, verbose bool) ([]byte, error) {
+	method = strings.ToUpper(method)
 
-	if result != http.MethodOptions && result != http.MethodGet &&
-		result != http.MethodHead && result != http.MethodPost &&
-		result != http.MethodPut && result != http.MethodDelete &&
-		result != http.MethodTrace && result != http.MethodConnect {
-		return "", errors.New("invalid HTTP method specified")
+	if method != http.MethodOptions && method != http.MethodGet &&
+		method != http.MethodHead && method != http.MethodPost &&
+		method != http.MethodPut && method != http.MethodDelete &&
+		method != http.MethodTrace && method != http.MethodConnect {
+		return nil, errors.New("invalid HTTP method specified")
 	}
-
-	initialiseHTTPClient()
 
 	req, err := http.NewRequestWithContext(ctx, method, urlPath, body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	for k, v := range headers {
 		req.Header.Add(k, v)
+	}
+
+	if verbose {
+		log.Debugf(log.Global, "Request path: %s", urlPath)
+		for k, d := range req.Header {
+			log.Debugf(log.Global, "Request header [%s]: %s", k, d)
+		}
+		log.Debugf(log.Global, "Request type: %s", method)
+		if body != nil {
+			log.Debugf(log.Global, "Request body: %v", body)
+		}
 	}
 
 	if HTTPUserAgent != "" && req.Header.Get("User-Agent") == "" {
@@ -214,63 +223,22 @@ func SendHTTPRequest(ctx context.Context, method, urlPath string, headers map[st
 
 	m.Lock()
 	resp, err := HTTPClient.Do(req)
-	if err != nil {
-		m.Unlock()
-		return "", err
-	}
 	m.Unlock()
-
-	contents, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 	defer resp.Body.Close()
 
-	if err != nil {
-		return "", err
+	contents, err := ioutil.ReadAll(resp.Body)
+
+	if verbose {
+		log.Debugf(log.Global, "HTTP status: %s, Code: %v",
+			resp.Status,
+			resp.StatusCode)
+		log.Debugf(log.Global, "Raw response: %s", string(contents))
 	}
 
-	return string(contents), nil
-}
-
-// SendHTTPGetRequest sends a simple get request using a url string & JSON
-// decodes the response into a struct pointer you have supplied. Returns an error
-// on failure.
-func SendHTTPGetRequest(urlPath string, jsonDecode, isVerbose bool, result interface{}) error {
-	if isVerbose {
-		log.Debugf(log.Global, "Raw URL: %s\n", urlPath)
-	}
-
-	initialiseHTTPClient()
-
-	m.Lock()
-	res, err := HTTPClient.Get(urlPath)
-	if err != nil {
-		m.Unlock()
-		return err
-	}
-	m.Unlock()
-
-	if res.StatusCode != 200 {
-		return fmt.Errorf("common.SendHTTPGetRequest() error: HTTP status code %d", res.StatusCode)
-	}
-
-	contents, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-
-	if isVerbose {
-		log.Debugf(log.Global, "Raw Resp: %s\n", string(contents))
-	}
-
-	defer res.Body.Close()
-
-	if jsonDecode {
-		err := json.Unmarshal(contents, result)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return contents, err
 }
 
 // EncodeURLValues concatenates url values onto a url string and returns a

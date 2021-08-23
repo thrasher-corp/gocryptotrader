@@ -64,7 +64,7 @@ func TestNewVCRServer(t *testing.T) {
 		http.MethodGet,
 		"http://localhost:300/somethingElse?"+queryString,
 		nil,
-		bytes.NewBufferString(""))
+		bytes.NewBufferString(""), true)
 	if err == nil {
 		t.Error("Sending http request expected an error")
 	}
@@ -74,12 +74,12 @@ func TestNewVCRServer(t *testing.T) {
 		http.MethodGet,
 		deets,
 		nil,
-		bytes.NewBufferString(""))
+		bytes.NewBufferString(""), true)
 	if err != nil {
 		t.Error("Sending http request error", err)
 	}
 
-	if !strings.Contains(r, "404 page not found") {
+	if !strings.Contains(string(r), "404 page not found") {
 		t.Error("Was not expecting any value returned:", r)
 	}
 
@@ -87,7 +87,7 @@ func TestNewVCRServer(t *testing.T) {
 		http.MethodGet,
 		deets+"/test?"+queryString,
 		nil,
-		bytes.NewBufferString(""))
+		bytes.NewBufferString(""), true)
 	if err != nil {
 		t.Error("Sending http request error", err)
 	}
