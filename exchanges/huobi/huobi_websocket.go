@@ -139,7 +139,7 @@ func (h *HUOBI) wsReadData() {
 					select {
 					case h.Websocket.DataHandler <- err:
 					default:
-						log.Error(log.WebsocketMgr,
+						log.Errorf(log.WebsocketMgr,
 							"%s websocket handle data error: %v",
 							h.Name,
 							err)

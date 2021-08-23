@@ -236,7 +236,7 @@ func (g *Gemini) wsReadData() {
 					select {
 					case g.Websocket.DataHandler <- err:
 					default:
-						log.Error(log.WebsocketMgr,
+						log.Errorf(log.WebsocketMgr,
 							"%s websocket handle data error: %v",
 							g.Name,
 							err)
