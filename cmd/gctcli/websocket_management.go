@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
@@ -107,10 +106,6 @@ func getwebsocketInfo(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
-	if !validExchange(exchange) {
-		return fmt.Errorf("[%s] is not a valid exchange", exchange)
-	}
-
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -138,10 +133,6 @@ func enableDisableWebsocket(c *cli.Context) error {
 		exchange = c.String("exchange")
 	} else {
 		exchange = c.Args().First()
-	}
-
-	if !validExchange(exchange) {
-		return fmt.Errorf("[%s] is not a valid exchange", exchange)
 	}
 
 	conn, err := setupClient()
@@ -172,10 +163,6 @@ func getSubscriptions(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
-	if !validExchange(exchange) {
-		return fmt.Errorf("[%s] is not a valid exchange", exchange)
-	}
-
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -202,10 +189,6 @@ func setProxy(c *cli.Context) error {
 		exchange = c.String("exchange")
 	} else {
 		exchange = c.Args().First()
-	}
-
-	if !validExchange(exchange) {
-		return fmt.Errorf("[%s] is not a valid exchange", exchange)
 	}
 
 	var proxy string
@@ -241,10 +224,6 @@ func setURL(c *cli.Context) error {
 		exchange = c.String("exchange")
 	} else {
 		exchange = c.Args().First()
-	}
-
-	if !validExchange(exchange) {
-		return fmt.Errorf("[%s] is not a valid exchange", exchange)
 	}
 
 	var url string

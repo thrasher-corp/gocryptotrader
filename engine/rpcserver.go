@@ -286,6 +286,9 @@ func (s *RPCServer) EnableExchange(_ context.Context, r *gctrpc.GenericExchangeN
 
 // GetExchangeOTPCode retrieves an exchanges OTP code
 func (s *RPCServer) GetExchangeOTPCode(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GetExchangeOTPResponse, error) {
+	if exch := s.GetExchangeByName(r.Exchange); exch == nil {
+		return nil, ErrExchangeNotFound
+	}
 	result, err := s.GetExchangeOTPByName(r.Exchange)
 	return &gctrpc.GetExchangeOTPResponse{OtpCode: result}, err
 }
@@ -1864,6 +1867,10 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 		return errExchangeNameUnset
 	}
 
+	if exch := s.GetExchangeByName(r.Exchange); exch == nil {
+		return ErrExchangeNotFound
+	}
+
 	pipe, err := orderbook.SubscribeToExchangeOrderbooks(r.Exchange)
 	if err != nil {
 		return err
@@ -1914,6 +1921,10 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gctrpc.GoCryptoTrader_GetTickerStreamServer) error {
 	if r.Exchange == "" {
 		return errExchangeNameUnset
+	}
+
+	if exch := s.GetExchangeByName(r.Exchange); exch == nil {
+		return ErrExchangeNotFound
 	}
 
 	a, err := asset.New(r.AssetType)
@@ -1977,6 +1988,10 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeTickerStreamServer) error {
 	if r.Exchange == "" {
 		return errExchangeNameUnset
+	}
+
+	if exch := s.GetExchangeByName(r.Exchange); exch == nil {
+		return ErrExchangeNotFound
 	}
 
 	pipe, err := ticker.SubscribeToExchangeTickers(r.Exchange)
