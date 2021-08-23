@@ -531,9 +531,9 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
 func (bot *Engine) GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
-	exch := bot.GetExchangeByName(exchangeName)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	exch, err := bot.GetExchangeByName(exchangeName)
+	if err != nil {
+		return nil, err
 	}
 	return exch.FetchOrderbook(p, assetType)
 }
@@ -541,9 +541,9 @@ func (bot *Engine) GetSpecificOrderbook(p currency.Pair, exchangeName string, as
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
 func (bot *Engine) GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
-	exch := bot.GetExchangeByName(exchangeName)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	exch, err := bot.GetExchangeByName(exchangeName)
+	if err != nil {
+		return nil, err
 	}
 	return exch.FetchTicker(p, assetType)
 }
@@ -661,9 +661,9 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(exchName, accountID s
 		return bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, item)
 	}
 
-	exch := bot.GetExchangeByName(exchName)
-	if exch == nil {
-		return "", ErrExchangeNotFound
+	exch, err := bot.GetExchangeByName(exchName)
+	if err != nil {
+		return "", err
 	}
 	return exch.GetDepositAddress(item, accountID)
 }

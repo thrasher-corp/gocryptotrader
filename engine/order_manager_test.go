@@ -503,10 +503,15 @@ func TestCancelAllOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	exch := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
+
 	m.CancelAllOrders([]exchange.IBotExchange{})
 	if o.Status == order.Cancelled {
 		t.Error("Order should not be cancelled")
+	}
+
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	m.CancelAllOrders([]exchange.IBotExchange{exch})

@@ -43,7 +43,7 @@ var (
 // so that subsystems can use some functionality
 type iExchangeManager interface {
 	GetExchanges() []exchange.IBotExchange
-	GetExchangeByName(string) exchange.IBotExchange
+	GetExchangeByName(string) (exchange.IBotExchange, error)
 }
 
 // iCommsManager limits exposure of accessible functions to communication manager

@@ -180,9 +180,8 @@ func (m *OrderManager) Cancel(cancel *order.Cancel) error {
 		return err
 	}
 
-	exch := m.orderStore.exchangeManager.GetExchangeByName(cancel.Exchange)
-	if exch == nil {
-		err = ErrExchangeNotFound
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(cancel.Exchange)
+	if err != nil {
 		return err
 	}
 
@@ -232,9 +231,9 @@ func (m *OrderManager) GetOrderInfo(exchangeName, orderID string, cp currency.Pa
 		return order.Detail{}, ErrOrderIDCannotBeEmpty
 	}
 
-	exch := m.orderStore.exchangeManager.GetExchangeByName(exchangeName)
-	if exch == nil {
-		return order.Detail{}, ErrExchangeNotFound
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(exchangeName)
+	if err != nil {
+		return order.Detail{}, err
 	}
 	result, err := exch.GetOrderInfo(orderID, cp, a)
 	if err != nil {
@@ -317,9 +316,9 @@ func (m *OrderManager) Modify(mod *order.Modify) (*order.ModifyResponse, error) 
 	}
 
 	// Get exchange instance and submit order modification request.
-	exch := m.orderStore.exchangeManager.GetExchangeByName(mod.Exchange)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(mod.Exchange)
+	if err != nil {
+		return nil, err
 	}
 	res, err := exch.ModifyOrder(mod)
 	if err != nil {
@@ -369,9 +368,9 @@ func (m *OrderManager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, err
 	if err != nil {
 		return nil, err
 	}
-	exch := m.orderStore.exchangeManager.GetExchangeByName(newOrder.Exchange)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(newOrder.Exchange)
+	if err != nil {
+		return nil, err
 	}
 
 	// Checks for exchange min max limits for order amounts before order
@@ -409,9 +408,9 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 	if err != nil {
 		return nil, err
 	}
-	exch := m.orderStore.exchangeManager.GetExchangeByName(newOrder.Exchange)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(newOrder.Exchange)
+	if err != nil {
+		return nil, err
 	}
 
 	if checkExchangeLimits {
@@ -746,9 +745,9 @@ func (s *store) modifyExisting(id string, mod *order.Modify) error {
 // order exists and updates/creates it.
 func (s *store) upsert(od *order.Detail) error {
 	lName := strings.ToLower(od.Exchange)
-	exch := s.exchangeManager.GetExchangeByName(lName)
-	if exch == nil {
-		return ErrExchangeNotFound
+	_, err := s.exchangeManager.GetExchangeByName(lName)
+	if err != nil {
+		return err
 	}
 	s.m.Lock()
 	defer s.m.Unlock()
@@ -818,9 +817,9 @@ func (s *store) add(det *order.Detail) error {
 	if det == nil {
 		return errors.New("order store: Order is nil")
 	}
-	exch := s.exchangeManager.GetExchangeByName(det.Exchange)
-	if exch == nil {
-		return ErrExchangeNotFound
+	_, err := s.exchangeManager.GetExchangeByName(det.Exchange)
+	if err != nil {
+		return err
 	}
 	if s.exists(det) {
 		return ErrOrdersAlreadyExists

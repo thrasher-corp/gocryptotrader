@@ -175,11 +175,11 @@ func TestCheckExchangeExists(t *testing.T) {
 	exch.SetDefaults()
 	em.Add(exch)
 	e := &Engine{ExchangeManager: em}
-	if e.GetExchangeByName(testExchange) == nil {
+	if _, err := e.GetExchangeByName(testExchange); err != nil {
 		t.Errorf("TestGetExchangeExists: Unable to find exchange")
 	}
 
-	if e.GetExchangeByName("Asdsad") != nil {
+	if _, err := e.GetExchangeByName("Asdsad"); err == nil {
 		t.Errorf("TestGetExchangeExists: Non-existent exchange found")
 	}
 }
@@ -201,18 +201,20 @@ func TestGetExchangeByName(t *testing.T) {
 	}
 
 	exch.SetEnabled(false)
-	bfx := e.GetExchangeByName(testExchange)
+	bfx, err := e.GetExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if bfx.IsEnabled() {
 		t.Errorf("TestGetExchangeByName: Unexpected result")
 	}
-
 	if exch.GetName() != testExchange {
 		t.Errorf("TestGetExchangeByName: Unexpected result")
 	}
 
-	exch = e.GetExchangeByName("Asdasd")
-	if exch != nil {
-		t.Errorf("TestGetExchangeByName: Non-existent exchange found")
+	_, err = e.GetExchangeByName("Asdasd")
+	if err == nil {
+		t.Fatal("expected error")
 	}
 }
 

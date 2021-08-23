@@ -162,7 +162,11 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 		t.Fatal("Unexpected result", result)
 	}
 
-	exch := e.ExchangeManager.GetExchangeByName(testExchange)
+	exch, err := e.ExchangeManager.GetExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	b := exch.GetBase()
 	b.API.AuthenticatedWebsocketSupport = true
 	b.API.Credentials.Key = "test"

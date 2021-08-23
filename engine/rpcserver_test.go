@@ -1733,10 +1733,14 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 	// Make a dummy pair we'll be using for this test.
 	pair := currency.NewPairWithDelimiter("XXXXX", "YYYYY", "")
 
-	// Create a mock-up RPCServer and add our newly made pair to its list of available
-	// and enabled pairs.
+	// Create a mock-up RPCServer and add our newly made pair to its list of
+	// available and enabled pairs.
 	server := RPCServer{Engine: RPCTestSetup(t)}
-	b := server.ExchangeManager.GetExchangeByName(testExchange).GetBase()
+	exch, err := server.GetExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
 	b.CurrencyPairs.Pairs[asset.Spot].Available = append(
 		b.CurrencyPairs.Pairs[asset.Spot].Available,
 		pair,

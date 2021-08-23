@@ -805,8 +805,8 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 		return err
 	}
 
-	exch := client.exchangeManager.GetExchangeByName(tickerReq.Exchange)
-	if exch == nil {
+	exch, err := client.exchangeManager.GetExchangeByName(tickerReq.Exchange)
+	if err != nil {
 		wsResp.Error = exchange.ErrNoExchangeFound.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
@@ -860,8 +860,8 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 		return err
 	}
 
-	exch := client.exchangeManager.GetExchangeByName(orderbookReq.Exchange)
-	if exch == nil {
+	exch, err := client.exchangeManager.GetExchangeByName(orderbookReq.Exchange)
+	if err != nil {
 		wsResp.Error = exchange.ErrNoExchangeFound.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
