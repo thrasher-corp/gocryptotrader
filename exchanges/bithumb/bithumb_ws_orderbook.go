@@ -114,6 +114,14 @@ func (b *Bithumb) SynchroniseWebsocketOrderbook() {
 		defer b.Websocket.Wg.Done()
 		for {
 			select {
+			case <-b.Websocket.ShutdownC:
+				for {
+					select {
+					case <-b.obm.jobs:
+					default:
+						return
+					}
+				}
 			case j := <-b.obm.jobs:
 				err := b.processJob(j.Pair)
 				if err != nil {
@@ -121,8 +129,6 @@ func (b *Bithumb) SynchroniseWebsocketOrderbook() {
 						"%s processing websocket orderbook error %v",
 						b.Name, err)
 				}
-			case <-b.Websocket.ShutdownC:
-				return
 			}
 		}
 	}()
