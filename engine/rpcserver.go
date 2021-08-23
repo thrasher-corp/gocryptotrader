@@ -52,6 +52,7 @@ import (
 
 var (
 	errExchangeNotLoaded    = errors.New("exchange is not loaded/doesn't exist")
+	errExchangeNotEnabled   = errors.New("exchange is not enabled")
 	errExchangeBaseNotFound = errors.New("cannot get exchange base")
 	errInvalidArguments     = errors.New("invalid arguments received")
 	errExchangeNameUnset    = errors.New("exchange name unset")
@@ -289,8 +290,8 @@ func (s *RPCServer) EnableExchange(_ context.Context, r *gctrpc.GenericExchangeN
 
 // GetExchangeOTPCode retrieves an exchanges OTP code
 func (s *RPCServer) GetExchangeOTPCode(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GetExchangeOTPResponse, error) {
-	if exch := s.GetExchangeByName(r.Exchange); exch == nil {
-		return nil, ErrExchangeNotFound
+	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
+		return nil, err
 	}
 	result, err := s.GetExchangeOTPByName(r.Exchange)
 	return &gctrpc.GetExchangeOTPResponse{OtpCode: result}, err
@@ -1406,10 +1407,6 @@ func (s *RPCServer) CancelAllOrders(_ context.Context, r *gctrpc.CancelAllOrders
 		return nil, err
 	}
 
-	if exch == nil {
-		return &gctrpc.CancelAllOrdersResponse{}, errExchangeNotLoaded
-	}
-
 	resp, err := exch.CancelAllOrders(nil)
 	if err != nil {
 		return &gctrpc.CancelAllOrdersResponse{}, err
@@ -1939,8 +1936,8 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 		return errExchangeNameUnset
 	}
 
-	if exch := s.GetExchangeByName(r.Exchange); exch == nil {
-		return ErrExchangeNotFound
+	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
+		return err
 	}
 
 	pipe, err := orderbook.SubscribeToExchangeOrderbooks(r.Exchange)
@@ -1995,8 +1992,8 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 		return errExchangeNameUnset
 	}
 
-	if exch := s.GetExchangeByName(r.Exchange); exch == nil {
-		return ErrExchangeNotFound
+	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
+		return err
 	}
 
 	a, err := asset.New(r.AssetType)
@@ -2062,8 +2059,8 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 		return errExchangeNameUnset
 	}
 
-	if exch := s.GetExchangeByName(r.Exchange); exch == nil {
-		return ErrExchangeNotFound
+	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
+		return err
 	}
 
 	pipe, err := ticker.SubscribeToExchangeTickers(r.Exchange)
@@ -3370,7 +3367,7 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 		return fmt.Errorf("%s %w", exchName, errExchangeNotLoaded)
 	}
 	if !e.IsEnabled() {
-		return fmt.Errorf("%s %w", exchName, ErrExchangeNotFound)
+		return fmt.Errorf("%s %w", exchName, errExchangeNotEnabled)
 	}
 	if a.IsValid() {
 		b := e.GetBase()
