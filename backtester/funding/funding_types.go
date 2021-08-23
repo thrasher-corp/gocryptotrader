@@ -57,8 +57,8 @@ type Item struct {
 	Exchange     string
 	Asset        asset.Item
 	Item         currency.Code
-	InitialFunds decimal.Decimal
-	Available    decimal.Decimal
+	initialFunds decimal.Decimal
+	available    decimal.Decimal
 	Reserved     decimal.Decimal
 	PairedWith   *Item
 	TransferFee  decimal.Decimal

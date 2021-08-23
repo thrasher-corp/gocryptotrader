@@ -26,7 +26,7 @@ func (a *AllFunds) Reset() {
 
 // Transfer allows transferring funds from one pretend exchange to another
 func (a *AllFunds) Transfer(amount decimal.Decimal, sender, receiver *Item) error {
-	if !sender.Available.LessThanOrEqual(amount.Add(sender.TransferFee)) {
+	if !sender.available.LessThanOrEqual(amount.Add(sender.TransferFee)) {
 		return errors.New("not enough funds")
 	}
 	if sender.Item != receiver.Item {
@@ -58,8 +58,8 @@ func (a *AllFunds) AddItem(exch string, ass asset.Item, ci currency.Code, initia
 		Exchange:     exch,
 		Asset:        ass,
 		Item:         ci,
-		InitialFunds: initialFunds,
-		Available:    initialFunds,
+		initialFunds: initialFunds,
+		available:    initialFunds,
 	}
 	a.items = append(a.items, item)
 	return nil
@@ -86,8 +86,8 @@ func (a *AllFunds) AddPair(exch string, ass asset.Item, cp currency.Pair, initia
 		Exchange:     exch,
 		Asset:        ass,
 		Item:         cp.Quote,
-		InitialFunds: initialFunds,
-		Available:    initialFunds,
+		initialFunds: initialFunds,
+		available:    initialFunds,
 		PairedWith:   base,
 	}
 	base.PairedWith = quote
@@ -142,20 +142,20 @@ func (a *AllFunds) GetFundingForEAP(exch string, ass asset.Item, p currency.Pair
 }
 
 func (p *Pair) BaseInitialFunds() decimal.Decimal {
-	return p.Base.InitialFunds
+	return p.Base.initialFunds
 }
 
 func (p *Pair) QuoteInitialFunds() decimal.Decimal {
-	return p.Quote.InitialFunds
+	return p.Quote.initialFunds
 
 }
 
 func (p *Pair) BaseAvailable() decimal.Decimal {
-	return p.Base.Available
+	return p.Base.available
 }
 
 func (p *Pair) QuoteAvailable() decimal.Decimal {
-	return p.Quote.Available
+	return p.Quote.available
 }
 
 func (p *Pair) Reserve(amount decimal.Decimal, side order.Side) error {
@@ -203,16 +203,16 @@ func (i *Item) Reserve(amount decimal.Decimal) error {
 	if amount.IsNegative() {
 		return fmt.Errorf("%w amount", ErrNegativeAmountReceived)
 	}
-	if amount.GreaterThan(i.Available) {
+	if amount.GreaterThan(i.available) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Available: %v",
 			ErrCannotAllocate,
 			i.Exchange,
 			i.Asset,
 			i.Item,
 			amount,
-			i.Available)
+			i.available)
 	}
-	i.Available = i.Available.Sub(amount)
+	i.available = i.available.Sub(amount)
 	i.Reserved = i.Reserved.Add(amount)
 	return nil
 }
@@ -236,7 +236,7 @@ func (i *Item) Release(amount, diff decimal.Decimal) error {
 			i.Reserved)
 	}
 	i.Reserved = i.Reserved.Sub(amount)
-	i.Available = i.Available.Add(diff)
+	i.available = i.available.Add(diff)
 	return nil
 }
 
@@ -244,15 +244,15 @@ func (i *Item) IncreaseAvailable(amount decimal.Decimal) {
 	if amount.IsNegative() || amount.IsZero() {
 		return
 	}
-	i.Available = i.Available.Add(amount)
+	i.available = i.available.Add(amount)
 }
 
 func (p *Pair) CanPlaceOrder(side order.Side) bool {
 	switch side {
 	case order.Buy:
-		return p.Quote.Available.GreaterThan(decimal.Zero)
+		return p.Quote.available.GreaterThan(decimal.Zero)
 	case order.Sell:
-		return p.Base.Available.GreaterThan(decimal.Zero)
+		return p.Base.available.GreaterThan(decimal.Zero)
 	}
 	return false
 }

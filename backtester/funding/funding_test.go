@@ -21,11 +21,11 @@ func TestCanPlaceOrder(t *testing.T) {
 		t.Error("expected false")
 	}
 
-	p.Quote.Available = decimal.NewFromFloat(32)
+	p.Quote.available = decimal.NewFromFloat(32)
 	if !p.CanPlaceOrder(gctorder.Buy) {
 		t.Error("expected true")
 	}
-	p.Base.Available = decimal.NewFromFloat(32)
+	p.Base.available = decimal.NewFromFloat(32)
 	if !p.CanPlaceOrder(gctorder.Sell) {
 		t.Error("expected true")
 	}
@@ -34,12 +34,12 @@ func TestCanPlaceOrder(t *testing.T) {
 func TestIncreaseAvailable(t *testing.T) {
 	i := Item{}
 	i.IncreaseAvailable(decimal.NewFromFloat(3))
-	if !i.Available.Equal(decimal.NewFromFloat(3)) {
+	if !i.available.Equal(decimal.NewFromFloat(3)) {
 		t.Error("expected 3")
 	}
 	i.IncreaseAvailable(decimal.NewFromFloat(0))
 	i.IncreaseAvailable(decimal.NewFromFloat(-1))
-	if !i.Available.Equal(decimal.NewFromFloat(3)) {
+	if !i.available.Equal(decimal.NewFromFloat(3)) {
 		t.Error("expected 3")
 	}
 }
@@ -65,6 +65,40 @@ func TestRelease(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, ErrNegativeAmountReceived)
 	}
 	err = i.Release(decimal.NewFromFloat(1337), decimal.NewFromFloat(-1))
+	if !errors.Is(err, ErrNegativeAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, ErrNegativeAmountReceived)
+	}
+}
+
+func TestReserve(t *testing.T) {
+	i := Item{}
+	err := i.Reserve(decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = i.Reserve(decimal.NewFromFloat(1337))
+	if !errors.Is(err, ErrCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	}
+
+	i.Reserved = decimal.NewFromFloat(1337)
+	err = i.Reserve(decimal.NewFromFloat(1337))
+	if !errors.Is(err, ErrCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	}
+
+	i.available = decimal.NewFromFloat(1337)
+	err = i.Reserve(decimal.NewFromFloat(1337))
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	err = i.Reserve(decimal.NewFromFloat(1337))
+	if !errors.Is(err, ErrCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	}
+
+	err = i.Reserve(decimal.NewFromFloat(-1))
 	if !errors.Is(err, ErrNegativeAmountReceived) {
 		t.Errorf("received '%v' expected '%v'", err, ErrNegativeAmountReceived)
 	}
