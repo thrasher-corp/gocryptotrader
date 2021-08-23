@@ -67,7 +67,7 @@ func (b *Bithumb) UpdateLocalBuffer(wsdp *WsOrderbooks) (bool, error) {
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
 func (b *Bithumb) applyBufferUpdate(pair currency.Pair) error {
-	fetching, err := b.obm.checkIsFetchingBook(pair)
+	fetching, needsFetching, err := b.obm.handleFetchingBook(pair)
 	if err != nil {
 		return err
 	}
@@ -75,12 +75,35 @@ func (b *Bithumb) applyBufferUpdate(pair currency.Pair) error {
 		return nil
 	}
 
-	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	if err != nil || (recent.Asks == nil && recent.Bids == nil) {
+	if needsFetching {
+		if b.Verbose {
+			log.Debugf(log.WebsocketMgr, "%s Orderbook: Fetching via REST\n", b.Name)
+		}
 		return b.obm.fetchBookViaREST(pair)
 	}
 
-	return b.obm.checkAndProcessUpdate(b.processBooks, pair, recent)
+	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	if err != nil {
+		log.Errorf(
+			log.WebsocketMgr,
+			"%s error fetching recent orderbook when applying updates: %s\n",
+			b.Name,
+			err)
+	}
+
+	if recent != nil {
+		err = b.obm.checkAndProcessUpdate(b.processBooks, pair, recent)
+		if err != nil {
+			log.Errorf(
+				log.WebsocketMgr,
+				"%s error processing update - initiating new orderbook sync via REST: %s\n",
+				b.Name,
+				err)
+			b.obm.setNeedsFetchingBook(pair)
+		}
+	}
+
+	return nil
 }
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
@@ -149,20 +172,22 @@ func (b *Bithumb) setupOrderbookManager() {
 	if b.obm.state == nil {
 		b.obm.state = make(map[currency.Code]map[currency.Code]map[asset.Item]*update)
 		b.obm.jobs = make(chan job, maxWSOrderbookJobs)
-
-		for i := 0; i < maxWSOrderbookWorkers; i++ {
-			// 10 workers for synchronising book
-			b.SynchroniseWebsocketOrderbook()
-		}
 	} else {
 		// Change state on reconnect for initial sync.
 		for _, m1 := range b.obm.state {
 			for _, m2 := range m1 {
 				for _, update := range m2 {
 					update.initialSync = true
+					update.needsFetchingBook = true
+					update.lastUpdated = time.Time{}
 				}
 			}
 		}
+	}
+
+	for i := 0; i < maxWSOrderbookWorkers; i++ {
+		// 10 workers for synchronising book
+		b.SynchroniseWebsocketOrderbook()
 	}
 }
 
@@ -186,9 +211,10 @@ func (o *orderbookManager) stageWsUpdate(u *WsOrderbooks, pair currency.Pair, a 
 	state, ok := m2[a]
 	if !ok {
 		state = &update{
-			buffer:       make(chan *WsOrderbooks, maxWSUpdateBuffer),
-			fetchingBook: false,
-			initialSync:  true,
+			buffer:            make(chan *WsOrderbooks, maxWSUpdateBuffer),
+			fetchingBook:      false,
+			initialSync:       true,
+			needsFetchingBook: true,
 		}
 		m2[a] = state
 	}
@@ -210,19 +236,30 @@ func (o *orderbookManager) stageWsUpdate(u *WsOrderbooks, pair currency.Pair, a 
 	}
 }
 
-// checkIsFetchingBook checks status if the book is currently being via the REST
-// protocol.
-func (o *orderbookManager) checkIsFetchingBook(pair currency.Pair) (bool, error) {
+// handleFetchingBook checks if a full book is being fetched or needs to be
+// fetched
+func (o *orderbookManager) handleFetchingBook(pair currency.Pair) (fetching, needsFetching bool, err error) {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
 	if !ok {
 		return false,
+			false,
 			fmt.Errorf("check is fetching book cannot match currency pair %s asset type %s",
 				pair,
 				asset.Spot)
 	}
-	return state.fetchingBook, nil
+
+	if state.fetchingBook {
+		return true, false, nil
+	}
+
+	if state.needsFetchingBook {
+		state.needsFetchingBook = false
+		state.fetchingBook = true
+		return false, true, nil
+	}
+	return false, false, nil
 }
 
 // stopFetchingBook completes the book fetching.
@@ -363,6 +400,7 @@ bufferEmpty:
 	// disable rest orderbook synchronisation
 	_ = o.stopFetchingBook(pair)
 	_ = o.completeInitialSync(pair)
+	_ = o.stopNeedsFetchingBook(pair)
 	return nil
 }
 
@@ -397,4 +435,37 @@ func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
 	newOrderBook.LastUpdated = time.Unix(0, o.Data.Timestamp*int64(time.Millisecond))
 	newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+}
+
+// setNeedsFetchingBook completes the book fetching initiation.
+func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair) error {
+	o.Lock()
+	defer o.Unlock()
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	if !ok {
+		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
+			pair,
+			asset.Spot)
+	}
+	state.needsFetchingBook = true
+	return nil
+}
+
+// stopNeedsFetchingBook completes the book fetching initiation.
+func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
+	o.Lock()
+	defer o.Unlock()
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	if !ok {
+		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
+			pair,
+			asset.Spot)
+	}
+	if !state.needsFetchingBook {
+		return fmt.Errorf("needs fetching book already set to false for %s %s",
+			pair,
+			asset.Spot)
+	}
+	state.needsFetchingBook = false
+	return nil
 }
