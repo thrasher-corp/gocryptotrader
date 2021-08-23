@@ -159,6 +159,21 @@ func (k *Kraken) wsReadData(comms chan stream.Response) {
 	for {
 		select {
 		case <-k.Websocket.ShutdownC:
+			select {
+			case resp := <-comms:
+				err := k.wsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case k.Websocket.DataHandler <- err:
+					default:
+						log.Error(log.WebsocketMgr,
+							"%s websocket handle data error: %v",
+							k.Name,
+							err)
+					}
+				}
+			default:
+			}
 			return
 		case resp := <-comms:
 			err := k.wsHandleData(resp.Raw)

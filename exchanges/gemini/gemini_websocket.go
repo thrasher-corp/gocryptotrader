@@ -229,6 +229,21 @@ func (g *Gemini) wsReadData() {
 	for {
 		select {
 		case <-g.Websocket.ShutdownC:
+			select {
+			case resp := <-comms:
+				err := g.wsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case g.Websocket.DataHandler <- err:
+					default:
+						log.Error(log.WebsocketMgr,
+							"%s websocket handle data error: %v",
+							g.Name,
+							err)
+					}
+				}
+			default:
+			}
 			return
 		case resp := <-comms:
 			err := g.wsHandleData(resp.Raw)

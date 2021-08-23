@@ -132,6 +132,21 @@ func (h *HUOBI) wsReadData() {
 	for {
 		select {
 		case <-h.Websocket.ShutdownC:
+			select {
+			case resp := <-comms:
+				err := h.wsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case h.Websocket.DataHandler <- err:
+					default:
+						log.Error(log.WebsocketMgr,
+							"%s websocket handle data error: %v",
+							h.Name,
+							err)
+					}
+				}
+			default:
+			}
 			return
 		case resp := <-comms:
 			err := h.wsHandleData(resp.Raw)
