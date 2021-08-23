@@ -826,10 +826,11 @@ type orderbookManager struct {
 }
 
 type update struct {
-	buffer       chan *WebsocketDepthStream
-	fetchingBook bool
-	initialSync  bool
-	lastUpdateID int64
+	buffer            chan *WebsocketDepthStream
+	fetchingBook      bool
+	initialSync       bool
+	needsFetchingBook bool
+	lastUpdateID      int64
 }
 
 // job defines a synchonisation job that tells a go routine to fetch an

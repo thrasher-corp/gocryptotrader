@@ -28,11 +28,6 @@ func (b *Bittrex) setupOrderbookManager() {
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
 			jobs:  make(chan job, maxWSOrderbookJobs),
 		}
-
-		for i := 0; i < maxWSOrderbookWorkers; i++ {
-			// 10 workers for synchronising book
-			b.SynchroniseWebsocketOrderbook()
-		}
 	} else {
 		// Change state on reconnect for initial sync.
 		for _, m1 := range b.obm.state {
@@ -43,6 +38,11 @@ func (b *Bittrex) setupOrderbookManager() {
 				}
 			}
 		}
+	}
+
+	for i := 0; i < maxWSOrderbookWorkers; i++ {
+		// 10 workers for synchronising book
+		b.SynchroniseWebsocketOrderbook()
 	}
 }
 
