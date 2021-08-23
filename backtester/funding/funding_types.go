@@ -51,3 +51,21 @@ type IPairReleaser interface {
 	Increase(decimal.Decimal, order.Side)
 	Release(decimal.Decimal, decimal.Decimal, order.Side) error
 }
+
+// Item holds funding data per currency item
+type Item struct {
+	Exchange     string
+	Asset        asset.Item
+	Item         currency.Code
+	InitialFunds decimal.Decimal
+	Available    decimal.Decimal
+	Reserved     decimal.Decimal
+	PairedWith   *Item
+	TransferFee  decimal.Decimal
+}
+
+// Pair holds two currencies that are associated with eachother
+type Pair struct {
+	Base  *Item
+	Quote *Item
+}

@@ -11,7 +11,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var ErrAlreadyExists = errors.New("already exists")
+var (
+	ErrNegativeAmountReceived = errors.New("received negative decimal")
+	ErrAlreadyExists          = errors.New("already exists")
+)
 
 func Setup(usingExchangeLevelFunding bool) *AllFunds {
 	return &AllFunds{usingExchangeLevelFunding: usingExchangeLevelFunding}
@@ -19,6 +22,32 @@ func Setup(usingExchangeLevelFunding bool) *AllFunds {
 
 func (a *AllFunds) Reset() {
 	*a = AllFunds{}
+}
+
+// Transfer allows transferring funds from one pretend exchange to another
+func (a *AllFunds) Transfer(amount decimal.Decimal, sender, receiver *Item) error {
+	if !sender.Available.LessThanOrEqual(amount.Add(sender.TransferFee)) {
+		return errors.New("not enough funds")
+	}
+	if sender.Item != receiver.Item {
+		return errors.New("must be like for like")
+	}
+	if sender.Item == receiver.Item &&
+		sender.Exchange == receiver.Exchange &&
+		sender.Asset == receiver.Asset {
+		return errors.New("why are you sending to the same thing")
+	}
+	err := sender.Reserve(amount.Add(sender.TransferFee))
+	if err != nil {
+		return err
+	}
+	receiver.IncreaseAvailable(amount)
+	err = sender.Release(amount.Add(sender.TransferFee), decimal.Zero)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *AllFunds) AddItem(exch string, ass asset.Item, ci currency.Code, initialFunds decimal.Decimal) error {
@@ -112,11 +141,6 @@ func (a *AllFunds) GetFundingForEAP(exch string, ass asset.Item, p currency.Pair
 	return &resp, nil
 }
 
-type Pair struct {
-	Base  *Item
-	Quote *Item
-}
-
 func (p *Pair) BaseInitialFunds() decimal.Decimal {
 	return p.Base.InitialFunds
 }
@@ -176,6 +200,9 @@ func (p *Pair) Increase(amount decimal.Decimal, side order.Side) {
 }
 
 func (i *Item) Reserve(amount decimal.Decimal) error {
+	if amount.IsNegative() {
+		return fmt.Errorf("%w amount", ErrNegativeAmountReceived)
+	}
 	if amount.GreaterThan(i.Available) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Available: %v",
 			ErrCannotAllocate,
@@ -193,6 +220,12 @@ func (i *Item) Reserve(amount decimal.Decimal) error {
 // Release lowers the reserved amount and appends any differences
 // as a result of any exchange level modifications when ordering
 func (i *Item) Release(amount, diff decimal.Decimal) error {
+	if amount.IsNegative() {
+		return fmt.Errorf("%w amount", ErrNegativeAmountReceived)
+	}
+	if diff.IsNegative() {
+		return fmt.Errorf("%w diff", ErrNegativeAmountReceived)
+	}
 	if amount.GreaterThan(i.Reserved) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Reserved: %v",
 			ErrCannotAllocate,
@@ -208,21 +241,10 @@ func (i *Item) Release(amount, diff decimal.Decimal) error {
 }
 
 func (i *Item) IncreaseAvailable(amount decimal.Decimal) {
-	if amount.IsNegative() {
+	if amount.IsNegative() || amount.IsZero() {
 		return
 	}
 	i.Available = i.Available.Add(amount)
-}
-
-// Item holds funding data per currency item
-type Item struct {
-	Exchange     string
-	Asset        asset.Item
-	Item         currency.Code
-	InitialFunds decimal.Decimal
-	Available    decimal.Decimal
-	Reserved     decimal.Decimal
-	PairedWith   *Item
 }
 
 func (p *Pair) CanPlaceOrder(side order.Side) bool {
@@ -234,6 +256,3 @@ func (p *Pair) CanPlaceOrder(side order.Side) bool {
 	}
 	return false
 }
-
-// perhaps funding should also include sizing? This would allow sizing to easily occur across portfolio and exchange and stay within size
-// but hold off, because scope is really hard here

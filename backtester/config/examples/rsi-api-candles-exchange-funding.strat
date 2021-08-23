@@ -10,13 +10,13 @@
     "exchange-name": "binance",
     "asset": "spot",
     "quote": "BTC",
-    "initial-funds": "30"
+    "initial-funds": "0"
    },
    {
     "exchange-name": "binance",
     "asset": "spot",
     "quote": "USDT",
-    "initial-funds": "0"
+    "initial-funds": "10000"
    }
   ],
    "custom-settings": null

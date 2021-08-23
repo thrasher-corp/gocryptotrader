@@ -67,9 +67,10 @@ type ExchangeLevelFunding struct {
 	Quote        string `json:"quote"`
 
 	InitialFunds decimal.Decimal `json:"initial-funds"`
+	TransferFee  decimal.Decimal `json:"transfer-fee"`
 }
 
-// StatisticSettings holds configurable varialbes to adjust ratios where
+// StatisticSettings adjusts ratios where
 // proper data is currently lacking
 type StatisticSettings struct {
 	RiskFreeRate decimal.Decimal `json:"risk-free-rate"`
