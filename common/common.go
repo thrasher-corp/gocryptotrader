@@ -54,12 +54,8 @@ var (
 )
 
 func init() {
-	m.Lock()
-	// If the HTTPClient isn't set, start a new client with a default timeout of 15 seconds
-	if HTTPClient == nil {
-		HTTPClient = NewHTTPClientWithTimeout(time.Second * 15)
-	}
-	m.Unlock()
+	// set a new client with a default timeout of 15 seconds
+	HTTPClient = NewHTTPClientWithTimeout(time.Second * 15)
 }
 
 // SetHTTPClientWithTimeout protects the setting of the
