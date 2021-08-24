@@ -211,10 +211,22 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	if b.Settings.GlobalHTTPTimeout <= 0 {
 		b.Settings.GlobalHTTPTimeout = b.Config.GlobalHTTPTimeout
 	}
-	common.SetHTTPClientWithTimeout(b.Settings.GlobalHTTPTimeout)
+
+	err := common.SetHTTPClientWithTimeout(b.Settings.GlobalHTTPTimeout)
+	if err != nil {
+		gctlog.Errorf(gctlog.Global,
+			"Could not set new HTTP Client with timeout %s error: %v",
+			b.Settings.GlobalHTTPTimeout,
+			err)
+	}
 
 	if b.Settings.GlobalHTTPUserAgent != "" {
-		common.HTTPUserAgent = b.Settings.GlobalHTTPUserAgent
+		err = common.SetHTTPUserAgent(b.Settings.GlobalHTTPUserAgent)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "Could not set HTTP User Agent for %s error: %v",
+				b.Settings.GlobalHTTPUserAgent,
+				err)
+		}
 	}
 }
 

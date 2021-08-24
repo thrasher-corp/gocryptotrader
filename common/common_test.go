@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/url"
 	"os"
 	"os/user"
@@ -15,6 +16,66 @@ import (
 	"time"
 )
 
+func TestSendHTTPRequest(t *testing.T) {
+	// execute this function first
+	methodPost := "pOst"
+	methodGet := "GeT"
+	methodDelete := "dEleTe"
+	methodGarbage := "ding"
+
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+	_, err := SendHTTPRequest(context.Background(),
+		methodGarbage, "https://www.google.com", headers,
+		strings.NewReader(""), true,
+	)
+	if err == nil {
+		t.Error("Expected error 'invalid HTTP method specified'")
+	}
+	_, err = SendHTTPRequest(context.Background(),
+		methodPost, "https://www.google.com", headers,
+		strings.NewReader(""), true,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = SendHTTPRequest(context.Background(),
+		methodGet, "https://www.google.com", headers,
+		strings.NewReader(""), true,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = SetHTTPUserAgent("GCTbot/1337.69 (+http://www.lol.com/)")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	_, err = SendHTTPRequest(context.Background(),
+		methodDelete, "https://www.google.com", headers,
+		strings.NewReader(""), true,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = SendHTTPRequest(context.Background(),
+		methodGet, ":missingprotocolscheme", headers,
+		strings.NewReader(""), true,
+	)
+	if err == nil {
+		t.Error("Common HTTPRequest accepted missing protocol")
+	}
+	_, err = SendHTTPRequest(context.Background(),
+		methodGet, "test://unsupportedprotocolscheme", headers,
+		strings.NewReader(""), true,
+	)
+	if err == nil {
+		t.Error("Common HTTPRequest accepted invalid protocol")
+	}
+}
+
 func TestSetHTTPClientWithTimeout(t *testing.T) {
 	t.Parallel()
 	err := SetHTTPClientWithTimeout(-0)
@@ -23,6 +84,32 @@ func TestSetHTTPClientWithTimeout(t *testing.T) {
 	}
 
 	err = SetHTTPClientWithTimeout(time.Second * 15)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+}
+
+func TestSetHTTPUserAgent(t *testing.T) {
+	t.Parallel()
+	err := SetHTTPUserAgent("")
+	if !errors.Is(err, errUserAgentInvalid) {
+		t.Fatalf("received: %v but expected: %v", err, errUserAgentInvalid)
+	}
+
+	err = SetHTTPUserAgent("testy test")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+}
+
+func TestSetHTTPClientt(t *testing.T) {
+	t.Parallel()
+	err := SetHTTPClient(nil)
+	if !errors.Is(err, errHTTPClientInvalid) {
+		t.Fatalf("received: %v but expected: %v", err, errHTTPClientInvalid)
+	}
+
+	err = SetHTTPClient(new(http.Client))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -245,63 +332,6 @@ func TestYesOrNo(t *testing.T) {
 	}
 }
 
-func TestSendHTTPRequest(t *testing.T) {
-	methodPost := "pOst"
-	methodGet := "GeT"
-	methodDelete := "dEleTe"
-	methodGarbage := "ding"
-
-	headers := make(map[string]string)
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
-
-	_, err := SendHTTPRequest(context.Background(),
-		methodGarbage, "https://www.google.com", headers,
-		strings.NewReader(""), true,
-	)
-	if err == nil {
-		t.Error("Expected error 'invalid HTTP method specified'")
-	}
-	_, err = SendHTTPRequest(context.Background(),
-		methodPost, "https://www.google.com", headers,
-		strings.NewReader(""), true,
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = SendHTTPRequest(context.Background(),
-		methodGet, "https://www.google.com", headers,
-		strings.NewReader(""), true,
-	)
-	if err != nil {
-		t.Error(err)
-	}
-
-	m.Lock()
-	HTTPUserAgent = "GCTbot/1337.69 (+http://www.lol.com/)"
-	m.Unlock()
-	_, err = SendHTTPRequest(context.Background(),
-		methodDelete, "https://www.google.com", headers,
-		strings.NewReader(""), true,
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = SendHTTPRequest(context.Background(),
-		methodGet, ":missingprotocolscheme", headers,
-		strings.NewReader(""), true,
-	)
-	if err == nil {
-		t.Error("Common HTTPRequest accepted missing protocol")
-	}
-	_, err = SendHTTPRequest(context.Background(),
-		methodGet, "test://unsupportedprotocolscheme", headers,
-		strings.NewReader(""), true,
-	)
-	if err == nil {
-		t.Error("Common HTTPRequest accepted invalid protocol")
-	}
-}
-
 func TestEncodeURLValues(t *testing.T) {
 	t.Parallel()
 	urlstring := "https://www.test.com"
@@ -479,6 +509,7 @@ func TestCreateDir(t *testing.T) {
 }
 
 func TestChangePermission(t *testing.T) {
+	t.Parallel()
 	testDir := filepath.Join(os.TempDir(), "TestFileASDFGHJ")
 	switch runtime.GOOS {
 	case "windows":
@@ -538,6 +569,7 @@ func initStringSlice(size int) (out []string) {
 }
 
 func TestSplitStringSliceByLimit(t *testing.T) {
+	t.Parallel()
 	slice50 := initStringSlice(50)
 	out := SplitStringSliceByLimit(slice50, 20)
 	if len(out) != 3 {
@@ -557,6 +589,7 @@ func TestSplitStringSliceByLimit(t *testing.T) {
 }
 
 func TestInArray(t *testing.T) {
+	t.Parallel()
 	InArray(nil, nil)
 
 	array := [6]int{2, 3, 5, 7, 11, 13}
@@ -595,6 +628,7 @@ func TestInArray(t *testing.T) {
 }
 
 func TestErrors(t *testing.T) {
+	t.Parallel()
 	var test Errors
 	if test.Error() != "" {
 		t.Fatal("string should be nil")
@@ -610,6 +644,7 @@ func TestErrors(t *testing.T) {
 }
 
 func TestParseStartEndDate(t *testing.T) {
+	t.Parallel()
 	pt := time.Date(1999, 1, 1, 0, 0, 0, 0, time.Local)
 	ft := time.Date(2222, 1, 1, 0, 0, 0, 0, time.Local)
 	et := time.Date(2020, 1, 1, 1, 0, 0, 0, time.Local)

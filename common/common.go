@@ -32,9 +32,9 @@ const (
 
 // Vars for common.go operations
 var (
-	HTTPClient    *http.Client
-	HTTPUserAgent string
-	m             sync.RWMutex
+	_HTTPClient    *http.Client
+	_HTTPUserAgent string
+	m              sync.RWMutex
 	// ErrNotYetImplemented defines a common error across the code base that
 	// alerts of a function that has not been completed or tied into main code
 	ErrNotYetImplemented = errors.New("not yet implemented")
@@ -51,21 +51,41 @@ var (
 	// ErrStartAfterTimeNow is an error for start end check calculations
 	ErrStartAfterTimeNow       = errors.New("start date is after current time")
 	errCannotSetInvalidTimeout = errors.New("cannot set new HTTP client with timeout that is equal or less than 0")
+	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
+	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
 )
 
-func init() {
-	// set a new client with a default timeout of 15 seconds
-	HTTPClient = NewHTTPClientWithTimeout(time.Second * 15)
-}
-
-// SetHTTPClientWithTimeout protects the setting of the
-// global HTTPClient
+// SetHTTPClientWithTimeout sets a new *http.Client with different timeout
+// settings
 func SetHTTPClientWithTimeout(t time.Duration) error {
 	if t <= 0 {
 		return errCannotSetInvalidTimeout
 	}
 	m.Lock()
-	HTTPClient = NewHTTPClientWithTimeout(t)
+	_HTTPClient = NewHTTPClientWithTimeout(t)
+	m.Unlock()
+	return nil
+}
+
+// SetHTTPUserAgent sets the user agent which will be used for all common HTTP
+// requests.
+func SetHTTPUserAgent(agent string) error {
+	if agent == "" {
+		return errUserAgentInvalid
+	}
+	m.Lock()
+	_HTTPUserAgent = agent
+	m.Unlock()
+	return nil
+}
+
+// SetHTTPClient sets a custom HTTP client.
+func SetHTTPClient(client *http.Client) error {
+	if client == nil {
+		return errHTTPClientInvalid
+	}
+	m.Lock()
+	_HTTPClient = client
 	m.Unlock()
 	return nil
 }
@@ -213,12 +233,20 @@ func SendHTTPRequest(ctx context.Context, method, urlPath string, headers map[st
 		}
 	}
 
-	if HTTPUserAgent != "" && req.Header.Get("User-Agent") == "" {
-		req.Header.Add("User-Agent", HTTPUserAgent)
+	m.RLock()
+	if _HTTPUserAgent != "" && req.Header.Get("User-Agent") == "" {
+		req.Header.Add("User-Agent", _HTTPUserAgent)
 	}
 
-	m.RLock()
-	resp, err := HTTPClient.Do(req)
+	if _HTTPClient == nil {
+		m.RUnlock()
+		m.Lock()
+		_HTTPClient = NewHTTPClientWithTimeout(time.Second * 15)
+		m.Unlock()
+		m.RLock()
+	}
+
+	resp, err := _HTTPClient.Do(req)
 	m.RUnlock()
 	if err != nil {
 		return nil, err

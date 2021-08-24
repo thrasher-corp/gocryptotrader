@@ -58,7 +58,10 @@ func TestNewVCRServer(t *testing.T) {
 		t.Error("NewVCRServer error", err)
 	}
 
-	common.HTTPClient = client // Set common package global HTTP Client
+	err = common.SetHTTPClient(client) // Set common package global HTTP Client
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, err = common.SendHTTPRequest(context.Background(),
 		http.MethodGet,
