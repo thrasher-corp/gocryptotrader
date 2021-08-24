@@ -24,9 +24,9 @@ type IFundingManager interface {
 	GetFundingForEAP(string, asset.Item, currency.Pair) (*Pair, error)
 }
 
-// AllFunds is the benevolent holder of all funding levels across all
+// FundManager is the benevolent holder of all funding levels across all
 // currencies used in the backtester
-type AllFunds struct {
+type FundManager struct {
 	usingExchangeLevelFunding bool
 	items                     []*Item
 }
@@ -48,7 +48,7 @@ type IPairReserver interface {
 // IPairReleaser limits funding usage for exchange event handling
 type IPairReleaser interface {
 	IPairReader
-	Increase(decimal.Decimal, order.Side)
+	IncreaseAvailable(decimal.Decimal, order.Side)
 	Release(decimal.Decimal, decimal.Decimal, order.Side) error
 }
 

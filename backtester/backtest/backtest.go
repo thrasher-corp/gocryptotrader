@@ -107,7 +107,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	}
 
 	useExchangeLevelFunding := cfg.StrategySettings.UseExchangeLevelFunding
-	funds := funding.Setup(useExchangeLevelFunding)
+	funds := funding.SetupFundingManager(useExchangeLevelFunding)
 	if !cfg.StrategySettings.SimultaneousSignalProcessing &&
 		useExchangeLevelFunding {
 		return nil, errors.New("Woah nelly!")
