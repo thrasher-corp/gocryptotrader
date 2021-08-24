@@ -57,7 +57,7 @@ linters:
     - nakedret
 #   - nestif
 #   - nlreturn
-#   - noctx
+    - noctx
     - nolintlint
 #   - prealloc
     - rowserrcheck
