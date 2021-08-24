@@ -372,9 +372,6 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	if c.IsSet("exchange") {
 		exchange = c.String("exchange")
 	}
-	if !validExchange(exchange) {
-		return errInvalidExchange
-	}
 
 	if c.IsSet("asset") {
 		assetType = c.String("asset")

@@ -865,6 +865,9 @@ Run gocryptotrader with the following settings enabled in config
 
 #### Handle websocket data:
 
+- Trades and order events are handled by populating an order.Detail
+  struct by [the following rules](./WS_ORDER_EVENTS.md).
+
 - Function to read data received from websocket:
 
 ```go

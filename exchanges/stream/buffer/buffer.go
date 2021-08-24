@@ -102,9 +102,6 @@ func (w *Orderbook) Update(u *Update) error {
 			u.Asset)
 	}
 
-	// Apply new update information
-	book.ob.SetLastUpdate(u.UpdateTime, u.UpdateID, false)
-
 	if w.bufferEnabled {
 		processed, err := w.processBufferUpdate(book, u)
 		if err != nil {
@@ -193,7 +190,11 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
 // updateByPrice ammends amount if match occurs by price, deletes if amount is
 // zero or less and inserts if not found.
 func (o *orderbookHolder) updateByPrice(updts *Update) {
-	o.ob.UpdateBidAskByPrice(updts.Bids, updts.Asks, updts.MaxDepth)
+	o.ob.UpdateBidAskByPrice(updts.Bids,
+		updts.Asks,
+		updts.MaxDepth,
+		updts.UpdateID,
+		updts.UpdateTime)
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
@@ -201,15 +202,28 @@ func (o *orderbookHolder) updateByPrice(updts *Update) {
 func (o *orderbookHolder) updateByIDAndAction(updts *Update) error {
 	switch updts.Action {
 	case Amend:
-		return o.ob.UpdateBidAskByID(updts.Bids, updts.Asks)
+		return o.ob.UpdateBidAskByID(updts.Bids,
+			updts.Asks,
+			updts.UpdateID,
+			updts.UpdateTime)
 	case Delete:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
 		bypassErr := o.ob.GetName() == "Bitfinex" && o.ob.IsFundingRate()
-		return o.ob.DeleteBidAskByID(updts.Bids, updts.Asks, bypassErr)
+		return o.ob.DeleteBidAskByID(updts.Bids,
+			updts.Asks,
+			bypassErr,
+			updts.UpdateID,
+			updts.UpdateTime)
 	case Insert:
-		return o.ob.InsertBidAskByID(updts.Bids, updts.Asks)
+		return o.ob.InsertBidAskByID(updts.Bids,
+			updts.Asks,
+			updts.UpdateID,
+			updts.UpdateTime)
 	case UpdateInsert:
-		return o.ob.UpdateInsertByID(updts.Bids, updts.Asks)
+		return o.ob.UpdateInsertByID(updts.Bids,
+			updts.Asks,
+			updts.UpdateID,
+			updts.UpdateTime)
 	default:
 		return fmt.Errorf("invalid action [%s]", updts.Action)
 	}
@@ -253,7 +267,13 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		return err
 	}
 
-	holder.ob.LoadSnapshot(book.Bids, book.Asks)
+	holder.ob.LoadSnapshot(
+		book.Bids,
+		book.Asks,
+		book.LastUpdateID,
+		book.LastUpdated,
+		false,
+	)
 
 	if holder.ob.VerifyOrderbook { // This is used here so as to not retrieve
 		// book if verification is off.

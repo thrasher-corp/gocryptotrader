@@ -228,10 +228,6 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
@@ -318,10 +314,6 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	var status bool
 	if c.IsSet("status") {
 		status = c.Bool("status")
@@ -365,10 +357,6 @@ func getSavedTrades(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
@@ -459,10 +447,6 @@ func getRecentTrades(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
@@ -525,10 +509,6 @@ func getHistoricTrades(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
@@ -642,10 +622,6 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")

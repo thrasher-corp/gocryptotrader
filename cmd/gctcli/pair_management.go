@@ -59,6 +59,7 @@ var exchangePairManagerCommand = &cli.Command{
 				&cli.BoolFlag{
 					Name:   "enable",
 					Hidden: true,
+					Value:  true,
 				},
 			},
 			Action: enableDisableExchangeAsset,
@@ -101,6 +102,7 @@ var exchangePairManagerCommand = &cli.Command{
 				&cli.BoolFlag{
 					Name:   "enable",
 					Hidden: true,
+					Value:  true,
 				},
 			},
 			Action: enableDisableExchangePair,
@@ -116,6 +118,7 @@ var exchangePairManagerCommand = &cli.Command{
 				&cli.BoolFlag{
 					Name:   "enable",
 					Hidden: true,
+					Value:  true,
 				},
 			},
 			Action: enableDisableAllExchangePairs,
@@ -174,10 +177,6 @@ func enableDisableExchangePair(c *cli.Context) error {
 		exchange = c.String("exchange")
 	} else {
 		exchange = c.Args().First()
-	}
-
-	if !validExchange(exchange) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("pairs") {
@@ -255,10 +254,6 @@ func getExchangePairs(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
-	if !validExchange(exchange) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("asset") {
 		asset = c.String("asset")
 	} else {
@@ -306,10 +301,6 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 		exchange = c.String("exchange")
 	} else {
 		exchange = c.Args().First()
-	}
-
-	if !validExchange(exchange) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("asset") {
@@ -360,10 +351,6 @@ func enableDisableAllExchangePairs(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
-	if !validExchange(exchange) {
-		return errInvalidExchange
-	}
-
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -396,10 +383,6 @@ func updateExchangeSupportedPairs(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
-	if !validExchange(exchange) {
-		return errInvalidExchange
-	}
-
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -429,10 +412,6 @@ func getExchangeAssets(c *cli.Context) error {
 		exchange = c.String("exchange")
 	} else {
 		exchange = c.Args().First()
-	}
-
-	if !validExchange(exchange) {
-		return errInvalidExchange
 	}
 
 	conn, cancel, err := setupClient(c)

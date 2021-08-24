@@ -208,66 +208,68 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						b.Name,
 						err)
 				}
-				var orderID = strconv.FormatInt(data.Data.OrderID, 10)
-				oType, err := order.StringToOrderType(data.Data.OrderType)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
+				averagePrice := 0.0
+				if data.Data.CumulativeFilledQuantity != 0 {
+					averagePrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
 				}
-				var oSide order.Side
-				oSide, err = order.StringToOrderSide(data.Data.Side)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				var oStatus order.Status
-				oStatus, err = stringToOrderStatus(data.Data.CurrentExecutionType)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				if oStatus == order.PartiallyFilled && data.Data.CumulativeFilledQuantity == data.Data.Quantity {
-					oStatus = order.Filled
-				}
-				var p currency.Pair
-				var a asset.Item
-				p, a, err = b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
+				remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
+				pair, assetType, err := b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
 				if err != nil {
 					return err
 				}
+				var feeAsset currency.Code
+				if data.Data.CommissionAsset != "" {
+					feeAsset = currency.NewCode(data.Data.CommissionAsset)
+				}
+				orderID := strconv.FormatInt(data.Data.OrderID, 10)
+				orderStatus, err := stringToOrderStatus(data.Data.OrderStatus)
+				if err != nil {
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
 				clientOrderID := data.Data.ClientOrderID
-				if oStatus == order.Cancelled {
+				if orderStatus == order.Cancelled {
 					clientOrderID = data.Data.CancelledClientOrderID
 				}
-				var costAsset currency.Code
-				if data.Data.CommissionAsset != "" {
-					costAsset = currency.NewCode(data.Data.CommissionAsset)
+				orderType, err := order.StringToOrderType(data.Data.OrderType)
+				if err != nil {
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
+				orderSide, err := order.StringToOrderSide(data.Data.Side)
+				if err != nil {
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
 				}
 				b.Websocket.DataHandler <- &order.Detail{
-					Price:           data.Data.Price,
-					Amount:          data.Data.Quantity,
-					ExecutedAmount:  data.Data.CumulativeFilledQuantity,
-					RemainingAmount: data.Data.Quantity - data.Data.CumulativeFilledQuantity,
-					Exchange:        b.Name,
-					ID:              orderID,
-					Type:            oType,
-					Side:            oSide,
-					Status:          oStatus,
-					AssetType:       a,
-					Date:            data.Data.OrderCreationTime,
-					Pair:            p,
-					ClientOrderID:   clientOrderID,
-					Cost:            data.Data.Commission,
-					CostAsset:       costAsset,
+					Price:                data.Data.Price,
+					Amount:               data.Data.Quantity,
+					AverageExecutedPrice: averagePrice,
+					ExecutedAmount:       data.Data.CumulativeFilledQuantity,
+					RemainingAmount:      remainingAmount,
+					Cost:                 data.Data.CumulativeQuoteTransactedQuantity,
+					CostAsset:            pair.Quote,
+					Fee:                  data.Data.Commission,
+					FeeAsset:             feeAsset,
+					Exchange:             b.Name,
+					ID:                   orderID,
+					ClientOrderID:        clientOrderID,
+					Type:                 orderType,
+					Side:                 orderSide,
+					Status:               orderStatus,
+					AssetType:            assetType,
+					Date:                 data.Data.OrderCreationTime,
+					LastUpdated:          data.Data.TransactionTime,
+					Pair:                 pair,
 				}
 				return nil
 			case "listStatus":
@@ -436,12 +438,16 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	switch status {
 	case "NEW":
 		return order.New, nil
+	case "PARTIALLY_FILLED":
+		return order.PartiallyFilled, nil
+	case "FILLED":
+		return order.Filled, nil
 	case "CANCELED":
 		return order.Cancelled, nil
+	case "PENDING_CANCEL":
+		return order.PendingCancel, nil
 	case "REJECTED":
 		return order.Rejected, nil
-	case "TRADE":
-		return order.PartiallyFilled, nil
 	case "EXPIRED":
 		return order.Expired, nil
 	default:
