@@ -405,7 +405,7 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 func (b *Binance) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assetTypes := b.GetAssetTypes(false)
 	for i := range assetTypes {
-		p, err := b.FetchTradablePairs(context.TODO(), assetTypes[i])
+		p, err := b.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
 			return err
 		}
