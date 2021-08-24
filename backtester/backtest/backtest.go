@@ -135,7 +135,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
 				err)
 		}
-		exch, err := bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+		var exch gctexchange.IBotExchange
+		exch, err = bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		if err != nil {
 			return nil, fmt.Errorf("could not get exchange by name %s, %w",
 				cfg.CurrencySettings[i].ExchangeName,

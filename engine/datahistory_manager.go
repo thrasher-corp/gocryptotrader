@@ -314,12 +314,12 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 
 	if job.DataType == dataHistoryCandleValidationDataType ||
 		job.DataType == dataHistoryCandleValidationSecondarySourceType {
-		err := m.runValidationJob(job, exch)
+		err = m.runValidationJob(job, exch)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := m.runDataJob(job, exch)
+		err = m.runDataJob(job, exch)
 		if err != nil {
 			return err
 		}
