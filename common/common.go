@@ -34,7 +34,7 @@ const (
 var (
 	HTTPClient    *http.Client
 	HTTPUserAgent string
-	m             sync.Mutex
+	m             sync.RWMutex
 	// ErrNotYetImplemented defines a common error across the code base that
 	// alerts of a function that has not been completed or tied into main code
 	ErrNotYetImplemented = errors.New("not yet implemented")
@@ -217,9 +217,9 @@ func SendHTTPRequest(ctx context.Context, method, urlPath string, headers map[st
 		req.Header.Add("User-Agent", HTTPUserAgent)
 	}
 
-	m.Lock()
+	m.RLock()
 	resp, err := HTTPClient.Do(req)
-	m.Unlock()
+	m.RUnlock()
 	if err != nil {
 		return nil, err
 	}
