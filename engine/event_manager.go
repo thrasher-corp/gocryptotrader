@@ -235,7 +235,7 @@ func (m *eventManager) isValidEvent(exchange, item string, condition EventCondit
 // isValidExchange validates the exchange
 func (m *eventManager) isValidExchange(exchangeName string) bool {
 	_, err := m.exchangeManager.GetExchangeByName(exchangeName)
-	return err != nil
+	return err == nil
 }
 
 // isValidCondition validates passed in condition
