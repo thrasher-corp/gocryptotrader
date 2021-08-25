@@ -132,7 +132,7 @@ func (a *Alphapoint) FetchAccountInfo(assetType asset.Item) (account.Holdings, e
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (a *Alphapoint) UpdateTickers(assetType asset.Item) error {
-	return nil
+	return common.ErrFunctionNotSupported
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

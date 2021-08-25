@@ -286,20 +286,15 @@ func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *BTSE) UpdateTickers(a asset.Item) error {
-	return nil
-}
-
-// UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickers, err := b.GetMarketSummary("", assetType == asset.Spot)
+	tickers, err := b.GetMarketSummary("", a == asset.Spot)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for x := range tickers {
 		var pair currency.Pair
 		pair, err = currency.NewPairFromString(tickers[x].Symbol)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
@@ -311,13 +306,22 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 			Volume:       tickers[x].Volume,
 			High:         tickers[x].High24Hr,
 			ExchangeName: b.Name,
-			AssetType:    assetType})
+			AssetType:    a})
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return ticker.GetTicker(b.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (b *BTSE) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := b.UpdateTickers(a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(b.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

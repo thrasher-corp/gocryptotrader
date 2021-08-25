@@ -301,28 +301,19 @@ func (f *FTX) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (f *FTX) UpdateTickers(a asset.Item) error {
-	return nil
-}
-
-// UpdateTicker updates and returns the ticker for a currency pair
-func (f *FTX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	allPairs, err := f.GetEnabledPairs(assetType)
+	allPairs, err := f.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
-	}
-
-	if !allPairs.Contains(p, true) {
-		allPairs = append(allPairs, p)
+		return err
 	}
 
 	markets, err := f.GetMarkets()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	for a := range allPairs {
-		formattedPair, err := f.FormatExchangeCurrency(allPairs[a], assetType)
+	for p := range allPairs {
+		formattedPair, err := f.FormatExchangeCurrency(allPairs[p], a)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		for x := range markets {
@@ -332,21 +323,52 @@ func (f *FTX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price
 			var resp ticker.Price
 			resp.Pair, err = currency.NewPairFromString(markets[x].Name)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			resp.Last = markets[x].Last
 			resp.Bid = markets[x].Bid
 			resp.Ask = markets[x].Ask
 			resp.LastUpdated = time.Now()
-			resp.AssetType = assetType
+			resp.AssetType = a
 			resp.ExchangeName = f.Name
 			err = ticker.ProcessTicker(&resp)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-	return ticker.GetTicker(f.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (f *FTX) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	formattedPair, err := f.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return nil, err
+	}
+
+	market, err := f.GetMarket(formattedPair.String())
+	if err != nil {
+		return nil, err
+	}
+
+	var resp ticker.Price
+	resp.Pair, err = currency.NewPairFromString(market.Name)
+	if err != nil {
+		return nil, err
+	}
+	resp.Last = market.Last
+	resp.Bid = market.Bid
+	resp.Ask = market.Ask
+	resp.LastUpdated = time.Now()
+	resp.AssetType = a
+	resp.ExchangeName = f.Name
+	err = ticker.ProcessTicker(&resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return ticker.GetTicker(f.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

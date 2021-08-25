@@ -426,22 +426,16 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (o *OKEX) UpdateTickers(a asset.Item) error {
-	return nil
-}
-
-// UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
-	switch assetType {
+	switch a {
 	case asset.Spot:
 		resp, err := o.GetSpotAllTokenPairsInformation()
 		if err != nil {
-			return tickerPrice, err
+			return err
 		}
 
 		enabled, err := o.GetEnabledPairs(asset.Spot)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		for j := range resp {
@@ -461,21 +455,21 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 				Pair:         resp[j].InstrumentID,
 				LastUpdated:  resp[j].Timestamp,
 				ExchangeName: o.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 
 	case asset.PerpetualSwap:
 		resp, err := o.GetAllSwapTokensInformation()
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		enabled, err := o.GetEnabledPairs(asset.PerpetualSwap)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		for j := range resp {
@@ -497,21 +491,21 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 				Pair:         nC,
 				LastUpdated:  resp[j].Timestamp,
 				ExchangeName: o.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 
 	case asset.Futures:
 		resp, err := o.GetAllFuturesTokenInfo()
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		enabled, err := o.GetEnabledPairs(asset.Futures)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		for j := range resp {
@@ -533,14 +527,23 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 				Pair:         nC,
 				LastUpdated:  resp[j].Timestamp,
 				ExchangeName: o.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
 
-	return ticker.GetTicker(o.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (o *OKEX) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := o.UpdateTickers(a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(o.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

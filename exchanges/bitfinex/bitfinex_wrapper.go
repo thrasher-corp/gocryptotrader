@@ -325,25 +325,20 @@ func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Bitfinex) UpdateTickers(a asset.Item) error {
-	return nil
-}
-
-// UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	enabledPairs, err := b.GetEnabledPairs(assetType)
+	enabledPairs, err := b.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	tickerNew, err := b.GetTickerBatch()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for k, v := range tickerNew {
 		pair, err := currency.NewPairFromString(k[1:]) // Remove prefix
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if !enabledPairs.Contains(pair, true) {
@@ -358,18 +353,27 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 			Ask:          v.Ask,
 			Volume:       v.Volume,
 			Pair:         pair,
-			AssetType:    assetType,
+			AssetType:    a,
 			ExchangeName: b.Name})
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return ticker.GetTicker(b.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (b *Bitfinex) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := b.UpdateTickers(a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(b.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
+func (b *Bitfinex) FetchTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	fPair, err := b.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +381,7 @@ func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 	b.appendOptionalDelimiter(&fPair)
 	tick, err := ticker.GetTicker(b.Name, fPair, asset.Spot)
 	if err != nil {
-		return b.UpdateTicker(fPair, assetType)
+		return b.UpdateTicker(fPair, a)
 	}
 	return tick, nil
 }

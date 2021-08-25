@@ -256,6 +256,20 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+
+	err := b.UpdateTickers(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.UpdateTickers(asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetServerTime()

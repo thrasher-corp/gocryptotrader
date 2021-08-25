@@ -141,12 +141,12 @@ func (i *ItBit) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (i *ItBit) UpdateTickers(a asset.Item) error {
-	return nil
+	return common.ErrFunctionNotSupported
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fpair, err := i.FormatExchangeCurrency(p, assetType)
+func (i *ItBit) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	fpair, err := i.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -167,12 +167,12 @@ func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 		Pair:         p,
 		LastUpdated:  tick.ServertimeUTC,
 		ExchangeName: i.Name,
-		AssetType:    assetType})
+		AssetType:    a})
 	if err != nil {
 		return nil, err
 	}
 
-	return ticker.GetTicker(i.Name, p, assetType)
+	return ticker.GetTicker(i.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

@@ -299,33 +299,27 @@ func (c *Coinbene) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (c *Coinbene) UpdateTickers(a asset.Item) error {
-	return nil
-}
-
-// UpdateTicker updates and returns the ticker for a currency pair
-func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	if !c.SupportsAsset(assetType) {
-		return nil,
-			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
+	if !c.SupportsAsset(a) {
+		return fmt.Errorf("%s does not support asset type %s", c.Name, a)
 	}
 
-	allPairs, err := c.GetEnabledPairs(assetType)
+	allPairs, err := c.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	switch assetType {
+	switch a {
 	case asset.Spot:
 		tickers, err := c.GetTickers()
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		for i := range tickers {
 			var newP currency.Pair
 			newP, err = currency.NewPairFromString(tickers[i].Symbol)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			if !allPairs.Contains(newP, true) {
@@ -341,21 +335,21 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 				Ask:          tickers[i].BestAsk,
 				Volume:       tickers[i].DailyVolume,
 				ExchangeName: c.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	case asset.PerpetualSwap:
 		tickers, err := c.GetSwapTickers()
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		for x := range allPairs {
-			fpair, err := c.FormatExchangeCurrency(allPairs[x], assetType)
+			fpair, err := c.FormatExchangeCurrency(allPairs[x], a)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			tick, ok := tickers[fpair.String()]
@@ -376,13 +370,22 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 				Volume:       tick.Volume24Hour,
 				LastUpdated:  tick.Timestamp,
 				ExchangeName: c.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-	return ticker.GetTicker(c.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (c *Coinbene) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := c.UpdateTickers(a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(c.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

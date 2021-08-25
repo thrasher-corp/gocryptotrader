@@ -95,6 +95,19 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := k.UpdateTickers(asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = k.UpdateTickers(asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	sp, err := currency.NewPairFromString("BTCEUR")

@@ -457,3 +457,22 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("BTC_USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	err := e.UpdateTickers(asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
