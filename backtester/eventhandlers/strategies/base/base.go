@@ -67,10 +67,10 @@ var errCurrenciesMustBeTheSame = errors.New("lol")
 var errExchangeCantMatchDummy = errors.New("lol")
 
 func (s *Strategy) SendFundingToExchange(sender, receiver funding.Item, amount, fee decimal.Decimal) error {
-	if sender.Item != receiver.Item {
+	if sender.MatchesCurrency(receiver) {
 		return errCurrenciesMustBeTheSame
 	}
-	if sender.Exchange == receiver.Exchange {
+	if sender.MatchesExchange(receiver) {
 		return errExchangeCantMatchDummy
 	}
 	err := sender.Reserve(amount.Add(fee))

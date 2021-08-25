@@ -119,10 +119,12 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				return nil, err
 			}
 			cq := currency.NewCode(cfg.StrategySettings.ExchangeLevelFunding[i].Quote)
-			err = funds.AddItem(cfg.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
+			item, err := funds.SetupItem(cfg.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
 				a,
 				cq,
-				cfg.StrategySettings.ExchangeLevelFunding[i].InitialFunds)
+				cfg.StrategySettings.ExchangeLevelFunding[i].InitialFunds,
+				cfg.StrategySettings.ExchangeLevelFunding[i].TransferFee)
+			err = funds.AddItem(item)
 			if err != nil {
 				return nil, err
 			}
@@ -202,27 +204,49 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				return nil, err
 			}
 			cp := currency.NewPair(currency.NewCode(cfg.CurrencySettings[i].Base), currency.NewCode(cfg.CurrencySettings[i].Quote))
-			err = funds.AddPair(cfg.CurrencySettings[i].ExchangeName,
+			baseItem, err := funds.SetupItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
-				cp,
-				cfg.CurrencySettings[i].InitialFunds)
+				cp.Base,
+				decimal.Zero,
+				decimal.Zero)
+			if err != nil {
+				return nil, err
+			}
+			quoteItem, err := funds.SetupItem(cfg.CurrencySettings[i].ExchangeName,
+				a,
+				cp.Quote,
+				cfg.CurrencySettings[i].InitialFunds,
+				decimal.Zero)
+			if err != nil {
+				return nil, err
+			}
+			err = funds.AddPair(baseItem, quoteItem)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			err = funds.AddItem(
-				cfg.CurrencySettings[i].ExchangeName,
+			// ensure there are always funds?
+			baseItem, err := funds.SetupItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
 				b,
+				decimal.Zero,
 				decimal.Zero)
+			if err != nil {
+				return nil, err
+			}
+			quoteItem, err := funds.SetupItem(cfg.CurrencySettings[i].ExchangeName,
+				a,
+				q,
+				decimal.Zero,
+				decimal.Zero)
+			if err != nil {
+				return nil, err
+			}
+			err = funds.AddItem(baseItem)
 			if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
 				return nil, err
 			}
-			err = funds.AddItem(
-				cfg.CurrencySettings[i].ExchangeName,
-				a,
-				q,
-				decimal.Zero)
+			err = funds.AddItem(quoteItem)
 			if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
 				return nil, err
 			}
@@ -901,7 +925,7 @@ func (bt *BackTest) processSignalEvent(ev signal.Event) {
 		log.Error(log.BackTester, err)
 		return
 	}
-	log.Debugf(log.BackTester, "%v %v, %v %v", funds.BaseAvailable().Round(8), funds.Base.Item.String(), funds.QuoteAvailable().Round(8), funds.Quote.Item.String())
+	//log.Debugf(log.BackTester, "%v %v, %v %v", funds.BaseAvailable().Round(8), funds.Base.Currency.String(), funds.QuoteAvailable().Round(8), funds.Quote.Currency.String())
 	o, err = bt.Portfolio.OnSignal(ev, &cs, funds)
 	if err != nil {
 		log.Error(log.BackTester, err)

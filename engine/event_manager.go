@@ -247,7 +247,7 @@ func isValidCondition(condition string) bool {
 	return false
 }
 
-// isValidItem validates passed in Item
+// isValidItem validates passed in Currency
 func isValidItem(item string) bool {
 	item = strings.ToUpper(item)
 	switch item {

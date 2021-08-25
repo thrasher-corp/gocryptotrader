@@ -31,6 +31,8 @@ type FundManager struct {
 	items                     []*Item
 }
 
+// IPairReader is used to limit pair funding functions
+// to readonly
 type IPairReader interface {
 	BaseInitialFunds() decimal.Decimal
 	QuoteInitialFunds() decimal.Decimal
@@ -52,19 +54,25 @@ type IPairReleaser interface {
 	Release(decimal.Decimal, decimal.Decimal, order.Side) error
 }
 
-// Item holds funding data per currency item
-type Item struct {
-	Exchange     string
-	Asset        asset.Item
-	Item         currency.Code
-	initialFunds decimal.Decimal
-	available    decimal.Decimal
-	Reserved     decimal.Decimal
-	PairedWith   *Item
-	TransferFee  decimal.Decimal
+// IFundTransferer allows for funding amounts to be transferred
+// implementation can be swapped for live transferring
+type IFundTransferer interface {
+	Transfer(decimal.Decimal, *Item, *Item) error
 }
 
-// Pair holds two currencies that are associated with eachother
+// Item holds funding data per currency item
+type Item struct {
+	exchange     string
+	asset        asset.Item
+	currency     currency.Code
+	initialFunds decimal.Decimal
+	available    decimal.Decimal
+	reserved     decimal.Decimal
+	pairedWith   *Item
+	transferFee  decimal.Decimal
+}
+
+// Pair holds two currencies that are associated with each other
 type Pair struct {
 	Base  *Item
 	Quote *Item

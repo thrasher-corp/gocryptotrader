@@ -38,23 +38,23 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item) e
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return ErrNegativeAmountReceived
 	}
-	if sender.available.LessThan(amount.Add(sender.TransferFee)) {
-		return fmt.Errorf("%w for %v", ErrNotEnoughFunds, sender.Item)
+	if sender.available.LessThan(amount.Add(sender.transferFee)) {
+		return fmt.Errorf("%w for %v", ErrNotEnoughFunds, sender.currency)
 	}
-	if sender.Item != receiver.Item {
+	if sender.currency != receiver.currency {
 		return errTransferMustBeSameCurrency
 	}
-	if sender.Item == receiver.Item &&
-		sender.Exchange == receiver.Exchange &&
-		sender.Asset == receiver.Asset {
-		return fmt.Errorf("%v %v %v %w", sender.Exchange, sender.Asset, sender.Item, errCannotTransferToSameFunds)
+	if sender.currency == receiver.currency &&
+		sender.exchange == receiver.exchange &&
+		sender.asset == receiver.asset {
+		return fmt.Errorf("%v %v %v %w", sender.exchange, sender.asset, sender.currency, errCannotTransferToSameFunds)
 	}
-	err := sender.Reserve(amount.Add(sender.TransferFee))
+	err := sender.Reserve(amount.Add(sender.transferFee))
 	if err != nil {
 		return err
 	}
 	receiver.IncreaseAvailable(amount)
-	err = sender.Release(amount.Add(sender.TransferFee), decimal.Zero)
+	err = sender.Release(amount.Add(sender.transferFee), decimal.Zero)
 	if err != nil {
 		return err
 	}
@@ -62,25 +62,28 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item) e
 	return nil
 }
 
-// AddItem appends a new funding item. Will reject if exists by exchange asset currency
-func (f *FundManager) AddItem(exch string, ass asset.Item, ci currency.Code, initialFunds, transferFee decimal.Decimal) error {
-	if f.Exists(exch, ass, ci, nil) {
-		return fmt.Errorf("cannot add item %v %v %v %w", exch, ass, ci, ErrAlreadyExists)
-	}
+func (f *FundManager) SetupItem(exch string, ass asset.Item, ci currency.Code, initialFunds, transferFee decimal.Decimal) (*Item, error) {
 	if initialFunds.IsNegative() {
-		return fmt.Errorf("%v %v %v %w initial funds: %v", exch, ass, ci, ErrNegativeAmountReceived, initialFunds)
+		return nil, fmt.Errorf("%v %v %v %w initial funds: %v", exch, ass, ci, ErrNegativeAmountReceived, initialFunds)
 	}
 	if transferFee.IsNegative() {
-		return fmt.Errorf("%v %v %v %w transfer fee: %v", exch, ass, ci, ErrNegativeAmountReceived, transferFee)
-
+		return nil, fmt.Errorf("%v %v %v %w transfer fee: %v", exch, ass, ci, ErrNegativeAmountReceived, transferFee)
 	}
-	item := &Item{
-		Exchange:     exch,
-		Asset:        ass,
-		Item:         ci,
+
+	return &Item{
+		exchange:     exch,
+		asset:        ass,
+		currency:     ci,
 		initialFunds: initialFunds,
 		available:    initialFunds,
-		TransferFee:  transferFee,
+		transferFee:  transferFee,
+	}, nil
+}
+
+// AddItem appends a new funding item. Will reject if exists by exchange asset currency
+func (f *FundManager) AddItem(item *Item) error {
+	if f.Exists(item) {
+		return fmt.Errorf("cannot add item %v %v %v %w", item.exchange, item.asset, item.currency, ErrAlreadyExists)
 	}
 	f.items = append(f.items, item)
 	return nil
@@ -88,13 +91,9 @@ func (f *FundManager) AddItem(exch string, ass asset.Item, ci currency.Code, ini
 
 // Exists verifies whether there is a funding item that exists
 // with the same exchange, asset and currency
-func (f *FundManager) Exists(exch string, ass asset.Item, ci currency.Code, pairedWith *Item) bool {
+func (f *FundManager) Exists(item *Item) bool {
 	for i := range f.items {
-		if f.items[i].Item == ci &&
-			f.items[i].Exchange == exch &&
-			f.items[i].Asset == ass &&
-			(pairedWith == nil && f.items[i].PairedWith == nil) ||
-			(pairedWith != nil && f.items[i].PairedWith != nil && *f.items[i].PairedWith == *pairedWith) {
+		if f.items[i].Equal(item) {
 			return true
 		}
 	}
@@ -105,28 +104,26 @@ func (f *FundManager) Exists(exch string, ass asset.Item, ci currency.Code, pair
 // the association allows for the same currency to be used multiple times when
 // usingExchangeLevelFunding is false. eg BTC-USDT and LTC-USDT do not share the same
 // USDT level funding
-func (f *FundManager) AddPair(exch string, ass asset.Item, cp currency.Pair, initialFunds decimal.Decimal) error {
-	base := &Item{
-		Exchange: exch,
-		Asset:    ass,
-		Item:     cp.Base,
+func (f *FundManager) AddPair(base, quote *Item) error {
+	if base == nil {
+		return fmt.Errorf("base %w", common.ErrNilArguments)
 	}
-	quote := &Item{
-		Exchange:     exch,
-		Asset:        ass,
-		Item:         cp.Quote,
-		initialFunds: initialFunds,
-		available:    initialFunds,
-		PairedWith:   base,
+	if quote == nil {
+		return fmt.Errorf("quote %w", common.ErrNilArguments)
 	}
-	base.PairedWith = quote
-	if f.Exists(base.Exchange, base.Asset, base.Item, quote) {
-		return fmt.Errorf("cannot add item %v %v %v %w", exch, ass, cp.Base, ErrAlreadyExists)
+	// copy to prevent the off chance of sending in the same base OR quote
+	// to create a new pair with a new base OR quote
+	bcpy := *base
+	qcpy := *quote
+	bcpy.pairedWith = &qcpy
+	qcpy.pairedWith = &bcpy
+	if f.Exists(&bcpy) {
+		return fmt.Errorf("cannot add item %v %v %v %w", bcpy.exchange, bcpy.asset, bcpy.currency, ErrAlreadyExists)
 	}
-	if f.Exists(quote.Exchange, quote.Asset, quote.Item, base) {
-		return fmt.Errorf("cannot add item %v %v %v %w", exch, ass, cp.Quote, ErrAlreadyExists)
+	if f.Exists(&qcpy) {
+		return fmt.Errorf("cannot add item %v %v %v %w", qcpy.exchange, qcpy.asset, qcpy.currency, ErrAlreadyExists)
 	}
-	f.items = append(f.items, base, quote)
+	f.items = append(f.items, &bcpy, &qcpy)
 	return nil
 }
 
@@ -143,9 +140,7 @@ func (f *FundManager) GetFundingForEvent(e common.EventHandler) (*Pair, error) {
 // GetFundingForEAC This will construct a funding based on the exchange, asset, currency code
 func (f *FundManager) GetFundingForEAC(exch string, ass asset.Item, c currency.Code) (*Item, error) {
 	for i := range f.items {
-		if f.items[i].Item == c &&
-			f.items[i].Exchange == exch &&
-			f.items[i].Asset == ass {
+		if f.items[i].BasicEqual(exch, ass, c, currency.Code{}) {
 			return f.items[i], nil
 		}
 	}
@@ -156,22 +151,19 @@ func (f *FundManager) GetFundingForEAC(exch string, ass asset.Item, c currency.C
 func (f *FundManager) GetFundingForEAP(exch string, ass asset.Item, p currency.Pair) (*Pair, error) {
 	var resp Pair
 	for i := range f.items {
-		if f.items[i].Item == p.Quote &&
-			f.items[i].Exchange == exch &&
-			f.items[i].Asset == ass &&
-			(f.usingExchangeLevelFunding || (f.items[i].PairedWith != nil && f.items[i].PairedWith.Item == p.Base)) {
-			resp.Quote = f.items[i]
+		if f.items[i].BasicEqual(exch, ass, p.Base, p.Quote) {
+			resp.Base = f.items[i]
 			continue
 		}
-		if f.items[i].Item == p.Base &&
-			f.items[i].Exchange == exch &&
-			f.items[i].Asset == ass &&
-			(f.usingExchangeLevelFunding || (f.items[i].PairedWith != nil && f.items[i].PairedWith.Item == p.Quote)) {
-			resp.Base = f.items[i]
+		if f.items[i].BasicEqual(exch, ass, p.Quote, p.Base) {
+			resp.Quote = f.items[i]
 		}
 	}
-	if resp.Base == nil || resp.Quote == nil {
-		return nil, ErrFundsNotFound
+	if resp.Base == nil {
+		return nil, fmt.Errorf("base %w", ErrFundsNotFound)
+	}
+	if resp.Quote == nil {
+		return nil, fmt.Errorf("quote %w", ErrFundsNotFound)
 	}
 	return &resp, nil
 }
@@ -213,9 +205,9 @@ func (p *Pair) Reserve(amount decimal.Decimal, side order.Side) error {
 	default:
 		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
 			ErrCannotAllocate,
-			p.Base.Exchange,
-			p.Base.Asset,
-			p.Base.Item,
+			p.Base.exchange,
+			p.Base.asset,
+			p.Base.currency,
 			side)
 	}
 }
@@ -232,9 +224,9 @@ func (p *Pair) Release(amount, diff decimal.Decimal, side order.Side) error {
 	default:
 		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
 			ErrCannotAllocate,
-			p.Base.Exchange,
-			p.Base.Asset,
-			p.Base.Item,
+			p.Base.exchange,
+			p.Base.asset,
+			p.Base.currency,
 			side)
 	}
 }
@@ -266,42 +258,42 @@ func (p *Pair) CanPlaceOrder(side order.Side) bool {
 // Reserve allocates an amount of funds to be used at a later time
 // it prevents multiple events from claiming the same resource
 func (i *Item) Reserve(amount decimal.Decimal) error {
-	if amount.IsNegative() {
+	if amount.LessThanOrEqual(decimal.Zero) {
 		return fmt.Errorf("%w amount", ErrNegativeAmountReceived)
 	}
 	if amount.GreaterThan(i.available) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Available: %v",
 			ErrCannotAllocate,
-			i.Exchange,
-			i.Asset,
-			i.Item,
+			i.exchange,
+			i.asset,
+			i.currency,
 			amount,
 			i.available)
 	}
 	i.available = i.available.Sub(amount)
-	i.Reserved = i.Reserved.Add(amount)
+	i.reserved = i.reserved.Add(amount)
 	return nil
 }
 
 // Release reduces the amount of funding reserved and adds any difference
 // back to the available amount
 func (i *Item) Release(amount, diff decimal.Decimal) error {
-	if amount.IsNegative() {
+	if amount.LessThanOrEqual(decimal.Zero) {
 		return fmt.Errorf("%w amount", ErrNegativeAmountReceived)
 	}
 	if diff.IsNegative() {
 		return fmt.Errorf("%w diff", ErrNegativeAmountReceived)
 	}
-	if amount.GreaterThan(i.Reserved) {
+	if amount.GreaterThan(i.reserved) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Reserved: %v",
 			ErrCannotAllocate,
-			i.Exchange,
-			i.Asset,
-			i.Item,
+			i.exchange,
+			i.asset,
+			i.currency,
 			amount,
-			i.Reserved)
+			i.reserved)
 	}
-	i.Reserved = i.Reserved.Sub(amount)
+	i.reserved = i.reserved.Sub(amount)
 	i.available = i.available.Add(diff)
 	return nil
 }
@@ -316,4 +308,54 @@ func (i *Item) IncreaseAvailable(amount decimal.Decimal) {
 
 func (i *Item) CanPlaceOrder() bool {
 	return i.available.GreaterThan(decimal.Zero)
+}
+
+func (i *Item) Equal(item *Item) bool {
+	if i == nil && item == nil {
+		return true
+	}
+	if item == nil || i == nil {
+		return false
+	}
+	if i.currency == item.currency &&
+		i.asset == item.asset &&
+		i.exchange == item.exchange {
+		if i.pairedWith == nil && item.pairedWith == nil {
+			return true
+		}
+		if i.pairedWith == nil || item.pairedWith == nil {
+			return false
+		}
+		if i.pairedWith.currency == item.pairedWith.currency &&
+			i.pairedWith.asset == item.pairedWith.asset &&
+			i.pairedWith.exchange == item.pairedWith.exchange {
+			return true
+		}
+	}
+	return false
+}
+
+func (i *Item) BasicEqual(exch string, ass asset.Item, currency, pairedCurrency currency.Code) bool {
+	if i == nil {
+		return false
+	}
+	return i.exchange == exch &&
+		i.asset == ass &&
+		i.currency == currency &&
+		(i.pairedWith == nil ||
+			(i.pairedWith != nil && i.pairedWith.currency == pairedCurrency))
+}
+
+func (i *Item) MatchesCurrency(item *Item) bool {
+	if i == nil || item == nil {
+		return false
+	}
+	return i.currency == item.currency
+}
+
+func (i *Item) MatchesExchange(item *Item) bool {
+	if i == nil || item == nil {
+		return false
+	}
+	return i.exchange == item.exchange
 }
