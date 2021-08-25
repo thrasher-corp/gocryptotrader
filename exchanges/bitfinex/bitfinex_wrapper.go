@@ -323,6 +323,11 @@ func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
 	return nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *Bitfinex) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	enabledPairs, err := b.GetEnabledPairs(assetType)

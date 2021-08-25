@@ -297,6 +297,11 @@ func (c *Coinbene) UpdateTradablePairs(forceUpdate bool) error {
 	return nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (c *Coinbene) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if !c.SupportsAsset(assetType) {

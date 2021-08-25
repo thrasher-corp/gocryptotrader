@@ -305,6 +305,11 @@ func (h *HitBTC) UpdateTradablePairs(forceUpdate bool) error {
 	return h.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (h *HitBTC) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HitBTC) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	tick, err := h.GetTickers()

@@ -262,6 +262,41 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType a
 	return ticker.GetTicker({{.Variable}}.Name, p, assetType)
 }
 
+// UpdateTickers updates all currency pairs of a given asset type
+func ({{.Variable}} *{{.CapitalName}}) UpdateTickers(assetType asset.Item) error {
+		// NOTE: EXAMPLE FOR GETTING TICKER PRICE
+	/*
+	tick, err := {{.Variable}}.GetTickers()
+	if err != nil {
+		return err
+	}
+    for y := range tick {
+        cp, err := currency.NewPairFromString(tick[y].Symbol)
+        if err != nil {
+            return err
+        }
+        err = ticker.ProcessTicker(&ticker.Price{
+            Last:         tick[y].LastPrice,
+            High:         tick[y].HighPrice,
+            Low:          tick[y].LowPrice,
+            Bid:          tick[y].BidPrice,
+            Ask:          tick[y].AskPrice,
+            Volume:       tick[y].Volume,
+            QuoteVolume:  tick[y].QuoteVolume,
+            Open:         tick[y].OpenPrice,
+            Close:        tick[y].PrevClosePrice,
+            Pair:         cp,
+            ExchangeName: b.Name,
+            AssetType:    assetType,
+        })
+        if err != nil {
+            return err
+        }
+    }
+	*/
+    return nil
+}
+
 // FetchTicker returns the ticker for a currency pair
 func ({{.Variable}} *{{.CapitalName}}) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker({{.Variable}}.Name, p, assetType)

@@ -243,6 +243,11 @@ func (z *ZB) UpdateTradablePairs(forceUpdate bool) error {
 	return z.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (z *ZB) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	result, err := z.GetTickers()

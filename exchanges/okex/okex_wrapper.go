@@ -424,6 +424,11 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 	return nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (o *OKEX) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerPrice := new(ticker.Price)

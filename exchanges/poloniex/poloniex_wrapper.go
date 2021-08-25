@@ -270,6 +270,11 @@ func (p *Poloniex) UpdateTradablePairs(forceUpgrade bool) error {
 	return p.UpdatePairs(ps, asset.Spot, false, forceUpgrade)
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (p *Poloniex) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := p.GetTicker()

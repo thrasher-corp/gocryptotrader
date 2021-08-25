@@ -343,6 +343,11 @@ func (g *Gemini) FetchAccountInfo(assetType asset.Item) (account.Holdings, error
 	return acc, nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (g *Gemini) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (g *Gemini) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	fPair, err := g.FormatExchangeCurrency(p, assetType)

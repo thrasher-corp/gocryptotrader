@@ -431,6 +431,11 @@ func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
 	return h.UpdatePairs(cp, asset.CoinMarginedFutures, false, forceUpdate)
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (h *HUOBI) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if !h.SupportsAsset(assetType) {

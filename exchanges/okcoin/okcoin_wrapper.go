@@ -271,6 +271,11 @@ func (o *OKCoin) UpdateTradablePairs(forceUpdate bool) error {
 	return o.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (o *OKCoin) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if assetType == asset.Spot {

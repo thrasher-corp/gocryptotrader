@@ -422,6 +422,11 @@ func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
 	return nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *Binance) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	switch assetType {

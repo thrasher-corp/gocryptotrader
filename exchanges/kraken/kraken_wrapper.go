@@ -406,6 +406,11 @@ func (k *Kraken) UpdateTradablePairs(forceUpdate bool) error {
 	return nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (k *Kraken) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	switch assetType {

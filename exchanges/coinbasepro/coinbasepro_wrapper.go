@@ -353,6 +353,11 @@ func (c *CoinbasePro) FetchAccountInfo(assetType asset.Item) (account.Holdings, 
 	return acc, nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (c *CoinbasePro) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	fpair, err := c.FormatExchangeCurrency(p, assetType)

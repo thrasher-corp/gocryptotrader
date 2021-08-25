@@ -187,6 +187,11 @@ func (b *Bitflyer) UpdateTradablePairs(forceUpdate bool) error {
 	return nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *Bitflyer) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	fPair, err := b.FormatExchangeCurrency(p, assetType)

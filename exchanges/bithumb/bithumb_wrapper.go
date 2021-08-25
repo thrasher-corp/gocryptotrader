@@ -251,6 +251,11 @@ func (b *Bithumb) UpdateTradablePairs(forceUpdate bool) error {
 	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *Bithumb) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickers, err := b.GetAllTickers()

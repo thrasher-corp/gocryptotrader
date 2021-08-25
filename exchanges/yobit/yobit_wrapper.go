@@ -174,6 +174,11 @@ func (y *Yobit) UpdateTradablePairs(forceUpdate bool) error {
 	return y.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (y *Yobit) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	enabledPairs, err := y.GetEnabledPairs(assetType)

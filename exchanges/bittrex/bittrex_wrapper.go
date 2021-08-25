@@ -275,6 +275,11 @@ func (b *Bittrex) UpdateTradablePairs(forceUpdate bool) error {
 	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *Bittrex) UpdateTickers(a asset.Item) error {
+	return nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	formattedPair, err := b.FormatExchangeCurrency(p, assetType)
