@@ -210,7 +210,7 @@ func (b *Bitstamp) Run() {
 	forceUpdate := false
 	format, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+		log.Errorf(log.ExchangeSys, "%s failed to get pair format. Err %s\n",
 			b.Name,
 			err)
 		return

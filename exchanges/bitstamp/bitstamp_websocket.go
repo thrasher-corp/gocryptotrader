@@ -88,7 +88,13 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		currencyPair := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)[2]
+		var currencyPair string
+		splitter := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
+		if len(splitter) == 3 {
+			currencyPair = splitter[2]
+		} else {
+			return errWSPairParsingError
+		}
 		pFmt, err := b.GetPairFormat(asset.Spot, true)
 		if err != nil {
 			return err
@@ -118,7 +124,13 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		currencyPair := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)[2]
+		var currencyPair string
+		splitter := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
+		if len(splitter) == 3 {
+			currencyPair = splitter[2]
+		} else {
+			return errWSPairParsingError
+		}
 		pFmt, err := b.GetPairFormat(asset.Spot, true)
 		if err != nil {
 			return err

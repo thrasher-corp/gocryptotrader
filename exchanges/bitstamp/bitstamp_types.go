@@ -1,5 +1,7 @@
 package bitstamp
 
+import "errors"
+
 // Transaction types
 const (
 	Deposit = iota
@@ -12,6 +14,10 @@ const (
 const (
 	BuyOrder = iota
 	SellOrder
+)
+
+var (
+	errWSPairParsingError = errors.New("unable to parse currency pair from wsResponse.Channel")
 )
 
 // Ticker holds ticker information
