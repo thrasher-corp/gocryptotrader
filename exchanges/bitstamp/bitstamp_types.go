@@ -16,9 +16,7 @@ const (
 	SellOrder
 )
 
-var (
-	errWSPairParsingError = errors.New("unable to parse currency pair from wsResponse.Channel")
-)
+var errWSPairParsingError = errors.New("unable to parse currency pair from wsResponse.Channel")
 
 // Ticker holds ticker information
 type Ticker struct {
