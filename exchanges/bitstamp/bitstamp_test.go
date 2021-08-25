@@ -626,13 +626,6 @@ func TestWsTrade(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	// this won't actually save any trade data as it is just used to test currency pair handling
-	b.SetSaveTradeDataStatus(true)
-	defer b.SetSaveTradeDataStatus(false)
-	pressXToJSON = []byte(`{"data": {"microtimestamp": "1580336751488517", "amount": 0.00598803, "buy_order_id": 4621328909, "sell_order_id": 4621329035, "amount_str": "0.00598803", "price_str": "9334.73", "timestamp": "1580336751", "price": 9334.73, "type": 1, "id": 104007706}, "event": "trade", "channel": ""}`)
-	if err = b.wsHandleData(pressXToJSON); !errors.Is(err, errWSPairParsingError) {
-		t.Errorf("expected %s, got %s", errWSPairParsingError, err)
-	}
 }
 
 func TestWsOrderbook(t *testing.T) {
