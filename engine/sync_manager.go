@@ -621,7 +621,10 @@ func (m *syncManager) worker() {
 												if m.config.Verbose {
 													log.Debugf(log.SyncMgr, "Initialising %s REST ticker batching", exchangeName)
 												}
-												result, err = exchanges[x].UpdateTicker(c.Pair, c.AssetType)
+												err = exchanges[x].UpdateTickers(c.AssetType)
+												if err == nil {
+													result, err = exchanges[x].FetchTicker(c.Pair, c.AssetType)
+												}
 												m.tickerBatchLastRequested[exchangeName] = time.Now()
 												m.mux.Unlock()
 											} else {
