@@ -27,7 +27,8 @@ const (
 	// SimpleTimeFormatWithTimezone a common, but non-implemented time format in golang
 	SimpleTimeFormatWithTimezone = "2006-01-02 15:04:05 MST"
 	// GctExt is the extension for GCT Tengo script files
-	GctExt = ".gct"
+	GctExt         = ".gct"
+	defaultTimeout = time.Second * 15
 )
 
 // Vars for common.go operations
@@ -241,7 +242,8 @@ func SendHTTPRequest(ctx context.Context, method, urlPath string, headers map[st
 	if _HTTPClient == nil {
 		m.RUnlock()
 		m.Lock()
-		_HTTPClient = NewHTTPClientWithTimeout(time.Second * 15)
+		// Set *http.Client with default timeout if not populated.
+		_HTTPClient = NewHTTPClientWithTimeout(defaultTimeout)
 		m.Unlock()
 		m.RLock()
 	}

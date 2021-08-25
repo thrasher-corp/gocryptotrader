@@ -17,7 +17,8 @@ import (
 )
 
 func TestSendHTTPRequest(t *testing.T) {
-	// execute this function first
+	// t.Parallel() not used to maintain code coverage for assigning the default
+	// HTTPClient.
 	methodPost := "pOst"
 	methodGet := "GeT"
 	methodDelete := "dEleTe"
@@ -102,7 +103,7 @@ func TestSetHTTPUserAgent(t *testing.T) {
 	}
 }
 
-func TestSetHTTPClientt(t *testing.T) {
+func TestSetHTTPClient(t *testing.T) {
 	t.Parallel()
 	err := SetHTTPClient(nil)
 	if !errors.Is(err, errHTTPClientInvalid) {
