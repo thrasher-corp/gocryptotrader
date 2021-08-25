@@ -173,6 +173,27 @@ func TestGetTradingPairs(t *testing.T) {
 	}
 }
 
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	r, err := b.FetchTradablePairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pairs, err := currency.NewPairsFromStrings(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pairs.Contains(currency.NewPair(currency.COMP, currency.USD), false) {
+		t.Error("expected pair COMP/USD")
+	}
+	if !pairs.Contains(currency.NewPair(currency.BTC, currency.USD), false) {
+		t.Error("expected pair BTC/USD")
+	}
+	if !pairs.Contains(currency.NewPair(currency.USDC, currency.USDT), false) {
+		t.Error("expected pair USDC/USDT")
+	}
+}
+
 func TestGetTransactions(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTransactions(currency.BTC.String()+currency.USD.String(), "hour")
