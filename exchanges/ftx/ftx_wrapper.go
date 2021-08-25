@@ -94,6 +94,7 @@ func (f *FTX) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
 				TickerFetching:      true,
+				TickerBatching:      true,
 				KlineFetching:       true,
 				TradeFetching:       true,
 				OrderbookFetching:   true,
