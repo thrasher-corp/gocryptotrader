@@ -726,7 +726,7 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 		var p currency.Pair
 		if currPair == "all" {
 			// Currency pairs are returned as format "currency_pair": "BTC/USD"
-			// only when all is specifed
+			// only when all is specified
 			p, err = currency.NewPairFromString(resp[i].Currency)
 			if err != nil {
 				return nil, err
