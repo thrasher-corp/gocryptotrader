@@ -63743,7 +63743,7 @@
        "counter_decimals": 2,
        "description": "Bitcoin / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "BTC/USD",
        "trading": "Enabled",
        "url_symbol": "btcusd"
       },
@@ -63752,7 +63752,7 @@
        "counter_decimals": 2,
        "description": "Bitcoin / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "BTC/EUR",
        "trading": "Enabled",
        "url_symbol": "btceur"
       },
@@ -63761,7 +63761,7 @@
        "counter_decimals": 2,
        "description": "Bitcoin / British Pound",
        "minimum_order": "20.0 GBP",
-       "name": "",
+       "name": "BTC/GBP",
        "trading": "Enabled",
        "url_symbol": "btcgbp"
       },
@@ -63770,7 +63770,7 @@
        "counter_decimals": 2,
        "description": "Bitcoin / Paxos Standard",
        "minimum_order": "20.0 PAX",
-       "name": "",
+       "name": "BTC/PAX",
        "trading": "Enabled",
        "url_symbol": "btcpax"
       },
@@ -63779,7 +63779,7 @@
        "counter_decimals": 2,
        "description": "Bitcoin / Tether",
        "minimum_order": "20.0 USDT",
-       "name": "",
+       "name": "BTC/USDT",
        "trading": "Enabled",
        "url_symbol": "btcusdt"
       },
@@ -63788,7 +63788,7 @@
        "counter_decimals": 2,
        "description": "Bitcoin / USD Coin",
        "minimum_order": "20.0 USDC",
-       "name": "",
+       "name": "BTC/USDC",
        "trading": "Enabled",
        "url_symbol": "btcusdc"
       },
@@ -63797,7 +63797,7 @@
        "counter_decimals": 5,
        "description": "British Pound / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "GBP/USD",
        "trading": "Enabled",
        "url_symbol": "gbpusd"
       },
@@ -63806,7 +63806,7 @@
        "counter_decimals": 5,
        "description": "British Pound / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "GBP/EUR",
        "trading": "Enabled",
        "url_symbol": "gbpeur"
       },
@@ -63815,7 +63815,7 @@
        "counter_decimals": 5,
        "description": "Euro / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "EUR/USD",
        "trading": "Enabled",
        "url_symbol": "eurusd"
       },
@@ -63824,7 +63824,7 @@
        "counter_decimals": 2,
        "description": "Ether / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "ETH/USD",
        "trading": "Enabled",
        "url_symbol": "ethusd"
       },
@@ -63833,7 +63833,7 @@
        "counter_decimals": 2,
        "description": "Ether / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "ETH/EUR",
        "trading": "Enabled",
        "url_symbol": "etheur"
       },
@@ -63842,7 +63842,7 @@
        "counter_decimals": 8,
        "description": "Ether / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "ETH/BTC",
        "trading": "Enabled",
        "url_symbol": "ethbtc"
       },
@@ -63851,7 +63851,7 @@
        "counter_decimals": 2,
        "description": "Ether / British Pound",
        "minimum_order": "20.0 GBP",
-       "name": "",
+       "name": "ETH/GBP",
        "trading": "Enabled",
        "url_symbol": "ethgbp"
       },
@@ -63860,7 +63860,7 @@
        "counter_decimals": 2,
        "description": "Ether / Paxos Standard",
        "minimum_order": "20.0 PAX",
-       "name": "",
+       "name": "ETH/PAX",
        "trading": "Enabled",
        "url_symbol": "ethpax"
       },
@@ -63869,7 +63869,7 @@
        "counter_decimals": 2,
        "description": "Ether / Tether",
        "minimum_order": "20.0 USDT",
-       "name": "",
+       "name": "ETH/USDT",
        "trading": "Enabled",
        "url_symbol": "ethusdt"
       },
@@ -63878,7 +63878,7 @@
        "counter_decimals": 2,
        "description": "Ether / USD Coin",
        "minimum_order": "20.0 USDC",
-       "name": "",
+       "name": "ETH/USDC",
        "trading": "Enabled",
        "url_symbol": "ethusdc"
       },
@@ -63887,7 +63887,7 @@
        "counter_decimals": 5,
        "description": "XRP / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "XRP/USD",
        "trading": "Enabled",
        "url_symbol": "xrpusd"
       },
@@ -63896,7 +63896,7 @@
        "counter_decimals": 5,
        "description": "XRP / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "XRP/EUR",
        "trading": "Enabled",
        "url_symbol": "xrpeur"
       },
@@ -63905,7 +63905,7 @@
        "counter_decimals": 8,
        "description": "XRP / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "XRP/BTC",
        "trading": "Enabled",
        "url_symbol": "xrpbtc"
       },
@@ -63914,7 +63914,7 @@
        "counter_decimals": 5,
        "description": "XRP / British Pound",
        "minimum_order": "20.0 GBP",
-       "name": "",
+       "name": "XRP/GBP",
        "trading": "Enabled",
        "url_symbol": "xrpgbp"
       },
@@ -63923,7 +63923,7 @@
        "counter_decimals": 5,
        "description": "XRP / Paxos Standard",
        "minimum_order": "20.0 PAX",
-       "name": "",
+       "name": "XRP/PAX",
        "trading": "Enabled",
        "url_symbol": "xrppax"
       },
@@ -63932,7 +63932,7 @@
        "counter_decimals": 5,
        "description": "XRP / Tether",
        "minimum_order": "20.0 USDT",
-       "name": "",
+       "name": "XRP/USDT",
        "trading": "Enabled",
        "url_symbol": "xrpusdt"
       },
@@ -63941,7 +63941,7 @@
        "counter_decimals": 5,
        "description": "Uniswap / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "UNI/USD",
        "trading": "Enabled",
        "url_symbol": "uniusd"
       },
@@ -63950,7 +63950,7 @@
        "counter_decimals": 5,
        "description": "Uniswap / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "UNI/EUR",
        "trading": "Enabled",
        "url_symbol": "unieur"
       },
@@ -63959,7 +63959,7 @@
        "counter_decimals": 8,
        "description": "Uniswap / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "UNI/BTC",
        "trading": "Enabled",
        "url_symbol": "unibtc"
       },
@@ -63968,7 +63968,7 @@
        "counter_decimals": 2,
        "description": "Litecoin / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "LTC/USD",
        "trading": "Enabled",
        "url_symbol": "ltcusd"
       },
@@ -63977,7 +63977,7 @@
        "counter_decimals": 2,
        "description": "Litecoin / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "LTC/EUR",
        "trading": "Enabled",
        "url_symbol": "ltceur"
       },
@@ -63986,7 +63986,7 @@
        "counter_decimals": 8,
        "description": "Litecoin / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "LTC/BTC",
        "trading": "Enabled",
        "url_symbol": "ltcbtc"
       },
@@ -63995,7 +63995,7 @@
        "counter_decimals": 2,
        "description": "Litecoin / British Pound",
        "minimum_order": "20.0 GBP",
-       "name": "",
+       "name": "LTC/GBP",
        "trading": "Enabled",
        "url_symbol": "ltcgbp"
       },
@@ -64004,7 +64004,7 @@
        "counter_decimals": 2,
        "description": "Chainlink / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "LINK/USD",
        "trading": "Enabled",
        "url_symbol": "linkusd"
       },
@@ -64013,7 +64013,7 @@
        "counter_decimals": 2,
        "description": "Chainlink / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "LINK/EUR",
        "trading": "Enabled",
        "url_symbol": "linkeur"
       },
@@ -64022,7 +64022,7 @@
        "counter_decimals": 8,
        "description": "Chainlink / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "LINK/BTC",
        "trading": "Enabled",
        "url_symbol": "linkbtc"
       },
@@ -64031,7 +64031,7 @@
        "counter_decimals": 2,
        "description": "Chainlink / British Pound",
        "minimum_order": "20.0 GBP",
-       "name": "",
+       "name": "LINK/GBP",
        "trading": "Enabled",
        "url_symbol": "linkgbp"
       },
@@ -64040,7 +64040,7 @@
        "counter_decimals": 8,
        "description": "Chainlink / Ether",
        "minimum_order": "0.005 ETH",
-       "name": "",
+       "name": "LINK/ETH",
        "trading": "Enabled",
        "url_symbol": "linketh"
       },
@@ -64049,7 +64049,7 @@
        "counter_decimals": 5,
        "description": "Polygon / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "MATIC/USD",
        "trading": "Enabled",
        "url_symbol": "maticusd"
       },
@@ -64058,7 +64058,7 @@
        "counter_decimals": 5,
        "description": "Polygon / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "MATIC/EUR",
        "trading": "Enabled",
        "url_symbol": "maticeur"
       },
@@ -64067,7 +64067,7 @@
        "counter_decimals": 5,
        "description": "Stellar Lumens / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "XLM/USD",
        "trading": "Enabled",
        "url_symbol": "xlmusd"
       },
@@ -64076,7 +64076,7 @@
        "counter_decimals": 5,
        "description": "Stellar Lumens / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "XLM/EUR",
        "trading": "Enabled",
        "url_symbol": "xlmeur"
       },
@@ -64085,7 +64085,7 @@
        "counter_decimals": 8,
        "description": "Stellar Lumens / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "XLM/BTC",
        "trading": "Enabled",
        "url_symbol": "xlmbtc"
       },
@@ -64094,7 +64094,7 @@
        "counter_decimals": 5,
        "description": "Stellar Lumens / British Pound",
        "minimum_order": "20.0 GBP",
-       "name": "",
+       "name": "XLM/GBP",
        "trading": "Enabled",
        "url_symbol": "xlmgbp"
       },
@@ -64103,7 +64103,7 @@
        "counter_decimals": 2,
        "description": "Bitcoin Cash / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "BCH/USD",
        "trading": "Enabled",
        "url_symbol": "bchusd"
       },
@@ -64112,7 +64112,7 @@
        "counter_decimals": 2,
        "description": "Bitcoin Cash / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "BCH/EUR",
        "trading": "Enabled",
        "url_symbol": "bcheur"
       },
@@ -64121,7 +64121,7 @@
        "counter_decimals": 8,
        "description": "Bitcoin Cash / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "BCH/BTC",
        "trading": "Enabled",
        "url_symbol": "bchbtc"
       },
@@ -64130,7 +64130,7 @@
        "counter_decimals": 2,
        "description": "Bitcoin Cash / British Pound",
        "minimum_order": "20.0 GBP",
-       "name": "",
+       "name": "BCH/GBP",
        "trading": "Enabled",
        "url_symbol": "bchgbp"
       },
@@ -64139,7 +64139,7 @@
        "counter_decimals": 2,
        "description": "AAVE / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "AAVE/USD",
        "trading": "Enabled",
        "url_symbol": "aaveusd"
       },
@@ -64148,7 +64148,7 @@
        "counter_decimals": 2,
        "description": "AAVE / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "AAVE/EUR",
        "trading": "Enabled",
        "url_symbol": "aaveeur"
       },
@@ -64157,7 +64157,7 @@
        "counter_decimals": 8,
        "description": "AAVE / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "AAVE/BTC",
        "trading": "Enabled",
        "url_symbol": "aavebtc"
       },
@@ -64166,7 +64166,7 @@
        "counter_decimals": 5,
        "description": "Algorand / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "ALGO/USD",
        "trading": "Enabled",
        "url_symbol": "algousd"
       },
@@ -64175,7 +64175,7 @@
        "counter_decimals": 5,
        "description": "Algorand / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "ALGO/EUR",
        "trading": "Enabled",
        "url_symbol": "algoeur"
       },
@@ -64184,7 +64184,7 @@
        "counter_decimals": 8,
        "description": "Algorand / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "ALGO/BTC",
        "trading": "Enabled",
        "url_symbol": "algobtc"
       },
@@ -64193,7 +64193,7 @@
        "counter_decimals": 2,
        "description": "Compound / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "COMP/USD",
        "trading": "Enabled",
        "url_symbol": "compusd"
       },
@@ -64202,7 +64202,7 @@
        "counter_decimals": 2,
        "description": "Compound / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "COMP/EUR",
        "trading": "Enabled",
        "url_symbol": "compeur"
       },
@@ -64211,7 +64211,7 @@
        "counter_decimals": 8,
        "description": "Compound / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "COMP/BTC",
        "trading": "Enabled",
        "url_symbol": "compbtc"
       },
@@ -64220,7 +64220,7 @@
        "counter_decimals": 5,
        "description": "Synthetix / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "SNX/USD",
        "trading": "Enabled",
        "url_symbol": "snxusd"
       },
@@ -64229,7 +64229,7 @@
        "counter_decimals": 5,
        "description": "Synthetix / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "SNX/EUR",
        "trading": "Enabled",
        "url_symbol": "snxeur"
       },
@@ -64238,7 +64238,7 @@
        "counter_decimals": 8,
        "description": "Synthetix / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "SNX/BTC",
        "trading": "Enabled",
        "url_symbol": "snxbtc"
       },
@@ -64247,7 +64247,7 @@
        "counter_decimals": 5,
        "description": "Enjin Coin / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "ENJ/USD",
        "trading": "Enabled",
        "url_symbol": "enjusd"
       },
@@ -64256,7 +64256,7 @@
        "counter_decimals": 5,
        "description": "Enjin Coin / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "ENJ/EUR",
        "trading": "Enabled",
        "url_symbol": "enjeur"
       },
@@ -64265,7 +64265,7 @@
        "counter_decimals": 5,
        "description": "Basic Attention Token / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "BAT/USD",
        "trading": "Enabled",
        "url_symbol": "batusd"
       },
@@ -64274,7 +64274,7 @@
        "counter_decimals": 5,
        "description": "Basic Attention Token / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "BAT/EUR",
        "trading": "Enabled",
        "url_symbol": "bateur"
       },
@@ -64283,7 +64283,7 @@
        "counter_decimals": 8,
        "description": "Basic Attention Token / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "BAT/BTC",
        "trading": "Enabled",
        "url_symbol": "batbtc"
       },
@@ -64292,7 +64292,7 @@
        "counter_decimals": 2,
        "description": "Maker / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "MKR/USD",
        "trading": "Enabled",
        "url_symbol": "mkrusd"
       },
@@ -64301,7 +64301,7 @@
        "counter_decimals": 2,
        "description": "Maker / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "MKR/EUR",
        "trading": "Enabled",
        "url_symbol": "mkreur"
       },
@@ -64310,7 +64310,7 @@
        "counter_decimals": 8,
        "description": "Maker / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "MKR/BTC",
        "trading": "Enabled",
        "url_symbol": "mkrbtc"
       },
@@ -64319,7 +64319,7 @@
        "counter_decimals": 5,
        "description": "0x / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "ZRX/USD",
        "trading": "Enabled",
        "url_symbol": "zrxusd"
       },
@@ -64328,7 +64328,7 @@
        "counter_decimals": 5,
        "description": "0x / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "ZRX/EUR",
        "trading": "Enabled",
        "url_symbol": "zrxeur"
       },
@@ -64337,7 +64337,7 @@
        "counter_decimals": 8,
        "description": "0x / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "ZRX/BTC",
        "trading": "Enabled",
        "url_symbol": "zrxbtc"
       },
@@ -64346,7 +64346,7 @@
        "counter_decimals": 2,
        "description": "yearn.finance / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "YFI/USD",
        "trading": "Enabled",
        "url_symbol": "yfiusd"
       },
@@ -64355,7 +64355,7 @@
        "counter_decimals": 2,
        "description": "yearn.finance / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "YFI/EUR",
        "trading": "Enabled",
        "url_symbol": "yfieur"
       },
@@ -64364,7 +64364,7 @@
        "counter_decimals": 8,
        "description": "yearn.finance / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "YFI/BTC",
        "trading": "Enabled",
        "url_symbol": "yfibtc"
       },
@@ -64373,7 +64373,7 @@
        "counter_decimals": 5,
        "description": "SushiSwap / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "SUSHI/USD",
        "trading": "Enabled",
        "url_symbol": "sushiusd"
       },
@@ -64382,7 +64382,7 @@
        "counter_decimals": 5,
        "description": "SushiSwap / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "SUSHI/EUR",
        "trading": "Enabled",
        "url_symbol": "sushieur"
       },
@@ -64391,7 +64391,7 @@
        "counter_decimals": 5,
        "description": "The Graph / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "GRT/USD",
        "trading": "Enabled",
        "url_symbol": "grtusd"
       },
@@ -64400,7 +64400,7 @@
        "counter_decimals": 5,
        "description": "The Graph / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "GRT/EUR",
        "trading": "Enabled",
        "url_symbol": "grteur"
       },
@@ -64409,7 +64409,7 @@
        "counter_decimals": 2,
        "description": "UMA / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "UMA/USD",
        "trading": "Enabled",
        "url_symbol": "umausd"
       },
@@ -64418,7 +64418,7 @@
        "counter_decimals": 2,
        "description": "UMA / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "UMA/EUR",
        "trading": "Enabled",
        "url_symbol": "umaeur"
       },
@@ -64427,7 +64427,7 @@
        "counter_decimals": 8,
        "description": "UMA / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "UMA/BTC",
        "trading": "Enabled",
        "url_symbol": "umabtc"
       },
@@ -64436,7 +64436,7 @@
        "counter_decimals": 2,
        "description": "OMG Network / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "OMG/USD",
        "trading": "Enabled",
        "url_symbol": "omgusd"
       },
@@ -64445,7 +64445,7 @@
        "counter_decimals": 2,
        "description": "OMG Network / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "OMG/EUR",
        "trading": "Enabled",
        "url_symbol": "omgeur"
       },
@@ -64454,7 +64454,7 @@
        "counter_decimals": 8,
        "description": "OMG Network / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "OMG/BTC",
        "trading": "Enabled",
        "url_symbol": "omgbtc"
       },
@@ -64463,7 +64463,7 @@
        "counter_decimals": 2,
        "description": "OMG Network / British Pound",
        "minimum_order": "20.0 GBP",
-       "name": "",
+       "name": "OMG/GBP",
        "trading": "Enabled",
        "url_symbol": "omggbp"
       },
@@ -64472,7 +64472,7 @@
        "counter_decimals": 5,
        "description": "Kyber Network / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "KNC/USD",
        "trading": "Enabled",
        "url_symbol": "kncusd"
       },
@@ -64481,7 +64481,7 @@
        "counter_decimals": 5,
        "description": "Kyber Network / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "KNC/EUR",
        "trading": "Enabled",
        "url_symbol": "knceur"
       },
@@ -64490,7 +64490,7 @@
        "counter_decimals": 8,
        "description": "Kyber Network / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "KNC/BTC",
        "trading": "Enabled",
        "url_symbol": "kncbtc"
       },
@@ -64499,7 +64499,7 @@
        "counter_decimals": 5,
        "description": "Curve / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "CRV/USD",
        "trading": "Enabled",
        "url_symbol": "crvusd"
       },
@@ -64508,7 +64508,7 @@
        "counter_decimals": 5,
        "description": "Curve / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "CRV/EUR",
        "trading": "Enabled",
        "url_symbol": "crveur"
       },
@@ -64517,7 +64517,7 @@
        "counter_decimals": 8,
        "description": "Curve / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "CRV/BTC",
        "trading": "Enabled",
        "url_symbol": "crvbtc"
       },
@@ -64526,7 +64526,7 @@
        "counter_decimals": 5,
        "description": "Audius / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "AUDIO/USD",
        "trading": "Enabled",
        "url_symbol": "audiousd"
       },
@@ -64535,7 +64535,7 @@
        "counter_decimals": 5,
        "description": "Audius / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "AUDIO/EUR",
        "trading": "Enabled",
        "url_symbol": "audioeur"
       },
@@ -64544,7 +64544,7 @@
        "counter_decimals": 8,
        "description": "Audius / Bitcoin",
        "minimum_order": "0.0002 BTC",
-       "name": "",
+       "name": "AUDIO/BTC",
        "trading": "Enabled",
        "url_symbol": "audiobtc"
       },
@@ -64553,7 +64553,7 @@
        "counter_decimals": 5,
        "description": "Tether / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "USDT/USD",
        "trading": "Enabled",
        "url_symbol": "usdtusd"
       },
@@ -64562,7 +64562,7 @@
        "counter_decimals": 5,
        "description": "Tether / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "USDT/EUR",
        "trading": "Enabled",
        "url_symbol": "usdteur"
       },
@@ -64571,7 +64571,7 @@
        "counter_decimals": 5,
        "description": "USD Coin / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "USDC/USD",
        "trading": "Enabled",
        "url_symbol": "usdcusd"
       },
@@ -64580,7 +64580,7 @@
        "counter_decimals": 5,
        "description": "USD Coin / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "USDC/EUR",
        "trading": "Enabled",
        "url_symbol": "usdceur"
       },
@@ -64589,7 +64589,7 @@
        "counter_decimals": 5,
        "description": "USD Coin / Tether",
        "minimum_order": "20.0 USDT",
-       "name": "",
+       "name": "USDC/USDT",
        "trading": "Enabled",
        "url_symbol": "usdcusdt"
       },
@@ -64598,7 +64598,7 @@
        "counter_decimals": 5,
        "description": "Euro Tether / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "EURT/USD",
        "trading": "Enabled",
        "url_symbol": "eurtusd"
       },
@@ -64607,7 +64607,7 @@
        "counter_decimals": 5,
        "description": "Euro Tether / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "EURT/EUR",
        "trading": "Enabled",
        "url_symbol": "eurteur"
       },
@@ -64616,7 +64616,7 @@
        "counter_decimals": 5,
        "description": "DAI / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "DAI/USD",
        "trading": "Enabled",
        "url_symbol": "daiusd"
       },
@@ -64625,7 +64625,7 @@
        "counter_decimals": 5,
        "description": "Paxos Standard / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "PAX/USD",
        "trading": "Enabled",
        "url_symbol": "paxusd"
       },
@@ -64634,7 +64634,7 @@
        "counter_decimals": 5,
        "description": "Paxos Standard / Euro",
        "minimum_order": "20.0 EUR",
-       "name": "",
+       "name": "PAX/EUR",
        "trading": "Enabled",
        "url_symbol": "paxeur"
       },
@@ -64643,7 +64643,7 @@
        "counter_decimals": 5,
        "description": "Paxos Standard / British Pound",
        "minimum_order": "20.0 GBP",
-       "name": "",
+       "name": "PAX/GBP",
        "trading": "Enabled",
        "url_symbol": "paxgbp"
       },
@@ -64652,7 +64652,7 @@
        "counter_decimals": 8,
        "description": "Ethereum 2.0 / Ether",
        "minimum_order": "0.005 ETH",
-       "name": "",
+       "name": "ETH2/ETH",
        "trading": "Disabled",
        "url_symbol": "eth2eth"
       },
@@ -64661,7 +64661,7 @@
        "counter_decimals": 5,
        "description": "Gemini Dollar / U.S. dollar",
        "minimum_order": "20.0 USD",
-       "name": "",
+       "name": "GUSD/USD",
        "trading": "Enabled",
        "url_symbol": "gusdusd"
       }
