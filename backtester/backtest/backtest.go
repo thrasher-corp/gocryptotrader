@@ -138,9 +138,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		var exch gctexchange.IBotExchange
 		exch, err = bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		if err != nil {
-			return nil, fmt.Errorf("could not get exchange by name %s, %w",
-				cfg.CurrencySettings[i].ExchangeName,
-				err)
+			return nil, fmt.Errorf("could not get exchange by name %w", err)
 		}
 		b := exch.GetBase()
 		var pFmt currency.PairFormat
