@@ -231,11 +231,12 @@ type Authenticate struct {
 	Operation string   `json:"op"`
 }
 
-// WsSub has the data used to subscribe to a channel
-type WsSub struct {
-	Channel   string `json:"channel,omitempty"`
-	Market    string `json:"market,omitempty"`
-	Operation string `json:"op,omitempty"`
+// WsReq has the data used for ws request
+type WsReq struct {
+	Symbol     string      `json:"symbol"`
+	Topic      string      `json:"topic"`
+	Event      string      `json:"event"`
+	Parameters interface{} `json:"params"`
 }
 
 // WsTickerData stores ws ticker data

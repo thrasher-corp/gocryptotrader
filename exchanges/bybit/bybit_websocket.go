@@ -27,16 +27,19 @@ const (
 	bybitWSURLPublicTopicV2  = "wss://stream.bybit.com/spot/quote/ws/v2"
 	bybitWSURLPrivateTopicV1 = "wss://stream.bybit.com/spot/ws"
 	bybitWebsocketTimer      = 30 * time.Second
-	wsTicker                 = "ticker"
+	wsOrderbook              = "depth"
+	wsTicker                 = "bookTicker"
 	wsTrades                 = "trades"
-	wsOrderbook              = "orderbook"
-	wsMarkets                = "markets"
-	wsFills                  = "fills"
-	wsOrders                 = "orders"
-	wsUpdate                 = "update"
-	wsPartial                = "partial"
-	subscribe                = "subscribe"
-	unsubscribe              = "unsubscribe"
+	wsMarkets                = "kline"
+
+	wsAccountInfo = "outboundAccountInfo"
+	wsOrder       = "executionReport"
+	wsOrderFilled = "ticketInfo"
+
+	wsUpdate    = "update"
+	wsPartial   = "partial"
+	subscribe   = "sub"
+	unsubscribe = "unsubscribe"
 )
 
 var obSuccess = make(map[currency.Pair]bool)
@@ -93,27 +96,23 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 	var errs common.Errors
 channels:
 	for i := range channelsToSubscribe {
-		var sub WsSub
-		sub.Channel = channelsToSubscribe[i].Channel
-		sub.Operation = subscribe
+		var sub WsReq
+		sub.Topic = channelsToSubscribe[i].Channel
+		sub.Event = subscribe
 
-		switch channelsToSubscribe[i].Channel {
-		case wsFills, wsOrders, wsMarkets:
-		default:
-			a, err := by.GetPairAssetType(channelsToSubscribe[i].Currency)
-			if err != nil {
-				errs = append(errs, err)
-				continue channels
-			}
-
-			formattedPair, err := by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
-			if err != nil {
-				errs = append(errs, err)
-				continue channels
-			}
-			sub.Market = formattedPair.String()
+		a, err := by.GetPairAssetType(channelsToSubscribe[i].Currency)
+		if err != nil {
+			errs = append(errs, err)
+			continue channels
 		}
-		err := by.Websocket.Conn.SendJSONMessage(sub)
+
+		formattedPair, err := by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
+		if err != nil {
+			errs = append(errs, err)
+			continue channels
+		}
+		sub.Symbol = formattedPair.String()
+		err = by.Websocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -129,28 +128,25 @@ channels:
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var errs common.Errors
-channels:
-	for i := range channelsToUnsubscribe {
-		var unSub WsSub
-		unSub.Operation = unsubscribe
-		unSub.Channel = channelsToUnsubscribe[i].Channel
-		switch channelsToUnsubscribe[i].Channel {
-		case wsFills, wsOrders, wsMarkets:
-		default:
-			a, err := by.GetPairAssetType(channelsToUnsubscribe[i].Currency)
-			if err != nil {
-				errs = append(errs, err)
-				continue channels
-			}
 
-			formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
-			if err != nil {
-				errs = append(errs, err)
-				continue channels
-			}
-			unSub.Market = formattedPair.String()
+	for i := range channelsToUnsubscribe {
+		var unSub WsReq
+		unSub.Event = unsubscribe
+		unSub.Topic = channelsToUnsubscribe[i].Channel
+
+		a, err := by.GetPairAssetType(channelsToUnsubscribe[i].Currency)
+		if err != nil {
+			errs = append(errs, err)
+			continue
 		}
-		err := by.Websocket.Conn.SendJSONMessage(unSub)
+
+		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		unSub.Symbol = formattedPair.String()
+		err = by.Websocket.Conn.SendJSONMessage(unSub)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -214,7 +210,7 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		}
 	}
 	if by.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		var authchan = []string{wsOrders, wsFills}
+		var authchan = []string{}
 		for x := range authchan {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: authchan[x],
@@ -236,7 +232,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	switch result["type"] {
+	switch result["topic"] {
 	case wsUpdate:
 		var p currency.Pair
 		var a asset.Item
@@ -284,10 +280,6 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		case wsTrades:
-			// TODO
-		case wsOrders:
-			// TODO
-		case wsFills:
 			// TODO
 		default:
 			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + string(respRaw)}
