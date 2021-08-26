@@ -20,11 +20,12 @@ import (
 
 const (
 	// Name is the strategy name
-	Name         = "strongestrsigetstheworm"
-	rsiPeriodKey = "rsi-period"
-	rsiLowKey    = "rsi-low"
-	rsiHighKey   = "rsi-high"
-	description  = `This is an example strategy to highlight more complex strategy design`
+	Name                 = "strongestrsigetstheworm"
+	rsiPeriodKey         = "rsi-period"
+	rsiLowKey            = "rsi-low"
+	rsiHighKey           = "rsi-high"
+	mandatoryCurrencyKey = "mandatory-currency"
+	description          = `This is an example strategy to highlight more complex strategy design`
 )
 
 var (
@@ -35,9 +36,10 @@ var (
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
-	rsiPeriod decimal.Decimal
-	rsiLow    decimal.Decimal
-	rsiHigh   decimal.Decimal
+	rsiPeriod         decimal.Decimal
+	rsiLow            decimal.Decimal
+	rsiHigh           decimal.Decimal
+	mandatoryCurrency currency.Code
 }
 
 // Name returns the name of the strategy
@@ -95,7 +97,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 	var errs gctcommon.Errors
 	for i := range d {
 		p := d[i].Latest().Pair()
-		if p.Base != currency.BTC && p.Quote != currency.BTC {
+		if p.Base != s.mandatoryCurrency && p.Quote != s.mandatoryCurrency {
 			return nil, errStrategyBTCExclusive
 		}
 
@@ -163,17 +165,23 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 	}
 
 	if strongestSignal.rsi.GreaterThan(s.rsiHigh) && strongestSignalFunds.Base.MatchesCurrency(currency.BTC) {
-		// we are selling, send all matching
+		// we are selling, send all matching to strongest base
 		sortByRSI(rsiFundEvents, false)
 		if err != nil {
 			return nil, err
 		}
 		for i := range rsiFundEvents {
+			if rsiFundEvents[i] == strongestSignal {
+				continue
+			}
 			evFunds, err := f.GetFundingForEvent(rsiFundEvents[i].event)
 			if err != nil {
 				return nil, err
 			}
-			if evFunds.Base.MatchesCurrency(currency.BTC) {
+			if evFunds.Base.MatchesCurrency(s.mandatoryCurrency) {
+				if evFunds.BaseAvailable().LessThanOrEqual(decimal.Zero) {
+					continue
+				}
 				err = f.Transfer(evFunds.BaseAvailable(), evFunds.Base, strongestSignalFunds.Base)
 				if err != nil {
 					return nil, err
@@ -181,7 +189,10 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 				rsiFundEvents[i].event.AppendReason(fmt.Sprintf("sent %v funds to %v %v %v", evFunds.BaseAvailable(), strongestSignal.event.GetExchange(), strongestSignal.event.GetAssetType(), strongestSignal.event.Pair().Base))
 				rsiFundEvents[i].event.SetDirection(common.DoNothing)
 			} else {
-				err = f.Transfer(evFunds.BaseAvailable(), evFunds.Quote, strongestSignalFunds.Base)
+				if evFunds.QuoteAvailable().LessThanOrEqual(decimal.Zero) {
+					continue
+				}
+				err = f.Transfer(evFunds.QuoteAvailable(), evFunds.Quote, strongestSignalFunds.Base)
 				if err != nil {
 					return nil, err
 				}
@@ -193,21 +204,30 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 	if strongestSignal.rsi.LessThan(s.rsiLow) {
 		// we are buying, send all matching quote funds to leader
 		for i := range rsiFundEvents {
+			if rsiFundEvents[i] == strongestSignal {
+				continue
+			}
 			evFunds, err := f.GetFundingForEvent(rsiFundEvents[i].event)
 			if err != nil {
-				errs = append(errs, err)
+				return nil, err
 			}
-			if strongestSignalFunds.Quote.MatchesItemCurrency(evFunds.Base) {
+			if evFunds.Base.MatchesCurrency(s.mandatoryCurrency) {
+				if evFunds.BaseAvailable().LessThanOrEqual(decimal.Zero) {
+					continue
+				}
 				err = f.Transfer(evFunds.BaseAvailable(), evFunds.Base, strongestSignalFunds.Quote)
 				if err != nil {
-					errs = append(errs, err)
+					return nil, err
 				}
 				rsiFundEvents[i].event.AppendReason(fmt.Sprintf("sent %v funds to %v %v %v", evFunds.BaseAvailable(), strongestSignal.event.GetExchange(), strongestSignal.event.GetAssetType(), strongestSignal.event.Pair().Quote))
 				rsiFundEvents[i].event.SetDirection(common.DoNothing)
-			} else if strongestSignalFunds.Quote.MatchesItemCurrency(evFunds.Quote) {
+			} else {
+				if evFunds.QuoteAvailable().LessThanOrEqual(decimal.Zero) {
+					continue
+				}
 				err = f.Transfer(evFunds.QuoteAvailable(), evFunds.Quote, strongestSignalFunds.Quote)
 				if err != nil {
-					errs = append(errs, err)
+					return nil, err
 				}
 				rsiFundEvents[i].event.AppendReason(fmt.Sprintf("sent %v funds to %v %v %v", evFunds.QuoteAvailable(), strongestSignal.event.GetExchange(), strongestSignal.event.GetAssetType(), strongestSignal.event.Pair().Quote))
 				rsiFundEvents[i].event.SetDirection(common.DoNothing)
@@ -247,6 +267,12 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
 			s.rsiPeriod = decimal.NewFromFloat(rsiPeriod)
+		case mandatoryCurrencyKey:
+			currStr, ok := v.(string)
+			if !ok || currStr == "" {
+				return fmt.Errorf("%w mandatory currency is a mandatory field for this strategy, see readme for details: %v", base.ErrInvalidCustomSettings, v)
+			}
+			s.mandatoryCurrency = currency.NewCode(currStr)
 		default:
 			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}
@@ -260,6 +286,7 @@ func (s *Strategy) SetDefaults() {
 	s.rsiHigh = decimal.NewFromInt(70)
 	s.rsiLow = decimal.NewFromInt(30)
 	s.rsiPeriod = decimal.NewFromInt(14)
+	s.mandatoryCurrency = currency.BTC
 }
 
 // massageMissingData will replace missing data with the previous candle's data
