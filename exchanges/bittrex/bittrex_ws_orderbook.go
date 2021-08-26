@@ -176,7 +176,10 @@ func (b *Bittrex) applyBufferUpdate(pair currency.Pair) error {
 				"%s error processing update - initiating new orderbook sync via REST: %s\n",
 				b.Name,
 				err)
-			b.obm.setNeedsFetchingBook(pair)
+			err = b.obm.setNeedsFetchingBook(pair)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
