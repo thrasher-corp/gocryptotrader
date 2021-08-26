@@ -17,17 +17,21 @@ var o OXR
 
 var initialSetup bool
 
-func setup() {
-	o.Setup(base.Settings{
+func setup(t *testing.T) {
+	t.Helper()
+	err := o.Setup(base.Settings{
 		Name:    "OpenExchangeRates",
 		Enabled: true,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	initialSetup = true
 }
 
 func TestGetRates(t *testing.T) {
 	if !initialSetup {
-		setup()
+		setup(t)
 	}
 	_, err := o.GetRates("USD", "AUD")
 	if err == nil {
@@ -37,7 +41,7 @@ func TestGetRates(t *testing.T) {
 
 func TestGetLatest(t *testing.T) {
 	if !initialSetup {
-		setup()
+		setup(t)
 	}
 	_, err := o.GetLatest("USD", "AUD", false, false)
 	if err == nil {
@@ -47,7 +51,7 @@ func TestGetLatest(t *testing.T) {
 
 func TestGetHistoricalRates(t *testing.T) {
 	if !initialSetup {
-		setup()
+		setup(t)
 	}
 	_, err := o.GetHistoricalRates("2017-12-01", "USD", []string{"CNH", "AUD", "ANG"}, false, false)
 	if err == nil {
@@ -57,7 +61,7 @@ func TestGetHistoricalRates(t *testing.T) {
 
 func TestGetCurrencies(t *testing.T) {
 	if !initialSetup {
-		setup()
+		setup(t)
 	}
 	_, err := o.GetCurrencies(true, true, true)
 	if err != nil {
@@ -67,7 +71,7 @@ func TestGetCurrencies(t *testing.T) {
 
 func TestGetTimeSeries(t *testing.T) {
 	if !initialSetup {
-		setup()
+		setup(t)
 	}
 	_, err := o.GetTimeSeries("USD", "2017-12-01", "2017-12-02", []string{"CNH", "AUD", "ANG"}, false, false)
 	if err == nil {
@@ -77,7 +81,7 @@ func TestGetTimeSeries(t *testing.T) {
 
 func TestConvertCurrency(t *testing.T) {
 	if !initialSetup {
-		setup()
+		setup(t)
 	}
 	_, err := o.ConvertCurrency(1337, "USD", "AUD")
 	if err == nil {
@@ -87,7 +91,7 @@ func TestConvertCurrency(t *testing.T) {
 
 func TestGetOHLC(t *testing.T) {
 	if !initialSetup {
-		setup()
+		setup(t)
 	}
 	_, err := o.GetOHLC("2017-07-17T08:30:00Z", "1m", "USD", []string{"AUD"}, false)
 	if err == nil {
@@ -97,7 +101,7 @@ func TestGetOHLC(t *testing.T) {
 
 func TestGetUsageStats(t *testing.T) {
 	if !initialSetup {
-		setup()
+		setup(t)
 	}
 	_, err := o.GetUsageStats(false)
 	if err == nil {

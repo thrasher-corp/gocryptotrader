@@ -62,29 +62,29 @@ func GetRandomSalt(input []byte, saltLen int) ([]byte, error) {
 }
 
 // GetMD5 returns a MD5 hash of a byte array
-func GetMD5(input []byte) []byte {
+func GetMD5(input []byte) ([]byte, error) {
 	m := md5.New() // nolint:gosec // hash function used by some exchanges
-	m.Write(input)
-	return m.Sum(nil)
+	_, err := m.Write(input)
+	return m.Sum(nil), err
 }
 
 // GetSHA512 returns a SHA512 hash of a byte array
-func GetSHA512(input []byte) []byte {
+func GetSHA512(input []byte) ([]byte, error) {
 	sha := sha512.New()
-	sha.Write(input)
-	return sha.Sum(nil)
+	_, err := sha.Write(input)
+	return sha.Sum(nil), err
 }
 
 // GetSHA256 returns a SHA256 hash of a byte array
-func GetSHA256(input []byte) []byte {
+func GetSHA256(input []byte) ([]byte, error) {
 	sha := sha256.New()
-	sha.Write(input)
-	return sha.Sum(nil)
+	_, err := sha.Write(input)
+	return sha.Sum(nil), err
 }
 
 // GetHMAC returns a keyed-hash message authentication code using the desired
 // hashtype
-func GetHMAC(hashType int, input, key []byte) []byte {
+func GetHMAC(hashType int, input, key []byte) ([]byte, error) {
 	var hasher func() hash.Hash
 
 	switch hashType {
@@ -101,14 +101,14 @@ func GetHMAC(hashType int, input, key []byte) []byte {
 	}
 
 	h := hmac.New(hasher, key)
-	h.Write(input)
-	return h.Sum(nil)
+	_, err := h.Write(input)
+	return h.Sum(nil), err
 }
 
 // Sha1ToHex takes a string, sha1 hashes it and return a hex string of the
 // result
-func Sha1ToHex(data string) string {
+func Sha1ToHex(data string) (string, error) {
 	h := sha1.New() // nolint:gosec // hash function used by some exchanges
-	h.Write([]byte(data))
-	return hex.EncodeToString(h.Sum(nil))
+	_, err := h.Write([]byte(data))
+	return hex.EncodeToString(h.Sum(nil)), err
 }

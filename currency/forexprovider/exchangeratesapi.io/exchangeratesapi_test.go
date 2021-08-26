@@ -2,6 +2,7 @@ package exchangerates
 
 import (
 	"errors"
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -17,11 +18,14 @@ const (
 )
 
 func TestMain(t *testing.M) {
-	e.Setup(base.Settings{
+	err := e.Setup(base.Settings{
 		Name:      "ExchangeRates",
 		APIKey:    apiKey,
 		APIKeyLvl: apiKeyLevel,
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(t.Run())
 }
 

@@ -245,12 +245,15 @@ func TestBaseCode(t *testing.T) {
 			true)
 	}
 
-	main.LoadItem(&Item{
+	err = main.LoadItem(&Item{
 		ID:       0,
 		FullName: "Cardano",
 		Role:     Cryptocurrency,
 		Symbol:   "ADA",
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	full, err := main.GetFullCurrencyData()
 	if err != nil {

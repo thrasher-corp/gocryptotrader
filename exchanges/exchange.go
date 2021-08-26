@@ -304,7 +304,11 @@ func (b *Base) SetConfigPairs() error {
 		if b.Config.CurrencyPairs.IsAssetEnabled(assetTypes[x]) == nil {
 			enabledAsset = true
 		}
-		b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
+
+		err = b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
+		if err != nil {
+			return err
+		}
 
 		if b.Config.CurrencyPairs.UseGlobalFormat {
 			b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)

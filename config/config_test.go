@@ -35,7 +35,10 @@ func TestGetNonExistentDefaultFilePathDoesNotCreateDefaultDir(t *testing.T) {
 	if file.Exists(dir) {
 		t.Skip("The default directory already exists before running the test")
 	}
-	GetFilePath("")
+	_, _, err := GetFilePath("")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if file.Exists(dir) {
 		t.Fatalf("The target directory was created in %s", dir)
 	}
