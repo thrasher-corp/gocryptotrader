@@ -3,11 +3,14 @@ package currency
 import (
 	"errors"
 	"fmt"
-	"runtime"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+// ErrAssetAlreadyEnabled defines an error for the pairs management system
+// that declares the asset is already enabled.
+var ErrAssetAlreadyEnabled = errors.New("asset already enabled")
 
 // GetAssetTypes returns a list of stored asset types
 func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
@@ -186,8 +189,7 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 	if !*c.AssetEnabled && !enabled {
 		return errors.New("asset already disabled")
 	} else if *c.AssetEnabled && enabled {
-		runtime.Breakpoint()
-		return errors.New("asset already enabled")
+		return ErrAssetAlreadyEnabled
 	}
 
 	*c.AssetEnabled = enabled
