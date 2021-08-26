@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"errors"
-	"fmt"
 	"sort"
 	"strconv"
 	"time"
@@ -30,12 +29,7 @@ func (e Exchange) Exchanges(enabledOnly bool) []string {
 
 // GetExchange returns IBotExchange for exchange or error if exchange is not found
 func (e Exchange) GetExchange(exch string) (exchange.IBotExchange, error) {
-	ex := engine.Bot.GetExchangeByName(exch)
-	if ex == nil {
-		return nil, fmt.Errorf("%v exchange not found", exch)
-	}
-
-	return ex, nil
+	return engine.Bot.GetExchangeByName(exch)
 }
 
 // IsEnabled returns if requested exchange is enabled or disabled

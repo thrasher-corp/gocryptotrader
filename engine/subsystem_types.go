@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
@@ -43,7 +42,7 @@ var (
 // so that subsystems can use some functionality
 type iExchangeManager interface {
 	GetExchanges() []exchange.IBotExchange
-	GetExchangeByName(string) exchange.IBotExchange
+	GetExchangeByName(string) (exchange.IBotExchange, error)
 }
 
 // iCommsManager limits exposure of accessible functions to communication manager
@@ -70,13 +69,6 @@ type iPortfolioManager interface {
 // iBot limits exposure of accessible functions to engine bot
 type iBot interface {
 	SetupExchanges() error
-}
-
-// iWebsocketDataReceiver limits exposure of accessible functions to websocket data receiver
-type iWebsocketDataReceiver interface {
-	IsRunning() bool
-	WebsocketDataReceiver(ws *stream.Websocket)
-	WebsocketDataHandler(string, interface{}) error
 }
 
 // iCurrencyPairSyncer defines a limited scoped currency pair syncer

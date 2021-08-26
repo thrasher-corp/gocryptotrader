@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -55,8 +56,9 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
 	m.Add(b)
-	if err := m.RemoveExchange("Bitstamp"); err != ErrExchangeNotFound {
-		t.Error("Bitstamp exchange should return an error")
+	err := m.RemoveExchange("Bitstamp")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received: %v but expected: %v", err, ErrExchangeNotFound)
 	}
 	if err := m.RemoveExchange("BiTFiNeX"); err != nil {
 		t.Error("exchange should have been removed")

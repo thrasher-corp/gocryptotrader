@@ -135,7 +135,11 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
 				err)
 		}
-		exch := bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+		var exch gctexchange.IBotExchange
+		exch, err = bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+		if err != nil {
+			return nil, fmt.Errorf("could not get exchange by name %w", err)
+		}
 		b := exch.GetBase()
 		var pFmt currency.PairFormat
 		pFmt, err = b.GetPairFormat(a, true)
@@ -332,10 +336,9 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 }
 
 func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
-	var err error
-	e := bt.Bot.GetExchangeByName(exch)
-	if e == nil {
-		return nil, currency.Pair{}, "", engine.ErrExchangeNotFound
+	e, err := bt.Bot.GetExchangeByName(exch)
+	if err != nil {
+		return nil, currency.Pair{}, "", err
 	}
 
 	var cp, fPair currency.Pair

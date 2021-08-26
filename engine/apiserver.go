@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -805,9 +804,9 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 		return err
 	}
 
-	exch := client.exchangeManager.GetExchangeByName(tickerReq.Exchange)
-	if exch == nil {
-		wsResp.Error = exchange.ErrNoExchangeFound.Error()
+	exch, err := client.exchangeManager.GetExchangeByName(tickerReq.Exchange)
+	if err != nil {
+		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
 			log.Error(log.APIServerMgr, sendErr)
@@ -860,9 +859,9 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 		return err
 	}
 
-	exch := client.exchangeManager.GetExchangeByName(orderbookReq.Exchange)
-	if exch == nil {
-		wsResp.Error = exchange.ErrNoExchangeFound.Error()
+	exch, err := client.exchangeManager.GetExchangeByName(orderbookReq.Exchange)
+	if err != nil {
+		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
 			log.Error(log.APIServerMgr, sendErr)
