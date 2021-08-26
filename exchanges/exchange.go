@@ -294,6 +294,7 @@ func (b *Base) SetConfigPairs() error {
 				"%s exchange asset type %s unsupported, please manually remove from configuration",
 				b.Name,
 				assetTypes[x])
+			continue // If there are unsupported assets contained in config, skip.
 		}
 		cfgPS, err := b.Config.CurrencyPairs.Get(assetTypes[x])
 		if err != nil {
