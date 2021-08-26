@@ -43,6 +43,7 @@ var (
 	ErrExchangeNotFound      = errors.New("exchange not found")
 	ErrExchangeAlreadyLoaded = errors.New("exchange already loaded")
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
+	errExchangeNameIsEmpty   = errors.New("exchange name is empty")
 )
 
 // CustomExchangeBuilder interface allows external applications to create
@@ -105,7 +106,10 @@ func (m *ExchangeManager) RemoveExchange(exchName string) error {
 // GetExchangeByName returns an exchange by its name if it exists
 func (m *ExchangeManager) GetExchangeByName(exchangeName string) (exchange.IBotExchange, error) {
 	if m == nil {
-		return nil, errors.New("manager is nil")
+		return nil, fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
+	}
+	if exchangeName == "" {
+		return nil, fmt.Errorf("exchange manager: %w", errExchangeNameIsEmpty)
 	}
 	m.m.Lock()
 	defer m.m.Unlock()

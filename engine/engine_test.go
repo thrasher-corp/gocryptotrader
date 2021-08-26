@@ -165,27 +165,13 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	botTwo.Stop()
 }
 
-func TestCheckExchangeExists(t *testing.T) {
-	t.Parallel()
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
-	exch.SetDefaults()
-	em.Add(exch)
-	e := &Engine{ExchangeManager: em}
-	if _, err := e.GetExchangeByName(testExchange); err != nil {
-		t.Errorf("TestGetExchangeExists: Unable to find exchange")
-	}
-
-	if _, err := e.GetExchangeByName("Asdsad"); err == nil {
-		t.Errorf("TestGetExchangeExists: Non-existent exchange found")
-	}
-}
-
 func TestGetExchangeByName(t *testing.T) {
 	t.Parallel()
+	_, err := (*ExchangeManager)(nil).GetExchangeByName("tehehe")
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received: %v expected: %v", err, ErrNilSubsystem)
+	}
+
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
@@ -213,8 +199,8 @@ func TestGetExchangeByName(t *testing.T) {
 	}
 
 	_, err = e.GetExchangeByName("Asdasd")
-	if err == nil {
-		t.Fatal("expected error")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received: %v expected: %v", err, ErrExchangeNotFound)
 	}
 }
 

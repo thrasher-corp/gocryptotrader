@@ -304,9 +304,8 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	}
 	exch, err := m.exchangeManager.GetExchangeByName(exchangeName)
 	if err != nil {
-		return fmt.Errorf("%s %w, cannot process job %s for %s %s",
-			job.Exchange,
-			errExchangeNotLoaded,
+		return fmt.Errorf("%w, cannot process job %s for %s %s",
+			err,
 			job.Nickname,
 			job.Asset,
 			job.Pair)
@@ -1174,10 +1173,7 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	}
 	exch, err := m.exchangeManager.GetExchangeByName(exchangeName)
 	if err != nil {
-		return fmt.Errorf("job %s cannot process job: %s %w",
-			job.Nickname,
-			job.Exchange,
-			errExchangeNotLoaded)
+		return fmt.Errorf("job %s cannot process job: %v", job.Nickname, err)
 	}
 	pairs, err := exch.GetEnabledPairs(job.Asset)
 	if err != nil {

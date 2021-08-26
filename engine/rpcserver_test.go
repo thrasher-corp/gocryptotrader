@@ -456,6 +456,20 @@ func TestGetHistoricCandles(t *testing.T) {
 		End:       defaultEnd.Format(common.SimpleTimeFormat),
 		AssetType: asset.Spot.String(),
 	})
+	if !errors.Is(err, errExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", err, errExchangeNameIsEmpty)
+	}
+
+	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
+		Exchange: "bruh",
+		Pair: &gctrpc.CurrencyPair{
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
+		},
+		Start:     defaultStart.Format(common.SimpleTimeFormat),
+		End:       defaultEnd.Format(common.SimpleTimeFormat),
+		AssetType: asset.Spot.String(),
+	})
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNotFound)
 	}
@@ -1006,6 +1020,15 @@ func TestGetOrders(t *testing.T) {
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		AssetType: asset.Spot.String(),
+		Pair:      p,
+	})
+	if !errors.Is(err, errExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", errExchangeNameIsEmpty, err)
+	}
+
+	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  "bruh",
 		AssetType: asset.Spot.String(),
 		Pair:      p,
 	})
@@ -1638,6 +1661,15 @@ func TestGetManagedOrders(t *testing.T) {
 	}
 
 	_, err = s.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		AssetType: asset.Spot.String(),
+		Pair:      p,
+	})
+	if !errors.Is(err, errExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", errExchangeNameIsEmpty, err)
+	}
+
+	_, err = s.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  "bruh",
 		AssetType: asset.Spot.String(),
 		Pair:      p,
 	})
