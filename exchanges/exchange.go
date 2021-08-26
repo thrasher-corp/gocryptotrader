@@ -307,7 +307,7 @@ func (b *Base) SetConfigPairs() error {
 		}
 
 		err = b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
-		// Supress error when assets are enabled by default and they are being
+		// Suppress error when assets are enabled by default and they are being
 		// enabled by config. A check for the inverse
 		// e.g. currency.ErrAssetAlreadyDisabled is not needed.
 		if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
