@@ -631,7 +631,9 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, v2
 
 		values.Set("key", b.API.Credentials.Key)
 		values.Set("nonce", n)
-		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+
+		var hmac []byte
+		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(n+b.API.Credentials.ClientID+b.API.Credentials.Key),
 			[]byte(b.API.Credentials.Secret))
 		if err != nil {

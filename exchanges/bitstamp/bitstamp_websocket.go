@@ -84,7 +84,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		go func() {
 			err := b.Websocket.Shutdown()
 			if err != nil {
-				log.Errorln(log.WebsocketMgr, "%s failed to shutdown websocket: %v", err)
+				log.Errorf(log.WebsocketMgr, "%s failed to shutdown websocket: %v", err)
 			}
 		}() // Connection monitor will reconnect
 	case "data":

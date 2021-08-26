@@ -1134,7 +1134,9 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 		} else {
 			headers["Content-Type"] = "application/json"
 		}
-		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+
+		var hmac []byte
+		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(sigPath),
 			[]byte(h.API.Credentials.Secret))
 		if err != nil {

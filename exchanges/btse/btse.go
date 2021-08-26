@@ -483,7 +483,8 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint st
 			"btse-nonce": nonce,
 		}
 		if req != nil {
-			reqPayload, err := json.Marshal(req)
+			var reqPayload []byte
+			reqPayload, err = json.Marshal(req)
 			if err != nil {
 				return nil, err
 			}

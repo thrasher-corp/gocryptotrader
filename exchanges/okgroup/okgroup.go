@@ -22,8 +22,6 @@ import (
 )
 
 const (
-	okGroupAuthRate   = 0
-	okGroupUnauthRate = 0
 	// OKGroupAPIPath const to help with api url formatting
 	OKGroupAPIPath = "api/"
 	// API subsections
@@ -82,8 +80,6 @@ const (
 	okGroupGetLoan               = "borrow"
 	okGroupGetRepayment          = "repayment"
 )
-
-var errMissValue = errors.New("warning - resp value is missing from exchange")
 
 // OKGroup is the overaching type across the all of OKEx's exchange methods
 type OKGroup struct {
@@ -596,7 +592,9 @@ func (o *OKGroup) SendHTTPRequest(ep exchange.URL, httpMethod, requestType, requ
 		if authenticated {
 			signPath := fmt.Sprintf("/%v%v%v%v", OKGroupAPIPath,
 				requestType, o.APIVersion, requestPath)
-			hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+
+			var hmac []byte
+			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 				[]byte(utcTime+httpMethod+signPath+string(payload)),
 				[]byte(o.API.Credentials.Secret))
 			if err != nil {

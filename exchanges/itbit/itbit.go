@@ -332,7 +332,8 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 			return nil, err
 		}
 
-		hash, err := crypto.GetSHA256([]byte(n + string(message)))
+		var hash []byte
+		hash, err = crypto.GetSHA256([]byte(n + string(message)))
 		if err != nil {
 			return nil, err
 		}

@@ -150,7 +150,11 @@ func TestAdd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Add(testExchange, p, asset.Spot, 300, 1000)
+
+	err = Add(testExchange, p, asset.Spot, 300, 1000)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if Items[2].Pair.String() != "ETHUSD" {
 		t.Fatal("stats Add did not add exchange info.")

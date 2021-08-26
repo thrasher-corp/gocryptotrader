@@ -988,7 +988,8 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 		nonce := k.Requester.GetNonce(true).String()
 		params.Set("nonce", nonce)
 		encoded := params.Encode()
-		shasum, err := crypto.GetSHA256([]byte(nonce + encoded))
+		var shasum []byte
+		shasum, err = crypto.GetSHA256([]byte(nonce + encoded))
 		if err != nil {
 			return nil, err
 		}
