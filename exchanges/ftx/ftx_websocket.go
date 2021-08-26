@@ -76,11 +76,14 @@ func (f *FTX) WsConnect() error {
 func (f *FTX) WsAuth() error {
 	intNonce := time.Now().UnixNano() / 1000000
 	strNonce := strconv.FormatInt(intNonce, 10)
-	hmac := crypto.GetHMAC(
+	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
 		[]byte(strNonce+"websocket_login"),
 		[]byte(f.API.Credentials.Secret),
 	)
+	if err != nil {
+		return err
+	}
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{Operation: "login",
 		Args: AuthenticationData{

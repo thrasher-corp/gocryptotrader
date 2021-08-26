@@ -288,7 +288,11 @@ func (vm *VM) getHash() string {
 		log.Errorln(log.GCTScriptMgr, err)
 	}
 	contents = append(contents, vm.ShortName()...)
-	return hex.EncodeToString(crypto.GetSHA256(contents))
+	hash, err := crypto.GetSHA256(contents)
+	if err != nil {
+		log.Errorln(log.GCTScriptMgr, err)
+	}
+	return hex.EncodeToString(hash)
 }
 
 func (vmc *vmscount) add() {

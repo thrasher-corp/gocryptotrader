@@ -25,7 +25,6 @@ var (
 	testBrokenScript         = filepath.Join("..", "..", "testdata", "gctscript", "broken.gct")
 	testScriptRunner         = filepath.Join("..", "..", "testdata", "gctscript", "timer.gct")
 	testScriptRunner1s       = filepath.Join("..", "..", "testdata", "gctscript", "1s_timer.gct")
-	testScriptRunnerInvalid  = filepath.Join("..", "..", "testdata", "gctscript", "invalid_timer.gct")
 	testScriptRunnerNegative = filepath.Join("..", "..", "testdata", "gctscript", "negative_timer.gct")
 )
 

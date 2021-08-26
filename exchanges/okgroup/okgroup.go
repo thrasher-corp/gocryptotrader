@@ -596,9 +596,12 @@ func (o *OKGroup) SendHTTPRequest(ep exchange.URL, httpMethod, requestType, requ
 		if authenticated {
 			signPath := fmt.Sprintf("/%v%v%v%v", OKGroupAPIPath,
 				requestType, o.APIVersion, requestPath)
-			hmac := crypto.GetHMAC(crypto.HashSHA256,
+			hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 				[]byte(utcTime+httpMethod+signPath+string(payload)),
 				[]byte(o.API.Credentials.Secret))
+			if err != nil {
+				return nil, err
+			}
 			headers["OK-ACCESS-KEY"] = o.API.Credentials.Key
 			headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
 			headers["OK-ACCESS-TIMESTAMP"] = utcTime

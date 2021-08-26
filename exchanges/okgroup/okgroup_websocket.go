@@ -211,10 +211,13 @@ func (o *OKGroup) WsLogin() error {
 	o.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	unixTime := time.Now().UTC().Unix()
 	signPath := "/users/self/verify"
-	hmac := crypto.GetHMAC(crypto.HashSHA256,
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(strconv.FormatInt(unixTime, 10)+http.MethodGet+signPath),
 		[]byte(o.API.Credentials.Secret),
 	)
+	if err != nil {
+		return err
+	}
 	base64 := crypto.Base64Encode(hmac)
 	request := WebsocketEventRequest{
 		Operation: "login",
@@ -225,7 +228,7 @@ func (o *OKGroup) WsLogin() error {
 			base64,
 		},
 	}
-	_, err := o.Websocket.Conn.SendMessageReturnResponse("login", request)
+	_, err = o.Websocket.Conn.SendMessageReturnResponse("login", request)
 	if err != nil {
 		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

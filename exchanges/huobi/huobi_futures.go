@@ -1134,7 +1134,12 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 		} else {
 			headers["Content-Type"] = "application/json"
 		}
-		hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(sigPath), []byte(h.API.Credentials.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(sigPath),
+			[]byte(h.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
 		sigValues := url.Values{}
 		sigValues.Add("Signature", crypto.Base64Encode(hmac))
 		urlPath :=

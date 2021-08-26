@@ -336,9 +336,12 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(epath exchange.URL, method, endpoint
 		vals.Set("nonce", n)
 
 		payload := vals.Encode()
-		hash := crypto.GetHMAC(crypto.HashSHA512,
+		hash, err := crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(payload),
 			[]byte(e.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
 
 		headers := make(map[string]string)
 		headers["Key"] = e.API.Credentials.Key

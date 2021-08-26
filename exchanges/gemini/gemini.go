@@ -41,13 +41,6 @@ const (
 	geminiWithdraw           = "withdraw/"
 	geminiHeartbeat          = "heartbeat"
 	geminiVolume             = "notionalvolume"
-
-	// Too many requests returns this
-	geminiRateError = "429"
-
-	// Assigned API key roles on creation
-	geminiRoleTrader      = "trader"
-	geminiRoleFundManager = "fundmanager"
 )
 
 // Gemini is the overarching type across the Gemini package, create multiple
@@ -392,7 +385,12 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path stri
 		}
 
 		PayloadBase64 := crypto.Base64Encode(PayloadJSON)
-		hmac := crypto.GetHMAC(crypto.HashSHA512_384, []byte(PayloadBase64), []byte(g.API.Credentials.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
+			[]byte(PayloadBase64),
+			[]byte(g.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
 
 		headers := make(map[string]string)
 		headers["Content-Length"] = "0"

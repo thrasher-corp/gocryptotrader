@@ -868,9 +868,12 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ep exchange.URL, verb, path string
 			payload = string(data)
 		}
 
-		hmac := crypto.GetHMAC(crypto.HashSHA256,
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(verb+"/api/v1"+path+timestampNew+payload),
 			[]byte(b.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
 
 		headers["api-signature"] = crypto.HexEncodeToString(hmac)
 

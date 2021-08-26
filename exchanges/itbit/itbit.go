@@ -332,8 +332,17 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 			return nil, err
 		}
 
-		hash := crypto.GetSHA256([]byte(n + string(message)))
-		hmac := crypto.GetHMAC(crypto.HashSHA512, []byte(urlPath+string(hash)), []byte(i.API.Credentials.Secret))
+		hash, err := crypto.GetSHA256([]byte(n + string(message)))
+		if err != nil {
+			return nil, err
+		}
+
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
+			[]byte(urlPath+string(hash)),
+			[]byte(i.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
 		signature := crypto.Base64Encode(hmac)
 
 		headers := make(map[string]string)

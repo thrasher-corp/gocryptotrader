@@ -988,10 +988,19 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 		nonce := k.Requester.GetNonce(true).String()
 		params.Set("nonce", nonce)
 		encoded := params.Encode()
-		shasum := crypto.GetSHA256([]byte(nonce + encoded))
-		signature := crypto.Base64Encode(crypto.GetHMAC(crypto.HashSHA512,
+		shasum, err := crypto.GetSHA256([]byte(nonce + encoded))
+		if err != nil {
+			return nil, err
+		}
+
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
 			append([]byte(path), shasum...),
-			[]byte(k.API.Credentials.Secret)))
+			[]byte(k.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
+
+		signature := crypto.Base64Encode(hmac)
 
 		headers := make(map[string]string)
 		headers["API-Key"] = k.API.Credentials.Key

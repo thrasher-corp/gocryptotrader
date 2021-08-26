@@ -686,7 +686,12 @@ func wsAuth(client *websocketClient, data interface{}) error {
 		return err
 	}
 
-	hashPW := crypto.HexEncodeToString(crypto.GetSHA256([]byte(client.password)))
+	hash, err := crypto.GetSHA256([]byte(client.password))
+	if err != nil {
+		return err
+	}
+
+	hashPW := crypto.HexEncodeToString(hash)
 	if auth.Username == client.username && auth.Password == hashPW {
 		client.Authenticated = true
 		wsResp.Data = WebsocketResponseSuccess

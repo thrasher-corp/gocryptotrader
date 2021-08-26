@@ -67,7 +67,10 @@ func (g *Gateio) WsConnect() error {
 
 func (g *Gateio) wsServerSignIn() error {
 	nonce := int(time.Now().Unix() * 1000)
-	sigTemp := g.GenerateSignature(strconv.Itoa(nonce))
+	sigTemp, err := g.GenerateSignature(strconv.Itoa(nonce))
+	if err != nil {
+		return err
+	}
 	signature := crypto.Base64Encode(sigTemp)
 	signinWsRequest := WebsocketRequest{
 		ID:     g.Websocket.Conn.GenerateMessageID(false),
