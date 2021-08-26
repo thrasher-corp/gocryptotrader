@@ -346,7 +346,14 @@ func (i *Item) BasicEqual(exch string, ass asset.Item, currency, pairedCurrency 
 			(i.pairedWith != nil && i.pairedWith.currency == pairedCurrency))
 }
 
-func (i *Item) MatchesCurrency(item *Item) bool {
+func (i *Item) MatchesCurrency(c currency.Code) bool {
+	if i == nil {
+		return false
+	}
+	return i.currency == c
+}
+
+func (i *Item) MatchesItemCurrency(item *Item) bool {
 	if i == nil || item == nil {
 		return false
 	}

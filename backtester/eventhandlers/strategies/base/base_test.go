@@ -59,12 +59,12 @@ func TestGetBase(t *testing.T) {
 
 func TestSetSimultaneousProcessing(t *testing.T) {
 	s := Strategy{}
-	is := s.UseSimultaneousProcessing()
+	is := s.UsingSimultaneousProcessing()
 	if is {
 		t.Error("expected false")
 	}
 	s.SetSimultaneousProcessing(true)
-	is = s.UseSimultaneousProcessing()
+	is = s.UsingSimultaneousProcessing()
 	if !is {
 		t.Error("expected true")
 	}

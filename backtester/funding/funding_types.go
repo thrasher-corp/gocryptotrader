@@ -15,6 +15,13 @@ var (
 	ErrFundsNotFound  = errors.New("funding not found")
 )
 
+// FundManager is the benevolent holder of all funding levels across all
+// currencies used in the backtester
+type FundManager struct {
+	usingExchangeLevelFunding bool
+	items                     []*Item
+}
+
 // IFundingManager limits funding usage for portfolio event handling
 type IFundingManager interface {
 	Reset()
@@ -22,13 +29,17 @@ type IFundingManager interface {
 	GetFundingForEAC(string, asset.Item, currency.Code) (*Item, error)
 	GetFundingForEvent(common.EventHandler) (*Pair, error)
 	GetFundingForEAP(string, asset.Item, currency.Pair) (*Pair, error)
+	Transfer(decimal.Decimal, *Item, *Item) error
 }
 
-// FundManager is the benevolent holder of all funding levels across all
-// currencies used in the backtester
-type FundManager struct {
-	usingExchangeLevelFunding bool
-	items                     []*Item
+// IFundTransferer allows for funding amounts to be transferred
+// implementation can be swapped for live transferring
+type IFundTransferer interface {
+	IsUsingExchangeLevelFunding() bool
+	Transfer(decimal.Decimal, *Item, *Item) error
+	GetFundingForEAC(string, asset.Item, currency.Code) (*Item, error)
+	GetFundingForEvent(common.EventHandler) (*Pair, error)
+	GetFundingForEAP(string, asset.Item, currency.Pair) (*Pair, error)
 }
 
 // IPairReader is used to limit pair funding functions
@@ -52,12 +63,6 @@ type IPairReleaser interface {
 	IPairReader
 	IncreaseAvailable(decimal.Decimal, order.Side)
 	Release(decimal.Decimal, decimal.Decimal, order.Side) error
-}
-
-// IFundTransferer allows for funding amounts to be transferred
-// implementation can be swapped for live transferring
-type IFundTransferer interface {
-	Transfer(decimal.Decimal, *Item, *Item) error
 }
 
 // Item holds funding data per currency item

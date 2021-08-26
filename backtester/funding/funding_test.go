@@ -674,7 +674,7 @@ func TestMatchesCurrency(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
 	i := Item{}
-	if i.MatchesCurrency(nil) {
+	if i.MatchesItemCurrency(nil) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 	baseItem, err := f.SetupItem(exch, ass, pair.Base, decimal.Zero, decimal.Zero)
@@ -685,10 +685,10 @@ func TestMatchesCurrency(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	if baseItem.MatchesCurrency(quoteItem) {
+	if baseItem.MatchesItemCurrency(quoteItem) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
-	if !baseItem.MatchesCurrency(baseItem) {
+	if !baseItem.MatchesItemCurrency(baseItem) {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}
 }

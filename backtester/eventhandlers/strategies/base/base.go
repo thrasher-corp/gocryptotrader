@@ -43,8 +43,8 @@ func (s *Strategy) GetBaseData(d data.Handler) (signal.Signal, error) {
 	}, nil
 }
 
-// UseSimultaneousProcessing returns whether multiple currencies can be assessed in one go
-func (s *Strategy) UseSimultaneousProcessing() bool {
+// UsingSimultaneousProcessing returns whether multiple currencies can be assessed in one go
+func (s *Strategy) UsingSimultaneousProcessing() bool {
 	return s.useSimultaneousProcessing
 }
 
@@ -53,8 +53,8 @@ func (s *Strategy) SetSimultaneousProcessing(b bool) {
 	s.useSimultaneousProcessing = b
 }
 
-// UseExchangeLevelFunding returns whether funding is based on currency pairs or individual currencies at the exchange level
-func (s *Strategy) UseExchangeLevelFunding() bool {
+// UsingExchangeLevelFunding returns whether funding is based on currency pairs or individual currencies at the exchange level
+func (s *Strategy) UsingExchangeLevelFunding() bool {
 	return s.usingExchangeLevelFunding
 }
 
@@ -66,8 +66,8 @@ func (s *Strategy) SetExchangeLevelFunding(b bool) {
 var errCurrenciesMustBeTheSame = errors.New("lol")
 var errExchangeCantMatchDummy = errors.New("lol")
 
-func (s *Strategy) SendFundingToExchange(sender, receiver funding.Item, amount, fee decimal.Decimal) error {
-	if sender.MatchesCurrency(receiver) {
+func (s *Strategy) SendFundingToExchange(sender, receiver *funding.Item, amount, fee decimal.Decimal) error {
+	if sender.MatchesItemCurrency(receiver) {
 		return errCurrenciesMustBeTheSame
 	}
 	if sender.MatchesExchange(receiver) {

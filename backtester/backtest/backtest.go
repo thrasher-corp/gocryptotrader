@@ -792,7 +792,7 @@ dataLoadingIssue:
 							}
 							break dataLoadingIssue
 						}
-						if bt.Strategy.UseSimultaneousProcessing() && hasProcessedData {
+						if bt.Strategy.UsingSimultaneousProcessing() && hasProcessedData {
 							continue
 						}
 						bt.EventQueue.AppendEvent(d)
@@ -847,7 +847,7 @@ func (bt *BackTest) handleEvent(e common.EventHandler) error {
 // for non-multi-currency-consideration strategies, it will simply process every currency individually
 // against the strategy and generate signals
 func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
-	if bt.Strategy.UseSimultaneousProcessing() {
+	if bt.Strategy.UsingSimultaneousProcessing() {
 		var dataEvents []data.Handler
 		dataHandlerMap := bt.Datas.GetAllData()
 		for _, exchangeMap := range dataHandlerMap {
@@ -879,7 +879,7 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
 		bt.updateStatsForDataEvent(e)
 		d := bt.Datas.GetDataForCurrency(e.GetExchange(), e.GetAssetType(), e.Pair())
 
-		s, err := bt.Strategy.OnSignal(d, bt.Portfolio)
+		s, err := bt.Strategy.OnSignal(d, bt.Funding)
 		if err != nil {
 			if errors.Is(err, base.ErrTooMuchBadData) {
 				// too much bad data is a severe error and backtesting must cease
