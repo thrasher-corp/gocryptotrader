@@ -33,9 +33,9 @@ func (m *WithdrawManager) SubmitWithdrawal(ctx context.Context, req *withdraw.Re
 		return nil, withdraw.ErrRequestCannotBeNil
 	}
 
-	exch := m.exchangeManager.GetExchangeByName(req.Exchange)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	exch, err := m.exchangeManager.GetExchangeByName(req.Exchange)
+	if err != nil {
+		return nil, err
 	}
 
 	resp := &withdraw.Response{
@@ -45,7 +45,6 @@ func (m *WithdrawManager) SubmitWithdrawal(ctx context.Context, req *withdraw.Re
 		RequestDetails: *req,
 	}
 
-	var err error
 	if m.isDryRun {
 		log.Warnln(log.Global, "Dry run enabled, no withdrawal request will be submitted or have an event created")
 		resp.ID = withdraw.DryRunID
@@ -109,9 +108,9 @@ func (m *WithdrawManager) WithdrawalEventByExchange(exchange string, limit int) 
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	exch := m.exchangeManager.GetExchangeByName(exchange)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	_, err := m.exchangeManager.GetExchangeByName(exchange)
+	if err != nil {
+		return nil, err
 	}
 
 	return dbwithdraw.GetEventsByExchange(exchange, limit)
@@ -122,9 +121,9 @@ func (m *WithdrawManager) WithdrawEventByDate(exchange string, start, end time.T
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	exch := m.exchangeManager.GetExchangeByName(exchange)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	_, err := m.exchangeManager.GetExchangeByName(exchange)
+	if err != nil {
+		return nil, err
 	}
 
 	return dbwithdraw.GetEventsByDate(exchange, start, end, limit)
@@ -135,9 +134,9 @@ func (m *WithdrawManager) WithdrawalEventByExchangeID(exchange, id string) (*wit
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	exch := m.exchangeManager.GetExchangeByName(exchange)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	_, err := m.exchangeManager.GetExchangeByName(exchange)
+	if err != nil {
+		return nil, err
 	}
 
 	return dbwithdraw.GetEventByExchangeID(exchange, id)

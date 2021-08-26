@@ -224,8 +224,12 @@ func cleanup() {
 }
 
 func configureExchangeKeys() bool {
-	ex := engine.Bot.GetExchangeByName(exchName).GetBase()
-	ex.SetAPIKeys(exchAPIKEY, exchAPISECRET, exchClientID)
-	ex.SkipAuthCheck = true
-	return ex.ValidateAPICredentials()
+	ex, err := engine.Bot.GetExchangeByName(exchName)
+	if err != nil {
+		return false
+	}
+	b := ex.GetBase()
+	b.SetAPIKeys(exchAPIKEY, exchAPISECRET, exchClientID)
+	b.SkipAuthCheck = true
+	return b.ValidateAPICredentials()
 }

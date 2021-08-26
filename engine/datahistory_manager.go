@@ -303,11 +303,10 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 	if job.DataType == dataHistoryCandleValidationSecondarySourceType {
 		exchangeName = job.SecondaryExchangeSource
 	}
-	exch := m.exchangeManager.GetExchangeByName(exchangeName)
-	if exch == nil {
-		return fmt.Errorf("%s %w, cannot process job %s for %s %s",
-			job.Exchange,
-			errExchangeNotLoaded,
+	exch, err := m.exchangeManager.GetExchangeByName(exchangeName)
+	if err != nil {
+		return fmt.Errorf("%w, cannot process job %s for %s %s",
+			err,
 			job.Nickname,
 			job.Asset,
 			job.Pair)
@@ -315,19 +314,19 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 
 	if job.DataType == dataHistoryCandleValidationDataType ||
 		job.DataType == dataHistoryCandleValidationSecondarySourceType {
-		err := m.runValidationJob(job, exch)
+		err = m.runValidationJob(job, exch)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := m.runDataJob(job, exch)
+		err = m.runDataJob(job, exch)
 		if err != nil {
 			return err
 		}
 	}
 
 	dbJob := m.convertJobToDBModel(job)
-	err := m.jobDB.Upsert(dbJob)
+	err = m.jobDB.Upsert(dbJob)
 	if err != nil {
 		return fmt.Errorf("job %s failed to update database: %w", job.Nickname, err)
 	}
@@ -1187,12 +1186,9 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 			return fmt.Errorf("job %s %w, exchange name required to lookup existing results", job.Nickname, errExchangeNameUnset)
 		}
 	}
-	exch := m.exchangeManager.GetExchangeByName(exchangeName)
-	if exch == nil {
-		return fmt.Errorf("job %s cannot process job: %s %w",
-			job.Nickname,
-			job.Exchange,
-			errExchangeNotLoaded)
+	exch, err := m.exchangeManager.GetExchangeByName(exchangeName)
+	if err != nil {
+		return fmt.Errorf("job %s cannot process job: %v", job.Nickname, err)
 	}
 	pairs, err := exch.GetEnabledPairs(job.Asset)
 	if err != nil {

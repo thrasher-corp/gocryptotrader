@@ -532,9 +532,9 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
 func (bot *Engine) GetSpecificOrderbook(ctx context.Context, p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
-	exch := bot.GetExchangeByName(exchangeName)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	exch, err := bot.GetExchangeByName(exchangeName)
+	if err != nil {
+		return nil, err
 	}
 	return exch.FetchOrderbook(ctx, p, assetType)
 }
@@ -542,9 +542,9 @@ func (bot *Engine) GetSpecificOrderbook(ctx context.Context, p currency.Pair, ex
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
 func (bot *Engine) GetSpecificTicker(ctx context.Context, p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
-	exch := bot.GetExchangeByName(exchangeName)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	exch, err := bot.GetExchangeByName(exchangeName)
+	if err != nil {
+		return nil, err
 	}
 	return exch.FetchTicker(ctx, p, assetType)
 }
@@ -662,9 +662,9 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, 
 		return bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, item)
 	}
 
-	exch := bot.GetExchangeByName(exchName)
-	if exch == nil {
-		return "", ErrExchangeNotFound
+	exch, err := bot.GetExchangeByName(exchName)
+	if err != nil {
+		return "", err
 	}
 	return exch.GetDepositAddress(ctx, item, accountID)
 }
@@ -718,7 +718,7 @@ func (bot *Engine) GetExchangeNames(enabledOnly bool) []string {
 }
 
 // GetAllActiveTickers returns all enabled exchange tickers
-func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
+func (bot *Engine) GetAllActiveTickers(ctx context.Context) []EnabledExchangeCurrencies {
 	var tickerData []EnabledExchangeCurrencies
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
@@ -737,9 +737,7 @@ func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
 				continue
 			}
 			for z := range currencies {
-				tp, err := exchanges[x].FetchTicker(context.TODO(),
-					currencies[z],
-					assets[y])
+				tp, err := exchanges[x].FetchTicker(ctx, currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),

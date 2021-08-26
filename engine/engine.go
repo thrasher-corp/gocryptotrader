@@ -694,7 +694,7 @@ func (bot *Engine) Stop() {
 }
 
 // GetExchangeByName returns an exchange given an exchange name
-func (bot *Engine) GetExchangeByName(exchName string) exchange.IBotExchange {
+func (bot *Engine) GetExchangeByName(exchName string) (exchange.IBotExchange, error) {
 	return bot.ExchangeManager.GetExchangeByName(exchName)
 }
 
