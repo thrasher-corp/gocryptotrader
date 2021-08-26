@@ -994,7 +994,8 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 			return nil, err
 		}
 
-		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
+		var hmac []byte
+		hmac, err = crypto.GetHMAC(crypto.HashSHA512,
 			append([]byte(path), shasum...),
 			[]byte(k.API.Credentials.Secret))
 		if err != nil {

@@ -337,8 +337,8 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 		if err != nil {
 			return nil, err
 		}
-
-		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
+		var hmac []byte
+		hmac, err = crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(urlPath+string(hash)),
 			[]byte(i.API.Credentials.Secret))
 		if err != nil {
