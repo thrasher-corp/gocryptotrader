@@ -81,7 +81,7 @@ func (b *Binance) WsConnect() error {
 	}
 
 	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
-		UseGorillaHandler: true,
+		UseGorillaHandler: false,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
 	})

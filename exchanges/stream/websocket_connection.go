@@ -180,6 +180,7 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 						"%v websocket connection: ping handler failed to send message [%s]",
 						w.ExchangeName,
 						handler.Message)
+					w.readMessageErrors <- err
 					return
 				}
 			}
