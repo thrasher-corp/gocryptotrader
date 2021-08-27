@@ -3,6 +3,7 @@ package statistics
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"time"
 
@@ -37,6 +38,19 @@ func (s *Statistic) SetupEventForTime(e common.DataEventHandler) error {
 	lookup := s.ExchangeAssetPairStatistics[ex][a][p]
 	if lookup == nil {
 		lookup = &currencystatistics.CurrencyStatistic{}
+	}
+	for i := range lookup.Events {
+		if lookup.Events[i].DataEvent.GetTime().Equal(e.GetTime()) &&
+			lookup.Events[i].DataEvent.GetExchange() == e.GetExchange() &&
+			lookup.Events[i].DataEvent.GetAssetType() == e.GetAssetType() &&
+			lookup.Events[i].DataEvent.Pair().Equal(e.Pair()) &&
+			lookup.Events[i].DataEvent.GetOffset() == e.GetOffset() {
+			// the event already exists
+			if e.GetReason() != lookup.Events[i].DataEvent.GetReason() {
+				os.Exit(-1)
+			}
+			return nil
+		}
 	}
 	lookup.Events = append(lookup.Events,
 		currencystatistics.EventStore{

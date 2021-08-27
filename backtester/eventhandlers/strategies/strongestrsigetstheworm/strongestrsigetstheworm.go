@@ -226,8 +226,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 					rsiFundEvents[i].event.Pair()))
 			}
 		}
-	}
-	if strongestSignal.rsi.LessThan(s.rsiLow) {
+	} else if strongestSignal.rsi.LessThan(s.rsiLow) {
 		// we are buying, send all matching quote funds to leader
 		for i := range rsiFundEvents {
 			if rsiFundEvents[i] == strongestSignal {

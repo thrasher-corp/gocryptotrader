@@ -854,14 +854,8 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
 			for _, assetMap := range exchangeMap {
 				for _, dataHandler := range assetMap {
 					latestData := dataHandler.Latest()
-					if latestData.GetTime().Equal(e.GetTime()) &&
-						latestData.GetExchange() == e.GetExchange() &&
-						latestData.GetAssetType() == e.GetAssetType() &&
-						latestData.Pair().Equal(e.Pair()) &&
-						latestData.GetOffset() == e.GetOffset() {
-						bt.updateStatsForDataEvent(latestData)
-						dataEvents = append(dataEvents, dataHandler)
-					}
+					bt.updateStatsForDataEvent(latestData)
+					dataEvents = append(dataEvents, dataHandler)
 				}
 			}
 		}
