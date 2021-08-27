@@ -219,8 +219,8 @@ func TestHTTPClient(t *testing.T) {
 
 	b.Requester = request.New(b.Name, new(http.Client))
 	err = b.SetHTTPClientTimeout(time.Second * 5)
-	if !errors.Is(err, errTrnasportNotSet) {
-		t.Fatalf("received: %v but expected: %v", err, errTrnasportNotSet)
+	if !errors.Is(err, errTransportNotSet) {
+		t.Fatalf("received: %v but expected: %v", err, errTransportNotSet)
 	}
 
 	b.Requester = request.New(b.Name, &http.Client{Transport: new(http.Transport)})
