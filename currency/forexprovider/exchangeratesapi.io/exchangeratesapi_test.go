@@ -23,7 +23,7 @@ func TestMain(t *testing.M) {
 		APIKey:    apiKey,
 		APIKeyLvl: apiKeyLevel,
 	})
-	if err != nil {
+	if err != nil && !errors.Is(err, errAPIKeyNotSet) {
 		log.Fatal(err)
 	}
 	os.Exit(t.Run())

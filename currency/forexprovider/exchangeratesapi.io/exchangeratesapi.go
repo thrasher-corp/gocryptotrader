@@ -16,10 +16,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+var errAPIKeyNotSet = errors.New("API key must be set")
+
 // Setup sets appropriate values for CurrencyLayer
 func (e *ExchangeRates) Setup(config base.Settings) error {
 	if config.APIKey == "" {
-		return errors.New("API key must be set")
+		return errAPIKeyNotSet
 	}
 	e.Name = config.Name
 	e.Enabled = config.Enabled
