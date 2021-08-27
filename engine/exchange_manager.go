@@ -66,7 +66,11 @@ func SetupExchangeManager() *ExchangeManager {
 	}
 }
 
-// Add adds or replaces an exchange
+// Add function of the ExchangeManager is used to add or replace an exchange.
+// If the exchange is a nil value, it will return and not perform the access to the Lock and Unlock functions.
+// If the exchange is not nil, the Lock function will be called, and when the Unlock function is called, the exchange has been accessed by a remote interface and is no longer nil.
+// If it does occur, and the exchange is being added, the Lock and Unlock will be executed before returning.
+// If the exchange is being replaced, the Lock and unlock processes will be executed so that the exchange is not accessed again
 func (m *ExchangeManager) Add(exch exchange.IBotExchange) {
 	if exch == nil {
 		return

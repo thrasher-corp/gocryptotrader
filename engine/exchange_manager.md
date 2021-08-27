@@ -12,6 +12,9 @@
 
 This exchange_manager package is part of the GoCryptoTrader codebase.
 
+The ExchangeManager component is the module that holds the functionality of the Exchange.
+It is used to provide the log of the exchanges, and to make sure when an Exchange is not functional, or being retrieved, it shall not be accessed again
+
 ## This is still in active development
 
 You can track ideas, planned features and what's in progress on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).

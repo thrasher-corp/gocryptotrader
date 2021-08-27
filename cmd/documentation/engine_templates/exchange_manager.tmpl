@@ -1,5 +1,7 @@
 {{define "engine exchange_manager" -}}
 {{template "header" .}}
++ The ExchangeManager component is the module that holds the functionality of the Exchange.
++ It is used to provide the log of the exchanges, and to make sure when an Exchange is not functional, or being retrieved, it shall not be accessed again
 ## Current Features for {{.CapitalName}}
 + The exchange manager subsystem is used load and store exchanges so that the engine Bot can use them to track orderbooks, submit orders etc etc
 + The exchange manager itself is not customisable, it is always enabled.
