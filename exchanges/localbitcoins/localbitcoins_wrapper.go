@@ -166,16 +166,16 @@ func (l *LocalBitcoins) UpdateTradablePairs(ctx context.Context, forceUpdate boo
 	return l.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (l *LocalBitcoins) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (l *LocalBitcoins) UpdateTickers(ctx context.Context, a asset.Item) error {
 	tick, err := l.GetTicker(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	pairs, err := l.GetEnabledPairs(assetType)
+	pairs, err := l.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for i := range pairs {
 		curr := pairs[i].Quote.String()
@@ -187,15 +187,23 @@ func (l *LocalBitcoins) UpdateTicker(ctx context.Context, p currency.Pair, asset
 		tp.Last = tick[curr].Avg24h
 		tp.Volume = tick[curr].VolumeBTC
 		tp.ExchangeName = l.Name
-		tp.AssetType = assetType
+		tp.AssetType = a
 
 		err = ticker.ProcessTicker(&tp)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
+	return nil
+}
 
-	return ticker.GetTicker(l.Name, p, assetType)
+// UpdateTicker updates and returns the ticker for a currency pair
+func (l *LocalBitcoins) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := l.UpdateTickers(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(l.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

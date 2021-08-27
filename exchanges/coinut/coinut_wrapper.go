@@ -403,14 +403,19 @@ func (c *COINUT) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	return acc, nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (c *COINUT) UpdateTickers(ctx context.Context, a asset.Item) error {
+	return common.ErrFunctionNotSupported
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return nil, err
 	}
 
-	fpair, err := c.FormatExchangeCurrency(p, assetType)
+	fpair, err := c.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -435,12 +440,12 @@ func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		Pair:         p,
 		LastUpdated:  time.Unix(0, tick.Timestamp),
 		ExchangeName: c.Name,
-		AssetType:    assetType})
+		AssetType:    a})
 	if err != nil {
 		return nil, err
 	}
 
-	return ticker.GetTicker(c.Name, p, assetType)
+	return ticker.GetTicker(c.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

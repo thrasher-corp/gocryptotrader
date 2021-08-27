@@ -140,23 +140,23 @@ func (b *Bitflyer) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitflyer) FetchTradablePairs(ctx context.Context, assetType asset.Item) ([]string, error) {
+func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
 	pairs, err := b.GetMarkets(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	format, err := b.GetPairFormat(assetType, false)
+	format, err := b.GetPairFormat(a, false)
 	if err != nil {
 		return nil, err
 	}
 
 	var products []string
 	for i := range pairs {
-		if pairs[i].Alias != "" && assetType == asset.Futures {
+		if pairs[i].Alias != "" && a == asset.Futures {
 			products = append(products, pairs[i].Alias)
 		} else if pairs[i].Alias == "" &&
-			assetType == asset.Spot &&
+			a == asset.Spot &&
 			strings.Contains(pairs[i].ProductCode,
 				format.Delimiter) {
 			products = append(products, pairs[i].ProductCode)
@@ -188,9 +188,14 @@ func (b *Bitflyer) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 	return nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *Bitflyer) UpdateTickers(ctx context.Context, a asset.Item) error {
+	return common.ErrFunctionNotSupported
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitflyer) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
+func (b *Bitflyer) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	fPair, err := b.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -207,12 +212,12 @@ func (b *Bitflyer) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		Last:         tickerNew.Last,
 		Volume:       tickerNew.Volume,
 		ExchangeName: b.Name,
-		AssetType:    assetType})
+		AssetType:    a})
 	if err != nil {
 		return nil, err
 	}
 
-	return ticker.GetTicker(b.Name, fPair, assetType)
+	return ticker.GetTicker(b.Name, fPair, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

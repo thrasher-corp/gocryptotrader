@@ -446,6 +446,13 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
+func TestUpdateTickers(t *testing.T) {
+	err := b.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestNewOrderMulti(t *testing.T) {
 	if !b.ValidateAPICredentials() {
 		t.SkipNow()

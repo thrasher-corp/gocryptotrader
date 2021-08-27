@@ -276,9 +276,14 @@ func (b *Bittrex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *Bittrex) UpdateTickers(ctx context.Context, a asset.Item) error {
+	return common.ErrFunctionNotSupported
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bittrex) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	formattedPair, err := b.FormatExchangeCurrency(p, assetType)
+func (b *Bittrex) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	formattedPair, err := b.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -298,14 +303,14 @@ func (b *Bittrex) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		return nil, err
 	}
 
-	tickerPrice := b.constructTicker(t, &s, pair, assetType)
+	tickerPrice := b.constructTicker(t, &s, pair, a)
 
 	err = ticker.ProcessTicker(tickerPrice)
 	if err != nil {
 		return nil, err
 	}
 
-	return ticker.GetTicker(b.Name, p, assetType)
+	return ticker.GetTicker(b.Name, p, a)
 }
 
 // constructTicker constructs a ticker price from the underlying data

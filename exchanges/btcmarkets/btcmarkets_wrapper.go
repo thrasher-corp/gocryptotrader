@@ -288,27 +288,27 @@ func (b *BTCMarkets) UpdateTradablePairs(ctx context.Context, forceUpdate bool) 
 	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTCMarkets) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	allPairs, err := b.GetEnabledPairs(assetType)
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *BTCMarkets) UpdateTickers(ctx context.Context, a asset.Item) error {
+	allPairs, err := b.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	tickers, err := b.GetTickers(ctx, allPairs)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if len(allPairs) != len(tickers) {
-		return nil, errors.New("enabled pairs differ from returned tickers")
+		return errors.New("enabled pairs differ from returned tickers")
 	}
 
 	for x := range tickers {
 		var newP currency.Pair
 		newP, err = currency.NewPairFromString(tickers[x].MarketID)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
@@ -321,13 +321,22 @@ func (b *BTCMarkets) UpdateTicker(ctx context.Context, p currency.Pair, assetTyp
 			Volume:       tickers[x].Volume,
 			LastUpdated:  time.Now(),
 			ExchangeName: b.Name,
-			AssetType:    assetType,
+			AssetType:    a,
 		})
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return ticker.GetTicker(b.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (b *BTCMarkets) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := b.UpdateTickers(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(b.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

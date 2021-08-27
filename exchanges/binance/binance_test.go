@@ -103,6 +103,23 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
+func TestUpdateTickers(t *testing.T) {
+	err := b.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = b.UpdateTickers(context.Background(), asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = b.UpdateTickers(context.Background(), asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	cp, err := currency.NewPairFromString("BTCUSDT")

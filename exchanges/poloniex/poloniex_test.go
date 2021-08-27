@@ -1035,3 +1035,23 @@ func TestGetCompleteBalances(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("BTC_LTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.UpdateTicker(context.Background(), cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := p.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}

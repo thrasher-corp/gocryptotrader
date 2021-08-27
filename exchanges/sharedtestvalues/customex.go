@@ -52,6 +52,10 @@ func (c *CustomEx) FetchTicker(ctx context.Context, p currency.Pair, a asset.Ite
 	return nil, nil
 }
 
+func (c *CustomEx) UpdateTickers(ctx context.Context, a asset.Item) error {
+	return nil
+}
+
 func (c *CustomEx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	return nil, nil
 }

@@ -280,21 +280,16 @@ func (b *Bitmex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	return nil
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitmex) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *Bitmex) UpdateTickers(ctx context.Context, a asset.Item) error {
 	tick, err := b.GetActiveAndIndexInstruments(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	pairs, err := b.GetEnabledPairs(assetType)
+	pairs, err := b.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for j := range tick {
@@ -313,12 +308,27 @@ func (b *Bitmex) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 			Pair:         tick[j].Symbol,
 			LastUpdated:  tick[j].Timestamp,
 			ExchangeName: b.Name,
-			AssetType:    assetType})
+			AssetType:    a})
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return ticker.GetTicker(b.Name, fPair, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (b *Bitmex) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := b.UpdateTickers(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+
+	fPair, err := b.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return nil, err
+	}
+
+	return ticker.GetTicker(b.Name, fPair, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

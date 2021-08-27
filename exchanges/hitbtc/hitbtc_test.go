@@ -170,6 +170,13 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
+func TestUpdateTickers(t *testing.T) {
+	err := h.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetAllTickers(t *testing.T) {
 	_, err := h.GetTickers(context.Background())
 	if err != nil {

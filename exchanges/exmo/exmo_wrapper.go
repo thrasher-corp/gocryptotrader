@@ -183,18 +183,15 @@ func (e *EXMO) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 	return e.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (e *EXMO) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
 	result, err := e.GetTicker(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if _, ok := result[p.String()]; !ok {
-		return nil, err
-	}
-	pairs, err := e.GetEnabledPairs(assetType)
+	pairs, err := e.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for i := range pairs {
 		for j := range result {
@@ -211,13 +208,22 @@ func (e *EXMO) UpdateTicker(ctx context.Context, p currency.Pair, assetType asse
 				Low:          result[j].Low,
 				Volume:       result[j].Volume,
 				ExchangeName: e.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-	return ticker.GetTicker(e.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (e *EXMO) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := e.UpdateTickers(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(e.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

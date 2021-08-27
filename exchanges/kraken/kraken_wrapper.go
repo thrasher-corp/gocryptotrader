@@ -407,28 +407,28 @@ func (k *Kraken) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	return nil
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (k *Kraken) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	switch assetType {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
+	switch a {
 	case asset.Spot:
-		pairs, err := k.GetEnabledPairs(assetType)
+		pairs, err := k.GetEnabledPairs(a)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		pairsCollated, err := k.FormatExchangeCurrencies(pairs, assetType)
+		pairsCollated, err := k.FormatExchangeCurrencies(pairs, a)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		tickers, err := k.GetTickers(ctx, pairsCollated)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		for i := range pairs {
 			for c, t := range tickers {
-				pairFmt, err := k.FormatExchangeCurrency(pairs[i], assetType)
+				pairFmt, err := k.FormatExchangeCurrency(pairs[i], a)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				if !strings.EqualFold(pairFmt.String(), c) {
 					altCurrency := assetTranslator.LookupAltname(c)
@@ -450,21 +450,21 @@ func (k *Kraken) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 					Open:         t.Open,
 					Pair:         pairs[i],
 					ExchangeName: k.Name,
-					AssetType:    assetType})
+					AssetType:    a})
 				if err != nil {
-					return nil, err
+					return err
 				}
 			}
 		}
 	case asset.Futures:
 		t, err := k.GetFuturesTickers(ctx)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for x := range t.Tickers {
 			pair, err := currency.NewPairFromString(t.Tickers[x].Symbol)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         t.Tickers[x].Last,
@@ -474,15 +474,24 @@ func (k *Kraken) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 				Open:         t.Tickers[x].Open24H,
 				Pair:         pair,
 				ExchangeName: k.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	default:
-		return nil, fmt.Errorf("assetType not supported: %v", assetType)
+		return fmt.Errorf("assetType not supported: %v", a)
 	}
-	return ticker.GetTicker(k.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (k *Kraken) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := k.UpdateTickers(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(k.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

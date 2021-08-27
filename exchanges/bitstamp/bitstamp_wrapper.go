@@ -305,9 +305,14 @@ func (b *Bitstamp) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *Bitstamp) UpdateTickers(ctx context.Context, a asset.Item) error {
+	return common.ErrFunctionNotSupported
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitstamp) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
+func (b *Bitstamp) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	fPair, err := b.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -328,12 +333,12 @@ func (b *Bitstamp) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		Pair:         fPair,
 		LastUpdated:  time.Unix(tick.Timestamp, 0),
 		ExchangeName: b.Name,
-		AssetType:    assetType})
+		AssetType:    a})
 	if err != nil {
 		return nil, err
 	}
 
-	return ticker.GetTicker(b.Name, fPair, assetType)
+	return ticker.GetTicker(b.Name, fPair, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

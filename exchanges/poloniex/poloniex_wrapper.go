@@ -271,21 +271,21 @@ func (p *Poloniex) UpdateTradablePairs(ctx context.Context, forceUpgrade bool) e
 	return p.UpdatePairs(ps, asset.Spot, false, forceUpgrade)
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (p *Poloniex) UpdateTicker(ctx context.Context, currencyPair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
 	tick, err := p.GetTicker(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	enabledPairs, err := p.GetEnabledPairs(assetType)
+	enabledPairs, err := p.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for i := range enabledPairs {
-		fpair, err := p.FormatExchangeCurrency(enabledPairs[i], assetType)
+		fpair, err := p.FormatExchangeCurrency(enabledPairs[i], a)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		curr := fpair.String()
 		if _, ok := tick[curr]; !ok {
@@ -302,12 +302,21 @@ func (p *Poloniex) UpdateTicker(ctx context.Context, currencyPair currency.Pair,
 			Volume:       tick[curr].BaseVolume,
 			QuoteVolume:  tick[curr].QuoteVolume,
 			ExchangeName: p.Name,
-			AssetType:    assetType})
+			AssetType:    a})
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return ticker.GetTicker(p.Name, currencyPair, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (p *Poloniex) UpdateTicker(ctx context.Context, currencyPair currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := p.UpdateTickers(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(p.Name, currencyPair, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

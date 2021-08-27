@@ -432,12 +432,17 @@ func (h *HUOBI) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 	return h.UpdatePairs(cp, asset.CoinMarginedFutures, false, forceUpdate)
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
+	return common.ErrFunctionNotSupported
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	if !h.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", assetType, h.Name)
+func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if !h.SupportsAsset(a) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, h.Name)
 	}
-	switch assetType {
+	switch a {
 	case asset.Spot:
 		tickerData, err := h.Get24HrMarketSummary(ctx, p)
 		if err != nil {
@@ -479,7 +484,7 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, assetType ass
 			Bid:          marketData.Tick.Bid[0],
 			Ask:          marketData.Tick.Ask[0],
 			ExchangeName: h.Name,
-			AssetType:    assetType,
+			AssetType:    a,
 		})
 		if err != nil {
 			return nil, err
@@ -500,13 +505,13 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, assetType ass
 			Bid:          marketData.Tick.Bid[0],
 			Ask:          marketData.Tick.Ask[0],
 			ExchangeName: h.Name,
-			AssetType:    assetType,
+			AssetType:    a,
 		})
 		if err != nil {
 			return nil, err
 		}
 	}
-	return ticker.GetTicker(h.Name, p, assetType)
+	return ticker.GetTicker(h.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

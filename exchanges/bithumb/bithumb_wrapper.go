@@ -252,24 +252,23 @@ func (b *Bithumb) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bithumb) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *Bithumb) UpdateTickers(ctx context.Context, a asset.Item) error {
 	tickers, err := b.GetAllTickers(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	pairs, err := b.GetEnabledPairs(assetType)
+	pairs, err := b.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for i := range pairs {
 		curr := pairs[i].Base.String()
 		t, ok := tickers[curr]
 		if !ok {
-			return nil,
-				fmt.Errorf("enabled pair %s [%s] not found in returned ticker map %v",
-					pairs[i], pairs, tickers)
+			return fmt.Errorf("enabled pair %s [%s] not found in returned ticker map %v",
+				pairs[i], pairs, tickers)
 		}
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         t.MaxPrice,
@@ -279,20 +278,29 @@ func (b *Bithumb) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 			Close:        t.ClosingPrice,
 			Pair:         pairs[i],
 			ExchangeName: b.Name,
-			AssetType:    assetType,
+			AssetType:    a,
 		})
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return ticker.GetTicker(b.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (b *Bithumb) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := b.UpdateTickers(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(b.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bithumb) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
+func (b *Bithumb) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(b.Name, p, a)
 	if err != nil {
-		return b.UpdateTicker(ctx, p, assetType)
+		return b.UpdateTicker(ctx, p, a)
 	}
 	return tickerNew, nil
 }

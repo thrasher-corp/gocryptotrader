@@ -175,26 +175,26 @@ func (y *Yobit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 	return y.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (y *Yobit) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	enabledPairs, err := y.GetEnabledPairs(assetType)
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (y *Yobit) UpdateTickers(ctx context.Context, a asset.Item) error {
+	enabledPairs, err := y.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	pairsCollated, err := y.FormatExchangeCurrencies(enabledPairs, assetType)
+	pairsCollated, err := y.FormatExchangeCurrencies(enabledPairs, a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	result, err := y.GetTicker(ctx, pairsCollated)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for i := range enabledPairs {
-		fpair, err := y.FormatExchangeCurrency(enabledPairs[i], assetType)
+		fpair, err := y.FormatExchangeCurrency(enabledPairs[i], a)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		curr := fpair.Lower().String()
 		if _, ok := result[curr]; !ok {
@@ -211,13 +211,22 @@ func (y *Yobit) UpdateTicker(ctx context.Context, p currency.Pair, assetType ass
 			QuoteVolume:  resultCurr.VolumeCurrent,
 			Volume:       resultCurr.Vol,
 			ExchangeName: y.Name,
-			AssetType:    assetType,
+			AssetType:    a,
 		})
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return ticker.GetTicker(y.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (y *Yobit) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := y.UpdateTickers(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(y.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair
