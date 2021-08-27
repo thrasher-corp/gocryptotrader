@@ -29,6 +29,7 @@ type IBotExchange interface {
 	ValidateCredentials(a asset.Item) error
 	FetchTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
+	UpdateTickers(a asset.Item) error
 	FetchOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error)
 	UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error)
 	FetchTradablePairs(a asset.Item) ([]string, error)

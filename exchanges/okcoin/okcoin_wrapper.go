@@ -271,16 +271,16 @@ func (o *OKCoin) UpdateTradablePairs(forceUpdate bool) error {
 	return o.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	if assetType == asset.Spot {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (o *OKCoin) UpdateTickers(a asset.Item) error {
+	if a == asset.Spot {
 		resp, err := o.GetSpotAllTokenPairsInformation()
 		if err != nil {
-			return nil, err
+			return err
 		}
-		pairs, err := o.GetEnabledPairs(assetType)
+		pairs, err := o.GetEnabledPairs(a)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for i := range pairs {
 			for j := range resp {
@@ -300,14 +300,23 @@ func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 					Pair:         pairs[i],
 					LastUpdated:  resp[j].Timestamp,
 					ExchangeName: o.Name,
-					AssetType:    assetType})
+					AssetType:    a})
 				if err != nil {
-					return nil, err
+					return err
 				}
 			}
 		}
 	}
-	return ticker.GetTicker(o.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (o *OKCoin) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := o.UpdateTickers(a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(o.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

@@ -242,6 +242,13 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
+func TestUpdateTickers(t *testing.T) {
+	err := b.UpdateTickers(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
 		Amount:        1,

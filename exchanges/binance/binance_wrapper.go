@@ -422,18 +422,18 @@ func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
 	return nil
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	switch assetType {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *Binance) UpdateTickers(a asset.Item) error {
+	switch a {
 	case asset.Spot, asset.Margin:
 		tick, err := b.GetTickers()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for y := range tick {
 			cp, err := currency.NewPairFromString(tick[y].Symbol)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[y].LastPrice,
@@ -447,22 +447,22 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 				Close:        tick[y].PrevClosePrice,
 				Pair:         cp,
 				ExchangeName: b.Name,
-				AssetType:    assetType,
+				AssetType:    a,
 			})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	case asset.USDTMarginedFutures:
 		tick, err := b.U24HTickerPriceChangeStats(currency.Pair{})
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		for y := range tick {
 			cp, err := currency.NewPairFromString(tick[y].Symbol)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[y].LastPrice,
@@ -474,22 +474,22 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 				Close:        tick[y].PrevClosePrice,
 				Pair:         cp,
 				ExchangeName: b.Name,
-				AssetType:    assetType,
+				AssetType:    a,
 			})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	case asset.CoinMarginedFutures:
 		tick, err := b.GetFuturesSwapTickerChangeStats(currency.Pair{}, "")
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		for y := range tick {
 			cp, err := currency.NewPairFromString(tick[y].Symbol)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[y].LastPrice,
@@ -501,16 +501,100 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 				Close:        tick[y].PrevClosePrice,
 				Pair:         cp,
 				ExchangeName: b.Name,
-				AssetType:    assetType,
+				AssetType:    a,
 			})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	default:
-		return nil, fmt.Errorf("assetType not supported: %v", assetType)
+		return fmt.Errorf("assetType not supported: %v", a)
 	}
-	return ticker.GetTicker(b.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (b *Binance) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	switch a {
+	case asset.Spot, asset.Margin:
+		tick, err := b.GetPriceChangeStats(p)
+		if err != nil {
+			return nil, err
+		}
+		cp, err := currency.NewPairFromString(tick.Symbol)
+		if err != nil {
+			return nil, err
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         tick.LastPrice,
+			High:         tick.HighPrice,
+			Low:          tick.LowPrice,
+			Bid:          tick.BidPrice,
+			Ask:          tick.AskPrice,
+			Volume:       tick.Volume,
+			QuoteVolume:  tick.QuoteVolume,
+			Open:         tick.OpenPrice,
+			Close:        tick.PrevClosePrice,
+			Pair:         cp,
+			ExchangeName: b.Name,
+			AssetType:    a,
+		})
+		if err != nil {
+			return nil, err
+		}
+	case asset.USDTMarginedFutures:
+		tick, err := b.U24HTickerPriceChangeStats(p)
+		if err != nil {
+			return nil, err
+		}
+		cp, err := currency.NewPairFromString(tick[0].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         tick[0].LastPrice,
+			High:         tick[0].HighPrice,
+			Low:          tick[0].LowPrice,
+			Volume:       tick[0].Volume,
+			QuoteVolume:  tick[0].QuoteVolume,
+			Open:         tick[0].OpenPrice,
+			Close:        tick[0].PrevClosePrice,
+			Pair:         cp,
+			ExchangeName: b.Name,
+			AssetType:    a,
+		})
+		if err != nil {
+			return nil, err
+		}
+	case asset.CoinMarginedFutures:
+		tick, err := b.GetFuturesSwapTickerChangeStats(p, "")
+		if err != nil {
+			return nil, err
+		}
+		cp, err := currency.NewPairFromString(tick[0].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         tick[0].LastPrice,
+			High:         tick[0].HighPrice,
+			Low:          tick[0].LowPrice,
+			Volume:       tick[0].Volume,
+			QuoteVolume:  tick[0].QuoteVolume,
+			Open:         tick[0].OpenPrice,
+			Close:        tick[0].PrevClosePrice,
+			Pair:         cp,
+			ExchangeName: b.Name,
+			AssetType:    a,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+	default:
+		return nil, fmt.Errorf("assetType not supported: %v", a)
+	}
+	return ticker.GetTicker(b.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

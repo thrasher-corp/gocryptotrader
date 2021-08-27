@@ -305,21 +305,21 @@ func (h *HitBTC) UpdateTradablePairs(forceUpdate bool) error {
 	return h.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (h *HitBTC) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (h *HitBTC) UpdateTickers(a asset.Item) error {
 	tick, err := h.GetTickers()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	pairs, err := h.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for i := range pairs {
 		for j := range tick {
 			pairFmt, err := h.FormatExchangeCurrency(pairs[i], a)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			if tick[j].Symbol != pairFmt.String() {
@@ -348,9 +348,18 @@ func (h *HitBTC) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, err
 				ExchangeName: h.Name,
 				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
+	}
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (h *HitBTC) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := h.UpdateTickers(a)
+	if err != nil {
+		return nil, err
 	}
 	return ticker.GetTicker(h.Name, p, a)
 }
