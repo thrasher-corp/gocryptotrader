@@ -228,26 +228,24 @@ func TestNewLogEvent(t *testing.T) {
 func TestInfo(t *testing.T) {
 	w := &bytes.Buffer{}
 
-	tempSL := SubLogger{
-		"TESTYMCTESTALOT",
-		splitLevel("INFO|WARN|DEBUG|ERROR"),
-		w,
-	}
+	sl := registerNewSubLogger("TESTYMCTESTALOT")
+	sl.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
+	sl.output = w
 
-	Info(&tempSL, "Hello")
+	Info(sl, "Hello")
 
 	if w.String() == "" {
 		t.Error("expected Info() to write output to buffer")
 	}
 
-	tempSL.output = nil
+	sl.output = nil
 	w.Reset()
 
 	_, err := SetLevel("TESTYMCTESTALOT", "INFO")
 	if err != nil {
 		t.Fatal(err)
 	}
-	Debug(&tempSL, "HelloHello")
+	Debug(sl, "HelloHello")
 
 	if w.String() != "" {
 		t.Error("Expected output buffer to be empty but Debug wrote to output")
