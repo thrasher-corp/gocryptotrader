@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -14,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -21,6 +23,13 @@ import (
 )
 
 const testExchange = "binance"
+
+var (
+	eleeg  = decimal.NewFromFloat(1336)
+	eleet  = decimal.NewFromFloat(1337)
+	eleeet = decimal.NewFromFloat(13337)
+	eleeb  = decimal.NewFromFloat(1338)
+)
 
 func TestReset(t *testing.T) {
 	s := Statistic{
@@ -50,11 +59,11 @@ func TestAddDataEventForTime(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   eleet,
+		Close:  eleet,
+		Low:    eleet,
+		High:   eleet,
+		Volume: eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -96,11 +105,11 @@ func TestAddSignalEventForTime(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   eleet,
+		Close:  eleet,
+		Low:    eleet,
+		High:   eleet,
+		Volume: eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -113,7 +122,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		ClosePrice: 1337,
+		ClosePrice: eleet,
 		Direction:  gctorder.Buy,
 	})
 	if err != nil {
@@ -150,11 +159,11 @@ func TestAddExchangeEventForTime(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   eleet,
+		Close:  eleet,
+		Low:    eleet,
+		High:   eleet,
+		Volume: eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -167,13 +176,13 @@ func TestAddExchangeEventForTime(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		ID:        "1337",
+		ID:        "elite",
 		Direction: gctorder.Buy,
 		Status:    gctorder.New,
-		Price:     1337,
-		Amount:    1337,
+		Price:     eleet,
+		Amount:    eleet,
 		OrderType: gctorder.Stop,
-		Leverage:  1337,
+		Leverage:  eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -209,11 +218,11 @@ func TestAddFillEventForTime(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   eleet,
+		Close:  eleet,
+		Low:    eleet,
+		High:   eleet,
+		Volume: eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -227,12 +236,12 @@ func TestAddFillEventForTime(t *testing.T) {
 			AssetType:    a,
 		},
 		Direction:           gctorder.Buy,
-		Amount:              1337,
-		ClosePrice:          1337,
-		VolumeAdjustedPrice: 1337,
-		PurchasePrice:       1337,
-		ExchangeFee:         1337,
-		Slippage:            1337,
+		Amount:              eleet,
+		ClosePrice:          eleet,
+		VolumeAdjustedPrice: eleet,
+		PurchasePrice:       eleet,
+		ExchangeFee:         eleet,
+		Slippage:            eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -263,11 +272,11 @@ func TestAddHoldingsForTime(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   eleet,
+		Close:  eleet,
+		Low:    eleet,
+		High:   eleet,
+		Volume: eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -277,25 +286,25 @@ func TestAddHoldingsForTime(t *testing.T) {
 		Asset:                        a,
 		Exchange:                     exch,
 		Timestamp:                    tt,
-		InitialFunds:                 1337,
-		PositionsSize:                1337,
-		PositionsValue:               1337,
-		SoldAmount:                   1337,
-		SoldValue:                    1337,
-		BoughtAmount:                 1337,
-		BoughtValue:                  1337,
-		RemainingFunds:               1337,
-		TotalValueDifference:         1337,
-		ChangeInTotalValuePercent:    1337,
-		BoughtValueDifference:        1337,
-		SoldValueDifference:          1337,
-		PositionsValueDifference:     1337,
-		TotalValue:                   1337,
-		TotalFees:                    1337,
-		TotalValueLostToVolumeSizing: 1337,
-		TotalValueLostToSlippage:     1337,
-		TotalValueLost:               1337,
-		RiskFreeRate:                 1337,
+		InitialFunds:                 eleet,
+		PositionsSize:                eleet,
+		PositionsValue:               eleet,
+		SoldAmount:                   eleet,
+		SoldValue:                    eleet,
+		BoughtAmount:                 eleet,
+		BoughtValue:                  eleet,
+		RemainingFunds:               eleet,
+		TotalValueDifference:         eleet,
+		ChangeInTotalValuePercent:    eleet,
+		BoughtValueDifference:        eleet,
+		SoldValueDifference:          eleet,
+		PositionsValueDifference:     eleet,
+		TotalValue:                   eleet,
+		TotalFees:                    eleet,
+		TotalValueLostToVolumeSizing: eleet,
+		TotalValueLostToSlippage:     eleet,
+		TotalValueLost:               eleet,
+		RiskFreeRate:                 eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -332,11 +341,11 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   eleet,
+		Close:  eleet,
+		Low:    eleet,
+		High:   eleet,
+		Volume: eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -379,7 +388,7 @@ func TestPrintTotalResults(t *testing.T) {
 		{
 			Exchange: "test",
 			MaxDrawdown: currencystatistics.Swing{
-				DrawdownPercent: 1337,
+				DrawdownPercent: eleet,
 			},
 		},
 	})
@@ -389,14 +398,14 @@ func TestPrintTotalResults(t *testing.T) {
 			Asset:            asset.Spot,
 			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
 			MaxDrawdown:      currencystatistics.Swing{},
-			MarketMovement:   1337,
-			StrategyMovement: 1337,
+			MarketMovement:   eleet,
+			StrategyMovement: eleet,
 		},
 	})
 	s.BestMarketMovement = s.GetBestMarketPerformer([]FinalResultsHolder{
 		{
 			Exchange:       "test",
-			MarketMovement: 1337,
+			MarketMovement: eleet,
 		},
 	})
 	s.PrintTotalResults()
@@ -415,16 +424,16 @@ func TestGetBestStrategyPerformer(t *testing.T) {
 			Asset:            asset.Spot,
 			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
 			MaxDrawdown:      currencystatistics.Swing{},
-			MarketMovement:   1337,
-			StrategyMovement: 1337,
+			MarketMovement:   eleet,
+			StrategyMovement: eleet,
 		},
 		{
 			Exchange:         "test2",
 			Asset:            asset.Spot,
 			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
 			MaxDrawdown:      currencystatistics.Swing{},
-			MarketMovement:   1338,
-			StrategyMovement: 1338,
+			MarketMovement:   eleeb,
+			StrategyMovement: eleeb,
 		},
 	})
 
@@ -444,13 +453,13 @@ func TestGetTheBiggestDrawdownAcrossCurrencies(t *testing.T) {
 		{
 			Exchange: "test",
 			MaxDrawdown: currencystatistics.Swing{
-				DrawdownPercent: 1337,
+				DrawdownPercent: eleet,
 			},
 		},
 		{
 			Exchange: "test2",
 			MaxDrawdown: currencystatistics.Swing{
-				DrawdownPercent: 1338,
+				DrawdownPercent: eleeb,
 			},
 		},
 	})
@@ -469,11 +478,11 @@ func TestGetBestMarketPerformer(t *testing.T) {
 	result = s.GetBestMarketPerformer([]FinalResultsHolder{
 		{
 			Exchange:       "test",
-			MarketMovement: 1337,
+			MarketMovement: eleet,
 		},
 		{
 			Exchange:       "test2",
-			MarketMovement: 1336,
+			MarketMovement: eleeg,
 		},
 	})
 	if result.Exchange != "test" {
@@ -481,9 +490,9 @@ func TestGetBestMarketPerformer(t *testing.T) {
 	}
 }
 
-func TestPrintAllEvents(t *testing.T) {
+func TestPrintAllEventsChronologically(t *testing.T) {
 	s := Statistic{}
-	s.PrintAllEvents()
+	s.PrintAllEventsChronologically()
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
@@ -500,11 +509,11 @@ func TestPrintAllEvents(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   eleet,
+		Close:  eleet,
+		Low:    eleet,
+		High:   eleet,
+		Volume: eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -519,12 +528,12 @@ func TestPrintAllEvents(t *testing.T) {
 			AssetType:    a,
 		},
 		Direction:           gctorder.Buy,
-		Amount:              1337,
-		ClosePrice:          1337,
-		VolumeAdjustedPrice: 1337,
-		PurchasePrice:       1337,
-		ExchangeFee:         1337,
-		Slippage:            1337,
+		Amount:              eleet,
+		ClosePrice:          eleet,
+		VolumeAdjustedPrice: eleet,
+		PurchasePrice:       eleet,
+		ExchangeFee:         eleet,
+		Slippage:            eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -538,19 +547,19 @@ func TestPrintAllEvents(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		ClosePrice: 1337,
+		ClosePrice: eleet,
 		Direction:  gctorder.Buy,
 	})
 	if err != nil {
 		t.Error(err)
 	}
 
-	s.PrintAllEvents()
+	s.PrintAllEventsChronologically()
 }
 
 func TestCalculateTheResults(t *testing.T) {
 	s := Statistic{}
-	err := s.CalculateAllResults()
+	err := s.CalculateAllResults(&funding.FundManager{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -560,7 +569,7 @@ func TestCalculateTheResults(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	p2 := currency.NewPair(currency.DOGE, currency.DOGE)
+	p2 := currency.NewPair(currency.XRP, currency.DOGE)
 	err = s.SetupEventForTime(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
@@ -573,11 +582,11 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   eleet,
+		Close:  eleet,
+		Low:    eleet,
+		High:   eleet,
+		Volume: eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -590,11 +599,11 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		OpenPrice:  1337,
-		HighPrice:  1337,
-		LowPrice:   1337,
-		ClosePrice: 1337,
-		Volume:     1337,
+		OpenPrice:  eleet,
+		HighPrice:  eleet,
+		LowPrice:   eleet,
+		ClosePrice: eleet,
+		Volume:     eleet,
 		Direction:  gctorder.Buy,
 	})
 	if err != nil {
@@ -608,11 +617,11 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: p2,
 			AssetType:    a,
 		},
-		Open:   1338,
-		Close:  1338,
-		Low:    1338,
-		High:   1338,
-		Volume: 1338,
+		Open:   eleeb,
+		Close:  eleeb,
+		Low:    eleeb,
+		High:   eleeb,
+		Volume: eleeb,
 	})
 	if err != nil {
 		t.Error(err)
@@ -626,11 +635,11 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: p2,
 			AssetType:    a,
 		},
-		OpenPrice:  1337,
-		HighPrice:  1337,
-		LowPrice:   1337,
-		ClosePrice: 1337,
-		Volume:     1337,
+		OpenPrice:  eleet,
+		HighPrice:  eleet,
+		LowPrice:   eleet,
+		ClosePrice: eleet,
+		Volume:     eleet,
 		Direction:  gctorder.Buy,
 	})
 	if err != nil {
@@ -645,11 +654,11 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1338,
-		Close:  1338,
-		Low:    1338,
-		High:   1338,
-		Volume: 1338,
+		Open:   eleeb,
+		Close:  eleeb,
+		Low:    eleeb,
+		High:   eleeb,
+		Volume: eleeb,
 	})
 	if err != nil {
 		t.Error(err)
@@ -662,11 +671,11 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		OpenPrice:  1338,
-		HighPrice:  1338,
-		LowPrice:   1338,
-		ClosePrice: 1338,
-		Volume:     1338,
+		OpenPrice:  eleeb,
+		HighPrice:  eleeb,
+		LowPrice:   eleeb,
+		ClosePrice: eleeb,
+		Volume:     eleeb,
 		Direction:  gctorder.Buy,
 	})
 	if err != nil {
@@ -681,11 +690,11 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: p2,
 			AssetType:    a,
 		},
-		Open:   1338,
-		Close:  1338,
-		Low:    1338,
-		High:   1338,
-		Volume: 1338,
+		Open:   eleeb,
+		Close:  eleeb,
+		Low:    eleeb,
+		High:   eleeb,
+		Volume: eleeb,
 	})
 	if err != nil {
 		t.Error(err)
@@ -698,24 +707,50 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: p2,
 			AssetType:    a,
 		},
-		OpenPrice:  1338,
-		HighPrice:  1338,
-		LowPrice:   1338,
-		ClosePrice: 1338,
-		Volume:     1338,
+		OpenPrice:  eleeb,
+		HighPrice:  eleeb,
+		LowPrice:   eleeb,
+		ClosePrice: eleeb,
+		Volume:     eleeb,
 		Direction:  gctorder.Buy,
 	})
 	if err != nil {
 		t.Error(err)
 	}
 
-	s.ExchangeAssetPairStatistics[exch][a][p].Events[1].Holdings.InitialFunds = 1337
-	s.ExchangeAssetPairStatistics[exch][a][p].Events[1].Holdings.TotalValue = 13337
-	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.InitialFunds = 1337
-	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.TotalValue = 13337
+	s.ExchangeAssetPairStatistics[exch][a][p].Events[1].Holdings.InitialFunds = eleet
+	s.ExchangeAssetPairStatistics[exch][a][p].Events[1].Holdings.TotalValue = eleeet
+	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.InitialFunds = eleet
+	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.TotalValue = eleeet
 
-	err = s.CalculateAllResults()
-	if err != nil {
-		t.Error(err)
+	funds := &funding.FundManager{}
+	pBase, err := funds.SetupItem(exch, a, p.Base, eleeet, decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	pQuote, err := funds.SetupItem(exch, a, p.Quote, eleeet, decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	err = funds.AddPair(pBase, pQuote)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	pBase2, err := funds.SetupItem(exch, a, p2.Base, eleeet, decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	pQuote2, err := funds.SetupItem(exch, a, p2.Quote, eleeet, decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = funds.AddPair(pBase2, pQuote2)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = s.CalculateAllResults(funds)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }

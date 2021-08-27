@@ -3,6 +3,8 @@ package statistics
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
@@ -146,7 +148,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 // orders, ratios and drawdowns
 func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 	log.Info(log.BackTester, "calculating backtesting results")
-	s.PrintAllEvents()
+	s.PrintAllEventsChronologically()
 	currCount := 0
 	var finalResults []FinalResultsHolder
 	var err error
@@ -273,53 +275,94 @@ func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResults
 	return result
 }
 
-// PrintAllEvents outputs all event details in the CMD
-func (s *Statistic) PrintAllEvents() {
+func addEventOutputToTime(things []eventOutputHolder, t time.Time, message string) []eventOutputHolder {
+	for i := range things {
+		if things[i].Time.Equal(t) {
+			things[i].Events = append(things[i].Events, message)
+			return things
+		}
+	}
+	things = append(things, eventOutputHolder{Time: t, Events: []string{message}})
+	return things
+}
+
+// PrintAllEventsChronologically outputs all event details in the CMD
+// rather than separate by eap, its grouped by time to allow a clearer picture
+// of events
+func (s *Statistic) PrintAllEventsChronologically() {
+	var results []eventOutputHolder
 	log.Info(log.BackTester, "------------------Events-------------------------------------")
 	var errs gctcommon.Errors
-	for e, x := range s.ExchangeAssetPairStatistics {
+	for exch, x := range s.ExchangeAssetPairStatistics {
 		for a, y := range x {
-			for p, c := range y {
-				for i := range c.Events {
+			for pair, currencyStatistic := range y {
+				for i := range currencyStatistic.Events {
 					switch {
-					case c.Events[i].FillEvent != nil:
-						direction := c.Events[i].FillEvent.GetDirection()
+					case currencyStatistic.Events[i].FillEvent != nil:
+						direction := currencyStatistic.Events[i].FillEvent.GetDirection()
 						if direction == common.CouldNotBuy ||
 							direction == common.CouldNotSell ||
 							direction == common.DoNothing ||
 							direction == common.MissingData ||
 							direction == "" {
-							log.Infof(log.BackTester, "%v | Price: $%v - Direction: %v - Reason: %s",
-								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-								c.Events[i].FillEvent.GetClosePrice().Round(8),
-								c.Events[i].FillEvent.GetDirection(),
-								c.Events[i].FillEvent.GetReason())
+							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(),
+								fmt.Sprintf("%v %v %v %v | Price: $%v - Direction: %v - Reason: %s",
+									currencyStatistic.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
+									currencyStatistic.Events[i].FillEvent.GetExchange(),
+									currencyStatistic.Events[i].FillEvent.GetAssetType(),
+									currencyStatistic.Events[i].FillEvent.Pair(),
+									currencyStatistic.Events[i].FillEvent.GetClosePrice().Round(8),
+									currencyStatistic.Events[i].FillEvent.GetDirection(),
+									currencyStatistic.Events[i].FillEvent.GetReason()))
 						} else {
-							log.Infof(log.BackTester, "%v | Price: $%v - Amount: %v - Fee: $%v - Total: $%v - Direction %v - Reason: %s",
-								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-								c.Events[i].FillEvent.GetPurchasePrice().Round(8),
-								c.Events[i].FillEvent.GetAmount().Round(8),
-								c.Events[i].FillEvent.GetExchangeFee().Round(8),
-								c.Events[i].FillEvent.GetTotal().Round(8),
-								c.Events[i].FillEvent.GetDirection(),
-								c.Events[i].FillEvent.GetReason(),
-							)
+							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(),
+								fmt.Sprintf("%v %v %v %v | Price: $%v - Amount: %v - Fee: $%v - Total: $%v - Direction %v - Reason: %s",
+									currencyStatistic.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
+									currencyStatistic.Events[i].FillEvent.GetExchange(),
+									currencyStatistic.Events[i].FillEvent.GetAssetType(),
+									currencyStatistic.Events[i].FillEvent.Pair(),
+									currencyStatistic.Events[i].FillEvent.GetPurchasePrice().Round(8),
+									currencyStatistic.Events[i].FillEvent.GetAmount().Round(8),
+									currencyStatistic.Events[i].FillEvent.GetExchangeFee().Round(8),
+									currencyStatistic.Events[i].FillEvent.GetTotal().Round(8),
+									currencyStatistic.Events[i].FillEvent.GetDirection(),
+									currencyStatistic.Events[i].FillEvent.GetReason(),
+								))
 						}
-					case c.Events[i].SignalEvent != nil:
-						log.Infof(log.BackTester, "%v | Price: $%v - Reason: %v",
-							c.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-							c.Events[i].SignalEvent.GetPrice().Round(8),
-							c.Events[i].SignalEvent.GetReason())
-					case c.Events[i].DataEvent != nil:
-						log.Infof(log.BackTester, "%v | Price: $%v - Reason: %v",
-							c.Events[i].DataEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-							c.Events[i].DataEvent.ClosePrice().Round(8),
-							c.Events[i].DataEvent.GetReason())
+					case currencyStatistic.Events[i].SignalEvent != nil:
+						results = addEventOutputToTime(results, currencyStatistic.Events[i].SignalEvent.GetTime(),
+							fmt.Sprintf("%v %v %v %v | Price: $%v - Reason: %v",
+								currencyStatistic.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
+								currencyStatistic.Events[i].SignalEvent.GetExchange(),
+								currencyStatistic.Events[i].SignalEvent.GetAssetType(),
+								currencyStatistic.Events[i].SignalEvent.Pair(),
+								currencyStatistic.Events[i].SignalEvent.GetPrice().Round(8),
+								currencyStatistic.Events[i].SignalEvent.GetReason()))
+					case currencyStatistic.Events[i].DataEvent != nil:
+						results = addEventOutputToTime(results, currencyStatistic.Events[i].DataEvent.GetTime(),
+							fmt.Sprintf("%v %v %v %v | Price: $%v - Reason: %v",
+								currencyStatistic.Events[i].DataEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
+								currencyStatistic.Events[i].DataEvent.GetExchange(),
+								currencyStatistic.Events[i].DataEvent.GetAssetType(),
+								currencyStatistic.Events[i].DataEvent.Pair(),
+								currencyStatistic.Events[i].DataEvent.ClosePrice().Round(8),
+								currencyStatistic.Events[i].DataEvent.GetReason()))
 					default:
-						errs = append(errs, fmt.Errorf("%v %v %v unexpected data received %+v", e, a, p, c.Events[i]))
+						errs = append(errs, fmt.Errorf("%v %v %v unexpected data received %+v", exch, a, pair, currencyStatistic.Events[i]))
 					}
 				}
 			}
+		}
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		b1 := results[i]
+		b2 := results[j]
+		return b1.Time.Before(b2.Time)
+	})
+	for i := range results {
+		for j := range results[i].Events {
+			log.Info(log.BackTester, results[i].Events[j])
 		}
 	}
 	if len(errs) > 0 {

@@ -19,23 +19,23 @@
     "initial-funds": "10000"
    },
    {
-       "exchange-name": "ftx",
-       "asset": "spot",
-       "quote": "BTC",
-       "initial-funds": "5"
-      },
-        {
-             "exchange-name": "ftx",
-             "asset": "spot",
-             "quote": "USDT",
-             "initial-funds": "11000"
-            }
-  ],
-   "custom-settings": {
-    "rsi-high": 59,
-    "rsi-low": 49,
-    "rsi-period": 14
+    "exchange-name": "ftx",
+    "asset": "spot",
+    "quote": "BTC",
+    "initial-funds": "5"
+   },
+   {
+    "exchange-name": "ftx",
+    "asset": "spot",
+    "quote": "USDT",
+    "initial-funds": "11000"
    }
+  ],
+  "custom-settings": {
+   "rsi-high": 59,
+   "rsi-low": 49,
+   "rsi-period": 14
+  }
  },
  "currency-settings": [
   {
@@ -48,12 +48,12 @@
     "maximum-orders-with-leverage-ratio": "0",
     "maximum-leverage-rate": "0"
    },
-     "buy-side": {
-      "minimum-size": "0.0001"
-     },
-     "sell-side": {
-      "minimum-size": "0.0001"
-     },
+   "buy-side": {
+    "minimum-size": "0.0001"
+   },
+   "sell-side": {
+    "minimum-size": "0.0001"
+   },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
    "maker-fee-override": "0.001",
@@ -71,12 +71,12 @@
     "maximum-orders-with-leverage-ratio": "0",
     "maximum-leverage-rate": "0"
    },
-     "buy-side": {
-      "minimum-size": "0.0001"
-     },
-     "sell-side": {
-      "minimum-size": "0.0001"
-     },
+   "buy-side": {
+    "minimum-size": "0.0001"
+   },
+   "sell-side": {
+    "minimum-size": "0.0001"
+   },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
    "maker-fee-override": "0.001",

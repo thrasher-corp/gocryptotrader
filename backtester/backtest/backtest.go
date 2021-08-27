@@ -761,8 +761,8 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	if cfg.DataSettings.LiveData.API2FAOverride != "" {
 		base.API.Credentials.PEMKey = cfg.DataSettings.LiveData.API2FAOverride
 	}
-	if cfg.DataSettings.LiveData.APISubaccountOverride != "" {
-		base.API.Credentials.Subaccount = cfg.DataSettings.LiveData.APISubaccountOverride
+	if cfg.DataSettings.LiveData.APISubAccountOverride != "" {
+		base.API.Credentials.Subaccount = cfg.DataSettings.LiveData.APISubAccountOverride
 	}
 	validated := base.ValidateAPICredentials()
 	base.API.AuthenticatedSupport = validated
@@ -854,8 +854,14 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
 			for _, assetMap := range exchangeMap {
 				for _, dataHandler := range assetMap {
 					latestData := dataHandler.Latest()
-					bt.updateStatsForDataEvent(latestData)
-					dataEvents = append(dataEvents, dataHandler)
+					if latestData.GetTime().Equal(e.GetTime()) &&
+						latestData.GetExchange() == e.GetExchange() &&
+						latestData.GetAssetType() == e.GetAssetType() &&
+						latestData.Pair().Equal(e.Pair()) &&
+						latestData.GetOffset() == e.GetOffset() {
+						bt.updateStatsForDataEvent(latestData)
+						dataEvents = append(dataEvents, dataHandler)
+					}
 				}
 			}
 		}

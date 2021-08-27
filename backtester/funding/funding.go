@@ -12,6 +12,7 @@ import (
 )
 
 var (
+	ErrZeroAmountReceived         = errors.New("received less than or equal to zero")
 	ErrNegativeAmountReceived     = errors.New("received negative decimal")
 	ErrAlreadyExists              = errors.New("already exists")
 	ErrNotEnoughFunds             = errors.New("not enough funds")
@@ -36,7 +37,7 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item) e
 		return common.ErrNilArguments
 	}
 	if amount.LessThanOrEqual(decimal.Zero) {
-		return ErrNegativeAmountReceived
+		return ErrZeroAmountReceived
 	}
 	if sender.available.LessThan(amount.Add(sender.transferFee)) {
 		return fmt.Errorf("%w for %v", ErrNotEnoughFunds, sender.currency)
@@ -259,7 +260,7 @@ func (p *Pair) CanPlaceOrder(side order.Side) bool {
 // it prevents multiple events from claiming the same resource
 func (i *Item) Reserve(amount decimal.Decimal) error {
 	if amount.LessThanOrEqual(decimal.Zero) {
-		return fmt.Errorf("%w amount", ErrNegativeAmountReceived)
+		return fmt.Errorf("%w amount", ErrZeroAmountReceived)
 	}
 	if amount.GreaterThan(i.available) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Available: %v",
@@ -279,7 +280,7 @@ func (i *Item) Reserve(amount decimal.Decimal) error {
 // back to the available amount
 func (i *Item) Release(amount, diff decimal.Decimal) error {
 	if amount.LessThanOrEqual(decimal.Zero) {
-		return fmt.Errorf("%w amount", ErrNegativeAmountReceived)
+		return fmt.Errorf("%w amount", ErrZeroAmountReceived)
 	}
 	if diff.IsNegative() {
 		return fmt.Errorf("%w diff", ErrNegativeAmountReceived)

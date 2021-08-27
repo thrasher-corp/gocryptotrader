@@ -62,10 +62,9 @@ type StrategySettings struct {
 // It also is required to use SimultaneousSignalProcessing, otherwise the first currency processed
 // will have dibs
 type ExchangeLevelFunding struct {
-	ExchangeName string `json:"exchange-name"`
-	Asset        string `json:"asset"`
-	Quote        string `json:"quote"`
-
+	ExchangeName string          `json:"exchange-name"`
+	Asset        string          `json:"asset"`
+	Quote        string          `json:"quote"`
 	InitialFunds decimal.Decimal `json:"initial-funds"`
 	TransferFee  decimal.Decimal `json:"transfer-fee"`
 }
@@ -110,7 +109,7 @@ type CurrencySettings struct {
 	Base         string `json:"base"`
 	Quote        string `json:"quote"`
 
-	InitialFunds decimal.Decimal `json:"initial-funds"`
+	InitialFunds decimal.Decimal `json:"initial-funds,omitempty"`
 
 	Leverage Leverage `json:"leverage"`
 	BuySide  MinMax   `json:"buy-side"`
@@ -154,6 +153,6 @@ type LiveData struct {
 	APISecretOverride     string `json:"api-secret-override"`
 	APIClientIDOverride   string `json:"api-client-id-override"`
 	API2FAOverride        string `json:"api-2fa-override"`
-	APISubaccountOverride string `json:"api-subaccount-override"`
+	APISubAccountOverride string `json:"api-sub-account-override"`
 	RealOrders            bool   `json:"real-orders"`
 }

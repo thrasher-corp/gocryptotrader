@@ -85,3 +85,8 @@ type ResultTransactions struct {
 type ResultEvent struct {
 	Time time.Time `json:"time"`
 }
+
+type eventOutputHolder struct {
+	Time   time.Time
+	Events []string
+}

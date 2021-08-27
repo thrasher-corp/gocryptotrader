@@ -124,7 +124,7 @@ func TestPrintSettings(t *testing.T) {
 				APISecretOverride:     "",
 				APIClientIDOverride:   "",
 				API2FAOverride:        "",
-				APISubaccountOverride: "",
+				APISubAccountOverride: "",
 				RealOrders:            false,
 			},
 			DatabaseData: &DatabaseData{
@@ -452,7 +452,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 				APISecretOverride:     "",
 				APIClientIDOverride:   "",
 				API2FAOverride:        "",
-				APISubaccountOverride: "",
+				APISubAccountOverride: "",
 				RealOrders:            false,
 			},
 		},

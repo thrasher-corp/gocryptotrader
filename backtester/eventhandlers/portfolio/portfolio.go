@@ -124,18 +124,8 @@ func (p *Portfolio) OnSignal(s signal.Event, cs *exchange.Settings, funds fundin
 	} else {
 		sizingFunds = funds.QuoteAvailable()
 	}
-	sizedOrder := p.sizeOrder(s, cs, o, sizingFunds)
-	var err error
-	if s.GetDirection() == gctorder.Sell {
-		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
-		o.AllocatedFunds = sizedOrder.Amount
-	} else {
-		err = funds.Reserve(sizedOrder.Amount.Mul(o.Price), gctorder.Buy)
-		o.AllocatedFunds = sizedOrder.Amount.Mul(o.Price)
-	}
-	if err != nil {
-		return nil, err
-	}
+	sizedOrder := p.sizeOrder(s, cs, o, sizingFunds, funds)
+
 	return p.evaluateOrder(s, o, sizedOrder)
 }
 
@@ -165,7 +155,7 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, siz
 	return evaluatedOrder, nil
 }
 
-func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal) *order.Order {
+func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal, funds funding.IPairReserver) *order.Order {
 	sizedOrder, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
 	if err != nil {
 		originalOrderSignal.AppendReason(err.Error())
@@ -193,7 +183,17 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 		d.SetDirection(originalOrderSignal.Direction)
 		originalOrderSignal.AppendReason("sized order to 0")
 	}
-
+	if d.GetDirection() == gctorder.Sell {
+		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
+		sizedOrder.AllocatedFunds = sizedOrder.Amount
+	} else {
+		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.Price), gctorder.Buy)
+		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.Price)
+	}
+	if err != nil {
+		sizedOrder.Direction = common.DoNothing
+		sizedOrder.AppendReason(err.Error())
+	}
 	return sizedOrder
 }
 

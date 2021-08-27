@@ -463,7 +463,7 @@ func TestLoadLiveData(t *testing.T) {
 	cfg.DataSettings.LiveData.APISecretOverride = "1234"
 	cfg.DataSettings.LiveData.APIClientIDOverride = "1234"
 	cfg.DataSettings.LiveData.API2FAOverride = "1234"
-	cfg.DataSettings.LiveData.APISubaccountOverride = "1234"
+	cfg.DataSettings.LiveData.APISubAccountOverride = "1234"
 	err = loadLiveData(cfg, b)
 	if err != nil {
 		t.Error(err)

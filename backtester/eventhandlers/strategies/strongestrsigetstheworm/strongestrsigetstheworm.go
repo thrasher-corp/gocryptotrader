@@ -155,7 +155,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 	}
 
 	if len(rsiFundEvents) == 0 {
-		return nil, nil
+		return resp, nil
 	}
 	sortByRSI(rsiFundEvents, true)
 	strongestSignal := rsiFundEvents[0]
@@ -165,7 +165,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 	}
 
 	if strongestSignal.rsi.GreaterThan(s.rsiHigh) && strongestSignalFunds.Base.MatchesCurrency(currency.BTC) {
-		// we are selling, send all matching to strongest base
+		// we are selling, send all matching to the strongest base
 		sortByRSI(rsiFundEvents, false)
 		if err != nil {
 			return nil, err
@@ -179,25 +179,51 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 				return nil, err
 			}
 			if evFunds.Base.MatchesCurrency(s.mandatoryCurrency) {
-				if evFunds.BaseAvailable().LessThanOrEqual(decimal.Zero) {
+				baseFunds := evFunds.BaseAvailable()
+				if baseFunds.LessThanOrEqual(decimal.Zero) {
 					continue
 				}
-				err = f.Transfer(evFunds.BaseAvailable(), evFunds.Base, strongestSignalFunds.Base)
+				err = f.Transfer(baseFunds, evFunds.Base, strongestSignalFunds.Base)
 				if err != nil {
 					return nil, err
 				}
-				rsiFundEvents[i].event.AppendReason(fmt.Sprintf("sent %v funds to %v %v %v", evFunds.BaseAvailable(), strongestSignal.event.GetExchange(), strongestSignal.event.GetAssetType(), strongestSignal.event.Pair().Base))
+				rsiFundEvents[i].event.AppendReason(fmt.Sprintf("sent %v %v funds to %v %v %v",
+					baseFunds,
+					strongestSignal.event.Pair().Base,
+					strongestSignal.event.GetExchange(),
+					strongestSignal.event.GetAssetType(),
+					strongestSignal.event.Pair()))
+
 				rsiFundEvents[i].event.SetDirection(common.DoNothing)
-			} else {
-				if evFunds.QuoteAvailable().LessThanOrEqual(decimal.Zero) {
+				strongestSignal.event.AppendReason(fmt.Sprintf("received %v %v funds to sell, from %v %v %v",
+					baseFunds,
+					rsiFundEvents[i].event.Pair().Base,
+					rsiFundEvents[i].event.GetExchange(),
+					rsiFundEvents[i].event.GetAssetType(),
+					rsiFundEvents[i].event.Pair()))
+			} else if evFunds.Quote.MatchesCurrency(s.mandatoryCurrency) {
+				quoteFunds := evFunds.QuoteAvailable()
+				if quoteFunds.LessThanOrEqual(decimal.Zero) {
 					continue
 				}
-				err = f.Transfer(evFunds.QuoteAvailable(), evFunds.Quote, strongestSignalFunds.Base)
+				err = f.Transfer(quoteFunds, evFunds.Quote, strongestSignalFunds.Base)
 				if err != nil {
 					return nil, err
 				}
-				rsiFundEvents[i].event.AppendReason(fmt.Sprintf("sent %v funds to %v %v %v", evFunds.QuoteAvailable(), strongestSignal.event.GetExchange(), strongestSignal.event.GetAssetType(), strongestSignal.event.Pair().Base))
+				rsiFundEvents[i].event.AppendReason(fmt.Sprintf("sent funds %v %v  to %v %v %v",
+					quoteFunds,
+					strongestSignal.event.Pair().Base,
+					strongestSignal.event.GetExchange(),
+					strongestSignal.event.GetAssetType(),
+					strongestSignal.event.Pair()))
+
 				rsiFundEvents[i].event.SetDirection(common.DoNothing)
+				strongestSignal.event.AppendReason(fmt.Sprintf("received funds %v %v  to sell, from %v %v %v",
+					quoteFunds,
+					rsiFundEvents[i].event.Pair().Quote,
+					rsiFundEvents[i].event.GetExchange(),
+					rsiFundEvents[i].event.GetAssetType(),
+					rsiFundEvents[i].event.Pair()))
 			}
 		}
 	}
@@ -211,26 +237,52 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 			if err != nil {
 				return nil, err
 			}
-			if evFunds.Base.MatchesCurrency(s.mandatoryCurrency) {
-				if evFunds.BaseAvailable().LessThanOrEqual(decimal.Zero) {
+			if evFunds.Base.MatchesItemCurrency(strongestSignalFunds.Quote) {
+				baseFunds := evFunds.BaseAvailable()
+				if baseFunds.LessThanOrEqual(decimal.Zero) {
 					continue
 				}
-				err = f.Transfer(evFunds.BaseAvailable(), evFunds.Base, strongestSignalFunds.Quote)
+				err = f.Transfer(baseFunds, evFunds.Base, strongestSignalFunds.Quote)
 				if err != nil {
 					return nil, err
 				}
-				rsiFundEvents[i].event.AppendReason(fmt.Sprintf("sent %v funds to %v %v %v", evFunds.BaseAvailable(), strongestSignal.event.GetExchange(), strongestSignal.event.GetAssetType(), strongestSignal.event.Pair().Quote))
+				rsiFundEvents[i].event.AppendReason(fmt.Sprintf("sent %v %v funds to %v %v %v",
+					baseFunds,
+					strongestSignal.event.Pair().Quote,
+					strongestSignal.event.GetExchange(),
+					strongestSignal.event.GetAssetType(),
+					strongestSignal.event.Pair()))
+
 				rsiFundEvents[i].event.SetDirection(common.DoNothing)
-			} else {
-				if evFunds.QuoteAvailable().LessThanOrEqual(decimal.Zero) {
+				strongestSignal.event.AppendReason(fmt.Sprintf("received %v %v funds to buy, from %v %v %v",
+					baseFunds,
+					rsiFundEvents[i].event.Pair().Base,
+					rsiFundEvents[i].event.GetExchange(),
+					rsiFundEvents[i].event.GetAssetType(),
+					rsiFundEvents[i].event.Pair()))
+			} else if evFunds.Quote.MatchesItemCurrency(strongestSignalFunds.Quote) {
+				quoteFunds := evFunds.QuoteAvailable()
+				if quoteFunds.LessThanOrEqual(decimal.Zero) {
 					continue
 				}
-				err = f.Transfer(evFunds.QuoteAvailable(), evFunds.Quote, strongestSignalFunds.Quote)
+				err = f.Transfer(quoteFunds, evFunds.Quote, strongestSignalFunds.Quote)
 				if err != nil {
 					return nil, err
 				}
-				rsiFundEvents[i].event.AppendReason(fmt.Sprintf("sent %v funds to %v %v %v", evFunds.QuoteAvailable(), strongestSignal.event.GetExchange(), strongestSignal.event.GetAssetType(), strongestSignal.event.Pair().Quote))
+				rsiFundEvents[i].event.AppendReason(fmt.Sprintf("sent %v %v funds to %v %v %v",
+					quoteFunds,
+					strongestSignal.event.Pair().Quote,
+					strongestSignal.event.GetExchange(),
+					strongestSignal.event.GetAssetType(),
+					strongestSignal.event.Pair()))
+
 				rsiFundEvents[i].event.SetDirection(common.DoNothing)
+				strongestSignal.event.AppendReason(fmt.Sprintf("received %v %v funds to buy, from %v %v %v",
+					quoteFunds,
+					rsiFundEvents[i].event.Pair().Quote,
+					rsiFundEvents[i].event.GetExchange(),
+					rsiFundEvents[i].event.GetAssetType(),
+					rsiFundEvents[i].event.Pair()))
 			}
 		}
 	}
