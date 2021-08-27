@@ -216,9 +216,14 @@ func TestHTTPClient(t *testing.T) {
 	}
 
 	b := Base{Name: "RAWR"}
-	b.Requester = request.New(b.Name,
-		new(http.Client))
 
+	b.Requester = request.New(b.Name, new(http.Client))
+	err = b.SetHTTPClientTimeout(time.Second * 5)
+	if !errors.Is(err, errTrnasportNotSet) {
+		t.Fatalf("received: %v but expected: %v", err, errTrnasportNotSet)
+	}
+
+	b.Requester = request.New(b.Name, &http.Client{Transport: new(http.Transport)})
 	err = b.SetHTTPClientTimeout(time.Second * 5)
 	if err != nil {
 		t.Fatal(err)
@@ -1314,10 +1319,6 @@ func TestSetupDefaults(t *testing.T) {
 	// Test websocket support
 	b.Websocket = stream.New()
 	b.Features.Supports.Websocket = true
-	err = b.SetupDefaults(&cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:          false,
 		WebsocketTimeout: time.Second * 30,

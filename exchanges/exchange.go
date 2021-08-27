@@ -37,8 +37,11 @@ const (
 	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
-// ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
-var ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
+var (
+	// ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
+	ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
+	errTrnasportNotSet                           = errors.New("transport not set, cannot set timeout")
+)
 
 func (b *Base) checkAndInitRequester() {
 	if b.Requester == nil {
@@ -54,7 +57,7 @@ func (b *Base) SetHTTPClientTimeout(t time.Duration) error {
 	b.Requester.HTTPClient.Timeout = t
 	tr, ok := b.Requester.HTTPClient.Transport.(*http.Transport)
 	if !ok {
-		return errors.New("transport not set, cannot set timeout")
+		return errTrnasportNotSet
 	}
 	tr.IdleConnTimeout = t
 	return nil
