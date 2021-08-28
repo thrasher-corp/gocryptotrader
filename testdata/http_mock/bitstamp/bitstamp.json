@@ -68201,6 +68201,23 @@
     }
    ]
   },
+  "/api/v2/xrp_address/": {
+   "POST": [
+    {
+     "data": {
+      "address": "rDsbeomae4FXwgQTJp9Rs64Qg9vDiTCdBv",
+      "destination_tag": 40687762
+     },
+     "queryString": "",
+     "bodyParams": "key=\u0026nonce=1630130772019126700\u0026signature=4867C3278797DE9AC555D3F3A69076FED19AB28C7CEFBE18A056DAFF2EE7E2EF",
+     "headers": {
+      "Content-Type": [
+       "application/x-www-form-urlencoded"
+      ]
+     }
+    }
+   ]
+  },
   "/api/withdrawal_requests/": {
    "POST": [
     {

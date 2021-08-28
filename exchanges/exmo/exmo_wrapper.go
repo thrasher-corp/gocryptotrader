@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -524,19 +525,41 @@ func (e *EXMO) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (e *EXMO) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
+func (e *EXMO) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
 	fullAddr, err := e.GetCryptoDepositAddress(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	// TODO: Protect map with mutex
-	addr, ok := fullAddr[cryptocurrency.String()]
+	curr := cryptocurrency.Upper().String()
+	if chain != "" {
+		curr += strings.ToUpper(chain)
+	}
+
+	addr, ok := fullAddr[curr]
 	if !ok {
-		return "", fmt.Errorf("currency %s could not be found, please generate via the exmo website", cryptocurrency.String())
+		chains, err := e.GetAvailableTransferChains(ctx, cryptocurrency)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(chains) > 1 {
+			// rather than assume, return an error
+			return nil, fmt.Errorf("currency %s has %v chains available, one must be specified", cryptocurrency, chains)
+		}
+		return nil, fmt.Errorf("currency %s could not be found, please generate via the exmo website", cryptocurrency.String())
 	}
 
-	return addr, nil
+	var tag string
+	if strings.Contains(addr, ",") {
+		split := strings.Split(addr, ",")
+		addr, tag = split[0], split[1]
+	}
+
+	return &deposit.Address{
+		Address: addr,
+		Tag:     tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -549,6 +572,7 @@ func (e *EXMO) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest 
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
+		withdrawRequest.Crypto.Chain,
 		withdrawRequest.Amount)
 
 	return &withdraw.ExchangeResponse{
@@ -679,4 +703,31 @@ func (e *EXMO) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (e *EXMO) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (e *EXMO) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	chains, err := e.GetCryptoPaymentProvidersList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	methods, ok := chains[cryptocurrency.Upper().String()]
+	if !ok {
+		return nil, errors.New("no available chains")
+	}
+
+	var availChains []string
+	for x := range methods {
+		if methods[x].Type == "deposit" && methods[x].Enabled {
+			chain := methods[x].Name
+			if strings.Contains(chain, "(") && strings.Contains(chain, ")") {
+				chain = chain[strings.Index(chain, "(")+1 : strings.Index(chain, ")")]
+			}
+			availChains = append(availChains, chain)
+		}
+	}
+
+	return availChains, nil
 }

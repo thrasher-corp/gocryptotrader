@@ -298,12 +298,14 @@ type APIEndpointsConfig struct {
 
 // APICredentialsConfig stores the API credentials
 type APICredentialsConfig struct {
-	Key        string `json:"key,omitempty"`
-	Secret     string `json:"secret,omitempty"`
-	ClientID   string `json:"clientID,omitempty"`
-	Subaccount string `json:"subaccount,omitempty"`
-	PEMKey     string `json:"pemKey,omitempty"`
-	OTPSecret  string `json:"otpSecret,omitempty"`
+	Key           string `json:"key,omitempty"`
+	Secret        string `json:"secret,omitempty"`
+	ClientID      string `json:"clientID,omitempty"`
+	Subaccount    string `json:"subaccount,omitempty"`
+	PEMKey        string `json:"pemKey,omitempty"`
+	OTPSecret     string `json:"otpSecret,omitempty"`
+	TradePassword string `json:"tradePassword,omitempty"`
+	PIN           string `json:"pin,omitempty"`
 }
 
 // APICredentialsValidatorConfig stores the API credentials validator settings

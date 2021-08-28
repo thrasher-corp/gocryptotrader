@@ -383,11 +383,13 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	withdrawCryptoRequest := withdraw.Request{
-		Amount:      -1,
-		Currency:    currency.BTC,
+		Exchange:    e.Name,
+		Amount:      1,
+		Currency:    currency.USDT,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
+			Chain:   "erc20",
 		},
 	}
 
@@ -428,12 +430,14 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := e.GetDepositAddress(context.Background(), currency.LTC, "")
+		e.Verbose = true
+		r, err := e.GetDepositAddress(context.Background(), currency.USDT, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error", err)
 		}
+		t.Log(r)
 	} else {
-		_, err := e.GetDepositAddress(context.Background(), currency.LTC, "")
+		_, err := e.GetDepositAddress(context.Background(), currency.LTC, "", "")
 		if err == nil {
 			t.Error("GetDepositAddress() error cannot be nil")
 		}
@@ -479,6 +483,21 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	err := e.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCryptoPaymentProvidersList(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetCryptoPaymentProvidersList(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	_, err := e.GetAvailableTransferChains(context.Background(), currency.USDT)
 	if err != nil {
 		t.Error(err)
 	}

@@ -115,6 +115,17 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 }
 
+func TestGetCryptoDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set")
+	}
+	_, err := y.GetCryptoDepositAddress(context.Background(), "bTc", false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	err := y.CancelExistingOrder(context.Background(), 1337)
@@ -488,12 +499,14 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := y.GetDepositAddress(context.Background(), currency.BTC, "")
+		y.Verbose = true
+		r, err := y.GetDepositAddress(context.Background(), currency.OPAL, "", "")
 		if err != nil {
-			t.Error("GetDepositAddress() Expected error")
+			t.Error(err)
 		}
+		t.Log(r)
 	} else {
-		_, err := y.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := y.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err == nil {
 			t.Error("GetDepositAddress() error")
 		}

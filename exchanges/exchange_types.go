@@ -126,6 +126,7 @@ type FundHistory struct {
 	CryptoToAddress   string
 	CryptoFromAddress string
 	CryptoTxID        string
+	CryptoChain       string
 	BankTo            string
 	BankFrom          string
 }
@@ -142,6 +143,7 @@ type WithdrawalHistory struct {
 	TransferType    string
 	CryptoToAddress string
 	CryptoTxID      string
+	CryptoChain     string
 	BankTo          string
 }
 

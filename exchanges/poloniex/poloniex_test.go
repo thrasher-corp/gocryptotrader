@@ -513,7 +513,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetDepositAddress(context.Background(), currency.DASH, "")
+	_, err := p.GetDepositAddress(context.Background(), currency.USDT, "", "USDTETH")
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetDepositAddress()", err)
@@ -521,6 +521,17 @@ func TestGetDepositAddress(t *testing.T) {
 		t.Error("GetDepositAddress() cannot be nil")
 	case mockTests && err != nil:
 		t.Error("Mock GetDepositAddress() err", err)
+	}
+}
+
+func TestGenerateNewAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set, skipping test")
+	}
+	_, err := p.GenerateNewAddress(context.Background(), currency.XRP.String())
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -1058,5 +1069,13 @@ func TestUpdateTickers(t *testing.T) {
 	err := p.UpdateTickers(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetAvailableTransferChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

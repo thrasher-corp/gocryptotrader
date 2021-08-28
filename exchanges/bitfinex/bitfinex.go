@@ -30,7 +30,6 @@ const (
 	bitfinexAccountInfo        = "account_infos"
 	bitfinexAccountFees        = "account_fees"
 	bitfinexAccountSummary     = "summary"
-	bitfinexDeposit            = "deposit/new"
 	bitfinexBalances           = "balances"
 	bitfinexTransfer           = "transfer"
 	bitfinexWithdrawal         = "withdraw"
@@ -78,6 +77,7 @@ const (
 	bitfinexKeyPermissions  = "key_info"
 	bitfinexMarginInfo      = "margin_infos"
 	bitfinexDepositMethod   = "conf/pub:map:currency:label"
+	bitfinexDepositAddress  = "auth/w/deposit/address"
 	bitfinexMarginPairs     = "conf/pub:list:pair:margin"
 
 	// Bitfinex platform status values
@@ -1065,27 +1065,78 @@ func (b *Bitfinex) GetAccountSummary(ctx context.Context) (AccountSummary, error
 // NewDeposit returns a new deposit address
 // Method - Example methods accepted: “bitcoin”, “litecoin”, “ethereum”,
 // “tethers", "ethereumc", "zcash", "monero", "iota", "bcash"
-// WalletName - accepted: “trading”, “exchange”, “deposit”
+// WalletName - accepted: "exchange", "margin", "funding" (can also use the old labels
+//	which are "exchange", "trading" and "deposit" respectively). If none is set,
+//  "funding" will be used by default
 // renew - Default is 0. If set to 1, will return a new unused deposit address
-func (b *Bitfinex) NewDeposit(ctx context.Context, method, walletName string, renew int) (DepositResponse, error) {
-	if !common.StringDataCompare(AcceptedWalletNames, walletName) {
-		return DepositResponse{},
-			fmt.Errorf("walletname: [%s] is not allowed, supported: %s",
-				walletName,
-				AcceptedWalletNames)
+func (b *Bitfinex) NewDeposit(ctx context.Context, method, walletName string, renew uint8) (*Deposit, error) {
+	if walletName == "" {
+		walletName = "funding"
+	} else {
+		if !common.StringDataCompare(AcceptedWalletNames, walletName) {
+			return nil,
+				fmt.Errorf("walletname: [%s] is not allowed, supported: %s",
+					walletName,
+					AcceptedWalletNames)
+		}
 	}
 
-	response := DepositResponse{}
 	req := make(map[string]interface{})
+	req["wallet"] = walletName
 	req["method"] = method
-	req["wallet_name"] = walletName
-	req["renew"] = renew
+	req["op_renew"] = renew
+	var result []interface{}
 
-	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
-		bitfinexDeposit,
+	err := b.SendAuthenticatedHTTPRequestV2(ctx,
+		exchange.RestSpot,
+		http.MethodPost,
+		bitfinexDepositAddress,
 		req,
-		&response,
+		&result,
 		newDepositAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result) != 8 {
+		return nil, errors.New("expected result to have a len of 8")
+	}
+
+	depositInfo, ok := result[4].([]interface{})
+	if !ok || len(depositInfo) != 6 {
+		return nil, errors.New("unable to get deposit data")
+	}
+	depositMethod, ok := depositInfo[1].(string)
+	if !ok {
+		return nil, errors.New("unable to typecast depositMethod to string")
+	}
+	coin, ok := depositInfo[2].(string)
+	if !ok {
+		return nil, errors.New("unable to typecast coin to string")
+	}
+	var address, poolAddress string
+	if depositInfo[5] == nil {
+		address, ok = depositInfo[4].(string)
+		if !ok {
+			return nil, errors.New("unable to typecast address to string")
+		}
+	} else {
+		poolAddress, ok = depositInfo[4].(string)
+		if !ok {
+			return nil, errors.New("unable to typecast poolAddress to string")
+		}
+		address, ok = depositInfo[5].(string)
+		if !ok {
+			return nil, errors.New("unable to typecast address to string")
+		}
+	}
+
+	return &Deposit{
+		Method:       depositMethod,
+		CurrencyCode: coin,
+		Address:      address,
+		PoolAddress:  poolAddress,
+	}, nil
 }
 
 // GetKeyPermissions checks the permissions of the key being used to generate
@@ -1673,11 +1724,10 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchan
 		headers["Accept"] = "application/json"
 		headers["bfx-apikey"] = b.API.Credentials.Key
 		headers["bfx-nonce"] = n
-		strPath := "/api" + bitfinexAPIVersion2 + path + string(payload)
-		signStr := strPath + n
+		sig := "/api" + bitfinexAPIVersion2 + path + n + string(payload)
 		hmac, err := crypto.GetHMAC(
 			crypto.HashSHA512_384,
-			[]byte(signStr),
+			[]byte(sig),
 			[]byte(b.API.Credentials.Secret),
 		)
 		if err != nil {

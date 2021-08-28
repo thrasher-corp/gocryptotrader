@@ -108,25 +108,25 @@ func TestWsCurrencyMap(t *testing.T) {
 		t.Fatal("expecting USDT_BTC pair")
 	}
 
-	maid, err := m.GetCode(127)
+	eth, err := m.GetCode(267)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
 
-	if maid.String() != "MAID" {
+	if eth.String() != "ETH" {
 		t.Fatal("unexpected value")
 	}
 
-	txFee, err := m.GetWithdrawalTXFee(maid)
+	txFee, err := m.GetWithdrawalTXFee(eth)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if txFee != 80 {
+	if txFee != 0.00739257 {
 		t.Fatal("unexpected value")
 	}
 
-	_, err = m.GetDepositAddress(maid)
+	_, err = m.GetDepositAddress(eth)
 	if !errors.Is(err, errNoDepositAddress) {
 		t.Fatalf("expected: %v but received: %v", errNoDepositAddress, err)
 	}
@@ -140,7 +140,7 @@ func TestWsCurrencyMap(t *testing.T) {
 		t.Fatal("unexpected deposit address")
 	}
 
-	wdEnabled, err := m.IsWithdrawAndDepositsEnabled(maid)
+	wdEnabled, err := m.IsWithdrawAndDepositsEnabled(eth)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}
@@ -149,7 +149,7 @@ func TestWsCurrencyMap(t *testing.T) {
 		t.Fatal("unexpected results")
 	}
 
-	tEnabled, err := m.IsTradingEnabledForCurrency(maid)
+	tEnabled, err := m.IsTradingEnabledForCurrency(eth)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected: %v but received: %v", nil, err)
 	}

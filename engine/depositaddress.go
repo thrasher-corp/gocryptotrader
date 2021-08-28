@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 )
 
 // vars related to the deposit address helpers
@@ -18,34 +19,34 @@ var (
 // DepositAddressManager manages the exchange deposit address store
 type DepositAddressManager struct {
 	m     sync.Mutex
-	store map[string]map[string]string
+	store map[string]map[string]deposit.Address
 }
 
 // SetupDepositAddressManager returns a DepositAddressManager
 func SetupDepositAddressManager() *DepositAddressManager {
 	return &DepositAddressManager{
-		store: make(map[string]map[string]string),
+		store: make(map[string]map[string]deposit.Address),
 	}
 }
 
 // GetDepositAddressByExchangeAndCurrency returns a deposit address for the specified exchange and cryptocurrency
 // if it exists
-func (m *DepositAddressManager) GetDepositAddressByExchangeAndCurrency(exchName string, currencyItem currency.Code) (string, error) {
+func (m *DepositAddressManager) GetDepositAddressByExchangeAndCurrency(exchName string, currencyItem currency.Code) (deposit.Address, error) {
 	m.m.Lock()
 	defer m.m.Unlock()
 
 	if len(m.store) == 0 {
-		return "", ErrDepositAddressStoreIsNil
+		return deposit.Address{}, ErrDepositAddressStoreIsNil
 	}
 
 	r, ok := m.store[strings.ToUpper(exchName)]
 	if !ok {
-		return "", ErrExchangeNotFound
+		return deposit.Address{}, ErrExchangeNotFound
 	}
 
 	addr, ok := r[strings.ToUpper(currencyItem.String())]
 	if !ok {
-		return "", ErrDepositAddressNotFound
+		return deposit.Address{}, ErrDepositAddressNotFound
 	}
 
 	return addr, nil
@@ -53,7 +54,7 @@ func (m *DepositAddressManager) GetDepositAddressByExchangeAndCurrency(exchName 
 
 // GetDepositAddressesByExchange returns a list of cryptocurrency addresses for the specified
 // exchange if they exist
-func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (map[string]string, error) {
+func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (map[string]deposit.Address, error) {
 	m.m.Lock()
 	defer m.m.Unlock()
 
@@ -70,7 +71,7 @@ func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (
 }
 
 // Sync synchronises all deposit addresses
-func (m *DepositAddressManager) Sync(addresses map[string]map[string]string) error {
+func (m *DepositAddressManager) Sync(addresses map[string]map[string]deposit.Address) error {
 	if m == nil {
 		return fmt.Errorf("deposit address manager %w", ErrNilSubsystem)
 	}
@@ -81,7 +82,7 @@ func (m *DepositAddressManager) Sync(addresses map[string]map[string]string) err
 	}
 
 	for k, v := range addresses {
-		r := make(map[string]string)
+		r := make(map[string]deposit.Address)
 		for w, x := range v {
 			r[strings.ToUpper(w)] = x
 		}

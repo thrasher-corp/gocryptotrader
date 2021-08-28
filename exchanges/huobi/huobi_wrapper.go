@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -78,7 +79,6 @@ func (h *HUOBI) SetDefaults() {
 	futures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -162,7 +162,7 @@ func (h *HUOBI) SetDefaults() {
 	h.API.Endpoints = h.NewEndpoints()
 	err = h.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:         huobiAPIURL,
-		exchange.RestFutures:      huobiURL,
+		exchange.RestFutures:      huobiFuturesURL,
 		exchange.RestCoinMargined: huobiFuturesURL,
 		exchange.WebsocketSpot:    wsMarketURL,
 	})
@@ -1244,9 +1244,21 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (h *HUOBI) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	resp, err := h.QueryDepositAddress(ctx, cryptocurrency.Lower().String())
-	return resp.Address, err
+func (h *HUOBI) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+	resp, err := h.QueryDepositAddress(ctx, cryptocurrency)
+	if err != nil {
+		return nil, err
+	}
+
+	for x := range resp {
+		if strings.EqualFold(resp[x].Chain, chain) {
+			return &deposit.Address{
+				Address: resp[x].Address,
+				Tag:     resp[x].AddressTag,
+			}, nil
+		}
+	}
+	return nil, fmt.Errorf("supplied chain %s not found", chain)
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -1259,6 +1271,7 @@ func (h *HUOBI) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 		withdrawRequest.Currency,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
+		withdrawRequest.Crypto.Chain,
 		withdrawRequest.Amount,
 		withdrawRequest.Crypto.FeeAmount)
 	if err != nil {
@@ -1395,6 +1408,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 				if err != nil {
 					return orders, err
 				}
+
 				var orderVars OrderVars
 				for x := range openOrders.Data.Orders {
 					orderVars, err = compatibleVars(openOrders.Data.Orders[x].Direction,
@@ -1423,6 +1437,10 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 						Status:          orderVars.Status,
 						Pair:            p,
 					})
+				}
+				currentPage++
+				if currentPage == openOrders.Data.TotalPage {
+					done = true
 				}
 			}
 		}
@@ -1463,6 +1481,10 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 						Status:          orderVars.Status,
 						Pair:            p,
 					})
+				}
+				currentPage++
+				if currentPage == openOrders.Data.TotalPage {
+					done = true
 				}
 			}
 		}
@@ -1761,4 +1783,23 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 		return resp, fmt.Errorf("invalid orderStatus")
 	}
 	return resp, nil
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (h *HUOBI) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	chains, err := h.GetCurrenciesIncludingChains(ctx, cryptocurrency)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(chains) == 0 {
+		return nil, errors.New("chain data isn't populated")
+	}
+
+	var availableChains []string
+	for x := range chains[0].ChainData {
+		availableChains = append(availableChains, chains[0].ChainData[x].Chain)
+	}
+	return availableChains, nil
 }

@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -731,18 +732,24 @@ func (b *Bitfinex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitfinex) GetDepositAddress(ctx context.Context, c currency.Code, accountID string) (string, error) {
+func (b *Bitfinex) GetDepositAddress(ctx context.Context, c currency.Code, accountID, _ string) (*deposit.Address, error) {
 	if accountID == "" {
-		accountID = "deposit"
+		accountID = "funding"
 	}
 
 	method, err := b.ConvertSymbolToDepositMethod(ctx, c)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	resp, err := b.NewDeposit(ctx, method, accountID, 0)
-	return resp.Address, err
+	if err != nil {
+		return nil, err
+	}
+	return &deposit.Address{
+		Address: resp.Address,
+		Tag:     resp.PoolAddress,
+	}, err
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted

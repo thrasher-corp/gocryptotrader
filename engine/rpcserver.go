@@ -17,6 +17,7 @@ import (
 	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/pquerna/otp/totp"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -62,6 +63,7 @@ var (
 	errAssetTypeUnset       = errors.New("asset type unset")
 	errDispatchSystem       = errors.New("dispatch system offline")
 	errCurrencyNotEnabled   = errors.New("currency not enabled")
+	errCurrencyNotSpecified = errors.New("a currency must be specified")
 	errCurrencyPairInvalid  = errors.New("currency provided is not found in the available pairs list")
 	errNoTrades             = errors.New("no trades returned from supplied params")
 	errNilRequestData       = errors.New("nil request data received, cannot continue")
@@ -1439,6 +1441,7 @@ func (s *RPCServer) CancelAllOrders(ctx context.Context, r *gctrpc.CancelAllOrde
 	}, nil
 }
 
+// ModifyOrder modifies an existing order if it exists
 func (s *RPCServer) ModifyOrder(ctx context.Context, r *gctrpc.ModifyOrderRequest) (*gctrpc.ModifyOrderResponse, error) {
 	assetType, err := asset.New(r.Asset)
 	if err != nil {
@@ -1537,7 +1540,20 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gc
 	}
 
 	result, err := s.GetCryptocurrencyDepositAddressesByExchange(r.Exchange)
-	return &gctrpc.GetCryptocurrencyDepositAddressesResponse{Addresses: result}, err
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *gctrpc.GetCryptocurrencyDepositAddressesResponse
+	resp.Addresses = make(map[string]*gctrpc.GetCryptocurrencyDepositAddressResponse)
+	for k, v := range result {
+		resp.Addresses[k] = &gctrpc.GetCryptocurrencyDepositAddressResponse{
+			Address: v.Address,
+			Tag:     v.Tag,
+		}
+	}
+
+	return resp, nil
 }
 
 // GetCryptocurrencyDepositAddress returns a cryptocurrency deposit address
@@ -1551,8 +1567,40 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 	addr, err := s.GetExchangeCryptocurrencyDepositAddress(ctx,
 		r.Exchange,
 		"",
-		currency.NewCode(r.Cryptocurrency))
-	return &gctrpc.GetCryptocurrencyDepositAddressResponse{Address: addr}, err
+		r.Chain,
+		currency.NewCode(r.Cryptocurrency),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GetCryptocurrencyDepositAddressResponse{
+		Address: addr.Address,
+		Tag:     addr.Tag,
+	}, err
+}
+
+// GetAvailableTransferChains returns the supported transfer chains specified by
+// exchange and cryptocurrency
+func (s *RPCServer) GetAvailableTransferChains(ctx context.Context, r *gctrpc.GetAvailableTransferChainsRequest) (*gctrpc.GetAvailableTransferChainsResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	curr := currency.NewCode(r.Cryptocurrency)
+	if curr.IsEmpty() {
+		return nil, errCurrencyNotSpecified
+	}
+
+	resp, err := exch.GetAvailableTransferChains(ctx, curr)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GetAvailableTransferChainsResponse{
+		Chains: resp,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds withdraws cryptocurrency funds specified by
@@ -1573,8 +1621,37 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 			Address:    r.Address,
 			AddressTag: r.AddressTag,
 			FeeAmount:  r.Fee,
+			Chain:      r.Chain,
 		},
 	}
+
+	exchCfg, err := s.Config.GetExchangeConfig(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	if otpSecret := exchCfg.API.Credentials.OTPSecret; otpSecret != "" {
+		code, err := totp.GenerateCode(otpSecret, time.Now())
+		if err != nil {
+			return nil, err
+		}
+
+		codeNum, err := strconv.ParseInt(code, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		request.OneTimePassword = codeNum
+	}
+
+	if pin := exchCfg.API.Credentials.PIN; pin != "" {
+		pinCode, err := strconv.ParseInt(pin, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		request.PIN = pinCode
+	}
+
+	request.TradePassword = exchCfg.API.Credentials.TradePassword
 
 	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, request)
 	if err != nil {
@@ -1617,6 +1694,34 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 			Bank: *bankAccount,
 		},
 	}
+
+	exchCfg, err := s.Config.GetExchangeConfig(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	if otpSecret := exchCfg.API.Credentials.OTPSecret; otpSecret != "" {
+		code, err := totp.GenerateCode(otpSecret, time.Now())
+		if err != nil {
+			return nil, err
+		}
+
+		codeNum, err := strconv.ParseInt(code, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		request.OneTimePassword = codeNum
+	}
+
+	if pin := exchCfg.API.Credentials.PIN; pin != "" {
+		pinCode, err := strconv.ParseInt(pin, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		request.PIN = pinCode
+	}
+
+	request.TradePassword = exchCfg.API.Credentials.TradePassword
 
 	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, request)
 	if err != nil {

@@ -127,7 +127,8 @@ type TradeHistory struct {
 type DepositAddress struct {
 	Success int `json:"success"`
 	Return  struct {
-		Address         string  `json:"address"`
+		Address         string `json:"address"`
+		AddressTag      string
 		ProcessedAmount float64 `json:"processed_amount"`
 		ServerTime      int64   `json:"server_time"`
 	} `json:"return"`

@@ -448,13 +448,31 @@ func TestGetDepositAddress(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	if z.ValidateAPICredentials() {
-		_, err := z.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := z.GetDepositAddress(context.Background(), currency.XRP, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",
 				err)
 		}
 	} else {
-		_, err := z.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := z.GetDepositAddress(context.Background(), currency.BTC, "", "")
+		if err == nil {
+			t.Error("GetDepositAddress() Expected error")
+		}
+	}
+}
+
+func TestGetMultiChainDepositAddress(t *testing.T) {
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
+	if z.ValidateAPICredentials() {
+		_, err := z.GetMultiChainDepositAddress(context.Background(), currency.USDT)
+		if err != nil {
+			t.Error("GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",
+				err)
+		}
+	} else {
+		_, err := z.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err == nil {
 			t.Error("GetDepositAddress() Expected error")
 		}
@@ -1025,7 +1043,17 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := z.UpdateTickers(context.Background(), asset.Spot)
+	if err := z.UpdateTickers(context.Background(), asset.Spot); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	if !z.ValidateAPICredentials() {
+		t.Skip("api keys not set")
+	}
+	_, err := z.GetAvailableTransferChains(context.Background(), currency.XRP)
 	if err != nil {
 		t.Error(err)
 	}

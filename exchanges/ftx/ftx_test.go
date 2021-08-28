@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -67,6 +66,11 @@ func TestMain(m *testing.M) {
 	}
 	f.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	f.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+
+	if !areTestAPIKeysSet() {
+		f.API.AuthenticatedSupport = false
+		f.API.AuthenticatedWebsocketSupport = false
+	}
 	os.Exit(m.Run())
 }
 
@@ -370,6 +374,9 @@ func TestGetMarginMarketLendingHistory(t *testing.T) {
 		t.Errorf("expected %s, got %s", errStartTimeCannotBeAfterEndTime, err)
 	}
 
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set")
+	}
 	_, err = f.GetMarginMarketLendingHistory(context.Background(),
 		currency.USD, tmNow.AddDate(0, 0, -1), tmNow)
 	if err != nil {
@@ -435,9 +442,12 @@ func TestFetchDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.FetchDepositAddress(context.Background(), currency.NewCode("tUsD"))
+	r, err := f.FetchDepositAddress(context.Background(), currency.NewCode("UsDt"), "trx")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
+	}
+	if r.Method != "trx" {
+		t.Error("expected trx method")
 	}
 }
 
@@ -469,7 +479,13 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	_, err := f.Withdraw(context.Background(),
-		currency.NewCode("bTc"), core.BitcoinDonationAddress, "", "", "957378", 0.0009)
+		currency.NewCode("UsDT"),
+		"TJU9piX2WA8WTvxVKMqpvTzZGhvXQAZKSY",
+		"",
+		"",
+		"trx",
+		"715913",
+		10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1174,7 +1190,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.GetDepositAddress(context.Background(), currency.NewCode("FTT"), "")
+	_, err := f.GetDepositAddress(context.Background(), currency.NewCode("FTT"), "", "")
 	if err != nil {
 		t.Error(err)
 	}

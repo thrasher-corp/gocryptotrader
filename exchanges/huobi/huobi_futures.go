@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -23,58 +24,58 @@ import (
 
 const (
 	// Unauth
-	fContractInfo              = "api/v1/contract_contract_info?"
-	fContractIndexPrice        = "api/v1/contract_index?"
-	fContractPriceLimitation   = "api/v1/contract_price_limit?"
-	fContractOpenInterest      = "api/v1/contract_open_interest?"
-	fEstimatedDeliveryPrice    = "api/v1/contract_delivery_price?"
-	fContractMarketDepth       = "/market/depth?"
-	fContractKline             = "/market/history/kline?"
-	fMarketOverview            = "/market/detail/merged?"
-	fLastTradeContract         = "/market/trade?"
-	fContractBatchTradeRecords = "/market/history/trade?"
-	fInsuranceAndClawback      = "api/v1/contract_risk_info?"
-	fInsuranceBalanceHistory   = "api/v1/contract_insurance_fund?"
-	fTieredAdjustmentFactor    = "api/v1/contract_adjustfactor?"
-	fHisContractOpenInterest   = "api/v1/contract_his_open_interest?"
-	fSystemStatus              = "api/v1/contract_api_state?"
-	fTopAccountsSentiment      = "api/v1/contract_elite_account_ratio?"
-	fTopPositionsSentiment     = "api/v1/contract_elite_position_ratio?"
-	fLiquidationOrders         = "api/v1/contract_liquidation_orders?"
-	fIndexKline                = "/index/market/history/index?"
-	fBasisData                 = "/index/market/history/basis?"
+	fContractInfo              = "/api/v1/contract_contract_info"
+	fContractIndexPrice        = "/api/v1/contract_index"
+	fContractPriceLimitation   = "/api/v1/contract_price_limit"
+	fContractOpenInterest      = "/api/v1/contract_open_interest"
+	fEstimatedDeliveryPrice    = "/api/v1/contract_delivery_price"
+	fContractMarketDepth       = "/market/depth"
+	fContractKline             = "/market/history/kline"
+	fMarketOverview            = "/market/detail/merged"
+	fLastTradeContract         = "/market/trade"
+	fContractBatchTradeRecords = "/market/history/trade"
+	fInsuranceAndClawback      = "/api/v1/contract_risk_info"
+	fInsuranceBalanceHistory   = "/api/v1/contract_insurance_fund"
+	fTieredAdjustmentFactor    = "/api/v1/contract_adjustfactor"
+	fHisContractOpenInterest   = "/api/v1/contract_his_open_interest"
+	fSystemStatus              = "/api/v1/contract_api_state"
+	fTopAccountsSentiment      = "/api/v1/contract_elite_account_ratio"
+	fTopPositionsSentiment     = "/api/v1/contract_elite_position_ratio"
+	fLiquidationOrders         = "/api/v1/contract_liquidation_orders"
+	fIndexKline                = "/index/market/history/index"
+	fBasisData                 = "/index/market/history/basis"
 
 	// Auth
-	fAccountData               = "api/v1/contract_account_info"
-	fPositionInformation       = "api/v1/contract_position_info"
-	fAllSubAccountAssets       = "api/v1/contract_sub_account_list"
-	fSingleSubAccountAssets    = "api/v1/contract_sub_account_info"
-	fSingleSubAccountPositions = "api/v1/contract_sub_position_info"
-	fFinancialRecords          = "api/v1/contract_financial_record"
-	fSettlementRecords         = "api/v1/contract_user_settlement_records"
-	fOrderLimitInfo            = "api/v1/contract_order_limit"
-	fContractTradingFee        = "api/v1/contract_fee"
-	fTransferLimitInfo         = "api/v1/contract_transfer_limit"
-	fPositionLimitInfo         = "api/v1/contract_position_limit"
-	fQueryAssetsAndPositions   = "api/v1/contract_account_position_info"
-	fTransfer                  = "api/v1/contract_master_sub_transfer"
-	fTransferRecords           = "api/v1/contract_master_sub_transfer_record"
-	fAvailableLeverage         = "api/v1/contract_available_level_rate"
-	fOrder                     = "api/v1/contract_order"
-	fBatchOrder                = "api/v1/contract_batchorder"
-	fCancelOrder               = "api/v1/contract_cancel"
-	fCancelAllOrders           = "api/v1/contract_cancelall"
-	fFlashCloseOrder           = "api/v1/lightning_close_position"
-	fOrderInfo                 = "api/v1/contract_order_info"
-	fOrderDetails              = "api/v1/contract_order_detail"
-	fQueryOpenOrders           = "api/v1/contract_openorders"
-	fOrderHistory              = "api/v1/contract_hisorders"
-	fMatchResult               = "api/v1/contract_matchresults"
-	fTriggerOrder              = "api/v1/contract_trigger_order"
-	fCancelTriggerOrder        = "api/v1/contract_trigger_cancel"
-	fCancelAllTriggerOrders    = "api/v1/contract_trigger_cancelall"
-	fTriggerOpenOrders         = "api/v1/contract_trigger_openorders"
-	fTriggerOrderHistory       = "api/v1/contract_trigger_hisorders"
+	fAccountData               = "/api/v1/contract_account_info"
+	fPositionInformation       = "/api/v1/contract_position_info"
+	fAllSubAccountAssets       = "/api/v1/contract_sub_account_list"
+	fSingleSubAccountAssets    = "/api/v1/contract_sub_account_info"
+	fSingleSubAccountPositions = "/api/v1/contract_sub_position_info"
+	fFinancialRecords          = "/api/v1/contract_financial_record"
+	fSettlementRecords         = "/api/v1/contract_user_settlement_records"
+	fOrderLimitInfo            = "/api/v1/contract_order_limit"
+	fContractTradingFee        = "/api/v1/contract_fee"
+	fTransferLimitInfo         = "/api/v1/contract_transfer_limit"
+	fPositionLimitInfo         = "/api/v1/contract_position_limit"
+	fQueryAssetsAndPositions   = "/api/v1/contract_account_position_info"
+	fTransfer                  = "/api/v1/contract_master_sub_transfer"
+	fTransferRecords           = "/api/v1/contract_master_sub_transfer_record"
+	fAvailableLeverage         = "/api/v1/contract_available_level_rate"
+	fOrder                     = "/api/v1/contract_order"
+	fBatchOrder                = "/api/v1/contract_batchorder"
+	fCancelOrder               = "/api/v1/contract_cancel"
+	fCancelAllOrders           = "/api/v1/contract_cancelall"
+	fFlashCloseOrder           = "/api/v1/lightning_close_position"
+	fOrderInfo                 = "/api/v1/contract_order_info"
+	fOrderDetails              = "/api/v1/contract_order_detail"
+	fQueryOpenOrders           = "/api/v1/contract_openorders"
+	fOrderHistory              = "/api/v1/contract_hisorders"
+	fMatchResult               = "/api/v1/contract_matchresults"
+	fTriggerOrder              = "/api/v1/contract_trigger_order"
+	fCancelTriggerOrder        = "/api/v1/contract_trigger_cancel"
+	fCancelAllTriggerOrders    = "/api/v1/contract_trigger_cancelall"
+	fTriggerOpenOrders         = "/api/v1/contract_trigger_openorders"
+	fTriggerOrderHistory       = "/api/v1/contract_trigger_hisorders"
 )
 
 // FGetContractInfo gets contract info for futures
@@ -97,7 +98,7 @@ func (h *HUOBI) FGetContractInfo(ctx context.Context, symbol, contractType strin
 		}
 		params.Set("contract_code", codeValue)
 	}
-	path := fContractInfo + params.Encode()
+	path := common.EncodeURLValues(fContractInfo, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -112,7 +113,7 @@ func (h *HUOBI) FIndexPriceInfo(ctx context.Context, symbol currency.Code) (FCon
 		}
 		params.Set("symbol", codeValue)
 	}
-	path := fContractIndexPrice + params.Encode()
+	path := common.EncodeURLValues(fContractIndexPrice, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -136,7 +137,7 @@ func (h *HUOBI) FContractPriceLimitations(ctx context.Context, symbol, contractT
 		}
 		params.Set("contract_code", codeValue)
 	}
-	path := fContractPriceLimitation + params.Encode()
+	path := common.EncodeURLValues(fContractPriceLimitation, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -160,7 +161,7 @@ func (h *HUOBI) FContractOpenInterest(ctx context.Context, symbol, contractType 
 		}
 		params.Set("contract_code", codeValue)
 	}
-	path := fContractOpenInterest + params.Encode()
+	path := common.EncodeURLValues(fContractOpenInterest, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -173,7 +174,7 @@ func (h *HUOBI) FGetEstimatedDeliveryPrice(ctx context.Context, symbol currency.
 		return resp, err
 	}
 	params.Set("symbol", codeValue)
-	path := fEstimatedDeliveryPrice + params.Encode()
+	path := common.EncodeURLValues(fEstimatedDeliveryPrice, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -182,13 +183,13 @@ func (h *HUOBI) FGetMarketDepth(ctx context.Context, symbol currency.Pair, dataT
 	var resp OBData
 	var tempData FMarketDepth
 	params := url.Values{}
-	symbolValue, err := h.FormatSymbol(symbol, asset.Futures)
+	symbolValue, err := h.formatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
 	params.Set("type", dataType)
-	path := fContractMarketDepth + params.Encode()
+	path := common.EncodeURLValues(fContractMarketDepth, params)
 	err = h.SendHTTPRequest(ctx, exchange.RestFutures, path, &tempData)
 	if err != nil {
 		return resp, err
@@ -213,7 +214,7 @@ func (h *HUOBI) FGetMarketDepth(ctx context.Context, symbol currency.Pair, dataT
 func (h *HUOBI) FGetKlineData(ctx context.Context, symbol currency.Pair, period string, size int64, startTime, endTime time.Time) (FKlineData, error) {
 	var resp FKlineData
 	params := url.Values{}
-	symbolValue, err := h.FormatSymbol(symbol, asset.Futures)
+	symbolValue, err := h.formatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return resp, err
 	}
@@ -233,7 +234,7 @@ func (h *HUOBI) FGetKlineData(ctx context.Context, symbol currency.Pair, period 
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	path := fContractKline + params.Encode()
+	path := common.EncodeURLValues(fContractKline, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -241,12 +242,12 @@ func (h *HUOBI) FGetKlineData(ctx context.Context, symbol currency.Pair, period 
 func (h *HUOBI) FGetMarketOverviewData(ctx context.Context, symbol currency.Pair) (FMarketOverviewData, error) {
 	var resp FMarketOverviewData
 	params := url.Values{}
-	symbolValue, err := h.FormatSymbol(symbol, asset.Futures)
+	symbolValue, err := h.formatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	path := fMarketOverview + params.Encode()
+	path := common.EncodeURLValues(fMarketOverview, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -254,12 +255,12 @@ func (h *HUOBI) FGetMarketOverviewData(ctx context.Context, symbol currency.Pair
 func (h *HUOBI) FLastTradeData(ctx context.Context, symbol currency.Pair) (FLastTradeData, error) {
 	var resp FLastTradeData
 	params := url.Values{}
-	symbolValue, err := h.FormatSymbol(symbol, asset.Futures)
+	symbolValue, err := h.formatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	path := fLastTradeContract + params.Encode()
+	path := common.EncodeURLValues(fLastTradeContract, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -267,7 +268,7 @@ func (h *HUOBI) FLastTradeData(ctx context.Context, symbol currency.Pair) (FLast
 func (h *HUOBI) FRequestPublicBatchTrades(ctx context.Context, symbol currency.Pair, size int64) (FBatchTradesForContractData, error) {
 	var resp FBatchTradesForContractData
 	params := url.Values{}
-	symbolValue, err := h.FormatSymbol(symbol, asset.Futures)
+	symbolValue, err := h.formatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return resp, err
 	}
@@ -275,7 +276,7 @@ func (h *HUOBI) FRequestPublicBatchTrades(ctx context.Context, symbol currency.P
 	if size > 1 && size < 2000 {
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
-	path := fContractBatchTradeRecords + params.Encode()
+	path := common.EncodeURLValues(fContractBatchTradeRecords, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -290,7 +291,7 @@ func (h *HUOBI) FQueryInsuranceAndClawbackData(ctx context.Context, symbol curre
 		}
 		params.Set("symbol", codeValue)
 	}
-	path := fInsuranceAndClawback + params.Encode()
+	path := common.EncodeURLValues(fInsuranceAndClawback, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -305,7 +306,7 @@ func (h *HUOBI) FQueryHistoricalInsuranceData(ctx context.Context, symbol curren
 		}
 		params.Set("symbol", codeValue)
 	}
-	path := fInsuranceBalanceHistory + params.Encode()
+	path := common.EncodeURLValues(fInsuranceBalanceHistory, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -320,7 +321,7 @@ func (h *HUOBI) FQueryTieredAdjustmentFactor(ctx context.Context, symbol currenc
 		}
 		params.Set("symbol", codeValue)
 	}
-	path := fTieredAdjustmentFactor + params.Encode()
+	path := common.EncodeURLValues(fTieredAdjustmentFactor, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -347,7 +348,7 @@ func (h *HUOBI) FQueryHisOpenInterest(ctx context.Context, symbol, contractType,
 		return resp, fmt.Errorf("invalid amountType")
 	}
 	params.Set("amount_type", strconv.FormatInt(validAmount, 10))
-	path := fHisContractOpenInterest + params.Encode()
+	path := common.EncodeURLValues(fHisContractOpenInterest, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -362,7 +363,7 @@ func (h *HUOBI) FQuerySystemStatus(ctx context.Context, symbol currency.Code) (F
 		}
 		params.Set("symbol", codeValue)
 	}
-	path := fSystemStatus + params.Encode()
+	path := common.EncodeURLValues(fSystemStatus, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -377,7 +378,7 @@ func (h *HUOBI) FQueryTopAccountsRatio(ctx context.Context, symbol, period strin
 		return resp, fmt.Errorf("invalid period")
 	}
 	params.Set("period", period)
-	path := fTopAccountsSentiment + params.Encode()
+	path := common.EncodeURLValues(fTopAccountsSentiment, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -392,7 +393,7 @@ func (h *HUOBI) FQueryTopPositionsRatio(ctx context.Context, symbol, period stri
 		return resp, fmt.Errorf("invalid period")
 	}
 	params.Set("period", period)
-	path := fTopPositionsSentiment + params.Encode()
+	path := common.EncodeURLValues(fTopPositionsSentiment, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -416,7 +417,7 @@ func (h *HUOBI) FLiquidationOrders(ctx context.Context, symbol, tradeType string
 	if pageSize != 0 {
 		params.Set("page_size", strconv.FormatInt(pageIndex, 10))
 	}
-	path := fLiquidationOrders + params.Encode()
+	path := common.EncodeURLValues(fLiquidationOrders, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -437,7 +438,7 @@ func (h *HUOBI) FIndexKline(ctx context.Context, symbol currency.Pair, period st
 		return resp, fmt.Errorf("invalid size")
 	}
 	params.Set("size", strconv.FormatInt(size, 10))
-	path := fIndexKline + params.Encode()
+	path := common.EncodeURLValues(fIndexKline, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -462,7 +463,7 @@ func (h *HUOBI) FGetBasisData(ctx context.Context, symbol currency.Pair, period,
 	if size > 0 && size <= 2000 {
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
-	path := fBasisData + params.Encode()
+	path := common.EncodeURLValues(fBasisData, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -1106,6 +1107,17 @@ func (h *HUOBI) FQueryTriggerOrderHistory(ctx context.Context, contractCode curr
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fTriggerOrderHistory, nil, req, &resp)
 }
 
+func (h *HUOBI) formatSymbol(p currency.Pair, a asset.Item) (string, error) {
+	if a == asset.Futures {
+		for k, v := range contractTranslator {
+			if strings.EqualFold(p.Quote.String(), k) || strings.EqualFold(p.Quote.String(), v) {
+				return p.Format("_", true).String(), nil
+			}
+		}
+	}
+	return p.Format("", true).String(), nil
+}
+
 // FuturesAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
 func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, data, result interface{}) error {
 	if !h.AllowAuthenticatedRequest() {
@@ -1126,8 +1138,9 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		values.Set("SignatureMethod", "HmacSHA256")
 		values.Set("SignatureVersion", "2")
 		values.Set("Timestamp", now.UTC().Format("2006-01-02T15:04:05"))
-		sigPath := fmt.Sprintf("%s\napi.hbdm.com\n/%s\n%s",
+		sigPath := fmt.Sprintf("%s\napi.hbdm.com\n%s\n%s",
 			method, endpoint, values.Encode())
+		fmt.Println(sigPath)
 		headers := make(map[string]string)
 		if method == http.MethodGet {
 			headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -1142,10 +1155,8 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		if err != nil {
 			return nil, err
 		}
-		sigValues := url.Values{}
-		sigValues.Add("Signature", crypto.Base64Encode(hmac))
-		urlPath :=
-			common.EncodeURLValues(ePoint+endpoint, values) + "&" + sigValues.Encode()
+		values.Add("Signature", crypto.Base64Encode(hmac))
+		urlPath := common.EncodeURLValues(ePoint+endpoint, values)
 		var body io.Reader
 		var payload []byte
 		if data != nil {
@@ -1176,7 +1187,7 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 	var errCap errorCapture
 	if err := json.Unmarshal(tempResp, &errCap); err == nil {
-		if errCap.Code != 200 && errCap.ErrMsg != "" {
+		if errCap.ErrMsg != "" {
 			return errors.New(errCap.ErrMsg)
 		}
 	}

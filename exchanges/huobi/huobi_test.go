@@ -79,6 +79,24 @@ func setupWsTests(t *testing.T) {
 	wsSetupRan = true
 }
 
+func TestGetCurrenciesIncludingChains(t *testing.T) {
+	t.Parallel()
+	r, err := h.GetCurrenciesIncludingChains(context.Background(), currency.Code{})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(r) == 1 {
+		t.Error("should of got more results")
+	}
+	r, err = h.GetCurrenciesIncludingChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(r) < 1 {
+		t.Error("should of got more results")
+	}
+}
+
 func TestFGetContractInfo(t *testing.T) {
 	t.Parallel()
 	_, err := h.FGetContractInfo(context.Background(), "", "", currency.Pair{})
@@ -682,11 +700,11 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTickerSpot(t *testing.T) {
 	t.Parallel()
-	sp, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Error(err)
+	_, err := h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("INV", "ALID", "-"), asset.Spot)
+	if err == nil {
+		t.Error("exepcted invalid pair")
 	}
-	_, err = h.UpdateTicker(context.Background(), sp, asset.Spot)
+	_, err = h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -694,11 +712,11 @@ func TestUpdateTickerSpot(t *testing.T) {
 
 func TestUpdateTickerCMF(t *testing.T) {
 	t.Parallel()
-	cp1, err := currency.NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Error(err)
+	_, err := h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("INV", "ALID", "_"), asset.CoinMarginedFutures)
+	if err == nil {
+		t.Error("exepcted invalid contract code")
 	}
-	_, err = h.UpdateTicker(context.Background(), cp1, asset.CoinMarginedFutures)
+	_, err = h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("BTC", "USD", "_"), asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -778,7 +796,7 @@ func TestUpdateOrderbookFuture(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.UpdateOrderbook(context.Background(), cp2, asset.Futures)
+	_, err = h.UpdateOrderbook(context.Background(), cp2, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1077,8 +1095,7 @@ func TestGetSystemStatusInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.GetSystemStatusInfo(context.Background(),
-		cp, "5min", "cryptocurrency", 50)
+	_, err = h.GetSystemStatusInfo(context.Background(), cp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1801,7 +1818,7 @@ func TestSpotNewOrder(t *testing.T) {
 	}
 	arg := SpotNewOrderRequestParams{
 		Symbol:    cp,
-		AccountID: 1,
+		AccountID: 1997024,
 		Amount:    0.01,
 		Price:     10.1,
 		Type:      SpotNewOrderRequestTypeBuyLimit,
@@ -2019,7 +2036,7 @@ func TestSubmitOrder(t *testing.T) {
 		},
 		Side:      order.Buy,
 		Type:      order.Limit,
-		Price:     1,
+		Price:     5,
 		Amount:    1,
 		ClientID:  strconv.FormatInt(accounts[0].ID, 10),
 		AssetType: asset.Spot,
@@ -2125,11 +2142,13 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	withdrawCryptoRequest := withdraw.Request{
-		Amount:      -1,
-		Currency:    currency.BTC,
+		Exchange:    h.Name,
+		Amount:      5,
+		Currency:    currency.USDT,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
-			Address: core.BitcoinDonationAddress,
+			Address: "TJ6Piuaw35M4PM54CzWFqzEPP998yXydc6",
+			Chain:   "trc20usdt",
 		},
 	}
 
@@ -2173,8 +2192,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestQueryDepositAddress(t *testing.T) {
-	_, err := h.QueryDepositAddress(context.Background(),
-		currency.BTC.Lower().String())
+	_, err := h.QueryDepositAddress(context.Background(), currency.USDT)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -2676,4 +2694,13 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	r, err := h.GetAvailableTransferChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(r)
 }

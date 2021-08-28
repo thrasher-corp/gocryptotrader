@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 )
 
 const (
@@ -22,9 +23,11 @@ func TestSetupDepositAddressManager(t *testing.T) {
 
 func TestSync(t *testing.T) {
 	m := SetupDepositAddressManager()
-	err := m.Sync(map[string]map[string]string{
+	err := m.Sync(map[string]map[string]deposit.Address{
 		bitStamp: {
-			btc: address,
+			btc: deposit.Address{
+				Address: address,
+			},
 		},
 	})
 	if err != nil {
@@ -34,14 +37,16 @@ func TestSync(t *testing.T) {
 	if err != nil {
 		t.Error("unexpected result")
 	}
-	if r != address {
+	if r.Address != address {
 		t.Error("unexpected result")
 	}
 
 	m.store = nil
-	err = m.Sync(map[string]map[string]string{
+	err = m.Sync(map[string]map[string]deposit.Address{
 		bitStamp: {
-			btc: address,
+			btc: deposit.Address{
+				Address: address,
+			},
 		},
 	})
 	if !errors.Is(err, ErrDepositAddressStoreIsNil) {
@@ -49,9 +54,11 @@ func TestSync(t *testing.T) {
 	}
 
 	m = nil
-	err = m.Sync(map[string]map[string]string{
+	err = m.Sync(map[string]map[string]deposit.Address{
 		bitStamp: {
-			btc: address,
+			btc: deposit.Address{
+				Address: address,
+			},
 		},
 	})
 	if !errors.Is(err, ErrNilSubsystem) {
@@ -66,9 +73,11 @@ func TestGetDepositAddressByExchangeAndCurrency(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, ErrDepositAddressStoreIsNil)
 	}
 
-	m.store = map[string]map[string]string{
+	m.store = map[string]map[string]deposit.Address{
 		bitStamp: {
-			btc: address,
+			btc: deposit.Address{
+				Address: address,
+			},
 		},
 	}
 	_, err = m.GetDepositAddressByExchangeAndCurrency(bitStamp, currency.BTC)
@@ -84,9 +93,11 @@ func TestGetDepositAddressesByExchange(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, ErrDepositAddressStoreIsNil)
 	}
 
-	m.store = map[string]map[string]string{
+	m.store = map[string]map[string]deposit.Address{
 		bitStamp: {
-			btc: address,
+			btc: deposit.Address{
+				Address: address,
+			},
 		},
 	}
 	_, err = m.GetDepositAddressesByExchange(bitStamp)

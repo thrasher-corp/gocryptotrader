@@ -27,6 +27,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -668,7 +669,7 @@ func (bot *Engine) GetCryptocurrenciesByExchange(exchangeName string, enabledExc
 }
 
 // GetCryptocurrencyDepositAddressesByExchange returns the cryptocurrency deposit addresses for a particular exchange
-func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) (map[string]string, error) {
+func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) (map[string]deposit.Address, error) {
 	if bot.DepositAddressManager != nil {
 		return bot.DepositAddressManager.GetDepositAddressesByExchange(exchName)
 	}
@@ -683,21 +684,27 @@ func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) 
 
 // GetExchangeCryptocurrencyDepositAddress returns the cryptocurrency deposit address for a particular
 // exchange
-func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, exchName, accountID string, item currency.Code) (string, error) {
-	if bot.DepositAddressManager != nil {
-		return bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, item)
-	}
+func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, exchName, accountID, chain string, item currency.Code) (*deposit.Address, error) {
+	/*
+		if bot.DepositAddressManager != nil {
+			resp, err := bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, item)
+			if err != nil {
+				return nil, err
+			}
+			return &resp, nil
+		}
+	*/
 
 	exch, err := bot.GetExchangeByName(exchName)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return exch.GetDepositAddress(ctx, item, accountID)
+	return exch.GetDepositAddress(ctx, item, accountID, chain)
 }
 
 // GetExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
-func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
-	result := make(map[string]map[string]string)
+func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]deposit.Address {
+	result := make(map[string]map[string]deposit.Address)
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		exchName := exchanges[x].GetName()
@@ -714,17 +721,15 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 			continue
 		}
 
-		cryptoAddr := make(map[string]string)
+		cryptoAddr := make(map[string]deposit.Address)
 		for y := range cryptoCurrencies {
 			cryptocurrency := cryptoCurrencies[y]
-			depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(),
-				currency.NewCode(cryptocurrency),
-				"")
+			depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
 			if err != nil {
 				log.Errorf(log.Global, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
 				continue
 			}
-			cryptoAddr[cryptocurrency] = depositAddr
+			cryptoAddr[cryptocurrency] = *depositAddr
 		}
 		result[exchName] = cryptoAddr
 	}

@@ -68,6 +68,42 @@ type ExchangeInfo struct {
 	} `json:"symbols"`
 }
 
+// CoinInfo stores information about all supported coins
+type CoinInfo struct {
+	Coin              string  `json:"coin"`
+	DepositAllEnable  bool    `json:"depositAllEnable"`
+	WithdrawAllEnable bool    `json:"withdrawAllEnable"`
+	Free              float64 `json:"free,string"`
+	Freeze            float64 `json:"freeze,string"`
+	IPOAble           float64 `json:"ipoable,string"`
+	IPOing            float64 `json:"ipoing,string"`
+	IsLegalMoney      bool    `json:"isLegalMoney"`
+	Locked            float64 `json:"locked,string"`
+	Name              string  `json:"name"`
+	NetworkList       []struct {
+		AddressRegex        string  `json:"addressRegex"`
+		Coin                string  `json:"coin"`
+		DepositDescription  string  `json:"depositDesc"` // shown only when "depositEnable" is false
+		DepositEnable       bool    `json:"depositEnable"`
+		IsDefault           bool    `json:"isDefault"`
+		MemoRegex           string  `json:"memoRegex"`
+		MinimumConfirmation uint16  `json:"minConfirm"`
+		Name                string  `json:"name"`
+		Network             string  `json:"network"`
+		ResetAddressStatus  bool    `json:"resetAddressStatus"`
+		SpecialTips         string  `json:"specialTips"`
+		UnlockConfirm       uint16  `json:"unLockConfirm"`
+		WithdrawDescription string  `json:"withdrawDesc"` // shown only when "withdrawEnable" is false
+		WithdrawEnable      bool    `json:"withdrawEnable"`
+		WithdrawFee         float64 `json:"withdrawFee,string"`
+		WithdrawMinimum     float64 `json:"withdrawMin,string"`
+		WithdrawMaximum     float64 `json:"withdrawMax,string"`
+	} `json:"networkList"`
+	Storage     float64 `json:"storage,string"`
+	Trading     bool    `json:"trading"`
+	Withdrawing float64 `json:"withdrawing,string"`
+}
+
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
 	Symbol currency.Pair `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
@@ -648,24 +684,47 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.PIVX:    0.02,
 }
 
+// DepositHistory stores deposit history info
+type DepositHistory struct {
+	Amount        float64 `json:"amount,string"`
+	Coin          string  `json:"coin"`
+	Network       string  `json:"network"`
+	Status        uint8   `json:"status"`
+	Address       string  `json:"address"`
+	AddressTag    string  `json:"adressTag"`
+	TransactionID string  `json:"txId"`
+	InsertTime    float64 `json:"insertTime"`
+	TransferType  uint8   `json:"transferType"`
+	ConfirmTimes  string  `json:"confirmTimes"`
+}
+
 // WithdrawResponse contains status of withdrawal request
 type WithdrawResponse struct {
-	Success bool   `json:"success"`
-	Msg     string `json:"msg"`
-	ID      string `json:"id"`
+	ID string `json:"id"`
 }
 
 // WithdrawStatusResponse defines a withdrawal status response
 type WithdrawStatusResponse struct {
-	Amount         float64 `json:"amount"`
-	TransactionFee float64 `json:"transactionFee"`
-	Address        string  `json:"address"`
-	TxID           string  `json:"txId"`
-	ID             string  `json:"id"`
-	Asset          string  `json:"asset"`
-	ApplyTime      int64   `json:"applyTime"`
-	Status         int64   `json:"status"`
-	Network        string  `json:"network"`
+	Address         string  `json:"address"`
+	Amount          float64 `json:"amount,string"`
+	ApplyTime       string  `json:"applyTime"`
+	Coin            string  `json:"coin"`
+	ID              string  `json:"id"`
+	WithdrawOrderID string  `json:"withdrawOrderId"`
+	Network         string  `json:"network"`
+	TransferType    uint8   `json:"transferType"`
+	Status          int64   `json:"status"`
+	TransactionFee  float64 `json:"transactionFee,string"`
+	TransactionID   string  `json:"txId"`
+	ConfirmNumber   int64   `json:"confirmNo"`
+}
+
+// DepositAddress stores the deposit address info
+type DepositAddress struct {
+	Address string `json:"address"`
+	Coin    string `json:"coin"`
+	Tag     string `json:"tag"`
+	URL     string `json:"url"`
 }
 
 // UserAccountStream contains a key to maintain an authorised

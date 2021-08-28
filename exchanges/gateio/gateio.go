@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -521,53 +522,65 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 }
 
 // WithdrawCrypto withdraws cryptocurrency to your selected wallet
-func (g *Gateio) WithdrawCrypto(ctx context.Context, currency, address string, amount float64) (*withdraw.ExchangeResponse, error) {
-	type response struct {
+func (g *Gateio) WithdrawCrypto(ctx context.Context, currency, address, memo, chain string, amount float64) (*withdraw.ExchangeResponse, error) {
+	if currency == "" || address == "" || amount <= 0 {
+		return nil, errors.New("currency, address and amount must be set")
+	}
+
+	resp := struct {
 		Result  bool   `json:"result"`
 		Message string `json:"message"`
 		Code    int    `json:"code"`
+	}{}
+
+	vals := url.Values{}
+	vals.Set("currency", strings.ToUpper(currency))
+	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+
+	// Transaction MEMO has to be entered after the address separated by a space
+	if memo != "" {
+		address += " " + memo
+	}
+	vals.Set("address", address)
+
+	if chain != "" {
+		vals.Set("chain", strings.ToUpper(chain))
 	}
 
-	var result response
-	params := fmt.Sprintf("currency=%v&amount=%v&address=%v",
-		currency,
-		address,
-		amount,
-	)
-	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioWithdraw, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioWithdraw, vals.Encode(), &resp)
 	if err != nil {
 		return nil, err
 	}
-	if !result.Result {
-		return nil, fmt.Errorf("code:%d message:%s", result.Code, result.Message)
+	if !resp.Result {
+		return nil, fmt.Errorf("code:%d message:%s", resp.Code, resp.Message)
 	}
 
 	return &withdraw.ExchangeResponse{
-		Status: result.Message,
+		Status: resp.Message,
 	}, nil
 }
 
 // GetCryptoDepositAddress returns a deposit address for a cryptocurrency
-func (g *Gateio) GetCryptoDepositAddress(ctx context.Context, currency string) (string, error) {
-	type response struct {
-		Result  bool   `json:"result,string"`
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-		Address string `json:"addr"`
-	}
-
-	var result response
+func (g *Gateio) GetCryptoDepositAddress(ctx context.Context, currency string) (*DepositAddr, error) {
+	var result DepositAddr
 	params := fmt.Sprintf("currency=%s",
 		currency)
 
 	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioDepositAddress, params, &result)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if !result.Result {
-		return "", fmt.Errorf("code:%d message:%s", result.Code, result.Message)
+		return nil, fmt.Errorf("code:%d message:%s", result.Code, result.Message)
 	}
 
-	return result.Address, nil
+	// For memo/payment ID currencies
+	if strings.Contains(result.Address, " ") {
+		if split := strings.Split(result.Address, " "); len(split) == 2 {
+			result.Address = split[0]
+			result.Tag = split[1]
+		}
+	}
+	return &result, nil
 }

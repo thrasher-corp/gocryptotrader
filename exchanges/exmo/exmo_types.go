@@ -175,3 +175,16 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.ZRX:   1,
 	currency.GNT:   1,
 }
+
+// CrptoPaymentProvider stores the cryptocurrency transfer settings
+type CrptoPaymentProvider struct {
+	Type                  string  `json:"type"`
+	Name                  string  `json:"name"`
+	CurrencyName          string  `json:"currency_name"`
+	Min                   float64 `json:"min,string"`
+	Max                   float64 `json:"max,string"`
+	Enabled               bool    `json:"enabled"`
+	Comment               string  `json:"comment"`
+	CommissionDescription string  `json:"commission_desc"`
+	CurrencyConfirmations uint16  `json:"currency_confirmations"`
+}

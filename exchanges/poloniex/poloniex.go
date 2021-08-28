@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -225,7 +226,11 @@ func (p *Poloniex) GetCurrencies(ctx context.Context) (map[string]Currencies, er
 		Data map[string]Currencies
 	}
 	resp := Response{}
-	return resp.Data, p.SendHTTPRequest(ctx, exchange.RestSpot, "/public?command=returnCurrencies", &resp.Data)
+	return resp.Data, p.SendHTTPRequest(ctx,
+		exchange.RestSpot,
+		"/public?command=returnCurrencies&includeMultiChainCurrencies=true",
+		&resp.Data,
+	)
 }
 
 // GetLoanOrders returns the list of loan offers and demands for a given
@@ -577,12 +582,15 @@ func (p *Poloniex) MoveOrder(ctx context.Context, orderID int64, rate, amount fl
 	return result, nil
 }
 
-// Withdraw withdraws a currency to a specific delegated address
+// Withdraw withdraws a currency to a specific delegated address.
+// For currencies where there are multiple networks to choose from (like USDT or BTC),
+// you can specify the chain by setting the "currency" parameter to be a multiChain currency
+// name, like USDTTRON, USDTETH, or BTCTRON
 func (p *Poloniex) Withdraw(ctx context.Context, currency, address string, amount float64) (*Withdraw, error) {
 	result := &Withdraw{}
 	values := url.Values{}
 
-	values.Set("currency", currency)
+	values.Set("currency", strings.ToUpper(currency))
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	values.Set("address", address)
 

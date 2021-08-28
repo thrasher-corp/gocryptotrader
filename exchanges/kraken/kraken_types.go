@@ -456,9 +456,10 @@ var WithdrawalFees = map[currency.Code]float64{
 
 // DepositAddress defines a deposit address
 type DepositAddress struct {
-	Address    string `json:"address"`
-	ExpireTime int64  `json:"expiretm,string"`
-	New        bool   `json:"new"`
+	Address    string      `json:"address"`
+	ExpireTime interface{} `json:"expiretm"` // this is an int when new is specified
+	Tag        string      `json:"tag"`
+	New        bool        `json:"new"`
 }
 
 // WithdrawStatusResponse defines a withdrawal status response

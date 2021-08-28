@@ -143,8 +143,30 @@ type UserAddress struct {
 		Description  string `json:"des"`
 		IsSuccessful bool   `json:"isSuc"`
 		Data         struct {
-			Key string `json:"key"`
+			Address string `json:"key"`
+			Tag     string
 		} `json:"datas"`
+	} `json:"message"`
+}
+
+// MultiChainDepositAddress stores an individual multichain deposit item
+type MultiChainDepositAddress struct {
+	Blockchain  string `json:"blockChain"`
+	IsUseMemo   bool   `json:"isUseMemo"`
+	Account     string `json:"account"`
+	Address     string `json:"address"`
+	Memo        string `json:"memo"`
+	CanDeposit  bool   `json:"canDeposit"`
+	CanWithdraw bool   `json:"canWithdraw"`
+}
+
+// MultiChainDepositAddressResponse stores the multichain deposit address response
+type MultiChainDepositAddressResponse struct {
+	Code    int64 `json:"code"`
+	Message struct {
+		Description  string                     `json:"des"`
+		IsSuccessful bool                       `json:"isSuc"`
+		Data         []MultiChainDepositAddress `json:"datas"`
 	} `json:"message"`
 }
 

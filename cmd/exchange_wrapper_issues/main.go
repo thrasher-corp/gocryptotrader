@@ -23,6 +23,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -694,8 +695,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{getActiveOrdersResponse}),
 		})
 
-		var getDepositAddressResponse string
-		getDepositAddressResponse, err = e.GetDepositAddress(context.TODO(), p.Base, "")
+		var getDepositAddressResponse *deposit.Address
+		getDepositAddressResponse, err = e.GetDepositAddress(context.TODO(), p.Base, "", "")
 		msg = ""
 		if err != nil {
 			msg = err.Error()

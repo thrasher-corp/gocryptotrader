@@ -1127,6 +1127,38 @@
         ]
       }
     },
+    "/v1/getavailabletransferchains": {
+      "post": {
+        "operationId": "GoCryptoTrader_GetAvailableTransferChains",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAvailableTransferChainsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAvailableTransferChainsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getcommunicationrelayers": {
       "get": {
         "operationId": "GoCryptoTrader_GetCommunicationRelayers",
@@ -3891,6 +3923,28 @@
         }
       }
     },
+    "gctrpcGetAvailableTransferChainsRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "cryptocurrency": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetAvailableTransferChainsResponse": {
+      "type": "object",
+      "properties": {
+        "chains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "gctrpcGetCommunicationRelayersResponse": {
       "type": "object",
       "properties": {
@@ -3919,6 +3973,9 @@
         },
         "cryptocurrency": {
           "type": "string"
+        },
+        "chain": {
+          "type": "string"
         }
       }
     },
@@ -3926,6 +3983,9 @@
       "type": "object",
       "properties": {
         "address": {
+          "type": "string"
+        },
+        "tag": {
           "type": "string"
         }
       }
@@ -3944,7 +4004,7 @@
         "addresses": {
           "type": "object",
           "additionalProperties": {
-            "type": "string"
+            "$ref": "#/definitions/gctrpcGetCryptocurrencyDepositAddressResponse"
           }
         }
       }
@@ -5074,6 +5134,9 @@
           "format": "double"
         },
         "description": {
+          "type": "string"
+        },
+        "chain": {
           "type": "string"
         }
       }

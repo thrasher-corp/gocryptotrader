@@ -78,6 +78,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
 + Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
 + WebGUI (discontinued).
++ Exchange multichain deposits and withdrawals for specific exchanges. See [multichain support](/docs/MULTICHAIN_SUPPORT.md).
 
 ## Planned Features
 

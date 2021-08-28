@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -626,17 +627,32 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (g *Gateio) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
+func (g *Gateio) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
 	addr, err := g.GetCryptoDepositAddress(ctx, cryptocurrency.String())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	if addr == gateioGenerateAddress {
-		return "",
+	if addr.Address == gateioGenerateAddress {
+		return nil,
 			errors.New("new deposit address is being generated, please retry again shortly")
 	}
-	return addr, nil
+
+	if chain != "" {
+		for x := range addr.MultichainAddresses {
+			if strings.EqualFold(addr.MultichainAddresses[x].Chain, chain) {
+				return &deposit.Address{
+					Address: addr.MultichainAddresses[x].Address,
+					Tag:     addr.MultichainAddresses[x].PaymentName,
+				}, nil
+			}
+		}
+		return nil, fmt.Errorf("network %s not found", chain)
+	}
+	return &deposit.Address{
+		Address: addr.Address,
+		Tag:     addr.Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -648,7 +664,10 @@ func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	return g.WithdrawCrypto(ctx,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
-		withdrawRequest.Amount)
+		withdrawRequest.Crypto.AddressTag,
+		withdrawRequest.Crypto.Chain,
+		withdrawRequest.Amount,
+	)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -864,4 +883,19 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return g.GetHistoricCandles(ctx, pair, a, start, end, interval)
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	chains, err := g.GetCryptoDepositAddress(ctx, cryptocurrency.String())
+	if err != nil {
+		return nil, err
+	}
+
+	var availableChains []string
+	for x := range chains.MultichainAddresses {
+		availableChains = append(availableChains, chains.MultichainAddresses[x].Chain)
+	}
+	return availableChains, nil
 }

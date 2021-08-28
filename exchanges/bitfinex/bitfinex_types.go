@@ -238,12 +238,12 @@ type Currency struct {
 	Amount   float64 `json:"amount,string"`
 }
 
-// DepositResponse holds deposit address information
-type DepositResponse struct {
-	Result   string `json:"string"`
-	Method   string `json:"method"`
-	Currency string `json:"currency"`
-	Address  string `json:"address"`
+// Deposit holds the deposit address info
+type Deposit struct {
+	Method       string
+	CurrencyCode string
+	Address      string // Deposit address (instead of the address, this field will show Tag/Memo/Payment_ID for currencies that require it)
+	PoolAddress  string // Pool address (for currencies that require a Tag/Memo/Payment_ID)
 }
 
 // KeyPermissions holds the key permissions for the API key set

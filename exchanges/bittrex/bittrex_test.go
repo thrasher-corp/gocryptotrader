@@ -266,6 +266,30 @@ func TestGetOpenWithdrawals(t *testing.T) {
 	}
 }
 
+func TestGetCryptoDepositAddresses(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set")
+	}
+	_, err := b.GetCryptoDepositAddresses(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestProvisionNewDepositAddress(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set")
+	}
+	_, err := b.ProvisionNewDepositAddress(context.Background(), "XRP")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetClosedDeposits(t *testing.T) {
 	t.Parallel()
 
@@ -621,12 +645,12 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := b.GetDepositAddress(context.Background(), currency.XRP, "", "")
 		if err != nil {
 			t.Error(err)
 		}
 	} else {
-		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err == nil {
 			t.Error("error cannot be nil")
 		}

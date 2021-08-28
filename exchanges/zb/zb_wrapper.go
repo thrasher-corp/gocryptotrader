@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -622,13 +623,31 @@ func (z *ZB) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pai
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (z *ZB) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
+func (z *ZB) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+	if chain != "" {
+		addresses, err := z.GetMultiChainDepositAddress(ctx, cryptocurrency)
+		if err != nil {
+			return nil, err
+		}
+		for x := range addresses {
+			if strings.EqualFold(addresses[x].Blockchain, chain) {
+				return &deposit.Address{
+					Address: addresses[x].Address,
+					Tag:     addresses[x].Memo,
+				}, nil
+			}
+		}
+		return nil, fmt.Errorf("%s does not support chain %s", cryptocurrency.String(), chain)
+	}
 	address, err := z.GetCryptoAddress(ctx, cryptocurrency)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return address.Message.Data.Key, nil
+	return &deposit.Address{
+		Address: address.Message.Data.Address,
+		Tag:     address.Message.Data.Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -958,4 +977,19 @@ func (z *ZB) validateCandlesRequest(p currency.Pair, a asset.Item, start, end ti
 		Asset:    a,
 		Interval: interval,
 	}, nil
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (z *ZB) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	chains, err := z.GetMultiChainDepositAddress(ctx, cryptocurrency)
+	if err != nil {
+		return nil, err
+	}
+
+	var availableChains []string
+	for x := range chains {
+		availableChains = append(availableChains, chains[x].Blockchain)
+	}
+	return availableChains, nil
 }

@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -687,22 +688,39 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *BTSE) GetDepositAddress(ctx context.Context, c currency.Code, accountID string) (string, error) {
+func (b *BTSE) GetDepositAddress(ctx context.Context, c currency.Code, accountID, _ string) (*deposit.Address, error) {
 	address, err := b.GetWalletAddress(ctx, c.String())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+
+	exctractor := func(addr string) (string, string) {
+		if strings.Contains(addr, ":") {
+			split := strings.Split(addr, ":")
+			return split[0], split[1]
+		}
+		return addr, ""
+	}
+
 	if len(address) == 0 {
 		addressCreate, err := b.CreateWalletAddress(ctx, c.String())
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if len(addressCreate) != 0 {
-			return addressCreate[0].Address, nil
+			addr, tag := exctractor(addressCreate[0].Address)
+			return &deposit.Address{
+				Address: addr,
+				Tag:     tag,
+			}, nil
 		}
-		return "", errors.New("address not found")
+		return nil, errors.New("address not found")
 	}
-	return address[0].Address, nil
+	addr, tag := exctractor(address[0].Address)
+	return &deposit.Address{
+		Address: addr,
+		Tag:     tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

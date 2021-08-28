@@ -60,6 +60,7 @@ var (
 type CryptoRequest struct {
 	Address    string
 	AddressTag string
+	Chain      string
 	FeeAmount  float64
 }
 

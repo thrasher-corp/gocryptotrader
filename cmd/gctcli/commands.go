@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -2592,7 +2593,7 @@ func getCryptocurrencyDepositAddresses(c *cli.Context) error {
 var getCryptocurrencyDepositAddressCommand = &cli.Command{
 	Name:      "getcryptocurrencydepositaddress",
 	Usage:     "gets the cryptocurrency deposit address for an exchange and cryptocurrency",
-	ArgsUsage: "<exchange> <cryptocurrency>",
+	ArgsUsage: "<exchange> <cryptocurrency> <chain>",
 	Action:    getCryptocurrencyDepositAddress,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -2602,6 +2603,10 @@ var getCryptocurrencyDepositAddressCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:  "cryptocurrency",
 			Usage: "the cryptocurrency to get the deposit address for",
+		},
+		&cli.StringFlag{
+			Name:  "chain",
+			Usage: "the chain to use for the deposit",
 		},
 	},
 }
@@ -2630,6 +2635,13 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 		return errors.New("cryptocurrency must be set")
 	}
 
+	var chain string
+	if c.IsSet("chain") {
+		chain = c.String("chain")
+	} else if c.Args().Get(2) != "" {
+		chain = c.Args().Get(2)
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -2639,6 +2651,69 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetCryptocurrencyDepositAddress(c.Context,
 		&gctrpc.GetCryptocurrencyDepositAddressRequest{
+			Exchange:       exchangeName,
+			Cryptocurrency: cryptocurrency,
+			Chain:          chain,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var getAvailableTransferChainsCommand = &cli.Command{
+	Name:      "getavailabletransferchains",
+	Usage:     "gets the available transfer chains (deposits and withdrawals) for the desired exchange and cryptocurrency",
+	ArgsUsage: "<exchange> <cryptocurrency>",
+	Action:    getAvailableTransferChains,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the available transfer chains",
+		},
+		&cli.StringFlag{
+			Name:  "cryptocurrency",
+			Usage: "the cryptocurrency to get the available transfer chains for",
+		},
+	},
+}
+
+func getAvailableTransferChains(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "getavailabletransferchains")
+	}
+
+	var exchangeName string
+	var cryptocurrency string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("cryptocurrency") {
+		cryptocurrency = c.String("cryptocurrency")
+	} else if c.Args().Get(1) != "" {
+		cryptocurrency = c.Args().Get(1)
+	}
+
+	if cryptocurrency == "" {
+		return errors.New("cryptocurrency must be set")
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetAvailableTransferChains(context.Background(),
+		&gctrpc.GetAvailableTransferChainsRequest{
 			Exchange:       exchangeName,
 			Cryptocurrency: cryptocurrency,
 		},
@@ -2654,7 +2729,7 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 var withdrawCryptocurrencyFundsCommand = &cli.Command{
 	Name:      "withdrawcryptofunds",
 	Usage:     "withdraws cryptocurrency funds from the desired exchange",
-	ArgsUsage: "<exchange> <currency>  <amount> <address> <addresstag> <fee> <description>",
+	ArgsUsage: "<exchange> <currency> <amount> <address> <addresstag> <fee> <description> <chain>",
 	Action:    withdrawCryptocurrencyFunds,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -2685,6 +2760,10 @@ var withdrawCryptocurrencyFundsCommand = &cli.Command{
 			Name:  "description",
 			Usage: "description to submit with request",
 		},
+		&cli.StringFlag{
+			Name:  "chain",
+			Usage: "chain to use for the withdrawal",
+		},
 	},
 }
 
@@ -2693,7 +2772,7 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 		return cli.ShowCommandHelp(c, "withdrawcryptofunds")
 	}
 
-	var exchange, cur, address, addressTag, description string
+	var exchange, cur, address, addressTag, chain, description string
 	var amount, fee float64
 
 	if c.IsSet("exchange") {
@@ -2744,6 +2823,12 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 		description = c.Args().Get(6)
 	}
 
+	if c.IsSet("chain") {
+		chain = c.String("chain")
+	} else if c.Args().Get(7) != "" {
+		chain = c.Args().Get(7)
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -2761,6 +2846,7 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 			Amount:      amount,
 			Fee:         fee,
 			Description: description,
+			Chain:       chain,
 		},
 	)
 	if err != nil {

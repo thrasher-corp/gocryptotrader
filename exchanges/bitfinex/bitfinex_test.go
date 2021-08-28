@@ -350,7 +350,7 @@ func TestNewDeposit(t *testing.T) {
 		t.Error("NewDeposit() Expected error")
 	}
 
-	_, err = b.NewDeposit(context.Background(), "bitcoin", "exchange", 0)
+	_, err = b.NewDeposit(context.Background(), "ripple", "", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1034,14 +1034,12 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	if areTestAPIKeysSet() {
-		_, err := b.GetDepositAddress(context.Background(),
-			currency.BTC, "deposit")
+		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error", err)
 		}
 	} else {
-		_, err := b.GetDepositAddress(context.Background(),
-			currency.BTC, "deposit")
+		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "deposit", "")
 		if err == nil {
 			t.Error("GetDepositAddress() error cannot be nil")
 		}

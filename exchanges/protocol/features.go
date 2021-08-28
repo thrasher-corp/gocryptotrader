@@ -41,4 +41,6 @@ type Features struct {
 	MessageCorrelation     bool `json:"messageCorrelation,omitempty"`
 	MessageSequenceNumbers bool `json:"messageSequenceNumbers,omitempty"`
 	CandleHistory          bool `json:"candlehistory,omitempty"`
+	MultiChainDeposits     bool `json:"multiChainDeposits,omitempty"`
+	MultiChainWithdrawals  bool `json:"multiChainWithdrawals,omitempty"`
 }

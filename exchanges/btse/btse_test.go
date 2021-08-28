@@ -347,10 +347,12 @@ func TestGetDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	_, err := b.GetDepositAddress(context.Background(), currency.XRP, "")
+	b.Verbose = true
+	r, err := b.GetDepositAddress(context.Background(), currency.BTC, "", "")
 	if err != nil {
 		t.Error(err)
 	}
+	t.Log(r)
 }
 
 func TestCreateOrder(t *testing.T) {

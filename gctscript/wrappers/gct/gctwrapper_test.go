@@ -261,7 +261,8 @@ func TestExchangeDepositAddress(t *testing.T) {
 	}
 
 	currCode := &objects.String{Value: "BTC"}
-	_, err = gct.ExchangeDepositAddress(exch, currCode)
+	chain := &objects.String{Value: ""}
+	_, err = gct.ExchangeDepositAddress(exch, currCode, chain)
 	if err != nil && err.Error() != "deposit address store is nil" {
 		t.Error(err)
 	}

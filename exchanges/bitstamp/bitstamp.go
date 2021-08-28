@@ -38,19 +38,9 @@ const (
 	bitstampAPIMarket             = "market"
 	bitstampAPIWithdrawalRequests = "withdrawal_requests"
 	bitstampAPIOpenWithdrawal     = "withdrawal/open"
-	bitstampAPIBitcoinWithdrawal  = "bitcoin_withdrawal"
-	bitstampAPILTCWithdrawal      = "ltc_withdrawal"
-	bitstampAPIETHWithdrawal      = "eth_withdrawal"
-	bitstampAPIBCHWithdrawal      = "bch_withdrawal"
-	bitstampAPIBitcoinDeposit     = "bitcoin_deposit_address"
-	bitstampAPILitecoinDeposit    = "ltc_address"
-	bitstampAPIEthereumDeposit    = "eth_address"
-	bitstampAPIBitcoinCashDeposit = "bch_address"
 	bitstampAPIUnconfirmedBitcoin = "unconfirmed_btc"
 	bitstampAPITransferToMain     = "transfer-to-main"
 	bitstampAPITransferFromMain   = "transfer-from-main"
-	bitstampAPIXrpWithdrawal      = "xrp_withdrawal"
-	bitstampAPIXrpDeposit         = "xrp_address"
 	bitstampAPIReturnType         = "string"
 	bitstampAPITradingPairsInfo   = "trading-pairs-info"
 	bitstampOHLC                  = "ohlc"
@@ -421,38 +411,26 @@ func (b *Bitstamp) GetWithdrawalRequests(ctx context.Context, timedelta int64) (
 // address - The wallet address of the cryptocurrency
 // symbol - the type of crypto ie "ltc", "btc", "eth"
 // destTag - only for XRP  default to ""
-// instant - only for bitcoins
-func (b *Bitstamp) CryptoWithdrawal(ctx context.Context, amount float64, address, symbol, destTag string, instant bool) (CryptoWithdrawalResponse, error) {
+func (b *Bitstamp) CryptoWithdrawal(ctx context.Context, amount float64, address, symbol, destTag string) (*CryptoWithdrawalResponse, error) {
 	var req = url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("address", address)
-	resp := CryptoWithdrawalResponse{}
-	var endpoint string
 
-	switch strings.ToLower(symbol) {
-	case currency.BTC.Lower().String():
-		if instant {
-			req.Add("instant", "1")
-		} else {
-			req.Add("instant", "0")
+	var endpoint string
+	switch strings.ToUpper(symbol) {
+	case currency.XLM.String():
+		if destTag != "" {
+			req.Add("memo_id", destTag)
 		}
-		endpoint = bitstampAPIBitcoinWithdrawal
-	case currency.LTC.Lower().String():
-		endpoint = bitstampAPILTCWithdrawal
-	case currency.ETH.Lower().String():
-		endpoint = bitstampAPIETHWithdrawal
-	case currency.XRP.Lower().String():
+	case currency.XRP.String():
 		if destTag != "" {
 			req.Add("destination_tag", destTag)
 		}
-		endpoint = bitstampAPIXrpWithdrawal
-	case currency.BCH.Lower().String():
-		endpoint = bitstampAPIBCHWithdrawal
-	default:
-		return resp, errors.New("incorrect symbol")
 	}
 
-	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, endpoint, false, req, &resp)
+	var resp CryptoWithdrawalResponse
+	endpoint = strings.ToLower(symbol) + "_" + "withdrawal"
+	return &resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, endpoint, true, req, &resp)
 }
 
 // OpenBankWithdrawal Opens a bank withdrawal request (SEPA or international)
@@ -506,36 +484,10 @@ func (b *Bitstamp) OpenInternationalBankWithdrawal(ctx context.Context, amount f
 
 // GetCryptoDepositAddress returns a depositing address by crypto
 // crypto - example "btc", "ltc", "eth", "xrp" or "bch"
-func (b *Bitstamp) GetCryptoDepositAddress(ctx context.Context, crypto currency.Code) (string, error) {
-	var resp string
-	v2Resp := struct {
-		Address string `json:"address"`
-	}{}
-
-	switch crypto {
-	case currency.BTC:
-		return resp,
-			b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIBitcoinDeposit, false, nil, &resp)
-
-	case currency.LTC:
-		return v2Resp.Address,
-			b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPILitecoinDeposit, true, nil, &v2Resp)
-
-	case currency.ETH:
-		return v2Resp.Address,
-			b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIEthereumDeposit, true, nil, &v2Resp)
-
-	case currency.XRP:
-		return v2Resp.Address,
-			b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIXrpDeposit, true, nil, &v2Resp)
-
-	case currency.BCH:
-		return v2Resp.Address,
-			b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIBitcoinCashDeposit, true, nil, &v2Resp)
-
-	default:
-		return resp, fmt.Errorf("unsupported cryptocurrency string %s", crypto)
-	}
+func (b *Bitstamp) GetCryptoDepositAddress(ctx context.Context, crypto currency.Code) (*DepositAddress, error) {
+	path := crypto.Lower().String() + "_" + "address"
+	var resp DepositAddress
+	return &resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
 }
 
 // GetUnconfirmedBitcoinDeposits returns unconfirmed transactions
@@ -673,31 +625,30 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 
 	errCap := struct {
-		Error  string      `json:"error"`
-		Status string      `json:"status"`
-		Reason interface{} `json:"reason"`
+		Error  string      `json:"error"`  // v1 errors
+		Status string      `json:"status"` // v2 errors
+		Reason interface{} `json:"reason"` // v2 errors
 	}{}
 	if err := json.Unmarshal(interim, &errCap); err == nil {
-		if errCap.Error != "" {
-			return errors.New(errCap.Error)
-		}
-		if data, ok := errCap.Reason.(map[string][]string); ok {
-			var details strings.Builder
-			for x := range data {
-				details.WriteString(strings.Join(data[x], ""))
+		if errCap.Error != "" || errCap.Status == errStr {
+			if errCap.Error != "" { // v1 errors
+				return errors.New(errCap.Error)
 			}
-			return errors.New(details.String())
-		}
-
-		if data, ok := errCap.Reason.(string); ok {
-			return errors.New(data)
-		}
-
-		if errCap.Status != "" {
-			return errors.New(errCap.Status)
+			switch errCap.Reason.(type) { // v2 errors
+			case map[string]interface{}:
+				data := errCap.Reason.(map[string]interface{})
+				var details strings.Builder
+				for k, v := range data {
+					details.WriteString(fmt.Sprintf("%s: %v", k, v))
+				}
+				return errors.New(details.String())
+			case string:
+				return errors.New(errCap.Reason.(string))
+			default:
+				return errors.New(errCap.Status)
+			}
 		}
 	}
-
 	return json.Unmarshal(interim, result)
 }
 

@@ -408,7 +408,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 
-	_, err := l.GetDepositAddress(context.Background(), currency.BTC, "")
+	_, err := l.GetDepositAddress(context.Background(), currency.BTC, "", "")
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:
 		t.Error("GetDepositAddress() error", err)
