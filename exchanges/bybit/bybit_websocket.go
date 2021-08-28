@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hash/crc32"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -39,7 +37,7 @@ const (
 	wsUpdate    = "update"
 	wsPartial   = "partial"
 	subscribe   = "sub"
-	unsubscribe = "unsubscribe"
+	unsubscribe = "cancel"
 )
 
 var obSuccess = make(map[currency.Pair]bool)
@@ -225,6 +223,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+
 	switch result["topic"] {
 	case wsOrderbook:
 		var p currency.Pair
@@ -240,30 +239,22 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-		switch result["channel"] {
-		case wsTicker:
 
-		case wsOrderbook:
-			var resultData WsOrderbookDataStore
-			err = json.Unmarshal(respRaw, &resultData)
-			if err != nil {
-				return err
+		var resultData WsOrderbookData
+		err = json.Unmarshal(respRaw, &resultData)
+		if err != nil {
+			return err
+		}
+		if len(resultData.OBData.Asks) == 0 && len(resultData.OBData.Bids) == 0 {
+			return nil
+		}
+		err = by.WsProcessUpdateOB(&resultData.OBData, p, a)
+		if err != nil {
+			err2 := by.wsResubToOB(p)
+			if err2 != nil {
+				by.Websocket.DataHandler <- err2
 			}
-			if len(resultData.OBData.Asks) == 0 && len(resultData.OBData.Bids) == 0 {
-				return nil
-			}
-			err = by.WsProcessUpdateOB(&resultData.OBData, p, a)
-			if err != nil {
-				err2 := by.wsResubToOB(p)
-				if err2 != nil {
-					by.Websocket.DataHandler <- err2
-				}
-				return err
-			}
-		case wsTrades:
-			// TODO
-		default:
-			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + string(respRaw)}
+			return err
 		}
 	case wsTrades:
 		switch result["channel"] {
@@ -281,7 +272,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 					return err
 				}
 			}
-			var resultData WsOrderbookDataStore
+			var resultData WsOrderbookData
 			err = json.Unmarshal(respRaw, &resultData)
 			if err != nil {
 				return err
@@ -346,19 +337,6 @@ func (by *Bybit) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a ass
 	if err != nil {
 		return err
 	}
-
-	updatedOb, err := by.Websocket.Orderbook.GetOrderbook(p, a)
-	if err != nil {
-		return err
-	}
-	checksum := by.CalcUpdateOBChecksum(updatedOb)
-
-	if checksum != data.Checksum {
-		log.Warnf(log.ExchangeSys, "%s checksum failure for item %s",
-			by.Name,
-			p)
-		return errors.New("checksum failed")
-	}
 	return nil
 }
 
@@ -382,13 +360,6 @@ func (by *Bybit) wsResubToOB(p currency.Pair) error {
 
 // WsProcessPartialOB creates an OB from websocket data
 func (by *Bybit) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
-	signedChecksum := by.CalcPartialOBChecksum(data)
-	if signedChecksum != data.Checksum {
-		return fmt.Errorf("%s channel: %s. Orderbook partial for %v checksum invalid",
-			by.Name,
-			a,
-			p)
-	}
 	var bids, asks []orderbook.Item
 	for x := range data.Bids {
 		bids = append(bids, orderbook.Item{
@@ -413,56 +384,4 @@ func (by *Bybit) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a as
 		VerifyOrderbook: by.CanVerifyOrderbook,
 	}
 	return by.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-}
-
-// CalcPartialOBChecksum calculates checksum of partial OB data received from WS
-func (by *Bybit) CalcPartialOBChecksum(data *WsOrderbookData) int64 {
-	var checksum strings.Builder
-	var price, amount string
-	for i := 0; i < 100; i++ {
-		if len(data.Bids)-1 >= i {
-			price = checksumParseNumber(data.Bids[i][0])
-			amount = checksumParseNumber(data.Bids[i][1])
-			checksum.WriteString(price + ":" + amount + ":")
-		}
-		if len(data.Asks)-1 >= i {
-			price = checksumParseNumber(data.Asks[i][0])
-			amount = checksumParseNumber(data.Asks[i][1])
-			checksum.WriteString(price + ":" + amount + ":")
-		}
-	}
-	checksumStr := strings.TrimSuffix(checksum.String(), ":")
-	return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
-}
-
-// CalcUpdateOBChecksum calculates checksum of update OB data received from WS
-func (by *Bybit) CalcUpdateOBChecksum(data *orderbook.Base) int64 {
-	var checksum strings.Builder
-	var price, amount string
-	for i := 0; i < 100; i++ {
-		if len(data.Bids)-1 >= i {
-			price = checksumParseNumber(data.Bids[i].Price)
-			amount = checksumParseNumber(data.Bids[i].Amount)
-			checksum.WriteString(price + ":" + amount + ":")
-		}
-		if len(data.Asks)-1 >= i {
-			price = checksumParseNumber(data.Asks[i].Price)
-			amount = checksumParseNumber(data.Asks[i].Amount)
-			checksum.WriteString(price + ":" + amount + ":")
-		}
-	}
-	checksumStr := strings.TrimSuffix(checksum.String(), ":")
-	return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
-}
-
-func checksumParseNumber(num float64) string {
-	modifier := byte('f')
-	if num < 0.0001 {
-		modifier = 'e'
-	}
-	r := strconv.FormatFloat(num, modifier, -1, 64)
-	if strings.IndexByte(r, '.') == -1 && modifier != 'e' {
-		r += ".0"
-	}
-	return r
 }

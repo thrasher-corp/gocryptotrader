@@ -258,17 +258,9 @@ type WsTickerDataStore struct {
 
 // WsOrderbookData stores ws orderbook data
 type WsOrderbookData struct {
-	Action   string       `json:"action"`
-	Bids     [][2]float64 `json:"bids"`
-	Asks     [][2]float64 `json:"asks"`
-	Time     float64      `json:"time"`
-	Checksum int64        `json:"checksum"`
-}
-
-// WsOrderbookDataStore stores ws orderbook data
-type WsOrderbookDataStore struct {
-	Symbol       string          `json:"symbol"`
-	SymbolName   string          `json:"symbolName"`
-	IsBinaryData bool            `json:"binary"`
-	OBData       WsOrderbookData `json:"data"`
+	Symbol  string       `json:"s"`
+	Time    float64      `json:"t"`
+	Version string       `json:"v"`
+	Bids    [][2]float64 `json:"b"`
+	Asks    [][2]float64 `json:"a"`
 }
