@@ -94,7 +94,6 @@ func (by *Bybit) WsAuth() error {
 // Subscribe sends a websocket message to receive data from the channel
 func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs common.Errors
-channels:
 	for i := range channelsToSubscribe {
 		var sub WsReq
 		sub.Topic = channelsToSubscribe[i].Channel
@@ -103,13 +102,13 @@ channels:
 		a, err := by.GetPairAssetType(channelsToSubscribe[i].Currency)
 		if err != nil {
 			errs = append(errs, err)
-			continue channels
+			continue
 		}
 
 		formattedPair, err := by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
 		if err != nil {
 			errs = append(errs, err)
-			continue channels
+			continue
 		}
 		sub.Symbol = formattedPair.String()
 		err = by.Websocket.Conn.SendJSONMessage(sub)
@@ -185,9 +184,6 @@ func (by *Bybit) wsReadData() {
 // GenerateDefaultSubscriptions generates default subscription
 func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
-	subscriptions = append(subscriptions, stream.ChannelSubscription{
-		Channel: wsMarkets,
-	})
 	var channels = []string{wsTicker, wsTrades, wsOrderbook}
 	assets := by.GetAssetTypes(true)
 	for a := range assets {
@@ -196,21 +192,18 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			return nil, err
 		}
 		for z := range pairs {
-			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(),
-				pairs[z].Quote.String(),
-				"-")
 			for x := range channels {
 				subscriptions = append(subscriptions,
 					stream.ChannelSubscription{
 						Channel:  channels[x],
-						Currency: newPair,
+						Currency: pairs[z],
 						Asset:    assets[a],
 					})
 			}
 		}
 	}
 	if by.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		var authchan = []string{}
+		var authchan = []string{wsAccountInfo, wsOrder, wsOrderFilled}
 		for x := range authchan {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: authchan[x],
@@ -233,7 +226,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	switch result["topic"] {
-	case wsUpdate:
+	case wsOrderbook:
 		var p currency.Pair
 		var a asset.Item
 		market, ok := result["market"]
@@ -249,19 +242,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 		}
 		switch result["channel"] {
 		case wsTicker:
-			var resultData WsTickerDataStore
-			err = json.Unmarshal(respRaw, &resultData)
-			if err != nil {
-				return err
-			}
-			by.Websocket.DataHandler <- &ticker.Price{
-				ExchangeName: by.Name,
-				Bid:          resultData.Ticker.Bid,
-				Ask:          resultData.Ticker.Ask,
-				LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
-				Pair:         p,
-				AssetType:    a,
-			}
+
 		case wsOrderbook:
 			var resultData WsOrderbookDataStore
 			err = json.Unmarshal(respRaw, &resultData)
@@ -284,7 +265,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 		default:
 			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + string(respRaw)}
 		}
-	case wsPartial:
+	case wsTrades:
 		switch result["channel"] {
 		case "orderbook":
 			var p currency.Pair
@@ -318,10 +299,23 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 		case wsMarkets:
 			// TODO
 		}
-	case "error":
-		by.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: by.Name + stream.UnhandledMessage + string(respRaw),
+	case wsTicker:
+		var resultData WsTickerDataStore
+		err = json.Unmarshal(respRaw, &resultData)
+		if err != nil {
+			return err
 		}
+		by.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: by.Name,
+			Bid:          resultData.Ticker.Bid,
+			Ask:          resultData.Ticker.Ask,
+			LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
+			Pair:         p,
+			AssetType:    a,
+		}
+	case wsMarkets:
+	default:
+		by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + string(respRaw)}
 	}
 	return nil
 }
