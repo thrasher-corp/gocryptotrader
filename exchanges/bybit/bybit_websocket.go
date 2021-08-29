@@ -240,7 +240,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		var resultData WsOrderbookData
+		var resultData WsOrderbook
 		err = json.Unmarshal(respRaw, &resultData)
 		if err != nil {
 			return err
@@ -272,7 +272,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 					return err
 				}
 			}
-			var resultData WsOrderbookData
+			var resultData WsOrderbook
 			err = json.Unmarshal(respRaw, &resultData)
 			if err != nil {
 				return err
@@ -291,7 +291,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			// TODO
 		}
 	case wsTicker:
-		var resultData WsTickerDataStore
+		var resultData WsTicker
 		err = json.Unmarshal(respRaw, &resultData)
 		if err != nil {
 			return err
