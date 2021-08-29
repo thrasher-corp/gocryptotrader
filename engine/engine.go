@@ -706,8 +706,12 @@ func (bot *Engine) GetExchanges() []exchange.IBotExchange {
 	return bot.ExchangeManager.GetExchanges()
 }
 
-// LoadExchange loads an exchange by name. Optional wait group can be added for
-// external synchronization.
+// LoadExchange creates an exchange object for the loaded exchange by calling ExchangeManager.NewExchangeByName.
+// We check that the exchange loaded supports the expected base currency by calling CurrencyPairs.IsAssetEnabled.
+// call to the exchange object's Setup function which checks the exchange for its name and retrieves all the configurable values for the exchange. Setup is called by both the ExchangeManager and the Base.
+// call to validate credentials, which checks whether or not the exchange supports the asset's currency. If validation is successful, we log an INFO message and pass.
+// check the actual auth status of the exchange and make sure that there is no mismatch between the configured auth and the actual auth. If there is a mismatch with isAuthenticatedSupport and AuthenticatedSupport status, we log a WARN message and set the AutheticatedSupport attributes to false.
+// We test exchange name is set correctly and make sure that the exchange is set up  normal and we then start the exchange. This last step is performed by both the ExchangeManager and the Base.
 func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 	exch, err := bot.ExchangeManager.NewExchangeByName(name)
 	if err != nil {
@@ -735,7 +739,10 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 			var pairs currency.Pairs
 			pairs, err = exchCfg.CurrencyPairs.GetPairs(assets[x], false)
 			if err != nil {
-				return err
+				gctlog.Errorf(gctlog.ExchangeSys,
+					"%s: Failed to get pairs for asset type %s. Error: %s\n", exch.GetName(),
+					assets[x].String(), err)
+				continue
 			}
 			exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
 		}
