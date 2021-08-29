@@ -239,6 +239,12 @@ type WsReq struct {
 	Parameters interface{} `json:"params"`
 }
 
+type WsParams struct {
+	Symbol     string `json:"symbol"`
+	IsBinary   bool   `json:"binary"`
+	SymbolName string `json:"symbolName"`
+}
+
 // WsTickerData stores ws ticker data
 type WsTickerData struct {
 	Symbol  string  `json:"symbol"`
@@ -252,7 +258,7 @@ type WsTickerData struct {
 // WsTicker stores ws ticker data
 type WsTicker struct {
 	Topic      string       `json:"topic"`
-	Parameters interface{}  `json:"params"`
+	Parameters WsParams     `json:"params"`
 	Ticker     WsTickerData `json:"data"`
 }
 
@@ -268,6 +274,22 @@ type WsOrderbookData struct {
 // WsOrderbookData stores ws orderbook data
 type WsOrderbook struct {
 	Topic      string          `json:"topic"`
-	Parameters interface{}     `json:"params"`
+	Parameters WsParams        `json:"params"`
 	OBData     WsOrderbookData `json:"data"`
+}
+
+// WsTradeData stores ws trade data
+type WsTradeData struct {
+	Time  float64 `json:"t"`
+	ID    string  `json:"v"`
+	Price float64 `json:"p"`
+	Size  float64 `json:"q"`
+	Side  bool    `json:"m"`
+}
+
+// WsTrade stores ws trades data
+type WsTrade struct {
+	Topic      string        `json:"topic"`
+	Parameters WsParams      `json:"params"`
+	TradeData  []WsTradeData `json:"data"`
 }
