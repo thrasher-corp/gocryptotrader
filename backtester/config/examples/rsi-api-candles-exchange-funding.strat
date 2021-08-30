@@ -32,8 +32,8 @@
    }
   ],
   "custom-settings": {
-   "rsi-high": 59,
-   "rsi-low": 49,
+   "rsi-high": 70,
+   "rsi-low": 30,
    "rsi-period": 14
   }
  },

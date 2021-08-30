@@ -23,7 +23,7 @@ type Holding struct {
 	Timestamp      time.Time       `json:"timestamp"`
 	InitialFunds   decimal.Decimal `json:"initial-funds"`
 	PositionsSize  decimal.Decimal `json:"positions-size"`
-	PositionsValue decimal.Decimal `json:"postions-value"`
+	PositionsValue decimal.Decimal `json:"positions-value"`
 	SoldAmount     decimal.Decimal `json:"sold-amount"`
 	SoldValue      decimal.Decimal `json:"sold-value"`
 	BoughtAmount   decimal.Decimal `json:"bought-amount"`

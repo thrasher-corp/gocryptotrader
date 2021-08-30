@@ -175,7 +175,9 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 		if err != nil {
 			errs = append(errs, err)
 		}
-		c.CompoundAnnualGrowthRate = decimal.NewFromFloat(cagr)
+		if !math.IsNaN(cagr) {
+			c.CompoundAnnualGrowthRate = decimal.NewFromFloat(cagr)
+		}
 	}
 	c.IsStrategyProfitable = c.FinalHoldings.TotalValue.GreaterThan(c.FinalHoldings.InitialFunds)
 	c.DoesPerformanceBeatTheMarket = c.StrategyMovement.GreaterThan(c.MarketMovement)

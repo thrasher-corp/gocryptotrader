@@ -2,8 +2,8 @@ package statistics
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"time"
 
@@ -26,6 +26,8 @@ func (s *Statistic) Reset() {
 	*s = Statistic{}
 }
 
+var ErrAlreadyProcessed = errors.New("this event has been processed already")
+
 // SetupEventForTime sets up the big map for to store important data at each time interval
 func (s *Statistic) SetupEventForTime(e common.DataEventHandler) error {
 	if e == nil {
@@ -45,11 +47,7 @@ func (s *Statistic) SetupEventForTime(e common.DataEventHandler) error {
 			lookup.Events[i].DataEvent.GetAssetType() == e.GetAssetType() &&
 			lookup.Events[i].DataEvent.Pair().Equal(e.Pair()) &&
 			lookup.Events[i].DataEvent.GetOffset() == e.GetOffset() {
-			// the event already exists
-			if e.GetReason() != lookup.Events[i].DataEvent.GetReason() {
-				os.Exit(-1)
-			}
-			return nil
+			return ErrAlreadyProcessed
 		}
 	}
 	lookup.Events = append(lookup.Events,
@@ -289,15 +287,15 @@ func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResults
 	return result
 }
 
-func addEventOutputToTime(things []eventOutputHolder, t time.Time, message string) []eventOutputHolder {
-	for i := range things {
-		if things[i].Time.Equal(t) {
-			things[i].Events = append(things[i].Events, message)
-			return things
+func addEventOutputToTime(events []eventOutputHolder, t time.Time, message string) []eventOutputHolder {
+	for i := range events {
+		if events[i].Time.Equal(t) {
+			events[i].Events = append(events[i].Events, message)
+			return events
 		}
 	}
-	things = append(things, eventOutputHolder{Time: t, Events: []string{message}})
-	return things
+	events = append(events, eventOutputHolder{Time: t, Events: []string{message}})
+	return events
 }
 
 // PrintAllEventsChronologically outputs all event details in the CMD

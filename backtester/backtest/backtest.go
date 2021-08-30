@@ -300,6 +300,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		lookup.ComplianceManager = compliance.Manager{
 			Snapshots: []compliance.Snapshot{},
 		}
+		holdings.Create()
 	}
 	bt.Portfolio = p
 
@@ -854,7 +855,10 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
 			for _, assetMap := range exchangeMap {
 				for _, dataHandler := range assetMap {
 					latestData := dataHandler.Latest()
-					bt.updateStatsForDataEvent(latestData)
+					err := bt.updateStatsForDataEvent(latestData)
+					if err != nil && err == statistics.ErrAlreadyProcessed {
+						continue
+					}
 					dataEvents = append(dataEvents, dataHandler)
 				}
 			}
@@ -876,7 +880,10 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
 			bt.EventQueue.AppendEvent(signals[i])
 		}
 	} else {
-		bt.updateStatsForDataEvent(e)
+		err := bt.updateStatsForDataEvent(e)
+		if err != nil {
+			return err
+		}
 		d := bt.Datas.GetDataForCurrency(e.GetExchange(), e.GetAssetType(), e.Pair())
 
 		s, err := bt.Strategy.OnSignal(d, bt.Funding)
@@ -899,17 +906,21 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
 
 // updateStatsForDataEvent makes various systems aware of price movements from
 // data events
-func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) {
-	// update portfoliomanager with latest price
-	err := bt.Portfolio.Update(e)
-	if err != nil {
-		log.Error(log.BackTester, err)
-	}
+func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) error {
 	// update statistics with latest price
-	err = bt.Statistic.SetupEventForTime(e)
+	err := bt.Statistic.SetupEventForTime(e)
+	if err != nil {
+		if err == statistics.ErrAlreadyProcessed {
+			return err
+		}
+		log.Error(log.BackTester, err)
+	}
+	// update portfoliomanager with latest price
+	err = bt.Portfolio.Update(e)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
+	return nil
 }
 
 // processSignalEvent receives an event from the strategy for processing under the portfolio

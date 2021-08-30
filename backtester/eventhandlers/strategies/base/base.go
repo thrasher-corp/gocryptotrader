@@ -35,6 +35,7 @@ func (s *Strategy) GetBaseData(d data.Handler) (signal.Signal, error) {
 			CurrencyPair: latest.Pair(),
 			AssetType:    latest.GetAssetType(),
 			Interval:     latest.GetInterval(),
+			Reason:       latest.GetReason(),
 		},
 		ClosePrice: latest.ClosePrice(),
 		HighPrice:  latest.HighPrice(),
