@@ -502,9 +502,14 @@ func (c *Coinbene) Login() error {
 	var sub WsSub
 	expTime := time.Now().Add(time.Minute * 10).Format("2006-01-02T15:04:05Z")
 	signMsg := expTime + http.MethodGet + "/login"
-	tempSign := crypto.GetHMAC(crypto.HashSHA256,
+
+	tempSign, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(signMsg),
 		[]byte(c.API.Credentials.Secret))
+	if err != nil {
+		return err
+	}
+
 	sign := crypto.HexEncodeToString(tempSign)
 	sub.Operation = "login"
 	sub.Arguments = []string{c.API.Credentials.Key, expTime, sign}

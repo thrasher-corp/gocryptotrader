@@ -716,13 +716,20 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 			}
 			body = bytes.NewBuffer(payload)
 			strMsg := method + btcMarketsAPIVersion + path + strTime + string(payload)
-			hmac = crypto.GetHMAC(crypto.HashSHA512,
-				[]byte(strMsg), []byte(b.API.Credentials.Secret))
+			hmac, err = crypto.GetHMAC(crypto.HashSHA512,
+				[]byte(strMsg),
+				[]byte(b.API.Credentials.Secret))
+			if err != nil {
+				return nil, err
+			}
 		default:
 			strArray := strings.Split(path, "?")
-			hmac = crypto.GetHMAC(crypto.HashSHA512,
+			hmac, err = crypto.GetHMAC(crypto.HashSHA512,
 				[]byte(method+btcMarketsAPIVersion+strArray[0]+strTime),
 				[]byte(b.API.Credentials.Secret))
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		headers := make(map[string]string)

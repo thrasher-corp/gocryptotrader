@@ -88,8 +88,10 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 				return nil, err
 			}
 
-			handler.SetProvider(provider)
-
+			err = handler.SetProvider(provider)
+			if err != nil {
+				return nil, err
+			}
 		case fxProviders[i].Name == "CurrencyLayer" && fxProviders[i].Enabled:
 			provider := new(currencylayer.CurrencyLayer)
 			err := provider.Setup(fxProviders[i])
@@ -97,8 +99,10 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 				return nil, err
 			}
 
-			handler.SetProvider(provider)
-
+			err = handler.SetProvider(provider)
+			if err != nil {
+				return nil, err
+			}
 		case fxProviders[i].Name == "ExchangeRates" && fxProviders[i].Enabled:
 			provider := new(exchangerates.ExchangeRates)
 			err := provider.Setup(fxProviders[i])
@@ -106,8 +110,10 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 				return nil, err
 			}
 
-			handler.SetProvider(provider)
-
+			err = handler.SetProvider(provider)
+			if err != nil {
+				return nil, err
+			}
 		case fxProviders[i].Name == "Fixer" && fxProviders[i].Enabled:
 			provider := new(fixer.Fixer)
 			err := provider.Setup(fxProviders[i])
@@ -115,8 +121,10 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 				return nil, err
 			}
 
-			handler.SetProvider(provider)
-
+			err = handler.SetProvider(provider)
+			if err != nil {
+				return nil, err
+			}
 		case fxProviders[i].Name == "OpenExchangeRates" && fxProviders[i].Enabled:
 			provider := new(openexchangerates.OXR)
 			err := provider.Setup(fxProviders[i])
@@ -124,7 +132,10 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 				return nil, err
 			}
 
-			handler.SetProvider(provider)
+			err = handler.SetProvider(provider)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

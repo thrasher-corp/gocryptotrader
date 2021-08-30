@@ -142,7 +142,10 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	var feeBuilder = setFeeBuilder()
-	z.GetFeeByType(context.Background(), feeBuilder)
+	_, err := z.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !z.ValidateAPICredentials() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)

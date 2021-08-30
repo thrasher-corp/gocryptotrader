@@ -1200,9 +1200,13 @@ func (c *Coinbene) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, met
 		default:
 			preSign = timestamp + method + authPath + epPath
 		}
-		tempSign := crypto.GetHMAC(crypto.HashSHA256,
+		tempSign, err := crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(preSign),
 			[]byte(c.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
+
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		headers["ACCESS-KEY"] = c.API.Credentials.Key

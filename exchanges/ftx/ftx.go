@@ -1154,18 +1154,24 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, 
 		ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
 		var body io.Reader
 		var hmac, payload []byte
+
+		sigPayload := ts + method + "/api" + path
 		if data != nil {
 			payload, err = json.Marshal(data)
 			if err != nil {
 				return nil, err
 			}
 			body = bytes.NewBuffer(payload)
-			sigPayload := ts + method + "/api" + path + string(payload)
-			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
-		} else {
-			sigPayload := ts + method + "/api" + path
-			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+			sigPayload += string(payload)
 		}
+
+		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(sigPayload),
+			[]byte(f.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
+
 		headers := make(map[string]string)
 		headers["FTX-KEY"] = f.API.Credentials.Key
 		headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)

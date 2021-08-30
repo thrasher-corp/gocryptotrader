@@ -1544,9 +1544,12 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}
 
 		PayloadBase64 := crypto.Base64Encode(PayloadJSON)
-		hmac := crypto.GetHMAC(crypto.HashSHA512_384,
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
 			[]byte(PayloadBase64),
 			[]byte(b.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
 		headers := make(map[string]string)
 		headers["X-BFX-APIKEY"] = b.API.Credentials.Key
 		headers["X-BFX-PAYLOAD"] = PayloadBase64
@@ -1596,11 +1599,14 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchan
 		headers["bfx-nonce"] = n
 		strPath := "/api" + bitfinexAPIVersion2 + path + string(payload)
 		signStr := strPath + n
-		hmac := crypto.GetHMAC(
+		hmac, err := crypto.GetHMAC(
 			crypto.HashSHA512_384,
 			[]byte(signStr),
 			[]byte(b.API.Credentials.Secret),
 		)
+		if err != nil {
+			return nil, err
+		}
 		headers["bfx-signature"] = crypto.HexEncodeToString(hmac)
 
 		return &request.Item{

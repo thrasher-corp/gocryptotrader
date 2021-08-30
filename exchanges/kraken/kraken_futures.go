@@ -249,11 +249,19 @@ func (k *Kraken) GetFuturesAccountData(ctx context.Context) (FuturesAccountsData
 	return resp, k.SendFuturesAuthRequest(ctx, http.MethodGet, futuresAccountData, nil, nil, &resp)
 }
 
-func (k *Kraken) signFuturesRequest(endpoint, nonce, data string) string {
+func (k *Kraken) signFuturesRequest(endpoint, nonce, data string) (string, error) {
 	message := data + nonce + endpoint
-	hash := crypto.GetSHA256([]byte(message))
-	hc := crypto.GetHMAC(crypto.HashSHA512, hash, []byte(k.API.Credentials.Secret))
-	return base64.StdEncoding.EncodeToString(hc)
+	hash, err := crypto.GetSHA256([]byte(message))
+	if err != nil {
+		return "", err
+	}
+	hc, err := crypto.GetHMAC(crypto.HashSHA512,
+		hash,
+		[]byte(k.API.Credentials.Secret))
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(hc), nil
 }
 
 // SendFuturesAuthRequest will send an auth req
@@ -277,7 +285,10 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 			postData.Set("json", string(temp))
 			reqData = "json=" + string(temp)
 		}
-		sig := k.signFuturesRequest(path, nonce, reqData)
+		sig, err := k.signFuturesRequest(path, nonce, reqData)
+		if err != nil {
+			return nil, err
+		}
 		headers := map[string]string{
 			"APIKey":  k.API.Credentials.Key,
 			"Authent": sig,

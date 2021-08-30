@@ -764,7 +764,12 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ctx context.Context, ep exc
 		fullPath := "/api/" + path
 		encoded := params.Encode()
 		message := n + l.API.Credentials.Key + fullPath + encoded
-		hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(l.API.Credentials.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(message),
+			[]byte(l.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
 		headers := make(map[string]string)
 		headers["Apiauth-Key"] = l.API.Credentials.Key
 		headers["Apiauth-Nonce"] = n

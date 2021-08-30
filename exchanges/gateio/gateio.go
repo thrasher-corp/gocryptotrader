@@ -398,7 +398,7 @@ func (g *Gateio) GetTradeHistory(ctx context.Context, symbol string) (TradHistor
 }
 
 // GenerateSignature returns hash for authenticated requests
-func (g *Gateio) GenerateSignature(message string) []byte {
+func (g *Gateio) GenerateSignature(message string) ([]byte, error) {
 	return crypto.GetHMAC(crypto.HashSHA512, []byte(message),
 		[]byte(g.API.Credentials.Secret))
 }
@@ -417,7 +417,11 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["key"] = g.API.Credentials.Key
 
-	hmac := g.GenerateSignature(param)
+	hmac, err := g.GenerateSignature(param)
+	if err != nil {
+		return err
+	}
+
 	headers["sign"] = crypto.HexEncodeToString(hmac)
 
 	urlPath := fmt.Sprintf("%s/%s/%s", ePoint, gateioAPIVersion, endpoint)

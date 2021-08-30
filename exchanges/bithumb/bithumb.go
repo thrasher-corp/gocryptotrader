@@ -500,9 +500,14 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 
 		payload := params.Encode()
 		hmacPayload := path + string('\x00') + payload + string('\x00') + n
-		hmac := crypto.GetHMAC(crypto.HashSHA512,
+
+		var hmac []byte
+		hmac, err = crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(hmacPayload),
 			[]byte(b.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
 		hmacStr := crypto.HexEncodeToString(hmac)
 
 		headers := make(map[string]string)

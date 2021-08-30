@@ -138,7 +138,10 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
-	h.GetFeeByType(context.Background(), feeBuilder)
+	_, err := h.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
@@ -465,7 +468,10 @@ func setupWsAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 	go h.wsReadData()
-	h.wsLogin()
+	err = h.wsLogin()
+	if err != nil {
+		t.Fatal(err)
+	}
 	timer := time.NewTimer(time.Second)
 	select {
 	case loginError := <-h.Websocket.DataHandler:

@@ -483,23 +483,30 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 			"btse-nonce": nonce,
 		}
 		if req != nil {
-			reqPayload, err := json.Marshal(req)
+			var reqPayload []byte
+			reqPayload, err = json.Marshal(req)
 			if err != nil {
 				return nil, err
 			}
 			body = bytes.NewBuffer(reqPayload)
-			hmac = crypto.GetHMAC(
+			hmac, err = crypto.GetHMAC(
 				crypto.HashSHA512_384,
 				[]byte((expandedEndpoint + nonce + string(reqPayload))),
 				[]byte(b.API.Credentials.Secret),
 			)
+			if err != nil {
+				return nil, err
+			}
 			headers["Content-Type"] = "application/json"
 		} else {
-			hmac = crypto.GetHMAC(
+			hmac, err = crypto.GetHMAC(
 				crypto.HashSHA512_384,
 				[]byte((expandedEndpoint + nonce)),
 				[]byte(b.API.Credentials.Secret),
 			)
+			if err != nil {
+				return nil, err
+			}
 			if len(values) > 0 {
 				host += "?" + values.Encode()
 			}

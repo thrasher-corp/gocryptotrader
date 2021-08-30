@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -695,7 +696,10 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	var feeBuilder = setFeeBuilder()
-	k.GetFeeByType(context.Background(), feeBuilder)
+	_, err := k.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
@@ -1140,7 +1144,12 @@ func setupWsTests(t *testing.T) {
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 	go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
 	go k.wsReadData(comms)
-	go k.wsPingHandler()
+	go func() {
+		err := k.wsPingHandler()
+		if err != nil {
+			fmt.Println("error:", err)
+		}
+	}()
 	wsSetupRan = true
 }
 

@@ -310,9 +310,17 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 	}
 	params.Set("accesskey", z.API.Credentials.Key)
 
-	hmac := crypto.GetHMAC(crypto.HashMD5,
+	hex, err := crypto.Sha1ToHex(z.API.Credentials.Secret)
+	if err != nil {
+		return err
+	}
+
+	hmac, err := crypto.GetHMAC(crypto.HashMD5,
 		[]byte(params.Encode()),
-		[]byte(crypto.Sha1ToHex(z.API.Credentials.Secret)))
+		[]byte(hex))
+	if err != nil {
+		return err
+	}
 
 	var intermediary json.RawMessage
 	newRequest := func() (*request.Item, error) {

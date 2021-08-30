@@ -33,11 +33,17 @@ func TestMain(m *testing.M) {
 	sm := http.NewServeMux()
 	sm.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"response":true}`)
+		_, err := io.WriteString(w, `{"response":true}`)
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
 	sm.HandleFunc("/error", func(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		io.WriteString(w, `{"error":true}`)
+		_, err := io.WriteString(w, `{"error":true}`)
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
 	sm.HandleFunc("/timeout", func(w http.ResponseWriter, req *http.Request) {
 		time.Sleep(time.Millisecond * 100)
@@ -48,10 +54,16 @@ func TestMain(m *testing.M) {
 			http.Error(w,
 				http.StatusText(http.StatusTooManyRequests),
 				http.StatusTooManyRequests)
-			io.WriteString(w, `{"response":false}`)
+			_, err := io.WriteString(w, `{"response":false}`)
+			if err != nil {
+				log.Fatal(err)
+			}
 			return
 		}
-		io.WriteString(w, `{"response":true}`)
+		_, err := io.WriteString(w, `{"response":true}`)
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
 	sm.HandleFunc("/rate-retry", func(w http.ResponseWriter, req *http.Request) {
 		if !serverLimitRetry.Allow() {
@@ -59,15 +71,24 @@ func TestMain(m *testing.M) {
 			http.Error(w,
 				http.StatusText(http.StatusTooManyRequests),
 				http.StatusTooManyRequests)
-			io.WriteString(w, `{"response":false}`)
+			_, err := io.WriteString(w, `{"response":false}`)
+			if err != nil {
+				log.Fatal(err)
+			}
 			return
 		}
-		io.WriteString(w, `{"response":true}`)
+		_, err := io.WriteString(w, `{"response":true}`)
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
 	sm.HandleFunc("/always-retry", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Add("Retry-After", time.Now().Format(time.RFC1123))
 		w.WriteHeader(http.StatusTooManyRequests)
-		io.WriteString(w, `{"response":false}`)
+		_, err := io.WriteString(w, `{"response":false}`)
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
 
 	server := httptest.NewServer(sm)

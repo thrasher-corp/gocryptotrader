@@ -59,7 +59,10 @@ func (o *OKCoin) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
-	o.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Margin)
+	err := o.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Margin)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	o.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -136,7 +139,7 @@ func (o *OKCoin) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(okCoinRateInterval, okCoinStandardRequestRate)),
 	)
 	o.API.Endpoints = o.NewEndpoints()
-	err := o.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = o.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      okCoinAPIURL,
 		exchange.WebsocketSpot: okCoinWebsocketURL,
 	})

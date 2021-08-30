@@ -386,9 +386,18 @@ func (b *Bittrex) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, meth
 			}
 		}
 		body = bytes.NewBuffer(payload)
-		contentHash = crypto.HexEncodeToString(crypto.GetSHA512(payload))
+		hash, err := crypto.GetSHA512(payload)
+		if err != nil {
+			return nil, err
+		}
+		contentHash = crypto.HexEncodeToString(hash)
 		sigPayload := ts + endpoint + path + method + contentHash
-		hmac = crypto.GetHMAC(crypto.HashSHA512, []byte(sigPayload), []byte(b.API.Credentials.Secret))
+		hmac, err = crypto.GetHMAC(crypto.HashSHA512,
+			[]byte(sigPayload),
+			[]byte(b.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
 
 		headers := make(map[string]string)
 		headers["Api-Key"] = b.API.Credentials.Key

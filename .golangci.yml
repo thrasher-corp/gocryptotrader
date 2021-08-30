@@ -12,7 +12,7 @@ linters:
   enable:
 # defaults
 #   - deadcode
-#   - errcheck
+    - errcheck
     - gosimple
     - govet
     - ineffassign

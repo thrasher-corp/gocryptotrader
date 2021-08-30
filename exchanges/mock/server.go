@@ -228,7 +228,10 @@ func MessageWriteJSON(w http.ResponseWriter, status int, data interface{}) {
 		err := json.NewEncoder(w).Encode(data)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(err.Error()))
+			_, wErr := w.Write([]byte(err.Error()))
+			if wErr != nil {
+				log.Println("Mock Test Failure - Writing to HTTP connection", wErr)
+			}
 			log.Fatal("Mock Test Failure - JSON encode error", err)
 		}
 	}

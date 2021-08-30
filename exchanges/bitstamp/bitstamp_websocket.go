@@ -82,7 +82,12 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if b.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket reconnection request received", b.Name)
 		}
-		go b.Websocket.Shutdown() // Connection monitor will reconnect
+		go func() {
+			err := b.Websocket.Shutdown()
+			if err != nil {
+				log.Errorf(log.WebsocketMgr, "%s failed to shutdown websocket: %v", b.Name, err)
+			}
+		}() // Connection monitor will reconnect
 	case "data":
 		wsOrderBookTemp := websocketOrderBookResponse{}
 		err := json.Unmarshal(respRaw, &wsOrderBookTemp)

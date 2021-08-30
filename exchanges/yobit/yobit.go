@@ -303,7 +303,12 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 		params.Set("method", path)
 
 		encoded := params.Encode()
-		hmac := crypto.GetHMAC(crypto.HashSHA512, []byte(encoded), []byte(y.API.Credentials.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
+			[]byte(encoded),
+			[]byte(y.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
 
 		headers := make(map[string]string)
 		headers["Key"] = y.API.Credentials.Key

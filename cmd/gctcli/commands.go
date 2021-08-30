@@ -2949,8 +2949,7 @@ var withdrawalRequestCommand = &cli.Command{
 
 func withdrawlRequestByID(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var ID string
@@ -2986,8 +2985,7 @@ func withdrawlRequestByID(c *cli.Context) error {
 
 func withdrawlRequestByExchangeID(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange, currency string
@@ -3054,8 +3052,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 
 func withdrawlRequestByDate(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
@@ -3838,8 +3835,7 @@ var gctScriptCommand = &cli.Command{
 
 func gctScriptAutoload(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var command, script string
@@ -3862,8 +3858,7 @@ func gctScriptAutoload(c *cli.Context) error {
 	case "remove":
 		status = true
 	default:
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -3889,8 +3884,7 @@ func gctScriptAutoload(c *cli.Context) error {
 
 func gctScriptExecute(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if !c.IsSet("filename") {
@@ -3969,8 +3963,7 @@ func gctScriptList(c *cli.Context) error {
 
 func gctScriptStop(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if !c.IsSet("uuid") {
@@ -4020,8 +4013,7 @@ func gctScriptStopAll(c *cli.Context) error {
 
 func gctScriptRead(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if !c.IsSet("name") {
@@ -4054,8 +4046,7 @@ func gctScriptRead(c *cli.Context) error {
 
 func gctScriptQuery(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if !c.IsSet("uuid") {
@@ -4089,8 +4080,7 @@ func gctScriptQuery(c *cli.Context) error {
 
 func gctScriptUpload(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var overwrite bool

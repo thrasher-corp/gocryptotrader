@@ -112,10 +112,13 @@ func TestGetURL(t *testing.T) {
 		Name: "HELAAAAAOOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1.com/",
 		EdgeCase2: "http://test2.com/",
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	getVal, err := b.API.Endpoints.GetURL(EdgeCase1)
 	if err != nil {
 		t.Error(err)
@@ -190,7 +193,10 @@ func TestSetDefaultEndpoints(t *testing.T) {
 func TestHTTPClient(t *testing.T) {
 	t.Parallel()
 	r := Base{Name: "asdf"}
-	r.SetHTTPClientTimeout(time.Second * 5)
+	err := r.SetHTTPClientTimeout(time.Second * 5)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if r.GetHTTPClient().Timeout != time.Second*5 {
 		t.Fatalf("TestHTTPClient unexpected value")
@@ -211,10 +217,19 @@ func TestHTTPClient(t *testing.T) {
 	}
 
 	b := Base{Name: "RAWR"}
-	b.Requester = request.New(b.Name,
-		new(http.Client))
 
-	b.SetHTTPClientTimeout(time.Second * 5)
+	b.Requester = request.New(b.Name, new(http.Client))
+	err = b.SetHTTPClientTimeout(time.Second * 5)
+	if !errors.Is(err, errTransportNotSet) {
+		t.Fatalf("received: %v but expected: %v", err, errTransportNotSet)
+	}
+
+	b.Requester = request.New(b.Name, &http.Client{Transport: new(http.Transport)})
+	err = b.SetHTTPClientTimeout(time.Second * 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if b.GetHTTPClient().Timeout != time.Second*5 {
 		t.Fatalf("TestHTTPClient unexpected value")
 	}
@@ -657,7 +672,10 @@ func TestLoadConfigPairs(t *testing.T) {
 	b.Config.CurrencyPairs.UseGlobalFormat = false
 	b.CurrencyPairs.UseGlobalFormat = false
 
-	b.SetConfigPairs()
+	err = b.SetConfigPairs()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Test four things:
 	// 1) XRP-USD is set
 	// 2) pair format is set for RequestFormat
@@ -1287,7 +1305,10 @@ func TestSetupDefaults(t *testing.T) {
 			},
 		},
 	)
-	b.SetupDefaults(&cfg)
+	err = b.SetupDefaults(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ps, err := cfg.CurrencyPairs.Get(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
@@ -1299,7 +1320,6 @@ func TestSetupDefaults(t *testing.T) {
 	// Test websocket support
 	b.Websocket = stream.New()
 	b.Features.Supports.Websocket = true
-	b.SetupDefaults(&cfg)
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:          false,
 		WebsocketTimeout: time.Second * 30,
