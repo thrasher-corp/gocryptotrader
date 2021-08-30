@@ -1,6 +1,8 @@
 package openexchangerates
 
 import (
+	"log"
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -15,24 +17,21 @@ const (
 
 var o OXR
 
-var initialSetup bool
-
-func setup(t *testing.T) {
-	t.Helper()
+func TestMain(m *testing.M) {
 	err := o.Setup(base.Settings{
-		Name:    "OpenExchangeRates",
-		Enabled: true,
+		Name:      "OpenExchangeRates",
+		Enabled:   true,
+		APIKey:    apikey,
+		APIKeyLvl: apilvl,
 	})
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
-	initialSetup = true
+	os.Exit(m.Run())
 }
 
 func TestGetRates(t *testing.T) {
-	if !initialSetup {
-		setup(t)
-	}
+	t.Parallel()
 	_, err := o.GetRates("USD", "AUD")
 	if err == nil {
 		t.Error("GetRates() Expected error")
@@ -40,9 +39,7 @@ func TestGetRates(t *testing.T) {
 }
 
 func TestGetLatest(t *testing.T) {
-	if !initialSetup {
-		setup(t)
-	}
+	t.Parallel()
 	_, err := o.GetLatest("USD", "AUD", false, false)
 	if err == nil {
 		t.Error("GetLatest() Expected error")
@@ -50,9 +47,7 @@ func TestGetLatest(t *testing.T) {
 }
 
 func TestGetHistoricalRates(t *testing.T) {
-	if !initialSetup {
-		setup(t)
-	}
+	t.Parallel()
 	_, err := o.GetHistoricalRates("2017-12-01", "USD", []string{"CNH", "AUD", "ANG"}, false, false)
 	if err == nil {
 		t.Error("GetRates() Expected error")
@@ -60,9 +55,7 @@ func TestGetHistoricalRates(t *testing.T) {
 }
 
 func TestGetCurrencies(t *testing.T) {
-	if !initialSetup {
-		setup(t)
-	}
+	t.Parallel()
 	_, err := o.GetCurrencies(true, true, true)
 	if err != nil {
 		t.Error("GetCurrencies() error", err)
@@ -70,9 +63,7 @@ func TestGetCurrencies(t *testing.T) {
 }
 
 func TestGetTimeSeries(t *testing.T) {
-	if !initialSetup {
-		setup(t)
-	}
+	t.Parallel()
 	_, err := o.GetTimeSeries("USD", "2017-12-01", "2017-12-02", []string{"CNH", "AUD", "ANG"}, false, false)
 	if err == nil {
 		t.Error("GetTimeSeries() Expected error")
@@ -80,9 +71,7 @@ func TestGetTimeSeries(t *testing.T) {
 }
 
 func TestConvertCurrency(t *testing.T) {
-	if !initialSetup {
-		setup(t)
-	}
+	t.Parallel()
 	_, err := o.ConvertCurrency(1337, "USD", "AUD")
 	if err == nil {
 		t.Error("ConvertCurrency() Expected error")
@@ -90,9 +79,7 @@ func TestConvertCurrency(t *testing.T) {
 }
 
 func TestGetOHLC(t *testing.T) {
-	if !initialSetup {
-		setup(t)
-	}
+	t.Parallel()
 	_, err := o.GetOHLC("2017-07-17T08:30:00Z", "1m", "USD", []string{"AUD"}, false)
 	if err == nil {
 		t.Error("GetOHLC() Expected error")
@@ -100,9 +87,7 @@ func TestGetOHLC(t *testing.T) {
 }
 
 func TestGetUsageStats(t *testing.T) {
-	if !initialSetup {
-		setup(t)
-	}
+	t.Parallel()
 	_, err := o.GetUsageStats(false)
 	if err == nil {
 		t.Error("GetUsageStats() Expected error")
