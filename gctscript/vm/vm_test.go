@@ -26,6 +26,7 @@ var (
 	testScriptRunner         = filepath.Join("..", "..", "testdata", "gctscript", "timer.gct")
 	testScriptRunner1s       = filepath.Join("..", "..", "testdata", "gctscript", "1s_timer.gct")
 	testScriptRunnerNegative = filepath.Join("..", "..", "testdata", "gctscript", "negative_timer.gct")
+	testScriptRunnerInvalid  = filepath.Join("..", "..", "testdata", "gctscript", "invalid_timer.gct")
 )
 
 func TestMain(m *testing.M) {
@@ -319,6 +320,34 @@ func TestVMWithRunnerNegativeTimer(t *testing.T) {
 	if err == nil {
 		t.Fatal("VM should not be running with invalid timer")
 	}
+	if VMSCount.Len() == vmCount-1 {
+		t.Fatal("expected VM count to decrease")
+	}
+}
+
+func TestVMWithRunnerInvalidTimer(t *testing.T) {
+	manager := GctScriptManager{
+		config:  configHelper(true, true, maxTestVirtualMachines),
+		started: 1,
+	}
+	vmCount := VMSCount.Len()
+	VM := manager.New()
+	if VM == nil {
+		t.Fatal("Failed to allocate new VM exiting")
+	}
+	err := VM.Load(testScriptRunnerInvalid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if VMSCount.Len() == vmCount {
+		t.Fatal("expected VM count to increase")
+	}
+	VM.CompileAndRun()
+	err = VM.Shutdown()
+	if err == nil {
+		t.Fatal("VM should not be running with invalid timer")
+	}
+
 	if VMSCount.Len() == vmCount-1 {
 		t.Fatal("expected VM count to decrease")
 	}
