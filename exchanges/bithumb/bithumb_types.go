@@ -296,8 +296,8 @@ type OHLCVResponse struct {
 type Status struct {
 	Status string `json:"status"`
 	Data   struct {
-		DepositStatus    int `json:"deposit_status"`
-		WithdrawalStatus int `json:"withdrawal_status"`
+		DepositStatus    int64 `json:"deposit_status"`
+		WithdrawalStatus int64 `json:"withdrawal_status"`
 	} `json:"data"`
 	Message string `json:"message"`
 }

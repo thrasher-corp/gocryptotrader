@@ -175,7 +175,7 @@ func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, erro
 func (b *Bithumb) GetAccountInformation(orderCurrency, paymentCurrency string) (Account, error) {
 	var response Account
 	if orderCurrency == "" {
-		return response, errors.New("order currency must be set")
+		return response, errSymbolIsEmpty
 	}
 
 	val := url.Values{}
@@ -291,7 +291,7 @@ func (b *Bithumb) GetOrders(orderID, transactionType, count, after, currency str
 	params := url.Values{}
 
 	if currency == "" {
-		return response, errors.New("order currency is required")
+		return response, errSymbolIsEmpty
 	}
 
 	params.Set("order_currency", strings.ToUpper(currency))
