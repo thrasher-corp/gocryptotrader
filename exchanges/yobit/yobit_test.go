@@ -500,11 +500,10 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
 		y.Verbose = true
-		r, err := y.GetDepositAddress(context.Background(), currency.OPAL, "", "")
+		_, err := y.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err != nil {
 			t.Error(err)
 		}
-		t.Log(r)
 	} else {
 		_, err := y.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err == nil {

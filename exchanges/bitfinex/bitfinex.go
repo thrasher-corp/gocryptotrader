@@ -1072,16 +1072,14 @@ func (b *Bitfinex) GetAccountSummary(ctx context.Context) (AccountSummary, error
 func (b *Bitfinex) NewDeposit(ctx context.Context, method, walletName string, renew uint8) (*Deposit, error) {
 	if walletName == "" {
 		walletName = "funding"
-	} else {
-		if !common.StringDataCompare(AcceptedWalletNames, walletName) {
-			return nil,
-				fmt.Errorf("walletname: [%s] is not allowed, supported: %s",
-					walletName,
-					AcceptedWalletNames)
-		}
+	} else if !common.StringDataCompare(AcceptedWalletNames, walletName) {
+		return nil,
+			fmt.Errorf("walletname: [%s] is not allowed, supported: %s",
+				walletName,
+				AcceptedWalletNames)
 	}
 
-	req := make(map[string]interface{})
+	req := make(map[string]interface{}, 3)
 	req["wallet"] = walletName
 	req["method"] = method
 	req["op_renew"] = renew

@@ -685,14 +685,14 @@ func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) 
 // GetExchangeCryptocurrencyDepositAddress returns the cryptocurrency deposit address for a particular
 // exchange
 func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, exchName, accountID, chain string, item currency.Code) (*deposit.Address, error) {
-	/*
-		if bot.DepositAddressManager != nil {
-			resp, err := bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, item)
-			if err != nil {
-				return nil, err
-			}
-			return &resp, nil
+	/* TO-DO
+	if bot.DepositAddressManager != nil {
+		resp, err := bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, item)
+		if err != nil {
+			return nil, err
 		}
+		return &resp, nil
+	}
 	*/
 
 	exch, err := bot.GetExchangeByName(exchName)

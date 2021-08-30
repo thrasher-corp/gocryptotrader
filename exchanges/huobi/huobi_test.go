@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,8 +31,11 @@ const (
 	testSymbol              = "btcusdt"
 )
 
-var h HUOBI
-var wsSetupRan bool
+var (
+	h               HUOBI
+	wsSetupRan      bool
+	futuresTestPair = currency.NewPair(currency.BTC, currency.NewCode("NW"))
+)
 
 func TestMain(m *testing.M) {
 	h.SetDefaults()
@@ -141,11 +145,7 @@ func TestFGetEstimatedDeliveryPrice(t *testing.T) {
 
 func TestFGetMarketDepth(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NW")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FGetMarketDepth(context.Background(), cp, "step5")
+	_, err := h.FGetMarketDepth(context.Background(), futuresTestPair, "step5")
 	if err != nil {
 		t.Error(err)
 	}
@@ -153,12 +153,7 @@ func TestFGetMarketDepth(t *testing.T) {
 
 func TestFGetKlineData(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NW")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FGetKlineData(context.Background(),
-		cp, "5min", 5, time.Now().Add(-time.Minute*5), time.Now())
+	_, err := h.FGetKlineData(context.Background(), futuresTestPair, "5min", 5, time.Now().Add(-time.Minute*5), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -166,11 +161,7 @@ func TestFGetKlineData(t *testing.T) {
 
 func TestFGetMarketOverviewData(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NW")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FGetMarketOverviewData(context.Background(), cp)
+	_, err := h.FGetMarketOverviewData(context.Background(), futuresTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -178,11 +169,7 @@ func TestFGetMarketOverviewData(t *testing.T) {
 
 func TestFLastTradeData(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NW")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FLastTradeData(context.Background(), cp)
+	_, err := h.FLastTradeData(context.Background(), futuresTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -190,11 +177,7 @@ func TestFLastTradeData(t *testing.T) {
 
 func TestFRequestPublicBatchTrades(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NQ")
-	if err != nil {
-		t.Error(err)
-	}
-	a, err := h.FRequestPublicBatchTrades(context.Background(), cp, 50)
+	a, err := h.FRequestPublicBatchTrades(context.Background(), futuresTestPair, 50)
 	if err != nil {
 		t.Error(err)
 	}
@@ -271,11 +254,7 @@ func TestFLiquidationOrders(t *testing.T) {
 
 func TestFIndexKline(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NQ")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FIndexKline(context.Background(), cp, "5min", 5)
+	_, err := h.FIndexKline(context.Background(), futuresTestPair, "5min", 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -283,11 +262,7 @@ func TestFIndexKline(t *testing.T) {
 
 func TestFGetBasisData(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NQ")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FGetBasisData(context.Background(), cp, "5min", "open", 3)
+	_, err := h.FGetBasisData(context.Background(), futuresTestPair, "5min", "open", 3)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2702,5 +2677,37 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(r)
+	if len(r) < 2 {
+		t.Error("expected more than one result")
+	}
+}
+
+func TestFormatFuturesPair(t *testing.T) {
+	r, err := h.formatFuturesPair(futuresTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r != "BTC_NW" {
+		t.Errorf("expected BTC_NW, got %s", r)
+	}
+	availInstruments, err := h.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(availInstruments) == 0 {
+		t.Fatal("expected instruments, got 0")
+	}
+	// test getting a tradable pair in the format of BTC210827 but make it lower
+	// case to test correct formatting
+	p, err := currency.NewPairFromString(strings.ToLower(availInstruments[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err = h.formatFuturesPair(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r != availInstruments[0] {
+		t.Errorf("expected %s, got %s", availInstruments[0], r)
+	}
 }

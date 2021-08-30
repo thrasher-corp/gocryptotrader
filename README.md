@@ -78,7 +78,8 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
 + Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
 + WebGUI (discontinued).
-+ Exchange multichain deposits and withdrawals for specific exchanges. See [multichain support](/docs/MULTICHAIN_SUPPORT.md).
++ Exchange HTTP mock testing. See [mock](/exchanges/mock/README.md).
++ Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](/docs/MULTICHAIN_TRANSFER_SUPPORT.md).
 
 ## Planned Features
 
@@ -145,10 +146,10 @@ Binaries will be published once the codebase reaches a stable condition.
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 658 |
 | [shazbert](https://github.com/shazbert) | 223 |
-| [gloriousCode](https://github.com/gloriousCode) | 190 |
+| [gloriousCode](https://github.com/gloriousCode) | 191 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 23 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 24 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |

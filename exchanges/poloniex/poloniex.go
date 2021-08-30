@@ -221,9 +221,9 @@ func (p *Poloniex) GetChartData(ctx context.Context, currencyPair string, start,
 }
 
 // GetCurrencies returns information about currencies
-func (p *Poloniex) GetCurrencies(ctx context.Context) (map[string]Currencies, error) {
+func (p *Poloniex) GetCurrencies(ctx context.Context) (map[string]*Currencies, error) {
 	type Response struct {
-		Data map[string]Currencies
+		Data map[string]*Currencies
 	}
 	resp := Response{}
 	return resp.Data, p.SendHTTPRequest(ctx,

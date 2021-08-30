@@ -881,7 +881,6 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 
 		payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
 			method, endpoint, values.Encode())
-		fmt.Println(payload)
 
 		headers := make(map[string]string)
 

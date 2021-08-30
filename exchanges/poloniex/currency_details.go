@@ -69,7 +69,7 @@ func (w *CurrencyDetails) loadPairs(data map[string]Ticker) error {
 }
 
 // loadCodes loads currency codes from currency map
-func (w *CurrencyDetails) loadCodes(data map[string]Currencies) error {
+func (w *CurrencyDetails) loadCodes(data map[string]*Currencies) error {
 	if data == nil {
 		return errCannotLoadNoData
 	}

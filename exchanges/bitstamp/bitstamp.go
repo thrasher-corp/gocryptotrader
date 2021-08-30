@@ -634,16 +634,15 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			if errCap.Error != "" { // v1 errors
 				return errors.New(errCap.Error)
 			}
-			switch errCap.Reason.(type) { // v2 errors
+			switch data := errCap.Reason.(type) { // v2 errors
 			case map[string]interface{}:
-				data := errCap.Reason.(map[string]interface{})
 				var details strings.Builder
 				for k, v := range data {
 					details.WriteString(fmt.Sprintf("%s: %v", k, v))
 				}
 				return errors.New(details.String())
 			case string:
-				return errors.New(errCap.Reason.(string))
+				return errors.New(data)
 			default:
 				return errors.New(errCap.Status)
 			}

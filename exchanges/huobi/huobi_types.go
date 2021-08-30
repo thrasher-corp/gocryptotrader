@@ -1142,11 +1142,8 @@ var (
 		"this_week", "next_week", "quarter", "next_quarter",
 	}
 
-	contractTranslator = map[string]string{
-		"this_week":    "CW",
-		"next_week":    "NW",
-		"quarter":      "CQ",
-		"next_quarter": "NQ",
+	validContractShortTypes = []string{
+		"cw", "nw", "cq", "nq",
 	}
 
 	validFuturesPeriods = []string{

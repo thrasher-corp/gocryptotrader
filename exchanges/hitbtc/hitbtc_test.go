@@ -443,12 +443,10 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
-		h.Verbose = true
-		r, err := h.GetDepositAddress(context.Background(), currency.XRP, "", "")
+		_, err := h.GetDepositAddress(context.Background(), currency.XRP, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error", err)
 		}
-		t.Log(r)
 	} else {
 		_, err := h.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err == nil {

@@ -1631,22 +1631,22 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 	}
 
 	if otpSecret := exchCfg.API.Credentials.OTPSecret; otpSecret != "" {
-		code, err := totp.GenerateCode(otpSecret, time.Now())
-		if err != nil {
-			return nil, err
+		code, errOTP := totp.GenerateCode(otpSecret, time.Now())
+		if errOTP != nil {
+			return nil, errOTP
 		}
 
-		codeNum, err := strconv.ParseInt(code, 10, 64)
-		if err != nil {
-			return nil, err
+		codeNum, errOTP := strconv.ParseInt(code, 10, 64)
+		if errOTP != nil {
+			return nil, errOTP
 		}
 		request.OneTimePassword = codeNum
 	}
 
 	if pin := exchCfg.API.Credentials.PIN; pin != "" {
-		pinCode, err := strconv.ParseInt(pin, 10, 64)
+		pinCode, errPin := strconv.ParseInt(pin, 10, 64)
 		if err != nil {
-			return nil, err
+			return nil, errPin
 		}
 		request.PIN = pinCode
 	}
@@ -1701,22 +1701,22 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 	}
 
 	if otpSecret := exchCfg.API.Credentials.OTPSecret; otpSecret != "" {
-		code, err := totp.GenerateCode(otpSecret, time.Now())
+		code, errOTP := totp.GenerateCode(otpSecret, time.Now())
 		if err != nil {
-			return nil, err
+			return nil, errOTP
 		}
 
-		codeNum, err := strconv.ParseInt(code, 10, 64)
+		codeNum, errOTP := strconv.ParseInt(code, 10, 64)
 		if err != nil {
-			return nil, err
+			return nil, errOTP
 		}
 		request.OneTimePassword = codeNum
 	}
 
 	if pin := exchCfg.API.Credentials.PIN; pin != "" {
-		pinCode, err := strconv.ParseInt(pin, 10, 64)
+		pinCode, errPIN := strconv.ParseInt(pin, 10, 64)
 		if err != nil {
-			return nil, err
+			return nil, errPIN
 		}
 		request.PIN = pinCode
 	}

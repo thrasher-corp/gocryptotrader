@@ -748,7 +748,6 @@ func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 			return nil, err
 		}
 		address = newAddr
-
 	}
 	return &deposit.Address{Address: address}, nil
 }
