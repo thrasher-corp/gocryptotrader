@@ -229,6 +229,7 @@ func TestMarketSellOrder(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
 	cp := currency.NewPair(currency.QTUM, currency.KRW)
 	_, err := b.UpdateTicker(cp, asset.Spot)
 	if err != nil {
@@ -243,6 +244,7 @@ func TestUpdateTicker(t *testing.T) {
 }
 
 func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
 	err := b.UpdateTickers(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
@@ -260,6 +262,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 	_, err := b.GetFeeByType(feeBuilder)
 	if err != nil {
@@ -277,6 +280,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
+	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
 	if _, err := b.GetFee(feeBuilder); err != nil {
@@ -574,6 +578,7 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestGetCandleStick(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetCandleStick("BTC_KRW", "1m")
 	if err != nil {
 		t.Fatal(err)
@@ -581,6 +586,7 @@ func TestGetCandleStick(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTCKRW")
 	if err != nil {
 		t.Fatal(err)
@@ -593,6 +599,7 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTCKRW")
 	if err != nil {
 		t.Fatal(err)
@@ -629,6 +636,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
 	err := b.UpdateOrderExecutionLimits("")
 	if err != nil {
 		t.Fatal(err)
@@ -655,6 +663,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 }
 
 func TestGetAmountMinimum(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name      string
 		unitprice float64
@@ -704,5 +713,18 @@ func TestGetAmountMinimum(t *testing.T) {
 					tt.unitprice)
 			}
 		})
+	}
+}
+
+func TestGetAssetStatus(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetAssetStatus("")
+	if !errors.Is(err, errSymbolIsEmpty) {
+		t.Fatalf("received: %v but expected: %v", err, errSymbolIsEmpty)
+	}
+
+	_, err = b.GetAssetStatus("sol")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 }
