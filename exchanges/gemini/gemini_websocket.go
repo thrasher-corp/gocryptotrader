@@ -193,7 +193,13 @@ func (g *Gemini) WsAuth(dialer *websocket.Dialer) error {
 	}
 	endpoint := wsEndpoint + geminiWsOrderEvents
 	PayloadBase64 := crypto.Base64Encode(PayloadJSON)
-	hmac := crypto.GetHMAC(crypto.HashSHA512_384, []byte(PayloadBase64), []byte(g.API.Credentials.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
+		[]byte(PayloadBase64),
+		[]byte(g.API.Credentials.Secret))
+	if err != nil {
+		return err
+	}
+
 	headers := http.Header{}
 	headers.Add("Content-Length", "0")
 	headers.Add("Content-Type", "text/plain")

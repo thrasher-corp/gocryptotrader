@@ -859,7 +859,14 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint s
 			headers["Content-Type"] = "application/json"
 		}
 
-		hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(h.API.Credentials.Secret))
+		var hmac []byte
+		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(payload),
+			[]byte(h.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
+
 		values.Set("Signature", crypto.Base64Encode(hmac))
 		urlPath := ePoint + common.EncodeURLValues(endpoint, values)
 

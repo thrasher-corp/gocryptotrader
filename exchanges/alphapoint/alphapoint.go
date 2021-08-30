@@ -567,9 +567,14 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path 
 	headers["Content-Type"] = "application/json"
 	data["apiKey"] = a.API.Credentials.Key
 	data["apiNonce"] = n
-	hmac := crypto.GetHMAC(crypto.HashSHA256,
+
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(n.String()+a.API.Credentials.ClientID+a.API.Credentials.Key),
 		[]byte(a.API.Credentials.Secret))
+	if err != nil {
+		return err
+	}
+
 	data["apiSig"] = strings.ToUpper(crypto.HexEncodeToString(hmac))
 	path = fmt.Sprintf("%s/ajax/v%s/%s", endpoint, alphapointAPIVersion, path)
 

@@ -144,7 +144,10 @@ func (b *Bittrex) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	b.SetupDefaults(exch)
+	err := b.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
 	wsRunningEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {

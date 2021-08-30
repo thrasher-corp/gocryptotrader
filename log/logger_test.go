@@ -210,13 +210,16 @@ func BenchmarkInfoln(b *testing.B) {
 
 func TestNewLogEvent(t *testing.T) {
 	w := &bytes.Buffer{}
-	logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	err := logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if w.String() == "" {
 		t.Error("newLogEvent() failed expected output got empty string")
 	}
 
-	err := logger.newLogEvent("out", "header", "SUBLOGGER", nil)
+	err = logger.newLogEvent("out", "header", "SUBLOGGER", nil)
 	if err == nil {
 		t.Error("Error expected with output is set to nil")
 	}
@@ -225,23 +228,24 @@ func TestNewLogEvent(t *testing.T) {
 func TestInfo(t *testing.T) {
 	w := &bytes.Buffer{}
 
-	tempSL := SubLogger{
-		"TESTYMCTESTALOT",
-		splitLevel("INFO|WARN|DEBUG|ERROR"),
-		w,
-	}
+	sl := registerNewSubLogger("TESTYMCTESTALOT")
+	sl.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
+	sl.output = w
 
-	Info(&tempSL, "Hello")
+	Info(sl, "Hello")
 
 	if w.String() == "" {
 		t.Error("expected Info() to write output to buffer")
 	}
 
-	tempSL.output = nil
+	sl.output = nil
 	w.Reset()
 
-	SetLevel("TESTYMCTESTALOT", "INFO")
-	Debug(&tempSL, "HelloHello")
+	_, err := SetLevel("TESTYMCTESTALOT", "INFO")
+	if err != nil {
+		t.Fatal(err)
+	}
+	Debug(sl, "HelloHello")
 
 	if w.String() != "" {
 		t.Error("Expected output buffer to be empty but Debug wrote to output")
@@ -251,14 +255,20 @@ func TestInfo(t *testing.T) {
 func TestSubLoggerName(t *testing.T) {
 	w := &bytes.Buffer{}
 	registerNewSubLogger("sublogger")
-	logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	err := logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.Contains(w.String(), "SUBLOGGER") {
 		t.Error("Expected SUBLOGGER in output")
 	}
 
 	logger.ShowLogSystemName = false
 	w.Reset()
-	logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	err = logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if strings.Contains(w.String(), "SUBLOGGER") {
 		t.Error("Unexpected SUBLOGGER in output")
 	}

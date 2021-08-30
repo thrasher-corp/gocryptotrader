@@ -548,9 +548,15 @@ func (l *Lbank) sign(data string) (string, error) {
 	if l.privateKey == nil {
 		return "", errors.New("private key not loaded")
 	}
-	md5hash := gctcrypto.GetMD5([]byte(data))
+	md5hash, err := gctcrypto.GetMD5([]byte(data))
+	if err != nil {
+		return "", err
+	}
 	m := strings.ToUpper(gctcrypto.HexEncodeToString(md5hash))
-	s := gctcrypto.GetSHA256([]byte(m))
+	s, err := gctcrypto.GetSHA256([]byte(m))
+	if err != nil {
+		return "", err
+	}
 	r, err := rsa.SignPKCS1v15(rand.Reader, l.privateKey, crypto.SHA256, s)
 	if err != nil {
 		return "", err

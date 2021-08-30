@@ -564,7 +564,7 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) 
 	return nil
 }
 
-func (h *HUOBI) wsGenerateSignature(timestamp, endpoint string) []byte {
+func (h *HUOBI) wsGenerateSignature(timestamp, endpoint string) ([]byte, error) {
 	values := url.Values{}
 	values.Set("AccessKeyId", h.API.Credentials.Key)
 	values.Set("SignatureMethod", signatureMethod)
@@ -589,9 +589,12 @@ func (h *HUOBI) wsLogin() error {
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 	}
-	hmac := h.wsGenerateSignature(timestamp, wsAccountsOrdersEndPoint)
+	hmac, err := h.wsGenerateSignature(timestamp, wsAccountsOrdersEndPoint)
+	if err != nil {
+		return err
+	}
 	request.Signature = crypto.Base64Encode(hmac)
-	err := h.Websocket.AuthConn.SendJSONMessage(request)
+	err = h.Websocket.AuthConn.SendJSONMessage(request)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -611,7 +614,10 @@ func (h *HUOBI) wsAuthenticatedSubscribe(operation, endpoint, topic string) erro
 		Timestamp:        timestamp,
 		Topic:            topic,
 	}
-	hmac := h.wsGenerateSignature(timestamp, endpoint)
+	hmac, err := h.wsGenerateSignature(timestamp, endpoint)
+	if err != nil {
+		return err
+	}
 	request.Signature = crypto.Base64Encode(hmac)
 	return h.Websocket.AuthConn.SendJSONMessage(request)
 }
@@ -629,7 +635,10 @@ func (h *HUOBI) wsGetAccountsList() (*WsAuthenticatedAccountsListResponse, error
 		Timestamp:        timestamp,
 		Topic:            wsAccountsList,
 	}
-	hmac := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
+	hmac, err := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
+	if err != nil {
+		return nil, err
+	}
 	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
 	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
@@ -672,7 +681,10 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthent
 		States:           "submitted,partial-filled",
 	}
 
-	hmac := h.wsGenerateSignature(timestamp, wsOrdersListEndpoint)
+	hmac, err := h.wsGenerateSignature(timestamp, wsOrdersListEndpoint)
+	if err != nil {
+		return nil, err
+	}
 	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
 
@@ -708,7 +720,10 @@ func (h *HUOBI) wsGetOrderDetails(orderID string) (*WsAuthenticatedOrderDetailRe
 		Topic:            wsOrdersDetail,
 		OrderID:          orderID,
 	}
-	hmac := h.wsGenerateSignature(timestamp, wsOrdersDetailEndpoint)
+	hmac, err := h.wsGenerateSignature(timestamp, wsOrdersDetailEndpoint)
+	if err != nil {
+		return nil, err
+	}
 	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
 	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)

@@ -690,9 +690,14 @@ func (c *COINUT) wsAuthenticate() error {
 	payload := c.API.Credentials.ClientID + "|" +
 		strconv.FormatInt(timestamp, 10) + "|" +
 		strconv.FormatInt(nonce, 10)
-	hmac := crypto.GetHMAC(crypto.HashSHA256,
+
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(payload),
 		[]byte(c.API.Credentials.Key))
+	if err != nil {
+		return err
+	}
+
 	loginRequest := struct {
 		Request   string `json:"request"`
 		Username  string `json:"username"`

@@ -297,8 +297,11 @@ func TestSign(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 	l.API.Credentials.Secret = testAPISecret
-	l.loadPrivKey()
-	_, err := l.sign("hello123")
+	err := l.loadPrivKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.sign("hello123")
 	if err != nil {
 		t.Error(err)
 	}

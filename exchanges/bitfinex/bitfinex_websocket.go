@@ -1167,19 +1167,25 @@ func (b *Bitfinex) WsSendAuth() error {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",
 			b.Name)
 	}
+
 	nonce := strconv.FormatInt(time.Now().Unix(), 10)
 	payload := "AUTH" + nonce
+
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
+		[]byte(payload),
+		[]byte(b.API.Credentials.Secret))
+	if err != nil {
+		return err
+	}
 	request := WsAuthRequest{
-		Event:       "auth",
-		APIKey:      b.API.Credentials.Key,
-		AuthPayload: payload,
-		AuthSig: crypto.HexEncodeToString(crypto.GetHMAC(crypto.HashSHA512_384,
-			[]byte(payload),
-			[]byte(b.API.Credentials.Secret))),
+		Event:         "auth",
+		APIKey:        b.API.Credentials.Key,
+		AuthPayload:   payload,
+		AuthSig:       crypto.HexEncodeToString(hmac),
 		AuthNonce:     nonce,
 		DeadManSwitch: 0,
 	}
-	err := b.Websocket.AuthConn.SendJSONMessage(request)
+	err = b.Websocket.AuthConn.SendJSONMessage(request)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

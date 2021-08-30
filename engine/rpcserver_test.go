@@ -1779,7 +1779,7 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 
 	// Push a mock-up ticker.
 	now := time.Now()
-	ticker.ProcessTicker(&ticker.Price{
+	err = ticker.ProcessTicker(&ticker.Price{
 		ExchangeName: testExchange,
 		Pair:         pair,
 		AssetType:    asset.Spot,
@@ -1790,6 +1790,9 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 		Low:   169,
 		Close: 196,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Prepare a ticker request.
 	request := &gctrpc.GetTickerRequest{
