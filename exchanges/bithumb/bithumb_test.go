@@ -706,3 +706,15 @@ func TestGetAmountMinimum(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAssetStatus(t *testing.T) {
+	_, err := b.GetAssetStatus("")
+	if !errors.Is(err, errSymbolIsEmpty) {
+		t.Fatalf("received: %v but expected: %v", err, errSymbolIsEmpty)
+	}
+
+	_, err = b.GetAssetStatus("sol")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+}

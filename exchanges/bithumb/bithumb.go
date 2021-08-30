@@ -31,6 +31,7 @@ const (
 	publicOrderBook          = "/public/orderbook/"
 	publicTransactionHistory = "/public/transaction_history/"
 	publicCandleStick        = "/public/candlestick/"
+	publicAssetStatus        = "/public/assetsstatus/"
 
 	privateAccInfo     = "/info/account"
 	privateAccBalance  = "/info/balance"
@@ -47,6 +48,8 @@ const (
 	privateMarketBuy   = "/trade/market_buy"
 	privateMarketSell  = "/trade/market_sell"
 )
+
+var errSymbolIsEmpty = errors.New("symbol cannot be empty")
 
 // Bithumb is the overarching type across the Bithumb package
 type Bithumb struct {
@@ -118,6 +121,24 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 func (b *Bithumb) GetOrderBook(symbol string) (*Orderbook, error) {
 	response := Orderbook{}
 	err := b.SendHTTPRequest(exchange.RestSpot, publicOrderBook+strings.ToUpper(symbol), &response)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Status != noError {
+		return nil, errors.New(response.Message)
+	}
+
+	return &response, nil
+}
+
+// GetAssetStatus returns the withdrawal and deposit status for the symbol
+func (b *Bithumb) GetAssetStatus(symbol string) (*Status, error) {
+	if symbol == "" {
+		return nil, errSymbolIsEmpty
+	}
+	var response Status
+	err := b.SendHTTPRequest(exchange.RestSpot, publicAssetStatus+strings.ToUpper(symbol), &response)
 	if err != nil {
 		return nil, err
 	}
