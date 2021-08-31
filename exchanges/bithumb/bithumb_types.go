@@ -290,3 +290,14 @@ type OHLCVResponse struct {
 	Status string           `json:"status"`
 	Data   [][6]interface{} `json:"data"`
 }
+
+// Status defines the current exchange allowance to deposit or withdraw a
+// currency
+type Status struct {
+	Status string `json:"status"`
+	Data   struct {
+		DepositStatus    int64 `json:"deposit_status"`
+		WithdrawalStatus int64 `json:"withdrawal_status"`
+	} `json:"data"`
+	Message string `json:"message"`
+}

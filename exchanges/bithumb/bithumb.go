@@ -31,6 +31,7 @@ const (
 	publicOrderBook          = "/public/orderbook/"
 	publicTransactionHistory = "/public/transaction_history/"
 	publicCandleStick        = "/public/candlestick/"
+	publicAssetStatus        = "/public/assetsstatus/"
 
 	privateAccInfo     = "/info/account"
 	privateAccBalance  = "/info/balance"
@@ -47,6 +48,8 @@ const (
 	privateMarketBuy   = "/trade/market_buy"
 	privateMarketSell  = "/trade/market_sell"
 )
+
+var errSymbolIsEmpty = errors.New("symbol cannot be empty")
 
 // Bithumb is the overarching type across the Bithumb package
 type Bithumb struct {
@@ -129,6 +132,24 @@ func (b *Bithumb) GetOrderBook(ctx context.Context, symbol string) (*Orderbook, 
 	return &response, nil
 }
 
+// GetAssetStatus returns the withdrawal and deposit status for the symbol
+func (b *Bithumb) GetAssetStatus(symbol string) (*Status, error) {
+	if symbol == "" {
+		return nil, errSymbolIsEmpty
+	}
+	var response Status
+	err := b.SendHTTPRequest(exchange.RestSpot, publicAssetStatus+strings.ToUpper(symbol), &response)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Status != noError {
+		return nil, errors.New(response.Message)
+	}
+
+	return &response, nil
+}
+
 // GetTransactionHistory returns recent transactions
 //
 // symbol e.g. "btc"
@@ -154,7 +175,7 @@ func (b *Bithumb) GetTransactionHistory(ctx context.Context, symbol string) (Tra
 func (b *Bithumb) GetAccountInformation(ctx context.Context, orderCurrency, paymentCurrency string) (Account, error) {
 	var response Account
 	if orderCurrency == "" {
-		return response, errors.New("order currency must be set")
+		return response, errSymbolIsEmpty
 	}
 
 	val := url.Values{}
@@ -270,7 +291,7 @@ func (b *Bithumb) GetOrders(ctx context.Context, orderID, transactionType, count
 	params := url.Values{}
 
 	if currency == "" {
-		return response, errors.New("order currency is required")
+		return response, errSymbolIsEmpty
 	}
 
 	params.Set("order_currency", strings.ToUpper(currency))
