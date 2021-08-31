@@ -2,7 +2,6 @@ package funding
 
 import (
 	"errors"
-	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -21,40 +20,6 @@ var (
 type FundManager struct {
 	usingExchangeLevelFunding bool
 	items                     []*Item
-	snapshots                 []snapshotsAtTime
-}
-
-type snapshotsAtTime struct {
-	time      time.Time
-	snapshots []snappy
-}
-
-type snappy struct {
-	Offset         int64
-	Item           Item
-	Timestamp      time.Time       `json:"timestamp"`
-	PositionsSize  decimal.Decimal `json:"positions-size"`
-	PositionsValue decimal.Decimal `json:"positions-value"`
-	SoldAmount     decimal.Decimal `json:"sold-amount"`
-	SoldValue      decimal.Decimal `json:"sold-value"`
-	BoughtAmount   decimal.Decimal `json:"bought-amount"`
-	BoughtValue    decimal.Decimal `json:"bought-value"`
-	RemainingFunds decimal.Decimal `json:"remaining-funds"`
-	CommittedFunds decimal.Decimal `json:"committed-funds"`
-
-	TotalValueDifference      decimal.Decimal
-	ChangeInTotalValuePercent decimal.Decimal
-	BoughtValueDifference     decimal.Decimal
-	SoldValueDifference       decimal.Decimal
-	PositionsValueDifference  decimal.Decimal
-
-	TotalValue                   decimal.Decimal `json:"total-value"`
-	TotalFees                    decimal.Decimal `json:"total-fees"`
-	TotalValueLostToVolumeSizing decimal.Decimal `json:"total-value-lost-to-volume-sizing"`
-	TotalValueLostToSlippage     decimal.Decimal `json:"total-value-lost-to-slippage"`
-	TotalValueLost               decimal.Decimal `json:"total-value-lost"`
-
-	RiskFreeRate decimal.Decimal `json:"risk-free-rate"`
 }
 
 // IFundingManager limits funding usage for portfolio event handling
@@ -108,8 +73,12 @@ type Item struct {
 	initialFunds decimal.Decimal
 	available    decimal.Decimal
 	reserved     decimal.Decimal
-	pairedWith   *Item
 	transferFee  decimal.Decimal
+	pairedWith   *Item
+	// tracking
+	bought    decimal.Decimal
+	sold      decimal.Decimal
+	committed decimal.Decimal
 }
 
 // Pair holds two currencies that are associated with each other

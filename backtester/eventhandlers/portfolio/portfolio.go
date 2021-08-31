@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
+	holdings2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/settings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -16,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
-	holdings "github.com/thrasher-corp/gocryptotrader/backtester/funding/holdings"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding/holdings"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -216,7 +217,7 @@ func (p *Portfolio) OnFill(f fill.Event, funds funding.IPairReader) (*fill.Fill,
 		if !h.Timestamp.IsZero() {
 			h.Update(f)
 		} else {
-			h, err = holdings.Create(f, funds.QuoteInitialFunds(), p.riskFreeRate)
+			h, err = holdings.CreatePairHolding(f, funds.QuoteInitialFunds(), p.riskFreeRate)
 			if err != nil {
 				return nil, err
 			}
@@ -305,10 +306,10 @@ func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) 
 }
 
 // IsInvested determines if there are any holdings for a given exchange, asset, pair
-func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pair) (holdings.Holding, bool) {
+func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pair) (holdings2.Holding, bool) {
 	s := p.exchangeAssetPairSettings[exchangeName][a][cp]
 	if s == nil {
-		return holdings.Holding{}, false
+		return holdings2.Holding{}, false
 	}
 	h := s.GetLatestHoldings()
 	if h.PositionsSize.GreaterThan(decimal.Zero) {
@@ -336,8 +337,8 @@ func (p *Portfolio) Update(d common.DataEventHandler) error {
 
 // GetLatestHoldingsForAllCurrencies will return the current holdings for all loaded currencies
 // this is useful to assess the position of your entire portfolio in order to help with risk decisions
-func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
-	var resp []holdings.Holding
+func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings2.Holding {
+	var resp []holdings2.Holding
 	for _, x := range p.exchangeAssetPairSettings {
 		for _, y := range x {
 			for _, z := range y {
@@ -351,7 +352,7 @@ func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 	return resp
 }
 
-func (p *Portfolio) setHoldingsForOffset(exch string, a asset.Item, cp currency.Pair, h *holdings.Holding, overwriteExisting bool) error {
+func (p *Portfolio) setHoldingsForOffset(exch string, a asset.Item, cp currency.Pair, h *holdings2.Holding, overwriteExisting bool) error {
 	if h.Timestamp.IsZero() {
 		return errHoldingsNoTimestamp
 	}
@@ -363,13 +364,13 @@ func (p *Portfolio) setHoldingsForOffset(exch string, a asset.Item, cp currency.
 			return err
 		}
 	}
-	if overwriteExisting && len(lookup.HoldingsSnapshots) == 0 {
+	if overwriteExisting && len(lookup.HoldingHolder) == 0 {
 		return errNoHoldings
 	}
-	for i := len(lookup.HoldingsSnapshots) - 1; i >= 0; i-- {
-		if lookup.HoldingsSnapshots[i].Offset == h.Offset {
+	for i := len(lookup.HoldingHolder) - 1; i >= 0; i-- {
+		if lookup.HoldingHolder[i].Offset == h.Offset {
 			if overwriteExisting {
-				lookup.HoldingsSnapshots[i] = *h
+				lookup.HoldingHolder[i] = *h
 				return nil
 			}
 			return errHoldingsAlreadySet
@@ -379,25 +380,25 @@ func (p *Portfolio) setHoldingsForOffset(exch string, a asset.Item, cp currency.
 		return fmt.Errorf("%w at %v", errNoHoldings, h.Timestamp)
 	}
 
-	lookup.HoldingsSnapshots = append(lookup.HoldingsSnapshots, *h)
+	lookup.HoldingHolder = append(lookup.HoldingHolder, *h)
 	return nil
 }
 
 // ViewHoldingAtTimePeriod retrieves a snapshot of holdings at a specific time period,
 // returning empty when not found
-func (p *Portfolio) ViewHoldingAtTimePeriod(exch string, a asset.Item, cp currency.Pair, t time.Time) (holdings.Holding, error) {
+func (p *Portfolio) ViewHoldingAtTimePeriod(exch string, a asset.Item, cp currency.Pair, t time.Time) (holdings2.Holding, error) {
 	exchangeAssetPairSettings := p.exchangeAssetPairSettings[exch][a][cp]
 	if exchangeAssetPairSettings == nil {
-		return holdings.Holding{}, fmt.Errorf("%w for %v %v %v", errNoHoldings, exch, a, cp)
+		return holdings2.Holding{}, fmt.Errorf("%w for %v %v %v", errNoHoldings, exch, a, cp)
 	}
 
-	for i := len(exchangeAssetPairSettings.HoldingsSnapshots) - 1; i >= 0; i-- {
-		if t.Equal(exchangeAssetPairSettings.HoldingsSnapshots[i].Timestamp) {
-			return exchangeAssetPairSettings.HoldingsSnapshots[i], nil
+	for i := len(exchangeAssetPairSettings.HoldingHolder) - 1; i >= 0; i-- {
+		if t.Equal(exchangeAssetPairSettings.HoldingHolder[i].Timestamp) {
+			return exchangeAssetPairSettings.HoldingHolder[i], nil
 		}
 	}
 
-	return holdings.Holding{}, fmt.Errorf("%w for %v %v %v at %v", errNoHoldings, exch, a, cp, t)
+	return holdings2.Holding{}, fmt.Errorf("%w for %v %v %v at %v", errNoHoldings, exch, a, cp, t)
 }
 
 // SetupCurrencySettingsMap ensures a map is created and no panics happen

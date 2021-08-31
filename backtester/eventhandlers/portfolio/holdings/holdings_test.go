@@ -22,22 +22,22 @@ const (
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
-	_, err := Create(nil, -1, riskFreeRate)
+	_, err := CreatePairHolding(nil, -1, riskFreeRate)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", ErrInitialFundsZero, err)
 	}
 
-	_, err = Create(&fill.Fill{}, -1, riskFreeRate)
+	_, err = CreatePairHolding(&fill.Fill{}, -1, riskFreeRate)
 	if !errors.Is(err, ErrInitialFundsZero) {
 		t.Errorf("expected: %v, received %v", ErrInitialFundsZero, err)
 	}
 
-	_, err = Create(nil, 1, riskFreeRate)
+	_, err = CreatePairHolding(nil, 1, riskFreeRate)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
 
-	h, err := Create(&fill.Fill{}, 1, riskFreeRate)
+	h, err := CreatePairHolding(&fill.Fill{}, 1, riskFreeRate)
 	if err != nil {
 		t.Error(err)
 	}
@@ -48,7 +48,7 @@ func TestCreate(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	t.Parallel()
-	h, err := Create(&fill.Fill{}, 1, riskFreeRate)
+	h, err := CreatePairHolding(&fill.Fill{}, 1, riskFreeRate)
 	if err != nil {
 		t.Error(err)
 	}
@@ -65,7 +65,7 @@ func TestUpdate(t *testing.T) {
 
 func TestUpdateValue(t *testing.T) {
 	t.Parallel()
-	h, err := Create(&fill.Fill{}, 1, riskFreeRate)
+	h, err := CreatePairHolding(&fill.Fill{}, 1, riskFreeRate)
 	if err != nil {
 		t.Error(err)
 	}
@@ -80,7 +80,7 @@ func TestUpdateValue(t *testing.T) {
 
 func TestUpdateBuyStats(t *testing.T) {
 	t.Parallel()
-	h, err := Create(&fill.Fill{}, 1000, riskFreeRate)
+	h, err := CreatePairHolding(&fill.Fill{}, 1000, riskFreeRate)
 	if err != nil {
 		t.Error(err)
 	}
@@ -213,7 +213,7 @@ func TestUpdateBuyStats(t *testing.T) {
 
 func TestUpdateSellStats(t *testing.T) {
 	t.Parallel()
-	h, err := Create(&fill.Fill{}, 1000, riskFreeRate)
+	h, err := CreatePairHolding(&fill.Fill{}, 1000, riskFreeRate)
 	if err != nil {
 		t.Error(err)
 	}

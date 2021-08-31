@@ -3,14 +3,12 @@ package funding
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -34,37 +32,6 @@ func (f *FundManager) Reset() {
 }
 
 // CreateSnapshot makes a funding based snapshot in time to help demonstrate
-// how fundings have been used and increased over time
-func (f *FundManager) CreateSnapshot() error {
-	for i := range f.items {
-		snap := snappy{
-			Offset:                       0,
-			Item:                         *f.items[i],
-			Timestamp:                    time.Time{},
-			PositionsSize:                decimal.Decimal{},
-			PositionsValue:               decimal.Decimal{},
-			SoldAmount:                   decimal.Decimal{},
-			SoldValue:                    decimal.Decimal{},
-			BoughtAmount:                 decimal.Decimal{},
-			BoughtValue:                  decimal.Decimal{},
-			RemainingFunds:               decimal.Decimal{},
-			CommittedFunds:               decimal.Decimal{},
-			TotalValueDifference:         decimal.Decimal{},
-			ChangeInTotalValuePercent:    decimal.Decimal{},
-			BoughtValueDifference:        decimal.Decimal{},
-			SoldValueDifference:          decimal.Decimal{},
-			PositionsValueDifference:     decimal.Decimal{},
-			TotalValue:                   decimal.Decimal{},
-			TotalFees:                    decimal.Decimal{},
-			TotalValueLostToVolumeSizing: decimal.Decimal{},
-			TotalValueLostToSlippage:     decimal.Decimal{},
-			TotalValueLost:               decimal.Decimal{},
-			RiskFreeRate:                 decimal.Decimal{},
-		}
-		log.Debugf(log.BackTester, "%v", snap)
-	}
-	return nil
-}
 
 // Transfer allows transferring funds from one pretend exchange to another
 func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item) error {

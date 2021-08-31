@@ -12,12 +12,31 @@ import (
 // ErrInitialFundsZero is an error when initial funds are zero or less
 var ErrInitialFundsZero = errors.New("initial funds < 0")
 
+// the concept of a holding here doesn't work in the context of item funding
+// we cannot track order fees along with bought and sold amounts via the way its been changed
+// portfolio snapshotting needs to be more nuanced?
+//
+/*
+type Holding struct {
+Offset         int64
+	Item           currency.Code
+	Asset          asset.Item      `json:"asset"`
+	Exchange       string          `json:"exchange"`
+	Timestamp      time.Time       `json:"timestamp"`
+	InitialFunds   decimal.Decimal `json:"initial-funds"`
+	AvailableFunds decimal.Decimal
+	PurchasedAmount decimal.Decimal
+	SoldAmount decimal.Decimal
+
+
+*/
+
 // Holding contains pricing statistics for a given time
 // for a given exchange asset pair
 type Holding struct {
 	Offset         int64
 	Item           currency.Code
-	Pair           currency.Pair   `json:"pair"`
+	Pair           currency.Pair
 	Asset          asset.Item      `json:"asset"`
 	Exchange       string          `json:"exchange"`
 	Timestamp      time.Time       `json:"timestamp"`

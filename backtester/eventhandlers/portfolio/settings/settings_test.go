@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/funding/holdings"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 )
 
 func TestGetLatestHoldings(t *testing.T) {
@@ -15,7 +15,7 @@ func TestGetLatestHoldings(t *testing.T) {
 		t.Error("expected zero time")
 	}
 	tt := time.Now()
-	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots, holdings.Holding{Timestamp: tt})
+	cs.HoldingHolder = append(cs.HoldingHolder, holdings.Holding{Timestamp: tt})
 
 	h = cs.GetLatestHoldings()
 	if !h.Timestamp.Equal(tt) {
@@ -30,7 +30,7 @@ func TestValue(t *testing.T) {
 	if v != 0 {
 		t.Error("expected 0")
 	}
-	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots, holdings.Holding{TotalValue: 1337})
+	cs.HoldingHolder = append(cs.HoldingHolder, holdings.Holding{TotalValue: 1337})
 
 	v = cs.Value()
 	if v != 1337 {
