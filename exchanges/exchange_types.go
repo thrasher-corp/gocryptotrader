@@ -235,7 +235,8 @@ type Base struct {
 
 // url lookup consts
 const (
-	RestSpot URL = iota + 1
+	Invalid URL = iota
+	RestSpot
 	RestSpotSupplementary
 	RestUSDTMargined
 	RestCoinMargined
@@ -248,6 +249,20 @@ const (
 	EdgeCase1
 	EdgeCase2
 	EdgeCase3
+
+	restSpotURL                   = "RestSpotURL"
+	restSpotSupplementaryURL      = "RestSpotSupplementaryURL"
+	restUSDTMarginedFuturesURL    = "RestUSDTMarginedFuturesURL"
+	restCoinMarginedFuturesURL    = "RestCoinMarginedFuturesURL"
+	restFuturesURL                = "RestFuturesURL"
+	restSandboxURL                = "RestSandboxURL"
+	restSwapURL                   = "RestSwapURL"
+	websocketSpotURL              = "WebsocketSpotURL"
+	websocketSpotSupplementaryURL = "WebsocketSpotSupplementaryURL"
+	chainAnalysisURL              = "ChainAnalysisURL"
+	edgeCase1URL                  = "EdgeCase1URL"
+	edgeCase2URL                  = "EdgeCase2URL"
+	edgeCase3URL                  = "EdgeCase3URL"
 )
 
 var keyURLs = []URL{RestSpot,

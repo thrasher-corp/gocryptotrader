@@ -2433,6 +2433,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run(tt.Endpoint, func(t *testing.T) {
+			t.Parallel()
 			u, err := getURLTypeFromString(tt.Endpoint)
 			if !errors.Is(err, tt.Error) {
 				t.Fatalf("received: %v but expected: %v", err, tt.Error)

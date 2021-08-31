@@ -1289,31 +1289,31 @@ func (b *Base) FormatSymbol(pair currency.Pair, assetType asset.Item) (string, e
 func (u URL) String() string {
 	switch u {
 	case RestSpot:
-		return "RestSpotURL"
+		return restSpotURL
 	case RestSpotSupplementary:
-		return "RestSpotSupplementaryURL"
+		return restSpotSupplementaryURL
 	case RestUSDTMargined:
-		return "RestUSDTMarginedFuturesURL"
+		return restUSDTMarginedFuturesURL
 	case RestCoinMargined:
-		return "RestCoinMarginedFuturesURL"
+		return restCoinMarginedFuturesURL
 	case RestFutures:
-		return "RestFuturesURL"
+		return restFuturesURL
 	case RestSandbox:
-		return "RestSandboxURL"
+		return restSandboxURL
 	case RestSwap:
-		return "RestSwapURL"
+		return restSwapURL
 	case WebsocketSpot:
-		return "WebsocketSpotURL"
+		return websocketSpotURL
 	case WebsocketSpotSupplementary:
-		return "WebsocketSpotSupplementaryURL"
+		return websocketSpotSupplementaryURL
 	case ChainAnalysis:
-		return "ChainAnalysisURL"
+		return chainAnalysisURL
 	case EdgeCase1:
-		return "EdgeCase1URL"
+		return edgeCase1URL
 	case EdgeCase2:
-		return "EdgeCase2URL"
+		return edgeCase2URL
 	case EdgeCase3:
-		return "EdgeCase3URL"
+		return edgeCase3URL
 	default:
 		return ""
 	}
@@ -1322,34 +1322,34 @@ func (u URL) String() string {
 // getURLTypeFromString returns URL type from the endpoint string association
 func getURLTypeFromString(ep string) (URL, error) {
 	switch ep {
-	case "RestSpotURL":
+	case restSpotURL:
 		return RestSpot, nil
-	case "RestSpotSupplementaryURL":
+	case restSpotSupplementaryURL:
 		return RestSpotSupplementary, nil
-	case "RestUSDTMarginedFuturesURL":
+	case restUSDTMarginedFuturesURL:
 		return RestUSDTMargined, nil
-	case "RestCoinMarginedFuturesURL":
+	case restCoinMarginedFuturesURL:
 		return RestCoinMargined, nil
-	case "RestFuturesURL":
+	case restFuturesURL:
 		return RestFutures, nil
-	case "RestSandboxURL":
+	case restSandboxURL:
 		return RestSandbox, nil
-	case "RestSwapURL":
+	case restSwapURL:
 		return RestSwap, nil
-	case "WebsocketSpotURL":
+	case websocketSpotURL:
 		return WebsocketSpot, nil
-	case "WebsocketSpotSupplementaryURL":
+	case websocketSpotSupplementaryURL:
 		return WebsocketSpotSupplementary, nil
-	case "ChainAnalysisURL":
+	case chainAnalysisURL:
 		return ChainAnalysis, nil
-	case "EdgeCase1URL":
+	case edgeCase1URL:
 		return EdgeCase1, nil
-	case "EdgeCase2URL":
+	case edgeCase2URL:
 		return EdgeCase2, nil
-	case "EdgeCase3URL":
+	case edgeCase3URL:
 		return EdgeCase3, nil
 	default:
-		return 0, fmt.Errorf("%w for %s", errEndpointStringNotFound, ep)
+		return Invalid, fmt.Errorf("%w for %s", errEndpointStringNotFound, ep)
 	}
 }
 
