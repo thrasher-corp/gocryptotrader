@@ -3,7 +3,6 @@ package bybit
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -14,10 +13,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -226,83 +226,82 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 
 	switch result["topic"] {
 	case wsOrderbook:
-		var p currency.Pair
-		var a asset.Item
-		market, ok := result["market"]
-		if ok {
-			p, err = currency.NewPairFromString(market.(string))
-			if err != nil {
-				return err
-			}
-			a, err = by.GetPairAssetType(p)
-			if err != nil {
-				return err
-			}
-		}
-
-		var resultData WsOrderbook
-		err = json.Unmarshal(respRaw, &resultData)
+		var data WsOrderbook
+		err := json.Unmarshal(respRaw, &data)
 		if err != nil {
 			return err
 		}
-		if len(resultData.OBData.Asks) == 0 && len(resultData.OBData.Bids) == 0 {
-			return nil
-		}
-		err = by.WsProcessUpdateOB(&resultData.OBData, p, a)
+		p, err := currency.NewPairFromString(data.OBData.Symbol)
 		if err != nil {
-			err2 := by.wsResubToOB(p)
-			if err2 != nil {
-				by.Websocket.DataHandler <- err2
-			}
+			return err
+		}
+
+		a, err := by.GetPairAssetType(p)
+		if err != nil {
+			return err
+		}
+
+		err = by.wsUpdateOrderbook(data.OBData, p, a)
+		if err != nil {
 			return err
 		}
 	case wsTrades:
-		switch result["channel"] {
-		case "orderbook":
-			var p currency.Pair
-			var a asset.Item
-			market, ok := result["market"]
-			if ok {
-				p, err = currency.NewPairFromString(market.(string))
-				if err != nil {
-					return err
-				}
-				a, err = by.GetPairAssetType(p)
-				if err != nil {
-					return err
-				}
-			}
-			var resultData WsOrderbook
-			err = json.Unmarshal(respRaw, &resultData)
-			if err != nil {
-				return err
-			}
-			err = by.WsProcessPartialOB(&resultData.OBData, p, a)
-			if err != nil {
-				err2 := by.wsResubToOB(p)
-				if err2 != nil {
-					by.Websocket.DataHandler <- err2
-				}
-				return err
-			}
-			// reset obchecksum failure blockage for pair
-			delete(obSuccess, p)
-		case wsMarkets:
-			// TODO
+		if !by.IsSaveTradeDataEnabled() {
+			return nil
 		}
-	case wsTicker:
-		var resultData WsTicker
-		err = json.Unmarshal(respRaw, &resultData)
+		var data WsTrade
+		err := json.Unmarshal(respRaw, &data)
 		if err != nil {
 			return err
 		}
+
+		p, err := currency.NewPairFromString(data.Parameters.Symbol)
+		if err != nil {
+			return err
+		}
+
+		side := order.Sell
+		if data.TradeData.Side {
+			side = order.Buy
+		}
+		var a asset.Item
+		a, err = by.GetPairAssetType(p)
+		if err != nil {
+			return err
+		}
+		return trade.AddTradesToBuffer(by.Name, trade.Data{
+			Timestamp:    time.Unix(data.TradeData.Time, 0),
+			CurrencyPair: p,
+			AssetType:    a,
+			Exchange:     by.Name,
+			Price:        data.TradeData.Price,
+			Amount:       data.TradeData.Size,
+			Side:         side,
+			TID:          data.TradeData.ID,
+		})
+	case wsTicker:
+		var data WsTicker
+		err := json.Unmarshal(respRaw, &data)
+		if err != nil {
+			return err
+		}
+
+		p, err := currency.NewPairFromString(data.Ticker.Symbol)
+		if err != nil {
+			return err
+		}
+
 		by.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: by.Name,
-			Bid:          resultData.Ticker.Bid,
-			Ask:          resultData.Ticker.Ask,
-			LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
-			Pair:         p,
-			AssetType:    a,
+			//			Volume:       data.Ticker,
+			//			High:         data.Ticker.High24,
+			//			Low:          data.Low24h,
+			Bid: data.Ticker.Bid,
+			Ask: data.Ticker.Ask,
+			//			Last:        data.Last,
+			LastUpdated: time.Unix(data.Ticker.Time, 0),
+			AssetType:   asset.Spot,
+			Pair:        p,
 		}
 	case wsMarkets:
 	default:
@@ -311,77 +310,45 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-// WsProcessUpdateOB processes an update on the orderbook
-func (by *Bybit) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
-	update := buffer.Update{
-		Asset:      a,
-		Pair:       p,
-		UpdateTime: timestampFromFloat64(data.Time),
+func (by *Bybit) wsUpdateOrderbook(update WsOrderbookData, p currency.Pair, assetType asset.Item) error {
+	if len(update.Asks) == 0 && len(update.Bids) == 0 {
+		return errors.New("no orderbook data")
 	}
+	var asks, bids []orderbook.Item
+	for i := range update.Asks {
+		target, err := strconv.ParseFloat(update.Asks[i][0], 64)
+		if err != nil {
+			by.Websocket.DataHandler <- err
+			continue
+		}
+		amount, err := strconv.ParseFloat(update.Asks[i][1], 64)
+		if err != nil {
+			by.Websocket.DataHandler <- err
+			continue
+		}
+		asks = append(asks, orderbook.Item{Price: target, Amount: amount})
+	}
+	for i := range update.Bids {
+		target, err := strconv.ParseFloat(update.Bids[i][0], 64)
+		if err != nil {
+			by.Websocket.DataHandler <- err
+			continue
+		}
+		amount, err := strconv.ParseFloat(update.Bids[i][1], 64)
+		if err != nil {
+			by.Websocket.DataHandler <- err
+			continue
+		}
 
-	var err error
-	for x := range data.Bids {
-		update.Bids = append(update.Bids, orderbook.Item{
-			Price:  data.Bids[x][0],
-			Amount: data.Bids[x][1],
-		})
+		bids = append(bids, orderbook.Item{Price: target, Amount: amount})
 	}
-	for x := range data.Asks {
-		update.Asks = append(update.Asks, orderbook.Item{
-			Price:  data.Asks[x][0],
-			Amount: data.Asks[x][1],
-		})
-	}
-
-	err = by.Websocket.Orderbook.Update(&update)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (by *Bybit) wsResubToOB(p currency.Pair) error {
-	if ok := obSuccess[p]; ok {
-		return nil
-	}
-
-	obSuccess[p] = true
-
-	channelToResubscribe := &stream.ChannelSubscription{
-		Channel:  wsOrderbook,
-		Currency: p,
-	}
-	err := by.Websocket.ResubscribeToChannel(channelToResubscribe)
-	if err != nil {
-		return fmt.Errorf("%s resubscribe to orderbook failure %s", by.Name, err)
-	}
-	return nil
-}
-
-// WsProcessPartialOB creates an OB from websocket data
-func (by *Bybit) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
-	var bids, asks []orderbook.Item
-	for x := range data.Bids {
-		bids = append(bids, orderbook.Item{
-			Price:  data.Bids[x][0],
-			Amount: data.Bids[x][1],
-		})
-	}
-	for x := range data.Asks {
-		asks = append(asks, orderbook.Item{
-			Price:  data.Asks[x][0],
-			Amount: data.Asks[x][1],
-		})
-	}
-
-	newOrderBook := orderbook.Base{
-		Asks:            asks,
+	return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 		Bids:            bids,
-		Asset:           a,
-		LastUpdated:     timestampFromFloat64(data.Time),
+		Asks:            asks,
 		Pair:            p,
+		LastUpdated:     time.Unix(update.Time, 0),
+		Asset:           assetType,
 		Exchange:        by.Name,
 		VerifyOrderbook: by.CanVerifyOrderbook,
-	}
-	return by.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	})
 }

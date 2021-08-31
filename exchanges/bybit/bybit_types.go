@@ -252,7 +252,7 @@ type WsTickerData struct {
 	Ask     float64 `json:"askPrice"`
 	BidSize float64 `json:"bidQty"`
 	AskSize float64 `json:"askQty"`
-	Time    float64 `json:"time"`
+	Time    int64   `json:"time"`
 }
 
 // WsTicker stores ws ticker data
@@ -264,11 +264,11 @@ type WsTicker struct {
 
 // WsOrderbookData stores ws orderbook data
 type WsOrderbookData struct {
-	Symbol  string       `json:"s"`
-	Time    float64      `json:"t"`
-	Version string       `json:"v"`
-	Bids    [][2]float64 `json:"b"`
-	Asks    [][2]float64 `json:"a"`
+	Symbol  string      `json:"s"`
+	Time    int64       `json:"t"`
+	Version string      `json:"v"`
+	Bids    [][2]string `json:"b"`
+	Asks    [][2]string `json:"a"`
 }
 
 // WsOrderbookData stores ws orderbook data
@@ -280,7 +280,7 @@ type WsOrderbook struct {
 
 // WsTradeData stores ws trade data
 type WsTradeData struct {
-	Time  float64 `json:"t"`
+	Time  int64   `json:"t"`
 	ID    string  `json:"v"`
 	Price float64 `json:"p"`
 	Size  float64 `json:"q"`
@@ -289,7 +289,7 @@ type WsTradeData struct {
 
 // WsTrade stores ws trades data
 type WsTrade struct {
-	Topic      string        `json:"topic"`
-	Parameters WsParams      `json:"params"`
-	TradeData  []WsTradeData `json:"data"`
+	Topic      string      `json:"topic"`
+	Parameters WsParams    `json:"params"`
+	TradeData  WsTradeData `json:"data"`
 }
