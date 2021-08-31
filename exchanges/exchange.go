@@ -37,8 +37,12 @@ const (
 	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
-// ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
-var ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
+var (
+	// ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
+	ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
+
+	errEndpointStringNotFound = errors.New("endpoint string not found")
+)
 
 func (b *Base) checkAndInitRequester() {
 	if b.Requester == nil {
@@ -833,7 +837,39 @@ func (b *Base) SetAPIURL() error {
 				val == config.WebsocketURLNonDefaultMessage {
 				continue
 			}
+
+			var u URL
+			u, err = getURLTypeFromString(key)
+			if err != nil {
+				return err
+			}
+
+			var defaultURL string
+			defaultURL, err = b.API.Endpoints.GetURL(u)
+			if err != nil {
+				log.Warnf(
+					log.ExchangeSys,
+					"%s: Config cannot match with default endpoint URL: [%s] with key: [%s], please remove or update core support endpoints.",
+					b.Name,
+					val,
+					u)
+				continue
+			}
+
+			if defaultURL == val {
+				continue
+			}
+
+			log.Warnf(
+				log.ExchangeSys,
+				"%s: Config is overwriting default endpoint URL values from: [%s] to: [%s] for: [%s]",
+				b.Name,
+				defaultURL,
+				val,
+				u)
+
 			checkInsecureEndpoint(val)
+
 			err = b.API.Endpoints.SetRunning(key, val)
 			if err != nil {
 				return err
@@ -1271,6 +1307,40 @@ func (u URL) String() string {
 		return "EdgeCase3URL"
 	default:
 		return ""
+	}
+}
+
+// getURLTypeFromString returns URL type from the endpoint string association
+func getURLTypeFromString(ep string) (URL, error) {
+	switch ep {
+	case "RestSpotURL":
+		return RestSpot, nil
+	case "RestSpotSupplementaryURL":
+		return RestSpotSupplementary, nil
+	case "RestUSDTMarginedFuturesURL":
+		return RestUSDTMargined, nil
+	case "RestCoinMarginedFuturesURL":
+		return RestCoinMargined, nil
+	case "RestFuturesURL":
+		return RestFutures, nil
+	case "RestSandboxURL":
+		return RestSandbox, nil
+	case "RestSwapURL":
+		return RestSwap, nil
+	case "WebsocketSpotURL":
+		return WebsocketSpot, nil
+	case "WebsocketSpotSupplementaryURL":
+		return WebsocketSpotSupplementary, nil
+	case "ChainAnalysisURL":
+		return ChainAnalysis, nil
+	case "EdgeCase1URL":
+		return EdgeCase1, nil
+	case "EdgeCase2URL":
+		return EdgeCase2, nil
+	case "EdgeCase3URL":
+		return EdgeCase3, nil
+	default:
+		return 0, fmt.Errorf("%w for %s", errEndpointStringNotFound, ep)
 	}
 }
 

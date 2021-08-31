@@ -235,7 +235,7 @@ type Base struct {
 
 // url lookup consts
 const (
-	RestSpot URL = iota
+	RestSpot URL = iota + 1
 	RestSpotSupplementary
 	RestUSDTMargined
 	RestCoinMargined
