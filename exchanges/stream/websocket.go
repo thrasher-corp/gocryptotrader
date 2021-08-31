@@ -229,7 +229,7 @@ func (w *Websocket) Connect() error {
 
 // Disable disables the exchange websocket protocol
 func (w *Websocket) Disable() error {
-	if !w.IsConnected() || !w.IsEnabled() {
+	if !w.IsEnabled() {
 		return fmt.Errorf("websocket is already disabled for exchange %s",
 			w.exchangeName)
 	}
