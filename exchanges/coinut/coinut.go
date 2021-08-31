@@ -44,10 +44,7 @@ const (
 	wsRateLimitInMilliseconds = 33
 )
 
-var (
-	errLookupInstrumentID       = errors.New("unable to lookup instrument ID")
-	errLookupInstrumentCurrency = errors.New("unable to lookup instrument")
-)
+var errLookupInstrumentID = errors.New("unable to lookup instrument ID")
 
 // COINUT is the overarching type across the coinut package
 type COINUT struct {
@@ -174,11 +171,6 @@ func (c *COINUT) CancelExistingOrder(instrumentID, orderID int64) (bool, error) 
 func (c *COINUT) CancelOrders(orders []CancelOrders) (CancelOrdersResponse, error) {
 	var result CancelOrdersResponse
 	params := make(map[string]interface{})
-	type Request struct {
-		InstrumentID int `json:"inst_id"`
-		OrderID      int `json:"order_id"`
-	}
-
 	var entries []CancelOrders
 	entries = append(entries, orders...)
 	params["entries"] = entries
@@ -288,7 +280,13 @@ func (c *COINUT) SendHTTPRequest(ep exchange.URL, apiRequest string, params map[
 		headers := make(map[string]string)
 		if authenticated {
 			headers["X-USER"] = c.API.Credentials.ClientID
-			hmac := crypto.GetHMAC(crypto.HashSHA256, payload, []byte(c.API.Credentials.Key))
+			var hmac []byte
+			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
+				payload,
+				[]byte(c.API.Credentials.Key))
+			if err != nil {
+				return nil, err
+			}
 			headers["X-SIGNATURE"] = crypto.HexEncodeToString(hmac)
 		}
 		headers["Content-Type"] = "application/json"

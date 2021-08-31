@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -90,6 +91,19 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = k.UpdateTicker(fp, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := k.UpdateTickers(asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = k.UpdateTickers(asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -683,7 +697,10 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	var feeBuilder = setFeeBuilder()
-	k.GetFeeByType(feeBuilder)
+	_, err := k.GetFeeByType(feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
@@ -1123,7 +1140,12 @@ func setupWsTests(t *testing.T) {
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 	go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
 	go k.wsReadData(comms)
-	go k.wsPingHandler()
+	go func() {
+		err := k.wsPingHandler()
+		if err != nil {
+			fmt.Println("error:", err)
+		}
+	}()
 	wsSetupRan = true
 }
 

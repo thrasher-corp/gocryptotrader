@@ -297,8 +297,11 @@ func TestSign(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 	l.API.Credentials.Secret = testAPISecret
-	l.loadPrivKey()
-	_, err := l.sign("hello123")
+	err := l.loadPrivKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.sign("hello123")
 	if err != nil {
 		t.Error(err)
 	}
@@ -509,6 +512,26 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 	// longer term
 	_, err = l.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*60*200), time.Now().Add(-time.Minute*60*199))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("eth_btc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := l.UpdateTickers(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

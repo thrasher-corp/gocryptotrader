@@ -866,9 +866,12 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 		values.Set("nonce", strconv.FormatInt(time.Now().UnixNano(), 10))
 		values.Set("command", endpoint)
 
-		hmac := crypto.GetHMAC(crypto.HashSHA512,
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(values.Encode()),
 			[]byte(p.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
 		headers["Sign"] = crypto.HexEncodeToString(hmac)
 
 		path := fmt.Sprintf("%s/%s", ePoint, poloniexAPITradingEndpoint)

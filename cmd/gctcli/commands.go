@@ -291,10 +291,6 @@ func enableExchange(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -341,10 +337,6 @@ func disableExchange(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -389,10 +381,6 @@ func getExchangeOTPCode(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
-	}
-
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
 	}
 
 	conn, err := setupClient()
@@ -466,10 +454,6 @@ func getExchangeInfo(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -525,10 +509,6 @@ func getTicker(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
-	}
-
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("pair") {
@@ -643,10 +623,6 @@ func getOrderbook(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
 	} else {
@@ -758,10 +734,6 @@ func getAccountInfo(c *cli.Context) error {
 		assetType = c.Args().Get(1)
 	}
 
-	if !validExchange(exchange) {
-		return errInvalidExchange
-	}
-
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
@@ -822,10 +794,6 @@ func getAccountInfoStream(c *cli.Context) error {
 		assetType = c.String("asset")
 	} else {
 		assetType = c.Args().Get(1)
-	}
-
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
 	}
 
 	if !validAsset(assetType) {
@@ -896,10 +864,6 @@ func updateAccountInfo(c *cli.Context) error {
 		assetType = c.String("asset")
 	} else {
 		assetType = c.Args().Get(1)
-	}
-
-	if !validExchange(exchange) {
-		return errInvalidExchange
 	}
 
 	if !validAsset(assetType) {
@@ -1274,10 +1238,6 @@ func getOrders(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
 	} else {
@@ -1392,10 +1352,6 @@ func getManagedOrders(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
 	} else {
@@ -1487,10 +1443,6 @@ func getOrder(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
 	} else {
@@ -1605,10 +1557,6 @@ func submitOrder(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
-	}
-
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("pair") {
@@ -1758,10 +1706,6 @@ func simulateOrder(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
 	} else {
@@ -1865,10 +1809,6 @@ func whaleBomb(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
-	}
-
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("pair") {
@@ -1985,10 +1925,6 @@ func cancelOrder(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
-	}
-
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("account_id") {
@@ -2133,10 +2069,6 @@ func cancelBatchOrders(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("account_id") {
 		accountID = c.String("account_id")
 	} else {
@@ -2277,13 +2209,6 @@ func cancelAllOrders(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	// exchange name is an optional param
-	if exchangeName != "" {
-		if !validExchange(exchangeName) {
-			return errInvalidExchange
-		}
-	}
-
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -2317,9 +2242,6 @@ func modifyOrder(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
-	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("asset") {
@@ -2488,10 +2410,6 @@ func addEvent(c *cli.Context) error {
 		return fmt.Errorf("exchange name is required")
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("item") {
 		item = c.String("item")
 	} else {
@@ -2658,10 +2576,6 @@ func getCryptocurrencyDepositAddresses(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -2708,10 +2622,6 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
-	}
-
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("cryptocurrency") {
@@ -2794,10 +2704,6 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 		exchange = c.String("exchange")
 	} else if c.Args().Get(0) != "" {
 		exchange = c.Args().Get(0)
-	}
-
-	if !validExchange(exchange) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("currency") {
@@ -2909,10 +2815,6 @@ func withdrawFiatFunds(c *cli.Context) error {
 		exchange = c.String("exchange")
 	} else if c.Args().Get(0) != "" {
 		exchange = c.Args().Get(0)
-	}
-
-	if !validExchange(exchange) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("currency") {
@@ -3051,8 +2953,7 @@ var withdrawalRequestCommand = &cli.Command{
 
 func withdrawlRequestByID(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var ID string
@@ -3088,8 +2989,7 @@ func withdrawlRequestByID(c *cli.Context) error {
 
 func withdrawlRequestByExchangeID(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange, currency string
@@ -3156,8 +3056,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 
 func withdrawlRequestByDate(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
@@ -3380,10 +3279,6 @@ func getOrderbookStream(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("pair") {
 		pair = c.String("pair")
 	} else {
@@ -3516,10 +3411,6 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -3587,10 +3478,6 @@ func getTickerStream(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
-	}
-
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("pair") {
@@ -3693,10 +3580,6 @@ func getExchangeTickerStream(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
-	}
-
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
 	}
 
 	conn, err := setupClient()
@@ -3956,8 +3839,7 @@ var gctScriptCommand = &cli.Command{
 
 func gctScriptAutoload(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var command, script string
@@ -3980,8 +3862,7 @@ func gctScriptAutoload(c *cli.Context) error {
 	case "remove":
 		status = true
 	default:
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	conn, err := setupClient()
@@ -4007,8 +3888,7 @@ func gctScriptAutoload(c *cli.Context) error {
 
 func gctScriptExecute(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if !c.IsSet("filename") {
@@ -4087,8 +3967,7 @@ func gctScriptList(c *cli.Context) error {
 
 func gctScriptStop(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if !c.IsSet("uuid") {
@@ -4138,8 +4017,7 @@ func gctScriptStopAll(c *cli.Context) error {
 
 func gctScriptRead(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if !c.IsSet("name") {
@@ -4172,8 +4050,7 @@ func gctScriptRead(c *cli.Context) error {
 
 func gctScriptQuery(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if !c.IsSet("uuid") {
@@ -4207,8 +4084,7 @@ func gctScriptQuery(c *cli.Context) error {
 
 func gctScriptUpload(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var overwrite bool
@@ -4330,10 +4206,6 @@ func getHistoricCandles(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
@@ -4489,10 +4361,6 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
@@ -4668,10 +4536,6 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")

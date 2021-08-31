@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -218,7 +219,7 @@ func (b *Binance) UKlineData(symbol currency.Pair, interval string, limit int64,
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(uValidPeriods, interval) {
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
 		return resp, errors.New("invalid interval")
 	}
 	params.Set("interval", interval)
@@ -229,8 +230,8 @@ func (b *Binance) UKlineData(symbol currency.Pair, interval string, limit int64,
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", timeString(startTime))
+		params.Set("endTime", timeString(endTime))
 	}
 	rateBudget := uFuturesDefaultRate
 	switch {
@@ -256,7 +257,10 @@ func (b *Binance) UKlineData(symbol currency.Pair, interval string, limit int64,
 		if !ok {
 			return resp, errors.New("type assertion failed for opentime")
 		}
-		tempData.OpenTime = time.Unix(int64(floatData), 0)
+		tempData.OpenTime, err = convert.TimeFromUnixTimestampFloat(floatData)
+		if err != nil {
+			return resp, err
+		}
 		strData, ok = data[x][1].(string)
 		if !ok {
 			return resp, errors.New("type assertion failed for open")
@@ -306,7 +310,10 @@ func (b *Binance) UKlineData(symbol currency.Pair, interval string, limit int64,
 		if !ok {
 			return resp, errors.New("type assertion failed for close time")
 		}
-		tempData.CloseTime = time.Unix(int64(floatData), 0)
+		tempData.CloseTime, err = convert.TimeFromUnixTimestampFloat(floatData)
+		if err != nil {
+			return resp, err
+		}
 		strData, ok = data[x][7].(string)
 		if !ok {
 			return resp, errors.New("type assertion failed base asset volume")

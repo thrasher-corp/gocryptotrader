@@ -539,9 +539,7 @@ func (s *Storage) SetupCryptoProvider(settings coinmarketcap.Settings) error {
 
 	s.currencyAnalysis = new(coinmarketcap.Coinmarketcap)
 	s.currencyAnalysis.SetDefaults()
-	s.currencyAnalysis.Setup(settings)
-
-	return nil
+	return s.currencyAnalysis.Setup(settings)
 }
 
 // GetTotalMarketCryptocurrencies returns the total seeded market

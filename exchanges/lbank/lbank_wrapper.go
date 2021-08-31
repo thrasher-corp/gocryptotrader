@@ -188,15 +188,15 @@ func (l *Lbank) UpdateTradablePairs(forceUpdate bool) error {
 	return l.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (l *Lbank) UpdateTickers(a asset.Item) error {
 	tickerInfo, err := l.GetTickers()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	pairs, err := l.GetEnabledPairs(assetType)
+	pairs, err := l.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for i := range pairs {
 		for j := range tickerInfo {
@@ -212,13 +212,22 @@ func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 				Pair:         tickerInfo[j].Symbol,
 				LastUpdated:  time.Unix(0, tickerInfo[j].Timestamp),
 				ExchangeName: l.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-	return ticker.GetTicker(l.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (l *Lbank) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := l.UpdateTickers(a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(l.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

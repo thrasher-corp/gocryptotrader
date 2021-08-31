@@ -1,11 +1,8 @@
 package btcmarkets
 
 import (
-	"errors"
 	"time"
 )
-
-var errInvalidTimeInterval = errors.New("invalid time interval")
 
 // Market holds a tradable market instrument
 type Market struct {

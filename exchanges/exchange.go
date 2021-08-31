@@ -42,6 +42,7 @@ var (
 	ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
 
 	errEndpointStringNotFound = errors.New("endpoint string not found")
+	errTransportNotSet        = errors.New("transport not set, cannot set timeout")
 )
 
 func (b *Base) checkAndInitRequester() {
@@ -58,7 +59,7 @@ func (b *Base) SetHTTPClientTimeout(t time.Duration) error {
 	b.Requester.HTTPClient.Timeout = t
 	tr, ok := b.Requester.HTTPClient.Transport.(*http.Transport)
 	if !ok {
-		return errors.New("transport not set, cannot set timeout")
+		return errTransportNotSet
 	}
 	tr.IdleConnTimeout = t
 	return nil
@@ -298,6 +299,7 @@ func (b *Base) SetConfigPairs() error {
 				"%s exchange asset type %s unsupported, please manually remove from configuration",
 				b.Name,
 				assetTypes[x])
+			continue // If there are unsupported assets contained in config, skip.
 		}
 		cfgPS, err := b.Config.CurrencyPairs.Get(assetTypes[x])
 		if err != nil {
@@ -308,7 +310,14 @@ func (b *Base) SetConfigPairs() error {
 		if b.Config.CurrencyPairs.IsAssetEnabled(assetTypes[x]) == nil {
 			enabledAsset = true
 		}
-		b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
+
+		err = b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
+		// Suppress error when assets are enabled by default and they are being
+		// enabled by config. A check for the inverse
+		// e.g. currency.ErrAssetAlreadyDisabled is not needed.
+		if err != nil && err != currency.ErrAssetAlreadyEnabled {
+			return err
+		}
 
 		if b.Config.CurrencyPairs.UseGlobalFormat {
 			b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)

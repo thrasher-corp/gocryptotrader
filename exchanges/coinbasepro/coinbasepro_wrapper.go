@@ -353,9 +353,14 @@ func (c *CoinbasePro) FetchAccountInfo(assetType asset.Item) (account.Holdings, 
 	return acc, nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (c *CoinbasePro) UpdateTickers(a asset.Item) error {
+	return common.ErrFunctionNotSupported
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fpair, err := c.FormatExchangeCurrency(p, assetType)
+func (c *CoinbasePro) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	fpair, err := c.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -380,14 +385,14 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (*tick
 		Pair:         p,
 		LastUpdated:  tick.Time,
 		ExchangeName: c.Name,
-		AssetType:    assetType}
+		AssetType:    a}
 
 	err = ticker.ProcessTicker(tickerPrice)
 	if err != nil {
 		return tickerPrice, err
 	}
 
-	return ticker.GetTicker(c.Name, p, assetType)
+	return ticker.GetTicker(c.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

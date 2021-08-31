@@ -343,9 +343,14 @@ func (g *Gemini) FetchAccountInfo(assetType asset.Item) (account.Holdings, error
 	return acc, nil
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (g *Gemini) UpdateTickers(a asset.Item) error {
+	return common.ErrFunctionNotSupported
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (g *Gemini) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := g.FormatExchangeCurrency(p, assetType)
+func (g *Gemini) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	fPair, err := g.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -364,12 +369,12 @@ func (g *Gemini) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 		Close:        tick.Close,
 		Pair:         fPair,
 		ExchangeName: g.Name,
-		AssetType:    assetType})
+		AssetType:    a})
 	if err != nil {
 		return nil, err
 	}
 
-	return ticker.GetTicker(g.Name, fPair, assetType)
+	return ticker.GetTicker(g.Name, fPair, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

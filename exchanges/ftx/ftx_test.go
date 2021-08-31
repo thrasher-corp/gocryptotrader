@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	exchCfg.API.Credentials.Subaccount = subaccount
-	if areTestAPIKeysSet() {
+	if apiKey != "" && apiSecret != "" {
 		// Only set auth to true when keys present as fee online calculation requires authentication
 		exchCfg.API.AuthenticatedSupport = true
 		exchCfg.API.AuthenticatedWebsocketSupport = true
@@ -930,6 +930,14 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
 	_, err := f.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := f.UpdateTickers(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

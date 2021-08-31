@@ -78,11 +78,14 @@ func (f *FTX) WsConnect() error {
 func (f *FTX) WsAuth() error {
 	intNonce := time.Now().UnixNano() / 1000000
 	strNonce := strconv.FormatInt(intNonce, 10)
-	hmac := crypto.GetHMAC(
+	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
 		[]byte(strNonce+"websocket_login"),
 		[]byte(f.API.Credentials.Secret),
 	)
+	if err != nil {
+		return err
+	}
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{Operation: "login",
 		Args: AuthenticationData{
@@ -354,7 +357,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			resp.AverageExecutedPrice = resultData.OrderData.AvgFillPrice
 			resp.ExecutedAmount = resultData.OrderData.FilledSize
 			resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
-			resp.Cost = resp.AverageExecutedPrice * resp.Amount
+			resp.Cost = resp.AverageExecutedPrice * resultData.OrderData.FilledSize
 			// Fee: orderVars.Fee is incorrect.
 			resp.Exchange = f.Name
 			resp.ID = strconv.FormatInt(resultData.OrderData.ID, 10)
@@ -364,6 +367,8 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			resp.Status = orderVars.Status
 			resp.AssetType = assetType
 			resp.Date = resultData.OrderData.CreatedAt
+			// There's no current timestamp, so this is the best we can get.
+			resp.LastUpdated = resultData.OrderData.CreatedAt
 			resp.Pair = pair
 			f.Websocket.DataHandler <- &resp
 		case wsFills:

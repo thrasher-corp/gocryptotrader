@@ -126,7 +126,10 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
-	e.GetFeeByType(feeBuilder)
+	_, err := e.GetFeeByType(feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
@@ -454,6 +457,25 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 	_, err = e.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("BTC_USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	err := e.UpdateTickers(asset.Spot)
+	if err != nil {
 		t.Error(err)
 	}
 }

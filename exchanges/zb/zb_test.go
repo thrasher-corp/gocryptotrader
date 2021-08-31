@@ -141,7 +141,10 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	var feeBuilder = setFeeBuilder()
-	z.GetFeeByType(feeBuilder)
+	_, err := z.GetFeeByType(feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !z.ValidateAPICredentials() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
@@ -997,6 +1000,26 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 	_, err = z.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("ETH_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = z.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := z.UpdateTickers(asset.Spot)
+	if err != nil {
 		t.Error(err)
 	}
 }

@@ -722,7 +722,14 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path
 		now := time.Now()
 		n := strconv.FormatInt(now.Unix(), 10)
 		message := n + method + "/" + path + string(payload)
-		hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(c.API.Credentials.Secret))
+
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(message),
+			[]byte(c.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
+
 		headers := make(map[string]string)
 		headers["CB-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
 		headers["CB-ACCESS-TIMESTAMP"] = n

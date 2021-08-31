@@ -743,7 +743,13 @@ func (b *Binance) SendAuthHTTPRequest(ePath exchange.URL, method, path string, p
 		fullPath := endpointPath + path
 		params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
 		signature := params.Encode()
-		hmacSigned := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(b.API.Credentials.Secret))
+		var hmacSigned []byte
+		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(signature),
+			[]byte(b.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
 		hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
 		headers := make(map[string]string)
 		headers["X-MBX-APIKEY"] = b.API.Credentials.Key

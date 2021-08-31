@@ -56,8 +56,11 @@ func (b *Bitstamp) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresClientID = true
-	requestFmt := &currency.PairFormat{Uppercase: true}
-	configFmt := &currency.PairFormat{Uppercase: true}
+	requestFmt := &currency.PairFormat{}
+	configFmt := &currency.PairFormat{
+		Uppercase: true,
+		Delimiter: currency.ForwardSlashDelimiter,
+	}
 	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -204,11 +207,61 @@ func (b *Bitstamp) Run() {
 		b.PrintEnabledPairs()
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates {
+	forceUpdate := false
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s failed to get pair format. Err %s\n",
+			b.Name,
+			err)
 		return
 	}
 
-	err := b.UpdateTradablePairs(false)
+	enabled, err := b.CurrencyPairs.GetPairs(asset.Spot, true)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+			b.Name,
+			err)
+		return
+	}
+
+	avail, err := b.CurrencyPairs.GetPairs(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
+			b.Name,
+			err)
+		return
+	}
+
+	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+		!common.StringDataContains(avail.Strings(), format.Delimiter) {
+		var enabledPairs currency.Pairs
+		enabledPairs, err = currency.NewPairsFromStrings([]string{
+			currency.BTC.String() + format.Delimiter + currency.USD.String(),
+		})
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
+				b.Name,
+				err)
+		} else {
+			log.Warn(log.ExchangeSys,
+				"Bitstamp: Enabled and available pairs reset due to config upgrade, please enable the ones you would like to use again")
+			forceUpdate = true
+
+			err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update currencies. Err: %s\n",
+					b.Name,
+					err)
+			}
+		}
+	}
+
+	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+		return
+	}
+
+	err = b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -229,9 +282,7 @@ func (b *Bitstamp) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		if pairs[x].Trading != "Enabled" {
 			continue
 		}
-
-		pair := strings.Split(pairs[x].Name, "/")
-		products = append(products, pair[0]+pair[1])
+		products = append(products, pairs[x].Name)
 	}
 
 	return products, nil
@@ -253,9 +304,14 @@ func (b *Bitstamp) UpdateTradablePairs(forceUpdate bool) error {
 	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (b *Bitstamp) UpdateTickers(a asset.Item) error {
+	return common.ErrFunctionNotSupported
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
+func (b *Bitstamp) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	fPair, err := b.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -276,12 +332,12 @@ func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 		Pair:         fPair,
 		LastUpdated:  time.Unix(tick.Timestamp, 0),
 		ExchangeName: b.Name,
-		AssetType:    assetType})
+		AssetType:    a})
 	if err != nil {
 		return nil, err
 	}
 
-	return ticker.GetTicker(b.Name, fPair, assetType)
+	return ticker.GetTicker(b.Name, fPair, a)
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -672,9 +728,16 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 				"%s GetActiveOrders unable to parse time: %s\n", b.Name, err)
 		}
 
-		pair, err := currency.NewPairFromString(resp[i].Currency)
-		if err != nil {
-			return nil, err
+		var p currency.Pair
+		if currPair == "all" {
+			// Currency pairs are returned as format "currency_pair": "BTC/USD"
+			// only when all is specified
+			p, err = currency.NewPairFromString(resp[i].Currency)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			p = req.Pairs[0]
 		}
 
 		orders = append(orders, order.Detail{
@@ -684,7 +747,7 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 			Type:     order.Limit,
 			Side:     orderSide,
 			Date:     tm,
-			Pair:     pair,
+			Pair:     p,
 			Exchange: b.Name,
 		})
 	}

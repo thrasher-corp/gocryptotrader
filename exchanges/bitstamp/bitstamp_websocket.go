@@ -83,15 +83,36 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if b.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket reconnection request received", b.Name)
 		}
-		go b.Websocket.Shutdown() // Connection monitor will reconnect
+		go func() {
+			err := b.Websocket.Shutdown()
+			if err != nil {
+				log.Errorf(log.WebsocketMgr, "%s failed to shutdown websocket: %v", b.Name, err)
+			}
+		}() // Connection monitor will reconnect
 	case "data":
 		wsOrderBookTemp := websocketOrderBookResponse{}
 		err := json.Unmarshal(respRaw, &wsOrderBookTemp)
 		if err != nil {
 			return err
 		}
-		currencyPair := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
-		p, err := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
+		var currencyPair string
+		splitter := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
+		if len(splitter) == 3 {
+			currencyPair = splitter[2]
+		} else {
+			return errWSPairParsingError
+		}
+		pFmt, err := b.GetPairFormat(asset.Spot, true)
+		if err != nil {
+			return err
+		}
+
+		enabledPairs, err := b.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return err
+		}
+
+		p, err := currency.NewPairFromFormattedPairs(currencyPair, enabledPairs, pFmt)
 		if err != nil {
 			return err
 		}
@@ -109,8 +130,25 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		currencyPair := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
-		p, err := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
+
+		var currencyPair string
+		splitter := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
+		if len(splitter) == 3 {
+			currencyPair = splitter[2]
+		} else {
+			return errWSPairParsingError
+		}
+		pFmt, err := b.GetPairFormat(asset.Spot, true)
+		if err != nil {
+			return err
+		}
+
+		enabledPairs, err := b.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return err
+		}
+
+		p, err := currency.NewPairFromFormattedPairs(currencyPair, enabledPairs, pFmt)
 		if err != nil {
 			return err
 		}
@@ -153,8 +191,12 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription,
 	var subscriptions []stream.ChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
+			p, err := b.FormatExchangeCurrency(enabledCurrencies[j], asset.Spot)
+			if err != nil {
+				return nil, err
+			}
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel: channels[i] + enabledCurrencies[j].Lower().String(),
+				Channel: channels[i] + p.String(),
 				Asset:   asset.Spot,
 			})
 		}
@@ -258,7 +300,11 @@ func (b *Bitstamp) seedOrderBook() error {
 	}
 
 	for x := range p {
-		orderbookSeed, err := b.GetOrderbook(p[x].String())
+		pairFmt, err := b.FormatExchangeCurrency(p[x], asset.Spot)
+		if err != nil {
+			return err
+		}
+		orderbookSeed, err := b.GetOrderbook(pairFmt.String())
 		if err != nil {
 			return err
 		}

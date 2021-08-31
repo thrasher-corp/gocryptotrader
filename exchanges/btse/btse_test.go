@@ -256,6 +256,20 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+
+	err := b.UpdateTickers(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.UpdateTickers(asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetServerTime()
@@ -452,7 +466,10 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 		PurchasePrice: 1000,
 	}
 
-	b.GetFeeByType(feeBuilder)
+	_, err := b.GetFeeByType(feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)

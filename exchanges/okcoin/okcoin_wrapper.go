@@ -58,7 +58,10 @@ func (o *OKCoin) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
-	o.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Margin)
+	err := o.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Margin)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	o.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -135,7 +138,7 @@ func (o *OKCoin) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(okCoinRateInterval, okCoinStandardRequestRate)),
 	)
 	o.API.Endpoints = o.NewEndpoints()
-	err := o.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = o.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      okCoinAPIURL,
 		exchange.WebsocketSpot: okCoinWebsocketURL,
 	})
@@ -271,16 +274,16 @@ func (o *OKCoin) UpdateTradablePairs(forceUpdate bool) error {
 	return o.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	if assetType == asset.Spot {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (o *OKCoin) UpdateTickers(a asset.Item) error {
+	if a == asset.Spot {
 		resp, err := o.GetSpotAllTokenPairsInformation()
 		if err != nil {
-			return nil, err
+			return err
 		}
-		pairs, err := o.GetEnabledPairs(assetType)
+		pairs, err := o.GetEnabledPairs(a)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for i := range pairs {
 			for j := range resp {
@@ -300,14 +303,23 @@ func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 					Pair:         pairs[i],
 					LastUpdated:  resp[j].Timestamp,
 					ExchangeName: o.Name,
-					AssetType:    assetType})
+					AssetType:    a})
 				if err != nil {
-					return nil, err
+					return err
 				}
 			}
 		}
 	}
-	return ticker.GetTicker(o.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (o *OKCoin) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := o.UpdateTickers(a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(o.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

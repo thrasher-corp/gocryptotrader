@@ -108,7 +108,10 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 
 	var feeBuilder = setFeeBuilder()
-	p.GetFeeByType(feeBuilder)
+	_, err := p.GetFeeByType(feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v",
@@ -1004,5 +1007,25 @@ func TestGetCompleteBalances(t *testing.T) {
 	_, err := p.GetCompleteBalances()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("BTC_LTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := p.UpdateTickers(asset.Spot)
+	if err != nil {
+		t.Error(err)
 	}
 }

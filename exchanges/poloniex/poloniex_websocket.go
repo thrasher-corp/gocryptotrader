@@ -615,9 +615,12 @@ channels:
 
 func (p *Poloniex) wsSendAuthorisedCommand(command string) error {
 	nonce := fmt.Sprintf("nonce=%v", time.Now().UnixNano())
-	hmac := crypto.GetHMAC(crypto.HashSHA512,
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512,
 		[]byte(nonce),
 		[]byte(p.API.Credentials.Secret))
+	if err != nil {
+		return err
+	}
 	request := WsAuthorisationRequest{
 		Command: command,
 		Channel: 1000,

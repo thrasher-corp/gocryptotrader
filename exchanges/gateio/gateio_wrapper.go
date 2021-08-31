@@ -231,19 +231,19 @@ func (g *Gateio) UpdateTradablePairs(forceUpdate bool) error {
 	return g.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (g *Gateio) UpdateTickers(a asset.Item) error {
 	result, err := g.GetTickers()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	pairs, err := g.GetEnabledPairs(assetType)
+	pairs, err := g.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	for i := range pairs {
+	for p := range pairs {
 		for k := range result {
-			if !strings.EqualFold(k, pairs[i].String()) {
+			if !strings.EqualFold(k, pairs[p].String()) {
 				continue
 			}
 
@@ -255,16 +255,25 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 				QuoteVolume:  result[k].QuoteVolume,
 				Open:         result[k].Open,
 				Close:        result[k].Close,
-				Pair:         pairs[i],
+				Pair:         pairs[p],
 				ExchangeName: g.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
 
-	return ticker.GetTicker(g.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (g *Gateio) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := g.UpdateTickers(a)
+	if err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(g.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair

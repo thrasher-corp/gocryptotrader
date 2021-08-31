@@ -244,6 +244,21 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
+func TestUpdateTickers(t *testing.T) {
+	// TODO: fix Coinbene rate limiting that will allow to uncomment the next line
+	// and enable parallel testing
+	// t.Parallel()
+	err := c.UpdateTickers(asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = c.UpdateTickers(asset.PerpetualSwap)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {

@@ -666,16 +666,19 @@ func (b *Bitmex) websocketSendAuth() error {
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	timestamp := time.Now().Add(time.Hour * 1).Unix()
 	newTimestamp := strconv.FormatInt(timestamp, 10)
-	hmac := crypto.GetHMAC(crypto.HashSHA256,
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte("GET/realtime"+newTimestamp),
 		[]byte(b.API.Credentials.Secret))
+	if err != nil {
+		return err
+	}
 	signature := crypto.HexEncodeToString(hmac)
 
 	var sendAuth WebsocketRequest
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, b.API.Credentials.Key, timestamp,
 		signature)
-	err := b.Websocket.Conn.SendJSONMessage(sendAuth)
+	err = b.Websocket.Conn.SendJSONMessage(sendAuth)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

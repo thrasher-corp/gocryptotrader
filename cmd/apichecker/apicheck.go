@@ -1137,7 +1137,10 @@ func htmlScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
 		return nil, err
 	}
 	str := r.FindString(string(a))
-	sha := crypto.GetSHA256([]byte(str))
+	sha, err := crypto.GetSHA256([]byte(str))
+	if err != nil {
+		return nil, err
+	}
 	var resp []string
 	resp = append(resp, crypto.HexEncodeToString(sha))
 	return resp, nil

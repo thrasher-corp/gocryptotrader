@@ -43,6 +43,7 @@ var (
 	ErrExchangeNotFound      = errors.New("exchange not found")
 	ErrExchangeAlreadyLoaded = errors.New("exchange already loaded")
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
+	errExchangeNameIsEmpty   = errors.New("exchange name is empty")
 )
 
 // CustomExchangeBuilder interface allows external applications to create
@@ -91,9 +92,9 @@ func (m *ExchangeManager) RemoveExchange(exchName string) error {
 	if m.Len() == 0 {
 		return ErrNoExchangesLoaded
 	}
-	exch := m.GetExchangeByName(exchName)
-	if exch == nil {
-		return ErrExchangeNotFound
+	_, err := m.GetExchangeByName(exchName)
+	if err != nil {
+		return err
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
@@ -103,17 +104,20 @@ func (m *ExchangeManager) RemoveExchange(exchName string) error {
 }
 
 // GetExchangeByName returns an exchange by its name if it exists
-func (m *ExchangeManager) GetExchangeByName(exchangeName string) exchange.IBotExchange {
+func (m *ExchangeManager) GetExchangeByName(exchangeName string) (exchange.IBotExchange, error) {
 	if m == nil {
-		return nil
+		return nil, fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
+	}
+	if exchangeName == "" {
+		return nil, fmt.Errorf("exchange manager: %w", errExchangeNameIsEmpty)
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	exch, ok := m.exchanges[strings.ToLower(exchangeName)]
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("%s %w", exchangeName, ErrExchangeNotFound)
 	}
-	return exch
+	return exch, nil
 }
 
 // Len says how many exchanges are loaded
@@ -129,7 +133,7 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		return nil, fmt.Errorf("exchange manager %w", ErrNilSubsystem)
 	}
 	nameLower := strings.ToLower(name)
-	if m.GetExchangeByName(nameLower) != nil {
+	if exch, _ := m.GetExchangeByName(nameLower); exch != nil {
 		return nil, fmt.Errorf("%s %w", name, ErrExchangeAlreadyLoaded)
 	}
 	var exch exchange.IBotExchange

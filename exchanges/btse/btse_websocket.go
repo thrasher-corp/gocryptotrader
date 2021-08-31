@@ -59,10 +59,15 @@ func (b *BTSE) WsConnect() error {
 func (b *BTSE) WsAuthenticate() error {
 	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
 	path := "/spotWS" + nonce
-	hmac := crypto.GetHMAC(crypto.HashSHA512_384,
+
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
 		[]byte((path)),
 		[]byte(b.API.Credentials.Secret),
 	)
+	if err != nil {
+		return err
+	}
+
 	sign := crypto.HexEncodeToString(hmac)
 	req := wsSub{
 		Operation: "authKeyExpires",

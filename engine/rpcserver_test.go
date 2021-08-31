@@ -247,7 +247,7 @@ func TestGetSavedTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
+	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Error(err)
 	}
 	_, err = s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
@@ -321,7 +321,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
+	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Error(err)
 	}
 
@@ -456,8 +456,22 @@ func TestGetHistoricCandles(t *testing.T) {
 		End:       defaultEnd.Format(common.SimpleTimeFormat),
 		AssetType: asset.Spot.String(),
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("received '%v', expected '%v'", err, errExchangeNotLoaded)
+	if !errors.Is(err, errExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", err, errExchangeNameIsEmpty)
+	}
+
+	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
+		Exchange: "bruh",
+		Pair: &gctrpc.CurrencyPair{
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
+		},
+		Start:     defaultStart.Format(common.SimpleTimeFormat),
+		End:       defaultEnd.Format(common.SimpleTimeFormat),
+		AssetType: asset.Spot.String(),
+	})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNotFound)
 	}
 
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
@@ -844,7 +858,7 @@ func TestGetRecentTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
+	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Error(err)
 	}
 	_, err = s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
@@ -880,7 +894,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 	}, nil)
-	if !errors.Is(err, errExchangeNotLoaded) {
+	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Error(err)
 	}
 	err = s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{
@@ -1009,8 +1023,17 @@ func TestGetOrders(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Pair:      p,
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("received '%v', expected '%v'", errExchangeNotLoaded, err)
+	if !errors.Is(err, errExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", errExchangeNameIsEmpty, err)
+	}
+
+	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  "bruh",
+		AssetType: asset.Spot.String(),
+		Pair:      p,
+	})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received '%v', expected '%v'", ErrExchangeNotFound, err)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -1112,8 +1135,8 @@ func TestGetOrder(t *testing.T) {
 		Pair:     p,
 		Asset:    "spot",
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("received '%v', expected '%v'", err, errExchangeNotLoaded)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNotFound)
 	}
 
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
@@ -1165,14 +1188,9 @@ func TestCheckVars(t *testing.T) {
 	}
 
 	e = &binance.Binance{}
-	_, ok := e.(*binance.Binance)
-	if !ok {
-		t.Fatal("invalid ibotexchange interface")
-	}
-
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("expected %v, got %v", ErrExchangeNotFound, err)
+	if !errors.Is(err, errExchangeNotEnabled) {
+		t.Errorf("expected %v, got %v", errExchangeNotEnabled, err)
 	}
 
 	e.SetEnabled(true)
@@ -1646,8 +1664,17 @@ func TestGetManagedOrders(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Pair:      p,
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("received '%v', expected '%v'", errExchangeNotLoaded, err)
+	if !errors.Is(err, errExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", errExchangeNameIsEmpty, err)
+	}
+
+	_, err = s.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  "bruh",
+		AssetType: asset.Spot.String(),
+		Pair:      p,
+	})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received '%v', expected '%v'", ErrExchangeNotFound, err)
 	}
 
 	_, err = s.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -1733,10 +1760,14 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 	// Make a dummy pair we'll be using for this test.
 	pair := currency.NewPairWithDelimiter("XXXXX", "YYYYY", "")
 
-	// Create a mock-up RPCServer and add our newly made pair to its list of available
-	// and enabled pairs.
+	// Create a mock-up RPCServer and add our newly made pair to its list of
+	// available and enabled pairs.
 	server := RPCServer{Engine: RPCTestSetup(t)}
-	b := server.ExchangeManager.GetExchangeByName(testExchange).GetBase()
+	exch, err := server.GetExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
 	b.CurrencyPairs.Pairs[asset.Spot].Available = append(
 		b.CurrencyPairs.Pairs[asset.Spot].Available,
 		pair,
@@ -1748,7 +1779,7 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 
 	// Push a mock-up ticker.
 	now := time.Now()
-	ticker.ProcessTicker(&ticker.Price{
+	err = ticker.ProcessTicker(&ticker.Price{
 		ExchangeName: testExchange,
 		Pair:         pair,
 		AssetType:    asset.Spot,
@@ -1759,6 +1790,9 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 		Low:   169,
 		Close: 196,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Prepare a ticker request.
 	request := &gctrpc.GetTickerRequest{
