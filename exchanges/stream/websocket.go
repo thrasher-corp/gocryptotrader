@@ -214,9 +214,7 @@ func (w *Websocket) Connect() error {
 	w.setConnectingStatus(false)
 	w.setInit(true)
 
-	if !w.IsConnectionMonitorRunning() {
-		w.connectionMonitor()
-	}
+	w.connectionMonitor()
 
 	subs, err := w.GenerateSubs() // regenerate state on new connection
 	if err != nil {
@@ -298,11 +296,11 @@ func (w *Websocket) dataMonitor() {
 }
 
 // connectionMonitor ensures that the WS keeps connecting
-func (w *Websocket) connectionMonitor() {
-	if w.IsConnectionMonitorRunning() {
-		return
+func (w *Websocket) connectionMonitor() (wasRunning bool) {
+	if w.checkAndSetMonitorRunning() {
+		return true
 	}
-	w.setConnectionMonitorRunning(true)
+
 	go func() {
 		timer := time.NewTimer(connectionMonitorDelay)
 
@@ -362,6 +360,7 @@ func (w *Websocket) connectionMonitor() {
 			}
 		}
 	}()
+	return false
 }
 
 // Shutdown attempts to shut down a websocket connection and associated routines
@@ -616,6 +615,16 @@ func (w *Websocket) IsTrafficMonitorRunning() bool {
 	w.connectionMutex.RLock()
 	defer w.connectionMutex.RUnlock()
 	return w.trafficMonitorRunning
+}
+
+func (w *Websocket) checkAndSetMonitorRunning() (wasRunning bool) {
+	w.connectionMutex.Lock()
+	defer w.connectionMutex.Unlock()
+	if w.connectionMonitorRunning {
+		return true
+	}
+	w.connectionMonitorRunning = true
+	return false
 }
 
 func (w *Websocket) setConnectionMonitorRunning(b bool) {

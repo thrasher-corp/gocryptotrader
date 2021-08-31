@@ -550,23 +550,29 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	ws.DataHandler = make(chan interface{}, 1)
 	ws.ShutdownC = make(chan struct{}, 1)
 	ws.exchangeName = "hello"
-	ws.trafficTimeout = 1
+	ws.trafficTimeout = time.Millisecond
 	ws.Wg = &sync.WaitGroup{}
-	ws.connectionMonitor()
+	if ws.connectionMonitor() {
+		t.Fatal("should not be running")
+	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
-	ws.connectionMonitor() // This one should exit
+	if !ws.connectionMonitor() {
+		t.Fatal("should be running")
+	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 200)
 	if ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should have exited")
 	}
 	ws.setConnectedStatus(true)  // attempt shutdown when not enabled
 	ws.setConnectingStatus(true) // throw a spanner in the works
-	ws.connectionMonitor()
+	if ws.connectionMonitor() {
+		t.Fatal("should not be running")
+	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
