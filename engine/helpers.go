@@ -42,7 +42,7 @@ var (
 // GetSubsystemsStatus returns the status of various subsystems
 func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 	systems := make(map[string]bool)
-	systems[SyncManagerName] = bot.CommunicationsManager.IsRunning()
+	systems[CommunicationsManagerName] = bot.CommunicationsManager.IsRunning()
 	systems[ConnectionManagerName] = bot.connectionManager.IsRunning()
 	systems[OrderManagerName] = bot.OrderManager.IsRunning()
 	systems[PortfolioManagerName] = bot.portfolioManager.IsRunning()
