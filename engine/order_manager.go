@@ -242,7 +242,7 @@ func (m *OrderManager) GetOrderInfo(ctx context.Context, exchangeName, orderID s
 		return order.Detail{}, err
 	}
 
-	err = m.orderStore.add(&result)
+	err = m.orderStore.upsert(&result)
 	if err != nil && err != ErrOrdersAlreadyExists {
 		return order.Detail{}, err
 	}
@@ -473,6 +473,18 @@ func (m *OrderManager) GetOrdersFiltered(f *order.Filter) ([]order.Detail, error
 	return m.orderStore.getFilteredOrders(f)
 }
 
+// GetOrdersActive returns a snapshot of all orders in the order store
+// that have a status that indicates it's currently tradable
+func (m *OrderManager) GetOrdersActive(f *order.Filter) ([]order.Detail, error) {
+	if m == nil {
+		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+	}
+	return m.orderStore.getActiveOrders(f)
+}
+
 // processSubmittedOrder adds a new order to the manager
 func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse) (*OrderSubmitResponse, error) {
 	if !result.IsOrderPlaced {
@@ -585,6 +597,16 @@ func (m *OrderManager) processOrders() {
 				continue
 			}
 
+			filter := &order.Filter{
+				Exchange: exchanges[i].GetName(),
+			}
+			ordersToCheck, err := m.orderStore.getActiveOrders(filter)
+			order.FilterOrdersByCurrencies(&ordersToCheck, pairs)
+			checkedOrderIDs := make(map[string]bool, len(ordersToCheck))
+			for x := range ordersToCheck {
+				checkedOrderIDs[ordersToCheck[x].InternalOrderID] = false
+			}
+
 			req := order.GetOrdersRequest{
 				Side:      order.AnySide,
 				Type:      order.AnyType,
@@ -593,7 +615,7 @@ func (m *OrderManager) processOrders() {
 			}
 			result, err := exchanges[i].GetActiveOrders(context.TODO(), &req)
 			if err != nil {
-				log.Warnf(log.OrderMgr,
+				log.Errorf(log.OrderMgr,
 					"Order manager: Unable to get active orders for %s and asset type %s: %s",
 					exchanges[i].GetName(),
 					supportedAssets[y],
@@ -603,19 +625,69 @@ func (m *OrderManager) processOrders() {
 
 			for z := range result {
 				ord := &result[z]
-				result := m.orderStore.add(ord)
-				if result != ErrOrdersAlreadyExists {
-					msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
-						ord.Exchange, ord.ID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type)
+				if !m.Exists(ord) {
+					err = m.Add(ord)
+					if err != nil {
+						log.Errorf(log.OrderMgr,
+							"Order manager: Exchange %s unable to add order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v: %s",
+							ord.Exchange, ord.ID, ord.InternalOrderID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type, err)
+						continue
+					}
+					msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v.",
+						ord.Exchange, ord.ID, ord.InternalOrderID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type)
 					log.Debugf(log.OrderMgr, "%v", msg)
 					m.orderStore.commsManager.PushEvent(base.Event{
 						Type:    "order",
 						Message: msg,
 					})
+					checkedOrderIDs[ord.InternalOrderID] = true
+					continue
+				} else {
+					err = m.UpdateExistingOrder(ord)
+					if err != nil {
+						log.Errorf(log.OrderMgr,
+							"Order manager: Exchange %s unable to update order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v: %s",
+							ord.Exchange, ord.ID, ord.InternalOrderID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type, err)
+						continue
+					}
+					ord, _ = m.GetByExchangeAndID(ord.Exchange, ord.ID)
+					checkedOrderIDs[ord.InternalOrderID] = true
 					continue
 				}
 			}
+			if !exchanges[i].GetBase().GetSupportedFeatures().RESTCapabilities.GetOrder {
+				continue
+			}
+			for x := range ordersToCheck {
+				curTime := time.Now()
+				// Only check if at least 1 minute not updated
+				if curTime.Sub(ordersToCheck[x].LastUpdated) < time.Minute {
+					checkedOrderIDs[ordersToCheck[x].InternalOrderID] = true
+				} else if checkedOrderIDs[ordersToCheck[x].InternalOrderID] == false {
+					log.Debugf(log.OrderMgr, "Order manager: Exchange %s Unchecked order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v",
+						ordersToCheck[x].Exchange, ordersToCheck[x].ID, ordersToCheck[x].InternalOrderID, ordersToCheck[x].Pair, ordersToCheck[x].Price,
+						ordersToCheck[x].Amount, ordersToCheck[x].Side, ordersToCheck[x].Type)
+					go m.FetchAndUpdateExchangeOrder(exchanges[i], &ordersToCheck[x], supportedAssets[y], curTime)
+				}
+			}
 		}
+	}
+}
+
+func (m *OrderManager) FetchAndUpdateExchangeOrder(exch exchange.IBotExchange, ord *order.Detail, assetType asset.Item, curTime time.Time) {
+	fetchedOrder, err := exch.GetOrderInfo(ord.ID, ord.Pair, assetType)
+	if err != nil {
+		log.Errorf(log.OrderMgr, "Unable to get additional order info: %s", err.Error())
+		ord.Status = order.UnknownStatus
+		return
+	}
+	fetchedOrder.LastUpdated = curTime
+	err = m.UpdateExistingOrder(&fetchedOrder)
+	if err != nil {
+		log.Errorf(log.OrderMgr,
+			"Order manager: Exchange %s unable to update order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v: %s",
+			ord.Exchange, ord.ID, ord.InternalOrderID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type, err)
+		return
 	}
 }
 
@@ -869,6 +941,47 @@ func (s *store) getFilteredOrders(f *order.Filter) ([]order.Detail, error) {
 		for _, e := range s.Orders {
 			for i := range e {
 				if !e[i].MatchFilter(f) {
+					continue
+				}
+				os = append(os, e[i].Copy())
+			}
+		}
+	}
+	return os, nil
+}
+
+// getActiveOrders returns copy of the orders that are active
+func (s *store) getActiveOrders(f *order.Filter) ([]order.Detail, error) {
+	if f == nil {
+		return nil, errors.New("filter is nil")
+	}
+	s.m.RLock()
+	defer s.m.RUnlock()
+
+	var os []order.Detail
+	if f == nil {
+		for _, e := range s.Orders {
+			for i := range e {
+				if !e[i].IsActive() {
+					continue
+				}
+				os = append(os, e[i].Copy())
+			}
+		}
+	} else if f.Exchange != "" {
+		// optimization if Exchange is filtered
+		if e, ok := s.Orders[strings.ToLower(f.Exchange)]; ok {
+			for i := range e {
+				if !e[i].IsActive() || !e[i].MatchFilter(f) {
+					continue
+				}
+				os = append(os, e[i].Copy())
+			}
+		}
+	} else {
+		for _, e := range s.Orders {
+			for i := range e {
+				if !e[i].IsActive() || !e[i].MatchFilter(f) {
 					continue
 				}
 				os = append(os, e[i].Copy())

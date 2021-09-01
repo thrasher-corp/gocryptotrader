@@ -208,6 +208,9 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 	if d.ID == "" {
 		d.ID = m.ID
 	}
+	if d.InternalOrderID == "" {
+		d.InternalOrderID = m.InternalOrderID
+	}
 }
 
 // UpdateOrderFromModify Will update an order detail (used in order management)
@@ -403,6 +406,27 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 		return false
 	}
 	return true
+}
+
+// IsActive returns true if an order has a status that indicates it is
+// currently available on the exchange
+func (d *Detail) IsActive() bool {
+	if d.Amount > 0 && d.Amount <= d.ExecutedAmount {
+		return false
+	}
+	return d.Status == Active || d.Status == Open || d.Status == PartiallyFilled || d.Status == New ||
+		d.Status == AnyStatus || d.Status == PendingCancel || d.Status == Hidden || d.Status == UnknownStatus ||
+		d.Status == AutoDeleverage || d.Status == Pending
+}
+
+// IsActive returns true if an order has a status that indicates it is
+// currently not available on the exchange
+func (d *Detail) IsInActive() bool {
+	if d.Amount > 0 && d.Amount == d.ExecutedAmount {
+		return true
+	}
+	return d.Status == Filled || d.Status == Cancelled || d.Status == InsufficientBalance || d.Status == MarketUnavailable ||
+		d.Status == Rejected || d.Status == PartiallyCancelled || d.Status == Expired || d.Status == Closed
 }
 
 // Copy will return a copy of Detail
