@@ -1,8 +1,6 @@
 package holdings
 
 import (
-	"errors"
-
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -10,29 +8,26 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func Create(e fill.Event, f funding.IPairReader, riskFreeRate decimal.Decimal) error {
-	if e == nil {
-		return common.ErrNilEvent
+func Create(ev common.EventHandler, funding funding.IPairReader, riskFreeRate decimal.Decimal) (*Holding, error) {
+	if ev == nil {
+		return nil, common.ErrNilEvent
 	}
-	if f == nil {
-		return errors.New("woah nelly")
+	if funding.QuoteInitialFunds().LessThan(decimal.Zero) {
+		return nil, ErrInitialFundsZero
 	}
-	if f.QuoteInitialFunds().LessThan(decimal.Zero) {
-		return ErrInitialFundsZero
-	}
-	holding := Holding{
-		Offset:         e.GetOffset(),
-		Pair:           e.Pair(),
-		Asset:          e.GetAssetType(),
-		Exchange:       e.GetExchange(),
-		Timestamp:      e.GetTime(),
-		InitialFunds:   f.QuoteInitialFunds(),
-		RemainingFunds: f.QuoteInitialFunds(),
+	holding := &Holding{
+		Offset:         ev.GetOffset(),
+		Pair:           ev.Pair(),
+		Asset:          ev.GetAssetType(),
+		Exchange:       ev.GetExchange(),
+		Timestamp:      ev.GetTime(),
+		InitialFunds:   funding.QuoteInitialFunds(),
+		RemainingFunds: funding.QuoteInitialFunds(),
+		PositionsSize:  funding.BaseInitialFunds(),
 		RiskFreeRate:   riskFreeRate,
 	}
-	holding.update(e, f)
 
-	return nil
+	return holding, nil
 }
 
 // Update calculates holding statistics for the events time
@@ -57,23 +52,19 @@ func (h *Holding) update(e fill.Event, f funding.IPairReader) {
 		amount := decimal.NewFromFloat(o.Amount)
 		fee := decimal.NewFromFloat(o.Fee)
 		price := decimal.NewFromFloat(o.Price)
+		h.PositionsSize = f.BaseAvailable()
+		h.RemainingFunds = f.QuoteAvailable()
+		h.PositionsValue = h.PositionsSize.Mul(price)
+		h.TotalFees = h.TotalFees.Add(fee)
 		switch direction {
 		case order.Buy:
-			h.CommittedFunds = h.CommittedFunds.Add(amount.Mul(price).Add(fee))
-			h.PositionsSize = h.PositionsSize.Add(amount)
-			h.PositionsValue = h.PositionsValue.Add(amount.Mul(price))
-			h.RemainingFunds = f.QuoteAvailable()
-			h.TotalFees = h.TotalFees.Add(fee)
+			h.CommittedFunds = h.PositionsValue
 			h.BoughtAmount = h.BoughtAmount.Add(amount)
-			h.BoughtValue = h.BoughtValue.Add(amount.Mul(price))
+			h.BoughtValue = h.BoughtAmount.Mul(price)
 		case order.Sell:
-			h.CommittedFunds = h.CommittedFunds.Sub(amount.Mul(price).Add(fee))
-			h.PositionsSize = h.PositionsSize.Sub(amount)
-			h.PositionsValue = h.PositionsValue.Sub(amount.Mul(price))
-			h.RemainingFunds = f.BaseAvailable()
-			h.TotalFees = h.TotalFees.Add(fee)
+			h.CommittedFunds = h.PositionsValue
 			h.SoldAmount = h.SoldAmount.Add(amount)
-			h.SoldValue = h.SoldValue.Add(amount.Mul(price))
+			h.SoldValue = h.SoldAmount.Mul(price)
 		case common.DoNothing, common.CouldNotSell, common.CouldNotBuy, common.MissingData, "":
 		}
 	}
@@ -82,14 +73,14 @@ func (h *Holding) update(e fill.Event, f funding.IPairReader) {
 	h.updateValue(e.GetClosePrice())
 }
 
-func (h *Holding) updateValue(l decimal.Decimal) {
+func (h *Holding) updateValue(latestPrice decimal.Decimal) {
 	origPosValue := h.PositionsValue
 	origBoughtValue := h.BoughtValue
 	origSoldValue := h.SoldValue
 	origTotalValue := h.TotalValue
-	h.PositionsValue = h.PositionsSize.Mul(l)
-	h.BoughtValue = h.BoughtAmount.Mul(l)
-	h.SoldValue = h.SoldAmount.Mul(l)
+	h.PositionsValue = h.PositionsSize.Mul(latestPrice)
+	h.BoughtValue = h.BoughtAmount.Mul(latestPrice)
+	h.SoldValue = h.SoldAmount.Mul(latestPrice)
 	h.TotalValue = h.PositionsValue.Add(h.RemainingFunds)
 
 	h.TotalValueDifference = h.TotalValue.Sub(origTotalValue)

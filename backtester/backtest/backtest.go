@@ -157,7 +157,10 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		b = currency.NewCode(cfg.CurrencySettings[i].Base)
 		q = currency.NewCode(cfg.CurrencySettings[i].Quote)
 		curr = currency.NewPair(b, q)
-		exch := bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+		exch, err := bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+		if err != nil {
+			return nil, err
+		}
 		exchBase := exch.GetBase()
 		var requestFormat currency.PairFormat
 		requestFormat, err = exchBase.GetPairFormat(a, true)
@@ -988,13 +991,13 @@ func (bt *BackTest) processFillEvent(ev fill.Event) {
 		log.Error(log.BackTester, err)
 	}
 
-	var holding holdings.Holding
-	holding, err = bt.Portfolio.ViewHoldingAtTimePeriod(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
+	var holding *holdings.Holding
+	holding, err = bt.Portfolio.ViewHoldingAtTimePeriod(ev)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
 
-	err = bt.Statistic.AddHoldingsForTime(&holding)
+	err = bt.Statistic.AddHoldingsForTime(holding)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}

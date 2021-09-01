@@ -2,7 +2,6 @@ package portfolio
 
 import (
 	"errors"
-	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -52,7 +51,7 @@ type Handler interface {
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 
 	setHoldingsForOffset(string, asset.Item, currency.Pair, *holdings.Holding, bool) error
-	ViewHoldingAtTimePeriod(string, asset.Item, currency.Pair, time.Time) (holdings.Holding, error)
+	ViewHoldingAtTimePeriod(common.EventHandler) (*holdings.Holding, error)
 	SetFee(string, asset.Item, currency.Pair, decimal.Decimal)
 	GetFee(string, asset.Item, currency.Pair) decimal.Decimal
 	Reset()

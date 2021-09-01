@@ -56,7 +56,6 @@ type EventHandler interface {
 	GetExchange() string
 	GetInterval() kline.Interval
 	GetAssetType() asset.Item
-
 	GetReason() string
 	AppendReason(string)
 }
