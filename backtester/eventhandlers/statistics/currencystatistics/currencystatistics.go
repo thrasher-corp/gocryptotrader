@@ -163,7 +163,7 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 		c.GeometricRatios.CalmarRatio = decimal.NewFromFloat(geomCalmar)
 	}
 
-	lastInitial, _ := last.Holdings.InitialFunds.Float64()
+	lastInitial, _ := last.Holdings.QuoteInitialFunds.Float64()
 	lastTotal, _ := last.Holdings.TotalValue.Float64()
 	if lastInitial > 0 {
 		cagr, err := gctmath.CompoundAnnualGrowthRate(
@@ -179,7 +179,7 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 			c.CompoundAnnualGrowthRate = decimal.NewFromFloat(cagr)
 		}
 	}
-	c.IsStrategyProfitable = c.FinalHoldings.TotalValue.GreaterThan(c.FinalHoldings.InitialFunds)
+	c.IsStrategyProfitable = c.FinalHoldings.TotalValue.GreaterThan(c.FinalHoldings.QuoteInitialFunds)
 	c.DoesPerformanceBeatTheMarket = c.StrategyMovement.GreaterThan(c.MarketMovement)
 	if len(errs) > 0 {
 		return errs
@@ -261,9 +261,9 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "%s Total Value lost: $%v", sep, last.Holdings.TotalValueLost.Round(roundTo2))
 	log.Infof(log.BackTester, "%s Total Fees: $%v\n\n", sep, last.Holdings.TotalFees.Round(roundTo8))
 
-	log.Infof(log.BackTester, "%s Final funds: $%v", sep, last.Holdings.RemainingFunds.Round(roundTo8))
-	log.Infof(log.BackTester, "%s Final holdings: %v", sep, last.Holdings.PositionsSize.Round(roundTo8))
-	log.Infof(log.BackTester, "%s Final holdings value: $%v", sep, last.Holdings.PositionsValue.Round(roundTo8))
+	log.Infof(log.BackTester, "%s Final funds: $%v", sep, last.Holdings.QuoteSize.Round(roundTo8))
+	log.Infof(log.BackTester, "%s Final holdings: %v", sep, last.Holdings.BaseSize.Round(roundTo8))
+	log.Infof(log.BackTester, "%s Final holdings value: $%v", sep, last.Holdings.BaseValue.Round(roundTo8))
 	log.Infof(log.BackTester, "%s Final total value: $%v\n\n", sep, last.Holdings.TotalValue.Round(roundTo8))
 
 	if len(errs) > 0 {
@@ -369,8 +369,8 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 
 func (c *CurrencyStatistic) calculateHighestCommittedFunds() {
 	for i := range c.Events {
-		if c.Events[i].Holdings.CommittedFunds.GreaterThan(c.HighestCommittedFunds.Value) {
-			c.HighestCommittedFunds.Value = c.Events[i].Holdings.CommittedFunds
+		if c.Events[i].Holdings.BaseValue.GreaterThan(c.HighestCommittedFunds.Value) {
+			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseValue
 			c.HighestCommittedFunds.Time = c.Events[i].Holdings.Timestamp
 		}
 	}

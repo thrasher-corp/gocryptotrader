@@ -36,7 +36,7 @@ func TestCalculateResults(t *testing.T) {
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: 0.1333,
 			Timestamp:                 tt1,
-			InitialFunds:              1337,
+			QuoteInitialFunds:         1337,
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
@@ -75,7 +75,7 @@ func TestCalculateResults(t *testing.T) {
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: 0.1337,
 			Timestamp:                 tt2,
-			InitialFunds:              1337,
+			QuoteInitialFunds:         1337,
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
@@ -137,7 +137,7 @@ func TestPrintResults(t *testing.T) {
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: 0.1333,
 			Timestamp:                 tt1,
-			InitialFunds:              1337,
+			QuoteInitialFunds:         1337,
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
@@ -176,7 +176,7 @@ func TestPrintResults(t *testing.T) {
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: 0.1337,
 			Timestamp:                 tt2,
-			InitialFunds:              1337,
+			QuoteInitialFunds:         1337,
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{

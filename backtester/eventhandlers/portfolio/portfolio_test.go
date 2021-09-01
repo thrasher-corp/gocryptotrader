@@ -210,7 +210,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	tt := time.Now()
-	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt, PositionsSize: 1337}, false)
+	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt, BaseSize: 1337}, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -338,7 +338,7 @@ func TestOnFill(t *testing.T) {
 		t.Errorf("expected: %v, received %v", holdings.ErrInitialFundsZero, err)
 	}
 
-	//s.InitialFunds = 1337
+	//s.QuoteInitialFunds = 1337
 	//_, err = p.OnFill(f)
 	//if err != nil {
 	//	t.Error(err)

@@ -2,7 +2,7 @@
  "nickname": "TestGenerateConfigForRSIExchangeLevelFunding",
  "goal": "To demonstrate RSI strategy using API candles and Exchange level funding",
  "strategy-settings": {
-  "name": "strongestrsigetstheworm",
+  "name": "rsi",
   "use-simultaneous-signal-processing": true,
   "use-exchange-level-funding": true,
   "exchange-level-funding": [

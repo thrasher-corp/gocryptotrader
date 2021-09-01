@@ -16,15 +16,16 @@ func Create(ev common.EventHandler, funding funding.IPairReader, riskFreeRate de
 		return nil, ErrInitialFundsZero
 	}
 	holding := &Holding{
-		Offset:         ev.GetOffset(),
-		Pair:           ev.Pair(),
-		Asset:          ev.GetAssetType(),
-		Exchange:       ev.GetExchange(),
-		Timestamp:      ev.GetTime(),
-		InitialFunds:   funding.QuoteInitialFunds(),
-		RemainingFunds: funding.QuoteInitialFunds(),
-		PositionsSize:  funding.BaseInitialFunds(),
-		RiskFreeRate:   riskFreeRate,
+		Offset:            ev.GetOffset(),
+		Pair:              ev.Pair(),
+		Asset:             ev.GetAssetType(),
+		Exchange:          ev.GetExchange(),
+		Timestamp:         ev.GetTime(),
+		QuoteInitialFunds: funding.QuoteInitialFunds(),
+		QuoteSize:         funding.QuoteInitialFunds(),
+		BaseInitialFunds:  funding.BaseInitialFunds(),
+		BaseSize:          funding.BaseInitialFunds(),
+		RiskFreeRate:      riskFreeRate,
 	}
 
 	return holding, nil
@@ -52,17 +53,15 @@ func (h *Holding) update(e fill.Event, f funding.IPairReader) {
 		amount := decimal.NewFromFloat(o.Amount)
 		fee := decimal.NewFromFloat(o.Fee)
 		price := decimal.NewFromFloat(o.Price)
-		h.PositionsSize = f.BaseAvailable()
-		h.RemainingFunds = f.QuoteAvailable()
-		h.PositionsValue = h.PositionsSize.Mul(price)
+		h.BaseSize = f.BaseAvailable()
+		h.QuoteSize = f.QuoteAvailable()
+		h.BaseValue = h.BaseSize.Mul(price)
 		h.TotalFees = h.TotalFees.Add(fee)
 		switch direction {
 		case order.Buy:
-			h.CommittedFunds = h.PositionsValue
 			h.BoughtAmount = h.BoughtAmount.Add(amount)
 			h.BoughtValue = h.BoughtAmount.Mul(price)
 		case order.Sell:
-			h.CommittedFunds = h.PositionsValue
 			h.SoldAmount = h.SoldAmount.Add(amount)
 			h.SoldValue = h.SoldAmount.Mul(price)
 		case common.DoNothing, common.CouldNotSell, common.CouldNotBuy, common.MissingData, "":
@@ -74,18 +73,18 @@ func (h *Holding) update(e fill.Event, f funding.IPairReader) {
 }
 
 func (h *Holding) updateValue(latestPrice decimal.Decimal) {
-	origPosValue := h.PositionsValue
+	origPosValue := h.BaseValue
 	origBoughtValue := h.BoughtValue
 	origSoldValue := h.SoldValue
 	origTotalValue := h.TotalValue
-	h.PositionsValue = h.PositionsSize.Mul(latestPrice)
+	h.BaseValue = h.BaseSize.Mul(latestPrice)
 	h.BoughtValue = h.BoughtAmount.Mul(latestPrice)
 	h.SoldValue = h.SoldAmount.Mul(latestPrice)
-	h.TotalValue = h.PositionsValue.Add(h.RemainingFunds)
+	h.TotalValue = h.BaseValue.Add(h.QuoteSize)
 
 	h.TotalValueDifference = h.TotalValue.Sub(origTotalValue)
 	h.BoughtValueDifference = h.BoughtValue.Sub(origBoughtValue)
-	h.PositionsValueDifference = h.PositionsValue.Sub(origPosValue)
+	h.PositionsValueDifference = h.BaseValue.Sub(origPosValue)
 	h.SoldValueDifference = h.SoldValue.Sub(origSoldValue)
 
 	if !origTotalValue.IsZero() {

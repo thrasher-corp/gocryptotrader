@@ -56,6 +56,7 @@ type CurrencyStatistic struct {
 	CompoundAnnualGrowthRate     decimal.Decimal       `json:"compound-annual-growth-rate"`
 	SellOrders                   int64                 `json:"sell-orders"`
 	TotalOrders                  int64                 `json:"total-orders"`
+	InitialHoldings              holdings.Holding      `json:"initial-holdings-holdings"`
 	FinalHoldings                holdings.Holding      `json:"final-holdings"`
 	FinalOrders                  compliance.Snapshot   `json:"final-orders"`
 	ShowMissingDataWarning       bool                  `json:"-"`

@@ -190,6 +190,7 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 				}
 				stats.PrintResults(exchangeName, assetItem, pair, f)
 				stats.FinalHoldings = last.Holdings
+				stats.InitialHoldings = stats.Events[0].Holdings
 				stats.FinalOrders = last.Transactions
 				s.AllStats = append(s.AllStats, *stats)
 

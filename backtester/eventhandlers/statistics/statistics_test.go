@@ -286,9 +286,9 @@ func TestAddHoldingsForTime(t *testing.T) {
 		Asset:                        a,
 		Exchange:                     exch,
 		Timestamp:                    tt,
-		InitialFunds:                 eleet,
-		PositionsSize:                eleet,
-		PositionsValue:               eleet,
+		QuoteInitialFunds:            eleet,
+		BaseSize:                     eleet,
+		BaseValue:                    eleet,
 		SoldAmount:                   eleet,
 		SoldValue:                    eleet,
 		BoughtAmount:                 eleet,
@@ -718,9 +718,9 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 
-	s.ExchangeAssetPairStatistics[exch][a][p].Events[1].Holdings.InitialFunds = eleet
+	s.ExchangeAssetPairStatistics[exch][a][p].Events[1].Holdings.QuoteInitialFunds = eleet
 	s.ExchangeAssetPairStatistics[exch][a][p].Events[1].Holdings.TotalValue = eleeet
-	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.InitialFunds = eleet
+	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.QuoteInitialFunds = eleet
 	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.TotalValue = eleeet
 
 	funds := &funding.FundManager{}

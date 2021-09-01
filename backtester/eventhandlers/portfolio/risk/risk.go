@@ -67,8 +67,8 @@ func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) decimal.Decimal 
 	resp := make(map[currency.Pair]decimal.Decimal)
 	totalPosition := decimal.Zero
 	for i := range h {
-		resp[h[i].Pair] = resp[h[i].Pair].Add(h[i].PositionsValue)
-		totalPosition = totalPosition.Add(h[i].PositionsValue)
+		resp[h[i].Pair] = resp[h[i].Pair].Add(h[i].BaseValue)
+		totalPosition = totalPosition.Add(h[i].BaseValue)
 	}
 
 	if totalPosition.IsZero() {

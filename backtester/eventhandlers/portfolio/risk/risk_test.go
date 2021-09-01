@@ -17,12 +17,12 @@ func TestAssessHoldingsRatio(t *testing.T) {
 	t.Parallel()
 	ratio := assessHoldingsRatio(currency.NewPair(currency.BTC, currency.USDT), []holdings.Holding{
 		{
-			Pair:           currency.NewPair(currency.BTC, currency.USDT),
-			PositionsValue: 2,
+			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			BaseValue: 2,
 		},
 		{
-			Pair:           currency.NewPair(currency.LTC, currency.USDT),
-			PositionsValue: 2,
+			Pair:      currency.NewPair(currency.LTC, currency.USDT),
+			BaseValue: 2,
 		},
 	})
 	if ratio != 0.5 {
@@ -31,16 +31,16 @@ func TestAssessHoldingsRatio(t *testing.T) {
 
 	ratio = assessHoldingsRatio(currency.NewPair(currency.BTC, currency.USDT), []holdings.Holding{
 		{
-			Pair:           currency.NewPair(currency.BTC, currency.USDT),
-			PositionsValue: 1,
+			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			BaseValue: 1,
 		},
 		{
-			Pair:           currency.NewPair(currency.LTC, currency.USDT),
-			PositionsValue: 2,
+			Pair:      currency.NewPair(currency.LTC, currency.USDT),
+			BaseValue: 2,
 		},
 		{
-			Pair:           currency.NewPair(currency.DOGE, currency.USDT),
-			PositionsValue: 1,
+			Pair:      currency.NewPair(currency.DOGE, currency.USDT),
+			BaseValue: 1,
 		},
 	})
 	if ratio != 0.25 {
@@ -79,8 +79,8 @@ func TestEvaluateOrder(t *testing.T) {
 	}
 
 	h = append(h, holdings.Holding{
-		Pair:          p,
-		PositionsSize: 1,
+		Pair:     p,
+		BaseSize: 1,
 	})
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if err != nil {
@@ -88,8 +88,8 @@ func TestEvaluateOrder(t *testing.T) {
 	}
 
 	h = append(h, holdings.Holding{
-		Pair:          currency.NewPair(currency.DOGE, currency.USDT),
-		PositionsSize: 0,
+		Pair:     currency.NewPair(currency.DOGE, currency.USDT),
+		BaseSize: 0,
 	})
 	o.Leverage = 1.1
 	r.CurrencySettings[e][a][p].MaximumHoldingRatio = 0
@@ -126,14 +126,14 @@ func TestEvaluateOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	h = append(h, holdings.Holding{Pair: p, PositionsValue: 1337}, holdings.Holding{Pair: p, PositionsValue: 1337.42})
+	h = append(h, holdings.Holding{Pair: p, BaseValue: 1337}, holdings.Holding{Pair: p, BaseValue: 1337.42})
 	r.CurrencySettings[e][a][p].MaximumHoldingRatio = 0.1
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if err != nil {
 		t.Error(err)
 	}
 
-	h = append(h, holdings.Holding{Pair: currency.NewPair(currency.DOGE, currency.LTC), PositionsValue: 1337})
+	h = append(h, holdings.Holding{Pair: currency.NewPair(currency.DOGE, currency.LTC), BaseValue: 1337})
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if !errors.Is(err, errCannotPlaceLeverageOrder) {
 		t.Error(err)

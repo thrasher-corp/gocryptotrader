@@ -317,7 +317,7 @@ func (p *Portfolio) GetHoldingIfInvested(exchangeName string, a asset.Item, cp c
 	if h == nil {
 		return nil
 	}
-	if h.PositionsSize.GreaterThan(decimal.Zero) {
+	if h.BaseSize.GreaterThan(decimal.Zero) {
 		return h
 	}
 	return nil

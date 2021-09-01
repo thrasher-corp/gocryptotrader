@@ -71,104 +71,105 @@
 				<p>{{.Config.Goal}}</p>
 				<h5>Strategy Description</h5>
 				<p>{{.Statistics.StrategyDescription}}</p>
-                {{ if or .Config.DataSettings.APIData .Config.DataSettings.DatabaseData }}
+				{{ if or .Config.DataSettings.APIData .Config.DataSettings.DatabaseData }}
 					<table class="table table-hover table-bordered table-striped">
 						<tbody>
-                        {{ if .Config.DataSettings.APIData}}
+						{{ if .Config.DataSettings.APIData}}
 							<tr>
 								<td><b>Start Date</b></td>
 								<td>
-                                    {{.Config.DataSettings.APIData.StartDate}}
+									{{.Config.DataSettings.APIData.StartDate}}
 								</td>
 							</tr>
 							<tr>
 								<td ><b>End Date</b></td>
 
 								<td>
-                                    {{.Config.DataSettings.APIData.EndDate}}
+									{{.Config.DataSettings.APIData.EndDate}}
 								</td>
 							</tr>
 							<tr>
 								<td ><b>Interval</b></td>
 								<td>
-                                    {{.Config.DataSettings.Interval}}
+									{{.Config.DataSettings.Interval}}
 								</td>
 							</tr>
-                        {{end}}
-                        {{ if .Config.DataSettings.DatabaseData}}
+						{{end}}
+						{{ if .Config.DataSettings.DatabaseData}}
 							<tr>
 								<td ><b>Start Date</b></td>
 								<td>
-                                    {{.Config.DataSettings.DatabaseData.StartDate}}
+									{{.Config.DataSettings.DatabaseData.StartDate}}
 								</td>
 							</tr>
 							<tr>
 								<td ><b>End Date</b></td>
 
 								<td>
-                                    {{.Config.DataSettings.DatabaseData.EndDate}}
+									{{.Config.DataSettings.DatabaseData.EndDate}}
 								</td>
 							</tr>
 							<tr>
 								<td ><b>Interval</b></td>
 								<td>
-                                    {{.Config.DataSettings.Interval}}
+									{{.Config.DataSettings.Interval}}
 								</td>
 							</tr>
-                            {{if .Statistics.WasAnyDataMissing}}
-							<tr>
-								<td ><b>Was any data missing?</b></td>
-								<td  class="bg-warn" >{{ .Statistics.WasAnyDataMissing}}</td>
-							</tr>
-                            {{end}}
+							{{if .Statistics.WasAnyDataMissing}}
+								<tr>
+									<td ><b>Was any data missing?</b></td>
+									<td  class="bg-warn" >{{ .Statistics.WasAnyDataMissing}}</td>
+								</tr>
+							{{end}}
 
-                        {{end}}
-						</tr>
+						{{end}}
 						</tbody>
 					</table>
-                {{ end }}
-                {{ if or .Config.DataSettings.CSVData .Config.DataSettings.LiveData }}
+				{{ end }}
+				{{ if or .Config.DataSettings.CSVData .Config.DataSettings.LiveData }}
 					<table class="table table-hover table-bordered table-striped">
 						<tbody>
 						<tr>
 							<td ><b>Interval</b></td>
 							<td>
-                                {{.Config.DataSettings.Interval}}
+								{{.Config.DataSettings.Interval}}
 							</td>
 						</tr>
 						</tbody>
 					</table>
-                {{ end }}
+				{{ end }}
 				<table class="table table-hover table-bordered table-striped">
 					<thead>
-					<th>Exchange</th>
-					<th>Asset</th>
-					<th>Currency</th>
-					<th>Starting funds</th>
-					<th>Resulting funds</th>
-					<th>Did it make profit?</th>
-					<th>Did it beat the market?</th>
-					<th>Strategy Movement</th>
-					<th>Market Movement</th>
+					<tr>
+						<th>Exchange</th>
+						<th>Asset</th>
+						<th>Currency</th>
+						<th>Initial Total value</th>
+						<th>Resulting Total value</th>
+						<th>Did it make profit?</th>
+						<th>Did it beat the market?</th>
+						<th>Strategy Movement</th>
+						<th>Market Movement</th>
+					</tr>
 					</thead>
 					<tbody>
-                    {{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
-                        {{ range $asset, $unused := .}}
-                            {{ range $pair, $unused := .}}
+					{{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
+						{{ range $asset, $unused := .}}
+							{{ range $pair, $unused := .}}
 								<tr>
 									<td>{{ $exchange}}</td>
 									<td>{{ $asset}}</td>
 									<td>{{ $pair}}</td>
-									<td>${{ printf "%.8v" .FinalHoldings.InitialFunds }} {{.FinalHoldings.Pair.Quote}}</td>
+									<td>${{ printf "%.8v" .InitialHoldings.TotalValue }} {{.FinalHoldings.Pair.Quote}}</td>
 									<td>${{ printf "%.8v" .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>
 									<td>{{  .IsStrategyProfitable }}</td>
 									<td> {{ .DoesPerformanceBeatTheMarket }}</td>
 									<td>{{ printf "%.2v" .StrategyMovement }}%</td>
 									<td>{{ printf "%.2v" .MarketMovement }}%</td>
 								</tr>
-                            {{end}}
-                        {{end}}
-                    {{end}}
+							{{end}}
+						{{end}}
+					{{end}}
 					</tbody>
 				</table>
 			</div>
@@ -215,24 +216,26 @@
 			<div class="card-body card-body-cascade ">
 				<table class="table table-hover table-bordered table-striped">
 					<thead>
-					<th>Exchange Name</th>
-					<th>Asset</th>
-					<th>Currency Base</th>
-					<th>Currency Quote</th>
-					<th>Initial Funds</th>
-					<th>Buy side Min Amount</th>
-					<th>Buy side Max Amount</th>
-					<th>Buy side Max Total</th>
-					<th>Sell side Min Amount</th>
-					<th>Sell side Max Amount</th>
-					<th>Sell side Max Total</th>
-					<th>Min Slippage Percent</th>
-					<th>Max Slippage Percent</th>
-					<th>Taker Fee</th>
-					<th>Maximum Holdings Ratio</th>
+					<tr>
+						<th>Exchange Name</th>
+						<th>Asset</th>
+						<th>Currency Base</th>
+						<th>Currency Quote</th>
+						<th>Initial Funds</th>
+						<th>Buy side Min Amount</th>
+						<th>Buy side Max Amount</th>
+						<th>Buy side Max Total</th>
+						<th>Sell side Min Amount</th>
+						<th>Sell side Max Amount</th>
+						<th>Sell side Max Total</th>
+						<th>Min Slippage Percent</th>
+						<th>Max Slippage Percent</th>
+						<th>Taker Fee</th>
+						<th>Maximum Holdings Ratio</th>
+					</tr>
 					</thead>
 					<tbody>
-                    {{ range .Config.CurrencySettings}}
+					{{ range .Config.CurrencySettings}}
 						<tr>
 							<td>{{.ExchangeName}}</td>
 							<td>{{.Asset}}</td>
@@ -250,7 +253,7 @@
 							<td>{{.TakerFee}}</td>
 							<td>{{.MaximumHoldingsRatio}}</td>
 						</tr>
-                    {{end}}
+					{{end}}
 					</tbody>
 				</table>
 			</div>
@@ -260,14 +263,16 @@
 			<div class="card-body card-body-cascade ">
 				<table class="table table-hover table-bordered table-striped">
 					<thead>
-					<th>Exchange Name</th>
-					<th>Asset</th>
-					<th>Currency Base</th>
-					<th>Currency Quote</th>
-					<th>Warning</th>
+					<tr>
+						<th>Exchange Name</th>
+						<th>Asset</th>
+						<th>Currency Base</th>
+						<th>Currency Quote</th>
+						<th>Warning</th>
+					</tr>
 					</thead>
 					<tbody>
-                    {{ range .Config.CurrencySettings}}
+					{{ range .Config.CurrencySettings}}
 						{{if  .ShowExchangeOrderLimitWarning}}
 							<tr>
 								<td>{{.ExchangeName}}</td>
@@ -277,15 +282,15 @@
 								<td>order execution limits supported but disabled, results may not work when in production</td>
 							</tr>
 						{{end}}
-                    {{end}}
+					{{end}}
 					{{ range .Warnings}}
-					<tr>
-						<td>{{.Exchange}}</td>
-						<td>{{.Asset}}</td>
-						<td>{{.Pair.Base}}</td>
-						<td>{{.Pair.Quote}}</td>
-						<td>{{.Message}}</td>
-					</tr>
+						<tr>
+							<td>{{.Exchange}}</td>
+							<td>{{.Asset}}</td>
+							<td>{{.Pair.Base}}</td>
+							<td>{{.Pair.Quote}}</td>
+							<td>{{.Message}}</td>
+						</tr>
 					{{end}}
 					</tbody>
 				</table>
@@ -300,15 +305,17 @@
 			<div class="card-body card-body-cascade ">
 				<table class="table table-hover table-bordered table-striped">
 					<thead>
-					<th>Can Use Leverage</th>
-					<th>Max Leverage Rate</th>
-					<th>Max Orders With Leverage Ratio</th>
-					<th>Buy side Min Amount</th>
-					<th>Buy side Max Amount</th>
-					<th>Buy side Max Total</th>
-					<th>Sell side Min Amount</th>
-					<th>Sell side Max Amount</th>
-					<th>Sell side Max Total</th>
+					<tr>
+						<th>Can Use Leverage</th>
+						<th>Max Leverage Rate</th>
+						<th>Max Orders With Leverage Ratio</th>
+						<th>Buy side Min Amount</th>
+						<th>Buy side Max Amount</th>
+						<th>Buy side Max Total</th>
+						<th>Sell side Min Amount</th>
+						<th>Sell side Max Amount</th>
+						<th>Sell side Max Total</th>
+					</tr>
 					</thead>
 					<tbody>
 					<tr>
@@ -335,7 +342,9 @@
 			<div class="card-body card-body-cascade ">
 				<table class="table table-hover table-bordered table-striped">
 					<thead>
-					<th>Risk-Free Rate</th>
+					<tr>
+						<th>Risk-Free Rate</th>
+					</tr>
 					</thead>
 					<tbody>
 					<tr>
@@ -352,92 +361,92 @@
 				<h2  class="px-4 card-header-title white-text">Charts</h2>
 			</div>
 			<div class="card-body card-body-cascade ">
-                {{ range .EnhancedCandles}}
-                    {{ if .IsOverLimit}}
+				{{ range .EnhancedCandles}}
+					{{ if .IsOverLimit}}
 						<p>Note: Number of candles processed is higher than chart can render. Only showing the first 1,100</p>
-                    {{end}}
+					{{end}}
 					<div id="{{.Exchange}}{{.Asset}}{{.Pair}}" >
 						<h3>{{.Exchange}} {{.Asset}} {{.Pair}}</h3>
 						<script>
-                            var chart = LightweightCharts.createChart(document.getElementById("{{.Exchange}}{{.Asset}}{{.Pair}}"), {
-                                width: 1200,
-                                height: 800,
-                                layout: {
-                                    backgroundColor: '#000',
-                                    textColor: 'rgba(255, 255, 255, 0.9)',
-                                },
-                                grid: {
-                                    vertLines: {
-                                        color: 'rgba(197, 203, 206, 0)',
-                                    },
-                                    horzLines: {
-                                        color: 'rgba(197, 203, 206, 0)',
-                                    },
-                                },
-                                crosshair: {
-                                    mode: LightweightCharts.CrosshairMode.Normal,
-                                },
-                                rightPriceScale: {
-                                    borderColor: 'rgba(197, 203, 206, 0.8)',
-                                },
-                                timeScale: {
-                                    borderColor: 'rgba(197, 203, 206, 0.8)',
-                                    timeVisible: true,
-                                },
-                                watermark: {
-                                    color: 'rgba(11, 94, 29, 0.4)',
-                                    visible: true,
-                                    text: {{.Watermark}},
-                                    fontSize: 72,
-                                    horzAlign: 'center',
-                                    vertAlign: 'center',
-                                },
-                                priceScale: {
-                                    autoScale: true,
-                                }
-                            });
+							var chart = LightweightCharts.createChart(document.getElementById("{{.Exchange}}{{.Asset}}{{.Pair}}"), {
+								width: 1200,
+								height: 800,
+								layout: {
+									backgroundColor: '#000',
+									textColor: 'rgba(255, 255, 255, 0.9)',
+								},
+								grid: {
+									vertLines: {
+										color: 'rgba(197, 203, 206, 0)',
+									},
+									horzLines: {
+										color: 'rgba(197, 203, 206, 0)',
+									},
+								},
+								crosshair: {
+									mode: LightweightCharts.CrosshairMode.Normal,
+								},
+								rightPriceScale: {
+									borderColor: 'rgba(197, 203, 206, 0.8)',
+								},
+								timeScale: {
+									borderColor: 'rgba(197, 203, 206, 0.8)',
+									timeVisible: true,
+								},
+								watermark: {
+									color: 'rgba(11, 94, 29, 0.4)',
+									visible: true,
+									text: {{.Watermark}},
+									fontSize: 72,
+									horzAlign: 'center',
+									vertAlign: 'center',
+								},
+								priceScale: {
+									autoScale: true,
+								}
+							});
 
-                            var candleSeries = chart.addCandlestickSeries({
-                                upColor: 'rgba(47, 194, 27, 0)',
-                                downColor: 'rgba(252, 3, 3, 1)',
-                                borderDownColor: 'rgba(252, 3, 3, 1)',
-                                borderUpColor: 'rgba(47, 194, 27, 1)',
-                                wickDownColor: 'rgba(252, 3, 3, 1)',
-                                wickUpColor: 'rgba(47, 194, 27, 1)',
-                            });
+							var candleSeries = chart.addCandlestickSeries({
+								upColor: 'rgba(47, 194, 27, 0)',
+								downColor: 'rgba(252, 3, 3, 1)',
+								borderDownColor: 'rgba(252, 3, 3, 1)',
+								borderUpColor: 'rgba(47, 194, 27, 1)',
+								wickDownColor: 'rgba(252, 3, 3, 1)',
+								wickUpColor: 'rgba(47, 194, 27, 1)',
+							});
 
-                            candleSeries.setData([
-                                {{ range .Candles}}
-                                { time: {{.Time }}, open: {{.Open}}, high: {{.High}}, low: {{.Low}}, close: {{.Close}} },
-                                {{ end }}
-                            ])
+							candleSeries.setData([
+								{{ range .Candles}}
+								{ time: {{.Time }}, open: {{.Open}}, high: {{.High}}, low: {{.Low}}, close: {{.Close}} },
+								{{ end }}
+							])
 
-                            candleSeries.setMarkers([
-                                {{ range .Candles}}
-                                { time: {{.Time }}, position: {{printf "%s" .Position }}, color: {{printf "%s" .Colour }}, shape: {{printf "%s" .Shape }}, text: {{printf "%s" .Text }} },
-                                {{end}}
-                            ])
+							candleSeries.setMarkers([
+								{{ range .Candles}}
+								{ time: {{.Time }}, position: {{printf "%s" .Position }}, color: {{printf "%s" .Colour }}, shape: {{printf "%s" .Shape }}, text: {{printf "%s" .Text }} },
+								{{end}}
+							])
 
-                            var volumeSeries = chart.addHistogramSeries({
-                                priceFormat: {
-                                    type: 'volume',
-                                },
-                                priceScaleId: '',
-                                scaleMargins: {
-                                    top: 0.8,
-                                    bottom: 0,
-                                }})
+							var volumeSeries = chart.addHistogramSeries({
+								priceFormat: {
+									type: 'volume',
+								},
+								priceScaleId: '',
+								scaleMargins: {
+									top: 0.8,
+									bottom: 0,
+								}})
 
-                            volumeSeries.setData([
-                                {{ range .Candles}}
-                                { time: {{.Time }}, value: {{.Volume}}, color: {{printf "%s" .VolumeColour}} },
-                                {{end}}
-                            ])
+							volumeSeries.setData([
+								{{ range .Candles}}
+								{ time: {{.Time }}, value: {{.Volume}}, color: {{printf "%s" .VolumeColour}} },
+								{{end}}
+							])
 
-                            chart.timeScale().fitContent();
+							chart.timeScale().fitContent();
 						</script>
 					</div>
-                {{end}}
+				{{end}}
 			</div>
 		</div>
 	</div>
@@ -469,31 +478,31 @@
 						<td><b>Total Orders</b></td>
 						<td>{{.Statistics.TotalOrders}}</td>
 					</tr>
-                    {{ if .Statistics.BiggestDrawdown}}
+					{{ if .Statistics.BiggestDrawdown}}
 						<tr>
 							<td><b>Biggest Drawdown</b></td>
 							<td><b>Start:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Highest.Time }} <b>End:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.DrawdownPercent}}%</td>
 						</tr>
-                    {{end}}
-                    {{ if .Statistics.BestMarketMovement}}
+					{{end}}
+					{{ if .Statistics.BestMarketMovement}}
 						<tr>
 							<td><b>Best performing market movement</b></td>
 							<td>{{.Statistics.BestMarketMovement.Exchange }} {{.Statistics.BestMarketMovement.Asset}} {{.Statistics.BestMarketMovement.Pair}} {{.Statistics.BestMarketMovement.MarketMovement}}%</td>
 						</tr>
-                    {{end}}
-                    {{ if .Statistics.BestStrategyResults}}
+					{{end}}
+					{{ if .Statistics.BestStrategyResults}}
 						<tr>
 							<td><b>Best performing strategy movement</b></td>
 							<td>{{.Statistics.BestStrategyResults.Exchange }} {{.Statistics.BestStrategyResults.Asset}} {{.Statistics.BestStrategyResults.Pair}} {{.Statistics.BestStrategyResults.StrategyMovement}}%</td>
 						</tr>
-                    {{ end}}
+					{{ end}}
 					</tbody>
 				</table>
 			</div>
 		</div>
-        {{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
-            {{ range $asset, $unused := .}}
-                {{ range $pair, $val := .}}
+		{{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
+			{{ range $asset, $unused := .}}
+				{{ range $pair, $val := .}}
 					<div class="card card-cascade narrower">
 						<div class="view view-cascade bg-info">
 							<h2  class="px-4 card-header-title white-text">Statistics for {{$exchange}} {{ $asset}} {{ $pair}}</h2>
@@ -502,9 +511,14 @@
 							<table class="table table-hover table-bordered table-striped">
 								<tbody>
 								<tr>
-									<td><b>Initial Funds</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.InitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td><b>Base Initial Funds</b></td>
+									<td>${{printf "%.8v" $val.FinalHoldings.BaseInitialFunds}} {{$val.FinalHoldings.Pair.Base}}</td>
 								</tr>
+								<tr>
+									<td><b>Quote Initial Funds</b></td>
+									<td>${{printf "%.8v" $val.FinalHoldings.QuoteInitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
+								</tr>
+
 								<tr>
 									<td><b>Buy Orders</b></td>
 									<td>{{$val.BuyOrders}}</td>
@@ -533,13 +547,13 @@
 									<td><b>Total Orders</b></td>
 									<td>{{$val.TotalOrders}}</td>
 								</tr>
-                                {{ if $val.MaxDrawdown.Highest.Price.IsZero }}
-									{{else}}
+								{{ if $val.MaxDrawdown.Highest.Price.IsZero }}
+								{{else}}
 									<tr>
 										<td><b>Biggest Drawdown</b></td>
 										<td><b>Start:</b> {{ $val.MaxDrawdown.Highest.Time }} <b>End:</b> {{ $val.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{printf "%.2v" $val.MaxDrawdown.DrawdownPercent}}%</td>
 									</tr>
-                                {{ end }}
+								{{ end }}
 								<tr>
 									<td><b>Starting Close Price</b></td>
 									<td>${{printf "%.8v" $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
@@ -590,15 +604,15 @@
 								</tr>
 								<tr>
 									<td><b>Final Funds</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.RemainingFunds}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8v" $val.FinalHoldings.QuoteSize}} {{ $val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Final Holdings</b></td>
-									<td>{{printf "%.8v" $val.FinalHoldings.PositionsSize}} {{$val.FinalHoldings.Pair.Base}}</td>
+									<td>{{printf "%.8v" $val.FinalHoldings.BaseSize}} {{$val.FinalHoldings.Pair.Base}}</td>
 								</tr>
 								<tr>
 									<td><b>Final Holdings Value</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.PositionsValue}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									<td>${{printf "%.8v" $val.FinalHoldings.BaseValue}} {{ $val.FinalHoldings.Pair.Quote }}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value</b></td>
@@ -667,9 +681,9 @@
 							</table>
 						</div>
 					</div>
-                {{end}}
-            {{end}}
-        {{end}}
+				{{end}}
+			{{end}}
+		{{end}}
 	</div>
 	<div >
 		<div class="card card-cascade narrower">
@@ -678,43 +692,43 @@
 			</div>
 			<div class="card-body card-body-cascade ">
 
-                {{ range $exchange, $unused :=  .Statistics.ExchangeAssetPairStatistics}}
-                    {{ range $asset, $unused := .}}
-                        {{ range $pair, $val := .}}
+				{{ range $exchange, $unused :=  .Statistics.ExchangeAssetPairStatistics}}
+					{{ range $asset, $unused := .}}
+						{{ range $pair, $val := .}}
 							<div  >
 								<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
 							</div>
 							<div >
 								<table class="table table-hover table-bordered table-striped">
 									<tr>
-									<th>Date</th>
-									<th>Close Price</th>
-									<th>Side</th>
-									<th>Purchase Price</th>
-									<th>Slippage Rate</th>
-									<th>Amount</th>
-									<th>Fees</th>
-									<th>Cost Basis</th>
+										<th>Date</th>
+										<th>Close Price</th>
+										<th>Side</th>
+										<th>Price</th>
+										<th>Amount</th>
+										<th>Fee</th>
+										<th>Total</th>
+										<th>Slippage Rate</th>
 									</tr>
 									<tbody >
-                                    {{range $val.FinalOrders.Orders}}
+									{{range $val.FinalOrders.Orders}}
 										<tr>
 											<td>{{ .Detail.Date }}</td>
 											<td>${{ .ClosePrice}} {{$pair.Quote}}</td>
 											<td>{{ .Detail.Side }}</td>
 											<td>${{ .Detail.Price }} {{$pair.Quote}}</td>
-											<td>{{ .SlippageRate }}%</td>
 											<td>{{printf "%.8v" .Detail.Amount }} {{$pair.Base}}</td>
 											<td>${{printf "%.8v" .Detail.Fee }} {{$pair.Quote}}</td>
 											<td>${{printf "%.8v" .CostBasis }} {{$pair.Quote}}</td>
+											<td>{{ .SlippageRate }}%</td>
 										</tr>
-                                    {{end}}
+									{{end}}
 									</tbody>
 								</table>
 							</div>
-                        {{end}}
-                    {{end}}
-                {{end}}
+						{{end}}
+					{{end}}
+				{{end}}
 			</div>
 		</div>
 	</div>
@@ -724,44 +738,48 @@
 				<h2  class="px-4 card-header-title white-text">Events</h2>
 			</div>
 			<div class="card-body card-body-cascade ">
-                {{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
-                    {{ range $asset, $unused :=.}}
-                        {{ range $pair, $data := .}}
+				{{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
+					{{ range $asset, $unused :=.}}
+						{{ range $pair, $data := .}}
 							<div >
 								<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
 							</div>
 							<div >
 								<table class="table table-hover table-bordered table-striped">
 									<tr>
-									<th>Date</th>
-									<th>Price</th>
-									<th>Action</th>
-									<th>Why</th>
-									<th>Committed Funds</th>
+										<th>Date</th>
+										<th>Price</th>
+										<th>Action</th>
+										<th>Why</th>
+										<th>{{$pair.Base}} Funds</th>
+										<th>{{$pair.Quote}} Funds</th>
+										<th>Total Value</th>
 									</tr>
 									<tbody >
-                                    {{range $ev := $data.Events}}
+									{{range $ev := $data.Events}}
 										<tr>
-                                            {{ if ne $ev.FillEvent nil }}
+											{{ if ne $ev.FillEvent nil }}
 												<td><b>{{$ev.FillEvent.GetTime}}</b></td>
 												<td>${{$ev.FillEvent.GetClosePrice}} {{$pair.Quote}}</td>
 												<td>{{$ev.FillEvent.GetDirection}}</td>
 												<td>{{$ev.FillEvent.GetReason}}</td>
-                                            {{ else if ne $ev.SignalEvent nil}}
+											{{ else if ne $ev.SignalEvent nil}}
 												<td>{{$ev.SignalEvent.GetTime}}</td>
 												<td>${{ printf "%v" $ev.SignalEvent.Price}} {{$pair.Quote}}</td>
 												<td>{{$ev.SignalEvent.GetDirection}}</td>
 												<td>{{$ev.SignalEvent.GetReason}}</td>
 											{{ end }}
-											<td>${{printf "%.8v" $ev.Holdings.CommittedFunds}} {{$pair.Quote}}</td>
+											<td>${{printf "%.8v" $ev.Holdings.BaseSize}} {{$pair.Base}}</td>
+											<td>${{printf "%.8v" $ev.Holdings.QuoteSize}} {{$pair.Quote}}</td>
+											<td>${{printf "%.8v" $ev.Holdings.TotalValue}} {{$pair.Quote}}</td>
 										</tr>
-                                    {{end}}
+									{{end}}
 									</tbody>
 								</table>
 							</div>
-                        {{end}}
-                    {{end}}
-                {{end}}
+						{{end}}
+					{{end}}
+				{{end}}
 			</div>
 		</div>
 	</div>
