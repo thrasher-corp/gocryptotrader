@@ -176,13 +176,13 @@ func TestSetSubsystem(t *testing.T) {
 
 		{
 			Subsystem:    DeprecatedName,
-			Engine:       &Engine{Config: &config.Config{}},
+			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
 			EnableError:  errServerDisabled,
 			DisableError: ErrSubSystemNotStarted,
 		},
 		{
 			Subsystem:    WebsocketName,
-			Engine:       &Engine{Config: &config.Config{}},
+			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
 			EnableError:  errServerDisabled,
 			DisableError: ErrSubSystemNotStarted,
 		},
