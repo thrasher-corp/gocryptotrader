@@ -76,7 +76,7 @@ const (
 	bitfinexCandles         = "candles/trade"
 	bitfinexKeyPermissions  = "key_info"
 	bitfinexMarginInfo      = "margin_infos"
-	bitfinexDepositMethod   = "conf/pub:map:currency:label"
+	bitfinexDepositMethod   = "conf/pub:map:tx:method"
 	bitfinexDepositAddress  = "auth/w/deposit/address"
 	bitfinexMarginPairs     = "conf/pub:list:pair:margin"
 
@@ -1081,7 +1081,7 @@ func (b *Bitfinex) NewDeposit(ctx context.Context, method, walletName string, re
 
 	req := make(map[string]interface{}, 3)
 	req["wallet"] = walletName
-	req["method"] = method
+	req["method"] = strings.ToLower(method)
 	req["op_renew"] = renew
 	var result []interface{}
 
@@ -1198,10 +1198,10 @@ func (b *Bitfinex) WalletTransfer(ctx context.Context, amount float64, currency,
 
 // WithdrawCryptocurrency requests a withdrawal from one of your wallets.
 // For FIAT, use WithdrawFIAT
-func (b *Bitfinex) WithdrawCryptocurrency(ctx context.Context, wallet, address, paymentID string, amount float64, c currency.Code) (Withdrawal, error) {
+func (b *Bitfinex) WithdrawCryptocurrency(ctx context.Context, wallet, address, paymentID, currency string, amount float64) (Withdrawal, error) {
 	var response []Withdrawal
 	req := make(map[string]interface{})
-	req["withdraw_type"] = b.ConvertSymbolToWithdrawalType(c)
+	req["withdraw_type"] = strings.ToLower(currency)
 	req["walletselected"] = wallet
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	req["address"] = address
@@ -1715,8 +1715,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchan
 			body = bytes.NewBuffer(payload)
 		}
 
-		// This is done in a weird way because bitfinex doesn't accept unixnano
-		n := strconv.FormatInt(int64(b.Requester.GetNonce(false))*1e9, 10)
+		n := strconv.FormatInt(time.Now().Unix()*1e9, 10)
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		headers["Accept"] = "application/json"
@@ -1840,72 +1839,13 @@ func (b *Bitfinex) CalculateTradingFee(i []AccountInfo, purchasePrice, amount fl
 	return (fee / 100) * purchasePrice * amount, err
 }
 
-// ConvertSymbolToWithdrawalType You need to have specific withdrawal types to withdraw from Bitfinex
-func (b *Bitfinex) ConvertSymbolToWithdrawalType(c currency.Code) string {
-	switch c {
-	case currency.BTC:
-		return "bitcoin"
-	case currency.LTC:
-		return "litecoin"
-	case currency.ETH:
-		return "ethereum"
-	case currency.ETC:
-		return "ethereumc"
-	case currency.USDT:
-		return "tetheruso"
-	case currency.ZEC:
-		return "zcash"
-	case currency.XMR:
-		return "monero"
-	case currency.DSH:
-		return "dash"
-	case currency.XRP:
-		return "ripple"
-	case currency.SAN:
-		return "santiment"
-	case currency.OMG:
-		return "omisego"
-	case currency.BCH:
-		return "bcash"
-	case currency.ETP:
-		return "metaverse"
-	case currency.AVT:
-		return "aventus"
-	case currency.EDO:
-		return "eidoo"
-	case currency.BTG:
-		return "bgold"
-	case currency.DATA:
-		return "datacoin"
-	case currency.GNT:
-		return "golem"
-	case currency.SNT:
-		return "status"
-	default:
-		return c.Lower().String()
-	}
-}
-
-// ConvertSymbolToDepositMethod returns a converted currency deposit method
-func (b *Bitfinex) ConvertSymbolToDepositMethod(ctx context.Context, c currency.Code) (string, error) {
-	if err := b.PopulateAcceptableMethods(ctx); err != nil {
-		return "", err
-	}
-	method, ok := AcceptableMethods[c.String()]
-	if !ok {
-		return "", fmt.Errorf("currency %s not supported in method list",
-			c)
-	}
-
-	return strings.ToLower(method), nil
-}
-
 // PopulateAcceptableMethods retrieves all accepted currency strings and
 // populates a map to check
 func (b *Bitfinex) PopulateAcceptableMethods(ctx context.Context) error {
-	if len(AcceptableMethods) == 0 {
-		var response [][][2]string
-		err := b.SendHTTPRequest(ctx, exchange.RestSpot,
+	if !AcceptableMethods.Loaded() {
+		var response [][][]interface{}
+		err := b.SendHTTPRequest(ctx,
+			exchange.RestSpot,
 			bitfinexAPIVersion2+bitfinexDepositMethod,
 			&response,
 			configs)
@@ -1913,16 +1853,33 @@ func (b *Bitfinex) PopulateAcceptableMethods(ctx context.Context) error {
 			return err
 		}
 
-		if len(response) == 0 {
+		if response == nil {
 			return errors.New("response contains no data cannot populate acceptable method map")
 		}
 
-		for i := range response[0] {
-			if len(response[0][i]) != 2 {
-				return errors.New("response contains no data cannot populate acceptable method map")
+		data := response[0]
+		storeData := make(map[string][]string)
+		for x := range data {
+			name, ok := data[x][0].(string)
+			if !ok {
+				return fmt.Errorf("unable to typecast name")
 			}
-			AcceptableMethods[response[0][i][0]] = response[0][i][1]
+
+			var availOptions []string
+			options, ok := data[x][1].([]interface{})
+			if !ok {
+				return fmt.Errorf("unable to typecast options")
+			}
+			for x := range options {
+				o, ok := options[x].(string)
+				if !ok {
+					return fmt.Errorf("unable to typecast option to string")
+				}
+				availOptions = append(availOptions, o)
+			}
+			storeData[name] = availOptions
 		}
+		AcceptableMethods.Load(storeData)
 	}
 	return nil
 }

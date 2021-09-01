@@ -732,14 +732,28 @@ func (b *Bitfinex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitfinex) GetDepositAddress(ctx context.Context, c currency.Code, accountID, _ string) (*deposit.Address, error) {
+func (b *Bitfinex) GetDepositAddress(ctx context.Context, c currency.Code, accountID, chain string) (*deposit.Address, error) {
 	if accountID == "" {
 		accountID = "funding"
 	}
 
-	method, err := b.ConvertSymbolToDepositMethod(ctx, c)
-	if err != nil {
+	if c == currency.USDT {
+		c = currency.NewCode("UST")
+	}
+
+	if err := b.PopulateAcceptableMethods(ctx); err != nil {
 		return nil, err
+	}
+
+	methods := AcceptableMethods.Lookup(c)
+	if len(methods) == 0 {
+		return nil, errors.New("unsupported currency")
+	}
+	method := methods[0]
+	if len(methods) > 1 && chain != "" {
+		method = chain
+	} else if len(methods) > 1 && chain == "" {
+		return nil, fmt.Errorf("a chain must be specified, %s available", methods)
 	}
 
 	resp, err := b.NewDeposit(ctx, method, accountID, 0)
@@ -757,6 +771,26 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
+
+	if err := b.PopulateAcceptableMethods(ctx); err != nil {
+		return nil, err
+	}
+
+	if withdrawRequest.Currency == currency.USDT {
+		withdrawRequest.Currency = currency.NewCode("UST")
+	}
+
+	methods := AcceptableMethods.Lookup(withdrawRequest.Currency)
+	if len(methods) == 0 {
+		return nil, errors.New("unsupported currency")
+	}
+	method := methods[0]
+	if len(methods) > 1 && withdrawRequest.Crypto.Chain != "" {
+		method = withdrawRequest.Crypto.Chain
+	} else if len(methods) > 1 && withdrawRequest.Crypto.Chain == "" {
+		return nil, fmt.Errorf("a chain must be specified, %s available", methods)
+	}
+
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
 	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
@@ -764,9 +798,9 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	resp, err := b.WithdrawCryptocurrency(ctx,
 		walletType,
 		withdrawRequest.Crypto.Address,
-		withdrawRequest.Description,
-		withdrawRequest.Amount,
-		withdrawRequest.Currency)
+		withdrawRequest.Crypto.AddressTag,
+		method,
+		withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -1125,4 +1159,22 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 	}
 	runes[0] = unicode.ToLower(runes[0])
 	return string(runes), nil
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (b *Bitfinex) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	if err := b.PopulateAcceptableMethods(ctx); err != nil {
+		return nil, err
+	}
+
+	if cryptocurrency == currency.USDT {
+		cryptocurrency = currency.NewCode("UST")
+	}
+
+	availChains := AcceptableMethods.Lookup(cryptocurrency)
+	if len(availChains) == 0 {
+		return nil, fmt.Errorf("unable to find any available chains")
+	}
+	return availChains, nil
 }

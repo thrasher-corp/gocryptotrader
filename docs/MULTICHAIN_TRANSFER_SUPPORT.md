@@ -38,13 +38,13 @@ $ ./gctcli withdrawcryptofunds --exchange=ftx --currency=USDT --address=TJU9piX2
 }
 ```
 
-## Exchange support table
+## Exchange multichain transfer support table
 
 | Exchange | Deposits | Withdrawals | Notes|
 |----------|----------|-------------|------|
 | Alphapoint | No | No | |
 | Binance | Yes | Yes | |
-| Bitfinex | Yes | Yes | |
+| Bitfinex | Yes | Yes | Only supports USDT |
 | Bitflyer | No | No | |
 | Bithumb | No | No | |
 | BitMEX | No | No | Supports BTC only |
@@ -53,7 +53,7 @@ $ ./gctcli withdrawcryptofunds --exchange=ftx --currency=USDT --address=TJU9piX2
 | BTCMarkets | No | No| NA  |
 | BTSE | No | No | Only through website |
 | CoinbasePro | No | No | No|
-| Coinbene | No | No | No |
+| Coinbene | Yes | Yes | Addresses must be created via the website first |
 | COINUT | No | No | NA |
 | Exmo | Yes | Yes | |
 | FTX | Yes | Yes | |
@@ -64,9 +64,9 @@ $ ./gctcli withdrawcryptofunds --exchange=ftx --currency=USDT --address=TJU9piX2
 | ItBit | No | No | |
 | Kraken | Yes | Yes | |
 | Lbank | No | No | |
-| LocalBitcoins | Yes | NA | Supports BTC only |
+| LocalBitcoins | No | No | Supports BTC only |
 | OKCoin International | No | No | Requires API update to version 5 |
 | OKEX | No | No | Same as above |
 | Poloniex | Yes | Yes | |
-| Yobit | Yes | NA | |
+| Yobit | No | No | |
 | ZB.COM | Yes | No | Addresses must be created via the website first |

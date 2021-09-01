@@ -2,8 +2,11 @@ package bitfinex
 
 import (
 	"errors"
+	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -50,8 +53,37 @@ var AcceptedOrderType = []string{"market", "limit", "stop", "trailing-stop",
 var AcceptedWalletNames = []string{"trading", "exchange", "deposit", "margin",
 	"funding"}
 
-// AcceptableMethods defines a map of currency codes to methods
-var AcceptableMethods = make(map[string]string)
+type acceptableMethodStore struct {
+	a map[string][]string
+	m sync.RWMutex
+}
+
+// AcceptableMethods holds the available acceptable deposit and withdraw methods
+var AcceptableMethods acceptableMethodStore
+
+func (a *acceptableMethodStore) Lookup(curr currency.Code) []string {
+	a.m.RLock()
+	defer a.m.RUnlock()
+	var methods []string
+	for k, v := range a.a {
+		if common.StringDataCompareInsensitive(v, curr.Upper().String()) {
+			methods = append(methods, k)
+		}
+	}
+	return methods
+}
+
+func (a *acceptableMethodStore) Load(data map[string][]string) {
+	a.m.Lock()
+	defer a.m.Unlock()
+	a.a = data
+}
+
+func (a *acceptableMethodStore) Loaded() bool {
+	a.m.RLock()
+	defer a.m.RUnlock()
+	return len(a.a) > 0
+}
 
 // MarginV2FundingData stores margin funding data
 type MarginV2FundingData struct {

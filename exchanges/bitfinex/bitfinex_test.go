@@ -956,11 +956,13 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    b.Name,
 		Amount:      -1,
-		Currency:    currency.BTC,
+		Currency:    currency.USDT,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
-			Address: core.BitcoinDonationAddress,
+			Address: "0x1nv4l1d",
+			Chain:   "tetheruse",
 		},
 	}
 
@@ -1034,7 +1036,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	if areTestAPIKeysSet() {
-		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "", "")
+		_, err := b.GetDepositAddress(context.Background(), currency.USDT, "", "TETHERUSE")
 		if err != nil {
 			t.Error("GetDepositAddress() error", err)
 		}
@@ -1196,22 +1198,6 @@ func TestWsCancelOffer(t *testing.T) {
 	}
 	if err := b.WsCancelOffer(1234); err != nil {
 		t.Error(err)
-	}
-}
-
-func TestConvertSymbolToDepositMethod(t *testing.T) {
-	s, err := b.ConvertSymbolToDepositMethod(context.Background(), currency.BTC)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if s != "bitcoin" {
-		t.Errorf("expected bitcoin but received %s", s)
-	}
-
-	_, err = b.ConvertSymbolToDepositMethod(context.Background(),
-		currency.NewCode("CATS!"))
-	if err == nil {
-		log.Fatal("error cannot be nil")
 	}
 }
 
@@ -1646,5 +1632,58 @@ func TestReOrderbyID(t *testing.T) {
 		if bids[i].ID != int64(i+1) {
 			t.Fatal("order by ID failure")
 		}
+	}
+}
+
+func TestPopulateAcceptableMethods(t *testing.T) {
+	t.Parallel()
+	if err := b.PopulateAcceptableMethods(context.Background()); err != nil {
+		t.Error(err)
+	}
+	if !AcceptableMethods.Loaded() {
+		t.Error("acceptable method store should be loaded")
+	}
+	if methods := AcceptableMethods.Lookup(currency.NewCode("UST")); len(methods) == 0 {
+		t.Error("USDT should have many available methods")
+	}
+	if methods := AcceptableMethods.Lookup(currency.NewCode("ASdasdasdasd")); len(methods) != 0 {
+		t.Error("non-existent code should return no methods")
+	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	r, err := b.GetAvailableTransferChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r) < 2 {
+		t.Error("there should be many available USDT transfer chains")
+	}
+}
+
+func TestAccetableMethodStore(t *testing.T) {
+	t.Parallel()
+	var a acceptableMethodStore
+	if a.Loaded() {
+		t.Error("should be empty")
+	}
+	data := map[string][]string{
+		"BITCOIN": {"BTC"},
+		"TETHER1": {"UST"},
+		"TETHER2": {"UST"},
+	}
+	a.Load(data)
+	if !a.Loaded() {
+		t.Error("data should be loaded")
+	}
+	if name := a.Lookup(currency.NewCode("BTC")); len(name) != 1 && name[1] != "BITCOIN" {
+		t.Error("incorrect values")
+	}
+	if name := a.Lookup(currency.NewCode("UST")); name[0] != "TETHER1" && name[1] != "TETHER2" {
+		t.Error("incorrect values")
+	}
+	if name := a.Lookup(currency.NewCode("PANDA_HORSE")); len(name) != 0 {
+		t.Error("incorrect values")
 	}
 }

@@ -877,7 +877,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 		headers["Key"] = p.API.Credentials.Key
-		values.Set("nonce", strconv.FormatInt(time.Now().UnixNano(), 10))
+		values.Set("nonce", p.Requester.GetNonce(true).String())
 		values.Set("command", endpoint)
 
 		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
