@@ -71,7 +71,7 @@ func (m *connectionManager) Start() error {
 
 // Stop stops the connection manager
 func (m *connectionManager) Stop() error {
-	if m == nil {
+	if m == nil || m.conn == nil {
 		return fmt.Errorf("connection manager %w", ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {

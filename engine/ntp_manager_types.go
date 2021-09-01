@@ -13,7 +13,7 @@ const (
 )
 
 var (
-	errNilConfigValues    = errors.New("nil allowed time differences received")
+	errNilNTPConfigValues = errors.New("nil allowed time differences received")
 	errNTPManagerDisabled = errors.New("NTP manager disabled")
 )
 

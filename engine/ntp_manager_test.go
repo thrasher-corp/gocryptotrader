@@ -14,8 +14,8 @@ func TestSetupNTPManager(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
 	_, err = setupNTPManager(&config.NTPClientConfig{}, false)
-	if !errors.Is(err, errNilConfigValues) {
-		t.Errorf("error '%v', expected '%v'", err, errNilConfigValues)
+	if !errors.Is(err, errNilNTPConfigValues) {
+		t.Errorf("error '%v', expected '%v'", err, errNilNTPConfigValues)
 	}
 	sec := time.Second
 	cfg := &config.NTPClientConfig{
