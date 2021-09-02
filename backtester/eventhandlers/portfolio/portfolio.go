@@ -87,7 +87,10 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	}
 
 	p.iteration = p.iteration.Add(decimal.NewFromInt(1))
-	if ev.GetDirection() == common.DoNothing || ev.GetDirection() == common.MissingData || ev.GetDirection() == "" {
+	if ev.GetDirection() == common.DoNothing ||
+		ev.GetDirection() == common.MissingData ||
+		ev.GetDirection() == common.TransferredFunds ||
+		ev.GetDirection() == "" {
 		return o, nil
 	}
 

@@ -194,7 +194,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 					strongestSignal.event.GetAssetType(),
 					strongestSignal.event.Pair()))
 
-				rsiFundEvents[i].event.SetDirection(common.DoNothing)
+				rsiFundEvents[i].event.SetDirection(common.TransferredFunds)
 				strongestSignal.event.AppendReason(fmt.Sprintf("received %v %v funds to sell, from %v %v %v",
 					baseFunds,
 					rsiFundEvents[i].event.Pair().Base,
@@ -217,7 +217,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 					strongestSignal.event.GetAssetType(),
 					strongestSignal.event.Pair()))
 
-				rsiFundEvents[i].event.SetDirection(common.DoNothing)
+				rsiFundEvents[i].event.SetDirection(common.TransferredFunds)
 				strongestSignal.event.AppendReason(fmt.Sprintf("received funds %v %v  to sell, from %v %v %v",
 					quoteFunds,
 					rsiFundEvents[i].event.Pair().Quote,
@@ -252,7 +252,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 					strongestSignal.event.GetAssetType(),
 					strongestSignal.event.Pair()))
 
-				rsiFundEvents[i].event.SetDirection(common.DoNothing)
+				rsiFundEvents[i].event.SetDirection(common.TransferredFunds)
 				strongestSignal.event.AppendReason(fmt.Sprintf("received %v %v funds to buy, from %v %v %v",
 					baseFunds,
 					rsiFundEvents[i].event.Pair().Base,
@@ -275,7 +275,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 					strongestSignal.event.GetAssetType(),
 					strongestSignal.event.Pair()))
 
-				rsiFundEvents[i].event.SetDirection(common.DoNothing)
+				rsiFundEvents[i].event.SetDirection(common.TransferredFunds)
 				strongestSignal.event.AppendReason(fmt.Sprintf("received %v %v funds to buy, from %v %v %v",
 					quoteFunds,
 					rsiFundEvents[i].event.Pair().Quote,

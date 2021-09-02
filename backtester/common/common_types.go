@@ -15,6 +15,8 @@ const (
 	// DoNothing is an explicit signal for the backtester to not perform an action
 	// based upon indicator results
 	DoNothing order.Side = "DO NOTHING"
+	// TransferredFunds is a status signal to do nothing
+	TransferredFunds order.Side = "TRANSFERRED FUNDS"
 	// CouldNotBuy is flagged when a BUY  signal is raised in the strategy/signal phase, but the
 	// portfolio manager or exchange cannot place an order
 	CouldNotBuy order.Side = "COULD NOT BUY"

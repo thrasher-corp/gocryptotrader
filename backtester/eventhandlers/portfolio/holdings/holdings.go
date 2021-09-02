@@ -72,7 +72,7 @@ func (h *Holding) update(e fill.Event, f funding.IPairReader) {
 		case order.Sell:
 			h.SoldAmount = h.SoldAmount.Add(amount)
 			h.SoldValue = h.SoldAmount.Mul(price)
-		case common.DoNothing, common.CouldNotSell, common.CouldNotBuy, common.MissingData, "":
+		case common.DoNothing, common.CouldNotSell, common.CouldNotBuy, common.MissingData, common.TransferredFunds, "":
 		}
 	}
 	h.TotalValueLostToVolumeSizing = h.TotalValueLostToVolumeSizing.Add(e.GetClosePrice().Sub(e.GetVolumeAdjustedPrice()).Mul(e.GetAmount()))

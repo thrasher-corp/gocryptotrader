@@ -332,6 +332,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							direction == common.CouldNotSell ||
 							direction == common.DoNothing ||
 							direction == common.MissingData ||
+							direction == common.TransferredFunds ||
 							direction == "" {
 							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(),
 								fmt.Sprintf("%v %v %v %v | Price: $%v - Direction: %v - Reason: %s",
