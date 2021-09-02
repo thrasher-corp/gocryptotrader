@@ -77,15 +77,15 @@ func (m *connectionManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("connection manager: %w", ErrNilSubsystem)
 	}
-	if m.conn == nil {
-		return fmt.Errorf("connection manager: %w", errConnectionCheckerIsNil)
-	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("connection manager: %w", ErrSubSystemNotStarted)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
+	if m.conn == nil {
+		return fmt.Errorf("connection manager: %w", errConnectionCheckerIsNil)
+	}
 	log.Debugln(log.ConnectionMgr, "Connection manager shutting down...")
 	m.conn.Shutdown()
 	log.Debugln(log.ConnectionMgr, "Connection manager stopped.")
