@@ -63,11 +63,11 @@ func (n *Notice) Wait(kick <-chan struct{}) <-chan bool {
 
 // hold waits on either channel in the event that the routine has finished or an
 // alert from a depth update has occurred.
-func (a *Notice) hold(ch chan<- bool, kick <-chan struct{}) {
+func (n *Notice) hold(ch chan<- bool, kick <-chan struct{}) {
 	select {
 	// In a select statement, if by chance there is no receiver or its late,
 	// we can still close and return, limiting dead-lock potential.
-	case <-a.forAlert: // Main waiting channel from alert
+	case <-n.forAlert: // Main waiting channel from alert
 		select {
 		case ch <- false:
 		default:
@@ -78,6 +78,6 @@ func (a *Notice) hold(ch chan<- bool, kick <-chan struct{}) {
 		default:
 		}
 	}
-	a.wg.Done()
+	n.wg.Done()
 	close(ch)
 }

@@ -34,7 +34,7 @@ type stateManager struct {
 	sleep time.Duration
 }
 
-// Setup applies configuration paramaters before running
+// Setup applies configuration parameters before running
 func (s *stateManager) Setup(interval time.Duration, em iExchangeManager) error {
 	if em == nil {
 		return errNilInterface
