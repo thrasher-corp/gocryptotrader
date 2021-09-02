@@ -552,14 +552,16 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	ws.exchangeName = "hello"
 	ws.trafficTimeout = time.Millisecond
 	ws.Wg = &sync.WaitGroup{}
-	if ws.connectionMonitor() {
-		t.Fatal("should not be running")
+	err := ws.connectionMonitor()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
 	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
-	if !ws.connectionMonitor() {
-		t.Fatal("should be running")
+	err = ws.connectionMonitor()
+	if !errors.Is(err, errAlreadyRunning) {
+		t.Fatalf("received: %v, but expected: %v", err, errAlreadyRunning)
 	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
@@ -570,8 +572,9 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	}
 	ws.setConnectedStatus(true)  // attempt shutdown when not enabled
 	ws.setConnectingStatus(true) // throw a spanner in the works
-	if ws.connectionMonitor() {
-		t.Fatal("should not be running")
+	err = ws.connectionMonitor()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
 	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
