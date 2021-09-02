@@ -31,6 +31,25 @@ func (f *FundManager) Reset() {
 	*f = FundManager{}
 }
 
+// GenerateReport builds report data for result operatiosn
+func (f *FundManager) GenerateReport() *Report {
+	var items []ReportItem
+	for i := range f.items {
+		item := ReportItem{
+			Exchange:     f.items[i].exchange,
+			Asset:        f.items[i].asset,
+			Currency:     f.items[i].currency,
+			InitialFunds: f.items[i].initialFunds,
+			TransferFee:  f.items[i].transferFee,
+		}
+		if f.items[i].pairedWith != nil {
+			item.PairedWith = f.items[i].pairedWith.currency
+		}
+		items = append(items, item)
+	}
+	return &Report{Items: items}
+}
+
 // CreateSnapshot makes a funding based snapshot in time to help demonstrate
 
 // Transfer allows transferring funds from one pretend exchange to another
@@ -136,8 +155,8 @@ func (f *FundManager) IsUsingExchangeLevelFunding() bool {
 }
 
 // GetFundingForEvent This will construct a funding based on a backtesting event
-func (f *FundManager) GetFundingForEvent(e common.EventHandler) (*Pair, error) {
-	return f.GetFundingForEAP(e.GetExchange(), e.GetAssetType(), e.Pair())
+func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (*Pair, error) {
+	return f.GetFundingForEAP(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 }
 
 // GetFundingForEAC This will construct a funding based on the exchange, asset, currency code

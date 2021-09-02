@@ -86,19 +86,6 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			ev.Pair())
 	}
 
-	h := lookup.GetLatestHoldings()
-	if p.iteration.IsZero() {
-		var err error
-		h, err = holdings.Create(ev, funds, p.riskFreeRate)
-		if err != nil {
-			return nil, err
-		}
-		h.Timestamp = ev.GetTime()
-		err = p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), h, false)
-		if err != nil {
-			return nil, err
-		}
-	}
 	p.iteration = p.iteration.Add(decimal.NewFromInt(1))
 	if ev.GetDirection() == common.DoNothing || ev.GetDirection() == common.MissingData || ev.GetDirection() == "" {
 		return o, nil
@@ -307,30 +294,22 @@ func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) 
 	return lookup.Fee
 }
 
-// GetHoldingIfInvested determines if there are any holdings for a given exchange, asset, pair
-func (p *Portfolio) GetHoldingIfInvested(exchangeName string, a asset.Item, cp currency.Pair) *holdings.Holding {
-	s := p.exchangeAssetPairSettings[exchangeName][a][cp]
-	if s == nil {
-		return nil
-	}
-	h := s.GetLatestHoldings()
-	if h == nil {
-		return nil
-	}
-	if h.BaseSize.GreaterThan(decimal.Zero) {
-		return h
-	}
-	return nil
-}
-
-// Update updates the portfolio holdings for the data event
-func (p *Portfolio) Update(d common.DataEventHandler) error {
+// UpdateHoldings updates the portfolio holdings for the data event
+func (p *Portfolio) UpdateHoldings(d common.DataEventHandler, funds funding.IPairReader) error {
 	if d == nil {
 		return common.ErrNilEvent
 	}
-	h := p.GetHoldingIfInvested(d.GetExchange(), d.GetAssetType(), d.Pair())
+	lookup, ok := p.exchangeAssetPairSettings[d.GetExchange()][d.GetAssetType()][d.Pair()]
+	if !ok {
+		return errors.New("severe issue detected")
+	}
+	h := lookup.GetLatestHoldings()
 	if h == nil {
-		return nil
+		var err error
+		h, err = holdings.Create(d, funds, p.riskFreeRate)
+		if err != nil {
+			return err
+		}
 	}
 	h.UpdateValue(d)
 	err := p.setHoldingsForOffset(d.GetExchange(), d.GetAssetType(), d.Pair(), h, true)

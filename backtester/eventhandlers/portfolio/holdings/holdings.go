@@ -46,6 +46,14 @@ func (h *Holding) UpdateValue(d common.DataEventHandler) {
 	h.updateValue(latest)
 }
 
+func (h *Holding) HasInvestments() bool {
+	return h.BaseSize.GreaterThan(decimal.Zero)
+}
+
+func (h *Holding) HasFunds() bool {
+	return h.QuoteSize.GreaterThan(decimal.Zero)
+}
+
 func (h *Holding) update(e fill.Event, f funding.IPairReader) {
 	direction := e.GetDirection()
 	o := e.GetOrder()

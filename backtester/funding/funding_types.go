@@ -22,6 +22,21 @@ type FundManager struct {
 	items                     []*Item
 }
 
+// Report holds all funding data for result reporting
+type Report struct {
+	Items []ReportItem
+}
+
+// ReportItem holds reporting fields
+type ReportItem struct {
+	Exchange     string
+	Asset        asset.Item
+	Currency     currency.Code
+	InitialFunds decimal.Decimal
+	TransferFee  decimal.Decimal
+	PairedWith   currency.Code
+}
+
 // IFundingManager limits funding usage for portfolio event handling
 type IFundingManager interface {
 	Reset()
@@ -30,6 +45,7 @@ type IFundingManager interface {
 	GetFundingForEvent(common.EventHandler) (*Pair, error)
 	GetFundingForEAP(string, asset.Item, currency.Pair) (*Pair, error)
 	Transfer(decimal.Decimal, *Item, *Item) error
+	GenerateReport() *Report
 }
 
 // IFundTransferer allows for funding amounts to be transferred

@@ -29,30 +29,30 @@ func (s *Statistic) Reset() {
 var ErrAlreadyProcessed = errors.New("this event has been processed already")
 
 // SetupEventForTime sets up the big map for to store important data at each time interval
-func (s *Statistic) SetupEventForTime(e common.DataEventHandler) error {
-	if e == nil {
+func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
+	if ev == nil {
 		return common.ErrNilEvent
 	}
-	ex := e.GetExchange()
-	a := e.GetAssetType()
-	p := e.Pair()
+	ex := ev.GetExchange()
+	a := ev.GetAssetType()
+	p := ev.Pair()
 	s.setupMap(ex, a)
 	lookup := s.ExchangeAssetPairStatistics[ex][a][p]
 	if lookup == nil {
 		lookup = &currencystatistics.CurrencyStatistic{}
 	}
 	for i := range lookup.Events {
-		if lookup.Events[i].DataEvent.GetTime().Equal(e.GetTime()) &&
-			lookup.Events[i].DataEvent.GetExchange() == e.GetExchange() &&
-			lookup.Events[i].DataEvent.GetAssetType() == e.GetAssetType() &&
-			lookup.Events[i].DataEvent.Pair().Equal(e.Pair()) &&
-			lookup.Events[i].DataEvent.GetOffset() == e.GetOffset() {
+		if lookup.Events[i].DataEvent.GetTime().Equal(ev.GetTime()) &&
+			lookup.Events[i].DataEvent.GetExchange() == ev.GetExchange() &&
+			lookup.Events[i].DataEvent.GetAssetType() == ev.GetAssetType() &&
+			lookup.Events[i].DataEvent.Pair().Equal(ev.Pair()) &&
+			lookup.Events[i].DataEvent.GetOffset() == ev.GetOffset() {
 			return ErrAlreadyProcessed
 		}
 	}
 	lookup.Events = append(lookup.Events,
 		currencystatistics.EventStore{
-			DataEvent: e,
+			DataEvent: ev,
 		},
 	)
 	s.ExchangeAssetPairStatistics[ex][a][p] = lookup
@@ -73,32 +73,32 @@ func (s *Statistic) setupMap(ex string, a asset.Item) {
 }
 
 // SetEventForOffset sets the event for the time period in the event
-func (s *Statistic) SetEventForOffset(e common.EventHandler) error {
-	if e == nil {
+func (s *Statistic) SetEventForOffset(ev common.EventHandler) error {
+	if ev == nil {
 		return common.ErrNilEvent
 	}
 	if s.ExchangeAssetPairStatistics == nil {
 		return errExchangeAssetPairStatsUnset
 	}
-	exch := e.GetExchange()
-	a := e.GetAssetType()
-	p := e.Pair()
-	offset := e.GetOffset()
+	exch := ev.GetExchange()
+	a := ev.GetAssetType()
+	p := ev.Pair()
+	offset := ev.GetOffset()
 	lookup := s.ExchangeAssetPairStatistics[exch][a][p]
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set signal event", errCurrencyStatisticsUnset, exch, a, p)
 	}
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
 		if lookup.Events[i].DataEvent.GetOffset() == offset {
-			return applyEventAtOffset(e, lookup, i)
+			return applyEventAtOffset(ev, lookup, i)
 		}
 	}
 
 	return nil
 }
 
-func applyEventAtOffset(e common.EventHandler, lookup *currencystatistics.CurrencyStatistic, i int) error {
-	switch t := e.(type) {
+func applyEventAtOffset(ev common.EventHandler, lookup *currencystatistics.CurrencyStatistic, i int) error {
+	switch t := ev.(type) {
 	case common.DataEventHandler:
 		lookup.Events[i].DataEvent = t
 	case signal.Event:
@@ -108,7 +108,7 @@ func applyEventAtOffset(e common.EventHandler, lookup *currencystatistics.Curren
 	case fill.Event:
 		lookup.Events[i].FillEvent = t
 	default:
-		return fmt.Errorf("unknown event type received: %v", e)
+		return fmt.Errorf("unknown event type received: %v", ev)
 	}
 	return nil
 }
@@ -164,7 +164,7 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 	currCount := 0
 	var finalResults []FinalResultsHolder
 	var err error
-
+	s.Funding = funds.GenerateReport()
 	for exchangeName, exchangeMap := range s.ExchangeAssetPairStatistics {
 		for assetItem, assetMap := range exchangeMap {
 			for pair, stats := range assetMap {

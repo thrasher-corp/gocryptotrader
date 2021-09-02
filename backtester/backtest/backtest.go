@@ -804,10 +804,11 @@ dataLoadingIssue:
 				}
 			}
 		}
-
-		err := bt.handleEvent(ev)
-		if err != nil {
-			return err
+		if ev != nil {
+			err := bt.handleEvent(ev)
+			if err != nil {
+				return err
+			}
 		}
 		if !bt.hasHandledEvent {
 			bt.hasHandledEvent = true
@@ -821,27 +822,57 @@ dataLoadingIssue:
 // after data has been loaded and Run has appended a data event to the queue,
 // handle event will process events and add further events to the queue if they
 // are required
-func (bt *BackTest) handleEvent(e common.EventHandler) error {
-	switch ev := e.(type) {
+func (bt *BackTest) handleEvent(ev common.EventHandler) error {
+	funds, err := bt.Funding.GetFundingForEvent(ev)
+	if err != nil {
+		return err
+	}
+	switch eType := ev.(type) {
 	case common.DataEventHandler:
-		return bt.processDataEvent(ev)
+		if bt.Strategy.UsingSimultaneousProcessing() {
+			return bt.processSimultaneousDataEvents(eType)
+		}
+		return bt.processSingleDataEvent(eType, funds)
 	case signal.Event:
-		bt.processSignalEvent(ev)
+		bt.processSignalEvent(eType, funds)
 	case order.Event:
-		bt.processOrderEvent(ev)
+		bt.processOrderEvent(eType, funds)
 	case fill.Event:
-		bt.processFillEvent(ev)
-	case nil:
+		bt.processFillEvent(eType, funds)
 	default:
 		return fmt.Errorf("%w %v received, could not process",
 			errUnhandledDatatype,
-			e)
+			ev)
 	}
 
 	return nil
 }
 
-// processDataEvent determines what signal events are generated and appended
+func (bt *BackTest) processSingleDataEvent(ev common.DataEventHandler, funds funding.IPairReader) error {
+	err := bt.updateStatsForDataEvent(ev, funds)
+	if err != nil {
+		return err
+	}
+	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	s, err := bt.Strategy.OnSignal(d, bt.Funding)
+	if err != nil {
+		if errors.Is(err, base.ErrTooMuchBadData) {
+			// too much bad data is a severe error and backtesting must cease
+			return err
+		}
+		log.Error(log.BackTester, err)
+		return nil
+	}
+	err = bt.Statistic.SetEventForOffset(s)
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
+	bt.EventQueue.AppendEvent(s)
+
+	return nil
+}
+
+// processSimultaneousDataEvents determines what signal events are generated and appended
 // to the event queue based on whether it is running a multi-currency consideration strategy order not
 //
 // for multi-currency-consideration it will pass all currency datas to the strategy for it to determine what
@@ -849,68 +880,49 @@ func (bt *BackTest) handleEvent(e common.EventHandler) error {
 //
 // for non-multi-currency-consideration strategies, it will simply process every currency individually
 // against the strategy and generate signals
-func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
-	if bt.Strategy.UsingSimultaneousProcessing() {
-		var dataEvents []data.Handler
-		dataHandlerMap := bt.Datas.GetAllData()
-		for _, exchangeMap := range dataHandlerMap {
-			for _, assetMap := range exchangeMap {
-				for _, dataHandler := range assetMap {
-					latestData := dataHandler.Latest()
-					err := bt.updateStatsForDataEvent(latestData)
-					if err != nil && err == statistics.ErrAlreadyProcessed {
-						continue
-					}
-					dataEvents = append(dataEvents, dataHandler)
+func (bt *BackTest) processSimultaneousDataEvents(ev common.DataEventHandler) error {
+	var dataEvents []data.Handler
+	dataHandlerMap := bt.Datas.GetAllData()
+	for _, exchangeMap := range dataHandlerMap {
+		for _, assetMap := range exchangeMap {
+			for _, dataHandler := range assetMap {
+				latestData := dataHandler.Latest()
+				funds, err := bt.Funding.GetFundingForEvent(ev)
+				if err != nil {
+					return err
 				}
+				err = bt.updateStatsForDataEvent(latestData, funds)
+				if err != nil && err == statistics.ErrAlreadyProcessed {
+					continue
+				}
+				dataEvents = append(dataEvents, dataHandler)
 			}
 		}
-		signals, err := bt.Strategy.OnSimultaneousSignals(dataEvents, bt.Funding)
-		if err != nil {
-			if errors.Is(err, base.ErrTooMuchBadData) {
-				// too much bad data is a severe error and backtesting must cease
-				return err
-			}
-			log.Error(log.BackTester, err)
-			return nil
-		}
-		for i := range signals {
-			err = bt.Statistic.SetEventForOffset(signals[i])
-			if err != nil {
-				log.Error(log.BackTester, err)
-			}
-			bt.EventQueue.AppendEvent(signals[i])
-		}
-	} else {
-		err := bt.updateStatsForDataEvent(e)
-		if err != nil {
+	}
+	signals, err := bt.Strategy.OnSimultaneousSignals(dataEvents, bt.Funding)
+	if err != nil {
+		if errors.Is(err, base.ErrTooMuchBadData) {
+			// too much bad data is a severe error and backtesting must cease
 			return err
 		}
-		d := bt.Datas.GetDataForCurrency(e.GetExchange(), e.GetAssetType(), e.Pair())
-
-		s, err := bt.Strategy.OnSignal(d, bt.Funding)
-		if err != nil {
-			if errors.Is(err, base.ErrTooMuchBadData) {
-				// too much bad data is a severe error and backtesting must cease
-				return err
-			}
-			log.Error(log.BackTester, err)
-			return nil
-		}
-		err = bt.Statistic.SetEventForOffset(s)
+		log.Error(log.BackTester, err)
+		return nil
+	}
+	for i := range signals {
+		err = bt.Statistic.SetEventForOffset(signals[i])
 		if err != nil {
 			log.Error(log.BackTester, err)
 		}
-		bt.EventQueue.AppendEvent(s)
+		bt.EventQueue.AppendEvent(signals[i])
 	}
 	return nil
 }
 
 // updateStatsForDataEvent makes various systems aware of price movements from
 // data events
-func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) error {
+func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds funding.IPairReader) error {
 	// update statistics with latest price
-	err := bt.Statistic.SetupEventForTime(e)
+	err := bt.Statistic.SetupEventForTime(ev)
 	if err != nil {
 		if err == statistics.ErrAlreadyProcessed {
 			return err
@@ -918,7 +930,7 @@ func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) error {
 		log.Error(log.BackTester, err)
 	}
 	// update portfoliomanager with latest price
-	err = bt.Portfolio.Update(e)
+	err = bt.Portfolio.UpdateHoldings(ev, funds)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
@@ -926,18 +938,14 @@ func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) error {
 }
 
 // processSignalEvent receives an event from the strategy for processing under the portfolio
-func (bt *BackTest) processSignalEvent(ev signal.Event) {
+func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IPairReserver) {
 	cs, err := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
 		log.Error(log.BackTester, err)
 		return
 	}
 	var o *order.Order
-	funds, err := bt.Funding.GetFundingForEvent(ev)
-	if err != nil {
-		log.Error(log.BackTester, err)
-		return
-	}
+
 	//log.Debugf(log.BackTester, "%v %v, %v %v", funds.BaseAvailable().Round(8), funds.Base.Currency.String(), funds.QuoteAvailable().Round(8), funds.Quote.Currency.String())
 	o, err = bt.Portfolio.OnSignal(ev, &cs, funds)
 	if err != nil {
@@ -952,13 +960,8 @@ func (bt *BackTest) processSignalEvent(ev signal.Event) {
 	bt.EventQueue.AppendEvent(o)
 }
 
-func (bt *BackTest) processOrderEvent(ev order.Event) {
+func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IPairReleaser) {
 	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-	funds, err := bt.Funding.GetFundingForEvent(ev)
-	if err != nil {
-		log.Error(log.BackTester, err)
-		return
-	}
 	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.Bot, funds)
 	if err != nil {
 		if f == nil {
@@ -974,12 +977,7 @@ func (bt *BackTest) processOrderEvent(ev order.Event) {
 	bt.EventQueue.AppendEvent(f)
 }
 
-func (bt *BackTest) processFillEvent(ev fill.Event) {
-	funds, err := bt.Funding.GetFundingForEvent(ev)
-	if err != nil {
-		log.Error(log.BackTester, err)
-		return
-	}
+func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IPairReader) {
 	t, err := bt.Portfolio.OnFill(ev, funds)
 	if err != nil {
 		log.Error(log.BackTester, err)

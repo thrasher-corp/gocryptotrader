@@ -46,14 +46,16 @@ type Portfolio struct {
 type Handler interface {
 	OnSignal(signal.Event, *exchange.Settings, funding.IPairReserver) (*order.Order, error)
 	OnFill(fill.Event, funding.IPairReader) (*fill.Fill, error)
-	Update(common.DataEventHandler) error
+
+	ViewHoldingAtTimePeriod(common.EventHandler) (*holdings.Holding, error)
+	setHoldingsForOffset(string, asset.Item, currency.Pair, *holdings.Holding, bool) error
+	UpdateHoldings(common.DataEventHandler, funding.IPairReader) error
 
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 
-	setHoldingsForOffset(string, asset.Item, currency.Pair, *holdings.Holding, bool) error
-	ViewHoldingAtTimePeriod(common.EventHandler) (*holdings.Holding, error)
 	SetFee(string, asset.Item, currency.Pair, decimal.Decimal)
 	GetFee(string, asset.Item, currency.Pair) decimal.Decimal
+
 	Reset()
 }
 

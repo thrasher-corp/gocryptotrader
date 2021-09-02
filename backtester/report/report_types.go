@@ -6,6 +6,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -24,6 +25,7 @@ var (
 type Handler interface {
 	GenerateReport() error
 	AddKlineItem(*kline.Item)
+	UseDarkMode(bool)
 }
 
 // Data holds all statistical information required to output detailed backtesting results
@@ -35,6 +37,8 @@ type Data struct {
 	TemplatePath    string
 	OutputPath      string
 	Warnings        []Warning
+	UseDarkTheme    bool
+	Funding         funding.FundManager
 }
 
 // Warning holds any candle warnings

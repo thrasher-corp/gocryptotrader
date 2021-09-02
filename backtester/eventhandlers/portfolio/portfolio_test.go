@@ -188,17 +188,17 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
-	err := p.Update(nil)
+	err := p.UpdateHoldings(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
 
-	err = p.Update(&kline.Kline{})
+	err = p.UpdateHoldings(&kline.Kline{})
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = p.Update(&kline.Kline{
+	err = p.UpdateHoldings(&kline.Kline{
 		Base: event.Base{
 			Exchange:     testExchange,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
@@ -215,7 +215,7 @@ func TestUpdate(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.Update(&kline.Kline{
+	err = p.UpdateHoldings(&kline.Kline{
 		Base: event.Base{
 			Exchange:     testExchange,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),

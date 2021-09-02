@@ -193,3 +193,9 @@ func (d *DetailedCandle) copyCloseFromPreviousEvent(enhancedKline *DetailedKline
 	d.Shape = "arrowDown"
 	d.Text = common.MissingData.String()
 }
+
+// UseDarkMode sets whether to use a dark theme by default
+// for the html generated report
+func (d *Data) UseDarkMode(use bool) {
+	d.UseDarkTheme = use
+}

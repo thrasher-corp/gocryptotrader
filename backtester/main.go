@@ -17,7 +17,7 @@ import (
 
 func main() {
 	var configPath, templatePath, reportOutput string
-	var printLogo, generateReport bool
+	var printLogo, generateReport, darkReport bool
 	wd, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Could not get working directory. Error: %v.\n", err)
@@ -57,7 +57,11 @@ func main() {
 		"printlogo",
 		true,
 		"print out the logo to the command line, projected profits likely won't be affected if disabled")
-
+	flag.BoolVar(
+		&darkReport,
+		"darkreport",
+		false,
+		"sets the initial rerport to use a dark theme")
 	flag.Parse()
 
 	var bt *backtest.BackTest
@@ -131,6 +135,7 @@ func main() {
 	}
 
 	if generateReport {
+		bt.Reports.UseDarkMode(darkReport)
 		err = bt.Reports.GenerateReport()
 		if err != nil {
 			gctlog.Error(gctlog.BackTester, err)
