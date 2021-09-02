@@ -3,6 +3,8 @@ package orderbook
 import (
 	"sync"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 )
 
 // Unsafe is an exported linked list reference to the current bid/ask heads and
@@ -20,7 +22,7 @@ type Unsafe struct {
 	// protocol then this book is not considered live and cannot be trusted.
 	UpdatedViaREST *bool
 	LastUpdated    *time.Time
-	*Alert
+	*alert.Notice
 }
 
 // Lock locks down the underlying linked list which inhibits all pending updates
@@ -55,7 +57,7 @@ func (d *Depth) GetUnsafe() Unsafe {
 		BidHead:        &d.bids.linkedList.head,
 		AskHead:        &d.asks.linkedList.head,
 		m:              &d.m,
-		Alert:          &d.Alert,
+		Notice:         &d.Notice,
 		UpdatedViaREST: &d.options.restSnapshot,
 		LastUpdated:    &d.options.lastUpdated,
 	}

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/state"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -617,7 +618,9 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 			b.Name)
 	}
 	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
-	return nil
+
+	b.States, err = state.RegisterExchangeState(b.Name)
+	return err
 }
 
 // AllowAuthenticatedRequest checks to see if the required fields have been set
@@ -1315,4 +1318,9 @@ func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool
 	a.m.RLock()
 	defer a.m.RUnlock()
 	return a.unsupported == nil || !a.unsupported[aType]
+}
+
+// UpdateCurrencyStates updates currency states
+func (b *Base) UpdateCurrencyStates(a asset.Item) error {
+	return common.ErrNotYetImplemented
 }

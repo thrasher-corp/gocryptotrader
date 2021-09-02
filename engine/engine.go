@@ -45,6 +45,7 @@ type Engine struct {
 	websocketRoutineManager *websocketRoutineManager
 	WithdrawManager         *WithdrawManager
 	dataHistoryManager      *DataHistoryManager
+	stateManager            *stateManager
 	Settings                Settings
 	uptime                  time.Time
 	ServicesWG              sync.WaitGroup
@@ -562,6 +563,19 @@ func (bot *Engine) Start() error {
 		}
 	}
 
+	if bot.Settings.EnableStateManager {
+		bot.stateManager = &stateManager{}
+		err = bot.stateManager.Setup(bot.Settings.StateManagerDelay, bot.ExchangeManager)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "%s unable to setup: %s", StateManagement, err)
+		} else {
+			err = bot.stateManager.Start()
+			if err != nil {
+				gctlog.Errorf(gctlog.Global, "%s unable to start: %s", StateManagement, err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -586,61 +600,51 @@ func (bot *Engine) Stop() {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.eventManager.IsRunning() {
 		if err := bot.eventManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "event manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.ntpManager.IsRunning() {
 		if err := bot.ntpManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.CommunicationsManager.IsRunning() {
 		if err := bot.CommunicationsManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communication manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.portfolioManager.IsRunning() {
 		if err := bot.portfolioManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Fund manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.connectionManager.IsRunning() {
 		if err := bot.connectionManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.apiServer.IsRESTServerRunning() {
 		if err := bot.apiServer.StopRESTServer(); err != nil {
 			gctlog.Errorf(gctlog.Global, "API Server unable to stop REST server. Error: %s", err)
 		}
 	}
-
 	if bot.apiServer.IsWebsocketServerRunning() {
 		if err := bot.apiServer.StopWebsocketServer(); err != nil {
 			gctlog.Errorf(gctlog.Global, "API Server unable to stop websocket server. Error: %s", err)
 		}
 	}
-
 	if bot.dataHistoryManager.IsRunning() {
 		if err := bot.dataHistoryManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.DataHistory, "data history manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.DatabaseManager.IsRunning() {
 		if err := bot.DatabaseManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if dispatch.IsRunning() {
 		if err := dispatch.Stop(); err != nil {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatch system unable to stop. Error: %v", err)
@@ -649,6 +653,11 @@ func (bot *Engine) Stop() {
 	if bot.websocketRoutineManager.IsRunning() {
 		if err := bot.websocketRoutineManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "websocket routine manager unable to stop. Error: %v", err)
+		}
+	}
+	if bot.stateManager.IsRunning() {
+		if err := bot.stateManager.Stop(); err != nil {
+			gctlog.Errorf(gctlog.Global, "%s unable to stop. Error: %v", StateManagement, err)
 		}
 	}
 

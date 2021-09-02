@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/state"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -882,4 +883,21 @@ func (b *Bithumb) UpdateOrderExecutionLimits(_ asset.Item) error {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
 	return b.LoadLimits(limits)
+}
+
+// UpdateCurrencyStates updates currency states for exchange
+func (b *Bithumb) UpdateCurrencyStates(a asset.Item) error {
+	status, err := b.GetAssetStatusAll()
+	if err != nil {
+		return err
+	}
+
+	payload := make(map[currency.Code]state.Options)
+	for coin, options := range status.Data {
+		payload[currency.NewCode(coin)] = state.Options{
+			Withdraw: options.WithdrawalStatus == 1,
+			Deposit:  options.DepositStatus == 1,
+		}
+	}
+	return b.States.UpdateAll(a, payload)
 }

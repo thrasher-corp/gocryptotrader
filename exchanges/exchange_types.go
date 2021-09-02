@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/state"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
@@ -231,6 +232,7 @@ type Base struct {
 	order.ExecutionLimits
 
 	AssetWebsocketSupport
+	*state.States
 }
 
 // url lookup consts

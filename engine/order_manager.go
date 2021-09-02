@@ -386,6 +386,28 @@ func (m *OrderManager) Submit(newOrder *order.Submit) (*OrderSubmitResponse, err
 			err)
 	}
 
+	// Determines if current trading activity is turned off by the exchange for
+	// the base asset
+	err = exch.CanTrade(newOrder.Pair.Base, newOrder.AssetType)
+	if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
+		return nil, fmt.Errorf("order manager: exchange %s cannot trade base %s %s %v",
+			newOrder.Exchange,
+			newOrder.Pair.Quote,
+			newOrder.AssetType,
+			err)
+	}
+
+	// Determines if current trading activity is turned off by the exchange for
+	// the quote asset
+	err = exch.CanTrade(newOrder.Pair.Quote, newOrder.AssetType)
+	if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
+		return nil, fmt.Errorf("order manager: exchange %s cannot trade quote %s %s %v",
+			newOrder.Pair.Quote,
+			newOrder.AssetType,
+			newOrder.Exchange,
+			err)
+	}
+
 	result, err := exch.SubmitOrder(newOrder)
 	if err != nil {
 		return nil, err
