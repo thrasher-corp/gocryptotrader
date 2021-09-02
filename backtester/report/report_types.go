@@ -6,7 +6,6 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
-	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -38,7 +37,6 @@ type Data struct {
 	OutputPath      string
 	Warnings        []Warning
 	UseDarkTheme    bool
-	Funding         funding.FundManager
 }
 
 // Warning holds any candle warnings

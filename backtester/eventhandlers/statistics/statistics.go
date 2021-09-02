@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -227,14 +228,28 @@ func (s *Statistic) PrintTotalResults() {
 	log.Infof(log.BackTester, "Strategy Name: %v", s.StrategyName)
 	log.Infof(log.BackTester, "Strategy Nickname: %v", s.StrategyNickname)
 	log.Infof(log.BackTester, "Strategy Goal: %v\n\n", s.StrategyGoal)
+	log.Info(log.BackTester, "------------------Funding------------------------------------")
+	for i := range s.Funding.Items {
+		log.Infof(log.BackTester, "Exchange: %v", s.Funding.Items[i].Exchange)
+		log.Infof(log.BackTester, "Asset: %v", s.Funding.Items[i].Asset)
+		log.Infof(log.BackTester, "Currency: %v", s.Funding.Items[i].Currency)
+		if !s.Funding.Items[i].PairedWith.IsEmpty() {
+			log.Infof(log.BackTester, "Paired with: %v", s.Funding.Items[i].PairedWith)
+		}
+		log.Infof(log.BackTester, "Initial funds: %v", s.Funding.Items[i].InitialFunds)
+		if s.Funding.Items[i].TransferFee.GreaterThan(decimal.Zero) {
+			log.Infof(log.BackTester, "Transfer fee: %v", s.Funding.Items[i].TransferFee)
+		}
+		log.Info(log.BackTester, "")
+	}
 	log.Info(log.BackTester, "------------------Total Results------------------------------")
-	log.Info(log.BackTester, "------------------Orders----------------------------------")
+	log.Info(log.BackTester, "------------------Orders-------------------------------------")
 	log.Infof(log.BackTester, "Total buy orders: %v", s.TotalBuyOrders)
 	log.Infof(log.BackTester, "Total sell orders: %v", s.TotalSellOrders)
 	log.Infof(log.BackTester, "Total orders: %v\n\n", s.TotalOrders)
 
 	if s.BiggestDrawdown != nil {
-		log.Info(log.BackTester, "------------------Biggest Drawdown------------------------")
+		log.Info(log.BackTester, "------------------Biggest Drawdown-----------------------")
 		log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
 		log.Infof(log.BackTester, "Highest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Round(8))
 		log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
