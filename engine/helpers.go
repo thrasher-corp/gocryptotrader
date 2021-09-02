@@ -37,7 +37,6 @@ var (
 	errCertExpired         = errors.New("gRPC TLS certificate has expired")
 	errCertDataIsNil       = errors.New("gRPC TLS certificate PEM data is nil")
 	errCertTypeInvalid     = errors.New("gRPC TLS certificate type is invalid")
-	errConfigIsNil         = errors.New("config is nil")
 	errSubsystemNotFound   = errors.New("subsystem not found")
 	errGRPCManagementFault = errors.New("cannot manage GRPC subsystem via GRPC. Please manually change your config")
 )
@@ -71,7 +70,7 @@ type RPCEndpoint struct {
 // GetRPCEndpoints returns a list of RPC endpoints and their listen addrs
 func (bot *Engine) GetRPCEndpoints() (map[string]RPCEndpoint, error) {
 	if bot.Config == nil {
-		return nil, errConfigIsNil
+		return nil, errNilConfig
 	}
 	return map[string]RPCEndpoint{
 		grpcName: {

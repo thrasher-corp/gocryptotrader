@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -11,6 +12,8 @@ import (
 
 // ConnectionManagerName is an exported subsystem name
 const ConnectionManagerName = "internet_monitor"
+
+var errConnectionCheckerIsNil = errors.New("connection checker is nil")
 
 // connectionManager manages the connchecker
 type connectionManager struct {
@@ -71,11 +74,14 @@ func (m *connectionManager) Start() error {
 
 // Stop stops the connection manager
 func (m *connectionManager) Stop() error {
-	if m == nil || m.conn == nil {
-		return fmt.Errorf("connection manager %w", ErrNilSubsystem)
+	if m == nil {
+		return fmt.Errorf("connection manager: %w", ErrNilSubsystem)
+	}
+	if m.conn == nil {
+		return fmt.Errorf("connection manager: %w", errConnectionCheckerIsNil)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("connection manager %w", ErrSubSystemNotStarted)
+		return fmt.Errorf("connection manager: %w", ErrSubSystemNotStarted)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)

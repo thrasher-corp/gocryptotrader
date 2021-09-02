@@ -69,6 +69,10 @@ func TestConnectionMonitorStart(t *testing.T) {
 
 func TestConnectionMonitorStop(t *testing.T) {
 	t.Parallel()
+	err := (&connectionManager{}).Stop()
+	if !errors.Is(err, errConnectionCheckerIsNil) {
+		t.Errorf("error '%v', expected '%v'", err, errConnectionCheckerIsNil)
+	}
 	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

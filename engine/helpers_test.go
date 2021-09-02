@@ -102,8 +102,8 @@ func TestGetSubsystemsStatus(t *testing.T) {
 
 func TestGetRPCEndpoints(t *testing.T) {
 	_, err := (&Engine{}).GetRPCEndpoints()
-	if !errors.Is(err, errConfigIsNil) {
-		t.Fatalf("received: %v, but expected: %v", err, errConfigIsNil)
+	if !errors.Is(err, errNilConfig) {
+		t.Fatalf("received: %v, but expected: %v", err, errNilConfig)
 	}
 
 	m, err := (&Engine{Config: &config.Config{}}).GetRPCEndpoints()
