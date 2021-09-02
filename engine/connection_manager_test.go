@@ -69,7 +69,7 @@ func TestConnectionMonitorStart(t *testing.T) {
 
 func TestConnectionMonitorStop(t *testing.T) {
 	t.Parallel()
-	err := (&connectionManager{}).Stop()
+	err := (&connectionManager{started: 1}).Stop()
 	if !errors.Is(err, errConnectionCheckerIsNil) {
 		t.Errorf("error '%v', expected '%v'", err, errConnectionCheckerIsNil)
 	}
