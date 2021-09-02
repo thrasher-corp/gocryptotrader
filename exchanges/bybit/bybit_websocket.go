@@ -245,6 +245,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+
 	case wsTrades:
 		if !by.IsSaveTradeDataEnabled() {
 			return nil
@@ -279,6 +280,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			Side:         side,
 			TID:          data.TradeData.ID,
 		})
+
 	case wsTicker:
 		var data WsTicker
 		err := json.Unmarshal(respRaw, &data)
@@ -293,16 +295,13 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 
 		by.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: by.Name,
-			//			Volume:       data.Ticker,
-			//			High:         data.Ticker.High24,
-			//			Low:          data.Low24h,
-			Bid: data.Ticker.Bid,
-			Ask: data.Ticker.Ask,
-			//			Last:        data.Last,
-			LastUpdated: time.Unix(data.Ticker.Time, 0),
-			AssetType:   asset.Spot,
-			Pair:        p,
+			Bid:          data.Ticker.Bid,
+			Ask:          data.Ticker.Ask,
+			LastUpdated:  time.Unix(data.Ticker.Time, 0),
+			AssetType:    asset.Spot,
+			Pair:         p,
 		}
+
 	case wsMarkets:
 	default:
 		by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + string(respRaw)}

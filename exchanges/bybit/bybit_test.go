@@ -223,3 +223,102 @@ func TestGetWalletBalance(t *testing.T) {
 	}
 	t.Logf("%+v", r)
 }
+
+func TestWsSubscription(t *testing.T) {
+	pressXToJSON := []byte(`{
+		"symbol":"BTCUSDT",
+		"event": "sub",
+		"topic": "trade",
+		"params": {
+			"binary": false
+		}
+	}`)
+	err := by.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsUnsubscribe(t *testing.T) {
+	pressXToJSON := []byte(`{
+		"symbol":"BTCUSDT",
+		"event": "cancel",
+		"topic":"trade",
+		"params": {
+			"binary": false
+		}
+	}`)
+	err := by.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsTrade(t *testing.T) {
+	pressXToJSON := []byte(`{
+		"topic": "trade",
+		"params": {
+			"symbol": "BTCUSDT",
+			"binary": "false",
+			"symbolName": "BTCUSDT"
+		},
+		"data": {
+			"v": "564265886622695424",
+			"t": 1582001735462,
+			"p": "9787.5",
+			"q": "0.195009",
+			"m": true
+		}
+	}`)
+	err := by.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsOrderbook(t *testing.T) {
+	pressXToJSON := []byte(`{
+		"topic": "depth",
+		"params": {
+		  "symbol": "BTCUSDT",
+		  "binary": "false",
+		  "symbolName": "BTCUSDT"
+		},
+		"data": {
+			"s": "BTCUSDT",
+			"t": 1582001376853,
+			"v": "13850022_2",
+			"b": [
+				[
+					"9780.79",
+					"0.01"
+				],
+				[
+					"9780.5",
+					"0.1"
+				],
+				[
+					"9780.4",
+					"0.517813"
+				]
+			"a": [
+				[
+					"9781.21",
+					"0.042842"
+				],
+				[
+					"9782",
+					"0.3"
+				],
+				[
+					"9782.1",
+					"0.226"
+				]
+			]
+		}
+	}`)
+	err := by.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+}

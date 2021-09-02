@@ -293,3 +293,21 @@ type WsTrade struct {
 	Parameters WsParams    `json:"params"`
 	TradeData  WsTradeData `json:"data"`
 }
+
+// WsKlineData stores ws kline data
+type WsKlineData struct {
+	StartTime int64   `json:"t"`
+	Symbol    string  `json:"s"`
+	Close     float64 `json:"c"`
+	Open      float64 `json:"o"`
+	High      float64 `json:"h"`
+	Low       float64 `json:"l"`
+	Volume    float64 `json:"v"`
+}
+
+// WsKline stores ws kline data
+type WsKline struct {
+	Topic      string       `json:"topic"`
+	Parameters WsParams     `json:"params"`
+	Ticker     WsTickerData `json:"data"`
+}
