@@ -577,10 +577,9 @@ func (g *Gateio) GetCryptoDepositAddress(ctx context.Context, currency string) (
 
 	// For memo/payment ID currencies
 	if strings.Contains(result.Address, " ") {
-		if split := strings.Split(result.Address, " "); len(split) == 2 {
-			result.Address = split[0]
-			result.Tag = split[1]
-		}
+		split := strings.Split(result.Address, " ")
+		result.Address = split[0]
+		result.Tag = split[1]
 	}
 	return &result, nil
 }

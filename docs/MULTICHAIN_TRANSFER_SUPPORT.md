@@ -29,7 +29,7 @@ $ ./gctcli getcryptocurrencydepositaddress --exchange=ftx --cryptocurrency=usdt 
 }
 ```
 
-## Withdrawing 
+## Withdrawing
 
 ```sh
 $ ./gctcli withdrawcryptofunds --exchange=ftx --currency=USDT --address=TJU9piX2WA8WTvxVKMqpvTzZGhvXQAZKSY --amount=10 --chain=trx
@@ -55,14 +55,14 @@ $ ./gctcli withdrawcryptofunds --exchange=ftx --currency=USDT --address=TJU9piX2
 | CoinbasePro | No | No | No|
 | Coinbene | Yes | Yes | Addresses must be created via the website first |
 | COINUT | No | No | NA |
-| Exmo | Yes | Yes | |
+| Exmo | Yes | Yes | Addresses must be created via the website first |
 | FTX | Yes | Yes | |
 | GateIO | Yes | Yes | |
 | Gemini | No | No | |
 | HitBTC | No | No | |
 | Huobi.Pro | Yes | Yes | |
 | ItBit | No | No | |
-| Kraken | Yes | Yes | |
+| Kraken | Yes | Yes | Front-end and API don't match total available transfer chains |
 | Lbank | No | No | |
 | LocalBitcoins | No | No | Supports BTC only |
 | OKCoin International | No | No | Requires API update to version 5 |

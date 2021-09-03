@@ -93,17 +93,21 @@ func (c *Coinbene) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				TradeFetching:     true,
-				OrderbookFetching: true,
-				AccountBalance:    true,
-				AutoPairUpdates:   true,
-				GetOrder:          true,
-				GetOrders:         true,
-				CancelOrder:       true,
-				CancelOrders:      true,
-				SubmitOrder:       true,
-				TradeFee:          true,
+				TickerFetching:        true,
+				TradeFetching:         true,
+				OrderbookFetching:     true,
+				AccountBalance:        true,
+				AutoPairUpdates:       true,
+				GetOrder:              true,
+				GetOrders:             true,
+				CancelOrder:           true,
+				CancelOrders:          true,
+				SubmitOrder:           true,
+				TradeFee:              true,
+				CryptoDeposit:         true,
+				CryptoWithdrawal:      true,
+				MultiChainDeposits:    true,
+				MultiChainWithdrawals: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -119,7 +123,7 @@ func (c *Coinbene) SetDefaults() {
 				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.NoFiatWithdrawals |
-				exchange.WithdrawCryptoViaWebsiteOnly,
+				exchange.WithdrawCryptoWithAPIPermission,
 			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
@@ -678,14 +682,47 @@ func (c *Coinbene) GetOrderInfo(ctx context.Context, orderID string, pair curren
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *Coinbene) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
-	return nil, common.ErrFunctionNotSupported
+func (c *Coinbene) GetDepositAddress(ctx context.Context, curr currency.Code, _, chain string) (*deposit.Address, error) {
+	d, err := c.ListDepositAddress(ctx, curr)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(d) == 0 {
+		return nil, errors.New("no address(es) returned, please create one via the Coinbene website")
+	}
+
+	if chain != "" {
+		for x := range d {
+			if strings.EqualFold(d[x].Chain, chain) {
+				return &deposit.Address{Address: d[x].Address, Tag: d[x].AddressTag}, nil
+			}
+		}
+		return nil, fmt.Errorf("no chain %s found", chain)
+	}
+	return &deposit.Address{Address: d[0].Address, Tag: d[0].AddressTag}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *Coinbene) WithdrawCryptocurrencyFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return nil, common.ErrFunctionNotSupported
+func (c *Coinbene) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.Withdraw(ctx,
+		withdrawRequest.Currency,
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Crypto.AddressTag,
+		withdrawRequest.Crypto.Chain,
+		withdrawRequest.Amount)
+	if err != nil {
+		return nil, err
+	}
+
+	return &withdraw.ExchangeResponse{
+		ID: resp.ID,
+	}, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
@@ -960,4 +997,21 @@ func (c *Coinbene) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (c *Coinbene) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return c.GetHistoricCandles(ctx, pair, a, start, end, interval)
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (c *Coinbene) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	r, err := c.ListDepositAddress(ctx, cryptocurrency)
+	if err != nil {
+		return nil, err
+	}
+
+	var availableChains []string
+	for x := range r {
+		if r[x].Chain != "" {
+			availableChains = append(availableChains, r[x].Chain)
+		}
+	}
+	return availableChains, nil
 }

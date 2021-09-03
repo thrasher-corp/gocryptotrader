@@ -7,6 +7,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// Coinbene path vals
+const (
+	APISpotPath uint8 = iota
+	APISwapPath
+	APICapitalPath
+)
+
 // TickerData stores ticker data
 type TickerData struct {
 	Symbol      string  `json:"symbol"`
@@ -409,4 +416,24 @@ type CandleResponse struct {
 	Code    int64           `json:"code"`
 	Message string          `json:"message"`
 	Data    [][]interface{} `json:"data"`
+}
+
+// DepositAddress stores the deposit address data
+type DepositAddress struct {
+	Asset        string `json:"asset"`
+	Chain        string `json:"chain"`
+	Address      string `json:"address"`
+	AddressTag   string `json:"addressTag"`
+	DepositLimit uint8  `json:"depositLimit,string"`
+	BlockNumber  uint8  `json:"blockNumber,string"`
+}
+
+// WithdrawResponse stores the withdrawal request response data
+type WithdrawResponse struct {
+	ID      string  `json:"id"`
+	Amount  float64 `json:"amount"`
+	Asset   string  `json:"asset"`
+	Address string  `json:"address"`
+	Tag     string  `json:"tag"`
+	Chain   string  `json:"chain"`
 }

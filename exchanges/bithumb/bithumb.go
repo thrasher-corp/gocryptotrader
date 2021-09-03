@@ -290,17 +290,19 @@ func (b *Bithumb) GetWalletAddress(ctx context.Context, curr currency.Code) (Wal
 	var address, tag string
 	switch curr {
 	case currency.XRP:
-		if splitter := strings.Split(response.Data.WalletAddress, "&dt="); len(splitter) == 2 {
-			address, tag = splitter[0], splitter[1]
-		} else {
+		splitStr := "&dt="
+		if !strings.Contains(response.Data.WalletAddress, splitStr) {
 			return response, errors.New("unable to parse XRP deposit address")
 		}
+		splitter := strings.Split(response.Data.WalletAddress, splitStr)
+		address, tag = splitter[0], splitter[1]
 	case currency.XLM, currency.BNB:
-		if splitter := strings.Split(response.Data.WalletAddress, "&memo="); len(splitter) == 2 {
-			address, tag = splitter[0], splitter[1]
-		} else {
+		splitStr := "&memo="
+		if !strings.Contains(response.Data.WalletAddress, splitStr) {
 			return response, fmt.Errorf("unable to parse %s deposit address", curr.String())
 		}
+		splitter := strings.Split(response.Data.WalletAddress, splitStr)
+		address, tag = splitter[0], splitter[1]
 	}
 
 	if tag != "" {

@@ -86,6 +86,7 @@ func (z *ZB) SetDefaults() {
 				TradeFee:            true,
 				CryptoDepositFee:    true,
 				CryptoWithdrawalFee: true,
+				MultiChainDeposits:  true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
