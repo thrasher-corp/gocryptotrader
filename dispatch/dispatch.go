@@ -11,6 +11,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// ErrNotRunning defines an error when the dispatcher is not running
+var ErrNotRunning = errors.New("dispatcher not running")
+
 // Name is an exported subsystem name
 const Name = "dispatch"
 
@@ -117,7 +120,7 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 // stop stops the service and shuts down all worker routines
 func (d *Dispatcher) stop() error {
 	if !atomic.CompareAndSwapUint32(&d.running, 1, 0) {
-		return errors.New("dispatcher not running")
+		return ErrNotRunning
 	}
 	close(d.shutdown)
 	ch := make(chan struct{})

@@ -186,24 +186,35 @@ func (s *RPCServer) StartRPCRESTProxy() {
 
 // GetInfo returns info about the current GoCryptoTrader session
 func (s *RPCServer) GetInfo(_ context.Context, _ *gctrpc.GetInfoRequest) (*gctrpc.GetInfoResponse, error) {
-	d := time.Since(s.uptime)
-	resp := gctrpc.GetInfoResponse{
-		Uptime:               d.String(),
+	rpcEndpoints, err := s.getRPCEndpoints()
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GetInfoResponse{
+		Uptime:               time.Since(s.uptime).String(),
 		EnabledExchanges:     int64(s.Config.CountEnabledExchanges()),
 		AvailableExchanges:   int64(len(s.Config.Exchanges)),
 		DefaultFiatCurrency:  s.Config.Currency.FiatDisplayCurrency.String(),
 		DefaultForexProvider: s.Config.GetPrimaryForexProvider(),
 		SubsystemStatus:      s.GetSubsystemsStatus(),
+		RpcEndpoints:         rpcEndpoints,
+	}, nil
+}
+
+func (s *RPCServer) getRPCEndpoints() (map[string]*gctrpc.RPCEndpoint, error) {
+	endpoints, err := s.Engine.GetRPCEndpoints()
+	if err != nil {
+		return nil, err
 	}
-	endpoints := GetRPCEndpoints()
-	resp.RpcEndpoints = make(map[string]*gctrpc.RPCEndpoint)
-	for k, v := range endpoints {
-		resp.RpcEndpoints[k] = &gctrpc.RPCEndpoint{
-			Started:       v.Started,
-			ListenAddress: v.ListenAddr,
+	rpcEndpoints := make(map[string]*gctrpc.RPCEndpoint)
+	for key, val := range endpoints {
+		rpcEndpoints[key] = &gctrpc.RPCEndpoint{
+			Started:       val.Started,
+			ListenAddress: val.ListenAddr,
 		}
 	}
-	return &resp, nil
+	return rpcEndpoints, nil
 }
 
 // GetSubsystems returns a list of subsystems and their status
@@ -233,16 +244,8 @@ func (s *RPCServer) DisableSubsystem(_ context.Context, r *gctrpc.GenericSubsyst
 
 // GetRPCEndpoints returns a list of API endpoints
 func (s *RPCServer) GetRPCEndpoints(_ context.Context, _ *gctrpc.GetRPCEndpointsRequest) (*gctrpc.GetRPCEndpointsResponse, error) {
-	endpoints := GetRPCEndpoints()
-	var resp gctrpc.GetRPCEndpointsResponse
-	resp.Endpoints = make(map[string]*gctrpc.RPCEndpoint)
-	for k, v := range endpoints {
-		resp.Endpoints[k] = &gctrpc.RPCEndpoint{
-			Started:       v.Started,
-			ListenAddress: v.ListenAddr,
-		}
-	}
-	return &resp, nil
+	endpoint, err := s.getRPCEndpoints()
+	return &gctrpc.GetRPCEndpointsResponse{Endpoints: endpoint}, err
 }
 
 // GetCommunicationRelayers returns the status of the engines communication relayers

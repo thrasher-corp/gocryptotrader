@@ -15,6 +15,8 @@ const (
 	Name = "gctscript"
 )
 
+var ErrNilSubsystem = errors.New("gct script has not been set up")
+
 // GctScriptManager loads and runs GCT Tengo scripts
 type GctScriptManager struct {
 	config   *Config
@@ -61,6 +63,9 @@ func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
 
 // Stop stops gctscript subsystem along with all running Virtual Machines
 func (g *GctScriptManager) Stop() error {
+	if g == nil {
+		return fmt.Errorf("%s %w", caseName, ErrNilSubsystem)
+	}
 	if atomic.LoadInt32(&g.started) == 0 {
 		return fmt.Errorf("%s not running", caseName)
 	}

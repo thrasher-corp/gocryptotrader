@@ -34,29 +34,31 @@ import (
 )
 
 var (
-	errCertExpired     = errors.New("gRPC TLS certificate has expired")
-	errCertDataIsNil   = errors.New("gRPC TLS certificate PEM data is nil")
-	errCertTypeInvalid = errors.New("gRPC TLS certificate type is invalid")
+	errCertExpired         = errors.New("gRPC TLS certificate has expired")
+	errCertDataIsNil       = errors.New("gRPC TLS certificate PEM data is nil")
+	errCertTypeInvalid     = errors.New("gRPC TLS certificate type is invalid")
+	errSubsystemNotFound   = errors.New("subsystem not found")
+	errGRPCManagementFault = errors.New("cannot manage GRPC subsystem via GRPC. Please manually change your config")
 )
 
 // GetSubsystemsStatus returns the status of various subsystems
 func (bot *Engine) GetSubsystemsStatus() map[string]bool {
-	systems := make(map[string]bool)
-	systems[SyncManagerName] = bot.CommunicationsManager.IsRunning()
-	systems[ConnectionManagerName] = bot.connectionManager.IsRunning()
-	systems[OrderManagerName] = bot.OrderManager.IsRunning()
-	systems[PortfolioManagerName] = bot.portfolioManager.IsRunning()
-	systems[NTPManagerName] = bot.ntpManager.IsRunning()
-	systems[DatabaseConnectionManagerName] = bot.DatabaseManager.IsRunning()
-	systems[SyncManagerName] = bot.Settings.EnableExchangeSyncManager
-	systems[grpcName] = bot.Settings.EnableGRPC
-	systems[grpcProxyName] = bot.Settings.EnableGRPCProxy
-	systems[vm.Name] = bot.gctScriptManager.IsRunning()
-	systems[DeprecatedName] = bot.Settings.EnableDeprecatedRPC
-	systems[WebsocketName] = bot.Settings.EnableWebsocketRPC
-	systems[dispatch.Name] = dispatch.IsRunning()
-	systems[dataHistoryManagerName] = bot.dataHistoryManager.IsRunning()
-	return systems
+	return map[string]bool{
+		CommunicationsManagerName:     bot.CommunicationsManager.IsRunning(),
+		ConnectionManagerName:         bot.connectionManager.IsRunning(),
+		OrderManagerName:              bot.OrderManager.IsRunning(),
+		PortfolioManagerName:          bot.portfolioManager.IsRunning(),
+		NTPManagerName:                bot.ntpManager.IsRunning(),
+		DatabaseConnectionManagerName: bot.DatabaseManager.IsRunning(),
+		SyncManagerName:               bot.Settings.EnableExchangeSyncManager,
+		grpcName:                      bot.Settings.EnableGRPC,
+		grpcProxyName:                 bot.Settings.EnableGRPCProxy,
+		vm.Name:                       bot.gctScriptManager.IsRunning(),
+		DeprecatedName:                bot.Settings.EnableDeprecatedRPC,
+		WebsocketName:                 bot.Settings.EnableWebsocketRPC,
+		dispatch.Name:                 dispatch.IsRunning(),
+		dataHistoryManagerName:        bot.dataHistoryManager.IsRunning(),
+	}
 }
 
 // RPCEndpoint stores an RPC endpoint status and addr
@@ -66,29 +68,40 @@ type RPCEndpoint struct {
 }
 
 // GetRPCEndpoints returns a list of RPC endpoints and their listen addrs
-func GetRPCEndpoints() map[string]RPCEndpoint {
-	endpoints := make(map[string]RPCEndpoint)
-	endpoints[grpcName] = RPCEndpoint{
-		Started:    Bot.Settings.EnableGRPC,
-		ListenAddr: "grpc://" + Bot.Config.RemoteControl.GRPC.ListenAddress,
+func (bot *Engine) GetRPCEndpoints() (map[string]RPCEndpoint, error) {
+	if bot.Config == nil {
+		return nil, errNilConfig
 	}
-	endpoints[grpcProxyName] = RPCEndpoint{
-		Started:    Bot.Settings.EnableGRPCProxy,
-		ListenAddr: "http://" + Bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
-	}
-	endpoints[DeprecatedName] = RPCEndpoint{
-		Started:    Bot.Settings.EnableDeprecatedRPC,
-		ListenAddr: "http://" + Bot.Config.RemoteControl.DeprecatedRPC.ListenAddress,
-	}
-	endpoints[WebsocketName] = RPCEndpoint{
-		Started:    Bot.Settings.EnableWebsocketRPC,
-		ListenAddr: "ws://" + Bot.Config.RemoteControl.WebsocketRPC.ListenAddress,
-	}
-	return endpoints
+	return map[string]RPCEndpoint{
+		grpcName: {
+			Started:    bot.Settings.EnableGRPC,
+			ListenAddr: "grpc://" + bot.Config.RemoteControl.GRPC.ListenAddress,
+		},
+		grpcProxyName: {
+			Started:    bot.Settings.EnableGRPCProxy,
+			ListenAddr: "http://" + bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
+		},
+		DeprecatedName: {
+			Started:    bot.Settings.EnableDeprecatedRPC,
+			ListenAddr: "http://" + bot.Config.RemoteControl.DeprecatedRPC.ListenAddress,
+		},
+		WebsocketName: {
+			Started:    bot.Settings.EnableWebsocketRPC,
+			ListenAddr: "ws://" + bot.Config.RemoteControl.WebsocketRPC.ListenAddress,
+		},
+	}, nil
 }
 
 // SetSubsystem enables or disables an engine subsystem
 func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
+	if bot == nil {
+		return errNilBot
+	}
+
+	if bot.Config == nil {
+		return errNilConfig
+	}
+
 	var err error
 	switch strings.ToLower(subSystemName) {
 	case CommunicationsManagerName:
@@ -227,7 +240,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 		}
 		return bot.apiServer.StopWebsocketServer()
 	case grpcName, grpcProxyName:
-		return errors.New("cannot manage GRPC subsystem via GRPC. Please manually change your config")
+		return errGRPCManagementFault
 	case dataHistoryManagerName:
 		if enable {
 			if bot.dataHistoryManager == nil {
@@ -251,8 +264,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 		}
 		return bot.gctScriptManager.Stop()
 	}
-
-	return errors.New("subsystem not found")
+	return fmt.Errorf("%s: %w", subSystemName, errSubsystemNotFound)
 }
 
 // GetExchangeOTPs returns OTP codes for all exchanges which have a otpsecret
