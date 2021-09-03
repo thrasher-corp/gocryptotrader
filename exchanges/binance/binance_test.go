@@ -2152,10 +2152,13 @@ func TestWsDepthUpdate(t *testing.T) {
 		t.Error(err)
 	}
 
+	b.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
+
 	ob, err := b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if exp, got := seedLastUpdateID, ob.LastUpdateID; got != exp {
 		t.Fatalf("Unexpected Last update id of orderbook for old update. Exp: %d, got: %d", exp, got)
 	}

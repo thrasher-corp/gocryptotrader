@@ -206,7 +206,16 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	if err != nil {
 		if isDisconnectionError(err) {
 			w.setConnectedStatus(false)
-			w.readMessageErrors <- err
+			select {
+			case w.readMessageErrors <- err:
+			default:
+				// bypass if there is no receiver, as this stops it returning
+				// when shutdown is called.
+				log.Warnf(log.WebsocketMgr,
+					"%s failed to relay error: %v",
+					w.ExchangeName,
+					err)
+			}
 		}
 		return Response{}
 	}

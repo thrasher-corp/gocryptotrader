@@ -350,24 +350,20 @@ func (k *Kraken) GetTrades(symbol currency.Pair) ([]RecentTrades, error) {
 	var dataError interface{}
 	dataError, ok = data["error"]
 	if ok {
-		var dataErrorInterface interface{}
-		dataErrorInterface, ok = dataError.(interface{})
+		var errorList []interface{}
+		errorList, ok = dataError.([]interface{})
 		if ok {
-			var errorList []interface{}
-			errorList, ok = dataErrorInterface.([]interface{})
-			if ok {
-				var errs common.Errors
-				for i := range errorList {
-					var errString string
-					errString, ok = errorList[i].(string)
-					if !ok {
-						continue
-					}
-					errs = append(errs, errors.New(errString))
+			var errs common.Errors
+			for i := range errorList {
+				var errString string
+				errString, ok = errorList[i].(string)
+				if !ok {
+					continue
 				}
-				if len(errs) > 0 {
-					return nil, errs
-				}
+				errs = append(errs, errors.New(errString))
+			}
+			if len(errs) > 0 {
+				return nil, errs
 			}
 		}
 	}

@@ -1320,13 +1320,15 @@ func TestSetupDefaults(t *testing.T) {
 	b.Websocket = stream.New()
 	b.Features.Supports.Websocket = true
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:          false,
-		WebsocketTimeout: time.Second * 30,
-		Features:         &protocol.Features{},
-		DefaultURL:       "ws://something.com",
-		RunningURL:       "ws://something.com",
-		ExchangeName:     "test",
-		Connector:        func() error { return nil },
+		Enabled:               false,
+		WebsocketTimeout:      time.Second * 30,
+		Features:              &protocol.Features{},
+		DefaultURL:            "ws://something.com",
+		RunningURL:            "ws://something.com",
+		ExchangeName:          "test",
+		Connector:             func() error { return nil },
+		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return []stream.ChannelSubscription{}, nil },
+		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1666,13 +1668,15 @@ func TestIsWebsocketEnabled(t *testing.T) {
 
 	b.Websocket = stream.New()
 	err := b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:          true,
-		WebsocketTimeout: time.Second * 30,
-		Features:         &protocol.Features{},
-		DefaultURL:       "ws://something.com",
-		RunningURL:       "ws://something.com",
-		ExchangeName:     "test",
-		Connector:        func() error { return nil },
+		Enabled:               true,
+		WebsocketTimeout:      time.Second * 30,
+		Features:              &protocol.Features{},
+		DefaultURL:            "ws://something.com",
+		RunningURL:            "ws://something.com",
+		ExchangeName:          "test",
+		Connector:             func() error { return nil },
+		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return nil, nil },
+		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
 	})
 	if err != nil {
 		t.Error(err)
@@ -2401,5 +2405,43 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 
 	if !b.IsAssetWebsocketSupported(asset.Futures) {
 		t.Fatal("error asset is not turned off, unexpected response")
+	}
+}
+
+func TestGetGetURLTypeFromString(t *testing.T) {
+	testCases := []struct {
+		Endpoint string
+		Expected URL
+		Error    error
+	}{
+		{Endpoint: "RestSpotURL", Expected: RestSpot},
+		{Endpoint: "RestSpotSupplementaryURL", Expected: RestSpotSupplementary},
+		{Endpoint: "RestUSDTMarginedFuturesURL", Expected: RestUSDTMargined},
+		{Endpoint: "RestCoinMarginedFuturesURL", Expected: RestCoinMargined},
+		{Endpoint: "RestFuturesURL", Expected: RestFutures},
+		{Endpoint: "RestSandboxURL", Expected: RestSandbox},
+		{Endpoint: "RestSwapURL", Expected: RestSwap},
+		{Endpoint: "WebsocketSpotURL", Expected: WebsocketSpot},
+		{Endpoint: "WebsocketSpotSupplementaryURL", Expected: WebsocketSpotSupplementary},
+		{Endpoint: "ChainAnalysisURL", Expected: ChainAnalysis},
+		{Endpoint: "EdgeCase1URL", Expected: EdgeCase1},
+		{Endpoint: "EdgeCase2URL", Expected: EdgeCase2},
+		{Endpoint: "EdgeCase3URL", Expected: EdgeCase3},
+		{Endpoint: "sillyMcSillyBilly", Expected: 0, Error: errEndpointStringNotFound},
+	}
+
+	for _, tt := range testCases {
+		tt := tt
+		t.Run(tt.Endpoint, func(t *testing.T) {
+			t.Parallel()
+			u, err := getURLTypeFromString(tt.Endpoint)
+			if !errors.Is(err, tt.Error) {
+				t.Fatalf("received: %v but expected: %v", err, tt.Error)
+			}
+
+			if u != tt.Expected {
+				t.Fatalf("received: %v but expected: %v", u, tt.Expected)
+			}
+		})
 	}
 }

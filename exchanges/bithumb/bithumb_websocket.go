@@ -41,24 +41,31 @@ func (b *Bithumb) WsConnect() error {
 			b.Name,
 			err)
 	}
+
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
+
 	b.setupOrderbookManager()
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bithumb) wsReadData() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-b.Websocket.ShutdownC:
 			return
-		}
-		err := b.wsHandleData(resp.Raw)
-		if err != nil {
-			b.Websocket.DataHandler <- err
+		default:
+			resp := b.Websocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			err := b.wsHandleData(resp.Raw)
+			if err != nil {
+				b.Websocket.DataHandler <- err
+			}
 		}
 	}
 }

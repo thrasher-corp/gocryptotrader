@@ -522,6 +522,15 @@ func TestGetTrades(t *testing.T) {
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
+
+	cp, err = currency.NewPairFromString("XXXXX")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.GetTrades(cp)
+	if err == nil {
+		t.Error("GetTrades() error: expecting error")
+	}
 }
 
 // TestGetSpread API endpoint test

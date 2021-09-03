@@ -47,6 +47,7 @@ func (g *Gemini) WsConnect() error {
 		return err
 	}
 
+	g.Websocket.Wg.Add(2)
 	go g.wsReadData()
 	go g.wsFunnelConnectionData(g.Websocket.Conn)
 
@@ -218,7 +219,6 @@ func (g *Gemini) WsAuth(dialer *websocket.Dialer) error {
 
 // wsFunnelConnectionData receives data from multiple connections and passes it to wsReadData
 func (g *Gemini) wsFunnelConnectionData(ws stream.Connection) {
-	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -231,11 +231,25 @@ func (g *Gemini) wsFunnelConnectionData(ws stream.Connection) {
 
 // wsReadData receives and passes on websocket messages for processing
 func (g *Gemini) wsReadData() {
-	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
 		select {
 		case <-g.Websocket.ShutdownC:
+			select {
+			case resp := <-comms:
+				err := g.wsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case g.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr,
+							"%s websocket handle data error: %v",
+							g.Name,
+							err)
+					}
+				}
+			default:
+			}
 			return
 		case resp := <-comms:
 			err := g.wsHandleData(resp.Raw)

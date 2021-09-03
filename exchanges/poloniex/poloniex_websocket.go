@@ -68,6 +68,7 @@ func (p *Poloniex) WsConnect() error {
 		return err
 	}
 
+	p.Websocket.Wg.Add(1)
 	go p.wsReadData()
 
 	return nil
@@ -100,9 +101,7 @@ func (p *Poloniex) loadCurrencyDetails() error {
 
 // wsReadData handles data from the websocket connection
 func (p *Poloniex) wsReadData() {
-	p.Websocket.Wg.Add(1)
 	defer p.Websocket.Wg.Done()
-
 	for {
 		resp := p.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
