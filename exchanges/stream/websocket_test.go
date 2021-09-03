@@ -550,8 +550,8 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	ws.DataHandler = make(chan interface{}, 1)
 	ws.ShutdownC = make(chan struct{}, 1)
 	ws.exchangeName = "hello"
-	ws.trafficTimeout = time.Millisecond
 	ws.Wg = &sync.WaitGroup{}
+	ws.enabled = true
 	err := ws.connectionMonitor()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, but expected: %v", err, nil)
@@ -566,7 +566,8 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
-	time.Sleep(time.Millisecond * 200)
+	ws.setEnabled(false)
+	time.Sleep(time.Second * 2)
 	if ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should have exited")
 	}
