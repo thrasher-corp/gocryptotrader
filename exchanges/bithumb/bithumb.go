@@ -133,12 +133,12 @@ func (b *Bithumb) GetOrderBook(ctx context.Context, symbol string) (*Orderbook, 
 }
 
 // GetAssetStatus returns the withdrawal and deposit status for the symbol
-func (b *Bithumb) GetAssetStatus(symbol string) (*Status, error) {
+func (b *Bithumb) GetAssetStatus(ctx context.Context, symbol string) (*Status, error) {
 	if symbol == "" {
 		return nil, errSymbolIsEmpty
 	}
 	var response Status
-	err := b.SendHTTPRequest(exchange.RestSpot, publicAssetStatus+strings.ToUpper(symbol), &response)
+	err := b.SendHTTPRequest(ctx, exchange.RestSpot, publicAssetStatus+strings.ToUpper(symbol), &response)
 	if err != nil {
 		return nil, err
 	}

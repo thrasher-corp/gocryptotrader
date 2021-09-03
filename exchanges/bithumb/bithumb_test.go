@@ -731,12 +731,12 @@ func TestGetAmountMinimum(t *testing.T) {
 
 func TestGetAssetStatus(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetAssetStatus("")
+	_, err := b.GetAssetStatus(context.Background(), "")
 	if !errors.Is(err, errSymbolIsEmpty) {
 		t.Fatalf("received: %v but expected: %v", err, errSymbolIsEmpty)
 	}
 
-	_, err = b.GetAssetStatus("sol")
+	_, err = b.GetAssetStatus(context.Background(), "sol")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
