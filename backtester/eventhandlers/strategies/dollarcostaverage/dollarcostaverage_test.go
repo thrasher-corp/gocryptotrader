@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -63,11 +64,11 @@ func TestOnSignal(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   decimal.NewFromInt(1337),
+		Close:  decimal.NewFromInt(1337),
+		Low:    decimal.NewFromInt(1337),
+		High:   decimal.NewFromInt(1337),
+		Volume: decimal.NewFromInt(1337),
 	}})
 	d.Next()
 	da := &kline.DataFromKline{
@@ -92,11 +93,11 @@ func TestOnSignal(t *testing.T) {
 		Candles: []gctkline.Candle{
 			{
 				Time:   dInsert,
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
+				Open:   decimal.NewFromInt(1337),
+				High:   decimal.NewFromInt(1337),
+				Low:    decimal.NewFromInt(1337),
+				Close:  decimal.NewFromInt(1337),
+				Volume: decimal.NewFromInt(1337),
 			},
 		},
 	}
@@ -142,11 +143,11 @@ func TestOnSignals(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   decimal.NewFromInt(1337),
+		Close:  decimal.NewFromInt(1337),
+		Low:    decimal.NewFromInt(1337),
+		High:   decimal.NewFromInt(1337),
+		Volume: decimal.NewFromInt(1337),
 	}})
 	d.Next()
 	da := &kline.DataFromKline{
@@ -174,11 +175,11 @@ func TestOnSignals(t *testing.T) {
 		Candles: []gctkline.Candle{
 			{
 				Time:   dInsert,
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
+				Open:   decimal.NewFromInt(1337),
+				High:   decimal.NewFromInt(1337),
+				Low:    decimal.NewFromInt(1337),
+				Close:  decimal.NewFromInt(1337),
+				Volume: decimal.NewFromInt(1337),
 			},
 		},
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
@@ -210,7 +211,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	tt := time.Now()
-	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt, BaseSize: 1337}, false)
+	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt, BaseSize: decimal.NewFromInt(1337)}, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -241,10 +242,10 @@ func TestGetFee(t *testing.T) {
 		t.Error(err)
 	}
 
-	p.SetFee("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), 1337)
+	p.SetFee("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), decimal.NewFromInt(1337))
 	f = p.GetFee("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD))
-	if f != 1337 {
-		t.Error("expected 1337")
+	if f != decimal.NewFromInt(1337) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 
@@ -338,7 +339,7 @@ func TestOnFill(t *testing.T) {
 		t.Errorf("expected: %v, received %v", holdings.ErrInitialFundsZero, err)
 	}
 
-	//s.QuoteInitialFunds = 1337
+	//s.QuoteInitialFunds = decimal.NewFromInt(1337)
 	//_, err = p.OnFill(f)
 	//if err != nil {
 	//	t.Error(err)
@@ -420,7 +421,7 @@ func TestOnSignal(t *testing.T) {
 	}
 
 	s.Direction = gctorder.Buy
-	err = p.setHoldingsForOffset("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: time.Now(), RemainingFunds: 1337}, false)
+	err = p.setHoldingsForOffset("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: time.Now(), RemainingFunds: decimal.NewFromInt(1337)}, false)
 	if err != nil {
 		t.Error(err)
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -71,10 +72,10 @@ func TestUpdateValue(t *testing.T) {
 	}
 	h.PositionsSize = 1
 	h.UpdateValue(&kline.Kline{
-		Close: 1337,
+		Close: decimal.NewFromInt(1337),
 	})
-	if h.PositionsValue != 1337 {
-		t.Errorf("expected '%v' received '%v'", h.PositionsValue, 1337)
+	if h.PositionsValue != decimal.NewFromInt(1337) {
+		t.Errorf("expected '%v' received '%v'", h.PositionsValue, decimal.NewFromInt(1337))
 	}
 }
 
@@ -103,7 +104,7 @@ func TestUpdateBuyStats(t *testing.T) {
 			Price:       500,
 			Amount:      1,
 			Exchange:    testExchange,
-			ID:          "1337",
+			ID:          "decimal.NewFromInt(1337)",
 			Type:        order.Limit,
 			Side:        order.Buy,
 			Status:      order.New,
@@ -166,7 +167,7 @@ func TestUpdateBuyStats(t *testing.T) {
 			Price:       500,
 			Amount:      0.5,
 			Exchange:    testExchange,
-			ID:          "1337",
+			ID:          "decimal.NewFromInt(1337)",
 			Type:        order.Limit,
 			Side:        order.Buy,
 			Status:      order.New,
@@ -236,7 +237,7 @@ func TestUpdateSellStats(t *testing.T) {
 			Price:       500,
 			Amount:      1,
 			Exchange:    testExchange,
-			ID:          "1337",
+			ID:          "decimal.NewFromInt(1337)",
 			Type:        order.Limit,
 			Side:        order.Buy,
 			Status:      order.New,
@@ -299,7 +300,7 @@ func TestUpdateSellStats(t *testing.T) {
 			Price:       500,
 			Amount:      1,
 			Exchange:    testExchange,
-			ID:          "1337",
+			ID:          "decimal.NewFromInt(1337)",
 			Type:        order.Limit,
 			Side:        order.Sell,
 			Status:      order.New,

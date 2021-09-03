@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	elite    = decimal.NewFromFloat(1337)
+	elite    = decimal.NewFromFloat(decimal.NewFromInt(1337))
 	neg      = decimal.NewFromFloat(-1)
 	one      = decimal.NewFromFloat(1)
 	exch     = "exch"

@@ -3,6 +3,7 @@ package signal
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -25,9 +26,9 @@ func TestSetPrice(t *testing.T) {
 	s := Signal{
 		ClosePrice: 1,
 	}
-	s.SetPrice(1337)
-	if s.GetPrice() != 1337 {
-		t.Error("expected 1337")
+	s.SetPrice(decimal.NewFromInt(1337))
+	if s.GetPrice() != decimal.NewFromInt(1337) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 

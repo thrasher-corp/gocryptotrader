@@ -13,6 +13,7 @@ import (
 var ErrAssetAlreadyEnabled = errors.New("asset already enabled")
 
 var ErrPairAlreadyEnabled = errors.New("pair already enabled")
+var ErrPairNotFound = errors.New("pair not found")
 
 // GetAssetTypes returns a list of stored asset types
 func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
@@ -141,8 +142,8 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 	}
 
 	if !c.Available.Contains(pair, true) {
-		return fmt.Errorf("%s pair was not found in the list of available pairs",
-			pair)
+		return fmt.Errorf("%s %w in the list of available pairs",
+			pair, ErrPairNotFound)
 	}
 
 	if c.Enabled.Contains(pair, true) {

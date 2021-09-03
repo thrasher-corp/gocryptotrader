@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -39,11 +40,11 @@ func TestGenerateReport(t *testing.T) {
 				Candles: []gctkline.Candle{
 					{
 						Time:             time.Now(),
-						Open:             1337,
-						High:             1337,
-						Low:              1337,
-						Close:            1337,
-						Volume:           1337,
+						Open:             decimal.NewFromInt(1337),
+						High:             decimal.NewFromInt(1337),
+						Low:              decimal.NewFromInt(1337),
+						Close:            decimal.NewFromInt(1337),
+						Volume:           decimal.NewFromInt(1337),
 						ValidationIssues: "hello world!",
 					},
 				},
@@ -59,14 +60,14 @@ func TestGenerateReport(t *testing.T) {
 				Candles: []DetailedCandle{
 					{
 						Time:           time.Now().Add(-time.Hour * 5).Unix(),
-						Open:           1337,
+						Open:           decimal.NewFromInt(1337),
 						High:           1339,
 						Low:            1336,
 						Close:          1338,
 						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    1337,
+						OrderAmount:    decimal.NewFromInt(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -83,7 +84,7 @@ func TestGenerateReport(t *testing.T) {
 						Volume:         2,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    1337,
+						OrderAmount:    decimal.NewFromInt(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -93,14 +94,14 @@ func TestGenerateReport(t *testing.T) {
 					},
 					{
 						Time:           time.Now().Add(-time.Hour * 3).Unix(),
-						Open:           1337,
+						Open:           decimal.NewFromInt(1337),
 						High:           1339,
 						Low:            1336,
 						Close:          1338,
 						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    1337,
+						OrderAmount:    decimal.NewFromInt(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -110,14 +111,14 @@ func TestGenerateReport(t *testing.T) {
 					},
 					{
 						Time:           time.Now().Add(-time.Hour * 2).Unix(),
-						Open:           1337,
+						Open:           decimal.NewFromInt(1337),
 						High:           1339,
 						Low:            1336,
 						Close:          1338,
 						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    1337,
+						OrderAmount:    decimal.NewFromInt(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -127,7 +128,7 @@ func TestGenerateReport(t *testing.T) {
 					},
 					{
 						Time:         time.Now().Unix(),
-						Open:         1337,
+						Open:         decimal.NewFromInt(1337),
 						High:         1339,
 						Low:          1336,
 						Close:        1338,
@@ -145,14 +146,14 @@ func TestGenerateReport(t *testing.T) {
 				Candles: []DetailedCandle{
 					{
 						Time:           time.Now().Add(-time.Hour * 5).Unix(),
-						Open:           1337,
+						Open:           decimal.NewFromInt(1337),
 						High:           1339,
 						Low:            1336,
 						Close:          1338,
 						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    1337,
+						OrderAmount:    decimal.NewFromInt(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -169,7 +170,7 @@ func TestGenerateReport(t *testing.T) {
 						Volume:         2,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    1337,
+						OrderAmount:    decimal.NewFromInt(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -179,14 +180,14 @@ func TestGenerateReport(t *testing.T) {
 					},
 					{
 						Time:           time.Now().Add(-time.Hour * 3).Unix(),
-						Open:           1337,
+						Open:           decimal.NewFromInt(1337),
 						High:           1339,
 						Low:            1336,
 						Close:          1338,
 						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    1337,
+						OrderAmount:    decimal.NewFromInt(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -196,14 +197,14 @@ func TestGenerateReport(t *testing.T) {
 					},
 					{
 						Time:           time.Now().Add(-time.Hour * 2).Unix(),
-						Open:           1337,
+						Open:           decimal.NewFromInt(1337),
 						High:           1339,
 						Low:            1336,
 						Close:          1338,
 						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    1337,
+						OrderAmount:    decimal.NewFromInt(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -213,7 +214,7 @@ func TestGenerateReport(t *testing.T) {
 					},
 					{
 						Time:         time.Now().Unix(),
-						Open:         1337,
+						Open:         decimal.NewFromInt(1337),
 						High:         1339,
 						Low:          1336,
 						Close:        1338,
@@ -245,7 +246,7 @@ func TestGenerateReport(t *testing.T) {
 				},
 			},
 			RiskFreeRate:    0.03,
-			TotalBuyOrders:  1337,
+			TotalBuyOrders:  decimal.NewFromInt(1337),
 			TotalSellOrders: 1330,
 			TotalOrders:     200,
 			BiggestDrawdown: &statistics.FinalResultsHolder{
@@ -255,7 +256,7 @@ func TestGenerateReport(t *testing.T) {
 				MaxDrawdown: currencystatistics.Swing{
 					Highest: currencystatistics.Iteration{
 						Time:  time.Now(),
-						Price: 1337,
+						Price: decimal.NewFromInt(1337),
 					},
 					Lowest: currencystatistics.Iteration{
 						Time:  time.Now(),
@@ -273,7 +274,7 @@ func TestGenerateReport(t *testing.T) {
 				MaxDrawdown: currencystatistics.Swing{
 					Highest: currencystatistics.Iteration{
 						Time:  time.Now(),
-						Price: 1337,
+						Price: decimal.NewFromInt(1337),
 					},
 					Lowest: currencystatistics.Iteration{
 						Time:  time.Now(),
@@ -281,8 +282,8 @@ func TestGenerateReport(t *testing.T) {
 					},
 					DrawdownPercent: 100,
 				},
-				MarketMovement:   1337,
-				StrategyMovement: 1337,
+				MarketMovement:   decimal.NewFromInt(1337),
+				StrategyMovement: decimal.NewFromInt(1337),
 			},
 			BestMarketMovement: &statistics.FinalResultsHolder{
 				Exchange: e,
@@ -291,7 +292,7 @@ func TestGenerateReport(t *testing.T) {
 				MaxDrawdown: currencystatistics.Swing{
 					Highest: currencystatistics.Iteration{
 						Time:  time.Now(),
-						Price: 1337,
+						Price: decimal.NewFromInt(1337),
 					},
 					Lowest: currencystatistics.Iteration{
 						Time:  time.Now(),
@@ -299,8 +300,8 @@ func TestGenerateReport(t *testing.T) {
 					},
 					DrawdownPercent: 100,
 				},
-				MarketMovement:   1337,
-				StrategyMovement: 1337,
+				MarketMovement:   decimal.NewFromInt(1337),
+				StrategyMovement: decimal.NewFromInt(1337),
 			},
 		},
 	}
@@ -345,8 +346,8 @@ func TestEnhanceCandles(t *testing.T) {
 				Open:   1336,
 				High:   1338,
 				Low:    1336,
-				Close:  1337,
-				Volume: 1337,
+				Close:  decimal.NewFromInt(1337),
+				Volume: decimal.NewFromInt(1337),
 			},
 		},
 	})
@@ -367,7 +368,7 @@ func TestEnhanceCandles(t *testing.T) {
 				High:   1338,
 				Low:    1336,
 				Close:  1336,
-				Volume: 1337,
+				Volume: decimal.NewFromInt(1337),
 			},
 			{
 				Time:   tt,
@@ -375,7 +376,7 @@ func TestEnhanceCandles(t *testing.T) {
 				High:   1338,
 				Low:    1336,
 				Close:  1335,
-				Volume: 1337,
+				Volume: decimal.NewFromInt(1337),
 			},
 		},
 	})
@@ -389,9 +390,9 @@ func TestEnhanceCandles(t *testing.T) {
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          1335,
-				VolumeAdjustedPrice: 1337,
+				VolumeAdjustedPrice: decimal.NewFromInt(1337),
 				SlippageRate:        1,
-				CostBasis:           1337,
+				CostBasis:           decimal.NewFromInt(1337),
 				Detail:              nil,
 			},
 		},
@@ -406,9 +407,9 @@ func TestEnhanceCandles(t *testing.T) {
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          1335,
-				VolumeAdjustedPrice: 1337,
+				VolumeAdjustedPrice: decimal.NewFromInt(1337),
 				SlippageRate:        1,
-				CostBasis:           1337,
+				CostBasis:           decimal.NewFromInt(1337),
 				Detail: &gctorder.Detail{
 					Date: tt,
 					Side: gctorder.Buy,
@@ -426,9 +427,9 @@ func TestEnhanceCandles(t *testing.T) {
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          1335,
-				VolumeAdjustedPrice: 1337,
+				VolumeAdjustedPrice: decimal.NewFromInt(1337),
 				SlippageRate:        1,
-				CostBasis:           1337,
+				CostBasis:           decimal.NewFromInt(1337),
 				Detail: &gctorder.Detail{
 					Date: tt,
 					Side: gctorder.Sell,

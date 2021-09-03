@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
@@ -36,7 +37,7 @@ import (
 
 const testExchange = "Bitstamp"
 
-var leet = decimal.NewFromFloat(1337)
+var leet = decimal.NewFromFloat(decimal.NewFromInt(1337))
 
 func newBotWithExchange() *engine.Engine {
 	bot := &engine.Engine{
@@ -123,8 +124,8 @@ func TestNewFromConfig(t *testing.T) {
 	}
 	cfg.CurrencySettings[0].ExchangeName = testExchange
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, errNoDataSource) {
-		t.Errorf("expected: %v, received %v", errNoDataSource, err)
+	if !errors.Is(err, currency.ErrPairNotFound) {
+		t.Errorf("expected: %v, received %v", currency.ErrPairNotFound, err)
 	}
 
 	cfg.CurrencySettings[0].Base = "BTC"
@@ -482,6 +483,7 @@ func TestReset(t *testing.T) {
 		Statistic:  &statistics.Statistic{},
 		EventQueue: &eventholder.Holder{},
 		Reports:    &report.Data{},
+		Funding:    &funding.FundManager{},
 	}
 	bt.Reset()
 	if bt.Bot != nil {
@@ -504,7 +506,7 @@ func TestFullCycle(t *testing.T) {
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  config.MinMax{},
 		SellSide: config.MinMax{},
-	}, &risk.Risk{}, 0)
+	}, &risk.Risk{}, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
@@ -512,12 +514,20 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = port.SetInitialFunds(ex, a, cp, 1333337)
+	bot := newBotWithExchange()
+	f := &funding.FundManager{}
+	base, err := f.SetupItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
-	bot := newBotWithExchange()
-
+	quote, err := f.SetupItem(ex, a, cp.Quote, decimal.NewFromInt(decimal.NewFromInt(1337)), decimal.Zero)
+	if err != nil {
+		t.Error(err)
+	}
+	err = f.AddPair(base, quote)
+	if err != nil {
+		t.Error(err)
+	}
 	bt := BackTest{
 		Bot:        bot,
 		shutdown:   nil,
@@ -528,6 +538,7 @@ func TestFullCycle(t *testing.T) {
 		Statistic:  stats,
 		EventQueue: &eventholder.Holder{},
 		Reports:    &report.Data{},
+		Funding:    f,
 	}
 
 	bt.Datas.Setup()
@@ -539,11 +550,11 @@ func TestFullCycle(t *testing.T) {
 			Interval: gctkline.FifteenMin,
 			Candles: []gctkline.Candle{{
 				Time:   tt,
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
+				Open:   decimal.NewFromInt(1337),
+				High:   decimal.NewFromInt(1337),
+				Low:    decimal.NewFromInt(1337),
+				Close:  decimal.NewFromInt(1337),
+				Volume: decimal.NewFromInt(1337),
 			}},
 		},
 		Base: data.Base{},
@@ -598,7 +609,7 @@ func TestFullCycleMulti(t *testing.T) {
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  config.MinMax{},
 		SellSide: config.MinMax{},
-	}, &risk.Risk{}, 0)
+	}, &risk.Risk{}, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
@@ -606,12 +617,20 @@ func TestFullCycleMulti(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = port.SetInitialFunds(ex, a, cp, 1333337)
+	bot := newBotWithExchange()
+	f := &funding.FundManager{}
+	base, err := f.SetupItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
-	bot := newBotWithExchange()
-
+	quote, err := f.SetupItem(ex, a, cp.Quote, decimal.NewFromInt(decimal.NewFromInt(1337)), decimal.Zero)
+	if err != nil {
+		t.Error(err)
+	}
+	err = f.AddPair(base, quote)
+	if err != nil {
+		t.Error(err)
+	}
 	bt := BackTest{
 		Bot:        bot,
 		shutdown:   nil,
@@ -621,6 +640,7 @@ func TestFullCycleMulti(t *testing.T) {
 		Statistic:  stats,
 		EventQueue: &eventholder.Holder{},
 		Reports:    &report.Data{},
+		Funding:    f,
 	}
 
 	bt.Strategy, err = strategies.LoadStrategyByName(dollarcostaverage.Name, true)
@@ -637,11 +657,11 @@ func TestFullCycleMulti(t *testing.T) {
 			Interval: gctkline.FifteenMin,
 			Candles: []gctkline.Candle{{
 				Time:   tt,
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
+				Open:   decimal.NewFromInt(1337),
+				High:   decimal.NewFromInt(1337),
+				Low:    decimal.NewFromInt(1337),
+				Close:  decimal.NewFromInt(1337),
+				Volume: decimal.NewFromInt(1337),
 			}},
 		},
 		Base: data.Base{},

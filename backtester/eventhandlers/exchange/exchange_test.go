@@ -45,25 +45,25 @@ func TestSetCurrency(t *testing.T) {
 	cs := &Settings{
 		ExchangeName:        testExchange,
 		UseRealOrders:       false,
-		InitialFunds:        1337,
+		InitialFunds:        decimal.NewFromInt(1337),
 		CurrencyPair:        currency.NewPair(currency.BTC, currency.USDT),
 		AssetType:           asset.Spot,
-		ExchangeFee:         0,
-		MakerFee:            0,
-		TakerFee:            0,
+		ExchangeFee:         decimal.Zero,
+		MakerFee:            decimal.Zero,
+		TakerFee:            decimal.Zero,
 		BuySide:             config.MinMax{},
 		SellSide:            config.MinMax{},
 		Leverage:            config.Leverage{},
-		MinimumSlippageRate: 0,
-		MaximumSlippageRate: 0,
+		MinimumSlippageRate: decimal.Zero,
+		MaximumSlippageRate: decimal.Zero,
 	}
 	e.SetExchangeAssetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
 	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
-	if result.InitialFunds != 1337 {
-		t.Errorf("expected 1337, received %v", result.InitialFunds)
+	if result.InitialFunds != decimal.NewFromInt(1337) {
+		t.Errorf("expected decimal.NewFromInt(1337), received %v", result.InitialFunds)
 	}
 
 	e.SetExchangeAssetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
@@ -75,10 +75,10 @@ func TestSetCurrency(t *testing.T) {
 func TestEnsureOrderFitsWithinHLV(t *testing.T) {
 	t.Parallel()
 	adjustedPrice, adjustedAmount := ensureOrderFitsWithinHLV(123, 1, 100, 99, 100)
-	if adjustedAmount != 1 {
+	if !adjustedAmount.Equal(decimal.NewFromInt(1)) {
 		t.Error("expected 1")
 	}
-	if adjustedPrice != 100 {
+	if !adjustedPrice.Equal(decimal.NewFromInt(1)) {
 		t.Error("expected 100")
 	}
 
@@ -112,7 +112,7 @@ func TestSizeOrder(t *testing.T) {
 	}
 	cs := &Settings{}
 	f := &fill.Fill{
-		ClosePrice: 1337,
+		ClosePrice: decimal.NewFromInt(1337),
 		Amount:     1,
 	}
 	_, _, err = e.sizeOfflineOrder(0, 0, 0, cs, f)
@@ -213,7 +213,7 @@ func TestExecuteOrder(t *testing.T) {
 	cs := Settings{
 		ExchangeName:        testExchange,
 		UseRealOrders:       false,
-		InitialFunds:        1337,
+		InitialFunds:        decimal.NewFromInt(1337),
 		CurrencyPair:        p,
 		AssetType:           a,
 		ExchangeFee:         0.01,
@@ -239,7 +239,7 @@ func TestExecuteOrder(t *testing.T) {
 		Base:           ev,
 		Direction:      gctorder.Buy,
 		Amount:         10,
-		AllocatedFunds: 1337,
+		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 
 	d := &kline.DataFromKline{
@@ -318,7 +318,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs := Settings{
 		ExchangeName:  testExchange,
 		UseRealOrders: false,
-		InitialFunds:  1337,
+		InitialFunds:  decimal.NewFromInt(1337),
 		CurrencyPair:  p,
 		AssetType:     a,
 		ExchangeFee:   0.01,
@@ -351,7 +351,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		Base:           ev,
 		Direction:      gctorder.Buy,
 		Amount:         10,
-		AllocatedFunds: 1337,
+		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 
 	d := &kline.DataFromKline{
@@ -383,7 +383,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		Base:           ev,
 		Direction:      gctorder.Buy,
 		Amount:         10,
-		AllocatedFunds: 1337,
+		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 	cs.BuySide.MaximumSize = 0
 	cs.BuySide.MinimumSize = 0.01
@@ -399,7 +399,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		Base:           ev,
 		Direction:      gctorder.Sell,
 		Amount:         10,
-		AllocatedFunds: 1337,
+		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 	cs.SellSide.MaximumSize = 0
 	cs.SellSide.MinimumSize = 0.01
@@ -416,7 +416,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		Base:           ev,
 		Direction:      gctorder.Sell,
 		Amount:         0.5,
-		AllocatedFunds: 1337,
+		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 	cs.SellSide.MaximumSize = 0
 	cs.SellSide.MinimumSize = 1
@@ -430,7 +430,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		Base:           ev,
 		Direction:      gctorder.Sell,
 		Amount:         0.02,
-		AllocatedFunds: 0.01337,
+		AllocatedFunds: 0.0decimal.NewFromInt(1337),
 	}
 	cs.SellSide.MaximumSize = 0
 	cs.SellSide.MinimumSize = 0.01
@@ -460,7 +460,7 @@ func TestApplySlippageToPrice(t *testing.T) {
 func TestReduceAmountToFitPortfolioLimit(t *testing.T) {
 	t.Parallel()
 	initialPrice := 1003.37
-	initialAmount := 1337 / initialPrice
+	initialAmount := decimal.NewFromInt(1337) / initialPrice
 	portfolioAdjustedTotal := initialAmount * initialPrice
 	adjustedPrice := 1000.0
 	amount := 2.0

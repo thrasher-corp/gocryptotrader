@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -111,11 +112,11 @@ func TestLoadDataCandles(t *testing.T) {
 		Candles: []gctkline.Candle{
 			{
 				Time:             dInsert,
-				Open:             1337,
-				High:             1337,
-				Low:              1337,
-				Close:            1337,
-				Volume:           1337,
+				Open:             decimal.NewFromInt(1337),
+				High:             decimal.NewFromInt(1337),
+				Low:              decimal.NewFromInt(1337),
+				Close:            decimal.NewFromInt(1337),
+				Volume:           decimal.NewFromInt(1337),
 				ValidationIssues: "hello world",
 			},
 		},
@@ -189,8 +190,8 @@ func TestLoadDataTrades(t *testing.T) {
 		Base:      p.Base.String(),
 		Quote:     p.Quote.String(),
 		AssetType: a.String(),
-		Price:     1337,
-		Amount:    1337,
+		Price:     decimal.NewFromInt(1337),
+		Amount:    decimal.NewFromInt(1337),
 		Side:      gctorder.Buy.String(),
 		Timestamp: dInsert,
 	})

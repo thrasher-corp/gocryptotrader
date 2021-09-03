@@ -31,10 +31,10 @@ func TestValue(t *testing.T) {
 	if !v.IsZero() {
 		t.Error("expected 0")
 	}
-	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots, holdings.Holding{TotalValue: decimal.NewFromFloat(1337)})
+	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots, holdings.Holding{TotalValue: decimal.NewFromFloat(decimal.NewFromInt(1337))})
 
 	v = cs.Value()
-	if !v.Equal(decimal.NewFromFloat(1337)) {
-		t.Errorf("expected %v, received %v", 1337, v)
+	if !v.Equal(decimal.NewFromFloat(decimal.NewFromInt(1337))) {
+		t.Errorf("expected %v, received %v", decimal.NewFromInt(1337), v)
 	}
 }

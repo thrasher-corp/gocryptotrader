@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -18,32 +19,32 @@ func TestAssessHoldingsRatio(t *testing.T) {
 	ratio := assessHoldingsRatio(currency.NewPair(currency.BTC, currency.USDT), []holdings.Holding{
 		{
 			Pair:      currency.NewPair(currency.BTC, currency.USDT),
-			BaseValue: 2,
+			BaseValue: decimal.NewFromInt(2),
 		},
 		{
 			Pair:      currency.NewPair(currency.LTC, currency.USDT),
-			BaseValue: 2,
+			BaseValue: decimal.NewFromInt(2),
 		},
 	})
-	if ratio != 0.5 {
+	if !ratio.Equal(decimal.NewFromFloat(0.5)) {
 		t.Errorf("expected %v received %v", 0.5, ratio)
 	}
 
 	ratio = assessHoldingsRatio(currency.NewPair(currency.BTC, currency.USDT), []holdings.Holding{
 		{
 			Pair:      currency.NewPair(currency.BTC, currency.USDT),
-			BaseValue: 1,
+			BaseValue: decimal.NewFromInt(1),
 		},
 		{
 			Pair:      currency.NewPair(currency.LTC, currency.USDT),
-			BaseValue: 2,
+			BaseValue: decimal.NewFromInt(2),
 		},
 		{
 			Pair:      currency.NewPair(currency.DOGE, currency.USDT),
-			BaseValue: 1,
+			BaseValue: decimal.NewFromInt(1),
 		},
 	})
-	if ratio != 0.25 {
+	if !ratio.Equal(decimal.NewFromFloat(0.25)) {
 		t.Errorf("expected %v received %v", 0.25, ratio)
 	}
 }
@@ -73,14 +74,14 @@ func TestEvaluateOrder(t *testing.T) {
 	}
 
 	r.CurrencySettings[e][a][p] = &CurrencySettings{
-		MaximumOrdersWithLeverageRatio: 0.3,
-		MaxLeverageRate:                0.3,
-		MaximumHoldingRatio:            0.3,
+		MaximumOrdersWithLeverageRatio: decimal.NewFromFloat(0.3),
+		MaxLeverageRate:                decimal.NewFromFloat(0.3),
+		MaximumHoldingRatio:            decimal.NewFromFloat(0.3),
 	}
 
 	h = append(h, holdings.Holding{
 		Pair:     p,
-		BaseSize: 1,
+		BaseSize: decimal.NewFromInt(1),
 	})
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if err != nil {
@@ -89,10 +90,10 @@ func TestEvaluateOrder(t *testing.T) {
 
 	h = append(h, holdings.Holding{
 		Pair:     currency.NewPair(currency.DOGE, currency.USDT),
-		BaseSize: 0,
+		BaseSize: decimal.NewFromInt(0),
 	})
-	o.Leverage = 1.1
-	r.CurrencySettings[e][a][p].MaximumHoldingRatio = 0
+	o.Leverage = decimal.NewFromFloat(1.1)
+	r.CurrencySettings[e][a][p].MaximumHoldingRatio = decimal.Zero
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if !errors.Is(err, errLeverageNotAllowed) {
 		t.Error(err)
@@ -103,15 +104,15 @@ func TestEvaluateOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	r.MaximumLeverage = 33
-	r.CurrencySettings[e][a][p].MaxLeverageRate = 33
+	r.MaximumLeverage = decimal.NewFromInt(33)
+	r.CurrencySettings[e][a][p].MaxLeverageRate = decimal.NewFromInt(33)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if err != nil {
 		t.Error(err)
 	}
 
-	r.MaximumLeverage = 33
-	r.CurrencySettings[e][a][p].MaxLeverageRate = 33
+	r.MaximumLeverage = decimal.NewFromInt(33)
+	r.CurrencySettings[e][a][p].MaxLeverageRate = decimal.NewFromInt(33)
 
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
@@ -126,14 +127,14 @@ func TestEvaluateOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	h = append(h, holdings.Holding{Pair: p, BaseValue: 1337}, holdings.Holding{Pair: p, BaseValue: 1337.42})
-	r.CurrencySettings[e][a][p].MaximumHoldingRatio = 0.1
+	h = append(h, holdings.Holding{Pair: p, BaseValue: decimal.NewFromInt(1337)}, holdings.Holding{Pair: p, BaseValue: decimal.NewFromFloat(1337.42)})
+	r.CurrencySettings[e][a][p].MaximumHoldingRatio = decimal.NewFromFloat(0.1)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if err != nil {
 		t.Error(err)
 	}
 
-	h = append(h, holdings.Holding{Pair: currency.NewPair(currency.DOGE, currency.LTC), BaseValue: 1337})
+	h = append(h, holdings.Holding{Pair: currency.NewPair(currency.DOGE, currency.LTC), BaseValue: decimal.NewFromInt(1337)})
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if !errors.Is(err, errCannotPlaceLeverageOrder) {
 		t.Error(err)

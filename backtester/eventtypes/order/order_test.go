@@ -3,6 +3,7 @@ package order
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -29,9 +30,9 @@ func TestSetAmount(t *testing.T) {
 	o := Order{
 		Amount: 1,
 	}
-	o.SetAmount(1337)
-	if o.GetAmount() != 1337 {
-		t.Error("expected 1337")
+	o.SetAmount(decimal.NewFromInt(1337))
+	if o.GetAmount() != decimal.NewFromInt(1337) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 
@@ -49,7 +50,7 @@ func TestPair(t *testing.T) {
 
 func TestSetID(t *testing.T) {
 	o := Order{
-		ID: "1337",
+		ID: "decimal.NewFromInt(1337)",
 	}
 	o.SetID("1338")
 	if o.GetID() != "1338" {
@@ -61,18 +62,18 @@ func TestLeverage(t *testing.T) {
 	o := Order{
 		Leverage: 1,
 	}
-	o.SetLeverage(1337)
-	if o.GetLeverage() != 1337 || !o.IsLeveraged() {
+	o.SetLeverage(decimal.NewFromInt(1337))
+	if o.GetLeverage() != decimal.NewFromInt(1337) || !o.IsLeveraged() {
 		t.Error("expected leverage")
 	}
 }
 
 func TestGetFunds(t *testing.T) {
 	o := Order{
-		AllocatedFunds: 1337,
+		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 	funds := o.GetAllocatedFunds()
-	if funds != 1337 {
-		t.Error("expected 1337")
+	if funds != decimal.NewFromInt(1337) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }

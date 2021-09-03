@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -14,6 +15,8 @@ import (
 )
 
 const testExchange = "binance"
+
+var elite = decimal.NewFromInt(decimal.NewFromInt(1337))
 
 func TestLoad(t *testing.T) {
 	t.Parallel()
@@ -34,11 +37,11 @@ func TestLoad(t *testing.T) {
 		Candles: []gctkline.Candle{
 			{
 				Time:   tt,
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
+				Open:   decimal.NewFromInt(1337),
+				High:   decimal.NewFromInt(1337),
+				Low:    decimal.NewFromInt(1337),
+				Close:  decimal.NewFromInt(1337),
+				Volume: decimal.NewFromInt(1337),
 			},
 		},
 	}
@@ -70,11 +73,11 @@ func TestHasDataAtTime(t *testing.T) {
 		Candles: []gctkline.Candle{
 			{
 				Time:   dInsert,
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
+				Open:   decimal.NewFromInt(1337),
+				High:   decimal.NewFromInt(1337),
+				Low:    decimal.NewFromInt(1337),
+				Close:  decimal.NewFromInt(1337),
+				Volume: decimal.NewFromInt(1337),
 			},
 		},
 	}
@@ -114,11 +117,11 @@ func TestAppend(t *testing.T) {
 		Candles: []gctkline.Candle{
 			{
 				Time:   time.Now(),
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
+				Open:   decimal.NewFromInt(1337),
+				High:   decimal.NewFromInt(1337),
+				Low:    decimal.NewFromInt(1337),
+				Close:  decimal.NewFromInt(1337),
+				Volume: decimal.NewFromInt(1337),
 			},
 		},
 	}
@@ -144,11 +147,11 @@ func TestStreamOpen(t *testing.T) {
 				CurrencyPair: p,
 				AssetType:    a,
 			},
-			Open:   1337,
-			High:   1337,
-			Low:    1337,
-			Close:  1337,
-			Volume: 1337,
+			Open:   elite,
+			High:   elite,
+			Low:    elite,
+			Close:  elite,
+			Volume: elite,
 		},
 	})
 	d.Next()
@@ -177,11 +180,11 @@ func TestStreamVolume(t *testing.T) {
 				CurrencyPair: p,
 				AssetType:    a,
 			},
-			Open:   1337,
-			High:   1337,
-			Low:    1337,
-			Close:  1337,
-			Volume: 1337,
+			Open:   elite,
+			High:   elite,
+			Low:    elite,
+			Close:  elite,
+			Volume: elite,
 		},
 	})
 	d.Next()
@@ -210,11 +213,11 @@ func TestStreamClose(t *testing.T) {
 				CurrencyPair: p,
 				AssetType:    a,
 			},
-			Open:   1337,
-			High:   1337,
-			Low:    1337,
-			Close:  1337,
-			Volume: 1337,
+			Open:   elite,
+			High:   elite,
+			Low:    elite,
+			Close:  elite,
+			Volume: elite,
 		},
 	})
 	d.Next()
@@ -243,11 +246,11 @@ func TestStreamHigh(t *testing.T) {
 				CurrencyPair: p,
 				AssetType:    a,
 			},
-			Open:   1337,
-			High:   1337,
-			Low:    1337,
-			Close:  1337,
-			Volume: 1337,
+			Open:   elite,
+			High:   elite,
+			Low:    elite,
+			Close:  elite,
+			Volume: elite,
 		},
 	})
 	d.Next()
@@ -276,11 +279,11 @@ func TestStreamLow(t *testing.T) {
 				CurrencyPair: p,
 				AssetType:    a,
 			},
-			Open:   1337,
-			High:   1337,
-			Low:    1337,
-			Close:  1337,
-			Volume: 1337,
+			Open:   elite,
+			High:   elite,
+			Low:    elite,
+			Close:  elite,
+			Volume: elite,
 		},
 	})
 	d.Next()
