@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -572,10 +573,10 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint 
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (h *HitBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var fee float64
-	switch feeBuilder.FeeType {
-	case exchange.CryptocurrencyTradeFee:
+func (h *HitBTC) GetFee(feeBuilder *fee.Builder) (float64, error) {
+	var f float64
+	switch feeBuilder.Type {
+	case fee.Trade:
 		feeInfo, err := h.GetFeeInfo(feeBuilder.Pair.Base.String() +
 			feeBuilder.Pair.Delimiter +
 			feeBuilder.Pair.Quote.String())
@@ -583,29 +584,29 @@ func (h *HitBTC) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee = calculateTradingFee(feeInfo, feeBuilder.PurchasePrice,
+		f = calculateTradingFee(feeInfo, feeBuilder.PurchasePrice,
 			feeBuilder.Amount,
 			feeBuilder.IsMaker)
-	case exchange.CryptocurrencyWithdrawalFee:
+	case fee.Withdrawal:
 		currencyInfo, err := h.GetCurrency(feeBuilder.Pair.Base.String())
 		if err != nil {
 			return 0, err
 		}
-		fee, err = strconv.ParseFloat(currencyInfo.PayoutFee, 64)
+		f, err = strconv.ParseFloat(currencyInfo.PayoutFee, 64)
 		if err != nil {
 			return 0, err
 		}
-	case exchange.CryptocurrencyDepositFee:
-		fee = calculateCryptocurrencyDepositFee(feeBuilder.Pair.Base,
+	case fee.Deposit:
+		f = calculateCryptocurrencyDepositFee(feeBuilder.Pair.Base,
 			feeBuilder.Amount)
-	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case fee.OfflineTrade:
+		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
-	if fee < 0 {
-		fee = 0
+	if f < 0 {
+		f = 0
 	}
 
-	return fee, nil
+	return f, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
@@ -614,11 +615,11 @@ func getOfflineTradeFee(price, amount float64) float64 {
 }
 
 func calculateCryptocurrencyDepositFee(c currency.Code, amount float64) float64 {
-	var fee float64
+	var f float64
 	if c == currency.BTC {
-		fee = 0.0006
+		f = 0.0006
 	}
-	return fee * amount
+	return f * amount
 }
 
 func calculateTradingFee(feeInfo Fee, purchasePrice, amount float64, isMaker bool) float64 {

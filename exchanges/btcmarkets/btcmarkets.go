@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -757,14 +758,13 @@ func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result 
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *BTCMarkets) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var fee float64
-
-	switch feeBuilder.FeeType {
-	case exchange.CryptocurrencyTradeFee:
+func (b *BTCMarkets) GetFee(feeBuilder *fee.Builder) (float64, error) {
+	var f float64
+	switch feeBuilder.Type {
+	case fee.Trade:
 		temp, err := b.GetTradingFees()
 		if err != nil {
-			return fee, err
+			return f, err
 		}
 		for x := range temp.FeeByMarkets {
 			p, err := currency.NewPairFromString(temp.FeeByMarkets[x].MarketID)
@@ -772,36 +772,36 @@ func (b *BTCMarkets) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 				return 0, err
 			}
 			if p == feeBuilder.Pair {
-				fee = temp.FeeByMarkets[x].MakerFeeRate
+				f = temp.FeeByMarkets[x].MakerFeeRate
 				if !feeBuilder.IsMaker {
-					fee = temp.FeeByMarkets[x].TakerFeeRate
+					f = temp.FeeByMarkets[x].TakerFeeRate
 				}
 			}
 		}
-	case exchange.CryptocurrencyWithdrawalFee:
+	case fee.Withdrawal:
 		temp, err := b.GetWithdrawalFees()
 		if err != nil {
-			return fee, err
+			return f, err
 		}
 		for x := range temp {
 			if currency.NewCode(temp[x].AssetName) == feeBuilder.Pair.Base {
-				fee = temp[x].Fee * feeBuilder.PurchasePrice * feeBuilder.Amount
+				f = temp[x].Fee * feeBuilder.PurchasePrice * feeBuilder.Amount
 			}
 		}
-	case exchange.InternationalBankWithdrawalFee:
+	case fee.InternationalBankWithdrawal:
 		return 0, errors.New("international bank withdrawals are not supported")
 
-	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder)
+	case fee.OfflineTrade:
+		f = getOfflineTradeFee(feeBuilder)
 	}
-	if fee < 0 {
-		fee = 0
+	if f < 0 {
+		f = 0
 	}
-	return fee, nil
+	return f, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(feeBuilder *exchange.FeeBuilder) float64 {
+func getOfflineTradeFee(feeBuilder *fee.Builder) float64 {
 	switch {
 	case feeBuilder.Pair.IsCryptoPair():
 		return 0.002 * feeBuilder.PurchasePrice * feeBuilder.Amount

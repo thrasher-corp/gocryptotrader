@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -465,9 +466,9 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint,
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (g *Gateio) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, err error) {
-	switch feeBuilder.FeeType {
-	case exchange.CryptocurrencyTradeFee:
+func (g *Gateio) GetFee(feeBuilder *fee.Builder) (f float64, err error) {
+	switch feeBuilder.Type {
+	case fee.Trade:
 		feePairs, err := g.GetMarketInfo()
 		if err != nil {
 			return 0, err
@@ -489,21 +490,21 @@ func (g *Gateio) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, err error
 				currencyPair)
 		}
 
-		fee = calculateTradingFee(feeForPair,
+		f = calculateTradingFee(feeForPair,
 			feeBuilder.PurchasePrice,
 			feeBuilder.Amount)
 
-	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
-	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case fee.Withdrawal:
+		f = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
+	case fee.OfflineTrade:
+		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
-	if fee < 0 {
-		fee = 0
+	if f < 0 {
+		f = 0
 	}
 
-	return fee, nil
+	return f, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee

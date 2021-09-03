@@ -213,7 +213,7 @@ type TransactionData struct {
 	AssetName    string    `json:"assetName"`
 	Amount       float64   `json:"amount,string"`
 	Balance      float64   `json:"balance,string"`
-	FeeType      string    `json:"type"`
+	Type         string    `json:"type"`
 	RecordType   string    `json:"recordType"`
 	ReferrenceID string    `json:"referrenceId"`
 }

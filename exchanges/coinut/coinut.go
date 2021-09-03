@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -323,30 +324,29 @@ func (c *COINUT) SendHTTPRequest(ep exchange.URL, apiRequest string, params map[
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (c *COINUT) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var fee float64
-	switch feeBuilder.FeeType {
-	case exchange.CryptocurrencyTradeFee:
-		fee = c.calculateTradingFee(feeBuilder.Pair.Base,
+func (c *COINUT) GetFee(feeBuilder *fee.Builder) (float64, error) {
+	var f float64
+	switch feeBuilder.Type {
+	case fee.Trade:
+		f = c.calculateTradingFee(feeBuilder.Pair.Base,
 			feeBuilder.Pair.Quote,
 			feeBuilder.PurchasePrice,
 			feeBuilder.Amount,
 			feeBuilder.IsMaker)
-	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency,
+	case fee.InternationalBankWithdrawal:
+		f = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency,
 			feeBuilder.Amount)
-	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
+	case fee.InternationalBankDeposit:
+		f = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
 			feeBuilder.Amount)
-	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case fee.OfflineTrade:
+		f = getOfflineTradeFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
-	if fee < 0 {
-		fee = 0
+	if f < 0 {
+		f = 0
 	}
-
-	return fee, nil
+	return f, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
@@ -358,65 +358,64 @@ func getOfflineTradeFee(c currency.Pair, price, amount float64) float64 {
 }
 
 func (c *COINUT) calculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, isMaker bool) float64 {
-	var fee float64
+	var f float64
 
 	switch {
 	case isMaker:
-		fee = 0
+		f = 0
 	case currency.NewPair(base, quote).IsCryptoFiatPair():
-		fee = 0.002
+		f = 0.002
 	default:
-		fee = 0.001
+		f = 0.001
 	}
 
-	return fee * amount * purchasePrice
+	return f * amount * purchasePrice
 }
 
 func getInternationalBankWithdrawalFee(c currency.Code, amount float64) float64 {
-	var fee float64
+	var f float64
 
 	switch c {
 	case currency.USD:
 		if amount*0.001 < 10 {
-			fee = 10
+			f = 10
 		} else {
-			fee = amount * 0.001
+			f = amount * 0.001
 		}
 	case currency.CAD:
 		if amount*0.005 < 10 {
-			fee = 2
+			f = 2
 		} else {
-			fee = amount * 0.005
+			f = amount * 0.005
 		}
 	case currency.SGD:
 		if amount*0.001 < 10 {
-			fee = 10
+			f = 10
 		} else {
-			fee = amount * 0.001
+			f = amount * 0.001
 		}
 	}
-
-	return fee
+	return f
 }
 
 func getInternationalBankDepositFee(c currency.Code, amount float64) float64 {
-	var fee float64
+	var f float64
 
 	if c == currency.USD {
 		if amount*0.001 < 10 {
-			fee = 10
+			f = 10
 		} else {
-			fee = amount * 0.001
+			f = amount * 0.001
 		}
 	} else if c == currency.CAD {
 		if amount*0.005 < 10 {
-			fee = 2
+			f = 2
 		} else {
-			fee = amount * 0.005
+			f = amount * 0.005
 		}
 	}
 
-	return fee
+	return f
 }
 
 // IsLoaded returns whether or not the instrument map has been seeded

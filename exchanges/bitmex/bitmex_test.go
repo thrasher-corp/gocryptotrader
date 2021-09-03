@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -487,10 +488,10 @@ func TestGetPreviousTrades(t *testing.T) {
 	}
 }
 
-func setFeeBuilder() *exchange.FeeBuilder {
-	return &exchange.FeeBuilder{
+func setFeeBuilder() *fee.Builder {
+	return &fee.Builder{
 		Amount:        1,
-		FeeType:       exchange.CryptocurrencyTradeFee,
+		Type:          fee.Trade,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
 	}
@@ -505,12 +506,12 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !areTestAPIKeysSet() {
-		if feeBuilder.FeeType != exchange.OfflineTradeFee {
-			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		if feeBuilder.Type != fee.OfflineTrade {
+			t.Errorf("Expected %v, received %v", fee.OfflineTrade, feeBuilder.Type)
 		}
 	} else {
-		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
-			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		if feeBuilder.Type != fee.Trade {
+			t.Errorf("Expected %v, received %v", fee.Trade, feeBuilder.Type)
 		}
 	}
 }
@@ -547,21 +548,21 @@ func TestGetFee(t *testing.T) {
 
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
+	feeBuilder.Type = fee.Withdrawal
 	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
+	feeBuilder.Type = fee.Deposit
 	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.InternationalBankDepositFee
+	feeBuilder.Type = fee.InternationalBankDeposit
 	feeBuilder.FiatCurrency = currency.HKD
 	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
@@ -569,7 +570,7 @@ func TestGetFee(t *testing.T) {
 
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
+	feeBuilder.Type = fee.InternationalBankWithdrawal
 	feeBuilder.FiatCurrency = currency.HKD
 	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)

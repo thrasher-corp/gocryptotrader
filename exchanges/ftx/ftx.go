@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -1196,34 +1197,31 @@ func (f *FTX) SendAuthHTTPRequest(ep exchange.URL, method, path string, data, re
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (f *FTX) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var fee float64
+func (f *FTX) GetFee(feeBuilder *fee.Builder) (float64, error) {
+	var fees float64
 	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-		feeBuilder.FeeType = exchange.OfflineTradeFee
+		feeBuilder.Type = fee.OfflineTrade
 	}
-	switch feeBuilder.FeeType {
-	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder)
+	switch feeBuilder.Type {
+	case fee.OfflineTrade:
+		fees = getOfflineTradeFee(feeBuilder)
 	default:
-		feeData, err := f.GetAccountInfo()
+		var err error
+		switch feeBuilder.IsMaker {
+		case true:
+			fees, err = f.Fees.GetMakerValue(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		case false:
+			fees, err = f.Fees.GetTakerValue(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		}
 		if err != nil {
 			return 0, err
 		}
-		switch feeBuilder.IsMaker {
-		case true:
-			fee = feeData.MakerFee * feeBuilder.Amount * feeBuilder.PurchasePrice
-		case false:
-			fee = feeData.TakerFee * feeBuilder.Amount * feeBuilder.PurchasePrice
-		}
-		if fee < 0 {
-			fee = 0
-		}
 	}
-	return fee, nil
+	return fees, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(feeBuilder *exchange.FeeBuilder) float64 {
+func getOfflineTradeFee(feeBuilder *fee.Builder) float64 {
 	if feeBuilder.IsMaker {
 		return 0.0002 * feeBuilder.PurchasePrice * feeBuilder.Amount
 	}
@@ -1265,7 +1263,7 @@ func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amou
 	default:
 		return resp, fmt.Errorf("%w %s", errUnrecognisedOrderStatus, orderStatus)
 	}
-	var feeBuilder exchange.FeeBuilder
+	var feeBuilder fee.Builder
 	feeBuilder.PurchasePrice = avgFillPrice
 	feeBuilder.Amount = amount
 	resp.OrderType = order.Market

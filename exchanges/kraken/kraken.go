@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -1034,28 +1035,28 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (k *Kraken) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var fee float64
-	switch feeBuilder.FeeType {
-	case exchange.CryptocurrencyTradeFee:
+func (k *Kraken) GetFee(feeBuilder *fee.Builder) (float64, error) {
+	var f float64
+	switch feeBuilder.Type {
+	case fee.Trade:
 		feePair, err := k.GetTradeVolume(true, feeBuilder.Pair)
 		if err != nil {
 			return 0, err
 		}
 		if feeBuilder.IsMaker {
-			fee = calculateTradingFee(feePair.Currency,
+			f = calculateTradingFee(feePair.Currency,
 				feePair.FeesMaker,
 				feeBuilder.PurchasePrice,
 				feeBuilder.Amount)
 		} else {
-			fee = calculateTradingFee(feePair.Currency,
+			f = calculateTradingFee(feePair.Currency,
 				feePair.Fees,
 				feeBuilder.PurchasePrice,
 				feeBuilder.Amount)
 		}
-	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.Pair.Base)
-	case exchange.InternationalBankDepositFee:
+	case fee.Withdrawal:
+		f = getWithdrawalFee(feeBuilder.Pair.Base)
+	case fee.InternationalBankDeposit:
 		depositMethods, err := k.GetDepositMethods(feeBuilder.FiatCurrency.String())
 		if err != nil {
 			return 0, err
@@ -1064,24 +1065,24 @@ func (k *Kraken) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		for _, i := range depositMethods {
 			if feeBuilder.BankTransactionType == exchange.WireTransfer {
 				if i.Method == "SynapsePay (US Wire)" {
-					fee = i.Fee
-					return fee, nil
+					f = i.Fee
+					return f, nil
 				}
 			}
 		}
-	case exchange.CryptocurrencyDepositFee:
-		fee = getCryptocurrencyDepositFee(feeBuilder.Pair.Base)
+	case fee.Deposit:
+		f = getCryptocurrencyDepositFee(feeBuilder.Pair.Base)
 
-	case exchange.InternationalBankWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.FiatCurrency)
-	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case fee.InternationalBankWithdrawal:
+		f = getWithdrawalFee(feeBuilder.FiatCurrency)
+	case fee.OfflineTrade:
+		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
-	if fee < 0 {
-		fee = 0
+	if f < 0 {
+		f = 0
 	}
 
-	return fee, nil
+	return f, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee

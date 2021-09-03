@@ -39,6 +39,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -402,8 +403,8 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 // getFees will return an exchange's fee rate from GCT's wrapper function
 func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee float64) {
 	var err error
-	takerFee, err = exch.GetFeeByType(&gctexchange.FeeBuilder{
-		FeeType:       gctexchange.OfflineTradeFee,
+	takerFee, err = exch.GetFeeByType(&fee.Builder{
+		Type:          fee.OfflineTrade,
 		Pair:          fPair,
 		IsMaker:       false,
 		PurchasePrice: 1,
@@ -413,8 +414,8 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, take
 		log.Errorf(log.BackTester, "Could not retrieve taker fee for %v. %v", exch.GetName(), err)
 	}
 
-	makerFee, err = exch.GetFeeByType(&gctexchange.FeeBuilder{
-		FeeType:       gctexchange.OfflineTradeFee,
+	makerFee, err = exch.GetFeeByType(&fee.Builder{
+		Type:          fee.OfflineTrade,
 		Pair:          fPair,
 		IsMaker:       true,
 		PurchasePrice: 1,

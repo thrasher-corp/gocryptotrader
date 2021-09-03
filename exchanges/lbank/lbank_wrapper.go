@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -595,8 +596,8 @@ func (l *Lbank) GetOrderInfo(orderID string, pair currency.Pair, assetType asset
 			resp.Amount = tempResp.Orders[0].Amount
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
-			resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{
-				FeeType:       exchange.CryptocurrencyTradeFee,
+			resp.Fee, err = l.GetFeeByType(&fee.Builder{
+				Type:          fee.Trade,
 				Amount:        tempResp.Orders[0].Amount,
 				PurchasePrice: tempResp.Orders[0].Price})
 			if err != nil {
@@ -691,8 +692,8 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			resp.Date = time.Unix(tempResp.Orders[0].CreateTime, 0)
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
-			resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{
-				FeeType:       exchange.CryptocurrencyTradeFee,
+			resp.Fee, err = l.GetFeeByType(&fee.Builder{
+				Type:          fee.Trade,
 				Amount:        tempResp.Orders[0].Amount,
 				PurchasePrice: tempResp.Orders[0].Price})
 			if err != nil {
@@ -783,8 +784,8 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 				resp.Date = time.Unix(tempResp.Orders[x].CreateTime, 0)
 				resp.ExecutedAmount = tempResp.Orders[x].DealAmount
 				resp.RemainingAmount = tempResp.Orders[x].Price - tempResp.Orders[x].DealAmount
-				resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{
-					FeeType:       exchange.CryptocurrencyTradeFee,
+				resp.Fee, err = l.GetFeeByType(&fee.Builder{
+					Type:          fee.Trade,
 					Amount:        tempResp.Orders[x].Amount,
 					PurchasePrice: tempResp.Orders[x].Price})
 				if err != nil {
@@ -799,12 +800,12 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction *
-func (l *Lbank) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (l *Lbank) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
 	var resp float64
-	if feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+	if feeBuilder.Type == fee.Trade {
 		return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.002, nil
 	}
-	if feeBuilder.FeeType == exchange.CryptocurrencyWithdrawalFee {
+	if feeBuilder.Type == fee.Withdrawal {
 		withdrawalFee, err := l.GetWithdrawConfig(feeBuilder.Pair.Base.Lower().String())
 		if err != nil {
 			return resp, err

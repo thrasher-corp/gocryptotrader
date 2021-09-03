@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -751,7 +752,7 @@ func (s *OrderData) GetCompatible(f *FTX) (OrderVars, error) {
 	default:
 		resp.Status = order.AnyStatus
 	}
-	var feeBuilder exchange.FeeBuilder
+	var feeBuilder fee.Builder
 	feeBuilder.PurchasePrice = s.AvgFillPrice
 	feeBuilder.Amount = s.Size
 	resp.OrderType = order.Market
@@ -759,11 +760,11 @@ func (s *OrderData) GetCompatible(f *FTX) (OrderVars, error) {
 		resp.OrderType = order.Limit
 		feeBuilder.IsMaker = true
 	}
-	fee, err := f.GetFee(&feeBuilder)
+	fees, err := f.GetFee(&feeBuilder)
 	if err != nil {
 		return resp, err
 	}
-	resp.Fee = fee
+	resp.Fee = fees
 	return resp, nil
 }
 
@@ -1054,7 +1055,7 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
-func (f *FTX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (f *FTX) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
 	return f.GetFee(feeBuilder)
 }
 
@@ -1183,4 +1184,13 @@ func (f *FTX) UpdateOrderExecutionLimits(_ asset.Item) error {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
 	return f.LoadLimits(limits)
+}
+
+// UpdateFees updates all the fees associated with the asset type.
+func (f *FTX) UpdateFees(a asset.Item) error {
+	ai, err := f.GetAccountInfo()
+	if err != nil {
+		return err
+	}
+	return f.Fees.LoadDynamic(ai.TakerFee, ai.MakerFee, true)
 }

@@ -22,6 +22,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -522,8 +523,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response: jsonifyInterface([]interface{}{getFundingHistoryResponse}),
 		})
 
-		feeType := exchange.FeeBuilder{
-			FeeType:       exchange.CryptocurrencyTradeFee,
+		feeType := fee.Builder{
+			Type:          fee.Trade,
 			Pair:          p,
 			PurchasePrice: config.OrderSubmission.Price,
 			Amount:        config.OrderSubmission.Amount,
@@ -707,8 +708,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   getDepositAddressResponse,
 		})
 
-		feeType = exchange.FeeBuilder{
-			FeeType:       exchange.CryptocurrencyWithdrawalFee,
+		feeType = fee.Builder{
+			Type:          fee.Withdrawal,
 			Pair:          p,
 			PurchasePrice: config.OrderSubmission.Price,
 			Amount:        config.OrderSubmission.Amount,
@@ -752,8 +753,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   withdrawCryptocurrencyFundsResponse,
 		})
 
-		feeType = exchange.FeeBuilder{
-			FeeType:             exchange.InternationalBankWithdrawalFee,
+		feeType = fee.Builder{
+			Type:                fee.InternationalBankWithdrawal,
 			Pair:                p,
 			PurchasePrice:       config.OrderSubmission.Price,
 			Amount:              config.OrderSubmission.Amount,

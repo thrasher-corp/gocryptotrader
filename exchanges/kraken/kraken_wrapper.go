@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1036,10 +1037,10 @@ func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (k *Kraken) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (k *Kraken) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
 	if !k.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
-		feeBuilder.FeeType = exchange.OfflineTradeFee
+		feeBuilder.Type == fee.Trade {
+		feeBuilder.Type = fee.OfflineTrade
 	}
 	return k.GetFee(feeBuilder)
 }

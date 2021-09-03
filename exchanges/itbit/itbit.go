@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -387,22 +388,22 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (i *ItBit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var fee float64
-	switch feeBuilder.FeeType {
-	case exchange.CryptocurrencyTradeFee:
-		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
-	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.BankTransactionType)
-	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+func (i *ItBit) GetFee(feeBuilder *fee.Builder) (float64, error) {
+	var f float64
+	switch feeBuilder.Type {
+	case fee.Trade:
+		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case fee.InternationalBankWithdrawal:
+		f = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.BankTransactionType)
+	case fee.OfflineTrade:
+		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 
-	if fee < 0 {
-		fee = 0
+	if f < 0 {
+		f = 0
 	}
 
-	return fee, nil
+	return f, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
@@ -420,16 +421,16 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 	return feePercent * purchasePrice * amount
 }
 
-func getInternationalBankWithdrawalFee(c currency.Code, bankTransactionType exchange.InternationalBankTransactionType) float64 {
-	var fee float64
+func getInternationalBankWithdrawalFee(c currency.Code, bankTransactionType fee.InternationalBankTransactionType) float64 {
+	var f float64
 	if (bankTransactionType == exchange.Swift ||
 		bankTransactionType == exchange.WireTransfer) &&
 		c == currency.USD {
-		fee = 40
+		f = 40
 	} else if (bankTransactionType == exchange.SEPA ||
 		bankTransactionType == exchange.WireTransfer) &&
 		c == currency.EUR {
-		fee = 1
+		f = 1
 	}
-	return fee
+	return f
 }

@@ -58,6 +58,9 @@ func main() {
 	flag.IntVar(&settings.DispatchMaxWorkerAmount, "dispatchworkers", dispatch.DefaultMaxWorkers, "sets the dispatch package max worker generation limit")
 	flag.IntVar(&settings.DispatchJobsLimit, "dispatchjobslimit", dispatch.DefaultJobsLimit, "sets the dispatch package max jobs limit")
 
+	flag.BoolVar(&settings.EnableFeeManager, "feemanager", true, "enables the fee manager")
+	flag.DurationVar(&settings.EventManagerDelay, "feemanagerdelay", engine.DefaultFeeManagerDelay, "sets the fee manager sleep delay between event checking")
+
 	// Exchange syncer settings
 	flag.BoolVar(&settings.EnableTickerSyncing, "tickersync", true, "enables ticker syncing for all enabled exchanges")
 	flag.BoolVar(&settings.EnableOrderbookSyncing, "orderbooksync", true, "enables orderbook syncing for all enabled exchanges")

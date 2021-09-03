@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -425,27 +426,27 @@ func (b *Bittrex) SendAuthHTTPRequest(ep exchange.URL, method, action string, pa
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bittrex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var fee float64
+func (b *Bittrex) GetFee(feeBuilder *fee.Builder) (float64, error) {
+	var f float64
 	var err error
 
-	switch feeBuilder.FeeType {
-	case exchange.CryptocurrencyTradeFee:
-		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	case exchange.CryptocurrencyWithdrawalFee:
-		fee, err = b.GetWithdrawalFee(feeBuilder.Pair.Base)
-	case exchange.OfflineTradeFee:
-		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	switch feeBuilder.Type {
+	case fee.Trade:
+		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case fee.Withdrawal:
+		f, err = b.GetWithdrawalFee(feeBuilder.Pair.Base)
+	case fee.OfflineTrade:
+		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
-	if fee < 0 {
-		fee = 0
+	if f < 0 {
+		f = 0
 	}
-	return fee, err
+	return f, err
 }
 
 // GetWithdrawalFee returns the fee for withdrawing from the exchange
 func (b *Bittrex) GetWithdrawalFee(c currency.Code) (float64, error) {
-	var fee float64
+	var f float64
 
 	currencies, err := b.GetCurrencies()
 	if err != nil {
@@ -453,10 +454,10 @@ func (b *Bittrex) GetWithdrawalFee(c currency.Code) (float64, error) {
 	}
 	for i := range currencies {
 		if currencies[i].Symbol == c.String() {
-			fee = currencies[i].TxFee
+			f = currencies[i].TxFee
 		}
 	}
-	return fee, nil
+	return f, nil
 }
 
 // calculateTradingFee returns the fee for trading any currency on Bittrex

@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1150,7 +1151,7 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		if err != nil {
 			return respData, err
 		}
-		var feeBuilder exchange.FeeBuilder
+		var feeBuilder fee.Builder
 		feeBuilder.Amount = orderData.ExecutedQuantity
 		feeBuilder.PurchasePrice = orderData.AveragePrice
 		feeBuilder.Pair = pair
@@ -1179,7 +1180,7 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		if err != nil {
 			return respData, err
 		}
-		var feeBuilder exchange.FeeBuilder
+		var feeBuilder fee.Builder
 		feeBuilder.Amount = orderData.ExecutedQuantity
 		feeBuilder.PurchasePrice = orderData.AveragePrice
 		feeBuilder.Pair = pair
@@ -1246,10 +1247,10 @@ func (b *Binance) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*wi
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Binance) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (b *Binance) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
 	if (!b.AllowAuthenticatedRequest() || b.SkipAuthCheck) && // Todo check connection status
-		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
-		feeBuilder.FeeType = exchange.OfflineTradeFee
+		feeBuilder.Type == fee.Trade {
+		feeBuilder.Type = fee.OfflineTrade
 	}
 	return b.GetFee(feeBuilder)
 }
@@ -1295,7 +1296,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, err
 			}
 			for y := range openOrders {
-				var feeBuilder exchange.FeeBuilder
+				var feeBuilder fee.Builder
 				feeBuilder.Amount = openOrders[y].ExecutedQty
 				feeBuilder.PurchasePrice = openOrders[y].AvgPrice
 				feeBuilder.Pair = req.Pairs[i]
@@ -1328,7 +1329,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, err
 			}
 			for y := range openOrders {
-				var feeBuilder exchange.FeeBuilder
+				var feeBuilder fee.Builder
 				feeBuilder.Amount = openOrders[y].ExecutedQuantity
 				feeBuilder.PurchasePrice = openOrders[y].AveragePrice
 				feeBuilder.Pair = req.Pairs[i]
@@ -1440,7 +1441,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, fmt.Errorf("invalid combination of input params")
 			}
 			for y := range orderHistory {
-				var feeBuilder exchange.FeeBuilder
+				var feeBuilder fee.Builder
 				feeBuilder.Amount = orderHistory[y].ExecutedQty
 				feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
 				feeBuilder.Pair = req.Pairs[i]
@@ -1496,7 +1497,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, fmt.Errorf("invalid combination of input params")
 			}
 			for y := range orderHistory {
-				var feeBuilder exchange.FeeBuilder
+				var feeBuilder fee.Builder
 				feeBuilder.Amount = orderHistory[y].ExecutedQty
 				feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
 				feeBuilder.Pair = req.Pairs[i]

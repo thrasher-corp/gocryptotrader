@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -331,28 +332,28 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, param
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (y *Yobit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var fee float64
-	switch feeBuilder.FeeType {
-	case exchange.CryptocurrencyTradeFee:
-		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.Pair.Base)
-	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
+func (y *Yobit) GetFee(feeBuilder *fee.Builder) (float64, error) {
+	var f float64
+	switch feeBuilder.Type {
+	case fee.Trade:
+		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case fee.Withdrawal:
+		f = getWithdrawalFee(feeBuilder.Pair.Base)
+	case fee.InternationalBankDeposit:
+		f = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
 			feeBuilder.BankTransactionType)
-	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency,
+	case fee.InternationalBankWithdrawal:
+		f = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency,
 			feeBuilder.Amount,
 			feeBuilder.BankTransactionType)
-	case exchange.OfflineTradeFee:
-		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case fee.OfflineTrade:
+		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
-	if fee < 0 {
-		fee = 0
+	if f < 0 {
+		f = 0
 	}
 
-	return fee, nil
+	return f, nil
 }
 
 func calculateTradingFee(price, amount float64) (fee float64) {
@@ -363,75 +364,75 @@ func getWithdrawalFee(c currency.Code) float64 {
 	return WithdrawalFees[c]
 }
 
-func getInternationalBankWithdrawalFee(c currency.Code, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
-	var fee float64
+func getInternationalBankWithdrawalFee(c currency.Code, amount float64, bankTransactionType fee.InternationalBankTransactionType) float64 {
+	var f float64
 
 	switch bankTransactionType {
 	case exchange.PerfectMoney:
 		if c == currency.USD {
-			fee = 0.02 * amount
+			f = 0.02 * amount
 		}
 	case exchange.Payeer:
 		switch c {
 		case currency.USD:
-			fee = 0.03 * amount
+			f = 0.03 * amount
 		case currency.RUR:
-			fee = 0.006 * amount
+			f = 0.006 * amount
 		}
 	case exchange.AdvCash:
 		switch c {
 		case currency.USD:
-			fee = 0.04 * amount
+			f = 0.04 * amount
 		case currency.RUR:
-			fee = 0.03 * amount
+			f = 0.03 * amount
 		}
 	case exchange.Qiwi:
 		if c == currency.RUR {
-			fee = 0.04 * amount
+			f = 0.04 * amount
 		}
 	case exchange.Capitalist:
 		if c == currency.USD {
-			fee = 0.06 * amount
+			f = 0.06 * amount
 		}
 	}
 
-	return fee
+	return f
 }
 
 // getInternationalBankDepositFee; No real fees for yobit deposits, but want to be explicit on what each payment type supports
-func getInternationalBankDepositFee(c currency.Code, bankTransactionType exchange.InternationalBankTransactionType) float64 {
-	var fee float64
+func getInternationalBankDepositFee(c currency.Code, bankTransactionType fee.InternationalBankTransactionType) float64 {
+	var f float64
 	switch bankTransactionType {
 	case exchange.PerfectMoney:
 		if c == currency.USD {
-			fee = 0
+			f = 0
 		}
 	case exchange.Payeer:
 		switch c {
 		case currency.USD:
-			fee = 0
+			f = 0
 		case currency.RUR:
-			fee = 0
+			f = 0
 		}
 	case exchange.AdvCash:
 		switch c {
 		case currency.USD:
-			fee = 0
+			f = 0
 		case currency.RUR:
-			fee = 0
+			f = 0
 		}
 	case exchange.Qiwi:
 		if c == currency.RUR {
-			fee = 0
+			f = 0
 		}
 	case exchange.Capitalist:
 		switch c {
 		case currency.USD:
-			fee = 0
+			f = 0
 		case currency.RUR:
-			fee = 0
+			f = 0
 		}
 	}
 
-	return fee
+	return f
 }

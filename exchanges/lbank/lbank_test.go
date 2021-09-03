@@ -9,8 +9,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -375,9 +375,9 @@ func TestGetAllOpenOrderID(t *testing.T) {
 func TestGetFeeByType(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
-	var input exchange.FeeBuilder
+	var input fee.Builder
 	input.Amount = 2
-	input.FeeType = exchange.CryptocurrencyWithdrawalFee
+	input.Type = fee.Withdrawal
 	input.Pair = cp
 	_, err := l.GetFeeByType(&input)
 	if err != nil {

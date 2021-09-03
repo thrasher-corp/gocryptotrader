@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -617,7 +618,9 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 			b.Name)
 	}
 	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
-	return nil
+
+	b.Fees, err = fee.RegisterFeeDefinitions(b.Name)
+	return err
 }
 
 // AllowAuthenticatedRequest checks to see if the required fields have been set
@@ -1315,4 +1318,9 @@ func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool
 	a.m.RLock()
 	defer a.m.RUnlock()
 	return a.unsupported == nil || !a.unsupported[aType]
+}
+
+// UpdateFees updates all fees associated with an account
+func (b *Base) UpdateFees(a asset.Item) error {
+	return common.ErrNotYetImplemented
 }

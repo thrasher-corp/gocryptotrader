@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -730,10 +731,10 @@ func (p *Poloniex) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*w
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (p *Poloniex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (p *Poloniex) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
 	if (!p.AllowAuthenticatedRequest() || p.SkipAuthCheck) && // Todo check connection status
-		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
-		feeBuilder.FeeType = exchange.OfflineTradeFee
+		feeBuilder.Type == fee.Trade {
+		feeBuilder.Type = fee.OfflineTrade
 	}
 	return p.GetFee(feeBuilder)
 }

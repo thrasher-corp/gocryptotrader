@@ -45,6 +45,7 @@ type Engine struct {
 	websocketRoutineManager *websocketRoutineManager
 	WithdrawManager         *WithdrawManager
 	dataHistoryManager      *DataHistoryManager
+	feeManager              *feeManager
 	Settings                Settings
 	uptime                  time.Time
 	ServicesWG              sync.WaitGroup
@@ -562,6 +563,19 @@ func (bot *Engine) Start() error {
 		}
 	}
 
+	if bot.Settings.EnableFeeManager {
+		bot.feeManager = &feeManager{}
+		err = bot.feeManager.Setup(bot.Settings.FeeManagerDelay, bot.ExchangeManager)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "%s unable to setup: %s", FeeManagement, err)
+		} else {
+			err = bot.feeManager.Start()
+			if err != nil {
+				gctlog.Errorf(gctlog.Global, "%s unable to start: %s", FeeManagement, err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -649,6 +663,12 @@ func (bot *Engine) Stop() {
 	if bot.websocketRoutineManager.IsRunning() {
 		if err := bot.websocketRoutineManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "websocket routine manager unable to stop. Error: %v", err)
+		}
+	}
+
+	if bot.feeManager.IsRunning() {
+		if err := bot.feeManager.Stop(); err != nil {
+			gctlog.Errorf(gctlog.Global, "%s unable to stop. Error: %v", FeeManagement, err)
 		}
 	}
 

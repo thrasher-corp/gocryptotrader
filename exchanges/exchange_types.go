@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -19,8 +20,8 @@ const (
 	RestAuthentication      uint8 = 0
 	WebsocketAuthentication uint8 = 1
 	// Repeated exchange strings
-	// FeeType custom type for calculating fees based on method
-	WireTransfer InternationalBankTransactionType = iota
+	// Type custom type for calculating fees based on method
+	WireTransfer fee.InternationalBankTransactionType = iota
 	PerfectMoney
 	Neteller
 	AdvCash
@@ -38,14 +39,7 @@ const (
 	WesternUnion
 	MoneyGram
 	Contact
-	// Const declarations for fee types
-	BankFee FeeType = iota
-	InternationalBankDepositFee
-	InternationalBankWithdrawalFee
-	CryptocurrencyTradeFee
-	CryptocurrencyDepositFee
-	CryptocurrencyWithdrawalFee
-	OfflineTradeFee
+
 	// Definitions for each type of withdrawal method for a given exchange
 	NoAPIWithdrawalMethods                  uint32 = 0
 	NoAPIWithdrawalMethodsText              string = "NONE, WEBSITE ONLY"
@@ -89,27 +83,6 @@ const (
 	NoFiatWithdrawalsText                   string = "NO FIAT WITHDRAWAL"
 	UnknownWithdrawalTypeText               string = "UNKNOWN"
 )
-
-// FeeType is the type for holding a custom fee type (International withdrawal fee)
-type FeeType uint8
-
-// InternationalBankTransactionType custom type for calculating fees based on fiat transaction types
-type InternationalBankTransactionType uint8
-
-// FeeBuilder is the type which holds all parameters required to calculate a fee
-// for an exchange
-type FeeBuilder struct {
-	FeeType FeeType
-	// Used for calculating crypto trading fees, deposits & withdrawals
-	Pair    currency.Pair
-	IsMaker bool
-	// Fiat currency used for bank deposits & withdrawals
-	FiatCurrency        currency.Code
-	BankTransactionType InternationalBankTransactionType
-	// Used to multiply for fee calculations
-	PurchasePrice float64
-	Amount        float64
-}
 
 // FundHistory holds exchange funding history data
 type FundHistory struct {
@@ -231,6 +204,8 @@ type Base struct {
 	order.ExecutionLimits
 
 	AssetWebsocketSupport
+
+	Fees *fee.Definitions
 }
 
 // url lookup consts

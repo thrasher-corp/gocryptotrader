@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -1623,16 +1624,16 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ep exchange.URL, method, path 
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bitfinex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var fee float64
+func (b *Bitfinex) GetFee(feeBuilder *fee.Builder) (float64, error) {
+	var f float64
 
-	switch feeBuilder.FeeType {
-	case exchange.CryptocurrencyTradeFee:
+	switch feeBuilder.Type {
+	case fee.Trade:
 		accountInfos, err := b.GetAccountFees()
 		if err != nil {
 			return 0, err
 		}
-		fee, err = b.CalculateTradingFee(accountInfos,
+		f, err = b.CalculateTradingFee(accountInfos,
 			feeBuilder.PurchasePrice,
 			feeBuilder.Amount,
 			feeBuilder.Pair.Base,
@@ -1640,29 +1641,29 @@ func (b *Bitfinex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-	case exchange.CryptocurrencyDepositFee:
+	case fee.Deposit:
 		//TODO: fee is charged when < $1000USD is transferred, need to infer value in some way
-		fee = 0
-	case exchange.CryptocurrencyWithdrawalFee:
+		f = 0
+	case fee.Withdrawal:
 		acc, err := b.GetWithdrawalFees()
 		if err != nil {
 			return 0, err
 		}
-		fee, err = b.GetCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base, acc)
+		f, err = b.GetCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base, acc)
 		if err != nil {
 			return 0, err
 		}
-	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(feeBuilder.Amount)
-	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.Amount)
-	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case fee.InternationalBankDeposit:
+		f = getInternationalBankDepositFee(feeBuilder.Amount)
+	case fee.InternationalBankWithdrawal:
+		f = getInternationalBankWithdrawalFee(feeBuilder.Amount)
+	case fee.OfflineTrade:
+		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
-	if fee < 0 {
-		fee = 0
+	if f < 0 {
+		f = 0
 	}
-	return fee, nil
+	return f, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee

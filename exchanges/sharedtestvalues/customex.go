@@ -9,6 +9,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -119,7 +120,7 @@ func (c *CustomEx) SupportsRESTTickerBatchUpdates() bool {
 	return false
 }
 
-func (c *CustomEx) GetFeeByType(f *exchange.FeeBuilder) (float64, error) {
+func (c *CustomEx) GetFeeByType(f *fee.Builder) (float64, error) {
 	return 0.0, nil
 }
 
