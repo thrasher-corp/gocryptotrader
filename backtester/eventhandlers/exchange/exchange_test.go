@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -62,7 +63,7 @@ func TestSetCurrency(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if result.InitialFunds != decimal.NewFromInt(1337) {
+	if !result.InitialFunds.Equal(decimal.NewFromInt(1337)) {
 		t.Errorf("expected decimal.NewFromInt(1337), received %v", result.InitialFunds)
 	}
 
@@ -74,31 +75,31 @@ func TestSetCurrency(t *testing.T) {
 
 func TestEnsureOrderFitsWithinHLV(t *testing.T) {
 	t.Parallel()
-	adjustedPrice, adjustedAmount := ensureOrderFitsWithinHLV(123, 1, 100, 99, 100)
+	adjustedPrice, adjustedAmount := ensureOrderFitsWithinHLV(decimal.NewFromInt(123), decimal.NewFromInt(1), decimal.NewFromInt(100), decimal.NewFromInt(99), decimal.NewFromInt(100))
 	if !adjustedAmount.Equal(decimal.NewFromInt(1)) {
 		t.Error("expected 1")
 	}
-	if !adjustedPrice.Equal(decimal.NewFromInt(1)) {
+	if !adjustedPrice.Equal(decimal.NewFromInt(100)) {
 		t.Error("expected 100")
 	}
 
-	adjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(123, 1, 100, 99, 80)
-	if adjustedAmount != 0.7999999919999999 {
-		t.Errorf("expected %v received %v", 0.7999999919999999, adjustedAmount)
+	adjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(decimal.NewFromInt(123), decimal.NewFromInt(1), decimal.NewFromInt(100), decimal.NewFromInt(99), decimal.NewFromInt(80))
+	if !adjustedAmount.Equal(decimal.NewFromFloat(0.799999992)) {
+		t.Errorf("expected %v received %v", 0.799999992, adjustedAmount)
 	}
-	if adjustedPrice != 100 {
+	if !adjustedPrice.Equal(decimal.NewFromInt(100)) {
 		t.Error("expected 100")
 	}
 }
 
 func TestCalculateExchangeFee(t *testing.T) {
 	t.Parallel()
-	fee := calculateExchangeFee(1, 1, 0.1)
-	if fee != 0.1 {
+	fee := calculateExchangeFee(decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.NewFromFloat(0.1))
+	if !fee.Equal(decimal.NewFromFloat(0.1)) {
 		t.Error("expected 0.1")
 	}
-	fee = calculateExchangeFee(2, 1, 0.005)
-	if fee != 0.01 {
+	fee = calculateExchangeFee(decimal.NewFromFloat(2), decimal.NewFromFloat(1), decimal.NewFromFloat(0.005))
+	if !fee.Equal(decimal.NewFromFloat(0.01)) {
 		t.Error("expected 0.01")
 	}
 }
@@ -106,28 +107,28 @@ func TestCalculateExchangeFee(t *testing.T) {
 func TestSizeOrder(t *testing.T) {
 	t.Parallel()
 	e := Exchange{}
-	_, _, err := e.sizeOfflineOrder(0, 0, 0, nil, nil)
+	_, _, err := e.sizeOfflineOrder(decimal.Zero, decimal.Zero, decimal.Zero, nil, nil)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
 	cs := &Settings{}
 	f := &fill.Fill{
 		ClosePrice: decimal.NewFromInt(1337),
-		Amount:     1,
+		Amount:     decimal.NewFromInt(1),
 	}
-	_, _, err = e.sizeOfflineOrder(0, 0, 0, cs, f)
+	_, _, err = e.sizeOfflineOrder(decimal.Zero, decimal.Zero, decimal.Zero, cs, f)
 	if !errors.Is(err, errDataMayBeIncorrect) {
 		t.Errorf("expected: %v, received %v", errDataMayBeIncorrect, err)
 	}
 	var p, a decimal.Decimal
-	p, a, err = e.sizeOfflineOrder(10, 2, 10, cs, f)
+	p, a, err = e.sizeOfflineOrder(decimal.NewFromInt(10), decimal.NewFromInt(2), decimal.NewFromInt(10), cs, f)
 	if err != nil {
 		t.Error(err)
 	}
-	if p != 10 {
+	if !p.Equal(decimal.NewFromInt(10)) {
 		t.Error("expected 10")
 	}
-	if a != 1 {
+	if !a.Equal(decimal.NewFromInt(1)) {
 		t.Error("expected 1")
 	}
 }
@@ -153,30 +154,30 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	e := Exchange{}
-	_, err = e.placeOrder(context.Background(), 1, 1, false, true, nil, nil)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
 	f := &fill.Fill{}
-	_, err = e.placeOrder(context.Background(), 1, 1, false, true, f, bot)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot)
 	if err != nil && err.Error() != "order exchange name must be specified" {
 		t.Error(err)
 	}
 
 	f.Exchange = testExchange
-	_, err = e.placeOrder(context.Background(), 1, 1, false, true, f, bot)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot)
 	if !errors.Is(err, gctorder.ErrPairIsEmpty) {
 		t.Errorf("expected: %v, received %v", gctorder.ErrPairIsEmpty, err)
 	}
 	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
-	_, err = e.placeOrder(context.Background(), 1, 1, false, true, f, bot)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = e.placeOrder(context.Background(), 1, 1, true, true, f, bot)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), true, true, f, bot)
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}
@@ -216,14 +217,14 @@ func TestExecuteOrder(t *testing.T) {
 		InitialFunds:        decimal.NewFromInt(1337),
 		CurrencyPair:        p,
 		AssetType:           a,
-		ExchangeFee:         0.01,
-		MakerFee:            0.01,
-		TakerFee:            0.01,
+		ExchangeFee:         decimal.NewFromFloat(0.01),
+		MakerFee:            decimal.NewFromFloat(0.01),
+		TakerFee:            decimal.NewFromFloat(0.01),
 		BuySide:             config.MinMax{},
 		SellSide:            config.MinMax{},
 		Leverage:            config.Leverage{},
-		MinimumSlippageRate: 0,
-		MaximumSlippageRate: 1,
+		MinimumSlippageRate: decimal.Zero,
+		MaximumSlippageRate: decimal.NewFromInt(1),
 	}
 	e := Exchange{
 		CurrencySettings: []Settings{cs},
@@ -238,7 +239,7 @@ func TestExecuteOrder(t *testing.T) {
 	o := &order.Order{
 		Base:           ev,
 		Direction:      gctorder.Buy,
-		Amount:         10,
+		Amount:         decimal.NewFromInt(10),
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 
@@ -263,7 +264,7 @@ func TestExecuteOrder(t *testing.T) {
 		t.Error(err)
 	}
 	d.Next()
-	_, err = e.ExecuteOrder(o, d, bot)
+	_, err = e.ExecuteOrder(o, d, bot, &funding.Pair{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -272,7 +273,7 @@ func TestExecuteOrder(t *testing.T) {
 	cs.CanUseExchangeLimits = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot)
+	_, err = e.ExecuteOrder(o, d, bot, nil)
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}
@@ -321,20 +322,20 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		InitialFunds:  decimal.NewFromInt(1337),
 		CurrencyPair:  p,
 		AssetType:     a,
-		ExchangeFee:   0.01,
-		MakerFee:      0.01,
-		TakerFee:      0.01,
+		ExchangeFee:   decimal.NewFromFloat(0.01),
+		MakerFee:      decimal.NewFromFloat(0.01),
+		TakerFee:      decimal.NewFromFloat(0.01),
 		BuySide: config.MinMax{
-			MaximumSize: 0.01,
-			MinimumSize: 0,
+			MaximumSize: decimal.NewFromFloat(0.01),
+			MinimumSize: decimal.Zero,
 		},
 		SellSide: config.MinMax{
-			MaximumSize: 0.1,
-			MinimumSize: 0,
+			MaximumSize: decimal.NewFromFloat(0.1),
+			MinimumSize: decimal.Zero,
 		},
 		Leverage:            config.Leverage{},
-		MinimumSlippageRate: 0,
-		MaximumSlippageRate: 1,
+		MinimumSlippageRate: decimal.Zero,
+		MaximumSlippageRate: decimal.NewFromInt(1),
 		Limits:              limits,
 	}
 	e := Exchange{
@@ -350,7 +351,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	o := &order.Order{
 		Base:           ev,
 		Direction:      gctorder.Buy,
-		Amount:         10,
+		Amount:         decimal.NewFromInt(10),
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 
@@ -375,20 +376,20 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		t.Error(err)
 	}
 	d.Next()
-	_, err = e.ExecuteOrder(o, d, bot)
+	_, err = e.ExecuteOrder(o, d, bot, nil)
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
 	o = &order.Order{
 		Base:           ev,
 		Direction:      gctorder.Buy,
-		Amount:         10,
+		Amount:         decimal.NewFromInt(10),
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
-	cs.BuySide.MaximumSize = 0
-	cs.BuySide.MinimumSize = 0.01
+	cs.BuySide.MaximumSize = decimal.Zero
+	cs.BuySide.MinimumSize = decimal.NewFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot)
+	_, err = e.ExecuteOrder(o, d, bot, nil)
 	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
 		t.Error(err)
 	}
@@ -398,13 +399,13 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	o = &order.Order{
 		Base:           ev,
 		Direction:      gctorder.Sell,
-		Amount:         10,
+		Amount:         decimal.NewFromInt(10),
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
-	cs.SellSide.MaximumSize = 0
-	cs.SellSide.MinimumSize = 0.01
+	cs.SellSide.MaximumSize = decimal.Zero
+	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot)
+	_, err = e.ExecuteOrder(o, d, bot, nil)
 	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
 		t.Error(err)
 	}
@@ -415,13 +416,13 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	o = &order.Order{
 		Base:           ev,
 		Direction:      gctorder.Sell,
-		Amount:         0.5,
+		Amount:         decimal.NewFromFloat(0.5),
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
-	cs.SellSide.MaximumSize = 0
-	cs.SellSide.MinimumSize = 1
+	cs.SellSide.MaximumSize = decimal.Zero
+	cs.SellSide.MinimumSize = decimal.NewFromInt(1)
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot)
+	_, err = e.ExecuteOrder(o, d, bot, nil)
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
@@ -429,17 +430,17 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	o = &order.Order{
 		Base:           ev,
 		Direction:      gctorder.Sell,
-		Amount:         0.02,
-		AllocatedFunds: 0.0decimal.NewFromInt(1337),
+		Amount:         decimal.NewFromFloat(0.02),
+		AllocatedFunds: decimal.NewFromFloat(0.01337),
 	}
-	cs.SellSide.MaximumSize = 0
-	cs.SellSide.MinimumSize = 0.01
+	cs.SellSide.MaximumSize = decimal.Zero
+	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)
 
 	cs.UseRealOrders = true
 	cs.CanUseExchangeLimits = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot)
+	_, err = e.ExecuteOrder(o, d, bot, nil)
 	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
 		t.Errorf("received %v expected %v", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
@@ -447,87 +448,87 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 
 func TestApplySlippageToPrice(t *testing.T) {
 	t.Parallel()
-	resp := applySlippageToPrice(gctorder.Buy, 1, 0.9)
-	if resp != 1.1 {
+	resp := applySlippageToPrice(gctorder.Buy, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
+	if !resp.Equal(decimal.NewFromFloat(1.1)) {
 		t.Errorf("expected 1.1, received %v", resp)
 	}
-	resp = applySlippageToPrice(gctorder.Sell, 1, 0.9)
-	if resp != 0.9 {
+	resp = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
+	if !resp.Equal(decimal.NewFromFloat(0.9)) {
 		t.Errorf("expected 0.9, received %v", resp)
 	}
 }
 
 func TestReduceAmountToFitPortfolioLimit(t *testing.T) {
 	t.Parallel()
-	initialPrice := 1003.37
-	initialAmount := decimal.NewFromInt(1337) / initialPrice
-	portfolioAdjustedTotal := initialAmount * initialPrice
-	adjustedPrice := 1000.0
-	amount := 2.0
+	initialPrice := decimal.NewFromFloat(1003.37)
+	initialAmount := decimal.NewFromInt(1337).Div(initialPrice)
+	portfolioAdjustedTotal := initialAmount.Mul(initialPrice)
+	adjustedPrice := decimal.NewFromFloat(1000)
+	amount := decimal.NewFromFloat(2.0)
 	finalAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, portfolioAdjustedTotal, gctorder.Buy)
-	if finalAmount*adjustedPrice != portfolioAdjustedTotal {
-		t.Errorf("expected value %v to match portfolio total %v", finalAmount*adjustedPrice, portfolioAdjustedTotal)
+	if !finalAmount.Mul(adjustedPrice).Equal(portfolioAdjustedTotal) {
+		t.Errorf("expected value %v to match portfolio total %v", finalAmount.Mul(adjustedPrice), portfolioAdjustedTotal)
 	}
-	finalAmount = reduceAmountToFitPortfolioLimit(adjustedPrice, 133333333337, portfolioAdjustedTotal, gctorder.Sell)
+	finalAmount = reduceAmountToFitPortfolioLimit(adjustedPrice, decimal.NewFromInt(133333333337), portfolioAdjustedTotal, gctorder.Sell)
 	if finalAmount != portfolioAdjustedTotal {
 		t.Errorf("expected value %v to match portfolio total %v", finalAmount, portfolioAdjustedTotal)
 	}
-	finalAmount = reduceAmountToFitPortfolioLimit(adjustedPrice, 1, portfolioAdjustedTotal, gctorder.Sell)
-	if finalAmount != 1 {
+	finalAmount = reduceAmountToFitPortfolioLimit(adjustedPrice, decimal.NewFromInt(1), portfolioAdjustedTotal, gctorder.Sell)
+	if !finalAmount.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected value %v to match portfolio total %v", finalAmount, portfolioAdjustedTotal)
 	}
 }
 
 func TestVerifyOrderWithinLimits(t *testing.T) {
 	t.Parallel()
-	err := verifyOrderWithinLimits(nil, 0, nil)
+	err := verifyOrderWithinLimits(nil, decimal.Zero, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received %v expected %v", err, common.ErrNilEvent)
 	}
 
-	err = verifyOrderWithinLimits(&fill.Fill{}, 0, nil)
+	err = verifyOrderWithinLimits(&fill.Fill{}, decimal.Zero, nil)
 	if !errors.Is(err, errNilCurrencySettings) {
 		t.Errorf("received %v expected %v", err, errNilCurrencySettings)
 	}
 
-	err = verifyOrderWithinLimits(&fill.Fill{}, 0, &Settings{})
+	err = verifyOrderWithinLimits(&fill.Fill{}, decimal.Zero, &Settings{})
 	if !errors.Is(err, errInvalidDirection) {
 		t.Errorf("received %v expected %v", err, errInvalidDirection)
 	}
 	f := &fill.Fill{
 		Direction: gctorder.Buy,
 	}
-	err = verifyOrderWithinLimits(f, 0, &Settings{})
+	err = verifyOrderWithinLimits(f, decimal.Zero, &Settings{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 	s := &Settings{
 		BuySide: config.MinMax{
-			MinimumSize: 1,
-			MaximumSize: 1,
+			MinimumSize: decimal.NewFromInt(1),
+			MaximumSize: decimal.NewFromInt(1),
 		},
 	}
-	err = verifyOrderWithinLimits(f, 0.5, s)
+	err = verifyOrderWithinLimits(f, decimal.NewFromFloat(0.5), s)
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
 	f.Direction = gctorder.Buy
-	err = verifyOrderWithinLimits(f, 2, s)
+	err = verifyOrderWithinLimits(f, decimal.NewFromInt(2), s)
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
 
 	f.Direction = gctorder.Sell
 	s.SellSide = config.MinMax{
-		MinimumSize: 1,
-		MaximumSize: 1,
+		MinimumSize: decimal.NewFromInt(1),
+		MaximumSize: decimal.NewFromInt(1),
 	}
-	err = verifyOrderWithinLimits(f, 0.5, s)
+	err = verifyOrderWithinLimits(f, decimal.NewFromFloat(0.5), s)
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
 	f.Direction = gctorder.Sell
-	err = verifyOrderWithinLimits(f, 2, s)
+	err = verifyOrderWithinLimits(f, decimal.NewFromInt(2), s)
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}

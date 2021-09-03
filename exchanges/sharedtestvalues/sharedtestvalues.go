@@ -3,6 +3,7 @@ package sharedtestvalues
 import (
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
@@ -47,3 +48,9 @@ func NewTestWebsocket() *stream.Websocket {
 		Match:             stream.NewMatch(),
 	}
 }
+
+var (
+	One                = decimal.NewFromInt(1)
+	OneHundred         = decimal.NewFromInt(100)
+	OneThreeThreeSeven = decimal.NewFromInt(1337)
+)
