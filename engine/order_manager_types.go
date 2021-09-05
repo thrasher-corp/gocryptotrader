@@ -22,6 +22,7 @@ var (
 	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
 	// ErrOrderIDCannotBeEmpty occurs when an order does not have an ID
 	ErrOrderIDCannotBeEmpty = errors.New("orderID cannot be empty")
+	errNilOrder             = errors.New("nil order received")
 )
 
 type orderManagerConfig struct {

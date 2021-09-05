@@ -419,9 +419,9 @@ func (d *Detail) IsActive() bool {
 		d.Status == AutoDeleverage || d.Status == Pending
 }
 
-// IsActive returns true if an order has a status that indicates it is
+// IsInactive returns true if an order has a status that indicates it is
 // currently not available on the exchange
-func (d *Detail) IsInActive() bool {
+func (d *Detail) IsInactive() bool {
 	if d.Amount > 0 && d.Amount == d.ExecutedAmount {
 		return true
 	}
