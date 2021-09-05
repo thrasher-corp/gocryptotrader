@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
@@ -427,6 +428,20 @@ func (d *Detail) IsInactive() bool {
 	}
 	return d.Status == Filled || d.Status == Cancelled || d.Status == InsufficientBalance || d.Status == MarketUnavailable ||
 		d.Status == Rejected || d.Status == PartiallyCancelled || d.Status == Expired || d.Status == Closed
+}
+
+// GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if
+// the V4 function returns an error
+func (d *Detail) GenerateInternalOrderID() {
+	if d.InternalOrderID == "" {
+		var id uuid.UUID
+		id, err := uuid.NewV4()
+		if err != nil {
+			id = uuid.NewV5(uuid.UUID{}, d.ID)
+		}
+		d.InternalOrderID = id.String()
+	}
+
 }
 
 // Copy will return a copy of Detail
