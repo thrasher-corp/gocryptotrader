@@ -601,6 +601,14 @@ func (m *OrderManager) processOrders() {
 				Exchange: exchanges[i].GetName(),
 			}
 			orders, err := m.orderStore.getActiveOrders(filter)
+			if err != nil {
+				log.Errorf(log.OrderMgr,
+					"Order manager: Unable to get active orders for %s and asset type %s: %s",
+					exchanges[i].GetName(),
+					supportedAssets[y],
+					err)
+				continue
+			}
 			order.FilterOrdersByCurrencies(&orders, pairs)
 			requiresProcessing := make(map[string]bool, len(orders))
 			for x := range orders {
