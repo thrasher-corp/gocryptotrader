@@ -36,6 +36,7 @@ func parseRaw(t *testing.T, input string) interface{} {
 			Websocket: &stream.Websocket{
 				DataHandler: make(chan interface{}, 1),
 			},
+			Fees: f.Fees,
 		},
 	}
 

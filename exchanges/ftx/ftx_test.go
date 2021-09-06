@@ -217,11 +217,10 @@ func TestGetFundingRates(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	// t.Parallel()
-	// if !areTestAPIKeysSet() {
-	// 	t.Skip()
-	// }
-	f.Verbose = true
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	_, err := f.GetAccountInfo()
 	if err != nil {
 		t.Error(err)
@@ -985,11 +984,10 @@ func TestUpdateAccountHoldings(t *testing.T) {
 }
 
 func TestFetchAccountInfo(t *testing.T) {
-	// t.Parallel()
-	// if !areTestAPIKeysSet() {
-	// 	t.Skip("API keys required but not set, skipping test")
-	// }
-	f.Verbose = true
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	_, err := f.FetchAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error(err)
