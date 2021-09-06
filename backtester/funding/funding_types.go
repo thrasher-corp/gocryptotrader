@@ -76,7 +76,6 @@ type IPairReserver interface {
 
 // IPairReleaser limits funding usage for exchange event handling
 type IPairReleaser interface {
-	IPairReader
 	IncreaseAvailable(decimal.Decimal, order.Side)
 	Release(decimal.Decimal, decimal.Decimal, order.Side) error
 }

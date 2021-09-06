@@ -242,7 +242,7 @@ func TestGetFee(t *testing.T) {
 		t.Error(err)
 	}
 
-	p.SetFee("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), decimal.NewFromInt(1337))
+	p.SetFee("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), decimal.NewFromInt(1337)
 	f = p.GetFee("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD))
 	if f != decimal.NewFromInt(1337) {
 		t.Error("expected decimal.NewFromInt(1337)")

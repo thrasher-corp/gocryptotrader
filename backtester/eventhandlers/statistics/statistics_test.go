@@ -26,7 +26,7 @@ const testExchange = "binance"
 
 var (
 	eleeg  = decimal.NewFromFloat(1336)
-	eleet  = decimal.NewFromFloat(decimal.NewFromInt(1337))
+	eleet  = decimal.NewFromInt(1337)
 	eleeet = decimal.NewFromFloat(13337)
 	eleeb  = decimal.NewFromFloat(1338)
 )

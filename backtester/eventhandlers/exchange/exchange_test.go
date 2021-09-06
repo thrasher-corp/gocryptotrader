@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
-	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -24,6 +23,13 @@ import (
 )
 
 const testExchange = "binance"
+
+type fakeFund struct{}
+
+func (f *fakeFund) IncreaseAvailable(decimal.Decimal, gctorder.Side) {}
+func (f *fakeFund) Release(decimal.Decimal, decimal.Decimal, gctorder.Side) error {
+	return nil
+}
 
 func TestReset(t *testing.T) {
 	t.Parallel()
@@ -63,7 +69,7 @@ func TestSetCurrency(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !result.InitialFunds.Equal(decimal.NewFromInt(1337)) {
+	if !result.InitialFunds.Equal(decimal.NewFromInt(1337) {
 		t.Errorf("expected decimal.NewFromInt(1337), received %v", result.InitialFunds)
 	}
 
@@ -264,7 +270,8 @@ func TestExecuteOrder(t *testing.T) {
 		t.Error(err)
 	}
 	d.Next()
-	_, err = e.ExecuteOrder(o, d, bot, &funding.Pair{})
+
+	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -273,7 +280,7 @@ func TestExecuteOrder(t *testing.T) {
 	cs.CanUseExchangeLimits = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot, nil)
+	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}
@@ -376,7 +383,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		t.Error(err)
 	}
 	d.Next()
-	_, err = e.ExecuteOrder(o, d, bot, nil)
+	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
@@ -389,7 +396,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.BuySide.MaximumSize = decimal.Zero
 	cs.BuySide.MinimumSize = decimal.NewFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot, nil)
+	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
 	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
 		t.Error(err)
 	}
@@ -405,7 +412,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.SellSide.MaximumSize = decimal.Zero
 	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot, nil)
+	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
 	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
 		t.Error(err)
 	}
@@ -422,7 +429,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.SellSide.MaximumSize = decimal.Zero
 	cs.SellSide.MinimumSize = decimal.NewFromInt(1)
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot, nil)
+	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
@@ -440,7 +447,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.CanUseExchangeLimits = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot, nil)
+	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
 	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
 		t.Errorf("received %v expected %v", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
@@ -460,11 +467,11 @@ func TestApplySlippageToPrice(t *testing.T) {
 
 func TestReduceAmountToFitPortfolioLimit(t *testing.T) {
 	t.Parallel()
-	initialPrice := decimal.NewFromFloat(1003.37)
-	initialAmount := decimal.NewFromInt(1337).Div(initialPrice)
+	initialPrice := decimal.NewFromInt(100)
+	initialAmount := decimal.NewFromInt(10).Div(initialPrice)
 	portfolioAdjustedTotal := initialAmount.Mul(initialPrice)
-	adjustedPrice := decimal.NewFromFloat(1000)
-	amount := decimal.NewFromFloat(2.0)
+	adjustedPrice := decimal.NewFromInt(1000)
+	amount := decimal.NewFromInt(2)
 	finalAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, portfolioAdjustedTotal, gctorder.Buy)
 	if !finalAmount.Mul(adjustedPrice).Equal(portfolioAdjustedTotal) {
 		t.Errorf("expected value %v to match portfolio total %v", finalAmount.Mul(adjustedPrice), portfolioAdjustedTotal)

@@ -76,7 +76,7 @@ func (o *Order) SetLeverage(l decimal.Decimal) {
 	o.Leverage = l
 }
 
-// GetFunds returns the amount of funds the portfolio manager
+// GetAllocatedFunds returns the amount of funds the portfolio manager
 // has allocated to this potential position
 func (o *Order) GetAllocatedFunds() decimal.Decimal {
 	return o.AllocatedFunds

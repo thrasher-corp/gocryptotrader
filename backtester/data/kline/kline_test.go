@@ -16,7 +16,7 @@ import (
 
 const testExchange = "binance"
 
-var elite = decimal.NewFromInt(decimal.NewFromInt(1337))
+var elite = decimal.NewFromInt(1337)
 
 func TestLoad(t *testing.T) {
 	t.Parallel()
@@ -37,11 +37,11 @@ func TestLoad(t *testing.T) {
 		Candles: []gctkline.Candle{
 			{
 				Time:   tt,
-				Open:   decimal.NewFromInt(1337),
-				High:   decimal.NewFromInt(1337),
-				Low:    decimal.NewFromInt(1337),
-				Close:  decimal.NewFromInt(1337),
-				Volume: decimal.NewFromInt(1337),
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
 			},
 		},
 	}
@@ -73,11 +73,11 @@ func TestHasDataAtTime(t *testing.T) {
 		Candles: []gctkline.Candle{
 			{
 				Time:   dInsert,
-				Open:   decimal.NewFromInt(1337),
-				High:   decimal.NewFromInt(1337),
-				Low:    decimal.NewFromInt(1337),
-				Close:  decimal.NewFromInt(1337),
-				Volume: decimal.NewFromInt(1337),
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
 			},
 		},
 	}
@@ -117,11 +117,11 @@ func TestAppend(t *testing.T) {
 		Candles: []gctkline.Candle{
 			{
 				Time:   time.Now(),
-				Open:   decimal.NewFromInt(1337),
-				High:   decimal.NewFromInt(1337),
-				Low:    decimal.NewFromInt(1337),
-				Close:  decimal.NewFromInt(1337),
-				Volume: decimal.NewFromInt(1337),
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
 			},
 		},
 	}

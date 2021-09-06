@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
@@ -170,9 +171,12 @@ func main() {
 
 func parseStatisticsSettings(cfg *config.Config, reader *bufio.Reader) error {
 	fmt.Println("Enter the risk free rate. eg 0.03")
-	var err error
-	cfg.StatisticSettings.RiskFreeRate, err = strconv.ParseFloat(quickParse(reader), 64)
-	return err
+	rfr, err := strconv.ParseFloat(quickParse(reader), 64)
+	if err != nil {
+		return err
+	}
+	cfg.StatisticSettings.RiskFreeRate = decimal.NewFromFloat(rfr)
+	return nil
 }
 
 func parseDataSettings(cfg *config.Config, reader *bufio.Reader) error {
@@ -554,27 +558,30 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	fmt.Println("Enter the initial funds. eg 10000")
 	parseNum := quickParse(reader)
 	if parseNum != "" {
-		setting.InitialFunds, err = strconv.ParseFloat(parseNum, 64)
+		f, err := strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return nil, err
 		}
+		setting.InitialFunds = decimal.NewFromFloat(f)
 	}
 
 	fmt.Println("Enter the maker-fee. eg 0.001")
 	parseNum = quickParse(reader)
 	if parseNum != "" {
-		setting.MakerFee, err = strconv.ParseFloat(parseNum, 64)
+		f, err := strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return nil, err
 		}
+		setting.MakerFee = decimal.NewFromFloat(f)
 	}
 	fmt.Println("Enter the taker-fee. eg 0.01")
 	parseNum = quickParse(reader)
 	if parseNum != "" {
-		setting.TakerFee, err = strconv.ParseFloat(parseNum, 64)
+		f, err := strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return nil, err
 		}
+		setting.TakerFee = decimal.NewFromFloat(f)
 	}
 
 	fmt.Println("Will there be buy-side limits? y/n")
@@ -606,16 +613,18 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 		fmt.Println("If the upper bound is 100, then the price can be unaffected. A minimum of 80 and a maximum of 100 means that the price will randomly be set between those bounds as a way of emulating slippage")
 
 		fmt.Println("What is the lower bounds of slippage? eg 80")
-		setting.MinimumSlippagePercent, err = strconv.ParseFloat(quickParse(reader), 64)
+		f, err := strconv.ParseFloat(quickParse(reader), 64)
 		if err != nil {
 			return nil, err
 		}
+		setting.MinimumSlippagePercent = decimal.NewFromFloat(f)
 
 		fmt.Println("What is the upper bounds of slippage? eg 100")
-		setting.MaximumSlippagePercent, err = strconv.ParseFloat(quickParse(reader), 64)
+		f, err = strconv.ParseFloat(quickParse(reader), 64)
 		if err != nil {
 			return nil, err
 		}
+		setting.MaximumSlippagePercent = decimal.NewFromFloat(f)
 	}
 
 	return &setting, nil
@@ -623,30 +632,32 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 
 func minMaxParse(buySell string, reader *bufio.Reader) (config.MinMax, error) {
 	resp := config.MinMax{}
-	var err error
 	fmt.Printf("What is the maximum %s size? eg 1\n", buySell)
 	parseNum := quickParse(reader)
 	if parseNum != "" {
-		resp.MaximumSize, err = strconv.ParseFloat(parseNum, 64)
+		f, err := strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return resp, err
 		}
+		resp.MaximumSize = decimal.NewFromFloat(f)
 	}
 	fmt.Printf("What is the minimum %s size? eg 0.1\n", buySell)
 	parseNum = quickParse(reader)
 	if parseNum != "" {
-		resp.MinimumSize, err = strconv.ParseFloat(parseNum, 64)
+		f, err := strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return resp, err
 		}
+		resp.MinimumSize = decimal.NewFromFloat(f)
 	}
 	fmt.Printf("What is the maximum spend %s buy? eg 12000\n", buySell)
 	parseNum = quickParse(reader)
 	if parseNum != "" {
-		resp.MaximumTotal, err = strconv.ParseFloat(parseNum, 64)
+		f, err := strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return resp, err
 		}
+		resp.MaximumTotal = decimal.NewFromFloat(f)
 	}
 
 	return resp, nil

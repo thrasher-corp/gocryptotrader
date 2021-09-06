@@ -30,7 +30,7 @@ func TestSetAmount(t *testing.T) {
 	o := Order{
 		Amount: 1,
 	}
-	o.SetAmount(decimal.NewFromInt(1337))
+	o.SetAmount(decimal.NewFromInt(1337)
 	if o.GetAmount() != decimal.NewFromInt(1337) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
@@ -62,7 +62,7 @@ func TestLeverage(t *testing.T) {
 	o := Order{
 		Leverage: 1,
 	}
-	o.SetLeverage(decimal.NewFromInt(1337))
+	o.SetLeverage(decimal.NewFromInt(1337)
 	if o.GetLeverage() != decimal.NewFromInt(1337) || !o.IsLeveraged() {
 		t.Error("expected leverage")
 	}

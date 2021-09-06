@@ -21,7 +21,7 @@ func TestSetAmount(t *testing.T) {
 	f := Fill{
 		Amount: 1,
 	}
-	f.SetAmount(decimal.NewFromInt(1337))
+	f.SetAmount(decimal.NewFromInt(1337)
 	if f.GetAmount() != decimal.NewFromInt(1337) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
@@ -58,7 +58,7 @@ func TestSetExchangeFee(t *testing.T) {
 	f := Fill{
 		ExchangeFee: 1,
 	}
-	f.SetExchangeFee(decimal.NewFromInt(1337))
+	f.SetExchangeFee(decimal.NewFromInt(1337)
 	if f.GetExchangeFee() != decimal.NewFromInt(1337) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}

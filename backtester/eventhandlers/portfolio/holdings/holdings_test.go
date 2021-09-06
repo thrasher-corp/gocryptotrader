@@ -75,7 +75,7 @@ func TestUpdateValue(t *testing.T) {
 		Close: decimal.NewFromInt(1337),
 	})
 	if h.PositionsValue != decimal.NewFromInt(1337) {
-		t.Errorf("expected '%v' received '%v'", h.PositionsValue, decimal.NewFromInt(1337))
+		t.Errorf("expected '%v' received '%v'", h.PositionsValue, decimal.NewFromInt(1337)
 	}
 }
 

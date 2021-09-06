@@ -899,7 +899,7 @@ func TestValidateCurrencySettings(t *testing.T) {
 	if !errors.Is(ErrBadInitialFunds, err) {
 		t.Errorf("expected %v, received %v", ErrBadInitialFunds, err)
 	}
-	c.CurrencySettings[0].InitialFunds = decimal.NewFromFloat(decimal.NewFromInt(1337))
+	c.CurrencySettings[0].InitialFunds = decimal.NewFromInt(1337)
 	err = c.ValidateCurrencySettings()
 	if !errors.Is(ErrUnsetCurrency, err) {
 		t.Errorf("expected %v, received %v", ErrUnsetCurrency, err)

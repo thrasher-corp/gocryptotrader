@@ -37,7 +37,7 @@ import (
 
 const testExchange = "Bitstamp"
 
-var leet = decimal.NewFromFloat(decimal.NewFromInt(1337))
+var leet = decimal.NewFromInt(1337)
 
 func newBotWithExchange() *engine.Engine {
 	bot := &engine.Engine{
@@ -520,7 +520,7 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	quote, err := f.SetupItem(ex, a, cp.Quote, decimal.NewFromInt(decimal.NewFromInt(1337)), decimal.Zero)
+	quote, err := f.SetupItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
@@ -550,11 +550,11 @@ func TestFullCycle(t *testing.T) {
 			Interval: gctkline.FifteenMin,
 			Candles: []gctkline.Candle{{
 				Time:   tt,
-				Open:   decimal.NewFromInt(1337),
-				High:   decimal.NewFromInt(1337),
-				Low:    decimal.NewFromInt(1337),
-				Close:  decimal.NewFromInt(1337),
-				Volume: decimal.NewFromInt(1337),
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
 			}},
 		},
 		Base: data.Base{},
@@ -623,7 +623,7 @@ func TestFullCycleMulti(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	quote, err := f.SetupItem(ex, a, cp.Quote, decimal.NewFromInt(decimal.NewFromInt(1337)), decimal.Zero)
+	quote, err := f.SetupItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
@@ -657,11 +657,11 @@ func TestFullCycleMulti(t *testing.T) {
 			Interval: gctkline.FifteenMin,
 			Candles: []gctkline.Candle{{
 				Time:   tt,
-				Open:   decimal.NewFromInt(1337),
-				High:   decimal.NewFromInt(1337),
-				Low:    decimal.NewFromInt(1337),
-				Close:  decimal.NewFromInt(1337),
-				Volume: decimal.NewFromInt(1337),
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
 			}},
 		},
 		Base: data.Base{},

@@ -26,7 +26,7 @@ func TestSetPrice(t *testing.T) {
 	s := Signal{
 		ClosePrice: 1,
 	}
-	s.SetPrice(decimal.NewFromInt(1337))
+	s.SetPrice(decimal.NewFromInt(1337)
 	if s.GetPrice() != decimal.NewFromInt(1337) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
