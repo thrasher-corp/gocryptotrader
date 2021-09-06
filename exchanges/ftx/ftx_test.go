@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -999,12 +998,7 @@ func TestFetchAccountInfo(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	feeBuilder := &fee.Builder{
-		PurchasePrice: 10,
-		Amount:        1,
-		IsMaker:       true,
-	}
-	fees, err := f.GetFee(feeBuilder)
+	fees, err := f.GetFee(10, 1, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1012,25 +1006,7 @@ func TestGetFee(t *testing.T) {
 		t.Errorf("incorrect maker fee value")
 	}
 
-	feeBuilder.IsMaker = false
-	if fees, err = f.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-	if fees <= 0 {
-		t.Errorf("incorrect maker fee value")
-	}
-
-	feeBuilder.Type = fee.OfflineTrade
-	fees, err = f.GetFee(feeBuilder)
-	if err != nil {
-		t.Error(err)
-	}
-	if fees <= 0 {
-		t.Errorf("incorrect maker fee value")
-	}
-
-	feeBuilder.IsMaker = true
-	fees, err = f.GetFee(feeBuilder)
+	fees, err = f.GetFee(10, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1041,16 +1017,17 @@ func TestGetFee(t *testing.T) {
 
 func TestGetOfflineTradingFee(t *testing.T) {
 	t.Parallel()
-	var fb fee.Builder
-	fb.PurchasePrice = 10
-	fb.Amount = 1
-	fb.IsMaker = true
-	fees := getOfflineTradeFee(&fb)
+	fees, err := f.Fees.GetMakerTotalOffline(10, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if fees != 0.002 {
 		t.Errorf("incorrect offline maker fee")
 	}
-	fb.IsMaker = false
-	fees = getOfflineTradeFee(&fb)
+	fees, err = f.Fees.GetTakerTotalOffline(10, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if fees != 0.007 {
 		t.Errorf("incorrect offline taker fee")
 	}

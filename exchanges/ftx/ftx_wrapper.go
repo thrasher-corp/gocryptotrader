@@ -176,6 +176,15 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = f.Fees.LoadStatic(fee.Options{
+		Ratio: true,
+		Maker: 0.0002,
+		Taker: 0.0007,
+	})
+	if err != nil {
+		return err
+	}
+
 	err = f.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -752,15 +761,11 @@ func (s *OrderData) GetCompatible(f *FTX) (OrderVars, error) {
 	default:
 		resp.Status = order.AnyStatus
 	}
-	var feeBuilder fee.Builder
-	feeBuilder.PurchasePrice = s.AvgFillPrice
-	feeBuilder.Amount = s.Size
 	resp.OrderType = order.Market
 	if strings.EqualFold(s.OrderType, order.Limit.String()) {
 		resp.OrderType = order.Limit
-		feeBuilder.IsMaker = true
 	}
-	fees, err := f.GetFee(&feeBuilder)
+	fees, err := f.GetFee(s.AvgFillPrice, s.Size, resp.OrderType == order.Market)
 	if err != nil {
 		return resp, err
 	}
@@ -1056,7 +1061,7 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (f *FTX) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	return f.GetFee(feeBuilder)
+	return f.GetFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
@@ -1192,5 +1197,5 @@ func (f *FTX) UpdateFees(a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	return f.Fees.LoadDynamic(ai.TakerFee, ai.MakerFee, true)
+	return f.Fees.LoadDynamic(ai.TakerFee, ai.MakerFee)
 }

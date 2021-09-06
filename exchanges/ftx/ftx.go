@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -1197,35 +1196,17 @@ func (f *FTX) SendAuthHTTPRequest(ep exchange.URL, method, path string, data, re
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (f *FTX) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var fees float64
+func (f *FTX) GetFee(price, amount float64, maker bool) (float64, error) {
 	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	switch feeBuilder.Type {
-	case fee.OfflineTrade:
-		fees = getOfflineTradeFee(feeBuilder)
-	default:
-		var err error
-		switch feeBuilder.IsMaker {
-		case true:
-			fees, err = f.Fees.GetMakerValue(feeBuilder.PurchasePrice, feeBuilder.Amount)
-		case false:
-			fees, err = f.Fees.GetTakerValue(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		if maker {
+			return f.Fees.GetMakerTotalOffline(price, amount)
 		}
-		if err != nil {
-			return 0, err
-		}
+		return f.Fees.GetTakerTotalOffline(price, amount)
 	}
-	return fees, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(feeBuilder *fee.Builder) float64 {
-	if feeBuilder.IsMaker {
-		return 0.0002 * feeBuilder.PurchasePrice * feeBuilder.Amount
+	if maker {
+		return f.Fees.GetMakerTotal(price, amount)
 	}
-	return 0.0007 * feeBuilder.PurchasePrice * feeBuilder.Amount
+	return f.Fees.GetTakerTotal(price, amount)
 }
 
 func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amount, filledAmount, avgFillPrice float64) (OrderVars, error) {
@@ -1263,15 +1244,11 @@ func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amou
 	default:
 		return resp, fmt.Errorf("%w %s", errUnrecognisedOrderStatus, orderStatus)
 	}
-	var feeBuilder fee.Builder
-	feeBuilder.PurchasePrice = avgFillPrice
-	feeBuilder.Amount = amount
 	resp.OrderType = order.Market
 	if strings.EqualFold(orderType, order.Limit.String()) {
 		resp.OrderType = order.Limit
-		feeBuilder.IsMaker = true
 	}
-	fee, err := f.GetFee(&feeBuilder)
+	fee, err := f.GetFee(avgFillPrice, amount, resp.OrderType == order.Market)
 	if err != nil {
 		return resp, err
 	}
