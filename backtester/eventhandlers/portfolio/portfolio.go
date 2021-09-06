@@ -301,29 +301,33 @@ func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) 
 }
 
 // UpdateHoldings updates the portfolio holdings for the data event
-func (p *Portfolio) UpdateHoldings(d common.DataEventHandler, funds funding.IPairReader) error {
-	if d == nil {
+func (p *Portfolio) UpdateHoldings(ev common.DataEventHandler, funds funding.IPairReader) error {
+	if ev == nil {
 		return common.ErrNilEvent
 	}
 	if funds == nil {
 		return funding.ErrFundsNotFound
 	}
-	lookup, ok := p.exchangeAssetPairSettings[d.GetExchange()][d.GetAssetType()][d.Pair()]
+	lookup, ok := p.exchangeAssetPairSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair()]
 	if !ok {
-		return errors.New("severe issue detected")
+		return fmt.Errorf("%w for %v %v %v",
+			errNoPortfolioSettings,
+			ev.GetExchange(),
+			ev.GetAssetType(),
+			ev.Pair())
 	}
 	h := lookup.GetLatestHoldings()
 	if h == nil {
 		var err error
-		h, err = holdings.Create(d, funds, p.riskFreeRate)
+		h, err = holdings.Create(ev, funds, p.riskFreeRate)
 		if err != nil {
 			return err
 		}
 	}
-	h.UpdateValue(d)
-	err := p.setHoldingsForOffset(d.GetExchange(), d.GetAssetType(), d.Pair(), h, true)
+	h.UpdateValue(ev)
+	err := p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), h, true)
 	if errors.Is(err, errNoHoldings) {
-		err = p.setHoldingsForOffset(d.GetExchange(), d.GetAssetType(), d.Pair(), h, false)
+		err = p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), h, false)
 	}
 	return err
 }

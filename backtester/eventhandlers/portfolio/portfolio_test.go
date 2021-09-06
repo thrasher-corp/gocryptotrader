@@ -126,32 +126,28 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 		t.Errorf("expected: %v, received %v", errNoHoldings, err)
 	}
 	h = p.GetLatestHoldingsForAllCurrencies()
-	if len(h) != 1 {
-		t.Error("expected 1")
-	}
-	if !h[0].Timestamp.IsZero() {
-		t.Error("expected unset holding")
+	if len(h) != 0 {
+		t.Errorf("received %v, expected %v", len(h), 0)
 	}
 	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), &holdings.Holding{Offset: 1, Timestamp: tt}, false)
 	if err != nil {
 		t.Error(err)
 	}
 	h = p.GetLatestHoldingsForAllCurrencies()
-	if len(h) != 2 {
-		t.Error("expected 2")
+	if len(h) != 1 {
+		t.Errorf("received %v, expected %v", len(h), 1)
 	}
 	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), &holdings.Holding{Offset: 1, Timestamp: tt}, false)
 	if !errors.Is(err, errHoldingsAlreadySet) {
 		t.Errorf("expected: %v, received %v", errHoldingsAlreadySet, err)
 	}
-
-	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), &holdings.Holding{Offset: 2, Timestamp: tt.Add(time.Minute)}, true)
-	if !errors.Is(err, errNoHoldings) {
-		t.Errorf("expected: %v, received %v", errNoHoldings, err)
+	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), &holdings.Holding{Offset: 1, Timestamp: tt}, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("expected: %v, received %v", nil, err)
 	}
 	h = p.GetLatestHoldingsForAllCurrencies()
-	if len(h) != 2 {
-		t.Error("expected 2")
+	if len(h) != 1 {
+		t.Errorf("received %v, expected %v", len(h), 1)
 	}
 }
 
@@ -160,15 +156,12 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 	p := Portfolio{}
 	tt := time.Now()
 	s := &signal.Signal{
-		Base:       event.Base{},
-		OpenPrice:  decimal.Decimal{},
-		HighPrice:  decimal.Decimal{},
-		LowPrice:   decimal.Decimal{},
-		ClosePrice: decimal.Decimal{},
-		Volume:     decimal.Decimal{},
-		BuyLimit:   decimal.Decimal{},
-		SellLimit:  decimal.Decimal{},
-		Direction:  "",
+		Base: event.Base{
+			Time:         tt,
+			Exchange:     testExchange,
+			AssetType:    asset.Spot,
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
+		},
 	}
 	_, err := p.ViewHoldingAtTimePeriod(s)
 	if !errors.Is(err, errNoHoldings) {
@@ -186,7 +179,7 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 	var h *holdings.Holding
 	h, err = p.ViewHoldingAtTimePeriod(s)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if !h.Timestamp.Equal(tt) {
 		t.Errorf("expected %v received %v", tt, h.Timestamp)
@@ -202,35 +195,40 @@ func TestUpdate(t *testing.T) {
 	}
 
 	err = p.UpdateHoldings(&kline.Kline{}, nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, funding.ErrFundsNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, funding.ErrFundsNotFound)
 	}
-
-	err = p.UpdateHoldings(&kline.Kline{
-		Base: event.Base{
-			Exchange:     testExchange,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
-			AssetType:    asset.Spot,
-		},
-	}, nil)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
+	}
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pair, err := funding.CreatePair(b, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = p.UpdateHoldings(&kline.Kline{}, pair)
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Errorf("received '%v' expected '%v'", err, errNoPortfolioSettings)
 	}
 
 	tt := time.Now()
-	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt, BaseSize: decimal.NewFromInt(1337)}, false)
+	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Offset: 1, Timestamp: tt}, false)
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = p.UpdateHoldings(&kline.Kline{
 		Base: event.Base{
+			Time:         tt,
 			Exchange:     testExchange,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 			AssetType:    asset.Spot,
-			Time:         tt,
 		},
-	}, nil)
+	}, pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -251,8 +249,8 @@ func TestGetFee(t *testing.T) {
 
 	p.SetFee("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), decimal.NewFromInt(1337))
 	f = p.GetFee("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD))
-	if f != decimal.NewFromInt(1337) {
-		t.Error("expected decimal.NewFromInt(1337)")
+	if !f.Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("expected %v received %v", 1337, f)
 	}
 }
 
@@ -341,19 +339,26 @@ func TestOnFill(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = p.OnFill(f, nil)
-	if !errors.Is(err, holdings.ErrInitialFundsZero) {
-		t.Errorf("expected: %v, received %v", holdings.ErrInitialFundsZero, err)
+
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pair, err := funding.CreatePair(b, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.OnFill(f, pair)
+	if !errors.Is(err, nil) {
+		t.Errorf("expected: %v, received %v", nil, err)
 	}
 
-	//s.QuoteInitialFunds = decimal.NewFromInt(1337)
-	//_, err = p.OnFill(f)
-	//if err != nil {
-	//	t.Error(err)
-	//}
-
 	f.Direction = gctorder.Buy
-	_, err = p.OnFill(f, nil)
+	_, err = p.OnFill(f, pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -385,11 +390,11 @@ func TestOnSignal(t *testing.T) {
 	if !errors.Is(err, funding.ErrFundsNotFound) {
 		t.Errorf("expected: %v, received %v", funding.ErrFundsNotFound, err)
 	}
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -462,7 +467,7 @@ func TestOnSignal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !resp.Amount.IsZero() {
+	if resp.Amount.IsZero() {
 		t.Error("expected an amount to be sized")
 	}
 }
