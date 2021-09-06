@@ -242,12 +242,12 @@ func (m *OrderManager) GetOrderInfo(ctx context.Context, exchangeName, orderID s
 		return order.Detail{}, err
 	}
 
-	_, err = m.orderStore.upsert(&result)
+	upsertResponse, err := m.orderStore.upsert(&result)
 	if err != nil {
 		return order.Detail{}, err
 	}
 
-	return result, nil
+	return upsertResponse.OrderDetails, nil
 }
 
 // validate ensures a submitted order is valid before adding to the manager
@@ -748,7 +748,7 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) error {
 		})
 	}(&msg)
 
-	updatedOrder, err := m.orderStore.upsert(od)
+	upsertResponse, err := m.orderStore.upsert(od)
 	if err != nil {
 		msg = fmt.Sprintf(
 			"Order manager: Exchange %s unable to upsert order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v: %s",
@@ -756,15 +756,14 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) error {
 		return err
 	}
 
-	if updatedOrder != nil {
-		msg = fmt.Sprintf("Order manager: Exchange %s updated order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v.",
-			updatedOrder.Exchange, updatedOrder.ID, updatedOrder.InternalOrderID,
-			updatedOrder.Pair, updatedOrder.Price, updatedOrder.Amount, updatedOrder.Side, updatedOrder.Type)
-	} else {
-		msg = fmt.Sprintf("Order manager: Exchange %s added order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v.",
-			od.Exchange, od.ID, od.InternalOrderID,
-			od.Pair, od.Price, od.Amount, od.Side, od.Type)
+	status := "updated"
+	if upsertResponse.IsNewOrder {
+		status = "added"
 	}
+	msg = fmt.Sprintf("Order manager: Exchange %s %s order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v.",
+		upsertResponse.OrderDetails.Exchange, status, upsertResponse.OrderDetails.ID, upsertResponse.OrderDetails.InternalOrderID,
+		upsertResponse.OrderDetails.Pair, upsertResponse.OrderDetails.Price, upsertResponse.OrderDetails.Amount,
+		upsertResponse.OrderDetails.Side, upsertResponse.OrderDetails.Type)
 	log.Infof(log.OrderMgr, "%s", msg)
 
 	return nil
@@ -835,14 +834,14 @@ func (s *store) modifyExisting(id string, mod *order.Modify) error {
 
 // upsert (1) checks if such an exchange exists in the exchangeManager, (2) checks if
 // order exists and updates/creates it.
-func (s *store) upsert(od *order.Detail) (updatedOrder *order.Detail, err error) {
+func (s *store) upsert(od *order.Detail) (resp *OrderUpsertResponse, err error) {
 	if od == nil {
-		return nil, errNilOrder
+		return &OrderUpsertResponse{}, errNilOrder
 	}
 	lName := strings.ToLower(od.Exchange)
 	_, err = s.exchangeManager.GetExchangeByName(lName)
 	if err != nil {
-		return nil, err
+		return &OrderUpsertResponse{}, err
 	}
 	s.m.Lock()
 	defer s.m.Unlock()
@@ -850,19 +849,30 @@ func (s *store) upsert(od *order.Detail) (updatedOrder *order.Detail, err error)
 	if !ok {
 		od.GenerateInternalOrderID()
 		s.Orders[lName] = []*order.Detail{od}
-		return nil, nil
+		resp = &OrderUpsertResponse{
+			OrderDetails: od.Copy(),
+			IsNewOrder:   true,
+		}
+		return resp, nil
 	}
 	for x := range r {
 		if r[x].ID == od.ID {
 			r[x].UpdateOrderFromDetail(od)
-			orderCopy := r[x].Copy()
-			return &orderCopy, nil
+			resp = &OrderUpsertResponse{
+				OrderDetails: r[x].Copy(),
+				IsNewOrder:   false,
+			}
+			return resp, nil
 		}
 	}
 	// Untracked websocket orders will not have internalIDs yet
 	od.GenerateInternalOrderID()
 	s.Orders[lName] = append(s.Orders[lName], od)
-	return nil, nil
+	resp = &OrderUpsertResponse{
+		OrderDetails: od.Copy(),
+		IsNewOrder:   true,
+	}
+	return resp, nil
 }
 
 // getByExchange returns orders by exchange

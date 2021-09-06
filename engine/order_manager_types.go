@@ -58,3 +58,10 @@ type OrderSubmitResponse struct {
 	order.SubmitResponse
 	InternalOrderID string
 }
+
+// OrderUpsertResponse contains a copy of the resulting order details and a bool
+// indicating if the order details were inserted (true) or updated (false)
+type OrderUpsertResponse struct {
+	OrderDetails order.Detail
+	IsNewOrder   bool
+}
