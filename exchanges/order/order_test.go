@@ -815,7 +815,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		RemainingAmount:   0,
 		Fee:               0,
 		Exchange:          "test",
-		ID:                "1",
+		ID:                "",
 		AccountID:         "",
 		ClientID:          "",
 		WalletAddress:     "",
@@ -866,8 +866,8 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	}
 
 	od.UpdateOrderFromDetail(&om)
-	if od.InternalOrderID == "1" {
-		t.Error("Should not be able to update the internal order ID")
+	if od.InternalOrderID != "1" {
+		t.Error("Failed to initialize the internal order ID")
 	}
 	if !od.ImmediateOrCancel {
 		t.Error("Failed to update")
@@ -986,6 +986,15 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	}
 	if od.Trades[0].Amount != 1337 {
 		t.Error("Failed to update trades")
+	}
+
+	om = Detail{
+		InternalOrderID: "2",
+	}
+
+	od.UpdateOrderFromDetail(&om)
+	if od.InternalOrderID == "2" {
+		t.Error("Should not be able to update the internal order ID after initialization")
 	}
 }
 
