@@ -737,12 +737,16 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) error {
 		return errNilOrder
 	}
 	var msg string
-	defer func(message string) {
+	defer func(message *string) {
+		if message == nil {
+			log.Errorf(log.OrderMgr, "UpsertOrder: produced nil order event message\n")
+			return
+		}
 		m.orderStore.commsManager.PushEvent(base.Event{
 			Type:    "order",
-			Message: message,
+			Message: *message,
 		})
-	}(msg)
+	}(&msg)
 
 	updatedOrder, err := m.orderStore.upsert(od)
 	if err != nil {
