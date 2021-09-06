@@ -150,6 +150,7 @@ func main() {
 		websocketManagerCommand,
 		tradeCommand,
 		dataHistoryCommands,
+		exchangeFeeManagerCommand,
 	}
 
 	err := app.Run(os.Args)
