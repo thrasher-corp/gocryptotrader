@@ -441,7 +441,6 @@ func (d *Detail) GenerateInternalOrderID() {
 		}
 		d.InternalOrderID = id.String()
 	}
-
 }
 
 // Copy will return a copy of Detail
