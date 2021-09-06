@@ -733,7 +733,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	err = funds.AddPair(pBase, pQuote)
+	err = funds.CreatePair(pBase, pQuote)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -745,7 +745,7 @@ func TestCalculateTheResults(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	err = funds.AddPair(pBase2, pQuote2)
+	err = funds.CreatePair(pBase2, pQuote2)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

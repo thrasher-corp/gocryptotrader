@@ -119,7 +119,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				return nil, err
 			}
 			cq := currency.NewCode(cfg.StrategySettings.ExchangeLevelFunding[i].Quote)
-			item, err := funds.SetupItem(cfg.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
+			item, err := funding.CreateItem(cfg.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
 				a,
 				cq,
 				cfg.StrategySettings.ExchangeLevelFunding[i].InitialFunds,
@@ -207,7 +207,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				return nil, err
 			}
 			cp := currency.NewPair(currency.NewCode(cfg.CurrencySettings[i].Base), currency.NewCode(cfg.CurrencySettings[i].Quote))
-			baseItem, err := funds.SetupItem(cfg.CurrencySettings[i].ExchangeName,
+			baseItem, err := funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
 				cp.Base,
 				decimal.Zero,
@@ -215,7 +215,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			if err != nil {
 				return nil, err
 			}
-			quoteItem, err := funds.SetupItem(cfg.CurrencySettings[i].ExchangeName,
+			quoteItem, err := funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
 				cp.Quote,
 				cfg.CurrencySettings[i].InitialFunds,
@@ -223,13 +223,17 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			if err != nil {
 				return nil, err
 			}
-			err = funds.AddPair(baseItem, quoteItem)
+			pair, err := funding.CreatePair(baseItem, quoteItem)
 			if err != nil {
 				return nil, err
 			}
+			err = funds.AddPair(pair)
+			if err != nil {
+				return nil, err
+			}
+
 		} else {
-			// ensure there are always funds?
-			baseItem, err := funds.SetupItem(cfg.CurrencySettings[i].ExchangeName,
+			baseItem, err := funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
 				b,
 				decimal.Zero,
@@ -237,7 +241,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			if err != nil {
 				return nil, err
 			}
-			quoteItem, err := funds.SetupItem(cfg.CurrencySettings[i].ExchangeName,
+			quoteItem, err := funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
 				q,
 				decimal.Zero,

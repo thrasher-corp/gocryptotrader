@@ -524,7 +524,7 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = f.AddPair(base, quote)
+	err = f.CreatePair(base, quote)
 	if err != nil {
 		t.Error(err)
 	}
@@ -627,7 +627,7 @@ func TestFullCycleMulti(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = f.AddPair(base, quote)
+	err = f.CreatePair(base, quote)
 	if err != nil {
 		t.Error(err)
 	}

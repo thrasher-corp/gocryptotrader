@@ -172,7 +172,7 @@ func TestExists(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	err = f.AddPair(baseItem, quoteItem)
+	err = f.CreatePair(baseItem, quoteItem)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -217,7 +217,7 @@ func TestAddPair(t *testing.T) {
 	f := FundManager{}
 	baseItem, err := f.SetupItem(exch, ass, pair.Base, decimal.Zero, decimal.Zero)
 	quoteItem, err := f.SetupItem(exch, ass, pair.Quote, elite, decimal.Zero)
-	err = f.AddPair(baseItem, quoteItem)
+	err = f.CreatePair(baseItem, quoteItem)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -249,7 +249,7 @@ func TestAddPair(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", resp.Quote.initialFunds, elite)
 	}
 
-	err = f.AddPair(baseItem, quoteItem)
+	err = f.CreatePair(baseItem, quoteItem)
 	if !errors.Is(err, ErrAlreadyExists) {
 		t.Errorf("received '%v' expected '%v'", err, ErrAlreadyExists)
 	}
@@ -280,7 +280,7 @@ func TestGetFundingForEvent(t *testing.T) {
 	}
 	baseItem, err := f.SetupItem(exch, ass, pair.Base, decimal.Zero, decimal.Zero)
 	quoteItem, err := f.SetupItem(exch, ass, pair.Quote, elite, decimal.Zero)
-	err = f.AddPair(baseItem, quoteItem)
+	err = f.CreatePair(baseItem, quoteItem)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -325,7 +325,7 @@ func TestGetFundingForEAP(t *testing.T) {
 	}
 	baseItem, err := f.SetupItem(exch, ass, pair.Base, decimal.Zero, decimal.Zero)
 	quoteItem, err := f.SetupItem(exch, ass, pair.Quote, elite, decimal.Zero)
-	err = f.AddPair(baseItem, quoteItem)
+	err = f.CreatePair(baseItem, quoteItem)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -335,15 +335,15 @@ func TestGetFundingForEAP(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	err = f.AddPair(baseItem, nil)
+	err = f.CreatePair(baseItem, nil)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
 	}
-	err = f.AddPair(nil, quoteItem)
+	err = f.CreatePair(nil, quoteItem)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
 	}
-	err = f.AddPair(baseItem, quoteItem)
+	err = f.CreatePair(baseItem, quoteItem)
 	if !errors.Is(err, ErrAlreadyExists) {
 		t.Errorf("received '%v' expected '%v'", err, ErrAlreadyExists)
 	}

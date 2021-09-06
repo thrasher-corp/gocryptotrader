@@ -60,6 +60,9 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	if p.riskManager == nil {
 		return nil, errRiskManagerUnset
 	}
+	if funds == nil {
+		return nil, funding.ErrFundsNotFound
+	}
 
 	o := &order.Order{
 		Base: event.Base{
@@ -302,6 +305,9 @@ func (p *Portfolio) UpdateHoldings(d common.DataEventHandler, funds funding.IPai
 	if d == nil {
 		return common.ErrNilEvent
 	}
+	if funds == nil {
+		return funding.ErrFundsNotFound
+	}
 	lookup, ok := p.exchangeAssetPairSettings[d.GetExchange()][d.GetAssetType()][d.Pair()]
 	if !ok {
 		return errors.New("severe issue detected")
@@ -330,7 +336,7 @@ func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 		for _, y := range x {
 			for _, z := range y {
 				holds := z.GetLatestHoldings()
-				if holds.Offset != 0 {
+				if holds != nil {
 					resp = append(resp, *holds)
 				}
 			}

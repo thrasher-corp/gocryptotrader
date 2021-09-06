@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -38,26 +39,26 @@ func TestReset(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
-	_, err := Setup(nil, nil, -1)
+	_, err := Setup(nil, nil, decimal.NewFromInt(-1))
 	if !errors.Is(err, errSizeManagerUnset) {
 		t.Errorf("expected: %v, received %v", errSizeManagerUnset, err)
 	}
 
-	_, err = Setup(&size.Size{}, nil, -1)
+	_, err = Setup(&size.Size{}, nil, decimal.NewFromInt(-1))
 	if !errors.Is(err, errNegativeRiskFreeRate) {
 		t.Errorf("expected: %v, received %v", errNegativeRiskFreeRate, err)
 	}
 
-	_, err = Setup(&size.Size{}, nil, 1)
+	_, err = Setup(&size.Size{}, nil, decimal.NewFromInt(1))
 	if !errors.Is(err, errRiskManagerUnset) {
 		t.Errorf("expected: %v, received %v", errRiskManagerUnset, err)
 	}
 	var p *Portfolio
-	p, err = Setup(&size.Size{}, &risk.Risk{}, 1)
+	p, err = Setup(&size.Size{}, &risk.Risk{}, decimal.NewFromInt(1))
 	if err != nil {
 		t.Error(err)
 	}
-	if p.riskFreeRate != 1 {
+	if !p.riskFreeRate.Equal(decimal.NewFromInt(1)) {
 		t.Error("expected 1")
 	}
 }
@@ -158,7 +159,18 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
 	tt := time.Now()
-	_, err := p.ViewHoldingAtTimePeriod("", "", currency.Pair{}, tt)
+	s := &signal.Signal{
+		Base:       event.Base{},
+		OpenPrice:  decimal.Decimal{},
+		HighPrice:  decimal.Decimal{},
+		LowPrice:   decimal.Decimal{},
+		ClosePrice: decimal.Decimal{},
+		Volume:     decimal.Decimal{},
+		BuyLimit:   decimal.Decimal{},
+		SellLimit:  decimal.Decimal{},
+		Direction:  "",
+	}
+	_, err := p.ViewHoldingAtTimePeriod(s)
 	if !errors.Is(err, errNoHoldings) {
 		t.Errorf("expected: %v, received %v", errNoHoldings, err)
 	}
@@ -171,13 +183,8 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = p.ViewHoldingAtTimePeriod(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), tt)
-	if err != nil {
-		t.Error(err)
-	}
-
-	var h holdings.Holding
-	h, err = p.ViewHoldingAtTimePeriod(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), tt)
+	var h *holdings.Holding
+	h, err = p.ViewHoldingAtTimePeriod(s)
 	if err != nil {
 		t.Error(err)
 	}
@@ -189,12 +196,12 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
-	err := p.UpdateHoldings(nil)
+	err := p.UpdateHoldings(nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
 
-	err = p.UpdateHoldings(&kline.Kline{})
+	err = p.UpdateHoldings(&kline.Kline{}, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -205,7 +212,7 @@ func TestUpdate(t *testing.T) {
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 			AssetType:    asset.Spot,
 		},
-	})
+	}, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -223,7 +230,7 @@ func TestUpdate(t *testing.T) {
 			AssetType:    asset.Spot,
 			Time:         tt,
 		},
-	})
+	}, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -233,7 +240,7 @@ func TestGetFee(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
 	f := p.GetFee("", "", currency.Pair{})
-	if f != 0 {
+	if !f.IsZero() {
 		t.Error("expected 0")
 	}
 
@@ -242,7 +249,7 @@ func TestGetFee(t *testing.T) {
 		t.Error(err)
 	}
 
-	p.SetFee("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), decimal.NewFromInt(1337)
+	p.SetFee("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), decimal.NewFromInt(1337))
 	f = p.GetFee("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD))
 	if f != decimal.NewFromInt(1337) {
 		t.Error("expected decimal.NewFromInt(1337)")
@@ -309,7 +316,7 @@ func TestAddComplianceSnapshot(t *testing.T) {
 func TestOnFill(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
-	_, err := p.OnFill(nil)
+	_, err := p.OnFill(nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
@@ -326,7 +333,7 @@ func TestOnFill(t *testing.T) {
 			AssetType: asset.Spot,
 		},
 	}
-	_, err = p.OnFill(f)
+	_, err = p.OnFill(f, nil)
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("expected: %v, received %v", errNoPortfolioSettings, err)
 	}
@@ -334,7 +341,7 @@ func TestOnFill(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = p.OnFill(f)
+	_, err = p.OnFill(f, nil)
 	if !errors.Is(err, holdings.ErrInitialFundsZero) {
 		t.Errorf("expected: %v, received %v", holdings.ErrInitialFundsZero, err)
 	}
@@ -346,7 +353,7 @@ func TestOnFill(t *testing.T) {
 	//}
 
 	f.Direction = gctorder.Buy
-	_, err = p.OnFill(f)
+	_, err = p.OnFill(f, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -355,32 +362,48 @@ func TestOnFill(t *testing.T) {
 func TestOnSignal(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
-	_, err := p.OnSignal(nil, nil)
+	_, err := p.OnSignal(nil, nil, nil)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
 
 	s := &signal.Signal{}
-	_, err = p.OnSignal(s, &exchange.Settings{})
+	_, err = p.OnSignal(s, &exchange.Settings{}, nil)
 	if !errors.Is(err, errSizeManagerUnset) {
 		t.Errorf("expected: %v, received %v", errSizeManagerUnset, err)
 	}
 	p.sizeManager = &size.Size{}
 
-	_, err = p.OnSignal(s, &exchange.Settings{})
+	_, err = p.OnSignal(s, &exchange.Settings{}, nil)
 	if !errors.Is(err, errRiskManagerUnset) {
 		t.Errorf("expected: %v, received %v", errRiskManagerUnset, err)
 	}
 
 	p.riskManager = &risk.Risk{}
 
-	_, err = p.OnSignal(s, &exchange.Settings{})
+	_, err = p.OnSignal(s, &exchange.Settings{}, nil)
+	if !errors.Is(err, funding.ErrFundsNotFound) {
+		t.Errorf("expected: %v, received %v", funding.ErrFundsNotFound, err)
+	}
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pair, err := funding.CreatePair(b, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.OnSignal(s, &exchange.Settings{}, pair)
 	if !errors.Is(err, errInvalidDirection) {
 		t.Errorf("expected: %v, received %v", errInvalidDirection, err)
 	}
 
 	s.Direction = gctorder.Buy
-	_, err = p.OnSignal(s, &exchange.Settings{})
+	_, err = p.OnSignal(s, &exchange.Settings{}, pair)
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("expected: %v, received %v", errNoPortfolioSettings, err)
 	}
@@ -397,16 +420,16 @@ func TestOnSignal(t *testing.T) {
 		Direction: gctorder.Buy,
 	}
 	var resp *order.Order
-	resp, err = p.OnSignal(s, &exchange.Settings{})
+	resp, err = p.OnSignal(s, &exchange.Settings{}, pair)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if resp.Reason == "" {
 		t.Error("expected issue")
 	}
 
 	s.Direction = gctorder.Sell
-	_, err = p.OnSignal(s, &exchange.Settings{})
+	_, err = p.OnSignal(s, &exchange.Settings{}, pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -415,17 +438,17 @@ func TestOnSignal(t *testing.T) {
 	}
 
 	s.Direction = common.MissingData
-	_, err = p.OnSignal(s, &exchange.Settings{})
+	_, err = p.OnSignal(s, &exchange.Settings{}, pair)
 	if err != nil {
 		t.Error(err)
 	}
 
 	s.Direction = gctorder.Buy
-	err = p.setHoldingsForOffset("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: time.Now(), RemainingFunds: decimal.NewFromInt(1337)}, false)
+	err = p.setHoldingsForOffset("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: time.Now(), QuoteSize: decimal.NewFromInt(1337)}, false)
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err = p.OnSignal(s, &exchange.Settings{})
+	resp, err = p.OnSignal(s, &exchange.Settings{}, pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -433,13 +456,13 @@ func TestOnSignal(t *testing.T) {
 		t.Errorf("expected common.CouldNotBuy, received %v", resp.Direction)
 	}
 
-	s.ClosePrice = 10
+	s.ClosePrice = decimal.NewFromInt(10)
 	s.Direction = gctorder.Buy
-	resp, err = p.OnSignal(s, &exchange.Settings{})
+	resp, err = p.OnSignal(s, &exchange.Settings{}, pair)
 	if err != nil {
 		t.Error(err)
 	}
-	if resp.Amount == 0 {
+	if !resp.Amount.IsZero() {
 		t.Error("expected an amount to be sized")
 	}
 }

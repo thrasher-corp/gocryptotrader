@@ -69,7 +69,7 @@ func TestSetCurrency(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !result.InitialFunds.Equal(decimal.NewFromInt(1337) {
+	if !result.InitialFunds.Equal(decimal.NewFromInt(1337)) {
 		t.Errorf("expected decimal.NewFromInt(1337), received %v", result.InitialFunds)
 	}
 

@@ -33,5 +33,8 @@ func (e *Settings) GetHoldingsForTime(t time.Time) *holdings.Holding {
 // Value returns the total value of the latest holdings
 func (e *Settings) Value() decimal.Decimal {
 	latest := e.GetLatestHoldings()
+	if latest == nil {
+		return decimal.Zero
+	}
 	return latest.TotalValue
 }

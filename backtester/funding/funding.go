@@ -84,7 +84,7 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item) e
 	return nil
 }
 
-func (f *FundManager) SetupItem(exch string, ass asset.Item, ci currency.Code, initialFunds, transferFee decimal.Decimal) (*Item, error) {
+func CreateItem(exch string, ass asset.Item, ci currency.Code, initialFunds, transferFee decimal.Decimal) (*Item, error) {
 	if initialFunds.IsNegative() {
 		return nil, fmt.Errorf("%v %v %v %w initial funds: %v", exch, ass, ci, ErrNegativeAmountReceived, initialFunds)
 	}
@@ -122,30 +122,34 @@ func (f *FundManager) Exists(item *Item) bool {
 	return false
 }
 
-// AddPair adds two funding items and associates them with one another
+// CreatePair adds two funding items and associates them with one another
 // the association allows for the same currency to be used multiple times when
 // usingExchangeLevelFunding is false. eg BTC-USDT and LTC-USDT do not share the same
 // USDT level funding
-func (f *FundManager) AddPair(base, quote *Item) error {
+func CreatePair(base, quote *Item) (*Pair, error) {
 	if base == nil {
-		return fmt.Errorf("base %w", common.ErrNilArguments)
+		return nil, fmt.Errorf("base %w", common.ErrNilArguments)
 	}
 	if quote == nil {
-		return fmt.Errorf("quote %w", common.ErrNilArguments)
+		return nil, fmt.Errorf("quote %w", common.ErrNilArguments)
 	}
 	// copy to prevent the off chance of sending in the same base OR quote
 	// to create a new pair with a new base OR quote
-	bcpy := *base
-	qcpy := *quote
-	bcpy.pairedWith = &qcpy
-	qcpy.pairedWith = &bcpy
-	if f.Exists(&bcpy) {
-		return fmt.Errorf("cannot add item %v %v %v %w", bcpy.exchange, bcpy.asset, bcpy.currency, ErrAlreadyExists)
+	bCopy := *base
+	qCopy := *quote
+	bCopy.pairedWith = &qCopy
+	qCopy.pairedWith = &bCopy
+	return &Pair{Base: &bCopy, Quote: &qCopy}, nil
+}
+
+func (f *FundManager) AddPair(p *Pair) error {
+	if f.Exists(p.Base) {
+		return fmt.Errorf("%w %v", ErrAlreadyExists, p.Base)
 	}
-	if f.Exists(&qcpy) {
-		return fmt.Errorf("cannot add item %v %v %v %w", qcpy.exchange, qcpy.asset, qcpy.currency, ErrAlreadyExists)
+	if f.Exists(p.Quote) {
+		return fmt.Errorf("%w %v", ErrAlreadyExists, p.Quote)
 	}
-	f.items = append(f.items, &bcpy, &qcpy)
+	f.items = append(f.items, p.Base, p.Quote)
 	return nil
 }
 
