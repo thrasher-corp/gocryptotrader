@@ -34,9 +34,11 @@ var (
 	manager Manager
 
 	errFeeDefinitionsAlreadyLoaded = errors.New("fee definitions are already loaded for exchange")
-	errFeeDefinitionsAreNil        = errors.New("fee definitions are nil")
-	errExchangeNameIsEmpty         = errors.New("exchange name is empty")
-	errCurrencyIsEmpty             = errors.New("currency is empty")
+	// ErrDefinitionsAreNil defines if the exchange specific fee definitions
+	// have bot been loaded or set up.
+	ErrDefinitionsAreNil   = errors.New("fee definitions are nil")
+	errExchangeNameIsEmpty = errors.New("exchange name is empty")
+	errCurrencyIsEmpty     = errors.New("currency is empty")
 
 	// errNoRealValue  = errors.New("no real value")
 	// errNoRatioValue = errors.New("no ratio value")
@@ -79,7 +81,7 @@ func (m *Manager) Register(exch string, s *Definitions) error {
 		return errExchangeNameIsEmpty
 	}
 	if s == nil {
-		return errFeeDefinitionsAreNil
+		return ErrDefinitionsAreNil
 	}
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
@@ -102,9 +104,12 @@ type Definitions struct {
 	online Global
 	// offline fees for global state
 	offline Global
+	// custom allows for the custom setting of the global fee state, this
+	// stops dynamic updating
+	custom bool
 	// transfer defines a map of currencies with differing withdrawal and
 	// deposit fee definitions. These will commonly be real values.
-	transfer map[*currency.Item]map[asset.Item]*Transfer
+	transfer map[*currency.Item]map[asset.Item]*transfer
 	mtx      sync.RWMutex
 }
 
@@ -122,7 +127,7 @@ type Global struct {
 // taker values.
 func (d *Definitions) LoadDynamic(maker, taker float64) error {
 	if d == nil {
-		return errFeeDefinitionsAreNil
+		return ErrDefinitionsAreNil
 	}
 
 	if maker <= 0 && taker <= 0 {
@@ -139,7 +144,7 @@ func (d *Definitions) LoadDynamic(maker, taker float64) error {
 // dynamic loading options.
 func (d *Definitions) LoadStatic(o Options) error {
 	if d == nil {
-		return errFeeDefinitionsAreNil
+		return ErrDefinitionsAreNil
 	}
 
 	d.mtx.Lock()
@@ -157,10 +162,14 @@ func (d *Definitions) LoadStatic(o Options) error {
 		for as, trans := range val {
 			m1, ok := d.transfer[code.Item]
 			if !ok {
-				m1 = make(map[asset.Item]*Transfer)
+				m1 = make(map[asset.Item]*transfer)
 				d.transfer[code.Item] = m1
 			}
-			m1[as] = &trans
+			m1[as] = &transfer{
+				Ratio:      trans.Ratio,
+				Deposit:    decimal.NewFromFloat(trans.Deposit),
+				Withdrawal: decimal.NewFromFloat(trans.Withdrawal),
+			}
 		}
 	}
 	return nil
@@ -258,7 +267,7 @@ func (d *Definitions) GetWithdrawal(c currency.Code, a asset.Item) (fee float64,
 }
 
 // get returns the fee structure by the currency and its asset type
-func (d *Definitions) get(c currency.Code, a asset.Item) (*Transfer, error) {
+func (d *Definitions) get(c currency.Code, a asset.Item) (*transfer, error) {
 	if c.String() == "" {
 		return nil, errCurrencyIsEmpty
 	}
@@ -273,8 +282,118 @@ func (d *Definitions) get(c currency.Code, a asset.Item) (*Transfer, error) {
 	return s, nil
 }
 
+// GetAllFees returns a snapshot of the full fee definitions, super cool.
+func (d *Definitions) GetAllFees() (Options, error) {
+	if d == nil {
+		return Options{}, ErrDefinitionsAreNil
+	}
+
+	d.mtx.RLock()
+	defer d.mtx.RUnlock()
+
+	maker, _ := d.online.maker.Float64()
+	taker, _ := d.online.taker.Float64()
+
+	offlineMaker, _ := d.offline.maker.Float64()
+	offlineTaker, _ := d.offline.taker.Float64()
+
+	wcs := maker == offlineMaker && taker == offlineTaker
+
+	op := Options{
+		Ratio:             d.online.ratio,
+		Maker:             maker,
+		Taker:             taker,
+		WorstCaseScenario: wcs,
+		Transfer:          make(map[currency.Code]map[asset.Item]Transfer),
+	}
+
+	for c, m1 := range d.transfer {
+		temp := make(map[asset.Item]Transfer)
+		for a, val := range m1 {
+			deposit, _ := val.Deposit.Float64()
+			withdraw, _ := val.Withdrawal.Float64()
+			temp[a] = Transfer{
+				Deposit:    deposit,
+				Withdrawal: withdraw,
+				Ratio:      val.Ratio,
+			}
+		}
+		op.Transfer[currency.Code{Item: c, UpperCase: true}] = temp
+	}
+	return op, nil
+}
+
+var errFeeTypeMismatch = errors.New("fee type mismatch")
+
+// SetGlobalFees sets new global fees and forces custom control
+func (d *Definitions) SetGlobalFees(maker, taker float64, ratio bool) error {
+	if d == nil {
+		return ErrDefinitionsAreNil
+	}
+
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+
+	if d.online.ratio != ratio {
+		return errFeeTypeMismatch
+	}
+
+	d.online.maker = decimal.NewFromFloat(maker)
+	d.online.taker = decimal.NewFromFloat(taker)
+	d.custom = true
+
+	return nil
+}
+
+// SetTransferFees sets new transfer fees
+func (d *Definitions) SetTransferFees(c currency.Code, a asset.Item, withdraw, deposit float64, ratio bool) error {
+	if d == nil {
+		return ErrDefinitionsAreNil
+	}
+
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+
+	t, ok := d.transfer[c.Item][a]
+	if !ok {
+		return errTransferFeeNotFound
+	}
+
+	if t.Ratio != ratio {
+		return errFeeTypeMismatch
+	}
+
+	t.Withdrawal = decimal.NewFromFloat(withdraw)
+	t.Deposit = decimal.NewFromFloat(deposit)
+	return nil
+}
+
+var errSameBoolean = errors.New("same boolean value")
+
+// SetCustom sets if the fees are in a custom state and can yield control from
+// the fee manager.
+func (d *Definitions) SetCustom(on bool) error {
+	if d == nil {
+		return ErrDefinitionsAreNil
+	}
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if d.custom == on {
+		return errSameBoolean
+	}
+	d.custom = on
+	return nil
+}
+
 // Transfer defines usually static real number values.
 type Transfer struct {
+	Ratio      bool // Toggle if ratio is present
+	Deposit    float64
+	Withdrawal float64
+}
+
+// transfer defines internal fee structure
+type transfer struct {
 	Ratio      bool // Toggle if ratio is present
 	Deposit    decimal.Decimal
 	Withdrawal decimal.Decimal
@@ -298,8 +417,8 @@ type Builder struct {
 // Item defines a different fee type
 type Item uint8
 
-// Options defines fee options either, will be interchangeable for static and
-// dynamic loading.
+// Options defines fee loading options and is also used as a state snapshot, in
+// GetAllFees method.
 type Options struct {
 	// Ratio defines if the fee is a ratio or fixed amount
 	Ratio bool
@@ -310,4 +429,7 @@ type Options struct {
 	// Transfer defines a map of currencies with differing withdrawal and
 	// deposit fee definitions. These will commonly be fixed real values.
 	Transfer map[currency.Code]map[asset.Item]Transfer
+	// WorstCaseScenario defines the worst case scenario of fees in the event
+	// that either there is no authenticated connection.
+	WorstCaseScenario bool
 }

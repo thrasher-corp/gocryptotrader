@@ -92,4 +92,8 @@ type IBotExchange interface {
 	UpdateOrderExecutionLimits(a asset.Item) error
 
 	UpdateFees(a asset.Item) error
+	GetAllFees() (fee.Options, error)
+	SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, ratio bool) error
+	SetGlobalFee(maker, taker float64, ratio bool) error
+	SetFeeCustom(on bool) error
 }

@@ -42,8 +42,8 @@ func TestManagerRegister(t *testing.T) {
 	}
 
 	err = man.Register("bruh", nil)
-	if !errors.Is(err, errFeeDefinitionsAreNil) {
-		t.Fatalf("received: %v but expected: %v", err, errFeeDefinitionsAreNil)
+	if !errors.Is(err, ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
 	err = man.Register("bruh", &Definitions{})
@@ -60,8 +60,8 @@ func TestManagerRegister(t *testing.T) {
 func TestLoadDynamic(t *testing.T) {
 	t.Parallel()
 	err := (*Definitions)(nil).LoadDynamic(0, 0)
-	if !errors.Is(err, errFeeDefinitionsAreNil) {
-		t.Fatalf("received: %v but expected: %v", err, errFeeDefinitionsAreNil)
+	if !errors.Is(err, ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
 	err = (&Definitions{}).LoadDynamic(1, 1)
@@ -189,9 +189,9 @@ func TestGetDeposit(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errTransferFeeNotFound)
 	}
 
-	d := &Definitions{transfer: map[*currency.Item]map[asset.Item]*Transfer{
+	d := &Definitions{transfer: map[*currency.Item]map[asset.Item]*transfer{
 		currency.BTC.Item: {
-			asset.Spot: &Transfer{Ratio: true, Deposit: identity},
+			asset.Spot: &transfer{Ratio: true, Deposit: identity},
 		},
 	}}
 
@@ -225,9 +225,9 @@ func TestGetWithdrawal(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errTransferFeeNotFound)
 	}
 
-	d := &Definitions{transfer: map[*currency.Item]map[asset.Item]*Transfer{
+	d := &Definitions{transfer: map[*currency.Item]map[asset.Item]*transfer{
 		currency.BTC.Item: {
-			asset.Spot: &Transfer{Ratio: true, Withdrawal: identity},
+			asset.Spot: &transfer{Ratio: true, Withdrawal: identity},
 		},
 	}}
 
@@ -242,5 +242,20 @@ func TestGetWithdrawal(t *testing.T) {
 
 	if fee != 1 {
 		t.Fatal("unexpected fee value")
+	}
+}
+
+func TestGetAllFees(t *testing.T) {
+	_, err := (*Definitions)(nil).GetAllFees()
+	if !errors.Is(err, ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
+	}
+
+	d := Definitions{}
+	d.LoadStatic(Options{})
+
+	_, err = (*Definitions)(nil).GetAllFees()
+	if !errors.Is(err, ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 }

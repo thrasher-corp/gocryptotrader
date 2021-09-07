@@ -960,6 +960,47 @@ message ModifyOrderResponse {
     string modified_order_id = 1;
 }
 
+message GetAllFeesRequest {
+    string exchange = 1;
+}
+
+message GetAllFeesResponse {
+    double maker = 1;
+    double taker = 2;
+    bool ratio = 3;
+    bool worst_case_scenario = 4;
+    repeated TransferFees transfers = 5;
+}
+
+message TransferFees {
+    string currency = 1;
+    string asset = 2;
+    double withdraw = 3;
+    double deposit = 4;
+    bool ratio = 5; 
+}
+
+message SetGlobalFeeRequest {
+    string exchange = 1;
+    double maker = 2;
+    double taker = 3;
+    bool ratio = 5;
+}
+
+message SetTransferFeeRequest {
+    string exchange = 1;
+    string currency = 2;
+    string asset = 3;
+    double withdraw = 4;
+    double deposit = 5;
+    bool ratio = 6;
+}
+
+message SetFeeCustomRequest {
+    string exchange = 1;
+    bool enabled = 2;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -1515,6 +1556,26 @@ service GoCryptoTrader {
     rpc ModifyOrder (ModifyOrderRequest) returns (ModifyOrderResponse) {
         option (google.api.http) = {
             get: "/v1/modifyorder"
+        };
+    }
+    rpc GetAllFees (GetAllFeesRequest) returns (GetAllFeesResponse) {
+        option (google.api.http) = {
+            get: "/v1/getallfees"
+        };
+    }
+    rpc SetTransferFee (SetTransferFeeRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/settransferfee"
+        };
+    }
+    rpc SetGlobalFee (SetGlobalFeeRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/setglobalfee"
+        };
+    }
+    rpc SetFeeCustom (SetFeeCustomRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/setfeecustom"
         };
     }
 }

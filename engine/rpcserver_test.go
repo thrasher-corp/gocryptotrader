@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -119,6 +120,26 @@ func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
 			},
 		},
 	}, nil
+}
+
+// GetAllFees overrides interface function
+func (f fExchange) GetAllFees() (fee.Options, error) {
+	return fee.Options{Ratio: true}, nil
+}
+
+// SetTransferFee overrides interface function
+func (f fExchange) SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, ratio bool) error {
+	return nil
+}
+
+// SetGlobalFee overrides interface function
+func (f fExchange) SetGlobalFee(maker, taker float64, ratio bool) error {
+	return nil
+}
+
+// SetFeeCustom overrides interface function
+func (f fExchange) SetFeeCustom(on bool) error {
+	return nil
 }
 
 // Sets up everything required to run any function inside rpcserver
@@ -1853,5 +1874,133 @@ func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
+	}
+}
+
+func TestGetAllFees(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = "fake"
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	_, err = s.GetAllFees(context.Background(), &gctrpc.GetAllFeesRequest{Exchange: "wow"})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
+	}
+
+	resp, err := s.GetAllFees(context.Background(), &gctrpc.GetAllFeesRequest{Exchange: "fake"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !resp.Ratio {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestSetTransferFee(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = "fake"
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	_, err = s.SetTransferFee(context.Background(), &gctrpc.SetTransferFeeRequest{Exchange: "wow"})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
+	}
+
+	_, err = s.SetTransferFee(context.Background(), &gctrpc.SetTransferFeeRequest{Exchange: "fake"})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSetGlobalFee(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = "fake"
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	_, err = s.SetGlobalFee(context.Background(), &gctrpc.SetGlobalFeeRequest{Exchange: "wow"})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
+	}
+
+	_, err = s.SetGlobalFee(context.Background(), &gctrpc.SetGlobalFeeRequest{Exchange: "fake"})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSetFeeCustom(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = "fake"
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	_, err = s.SetFeeCustom(context.Background(), &gctrpc.SetFeeCustomRequest{Exchange: "wow"})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
+	}
+
+	_, err = s.SetFeeCustom(context.Background(), &gctrpc.SetFeeCustomRequest{Exchange: "fake"})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

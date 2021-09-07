@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -2401,5 +2402,33 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 
 	if !b.IsAssetWebsocketSupported(asset.Futures) {
 		t.Fatal("error asset is not turned off, unexpected response")
+	}
+}
+
+func TestGetAllFees(t *testing.T) {
+	_, err := (&Base{}).GetAllFees()
+	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
+	}
+}
+
+func TestSetTransferFee(t *testing.T) {
+	err := (&Base{}).SetTransferFee(currency.Code{}, "", 0, 0, false)
+	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
+	}
+}
+
+func TestSetGlobalFee(t *testing.T) {
+	err := (&Base{}).SetGlobalFee(0, 0, false)
+	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
+	}
+}
+
+func TestSetFeeCustom(t *testing.T) {
+	err := (&Base{}).SetFeeCustom(false)
+	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
 }

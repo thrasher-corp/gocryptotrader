@@ -1324,3 +1324,24 @@ func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool
 func (b *Base) UpdateFees(a asset.Item) error {
 	return common.ErrNotYetImplemented
 }
+
+// GetAllFees returns the full fee definitions for the exchange
+func (b *Base) GetAllFees() (fee.Options, error) {
+	return b.Fees.GetAllFees()
+}
+
+// SetTransferFee sets the deposit and withdrawal fees for a currency
+func (b *Base) SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, ratio bool) error {
+	return b.Fees.SetTransferFees(c, a, withdraw, deposit, ratio)
+}
+
+// SetGlobalFee sets the global maker and taker fees for the account
+func (b *Base) SetGlobalFee(maker, taker float64, ratio bool) error {
+	return b.Fees.SetGlobalFees(maker, taker, ratio)
+}
+
+// SetFeeCustom enables or disables custom settings which inhibit the fee manager
+// ability to update
+func (b *Base) SetFeeCustom(on bool) error {
+	return b.Fees.SetCustom(on)
+}

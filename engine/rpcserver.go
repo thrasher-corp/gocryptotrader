@@ -3871,3 +3871,83 @@ func (s *RPCServer) UpdateDataHistoryJobPrerequisite(_ context.Context, r *gctrp
 	}
 	return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Set job '%v' prerequisite job to '%v' and set status to paused", r.Nickname, r.PrerequisiteJobNickname)}, nil
 }
+
+// GetAllFees returns the full fee definitions for an exchange
+func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (*gctrpc.GetAllFeesResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	ss, err := exch.GetAllFees()
+	if err != nil {
+		return nil, err
+	}
+
+	var transferFees []*gctrpc.TransferFees
+	for c, m1 := range ss.Transfer {
+		for a, val := range m1 {
+			transferFees = append(transferFees, &gctrpc.TransferFees{
+				Currency: c.String(),
+				Asset:    a.String(),
+				Withdraw: val.Withdrawal,
+				Deposit:  val.Deposit,
+				Ratio:    val.Ratio,
+			})
+		}
+	}
+	return &gctrpc.GetAllFeesResponse{
+		Maker:             ss.Maker,
+		Taker:             ss.Taker,
+		Ratio:             ss.Ratio,
+		Transfers:         transferFees,
+		WorstCaseScenario: ss.WorstCaseScenario,
+	}, nil
+}
+
+// GetAllFees returns the full fee definitions for an exchange
+func (s *RPCServer) SetTransferFee(_ context.Context, r *gctrpc.SetTransferFeeRequest) (*gctrpc.GenericResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.SetTransferFee(currency.NewCode(r.Currency),
+		asset.Item(r.Asset),
+		r.Withdraw,
+		r.Deposit,
+		r.Ratio)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
+
+}
+
+// GetAllFees returns the full fee definitions for an exchange
+func (s *RPCServer) SetGlobalFee(_ context.Context, r *gctrpc.SetGlobalFeeRequest) (*gctrpc.GenericResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.SetGlobalFee(r.Maker, r.Taker, r.Ratio)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
+}
+
+// GetAllFees returns the full fee definitions for an exchange
+func (s *RPCServer) SetFeeCustom(_ context.Context, r *gctrpc.SetFeeCustomRequest) (*gctrpc.GenericResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.SetFeeCustom(r.Enabled)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
+}

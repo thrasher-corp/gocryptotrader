@@ -873,6 +873,36 @@
         ]
       }
     },
+    "/v1/getallfees": {
+      "get": {
+        "operationId": "GoCryptoTrader_GetAllFees",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAllFeesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getauditevent": {
       "get": {
         "operationId": "GoCryptoTrader_GetAuditEvent",
@@ -2430,6 +2460,92 @@
         ]
       }
     },
+    "/v1/setfeecustom": {
+      "get": {
+        "operationId": "GoCryptoTrader_SetFeeCustom",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "enabled",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/setglobalfee": {
+      "get": {
+        "operationId": "GoCryptoTrader_SetGlobalFee",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "maker",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "taker",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "ratio",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/setloggerdetails": {
       "post": {
         "operationId": "GoCryptoTrader_SetLoggerDetails",
@@ -2455,6 +2571,68 @@
             "schema": {
               "$ref": "#/definitions/gctrpcSetLoggerDetailsRequest"
             }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/settransferfee": {
+      "get": {
+        "operationId": "GoCryptoTrader_SetTransferFee",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "withdraw",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "deposit",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "ratio",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -3651,6 +3829,31 @@
         }
       }
     },
+    "gctrpcGetAllFeesResponse": {
+      "type": "object",
+      "properties": {
+        "maker": {
+          "type": "number",
+          "format": "double"
+        },
+        "taker": {
+          "type": "number",
+          "format": "double"
+        },
+        "ratio": {
+          "type": "boolean"
+        },
+        "worstCaseScenario": {
+          "type": "boolean"
+        },
+        "transfers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcTransferFees"
+          }
+        }
+      }
+    },
     "gctrpcGetAuditEventResponse": {
       "type": "object",
       "properties": {
@@ -4651,6 +4854,28 @@
         },
         "feeAsset": {
           "type": "string"
+        }
+      }
+    },
+    "gctrpcTransferFees": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "withdraw": {
+          "type": "number",
+          "format": "double"
+        },
+        "deposit": {
+          "type": "number",
+          "format": "double"
+        },
+        "ratio": {
+          "type": "boolean"
         }
       }
     },
