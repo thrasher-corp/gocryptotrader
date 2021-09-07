@@ -767,8 +767,11 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) error {
 		upsertResponse.OrderDetails.Exchange, status, upsertResponse.OrderDetails.ID, upsertResponse.OrderDetails.InternalOrderID,
 		upsertResponse.OrderDetails.Pair, upsertResponse.OrderDetails.Price, upsertResponse.OrderDetails.Amount,
 		upsertResponse.OrderDetails.Side, upsertResponse.OrderDetails.Type)
-	log.Infof(log.OrderMgr, "%s", msg)
-
+	if upsertResponse.IsNewOrder {
+		log.Infof(log.OrderMgr, "%s", msg)
+		return nil
+	}
+	log.Debugf(log.OrderMgr, "%s", msg)
 	return nil
 }
 
