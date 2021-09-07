@@ -871,7 +871,6 @@ func Test_processMatchingOrders(t *testing.T) {
 	if res[0].ID != "Test4" {
 		t.Error("Order Test4 should have been fetched and updated")
 	}
-
 }
 
 func TestFetchAndUpdateExchangeOrder(t *testing.T) {
