@@ -93,3 +93,7 @@ func (s *Service) Update(a *Holdings) error {
 
 	return s.mux.Publish([]uuid.UUID{acc.ID}, acc.h)
 }
+
+func (b Balance) Available() float64 {
+	return b.TotalValue - b.Hold
+}
