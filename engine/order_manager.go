@@ -836,12 +836,12 @@ func (s *store) modifyExisting(id string, mod *order.Modify) error {
 // order exists and updates/creates it.
 func (s *store) upsert(od *order.Detail) (resp *OrderUpsertResponse, err error) {
 	if od == nil {
-		return &OrderUpsertResponse{}, errNilOrder
+		return nil, errNilOrder
 	}
 	lName := strings.ToLower(od.Exchange)
 	_, err = s.exchangeManager.GetExchangeByName(lName)
 	if err != nil {
-		return &OrderUpsertResponse{}, err
+		return nil, err
 	}
 	s.m.Lock()
 	defer s.m.Unlock()
@@ -978,9 +978,6 @@ func (s *store) getFilteredOrders(f *order.Filter) ([]order.Detail, error) {
 
 // getActiveOrders returns copy of the orders that are active
 func (s *store) getActiveOrders(f *order.Filter) ([]order.Detail, error) {
-	if f == nil {
-		return nil, errors.New("filter is nil")
-	}
 	s.m.RLock()
 	defer s.m.RUnlock()
 
