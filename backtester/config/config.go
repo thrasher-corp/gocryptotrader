@@ -58,7 +58,7 @@ func (c *Config) PrintSetting() {
 			log.Infof(log.BackTester, "Initial funds for %v %v %v: %v",
 				c.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
 				c.StrategySettings.ExchangeLevelFunding[i].Asset,
-				c.StrategySettings.ExchangeLevelFunding[i].Quote,
+				c.StrategySettings.ExchangeLevelFunding[i].Currency,
 				c.StrategySettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
 		}
 	}

@@ -119,7 +119,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			if err != nil {
 				return nil, err
 			}
-			cq := currency.NewCode(cfg.StrategySettings.ExchangeLevelFunding[i].Quote)
+			cq := currency.NewCode(cfg.StrategySettings.ExchangeLevelFunding[i].Currency)
 			var item *funding.Item
 			item, err = funding.CreateItem(cfg.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
 				a,

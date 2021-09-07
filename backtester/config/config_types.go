@@ -64,7 +64,7 @@ type StrategySettings struct {
 type ExchangeLevelFunding struct {
 	ExchangeName string          `json:"exchange-name"`
 	Asset        string          `json:"asset"`
-	Quote        string          `json:"quote"`
+	Currency     string          `json:"currency"`
 	InitialFunds decimal.Decimal `json:"initial-funds"`
 	TransferFee  decimal.Decimal `json:"transfer-fee"`
 }

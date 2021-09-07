@@ -26,6 +26,45 @@ func SetupFundingManager(usingExchangeLevelFunding bool) *FundManager {
 	return &FundManager{usingExchangeLevelFunding: usingExchangeLevelFunding}
 }
 
+// CreateItem creates a new funding item
+func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, transferFee decimal.Decimal) (*Item, error) {
+	if initialFunds.IsNegative() {
+		return nil, fmt.Errorf("%v %v %v %w initial funds: %v", exch, a, ci, ErrNegativeAmountReceived, initialFunds)
+	}
+	if transferFee.IsNegative() {
+		return nil, fmt.Errorf("%v %v %v %w transfer fee: %v", exch, a, ci, ErrNegativeAmountReceived, transferFee)
+	}
+
+	return &Item{
+		exchange:     exch,
+		asset:        a,
+		currency:     ci,
+		initialFunds: initialFunds,
+		available:    initialFunds,
+		transferFee:  transferFee,
+	}, nil
+}
+
+// CreatePair adds two funding items and associates them with one another
+// the association allows for the same currency to be used multiple times when
+// usingExchangeLevelFunding is false. eg BTC-USDT and LTC-USDT do not share the same
+// USDT level funding
+func CreatePair(base, quote *Item) (*Pair, error) {
+	if base == nil {
+		return nil, fmt.Errorf("base %w", common.ErrNilArguments)
+	}
+	if quote == nil {
+		return nil, fmt.Errorf("quote %w", common.ErrNilArguments)
+	}
+	// copy to prevent the off chance of sending in the same base OR quote
+	// to create a new pair with a new base OR quote
+	bCopy := *base
+	qCopy := *quote
+	bCopy.pairedWith = &qCopy
+	qCopy.pairedWith = &bCopy
+	return &Pair{Base: &bCopy, Quote: &qCopy}, nil
+}
+
 // Reset clears all settings
 func (f *FundManager) Reset() {
 	*f = FundManager{}
@@ -84,24 +123,6 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item) e
 	return nil
 }
 
-func CreateItem(exch string, ass asset.Item, ci currency.Code, initialFunds, transferFee decimal.Decimal) (*Item, error) {
-	if initialFunds.IsNegative() {
-		return nil, fmt.Errorf("%v %v %v %w initial funds: %v", exch, ass, ci, ErrNegativeAmountReceived, initialFunds)
-	}
-	if transferFee.IsNegative() {
-		return nil, fmt.Errorf("%v %v %v %w transfer fee: %v", exch, ass, ci, ErrNegativeAmountReceived, transferFee)
-	}
-
-	return &Item{
-		exchange:     exch,
-		asset:        ass,
-		currency:     ci,
-		initialFunds: initialFunds,
-		available:    initialFunds,
-		transferFee:  transferFee,
-	}, nil
-}
-
 // AddItem appends a new funding item. Will reject if exists by exchange asset currency
 func (f *FundManager) AddItem(item *Item) error {
 	if f.Exists(item) {
@@ -122,26 +143,7 @@ func (f *FundManager) Exists(item *Item) bool {
 	return false
 }
 
-// CreatePair adds two funding items and associates them with one another
-// the association allows for the same currency to be used multiple times when
-// usingExchangeLevelFunding is false. eg BTC-USDT and LTC-USDT do not share the same
-// USDT level funding
-func CreatePair(base, quote *Item) (*Pair, error) {
-	if base == nil {
-		return nil, fmt.Errorf("base %w", common.ErrNilArguments)
-	}
-	if quote == nil {
-		return nil, fmt.Errorf("quote %w", common.ErrNilArguments)
-	}
-	// copy to prevent the off chance of sending in the same base OR quote
-	// to create a new pair with a new base OR quote
-	bCopy := *base
-	qCopy := *quote
-	bCopy.pairedWith = &qCopy
-	qCopy.pairedWith = &bCopy
-	return &Pair{Base: &bCopy, Quote: &qCopy}, nil
-}
-
+// AddPair adds a pair to the fund manager if it does not exist
 func (f *FundManager) AddPair(p *Pair) error {
 	if f.Exists(p.Base) {
 		return fmt.Errorf("%w %v", ErrAlreadyExists, p.Base)
@@ -164,9 +166,9 @@ func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (*Pair, error) 
 }
 
 // GetFundingForEAC This will construct a funding based on the exchange, asset, currency code
-func (f *FundManager) GetFundingForEAC(exch string, ass asset.Item, c currency.Code) (*Item, error) {
+func (f *FundManager) GetFundingForEAC(exch string, a asset.Item, c currency.Code) (*Item, error) {
 	for i := range f.items {
-		if f.items[i].BasicEqual(exch, ass, c, currency.Code{}) {
+		if f.items[i].BasicEqual(exch, a, c, currency.Code{}) {
 			return f.items[i], nil
 		}
 	}
@@ -174,14 +176,14 @@ func (f *FundManager) GetFundingForEAC(exch string, ass asset.Item, c currency.C
 }
 
 // GetFundingForEAP This will construct a funding based on the exchange, asset, currency pair
-func (f *FundManager) GetFundingForEAP(exch string, ass asset.Item, p currency.Pair) (*Pair, error) {
+func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pair) (*Pair, error) {
 	var resp Pair
 	for i := range f.items {
-		if f.items[i].BasicEqual(exch, ass, p.Base, p.Quote) {
+		if f.items[i].BasicEqual(exch, a, p.Base, p.Quote) {
 			resp.Base = f.items[i]
 			continue
 		}
-		if f.items[i].BasicEqual(exch, ass, p.Quote, p.Base) {
+		if f.items[i].BasicEqual(exch, a, p.Quote, p.Base) {
 			resp.Quote = f.items[i]
 		}
 	}
@@ -331,10 +333,12 @@ func (i *Item) IncreaseAvailable(amount decimal.Decimal) {
 	i.available = i.available.Add(amount)
 }
 
+// CanPlaceOrder checks if the item has any funds available
 func (i *Item) CanPlaceOrder() bool {
 	return i.available.GreaterThan(decimal.Zero)
 }
 
+// Equal checks for equality via an Item to compare to
 func (i *Item) Equal(item *Item) bool {
 	if i == nil && item == nil {
 		return true
@@ -360,17 +364,19 @@ func (i *Item) Equal(item *Item) bool {
 	return false
 }
 
-func (i *Item) BasicEqual(exch string, ass asset.Item, currency, pairedCurrency currency.Code) bool {
+// BasicEqual checks for equality via passed in values
+func (i *Item) BasicEqual(exch string, a asset.Item, currency, pairedCurrency currency.Code) bool {
 	if i == nil {
 		return false
 	}
 	return i.exchange == exch &&
-		i.asset == ass &&
+		i.asset == a &&
 		i.currency == currency &&
 		(i.pairedWith == nil ||
 			(i.pairedWith != nil && i.pairedWith.currency == pairedCurrency))
 }
 
+// MatchesCurrency checks that an item's currency is equal
 func (i *Item) MatchesCurrency(c currency.Code) bool {
 	if i == nil {
 		return false
@@ -378,6 +384,7 @@ func (i *Item) MatchesCurrency(c currency.Code) bool {
 	return i.currency == c
 }
 
+// MatchesItemCurrency checks that an item's currency is equal
 func (i *Item) MatchesItemCurrency(item *Item) bool {
 	if i == nil || item == nil {
 		return false
@@ -385,6 +392,7 @@ func (i *Item) MatchesItemCurrency(item *Item) bool {
 	return i.currency == item.currency
 }
 
+// MatchesExchange checks that an item's exchange is equal
 func (i *Item) MatchesExchange(item *Item) bool {
 	if i == nil || item == nil {
 		return false

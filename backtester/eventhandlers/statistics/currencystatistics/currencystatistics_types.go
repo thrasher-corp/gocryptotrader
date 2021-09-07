@@ -12,11 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 )
 
-var (
-	roundTo2 int32 = 2
-	roundTo8 int32 = 8
-)
-
 // CurrencyStats defines what is expected in order to
 // calculate statistics based on an exchange, asset type and currency pair
 type CurrencyStats interface {

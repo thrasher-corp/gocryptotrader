@@ -757,13 +757,13 @@ func TestGenerateConfigForRSIExchangeLevelFunding(t *testing.T) {
 				{
 					ExchangeName: testExchange,
 					Asset:        asset.Spot.String(),
-					Quote:        currency.BTC.String(),
+					Currency:     currency.BTC.String(),
 					InitialFunds: decimal.NewFromFloat(3),
 				},
 				{
 					ExchangeName: testExchange,
 					Asset:        asset.Spot.String(),
-					Quote:        currency.USDT.String(),
+					Currency:     currency.USDT.String(),
 					InitialFunds: decimal.NewFromFloat(10000),
 				},
 			},

@@ -46,6 +46,8 @@ func main() {
 		StrategySettings: config.StrategySettings{
 			Name:                         "",
 			SimultaneousSignalProcessing: false,
+			UseExchangeLevelFunding:      false,
+			ExchangeLevelFunding:         nil,
 			CustomSettings:               nil,
 		},
 		CurrencySettings: []config.CurrencySettings{},
@@ -247,19 +249,6 @@ func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config, strats []st
 		addCurrency = quickParse(reader)
 	}
 
-	if len(cfg.CurrencySettings) > 1 {
-		for i := range strats {
-			if strats[i].Name() == cfg.StrategySettings.Name &&
-				strats[i].SupportsSimultaneousProcessing() {
-				fmt.Println("Will this strategy use simultaneous processing? y/n")
-				yn := quickParse(reader)
-				if yn == y || yn == yes {
-					cfg.StrategySettings.SimultaneousSignalProcessing = true
-				}
-				break
-			}
-		}
-	}
 	return nil
 }
 
@@ -286,6 +275,38 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) ([]strategi
 	if strings.Contains(customSettings, y) {
 		cfg.StrategySettings.CustomSettings = customSettingsLoop(reader)
 	}
+	fmt.Println("Will this strategy use simultaneous processing? y/n")
+	yn := quickParse(reader)
+	cfg.StrategySettings.SimultaneousSignalProcessing = strings.Contains(yn, y)
+	if !cfg.StrategySettings.SimultaneousSignalProcessing {
+		return strats, nil
+	}
+	fmt.Println("Will this strategy be able to share funds at an exchange level? y/n")
+	yn = quickParse(reader)
+	cfg.StrategySettings.UseExchangeLevelFunding = strings.Contains(yn, y)
+	if !cfg.StrategySettings.UseExchangeLevelFunding {
+		return strats, nil
+	}
+
+	addFunding := y
+	for strings.Contains(addFunding, y) {
+		fund := config.ExchangeLevelFunding{}
+		fmt.Println("What is the exchange name to add funding to?")
+		fund.ExchangeName = quickParse(reader)
+		fmt.Println("What is the asset to add funding to?")
+		fund.Asset = quickParse(reader)
+		fmt.Println("What is the individual currency to add funding to?")
+		fund.Currency = quickParse(reader)
+		fmt.Printf("How much funding for %v?\n", fund.Currency)
+		fund.InitialFunds, err = decimal.NewFromString(quickParse(reader))
+		if err != nil {
+			return nil, err
+		}
+		cfg.StrategySettings.ExchangeLevelFunding = append(cfg.StrategySettings.ExchangeLevelFunding, fund)
+		fmt.Println("Add another source of funds? y/n")
+		addFunding = quickParse(reader)
+	}
+
 	return strats, nil
 }
 
