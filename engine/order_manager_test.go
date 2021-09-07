@@ -775,3 +775,194 @@ func Test_getFilteredOrders(t *testing.T) {
 		t.Errorf("Expected 1 result, got: %d", len(res))
 	}
 }
+
+func TestGetOrdersActive(t *testing.T) {
+	m := OrdersSetup(t)
+	var err error
+	orders := []order.Detail{
+		{
+			Exchange: testExchange,
+			Amount:   1.0,
+			Side:     order.Buy,
+			Status:   order.Cancelled,
+			ID:       "Test1",
+		},
+		{
+			Exchange: testExchange,
+			Amount:   1.0,
+			Side:     order.Sell,
+			Status:   order.Active,
+			ID:       "Test2",
+		},
+	}
+	for i := range orders {
+		if err = m.orderStore.add(&orders[i]); err != nil {
+			t.Error(err)
+		}
+	}
+	res, err := m.GetOrdersActive(nil)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("TestGetOrdersActive - Expected 1 result, got: %d", len(res))
+	}
+	res, err = m.GetOrdersActive(&order.Filter{Side: order.Sell})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("TestGetOrdersActive - Expected 1 result, got: %d", len(res))
+	}
+	res, err = m.GetOrdersActive(&order.Filter{Side: order.Buy})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 0 {
+		t.Errorf("TestGetOrdersActive - Expected 0 results, got: %d", len(res))
+	}
+}
+
+func Test_processMatchingOrders(t *testing.T) {
+	m := OrdersSetup(t)
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orders := []order.Detail{
+		{
+			Exchange:    testExchange,
+			ID:          "Test1",
+			LastUpdated: time.Now(),
+		},
+		{
+			Exchange:    testExchange,
+			ID:          "Test2",
+			LastUpdated: time.Now(),
+		},
+		{
+			Exchange:    testExchange,
+			ID:          "Test3",
+			LastUpdated: time.Now().Add(-time.Hour),
+		},
+		{
+			Exchange:    testExchange,
+			ID:          "Test4",
+			LastUpdated: time.Now().Add(-time.Hour),
+		},
+	}
+	requiresProcessing := make(map[string]bool, len(orders))
+	for i := range orders {
+		orders[i].GenerateInternalOrderID()
+		if i%2 == 0 {
+			requiresProcessing[orders[i].InternalOrderID] = false
+		} else {
+			requiresProcessing[orders[i].InternalOrderID] = true
+		}
+	}
+	m.processMatchingOrders(exch, orders, requiresProcessing)
+	res, err := m.GetOrdersFiltered(&order.Filter{Exchange: testExchange})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected 1 result, got: %d", len(res))
+	}
+	if res[0].ID != "Test4" {
+		t.Error("Order Test4 should have been fetched and updated")
+	}
+
+}
+
+func TestFetchAndUpdateExchangeOrder(t *testing.T) {
+	m := OrdersSetup(t)
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = m.FetchAndUpdateExchangeOrder(exch, nil, asset.Spot)
+	if err == nil {
+		t.Error("Error expected when order is nil")
+	}
+	o := &order.Detail{
+		Exchange: testExchange,
+		Amount:   1.0,
+		Side:     order.Sell,
+		Status:   order.Active,
+		ID:       "Test",
+	}
+	err = m.FetchAndUpdateExchangeOrder(exch, o, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if o.Status != order.Active {
+		t.Error("Order should be active")
+	}
+	res, err := m.GetOrdersFiltered(&order.Filter{Exchange: testExchange})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected 1 result, got: %d", len(res))
+	}
+
+	o.Status = order.PartiallyCancelled
+	err = m.FetchAndUpdateExchangeOrder(exch, o, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	res, err = m.GetOrdersFiltered(&order.Filter{Exchange: testExchange})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected 1 result, got: %d", len(res))
+	}
+}
+
+func Test_getActiveOrders(t *testing.T) {
+	m := OrdersSetup(t)
+	var err error
+	orders := []order.Detail{
+		{
+			Exchange: testExchange,
+			Amount:   1.0,
+			Side:     order.Buy,
+			Status:   order.Cancelled,
+			ID:       "Test1",
+		},
+		{
+			Exchange: testExchange,
+			Amount:   1.0,
+			Side:     order.Sell,
+			Status:   order.Active,
+			ID:       "Test2",
+		},
+	}
+	for i := range orders {
+		if err = m.orderStore.add(&orders[i]); err != nil {
+			t.Error(err)
+		}
+	}
+	res, err := m.orderStore.getActiveOrders(nil)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Test_getActiveOrders - Expected 1 result, got: %d", len(res))
+	}
+	res, err = m.orderStore.getActiveOrders(&order.Filter{Side: order.Sell})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Test_getActiveOrders - Expected 1 result, got: %d", len(res))
+	}
+	res, err = m.orderStore.getActiveOrders(&order.Filter{Side: order.Buy})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 0 {
+		t.Errorf("Test_getActiveOrders - Expected 0 results, got: %d", len(res))
+	}
+}
