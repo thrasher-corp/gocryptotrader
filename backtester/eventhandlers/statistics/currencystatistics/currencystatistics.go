@@ -55,6 +55,7 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 	var allDataEvents []common.DataEventHandler
 	for i := range c.Events {
 		returnPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
+		log.Debugf(log.BackTester, "RETURN PER CANDLE %v", returnPerCandle[i])
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 		if i == 0 {
 			continue

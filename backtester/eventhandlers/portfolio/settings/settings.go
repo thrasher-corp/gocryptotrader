@@ -8,32 +8,32 @@ import (
 )
 
 // GetLatestHoldings returns the latest holdings after being sorted by time
-func (e *Settings) GetLatestHoldings() *holdings.Holding {
+func (e *Settings) GetLatestHoldings() holdings.Holding {
 	if len(e.HoldingsSnapshots) == 0 {
-		return nil
+		return holdings.Holding{}
 	}
 
-	return e.HoldingsSnapshots[len(e.HoldingsSnapshots)-1]
+	return *e.HoldingsSnapshots[len(e.HoldingsSnapshots)-1]
 }
 
 // GetHoldingsForTime returns the holdings for a time period, or an empty holding if not found
-func (e *Settings) GetHoldingsForTime(t time.Time) *holdings.Holding {
+func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 	if e.HoldingsSnapshots == nil {
 		// no holdings yet
-		return nil
+		return holdings.Holding{}
 	}
 	for i := len(e.HoldingsSnapshots) - 1; i >= 0; i-- {
 		if e.HoldingsSnapshots[i].Timestamp.Equal(t) {
-			return e.HoldingsSnapshots[i]
+			return *e.HoldingsSnapshots[i]
 		}
 	}
-	return nil
+	return holdings.Holding{}
 }
 
 // Value returns the total value of the latest holdings
 func (e *Settings) Value() decimal.Decimal {
 	latest := e.GetLatestHoldings()
-	if latest == nil {
+	if latest.Timestamp.IsZero() {
 		return decimal.Zero
 	}
 	return latest.TotalValue

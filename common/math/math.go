@@ -306,7 +306,10 @@ func DecimalPopulationStandardDeviation(values []decimal.Decimal) (decimal.Decim
 	}
 	diffs := make([]decimal.Decimal, len(values))
 	for x := range values {
-		diffs[x] = values[x].Sub(valAvg).Pow(decimal.NewFromInt(2))
+		val := values[x].Sub(valAvg)
+		exp := decimal.NewFromInt(2)
+		pow := DecimalPow(val, exp)
+		diffs[x] = pow
 	}
 	var diffAvg decimal.Decimal
 	diffAvg, err = DecimalArithmeticMean(diffs)

@@ -8,14 +8,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func Create(ev common.EventHandler, funding funding.IPairReader, riskFreeRate decimal.Decimal) (*Holding, error) {
+func Create(ev common.EventHandler, funding funding.IPairReader, riskFreeRate decimal.Decimal) (Holding, error) {
 	if ev == nil {
-		return nil, common.ErrNilEvent
+		return Holding{}, common.ErrNilEvent
 	}
 	if funding.QuoteInitialFunds().LessThan(decimal.Zero) {
-		return nil, ErrInitialFundsZero
+		return Holding{}, ErrInitialFundsZero
 	}
-	holding := &Holding{
+	holding := Holding{
 		Offset:            ev.GetOffset(),
 		Pair:              ev.Pair(),
 		Asset:             ev.GetAssetType(),

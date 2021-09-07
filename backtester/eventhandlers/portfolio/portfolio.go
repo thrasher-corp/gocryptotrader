@@ -205,11 +205,11 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fi
 
 	// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
 	h := lookup.GetHoldingsForTime(ev.GetTime().Add(-ev.GetInterval().Duration()))
-	if h != nil {
+	if !h.Timestamp.IsZero() {
 		h.Update(ev, funding)
 	} else {
 		h = lookup.GetLatestHoldings()
-		if h == nil {
+		if h.Timestamp.IsZero() {
 			h, err = holdings.Create(ev, funding, p.riskFreeRate)
 			if err != nil {
 				return nil, err
@@ -218,9 +218,9 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fi
 			h.Update(ev, funding)
 		}
 	}
-	err = p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), h, true)
+	err = p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), &h, true)
 	if errors.Is(err, errNoHoldings) {
-		err = p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), h, false)
+		err = p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), &h, false)
 	}
 	if err != nil {
 		log.Error(log.BackTester, err)
@@ -317,7 +317,7 @@ func (p *Portfolio) UpdateHoldings(ev common.DataEventHandler, funds funding.IPa
 			ev.Pair())
 	}
 	h := lookup.GetLatestHoldings()
-	if h == nil {
+	if h.Timestamp.IsZero() {
 		var err error
 		h, err = holdings.Create(ev, funds, p.riskFreeRate)
 		if err != nil {
@@ -325,9 +325,9 @@ func (p *Portfolio) UpdateHoldings(ev common.DataEventHandler, funds funding.IPa
 		}
 	}
 	h.UpdateValue(ev)
-	err := p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), h, true)
+	err := p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), &h, true)
 	if errors.Is(err, errNoHoldings) {
-		err = p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), h, false)
+		err = p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), &h, false)
 	}
 	return err
 }
@@ -340,8 +340,8 @@ func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 		for _, y := range x {
 			for _, z := range y {
 				holds := z.GetLatestHoldings()
-				if holds != nil {
-					resp = append(resp, *holds)
+				if !holds.Timestamp.IsZero() {
+					resp = append(resp, holds)
 				}
 			}
 		}
