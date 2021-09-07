@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -791,10 +790,4 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ep exchange.URL, method, pa
 			HTTPRecording: l.HTTPRecording,
 		}, nil
 	})
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (l *LocalBitcoins) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	// No fees will be used
-	return 0, nil
 }

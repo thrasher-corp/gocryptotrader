@@ -130,6 +130,14 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = l.Fees.LoadStatic(fee.Options{
+		Maker: 0.002,
+		Taker: 0.002,
+	})
+	if err != nil {
+		return err
+	}
+
 	if l.API.AuthenticatedSupport {
 		err = l.loadPrivKey()
 		if err != nil {
@@ -596,12 +604,10 @@ func (l *Lbank) GetOrderInfo(orderID string, pair currency.Pair, assetType asset
 			resp.Amount = tempResp.Orders[0].Amount
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
-			resp.Fee, err = l.GetFeeByType(&fee.Builder{
-				Type:          fee.Trade,
-				Amount:        tempResp.Orders[0].Amount,
-				PurchasePrice: tempResp.Orders[0].Price})
+			// TODO: Verify value
+			resp.Fee, err = l.Fees.GetTakerTotal(tempResp.Orders[0].Price, tempResp.Orders[0].Amount)
 			if err != nil {
-				resp.Fee = lbankFeeNotFound
+				return resp, err
 			}
 		}
 	}
@@ -692,12 +698,10 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			resp.Date = time.Unix(tempResp.Orders[0].CreateTime, 0)
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
-			resp.Fee, err = l.GetFeeByType(&fee.Builder{
-				Type:          fee.Trade,
-				Amount:        tempResp.Orders[0].Amount,
-				PurchasePrice: tempResp.Orders[0].Price})
+			// TODO: verify value
+			resp.Fee, err = l.Fees.GetTakerTotal(tempResp.Orders[0].Price, tempResp.Orders[0].Amount)
 			if err != nil {
-				resp.Fee = lbankFeeNotFound
+				return nil, err
 			}
 			for y := int(0); y < len(getOrdersRequest.Pairs); y++ {
 				if getOrdersRequest.Pairs[y].String() != key {
@@ -784,10 +788,8 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 				resp.Date = time.Unix(tempResp.Orders[x].CreateTime, 0)
 				resp.ExecutedAmount = tempResp.Orders[x].DealAmount
 				resp.RemainingAmount = tempResp.Orders[x].Price - tempResp.Orders[x].DealAmount
-				resp.Fee, err = l.GetFeeByType(&fee.Builder{
-					Type:          fee.Trade,
-					Amount:        tempResp.Orders[x].Amount,
-					PurchasePrice: tempResp.Orders[x].Price})
+				// TODO: Verify this value
+				resp.Fee, err = l.Fees.GetTakerTotal(tempResp.Orders[x].Price, tempResp.Orders[x].Amount)
 				if err != nil {
 					resp.Fee = lbankFeeNotFound
 				}
@@ -797,33 +799,6 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 		}
 	}
 	return finalResp, nil
-}
-
-// GetFeeByType returns an estimate of fee based on the type of transaction *
-func (l *Lbank) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	var resp float64
-	if feeBuilder.Type == fee.Trade {
-		return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.002, nil
-	}
-	if feeBuilder.Type == fee.Withdrawal {
-		withdrawalFee, err := l.GetWithdrawConfig(feeBuilder.Pair.Base.Lower().String())
-		if err != nil {
-			return resp, err
-		}
-		for i := range withdrawalFee {
-			if !strings.EqualFold(withdrawalFee[i].AssetCode, feeBuilder.Pair.Base.String()) {
-				continue
-			}
-			if withdrawalFee[i].Fee == "" {
-				return 0, nil
-			}
-			resp, err = strconv.ParseFloat(withdrawalFee[i].Fee, 64)
-			if err != nil {
-				return resp, err
-			}
-		}
-	}
-	return resp, nil
 }
 
 // GetAllOpenOrderID returns all open orders by currency pairs
@@ -989,4 +964,14 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// UpdateFees updates current fees associated with account
+func (l *Lbank) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	// TODO: Integrate getwithdrawalfees
+	// fee, err := l.GetWithdrawConfig()
+	return common.ErrNotYetImplemented
 }

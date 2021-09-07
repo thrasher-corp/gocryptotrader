@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -658,47 +657,6 @@ func (o *OKGroup) SetCheckVarDefaults() {
 	o.Types = []string{"1min", "3min", "5min", "15min", "30min", "1day", "3day",
 		"1week", "1hour", "2hour", "4hour", "6hour", "12hour"}
 	o.ContractPosition = []string{"1", "2", "3", "4"}
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (o *OKGroup) GetFee(feeBuilder *fee.Builder) (f float64, _ error) {
-	switch feeBuilder.Type {
-	case fee.Trade:
-		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
-	case fee.Withdrawal:
-		withdrawFees, err := o.GetAccountWithdrawalFee(feeBuilder.FiatCurrency.String())
-		if err != nil {
-			return -1, err
-		}
-		for _, withdrawFee := range withdrawFees {
-			if withdrawFee.Currency == feeBuilder.FiatCurrency.String() {
-				f = withdrawFee.MinFee
-				break
-			}
-		}
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if f < 0 {
-		f = 0
-	}
-
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.0015 * price * amount
-}
-
-func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float64) {
-	// TODO volume based fees
-	if isMaker {
-		fee = 0.0005
-	} else {
-		fee = 0.0015
-	}
-	return fee * amount * purchasePrice
 }
 
 // SetErrorDefaults sets the full error default list

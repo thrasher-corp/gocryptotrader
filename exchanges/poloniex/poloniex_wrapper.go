@@ -158,6 +158,15 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = p.Fees.LoadStatic(fee.Options{
+		Maker:    0.002,
+		Taker:    0.002,
+		Transfer: WithdrawalFees,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsRunningURL, err := p.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -730,15 +739,6 @@ func (p *Poloniex) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*w
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (p *Poloniex) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if (!p.AllowAuthenticatedRequest() || p.SkipAuthCheck) && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return p.GetFee(feeBuilder)
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
@@ -904,4 +904,16 @@ func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (p *Poloniex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return p.GetHistoricCandles(pair, a, start, end, interval)
+}
+
+// UpdateFees updates current fees associated with account
+func (p *Poloniex) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	fee, err := p.GetFeeInfo()
+	if err != nil {
+		return err
+	}
+	return p.Fees.LoadDynamic(fee.MakerFee, fee.TakerFee)
 }

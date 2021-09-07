@@ -16,7 +16,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -502,15 +501,6 @@ func (l *LocalBitcoins) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.Exchan
 // withdrawal is submitted
 func (l *LocalBitcoins) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
-}
-
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (l *LocalBitcoins) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if (!l.AllowAuthenticatedRequest() || l.SkipAuthCheck) && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return l.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open

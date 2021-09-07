@@ -177,7 +177,6 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = f.Fees.LoadStatic(fee.Options{
-		Ratio: true,
 		Maker: 0.0002,
 		Taker: 0.0007,
 	})
@@ -1057,11 +1056,6 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 		}
 	}
 	return resp, nil
-}
-
-// GetFeeByType returns an estimate of fee based on the type of transaction
-func (f *FTX) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	return f.GetFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe

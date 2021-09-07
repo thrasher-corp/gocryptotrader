@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -366,38 +365,6 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ep exchange.URL, httpMethod string, pa
 	}
 
 	return json.Unmarshal(intermediary, result)
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (z *ZB) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-	switch feeBuilder.Type {
-	case fee.Trade:
-		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	case fee.Withdrawal:
-		f = getWithdrawalFee(feeBuilder.Pair.Base)
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if f < 0 {
-		f = 0
-	}
-
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.002 * price * amount
-}
-
-func calculateTradingFee(purchasePrice, amount float64) (fee float64) {
-	fee = 0.002
-	return fee * amount * purchasePrice
-}
-
-func getWithdrawalFee(c currency.Code) float64 {
-	return WithdrawalFees[c]
 }
 
 var errorCode = map[int64]string{

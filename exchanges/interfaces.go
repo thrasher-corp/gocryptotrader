@@ -46,7 +46,6 @@ type IBotExchange interface {
 	GetHistoricTrades(p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error)
 	SupportsAutoPairUpdates() bool
 	SupportsRESTTickerBatchUpdates() bool
-	GetFeeByType(f *fee.Builder) (float64, error)
 	GetLastPairsUpdateTime() int64
 	GetWithdrawPermissions() uint32
 	FormatWithdrawPermissions() string
@@ -96,4 +95,5 @@ type IBotExchange interface {
 	SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, ratio bool) error
 	SetGlobalFee(maker, taker float64, ratio bool) error
 	SetFeeCustom(on bool) error
+	GetOfflineFees() (fee.Global, error)
 }

@@ -158,6 +158,15 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = z.Fees.LoadStatic(fee.Options{
+		Maker:    0.002,
+		Taker:    0.002,
+		Transfer: WithdrawalFees,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsRunningURL, err := z.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -662,15 +671,6 @@ func (z *ZB) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse,
 // withdrawal is submitted
 func (z *ZB) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
-}
-
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (z *ZB) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if (!z.AllowAuthenticatedRequest() || z.SkipAuthCheck) && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return z.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open

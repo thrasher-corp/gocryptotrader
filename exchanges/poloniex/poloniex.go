@@ -12,9 +12,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -888,48 +886,4 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 			HTTPRecording: p.HTTPRecording,
 		}, nil
 	})
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (p *Poloniex) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-	switch feeBuilder.Type {
-	case fee.Trade:
-		feeInfo, err := p.GetFeeInfo()
-		if err != nil {
-			return 0, err
-		}
-		f = calculateTradingFee(feeInfo,
-			feeBuilder.PurchasePrice,
-			feeBuilder.Amount,
-			feeBuilder.IsMaker)
-
-	case fee.Withdrawal:
-		f = getWithdrawalFee(feeBuilder.Pair.Base)
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if f < 0 {
-		f = 0
-	}
-
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.002 * price * amount
-}
-
-func calculateTradingFee(feeInfo Fee, purchasePrice, amount float64, isMaker bool) (fee float64) {
-	if isMaker {
-		fee = feeInfo.MakerFee
-	} else {
-		fee = feeInfo.TakerFee
-	}
-	return fee * amount * purchasePrice
-}
-
-func getWithdrawalFee(c currency.Code) float64 {
-	return WithdrawalFees[c]
 }

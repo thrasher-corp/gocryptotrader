@@ -40,6 +40,14 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = o.Fees.LoadStatic(fee.Options{
+		Maker: 0.0005,
+		Taker: 0.0015,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsEndpoint, err := o.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -556,15 +564,6 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 	return resp, err
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (o *OKGroup) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !o.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return o.GetFee(feeBuilder)
-}
-
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 	return o.GetWithdrawPermissions()
@@ -743,4 +742,18 @@ func (o *OKGroup) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// UpdateFees updates current fees associated with account
+func (o *OKGroup) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	resp, err := o.GetAccountWithdrawalFee("")
+	if err != nil {
+		return err
+	}
+	// TODO: integrate
+	fmt.Println(resp)
+	return common.ErrNotYetImplemented
 }

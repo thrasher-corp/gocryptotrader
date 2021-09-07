@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1680,87 +1679,6 @@ func TestOrderBookPartialChecksumCalculator(t *testing.T) {
 	calculatedChecksum := o.CalculatePartialOrderbookChecksum(&dataResponse)
 	if calculatedChecksum != dataResponse.Checksum {
 		t.Errorf("Expected %v, received %v", dataResponse.Checksum, calculatedChecksum)
-	}
-}
-
-// Function tests ----------------------------------------------------------------------------------------------
-func setFeeBuilder() *fee.Builder {
-	return &fee.Builder{
-		Amount: 1,
-		Type:   fee.Trade,
-		Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
-			currency.BTC.String(),
-			"-"),
-		PurchasePrice:       1,
-		FiatCurrency:        currency.USD,
-		BankTransactionType: exchange.WireTransfer,
-	}
-}
-
-// TestGetFeeByTypeOfflineTradeFee logic test
-func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
-	var feeBuilder = setFeeBuilder()
-	_, err := o.GetFeeByType(feeBuilder)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !areTestAPIKeysSet() {
-		if feeBuilder.Type != fee.OfflineTrade {
-			t.Errorf("Expected %v, received %v", fee.OfflineTrade, feeBuilder.Type)
-		}
-	} else {
-		if feeBuilder.Type != fee.Trade {
-			t.Errorf("Expected %v, received %v", fee.Trade, feeBuilder.Type)
-		}
-	}
-}
-
-func TestGetFee(t *testing.T) {
-	t.Parallel()
-	var feeBuilder = setFeeBuilder()
-	// CryptocurrencyTradeFee Basic
-	if _, err := o.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	// CryptocurrencyTradeFee High quantity
-	feeBuilder = setFeeBuilder()
-	feeBuilder.Amount = 1000
-	feeBuilder.PurchasePrice = 1000
-	if _, err := o.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	// CryptocurrencyTradeFee IsMaker
-	feeBuilder = setFeeBuilder()
-	feeBuilder.IsMaker = true
-	if _, err := o.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-	// CryptocurrencyTradeFee Negative purchase price
-	feeBuilder = setFeeBuilder()
-	feeBuilder.PurchasePrice = -1000
-	if _, err := o.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-	// CryptocurrencyDepositFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.Type = fee.Deposit
-	if _, err := o.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-	// InternationalBankDepositFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.Type = fee.InternationalBankDeposit
-	if _, err := o.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-	// InternationalBankWithdrawalFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.Type = fee.InternationalBankWithdrawal
-	feeBuilder.FiatCurrency = currency.USD
-	if _, err := o.GetFee(feeBuilder); err != nil {
-		t.Error(err)
 	}
 }
 

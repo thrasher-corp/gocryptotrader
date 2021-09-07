@@ -9,6 +9,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+var identity = decimal.NewFromInt(1)
+
 func TestGetManager(t *testing.T) {
 	t.Parallel()
 	if GetManager() == nil {
@@ -76,7 +78,7 @@ func TestLoadStatic(t *testing.T) {
 
 func TestGetMakerTotal(t *testing.T) {
 	t.Parallel()
-	d := &Definitions{online: Global{maker: identity}}
+	d := &Definitions{online: Global{Maker: identity}}
 	_, err := d.GetMakerTotal(0, 0)
 	if !errors.Is(err, errPriceIsZero) {
 		t.Fatalf("received: %v but expected: %v", err, errPriceIsZero)
@@ -92,7 +94,7 @@ func TestGetMakerTotal(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errNotRatio)
 	}
 
-	d = &Definitions{online: Global{maker: decimal.Zero, ratio: true}}
+	d = &Definitions{online: Global{Maker: decimal.Zero}}
 
 	val, err := d.GetMakerTotal(50000, 1)
 	if !errors.Is(err, nil) {
@@ -103,7 +105,7 @@ func TestGetMakerTotal(t *testing.T) {
 		t.Fatalf("received: %v but expected %v", val, 0)
 	}
 
-	d = &Definitions{online: Global{maker: decimal.NewFromFloat(0.01), ratio: true}}
+	d = &Definitions{online: Global{Maker: decimal.NewFromFloat(0.01)}}
 	val, err = d.GetMakerTotal(50000, 1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
@@ -115,7 +117,7 @@ func TestGetMakerTotal(t *testing.T) {
 }
 
 func TestGetMaker(t *testing.T) {
-	fee, ratio := (&Definitions{online: Global{maker: identity, ratio: true}}).GetMaker()
+	fee, ratio := (&Definitions{online: Global{Maker: identity}}).GetMaker()
 	if !ratio {
 		t.Fatal("unexpected, should be ratio")
 	}
@@ -126,7 +128,7 @@ func TestGetMaker(t *testing.T) {
 
 func TestGetTakerTotal(t *testing.T) {
 	t.Parallel()
-	d := &Definitions{online: Global{taker: identity}}
+	d := &Definitions{online: Global{Taker: identity}}
 	_, err := d.GetTakerTotal(0, 0)
 	if !errors.Is(err, errPriceIsZero) {
 		t.Fatalf("received: %v but expected: %v", err, errPriceIsZero)
@@ -142,7 +144,7 @@ func TestGetTakerTotal(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errNotRatio)
 	}
 
-	d = &Definitions{online: Global{taker: decimal.Zero, ratio: true}}
+	d = &Definitions{online: Global{Taker: decimal.Zero}}
 	val, err := d.GetTakerTotal(50000, 1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
@@ -152,7 +154,7 @@ func TestGetTakerTotal(t *testing.T) {
 		t.Fatalf("received: %v but expected %v", val, 0)
 	}
 
-	d = &Definitions{online: Global{taker: decimal.NewFromFloat(0.01), ratio: true}}
+	d = &Definitions{online: Global{Taker: decimal.NewFromFloat(0.01)}}
 	val, err = d.GetTakerTotal(50000, 1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
@@ -164,7 +166,7 @@ func TestGetTakerTotal(t *testing.T) {
 }
 
 func TestGetTaker(t *testing.T) {
-	fee, ratio := (&Definitions{online: Global{taker: identity, ratio: true}}).GetTaker()
+	fee, ratio := (&Definitions{online: Global{Taker: identity}}).GetTaker()
 	if !ratio {
 		t.Fatal("unexpected, should be ratio")
 	}
@@ -189,9 +191,9 @@ func TestGetDeposit(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errTransferFeeNotFound)
 	}
 
-	d := &Definitions{transfer: map[*currency.Item]map[asset.Item]*transfer{
-		currency.BTC.Item: {
-			asset.Spot: &transfer{Ratio: true, Deposit: identity},
+	d := &Definitions{transfer: map[asset.Item]map[*currency.Item]*transfer{
+		asset.Spot: {
+			currency.BTC.Item: &transfer{Deposit: identity},
 		},
 	}}
 
@@ -225,9 +227,9 @@ func TestGetWithdrawal(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errTransferFeeNotFound)
 	}
 
-	d := &Definitions{transfer: map[*currency.Item]map[asset.Item]*transfer{
-		currency.BTC.Item: {
-			asset.Spot: &transfer{Ratio: true, Withdrawal: identity},
+	d := &Definitions{transfer: map[asset.Item]map[*currency.Item]*transfer{
+		asset.Spot: {
+			currency.BTC.Item: &transfer{Withdrawal: identity},
 		},
 	}}
 

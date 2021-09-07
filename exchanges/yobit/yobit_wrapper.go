@@ -115,7 +115,17 @@ func (y *Yobit) Setup(exch *config.ExchangeConfig) error {
 		y.SetEnabled(false)
 		return nil
 	}
-	return y.SetupDefaults(exch)
+	err := y.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	return y.Fees.LoadStatic(fee.Options{
+		Maker:           0.002,
+		Taker:           0.002,
+		Transfer:        withdrawalFees,
+		BankingTransfer: internationBank,
+	})
 }
 
 // Start starts the WEX go routine
@@ -532,15 +542,6 @@ func (y *Yobit) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeRespon
 // withdrawal is submitted
 func (y *Yobit) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
-}
-
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (y *Yobit) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !y.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return y.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open

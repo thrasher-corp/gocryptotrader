@@ -1345,3 +1345,9 @@ func (b *Base) SetGlobalFee(maker, taker float64, ratio bool) error {
 func (b *Base) SetFeeCustom(on bool) error {
 	return b.Fees.SetCustom(on)
 }
+
+// GetOfflineFees returns the offline/worst case scenario fees for a given
+// exchange
+func (b *Base) GetOfflineFees() (fee.Global, error) {
+	return b.Fees.GetOfflineFees()
+}

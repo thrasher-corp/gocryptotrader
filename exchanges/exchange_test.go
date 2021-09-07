@@ -2432,3 +2432,10 @@ func TestSetFeeCustom(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
 }
+
+func TestGetOfflineFees(t *testing.T) {
+	_, err := (&Base{}).GetOfflineFees()
+	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
+	}
+}
