@@ -93,11 +93,11 @@ func TestOnSignal(t *testing.T) {
 		Candles: []gctkline.Candle{
 			{
 				Time:   dInsert,
-				Open:   decimal.NewFromInt(1337),
-				High:   decimal.NewFromInt(1337),
-				Low:    decimal.NewFromInt(1337),
-				Close:  decimal.NewFromInt(1337),
-				Volume: decimal.NewFromInt(1337),
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
 			},
 		},
 	}
@@ -175,11 +175,11 @@ func TestOnSignals(t *testing.T) {
 		Candles: []gctkline.Candle{
 			{
 				Time:   dInsert,
-				Open:   decimal.NewFromInt(1337),
-				High:   decimal.NewFromInt(1337),
-				Low:    decimal.NewFromInt(1337),
-				Close:  decimal.NewFromInt(1337),
-				Volume: decimal.NewFromInt(1337),
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
 			},
 		},
 	}

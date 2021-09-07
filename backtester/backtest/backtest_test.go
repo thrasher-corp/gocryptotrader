@@ -516,15 +516,19 @@ func TestFullCycle(t *testing.T) {
 	}
 	bot := newBotWithExchange()
 	f := &funding.FundManager{}
-	base, err := f.SetupItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
+	base, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
-	quote, err := f.SetupItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
-	err = f.CreatePair(base, quote)
+	pair, err := funding.CreatePair(base, quote)
+	if err != nil {
+		t.Error(err)
+	}
+	err = f.AddPair(pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -619,15 +623,19 @@ func TestFullCycleMulti(t *testing.T) {
 	}
 	bot := newBotWithExchange()
 	f := &funding.FundManager{}
-	base, err := f.SetupItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
+	base, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
-	quote, err := f.SetupItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
-	err = f.CreatePair(base, quote)
+	pair, err := funding.CreatePair(base, quote)
+	if err != nil {
+		t.Error(err)
+	}
+	err = f.AddPair(pair)
 	if err != nil {
 		t.Error(err)
 	}

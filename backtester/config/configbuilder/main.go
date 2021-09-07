@@ -554,11 +554,12 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 
 	fmt.Println("Enter the currency quote. eg USDT")
 	setting.Quote = quickParse(reader)
+	var f float64
 
 	fmt.Println("Enter the initial funds. eg 10000")
 	parseNum := quickParse(reader)
 	if parseNum != "" {
-		f, err := strconv.ParseFloat(parseNum, 64)
+		f, err = strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return nil, err
 		}
@@ -568,7 +569,7 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	fmt.Println("Enter the maker-fee. eg 0.001")
 	parseNum = quickParse(reader)
 	if parseNum != "" {
-		f, err := strconv.ParseFloat(parseNum, 64)
+		f, err = strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return nil, err
 		}
@@ -577,7 +578,7 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	fmt.Println("Enter the taker-fee. eg 0.01")
 	parseNum = quickParse(reader)
 	if parseNum != "" {
-		f, err := strconv.ParseFloat(parseNum, 64)
+		f, err = strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return nil, err
 		}
@@ -613,7 +614,7 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 		fmt.Println("If the upper bound is 100, then the price can be unaffected. A minimum of 80 and a maximum of 100 means that the price will randomly be set between those bounds as a way of emulating slippage")
 
 		fmt.Println("What is the lower bounds of slippage? eg 80")
-		f, err := strconv.ParseFloat(quickParse(reader), 64)
+		f, err = strconv.ParseFloat(quickParse(reader), 64)
 		if err != nil {
 			return nil, err
 		}

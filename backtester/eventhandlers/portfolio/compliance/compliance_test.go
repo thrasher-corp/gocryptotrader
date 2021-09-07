@@ -48,7 +48,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	if len(snappySnap.Orders) == 0 {
 		t.Fatal("expected an order")
 	}
-	if snappySnap.Orders[0].ClosePrice != decimal.NewFromInt(1337) {
+	if !snappySnap.Orders[0].ClosePrice.Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
 	if !snappySnap.Timestamp.Equal(tt) {

@@ -204,7 +204,6 @@ func (p *Pair) BaseInitialFunds() decimal.Decimal {
 // from the quote in a currency pair
 func (p *Pair) QuoteInitialFunds() decimal.Decimal {
 	return p.Quote.initialFunds
-
 }
 
 // BaseAvailable returns the available funds

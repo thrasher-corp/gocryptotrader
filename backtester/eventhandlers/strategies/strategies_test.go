@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetStrategies(t *testing.T) {
+	t.Parallel()
 	resp := GetStrategies()
 	if len(resp) < 2 {
 		t.Error("expected at least 2 strategies to be loaded")
@@ -17,6 +18,7 @@ func TestGetStrategies(t *testing.T) {
 }
 
 func TestLoadStrategyByName(t *testing.T) {
+	t.Parallel()
 	var resp Handler
 	_, err := LoadStrategyByName("test", false)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
@@ -38,7 +40,7 @@ func TestLoadStrategyByName(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !resp.UseSimultaneousProcessing() {
+	if !resp.UsingSimultaneousProcessing() {
 		t.Error("expected true")
 	}
 
@@ -50,7 +52,7 @@ func TestLoadStrategyByName(t *testing.T) {
 		t.Error("expected rsi")
 	}
 	_, err = LoadStrategyByName(rsi.Name, true)
-	if !errors.Is(err, base.ErrSimultaneousProcessingNotSupported) {
-		t.Errorf("expected: %v, received %v", base.ErrSimultaneousProcessingNotSupported, err)
+	if !errors.Is(err, nil) {
+		t.Errorf("expected: %v, received %v", nil, err)
 	}
 }

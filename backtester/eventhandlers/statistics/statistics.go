@@ -173,12 +173,12 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 				var f funding.IPairReader
 				last := stats.Events[len(stats.Events)-1]
 				var event common.EventHandler
-				if last.FillEvent != nil {
+				switch {
+				case last.FillEvent != nil:
 					event = last.FillEvent
-				} else if last.SignalEvent != nil {
+				case last.SignalEvent != nil:
 					event = last.SignalEvent
-
-				} else if last.DataEvent != nil {
+				default:
 					event = last.DataEvent
 				}
 				f, err = funds.GetFundingForEvent(event)

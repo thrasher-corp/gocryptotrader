@@ -10,6 +10,7 @@ import (
 )
 
 func TestIsOrder(t *testing.T) {
+	t.Parallel()
 	o := Order{}
 	if !o.IsOrder() {
 		t.Error("expected true")
@@ -17,6 +18,7 @@ func TestIsOrder(t *testing.T) {
 }
 
 func TestSetDirection(t *testing.T) {
+	t.Parallel()
 	o := Order{
 		Direction: gctorder.Sell,
 	}
@@ -27,16 +29,18 @@ func TestSetDirection(t *testing.T) {
 }
 
 func TestSetAmount(t *testing.T) {
+	t.Parallel()
 	o := Order{
-		Amount: 1,
+		Amount: decimal.NewFromInt(1),
 	}
-	o.SetAmount(decimal.NewFromInt(1337)
-	if o.GetAmount() != decimal.NewFromInt(1337) {
+	o.SetAmount(decimal.NewFromInt(1337))
+	if !o.GetAmount().Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 
 func TestPair(t *testing.T) {
+	t.Parallel()
 	o := Order{
 		Base: event.Base{
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
@@ -49,6 +53,7 @@ func TestPair(t *testing.T) {
 }
 
 func TestSetID(t *testing.T) {
+	t.Parallel()
 	o := Order{
 		ID: "decimal.NewFromInt(1337)",
 	}
@@ -59,21 +64,23 @@ func TestSetID(t *testing.T) {
 }
 
 func TestLeverage(t *testing.T) {
+	t.Parallel()
 	o := Order{
-		Leverage: 1,
+		Leverage: decimal.NewFromInt(1),
 	}
-	o.SetLeverage(decimal.NewFromInt(1337)
-	if o.GetLeverage() != decimal.NewFromInt(1337) || !o.IsLeveraged() {
+	o.SetLeverage(decimal.NewFromInt(1337))
+	if !o.GetLeverage().Equal(decimal.NewFromInt(1337)) || !o.IsLeveraged() {
 		t.Error("expected leverage")
 	}
 }
 
 func TestGetFunds(t *testing.T) {
+	t.Parallel()
 	o := Order{
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 	funds := o.GetAllocatedFunds()
-	if funds != decimal.NewFromInt(1337) {
+	if !funds.Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }

@@ -90,10 +90,6 @@ type Item struct {
 	reserved     decimal.Decimal
 	transferFee  decimal.Decimal
 	pairedWith   *Item
-	// tracking
-	bought    decimal.Decimal
-	sold      decimal.Decimal
-	committed decimal.Decimal
 }
 
 // Pair holds two currencies that are associated with each other

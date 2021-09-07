@@ -154,11 +154,6 @@ func (c *Config) Validate() error {
 	if err != nil {
 		return err
 	}
-	//err = c.ValidateStrategy()
-	if err != nil {
-		return err
-	}
-
 	err = c.ValidateCurrencySettings()
 	if err != nil {
 		return err

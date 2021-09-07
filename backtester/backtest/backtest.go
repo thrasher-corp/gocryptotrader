@@ -110,20 +110,25 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	funds := funding.SetupFundingManager(useExchangeLevelFunding)
 	if !cfg.StrategySettings.SimultaneousSignalProcessing &&
 		useExchangeLevelFunding {
-		return nil, errors.New("Woah nelly!")
+		return nil, errors.New("woah nelly")
 	}
 	if useExchangeLevelFunding {
 		for i := range cfg.StrategySettings.ExchangeLevelFunding {
-			a, err := asset.New(cfg.StrategySettings.ExchangeLevelFunding[i].Asset)
+			var a asset.Item
+			a, err = asset.New(cfg.StrategySettings.ExchangeLevelFunding[i].Asset)
 			if err != nil {
 				return nil, err
 			}
 			cq := currency.NewCode(cfg.StrategySettings.ExchangeLevelFunding[i].Quote)
-			item, err := funding.CreateItem(cfg.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
+			var item *funding.Item
+			item, err = funding.CreateItem(cfg.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
 				a,
 				cq,
 				cfg.StrategySettings.ExchangeLevelFunding[i].InitialFunds,
 				cfg.StrategySettings.ExchangeLevelFunding[i].TransferFee)
+			if err != nil {
+				return nil, err
+			}
 			err = funds.AddItem(item)
 			if err != nil {
 				return nil, err
@@ -157,7 +162,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		b = currency.NewCode(cfg.CurrencySettings[i].Base)
 		q = currency.NewCode(cfg.CurrencySettings[i].Quote)
 		curr = currency.NewPair(b, q)
-		exch, err := bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
+		var exch gctexchange.IBotExchange
+		exch, err = bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		if err != nil {
 			return nil, err
 		}
@@ -201,13 +207,14 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				cfg.CurrencySettings[i].TakerFee)
 		}
 
+		var baseItem, quoteItem *funding.Item
 		if !useExchangeLevelFunding {
-			a, err := asset.New(cfg.CurrencySettings[i].Asset)
+			a, err = asset.New(cfg.CurrencySettings[i].Asset)
 			if err != nil {
 				return nil, err
 			}
 			cp := currency.NewPair(currency.NewCode(cfg.CurrencySettings[i].Base), currency.NewCode(cfg.CurrencySettings[i].Quote))
-			baseItem, err := funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
+			baseItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
 				cp.Base,
 				decimal.Zero,
@@ -215,7 +222,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			if err != nil {
 				return nil, err
 			}
-			quoteItem, err := funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
+			quoteItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
 				cp.Quote,
 				cfg.CurrencySettings[i].InitialFunds,
@@ -223,7 +230,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			if err != nil {
 				return nil, err
 			}
-			pair, err := funding.CreatePair(baseItem, quoteItem)
+			var pair *funding.Pair
+			pair, err = funding.CreatePair(baseItem, quoteItem)
 			if err != nil {
 				return nil, err
 			}
@@ -231,9 +239,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			if err != nil {
 				return nil, err
 			}
-
 		} else {
-			baseItem, err := funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
+			baseItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
 				b,
 				decimal.Zero,
@@ -241,7 +248,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			if err != nil {
 				return nil, err
 			}
-			quoteItem, err := funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
+			quoteItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
 				q,
 				decimal.Zero,
@@ -501,10 +508,8 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
 func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee decimal.Decimal) {
-	var err error
-	takerFee, err = exch.GetFeeByType(ctx,
-		&gctexchange.FeeBuilder{
-		FeeType:       gctexchange.OfflineTradeFee,
+	fTakerFee, err := exch.GetFeeByType(ctx,
+		&gctexchange.FeeBuilder{		FeeType:       gctexchange.OfflineTradeFee,
 		Pair:          fPair,
 		IsMaker:       false,
 		PurchasePrice: 1,
@@ -514,20 +519,19 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 		log.Errorf(log.BackTester, "Could not retrieve taker fee for %v. %v", exch.GetName(), err)
 	}
 
-
-	makerFee, err = exch.GetFeeByType(ctx,
+	fMakerFee, err := exch.GetFeeByType(ctx,
 		&gctexchange.FeeBuilder{
-			FeeType:       gctexchange.OfflineTradeFee,
-			Pair:          fPair,
-			IsMaker:       true,
-			PurchasePrice: 1,
-			Amount:        1,
-		})
+		FeeType:       gctexchange.OfflineTradeFee,
+		Pair:          fPair,
+		IsMaker:       true,
+		PurchasePrice: 1,
+		Amount:        1,
+	})
 	if err != nil {
 		log.Errorf(log.BackTester, "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
 	}
 
-	return decimal.NewFromFloat(makerFee), decimal.NewFromFloat(takerFee)
+	return decimal.NewFromFloat(fMakerFee), decimal.NewFromFloat(fTakerFee)
 }
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
@@ -949,8 +953,6 @@ func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IPairReser
 		return
 	}
 	var o *order.Order
-
-	//log.Debugf(log.BackTester, "%v %v, %v %v", funds.BaseAvailable().Round(8), funds.Base.Currency.String(), funds.QuoteAvailable().Round(8), funds.Quote.Currency.String())
 	o, err = bt.Portfolio.OnSignal(ev, &cs, funds)
 	if err != nil {
 		log.Error(log.BackTester, err)

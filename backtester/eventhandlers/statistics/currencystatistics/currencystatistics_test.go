@@ -39,6 +39,7 @@ func TestCalculateResults(t *testing.T) {
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
 			Timestamp:                 tt1,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
+			RiskFreeRate:              decimal.NewFromInt(1),
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{

@@ -32,6 +32,7 @@ var (
 )
 
 func TestReset(t *testing.T) {
+	t.Parallel()
 	s := Statistic{
 		TotalOrders: 1,
 	}
@@ -42,6 +43,7 @@ func TestReset(t *testing.T) {
 }
 
 func TestAddDataEventForTime(t *testing.T) {
+	t.Parallel()
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
@@ -77,6 +79,7 @@ func TestAddDataEventForTime(t *testing.T) {
 }
 
 func TestAddSignalEventForTime(t *testing.T) {
+	t.Parallel()
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
@@ -131,6 +134,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 }
 
 func TestAddExchangeEventForTime(t *testing.T) {
+	t.Parallel()
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
@@ -190,6 +194,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 }
 
 func TestAddFillEventForTime(t *testing.T) {
+	t.Parallel()
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
@@ -249,6 +254,7 @@ func TestAddFillEventForTime(t *testing.T) {
 }
 
 func TestAddHoldingsForTime(t *testing.T) {
+	t.Parallel()
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
@@ -293,7 +299,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 		SoldValue:                    eleet,
 		BoughtAmount:                 eleet,
 		BoughtValue:                  eleet,
-		RemainingFunds:               eleet,
+		QuoteSize:                    eleet,
 		TotalValueDifference:         eleet,
 		ChangeInTotalValuePercent:    eleet,
 		BoughtValueDifference:        eleet,
@@ -312,6 +318,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 }
 
 func TestAddComplianceSnapshotForTime(t *testing.T) {
+	t.Parallel()
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
@@ -367,6 +374,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 }
 
 func TestSerialise(t *testing.T) {
+	t.Parallel()
 	s := Statistic{}
 	_, err := s.Serialise()
 	if err != nil {
@@ -375,6 +383,7 @@ func TestSerialise(t *testing.T) {
 }
 
 func TestSetStrategyName(t *testing.T) {
+	t.Parallel()
 	s := Statistic{}
 	s.SetStrategyName("test")
 	if s.StrategyName != "test" {
@@ -383,7 +392,12 @@ func TestSetStrategyName(t *testing.T) {
 }
 
 func TestPrintTotalResults(t *testing.T) {
-	s := Statistic{}
+	t.Parallel()
+	s := Statistic{
+		Funding: &funding.Report{
+			Items: []funding.ReportItem{{}},
+		},
+	}
 	s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies([]FinalResultsHolder{
 		{
 			Exchange: "test",
@@ -412,6 +426,7 @@ func TestPrintTotalResults(t *testing.T) {
 }
 
 func TestGetBestStrategyPerformer(t *testing.T) {
+	t.Parallel()
 	s := Statistic{}
 	resp := s.GetBestStrategyPerformer(nil)
 	if resp.Exchange != "" {
@@ -443,6 +458,7 @@ func TestGetBestStrategyPerformer(t *testing.T) {
 }
 
 func TestGetTheBiggestDrawdownAcrossCurrencies(t *testing.T) {
+	t.Parallel()
 	s := Statistic{}
 	result := s.GetTheBiggestDrawdownAcrossCurrencies(nil)
 	if result.Exchange != "" {
@@ -469,6 +485,7 @@ func TestGetTheBiggestDrawdownAcrossCurrencies(t *testing.T) {
 }
 
 func TestGetBestMarketPerformer(t *testing.T) {
+	t.Parallel()
 	s := Statistic{}
 	result := s.GetBestMarketPerformer(nil)
 	if result.Exchange != "" {
@@ -491,6 +508,7 @@ func TestGetBestMarketPerformer(t *testing.T) {
 }
 
 func TestPrintAllEventsChronologically(t *testing.T) {
+	t.Parallel()
 	s := Statistic{}
 	s.PrintAllEventsChronologically()
 	tt := time.Now()
@@ -558,6 +576,7 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 }
 
 func TestCalculateTheResults(t *testing.T) {
+	t.Parallel()
 	s := Statistic{}
 	err := s.CalculateAllResults(&funding.FundManager{})
 	if err != nil {
@@ -724,28 +743,36 @@ func TestCalculateTheResults(t *testing.T) {
 	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.TotalValue = eleeet
 
 	funds := &funding.FundManager{}
-	pBase, err := funds.SetupItem(exch, a, p.Base, eleeet, decimal.Zero)
+	pBase, err := funding.CreateItem(exch, a, p.Base, eleeet, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	pQuote, err := funds.SetupItem(exch, a, p.Quote, eleeet, decimal.Zero)
+	pQuote, err := funding.CreateItem(exch, a, p.Quote, eleeet, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	err = funds.CreatePair(pBase, pQuote)
+	pair, err := funding.CreatePair(pBase, pQuote)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	pBase2, err := funds.SetupItem(exch, a, p2.Base, eleeet, decimal.Zero)
+	err = funds.AddPair(pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	pQuote2, err := funds.SetupItem(exch, a, p2.Quote, eleeet, decimal.Zero)
+	pBase2, err := funding.CreateItem(exch, a, p2.Base, eleeet, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	err = funds.CreatePair(pBase2, pQuote2)
+	pQuote2, err := funding.CreateItem(exch, a, p2.Quote, eleeet, decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	pair2, err := funding.CreatePair(pBase2, pQuote2)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = funds.AddPair(pair2)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

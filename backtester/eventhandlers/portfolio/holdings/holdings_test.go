@@ -40,7 +40,6 @@ func pair(t *testing.T) *funding.Pair {
 		t.Fatal(err)
 	}
 	return p
-
 }
 
 func TestCreate(t *testing.T) {

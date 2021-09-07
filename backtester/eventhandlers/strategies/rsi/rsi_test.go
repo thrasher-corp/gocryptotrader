@@ -2,6 +2,7 @@ package rsi
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 )
 
 func TestName(t *testing.T) {
+	t.Parallel()
 	d := Strategy{}
 	n := d.Name()
 	if n != Name {
@@ -27,13 +29,15 @@ func TestName(t *testing.T) {
 }
 
 func TestSupportsSimultaneousProcessing(t *testing.T) {
+	t.Parallel()
 	s := Strategy{}
-	if s.SupportsSimultaneousProcessing() {
-		t.Error("expected false")
+	if !s.SupportsSimultaneousProcessing() {
+		t.Error("expected true")
 	}
 }
 
 func TestSetCustomSettings(t *testing.T) {
+	t.Parallel()
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
 	if err != nil {
@@ -79,6 +83,7 @@ func TestSetCustomSettings(t *testing.T) {
 }
 
 func TestOnSignal(t *testing.T) {
+	t.Parallel()
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
@@ -119,7 +124,7 @@ func TestOnSignal(t *testing.T) {
 		t.Fatalf("expected: %v, received %v", base.ErrTooMuchBadData, err)
 	}
 
-	s.rsiPeriod = 1
+	s.rsiPeriod = decimal.NewFromInt(1)
 	_, err = s.OnSignal(da, nil)
 	if err != nil {
 		t.Error(err)
@@ -133,11 +138,11 @@ func TestOnSignal(t *testing.T) {
 		Candles: []gctkline.Candle{
 			{
 				Time:   dInsert,
-				Open:   decimal.NewFromInt(1337),
-				High:   decimal.NewFromInt(1337),
-				Low:    decimal.NewFromInt(1337),
-				Close:  decimal.NewFromInt(1337),
-				Volume: decimal.NewFromInt(1337),
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
 			},
 		},
 	}
@@ -162,6 +167,7 @@ func TestOnSignal(t *testing.T) {
 }
 
 func TestOnSignals(t *testing.T) {
+	t.Parallel()
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
@@ -193,21 +199,23 @@ func TestOnSignals(t *testing.T) {
 		Range: &gctkline.IntervalRangeHolder{},
 	}
 	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
-	if !errors.Is(err, base.ErrSimultaneousProcessingNotSupported) {
-		t.Errorf("expected: %v, received %v", base.ErrSimultaneousProcessingNotSupported, err)
+	if !strings.Contains(err.Error(), base.ErrTooMuchBadData.Error()) {
+		// common.Errs type doesn't keep type
+		t.Errorf("expected: %v, received %v", base.ErrTooMuchBadData, err)
 	}
 }
 
 func TestSetDefaults(t *testing.T) {
+	t.Parallel()
 	s := Strategy{}
 	s.SetDefaults()
-	if s.rsiHigh != 70.0 {
+	if !s.rsiHigh.Equal(decimal.NewFromInt(70)) {
 		t.Error("expected 70")
 	}
-	if s.rsiLow != 30.0 {
+	if !s.rsiLow.Equal(decimal.NewFromInt(30)) {
 		t.Error("expected 30")
 	}
-	if s.rsiPeriod != 14.0 {
+	if !s.rsiPeriod.Equal(decimal.NewFromInt(14)) {
 		t.Error("expected 14")
 	}
 }

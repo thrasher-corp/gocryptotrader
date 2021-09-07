@@ -98,7 +98,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	if cs.CanUseExchangeLimits {
 		// Conforms the amount to the exchange order defined step amount
 		// reducing it when needed
-		limitReducedAmount = cs.Limits.ConformToAmount(portfolioLimitedAmount)
+		limitReducedAmount = cs.Limits.ConformToDecimalAmount(portfolioLimitedAmount)
 		if !limitReducedAmount.Equal(portfolioLimitedAmount) {
 			f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within exchange step amount limits",
 				portfolioLimitedAmount,

@@ -8,6 +8,7 @@ import (
 )
 
 func TestIsSignal(t *testing.T) {
+	t.Parallel()
 	s := Signal{}
 	if !s.IsSignal() {
 		t.Error("expected true")
@@ -15,6 +16,7 @@ func TestIsSignal(t *testing.T) {
 }
 
 func TestSetDirection(t *testing.T) {
+	t.Parallel()
 	s := Signal{Direction: gctorder.Sell}
 	s.SetDirection(gctorder.Buy)
 	if s.GetDirection() != gctorder.Buy {
@@ -23,31 +25,34 @@ func TestSetDirection(t *testing.T) {
 }
 
 func TestSetPrice(t *testing.T) {
+	t.Parallel()
 	s := Signal{
-		ClosePrice: 1,
+		ClosePrice: decimal.NewFromInt(1),
 	}
-	s.SetPrice(decimal.NewFromInt(1337)
-	if s.GetPrice() != decimal.NewFromInt(1337) {
+	s.SetPrice(decimal.NewFromInt(1337))
+	if !s.GetPrice().Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 
 func TestSetBuyLimit(t *testing.T) {
+	t.Parallel()
 	s := Signal{
-		BuyLimit: 10,
+		BuyLimit: decimal.NewFromInt(10),
 	}
-	s.SetBuyLimit(20)
-	if s.GetBuyLimit() != 20 {
+	s.SetBuyLimit(decimal.NewFromInt(20))
+	if !s.GetBuyLimit().Equal(decimal.NewFromInt(20)) {
 		t.Errorf("expected 20, received %v", s.GetBuyLimit())
 	}
 }
 
 func TestSetSellLimit(t *testing.T) {
+	t.Parallel()
 	s := Signal{
-		SellLimit: 10,
+		SellLimit: decimal.NewFromInt(10),
 	}
-	s.SetSellLimit(20)
-	if s.GetSellLimit() != 20 {
+	s.SetSellLimit(decimal.NewFromInt(20))
+	if !s.GetSellLimit().Equal(decimal.NewFromInt(20)) {
 		t.Errorf("expected 20, received %v", s.GetSellLimit())
 	}
 }
