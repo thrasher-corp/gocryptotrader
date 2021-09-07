@@ -2,7 +2,6 @@ package currencystatistics
 
 import (
 	"fmt"
-	"math"
 	"sort"
 	"time"
 
@@ -50,12 +49,12 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 	}
 	c.calculateHighestCommittedFunds()
 	c.RiskFreeRate = last.Holdings.RiskFreeRate.Mul(oneHundred)
-	returnPerCandle := make([]float64, len(c.Events))
-	benchmarkRates := make([]float64, len(c.Events))
+	returnPerCandle := make([]decimal.Decimal, len(c.Events))
+	benchmarkRates := make([]decimal.Decimal, len(c.Events))
 
 	var allDataEvents []common.DataEventHandler
 	for i := range c.Events {
-		returnPerCandle[i], _ = c.Events[i].Holdings.ChangeInTotalValuePercent.Float64()
+		returnPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 		if i == 0 {
 			continue
@@ -63,7 +62,7 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 		if c.Events[i].SignalEvent != nil && c.Events[i].SignalEvent.GetDirection() == common.MissingData {
 			c.ShowMissingDataWarning = true
 		}
-		benchmarkRates[i], _ = c.Events[i].DataEvent.ClosePrice().Sub(c.Events[i-1].DataEvent.ClosePrice()).Div(c.Events[i-1].DataEvent.ClosePrice()).Float64()
+		benchmarkRates[i] = c.Events[i].DataEvent.ClosePrice().Sub(c.Events[i-1].DataEvent.ClosePrice()).Div(c.Events[i-1].DataEvent.ClosePrice())
 	}
 
 	// remove the first entry as its zero and impacts
@@ -71,12 +70,12 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 	benchmarkRates = benchmarkRates[1:]
 	returnPerCandle = returnPerCandle[1:]
 
-	var arithmeticBenchmarkAverage, geometricBenchmarkAverage float64
-	arithmeticBenchmarkAverage, err = gctmath.ArithmeticMean(benchmarkRates)
+	var arithmeticBenchmarkAverage, geometricBenchmarkAverage decimal.Decimal
+	arithmeticBenchmarkAverage, err = gctmath.DecimalArithmeticMean(benchmarkRates)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geometricBenchmarkAverage, err = gctmath.FinancialGeometricMean(benchmarkRates)
+	geometricBenchmarkAverage, err = gctmath.DecimalFinancialGeometricMean(benchmarkRates)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -85,98 +84,96 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 	interval := first.DataEvent.GetInterval()
 	intervalsPerYear := interval.IntervalsPerYear()
 
-	riskFreeRatePerCandle, _ := first.Holdings.RiskFreeRate.Div(decimal.NewFromFloat(intervalsPerYear)).Float64()
-	riskFreeRateForPeriod := riskFreeRatePerCandle * float64(len(benchmarkRates))
+	riskFreeRatePerCandle := first.Holdings.RiskFreeRate.Div(decimal.NewFromFloat(intervalsPerYear))
+	riskFreeRateForPeriod := riskFreeRatePerCandle.Mul(decimal.NewFromInt(int64(len(benchmarkRates))))
 
 	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
-		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar float64
+		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar decimal.Decimal
 
-	arithmeticReturnsPerCandle, err = gctmath.ArithmeticMean(returnPerCandle)
+	arithmeticReturnsPerCandle, err = gctmath.DecimalArithmeticMean(returnPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geometricReturnsPerCandle, err = gctmath.FinancialGeometricMean(returnPerCandle)
+	geometricReturnsPerCandle, err = gctmath.DecimalFinancialGeometricMean(returnPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	arithmeticSharpe, err = gctmath.SharpeRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
+	arithmeticSharpe, err = gctmath.DecimalSharpeRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	arithmeticSortino, err = gctmath.SortinoRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
+	arithmeticSortino, err = gctmath.DecimalSortinoRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
+	if err != nil && err != gctmath.ErrNoNegativeResults {
+		errs = append(errs, err)
+	}
+	arithmeticInformation, err = gctmath.DecimalInformationRatio(returnPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	arithmeticInformation, err = gctmath.InformationRatio(returnPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
-	if err != nil {
-		errs = append(errs, err)
-	}
-	mxhp, _ := c.MaxDrawdown.Highest.Price.Float64()
-	mdlp, _ := c.MaxDrawdown.Lowest.Price.Float64()
-	arithmeticCalmar, err = gctmath.CalmarRatio(mxhp, mdlp, arithmeticReturnsPerCandle, riskFreeRateForPeriod)
+	mxhp := c.MaxDrawdown.Highest.Price
+	mdlp := c.MaxDrawdown.Lowest.Price
+	arithmeticCalmar, err = gctmath.DecimalCalmarRatio(mxhp, mdlp, arithmeticReturnsPerCandle, riskFreeRateForPeriod)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
 	c.ArithmeticRatios = Ratios{}
-	if !math.IsNaN(arithmeticSharpe) {
-		c.ArithmeticRatios.SharpeRatio = decimal.NewFromFloat(arithmeticSharpe)
+	if !arithmeticSharpe.IsZero() {
+		c.ArithmeticRatios.SharpeRatio = arithmeticSharpe
 	}
-	if !math.IsNaN(arithmeticSortino) {
-		c.ArithmeticRatios.SortinoRatio = decimal.NewFromFloat(arithmeticSortino)
+	if !arithmeticSortino.IsZero() {
+		c.ArithmeticRatios.SortinoRatio = arithmeticSortino
 	}
-	if !math.IsNaN(arithmeticInformation) {
-		c.ArithmeticRatios.InformationRatio = decimal.NewFromFloat(arithmeticInformation)
+	if !arithmeticInformation.IsZero() {
+		c.ArithmeticRatios.InformationRatio = arithmeticInformation
 	}
-	if !math.IsNaN(arithmeticCalmar) {
-		c.ArithmeticRatios.CalmarRatio = decimal.NewFromFloat(arithmeticCalmar)
+	if !arithmeticCalmar.IsZero() {
+		c.ArithmeticRatios.CalmarRatio = arithmeticCalmar
 	}
 
-	geomSharpe, err = gctmath.SharpeRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
+	geomSharpe, err = gctmath.DecimalSharpeRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geomSortino, err = gctmath.SortinoRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
+	geomSortino, err = gctmath.DecimalSortinoRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
+	if err != nil && err != gctmath.ErrNoNegativeResults {
+		errs = append(errs, err)
+	}
+	geomInformation, err = gctmath.DecimalInformationRatio(returnPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geomInformation, err = gctmath.InformationRatio(returnPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
-	if err != nil {
-		errs = append(errs, err)
-	}
-	geomCalmar, err = gctmath.CalmarRatio(mxhp, mdlp, geometricReturnsPerCandle, riskFreeRateForPeriod)
+	geomCalmar, err = gctmath.DecimalCalmarRatio(mxhp, mdlp, geometricReturnsPerCandle, riskFreeRateForPeriod)
 	if err != nil {
 		errs = append(errs, err)
 	}
 	c.GeometricRatios = Ratios{}
-	if !math.IsNaN(arithmeticSharpe) {
-		c.GeometricRatios.SharpeRatio = decimal.NewFromFloat(geomSharpe)
+	if !arithmeticSharpe.IsZero() {
+		c.GeometricRatios.SharpeRatio = geomSharpe
 	}
-	if !math.IsNaN(arithmeticSortino) {
-		c.GeometricRatios.SortinoRatio = decimal.NewFromFloat(geomSortino)
+	if !arithmeticSortino.IsZero() {
+		c.GeometricRatios.SortinoRatio = geomSortino
 	}
-	if !math.IsNaN(arithmeticInformation) {
-		c.GeometricRatios.InformationRatio = decimal.NewFromFloat(geomInformation)
+	if !arithmeticInformation.IsZero() {
+		c.GeometricRatios.InformationRatio = geomInformation
 	}
-	if !math.IsNaN(arithmeticCalmar) {
-		c.GeometricRatios.CalmarRatio = decimal.NewFromFloat(geomCalmar)
+	if !arithmeticCalmar.IsZero() {
+		c.GeometricRatios.CalmarRatio = geomCalmar
 	}
 
-	lastInitial, _ := last.Holdings.QuoteInitialFunds.Float64()
-	lastTotal, _ := last.Holdings.TotalValue.Float64()
-	if lastInitial > 0 {
-		cagr, err := gctmath.CompoundAnnualGrowthRate(
-			lastInitial,
-			lastTotal,
-			intervalsPerYear,
-			float64(len(c.Events)),
+	if last.Holdings.QuoteInitialFunds.GreaterThan(decimal.Zero) {
+		cagr, err := gctmath.DecimalCompoundAnnualGrowthRate(
+			last.Holdings.QuoteInitialFunds,
+			last.Holdings.TotalValue,
+			decimal.NewFromFloat(intervalsPerYear),
+			decimal.NewFromInt(int64(len(c.Events))),
 		)
 		if err != nil {
 			errs = append(errs, err)
 		}
-		if !math.IsNaN(cagr) {
-			c.CompoundAnnualGrowthRate = decimal.NewFromFloat(cagr)
+		if !cagr.IsZero() {
+			c.CompoundAnnualGrowthRate = cagr
 		}
 	}
 	c.IsStrategyProfitable = last.Holdings.TotalValue.GreaterThan(first.Holdings.TotalValue)
@@ -369,8 +366,8 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 
 func (c *CurrencyStatistic) calculateHighestCommittedFunds() {
 	for i := range c.Events {
-		if c.Events[i].Holdings.BaseValue.GreaterThan(c.HighestCommittedFunds.Value) {
-			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseValue
+		if c.Events[i].Holdings.BaseSize.GreaterThan(c.HighestCommittedFunds.Value) {
+			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseSize
 			c.HighestCommittedFunds.Time = c.Events[i].Holdings.Timestamp
 		}
 	}
