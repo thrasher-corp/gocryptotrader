@@ -21,9 +21,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -88,8 +90,8 @@ func TestNewFromConfig(t *testing.T) {
 
 	bot := newBotWithExchange()
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, config.ErrNoCurrencySettings) {
-		t.Errorf("expected: %v, received %v", config.ErrNoCurrencySettings, err)
+	if !errors.Is(err, base.ErrStrategyNotFound) {
+		t.Errorf("expected: %v, received %v", base.ErrStrategyNotFound, err)
 	}
 
 	cfg.CurrencySettings = []config.CurrencySettings{
@@ -100,20 +102,25 @@ func TestNewFromConfig(t *testing.T) {
 		},
 	}
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, config.ErrBadInitialFunds) {
-		t.Errorf("expected: %v, received %v", config.ErrBadInitialFunds, err)
-	}
-
-	cfg.CurrencySettings[0].InitialFunds = leet
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, config.ErrUnsetAsset) {
-		t.Errorf("expected: %v, received %v", config.ErrUnsetAsset, err)
-	}
-
-	cfg.CurrencySettings[0].Asset = asset.Spot.String()
-	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, engine.ErrExchangeNotFound) {
 		t.Errorf("expected: %v, received %v", engine.ErrExchangeNotFound, err)
+	}
+	cfg.CurrencySettings[0].ExchangeName = testExchange
+	_, err = NewFromConfig(cfg, "", "", bot)
+	if !errors.Is(err, errInvalidConfigAsset) {
+		t.Errorf("expected: %v, received %v", errInvalidConfigAsset, err)
+	}
+	cfg.CurrencySettings[0].Asset = asset.Spot.String()
+	_, err = NewFromConfig(cfg, "", "", bot)
+	if !errors.Is(err, currency.ErrPairNotFound) {
+		t.Errorf("expected: %v, received %v", currency.ErrPairNotFound, err)
+	}
+
+	cfg.CurrencySettings[0].Base = "btc"
+	cfg.CurrencySettings[0].Quote = "usd"
+	_, err = NewFromConfig(cfg, "", "", bot)
+	if !errors.Is(err, base.ErrStrategyNotFound) {
+		t.Errorf("expected: %v, received %v", base.ErrStrategyNotFound, err)
 	}
 
 	cfg.StrategySettings = config.StrategySettings{
@@ -122,12 +129,6 @@ func TestNewFromConfig(t *testing.T) {
 			"hello": "moto",
 		},
 	}
-	cfg.CurrencySettings[0].ExchangeName = testExchange
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, currency.ErrPairNotFound) {
-		t.Errorf("expected: %v, received %v", currency.ErrPairNotFound, err)
-	}
-
 	cfg.CurrencySettings[0].Base = "BTC"
 	cfg.CurrencySettings[0].Quote = "USD"
 	cfg.DataSettings.APIData = &config.APIData{
@@ -141,25 +142,25 @@ func TestNewFromConfig(t *testing.T) {
 	}
 	cfg.DataSettings.DataType = common.CandleStr
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, config.ErrStartEndUnset) {
-		t.Errorf("expected: %v, received %v", config.ErrStartEndUnset, err)
+	if !errors.Is(err, errIntervalUnset) {
+		t.Errorf("expected: %v, received %v", errIntervalUnset, err)
+	}
+	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
+	cfg.CurrencySettings[0].MakerFee = leet
+	cfg.CurrencySettings[0].TakerFee = leet
+	_, err = NewFromConfig(cfg, "", "", bot)
+	if !errors.Is(err, gctcommon.ErrDateUnset) {
+		t.Errorf("expected: %v, received %v", gctcommon.ErrDateUnset, err)
 	}
 
 	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Minute)
 	cfg.DataSettings.APIData.EndDate = time.Now()
 	cfg.DataSettings.APIData.InclusiveEndDate = true
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, errIntervalUnset) {
-		t.Errorf("expected: %v, received %v", errIntervalUnset, err)
+	if !errors.Is(err, nil) {
+		t.Errorf("expected: %v, received %v", nil, err)
 	}
 
-	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
-	cfg.CurrencySettings[0].MakerFee = leet
-	cfg.CurrencySettings[0].TakerFee = leet
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 func TestLoadDataAPI(t *testing.T) {

@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -129,40 +131,85 @@ func (c *Config) PrintSetting() {
 	log.Info(log.BackTester, "-------------------------------------------------------------\n\n")
 }
 
-// Validate ensures no one sets bad config values on purpose
-func (m *MinMax) Validate() {
+// validate ensures no one sets bad config values on purpose
+func (m *MinMax) validate() error {
 	if m.MaximumSize.LessThan(decimal.Zero) {
-		m.MaximumSize = m.MaximumSize.Mul(decimal.NewFromFloat(-1))
-		log.Warnf(log.BackTester, "invalid maximum size set to %v", m.MaximumSize)
+		return fmt.Errorf("invalid maximum size set to %v", m.MaximumSize)
 	}
 	if m.MinimumSize.IsNegative() {
-		m.MinimumSize = m.MinimumSize.Mul(decimal.NewFromFloat(-1))
-		log.Warnf(log.BackTester, "invalid minimum size set to %v", m.MinimumSize)
+		return fmt.Errorf("invalid minimum size set to %v", m.MinimumSize)
 	}
 	if m.MaximumSize.LessThanOrEqual(m.MinimumSize) && !m.MinimumSize.IsZero() && !m.MaximumSize.IsZero() {
-		m.MaximumSize = m.MinimumSize.Add(decimal.NewFromInt(1))
-		log.Warnf(log.BackTester, "invalid maximum size set to %v", m.MaximumSize)
+		return fmt.Errorf("invalid maximum size set to %v", m.MaximumSize)
 	}
 	if m.MaximumTotal.LessThan(decimal.Zero) {
-		m.MaximumTotal = m.MaximumTotal.Mul(decimal.NewFromFloat(-1))
-		log.Warnf(log.BackTester, "invalid maximum total set to %v", m.MaximumTotal)
+		return fmt.Errorf("invalid maximum total set to %v", m.MaximumTotal)
 	}
+	return nil
 }
 
-func (c *Config) Validate() error {
-	err := c.ValidateDate()
+func (c *Config) validateMinMaxes() (err error) {
+	for i := range c.CurrencySettings {
+		err = c.CurrencySettings[i].BuySide.validate()
+		if err != nil {
+			return err
+		}
+		err = c.CurrencySettings[i].SellSide.validate()
+		if err != nil {
+			return err
+		}
+	}
+	err = c.PortfolioSettings.BuySide.validate()
 	if err != nil {
 		return err
 	}
-	err = c.ValidateCurrencySettings()
+	err = c.PortfolioSettings.SellSide.validate()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// ValidateDate checks whether someone has set a date poorly in their config
-func (c *Config) ValidateDate() error {
+// Validate checks all config settings
+func (c *Config) Validate() error {
+	err := c.validateDate()
+	if err != nil {
+		return err
+	}
+	err = c.validateStrategySettings()
+	if err != nil {
+		return err
+	}
+	err = c.validateCurrencySettings()
+	if err != nil {
+		return err
+	}
+	err = c.validateMinMaxes()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Config) validateStrategySettings() error {
+	if c.StrategySettings.UseExchangeLevelFunding && !c.StrategySettings.SimultaneousSignalProcessing {
+		return ErrSimultaneousProcessingRequired
+	}
+	if len(c.StrategySettings.ExchangeLevelFunding) > 0 && !c.StrategySettings.UseExchangeLevelFunding {
+		return ErrExchangeLevelFundingRequired
+	}
+	strats := strategies.GetStrategies()
+	for i := range strats {
+		if strings.EqualFold(strats[i].Name(), c.StrategySettings.Name) {
+			return nil
+		}
+	}
+
+	return base.ErrStrategyNotFound
+}
+
+// validateDate checks whether someone has set a date poorly in their config
+func (c *Config) validateDate() error {
 	if c.DataSettings.DatabaseData != nil {
 		if c.DataSettings.DatabaseData.StartDate.IsZero() ||
 			c.DataSettings.DatabaseData.EndDate.IsZero() {
@@ -186,8 +233,8 @@ func (c *Config) ValidateDate() error {
 	return nil
 }
 
-// ValidateCurrencySettings checks whether someone has set invalid currency setting data in their config
-func (c *Config) ValidateCurrencySettings() error {
+// validateCurrencySettings checks whether someone has set invalid currency setting data in their config
+func (c *Config) validateCurrencySettings() error {
 	if len(c.CurrencySettings) == 0 {
 		return ErrNoCurrencySettings
 	}

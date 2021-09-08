@@ -1,6 +1,7 @@
 package currencystatistics
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -55,7 +56,6 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 	var allDataEvents []common.DataEventHandler
 	for i := range c.Events {
 		returnPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
-		log.Debugf(log.BackTester, "RETURN PER CANDLE %v", returnPerCandle[i])
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 		if i == 0 {
 			continue
@@ -65,6 +65,7 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 		}
 		benchmarkRates[i] = c.Events[i].DataEvent.ClosePrice().Sub(c.Events[i-1].DataEvent.ClosePrice()).Div(c.Events[i-1].DataEvent.ClosePrice())
 	}
+	sep := fmt.Sprintf("%v %v %v |\t", first.DataEvent.GetExchange(), first.DataEvent.GetAssetType(), first.DataEvent.Pair())
 
 	// remove the first entry as its zero and impacts
 	// ratio calculations as no movement has been made
@@ -102,15 +103,29 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 
 	arithmeticSharpe, err = gctmath.DecimalSharpeRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
 	if err != nil {
-		errs = append(errs, err)
+		if errors.Is(err, gctmath.ErrInexactConversion) {
+			log.Warnf(log.BackTester, "%s arithmetic sharpe ratio: %v", sep, err)
+		} else {
+			errs = append(errs, err)
+		}
 	}
 	arithmeticSortino, err = gctmath.DecimalSortinoRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
-	if err != nil && err != gctmath.ErrNoNegativeResults {
-		errs = append(errs, err)
+	if err != nil {
+		switch {
+		case err == gctmath.ErrNoNegativeResults:
+		case errors.Is(err, gctmath.ErrInexactConversion):
+			log.Warnf(log.BackTester, "%s arithmetic sortino: %v", sep, err)
+		default:
+			errs = append(errs, err)
+		}
 	}
 	arithmeticInformation, err = gctmath.DecimalInformationRatio(returnPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
 	if err != nil {
-		errs = append(errs, err)
+		if errors.Is(err, gctmath.ErrInexactConversion) {
+			log.Warnf(log.BackTester, "%s arithmetic information ratio: %v", sep, err)
+		} else {
+			errs = append(errs, err)
+		}
 	}
 	mxhp := c.MaxDrawdown.Highest.Price
 	mdlp := c.MaxDrawdown.Lowest.Price
@@ -135,15 +150,29 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 
 	geomSharpe, err = gctmath.DecimalSharpeRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil {
-		errs = append(errs, err)
+		if errors.Is(err, gctmath.ErrInexactConversion) {
+			log.Warnf(log.BackTester, "%s geometric information ratio: %v", sep, err)
+		} else {
+			errs = append(errs, err)
+		}
 	}
 	geomSortino, err = gctmath.DecimalSortinoRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
-	if err != nil && err != gctmath.ErrNoNegativeResults {
-		errs = append(errs, err)
+	if err != nil {
+		switch {
+		case err == gctmath.ErrNoNegativeResults:
+		case errors.Is(err, gctmath.ErrInexactConversion):
+			log.Warnf(log.BackTester, "%s geometric sortino: %v", sep, err)
+		default:
+			errs = append(errs, err)
+		}
 	}
 	geomInformation, err = gctmath.DecimalInformationRatio(returnPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
 	if err != nil {
-		errs = append(errs, err)
+		if errors.Is(err, gctmath.ErrInexactConversion) {
+			log.Warnf(log.BackTester, "%s geometric information ratio: %v", sep, err)
+		} else {
+			errs = append(errs, err)
+		}
 	}
 	geomCalmar, err = gctmath.DecimalCalmarRatio(mxhp, mdlp, geometricReturnsPerCandle, riskFreeRateForPeriod)
 	if err != nil {
@@ -197,8 +226,8 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	c.EndingClosePrice = last.DataEvent.ClosePrice()
 	c.TotalOrders = c.BuyOrders + c.SellOrders
 	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage.Add(last.Holdings.TotalValueLostToVolumeSizing)
-	currStr := fmt.Sprintf("------------------Stats for %v %v %v------------------------------------------", e, a, p)
 	sep := fmt.Sprintf("%v %v %v |\t", e, a, p)
+	currStr := fmt.Sprintf("------------------Stats for %v %v %v------------------------------------------", e, a, p)
 	log.Infof(log.BackTester, currStr[:61])
 	log.Infof(log.BackTester, "%s Initial funds: $%v", sep, f.QuoteInitialFunds())
 	log.Infof(log.BackTester, "%s Highest committed funds: $%v at %v\n\n", sep, c.HighestCommittedFunds.Value.Round(8), c.HighestCommittedFunds.Time)

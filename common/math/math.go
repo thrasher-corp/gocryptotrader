@@ -2,10 +2,10 @@ package math
 
 import (
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -17,6 +17,7 @@ var (
 	errCAGRNoIntervals         = errors.New("cannot calculate CAGR with no intervals")
 	errCAGRZeroOpenValue       = errors.New("cannot calculate CAGR with an open value of 0")
 	errInformationBadLength    = errors.New("benchmark rates length does not match returns rates")
+	ErrInexactConversion       = errors.New("inexact conversion from decimal to float detected")
 )
 
 // CalculateAmountWithFee returns a calculated fee included amount on fee
@@ -316,12 +317,13 @@ func DecimalPopulationStandardDeviation(values []decimal.Decimal) (decimal.Decim
 	if err != nil {
 		return decimal.Zero, err
 	}
+	err = nil
 	f, exact := diffAvg.Float64()
 	if !exact {
-		log.Warnf(log.Global, "inexact conversion from %v to %v", diffAvg, f)
+		err = fmt.Errorf("%w from %v to %v", ErrInexactConversion, diffAvg, f)
 	}
 	resp := decimal.NewFromFloat(math.Sqrt(f))
-	return resp, nil
+	return resp, err
 }
 
 // DecimalSampleStandardDeviation standard deviation is a statistic that
@@ -343,12 +345,13 @@ func DecimalSampleStandardDeviation(values []decimal.Decimal) (decimal.Decimal, 
 		combined.Add(pow)
 	}
 	avg := combined.Div(decimal.NewFromInt(int64(len(superMean))).Sub(decimal.NewFromInt(1)))
+	err = nil
 	f, exact := avg.Float64()
 	if !exact {
-		log.Warnf(log.Global, "inexact conversion from %v to %v", avg, f)
+		err = fmt.Errorf("%w from %v to %v", ErrInexactConversion, avg, f)
 	}
 	sqrt := math.Sqrt(f)
-	return decimal.NewFromFloat(sqrt), nil
+	return decimal.NewFromFloat(sqrt), err
 }
 
 // DecimalGeometricMean is an average which indicates the central tendency or
@@ -407,7 +410,7 @@ func DecimalFinancialGeometricMean(values []decimal.Decimal) (decimal.Decimal, e
 	geometricPower := math.Pow(product, prod)
 	if geometricPower > 0 {
 		// we minus 1 because we manipulated the values to be non-zero/negative
-		geometricPower = geometricPower - 1
+		geometricPower--
 	}
 	return decimal.NewFromFloat(geometricPower), nil
 }
@@ -441,13 +444,14 @@ func DecimalSortinoRatio(movementPerCandle []decimal.Decimal, riskFreeRatePerInt
 		return decimal.Zero, ErrNoNegativeResults
 	}
 	f, exact := totalNegativeResultsSquared.Float64()
+	var err error
 	if !exact {
-		log.Warnf(log.Global, "inexact conversion from %v to %v", totalNegativeResultsSquared, f)
+		err = fmt.Errorf("%w from %v to %v", ErrInexactConversion, totalNegativeResultsSquared, f)
 	}
 	fAverageDownsideDeviation := math.Sqrt(f / float64(len(movementPerCandle)))
 	averageDownsideDeviation := decimal.NewFromFloat(fAverageDownsideDeviation)
 
-	return average.Sub(riskFreeRatePerInterval).Div(averageDownsideDeviation), nil
+	return average.Sub(riskFreeRatePerInterval).Div(averageDownsideDeviation), err
 }
 
 // DecimalSharpeRatio returns sharpe ratio of backtest compared to risk-free

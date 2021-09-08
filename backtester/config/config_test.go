@@ -831,58 +831,64 @@ func TestValidate(t *testing.T) {
 		MaximumSize:  decimal.NewFromFloat(-1),
 		MaximumTotal: decimal.NewFromFloat(-1),
 	}
-	m.Validate()
-	if m.MinimumSize.GreaterThan(m.MaximumSize) {
-		t.Errorf("expected %v > %v", m.MaximumSize, m.MinimumSize)
+	err := m.validate()
+	if err == nil {
+		t.Error("expected error")
 	}
-	if m.MinimumSize.IsNegative() {
-		t.Errorf("expected %v > %v", m.MinimumSize, 0)
+	m.MinimumSize = decimal.Zero
+	err = m.validate()
+	if err == nil {
+		t.Error("expected error")
 	}
-	if m.MaximumSize.IsNegative() {
-		t.Errorf("expected %v > %v", m.MaximumSize, 0)
+	m.MaximumSize = decimal.Zero
+	err = m.validate()
+	if err == nil {
+		t.Error("expected error")
 	}
-	if m.MaximumTotal.IsNegative() {
-		t.Errorf("expected %v > %v", m.MaximumTotal, 0)
+	m.MaximumTotal = decimal.Zero
+	err = m.validate()
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestValidateDate(t *testing.T) {
 	c := Config{}
-	err := c.ValidateDate()
+	err := c.validateDate()
 	if err != nil {
 		t.Error(err)
 	}
 	c.DataSettings = DataSettings{
 		DatabaseData: &DatabaseData{},
 	}
-	err = c.ValidateDate()
+	err = c.validateDate()
 	if !errors.Is(ErrStartEndUnset, err) {
 		t.Errorf("expected %v, received %v", ErrStartEndUnset, err)
 	}
 	c.DataSettings.DatabaseData.StartDate = time.Now()
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate
-	err = c.ValidateDate()
+	err = c.validateDate()
 	if !errors.Is(ErrBadDate, err) {
 		t.Errorf("expected %v, received %v", ErrBadDate, err)
 	}
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate.Add(time.Minute)
-	err = c.ValidateDate()
+	err = c.validateDate()
 	if err != nil {
 		t.Error(err)
 	}
 	c.DataSettings.APIData = &APIData{}
-	err = c.ValidateDate()
+	err = c.validateDate()
 	if !errors.Is(ErrStartEndUnset, err) {
 		t.Errorf("expected %v, received %v", ErrStartEndUnset, err)
 	}
 	c.DataSettings.APIData.StartDate = time.Now()
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate
-	err = c.ValidateDate()
+	err = c.validateDate()
 	if !errors.Is(ErrBadDate, err) {
 		t.Errorf("expected %v, received %v", ErrBadDate, err)
 	}
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate.Add(time.Minute)
-	err = c.ValidateDate()
+	err = c.validateDate()
 	if err != nil {
 		t.Error(err)
 	}
@@ -890,49 +896,49 @@ func TestValidateDate(t *testing.T) {
 
 func TestValidateCurrencySettings(t *testing.T) {
 	c := Config{}
-	err := c.ValidateCurrencySettings()
+	err := c.validateCurrencySettings()
 	if !errors.Is(ErrNoCurrencySettings, err) {
 		t.Errorf("expected %v, received %v", ErrNoCurrencySettings, err)
 	}
 	c.CurrencySettings = append(c.CurrencySettings, CurrencySettings{})
-	err = c.ValidateCurrencySettings()
+	err = c.validateCurrencySettings()
 	if !errors.Is(ErrBadInitialFunds, err) {
 		t.Errorf("expected %v, received %v", ErrBadInitialFunds, err)
 	}
 	c.CurrencySettings[0].InitialFunds = decimal.NewFromInt(1337)
-	err = c.ValidateCurrencySettings()
+	err = c.validateCurrencySettings()
 	if !errors.Is(ErrUnsetCurrency, err) {
 		t.Errorf("expected %v, received %v", ErrUnsetCurrency, err)
 	}
 	c.CurrencySettings[0].Base = "lol"
-	err = c.ValidateCurrencySettings()
+	err = c.validateCurrencySettings()
 	if !errors.Is(ErrUnsetAsset, err) {
 		t.Errorf("expected %v, received %v", ErrUnsetAsset, err)
 	}
 	c.CurrencySettings[0].Asset = "lol"
-	err = c.ValidateCurrencySettings()
+	err = c.validateCurrencySettings()
 	if !errors.Is(ErrUnsetExchange, err) {
 		t.Errorf("expected %v, received %v", ErrUnsetExchange, err)
 	}
 	c.CurrencySettings[0].ExchangeName = "lol"
-	err = c.ValidateCurrencySettings()
+	err = c.validateCurrencySettings()
 	if err != nil {
 		t.Error(err)
 	}
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromFloat(-1)
-	err = c.ValidateCurrencySettings()
+	err = c.validateCurrencySettings()
 	if !errors.Is(ErrBadSlippageRates, err) {
 		t.Errorf("expected %v, received %v", ErrBadSlippageRates, err)
 	}
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromFloat(2)
 	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromFloat(-1)
-	err = c.ValidateCurrencySettings()
+	err = c.validateCurrencySettings()
 	if !errors.Is(ErrBadSlippageRates, err) {
 		t.Errorf("expected %v, received %v", ErrBadSlippageRates, err)
 	}
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromFloat(2)
 	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromFloat(1)
-	err = c.ValidateCurrencySettings()
+	err = c.validateCurrencySettings()
 	if !errors.Is(ErrBadSlippageRates, err) {
 		t.Errorf("expected %v, received %v", ErrBadSlippageRates, err)
 	}

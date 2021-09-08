@@ -94,13 +94,11 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		MaximumSize:  cfg.PortfolioSettings.BuySide.MaximumSize,
 		MaximumTotal: cfg.PortfolioSettings.BuySide.MaximumTotal,
 	}
-	buyRule.Validate()
 	sellRule := config.MinMax{
 		MinimumSize:  cfg.PortfolioSettings.SellSide.MinimumSize,
 		MaximumSize:  cfg.PortfolioSettings.SellSide.MaximumSize,
 		MaximumTotal: cfg.PortfolioSettings.SellSide.MaximumTotal,
 	}
-	sellRule.Validate()
 	sizeManager := &size.Size{
 		BuySide:  buyRule,
 		SellSide: sellRule,
@@ -393,13 +391,11 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			MaximumSize:  cfg.CurrencySettings[i].BuySide.MaximumSize,
 			MaximumTotal: cfg.CurrencySettings[i].BuySide.MaximumTotal,
 		}
-		buyRule.Validate()
 		sellRule := config.MinMax{
 			MinimumSize:  cfg.CurrencySettings[i].SellSide.MinimumSize,
 			MaximumSize:  cfg.CurrencySettings[i].SellSide.MaximumSize,
 			MaximumTotal: cfg.CurrencySettings[i].SellSide.MaximumTotal,
 		}
-		sellRule.Validate()
 
 		limits, err := exch.GetOrderExecutionLimits(a, pair)
 		if err != nil && !errors.Is(err, gctorder.ErrExchangeLimitNotLoaded) {
@@ -477,10 +473,6 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 	var err error
 	bt.Bot = bot
-	err = cfg.ValidateCurrencySettings()
-	if err != nil {
-		return err
-	}
 	bt.Bot.ExchangeManager = engine.SetupExchangeManager()
 	for i := range cfg.CurrencySettings {
 		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, nil)
@@ -694,10 +686,6 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 	if cfg == nil || cfg.DataSettings.DatabaseData == nil {
 		return nil, errors.New("nil config data received")
 	}
-	err := cfg.ValidateDate()
-	if err != nil {
-		return nil, err
-	}
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}
@@ -713,10 +701,6 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 }
 
 func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.DataFromKline, error) {
-	err := cfg.ValidateDate()
-	if err != nil {
-		return nil, err
-	}
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}
