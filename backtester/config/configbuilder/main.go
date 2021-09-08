@@ -69,11 +69,10 @@ func main() {
 	}
 	fmt.Println("-----Strategy Settings-----")
 	var err error
-	var strats []strategies.Handler
 	firstRun := true
 	for err != nil || firstRun {
 		firstRun = false
-		strats, err = parseStrategySettings(&cfg, reader)
+		err = parseStrategySettings(&cfg, reader)
 		if err != nil {
 			log.Println(err)
 		}
@@ -83,7 +82,7 @@ func main() {
 	firstRun = true
 	for err != nil || firstRun {
 		firstRun = false
-		err = parseExchangeSettings(reader, &cfg, strats)
+		err = parseExchangeSettings(reader, &cfg)
 		if err != nil {
 			log.Println(err)
 		}
@@ -234,12 +233,12 @@ func parsePortfolioSettings(reader *bufio.Reader, cfg *config.Config) error {
 	return nil
 }
 
-func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config, strats []strategies.Handler) error {
+func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config) error {
 	var err error
 	addCurrency := y
 	for strings.Contains(addCurrency, y) {
 		var currencySetting *config.CurrencySettings
-		currencySetting, err = addCurrencySetting(reader)
+		currencySetting, err = addCurrencySetting(reader, cfg.StrategySettings.UseExchangeLevelFunding)
 		if err != nil {
 			return err
 		}
@@ -252,7 +251,7 @@ func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config, strats []st
 	return nil
 }
 
-func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) ([]strategies.Handler, error) {
+func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	fmt.Println("Firstly, please select which strategy you wish to use")
 	strats := strategies.GetStrategies()
 	var strategiesToUse []string
@@ -263,7 +262,7 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) ([]strategi
 	var err error
 	cfg.StrategySettings.Name, err = parseStratName(quickParse(reader), strategiesToUse)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	fmt.Println("What is the goal of your strategy?")
@@ -279,13 +278,13 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) ([]strategi
 	yn := quickParse(reader)
 	cfg.StrategySettings.SimultaneousSignalProcessing = strings.Contains(yn, y)
 	if !cfg.StrategySettings.SimultaneousSignalProcessing {
-		return strats, nil
+		return nil
 	}
 	fmt.Println("Will this strategy be able to share funds at an exchange level? y/n")
 	yn = quickParse(reader)
 	cfg.StrategySettings.UseExchangeLevelFunding = strings.Contains(yn, y)
 	if !cfg.StrategySettings.UseExchangeLevelFunding {
-		return strats, nil
+		return nil
 	}
 
 	addFunding := y
@@ -294,20 +293,38 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) ([]strategi
 		fmt.Println("What is the exchange name to add funding to?")
 		fund.ExchangeName = quickParse(reader)
 		fmt.Println("What is the asset to add funding to?")
-		fund.Asset = quickParse(reader)
-		fmt.Println("What is the individual currency to add funding to?")
+		supported := asset.Supported()
+		for i := range supported {
+			fmt.Printf("%v. %s\n", i+1, supported[i])
+		}
+		response := quickParse(reader)
+		num, err := strconv.ParseFloat(response, 64)
+		if err == nil {
+			intNum := int(num)
+			if intNum > len(supported) || intNum <= 0 {
+				return errors.New("unknown option")
+			}
+			fund.Asset = supported[intNum-1].String()
+		}
+		for i := range supported {
+			if strings.EqualFold(response, supported[i].String()) {
+				fund.Asset = supported[i].String()
+			}
+		}
+
+		fmt.Println("What is the individual currency to add funding to? eg BTC")
 		fund.Currency = quickParse(reader)
 		fmt.Printf("How much funding for %v?\n", fund.Currency)
 		fund.InitialFunds, err = decimal.NewFromString(quickParse(reader))
 		if err != nil {
-			return nil, err
+			return err
 		}
 		cfg.StrategySettings.ExchangeLevelFunding = append(cfg.StrategySettings.ExchangeLevelFunding, fund)
 		fmt.Println("Add another source of funds? y/n")
 		addFunding = quickParse(reader)
 	}
 
-	return strats, nil
+	return nil
 }
 
 func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
@@ -542,7 +559,7 @@ func customSettingsLoop(reader *bufio.Reader) map[string]interface{} {
 	return resp
 }
 
-func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) {
+func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*config.CurrencySettings, error) {
 	setting := config.CurrencySettings{
 		BuySide:  config.MinMax{},
 		SellSide: config.MinMax{},
@@ -576,19 +593,19 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	fmt.Println("Enter the currency quote. eg USDT")
 	setting.Quote = quickParse(reader)
 	var f float64
-
-	fmt.Println("Enter the initial funds. eg 10000")
-	parseNum := quickParse(reader)
-	if parseNum != "" {
-		f, err = strconv.ParseFloat(parseNum, 64)
-		if err != nil {
-			return nil, err
+	if !usingExchangeLevelFunding {
+		fmt.Println("Enter the initial funds. eg 10000")
+		parseNum := quickParse(reader)
+		if parseNum != "" {
+			f, err = strconv.ParseFloat(parseNum, 64)
+			if err != nil {
+				return nil, err
+			}
+			setting.InitialFunds = decimal.NewFromFloat(f)
 		}
-		setting.InitialFunds = decimal.NewFromFloat(f)
 	}
-
 	fmt.Println("Enter the maker-fee. eg 0.001")
-	parseNum = quickParse(reader)
+	parseNum := quickParse(reader)
 	if parseNum != "" {
 		f, err = strconv.ParseFloat(parseNum, 64)
 		if err != nil {
