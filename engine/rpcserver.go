@@ -1544,16 +1544,20 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gc
 		return nil, err
 	}
 
-	var resp *gctrpc.GetCryptocurrencyDepositAddressesResponse
-	resp.Addresses = make(map[string]*gctrpc.GetCryptocurrencyDepositAddressResponse)
+	var resp gctrpc.GetCryptocurrencyDepositAddressesResponse
+	resp.Addresses = make(map[string]*gctrpc.DepositAddresses)
 	for k, v := range result {
-		resp.Addresses[k] = &gctrpc.GetCryptocurrencyDepositAddressResponse{
-			Address: v.Address,
-			Tag:     v.Tag,
+		var depositAddrs []*gctrpc.DepositAddress
+		for a := range v {
+			depositAddrs = append(depositAddrs, &gctrpc.DepositAddress{
+				Address: v[a].Address.Address,
+				Tag:     v[a].Address.Tag,
+				Chain:   v[a].Chain,
+			})
 		}
+		resp.Addresses[k] = &gctrpc.DepositAddresses{Addresses: depositAddrs}
 	}
-
-	return resp, nil
+	return &resp, nil
 }
 
 // GetCryptocurrencyDepositAddress returns a cryptocurrency deposit address
@@ -1575,7 +1579,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 	}
 
 	return &gctrpc.GetCryptocurrencyDepositAddressResponse{
-		Address: addr.Address,
+		Address: addr.Address.Address,
 		Tag:     addr.Tag,
 	}, err
 }

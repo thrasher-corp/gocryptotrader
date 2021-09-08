@@ -459,7 +459,7 @@ func TestWithdraw(t *testing.T) {
 		Exchange: p.Name,
 		Crypto: withdraw.CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
-			FeeAmount: 1,
+			FeeAmount: -1,
 		},
 		Amount:        0.00001337,
 		Currency:      currency.LTC,

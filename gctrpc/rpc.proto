@@ -461,8 +461,18 @@ message GetCryptocurrencyDepositAddressesRequest {
     string exchange = 1;
 }
 
+message DepositAddress {
+    string address = 1;
+    string tag = 2;
+    string chain = 3;
+}
+
+message DepositAddresses {
+    repeated DepositAddress addresses = 1; 
+}
+
 message GetCryptocurrencyDepositAddressesResponse {
-    map<string, GetCryptocurrencyDepositAddressResponse> addresses = 1;
+    map<string, DepositAddresses> addresses = 1;
 }
 
 message GetCryptocurrencyDepositAddressRequest {

@@ -594,6 +594,7 @@ func TestModifyOrder(t *testing.T) {
 func WithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Helper()
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    b.Name,
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",

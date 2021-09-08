@@ -19,42 +19,58 @@ var (
 // DepositAddressManager manages the exchange deposit address store
 type DepositAddressManager struct {
 	m     sync.Mutex
-	store map[string]map[string]deposit.Address
+	store map[string]map[string][]DepositAddressExtended
+}
+
+type DepositAddressExtended struct {
+	deposit.Address
+	Chain string
 }
 
 // SetupDepositAddressManager returns a DepositAddressManager
 func SetupDepositAddressManager() *DepositAddressManager {
 	return &DepositAddressManager{
-		store: make(map[string]map[string]deposit.Address),
+		store: make(map[string]map[string][]DepositAddressExtended),
 	}
 }
 
 // GetDepositAddressByExchangeAndCurrency returns a deposit address for the specified exchange and cryptocurrency
 // if it exists
-func (m *DepositAddressManager) GetDepositAddressByExchangeAndCurrency(exchName string, currencyItem currency.Code) (deposit.Address, error) {
+func (m *DepositAddressManager) GetDepositAddressByExchangeAndCurrency(exchName, chain string, currencyItem currency.Code) (DepositAddressExtended, error) {
 	m.m.Lock()
 	defer m.m.Unlock()
 
 	if len(m.store) == 0 {
-		return deposit.Address{}, ErrDepositAddressStoreIsNil
+		return DepositAddressExtended{}, ErrDepositAddressStoreIsNil
 	}
 
 	r, ok := m.store[strings.ToUpper(exchName)]
 	if !ok {
-		return deposit.Address{}, ErrExchangeNotFound
+		return DepositAddressExtended{}, ErrExchangeNotFound
 	}
 
 	addr, ok := r[strings.ToUpper(currencyItem.String())]
 	if !ok {
-		return deposit.Address{}, ErrDepositAddressNotFound
+		return DepositAddressExtended{}, ErrDepositAddressNotFound
 	}
 
-	return addr, nil
+	if len(addr) == 0 {
+		return DepositAddressExtended{}, errors.New("no addresses retrieved")
+	}
+	if chain != "" {
+		for x := range addr {
+			if strings.EqualFold(addr[x].Chain, chain) {
+				return addr[x], nil
+			}
+		}
+		return DepositAddressExtended{}, errors.New("deposit address for specified chain not found")
+	}
+	return addr[0], nil
 }
 
 // GetDepositAddressesByExchange returns a list of cryptocurrency addresses for the specified
 // exchange if they exist
-func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (map[string]deposit.Address, error) {
+func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (map[string][]DepositAddressExtended, error) {
 	m.m.Lock()
 	defer m.m.Unlock()
 
@@ -71,7 +87,7 @@ func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (
 }
 
 // Sync synchronises all deposit addresses
-func (m *DepositAddressManager) Sync(addresses map[string]map[string]deposit.Address) error {
+func (m *DepositAddressManager) Sync(addresses map[string]map[string][]DepositAddressExtended) error {
 	if m == nil {
 		return fmt.Errorf("deposit address manager %w", ErrNilSubsystem)
 	}
@@ -82,7 +98,7 @@ func (m *DepositAddressManager) Sync(addresses map[string]map[string]deposit.Add
 	}
 
 	for k, v := range addresses {
-		r := make(map[string]deposit.Address)
+		r := make(map[string][]DepositAddressExtended)
 		for w, x := range v {
 			r[strings.ToUpper(w)] = x
 		}

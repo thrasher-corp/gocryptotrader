@@ -2118,12 +2118,11 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    h.Name,
-		Amount:      5,
-		Currency:    currency.USDT,
+		Amount:      -1,
+		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
-			Address: "TJ6Piuaw35M4PM54CzWFqzEPP998yXydc6",
-			Chain:   "trc20usdt",
+			Address: core.BitcoinDonationAddress,
 		},
 	}
 

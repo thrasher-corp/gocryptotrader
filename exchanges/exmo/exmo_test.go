@@ -384,12 +384,11 @@ func TestWithdraw(t *testing.T) {
 
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    e.Name,
-		Amount:      1,
-		Currency:    currency.USDT,
+		Amount:      -1,
+		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
-			Chain:   "erc20",
 		},
 	}
 

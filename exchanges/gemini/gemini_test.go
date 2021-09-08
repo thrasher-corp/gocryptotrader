@@ -485,6 +485,7 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    g.Name,
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",

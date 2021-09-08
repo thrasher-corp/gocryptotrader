@@ -210,10 +210,9 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	c.Verbose = true
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    c.Name,
-		Amount:      1,
+		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{

@@ -3688,6 +3688,31 @@
         }
       }
     },
+    "gctrpcDepositAddress": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "chain": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcDepositAddresses": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcDepositAddress"
+          }
+        }
+      }
+    },
     "gctrpcFiatWithdrawalEvent": {
       "type": "object",
       "properties": {
@@ -4004,7 +4029,7 @@
         "addresses": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/gctrpcGetCryptocurrencyDepositAddressResponse"
+            "$ref": "#/definitions/gctrpcDepositAddresses"
           }
         }
       }
