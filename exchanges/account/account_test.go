@@ -134,3 +134,29 @@ func TestHoldings(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestBalance_Available(t *testing.T) {
+	t.Parallel()
+
+	b := Balance{
+		CurrencyName: currency.BTC,
+		TotalValue:   16,
+		Hold:         0,
+	}
+
+	if have := b.Available(); have != 16 {
+		t.Errorf("have %f, want 16", have)
+	}
+
+	b.Hold = 8
+
+	if have := b.Available(); have != 8 {
+		t.Errorf("have %f, want 8", have)
+	}
+
+	b.Hold = 16
+
+	if have := b.Available(); have != 0 {
+		t.Errorf("have %f, want 0", have)
+	}
+}
