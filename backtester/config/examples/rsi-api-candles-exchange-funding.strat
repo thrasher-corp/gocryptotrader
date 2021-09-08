@@ -9,14 +9,14 @@
    {
     "exchange-name": "binance",
     "asset": "spot",
-    "quote": "BTC",
+    "currency": "BTC",
     "initial-funds": "3",
     "transfer-fee": "0"
    },
    {
     "exchange-name": "binance",
     "asset": "spot",
-    "quote": "USDT",
+    "currency": "USDT",
     "initial-funds": "10000",
     "transfer-fee": "0"
    }
