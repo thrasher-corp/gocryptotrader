@@ -150,6 +150,14 @@ func (b *Bittrex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = b.Fees.LoadStatic(fee.Options{
+		Maker: 0.0025, // TODO: find these
+		Taker: 0.0025,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsRunningEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -880,15 +888,6 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	return resp, nil
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Bittrex) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return b.GetFee(feeBuilder)
-}
-
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (b *Bittrex) ValidateCredentials(assetType asset.Item) error {
@@ -1014,4 +1013,25 @@ func (b *Bittrex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bittrex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
+}
+
+// UpdateFees updates current fees associated with account
+func (b *Bittrex) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	// // Load withdrawalfees
+	// var f float64
+
+	// currencies, err := b.GetCurrencies()
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// for i := range currencies {
+	// 	if currencies[i].Symbol == c.String() {
+	// 		f = currencies[i].TxFee
+	// 	}
+	// }
+	// return f, nil
+	return nil
 }

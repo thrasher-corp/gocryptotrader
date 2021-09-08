@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -913,24 +912,4 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint s
 		}
 	}
 	return json.Unmarshal(interim, result)
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (h *HUOBI) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-	if feeBuilder.Type == fee.OfflineTrade || feeBuilder.Type == fee.Trade {
-		f = calculateTradingFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if f < 0 {
-		f = 0
-	}
-
-	return f, nil
-}
-
-func calculateTradingFee(c currency.Pair, price, amount float64) float64 {
-	if c.IsCryptoFiatPair() {
-		return 0.001 * price * amount
-	}
-	return 0.002 * price * amount
 }

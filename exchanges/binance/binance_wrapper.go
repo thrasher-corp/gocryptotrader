@@ -213,6 +213,16 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
+
+	err = b.Fees.LoadStatic(fee.Options{
+		Maker:    0.002, // TODO: Verify
+		Taker:    0.002,
+		Transfer: withdrawalFees, // TODO: Verify withdrawal fees
+	})
+	if err != nil {
+		return err
+	}
+
 	ePoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -1151,11 +1161,8 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		if err != nil {
 			return respData, err
 		}
-		var feeBuilder fee.Builder
-		feeBuilder.Amount = orderData.ExecutedQuantity
-		feeBuilder.PurchasePrice = orderData.AveragePrice
-		feeBuilder.Pair = pair
-		fee, err := b.GetFee(&feeBuilder)
+		fee, err := b.Fees.GetTakerTotal(orderData.AveragePrice,
+			orderData.ExecutedQuantity) // TODO: Verify
 		if err != nil {
 			return respData, err
 		}
@@ -1180,11 +1187,8 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		if err != nil {
 			return respData, err
 		}
-		var feeBuilder fee.Builder
-		feeBuilder.Amount = orderData.ExecutedQuantity
-		feeBuilder.PurchasePrice = orderData.AveragePrice
-		feeBuilder.Pair = pair
-		fee, err := b.GetFee(&feeBuilder)
+		fee, err := b.Fees.GetTakerTotal(orderData.AveragePrice,
+			orderData.ExecutedQuantity) // TODO: Verify
 		if err != nil {
 			return respData, err
 		}
@@ -1246,15 +1250,6 @@ func (b *Binance) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*wi
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Binance) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if (!b.AllowAuthenticatedRequest() || b.SkipAuthCheck) && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return b.GetFee(feeBuilder)
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
@@ -1296,11 +1291,8 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, err
 			}
 			for y := range openOrders {
-				var feeBuilder fee.Builder
-				feeBuilder.Amount = openOrders[y].ExecutedQty
-				feeBuilder.PurchasePrice = openOrders[y].AvgPrice
-				feeBuilder.Pair = req.Pairs[i]
-				fee, err := b.GetFee(&feeBuilder)
+				fee, err := b.Fees.GetTakerTotal(openOrders[y].AvgPrice,
+					openOrders[y].ExecutedQty) // TODO: Verify
 				if err != nil {
 					return orders, err
 				}
@@ -1329,11 +1321,8 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, err
 			}
 			for y := range openOrders {
-				var feeBuilder fee.Builder
-				feeBuilder.Amount = openOrders[y].ExecutedQuantity
-				feeBuilder.PurchasePrice = openOrders[y].AveragePrice
-				feeBuilder.Pair = req.Pairs[i]
-				fee, err := b.GetFee(&feeBuilder)
+				fee, err := b.Fees.GetTakerTotal(openOrders[y].AveragePrice,
+					openOrders[y].ExecutedQuantity) // TODO: Verify
 				if err != nil {
 					return orders, err
 				}
@@ -1441,11 +1430,8 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, fmt.Errorf("invalid combination of input params")
 			}
 			for y := range orderHistory {
-				var feeBuilder fee.Builder
-				feeBuilder.Amount = orderHistory[y].ExecutedQty
-				feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
-				feeBuilder.Pair = req.Pairs[i]
-				fee, err := b.GetFee(&feeBuilder)
+				fee, err := b.Fees.GetTakerTotal(orderHistory[y].AvgPrice,
+					orderHistory[y].ExecutedQty) // TODO: Verify
 				if err != nil {
 					return orders, err
 				}
@@ -1497,11 +1483,8 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, fmt.Errorf("invalid combination of input params")
 			}
 			for y := range orderHistory {
-				var feeBuilder fee.Builder
-				feeBuilder.Amount = orderHistory[y].ExecutedQty
-				feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
-				feeBuilder.Pair = req.Pairs[i]
-				fee, err := b.GetFee(&feeBuilder)
+				fee, err := b.Fees.GetTakerTotal(orderHistory[y].AvgPrice,
+					orderHistory[y].ExecutedQty) // TODO: Verify
 				if err != nil {
 					return orders, err
 				}
@@ -1722,4 +1705,24 @@ func (b *Binance) UpdateOrderExecutionLimits(a asset.Item) error {
 		return fmt.Errorf("cannot update exchange execution limits: %v", err)
 	}
 	return b.LoadLimits(limits)
+}
+
+// UpdateFees updates current fees associated with account
+func (b *Binance) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+
+	account, err := b.GetAccount()
+	if err != nil {
+		return err
+	}
+
+	err = b.Fees.LoadDynamic(float64(account.MakerCommission)/100,
+		float64(account.TakerCommission)/100) // TODO: verify (This is an int?)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

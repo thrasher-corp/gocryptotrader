@@ -31,6 +31,12 @@ const (
 // transaction types
 type InternationalBankTransaction uint8
 
+// TODO LIST:
+// if f < 0 {
+// f = 0
+// }
+// Find out why this was the case in any situation? neg val?
+
 var (
 	manager Manager
 

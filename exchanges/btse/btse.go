@@ -15,10 +15,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -527,89 +524,6 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint st
 		}, nil
 	}
 	return b.SendPayload(context.Background(), f, newRequest)
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (b *BTSE) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-
-	switch feeBuilder.Type {
-	case fee.Trade:
-		f = b.calculateTradingFee(feeBuilder) * feeBuilder.Amount * feeBuilder.PurchasePrice
-	case fee.Withdrawal:
-		switch feeBuilder.Pair.Base {
-		case currency.USDT:
-			f = 1.08
-		case currency.TUSD:
-			f = 1.09
-		case currency.BTC:
-			f = 0.0005
-		case currency.ETH:
-			f = 0.01
-		case currency.LTC:
-			f = 0.001
-		}
-	case fee.InternationalBankDeposit:
-		f = getInternationalBankDepositFee(feeBuilder.Amount)
-	case fee.InternationalBankWithdrawal:
-		f = getInternationalBankWithdrawalFee(feeBuilder.Amount)
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.001 * price * amount
-}
-
-// getInternationalBankDepositFee returns international deposit fee
-// Only when the initial deposit amount is less than $1000 or equivalent,
-// BTSE will charge a small fee (0.25% or $3 USD equivalent, whichever is greater).
-// The small deposit fee is charged in whatever currency it comes in.
-func getInternationalBankDepositFee(amount float64) float64 {
-	var f float64
-	if amount <= 100 {
-		f = amount * 0.0025
-		if f < 3 {
-			return 3
-		}
-	}
-	return f
-}
-
-// getInternationalBankWithdrawalFee returns international withdrawal fee
-// 0.1% (min25 USD)
-func getInternationalBankWithdrawalFee(amount float64) float64 {
-	fee := amount * 0.0009
-
-	if fee < 25 {
-		return 25
-	}
-	return fee
-}
-
-// calculateTradingFee return fee based on users current fee tier or default values
-func (b *BTSE) calculateTradingFee(feeBuilder *fee.Builder) float64 {
-	formattedPair, err := b.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
-	if err != nil {
-		if feeBuilder.IsMaker {
-			return 0.001
-		}
-		return 0.002
-	}
-	feeTiers, err := b.GetFeeInformation(formattedPair.String())
-	if err != nil {
-		if feeBuilder.IsMaker {
-			return 0.001
-		}
-		return 0.002
-	}
-	if feeBuilder.IsMaker {
-		return feeTiers[0].MakerFee
-	}
-	return feeTiers[0].TakerFee
 }
 
 func parseOrderTime(timeStr string) (time.Time, error) {

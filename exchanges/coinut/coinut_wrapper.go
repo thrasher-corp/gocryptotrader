@@ -141,6 +141,15 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = c.Fees.LoadStatic(fee.Options{
+		Maker:    0,        // TODO: Recheck values
+		Taker:    0.001,    // TODO: If operation is on a crypto-fiat pair 0.002 or 0.0035 for wcs ??
+		Transfer: transfer, // TODO: check these
+	})
+	if err != nil {
+		return err
+	}
+
 	wsRunningURL, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -813,15 +822,6 @@ func (c *COINUT) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeRespo
 // withdrawal is submitted
 func (c *COINUT) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
-}
-
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (c *COINUT) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !c.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return c.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open

@@ -141,6 +141,14 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = g.Fees.LoadStatic(fee.Options{
+		Maker: 0.01,
+		Taker: 0.01,
+	})
+	if err != nil {
+		return err
+	}
+
 	if exch.UseSandbox {
 		err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL)
 		if err != nil {
@@ -644,15 +652,6 @@ func (g *Gemini) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*wit
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (g *Gemini) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if (!g.AllowAuthenticatedRequest() || g.SkipAuthCheck) && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return g.GetFee(feeBuilder)
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (g *Gemini) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
@@ -787,3 +786,34 @@ func (g *Gemini) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 func (g *Gemini) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
+
+// UpdateFees updates current fees associated with account
+func (g *Gemini) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	// TODO: Notional volume to calculate fees based off trading activity
+	// notionVolume, err := g.GetNotionalVolume()
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// f = calculateTradingFee(&notionVolume, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+
+	// case fee.Withdrawal:
+	// TODO: no free transactions after 10; Need database to know how many trades have been done
+	// Could do via trade history, but would require analysis of response and dates to determine level of fee
+
+	// NOTE: no fees for international bank recheck
+	return nil
+}
+
+// func calculateTradingFee(notionVolume *NotionalVolume, purchasePrice, amount float64, isMaker bool) float64 {
+// 	var volumeFee float64
+// 	if isMaker {
+// 		volumeFee = (float64(notionVolume.APIMakerFeeBPS) / 10000)
+// 	} else {
+// 		volumeFee = (float64(notionVolume.APITakerFeeBPS) / 10000)
+// 	}
+
+// 	return volumeFee * amount * purchasePrice
+// }

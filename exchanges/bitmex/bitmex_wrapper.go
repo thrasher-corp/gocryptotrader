@@ -151,6 +151,14 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = b.Fees.LoadStatic(fee.Options{
+		Maker: 0.0005, // TODO: verify
+		Taker: 0.00075,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -702,15 +710,6 @@ func (b *Bitmex) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeRespo
 // submitted
 func (b *Bitmex) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
-}
-
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Bitmex) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return b.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open

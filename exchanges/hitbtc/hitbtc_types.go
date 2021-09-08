@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
 // TickerResponse is the response type
@@ -727,4 +729,8 @@ type WsGetTradesResponseTrades struct {
 	Quantity  float64   `json:"quantity,string"`
 	Side      string    `json:"side"`
 	Timestamp time.Time `json:"timestamp"`
+}
+
+var depositFee = map[asset.Item]map[currency.Code]fee.Transfer{
+	asset.Spot: {currency.BTC: {Deposit: 0.0006}}, // Dubious?
 }

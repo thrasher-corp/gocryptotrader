@@ -189,6 +189,16 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
+
+	err = b.Fees.LoadStatic(fee.Options{
+		Maker:           0.001,
+		Taker:           0.001,
+		BankingTransfer: bankTransfer,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -806,15 +816,6 @@ func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 	}, nil
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Bitfinex) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return b.GetFee(feeBuilder)
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
@@ -1114,4 +1115,42 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 	}
 	runes[0] = unicode.ToLower(runes[0])
 	return string(runes), nil
+}
+
+// UpdateFees updates current fees associated with account
+func (b *Bitfinex) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+
+	// TODO: Load trade fees
+	// accountInfos, err := b.GetAccountFees()
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// f, err = b.CalculateTradingFee(accountInfos,
+	// 	feeBuilder.PurchasePrice,
+	// 	feeBuilder.Amount,
+	// 	feeBuilder.Pair.Base,
+	// 	feeBuilder.IsMaker)
+	// if err != nil {
+	// 	return 0, err
+	// }
+
+	// TODO: Load withdrawal fees
+	// acc, err := b.GetWithdrawalFees()
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// f, err = b.GetCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base, acc)
+	// if err != nil {
+	// 	return 0, err
+	// }
+
+	// ALSO:
+
+	//TODO: fee is charged when < $1000USD is transferred (deposited), need to
+	// infer value in some way
+
+	return nil
 }

@@ -111,7 +111,20 @@ func (b *Bitflyer) Setup(exch *config.ExchangeConfig) error {
 		b.SetEnabled(false)
 		return nil
 	}
-	return b.SetupDefaults(exch)
+	err := b.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	// TODO: Figure out the weird fee structure. Do we use Bitcoin Easy Exchange,
+	// Lightning Spot,Bitcoin Market,Lightning FX/Futures etc.
+	return b.Fees.LoadStatic(fee.Options{
+		// bitflyer has fee tiers, but does not disclose them via API, so the
+		// largest has to be assumed
+		Maker:           0.0012,
+		Taker:           0.0012,
+		BankingTransfer: bankTransfer,
+	})
 }
 
 // Start starts the Bitflyer go routine
@@ -438,15 +451,6 @@ func (b *Bitflyer) GetActiveOrders(_ *order.GetOrdersRequest) ([]order.Detail, e
 // Can Limit response to specific order status
 func (b *Bitflyer) GetOrderHistory(_ *order.GetOrdersRequest) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
-}
-
-// GetFeeByType returns an estimate of fee based on the type of transaction
-func (b *Bitflyer) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return b.GetFee(feeBuilder)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

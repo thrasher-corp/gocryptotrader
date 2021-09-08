@@ -124,7 +124,7 @@ func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
 
 // GetAllFees overrides interface function
 func (f fExchange) GetAllFees() (fee.Options, error) {
-	return fee.Options{Ratio: true}, nil
+	return fee.Options{}, nil
 }
 
 // SetTransferFee overrides interface function

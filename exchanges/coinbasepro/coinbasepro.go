@@ -9,14 +9,11 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -751,84 +748,4 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path
 		}, nil
 	}
 	return c.SendPayload(context.Background(), request.Unset, newRequest)
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (c *CoinbasePro) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-	switch feeBuilder.Type {
-	case fee.Trade:
-		trailingVolume, err := c.GetTrailingVolume()
-		if err != nil {
-			return 0, err
-		}
-		f = c.calculateTradingFee(trailingVolume,
-			feeBuilder.Pair.Base,
-			feeBuilder.Pair.Quote,
-			feeBuilder.Pair.Delimiter,
-			feeBuilder.PurchasePrice,
-			feeBuilder.Amount,
-			feeBuilder.IsMaker)
-	case fee.InternationalBankWithdrawal:
-		f = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency)
-	case fee.InternationalBankDeposit:
-		f = getInternationalBankDepositFee(feeBuilder.FiatCurrency)
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-
-	if f < 0 {
-		f = 0
-	}
-
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.0025 * price * amount
-}
-
-func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, base, quote currency.Code, delimiter string, purchasePrice, amount float64, isMaker bool) float64 {
-	var f float64
-	for _, i := range trailingVolume {
-		if strings.EqualFold(i.ProductID, base.String()+delimiter+quote.String()) {
-			switch {
-			case isMaker:
-				f = 0
-			case i.Volume <= 10000000:
-				f = 0.003
-			case i.Volume > 10000000 && i.Volume <= 100000000:
-				f = 0.002
-			case i.Volume > 100000000:
-				f = 0.001
-			}
-			break
-		}
-	}
-	return f * amount * purchasePrice
-}
-
-func getInternationalBankWithdrawalFee(c currency.Code) float64 {
-	var f float64
-
-	if c == currency.USD {
-		f = 25
-	} else if c == currency.EUR {
-		f = 0.15
-	}
-
-	return f
-}
-
-func getInternationalBankDepositFee(c currency.Code) float64 {
-	var f float64
-
-	if c == currency.USD {
-		f = 10
-	} else if c == currency.EUR {
-		f = 0.15
-	}
-
-	return f
 }

@@ -147,6 +147,14 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = b.Fees.LoadStatic(fee.Options{
+		Maker: 0.0085, // TODO: Check this Add support for crypto pair as it has 0.002 fee
+		Taker: 0.0085,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -708,15 +716,6 @@ func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (b *BTCMarkets) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return b.GetFee(feeBuilder)
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
@@ -1040,4 +1039,41 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, s
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// UpdateFees updates current fees associated with account
+func (b *BTCMarkets) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+
+	// TODO: Load full withdrawal fees
+	// temp, err := b.GetTradingFees()
+	// if err != nil {
+	// 	return f, err
+	// }
+	// for x := range temp.FeeByMarkets {
+	// 	p, err := currency.NewPairFromString(temp.FeeByMarkets[x].MarketID)
+	// 	if err != nil {
+	// 		return 0, err
+	// 	}
+	// 	if p == feeBuilder.Pair {
+	// 		f = temp.FeeByMarkets[x].MakerFeeRate
+	// 		if !feeBuilder.IsMaker {
+	// 			f = temp.FeeByMarkets[x].TakerFeeRate
+	// 		}
+	// 	}
+	// }
+
+	// TODO: Load withdrawal fees
+	// temp, err := b.GetWithdrawalFees()
+	// if err != nil {
+	// 	return f, err
+	// }
+	// for x := range temp {
+	// 	if currency.NewCode(temp[x].AssetName) == feeBuilder.Pair.Base {
+	// 		f = temp[x].Fee * feeBuilder.PurchasePrice * feeBuilder.Amount
+	// 	}
+	// }
+	return nil
 }

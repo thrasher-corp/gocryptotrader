@@ -13,9 +13,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -385,52 +383,4 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 	}
 
 	return json.Unmarshal(intermediary, result)
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (i *ItBit) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-	switch feeBuilder.Type {
-	case fee.Trade:
-		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
-	case fee.InternationalBankWithdrawal:
-		f = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.BankTransactionType)
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-
-	if f < 0 {
-		f = 0
-	}
-
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.0035 * price * amount
-}
-
-func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
-	// TODO: Itbit has volume discounts, but not API endpoint to get the exact volume numbers
-	// When support is added, this needs to be updated to calculate the accurate volume fee
-	feePercent := 0.0035
-	if isMaker {
-		feePercent = -0.0003
-	}
-	return feePercent * purchasePrice * amount
-}
-
-func getInternationalBankWithdrawalFee(c currency.Code, bankTransactionType fee.InternationalBankTransactionType) float64 {
-	var f float64
-	if (bankTransactionType == exchange.Swift ||
-		bankTransactionType == exchange.WireTransfer) &&
-		c == currency.USD {
-		f = 40
-	} else if (bankTransactionType == exchange.SEPA ||
-		bankTransactionType == exchange.WireTransfer) &&
-		c == currency.EUR {
-		f = 1
-	}
-	return f
 }

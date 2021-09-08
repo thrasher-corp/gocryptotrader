@@ -1,5 +1,11 @@
 package bitflyer
 
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
+)
+
 // ChainAnalysisBlock holds block information from the bitcoin network
 type ChainAnalysisBlock struct {
 	BlockHash     string   `json:"block_hash"`
@@ -290,3 +296,23 @@ type NewOrder struct {
 	MinuteToExpire float64 `json:"minute_to_expire"`
 	TimeInForce    string  `json:"time_in_force"`
 }
+
+var bankTransfer = map[fee.InternationalBankTransaction]map[currency.Code]fee.Transfer{
+	exchange.WireTransfer: {
+		currency.JPY: {Withdrawal: 324}, // TODO: add amount switch logic.
+	},
+}
+
+// NOTE: For deposit for above
+// func getWithdrawalFee(bankTransactionType fee.InternationalBankTransactionType, c currency.Code, amount float64) (fee float64) {
+// 	if bankTransactionType == exchange.WireTransfer {
+// 		if c.Item == currency.JPY.Item {
+// 			if amount < 30000 {
+// 				fee = 540
+// 			} else {
+// 				fee = 756
+// 			}
+// 		}
+// 	}
+// 	return fee
+// }

@@ -11,9 +11,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -570,65 +568,4 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint 
 		item.Body = bytes.NewBufferString(values.Encode())
 		return item, nil
 	})
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (h *HitBTC) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-	switch feeBuilder.Type {
-	case fee.Trade:
-		feeInfo, err := h.GetFeeInfo(feeBuilder.Pair.Base.String() +
-			feeBuilder.Pair.Delimiter +
-			feeBuilder.Pair.Quote.String())
-
-		if err != nil {
-			return 0, err
-		}
-		f = calculateTradingFee(feeInfo, feeBuilder.PurchasePrice,
-			feeBuilder.Amount,
-			feeBuilder.IsMaker)
-	case fee.Withdrawal:
-		currencyInfo, err := h.GetCurrency(feeBuilder.Pair.Base.String())
-		if err != nil {
-			return 0, err
-		}
-		f, err = strconv.ParseFloat(currencyInfo.PayoutFee, 64)
-		if err != nil {
-			return 0, err
-		}
-	case fee.Deposit:
-		f = calculateCryptocurrencyDepositFee(feeBuilder.Pair.Base,
-			feeBuilder.Amount)
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if f < 0 {
-		f = 0
-	}
-
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.002 * price * amount
-}
-
-func calculateCryptocurrencyDepositFee(c currency.Code, amount float64) float64 {
-	var f float64
-	if c == currency.BTC {
-		f = 0.0006
-	}
-	return f * amount
-}
-
-func calculateTradingFee(feeInfo Fee, purchasePrice, amount float64, isMaker bool) float64 {
-	var volumeFee float64
-	if isMaker {
-		volumeFee = feeInfo.ProvideLiquidityRate
-	} else {
-		volumeFee = feeInfo.TakeLiquidityRate
-	}
-
-	return volumeFee * amount * purchasePrice
 }

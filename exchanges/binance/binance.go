@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -796,58 +795,6 @@ func (b *Binance) CheckLimit(limit int) error {
 // SetValues sets the default valid values
 func (b *Binance) SetValues() {
 	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000, 5000}
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (b *Binance) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-
-	switch feeBuilder.Type {
-	case fee.Trade:
-		multiplier, err := b.getMultiplier(feeBuilder.IsMaker)
-		if err != nil {
-			return 0, err
-		}
-		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
-	case fee.Withdrawal:
-		f = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if f < 0 {
-		f = 0
-	}
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.002 * price * amount
-}
-
-// getMultiplier retrieves account based taker/maker fees
-func (b *Binance) getMultiplier(isMaker bool) (float64, error) {
-	var multiplier float64
-	account, err := b.GetAccount()
-	if err != nil {
-		return 0, err
-	}
-	if isMaker {
-		multiplier = float64(account.MakerCommission)
-	} else {
-		multiplier = float64(account.TakerCommission)
-	}
-	return multiplier, nil
-}
-
-// calculateTradingFee returns the fee for trading any currency on Bittrex
-func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
-	return (multiplier / 100) * purchasePrice * amount
-}
-
-// getCryptocurrencyWithdrawalFee returns the fee for withdrawing from the exchange
-func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
-	return WithdrawalFees[c]
 }
 
 // WithdrawCrypto sends cryptocurrency to the address of your choosing

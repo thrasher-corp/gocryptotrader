@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -916,35 +915,4 @@ func (b *Bitmex) CaptureError(resp, reType interface{}) error {
 	}
 
 	return json.Unmarshal(marshalled, reType)
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (b *Bitmex) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-	var err error
-	switch feeBuilder.Type {
-	case fee.Trade:
-		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if f < 0 {
-		f = 0
-	}
-	return f, err
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.000750 * price * amount
-}
-
-// calculateTradingFee returns the fee for trading any currency on Bittrex
-func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
-	var fee = 0.000750
-	if isMaker {
-		fee -= 0.000250
-	}
-
-	return fee * purchasePrice * amount
 }

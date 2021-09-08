@@ -110,7 +110,15 @@ func (i *ItBit) Setup(exch *config.ExchangeConfig) error {
 		i.SetEnabled(false)
 		return nil
 	}
-	return i.SetupDefaults(exch)
+	err := i.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+	return i.Fees.LoadStatic(fee.Options{
+		Maker:           -0.0003, // TODO: Check me seems dubious
+		Taker:           0.0035,
+		BankingTransfer: bankTransfer,
+	})
 }
 
 // Start starts the ItBit go routine
@@ -494,15 +502,6 @@ func (i *ItBit) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*with
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (i *ItBit) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !i.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return i.GetFee(feeBuilder)
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
@@ -648,4 +647,17 @@ func (i *ItBit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (i *ItBit) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// UpdateFees updates current fees associated with account
+func (i *ItBit) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+
+	// TODO: Itbit has volume discounts, but not API endpoint to get the exact
+	// volume numbers When support is added, this needs to be updated to
+	// calculate the accurate volume fee.
+
+	return nil
 }

@@ -1,6 +1,12 @@
 package itbit
 
-import "time"
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
+)
 
 // GeneralReturn is a generalized return type to capture any errors
 type GeneralReturn struct {
@@ -151,4 +157,12 @@ type WalletTransfer struct {
 	Amount              float64 `json:"amount,string"`
 	CurrencyCode        string  `json:"currencyCode"`
 	Description         string  `json:"description"`
+}
+
+var bankTransfer = map[fee.InternationalBankTransaction]map[currency.Code]fee.Transfer{
+	exchange.Swift: {currency.USD: {Withdrawal: 40}},
+	exchange.WireTransfer: {
+		currency.USD: {Withdrawal: 40},
+		currency.EUR: {Withdrawal: 1}},
+	exchange.SEPA: {currency.EUR: {Withdrawal: 1}},
 }

@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -753,59 +752,5 @@ func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result 
 			HTTPRecording: b.HTTPRecording,
 		}, nil
 	}
-
 	return b.SendPayload(context.Background(), f, newRequest)
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (b *BTCMarkets) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-	switch feeBuilder.Type {
-	case fee.Trade:
-		temp, err := b.GetTradingFees()
-		if err != nil {
-			return f, err
-		}
-		for x := range temp.FeeByMarkets {
-			p, err := currency.NewPairFromString(temp.FeeByMarkets[x].MarketID)
-			if err != nil {
-				return 0, err
-			}
-			if p == feeBuilder.Pair {
-				f = temp.FeeByMarkets[x].MakerFeeRate
-				if !feeBuilder.IsMaker {
-					f = temp.FeeByMarkets[x].TakerFeeRate
-				}
-			}
-		}
-	case fee.Withdrawal:
-		temp, err := b.GetWithdrawalFees()
-		if err != nil {
-			return f, err
-		}
-		for x := range temp {
-			if currency.NewCode(temp[x].AssetName) == feeBuilder.Pair.Base {
-				f = temp[x].Fee * feeBuilder.PurchasePrice * feeBuilder.Amount
-			}
-		}
-	case fee.InternationalBankWithdrawal:
-		return 0, errors.New("international bank withdrawals are not supported")
-
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder)
-	}
-	if f < 0 {
-		f = 0
-	}
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(feeBuilder *fee.Builder) float64 {
-	switch {
-	case feeBuilder.Pair.IsCryptoPair():
-		return 0.002 * feeBuilder.PurchasePrice * feeBuilder.Amount
-	default:
-		return 0.0085 * feeBuilder.PurchasePrice * feeBuilder.Amount
-	}
 }

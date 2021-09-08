@@ -3892,14 +3892,14 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 				Asset:    a.String(),
 				Withdraw: val.Withdrawal,
 				Deposit:  val.Deposit,
-				Ratio:    val.Ratio,
+				Ratio:    val.IsPercentage,
 			})
 		}
 	}
 	return &gctrpc.GetAllFeesResponse{
 		Maker:             ss.Maker,
 		Taker:             ss.Taker,
-		Ratio:             ss.Ratio,
+		Ratio:             ss.IsSetAmount,
 		Transfers:         transferFees,
 		WorstCaseScenario: ss.WorstCaseScenario,
 	}, nil

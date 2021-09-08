@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -64,79 +63,6 @@ const (
 // Bitstamp is the overarching type across the bitstamp package
 type Bitstamp struct {
 	exchange.Base
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (b *Bitstamp) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-	switch feeBuilder.Type {
-	case fee.Trade:
-		balance, err := b.GetBalance()
-		if err != nil {
-			return 0, err
-		}
-		f = b.CalculateTradingFee(feeBuilder.Pair.Base,
-			feeBuilder.Pair.Quote,
-			feeBuilder.PurchasePrice,
-			feeBuilder.Amount,
-			balance)
-	case fee.Deposit:
-		f = 0
-	case fee.InternationalBankDeposit:
-		f = getInternationalBankDepositFee(feeBuilder.Amount)
-	case fee.InternationalBankWithdrawal:
-		f = getInternationalBankWithdrawalFee(feeBuilder.Amount)
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if f < 0 {
-		f = 0
-	}
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.0025 * price * amount
-}
-
-// getInternationalBankWithdrawalFee returns international withdrawal fee
-func getInternationalBankWithdrawalFee(amount float64) float64 {
-	fee := amount * 0.0009
-
-	if fee < 15 {
-		return 15
-	}
-	return fee
-}
-
-// getInternationalBankDepositFee returns international deposit fee
-func getInternationalBankDepositFee(amount float64) float64 {
-	fee := amount * 0.0005
-
-	if fee < 7.5 {
-		return 7.5
-	}
-	if fee > 300 {
-		return 300
-	}
-	return fee
-}
-
-// CalculateTradingFee returns fee on a currency pair
-func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, balances Balances) float64 {
-	var f float64
-	if v, ok := balances[base.String()]; ok {
-		switch quote {
-		case currency.BTC:
-			f = v.BTCFee
-		case currency.USD:
-			f = v.USDFee
-		case currency.EUR:
-			f = v.EURFee
-		}
-	}
-	return f * purchasePrice * amount
 }
 
 // GetTicker returns ticker information

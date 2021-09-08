@@ -157,6 +157,15 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = h.Fees.LoadStatic(fee.Options{
+		Maker:    0.002,
+		Taker:    0.002,
+		Transfer: depositFee,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsRunningURL, err := h.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -675,15 +684,6 @@ func (h *HitBTC) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*wit
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (h *HitBTC) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !h.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return h.GetFee(feeBuilder)
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (h *HitBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
@@ -900,4 +900,33 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// UpdateFees updates current fees associated with account
+func (h *HitBTC) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	// TODO: Trade fees - see if we can get full definitions
+	// feeInfo, err := h.GetFeeInfo(feeBuilder.Pair.Base.String() +
+	// 	feeBuilder.Pair.Delimiter +
+	// 	feeBuilder.Pair.Quote.String())
+
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// f = calculateTradingFee(feeInfo, feeBuilder.PurchasePrice,
+	// 	feeBuilder.Amount,
+	// 	feeBuilder.IsMaker)
+
+	// TODO: withdrawal defintions - full definitions
+	// currencyInfo, err := h.GetCurrency(feeBuilder.Pair.Base.String())
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// f, err = strconv.ParseFloat(currencyInfo.PayoutFee, 64)
+	// if err != nil {
+	// 	return 0, err
+	// }
+	return nil
 }

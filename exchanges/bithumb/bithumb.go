@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -568,72 +567,6 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, par
 	}
 
 	return json.Unmarshal(intermediary, result)
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (b *Bithumb) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-
-	switch feeBuilder.Type {
-	case fee.Trade:
-		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	case fee.Deposit:
-		f = getDepositFee(feeBuilder.Pair.Base, feeBuilder.Amount)
-	case fee.Withdrawal:
-		f = getWithdrawalFee(feeBuilder.Pair.Base)
-	case fee.InternationalBankWithdrawal:
-		f = getWithdrawalFee(feeBuilder.FiatCurrency)
-	case fee.OfflineTrade:
-		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if f < 0 {
-		f = 0
-	}
-	return f, nil
-}
-
-// calculateTradingFee returns fee when performing a trade
-func calculateTradingFee(purchasePrice, amount float64) float64 {
-	return 0.0025 * amount * purchasePrice
-}
-
-// getDepositFee returns fee on a currency when depositing small amounts to bithumb
-func getDepositFee(c currency.Code, amount float64) float64 {
-	var f float64
-
-	switch c {
-	case currency.BTC:
-		if amount <= 0.005 {
-			f = 0.001
-		}
-	case currency.LTC:
-		if amount <= 0.3 {
-			f = 0.01
-		}
-	case currency.DASH:
-		if amount <= 0.04 {
-			f = 0.01
-		}
-	case currency.BCH:
-		if amount <= 0.03 {
-			f = 0.001
-		}
-	case currency.ZEC:
-		if amount <= 0.02 {
-			f = 0.001
-		}
-	case currency.BTG:
-		if amount <= 0.15 {
-			f = 0.001
-		}
-	}
-
-	return f
-}
-
-// getWithdrawalFee returns fee on a currency when withdrawing out of bithumb
-func getWithdrawalFee(c currency.Code) float64 {
-	return WithdrawalFees[c]
 }
 
 var errCode = map[string]string{

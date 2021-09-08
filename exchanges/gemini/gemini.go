@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -413,45 +412,4 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path stri
 			HTTPRecording: g.HTTPRecording,
 		}, nil
 	})
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (g *Gemini) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-	switch feeBuilder.Type {
-	case fee.Trade:
-		notionVolume, err := g.GetNotionalVolume()
-		if err != nil {
-			return 0, err
-		}
-		f = calculateTradingFee(&notionVolume, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
-	case fee.Withdrawal:
-		// TODO: no free transactions after 10; Need database to know how many trades have been done
-		// Could do via trade history, but would require analysis of response and dates to determine level of fee
-	case fee.InternationalBankWithdrawal:
-		f = 0
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if f < 0 {
-		f = 0
-	}
-
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.01 * price * amount
-}
-
-func calculateTradingFee(notionVolume *NotionalVolume, purchasePrice, amount float64, isMaker bool) float64 {
-	var volumeFee float64
-	if isMaker {
-		volumeFee = (float64(notionVolume.APIMakerFeeBPS) / 10000)
-	} else {
-		volumeFee = (float64(notionVolume.APITakerFeeBPS) / 10000)
-	}
-
-	return volumeFee * amount * purchasePrice
 }

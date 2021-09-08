@@ -157,6 +157,15 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = b.Fees.LoadStatic(fee.Options{
+		Maker:           0.0025,
+		Taker:           0.0025,
+		BankingTransfer: bankTransfer,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -353,15 +362,6 @@ func (b *Bitstamp) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 		return b.UpdateTicker(fPair, assetType)
 	}
 	return tick, nil
-}
-
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Bitstamp) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if (!b.AllowAuthenticatedRequest() || b.SkipAuthCheck) && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return b.GetFee(feeBuilder)
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
@@ -957,3 +957,38 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
+
+// UpdateFees updates current fees associated with account
+func (b *Bitstamp) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	// TODO: Load balances
+	// balance, err := b.GetBalance()
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// f = b.CalculateTradingFee(feeBuilder.Pair.Base,
+	// 	feeBuilder.Pair.Quote,
+	// 	feeBuilder.PurchasePrice,
+	// 	feeBuilder.Amount,
+	// 	balance)
+	return nil
+}
+
+// NOTE: For above
+// // CalculateTradingFee returns fee on a currency pair
+// func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, balances Balances) float64 {
+// 	var f float64
+// 	if v, ok := balances[base.String()]; ok {
+// 		switch quote {
+// 		case currency.BTC:
+// 			f = v.BTCFee
+// 		case currency.USD:
+// 			f = v.USDFee
+// 		case currency.EUR:
+// 			f = v.EURFee
+// 		}
+// 	}
+// 	return f * purchasePrice * amount
+// }

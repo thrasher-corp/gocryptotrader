@@ -3,6 +3,10 @@ package btse
 import (
 	"sync"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
 const (
@@ -370,3 +374,40 @@ type WsLoginAcknowledgement struct {
 	Event   string `json:"event"`
 	Success bool   `json:"success"`
 }
+
+// TODO: Verify and do this.
+var withdrawTransfer = map[asset.Item]map[currency.Code]fee.Transfer{
+	asset.Spot: {
+		currency.USDT: {Withdrawal: 1.08},
+		currency.TUSD: {Withdrawal: 1.09},
+		currency.BTC:  {Withdrawal: 0.0005},
+		currency.ETH:  {Withdrawal: 0.01},
+		currency.LTC:  {Withdrawal: 0.001},
+	},
+}
+
+// // getInternationalBankDepositFee returns international deposit fee
+// // Only when the initial deposit amount is less than $1000 or equivalent,
+// // BTSE will charge a small fee (0.25% or $3 USD equivalent, whichever is greater).
+// // The small deposit fee is charged in whatever currency it comes in.
+// func getInternationalBankDepositFee(amount float64) float64 {
+// 	var f float64
+// 	if amount <= 100 {
+// 		f = amount * 0.0025
+// 		if f < 3 {
+// 			return 3
+// 		}
+// 	}
+// 	return f
+// }
+
+// // getInternationalBankWithdrawalFee returns international withdrawal fee
+// // 0.1% (min25 USD)
+// func getInternationalBankWithdrawalFee(amount float64) float64 {
+// 	fee := amount * 0.0009
+
+// 	if fee < 25 {
+// 		return 25
+// 	}
+// 	return fee
+// }

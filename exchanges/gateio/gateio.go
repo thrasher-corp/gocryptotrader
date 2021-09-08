@@ -11,9 +11,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -461,63 +459,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint,
 				errCap.Message)
 		}
 	}
-
 	return json.Unmarshal(intermidiary, result)
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (g *Gateio) GetFee(feeBuilder *fee.Builder) (f float64, err error) {
-	switch feeBuilder.Type {
-	case fee.Trade:
-		feePairs, err := g.GetMarketInfo()
-		if err != nil {
-			return 0, err
-		}
-
-		currencyPair := feeBuilder.Pair.Base.String() +
-			feeBuilder.Pair.Delimiter +
-			feeBuilder.Pair.Quote.String()
-
-		var feeForPair float64
-		for _, i := range feePairs.Pairs {
-			if strings.EqualFold(currencyPair, i.Symbol) {
-				feeForPair = i.Fee
-			}
-		}
-
-		if feeForPair == 0 {
-			return 0, fmt.Errorf("currency '%s' failed to find fee data",
-				currencyPair)
-		}
-
-		f = calculateTradingFee(feeForPair,
-			feeBuilder.PurchasePrice,
-			feeBuilder.Amount)
-
-	case fee.Withdrawal:
-		f = getCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base)
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-
-	if f < 0 {
-		f = 0
-	}
-
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.002 * price * amount
-}
-
-func calculateTradingFee(feeForPair, purchasePrice, amount float64) float64 {
-	return (feeForPair / 100) * purchasePrice * amount
-}
-
-func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
-	return WithdrawalFees[c]
 }
 
 // WithdrawCrypto withdraws cryptocurrency to your selected wallet

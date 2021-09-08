@@ -155,6 +155,15 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = g.Fees.LoadStatic(fee.Options{
+		Maker:    0.002,
+		Taker:    0.002,
+		Transfer: withdrawalFees,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -663,15 +672,6 @@ func (g *Gateio) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*wit
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (g *Gateio) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !g.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return g.GetFee(feeBuilder)
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
@@ -865,3 +865,41 @@ func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 func (g *Gateio) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return g.GetHistoricCandles(pair, a, start, end, interval)
 }
+
+// UpdateFees updates current fees associated with account
+func (g *Gateio) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+
+	// TODO: LOAD TRADE FEES
+	// feePairs, err := g.GetMarketInfo()
+	// if err != nil {
+	// 	return 0, err
+	// }
+
+	// currencyPair := feeBuilder.Pair.Base.String() +
+	// 	feeBuilder.Pair.Delimiter +
+	// 	feeBuilder.Pair.Quote.String()
+
+	// var feeForPair float64
+	// for _, i := range feePairs.Pairs {
+	// 	if strings.EqualFold(currencyPair, i.Symbol) {
+	// 		feeForPair = i.Fee
+	// 	}
+	// }
+
+	// if feeForPair == 0 {
+	// 	return 0, fmt.Errorf("currency '%s' failed to find fee data",
+	// 		currencyPair)
+	// }
+
+	// f = calculateTradingFee(feeForPair,
+	// 	feeBuilder.PurchasePrice,
+	// 	feeBuilder.Amount)
+	return nil
+}
+
+// func calculateTradingFee(feeForPair, purchasePrice, amount float64) float64 {
+// 	return (feeForPair / 100) * purchasePrice * amount
+// }

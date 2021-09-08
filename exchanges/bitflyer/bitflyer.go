@@ -7,9 +7,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -314,53 +312,4 @@ func (b *Bitflyer) SendAuthHTTPRequest() {
 	// headers := make(map[string]string)
 	// headers["ACCESS-KEY"] = b.API.Credentials.Key
 	// headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(time.Now().UnixNano(), 10)
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-// TODO: Figure out the weird fee structure. Do we use Bitcoin Easy Exchange,Lightning Spot,Bitcoin Market,Lightning FX/Futures ???
-func (b *Bitflyer) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-
-	switch feeBuilder.Type {
-	case fee.Trade:
-		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	case fee.InternationalBankDeposit:
-		f = getDepositFee(feeBuilder.BankTransactionType, feeBuilder.FiatCurrency)
-	case fee.InternationalBankWithdrawal:
-		f = getWithdrawalFee(feeBuilder.BankTransactionType, feeBuilder.FiatCurrency, feeBuilder.Amount)
-	case fee.OfflineTrade:
-		f = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if f < 0 {
-		f = 0
-	}
-	return f, nil
-}
-
-// calculateTradingFee returns fee when performing a trade
-func calculateTradingFee(price, amount float64) float64 {
-	// bitflyer has fee tiers, but does not disclose them via API, so the largest has to be assumed
-	return 0.0012 * price * amount
-}
-
-func getDepositFee(bankTransactionType fee.InternationalBankTransactionType, c currency.Code) (fee float64) {
-	if bankTransactionType == exchange.WireTransfer {
-		if c.Item == currency.JPY.Item {
-			fee = 324
-		}
-	}
-	return fee
-}
-
-func getWithdrawalFee(bankTransactionType fee.InternationalBankTransactionType, c currency.Code, amount float64) (fee float64) {
-	if bankTransactionType == exchange.WireTransfer {
-		if c.Item == currency.JPY.Item {
-			if amount < 30000 {
-				fee = 540
-			} else {
-				fee = 756
-			}
-		}
-	}
-	return fee
 }

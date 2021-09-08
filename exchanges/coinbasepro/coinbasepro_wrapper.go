@@ -159,6 +159,15 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = c.Fees.LoadStatic(fee.Options{
+		Maker:    0.0025,
+		Taker:    0.0025,
+		Transfer: transfer, // TODO: validate
+	})
+	if err != nil {
+		return err
+	}
+
 	wsRunningURL, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -714,15 +723,6 @@ func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *with
 	}, nil
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (c *CoinbasePro) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !c.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return c.GetFee(feeBuilder)
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
@@ -829,24 +829,24 @@ func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Deta
 	return orders, nil
 }
 
-// checkInterval checks allowable interval
-func checkInterval(i time.Duration) (int64, error) {
-	switch i.Seconds() {
-	case 60:
-		return 60, nil
-	case 300:
-		return 300, nil
-	case 900:
-		return 900, nil
-	case 3600:
-		return 3600, nil
-	case 21600:
-		return 21600, nil
-	case 86400:
-		return 86400, nil
-	}
-	return 0, fmt.Errorf("interval not allowed %v", i.Seconds())
-}
+// // checkInterval checks allowable interval
+// func checkInterval(i time.Duration) (int64, error) { // TODO: Check why?
+// 	switch i.Seconds() {
+// 	case 60:
+// 		return 60, nil
+// 	case 300:
+// 		return 300, nil
+// 	case 900:
+// 		return 900, nil
+// 	case 3600:
+// 		return 3600, nil
+// 	case 21600:
+// 		return 21600, nil
+// 	case 86400:
+// 		return 86400, nil
+// 	}
+// 	return 0, fmt.Errorf("interval not allowed %v", i.Seconds())
+// }
 
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
@@ -964,3 +964,46 @@ func (c *CoinbasePro) ValidateCredentials(assetType asset.Item) error {
 	_, err := c.UpdateAccountInfo(assetType)
 	return c.CheckTransientError(err)
 }
+
+// UpdateFees updates current fees associated with account
+func (c *CoinbasePro) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+
+	// TODO: Add custom volume tracking to derive fee levels
+	// trailingVolume, err := c.GetTrailingVolume()
+	// 	if err != nil {
+	// 		return 0, err
+	// 	}
+	// 	f = c.calculateTradingFee(trailingVolume,
+	// 		feeBuilder.Pair.Base,
+	// 		feeBuilder.Pair.Quote,
+	// 		feeBuilder.Pair.Delimiter,
+	// 		feeBuilder.PurchasePrice,
+	// 		feeBuilder.Amount,
+	// 		feeBuilder.IsMaker)
+
+	return nil
+}
+
+// REFERENCE:
+// func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, base, quote currency.Code, delimiter string, purchasePrice, amount float64, isMaker bool) float64 {
+// 	var f float64
+// 	for _, i := range trailingVolume {
+// 		if strings.EqualFold(i.ProductID, base.String()+delimiter+quote.String()) {
+// 			switch {
+// 			case isMaker:
+// 				f = 0
+// 			case i.Volume <= 10000000:
+// 				f = 0.003
+// 			case i.Volume > 10000000 && i.Volume <= 100000000:
+// 				f = 0.002
+// 			case i.Volume > 100000000:
+// 				f = 0.001
+// 			}
+// 			break
+// 		}
+// 	}
+// 	return f * amount * purchasePrice
+// }

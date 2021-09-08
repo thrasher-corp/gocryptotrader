@@ -178,6 +178,15 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = b.Fees.LoadStatic(fee.Options{
+		Maker:    0.001,
+		Taker:    0.002,
+		Transfer: withdrawTransfer,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsRunningURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -890,15 +899,6 @@ func (b *BTSE) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]orde
 	return resp, nil
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (b *BTSE) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return b.GetFee(feeBuilder)
-}
-
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (b *BTSE) ValidateCredentials(assetType asset.Item) error {
@@ -1054,4 +1054,31 @@ func OrderSizeLimits(pair string) (limits OrderSizeLimit, found bool) {
 	}
 	val, ok := resp.(OrderSizeLimit)
 	return val, ok
+}
+
+// UpdateFees updates current fees associated with account
+func (b *BTSE) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	// // TODO: Loading trading fees
+	// formattedPair, err := b.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
+	// if err != nil {
+	// 	if feeBuilder.IsMaker {
+	// 		return 0.001
+	// 	}
+	// 	return 0.002
+	// }
+	// feeTiers, err := b.GetFeeInformation(formattedPair.String())
+	// if err != nil {
+	// 	if feeBuilder.IsMaker {
+	// 		return 0.001
+	// 	}
+	// 	return 0.002
+	// }
+	// if feeBuilder.IsMaker {
+	// 	return feeTiers[0].MakerFee
+	// }
+	// return feeTiers[0].TakerFee
+	return nil
 }

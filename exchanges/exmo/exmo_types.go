@@ -1,6 +1,11 @@
 package exmo
 
-import "github.com/thrasher-corp/gocryptotrader/currency"
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
+)
 
 // Trades holds trade data
 type Trades struct {
@@ -146,32 +151,72 @@ type WalletHistory struct {
 	}
 }
 
-// WithdrawalFees the large list of predefined withdrawal fees
-// Prone to change
-var WithdrawalFees = map[currency.Code]float64{
-	currency.BTC:   0.0005,
-	currency.LTC:   0.01,
-	currency.DOGE:  1,
-	currency.DASH:  0.01,
-	currency.ETH:   0.01,
-	currency.WAVES: 0.001,
-	currency.ZEC:   0.001,
-	currency.USDT:  5,
-	currency.XMR:   0.05,
-	currency.XRP:   0.02,
-	currency.KICK:  50,
-	currency.ETC:   0.01,
-	currency.BCH:   0.001,
-	currency.BTG:   0.001,
-	currency.HBZ:   65,
-	currency.BTCZ:  5,
-	currency.DXT:   20,
-	currency.STQ:   100,
-	currency.XLM:   0.001,
-	currency.OMG:   0.5,
-	currency.TRX:   1,
-	currency.ADA:   1,
-	currency.INK:   50,
-	currency.ZRX:   1,
-	currency.GNT:   1,
+// withdrawFees the large list of predefined withdrawal and deposit fees.
+// Prone to change.
+var withdrawFees = map[asset.Item]map[currency.Code]fee.Transfer{
+	asset.Spot: {
+		currency.BTC:   {Withdrawal: 0.0005},
+		currency.LTC:   {Withdrawal: 0.01},
+		currency.DOGE:  {Withdrawal: 1},
+		currency.DASH:  {Withdrawal: 0.01},
+		currency.ETH:   {Withdrawal: 0.01},
+		currency.WAVES: {Withdrawal: 0.001},
+		currency.ZEC:   {Withdrawal: 0.001},
+		currency.USDT:  {Withdrawal: 5},
+		currency.XMR:   {Withdrawal: 0.05},
+		currency.XRP:   {Withdrawal: 0.02},
+		currency.KICK:  {Withdrawal: 50},
+		currency.ETC:   {Withdrawal: 0.01},
+		currency.BCH:   {Withdrawal: 0.001},
+		currency.BTG:   {Withdrawal: 0.001},
+		currency.HBZ:   {Withdrawal: 65},
+		currency.BTCZ:  {Withdrawal: 5},
+		currency.DXT:   {Withdrawal: 20},
+		currency.STQ:   {Withdrawal: 100},
+		currency.XLM:   {Withdrawal: 0.001},
+		currency.OMG:   {Withdrawal: 0.5},
+		currency.TRX:   {Withdrawal: 1},
+		currency.ADA:   {Withdrawal: 1},
+		currency.INK:   {Withdrawal: 50},
+		currency.ZRX:   {Withdrawal: 1},
+		currency.GNT:   {Withdrawal: 1},
+	},
+}
+
+var transferBank = map[fee.InternationalBankTransaction]map[currency.Code]fee.Transfer{
+	exchange.WireTransfer: {
+		currency.RUB: {Withdrawal: 3200, Deposit: 1600, IsPercentage: true}, // This doesn't seem like a percentage val???
+		currency.PLN: {Withdrawal: 125, Deposit: 30, IsPercentage: true},    // Or this?
+		currency.TRY: {Withdrawal: 0, Deposit: 0, IsPercentage: true},
+	},
+	exchange.PerfectMoney: {
+		currency.USD: {Withdrawal: 0.01, IsPercentage: true},
+		currency.EUR: {Withdrawal: 0.0195, IsPercentage: true},
+	},
+	exchange.Neteller: {
+		currency.USD: {Withdrawal: 0.0195, Deposit: 0.035, IsPercentage: true}, // Also has an addition of .29 ??
+		currency.EUR: {Withdrawal: 0.0195, Deposit: 0.035, IsPercentage: true}, // Also has an addition of .25 ??
+	},
+	exchange.AdvCash: {
+		currency.USD: {Withdrawal: 0.0295, Deposit: 0.0295, IsPercentage: true},
+		currency.EUR: {Withdrawal: 0.03, Deposit: 0.01, IsPercentage: true},
+		currency.RUB: {Withdrawal: 0.0195, Deposit: 0.0495, IsPercentage: true},
+		currency.UAH: {Withdrawal: 0.0495, Deposit: 0.01, IsPercentage: true},
+	},
+	exchange.Payeer: {
+		currency.USD: {Withdrawal: 0.0395, Deposit: 0.0195, IsPercentage: true},
+		currency.EUR: {Withdrawal: 0.01, Deposit: 0.0295, IsPercentage: true},
+		currency.RUB: {Withdrawal: 0.0595, Deposit: 0.0345, IsPercentage: true},
+	},
+	exchange.Skrill: {
+		currency.USD: {Withdrawal: 0.0145, Deposit: 0.0495, IsPercentage: true}, // Also has an addition of .36 ??
+		currency.EUR: {Withdrawal: 0.03, Deposit: 0.0295, IsPercentage: true},   // Also has an addition of .29 ??
+		currency.PLN: {Withdrawal: 0, Deposit: 0.035, IsPercentage: true},       // Also has an addition of 1.21 ??
+		currency.TRY: {Withdrawal: 0, Deposit: 0, IsPercentage: true},
+	},
+	exchange.VisaMastercard: {
+		currency.USD: {Withdrawal: 0.06, IsPercentage: true},
+		currency.EUR: {Withdrawal: 0.06, IsPercentage: true},
+		currency.PLN: {Withdrawal: 0.06, IsPercentage: true},
+	},
 }

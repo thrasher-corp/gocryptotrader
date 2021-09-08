@@ -12,10 +12,8 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -321,101 +319,6 @@ func (c *COINUT) SendHTTPRequest(ep exchange.URL, apiRequest string, params map[
 	}
 
 	return json.Unmarshal(rawMsg, result)
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (c *COINUT) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-	switch feeBuilder.Type {
-	case fee.Trade:
-		f = c.calculateTradingFee(feeBuilder.Pair.Base,
-			feeBuilder.Pair.Quote,
-			feeBuilder.PurchasePrice,
-			feeBuilder.Amount,
-			feeBuilder.IsMaker)
-	case fee.InternationalBankWithdrawal:
-		f = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency,
-			feeBuilder.Amount)
-	case fee.InternationalBankDeposit:
-		f = getInternationalBankDepositFee(feeBuilder.FiatCurrency,
-			feeBuilder.Amount)
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-
-	if f < 0 {
-		f = 0
-	}
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(c currency.Pair, price, amount float64) float64 {
-	if c.IsCryptoFiatPair() {
-		return 0.0035 * price * amount
-	}
-	return 0.002 * price * amount
-}
-
-func (c *COINUT) calculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, isMaker bool) float64 {
-	var f float64
-
-	switch {
-	case isMaker:
-		f = 0
-	case currency.NewPair(base, quote).IsCryptoFiatPair():
-		f = 0.002
-	default:
-		f = 0.001
-	}
-
-	return f * amount * purchasePrice
-}
-
-func getInternationalBankWithdrawalFee(c currency.Code, amount float64) float64 {
-	var f float64
-
-	switch c {
-	case currency.USD:
-		if amount*0.001 < 10 {
-			f = 10
-		} else {
-			f = amount * 0.001
-		}
-	case currency.CAD:
-		if amount*0.005 < 10 {
-			f = 2
-		} else {
-			f = amount * 0.005
-		}
-	case currency.SGD:
-		if amount*0.001 < 10 {
-			f = 10
-		} else {
-			f = amount * 0.001
-		}
-	}
-	return f
-}
-
-func getInternationalBankDepositFee(c currency.Code, amount float64) float64 {
-	var f float64
-
-	if c == currency.USD {
-		if amount*0.001 < 10 {
-			f = 10
-		} else {
-			f = amount * 0.001
-		}
-	} else if c == currency.CAD {
-		if amount*0.005 < 10 {
-			f = 2
-		} else {
-			f = amount * 0.005
-		}
-	}
-
-	return f
 }
 
 // IsLoaded returns whether or not the instrument map has been seeded

@@ -124,7 +124,17 @@ func (e *EXMO) Setup(exch *config.ExchangeConfig) error {
 		e.SetEnabled(false)
 		return nil
 	}
-	return e.SetupDefaults(exch)
+	err := e.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	return e.Fees.LoadStatic(fee.Options{
+		Maker:           0.002,
+		Taker:           0.002,
+		Transfer:        withdrawFees,
+		BankingTransfer: transferBank,
+	})
 }
 
 // Start starts the EXMO go routine
@@ -565,15 +575,6 @@ func (e *EXMO) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeRespons
 // withdrawal is submitted
 func (e *EXMO) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
-}
-
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (e *EXMO) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !e.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return e.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open

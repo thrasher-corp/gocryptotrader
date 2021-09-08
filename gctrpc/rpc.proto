@@ -967,7 +967,7 @@ message GetAllFeesRequest {
 message GetAllFeesResponse {
     double maker = 1;
     double taker = 2;
-    bool ratio = 3;
+    bool is_set_amount = 3;
     bool worst_case_scenario = 4;
     repeated TransferFees transfers = 5;
 }
@@ -977,14 +977,14 @@ message TransferFees {
     string asset = 2;
     double withdraw = 3;
     double deposit = 4;
-    bool ratio = 5; 
+    bool is_percentage = 5; 
 }
 
 message SetGlobalFeeRequest {
     string exchange = 1;
     double maker = 2;
     double taker = 3;
-    bool ratio = 5;
+    bool is_set_amount = 5;
 }
 
 message SetTransferFeeRequest {
@@ -993,7 +993,7 @@ message SetTransferFeeRequest {
     string asset = 3;
     double withdraw = 4;
     double deposit = 5;
-    bool ratio = 6;
+    bool is_percentage = 6;
 }
 
 message SetFeeCustomRequest {

@@ -1,6 +1,11 @@
 package bitstamp
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
+)
 
 // Transaction types
 const (
@@ -238,3 +243,37 @@ type OHLCResponse struct {
 		} `json:"ohlc"`
 	} `json:"data"`
 }
+
+var bankTransfer = map[fee.InternationalBankTransaction]map[currency.Code]fee.Transfer{
+	// TODO: Add zero value transaction type?
+	0: {
+		currency.USD: {
+			Withdrawal: 0.0009, // If less than 15 return 15 as fixed TODO Address this
+			Deposit:    0.0005, // This as well by bigger than 300 zero fix max
+		},
+	},
+}
+
+// NOTE:
+// // getInternationalBankWithdrawalFee returns international withdrawal fee
+// func getInternationalBankWithdrawalFee(amount float64) float64 {
+// 	fee := amount * 0.0009
+
+// 	if fee < 15 {
+// 		return 15
+// 	}
+// 	return fee
+// }
+
+// // getInternationalBankDepositFee returns international deposit fee
+// func getInternationalBankDepositFee(amount float64) float64 {
+// 	fee := amount * 0.0005
+
+// 	if fee < 7.5 {
+// 		return 7.5
+// 	}
+// 	if fee > 300 {
+// 		return 300
+// 	}
+// 	return fee
+// }

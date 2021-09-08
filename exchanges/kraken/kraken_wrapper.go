@@ -203,6 +203,15 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = k.Fees.LoadStatic(fee.Options{
+		Maker:    0.0016,
+		Taker:    0.0016,
+		Transfer: transferFees,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsRunningURL, err := k.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -1036,15 +1045,6 @@ func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 	}, nil
 }
 
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (k *Kraken) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !k.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return k.GetFee(feeBuilder)
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
@@ -1493,3 +1493,37 @@ func compatibleFillOrderType(fillType string) (order.Type, error) {
 	}
 	return resp, nil
 }
+
+// UpdateFees updates current fees associated with account
+func (k *Kraken) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	// TODO: implement
+	// fee, err := k.GetTradeVolume(true, currency.Pair{})
+	// if err != nil {
+	// 	return err
+	// }
+
+	// fee.Fees
+	// return k.Fees.LoadDynamic(fee.MakerFee, fee.TakerFee)
+
+	// depositMethods, err := k.GetDepositMethods(feeBuilder.FiatCurrency.String())
+	// 	if err != nil {
+	// 		return 0, err
+	// 	}
+
+	// 	for _, i := range depositMethods {
+	// 		if feeBuilder.BankTransactionType == exchange.WireTransfer {
+	// 			if i.Method == "SynapsePay (US Wire)" {
+	// 				f = i.Fee
+	// 				return f, nil
+	// 			}
+	// 		}
+	// 	}
+	return nil
+}
+
+// func calculateTradingFee(currency string, feePair map[string]TradeVolumeFee, purchasePrice, amount float64) float64 {
+// 	return (feePair[currency].Fee / 100) * purchasePrice * amount
+// }

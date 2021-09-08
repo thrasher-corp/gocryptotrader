@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -454,82 +453,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	actual := b.FormatWithdrawPermissions()
 	if actual != expected {
 		t.Errorf("Expected: %s, Received: %s", expected, actual)
-	}
-}
-
-// TestGetFeeByTypeOfflineTradeFee logic test
-func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
-	feeBuilder := &fee.Builder{
-		Type:          fee.Trade,
-		Pair:          currency.NewPair(currency.BTC, currency.USD),
-		IsMaker:       true,
-		Amount:        1,
-		PurchasePrice: 1000,
-	}
-
-	_, err := b.GetFeeByType(feeBuilder)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !areTestAPIKeysSet() {
-		if feeBuilder.Type != fee.OfflineTrade {
-			t.Errorf("Expected %v, received %v", fee.OfflineTrade, feeBuilder.Type)
-		}
-	} else {
-		if feeBuilder.Type != fee.Trade {
-			t.Errorf("Expected %v, received %v", fee.Trade, feeBuilder.Type)
-		}
-	}
-}
-
-func TestGetFee(t *testing.T) {
-	t.Parallel()
-
-	feeBuilder := &fee.Builder{
-		Type:          fee.Trade,
-		Pair:          currency.NewPair(currency.BTC, currency.USD),
-		IsMaker:       true,
-		Amount:        1,
-		PurchasePrice: 1000,
-	}
-
-	if _, err := b.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	feeBuilder.IsMaker = false
-	if _, err := b.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	feeBuilder.Type = fee.Withdrawal
-	if _, err := b.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	feeBuilder.Pair.Base = currency.USDT
-	if _, err := b.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	feeBuilder.Type = fee.InternationalBankDeposit
-	if _, err := b.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	feeBuilder.Amount = 1000000
-	if _, err := b.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	feeBuilder.Type = fee.InternationalBankWithdrawal
-	if _, err := b.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	feeBuilder.Amount = 1000
-	if _, err := b.GetFee(feeBuilder); err != nil {
-		t.Error(err)
 	}
 }
 

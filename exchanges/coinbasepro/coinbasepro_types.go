@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
 // Product holds product information
@@ -477,3 +479,34 @@ type wsStatus struct {
 	} `json:"products"`
 	Type string `json:"type"`
 }
+
+var transfer = map[asset.Item]map[currency.Code]fee.Transfer{
+	asset.Spot: {
+		currency.USD: {Withdrawal: 25, Deposit: 10},
+		currency.EUR: {Withdrawal: 0.15, Deposit: 0.15},
+	},
+}
+
+// func getInternationalBankWithdrawalFee(c currency.Code) float64 {
+// 	var f float64
+
+// 	if c == currency.USD {
+// 		f = 25
+// 	} else if c == currency.EUR {
+// 		f = 0.15
+// 	}
+
+// 	return f
+// }
+
+// func getInternationalBankDepositFee(c currency.Code) float64 {
+// 	var f float64
+
+// 	if c == currency.USD {
+// 		f = 10
+// 	} else if c == currency.EUR {
+// 		f = 0.15
+// 	}
+
+// 	return f
+// }

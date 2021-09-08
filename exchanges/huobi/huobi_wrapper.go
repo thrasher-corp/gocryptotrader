@@ -187,6 +187,11 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = h.Fees.LoadStatic(fee.Options{
+		Maker: 0.002, // TODO: This is crypto/crypto pair add in crypto/Fiat 0.001 RECHECK
+		Taker: 0.002,
+	})
+
 	wsRunningURL, err := h.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -1210,15 +1215,6 @@ func (h *HUOBI) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeRespon
 // withdrawal is submitted
 func (h *HUOBI) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
-}
-
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (h *HUOBI) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !h.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return h.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open

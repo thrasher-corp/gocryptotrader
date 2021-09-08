@@ -4,6 +4,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -802,3 +805,18 @@ type WsCancelOfferRequest struct {
 type WsCancelAllOrdersRequest struct {
 	All int64 `json:"all"`
 }
+
+var bankTransfer = map[fee.InternationalBankTransaction]map[currency.Code]fee.Transfer{
+	exchange.WireTransfer: { // TODO: VERIFY THIS:
+		currency.USD: {Withdrawal: 0.001, Deposit: 0.001, IsPercentage: true},
+	},
+}
+
+// NOTE FOR ABOVE:
+// func getInternationalBankDepositFee(amount float64) float64 {
+// 	return 0.001 * amount
+// }
+
+// func getInternationalBankWithdrawalFee(amount float64) float64 {
+// 	return 0.001 * amount
+// }

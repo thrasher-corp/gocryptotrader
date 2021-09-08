@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
@@ -417,41 +419,37 @@ type CancelOrderResponse struct {
 	Pending interface{} `json:"pending"`
 }
 
-// DepositFees the large list of predefined deposit fees
-// Prone to change
-var DepositFees = map[currency.Code]float64{
-	currency.XTZ: 0.05,
-}
-
-// WithdrawalFees the large list of predefined withdrawal fees
-// Prone to change
-var WithdrawalFees = map[currency.Code]float64{
-	currency.ZUSD: 5,
-	currency.ZEUR: 5,
-	currency.USD:  5,
-	currency.EUR:  5,
-	currency.REP:  0.01,
-	currency.XXBT: 0.0005,
-	currency.BTC:  0.0005,
-	currency.XBT:  0.0005,
-	currency.BCH:  0.0001,
-	currency.ADA:  0.3,
-	currency.DASH: 0.005,
-	currency.XDG:  2,
-	currency.EOS:  0.05,
-	currency.ETH:  0.005,
-	currency.ETC:  0.005,
-	currency.GNO:  0.005,
-	currency.ICN:  0.2,
-	currency.LTC:  0.001,
-	currency.MLN:  0.003,
-	currency.XMR:  0.05,
-	currency.QTUM: 0.01,
-	currency.XRP:  0.02,
-	currency.XLM:  0.00002,
-	currency.USDT: 5,
-	currency.XTZ:  0.05,
-	currency.ZEC:  0.0001,
+// transferFees the list of predefined withdrawal and deposit fees. Prone to
+// change
+var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
+	asset.Spot: {
+		currency.ZUSD: {Withdrawal: 5},
+		currency.ZEUR: {Withdrawal: 5},
+		currency.USD:  {Withdrawal: 5},
+		currency.EUR:  {Withdrawal: 5},
+		currency.REP:  {Withdrawal: 0.01},
+		currency.XXBT: {Withdrawal: 0.0005},
+		currency.BTC:  {Withdrawal: 0.0005},
+		currency.XBT:  {Withdrawal: 0.0005},
+		currency.BCH:  {Withdrawal: 0.0001},
+		currency.ADA:  {Withdrawal: 0.3},
+		currency.DASH: {Withdrawal: 0.005},
+		currency.XDG:  {Withdrawal: 2},
+		currency.EOS:  {Withdrawal: 0.05},
+		currency.ETH:  {Withdrawal: 0.005},
+		currency.ETC:  {Withdrawal: 0.005},
+		currency.GNO:  {Withdrawal: 0.005},
+		currency.ICN:  {Withdrawal: 0.2},
+		currency.LTC:  {Withdrawal: 0.001},
+		currency.MLN:  {Withdrawal: 0.003},
+		currency.XMR:  {Withdrawal: 0.05},
+		currency.QTUM: {Withdrawal: 0.01},
+		currency.XRP:  {Withdrawal: 0.02},
+		currency.XLM:  {Withdrawal: 0.00002},
+		currency.USDT: {Withdrawal: 5},
+		currency.XTZ:  {Withdrawal: 0.05, Deposit: 0.05},
+		currency.ZEC:  {Withdrawal: 0.0001},
+	},
 }
 
 // DepositAddress defines a deposit address

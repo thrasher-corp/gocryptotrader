@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -200,96 +199,6 @@ func TestAuthRequests(t *testing.T) {
 	_, err = c.GetCoinbaseAccounts()
 	if err != nil {
 		t.Error("GetCoinbaseAccounts() error", err)
-	}
-}
-
-func setFeeBuilder() *fee.Builder {
-	return &fee.Builder{
-		Amount:        1,
-		Type:          fee.Trade,
-		Pair:          testPair,
-		PurchasePrice: 1,
-	}
-}
-
-// TestGetFeeByTypeOfflineTradeFee logic test
-func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
-	var feeBuilder = setFeeBuilder()
-	_, err := c.GetFeeByType(feeBuilder)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !areTestAPIKeysSet() {
-		if feeBuilder.Type != fee.OfflineTrade {
-			t.Errorf("Expected %v, received %v", fee.OfflineTrade, feeBuilder.Type)
-		}
-	} else {
-		if feeBuilder.Type != fee.Trade {
-			t.Errorf("Expected %v, received %v", fee.Trade, feeBuilder.Type)
-		}
-	}
-}
-
-func TestGetFee(t *testing.T) {
-	var feeBuilder = setFeeBuilder()
-
-	if areTestAPIKeysSet() {
-		// CryptocurrencyTradeFee Basic
-		if _, err := c.GetFee(feeBuilder); err != nil {
-			t.Error(err)
-		}
-
-		// CryptocurrencyTradeFee High quantity
-		feeBuilder = setFeeBuilder()
-		feeBuilder.Amount = 1000
-		feeBuilder.PurchasePrice = 1000
-		if _, err := c.GetFee(feeBuilder); err != nil {
-			t.Error(err)
-		}
-
-		// CryptocurrencyTradeFee IsMaker
-		feeBuilder = setFeeBuilder()
-		feeBuilder.IsMaker = true
-		if _, err := c.GetFee(feeBuilder); err != nil {
-			t.Error(err)
-		}
-
-		// CryptocurrencyTradeFee Negative purchase price
-		feeBuilder = setFeeBuilder()
-		feeBuilder.PurchasePrice = -1000
-		if _, err := c.GetFee(feeBuilder); err != nil {
-			t.Error(err)
-		}
-	}
-
-	// CryptocurrencyWithdrawalFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.Type = fee.Withdrawal
-	if _, err := c.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	// CryptocurrencyDepositFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.Type = fee.Deposit
-	if _, err := c.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	// InternationalBankDepositFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.Type = fee.InternationalBankDeposit
-	feeBuilder.FiatCurrency = currency.EUR
-	if _, err := c.GetFee(feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	// InternationalBankWithdrawalFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.Type = fee.InternationalBankWithdrawal
-	feeBuilder.FiatCurrency = currency.USD
-	if _, err := c.GetFee(feeBuilder); err != nil {
-		t.Error(err)
 	}
 }
 

@@ -154,6 +154,15 @@ func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = b.Fees.LoadStatic(fee.Options{
+		Maker:    0.0025, // TODO: verify
+		Taker:    0.0025,
+		Transfer: transferFees, // TODO: Verify
+	})
+	if err != nil {
+		return err
+	}
+
 	location, err = time.LoadLocation("Asia/Seoul")
 	if err != nil {
 		return err
@@ -648,15 +657,6 @@ func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdra
 // WithdrawFiatFundsToInternationalBank is not supported as Bithumb only withdraws KRW to South Korean banks
 func (b *Bithumb) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
-}
-
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Bithumb) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
-		feeBuilder.Type == fee.Trade {
-		feeBuilder.Type = fee.OfflineTrade
-	}
-	return b.GetFee(feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open

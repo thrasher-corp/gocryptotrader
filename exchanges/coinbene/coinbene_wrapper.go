@@ -175,6 +175,14 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = c.Fees.LoadStatic(fee.Options{
+		Maker: 0, // TODO: Actually have WCS values
+		Taker: 0,
+	})
+	if err != nil {
+		return err
+	}
+
 	wsRunningURL, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -809,24 +817,6 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 	return resp, nil
 }
 
-// GetFeeByType returns an estimate of fee based on the type of transaction
-func (c *Coinbene) GetFeeByType(feeBuilder *fee.Builder) (float64, error) {
-	fpair, err := c.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
-	if err != nil {
-		return 0, err
-	}
-
-	tempData, err := c.GetPairInfo(fpair.String())
-	if err != nil {
-		return 0, err
-	}
-
-	if feeBuilder.IsMaker {
-		return feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.MakerFeeRate, nil
-	}
-	return feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.TakerFeeRate, nil
-}
-
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (c *Coinbene) AuthenticateWebsocket() error {
 	return c.Login()
@@ -949,4 +939,28 @@ func (c *Coinbene) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (c *Coinbene) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return c.GetHistoricCandles(pair, a, start, end, interval)
+}
+
+// UpdateFees updates current fees associated with account
+func (c *Coinbene) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+
+	// TODO: Implement fetching all pair info fees and load.
+	// fpair, err := c.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
+	// if err != nil {
+	// 	return 0, err
+	// }
+
+	// tempData, err := c.GetPairInfo(fpair.String())
+	// if err != nil {
+	// 	return 0, err
+	// }
+
+	// if feeBuilder.IsMaker {
+	// 	return feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.MakerFeeRate, nil
+	// }
+	// return feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.TakerFeeRate, nil
+	return nil
 }

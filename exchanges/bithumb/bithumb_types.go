@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
 // Ticker holds ticker data
@@ -227,54 +229,90 @@ type MarketSell struct {
 	Message string `json:"message"`
 }
 
-// WithdrawalFees the large list of predefined withdrawal fees
-// Prone to change
-var WithdrawalFees = map[currency.Code]float64{
-	currency.KRW:   1000,
-	currency.BTC:   0.001,
-	currency.ETH:   0.01,
-	currency.DASH:  0.01,
-	currency.LTC:   0.01,
-	currency.ETC:   0.01,
-	currency.XRP:   1,
-	currency.BCH:   0.001,
-	currency.XMR:   0.05,
-	currency.ZEC:   0.001,
-	currency.QTUM:  0.05,
-	currency.BTG:   0.001,
-	currency.ICX:   1,
-	currency.TRX:   5,
-	currency.ELF:   5,
-	currency.MITH:  5,
-	currency.MCO:   0.5,
-	currency.OMG:   0.4,
-	currency.KNC:   3,
-	currency.GNT:   12,
-	currency.HSR:   0.2,
-	currency.ZIL:   30,
-	currency.ETHOS: 2,
-	currency.PAY:   2.4,
-	currency.WAX:   5,
-	currency.POWR:  5,
-	currency.LRC:   10,
-	currency.GTO:   15,
-	currency.STEEM: 0.01,
-	currency.STRAT: 0.2,
-	currency.PPT:   0.5,
-	currency.CTXC:  4,
-	currency.CMT:   20,
-	currency.THETA: 24,
-	currency.WTC:   0.7,
-	currency.ITC:   5,
-	currency.TRUE:  4,
-	currency.ABT:   5,
-	currency.RNT:   20,
-	currency.PLY:   20,
-	currency.WAVES: 0.01,
-	currency.LINK:  10,
-	currency.ENJ:   35,
-	currency.PST:   30,
+// transferFees the large list of predefined fees. Prone to change.
+var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
+	asset.Spot: {
+		currency.KRW:   {Withdrawal: 1000},
+		currency.BTC:   {Withdrawal: 0.001, Deposit: 0}, // TODO: Add functionality to express below
+		currency.ETH:   {Withdrawal: 0.01},
+		currency.DASH:  {Withdrawal: 0.01},
+		currency.LTC:   {Withdrawal: 0.01},
+		currency.ETC:   {Withdrawal: 0.01},
+		currency.XRP:   {Withdrawal: 1},
+		currency.BCH:   {Withdrawal: 0.001},
+		currency.XMR:   {Withdrawal: 0.05},
+		currency.ZEC:   {Withdrawal: 0.001},
+		currency.QTUM:  {Withdrawal: 0.05},
+		currency.BTG:   {Withdrawal: 0.001},
+		currency.ICX:   {Withdrawal: 1},
+		currency.TRX:   {Withdrawal: 5},
+		currency.ELF:   {Withdrawal: 5},
+		currency.MITH:  {Withdrawal: 5},
+		currency.MCO:   {Withdrawal: 0.5},
+		currency.OMG:   {Withdrawal: 0.4},
+		currency.KNC:   {Withdrawal: 3},
+		currency.GNT:   {Withdrawal: 12},
+		currency.HSR:   {Withdrawal: 0.2},
+		currency.ZIL:   {Withdrawal: 30},
+		currency.ETHOS: {Withdrawal: 2},
+		currency.PAY:   {Withdrawal: 2.4},
+		currency.WAX:   {Withdrawal: 5},
+		currency.POWR:  {Withdrawal: 5},
+		currency.LRC:   {Withdrawal: 10},
+		currency.GTO:   {Withdrawal: 15},
+		currency.STEEM: {Withdrawal: 0.01},
+		currency.STRAT: {Withdrawal: 0.2},
+		currency.PPT:   {Withdrawal: 0.5},
+		currency.CTXC:  {Withdrawal: 4},
+		currency.CMT:   {Withdrawal: 20},
+		currency.THETA: {Withdrawal: 24},
+		currency.WTC:   {Withdrawal: 0.7},
+		currency.ITC:   {Withdrawal: 5},
+		currency.TRUE:  {Withdrawal: 4},
+		currency.ABT:   {Withdrawal: 5},
+		currency.RNT:   {Withdrawal: 20},
+		currency.PLY:   {Withdrawal: 20},
+		currency.WAVES: {Withdrawal: 0.01},
+		currency.LINK:  {Withdrawal: 10},
+		currency.ENJ:   {Withdrawal: 35},
+		currency.PST:   {Withdrawal: 30},
+	},
 }
+
+// TODO: Add small deposit fee below to above
+// // getDepositFee returns fee on a currency when depositing small amounts to bithumb
+// func getDepositFee(c currency.Code, amount float64) float64 {
+// 	var f float64
+
+// 	switch c {
+// 	case currency.BTC:
+// 		if amount <= 0.005 {
+// 			f = 0.001
+// 		}
+// 	case currency.LTC:
+// 		if amount <= 0.3 {
+// 			f = 0.01
+// 		}
+// 	case currency.DASH:
+// 		if amount <= 0.04 {
+// 			f = 0.01
+// 		}
+// 	case currency.BCH:
+// 		if amount <= 0.03 {
+// 			f = 0.001
+// 		}
+// 	case currency.ZEC:
+// 		if amount <= 0.02 {
+// 			f = 0.001
+// 		}
+// 	case currency.BTG:
+// 		if amount <= 0.15 {
+// 			f = 0.001
+// 		}
+// 	}
+
+// 	return f
+// }
 
 // FullBalance defines a return type with full balance data
 type FullBalance struct {

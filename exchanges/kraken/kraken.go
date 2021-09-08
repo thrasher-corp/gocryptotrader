@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -1032,74 +1031,6 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 		}
 	}
 	return json.Unmarshal(interim, result)
-}
-
-// GetFee returns an estimate of fee based on type of transaction
-func (k *Kraken) GetFee(feeBuilder *fee.Builder) (float64, error) {
-	var f float64
-	switch feeBuilder.Type {
-	case fee.Trade:
-		feePair, err := k.GetTradeVolume(true, feeBuilder.Pair)
-		if err != nil {
-			return 0, err
-		}
-		if feeBuilder.IsMaker {
-			f = calculateTradingFee(feePair.Currency,
-				feePair.FeesMaker,
-				feeBuilder.PurchasePrice,
-				feeBuilder.Amount)
-		} else {
-			f = calculateTradingFee(feePair.Currency,
-				feePair.Fees,
-				feeBuilder.PurchasePrice,
-				feeBuilder.Amount)
-		}
-	case fee.Withdrawal:
-		f = getWithdrawalFee(feeBuilder.Pair.Base)
-	case fee.InternationalBankDeposit:
-		depositMethods, err := k.GetDepositMethods(feeBuilder.FiatCurrency.String())
-		if err != nil {
-			return 0, err
-		}
-
-		for _, i := range depositMethods {
-			if feeBuilder.BankTransactionType == exchange.WireTransfer {
-				if i.Method == "SynapsePay (US Wire)" {
-					f = i.Fee
-					return f, nil
-				}
-			}
-		}
-	case fee.Deposit:
-		f = getCryptocurrencyDepositFee(feeBuilder.Pair.Base)
-
-	case fee.InternationalBankWithdrawal:
-		f = getWithdrawalFee(feeBuilder.FiatCurrency)
-	case fee.OfflineTrade:
-		f = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if f < 0 {
-		f = 0
-	}
-
-	return f, nil
-}
-
-// getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.0016 * price * amount
-}
-
-func getWithdrawalFee(c currency.Code) float64 {
-	return WithdrawalFees[c]
-}
-
-func getCryptocurrencyDepositFee(c currency.Code) float64 {
-	return DepositFees[c]
-}
-
-func calculateTradingFee(currency string, feePair map[string]TradeVolumeFee, purchasePrice, amount float64) float64 {
-	return (feePair[currency].Fee / 100) * purchasePrice * amount
 }
 
 // GetCryptoDepositAddress returns a deposit address for a cryptocurrency

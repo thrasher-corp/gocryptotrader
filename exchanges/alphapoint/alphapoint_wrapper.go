@@ -11,7 +11,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -347,11 +346,6 @@ func (a *Alphapoint) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeR
 // submitted
 func (a *Alphapoint) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (string, error) {
 	return "", common.ErrNotYetImplemented
-}
-
-// GetFeeByType returns an estimate of fee based on type of transaction
-func (a *Alphapoint) GetFeeByType(_ *fee.Builder) (float64, error) {
-	return 0, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open

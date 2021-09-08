@@ -4,6 +4,8 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -707,3 +709,57 @@ type wsOrderContainer struct {
 		Currency string  `json:"currency"`
 	} `json:"commission"`
 }
+
+var transfer = map[asset.Item]map[currency.Code]fee.Transfer{
+	asset.Spot: { // TODO: Recheck these values and add in custom support as below
+		currency.USD: {Withdrawal: 0.001, Deposit: 0.001, IsPercentage: true},
+		currency.CAD: {Withdrawal: 0.005, Deposit: 0.005, IsPercentage: true},
+		currency.SGD: {Withdrawal: 0.001, IsPercentage: true},
+	},
+}
+
+// func getInternationalBankDepositFee(c currency.Code, amount float64) float64 {
+// 	var f float64
+
+// 	if c == currency.USD {
+// 		if amount*0.001 < 10 {
+// 			f = 10
+// 		} else {
+// 			f = amount * 0.001
+// 		}
+// 	} else if c == currency.CAD {
+// 		if amount*0.005 < 10 {
+// 			f = 2
+// 		} else {
+// 			f = amount * 0.005
+// 		}
+// 	}
+
+// 	return f
+// }
+
+// func getInternationalBankWithdrawalFee(c currency.Code, amount float64) float64 {
+// 	var f float64
+
+// 	switch c {
+// 	case currency.USD:
+// 		if amount*0.001 < 10 {
+// 			f = 10
+// 		} else {
+// 			f = amount * 0.001
+// 		}
+// 	case currency.CAD:
+// 		if amount*0.005 < 10 {
+// 			f = 2
+// 		} else {
+// 			f = amount * 0.005
+// 		}
+// 	case currency.SGD:
+// 		if amount*0.001 < 10 {
+// 			f = 10
+// 		} else {
+// 			f = amount * 0.001
+// 		}
+// 	}
+// 	return f
+// }
