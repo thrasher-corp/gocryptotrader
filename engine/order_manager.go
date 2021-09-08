@@ -95,6 +95,7 @@ func (m *OrderManager) gracefulShutdown() {
 // run will periodically process orders
 func (m *OrderManager) run() {
 	log.Debugln(log.OrderMgr, "Order manager started.")
+	m.processOrders()
 	tick := time.NewTicker(orderManagerDelay)
 	m.orderStore.wg.Add(1)
 	defer func() {
