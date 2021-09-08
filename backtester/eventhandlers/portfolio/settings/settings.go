@@ -13,7 +13,7 @@ func (e *Settings) GetLatestHoldings() holdings.Holding {
 		return holdings.Holding{}
 	}
 
-	return *e.HoldingsSnapshots[len(e.HoldingsSnapshots)-1]
+	return e.HoldingsSnapshots[len(e.HoldingsSnapshots)-1]
 }
 
 // GetHoldingsForTime returns the holdings for a time period, or an empty holding if not found
@@ -24,7 +24,7 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 	}
 	for i := len(e.HoldingsSnapshots) - 1; i >= 0; i-- {
 		if e.HoldingsSnapshots[i].Timestamp.Equal(t) {
-			return *e.HoldingsSnapshots[i]
+			return e.HoldingsSnapshots[i]
 		}
 	}
 	return holdings.Holding{}

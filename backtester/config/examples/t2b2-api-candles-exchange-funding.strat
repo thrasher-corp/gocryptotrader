@@ -2,7 +2,7 @@
  "nickname": "TestGenerateConfigForRSIExchangeLevelFunding",
  "goal": "To demonstrate RSI strategy using API candles and Exchange level funding",
  "strategy-settings": {
-  "name": "rsi",
+  "name": "top2bottom2",
   "use-simultaneous-signal-processing": true,
   "use-exchange-level-funding": true,
   "exchange-level-funding": [
@@ -29,7 +29,6 @@
    "asset": "spot",
    "base": "BTC",
    "quote": "USDT",
-   "initial-funds": "0",
    "leverage": {
     "can-use-leverage": false,
     "maximum-orders-with-leverage-ratio": "0",
@@ -57,7 +56,6 @@
    "asset": "spot",
    "base": "DOGE",
    "quote": "USDT",
-   "initial-funds": "0",
    "leverage": {
     "can-use-leverage": false,
     "maximum-orders-with-leverage-ratio": "0",
@@ -85,8 +83,8 @@
   "interval": 86400000000000,
   "data-type": "candle",
   "api-data": {
-   "start-date": "2020-11-01T00:00:00+11:00",
-   "end-date": "2020-12-01T00:00:00+11:00",
+   "start-date": "2020-08-30T00:00:00+00:00",
+   "end-date": "2021-08-01T00:00:00+00:00",
    "inclusive-end-date": false
   }
  },

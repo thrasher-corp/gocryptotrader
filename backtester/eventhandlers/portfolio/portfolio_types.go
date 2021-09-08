@@ -48,7 +48,7 @@ type Handler interface {
 	OnFill(fill.Event, funding.IPairReader) (*fill.Fill, error)
 
 	ViewHoldingAtTimePeriod(common.EventHandler) (*holdings.Holding, error)
-	setHoldingsForOffset(string, asset.Item, currency.Pair, *holdings.Holding, bool) error
+	setHoldingsForOffset(*holdings.Holding, bool) error
 	UpdateHoldings(common.DataEventHandler, funding.IPairReader) error
 
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)

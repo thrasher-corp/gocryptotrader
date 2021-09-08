@@ -218,9 +218,9 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fi
 			h.Update(ev, funding)
 		}
 	}
-	err = p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), &h, true)
+	err = p.setHoldingsForOffset(&h, true)
 	if errors.Is(err, errNoHoldings) {
-		err = p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), &h, false)
+		err = p.setHoldingsForOffset(&h, false)
 	}
 	if err != nil {
 		log.Error(log.BackTester, err)
@@ -325,9 +325,9 @@ func (p *Portfolio) UpdateHoldings(ev common.DataEventHandler, funds funding.IPa
 		}
 	}
 	h.UpdateValue(ev)
-	err := p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), &h, true)
+	err := p.setHoldingsForOffset(&h, true)
 	if errors.Is(err, errNoHoldings) {
-		err = p.setHoldingsForOffset(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), &h, false)
+		err = p.setHoldingsForOffset(&h, false)
 	}
 	return err
 }
@@ -349,14 +349,14 @@ func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 	return resp
 }
 
-func (p *Portfolio) setHoldingsForOffset(exch string, a asset.Item, cp currency.Pair, h *holdings.Holding, overwriteExisting bool) error {
+func (p *Portfolio) setHoldingsForOffset(h *holdings.Holding, overwriteExisting bool) error {
 	if h.Timestamp.IsZero() {
 		return errHoldingsNoTimestamp
 	}
-	lookup := p.exchangeAssetPairSettings[exch][a][cp]
+	lookup := p.exchangeAssetPairSettings[h.Exchange][h.Asset][h.Pair]
 	if lookup == nil {
 		var err error
-		lookup, err = p.SetupCurrencySettingsMap(exch, a, cp)
+		lookup, err = p.SetupCurrencySettingsMap(h.Exchange, h.Asset, h.Pair)
 		if err != nil {
 			return err
 		}
@@ -367,7 +367,7 @@ func (p *Portfolio) setHoldingsForOffset(exch string, a asset.Item, cp currency.
 	for i := len(lookup.HoldingsSnapshots) - 1; i >= 0; i-- {
 		if lookup.HoldingsSnapshots[i].Offset == h.Offset {
 			if overwriteExisting {
-				lookup.HoldingsSnapshots[i] = h
+				lookup.HoldingsSnapshots[i] = *h
 				return nil
 			}
 			return errHoldingsAlreadySet
@@ -377,7 +377,7 @@ func (p *Portfolio) setHoldingsForOffset(exch string, a asset.Item, cp currency.
 		return fmt.Errorf("%w at %v", errNoHoldings, h.Timestamp)
 	}
 
-	lookup.HoldingsSnapshots = append(lookup.HoldingsSnapshots, h)
+	lookup.HoldingsSnapshots = append(lookup.HoldingsSnapshots, *h)
 	return nil
 }
 
@@ -391,7 +391,7 @@ func (p *Portfolio) ViewHoldingAtTimePeriod(ev common.EventHandler) (*holdings.H
 
 	for i := len(exchangeAssetPairSettings.HoldingsSnapshots) - 1; i >= 0; i-- {
 		if ev.GetTime().Equal(exchangeAssetPairSettings.HoldingsSnapshots[i].Timestamp) {
-			return exchangeAssetPairSettings.HoldingsSnapshots[i], nil
+			return &exchangeAssetPairSettings.HoldingsSnapshots[i], nil
 		}
 	}
 

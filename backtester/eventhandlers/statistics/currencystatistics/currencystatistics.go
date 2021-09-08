@@ -46,7 +46,7 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 	oneHundred := decimal.NewFromInt(100)
 	c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(oneHundred)
 	if f.QuoteInitialFunds().GreaterThan(decimal.Zero) {
-		c.StrategyMovement = last.Holdings.TotalValue.Sub(f.QuoteInitialFunds()).Div(f.QuoteInitialFunds()).Mul(oneHundred)
+		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue).Mul(oneHundred)
 	}
 	c.calculateHighestCommittedFunds()
 	c.RiskFreeRate = last.Holdings.RiskFreeRate.Mul(oneHundred)
@@ -229,7 +229,8 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	sep := fmt.Sprintf("%v %v %v |\t", e, a, p)
 	currStr := fmt.Sprintf("------------------Stats for %v %v %v------------------------------------------", e, a, p)
 	log.Infof(log.BackTester, currStr[:61])
-	log.Infof(log.BackTester, "%s Initial funds: $%v", sep, f.QuoteInitialFunds())
+	log.Infof(log.BackTester, "%s Initial base funds: $%v", sep, f.BaseInitialFunds())
+	log.Infof(log.BackTester, "%s Initial base quote: $%v", sep, f.QuoteInitialFunds())
 	log.Infof(log.BackTester, "%s Highest committed funds: $%v at %v\n\n", sep, c.HighestCommittedFunds.Value.Round(8), c.HighestCommittedFunds.Time)
 
 	log.Infof(log.BackTester, "%s Buy orders: %d", sep, c.BuyOrders)
@@ -396,8 +397,8 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 
 func (c *CurrencyStatistic) calculateHighestCommittedFunds() {
 	for i := range c.Events {
-		if c.Events[i].Holdings.BaseSize.GreaterThan(c.HighestCommittedFunds.Value) {
-			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseSize
+		if c.Events[i].Holdings.BaseSize.Mul(c.Events[i].DataEvent.ClosePrice()).GreaterThan(c.HighestCommittedFunds.Value) {
+			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseSize.Mul(c.Events[i].DataEvent.ClosePrice())
 			c.HighestCommittedFunds.Time = c.Events[i].Holdings.Timestamp
 		}
 	}
