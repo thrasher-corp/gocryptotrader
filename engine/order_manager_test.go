@@ -157,6 +157,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
+	m.started = 1
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
