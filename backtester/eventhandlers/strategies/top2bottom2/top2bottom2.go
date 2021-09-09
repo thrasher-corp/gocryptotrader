@@ -28,6 +28,7 @@ const (
 
 var (
 	errStrategyOnlySupportsSimultaneousProcessing = errors.New("strategy only supports simultaneous processing")
+	errStrategyCurrencyRequirements               = errors.New("top2bottom2 strategy requires at least 4 currencies")
 )
 
 // Strategy is an implementation of the Handler interface
@@ -87,6 +88,9 @@ func sortByMFI(o []mfiFundEvent, reverse bool) {
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransferer) ([]signal.Event, error) {
+	if len(d) < 4 {
+		return nil, errStrategyCurrencyRequirements
+	}
 	var mfiFundEvents []mfiFundEvent
 	var resp []signal.Event
 	for i := range d {
@@ -155,18 +159,28 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		return resp, nil
 	}
 	sortByMFI(mfiFundEvents, true)
+	buyingOrSelling := false
 	for i := range mfiFundEvents {
 		if i < 2 && mfiFundEvents[i].mfi.GreaterThanOrEqual(s.mfiHigh) {
 			mfiFundEvents[i].event.SetDirection(order.Sell)
+			buyingOrSelling = true
+		} else if i >= 2 {
+			break
 		}
 	}
 	sortByMFI(mfiFundEvents, false)
 	for i := range mfiFundEvents {
 		if i < 2 && mfiFundEvents[i].mfi.LessThanOrEqual(s.mfiLow) {
 			mfiFundEvents[i].event.SetDirection(order.Buy)
+			buyingOrSelling = true
+		} else if i >= 2 {
+			break
 		}
 	}
 	for i := range mfiFundEvents {
+		if buyingOrSelling && mfiFundEvents[i].event.GetDirection() == common.DoNothing {
+			mfiFundEvents[i].event.AppendReason("MFI was not in the top or bottom two ranks")
+		}
 		resp = append(resp, mfiFundEvents[i].event)
 	}
 	return resp, nil

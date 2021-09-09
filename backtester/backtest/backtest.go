@@ -43,7 +43,6 @@ import (
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -822,7 +821,7 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 	switch eType := ev.(type) {
 	case common.DataEventHandler:
 		if bt.Strategy.UsingSimultaneousProcessing() {
-			return bt.processSimultaneousDataEvents(eType)
+			return bt.processSimultaneousDataEvents()
 		}
 		return bt.processSingleDataEvent(eType, funds)
 	case signal.Event:
@@ -872,14 +871,14 @@ func (bt *BackTest) processSingleDataEvent(ev common.DataEventHandler, funds fun
 //
 // for non-multi-currency-consideration strategies, it will simply process every currency individually
 // against the strategy and generate signals
-func (bt *BackTest) processSimultaneousDataEvents(ev common.DataEventHandler) error {
+func (bt *BackTest) processSimultaneousDataEvents() error {
 	var dataEvents []data.Handler
 	dataHandlerMap := bt.Datas.GetAllData()
 	for _, exchangeMap := range dataHandlerMap {
 		for _, assetMap := range exchangeMap {
 			for _, dataHandler := range assetMap {
 				latestData := dataHandler.Latest()
-				funds, err := bt.Funding.GetFundingForEvent(ev)
+				funds, err := bt.Funding.GetFundingForEAP(latestData.GetExchange(), latestData.GetAssetType(), latestData.Pair())
 				if err != nil {
 					return err
 				}

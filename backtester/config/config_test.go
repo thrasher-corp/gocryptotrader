@@ -11,6 +11,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/top2bottom2"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -26,8 +27,8 @@ const (
 )
 
 var (
-	startDate time.Time
-	endDate   time.Time
+	startDate = time.Date(time.Now().Year()-1, 8, 1, 0, 0, 0, 0, time.Local)
+	endDate   = time.Date(time.Now().Year()-1, 12, 1, 0, 0, 0, 0, time.Local)
 	makerFee  = decimal.NewFromFloat(0.001)
 	takerFee  = decimal.NewFromFloat(0.002)
 	minMax    = MinMax{
@@ -36,12 +37,6 @@ var (
 		MaximumTotal: decimal.NewFromFloat(10000),
 	}
 )
-
-func TestMain(m *testing.M) {
-	startDate = time.Date(time.Now().Year()-1, 11, 1, 0, 0, 0, 0, time.Local)
-	endDate = time.Date(time.Now().Year()-1, 12, 1, 0, 0, 0, 0, time.Local)
-	os.Exit(m.Run())
-}
 
 func TestLoadConfig(t *testing.T) {
 	_, err := LoadConfig([]byte(`{}`))
@@ -745,12 +740,12 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 	}
 }
 
-func TestGenerateConfigForRSIExchangeLevelFunding(t *testing.T) {
+func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 	cfg := Config{
 		Nickname: "TestGenerateConfigForRSIExchangeLevelFunding",
-		Goal:     "To demonstrate RSI strategy using API candles and Exchange level funding",
+		Goal:     "To demonstrate complex strategy using exchange level funding and simultaneous processing of data signals",
 		StrategySettings: StrategySettings{
-			Name:                         "rsi",
+			Name:                         top2bottom2.Name,
 			UseExchangeLevelFunding:      true,
 			SimultaneousSignalProcessing: true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
@@ -791,6 +786,50 @@ func TestGenerateConfigForRSIExchangeLevelFunding(t *testing.T) {
 				MakerFee:     makerFee,
 				TakerFee:     takerFee,
 			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.ETH.String(),
+				Quote:        currency.BTC.String(),
+				BuySide:      minMax,
+				SellSide:     minMax,
+				Leverage:     Leverage{},
+				MakerFee:     makerFee,
+				TakerFee:     takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.LTC.String(),
+				Quote:        currency.BTC.String(),
+				BuySide:      minMax,
+				SellSide:     minMax,
+				Leverage:     Leverage{},
+				MakerFee:     makerFee,
+				TakerFee:     takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.XRP.String(),
+				Quote:        currency.USDT.String(),
+				BuySide:      minMax,
+				SellSide:     minMax,
+				Leverage:     Leverage{},
+				MakerFee:     makerFee,
+				TakerFee:     takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BNB.String(),
+				Quote:        currency.BTC.String(),
+				BuySide:      minMax,
+				SellSide:     minMax,
+				Leverage:     Leverage{},
+				MakerFee:     makerFee,
+				TakerFee:     takerFee,
+			},
 		},
 		DataSettings: DataSettings{
 			Interval: kline.OneDay.Duration(),
@@ -818,7 +857,7 @@ func TestGenerateConfigForRSIExchangeLevelFunding(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "rsi-api-candles-exchange-funding.strat"), result, 0770)
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "t2b2-api-candles-exchange-funding.strat"), result, 0770)
 		if err != nil {
 			t.Error(err)
 		}
