@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
@@ -208,10 +207,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "UpdateAccountInfo")
 	}
 
-	_, err = e.GetFeeByType(&fee.Builder{})
-	if errors.Is(err, common.ErrNotYetImplemented) {
-		funcs = append(funcs, "GetFeeByType")
-	}
+	// Add fee functions
 
 	err = e.UpdateOrderExecutionLimits(asset.DownsideProfitContract)
 	if errors.Is(err, common.ErrNotYetImplemented) {

@@ -1,0 +1,39 @@
+{{define "engine fee_manager" -}}
+{{template "header" .}}
+## Current Features for {{.CapitalName}}
+The purpose of this componant is to sychronize the account fees for the supplied credentials stored in config including:
++ Update and store maker and taker fees
++ Update and store exchange withdrawal and deposit transfer fees
++ Update and store bank withdrawal and deposit transfer fees
+
+### usage 
+
++ To disable: 
+```bash
+./gocryptotrader --feemanager="false"
+```
+
++ To enable - enabled by default:
+```bash
+./gocryptotrader 
+```
+
++ Modify synchronization time:
+```bash
+./gocryptotrader --feemanagerdelay="1m"
+```
+
+### gRPC integration
+
++ Link to [gctcli](../cmd/gctcli)
++ Provides retrieval of all fees by exchange name
++ Provides ability to set custom fees for global maker and taker fees
+
+### package integregration
+
++ Package link to [README.md](../exchanges/fee/README.md)
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}
