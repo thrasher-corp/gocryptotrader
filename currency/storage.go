@@ -36,7 +36,7 @@ func (s *Storage) SetDefaults() {
 		log.Errorf(log.Global, "Currency Storage: Setting default fiat currencies error: %s", err)
 	}
 
-	err = s.SetDefaultCryptocurrencies(BTC, LTC, ETH, DOGE, DASH, XRP, XMR, USDT)
+	err = s.SetDefaultCryptocurrencies(BTC, LTC, ETH, DOGE, DASH, XRP, XMR, USDT, UST)
 	if err != nil {
 		log.Errorf(log.Global, "Currency Storage: Setting default cryptocurrencies error: %s", err)
 	}

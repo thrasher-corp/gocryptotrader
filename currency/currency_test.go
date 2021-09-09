@@ -57,7 +57,7 @@ func TestGetDefaultBaseCurrency(t *testing.T) {
 }
 
 func TestGetDefaulCryptoCurrencies(t *testing.T) {
-	expected := Currencies{BTC, LTC, ETH, DOGE, DASH, XRP, XMR, USDT}
+	expected := Currencies{BTC, LTC, ETH, DOGE, DASH, XRP, XMR, USDT, UST}
 	if !GetDefaultCryptocurrencies().Match(expected) {
 		t.Errorf("GetDefaultCryptocurrencies() expected %s but received %s",
 			expected, GetDefaultCryptocurrencies())

@@ -53,9 +53,9 @@ $ ./gctcli withdrawcryptofunds --exchange=ftx --currency=USDT --address=TJU9piX2
 | BTCMarkets | No | No| NA  |
 | BTSE | No | No | Only through website |
 | CoinbasePro | No | No | No|
-| Coinbene | Yes | Yes | Addresses must be created via the website first |
+| Coinbene | Yes | Yes | Addresses must be created via their website first |
 | COINUT | No | No | NA |
-| Exmo | Yes | Yes | Addresses must be created via the website first |
+| Exmo | Yes | Yes | Addresses must be created via their website first |
 | FTX | Yes | Yes | |
 | GateIO | Yes | Yes | |
 | Gemini | No | No | |
@@ -69,4 +69,4 @@ $ ./gctcli withdrawcryptofunds --exchange=ftx --currency=USDT --address=TJU9piX2
 | OKEX | No | No | Same as above |
 | Poloniex | Yes | Yes | |
 | Yobit | No | No | |
-| ZB.COM | Yes | No | Addresses must be created via the website first |
+| ZB.COM | Yes | No | Addresses must be created via their website first |

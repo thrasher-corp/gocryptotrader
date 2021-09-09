@@ -122,7 +122,7 @@ func TestWsCurrencyMap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if txFee != 0.00739257 {
+	if txFee == 0 {
 		t.Fatal("unexpected value")
 	}
 

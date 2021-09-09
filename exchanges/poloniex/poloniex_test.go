@@ -459,9 +459,9 @@ func TestWithdraw(t *testing.T) {
 		Exchange: p.Name,
 		Crypto: withdraw.CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
-			FeeAmount: -1,
+			FeeAmount: 0,
 		},
-		Amount:        0.00001337,
+		Amount:        -1,
 		Currency:      currency.LTC,
 		Description:   "WITHDRAW IT ALL",
 		TradePassword: "Password",
@@ -477,8 +477,8 @@ func TestWithdraw(t *testing.T) {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	case !areTestAPIKeysSet() && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error(err)
+	case mockTests && err == nil:
+		t.Error("should error due to invalid amount")
 	}
 }
 

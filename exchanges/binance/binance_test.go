@@ -1991,8 +1991,8 @@ func TestWithdraw(t *testing.T) {
 		t.Error("Withdraw() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Withdraw() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error(err)
+	case mockTests && err == nil:
+		t.Error("should error due to invalid amount")
 	}
 }
 

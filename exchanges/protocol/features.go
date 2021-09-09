@@ -34,13 +34,14 @@ type Features struct {
 	DeadMansSwitch      bool `json:"deadMansSwitch,omitempty"`
 	// FullPayloadSubscribe flushes and changes full subscription on websocket
 	// connection by subscribing with full default stream channel list
-	FullPayloadSubscribe   bool `json:"fullPayloadSubscribe,omitempty"`
-	Subscribe              bool `json:"subscribe,omitempty"`
-	Unsubscribe            bool `json:"unsubscribe,omitempty"`
-	AuthenticatedEndpoints bool `json:"authenticatedEndpoints,omitempty"`
-	MessageCorrelation     bool `json:"messageCorrelation,omitempty"`
-	MessageSequenceNumbers bool `json:"messageSequenceNumbers,omitempty"`
-	CandleHistory          bool `json:"candlehistory,omitempty"`
-	MultiChainDeposits     bool `json:"multiChainDeposits,omitempty"`
-	MultiChainWithdrawals  bool `json:"multiChainWithdrawals,omitempty"`
+	FullPayloadSubscribe              bool `json:"fullPayloadSubscribe,omitempty"`
+	Subscribe                         bool `json:"subscribe,omitempty"`
+	Unsubscribe                       bool `json:"unsubscribe,omitempty"`
+	AuthenticatedEndpoints            bool `json:"authenticatedEndpoints,omitempty"`
+	MessageCorrelation                bool `json:"messageCorrelation,omitempty"`
+	MessageSequenceNumbers            bool `json:"messageSequenceNumbers,omitempty"`
+	CandleHistory                     bool `json:"candlehistory,omitempty"`
+	MultiChainDeposits                bool `json:"multiChainDeposits,omitempty"`
+	MultiChainWithdrawals             bool `json:"multiChainWithdrawals,omitempty"`
+	MultiChainDepositRequiresChainSet bool `json:"multiChainDepositRequiresChainSet,omitempty"`
 }

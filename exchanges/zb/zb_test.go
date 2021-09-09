@@ -1054,8 +1054,15 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	if !z.ValidateAPICredentials() {
 		t.Skip("api keys not set")
 	}
-	_, err := z.GetAvailableTransferChains(context.Background(), currency.XRP)
+	_, err := z.GetAvailableTransferChains(context.Background(), currency.BTC)
 	if err != nil {
 		t.Error(err)
+	}
+	r, err := z.GetAvailableTransferChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(r) != 3 {
+		t.Error("expected 3 results")
 	}
 }

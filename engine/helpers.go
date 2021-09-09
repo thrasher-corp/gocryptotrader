@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pquerna/otp/totp"
@@ -706,64 +707,100 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, 
 func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[string][]DepositAddressExtended {
 	result := make(map[string]map[string][]DepositAddressExtended)
 	exchanges := bot.GetExchanges()
+	var depositSyner sync.WaitGroup
+	depositSyner.Add(len(exchanges))
+	var m sync.Mutex
 	for x := range exchanges {
-		exchName := exchanges[x].GetName()
-		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-			if bot.Settings.Verbose {
-				log.Debugf(log.ExchangeSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
-			}
-			continue
-		}
-
-		cryptoCurrencies, err := bot.GetCryptocurrenciesByExchange(exchName, true, true, asset.Spot)
-		if err != nil {
-			log.Debugf(log.ExchangeSys, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
-			continue
-		}
-
-		supportsMultiChain := exchanges[x].GetBase().Features.Supports.RESTCapabilities.MultiChainDeposits
-		cryptoAddr := make(map[string][]DepositAddressExtended)
-		for y := range cryptoCurrencies {
-			cryptocurrency := cryptoCurrencies[y]
-			isSingular := false
-			var depositAddrs []DepositAddressExtended
-			if supportsMultiChain {
-				availChains, err := exchanges[x].GetAvailableTransferChains(context.TODO(), currency.NewCode(cryptocurrency))
-				if err != nil {
-					log.Errorf(log.Global, "%s failed to get cryptocurrency available trasnfer chains. Err: %s\n", exchName, err)
-					continue
+		go func(x int) {
+			defer depositSyner.Done()
+			exchName := exchanges[x].GetName()
+			if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+				if bot.Settings.Verbose {
+					log.Debugf(log.ExchangeSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
 				}
-				if len(availChains) > 0 {
-					for z := range availChains {
-						depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", availChains[z])
-						if err != nil {
-							log.Errorf(log.Global, "%s failed to get cryptocurrency deposit addresses for chain %s. Err: %s\n",
-								exchName,
-								availChains[z],
-								err)
-							continue
-						}
-						depositAddrs = append(depositAddrs, DepositAddressExtended{
-							Address: *depositAddr,
-							Chain:   availChains[z],
-						})
+				return
+			}
+
+			cryptoCurrencies, err := bot.GetCryptocurrenciesByExchange(exchName, true, true, asset.Spot)
+			if err != nil {
+				log.Debugf(log.ExchangeSys, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
+				return
+			}
+			supportsMultiChain := exchanges[x].GetBase().Features.Supports.RESTCapabilities.MultiChainDeposits
+			requiresChainSet := exchanges[x].GetBase().Features.Supports.RESTCapabilities.MultiChainDepositRequiresChainSet
+			cryptoAddr := make(map[string][]DepositAddressExtended)
+			for y := range cryptoCurrencies {
+				cryptocurrency := cryptoCurrencies[y]
+				isSingular := false
+				var depositAddrs []DepositAddressExtended
+				if supportsMultiChain {
+					availChains, err := exchanges[x].GetAvailableTransferChains(context.TODO(), currency.NewCode(cryptocurrency))
+					if err != nil {
+						log.Errorf(log.Global, "%s failed to get cryptocurrency available transfer chains. Err: %s\n", exchName, err)
+						continue
 					}
-				} else {
-					isSingular = true
+					if len(availChains) > 0 {
+						chainContainsItself := common.StringDataCompareInsensitive(availChains, cryptocurrency)
+						if !chainContainsItself && !requiresChainSet {
+							depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
+							if err != nil {
+								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s. Err: %s\n",
+									exchName,
+									cryptocurrency,
+									err)
+								continue
+							}
+							depositAddrs = append(depositAddrs, DepositAddressExtended{
+								Address: *depositAddr,
+								Chain:   cryptocurrency,
+							})
+						}
+						for z := range availChains {
+							if strings.EqualFold(cryptocurrency, availChains[z]) && !chainContainsItself {
+								continue
+							}
+							depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", availChains[z])
+							if err != nil {
+								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s [chain %s]. Err: %s\n",
+									exchName,
+									cryptocurrency,
+									availChains[z],
+									err)
+								continue
+							}
+							depositAddrs = append(depositAddrs, DepositAddressExtended{
+								Address: *depositAddr,
+								Chain:   availChains[z],
+							})
+						}
+					} else {
+						isSingular = true
+					}
 				}
-			} else if !supportsMultiChain || isSingular {
-				depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
-				if err != nil {
-					log.Errorf(log.Global, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
-					continue
+
+				if !supportsMultiChain || isSingular {
+					depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
+					if err != nil {
+						log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s. Err: %s\n",
+							exchName,
+							cryptocurrency,
+							err)
+						continue
+					}
+					depositAddrs = append(depositAddrs, DepositAddressExtended{
+						Address: *depositAddr,
+					})
 				}
-				depositAddrs = append(depositAddrs, DepositAddressExtended{
-					Address: *depositAddr,
-				})
+				cryptoAddr[cryptocurrency] = depositAddrs
 			}
-			cryptoAddr[cryptocurrency] = depositAddrs
-		}
-		result[exchName] = cryptoAddr
+			m.Lock()
+			result[exchName] = cryptoAddr
+			m.Unlock()
+		}(x)
+	}
+	depositSyner.Wait()
+	if len(result) > 0 {
+		log.Infoln(log.Global, "Deposit addresses synced")
 	}
 	return result
 }

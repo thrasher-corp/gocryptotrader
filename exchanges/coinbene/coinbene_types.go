@@ -420,12 +420,12 @@ type CandleResponse struct {
 
 // DepositAddress stores the deposit address data
 type DepositAddress struct {
-	Asset        string `json:"asset"`
-	Chain        string `json:"chain"`
-	Address      string `json:"address"`
-	AddressTag   string `json:"addressTag"`
-	DepositLimit uint8  `json:"depositLimit,string"`
-	BlockNumber  uint8  `json:"blockNumber,string"`
+	Asset        string  `json:"asset"`
+	Chain        string  `json:"chain"`
+	Address      string  `json:"address"`
+	AddressTag   string  `json:"addressTag"`
+	DepositLimit float64 `json:"depositLimit,string"`
+	BlockNumber  uint8   `json:"blockNumber,string"`
 }
 
 // WithdrawResponse stores the withdrawal request response data

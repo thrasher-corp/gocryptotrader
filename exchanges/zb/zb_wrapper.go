@@ -985,6 +985,13 @@ func (z *ZB) validateCandlesRequest(p currency.Pair, a asset.Item, start, end ti
 func (z *ZB) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
 	chains, err := z.GetMultiChainDepositAddress(ctx, cryptocurrency)
 	if err != nil {
+		// returned on valid currencies like BTC, despite having a deposit
+		// address created it will advise the user to create one via their
+		// app or website. In this case, we'll just return nil transfer
+		// chains and no error message
+		if strings.Contains(err.Error(), "APP") {
+			return nil, nil
+		}
 		return nil, err
 	}
 

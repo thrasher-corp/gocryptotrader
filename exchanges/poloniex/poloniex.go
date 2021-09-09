@@ -896,6 +896,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Body:          bytes.NewBufferString(values.Encode()),
 			Result:        result,
 			AuthRequest:   true,
+			NonceEnabled:  true,
 			Verbose:       p.Verbose,
 			HTTPDebugging: p.HTTPDebugging,
 			HTTPRecording: p.HTTPRecording,

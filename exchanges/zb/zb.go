@@ -399,9 +399,10 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {
 		if errCap.Code > 1000 {
-			return fmt.Errorf("sendAuthenticatedHTTPRequest error code: %d message %s",
+			return fmt.Errorf("error code: %d error code message: %s error message: %s",
 				errCap.Code,
-				errorCode[errCap.Code])
+				errorCode[errCap.Code],
+				errCap.Message)
 		}
 	}
 

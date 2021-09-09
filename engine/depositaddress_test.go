@@ -23,29 +23,33 @@ func TestSetupDepositAddressManager(t *testing.T) {
 
 func TestSync(t *testing.T) {
 	m := SetupDepositAddressManager()
-	err := m.Sync(map[string]map[string]deposit.Address{
+	err := m.Sync(map[string]map[string][]DepositAddressExtended{
 		bitStamp: {
-			btc: deposit.Address{
-				Address: address,
+			btc: []DepositAddressExtended{
+				{
+					Address: deposit.Address{Address: address},
+				},
 			},
 		},
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	r, err := m.GetDepositAddressByExchangeAndCurrency(bitStamp, currency.BTC)
+	r, err := m.GetDepositAddressByExchangeAndCurrency(bitStamp, "", currency.BTC)
 	if err != nil {
 		t.Error("unexpected result")
 	}
-	if r.Address != address {
+	if r.Address.Address != address {
 		t.Error("unexpected result")
 	}
 
 	m.store = nil
-	err = m.Sync(map[string]map[string]deposit.Address{
+	err = m.Sync(map[string]map[string][]DepositAddressExtended{
 		bitStamp: {
-			btc: deposit.Address{
-				Address: address,
+			btc: []DepositAddressExtended{
+				{
+					Address: deposit.Address{Address: address},
+				},
 			},
 		},
 	})
@@ -54,10 +58,12 @@ func TestSync(t *testing.T) {
 	}
 
 	m = nil
-	err = m.Sync(map[string]map[string]deposit.Address{
+	err = m.Sync(map[string]map[string][]DepositAddressExtended{
 		bitStamp: {
-			btc: deposit.Address{
-				Address: address,
+			btc: []DepositAddressExtended{
+				{
+					Address: deposit.Address{Address: address},
+				},
 			},
 		},
 	})
@@ -68,19 +74,21 @@ func TestSync(t *testing.T) {
 
 func TestGetDepositAddressByExchangeAndCurrency(t *testing.T) {
 	m := SetupDepositAddressManager()
-	_, err := m.GetDepositAddressByExchangeAndCurrency("", currency.BTC)
+	_, err := m.GetDepositAddressByExchangeAndCurrency("", "", currency.BTC)
 	if !errors.Is(err, ErrDepositAddressStoreIsNil) {
 		t.Errorf("received %v, expected %v", err, ErrDepositAddressStoreIsNil)
 	}
 
-	m.store = map[string]map[string]deposit.Address{
+	m.store = map[string]map[string][]DepositAddressExtended{
 		bitStamp: {
-			btc: deposit.Address{
-				Address: address,
+			btc: []DepositAddressExtended{
+				{
+					Address: deposit.Address{Address: address},
+				},
 			},
 		},
 	}
-	_, err = m.GetDepositAddressByExchangeAndCurrency(bitStamp, currency.BTC)
+	_, err = m.GetDepositAddressByExchangeAndCurrency(bitStamp, "", currency.BTC)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
@@ -93,10 +101,12 @@ func TestGetDepositAddressesByExchange(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, ErrDepositAddressStoreIsNil)
 	}
 
-	m.store = map[string]map[string]deposit.Address{
+	m.store = map[string]map[string][]DepositAddressExtended{
 		bitStamp: {
-			btc: deposit.Address{
-				Address: address,
+			btc: []DepositAddressExtended{
+				{
+					Address: deposit.Address{Address: address},
+				},
 			},
 		},
 	}
