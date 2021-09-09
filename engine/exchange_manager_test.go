@@ -28,7 +28,11 @@ func TestExchangeManagerAdd(t *testing.T) {
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
 	m.Add(b)
-	if exch := m.GetExchanges(); exch[0].GetName() != "Bitfinex" {
+	exchanges, err := m.GetExchanges()
+	if err != nil {
+		t.Error("no exchange manager found")
+	}
+	if exchanges[0].GetName() != "Bitfinex" {
 		t.Error("unexpected exchange name")
 	}
 }
@@ -36,13 +40,21 @@ func TestExchangeManagerAdd(t *testing.T) {
 func TestExchangeManagerGetExchanges(t *testing.T) {
 	t.Parallel()
 	m := SetupExchangeManager()
-	if exchanges := m.GetExchanges(); exchanges != nil {
+	exchanges, err := m.GetExchanges()
+	if err != nil {
+		t.Error("no exchange manager found")
+	}
+	if exchanges != nil {
 		t.Error("unexpected value")
 	}
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
 	m.Add(b)
-	if exch := m.GetExchanges(); exch[0].GetName() != "Bitfinex" {
+	exchanges, err = m.GetExchanges()
+	if err != nil {
+		t.Error("no exchange manager found")
+	}
+	if exchanges[0].GetName() != "Bitfinex" {
 		t.Error("unexpected exchange name")
 	}
 }

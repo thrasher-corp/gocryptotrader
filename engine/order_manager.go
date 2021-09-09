@@ -87,8 +87,11 @@ func (m *OrderManager) Stop() error {
 func (m *OrderManager) gracefulShutdown() {
 	if m.cfg.CancelOrdersOnShutdown {
 		log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
-		m.CancelAllOrders(context.TODO(),
-			m.orderStore.exchangeManager.GetExchanges())
+		exchanges, err := m.orderStore.exchangeManager.GetExchanges()
+		if err != nil {
+			log.Errorf(log.OrderMgr, "Order manager cannot get exchanges: %v", err)
+		}
+		m.CancelAllOrders(context.TODO(), exchanges)
 	}
 }
 
@@ -571,7 +574,10 @@ func (m *OrderManager) processOrders() {
 		log.Errorf(log.OrderMgr, "order manager: %v", ErrNilSubsystem)
 	}
 	log.Warnf(log.OrderMgr, "order manager: getting exchanges")
-	exchanges := m.orderStore.exchangeManager.GetExchanges()
+	exchanges, err := m.orderStore.exchangeManager.GetExchanges()
+	if err != nil {
+		log.Errorf(log.OrderMgr, "Order manager cannot get exchanges: %v", err)
+	}
 	for i := range exchanges {
 		if !exchanges[i].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 			continue
@@ -674,7 +680,7 @@ func (m *OrderManager) FetchAndUpdateExchangeOrder(exch exchange.IBotExchange, o
 	if ord == nil {
 		return errors.New("order manager: Order is nil")
 	}
-	fetchedOrder, err := exch.GetOrderInfo(ord.ID, ord.Pair, assetType)
+	fetchedOrder, err := exch.GetOrderInfo(context.TODO(), ord.ID, ord.Pair, assetType)
 	if err != nil {
 		ord.Status = order.UnknownStatus
 		return err

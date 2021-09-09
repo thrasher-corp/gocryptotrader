@@ -104,7 +104,10 @@ func (m *syncManager) Start() error {
 	m.initSyncWG.Add(1)
 	m.inService.Done()
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
-	exchanges := m.exchangeManager.GetExchanges()
+	exchanges, err := m.exchangeManager.GetExchanges()
+	if err != nil {
+		return err
+	}
 	for x := range exchanges {
 		exchangeName := exchanges[x].GetName()
 		supportsWebsocket := exchanges[x].SupportsWebsocket()
@@ -454,7 +457,10 @@ func (m *syncManager) worker() {
 	defer cleanup()
 
 	for atomic.LoadInt32(&m.started) != 0 {
-		exchanges := m.exchangeManager.GetExchanges()
+		exchanges, err := m.exchangeManager.GetExchanges()
+		if err != nil {
+			log.Errorf(log.OrderMgr, "Sync manager cannot get exchanges: %v", err)
+		}
 		for x := range exchanges {
 			exchangeName := exchanges[x].GetName()
 			supportsREST := exchanges[x].SupportsREST()

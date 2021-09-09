@@ -78,9 +78,9 @@ func (m *ExchangeManager) Add(exch exchange.IBotExchange) {
 }
 
 // GetExchanges returns all stored exchanges
-func (m *ExchangeManager) GetExchanges() []exchange.IBotExchange {
+func (m *ExchangeManager) GetExchanges() ([]exchange.IBotExchange, error) {
 	if m == nil {
-		log.Errorf(log.ExchangeSys, "exchange manager: %v", ErrNilSubsystem)
+		return nil, fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
@@ -88,7 +88,7 @@ func (m *ExchangeManager) GetExchanges() []exchange.IBotExchange {
 	for _, x := range m.exchanges {
 		exchs = append(exchs, x)
 	}
-	return exchs
+	return exchs, nil
 }
 
 // RemoveExchange removes an exchange from the manager

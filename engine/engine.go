@@ -716,7 +716,12 @@ func (bot *Engine) UnloadExchange(exchName string) error {
 
 // GetExchanges retrieves the loaded exchanges
 func (bot *Engine) GetExchanges() []exchange.IBotExchange {
-	return bot.ExchangeManager.GetExchanges()
+	exch, err := bot.ExchangeManager.GetExchanges()
+	if err != nil {
+		gctlog.Warnf(gctlog.ExchangeSys, "Cannot get exchanges: %v", err)
+		return []exchange.IBotExchange{}
+	}
+	return exch
 }
 
 // LoadExchange loads an exchange by name. Optional wait group can be added for
@@ -917,7 +922,7 @@ func (bot *Engine) SetupExchanges() error {
 		}(configs[x])
 	}
 	wg.Wait()
-	if len(bot.ExchangeManager.GetExchanges()) == 0 {
+	if len(bot.GetExchanges()) == 0 {
 		return ErrNoExchangesLoaded
 	}
 	return nil
