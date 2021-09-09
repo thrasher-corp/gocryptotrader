@@ -61,7 +61,6 @@ type ExchangeManager struct {
 
 // SetupExchangeManager creates a new exchange manager
 func SetupExchangeManager() *ExchangeManager {
-	log.Warnf(log.ExchangeSys, "exchange manager setup")
 	return &ExchangeManager{
 		exchanges: make(map[string]exchange.IBotExchange),
 	}
