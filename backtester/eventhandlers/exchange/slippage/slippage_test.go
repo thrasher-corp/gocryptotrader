@@ -14,7 +14,7 @@ import (
 func TestRandomSlippage(t *testing.T) {
 	t.Parallel()
 	resp := EstimateSlippagePercentage(decimal.NewFromInt(80), decimal.NewFromInt(100))
-	if resp.LessThan(decimal.NewFromFloat(0.8)) || resp.GreaterThan(decimal.NewFromFloat(1)) {
+	if resp.LessThan(decimal.NewFromFloat(0.8)) || resp.GreaterThan(decimal.NewFromInt(1)) {
 		t.Error("expected result > 0.8 and < 100")
 	}
 }

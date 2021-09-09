@@ -15,8 +15,8 @@ import (
 
 var (
 	elite = decimal.NewFromInt(1337)
-	neg   = decimal.NewFromFloat(-1)
-	one   = decimal.NewFromFloat(1)
+	neg   = decimal.NewFromInt(-1)
+	one   = decimal.NewFromInt(1)
 	exch  = "exch"
 	a     = asset.Spot
 	base  = currency.DOGE
@@ -610,11 +610,11 @@ func TestCanPlaceOrderPair(t *testing.T) {
 		t.Error("expected false")
 	}
 
-	p.Quote.available = decimal.NewFromFloat(32)
+	p.Quote.available = decimal.NewFromInt(32)
 	if !p.CanPlaceOrder(gctorder.Buy) {
 		t.Error("expected true")
 	}
-	p.Base.available = decimal.NewFromFloat(32)
+	p.Base.available = decimal.NewFromInt(32)
 	if !p.CanPlaceOrder(gctorder.Sell) {
 		t.Error("expected true")
 	}
@@ -702,7 +702,7 @@ func TestReserve(t *testing.T) {
 	}
 }
 
-func TestMatchesCurrency(t *testing.T) {
+func TestMatchesItemCurrency(t *testing.T) {
 	t.Parallel()
 	i := Item{}
 	if i.MatchesItemCurrency(nil) {
@@ -743,5 +743,50 @@ func TestMatchesExchange(t *testing.T) {
 	}
 	if !baseItem.MatchesExchange(baseItem) {
 		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+}
+
+func TestGenerateReport(t *testing.T) {
+	t.Parallel()
+	f := FundManager{}
+	report := f.GenerateReport()
+	if report == nil {
+		t.Error("shouldn't be nil")
+	}
+	if len(report.Items) > 0 {
+		t.Error("expected 0")
+	}
+	item := &Item{
+		exchange: "hello :)",
+	}
+	err := f.AddItem(item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report = f.GenerateReport()
+	if len(report.Items) != 1 {
+		t.Fatal("expected 1")
+	}
+	if report.Items[0].Exchange != item.exchange {
+		t.Error("expected matching name")
+	}
+}
+
+func TestMatchesCurrency(t *testing.T) {
+	t.Parallel()
+	i := Item{
+		currency: currency.BTC,
+	}
+	if i.MatchesCurrency(currency.USDT) {
+		t.Error("expected false")
+	}
+	if !i.MatchesCurrency(currency.BTC) {
+		t.Error("expected true")
+	}
+	if i.MatchesCurrency(currency.Code{}) {
+		t.Error("expected false")
+	}
+	if i.MatchesCurrency(currency.NewCode("")) {
+		t.Error("expected false")
 	}
 }

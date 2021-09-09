@@ -25,10 +25,10 @@ import (
 const testExchange = "binance"
 
 var (
-	eleeg  = decimal.NewFromFloat(1336)
+	eleeg  = decimal.NewFromInt(1336)
 	eleet  = decimal.NewFromInt(1337)
-	eleeet = decimal.NewFromFloat(13337)
-	eleeb  = decimal.NewFromFloat(1338)
+	eleeet = decimal.NewFromInt(13337)
+	eleeb  = decimal.NewFNewFromIntromFloat(1338)
 )
 
 func TestReset(t *testing.T) {

@@ -111,7 +111,7 @@ type CurrencySettings struct {
 	Base         string `json:"base"`
 	Quote        string `json:"quote"`
 
-	InitialFunds decimal.Decimal `json:"initial-funds,omitempty"`
+	InitialFunds decimal.Decimal `json:"initial-funds"`
 
 	Leverage Leverage `json:"leverage"`
 	BuySide  MinMax   `json:"buy-side"`

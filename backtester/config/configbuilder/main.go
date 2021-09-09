@@ -319,6 +319,15 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 		if err != nil {
 			return err
 		}
+
+		fmt.Println("If your strategy utilises fund transfer, what is the transfer fee?")
+		fee := quickParse(reader)
+		if fee != "" {
+			fund.TransferFee, err = decimal.NewFromString(quickParse(reader))
+			if err != nil {
+				return err
+			}
+		}
 		cfg.StrategySettings.ExchangeLevelFunding = append(cfg.StrategySettings.ExchangeLevelFunding, fund)
 		fmt.Println("Add another source of funds? y/n")
 		addFunding = quickParse(reader)

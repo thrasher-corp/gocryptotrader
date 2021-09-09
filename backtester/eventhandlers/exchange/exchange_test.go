@@ -104,7 +104,7 @@ func TestCalculateExchangeFee(t *testing.T) {
 	if !fee.Equal(decimal.NewFromFloat(0.1)) {
 		t.Error("expected 0.1")
 	}
-	fee = calculateExchangeFee(decimal.NewFromFloat(2), decimal.NewFromFloat(1), decimal.NewFromFloat(0.005))
+	fee = calculateExchangeFee(decimal.NewFromInt(2), decimal.NewFromFloat(1), decimal.NewFromFloat(0.005))
 	if !fee.Equal(decimal.NewFromFloat(0.01)) {
 		t.Error("expected 0.01")
 	}

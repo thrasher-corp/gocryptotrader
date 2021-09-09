@@ -45,7 +45,7 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 
 	oneHundred := decimal.NewFromInt(100)
 	c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(oneHundred)
-	if f.QuoteInitialFunds().GreaterThan(decimal.Zero) {
+	if first.Holdings.TotalValue.GreaterThan(decimal.Zero) {
 		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue).Mul(oneHundred)
 	}
 	c.calculateHighestCommittedFunds()

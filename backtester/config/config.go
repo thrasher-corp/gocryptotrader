@@ -239,7 +239,11 @@ func (c *Config) validateCurrencySettings() error {
 		return ErrNoCurrencySettings
 	}
 	for i := range c.CurrencySettings {
-		if c.CurrencySettings[i].InitialFunds.LessThanOrEqual(decimal.Zero) && !c.StrategySettings.UseExchangeLevelFunding {
+		if c.CurrencySettings[i].InitialFunds.Decimal.GreaterThan(decimal.Zero) {
+			c.CurrencySettings[i].InitialFunds.Valid = true
+		}
+		if (!c.CurrencySettings[i].InitialFunds.Valid && !c.StrategySettings.UseExchangeLevelFunding) ||
+			(c.CurrencySettings[i].InitialFunds.Valid && c.CurrencySettings[i].InitialFunds.Decimal.LessThanOrEqual(decimal.Zero) && !c.StrategySettings.UseExchangeLevelFunding) {
 			return ErrBadInitialFunds
 		}
 		if c.CurrencySettings[i].Base == "" {
