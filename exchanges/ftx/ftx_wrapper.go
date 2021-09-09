@@ -177,8 +177,9 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = f.Fees.LoadStatic(fee.Options{
-		Maker: 0.0002,
-		Taker: 0.0007,
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot: {Maker: 0.0002, Taker: 0.0007},
+		},
 	})
 	if err != nil {
 		return err
@@ -1187,9 +1188,12 @@ func (f *FTX) UpdateOrderExecutionLimits(_ asset.Item) error {
 
 // UpdateFees updates all the fees associated with the asset type.
 func (f *FTX) UpdateFees(a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
 	ai, err := f.GetAccountInfo()
 	if err != nil {
 		return err
 	}
-	return f.Fees.LoadDynamic(ai.TakerFee, ai.MakerFee)
+	return f.Fees.LoadDynamic(ai.MakerFee, ai.TakerFee, a)
 }

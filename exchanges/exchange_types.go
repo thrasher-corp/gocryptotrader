@@ -21,7 +21,7 @@ const (
 	WebsocketAuthentication uint8 = 1
 	// Repeated exchange strings
 	// Type custom type for calculating fees based on method
-	WireTransfer fee.InternationalBankTransaction = iota
+	WireTransfer fee.BankTransaction = iota
 	PerfectMoney
 	Neteller
 	AdvCash

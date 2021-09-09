@@ -244,7 +244,7 @@ type OHLCResponse struct {
 	} `json:"data"`
 }
 
-var bankTransfer = map[fee.InternationalBankTransaction]map[currency.Code]fee.Transfer{
+var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	// TODO: Add zero value transaction type?
 	0: {
 		currency.USD: {

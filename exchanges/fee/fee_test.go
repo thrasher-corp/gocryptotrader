@@ -61,12 +61,12 @@ func TestManagerRegister(t *testing.T) {
 
 func TestLoadDynamic(t *testing.T) {
 	t.Parallel()
-	err := (*Definitions)(nil).LoadDynamic(0, 0)
+	err := (*Definitions)(nil).LoadDynamic(0, 0, asset.Spot)
 	if !errors.Is(err, ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
-	err = (&Definitions{}).LoadDynamic(1, 1)
+	err = (&Definitions{}).LoadDynamic(1, 1, asset.Spot)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}

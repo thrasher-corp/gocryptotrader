@@ -183,7 +183,7 @@ var withdrawFees = map[asset.Item]map[currency.Code]fee.Transfer{
 	},
 }
 
-var transferBank = map[fee.InternationalBankTransaction]map[currency.Code]fee.Transfer{
+var transferBank = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	exchange.WireTransfer: {
 		currency.RUB: {Withdrawal: 3200, Deposit: 1600, IsPercentage: true}, // This doesn't seem like a percentage val???
 		currency.PLN: {Withdrawal: 125, Deposit: 30, IsPercentage: true},    // Or this?

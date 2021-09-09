@@ -159,8 +159,9 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = p.Fees.LoadStatic(fee.Options{
-		Maker:    0.002,
-		Taker:    0.002,
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot: {Maker: 0.002, Taker: 0.002},
+		},
 		Transfer: WithdrawalFees,
 	})
 	if err != nil {
@@ -915,5 +916,5 @@ func (p *Poloniex) UpdateFees(a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	return p.Fees.LoadDynamic(fee.MakerFee, fee.TakerFee)
+	return p.Fees.LoadDynamic(fee.MakerFee, fee.TakerFee, a)
 }

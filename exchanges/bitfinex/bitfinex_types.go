@@ -806,7 +806,7 @@ type WsCancelAllOrdersRequest struct {
 	All int64 `json:"all"`
 }
 
-var bankTransfer = map[fee.InternationalBankTransaction]map[currency.Code]fee.Transfer{
+var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	exchange.WireTransfer: { // TODO: VERIFY THIS:
 		currency.USD: {Withdrawal: 0.001, Deposit: 0.001, IsPercentage: true},
 	},

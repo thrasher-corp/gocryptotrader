@@ -155,8 +155,9 @@ func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Fees.LoadStatic(fee.Options{
-		Maker:    0.0025, // TODO: verify
-		Taker:    0.0025,
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot: {Maker: 0.0025, Taker: 0.0025}, // TODO: verify
+		},
 		Transfer: transferFees, // TODO: Verify
 	})
 	if err != nil {

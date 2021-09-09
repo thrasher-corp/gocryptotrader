@@ -297,14 +297,14 @@ type NewOrder struct {
 	TimeInForce    string  `json:"time_in_force"`
 }
 
-var bankTransfer = map[fee.InternationalBankTransaction]map[currency.Code]fee.Transfer{
+var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	exchange.WireTransfer: {
 		currency.JPY: {Withdrawal: 324}, // TODO: add amount switch logic.
 	},
 }
 
 // NOTE: For deposit for above
-// func getWithdrawalFee(bankTransactionType fee.InternationalBankTransactionType, c currency.Code, amount float64) (fee float64) {
+// func getWithdrawalFee(bankTransactionType fee.BankTransactionType, c currency.Code, amount float64) (fee float64) {
 // 	if bankTransactionType == exchange.WireTransfer {
 // 		if c.Item == currency.JPY.Item {
 // 			if amount < 30000 {

@@ -2406,35 +2406,56 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 }
 
 func TestGetAllFees(t *testing.T) {
+	t.Parallel()
 	_, err := (&Base{}).GetAllFees()
 	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
 }
 
+func TestGetCommisionFee(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).GetCommisionFee(asset.Spot)
+	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
+	}
+}
+
+func TestSetCommissionFee(t *testing.T) {
+	t.Parallel()
+	err := (&Base{}).SetCommissionFee(asset.Spot, -1, -1, true)
+	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
+	}
+}
+
+func TestGetTransferFee(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).GetTransferFee(currency.Code{}, "")
+	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
+	}
+}
+
 func TestSetTransferFee(t *testing.T) {
+	t.Parallel()
 	err := (&Base{}).SetTransferFee(currency.Code{}, "", 0, 0, false)
 	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
 }
 
-func TestSetGlobalFee(t *testing.T) {
-	err := (&Base{}).SetGlobalFee(0, 0, false)
+func TestGetBankTransferFee(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).GetBankTransferFee(currency.Code{}, 0)
 	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
 }
 
-func TestSetFeeCustom(t *testing.T) {
-	err := (&Base{}).SetFeeCustom(false)
-	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
-		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
-	}
-}
-
-func TestGetOfflineFees(t *testing.T) {
-	_, err := (&Base{}).GetOfflineFees()
+func TestSetBankTransferFee(t *testing.T) {
+	t.Parallel()
+	err := (&Base{}).SetBankTransferFee(currency.Code{}, 0, -1, -1, true)
 	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}

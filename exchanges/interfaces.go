@@ -90,10 +90,20 @@ type IBotExchange interface {
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(a asset.Item) error
 
+	IFee
+}
+
+// IFee defines required exchange fee functionality
+type IFee interface {
 	UpdateFees(a asset.Item) error
 	GetAllFees() (fee.Options, error)
-	SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, ratio bool) error
-	SetGlobalFee(maker, taker float64, ratio bool) error
-	SetFeeCustom(on bool) error
-	GetOfflineFees() (fee.Global, error)
+
+	GetCommisionFee(a asset.Item) (fee.Commision, error)
+	SetCommissionFee(a asset.Item, maker, taker float64, isSetAmount bool) error
+
+	GetTransferFee(c currency.Code, a asset.Item) (fee.Transfer, error)
+	SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, isPercentage bool) error
+
+	GetBankTransferFee(c currency.Code, transType fee.BankTransaction) (fee.Transfer, error)
+	SetBankTransferFee(c currency.Code, transType fee.BankTransaction, withdraw, deposit float64, isPercentage bool) error
 }

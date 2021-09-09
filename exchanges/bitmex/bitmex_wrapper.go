@@ -152,8 +152,9 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Fees.LoadStatic(fee.Options{
-		Maker: 0.0005, // TODO: verify
-		Taker: 0.00075,
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot: {Maker: 0.0005, Taker: 0.00075}, // TODO: verify
+		},
 	})
 	if err != nil {
 		return err

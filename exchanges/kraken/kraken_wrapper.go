@@ -204,8 +204,9 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = k.Fees.LoadStatic(fee.Options{
-		Maker:    0.0016,
-		Taker:    0.0016,
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot: {Maker: 0.0016, Taker: 0.0016},
+		},
 		Transfer: transferFees,
 	})
 	if err != nil {

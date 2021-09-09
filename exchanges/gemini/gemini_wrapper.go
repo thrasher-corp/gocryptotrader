@@ -142,8 +142,9 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = g.Fees.LoadStatic(fee.Options{
-		Maker: 0.01,
-		Taker: 0.01,
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot: {Maker: 0.01, Taker: 0.01},
+		},
 	})
 	if err != nil {
 		return err

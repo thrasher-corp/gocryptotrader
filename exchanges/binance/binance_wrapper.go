@@ -28,6 +28,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var errAssetUnhandled = errors.New("asset is unhandled")
+
 // GetDefaultConfig returns a default exchange config
 func (b *Binance) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -215,8 +217,12 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Fees.LoadStatic(fee.Options{
-		Maker:    0.002, // TODO: Verify
-		Taker:    0.002,
+		// Note: https://www.binance.com/en/fee/trading
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot:                {Maker: 0.01, Taker: 0.01},
+			asset.USDTMarginedFutures: {Maker: 0.01, Taker: 0.01},
+			asset.CoinMarginedFutures: {Maker: 0.01, Taker: 0.01},
+		},
 		Transfer: withdrawalFees, // TODO: Verify withdrawal fees
 	})
 	if err != nil {
@@ -1162,7 +1168,8 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 			return respData, err
 		}
 		fee, err := b.Fees.GetTakerTotal(orderData.AveragePrice,
-			orderData.ExecutedQuantity) // TODO: Verify
+			orderData.ExecutedQuantity,
+			asset.CoinMarginedFutures) // TODO: Verify
 		if err != nil {
 			return respData, err
 		}
@@ -1188,7 +1195,8 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 			return respData, err
 		}
 		fee, err := b.Fees.GetTakerTotal(orderData.AveragePrice,
-			orderData.ExecutedQuantity) // TODO: Verify
+			orderData.ExecutedQuantity,
+			asset.USDTMarginedFutures) // TODO: Verify
 		if err != nil {
 			return respData, err
 		}
@@ -1292,7 +1300,8 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			}
 			for y := range openOrders {
 				fee, err := b.Fees.GetTakerTotal(openOrders[y].AvgPrice,
-					openOrders[y].ExecutedQty) // TODO: Verify
+					openOrders[y].ExecutedQty,
+					asset.CoinMarginedFutures) // TODO: Verify
 				if err != nil {
 					return orders, err
 				}
@@ -1322,7 +1331,8 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			}
 			for y := range openOrders {
 				fee, err := b.Fees.GetTakerTotal(openOrders[y].AveragePrice,
-					openOrders[y].ExecutedQuantity) // TODO: Verify
+					openOrders[y].ExecutedQuantity,
+					asset.USDTMarginedFutures) // TODO: Verify
 				if err != nil {
 					return orders, err
 				}
@@ -1431,7 +1441,8 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			}
 			for y := range orderHistory {
 				fee, err := b.Fees.GetTakerTotal(orderHistory[y].AvgPrice,
-					orderHistory[y].ExecutedQty) // TODO: Verify
+					orderHistory[y].ExecutedQty,
+					asset.CoinMarginedFutures) // TODO: Verify
 				if err != nil {
 					return orders, err
 				}
@@ -1484,7 +1495,8 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			}
 			for y := range orderHistory {
 				fee, err := b.Fees.GetTakerTotal(orderHistory[y].AvgPrice,
-					orderHistory[y].ExecutedQty) // TODO: Verify
+					orderHistory[y].ExecutedQty,
+					asset.USDTMarginedFutures) // TODO: Verify
 				if err != nil {
 					return orders, err
 				}
@@ -1709,20 +1721,24 @@ func (b *Binance) UpdateOrderExecutionLimits(a asset.Item) error {
 
 // UpdateFees updates current fees associated with account
 func (b *Binance) UpdateFees(a asset.Item) error {
-	if a != asset.Spot {
+	switch a {
+	case asset.Spot:
+		account, err := b.GetAccount()
+		if err != nil {
+			return err
+		}
+		return b.Fees.LoadDynamic( // TODO: verify (This is an int?)
+			float64(account.MakerCommission)/100,
+			float64(account.TakerCommission)/100,
+			a,
+		)
+	case asset.USDTMarginedFutures:
 		return common.ErrNotYetImplemented
+	case asset.CoinMarginedFutures:
+		return common.ErrNotYetImplemented
+	case asset.Margin:
+		return nil
+	default:
+		return fmt.Errorf("%s: %w", a, errAssetUnhandled)
 	}
-
-	account, err := b.GetAccount()
-	if err != nil {
-		return err
-	}
-
-	err = b.Fees.LoadDynamic(float64(account.MakerCommission)/100,
-		float64(account.TakerCommission)/100) // TODO: verify (This is an int?)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

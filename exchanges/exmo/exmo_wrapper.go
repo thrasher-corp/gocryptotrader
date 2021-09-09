@@ -130,8 +130,9 @@ func (e *EXMO) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	return e.Fees.LoadStatic(fee.Options{
-		Maker:           0.002,
-		Taker:           0.002,
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot: {Maker: 0.002, Taker: 0.002},
+		},
 		Transfer:        withdrawFees,
 		BankingTransfer: transferBank,
 	})

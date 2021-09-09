@@ -41,8 +41,9 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = o.Fees.LoadStatic(fee.Options{
-		Maker: 0.0005,
-		Taker: 0.0015,
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot: {Maker: 0.0005, Taker: 0.0015},
+		},
 	})
 	if err != nil {
 		return err

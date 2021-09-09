@@ -148,8 +148,10 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Fees.LoadStatic(fee.Options{
-		Maker: 0.0085, // TODO: Check this Add support for crypto pair as it has 0.002 fee
-		Taker: 0.0085,
+		// TODO: Check this Add support for crypto pair as it has 0.002 fee
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot: {Maker: 0.0085, Taker: 0.0085},
+		},
 	})
 	if err != nil {
 		return err

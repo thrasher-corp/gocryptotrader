@@ -131,8 +131,9 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = l.Fees.LoadStatic(fee.Options{
-		Maker: 0.002,
-		Taker: 0.002,
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot: {Maker: 0.002, Taker: 0.002},
+		},
 	})
 	if err != nil {
 		return err
@@ -605,7 +606,9 @@ func (l *Lbank) GetOrderInfo(orderID string, pair currency.Pair, assetType asset
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
 			// TODO: Verify value
-			resp.Fee, err = l.Fees.GetTakerTotal(tempResp.Orders[0].Price, tempResp.Orders[0].Amount)
+			resp.Fee, err = l.Fees.GetTakerTotal(tempResp.Orders[0].Price,
+				tempResp.Orders[0].Amount,
+				asset.Spot)
 			if err != nil {
 				return resp, err
 			}
@@ -699,7 +702,9 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
 			// TODO: verify value
-			resp.Fee, err = l.Fees.GetTakerTotal(tempResp.Orders[0].Price, tempResp.Orders[0].Amount)
+			resp.Fee, err = l.Fees.GetTakerTotal(tempResp.Orders[0].Price,
+				tempResp.Orders[0].Amount,
+				asset.Spot)
 			if err != nil {
 				return nil, err
 			}
@@ -789,7 +794,9 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 				resp.ExecutedAmount = tempResp.Orders[x].DealAmount
 				resp.RemainingAmount = tempResp.Orders[x].Price - tempResp.Orders[x].DealAmount
 				// TODO: Verify this value
-				resp.Fee, err = l.Fees.GetTakerTotal(tempResp.Orders[x].Price, tempResp.Orders[x].Amount)
+				resp.Fee, err = l.Fees.GetTakerTotal(tempResp.Orders[x].Price,
+					tempResp.Orders[x].Amount,
+					asset.Spot)
 				if err != nil {
 					resp.Fee = lbankFeeNotFound
 				}

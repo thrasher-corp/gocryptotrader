@@ -121,8 +121,9 @@ func (b *Bitflyer) Setup(exch *config.ExchangeConfig) error {
 	return b.Fees.LoadStatic(fee.Options{
 		// bitflyer has fee tiers, but does not disclose them via API, so the
 		// largest has to be assumed
-		Maker:           0.0012,
-		Taker:           0.0012,
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot: {Maker: 0.0012, Taker: 0.0012},
+		},
 		BankingTransfer: bankTransfer,
 	})
 }

@@ -159,7 +159,7 @@ type WalletTransfer struct {
 	Description         string  `json:"description"`
 }
 
-var bankTransfer = map[fee.InternationalBankTransaction]map[currency.Code]fee.Transfer{
+var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	exchange.Swift: {currency.USD: {Withdrawal: 40}},
 	exchange.WireTransfer: {
 		currency.USD: {Withdrawal: 40},

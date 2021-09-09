@@ -156,8 +156,9 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = g.Fees.LoadStatic(fee.Options{
-		Maker:    0.002,
-		Taker:    0.002,
+		Commission: map[asset.Item]fee.Commision{
+			asset.Spot: {Maker: 0.002, Taker: 0.002},
+		},
 		Transfer: withdrawalFees,
 	})
 	if err != nil {

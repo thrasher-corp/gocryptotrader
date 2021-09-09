@@ -164,7 +164,7 @@ type RedeemCoupon struct {
 
 // internationBank the list of predefined withdrawal fees for international
 // bank transfers.
-var internationBank = map[fee.InternationalBankTransaction]map[currency.Code]fee.Transfer{
+var internationBank = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	exchange.PerfectMoney: {currency.USD: {Withdrawal: 0.02, IsPercentage: true}},
 	exchange.Payeer: {
 		currency.USD: {Withdrawal: 0.03, IsPercentage: true},
