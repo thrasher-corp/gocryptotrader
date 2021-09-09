@@ -567,6 +567,10 @@ func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 // processOrders iterates over all exchange orders via API
 // and adds them to the internal order store
 func (m *OrderManager) processOrders() {
+	if m.orderStore.exchangeManager == nil {
+		log.Errorf(log.OrderMgr, "order manager: %v", ErrNilSubsystem)
+	}
+	log.Warnf(log.OrderMgr, "order manager: getting exchanges")
 	exchanges := m.orderStore.exchangeManager.GetExchanges()
 	for i := range exchanges {
 		if !exchanges[i].GetAuthenticatedAPISupport(exchange.RestAuthentication) {

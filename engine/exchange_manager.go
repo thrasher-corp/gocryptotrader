@@ -61,6 +61,7 @@ type ExchangeManager struct {
 
 // SetupExchangeManager creates a new exchange manager
 func SetupExchangeManager() *ExchangeManager {
+	log.Warnf(log.ExchangeSys, "exchange manager setup")
 	return &ExchangeManager{
 		exchanges: make(map[string]exchange.IBotExchange),
 	}
@@ -78,6 +79,9 @@ func (m *ExchangeManager) Add(exch exchange.IBotExchange) {
 
 // GetExchanges returns all stored exchanges
 func (m *ExchangeManager) GetExchanges() []exchange.IBotExchange {
+	if m == nil {
+		log.Errorf(log.ExchangeSys, "exchange manager: %v", ErrNilSubsystem)
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	var exchs []exchange.IBotExchange

@@ -11,6 +11,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // omfExchange aka ordermanager fake exchange overrides exchange functions
@@ -157,6 +158,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
+	log.Warnf(log.OrderMgr, "OrdersSetup - setup ordermanager with fake exchange")
 	err = m.Start()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
