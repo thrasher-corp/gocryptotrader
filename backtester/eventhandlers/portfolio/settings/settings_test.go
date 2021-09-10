@@ -16,7 +16,7 @@ func TestGetLatestHoldings(t *testing.T) {
 		t.Error("expected unset holdings")
 	}
 	tt := time.Now()
-	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots, &holdings.Holding{Timestamp: tt})
+	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots, holdings.Holding{Timestamp: tt})
 
 	h = cs.GetLatestHoldings()
 	if !h.Timestamp.Equal(tt) {
@@ -32,7 +32,7 @@ func TestValue(t *testing.T) {
 		t.Error("expected 0")
 	}
 	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots,
-		&holdings.Holding{
+		holdings.Holding{
 			Timestamp:  time.Now(),
 			TotalValue: decimal.NewFromInt(1337),
 		},

@@ -342,9 +342,9 @@ func TestCalculateHighestCommittedFunds(t *testing.T) {
 	tt2 := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
 	tt3 := time.Date(2021, 3, 1, 0, 0, 0, 0, time.UTC)
 	c.Events = append(c.Events,
-		EventStore{Holdings: holdings.Holding{Timestamp: tt1, BaseSize: decimal.NewFromInt(10)}},
-		EventStore{Holdings: holdings.Holding{Timestamp: tt2, BaseSize: decimal.NewFromInt(1337)}},
-		EventStore{Holdings: holdings.Holding{Timestamp: tt3, BaseSize: decimal.NewFromInt(11)}},
+		EventStore{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1337)}, Holdings: holdings.Holding{Timestamp: tt1, BaseSize: decimal.NewFromInt(10)}},
+		EventStore{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1338)}, Holdings: holdings.Holding{Timestamp: tt2, BaseSize: decimal.NewFromInt(1337)}},
+		EventStore{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1339)}, Holdings: holdings.Holding{Timestamp: tt3, BaseSize: decimal.NewFromInt(11)}},
 	)
 	c.calculateHighestCommittedFunds()
 	if c.HighestCommittedFunds.Time != tt2 {

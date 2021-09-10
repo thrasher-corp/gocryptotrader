@@ -2,10 +2,10 @@ package math
 
 import (
 	"errors"
-	"fmt"
 	"math"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -317,13 +317,12 @@ func DecimalPopulationStandardDeviation(values []decimal.Decimal) (decimal.Decim
 	if err != nil {
 		return decimal.Zero, err
 	}
-	err = nil
 	f, exact := diffAvg.Float64()
 	if !exact {
-		err = fmt.Errorf("%w from %v to %v", ErrInexactConversion, diffAvg, f)
+		log.Errorf(log.Global, "%v from %v to %v", ErrInexactConversion, diffAvg, f)
 	}
 	resp := decimal.NewFromFloat(math.Sqrt(f))
-	return resp, err
+	return resp, nil
 }
 
 // DecimalSampleStandardDeviation standard deviation is a statistic that
@@ -345,13 +344,12 @@ func DecimalSampleStandardDeviation(values []decimal.Decimal) (decimal.Decimal, 
 		combined.Add(pow)
 	}
 	avg := combined.Div(decimal.NewFromInt(int64(len(superMean))).Sub(decimal.NewFromInt(1)))
-	err = nil
 	f, exact := avg.Float64()
 	if !exact {
-		err = fmt.Errorf("%w from %v to %v", ErrInexactConversion, avg, f)
+		log.Errorf(log.Global, "%v from %v to %v", ErrInexactConversion, avg, f)
 	}
 	sqrt := math.Sqrt(f)
-	return decimal.NewFromFloat(sqrt), err
+	return decimal.NewFromFloat(sqrt), nil
 }
 
 // DecimalGeometricMean is an average which indicates the central tendency or
@@ -444,14 +442,13 @@ func DecimalSortinoRatio(movementPerCandle []decimal.Decimal, riskFreeRatePerInt
 		return decimal.Zero, ErrNoNegativeResults
 	}
 	f, exact := totalNegativeResultsSquared.Float64()
-	var err error
 	if !exact {
-		err = fmt.Errorf("%w from %v to %v", ErrInexactConversion, totalNegativeResultsSquared, f)
+		log.Errorf(log.Global, "%v from %v to %v", ErrInexactConversion, totalNegativeResultsSquared, f)
 	}
 	fAverageDownsideDeviation := math.Sqrt(f / float64(len(movementPerCandle)))
 	averageDownsideDeviation := decimal.NewFromFloat(fAverageDownsideDeviation)
 
-	return average.Sub(riskFreeRatePerInterval).Div(averageDownsideDeviation), err
+	return average.Sub(riskFreeRatePerInterval).Div(averageDownsideDeviation), nil
 }
 
 // DecimalSharpeRatio returns sharpe ratio of backtest compared to risk-free

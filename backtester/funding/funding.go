@@ -12,6 +12,8 @@ import (
 )
 
 var (
+	ErrCannotAllocate             = errors.New("cannot allocate funds")
+	ErrFundsNotFound              = errors.New("funding not found")
 	ErrZeroAmountReceived         = errors.New("received less than or equal to zero")
 	ErrNegativeAmountReceived     = errors.New("received negative decimal")
 	ErrAlreadyExists              = errors.New("already exists")
@@ -92,16 +94,23 @@ func (f *FundManager) GenerateReport() *Report {
 // CreateSnapshot makes a funding based snapshot in time to help demonstrate
 
 // Transfer allows transferring funds from one pretend exchange to another
-func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item) error {
+func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, inclusiveFee bool) error {
 	if sender == nil || receiver == nil {
 		return common.ErrNilArguments
 	}
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return ErrZeroAmountReceived
 	}
-	if sender.available.LessThan(amount.Add(sender.transferFee)) {
-		return fmt.Errorf("%w for %v", ErrNotEnoughFunds, sender.currency)
+	if inclusiveFee {
+		if sender.available.LessThan(amount) {
+			return fmt.Errorf("%w for %v", ErrNotEnoughFunds, sender.currency)
+		}
+	} else {
+		if sender.available.LessThan(amount.Add(sender.transferFee)) {
+			return fmt.Errorf("%w for %v", ErrNotEnoughFunds, sender.currency)
+		}
 	}
+
 	if sender.currency != receiver.currency {
 		return errTransferMustBeSameCurrency
 	}
@@ -110,12 +119,20 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item) e
 		sender.asset == receiver.asset {
 		return fmt.Errorf("%v %v %v %w", sender.exchange, sender.asset, sender.currency, errCannotTransferToSameFunds)
 	}
-	err := sender.Reserve(amount.Add(sender.transferFee))
+
+	sendAmount := amount
+	receiveAmount := amount
+	if inclusiveFee {
+		receiveAmount = amount.Sub(sender.transferFee)
+	} else {
+		sendAmount = amount.Add(sender.transferFee)
+	}
+	err := sender.Reserve(sendAmount)
 	if err != nil {
 		return err
 	}
-	receiver.IncreaseAvailable(amount)
-	err = sender.Release(amount.Add(sender.transferFee), decimal.Zero)
+	receiver.IncreaseAvailable(receiveAmount)
+	err = sender.Release(sendAmount, decimal.Zero)
 	if err != nil {
 		return err
 	}

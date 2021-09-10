@@ -28,7 +28,7 @@ var (
 	eleeg  = decimal.NewFromInt(1336)
 	eleet  = decimal.NewFromInt(1337)
 	eleeet = decimal.NewFromInt(13337)
-	eleeb  = decimal.NewFNewFromIntromFloat(1338)
+	eleeb  = decimal.NewFromInt(1338)
 )
 
 func TestReset(t *testing.T) {

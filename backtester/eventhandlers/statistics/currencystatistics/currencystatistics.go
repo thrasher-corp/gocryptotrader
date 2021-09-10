@@ -63,9 +63,10 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 		if c.Events[i].SignalEvent != nil && c.Events[i].SignalEvent.GetDirection() == common.MissingData {
 			c.ShowMissingDataWarning = true
 		}
-		benchmarkRates[i] = c.Events[i].DataEvent.ClosePrice().Sub(c.Events[i-1].DataEvent.ClosePrice()).Div(c.Events[i-1].DataEvent.ClosePrice())
+		benchmarkRates[i] = c.Events[i].DataEvent.ClosePrice().Sub(
+			c.Events[i-1].DataEvent.ClosePrice()).Div(
+			c.Events[i-1].DataEvent.ClosePrice())
 	}
-	sep := fmt.Sprintf("%v %v %v |\t", first.DataEvent.GetExchange(), first.DataEvent.GetAssetType(), first.DataEvent.Pair())
 
 	// remove the first entry as its zero and impacts
 	// ratio calculations as no movement has been made
@@ -103,29 +104,15 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 
 	arithmeticSharpe, err = gctmath.DecimalSharpeRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
 	if err != nil {
-		if errors.Is(err, gctmath.ErrInexactConversion) {
-			log.Warnf(log.BackTester, "%s arithmetic sharpe ratio: %v", sep, err)
-		} else {
-			errs = append(errs, err)
-		}
+		errs = append(errs, err)
 	}
 	arithmeticSortino, err = gctmath.DecimalSortinoRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
-	if err != nil {
-		switch {
-		case err == gctmath.ErrNoNegativeResults:
-		case errors.Is(err, gctmath.ErrInexactConversion):
-			log.Warnf(log.BackTester, "%s arithmetic sortino: %v", sep, err)
-		default:
-			errs = append(errs, err)
-		}
+	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
+		errs = append(errs, err)
 	}
 	arithmeticInformation, err = gctmath.DecimalInformationRatio(returnPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
 	if err != nil {
-		if errors.Is(err, gctmath.ErrInexactConversion) {
-			log.Warnf(log.BackTester, "%s arithmetic information ratio: %v", sep, err)
-		} else {
-			errs = append(errs, err)
-		}
+		errs = append(errs, err)
 	}
 	mxhp := c.MaxDrawdown.Highest.Price
 	mdlp := c.MaxDrawdown.Lowest.Price
@@ -150,29 +137,15 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 
 	geomSharpe, err = gctmath.DecimalSharpeRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil {
-		if errors.Is(err, gctmath.ErrInexactConversion) {
-			log.Warnf(log.BackTester, "%s geometric information ratio: %v", sep, err)
-		} else {
-			errs = append(errs, err)
-		}
+		errs = append(errs, err)
 	}
 	geomSortino, err = gctmath.DecimalSortinoRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
-	if err != nil {
-		switch {
-		case err == gctmath.ErrNoNegativeResults:
-		case errors.Is(err, gctmath.ErrInexactConversion):
-			log.Warnf(log.BackTester, "%s geometric sortino: %v", sep, err)
-		default:
-			errs = append(errs, err)
-		}
+	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
+		errs = append(errs, err)
 	}
 	geomInformation, err = gctmath.DecimalInformationRatio(returnPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
 	if err != nil {
-		if errors.Is(err, gctmath.ErrInexactConversion) {
-			log.Warnf(log.BackTester, "%s geometric information ratio: %v", sep, err)
-		} else {
-			errs = append(errs, err)
-		}
+		errs = append(errs, err)
 	}
 	geomCalmar, err = gctmath.DecimalCalmarRatio(mxhp, mdlp, geometricReturnsPerCandle, riskFreeRateForPeriod)
 	if err != nil {

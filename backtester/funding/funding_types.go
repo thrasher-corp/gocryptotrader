@@ -1,18 +1,11 @@
 package funding
 
 import (
-	"errors"
-
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-)
-
-var (
-	ErrCannotAllocate = errors.New("cannot allocate funds")
-	ErrFundsNotFound  = errors.New("funding not found")
 )
 
 // FundManager is the benevolent holder of all funding levels across all
@@ -44,7 +37,7 @@ type IFundingManager interface {
 	GetFundingForEAC(string, asset.Item, currency.Code) (*Item, error)
 	GetFundingForEvent(common.EventHandler) (*Pair, error)
 	GetFundingForEAP(string, asset.Item, currency.Pair) (*Pair, error)
-	Transfer(decimal.Decimal, *Item, *Item) error
+	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GenerateReport() *Report
 }
 
@@ -52,7 +45,7 @@ type IFundingManager interface {
 // implementation can be swapped for live transferring
 type IFundTransferer interface {
 	IsUsingExchangeLevelFunding() bool
-	Transfer(decimal.Decimal, *Item, *Item) error
+	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GetFundingForEAC(string, asset.Item, currency.Code) (*Item, error)
 	GetFundingForEvent(common.EventHandler) (*Pair, error)
 	GetFundingForEAP(string, asset.Item, currency.Pair) (*Pair, error)

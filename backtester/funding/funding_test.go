@@ -70,37 +70,37 @@ func TestTransfer(t *testing.T) {
 		usingExchangeLevelFunding: false,
 		items:                     nil,
 	}
-	err := f.Transfer(decimal.Zero, nil, nil)
+	err := f.Transfer(decimal.Zero, nil, nil, false)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
 	}
-	err = f.Transfer(decimal.Zero, &Item{}, nil)
+	err = f.Transfer(decimal.Zero, &Item{}, nil, false)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
 	}
-	err = f.Transfer(decimal.Zero, &Item{}, &Item{})
+	err = f.Transfer(decimal.Zero, &Item{}, &Item{}, false)
 	if !errors.Is(err, ErrZeroAmountReceived) {
 		t.Errorf("received '%v' expected '%v'", err, ErrZeroAmountReceived)
 	}
-	err = f.Transfer(elite, &Item{}, &Item{})
+	err = f.Transfer(elite, &Item{}, &Item{}, false)
 	if !errors.Is(err, ErrNotEnoughFunds) {
 		t.Errorf("received '%v' expected '%v'", err, ErrNotEnoughFunds)
 	}
 	item1 := &Item{exchange: "hello", asset: a, currency: base, available: elite}
-	err = f.Transfer(elite, item1, item1)
+	err = f.Transfer(elite, item1, item1, false)
 	if !errors.Is(err, errCannotTransferToSameFunds) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotTransferToSameFunds)
 	}
 
 	item2 := &Item{exchange: "hello", asset: a, currency: quote}
-	err = f.Transfer(elite, item1, item2)
+	err = f.Transfer(elite, item1, item2, false)
 	if !errors.Is(err, errTransferMustBeSameCurrency) {
 		t.Errorf("received '%v' expected '%v'", err, errTransferMustBeSameCurrency)
 	}
 
 	item2.exchange = "moto"
 	item2.currency = base
-	err = f.Transfer(elite, item1, item2)
+	err = f.Transfer(elite, item1, item2, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -112,7 +112,7 @@ func TestTransfer(t *testing.T) {
 	}
 
 	item2.transferFee = one
-	err = f.Transfer(elite.Sub(item2.transferFee), item2, item1)
+	err = f.Transfer(elite, item2, item1, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -751,7 +751,7 @@ func TestGenerateReport(t *testing.T) {
 	f := FundManager{}
 	report := f.GenerateReport()
 	if report == nil {
-		t.Error("shouldn't be nil")
+		t.Fatal("shouldn't be nil")
 	}
 	if len(report.Items) > 0 {
 		t.Error("expected 0")

@@ -160,7 +160,6 @@ func TestNewFromConfig(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("expected: %v, received %v", nil, err)
 	}
-
 }
 
 func TestLoadDataAPI(t *testing.T) {

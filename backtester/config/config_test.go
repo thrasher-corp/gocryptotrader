@@ -95,7 +95,7 @@ func TestPrintSettings(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds1},
+				InitialFunds: initialFunds1,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -158,7 +158,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds2},
+				InitialFunds: initialFunds2,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -217,7 +217,7 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds2},
+				InitialFunds: initialFunds2,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -284,7 +284,7 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds2},
+				InitialFunds: initialFunds2,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -298,7 +298,7 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.ETH.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds2},
+				InitialFunds: initialFunds2,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -358,7 +358,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds1},
+				InitialFunds: initialFunds1,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -372,7 +372,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.ETH.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds2},
+				InitialFunds: initialFunds2,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -431,7 +431,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds2},
+				InitialFunds: initialFunds2,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -481,7 +481,6 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 }
 
 func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
-
 	cfg := Config{
 		Nickname: "TestGenerateRSICandleAPICustomSettingsStrat",
 		Goal:     "To demonstrate the RSI strategy using API candle data and custom settings",
@@ -499,7 +498,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds2},
+				InitialFunds: initialFunds2,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -513,7 +512,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.ETH.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds1},
+				InitialFunds: initialFunds1,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -573,7 +572,7 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds2},
+				InitialFunds: initialFunds2,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -631,7 +630,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds2},
+				InitialFunds: initialFunds2,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -688,7 +687,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
-				InitialFunds: decimal.NullDecimal{Valid: true, Decimal: initialFunds2},
+				InitialFunds: initialFunds2,
 				BuySide:      minMax,
 				SellSide:     minMax,
 				Leverage: Leverage{
@@ -952,7 +951,7 @@ func TestValidateCurrencySettings(t *testing.T) {
 	if !errors.Is(ErrBadInitialFunds, err) {
 		t.Errorf("expected %v, received %v", ErrBadInitialFunds, err)
 	}
-	leet := decimal.NullDecimal{Valid: true, Decimal: decimal.NewFromInt(1337)}
+	leet := decimal.NewFromInt(1337)
 	c.CurrencySettings[0].InitialFunds = leet
 	err = c.validateCurrencySettings()
 	if !errors.Is(ErrUnsetCurrency, err) {
