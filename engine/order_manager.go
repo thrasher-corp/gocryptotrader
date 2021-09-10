@@ -486,7 +486,7 @@ func (m *OrderManager) GetOrdersActive(f *order.Filter) ([]order.Detail, error) 
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
-	return m.orderStore.getActiveOrders(f)
+	return m.orderStore.getActiveOrders(f), nil
 }
 
 // processSubmittedOrder adds a new order to the manager
@@ -614,15 +614,7 @@ func (m *OrderManager) processOrders() {
 			filter := &order.Filter{
 				Exchange: exchanges[i].GetName(),
 			}
-			orders, err := m.orderStore.getActiveOrders(filter)
-			if err != nil {
-				log.Errorf(log.OrderMgr,
-					"Order manager: Unable to get active orders for %s and asset type %s: %s",
-					exchanges[i].GetName(),
-					supportedAssets[y],
-					err)
-				continue
-			}
+			orders := m.orderStore.getActiveOrders(filter)
 			order.FilterOrdersByCurrencies(&orders, pairs)
 			requiresProcessing := make(map[string]bool, len(orders))
 			for x := range orders {
@@ -1000,7 +992,7 @@ func (s *store) getFilteredOrders(f *order.Filter) ([]order.Detail, error) {
 }
 
 // getActiveOrders returns copy of the orders that are active
-func (s *store) getActiveOrders(f *order.Filter) ([]order.Detail, error) {
+func (s *store) getActiveOrders(f *order.Filter) []order.Detail {
 	s.m.RLock()
 	defer s.m.RUnlock()
 
@@ -1036,5 +1028,5 @@ func (s *store) getActiveOrders(f *order.Filter) ([]order.Detail, error) {
 		}
 	}
 
-	return orders, nil
+	return orders
 }

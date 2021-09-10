@@ -942,24 +942,15 @@ func Test_getActiveOrders(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	res, err := m.orderStore.getActiveOrders(nil)
-	if err != nil {
-		t.Error(err)
-	}
+	res := m.orderStore.getActiveOrders(nil)
 	if len(res) != 1 {
 		t.Errorf("Test_getActiveOrders - Expected 1 result, got: %d", len(res))
 	}
-	res, err = m.orderStore.getActiveOrders(&order.Filter{Side: order.Sell})
-	if err != nil {
-		t.Error(err)
-	}
+	res = m.orderStore.getActiveOrders(&order.Filter{Side: order.Sell})
 	if len(res) != 1 {
 		t.Errorf("Test_getActiveOrders - Expected 1 result, got: %d", len(res))
 	}
-	res, err = m.orderStore.getActiveOrders(&order.Filter{Side: order.Buy})
-	if err != nil {
-		t.Error(err)
-	}
+	res = m.orderStore.getActiveOrders(&order.Filter{Side: order.Buy})
 	if len(res) != 0 {
 		t.Errorf("Test_getActiveOrders - Expected 0 results, got: %d", len(res))
 	}
