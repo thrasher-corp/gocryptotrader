@@ -10,16 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// BankTransaction defines the different fee types associated with bank
-// transactions to and from an exchange.
-type BankTransaction uint8
-
-// TODO LIST:
-// if f < 0 {
-// f = 0
-// }
-// Find out why this was the case in any situation? neg val?
-
 var (
 	manager Manager
 
@@ -36,13 +26,13 @@ var (
 	errAmountIsZero                = errors.New("amount is zero")
 	errFeeTypeMismatch             = errors.New("fee type mismatch")
 	errRateNotFound                = errors.New("rate not found")
-	errNotRatio                    = errors.New("loaded values are not ratios")
-	errCommisionRateNotFound       = errors.New("commision rate not found")
-	errTakerInvalid                = errors.New("taker is invalid")
-	errMakerInvalid                = errors.New("maker is invalid")
-	errDepositIsInvalid            = errors.New("deposit is invalid")
-	errWithdrawalIsInvalid         = errors.New("withdrawal is invalid")
-	errTakerBiggerThanMaker        = errors.New("taker cannot be bigger than maker")
+	// errNotPercentage               = errors.New("loaded values are not percentages")
+	errCommissionRateNotFound = errors.New("Commission rate not found")
+	errTakerInvalid           = errors.New("taker is invalid")
+	errMakerInvalid           = errors.New("maker is invalid")
+	errDepositIsInvalid       = errors.New("deposit is invalid")
+	errWithdrawalIsInvalid    = errors.New("withdrawal is invalid")
+	errMakerBiggerThanTaker   = errors.New("maker cannot be bigger than taker")
 )
 
 // GetManager returns the package management struct
@@ -57,7 +47,7 @@ func RegisterFeeDefinitions(exch string) (*Definitions, error) {
 		return nil, errExchangeNameIsEmpty
 	}
 	r := &Definitions{
-		commisions:       make(map[asset.Item]*commision),
+		commissions:      make(map[asset.Item]*CommissionInternal),
 		transfers:        make(map[asset.Item]map[*currency.Item]*transfer),
 		bankingTransfers: make(map[BankTransaction]map[*currency.Item]*transfer),
 	}
@@ -95,8 +85,8 @@ func (m *Manager) Register(exch string, s *Definitions) error {
 // TODO: Eventually upgrade with key manager for different fees associated
 // with different accounts/keys.
 type Definitions struct {
-	// commision is the holder for the up to date comission rates for the assets.
-	commisions map[asset.Item]*commision
+	// Commission is the holder for the up to date comission rates for the assets.
+	commissions map[asset.Item]*CommissionInternal
 	// transfer defines a map of currencies with differing withdrawal and
 	// deposit fee definitions. These will commonly be real values.
 	transfers map[asset.Item]map[*currency.Item]*transfer
@@ -105,66 +95,6 @@ type Definitions struct {
 	// values.
 	bankingTransfers map[BankTransaction]map[*currency.Item]*transfer
 	mtx              sync.RWMutex
-}
-
-// commision defines a trading fee structure for internal tracking
-type commision struct {
-	// SetAmount defines if the value is a set amount (15 USD) rather than a
-	// percentage e.g. 0.8% == 0.008.
-	SetAmount bool
-	// Maker defines the fee when you provide liqudity for the orderbooks
-	Maker decimal.Decimal
-	// Taker defines the fee when you remove liqudity for the orderbooks
-	Taker decimal.Decimal
-	// WorstCaseMaker defines the worst case fee when you provide liqudity for
-	// the orderbooks
-	WorstCaseMaker decimal.Decimal
-	// WorstCaseTaker defines the worst case fee when you remove liqudity for
-	//the orderbooks
-	WorstCaseTaker decimal.Decimal
-}
-
-// convert returns a friendly package exportedable type
-func (c commision) convert() Commision {
-	maker, _ := c.Maker.Float64()
-	taker, _ := c.Taker.Float64()
-	worstCaseMaker, _ := c.WorstCaseMaker.Float64()
-	worstCaseTaker, _ := c.WorstCaseTaker.Float64()
-	return Commision{
-		IsSetAmount:    c.SetAmount,
-		Maker:          maker,
-		Taker:          taker,
-		WorstCaseMaker: worstCaseMaker,
-		WorstCaseTaker: worstCaseTaker,
-	}
-}
-
-// Commision defines a trading fee structure
-type Commision struct {
-	// IsSetAmount defines if the value is a set amount (15 USD) rather than a
-	// percentage e.g. 0.8% == 0.008.
-	IsSetAmount bool
-	// Maker defines the fee when you provide liqudity for the orderbooks
-	Maker float64
-	// Taker defines the fee when you remove liqudity for the orderbooks
-	Taker float64
-	// WorstCaseMaker defines the worst case fee when you provide liqudity for
-	// the orderbooks
-	WorstCaseMaker float64
-	// WorstCaseTaker defines the worst case fee when you remove liqudity for
-	//the orderbooks
-	WorstCaseTaker float64
-}
-
-// convert returns a internal commission rate type
-func (c Commision) convert() *commision {
-	return &commision{
-		SetAmount:      c.IsSetAmount,
-		Maker:          decimal.NewFromFloat(c.Maker),
-		Taker:          decimal.NewFromFloat(c.Taker),
-		WorstCaseMaker: decimal.NewFromFloat(c.WorstCaseMaker),
-		WorstCaseTaker: decimal.NewFromFloat(c.WorstCaseTaker),
-	}
 }
 
 // LoadDynamic loads the current dynamic account fee structure for maker and
@@ -179,18 +109,20 @@ func (d *Definitions) LoadDynamic(maker, taker float64, a asset.Item) error {
 	if taker < 0 {
 		return errTakerInvalid
 	}
+	if maker > taker {
+		return errMakerBiggerThanTaker
+	}
 	if !a.IsValid() {
 		return fmt.Errorf("%s: %w", a, asset.ErrNotSupported)
 	}
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	c, ok := d.commisions[a]
+	c, ok := d.commissions[a]
 	if !ok {
-		return errCommisionRateNotFound
+		return errCommissionRateNotFound
 	}
-	c.Maker = decimal.NewFromFloat(maker)
-	c.Taker = decimal.NewFromFloat(taker)
+	c.load(maker, taker)
 	return nil
 }
 
@@ -208,139 +140,155 @@ func (d *Definitions) LoadStatic(o Options) error {
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	// Loads standard commision rates based on asset item
+	// Loads standard commission rates based on asset item
 	for a, value := range o.Commission {
-		var wcm = decimal.NewFromFloat(value.WorstCaseMaker)
-		if wcm.IsZero() {
-			decimal.NewFromFloat(value.Maker)
-		}
-		var wct = decimal.NewFromFloat(value.WorstCaseTaker)
-		if wct.IsZero() {
-			decimal.NewFromFloat(value.Taker)
-		}
-		d.commisions[a] = value.convert()
+		d.commissions[a] = value.convert()
 	}
 
 	// Loads exchange withdrawal and deposit fees
 	for as, m1 := range o.Transfer {
 		for code, value := range m1 {
-			m1, ok := d.transfers[as]
+			cTrans, ok := d.transfers[as]
 			if !ok {
-				m1 = make(map[*currency.Item]*transfer)
-				d.transfers[as] = m1
+				cTrans = make(map[*currency.Item]*transfer)
+				d.transfers[as] = cTrans
 			}
-			m1[code.Item] = value.convert()
+			cTrans[code.Item] = value.convert()
 		}
 	}
 
 	// Loads international banking withdrawal and deposit fees
 	for transactionType, m1 := range o.BankingTransfer {
 		for code, value := range m1 {
-			m1, ok := d.bankingTransfers[transactionType]
+			bTrans, ok := d.bankingTransfers[transactionType]
 			if !ok {
-				m1 = make(map[*currency.Item]*transfer)
-				d.bankingTransfers[transactionType] = m1
+				bTrans = make(map[*currency.Item]*transfer)
+				d.bankingTransfers[transactionType] = bTrans
 			}
-			m1[code.Item] = value.convert()
+			bTrans[code.Item] = value.convert()
 		}
 	}
 	return nil
 }
 
-// GetMakerTotal returns the fee amount derived from the price, amount and fee
-// ratio.
-func (d *Definitions) GetMakerTotal(price, amount float64, a asset.Item) (float64, error) {
+// CalculateMaker returns the fee amount derived from the price, amount and fee
+// percentage.
+func (d *Definitions) CalculateMaker(price, amount float64, a asset.Item) (float64, error) {
+	if d == nil {
+		return 0, ErrDefinitionsAreNil
+	}
+
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commisions[a]
+	c, ok := d.commissions[a]
 	if !ok {
 		return 0, errRateNotFound
 	}
-	return d.deriveValue(c.Maker, c.SetAmount, price, amount)
+	return c.CalculateMaker(price, amount)
 }
 
-// GetMakerTotalOffline returns the fee amount derived from the price, amount
-// and fee ratio using the worst case-scenario trading fee.
-func (d *Definitions) GetMakerTotalOffline(price, amount float64, a asset.Item) (float64, error) {
+// CalculateWorstCaseMaker returns the fee amount derived from the price, amount
+// and fee percentage using the worst-case scenario trading fee.
+func (d *Definitions) CalculateWorstCaseMaker(price, amount float64, a asset.Item) (float64, error) {
+	if d == nil {
+		return 0, ErrDefinitionsAreNil
+	}
+
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commisions[a]
+	c, ok := d.commissions[a]
 	if !ok {
 		return 0, errRateNotFound
 	}
-	return d.deriveValue(c.WorstCaseMaker, c.SetAmount, price, amount)
+	return c.CalculateWorstCaseMaker(price, amount)
 }
 
 // GetMaker returns the maker fee value and if it is a percentage or whole
 // number
 func (d *Definitions) GetMaker(a asset.Item) (fee float64, isSetAmount bool, err error) {
+	if d == nil {
+		return 0, false, ErrDefinitionsAreNil
+	}
+
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commisions[a]
+	c, ok := d.commissions[a]
 	if !ok {
 		return 0, false, errRateNotFound
 	}
-	rVal, _ := c.Maker.Float64()
-	return rVal, c.SetAmount, nil
+	fee, isSetAmount = c.GetMaker()
+	return
 }
 
-// GetTakerTotal returns the fee amount derived from the price, amount and fee
-// ratio.
-func (d *Definitions) GetTakerTotal(price, amount float64, a asset.Item) (float64, error) {
+// CalculateTaker returns the fee amount derived from the price, amount and fee
+// percentage.
+func (d *Definitions) CalculateTaker(price, amount float64, a asset.Item) (float64, error) {
+	if d == nil {
+		return 0, ErrDefinitionsAreNil
+	}
+
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commisions[a]
+	c, ok := d.commissions[a]
 	if !ok {
 		return 0, errRateNotFound
 	}
-	return d.deriveValue(c.Taker, c.SetAmount, price, amount)
+	return c.CalculateTaker(price, amount)
 }
 
-// GetMakerTotalOffline returns the fee amount derived from the price, amount
-// and fee ratio using the worst case-scenario trading fee.
-func (d *Definitions) GetTakerTotalOffline(price, amount float64, a asset.Item) (float64, error) {
+// CalculateWorstCaseTaker returns the fee amount derived from the price, amount
+// and fee percentage using the worst-case scenario trading fee.
+func (d *Definitions) CalculateWorstCaseTaker(price, amount float64, a asset.Item) (float64, error) {
+	if d == nil {
+		return 0, ErrDefinitionsAreNil
+	}
+
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commisions[a]
+	c, ok := d.commissions[a]
 	if !ok {
 		return 0, errRateNotFound
 	}
-	return d.deriveValue(c.WorstCaseTaker, c.SetAmount, price, amount)
+	return c.CalculateWorstCaseTaker(price, amount)
 }
 
-// GetTaker returns the taker fee value and if it is a ratio or real number
+// GetTaker returns the taker fee value and if it is a percentage or real number
 func (d *Definitions) GetTaker(a asset.Item) (fee float64, isSetAmount bool, err error) {
+	if d == nil {
+		return 0, false, ErrDefinitionsAreNil
+	}
+
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commisions[a]
+	c, ok := d.commissions[a]
 	if !ok {
 		return 0, false, errRateNotFound
 	}
-	rVal, _ := c.Taker.Float64()
-	return rVal, c.SetAmount, nil
+	fee, isSetAmount = c.GetTaker()
+	return
 }
 
-// deriveValue returns the fee value from the price, amount and fee ratio.
-func (d *Definitions) deriveValue(fee decimal.Decimal, setAmount bool, price, amount float64) (float64, error) {
-	if price == 0 {
-		return 0, errPriceIsZero
+// CalculateDeposit returns calculated fee from the amount
+func (d *Definitions) CalculateDeposit(c currency.Code, a asset.Item, amount float64) (float64, error) {
+	if d == nil {
+		return 0, ErrDefinitionsAreNil
 	}
-	if amount == 0 {
-		return 0, errAmountIsZero
+
+	d.mtx.RLock()
+	defer d.mtx.RUnlock()
+	t, err := d.get(c, a)
+	if err != nil {
+		return 0, err
 	}
-	if !setAmount {
-		return 0, errNotRatio
-	}
-	// let currency = BTC/USD
-	// price (Quotation) * amount (Base) * fee (ratio)
-	// :. 50000 * 1 * 0.01 = 500 USD
-	var val = decimal.NewFromFloat(price).Mul(decimal.NewFromFloat(amount)).Mul(fee)
-	rVal, _ := val.Float64()
-	return rVal, nil
+	return t.calculate(t.Deposit, amount)
 }
 
 // GetDeposit returns the deposit fee associated with the currency
 func (d *Definitions) GetDeposit(c currency.Code, a asset.Item) (fee float64, isPercentage bool, err error) {
+	if d == nil {
+		return 0, false, ErrDefinitionsAreNil
+	}
+
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
 	t, err := d.get(c, a)
@@ -349,6 +297,21 @@ func (d *Definitions) GetDeposit(c currency.Code, a asset.Item) (fee float64, is
 	}
 	rVal, _ := t.Deposit.Float64()
 	return rVal, t.Percentage, nil
+}
+
+// CalculateDeposit returns calculated fee from the amount
+func (d *Definitions) CalculateWithdrawal(c currency.Code, a asset.Item, amount float64) (float64, error) {
+	if d == nil {
+		return 0, ErrDefinitionsAreNil
+	}
+
+	d.mtx.RLock()
+	defer d.mtx.RUnlock()
+	t, err := d.get(c, a)
+	if err != nil {
+		return 0, err
+	}
+	return t.calculate(t.Withdrawal, amount)
 }
 
 // GetWithdrawal returns the withdrawal fee associated with the currency
@@ -388,12 +351,12 @@ func (d *Definitions) GetAllFees() (Options, error) {
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
 	op := Options{
-		Commission:      make(map[asset.Item]Commision),
+		Commission:      make(map[asset.Item]Commission),
 		Transfer:        make(map[asset.Item]map[currency.Code]Transfer),
 		BankingTransfer: make(map[BankTransaction]map[currency.Code]Transfer),
 	}
 
-	for a, value := range d.commisions {
+	for a, value := range d.commissions {
 		op.Commission[a] = value.convert()
 	}
 
@@ -415,20 +378,20 @@ func (d *Definitions) GetAllFees() (Options, error) {
 	return op, nil
 }
 
-// GetCommisionFee returns a snapshot of the current commision rate for the
+// GetCommissionFee returns a pointer of the current commission rate for the
 // asset type.
-func (d *Definitions) GetCommisionFee(a asset.Item) (Commision, error) {
+func (d *Definitions) GetCommissionFee(a asset.Item) (*CommissionInternal, error) {
 	if d == nil {
-		return Commision{}, ErrDefinitionsAreNil
+		return nil, ErrDefinitionsAreNil
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commisions[a]
+	c, ok := d.commissions[a]
 	if !ok {
-		return Commision{}, errRateNotFound
+		return nil, errRateNotFound
 	}
-	return c.convert(), nil
+	return c, nil
 }
 
 // SetCommissionFee sets new global fees and forces custom control for that
@@ -438,7 +401,7 @@ func (d *Definitions) SetCommissionFee(a asset.Item, maker, taker float64, setAm
 		return ErrDefinitionsAreNil
 	}
 
-	if maker < 0 {
+	if maker < 0 { // TODO: rebates will be negative so we can deprecate this
 		return errMakerInvalid
 	}
 
@@ -452,26 +415,26 @@ func (d *Definitions) SetCommissionFee(a asset.Item, maker, taker float64, setAm
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	c, ok := d.commisions[a]
+	c, ok := d.commissions[a]
 	if !ok {
 		return errRateNotFound
 	}
-
-	// These should not change, and a package update might need to occur.
-	if c.SetAmount != setAmount {
-		return errFeeTypeMismatch
-	}
-
-	c.Maker = decimal.NewFromFloat(maker)
-	c.Taker = decimal.NewFromFloat(taker)
-	return nil
+	return c.set(maker, taker, setAmount)
 }
 
-// GetTransferFee returns a snapshot of the current commision rate for the
+// GetTransferFee returns a snapshot of the current Commission rate for the
 // asset type.
 func (d *Definitions) GetTransferFee(c currency.Code, a asset.Item) (Transfer, error) {
 	if d == nil {
 		return Transfer{}, ErrDefinitionsAreNil
+	}
+
+	if c.String() == "" {
+		return Transfer{}, errCurrencyIsEmpty
+	}
+
+	if !a.IsValid() {
+		return Transfer{}, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
 	d.mtx.RLock()
@@ -501,6 +464,10 @@ func (d *Definitions) SetTransferFee(c currency.Code, a asset.Item, withdraw, de
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
+	if c.String() == "" {
+		return errCurrencyIsEmpty
+	}
+
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	t, ok := d.transfers[a][c.Item]
@@ -508,6 +475,7 @@ func (d *Definitions) SetTransferFee(c currency.Code, a asset.Item, withdraw, de
 		return errTransferFeeNotFound
 	}
 
+	// These should not change, and a package update might need to occur.
 	if t.Percentage != isPercentage {
 		return errFeeTypeMismatch
 	}
@@ -519,14 +487,23 @@ func (d *Definitions) SetTransferFee(c currency.Code, a asset.Item, withdraw, de
 
 // GetBankTransferFee returns a snapshot of the current bank transfer rate for the
 // asset.
-func (d *Definitions) GetBankTransferFee(c currency.Code, b BankTransaction) (Transfer, error) {
+func (d *Definitions) GetBankTransferFee(c currency.Code, transType BankTransaction) (Transfer, error) {
 	if d == nil {
 		return Transfer{}, ErrDefinitionsAreNil
 	}
 
+	if c.String() == "" {
+		return Transfer{}, errCurrencyIsEmpty
+	}
+
+	err := transType.Validate()
+	if err != nil {
+		return Transfer{}, err
+	}
+
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	t, ok := d.bankingTransfers[b][c.Item]
+	t, ok := d.bankingTransfers[transType][c.Item]
 	if !ok {
 		return Transfer{}, errRateNotFound
 	}
@@ -537,6 +514,15 @@ func (d *Definitions) GetBankTransferFee(c currency.Code, b BankTransaction) (Tr
 func (d *Definitions) SetBankTransferFee(c currency.Code, transType BankTransaction, withdraw, deposit float64, isPercentage bool) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
+	}
+
+	if c.String() == "" {
+		return errCurrencyIsEmpty
+	}
+
+	err := transType.Validate()
+	if err != nil {
+		return err
 	}
 
 	if withdraw < 0 {
@@ -560,102 +546,5 @@ func (d *Definitions) SetBankTransferFee(c currency.Code, transType BankTransact
 
 	tFee.Withdrawal = decimal.NewFromFloat(withdraw)
 	tFee.Deposit = decimal.NewFromFloat(deposit)
-	return nil
-}
-
-// Transfer defines usually static whole number values. But has the option of
-// being percentage value.
-type Transfer struct {
-	// IsPercentage defines if the transfer fee is a percentage rather than a set
-	// amount.
-	IsPercentage bool
-	// Deposit defines a deposit fee
-	Deposit float64
-	// Withdrawal defines a withdrawal fee
-	Withdrawal float64
-}
-
-// convert returns an internal transfer struct
-func (t Transfer) convert() *transfer {
-	return &transfer{
-		Percentage: t.IsPercentage,
-		Deposit:    decimal.NewFromFloat(t.Deposit),
-		Withdrawal: decimal.NewFromFloat(t.Withdrawal),
-	}
-}
-
-// transfer defines an internal fee structure
-type transfer struct {
-	// Percentage defines if the transfer fee is a percentage rather than a set
-	// amount.
-	Percentage bool
-	// Deposit defines a deposit fee as a decimal value
-	Deposit decimal.Decimal
-	// Withdrawal defines a withdrawal fee as a decimal value
-	Withdrawal decimal.Decimal
-}
-
-// convert returns an package exportable type snapshot of current internal
-// transfer details
-func (t transfer) convert() Transfer {
-	deposit, _ := t.Deposit.Float64()
-	withdrawal, _ := t.Withdrawal.Float64()
-	return Transfer{
-		IsPercentage: t.Percentage,
-		Deposit:      deposit,
-		Withdrawal:   withdrawal,
-	}
-}
-
-// Options defines fee loading options and is also used as a state snapshot, in
-// GetAllFees method.
-type Options struct {
-	// Commission defines the maker and taker rates for the indv. asset item.
-	Commission map[asset.Item]Commision
-	// Transfer defines a map of currencies with differing withdrawal and
-	// deposit fee definitions. These will commonly be fixed real values.
-	Transfer map[asset.Item]map[currency.Code]Transfer
-	// BankingTransfer defines a map of currencies with differing withdrawal and
-	// deposit fee definitions for banking. These will commonly be fixed real
-	// values.
-	BankingTransfer map[BankTransaction]map[currency.Code]Transfer
-}
-
-// validate checks for invalid values on struct, should be used prior to lock
-func (o Options) validate() error {
-	for _, v := range o.Commission {
-		if v.Maker < 0 {
-			return errMakerInvalid
-		}
-		if v.Taker < 0 {
-			return errTakerInvalid
-		}
-
-		if v.Taker > v.Maker {
-			return errTakerBiggerThanMaker
-		}
-	}
-
-	for _, m1 := range o.Transfer {
-		for _, v := range m1 {
-			if v.Deposit < 0 {
-				return errDepositIsInvalid
-			}
-			if v.Withdrawal < 0 {
-				return errWithdrawalIsInvalid
-			}
-		}
-	}
-
-	for _, m1 := range o.BankingTransfer {
-		for _, v := range m1 {
-			if v.Deposit < 0 {
-				return errDepositIsInvalid
-			}
-			if v.Withdrawal < 0 {
-				return errWithdrawalIsInvalid
-			}
-		}
-	}
 	return nil
 }

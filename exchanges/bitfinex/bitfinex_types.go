@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -807,7 +806,7 @@ type WsCancelAllOrdersRequest struct {
 }
 
 var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	exchange.WireTransfer: { // TODO: VERIFY THIS:
+	fee.WireTransfer: { // TODO: VERIFY THIS:
 		currency.USD: {Withdrawal: 0.001, Deposit: 0.001, IsPercentage: true},
 	},
 }

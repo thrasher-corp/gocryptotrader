@@ -1199,14 +1199,14 @@ func (f *FTX) SendAuthHTTPRequest(ep exchange.URL, method, path string, data, re
 func (f *FTX) GetFee(price, amount float64, maker bool) (float64, error) {
 	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 		if maker {
-			return f.Fees.GetMakerTotalOffline(price, amount, asset.Spot)
+			return f.Fees.CalculateWorstCaseMaker(price, amount, asset.Spot)
 		}
-		return f.Fees.GetTakerTotalOffline(price, amount, asset.Spot)
+		return f.Fees.CalculateWorstCaseTaker(price, amount, asset.Spot)
 	}
 	if maker {
-		return f.Fees.GetMakerTotal(price, amount, asset.Spot)
+		return f.Fees.CalculateMaker(price, amount, asset.Spot)
 	}
-	return f.Fees.GetTakerTotal(price, amount, asset.Spot)
+	return f.Fees.CalculateTaker(price, amount, asset.Spot)
 }
 
 func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amount, filledAmount, avgFillPrice float64) (OrderVars, error) {

@@ -401,13 +401,18 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
 func getFees(exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (makerFee, takerFee float64) {
-	fees, err := exch.GetCommisionFee(a)
+	fees, err := exch.GetCommissionFee(a)
 	if err != nil {
-		log.Errorf(log.BackTester, "Could not retrieve offline fees for %v. %v", exch.GetName(), err)
+		log.Errorf(log.BackTester,
+			"Could not retrieve offline fees for %v. %v",
+			exch.GetName(),
+			err)
 	}
 
 	// TODO: Option to use current fees using fee manager
-	return fees.WorstCaseMaker, fees.WorstCaseTaker
+	makerFee, _ = fees.GetWorstCaseMaker()
+	takerFee, _ = fees.GetWorstCaseTaker()
+	return
 }
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints

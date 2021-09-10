@@ -121,7 +121,7 @@ func (y *Yobit) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	return y.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commision{
+		Commission: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
 		},
 		Transfer:        withdrawalFees,

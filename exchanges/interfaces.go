@@ -98,7 +98,7 @@ type IFee interface {
 	UpdateFees(a asset.Item) error
 	GetAllFees() (fee.Options, error)
 
-	GetCommisionFee(a asset.Item) (fee.Commision, error)
+	GetCommissionFee(a asset.Item) (*fee.CommissionInternal, error)
 	SetCommissionFee(a asset.Item, maker, taker float64, isSetAmount bool) error
 
 	GetTransferFee(c currency.Code, a asset.Item) (fee.Transfer, error)

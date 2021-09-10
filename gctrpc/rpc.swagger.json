@@ -2318,6 +2318,125 @@
         ]
       }
     },
+    "/v1/setbanktransferfee": {
+      "get": {
+        "operationId": "GoCryptoTrader_SetBankTransferFee",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "bankType",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "withdraw",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "deposit",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "isPercentage",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/setcommissionfee": {
+      "get": {
+        "operationId": "GoCryptoTrader_SetCommission",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "maker",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "taker",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "isSetAmount",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/setdatahistoryjobstatus": {
       "post": {
         "operationId": "GoCryptoTrader_SetDataHistoryJobStatus",
@@ -2460,92 +2579,6 @@
         ]
       }
     },
-    "/v1/setfeecustom": {
-      "get": {
-        "operationId": "GoCryptoTrader_SetFeeCustom",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "exchange",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "enabled",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
-    "/v1/setglobalfee": {
-      "get": {
-        "operationId": "GoCryptoTrader_SetGlobalFee",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "exchange",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "maker",
-            "in": "query",
-            "required": false,
-            "type": "number",
-            "format": "double"
-          },
-          {
-            "name": "taker",
-            "in": "query",
-            "required": false,
-            "type": "number",
-            "format": "double"
-          },
-          {
-            "name": "ratio",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
     "/v1/setloggerdetails": {
       "post": {
         "operationId": "GoCryptoTrader_SetLoggerDetails",
@@ -2629,7 +2662,7 @@
             "format": "double"
           },
           {
-            "name": "ratio",
+            "name": "isPercentage",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -3425,6 +3458,33 @@
         }
       }
     },
+    "gctrpcCommission": {
+      "type": "object",
+      "properties": {
+        "asset": {
+          "type": "string"
+        },
+        "maker": {
+          "type": "number",
+          "format": "double"
+        },
+        "taker": {
+          "type": "number",
+          "format": "double"
+        },
+        "worstCaseMaker": {
+          "type": "number",
+          "format": "double"
+        },
+        "worstCaseTaker": {
+          "type": "number",
+          "format": "double"
+        },
+        "isSetAmount": {
+          "type": "boolean"
+        }
+      }
+    },
     "gctrpcCommunicationRelayer": {
       "type": "object",
       "properties": {
@@ -3832,21 +3892,19 @@
     "gctrpcGetAllFeesResponse": {
       "type": "object",
       "properties": {
-        "maker": {
-          "type": "number",
-          "format": "double"
-        },
-        "taker": {
-          "type": "number",
-          "format": "double"
-        },
-        "ratio": {
-          "type": "boolean"
-        },
-        "worstCaseScenario": {
-          "type": "boolean"
+        "commission": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCommission"
+          }
         },
         "transfers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcTransferFees"
+          }
+        },
+        "bankTransfers": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcTransferFees"
@@ -4874,8 +4932,11 @@
           "type": "number",
           "format": "double"
         },
-        "ratio": {
+        "isPercentage": {
           "type": "boolean"
+        },
+        "transferType": {
+          "type": "string"
         }
       }
     },

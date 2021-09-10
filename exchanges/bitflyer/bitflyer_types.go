@@ -2,7 +2,6 @@ package bitflyer
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -298,7 +297,7 @@ type NewOrder struct {
 }
 
 var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	exchange.WireTransfer: {
+	fee.WireTransfer: {
 		currency.JPY: {Withdrawal: 324}, // TODO: add amount switch logic.
 	},
 }

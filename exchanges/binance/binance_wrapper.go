@@ -218,7 +218,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 
 	err = b.Fees.LoadStatic(fee.Options{
 		// Note: https://www.binance.com/en/fee/trading
-		Commission: map[asset.Item]fee.Commision{
+		Commission: map[asset.Item]fee.Commission{
 			asset.Spot:                {Maker: 0.01, Taker: 0.01},
 			asset.USDTMarginedFutures: {Maker: 0.01, Taker: 0.01},
 			asset.CoinMarginedFutures: {Maker: 0.01, Taker: 0.01},
@@ -1167,7 +1167,7 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		if err != nil {
 			return respData, err
 		}
-		fee, err := b.Fees.GetTakerTotal(orderData.AveragePrice,
+		fee, err := b.Fees.CalculateTaker(orderData.AveragePrice,
 			orderData.ExecutedQuantity,
 			asset.CoinMarginedFutures) // TODO: Verify
 		if err != nil {
@@ -1194,7 +1194,7 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		if err != nil {
 			return respData, err
 		}
-		fee, err := b.Fees.GetTakerTotal(orderData.AveragePrice,
+		fee, err := b.Fees.CalculateTaker(orderData.AveragePrice,
 			orderData.ExecutedQuantity,
 			asset.USDTMarginedFutures) // TODO: Verify
 		if err != nil {
@@ -1299,7 +1299,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, err
 			}
 			for y := range openOrders {
-				fee, err := b.Fees.GetTakerTotal(openOrders[y].AvgPrice,
+				fee, err := b.Fees.CalculateTaker(openOrders[y].AvgPrice,
 					openOrders[y].ExecutedQty,
 					asset.CoinMarginedFutures) // TODO: Verify
 				if err != nil {
@@ -1330,7 +1330,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, err
 			}
 			for y := range openOrders {
-				fee, err := b.Fees.GetTakerTotal(openOrders[y].AveragePrice,
+				fee, err := b.Fees.CalculateTaker(openOrders[y].AveragePrice,
 					openOrders[y].ExecutedQuantity,
 					asset.USDTMarginedFutures) // TODO: Verify
 				if err != nil {
@@ -1440,7 +1440,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, fmt.Errorf("invalid combination of input params")
 			}
 			for y := range orderHistory {
-				fee, err := b.Fees.GetTakerTotal(orderHistory[y].AvgPrice,
+				fee, err := b.Fees.CalculateTaker(orderHistory[y].AvgPrice,
 					orderHistory[y].ExecutedQty,
 					asset.CoinMarginedFutures) // TODO: Verify
 				if err != nil {
@@ -1494,7 +1494,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, fmt.Errorf("invalid combination of input params")
 			}
 			for y := range orderHistory {
-				fee, err := b.Fees.GetTakerTotal(orderHistory[y].AvgPrice,
+				fee, err := b.Fees.CalculateTaker(orderHistory[y].AvgPrice,
 					orderHistory[y].ExecutedQty,
 					asset.USDTMarginedFutures) // TODO: Verify
 				if err != nil {

@@ -1015,14 +1015,14 @@ func TestGetFee(t *testing.T) {
 
 func TestGetOfflineTradingFee(t *testing.T) {
 	t.Parallel()
-	fees, err := f.Fees.GetMakerTotalOffline(10, 1, asset.Spot)
+	fees, err := f.Fees.CalculateWorstCaseMaker(10, 1, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if fees != 0.002 {
 		t.Errorf("incorrect offline maker fee")
 	}
-	fees, err = f.Fees.GetTakerTotalOffline(10, 1, asset.Spot)
+	fees, err = f.Fees.CalculateWorstCaseTaker(10, 1, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}

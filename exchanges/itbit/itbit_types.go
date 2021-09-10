@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -160,9 +159,9 @@ type WalletTransfer struct {
 }
 
 var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	exchange.Swift: {currency.USD: {Withdrawal: 40}},
-	exchange.WireTransfer: {
+	fee.Swift: {currency.USD: {Withdrawal: 40}},
+	fee.WireTransfer: {
 		currency.USD: {Withdrawal: 40},
 		currency.EUR: {Withdrawal: 1}},
-	exchange.SEPA: {currency.EUR: {Withdrawal: 1}},
+	fee.SEPA: {currency.EUR: {Withdrawal: 1}},
 }

@@ -965,11 +965,18 @@ message GetAllFeesRequest {
 }
 
 message GetAllFeesResponse {
-    double maker = 1;
-    double taker = 2;
-    bool is_set_amount = 3;
-    bool worst_case_scenario = 4;
-    repeated TransferFees transfers = 5;
+    repeated Commission commission = 1;
+    repeated TransferFees transfers = 2;
+    repeated TransferFees bank_transfers = 3;
+}
+
+message Commission {
+    string asset = 1;
+    double maker = 2;
+    double taker = 3;
+    double worst_case_maker = 4;
+    double worst_case_taker = 5;
+    bool is_set_amount = 6;
 }
 
 message TransferFees {
@@ -978,12 +985,14 @@ message TransferFees {
     double withdraw = 3;
     double deposit = 4;
     bool is_percentage = 5; 
+    string transfer_type = 6;
 }
 
-message SetGlobalFeeRequest {
+message SetCommissionRequest {
     string exchange = 1;
-    double maker = 2;
-    double taker = 3;
+    string asset = 2;
+    double maker = 3;
+    double taker = 4;
     bool is_set_amount = 5;
 }
 
@@ -996,9 +1005,13 @@ message SetTransferFeeRequest {
     bool is_percentage = 6;
 }
 
-message SetFeeCustomRequest {
+message SetBankTransferFeeRequest {
     string exchange = 1;
-    bool enabled = 2;
+    string currency = 2;
+    int32 bank_type = 3;
+    double withdraw = 4;
+    double deposit = 5;
+    bool is_percentage = 6;
 }
 
 service GoCryptoTrader {
@@ -1563,19 +1576,19 @@ service GoCryptoTrader {
             get: "/v1/getallfees"
         };
     }
+    rpc SetCommission (SetCommissionRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/setcommissionfee"
+        };
+    }
     rpc SetTransferFee (SetTransferFeeRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/settransferfee"
         };
     }
-    rpc SetGlobalFee (SetGlobalFeeRequest) returns (GenericResponse) {
+    rpc SetBankTransferFee (SetBankTransferFeeRequest) returns (GenericResponse) {
         option (google.api.http) = {
-            get: "/v1/setglobalfee"
-        };
-    }
-    rpc SetFeeCustom (SetFeeCustomRequest) returns (GenericResponse) {
-        option (google.api.http) = {
-            get: "/v1/setfeecustom"
+            get: "/v1/setbanktransferfee"
         };
     }
 }

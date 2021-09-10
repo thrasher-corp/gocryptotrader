@@ -177,7 +177,7 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 
 	err = c.Fees.LoadStatic(fee.Options{
 		// TODO: Actually have WCS values
-		Commission: map[asset.Item]fee.Commision{
+		Commission: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0, Taker: 0.0},
 		},
 	})

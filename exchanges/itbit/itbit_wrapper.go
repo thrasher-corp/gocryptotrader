@@ -116,7 +116,7 @@ func (i *ItBit) Setup(exch *config.ExchangeConfig) error {
 	}
 	return i.Fees.LoadStatic(fee.Options{
 		// TODO: Check maker seems dubious
-		Commission: map[asset.Item]fee.Commision{
+		Commission: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: -0.0003, Taker: 0.0035},
 		},
 		BankingTransfer: bankTransfer,

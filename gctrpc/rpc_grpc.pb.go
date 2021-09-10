@@ -107,9 +107,9 @@ type GoCryptoTraderClient interface {
 	GetManagedOrders(ctx context.Context, in *GetOrdersRequest, opts ...grpc.CallOption) (*GetOrdersResponse, error)
 	ModifyOrder(ctx context.Context, in *ModifyOrderRequest, opts ...grpc.CallOption) (*ModifyOrderResponse, error)
 	GetAllFees(ctx context.Context, in *GetAllFeesRequest, opts ...grpc.CallOption) (*GetAllFeesResponse, error)
+	SetCommission(ctx context.Context, in *SetCommissionRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	SetTransferFee(ctx context.Context, in *SetTransferFeeRequest, opts ...grpc.CallOption) (*GenericResponse, error)
-	SetGlobalFee(ctx context.Context, in *SetGlobalFeeRequest, opts ...grpc.CallOption) (*GenericResponse, error)
-	SetFeeCustom(ctx context.Context, in *SetFeeCustomRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	SetBankTransferFee(ctx context.Context, in *SetBankTransferFeeRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 }
 
 type goCryptoTraderClient struct {
@@ -1059,6 +1059,15 @@ func (c *goCryptoTraderClient) GetAllFees(ctx context.Context, in *GetAllFeesReq
 	return out, nil
 }
 
+func (c *goCryptoTraderClient) SetCommission(ctx context.Context, in *SetCommissionRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/SetCommission", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *goCryptoTraderClient) SetTransferFee(ctx context.Context, in *SetTransferFeeRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
 	out := new(GenericResponse)
 	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/SetTransferFee", in, out, opts...)
@@ -1068,18 +1077,9 @@ func (c *goCryptoTraderClient) SetTransferFee(ctx context.Context, in *SetTransf
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) SetGlobalFee(ctx context.Context, in *SetGlobalFeeRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+func (c *goCryptoTraderClient) SetBankTransferFee(ctx context.Context, in *SetBankTransferFeeRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
 	out := new(GenericResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/SetGlobalFee", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *goCryptoTraderClient) SetFeeCustom(ctx context.Context, in *SetFeeCustomRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
-	out := new(GenericResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/SetFeeCustom", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/SetBankTransferFee", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1179,9 +1179,9 @@ type GoCryptoTraderServer interface {
 	GetManagedOrders(context.Context, *GetOrdersRequest) (*GetOrdersResponse, error)
 	ModifyOrder(context.Context, *ModifyOrderRequest) (*ModifyOrderResponse, error)
 	GetAllFees(context.Context, *GetAllFeesRequest) (*GetAllFeesResponse, error)
+	SetCommission(context.Context, *SetCommissionRequest) (*GenericResponse, error)
 	SetTransferFee(context.Context, *SetTransferFeeRequest) (*GenericResponse, error)
-	SetGlobalFee(context.Context, *SetGlobalFeeRequest) (*GenericResponse, error)
-	SetFeeCustom(context.Context, *SetFeeCustomRequest) (*GenericResponse, error)
+	SetBankTransferFee(context.Context, *SetBankTransferFeeRequest) (*GenericResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
@@ -1456,14 +1456,14 @@ func (UnimplementedGoCryptoTraderServer) ModifyOrder(context.Context, *ModifyOrd
 func (UnimplementedGoCryptoTraderServer) GetAllFees(context.Context, *GetAllFeesRequest) (*GetAllFeesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAllFees not implemented")
 }
+func (UnimplementedGoCryptoTraderServer) SetCommission(context.Context, *SetCommissionRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetCommission not implemented")
+}
 func (UnimplementedGoCryptoTraderServer) SetTransferFee(context.Context, *SetTransferFeeRequest) (*GenericResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetTransferFee not implemented")
 }
-func (UnimplementedGoCryptoTraderServer) SetGlobalFee(context.Context, *SetGlobalFeeRequest) (*GenericResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetGlobalFee not implemented")
-}
-func (UnimplementedGoCryptoTraderServer) SetFeeCustom(context.Context, *SetFeeCustomRequest) (*GenericResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetFeeCustom not implemented")
+func (UnimplementedGoCryptoTraderServer) SetBankTransferFee(context.Context, *SetBankTransferFeeRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetBankTransferFee not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) mustEmbedUnimplementedGoCryptoTraderServer() {}
 
@@ -3098,6 +3098,24 @@ func _GoCryptoTrader_GetAllFees_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTrader_SetCommission_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetCommissionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).SetCommission(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/SetCommission",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).SetCommission(ctx, req.(*SetCommissionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _GoCryptoTrader_SetTransferFee_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetTransferFeeRequest)
 	if err := dec(in); err != nil {
@@ -3116,38 +3134,20 @@ func _GoCryptoTrader_SetTransferFee_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTrader_SetGlobalFee_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetGlobalFeeRequest)
+func _GoCryptoTrader_SetBankTransferFee_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetBankTransferFeeRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GoCryptoTraderServer).SetGlobalFee(ctx, in)
+		return srv.(GoCryptoTraderServer).SetBankTransferFee(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTrader/SetGlobalFee",
+		FullMethod: "/gctrpc.GoCryptoTrader/SetBankTransferFee",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).SetGlobalFee(ctx, req.(*SetGlobalFeeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _GoCryptoTrader_SetFeeCustom_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetFeeCustomRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(GoCryptoTraderServer).SetFeeCustom(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTrader/SetFeeCustom",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).SetFeeCustom(ctx, req.(*SetFeeCustomRequest))
+		return srv.(GoCryptoTraderServer).SetBankTransferFee(ctx, req.(*SetBankTransferFeeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3492,16 +3492,16 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTrader_GetAllFees_Handler,
 		},
 		{
+			MethodName: "SetCommission",
+			Handler:    _GoCryptoTrader_SetCommission_Handler,
+		},
+		{
 			MethodName: "SetTransferFee",
 			Handler:    _GoCryptoTrader_SetTransferFee_Handler,
 		},
 		{
-			MethodName: "SetGlobalFee",
-			Handler:    _GoCryptoTrader_SetGlobalFee_Handler,
-		},
-		{
-			MethodName: "SetFeeCustom",
-			Handler:    _GoCryptoTrader_SetFeeCustom_Handler,
+			MethodName: "SetBankTransferFee",
+			Handler:    _GoCryptoTrader_SetBankTransferFee_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

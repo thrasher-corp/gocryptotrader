@@ -2,7 +2,6 @@ package exmo
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
@@ -184,37 +183,37 @@ var withdrawFees = map[asset.Item]map[currency.Code]fee.Transfer{
 }
 
 var transferBank = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	exchange.WireTransfer: {
+	fee.WireTransfer: {
 		currency.RUB: {Withdrawal: 3200, Deposit: 1600, IsPercentage: true}, // This doesn't seem like a percentage val???
 		currency.PLN: {Withdrawal: 125, Deposit: 30, IsPercentage: true},    // Or this?
 		currency.TRY: {Withdrawal: 0, Deposit: 0, IsPercentage: true},
 	},
-	exchange.PerfectMoney: {
+	fee.PerfectMoney: {
 		currency.USD: {Withdrawal: 0.01, IsPercentage: true},
 		currency.EUR: {Withdrawal: 0.0195, IsPercentage: true},
 	},
-	exchange.Neteller: {
+	fee.Neteller: {
 		currency.USD: {Withdrawal: 0.0195, Deposit: 0.035, IsPercentage: true}, // Also has an addition of .29 ??
 		currency.EUR: {Withdrawal: 0.0195, Deposit: 0.035, IsPercentage: true}, // Also has an addition of .25 ??
 	},
-	exchange.AdvCash: {
+	fee.AdvCash: {
 		currency.USD: {Withdrawal: 0.0295, Deposit: 0.0295, IsPercentage: true},
 		currency.EUR: {Withdrawal: 0.03, Deposit: 0.01, IsPercentage: true},
 		currency.RUB: {Withdrawal: 0.0195, Deposit: 0.0495, IsPercentage: true},
 		currency.UAH: {Withdrawal: 0.0495, Deposit: 0.01, IsPercentage: true},
 	},
-	exchange.Payeer: {
+	fee.Payeer: {
 		currency.USD: {Withdrawal: 0.0395, Deposit: 0.0195, IsPercentage: true},
 		currency.EUR: {Withdrawal: 0.01, Deposit: 0.0295, IsPercentage: true},
 		currency.RUB: {Withdrawal: 0.0595, Deposit: 0.0345, IsPercentage: true},
 	},
-	exchange.Skrill: {
+	fee.Skrill: {
 		currency.USD: {Withdrawal: 0.0145, Deposit: 0.0495, IsPercentage: true}, // Also has an addition of .36 ??
 		currency.EUR: {Withdrawal: 0.03, Deposit: 0.0295, IsPercentage: true},   // Also has an addition of .29 ??
 		currency.PLN: {Withdrawal: 0, Deposit: 0.035, IsPercentage: true},       // Also has an addition of 1.21 ??
 		currency.TRY: {Withdrawal: 0, Deposit: 0, IsPercentage: true},
 	},
-	exchange.VisaMastercard: {
+	fee.VisaMastercard: {
 		currency.USD: {Withdrawal: 0.06, IsPercentage: true},
 		currency.EUR: {Withdrawal: 0.06, IsPercentage: true},
 		currency.PLN: {Withdrawal: 0.06, IsPercentage: true},

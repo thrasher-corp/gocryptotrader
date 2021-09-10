@@ -142,7 +142,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = c.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commision{ // TODO: Recheck values
+		Commission: map[asset.Item]fee.Commission{ // TODO: Recheck values
 			asset.Spot: {Maker: 0.0, Taker: 0.001}, // TODO: If operation is on a crypto-fiat pair 0.002 or 0.0035 for wcs ??
 		},
 		Transfer: transfer, // TODO: check these

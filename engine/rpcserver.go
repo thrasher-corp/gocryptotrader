@@ -31,6 +31,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -3884,25 +3885,62 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 		return nil, err
 	}
 
+	var commission []*gctrpc.Commission
+	for a, val := range ss.Commission {
+		commission = append(commission, &gctrpc.Commission{
+			Asset:          a.String(),
+			Maker:          val.Maker,
+			Taker:          val.Taker,
+			WorstCaseMaker: val.WorstCaseMaker,
+			WorstCaseTaker: val.WorstCaseTaker,
+			IsSetAmount:    val.IsSetAmount,
+		})
+	}
+
 	var transferFees []*gctrpc.TransferFees
 	for c, m1 := range ss.Transfer {
 		for a, val := range m1 {
 			transferFees = append(transferFees, &gctrpc.TransferFees{
-				Currency: c.String(),
-				Asset:    a.String(),
-				Withdraw: val.Withdrawal,
-				Deposit:  val.Deposit,
-				Ratio:    val.IsPercentage,
+				Currency:     c.String(),
+				Asset:        a.String(),
+				Withdraw:     val.Withdrawal,
+				Deposit:      val.Deposit,
+				IsPercentage: val.IsPercentage,
+			})
+		}
+	}
+
+	var bankingTransferFees []*gctrpc.TransferFees
+	for bt, m1 := range ss.BankingTransfer {
+		for c, val := range m1 {
+			bankingTransferFees = append(bankingTransferFees, &gctrpc.TransferFees{
+				Currency:     c.String(),
+				Withdraw:     val.Withdrawal,
+				Deposit:      val.Deposit,
+				IsPercentage: val.IsPercentage,
+				TransferType: bt.String(),
 			})
 		}
 	}
 	return &gctrpc.GetAllFeesResponse{
-		Maker:             ss.Maker,
-		Taker:             ss.Taker,
-		Ratio:             ss.IsSetAmount,
-		Transfers:         transferFees,
-		WorstCaseScenario: ss.WorstCaseScenario,
+		Commission:    commission,
+		Transfers:     transferFees,
+		BankTransfers: bankingTransferFees,
 	}, nil
+}
+
+// SetCommission sets a current commission fee
+func (s *RPCServer) SetCommission(_ context.Context, r *gctrpc.SetCommissionRequest) (*gctrpc.GenericResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.SetCommissionFee(asset.Item(r.Asset), r.Maker, r.Taker, r.IsSetAmount)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // GetAllFees returns the full fee definitions for an exchange
@@ -3911,27 +3949,11 @@ func (s *RPCServer) SetTransferFee(_ context.Context, r *gctrpc.SetTransferFeeRe
 	if err != nil {
 		return nil, err
 	}
-
 	err = exch.SetTransferFee(currency.NewCode(r.Currency),
 		asset.Item(r.Asset),
 		r.Withdraw,
 		r.Deposit,
-		r.Ratio)
-	if err != nil {
-		return nil, err
-	}
-	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
-
-}
-
-// GetAllFees returns the full fee definitions for an exchange
-func (s *RPCServer) SetGlobalFee(_ context.Context, r *gctrpc.SetGlobalFeeRequest) (*gctrpc.GenericResponse, error) {
-	exch, err := s.GetExchangeByName(r.Exchange)
-	if err != nil {
-		return nil, err
-	}
-
-	err = exch.SetGlobalFee(r.Maker, r.Taker, r.Ratio)
+		r.IsPercentage)
 	if err != nil {
 		return nil, err
 	}
@@ -3939,13 +3961,16 @@ func (s *RPCServer) SetGlobalFee(_ context.Context, r *gctrpc.SetGlobalFeeReques
 }
 
 // GetAllFees returns the full fee definitions for an exchange
-func (s *RPCServer) SetFeeCustom(_ context.Context, r *gctrpc.SetFeeCustomRequest) (*gctrpc.GenericResponse, error) {
+func (s *RPCServer) SetBankTransferFee(_ context.Context, r *gctrpc.SetBankTransferFeeRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
-
-	err = exch.SetFeeCustom(r.Enabled)
+	err = exch.SetBankTransferFee(currency.NewCode(r.Currency),
+		fee.BankTransaction(r.BankType),
+		r.Withdraw,
+		r.Deposit,
+		r.IsPercentage)
 	if err != nil {
 		return nil, err
 	}

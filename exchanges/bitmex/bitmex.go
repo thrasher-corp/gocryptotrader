@@ -77,7 +77,7 @@ const (
 	bitmexEndpointUser                  = "/user"
 	bitmexEndpointUserAffiliate         = "/user/affiliateStatus"
 	bitmexEndpointUserCancelWithdraw    = "/user/cancelWithdrawal"
-	bitmexEndpointUserCommision         = "/user/commission"
+	bitmexEndpointUserCommission        = "/user/commission"
 	bitmexEndpointUserConfirmEmail      = "/user/confirmEmail"
 	bitmexEndpointUserConfirmTFA        = "/user/confirmEnableTFA"
 	bitmexEndpointUserConfirmWithdrawal = "/user/confirmWithdrawal"
@@ -622,12 +622,12 @@ func (b *Bitmex) CheckReferalCode(referralCode string) (float64, error) {
 		&percentage)
 }
 
-// GetUserCommision returns your account's commission status.
-func (b *Bitmex) GetUserCommision() (UserCommission, error) {
+// GetUserCommission returns your account's commission status.
+func (b *Bitmex) GetUserCommission() (UserCommission, error) {
 	var commissionInfo UserCommission
 
 	return commissionInfo, b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet,
-		bitmexEndpointUserCommision,
+		bitmexEndpointUserCommission,
 		nil,
 		&commissionInfo)
 }

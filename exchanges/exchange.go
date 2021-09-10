@@ -1330,10 +1330,10 @@ func (b *Base) GetAllFees() (fee.Options, error) {
 	return b.Fees.GetAllFees()
 }
 
-// GetCommisionFee returns the commision fees (maker and taker) includes worst
+// GetCommissionFee returns the Commission fees (maker and taker) includes worst
 // case scenario fees
-func (b *Base) GetCommisionFee(a asset.Item) (fee.Commision, error) {
-	return b.Fees.GetCommisionFee(a)
+func (b *Base) GetCommissionFee(a asset.Item) (*fee.CommissionInternal, error) {
+	return b.Fees.GetCommissionFee(a)
 }
 
 // SetCommissionFee sets a new rate for maker and taker

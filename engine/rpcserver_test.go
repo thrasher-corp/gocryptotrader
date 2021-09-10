@@ -124,21 +124,31 @@ func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
 
 // GetAllFees overrides interface function
 func (f fExchange) GetAllFees() (fee.Options, error) {
-	return fee.Options{}, nil
+	return fee.Options{
+		Commission: map[asset.Item]fee.Commission{
+			asset.Spot: {},
+		},
+		Transfer: map[asset.Item]map[currency.Code]fee.Transfer{
+			asset.Spot: {currency.BTC: {}},
+		},
+		BankingTransfer: map[fee.BankTransaction]map[currency.Code]fee.Transfer{
+			fee.WireTransfer: {currency.USD: {}},
+		},
+	}, nil
 }
 
 // SetTransferFee overrides interface function
-func (f fExchange) SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, ratio bool) error {
+func (f fExchange) SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, isPercentage bool) error {
 	return nil
 }
 
-// SetGlobalFee overrides interface function
-func (f fExchange) SetGlobalFee(maker, taker float64, ratio bool) error {
+// SetCommissionFee overrides interface function
+func (f fExchange) SetCommissionFee(a asset.Item, maker, taker float64, isSetAmount bool) error {
 	return nil
 }
 
-// SetFeeCustom overrides interface function
-func (f fExchange) SetFeeCustom(on bool) error {
+// SetBankTransferFee overrides interface function
+func (f fExchange) SetBankTransferFee(c currency.Code, transType fee.BankTransaction, withdraw, deposit float64, isPercentage bool) error {
 	return nil
 }
 
@@ -1907,7 +1917,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !resp.Ratio {
+	if resp == nil {
 		t.Fatal("unexpected value")
 	}
 }
@@ -1943,7 +1953,7 @@ func TestSetTransferFee(t *testing.T) {
 	}
 }
 
-func TestSetGlobalFee(t *testing.T) {
+func TestSetSetCommission(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -1963,18 +1973,18 @@ func TestSetGlobalFee(t *testing.T) {
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
-	_, err = s.SetGlobalFee(context.Background(), &gctrpc.SetGlobalFeeRequest{Exchange: "wow"})
+	_, err = s.SetCommission(context.Background(), &gctrpc.SetCommissionRequest{Exchange: "wow"})
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
 	}
 
-	_, err = s.SetGlobalFee(context.Background(), &gctrpc.SetGlobalFeeRequest{Exchange: "fake"})
+	_, err = s.SetCommission(context.Background(), &gctrpc.SetCommissionRequest{Exchange: "fake"})
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestSetFeeCustom(t *testing.T) {
+func TestSetBankTransferFee(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -1994,12 +2004,12 @@ func TestSetFeeCustom(t *testing.T) {
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
-	_, err = s.SetFeeCustom(context.Background(), &gctrpc.SetFeeCustomRequest{Exchange: "wow"})
+	_, err = s.SetBankTransferFee(context.Background(), &gctrpc.SetBankTransferFeeRequest{Exchange: "wow"})
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
 	}
 
-	_, err = s.SetFeeCustom(context.Background(), &gctrpc.SetFeeCustomRequest{Exchange: "fake"})
+	_, err = s.SetBankTransferFee(context.Background(), &gctrpc.SetBankTransferFeeRequest{Exchange: "fake"})
 	if err != nil {
 		t.Fatal(err)
 	}

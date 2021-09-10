@@ -19,26 +19,6 @@ import (
 const (
 	RestAuthentication      uint8 = 0
 	WebsocketAuthentication uint8 = 1
-	// Repeated exchange strings
-	// Type custom type for calculating fees based on method
-	WireTransfer fee.BankTransaction = iota
-	PerfectMoney
-	Neteller
-	AdvCash
-	Payeer
-	Skrill
-	Simplex
-	SEPA
-	Swift
-	RapidTransfer
-	MisterTangoSEPA
-	Qiwi
-	VisaMastercard
-	WebMoney
-	Capitalist
-	WesternUnion
-	MoneyGram
-	Contact
 
 	// Definitions for each type of withdrawal method for a given exchange
 	NoAPIWithdrawalMethods                  uint32 = 0
