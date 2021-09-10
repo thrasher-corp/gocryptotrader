@@ -856,7 +856,10 @@ func Test_processMatchingOrders(t *testing.T) {
 			requiresProcessing[orders[i].InternalOrderID] = true
 		}
 	}
-	m.processMatchingOrders(exch, orders, requiresProcessing)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go m.processMatchingOrders(exch, orders, requiresProcessing, &wg)
+	wg.Wait()
 	res, err := m.GetOrdersFiltered(&order.Filter{Exchange: testExchange})
 	if err != nil {
 		t.Error(err)

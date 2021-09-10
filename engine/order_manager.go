@@ -570,10 +570,17 @@ func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 // processOrders iterates over all exchange orders via API
 // and adds them to the internal order store
 func (m *OrderManager) processOrders() {
+	if !atomic.CompareAndSwapInt32(&m.processingOrders, 0, 1) {
+		return
+	}
+	defer func() {
+		atomic.StoreInt32(&m.processingOrders, 0)
+	}()
 	exchanges, err := m.orderStore.exchangeManager.GetExchanges()
 	if err != nil {
 		log.Errorf(log.OrderMgr, "Order manager cannot get exchanges: %v", err)
 	}
+	var wg sync.WaitGroup
 	for i := range exchanges {
 		if !exchanges[i].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 			continue
@@ -652,12 +659,15 @@ func (m *OrderManager) processOrders() {
 				continue
 			}
 
-			go m.processMatchingOrders(exchanges[i], orders, requiresProcessing)
+			wg.Add(1)
+			go m.processMatchingOrders(exchanges[i], orders, requiresProcessing, &wg)
 		}
 	}
+	wg.Wait()
 }
 
-func (m *OrderManager) processMatchingOrders(exch exchange.IBotExchange, orders []order.Detail, requiresProcessing map[string]bool) {
+func (m *OrderManager) processMatchingOrders(exch exchange.IBotExchange, orders []order.Detail, requiresProcessing map[string]bool, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for x := range orders {
 		if time.Since(orders[x].LastUpdated) < time.Minute {
 			continue
