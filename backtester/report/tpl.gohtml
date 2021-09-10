@@ -229,9 +229,9 @@
 									<td>{{ $exchange}}</td>
 									<td>{{ $asset}}</td>
 									<td>{{ $pair}}</td>
-									<td>${{ printf "%.8v" .InitialHoldings.BaseSize }} {{.FinalHoldings.Pair.Base}}</td>
-									<td>${{ printf "%.8v" .InitialHoldings.QuoteSize }} {{.FinalHoldings.Pair.Quote}}</td>
-									<td>${{ printf "%.8v" .InitialHoldings.TotalValue }} {{.FinalHoldings.Pair.Quote}}</td>
+									<td>${{ printf "%.8v" .InitialHoldings.BaseInitialFunds }} {{.FinalHoldings.Pair.Base}}</td>
+									<td>${{ printf "%.8v" .InitialHoldings.QuoteInitialFunds }} {{.FinalHoldings.Pair.Quote}}</td>
+									<td>${{ printf "%.8v" .InitialHoldings.TotalInitialValue }} {{.FinalHoldings.Pair.Quote}}</td>
 									<td>${{ printf "%.8v" .FinalHoldings.BaseSize }} {{ .FinalHoldings.Pair.Base}}</td>
 									<td>${{ printf "%.8v" .FinalHoldings.QuoteSize }} {{ .FinalHoldings.Pair.Quote}}</td>
 									<td>${{ printf "%.8v" .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>

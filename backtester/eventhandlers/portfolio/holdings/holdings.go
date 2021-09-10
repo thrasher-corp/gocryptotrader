@@ -26,6 +26,7 @@ func Create(ev common.EventHandler, funding funding.IPairReader, riskFreeRate de
 		BaseInitialFunds:  funding.BaseInitialFunds(),
 		BaseSize:          funding.BaseInitialFunds(),
 		RiskFreeRate:      riskFreeRate,
+		TotalInitialValue: funding.BaseInitialFunds().Mul(funding.QuoteInitialFunds()).Add(funding.QuoteInitialFunds()),
 	}
 
 	return holding, nil

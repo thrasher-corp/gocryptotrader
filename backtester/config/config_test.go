@@ -204,6 +204,83 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 	}
 }
 
+func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
+	cfg := Config{
+		Nickname: "TestGenerateConfigForDCAAPICandlesExchangeLevelFunding",
+		Goal:     "To demonstrate DCA strategy using API candles using a shared pool of funds",
+		StrategySettings: StrategySettings{
+			Name:                         dca,
+			SimultaneousSignalProcessing: true,
+			UseExchangeLevelFunding:      true,
+			ExchangeLevelFunding: []ExchangeLevelFunding{
+				{
+					ExchangeName: testExchange,
+					Asset:        asset.Spot.String(),
+					Currency:     currency.USDT.String(),
+					InitialFunds: decimal.NewFromInt(100000),
+				},
+			},
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				BuySide:      minMax,
+				SellSide:     minMax,
+				Leverage:     Leverage{},
+				MakerFee:     makerFee,
+				TakerFee:     takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.ETH.String(),
+				Quote:        currency.USDT.String(),
+				BuySide:      minMax,
+				SellSide:     minMax,
+				Leverage:     Leverage{},
+				MakerFee:     makerFee,
+				TakerFee:     takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay.Duration(),
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Error(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Error(err)
+		}
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-exchange-level-funding.strat"), result, 0770)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
 func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 	cfg := Config{
 		Nickname: "TestGenerateConfigForDCAAPITrades",

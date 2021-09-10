@@ -24,7 +24,8 @@ type Holding struct {
 	BaseInitialFunds  decimal.Decimal `json:"base-initial-funds"`
 	BaseSize          decimal.Decimal `json:"base-size"`
 	BaseValue         decimal.Decimal `json:"base-value"`
-	QuoteInitialFunds decimal.Decimal `json:"initial-quote-funds"`
+	QuoteInitialFunds decimal.Decimal `json:"quote-initial-funds"`
+	TotalInitialValue decimal.Decimal `json:"total-initial-value"`
 	QuoteSize         decimal.Decimal `json:"quote-size"`
 	SoldAmount        decimal.Decimal `json:"sold-amount"`
 	SoldValue         decimal.Decimal `json:"sold-value"`

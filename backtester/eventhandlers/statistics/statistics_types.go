@@ -33,6 +33,7 @@ type Statistic struct {
 	TotalBuyOrders              int64                                                                             `json:"total-buy-orders"`
 	TotalSellOrders             int64                                                                             `json:"total-sell-orders"`
 	TotalOrders                 int64                                                                             `json:"total-orders"`
+	GrantTotalValue             decimal.Decimal                                                                   `json:"grant-total-value"`
 	BiggestDrawdown             *FinalResultsHolder                                                               `json:"biggest-drawdown,omitempty"`
 	BestStrategyResults         *FinalResultsHolder                                                               `json:"best-start-results,omitempty"`
 	BestMarketMovement          *FinalResultsHolder                                                               `json:"best-market-movement,omitempty"`
