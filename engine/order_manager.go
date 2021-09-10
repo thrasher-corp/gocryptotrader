@@ -641,16 +641,15 @@ func (m *OrderManager) processOrders() {
 			}
 
 			for z := range result {
-				err = m.UpsertOrder(&result[z])
+				upsertResponse, err := m.UpsertOrder(&result[z])
 				if err != nil {
 					log.Error(log.OrderMgr, err)
 				}
-				requiresProcessing[result[z].InternalOrderID] = false
+				requiresProcessing[upsertResponse.OrderDetails.InternalOrderID] = false
 			}
 			if !exchanges[i].GetBase().GetSupportedFeatures().RESTCapabilities.GetOrder {
 				continue
 			}
-
 			wg.Add(1)
 			go m.processMatchingOrders(exchanges[i], orders, requiresProcessing, &wg)
 		}
@@ -684,7 +683,8 @@ func (m *OrderManager) FetchAndUpdateExchangeOrder(exch exchange.IBotExchange, o
 		return err
 	}
 	fetchedOrder.LastUpdated = time.Now()
-	return m.UpsertOrder(&fetchedOrder)
+	_, err = m.UpsertOrder(&fetchedOrder)
+	return err
 }
 
 // Exists checks whether an order exists in the order store
@@ -738,15 +738,15 @@ func (m *OrderManager) UpdateExistingOrder(od *order.Detail) error {
 }
 
 // UpsertOrder updates an existing order or adds a new one to the orderstore
-func (m *OrderManager) UpsertOrder(od *order.Detail) error {
+func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse, err error) {
 	if m == nil {
-		return fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	if od == nil {
-		return errNilOrder
+		return nil, errNilOrder
 	}
 	var msg string
 	defer func(message *string) {
@@ -763,25 +763,25 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) error {
 	upsertResponse, err := m.orderStore.upsert(od)
 	if err != nil {
 		msg = fmt.Sprintf(
-			"Order manager: Exchange %s unable to upsert order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v: %s",
-			od.Exchange, od.ID, od.InternalOrderID, od.Pair, od.Price, od.Amount, od.Side, od.Type, err)
-		return err
+			"Order manager: Exchange %s unable to upsert order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v status=%v: %s",
+			od.Exchange, od.ID, od.InternalOrderID, od.Pair, od.Price, od.Amount, od.Side, od.Type, od.Status, err)
+		return nil, err
 	}
 
 	status := "updated"
 	if upsertResponse.IsNewOrder {
 		status = "added"
 	}
-	msg = fmt.Sprintf("Order manager: Exchange %s %s order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v.",
+	msg = fmt.Sprintf("Order manager: Exchange %s %s order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v status=%v.",
 		upsertResponse.OrderDetails.Exchange, status, upsertResponse.OrderDetails.ID, upsertResponse.OrderDetails.InternalOrderID,
 		upsertResponse.OrderDetails.Pair, upsertResponse.OrderDetails.Price, upsertResponse.OrderDetails.Amount,
-		upsertResponse.OrderDetails.Side, upsertResponse.OrderDetails.Type)
+		upsertResponse.OrderDetails.Side, upsertResponse.OrderDetails.Type, upsertResponse.OrderDetails.Status)
 	if upsertResponse.IsNewOrder {
 		log.Info(log.OrderMgr, msg)
-		return nil
+		return upsertResponse, nil
 	}
 	log.Debug(log.OrderMgr, msg)
-	return nil
+	return upsertResponse, nil
 }
 
 // get returns all orders for all exchanges
