@@ -1,6 +1,7 @@
 package okgroup
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -71,20 +72,20 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (o *OKGroup) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	fPair, err := o.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 	ob, err := orderbook.Get(o.Name, fPair, assetType)
 	if err != nil {
-		return o.UpdateOrderbook(fPair, assetType)
+		return o.UpdateOrderbook(ctx, fPair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
 		Exchange:        o.Name,
 		Pair:            p,
@@ -101,10 +102,11 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 		return nil, err
 	}
 
-	orderbookNew, err := o.GetOrderBook(GetOrderBookRequest{
-		InstrumentID: fPair.String(),
-		Size:         200,
-	}, a)
+	orderbookNew, err := o.GetOrderBook(ctx,
+		GetOrderBookRequest{
+			InstrumentID: fPair.String(),
+			Size:         200,
+		}, a)
 	if err != nil {
 		return book, err
 	}
@@ -182,8 +184,8 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	currencies, err := o.GetSpotTradingAccounts()
+func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+	currencies, err := o.GetSpotTradingAccounts(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -220,10 +222,10 @@ func (o *OKGroup) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (o *OKGroup) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(o.Name, assetType)
 	if err != nil {
-		return o.UpdateAccountInfo(assetType)
+		return o.UpdateAccountInfo(ctx, assetType)
 	}
 
 	return acc, nil
@@ -231,8 +233,8 @@ func (o *OKGroup) FetchAccountInfo(assetType asset.Item) (account.Holdings, erro
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
-	accountDepositHistory, err := o.GetAccountDepositHistory("")
+func (o *OKGroup) GetFundingHistory(ctx context.Context) (resp []exchange.FundHistory, err error) {
+	accountDepositHistory, err := o.GetAccountDepositHistory(ctx, "")
 	if err != nil {
 		return
 	}
@@ -257,7 +259,7 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 			TransferType: "deposit",
 		})
 	}
-	accountWithdrawlHistory, err := o.GetAccountWithdrawalHistory("")
+	accountWithdrawlHistory, err := o.GetAccountWithdrawalHistory(ctx, "")
 	for i := range accountWithdrawlHistory {
 		resp = append(resp, exchange.FundHistory{
 			Amount:       accountWithdrawlHistory[i].Amount,
@@ -273,7 +275,7 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 }
 
 // SubmitOrder submits a new order
-func (o *OKGroup) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
 	err := s.Validate()
 	if err != nil {
 		return order.SubmitResponse{}, err
@@ -295,7 +297,7 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		request.Price = strconv.FormatFloat(s.Price, 'f', -1, 64)
 	}
 
-	orderResponse, err := o.PlaceSpotOrder(&request)
+	orderResponse, err := o.PlaceSpotOrder(ctx, &request)
 	if err != nil {
 		return order.SubmitResponse{}, err
 	}
@@ -312,12 +314,12 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (o *OKGroup) ModifyOrder(action *order.Modify) (order.Modify, error) {
+func (o *OKGroup) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
 	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (o *OKGroup) CancelOrder(cancel *order.Cancel) (err error) {
+func (o *OKGroup) CancelOrder(ctx context.Context, cancel *order.Cancel) (err error) {
 	err = cancel.Validate(cancel.StandardCancel())
 	if err != nil {
 		return
@@ -334,10 +336,11 @@ func (o *OKGroup) CancelOrder(cancel *order.Cancel) (err error) {
 		return
 	}
 
-	orderCancellationResponse, err := o.CancelSpotOrder(CancelSpotOrderRequest{
-		InstrumentID: fpair.String(),
-		OrderID:      orderID,
-	})
+	orderCancellationResponse, err := o.CancelSpotOrder(ctx,
+		CancelSpotOrderRequest{
+			InstrumentID: fpair.String(),
+			OrderID:      orderID,
+		})
 
 	if !orderCancellationResponse.Result {
 		err = fmt.Errorf("order %d failed to be cancelled",
@@ -348,7 +351,7 @@ func (o *OKGroup) CancelOrder(cancel *order.Cancel) (err error) {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (o *OKGroup) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -372,10 +375,11 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 		return resp, err
 	}
 
-	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(CancelMultipleSpotOrdersRequest{
-		InstrumentID: fpair.String(),
-		OrderIDs:     orderIDNumbers,
-	})
+	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(ctx,
+		CancelMultipleSpotOrdersRequest{
+			InstrumentID: fpair.String(),
+			OrderIDs:     orderIDNumbers,
+		})
 	if err != nil {
 		return resp, err
 	}
@@ -390,8 +394,8 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 }
 
 // GetOrderInfo returns order information based on order ID
-func (o *OKGroup) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (resp order.Detail, err error) {
-	mOrder, err := o.GetSpotOrder(GetSpotOrderRequest{OrderID: orderID})
+func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (resp order.Detail, err error) {
+	mOrder, err := o.GetSpotOrder(ctx, GetSpotOrderRequest{OrderID: orderID})
 	if err != nil {
 		return
 	}
@@ -423,8 +427,8 @@ func (o *OKGroup) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (o *OKGroup) GetDepositAddress(p currency.Code, _ string) (string, error) {
-	wallet, err := o.GetAccountDepositAddressForCurrency(p.Lower().String())
+func (o *OKGroup) GetDepositAddress(ctx context.Context, p currency.Code, _ string) (string, error) {
+	wallet, err := o.GetAccountDepositAddressForCurrency(ctx, p.Lower().String())
 	if err != nil || len(wallet) == 0 {
 		return "", err
 	}
@@ -433,18 +437,19 @@ func (o *OKGroup) GetDepositAddress(p currency.Code, _ string) (string, error) {
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (o *OKGroup) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
-		Amount:      withdrawRequest.Amount,
-		Currency:    withdrawRequest.Currency.Lower().String(),
-		Destination: 4, // 1, 2, 3 are all internal
-		Fee:         withdrawRequest.Crypto.FeeAmount,
-		ToAddress:   withdrawRequest.Crypto.Address,
-		TradePwd:    withdrawRequest.TradePassword,
-	})
+	withdrawal, err := o.AccountWithdraw(ctx,
+		AccountWithdrawRequest{
+			Amount:      withdrawRequest.Amount,
+			Currency:    withdrawRequest.Currency.Lower().String(),
+			Destination: 4, // 1, 2, 3 are all internal
+			Fee:         withdrawRequest.Crypto.FeeAmount,
+			ToAddress:   withdrawRequest.Crypto.Address,
+			TradePwd:    withdrawRequest.TradePassword,
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -462,23 +467,23 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (o *OKGroup) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (o *OKGroup) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (o *OKGroup) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (o *OKGroup) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
+func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (resp []order.Detail, err error) {
 	err = req.Validate()
 	if err != nil {
 		return nil, err
@@ -491,9 +496,10 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 			return nil, err
 		}
 		var spotOpenOrders []GetSpotOrderResponse
-		spotOpenOrders, err = o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
-			InstrumentID: fPair.String(),
-		})
+		spotOpenOrders, err = o.GetSpotOpenOrders(ctx,
+			GetSpotOpenOrdersRequest{
+				InstrumentID: fPair.String(),
+			})
 		if err != nil {
 			return resp, err
 		}
@@ -517,7 +523,7 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
+func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (resp []order.Detail, err error) {
 	err = req.Validate()
 	if err != nil {
 		return nil, err
@@ -530,10 +536,11 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 			return nil, err
 		}
 		var spotOpenOrders []GetSpotOrderResponse
-		spotOpenOrders, err = o.GetSpotOrders(GetSpotOrdersRequest{
-			Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
-			InstrumentID: fPair.String(),
-		})
+		spotOpenOrders, err = o.GetSpotOrders(ctx,
+			GetSpotOrdersRequest{
+				Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
+				InstrumentID: fPair.String(),
+			})
 		if err != nil {
 			return resp, err
 		}
@@ -556,12 +563,12 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (o *OKGroup) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !o.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return o.GetFee(feeBuilder)
+	return o.GetFee(ctx, feeBuilder)
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
@@ -570,24 +577,24 @@ func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (o *OKGroup) AuthenticateWebsocket() error {
+func (o *OKGroup) AuthenticateWebsocket(_ context.Context) error {
 	return o.WsLogin()
 }
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (o *OKGroup) ValidateCredentials(assetType asset.Item) error {
-	_, err := o.UpdateAccountInfo(assetType)
+func (o *OKGroup) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := o.UpdateAccountInfo(ctx, assetType)
 	return o.CheckTransientError(err)
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (o *OKGroup) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (o *OKGroup) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (o *OKGroup) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if err := o.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
@@ -605,7 +612,7 @@ func (o *OKGroup) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		InstrumentID: formattedPair.String(),
 	}
 
-	candles, err := o.GetMarketData(req)
+	candles, err := o.GetMarketData(ctx, req)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -659,7 +666,7 @@ func (o *OKGroup) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (o *OKGroup) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if err := o.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
@@ -690,7 +697,7 @@ func (o *OKGroup) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		}
 
 		var candles GetMarketDataResponse
-		candles, err = o.GetMarketData(req)
+		candles, err = o.GetMarketData(ctx, req)
 		if err != nil {
 			return kline.Item{}, err
 		}

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -24,7 +25,7 @@ func SetupWithdrawManager(em iExchangeManager, pm iPortfolioManager, isDryRun bo
 
 // SubmitWithdrawal performs validation and submits a new withdraw request to
 // exchange
-func (m *WithdrawManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
+func (m *WithdrawManager) SubmitWithdrawal(ctx context.Context, req *withdraw.Request) (*withdraw.Response, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
@@ -60,7 +61,7 @@ func (m *WithdrawManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Res
 			}
 		}
 		if req.Type == withdraw.Fiat {
-			ret, err = exch.WithdrawFiatFunds(req)
+			ret, err = exch.WithdrawFiatFunds(ctx, req)
 			if err != nil {
 				resp.Exchange.Status = err.Error()
 			} else {
@@ -68,7 +69,7 @@ func (m *WithdrawManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Res
 				resp.Exchange.ID = ret.ID
 			}
 		} else if req.Type == withdraw.Crypto {
-			ret, err = exch.WithdrawCryptocurrencyFunds(req)
+			ret, err = exch.WithdrawCryptocurrencyFunds(ctx, req)
 			if err != nil {
 				resp.Exchange.Status = err.Error()
 			} else {

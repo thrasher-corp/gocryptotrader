@@ -223,7 +223,7 @@ func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interfa
 		Path:    path,
 		Result:  result,
 		Verbose: o.Verbose}
-	return o.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+	return o.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	})
 }

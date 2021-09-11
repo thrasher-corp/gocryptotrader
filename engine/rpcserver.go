@@ -343,7 +343,7 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 
 // GetTicker returns the ticker for a specified exchange, currency pair and
 // asset type
-func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
+func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -363,11 +363,12 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 		return nil, err
 	}
 
-	t, err := s.GetSpecificTicker(currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	},
+	t, err := s.GetSpecificTicker(ctx,
+		currency.Pair{
+			Delimiter: r.Pair.Delimiter,
+			Base:      currency.NewCode(r.Pair.Base),
+			Quote:     currency.NewCode(r.Pair.Quote),
+		},
 		r.Exchange,
 		a,
 	)
@@ -392,8 +393,8 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 
 // GetTickers returns a list of tickers for all enabled exchanges and all
 // enabled currency pairs
-func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
-	activeTickers := s.GetAllActiveTickers()
+func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
+	activeTickers := s.GetAllActiveTickers(ctx)
 	var tickers []*gctrpc.Tickers
 
 	for x := range activeTickers {
@@ -426,17 +427,18 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 
 // GetOrderbook returns an orderbook for a specific exchange, currency pair
 // and asset type
-func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
+func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	ob, err := s.GetSpecificOrderbook(currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	},
+	ob, err := s.GetSpecificOrderbook(ctx,
+		currency.Pair{
+			Delimiter: r.Pair.Delimiter,
+			Base:      currency.NewCode(r.Pair.Base),
+			Quote:     currency.NewCode(r.Pair.Quote),
+		},
 		r.Exchange,
 		a,
 	)
@@ -479,7 +481,7 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 
 // GetOrderbooks returns a list of orderbooks for all enabled exchanges and all
 // enabled currency pairs
-func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequest) (*gctrpc.GetOrderbooksResponse, error) {
+func (s *RPCServer) GetOrderbooks(ctx context.Context, _ *gctrpc.GetOrderbooksRequest) (*gctrpc.GetOrderbooksResponse, error) {
 	exchanges := s.ExchangeManager.GetExchanges()
 	var obResponse []*gctrpc.Orderbooks
 	var obs []*gctrpc.OrderbookResponse
@@ -499,7 +501,7 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 				continue
 			}
 			for z := range currencies {
-				resp, err := exchanges[x].FetchOrderbook(currencies[z], assets[y])
+				resp, err := exchanges[x].FetchOrderbook(ctx, currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.RESTSys,
 						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
@@ -542,7 +544,7 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 }
 
 // GetAccountInfo returns an account balance for a specific exchange
-func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
+func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -558,7 +560,7 @@ func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRe
 		return nil, err
 	}
 
-	resp, err := exch.FetchAccountInfo(assetType)
+	resp, err := exch.FetchAccountInfo(ctx, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -567,7 +569,7 @@ func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRe
 }
 
 // UpdateAccountInfo forces an update of the account info
-func (s *RPCServer) UpdateAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
+func (s *RPCServer) UpdateAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -583,7 +585,7 @@ func (s *RPCServer) UpdateAccountInfo(_ context.Context, r *gctrpc.GetAccountInf
 		return nil, err
 	}
 
-	resp, err := exch.UpdateAccountInfo(assetType)
+	resp, err := exch.UpdateAccountInfo(ctx, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -626,7 +628,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		return err
 	}
 
-	initAcc, err := exch.FetchAccountInfo(assetType)
+	initAcc, err := exch.FetchAccountInfo(stream.Context(), assetType)
 	if err != nil {
 		return err
 	}
@@ -863,7 +865,7 @@ func (s *RPCServer) GetForexRates(_ context.Context, _ *gctrpc.GetForexRatesRequ
 
 // GetOrders returns all open orders, filtered by exchange, currency pair or
 // asset type between optional dates
-func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*gctrpc.GetOrdersResponse, error) {
+func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (*gctrpc.GetOrdersResponse, error) {
 	if r == nil {
 		return nil, errInvalidArguments
 	}
@@ -921,7 +923,7 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 	}
 
 	var resp []order.Detail
-	resp, err = exch.GetActiveOrders(request)
+	resp, err = exch.GetActiveOrders(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -1064,7 +1066,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 }
 
 // GetOrder returns order information based on exchange and order ID
-func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gctrpc.OrderDetails, error) {
+func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*gctrpc.OrderDetails, error) {
 	if r == nil {
 		return nil, errInvalidArguments
 	}
@@ -1094,7 +1096,11 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 		return nil, err
 	}
 
-	result, err := s.OrderManager.GetOrderInfo(r.Exchange, r.OrderId, pair, a)
+	result, err := s.OrderManager.GetOrderInfo(ctx,
+		r.Exchange,
+		r.OrderId,
+		pair,
+		a)
 	if err != nil {
 		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %w", r.OrderId, err)
 	}
@@ -1144,7 +1150,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 
 // SubmitOrder submits an order specified by exchange, currency pair and asset
 // type
-func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest) (*gctrpc.SubmitOrderResponse, error) {
+func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderRequest) (*gctrpc.SubmitOrderResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -1182,7 +1188,7 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 		AssetType:     a,
 	}
 
-	resp, err := s.OrderManager.Submit(submission)
+	resp, err := s.OrderManager.Submit(ctx, submission)
 	if err != nil {
 		return &gctrpc.SubmitOrderResponse{}, err
 	}
@@ -1206,7 +1212,7 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 
 // SimulateOrder simulates an order specified by exchange, currency pair and asset
 // type
-func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequest) (*gctrpc.SimulateOrderResponse, error) {
+func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRequest) (*gctrpc.SimulateOrderResponse, error) {
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
@@ -1227,7 +1233,7 @@ func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequ
 		return nil, err
 	}
 
-	o, err := exch.FetchOrderbook(p, asset.Spot)
+	o, err := exch.FetchOrderbook(ctx, p, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -1257,7 +1263,7 @@ func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequ
 
 // WhaleBomb finds the amount required to reach a specific price target for a given exchange, pair
 // and asset type
-func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*gctrpc.SimulateOrderResponse, error) {
+func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (*gctrpc.SimulateOrderResponse, error) {
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
@@ -1278,7 +1284,7 @@ func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*g
 		return nil, err
 	}
 
-	o, err := exch.FetchOrderbook(p, asset.Spot)
+	o, err := exch.FetchOrderbook(ctx, p, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -1311,7 +1317,7 @@ func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*g
 
 // CancelOrder cancels an order specified by exchange, currency pair and asset
 // type
-func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest) (*gctrpc.GenericResponse, error) {
+func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderRequest) (*gctrpc.GenericResponse, error) {
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
@@ -1337,15 +1343,16 @@ func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest)
 		return nil, err
 	}
 
-	err = s.OrderManager.Cancel(&order.Cancel{
-		Exchange:      r.Exchange,
-		AccountID:     r.AccountId,
-		ID:            r.OrderId,
-		Side:          order.Side(r.Side),
-		WalletAddress: r.WalletAddress,
-		Pair:          p,
-		AssetType:     a,
-	})
+	err = s.OrderManager.Cancel(ctx,
+		&order.Cancel{
+			Exchange:      r.Exchange,
+			AccountID:     r.AccountId,
+			ID:            r.OrderId,
+			Side:          order.Side(r.Side),
+			WalletAddress: r.WalletAddress,
+			Pair:          p,
+			AssetType:     a,
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -1354,7 +1361,7 @@ func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest)
 }
 
 // CancelBatchOrders cancels an orders specified by exchange, currency pair and asset type
-func (s *RPCServer) CancelBatchOrders(_ context.Context, r *gctrpc.CancelBatchOrdersRequest) (*gctrpc.CancelBatchOrdersResponse, error) {
+func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatchOrdersRequest) (*gctrpc.CancelBatchOrdersResponse, error) {
 	pair := currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
@@ -1391,7 +1398,8 @@ func (s *RPCServer) CancelBatchOrders(_ context.Context, r *gctrpc.CancelBatchOr
 		})
 	}
 
-	_, err = exch.CancelBatchOrders(request)
+	// TODO: Change to order manager
+	_, err = exch.CancelBatchOrders(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -1404,13 +1412,14 @@ func (s *RPCServer) CancelBatchOrders(_ context.Context, r *gctrpc.CancelBatchOr
 }
 
 // CancelAllOrders cancels all orders, filterable by exchange
-func (s *RPCServer) CancelAllOrders(_ context.Context, r *gctrpc.CancelAllOrdersRequest) (*gctrpc.CancelAllOrdersResponse, error) {
+func (s *RPCServer) CancelAllOrders(ctx context.Context, r *gctrpc.CancelAllOrdersRequest) (*gctrpc.CancelAllOrdersResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := exch.CancelAllOrders(nil)
+	// TODO: Change to order manager
+	resp, err := exch.CancelAllOrders(ctx, nil)
 	if err != nil {
 		return &gctrpc.CancelAllOrdersResponse{}, err
 	}
@@ -1420,7 +1429,7 @@ func (s *RPCServer) CancelAllOrders(_ context.Context, r *gctrpc.CancelAllOrders
 	}, nil
 }
 
-func (s *RPCServer) ModifyOrder(_ context.Context, r *gctrpc.ModifyOrderRequest) (*gctrpc.ModifyOrderResponse, error) {
+func (s *RPCServer) ModifyOrder(ctx context.Context, r *gctrpc.ModifyOrderRequest) (*gctrpc.ModifyOrderResponse, error) {
 	assetType, err := asset.New(r.Asset)
 	if err != nil {
 		return nil, err
@@ -1450,7 +1459,7 @@ func (s *RPCServer) ModifyOrder(_ context.Context, r *gctrpc.ModifyOrderRequest)
 		Amount: r.Amount,
 		Price:  r.Price,
 	}
-	resp, err := s.OrderManager.Modify(&mod)
+	resp, err := s.OrderManager.Modify(ctx, &mod)
 	if err != nil {
 		return nil, err
 	}
@@ -1501,7 +1510,7 @@ func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gct
 }
 
 // RemoveEvent removes an event, specified by an event ID
-func (s *RPCServer) RemoveEvent(_ context.Context, r *gctrpc.RemoveEventRequest) (*gctrpc.GenericResponse, error) {
+func (s *RPCServer) RemoveEvent(ctx context.Context, r *gctrpc.RemoveEventRequest) (*gctrpc.GenericResponse, error) {
 	if !s.eventManager.Remove(r.Id) {
 		return nil, fmt.Errorf("event %d not removed", r.Id)
 	}
@@ -1511,7 +1520,7 @@ func (s *RPCServer) RemoveEvent(_ context.Context, r *gctrpc.RemoveEventRequest)
 
 // GetCryptocurrencyDepositAddresses returns a list of cryptocurrency deposit
 // addresses specified by an exchange
-func (s *RPCServer) GetCryptocurrencyDepositAddresses(_ context.Context, r *gctrpc.GetCryptocurrencyDepositAddressesRequest) (*gctrpc.GetCryptocurrencyDepositAddressesResponse, error) {
+func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gctrpc.GetCryptocurrencyDepositAddressesRequest) (*gctrpc.GetCryptocurrencyDepositAddressesResponse, error) {
 	_, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -1523,19 +1532,22 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(_ context.Context, r *gctr
 
 // GetCryptocurrencyDepositAddress returns a cryptocurrency deposit address
 // specified by exchange and cryptocurrency
-func (s *RPCServer) GetCryptocurrencyDepositAddress(_ context.Context, r *gctrpc.GetCryptocurrencyDepositAddressRequest) (*gctrpc.GetCryptocurrencyDepositAddressResponse, error) {
+func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctrpc.GetCryptocurrencyDepositAddressRequest) (*gctrpc.GetCryptocurrencyDepositAddressResponse, error) {
 	_, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
-	addr, err := s.GetExchangeCryptocurrencyDepositAddress(r.Exchange, "", currency.NewCode(r.Cryptocurrency))
+	addr, err := s.GetExchangeCryptocurrencyDepositAddress(ctx,
+		r.Exchange,
+		"",
+		currency.NewCode(r.Cryptocurrency))
 	return &gctrpc.GetCryptocurrencyDepositAddressResponse{Address: addr}, err
 }
 
 // WithdrawCryptocurrencyFunds withdraws cryptocurrency funds specified by
 // exchange
-func (s *RPCServer) WithdrawCryptocurrencyFunds(_ context.Context, r *gctrpc.WithdrawCryptoRequest) (*gctrpc.WithdrawResponse, error) {
+func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.WithdrawCryptoRequest) (*gctrpc.WithdrawResponse, error) {
 	_, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -1554,7 +1566,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(_ context.Context, r *gctrpc.Wit
 		},
 	}
 
-	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(request)
+	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -1566,7 +1578,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(_ context.Context, r *gctrpc.Wit
 }
 
 // WithdrawFiatFunds withdraws fiat funds specified by exchange
-func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatRequest) (*gctrpc.WithdrawResponse, error) {
+func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFiatRequest) (*gctrpc.WithdrawResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -1578,7 +1590,8 @@ func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatR
 		if base == nil {
 			return nil, errExchangeBaseNotFound
 		}
-		bankAccount, err = base.GetExchangeBankAccounts(r.BankAccountId, r.Currency)
+		bankAccount, err = base.GetExchangeBankAccounts(r.BankAccountId,
+			r.Currency)
 		if err != nil {
 			return nil, err
 		}
@@ -1595,7 +1608,7 @@ func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatR
 		},
 	}
 
-	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(request)
+	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -1667,7 +1680,7 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 }
 
 // WithdrawalEventsByExchange returns previous withdrawal request details by exchange
-func (s *RPCServer) WithdrawalEventsByExchange(_ context.Context, r *gctrpc.WithdrawalEventsByExchangeRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
+func (s *RPCServer) WithdrawalEventsByExchange(ctx context.Context, r *gctrpc.WithdrawalEventsByExchangeRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
 	if !s.Config.Database.Enabled {
 		if r.Id == "" {
 			exch, err := s.GetExchangeByName(r.Exchange)
@@ -1676,7 +1689,7 @@ func (s *RPCServer) WithdrawalEventsByExchange(_ context.Context, r *gctrpc.With
 			}
 
 			c := currency.NewCode(strings.ToUpper(r.Currency))
-			ret, err := exch.GetWithdrawalsHistory(c)
+			ret, err := exch.GetWithdrawalsHistory(ctx, c)
 			if err != nil {
 				return nil, err
 			}
@@ -2154,7 +2167,7 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 }
 
 // GetHistoricCandles returns historical candles for a given exchange
-func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
+func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
 	start, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
 		return nil, fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
@@ -2214,13 +2227,15 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 		}
 	} else {
 		if r.ExRequest {
-			klineItem, err = exch.GetHistoricCandlesExtended(pair,
+			klineItem, err = exch.GetHistoricCandlesExtended(ctx,
+				pair,
 				a,
 				start,
 				end,
 				interval)
 		} else {
-			klineItem, err = exch.GetHistoricCandles(pair,
+			klineItem, err = exch.GetHistoricCandles(ctx,
+				pair,
 				a,
 				start,
 				end,
@@ -2702,7 +2717,7 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 // UpdateExchangeSupportedPairs forces an update of the supported pairs which
 // will update the available pairs list and remove any assets that are disabled
 // by the exchange
-func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.UpdateExchangeSupportedPairsRequest) (*gctrpc.GenericResponse, error) {
+func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.UpdateExchangeSupportedPairsRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -2718,7 +2733,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.Up
 			errors.New("cannot auto pair update for exchange, a manual update is needed")
 	}
 
-	err = exch.UpdateTradablePairs(false)
+	err = exch.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -3280,7 +3295,7 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 
 	for iterateStartTime := start; iterateStartTime.Before(end); iterateStartTime = iterateStartTime.Add(time.Hour) {
 		iterateEndTime := iterateStartTime.Add(time.Hour)
-		trades, err = exch.GetHistoricTrades(cp, a, iterateStartTime, iterateEndTime)
+		trades, err = exch.GetHistoricTrades(stream.Context(), cp, a, iterateStartTime, iterateEndTime)
 		if err != nil {
 			return err
 		}
@@ -3315,7 +3330,7 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 }
 
 // GetRecentTrades returns trades
-func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesRequest) (*gctrpc.SavedTradesResponse, error) {
+func (s *RPCServer) GetRecentTrades(ctx context.Context, r *gctrpc.GetSavedTradesRequest) (*gctrpc.SavedTradesResponse, error) {
 	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return nil, errInvalidArguments
 	}
@@ -3340,7 +3355,7 @@ func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesR
 		return nil, err
 	}
 	var trades []trade.Data
-	trades, err = exch.GetRecentTrades(cp, asset.Item(r.AssetType))
+	trades, err = exch.GetRecentTrades(ctx, cp, asset.Item(r.AssetType))
 	if err != nil {
 		return nil, err
 	}

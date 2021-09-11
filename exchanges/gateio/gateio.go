@@ -48,10 +48,10 @@ type Gateio struct {
 }
 
 // GetSymbols returns all supported symbols
-func (g *Gateio) GetSymbols() ([]string, error) {
+func (g *Gateio) GetSymbols(ctx context.Context) ([]string, error) {
 	var result []string
 	urlPath := fmt.Sprintf("/%s/%s", gateioAPIVersion, gateioSymbol)
-	err := g.SendHTTPRequest(exchange.RestSpotSupplementary, urlPath, &result)
+	err := g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &result)
 	if err != nil {
 		return nil, nil
 	}
@@ -60,7 +60,7 @@ func (g *Gateio) GetSymbols() ([]string, error) {
 
 // GetMarketInfo returns information about all trading pairs, including
 // transaction fee, minimum order quantity, price accuracy and so on
-func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
+func (g *Gateio) GetMarketInfo(ctx context.Context) (MarketInfoResponse, error) {
 	type response struct {
 		Result string        `json:"result"`
 		Pairs  []interface{} `json:"pairs"`
@@ -69,7 +69,7 @@ func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 	urlPath := fmt.Sprintf("/%s/%s", gateioAPIVersion, gateioMarketInfo)
 	var res response
 	var result MarketInfoResponse
-	err := g.SendHTTPRequest(exchange.RestSpotSupplementary, urlPath, &res)
+	err := g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &res)
 	if err != nil {
 		return result, err
 	}
@@ -94,8 +94,8 @@ func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 // updated every 10 seconds
 //
 // symbol: string of currency pair
-func (g *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
-	res, err := g.GetTicker(symbol)
+func (g *Gateio) GetLatestSpotPrice(ctx context.Context, symbol string) (float64, error) {
+	res, err := g.GetTicker(ctx, symbol)
 	if err != nil {
 		return 0, err
 	}
@@ -105,17 +105,17 @@ func (g *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
 
 // GetTicker returns a ticker for the supplied symbol
 // updated every 10 seconds
-func (g *Gateio) GetTicker(symbol string) (TickerResponse, error) {
+func (g *Gateio) GetTicker(ctx context.Context, symbol string) (TickerResponse, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s", gateioAPIVersion, gateioTicker, symbol)
 	var res TickerResponse
-	return res, g.SendHTTPRequest(exchange.RestSpotSupplementary, urlPath, &res)
+	return res, g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &res)
 }
 
 // GetTickers returns tickers for all symbols
-func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
+func (g *Gateio) GetTickers(ctx context.Context) (map[string]TickerResponse, error) {
 	urlPath := fmt.Sprintf("/%s/%s", gateioAPIVersion, gateioTickers)
 	resp := make(map[string]TickerResponse)
-	err := g.SendHTTPRequest(exchange.RestSpotSupplementary, urlPath, &resp)
+	err := g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -123,10 +123,10 @@ func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
 }
 
 // GetTrades returns trades for symbols
-func (g *Gateio) GetTrades(symbol string) (TradeHistory, error) {
+func (g *Gateio) GetTrades(ctx context.Context, symbol string) (TradeHistory, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s", gateioAPIVersion, gateioTrades, symbol)
 	var resp TradeHistory
-	err := g.SendHTTPRequest(exchange.RestSpotSupplementary, urlPath, &resp)
+	err := g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &resp)
 	if err != nil {
 		return TradeHistory{}, err
 	}
@@ -134,10 +134,10 @@ func (g *Gateio) GetTrades(symbol string) (TradeHistory, error) {
 }
 
 // GetOrderbook returns the orderbook data for a suppled symbol
-func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
+func (g *Gateio) GetOrderbook(ctx context.Context, symbol string) (Orderbook, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s", gateioAPIVersion, gateioOrderbook, symbol)
 	var resp OrderbookResponse
-	err := g.SendHTTPRequest(exchange.RestSpotSupplementary, urlPath, &resp)
+	err := g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &resp)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -195,7 +195,7 @@ func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
 }
 
 // GetSpotKline returns kline data for the most recent time period
-func (g *Gateio) GetSpotKline(arg KlinesRequestParams) (kline.Item, error) {
+func (g *Gateio) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (kline.Item, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s?group_sec=%s&range_hour=%d",
 		gateioAPIVersion,
 		gateioKline,
@@ -204,7 +204,7 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) (kline.Item, error) {
 		arg.HourSize)
 
 	var rawKlines map[string]interface{}
-	err := g.SendHTTPRequest(exchange.RestSpotSupplementary, urlPath, &rawKlines)
+	err := g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &rawKlines)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -265,15 +265,14 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) (kline.Item, error) {
 }
 
 // GetBalances obtains the users account balance
-func (g *Gateio) GetBalances() (BalancesResponse, error) {
+func (g *Gateio) GetBalances(ctx context.Context) (BalancesResponse, error) {
 	var result BalancesResponse
-
 	return result,
-		g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, gateioBalances, "", &result)
+		g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioBalances, "", &result)
 }
 
 // SpotNewOrder places a new order
-func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderResponse, error) {
+func (g *Gateio) SpotNewOrder(ctx context.Context, arg SpotNewOrderRequestParams) (SpotNewOrderResponse, error) {
 	var result SpotNewOrderResponse
 
 	// Be sure to use the correct price precision before calling this
@@ -284,13 +283,13 @@ func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderRespon
 	)
 
 	urlPath := fmt.Sprintf("%s/%s", gateioOrder, arg.Type)
-	return result, g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, urlPath, params, &result)
+	return result, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, urlPath, params, &result)
 }
 
 // CancelExistingOrder cancels an order given the supplied orderID and symbol
 // orderID order ID number
 // symbol trade pair (ltc_btc)
-func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error) {
+func (g *Gateio) CancelExistingOrder(ctx context.Context, orderID int64, symbol string) (bool, error) {
 	type response struct {
 		Result  bool   `json:"result"`
 		Code    int    `json:"code"`
@@ -303,7 +302,7 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 		orderID,
 		symbol,
 	)
-	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, gateioCancelOrder, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioCancelOrder, params, &result)
 	if err != nil {
 		return false, err
 	}
@@ -315,7 +314,7 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (g *Gateio) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
+func (g *Gateio) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
 	endpoint, err := g.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -328,14 +327,14 @@ func (g *Gateio) SendHTTPRequest(ep exchange.URL, path string, result interface{
 		HTTPDebugging: g.HTTPDebugging,
 		HTTPRecording: g.HTTPRecording,
 	}
-	return g.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+	return g.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
 	})
 }
 
 // CancelAllExistingOrders all orders for a given symbol and side
 // orderType (0: sell,1: buy,-1: unlimited)
-func (g *Gateio) CancelAllExistingOrders(orderType int64, symbol string) error {
+func (g *Gateio) CancelAllExistingOrders(ctx context.Context, orderType int64, symbol string) error {
 	type response struct {
 		Result  bool   `json:"result"`
 		Code    int    `json:"code"`
@@ -347,7 +346,7 @@ func (g *Gateio) CancelAllExistingOrders(orderType int64, symbol string) error {
 		orderType,
 		symbol,
 	)
-	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, gateioCancelAllOrders, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioCancelAllOrders, params, &result)
 	if err != nil {
 		return err
 	}
@@ -360,7 +359,7 @@ func (g *Gateio) CancelAllExistingOrders(orderType int64, symbol string) error {
 }
 
 // GetOpenOrders retrieves all open orders with an optional symbol filter
-func (g *Gateio) GetOpenOrders(symbol string) (OpenOrdersResponse, error) {
+func (g *Gateio) GetOpenOrders(ctx context.Context, symbol string) (OpenOrdersResponse, error) {
 	var params string
 	var result OpenOrdersResponse
 
@@ -368,7 +367,7 @@ func (g *Gateio) GetOpenOrders(symbol string) (OpenOrdersResponse, error) {
 		params = fmt.Sprintf("currencyPair=%s", symbol)
 	}
 
-	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, gateioOpenOrders, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioOpenOrders, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -381,12 +380,12 @@ func (g *Gateio) GetOpenOrders(symbol string) (OpenOrdersResponse, error) {
 }
 
 // GetTradeHistory retrieves all orders with an optional symbol filter
-func (g *Gateio) GetTradeHistory(symbol string) (TradHistoryResponse, error) {
+func (g *Gateio) GetTradeHistory(ctx context.Context, symbol string) (TradHistoryResponse, error) {
 	var params string
 	var result TradHistoryResponse
 	params = fmt.Sprintf("currencyPair=%s", symbol)
 
-	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, gateioTradeHistory, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioTradeHistory, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -406,7 +405,7 @@ func (g *Gateio) GenerateSignature(message string) ([]byte, error) {
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the Gateio API
 // To use this you must setup an APIKey and APISecret from the exchange
-func (g *Gateio) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint, param string, result interface{}) error {
+func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint, param string, result interface{}) error {
 	if !g.AllowAuthenticatedRequest() {
 		return fmt.Errorf("%s %w", g.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
@@ -438,7 +437,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint,
 		HTTPDebugging: g.HTTPDebugging,
 		HTTPRecording: g.HTTPRecording,
 	}
-	err = g.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+	err = g.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		item.Body = strings.NewReader(param)
 		return item, nil
 	})
@@ -465,10 +464,10 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint,
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (g *Gateio) GetFee(feeBuilder *exchange.FeeBuilder) (fee float64, err error) {
+func (g *Gateio) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (fee float64, err error) {
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		feePairs, err := g.GetMarketInfo()
+		feePairs, err := g.GetMarketInfo(ctx)
 		if err != nil {
 			return 0, err
 		}
@@ -520,7 +519,7 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 }
 
 // WithdrawCrypto withdraws cryptocurrency to your selected wallet
-func (g *Gateio) WithdrawCrypto(currency, address string, amount float64) (*withdraw.ExchangeResponse, error) {
+func (g *Gateio) WithdrawCrypto(ctx context.Context, currency, address string, amount float64) (*withdraw.ExchangeResponse, error) {
 	type response struct {
 		Result  bool   `json:"result"`
 		Message string `json:"message"`
@@ -533,7 +532,7 @@ func (g *Gateio) WithdrawCrypto(currency, address string, amount float64) (*with
 		address,
 		amount,
 	)
-	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, gateioWithdraw, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioWithdraw, params, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +546,7 @@ func (g *Gateio) WithdrawCrypto(currency, address string, amount float64) (*with
 }
 
 // GetCryptoDepositAddress returns a deposit address for a cryptocurrency
-func (g *Gateio) GetCryptoDepositAddress(currency string) (string, error) {
+func (g *Gateio) GetCryptoDepositAddress(ctx context.Context, currency string) (string, error) {
 	type response struct {
 		Result  bool   `json:"result,string"`
 		Code    int    `json:"code"`
@@ -559,7 +558,7 @@ func (g *Gateio) GetCryptoDepositAddress(currency string) (string, error) {
 	params := fmt.Sprintf("currency=%s",
 		currency)
 
-	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, gateioDepositAddress, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioDepositAddress, params, &result)
 	if err != nil {
 		return "", err
 	}

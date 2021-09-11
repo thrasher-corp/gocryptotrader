@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/http"
@@ -2138,7 +2139,7 @@ func TestGetSubscriptions(t *testing.T) {
 
 func TestAuthenticateWebsocket(t *testing.T) {
 	b := Base{}
-	if err := b.AuthenticateWebsocket(); err == nil {
+	if err := b.AuthenticateWebsocket(context.Background()); err == nil {
 		t.Fatal("error cannot be nil")
 	}
 }

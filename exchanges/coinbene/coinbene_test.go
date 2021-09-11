@@ -1,6 +1,7 @@
 package coinbene
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -55,7 +56,7 @@ func areTestAPIKeysSet() bool {
 
 func TestGetAllPairs(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetAllPairs()
+	_, err := c.GetAllPairs(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -63,7 +64,7 @@ func TestGetAllPairs(t *testing.T) {
 
 func TestGetPairInfo(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetPairInfo(spotTestPair)
+	_, err := c.GetPairInfo(context.Background(), spotTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -71,7 +72,7 @@ func TestGetPairInfo(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetOrderbook(spotTestPair, 100)
+	_, err := c.GetOrderbook(context.Background(), spotTestPair, 100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -79,7 +80,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetTicker(spotTestPair)
+	_, err := c.GetTicker(context.Background(), spotTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -87,7 +88,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetTrades(spotTestPair, 100)
+	_, err := c.GetTrades(context.Background(), spotTestPair, 100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -98,7 +99,7 @@ func TestGetAcounntBalances(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.GetAccountBalances()
+	_, err := c.GetAccountBalances(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -109,7 +110,7 @@ func TestGetAccountAssetBalance(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.GetAccountAssetBalance(currency.BTC.String())
+	_, err := c.GetAccountAssetBalance(context.Background(), currency.BTC.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -120,7 +121,7 @@ func TestPlaceOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := c.PlaceSpotOrder(
+	_, err := c.PlaceSpotOrder(context.Background(),
 		1,
 		1,
 		spotTestPair,
@@ -140,7 +141,7 @@ func TestPlaceOrders(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.PlaceSpotOrders(
+	_, err := c.PlaceSpotOrders(context.Background(),
 		[]PlaceOrderRequest{
 			{
 				1,
@@ -162,7 +163,7 @@ func TestFetchOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.FetchOpenSpotOrders(spotTestPair)
+	_, err := c.FetchOpenSpotOrders(context.Background(), spotTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -173,7 +174,7 @@ func TestFetchClosedOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.FetchClosedOrders(spotTestPair, "")
+	_, err := c.FetchClosedOrders(context.Background(), spotTestPair, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -184,7 +185,7 @@ func TestFetchOrderInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.FetchSpotOrderInfo("adfjashjgsag")
+	_, err := c.FetchSpotOrderInfo(context.Background(), "adfjashjgsag")
 	if err != nil {
 		t.Error(err)
 	}
@@ -195,7 +196,7 @@ func TestGetSpotOrderFills(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.GetSpotOrderFills("1912131427156307968")
+	_, err := c.GetSpotOrderFills(context.Background(), "1912131427156307968")
 	if err != nil {
 		t.Error(err)
 	}
@@ -206,7 +207,7 @@ func TestCancelSpotOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := c.CancelSpotOrder("adfjashjgsag")
+	_, err := c.CancelSpotOrder(context.Background(), "adfjashjgsag")
 	if err != nil {
 		t.Error(err)
 	}
@@ -218,7 +219,8 @@ func TestCancelSpotOrders(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.CancelSpotOrders([]string{"578639816552972288", "578639902896914432"})
+	_, err := c.CancelSpotOrders(context.Background(),
+		[]string{"578639816552972288", "578639902896914432"})
 	if err != nil {
 		t.Error(err)
 	}
@@ -230,7 +232,7 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.UpdateTicker(cp, asset.Spot)
+	_, err = c.UpdateTicker(context.Background(), cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -238,7 +240,7 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.UpdateTicker(cp, asset.PerpetualSwap)
+	_, err = c.UpdateTicker(context.Background(), cp, asset.PerpetualSwap)
 	if err != nil {
 		t.Error(err)
 	}
@@ -248,12 +250,12 @@ func TestUpdateTickers(t *testing.T) {
 	// TODO: fix Coinbene rate limiting that will allow to uncomment the next line
 	// and enable parallel testing
 	// t.Parallel()
-	err := c.UpdateTickers(asset.Spot)
+	err := c.UpdateTickers(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = c.UpdateTickers(asset.PerpetualSwap)
+	err = c.UpdateTickers(context.Background(), asset.PerpetualSwap)
 	if err != nil {
 		t.Error(err)
 	}
@@ -264,7 +266,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.UpdateAccountInfo(asset.Spot)
+	_, err := c.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -276,7 +278,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.UpdateOrderbook(cp, asset.Spot)
+	_, err = c.UpdateOrderbook(context.Background(), cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -284,7 +286,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.UpdateOrderbook(cp, asset.PerpetualSwap)
+	_, err = c.UpdateOrderbook(context.Background(), cp, asset.PerpetualSwap)
 	if err != nil {
 		t.Error(err)
 	}
@@ -292,7 +294,7 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestGetSwapTickers(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapTickers()
+	_, err := c.GetSwapTickers(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -300,7 +302,7 @@ func TestGetSwapTickers(t *testing.T) {
 
 func TestGetSwapTicker(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapTicker(swapTestPair)
+	_, err := c.GetSwapTicker(context.Background(), swapTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -308,7 +310,7 @@ func TestGetSwapTicker(t *testing.T) {
 
 func TestGetSwapOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapOrderbook(swapTestPair, 100)
+	_, err := c.GetSwapOrderbook(context.Background(), swapTestPair, 100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -320,8 +322,11 @@ func TestGetKlines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.GetKlines(p.String(),
-		time.Now().Add(-time.Hour*1), time.Now(), "1")
+	_, err = c.GetKlines(context.Background(),
+		p.String(),
+		time.Now().Add(-time.Hour*1),
+		time.Now(),
+		"1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,8 +338,11 @@ func TestGetSwapKlines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.GetSwapKlines(p.String(),
-		time.Now().Add(-time.Hour*1), time.Now(), "1")
+	_, err = c.GetSwapKlines(context.Background(),
+		p.String(),
+		time.Now().Add(-time.Hour*1),
+		time.Now(),
+		"1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -342,7 +350,7 @@ func TestGetSwapKlines(t *testing.T) {
 
 func TestGetSwapTrades(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapTrades(swapTestPair, 10)
+	_, err := c.GetSwapTrades(context.Background(), swapTestPair, 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -350,7 +358,7 @@ func TestGetSwapTrades(t *testing.T) {
 
 func TestGetSwapInstruments(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapInstruments()
+	_, err := c.GetSwapInstruments(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -361,7 +369,7 @@ func TestGetSwapAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.GetSwapAccountInfo()
+	_, err := c.GetSwapAccountInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -372,7 +380,7 @@ func TestGetSwapPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.GetSwapPositions(swapTestPair)
+	_, err := c.GetSwapPositions(context.Background(), swapTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -384,7 +392,8 @@ func TestPlaceSwapOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.PlaceSwapOrder(swapTestPair,
+	_, err := c.PlaceSwapOrder(context.Background(),
+		swapTestPair,
 		order.Buy.Lower(),
 		"limit",
 		"fixed",
@@ -403,7 +412,7 @@ func TestCancelSwapOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.CancelSwapOrder("1337")
+	_, err := c.CancelSwapOrder(context.Background(), "1337")
 	if err != nil {
 		t.Error(err)
 	}
@@ -415,7 +424,7 @@ func TestGetOpenSwapOrders(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.GetSwapOpenOrders(swapTestPair, 0, 0)
+	_, err := c.GetSwapOpenOrders(context.Background(), swapTestPair, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -427,7 +436,7 @@ func TestGetSwapOpenOrdersByPage(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.GetSwapOpenOrdersByPage(swapTestPair, 0)
+	_, err := c.GetSwapOpenOrdersByPage(context.Background(), swapTestPair, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -439,7 +448,7 @@ func TestGetSwapOrderInfo(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.GetSwapOrderInfo("1337")
+	_, err := c.GetSwapOrderInfo(context.Background(), "1337")
 	if err != nil {
 		t.Error(err)
 	}
@@ -451,7 +460,8 @@ func TestGetSwapOrderHistory(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.GetSwapOrderHistory("", "", swapTestPair, 1, 10, "", "")
+	_, err := c.GetSwapOrderHistory(context.Background(),
+		"", "", swapTestPair, 1, 10, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -463,7 +473,8 @@ func TestGetSwapOrderHistoryByOrderID(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.GetSwapOrderHistoryByOrderID("", "", swapTestPair, "", 0)
+	_, err := c.GetSwapOrderHistoryByOrderID(context.Background(),
+		"", "", swapTestPair, "", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -475,7 +486,8 @@ func TestCancelSwapOrders(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.CancelSwapOrders([]string{"578639816552972288", "578639902896914432"})
+	_, err := c.CancelSwapOrders(context.Background(),
+		[]string{"578639816552972288", "578639902896914432"})
 	if err != nil {
 		t.Error(err)
 	}
@@ -487,7 +499,8 @@ func TestGetSwapOrderFills(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.GetSwapOrderFills(swapTestPair, "5807143157122003", 580714315825905664)
+	_, err := c.GetSwapOrderFills(context.Background(),
+		swapTestPair, "5807143157122003", 580714315825905664)
 	if err != nil {
 		t.Error(err)
 	}
@@ -499,7 +512,7 @@ func TestGetSwapFundingRates(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.GetSwapFundingRates(1, 2)
+	_, err := c.GetSwapFundingRates(context.Background(), 1, 2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -648,7 +661,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 24)
-	_, err = c.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	_, err = c.GetHistoricCandles(context.Background(),
+		currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -657,7 +671,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.GetHistoricCandles(currencyPairSwap, asset.PerpetualSwap, startTime, time.Now(), kline.OneHour)
+	_, err = c.GetHistoricCandles(context.Background(),
+		currencyPairSwap, asset.PerpetualSwap, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -669,7 +684,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 2)
-	_, err = c.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	_, err = c.GetHistoricCandlesExtended(context.Background(),
+		currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -780,7 +796,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.GetRecentTrades(currencyPair, asset.Spot)
+	_, err = c.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -792,7 +808,8 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err = c.GetHistoricTrades(context.Background(),
+		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}

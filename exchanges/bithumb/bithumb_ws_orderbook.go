@@ -1,6 +1,7 @@
 package bithumb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -139,7 +140,7 @@ func (b *Bithumb) SynchroniseWebsocketOrderbook() {
 
 // processJob fetches and processes orderbook updates
 func (b *Bithumb) processJob(p currency.Pair) error {
-	err := b.SeedLocalCache(p)
+	err := b.SeedLocalCache(context.TODO(), p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)
@@ -414,8 +415,8 @@ bufferEmpty:
 }
 
 // SeedLocalCache seeds depth data
-func (b *Bithumb) SeedLocalCache(p currency.Pair) error {
-	ob, err := b.GetOrderBook(p.String())
+func (b *Bithumb) SeedLocalCache(ctx context.Context, p currency.Pair) error {
+	ob, err := b.GetOrderBook(ctx, p.String())
 	if err != nil {
 		return err
 	}

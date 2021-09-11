@@ -5,6 +5,7 @@ package telegram
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -245,13 +246,15 @@ func (t *Telegram) SendHTTPRequest(path string, data []byte, result interface{})
 	headers := make(map[string]string)
 	headers["content-type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest(http.MethodPost,
+	resp, err := common.SendHTTPRequest(context.TODO(),
+		http.MethodPost,
 		path,
 		headers,
-		bytes.NewBuffer(data))
+		bytes.NewBuffer(data),
+		t.Verbose)
 	if err != nil {
 		return err
 	}
 
-	return json.Unmarshal([]byte(resp), result)
+	return json.Unmarshal(resp, result)
 }

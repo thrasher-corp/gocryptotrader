@@ -1,6 +1,7 @@
 package coinut
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -42,7 +43,7 @@ func (c *COINUT) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	}
 
 	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = c.UpdateTradablePairs(true)
+		err = c.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -247,14 +248,14 @@ func (c *COINUT) Run() {
 		return
 	}
 
-	err = c.UpdateTradablePairs(forceUpdate)
+	err = c.UpdateTradablePairs(context.TODO(), forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (c *COINUT) FetchTradablePairs(asset asset.Item) ([]string, error) {
+func (c *COINUT) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
 	var instruments map[string][]InstrumentBase
 	var resp Instruments
 	var err error
@@ -264,7 +265,7 @@ func (c *COINUT) FetchTradablePairs(asset asset.Item) ([]string, error) {
 			return nil, err
 		}
 	} else {
-		resp, err = c.GetInstruments()
+		resp, err = c.GetInstruments(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -288,8 +289,8 @@ func (c *COINUT) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (c *COINUT) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := c.FetchTradablePairs(asset.Spot)
+func (c *COINUT) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+	pairs, err := c.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
@@ -303,7 +304,7 @@ func (c *COINUT) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // COINUT exchange
-func (c *COINUT) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var bal *UserBalance
 	var err error
@@ -315,7 +316,7 @@ func (c *COINUT) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 		}
 		bal = resp
 	} else {
-		bal, err = c.GetUserBalance()
+		bal, err = c.GetUserBalance(ctx)
 		if err != nil {
 			return info, err
 		}
@@ -393,22 +394,22 @@ func (c *COINUT) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (c *COINUT) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (c *COINUT) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(c.Name, assetType)
 	if err != nil {
-		return c.UpdateAccountInfo(assetType)
+		return c.UpdateAccountInfo(ctx, assetType)
 	}
 
 	return acc, nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (c *COINUT) UpdateTickers(a asset.Item) error {
+func (c *COINUT) UpdateTickers(ctx context.Context, a asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *COINUT) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return nil, err
@@ -424,7 +425,7 @@ func (c *COINUT) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, err
 		return nil, errors.New("unable to lookup instrument ID")
 	}
 	var tick Ticker
-	tick, err = c.GetInstrumentTicker(instID)
+	tick, err = c.GetInstrumentTicker(ctx, instID)
 	if err != nil {
 		return nil, err
 	}
@@ -448,25 +449,25 @@ func (c *COINUT) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, err
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (c *COINUT) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (c *COINUT) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
 	if err != nil {
-		return c.UpdateTicker(p, assetType)
+		return c.UpdateTicker(ctx, p, assetType)
 	}
 	return tickerNew, nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (c *COINUT) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *COINUT) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(c.Name, p, assetType)
 	if err != nil {
-		return c.UpdateOrderbook(p, assetType)
+		return c.UpdateOrderbook(ctx, p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
 		Exchange:        c.Name,
 		Pair:            p,
@@ -488,7 +489,7 @@ func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 		return book, errLookupInstrumentID
 	}
 
-	orderbookNew, err := c.GetInstrumentOrderbook(instID, 200)
+	orderbookNew, err := c.GetInstrumentOrderbook(ctx, instID, 200)
 	if err != nil {
 		return book, err
 	}
@@ -513,17 +514,17 @@ func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (c *COINUT) GetFundingHistory() ([]exchange.FundHistory, error) {
+func (c *COINUT) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (c *COINUT) GetWithdrawalsHistory(cur currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (c *COINUT) GetWithdrawalsHistory(_ context.Context, _ currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (c *COINUT) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (c *COINUT) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -534,7 +535,7 @@ func (c *COINUT) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 		return nil, errLookupInstrumentID
 	}
 	var tradeData Trades
-	tradeData, err = c.GetTrades(currencyID)
+	tradeData, err = c.GetTrades(ctx, currencyID)
 	if err != nil {
 		return nil, err
 	}
@@ -567,12 +568,12 @@ func (c *COINUT) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (c *COINUT) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (c *COINUT) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
-func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
+func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResponse, error) {
 	if err := o.Validate(); err != nil {
 		return order.SubmitResponse{}, err
 	}
@@ -620,8 +621,12 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			return submitOrderResponse, err
 		}
 		clientIDUint := uint32(clientIDInt)
-		APIResponse, err = c.NewOrder(currencyID, o.Amount, o.Price,
-			isBuyOrder, clientIDUint)
+		APIResponse, err = c.NewOrder(ctx,
+			currencyID,
+			o.Amount,
+			o.Price,
+			isBuyOrder,
+			clientIDUint)
 		if err != nil {
 			return submitOrderResponse, err
 		}
@@ -647,12 +652,12 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (c *COINUT) ModifyOrder(action *order.Modify) (order.Modify, error) {
+func (c *COINUT) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
 	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (c *COINUT) CancelOrder(o *order.Cancel) error {
+func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
@@ -689,7 +694,7 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 		if currencyID == 0 {
 			return errLookupInstrumentID
 		}
-		_, err = c.CancelExistingOrder(currencyID, orderIDInt)
+		_, err = c.CancelExistingOrder(ctx, currencyID, orderIDInt)
 		if err != nil {
 			return err
 		}
@@ -699,12 +704,12 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (c *COINUT) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+func (c *COINUT) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse, error) {
+func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (order.CancelAllResponse, error) {
 	if err := details.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -752,7 +757,7 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 				return cancelAllOrdersResponse, err
 			}
 			if ids[x] == c.instrumentMap.LookupID(fpair.String()) {
-				openOrders, err := c.GetOpenOrders(ids[x])
+				openOrders, err := c.GetOpenOrders(ctx, ids[x])
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
@@ -770,7 +775,7 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 		}
 
 		if len(allTheOrdersToCancel) > 0 {
-			resp, err := c.CancelOrders(allTheOrdersToCancel)
+			resp, err := c.CancelOrders(ctx, allTheOrdersToCancel)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -787,35 +792,35 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 }
 
 // GetOrderInfo returns order information based on order ID
-func (c *COINUT) GetOrderInfo(_ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
+func (c *COINUT) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	return order.Detail{}, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *COINUT) GetDepositAddress(_ currency.Code, _ string) (string, error) {
+func (c *COINUT) GetDepositAddress(_ context.Context, _ currency.Code, _ string) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *COINUT) WithdrawCryptocurrencyFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (c *COINUT) WithdrawCryptocurrencyFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (c *COINUT) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (c *COINUT) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (c *COINUT) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (c *COINUT) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (c *COINUT) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !c.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
@@ -824,7 +829,7 @@ func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -905,7 +910,7 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		}
 
 		for x := range instrumentsToUse {
-			openOrders, err := c.GetOpenOrders(instrumentsToUse[x])
+			openOrders, err := c.GetOpenOrders(ctx, instrumentsToUse[x])
 			if err != nil {
 				return nil, err
 			}
@@ -940,7 +945,7 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -1011,7 +1016,7 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		}
 
 		for x := range instrumentsToUse {
-			orders, err := c.GetTradeHistory(instrumentsToUse[x], -1, -1)
+			orders, err := c.GetTradeHistory(ctx, instrumentsToUse[x], -1, -1)
 			if err != nil {
 				return nil, err
 			}
@@ -1045,7 +1050,7 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (c *COINUT) AuthenticateWebsocket() error {
+func (c *COINUT) AuthenticateWebsocket(_ context.Context) error {
 	return c.wsAuthenticate()
 }
 
@@ -1057,7 +1062,7 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 				return err
 			}
 		} else {
-			err := c.SeedInstruments()
+			err := c.SeedInstruments(context.TODO())
 			if err != nil {
 				return err
 			}
@@ -1068,17 +1073,17 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (c *COINUT) ValidateCredentials(assetType asset.Item) error {
-	_, err := c.UpdateAccountInfo(assetType)
+func (c *COINUT) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := c.UpdateAccountInfo(ctx, assetType)
 	return c.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (c *COINUT) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (c *COINUT) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (c *COINUT) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (c *COINUT) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }

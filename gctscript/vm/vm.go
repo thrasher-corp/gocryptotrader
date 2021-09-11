@@ -109,38 +109,19 @@ func (vm *VM) Compile() (err error) {
 	return
 }
 
-// Run runs byte code
-func (vm *VM) Run() (err error) {
-	if vm.config.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Running script: %s ID: %v", vm.ShortName(), vm.ID)
-	}
-
-	err = vm.Compiled.Run()
-	if err != nil {
-		vm.event(StatusFailure, TypeExecute)
-		return Error{
-			Action: "Run",
-			Cause:  err,
-		}
-	}
-	vm.event(StatusSuccess, TypeExecute)
-	return
-}
-
 // RunCtx runs compiled byte code with context.Context support.
 func (vm *VM) RunCtx() (err error) {
-	if vm.ctx == nil {
-		vm.ctx = context.Background()
-	}
-
-	ct, cancel := context.WithTimeout(vm.ctx, vm.config.ScriptTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), vm.config.ScriptTimeout)
 	defer cancel()
 
 	if vm.config.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Running script: %s ID: %v", vm.ShortName(), vm.ID)
+		log.Debugf(log.GCTScriptMgr,
+			"Running script: %s ID: %v",
+			vm.ShortName(),
+			vm.ID)
 	}
 
-	err = vm.Compiled.RunContext(ct)
+	err = vm.Compiled.RunContext(ctx)
 	if err != nil {
 		vm.event(StatusFailure, TypeExecute)
 		return Error{

@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -63,12 +64,14 @@ func TestWrapper_IsEnabled(t *testing.T) {
 func TestWrapper_AccountInformation(t *testing.T) {
 	t.Parallel()
 
-	_, err := testWrapper.AccountInformation(exchName, asset.Spot)
+	_, err := testWrapper.AccountInformation(context.Background(),
+		exchName, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = testWrapper.AccountInformation(exchError.String(), asset.Spot)
+	_, err = testWrapper.AccountInformation(context.Background(),
+		exchError.String(), asset.Spot)
 	if err == nil {
 		t.Fatal("expected AccountInformation to return error on invalid name")
 	}
@@ -77,27 +80,32 @@ func TestWrapper_AccountInformation(t *testing.T) {
 func TestWrapper_CancelOrder(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPair(currency.BTC, currency.USD)
-	_, err := testWrapper.CancelOrder(exchName, orderID, cp, assetType)
+	_, err := testWrapper.CancelOrder(context.Background(),
+		exchName, orderID, cp, assetType)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = testWrapper.CancelOrder(exchError.String(), orderID, cp, assetType)
+	_, err = testWrapper.CancelOrder(context.Background(),
+		exchError.String(), orderID, cp, assetType)
 	if err == nil {
 		t.Error("expected CancelOrder to return error on invalid name")
 	}
 
-	_, err = testWrapper.CancelOrder(exchName, "", cp, assetType)
+	_, err = testWrapper.CancelOrder(context.Background(),
+		exchName, "", cp, assetType)
 	if err == nil {
 		t.Error("expected CancelOrder to return error on invalid name")
 	}
 
-	_, err = testWrapper.CancelOrder(exchName, orderID, currency.Pair{}, assetType)
+	_, err = testWrapper.CancelOrder(context.Background(),
+		exchName, orderID, currency.Pair{}, assetType)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = testWrapper.CancelOrder(exchName, orderID, cp, "")
+	_, err = testWrapper.CancelOrder(context.Background(),
+		exchName, orderID, cp, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -121,12 +129,14 @@ func TestWrapper_Orderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = testWrapper.Orderbook(exchName, c, assetType)
+	_, err = testWrapper.Orderbook(context.Background(),
+		exchName, c, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = testWrapper.Orderbook(exchError.String(), currencyPair, asset.Spot)
+	_, err = testWrapper.Orderbook(context.Background(),
+		exchError.String(), currencyPair, asset.Spot)
 	if err == nil {
 		t.Fatal("expected Orderbook to return error with invalid name")
 	}
@@ -152,12 +162,14 @@ func TestWrapper_Pairs(t *testing.T) {
 func TestWrapper_QueryOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := testWrapper.QueryOrder(exchName, orderID, currency.Pair{}, assetType)
+	_, err := testWrapper.QueryOrder(context.Background(),
+		exchName, orderID, currency.Pair{}, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = testWrapper.QueryOrder(exchError.String(), "", currency.Pair{}, assetType)
+	_, err = testWrapper.QueryOrder(context.Background(),
+		exchError.String(), "", currency.Pair{}, assetType)
 	if err == nil {
 		t.Fatal("expected QueryOrder to return error on invalid name")
 	}
@@ -181,12 +193,12 @@ func TestWrapper_SubmitOrder(t *testing.T) {
 		Exchange:     "true",
 		AssetType:    asset.Spot,
 	}
-	_, err = testWrapper.SubmitOrder(tempOrder)
+	_, err = testWrapper.SubmitOrder(context.Background(), tempOrder)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = testWrapper.SubmitOrder(nil)
+	_, err = testWrapper.SubmitOrder(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected SubmitOrder to return error with invalid name")
 	}
@@ -198,36 +210,40 @@ func TestWrapper_Ticker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = testWrapper.Ticker(exchName, c, assetType)
+	_, err = testWrapper.Ticker(context.Background(), exchName, c, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = testWrapper.Ticker(exchError.String(), currencyPair, asset.Spot)
+	_, err = testWrapper.Ticker(context.Background(), exchError.String(), currencyPair, asset.Spot)
 	if err == nil {
 		t.Fatal("expected Ticker to return error with invalid name")
 	}
 }
 
 func TestWrapper_WithdrawalCryptoFunds(t *testing.T) {
-	_, err := testWrapper.WithdrawalCryptoFunds(&withdraw.Request{Exchange: exchError.String()})
+	_, err := testWrapper.WithdrawalCryptoFunds(context.Background(),
+		&withdraw.Request{Exchange: exchError.String()})
 	if err == nil {
 		t.Fatal("expected WithdrawalCryptoFunds to return error with invalid name")
 	}
 
-	_, err = testWrapper.WithdrawalCryptoFunds(&withdraw.Request{Exchange: exchName})
+	_, err = testWrapper.WithdrawalCryptoFunds(context.Background(),
+		&withdraw.Request{Exchange: exchName})
 	if err != nil {
 		t.Fatal("expected WithdrawalCryptoFunds to return error with invalid name")
 	}
 }
 
 func TestWrapper_WithdrawalFiatFunds(t *testing.T) {
-	_, err := testWrapper.WithdrawalFiatFunds("", &withdraw.Request{Exchange: exchError.String()})
+	_, err := testWrapper.WithdrawalFiatFunds(context.Background(),
+		"", &withdraw.Request{Exchange: exchError.String()})
 	if err == nil {
 		t.Fatal("expected WithdrawalFiatFunds to return error with invalid name")
 	}
 
-	_, err = testWrapper.WithdrawalFiatFunds("", &withdraw.Request{Exchange: exchName})
+	_, err = testWrapper.WithdrawalFiatFunds(context.Background(),
+		"", &withdraw.Request{Exchange: exchName})
 	if err != nil {
 		t.Fatal("expected WithdrawalCryptoFunds to return error with invalid name")
 	}
@@ -238,11 +254,15 @@ func TestWrapper_OHLCV(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = testWrapper.OHLCV("test", c, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneDay)
+	_, err = testWrapper.OHLCV(context.Background(),
+		"test", c, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = testWrapper.OHLCV(exchError.String(), c, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneDay)
+	_, err = testWrapper.OHLCV(context.Background(),
+		exchError.String(), c, asset.Spot,
+		time.Now().Add(-24*time.Hour),
+		time.Now(), kline.OneDay)
 	if err == nil {
 		t.Fatal("expected OHLCV to return error with invalid name")
 	}

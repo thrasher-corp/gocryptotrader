@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"context"
 	"sync"
 	"time"
 
@@ -54,7 +53,6 @@ type VM struct {
 	Path       string
 	Script     *tengo.Script
 	Compiled   *tengo.Compiled
-	ctx        context.Context
 	T          time.Duration
 	NextRun    time.Time
 	S          chan struct{}

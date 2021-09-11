@@ -350,7 +350,7 @@ This will generate a readme file for the exchange which can be found in the new 
 
 ```go
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (f *FTX) SendHTTPRequest(path string, result interface{}) error {
+func (f *FTX) SendHTTPRequest(ctx context.Context, path string, result interface{}) error {
 	// This is used to generate the *http.Request, used in conjunction with the
 	// generate functionality below. 
 	item := &request.Item{  
@@ -369,9 +369,6 @@ func (f *FTX) SendHTTPRequest(path string, result interface{}) error {
 	endpoint := request.Unset // Used in conjunction with the rate limiting 
 	// system defined in the exchange package to slow down outbound requests
 	// depending on each individual endpoint. 
-
-	ctx := context.Background() 
-
 	return f.SendPayload(ctx, endpoint, generate)
 }
 ```
@@ -425,7 +422,7 @@ Create a get function in ftx.go file and unmarshall the data in the created type
 // GetMarkets gets market data
 func (f *FTX) GetMarkets() (Markets, error) {
 	var resp Markets
-	return resp, f.SendHTTPRequest(ftxAPIURL+getMarkets, &resp)
+	return resp, f.SendHTTPRequest(ctx, ftxAPIURL+getMarkets, &resp)
 }
 ```
 
@@ -458,7 +455,7 @@ Ensure each endpoint is implemented and has an associated test to improve test c
 Authenticated request function is created based on the way the exchange documentation specifies: https://docs.ftx.com/#authentication
 ```go
 // SendAuthHTTPRequest sends an authenticated request
-func (f *FTX) SendAuthHTTPRequest(method, path string, data, result interface{}) error {
+func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data, result interface{}) error {
 // A potential example below of closing over authenticated variables which may 
 // be required to regenerate on every request between each attempt after rate
 // limiting. This is for when signatures are based on timestamps/nonces that are 
@@ -506,8 +503,6 @@ func (f *FTX) SendAuthHTTPRequest(method, path string, data, result interface{})
 	// system defined in the exchange package to slow down outbound requests
 	// depending on each individual endpoint. 
 
-	ctx := context.Background() 
-
 	return f.SendPayload(ctx, endpoint, generate)
 }
 ```
@@ -524,7 +519,7 @@ https://docs.ftx.com/#get-account-information:
 // GetAccountInfo gets account info
 func (f *FTX) GetAccountInfo() (AccountData, error) {
 	var resp AccountData
-	return resp, f.SendAuthHTTPRequest(http.MethodGet, getAccountInfo, nil, &resp)
+	return resp, f.SendAuthHTTPRequest(ctx, http.MethodGet, getAccountInfo, nil, &resp)
 }
 ```
 
@@ -556,7 +551,7 @@ func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	return resp, f.SendAuthHTTPRequest(http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
+	return resp, f.SendAuthHTTPRequest(ctx, http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
 }
 ```
 
@@ -616,7 +611,7 @@ func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clie
 		req["clientID"] = clientID
 	}
 	var resp PlaceOrder
-	return resp, f.SendAuthHTTPRequest(http.MethodPost, placeOrder, req, &resp)
+	return resp, f.SendAuthHTTPRequest(ctx, http.MethodPost, placeOrder, req, &resp)
 }
 ```
 
@@ -630,7 +625,7 @@ Unsupported Example:
 ```go
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (f *FTX) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (f *FTX) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	var resp *withdraw.ExchangeResponse
 	return resp, common.ErrFunctionNotSupported
 }
@@ -640,7 +635,7 @@ Supported Examples:
 
 ```go
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
+func (f *FTX) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
 	if !f.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, f.Name)
 	}

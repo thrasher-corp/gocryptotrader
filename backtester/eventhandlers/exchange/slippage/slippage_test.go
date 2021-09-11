@@ -1,6 +1,7 @@
 package slippage
 
 import (
+	"context"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -22,7 +23,7 @@ func TestCalculateSlippageByOrderbook(t *testing.T) {
 	b := bitstamp.Bitstamp{}
 	b.SetDefaults()
 	cp := currency.NewPair(currency.BTC, currency.USD)
-	ob, err := b.FetchOrderbook(cp, asset.Spot)
+	ob, err := b.FetchOrderbook(context.Background(), cp, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,6 +1,7 @@
 package itbit
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"sort"
@@ -40,7 +41,7 @@ func (i *ItBit) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	}
 
 	if i.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = i.UpdateTradablePairs(true)
+		err = i.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -129,29 +130,29 @@ func (i *ItBit) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (i *ItBit) FetchTradablePairs(asset asset.Item) ([]string, error) {
+func (i *ItBit) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (i *ItBit) UpdateTradablePairs(forceUpdate bool) error {
+func (i *ItBit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (i *ItBit) UpdateTickers(a asset.Item) error {
+func (i *ItBit) UpdateTickers(ctx context.Context, a asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (i *ItBit) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (i *ItBit) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	fpair, err := i.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 
-	tick, err := i.GetTicker(fpair.String())
+	tick, err := i.GetTicker(ctx, fpair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -176,25 +177,25 @@ func (i *ItBit) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, erro
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (i *ItBit) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (i *ItBit) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(i.Name, p, assetType)
 	if err != nil {
-		return i.UpdateTicker(p, assetType)
+		return i.UpdateTicker(ctx, p, assetType)
 	}
 	return tickerNew, nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (i *ItBit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (i *ItBit) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(i.Name, p, assetType)
 	if err != nil {
-		return i.UpdateOrderbook(p, assetType)
+		return i.UpdateOrderbook(ctx, p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
 		Exchange:         i.Name,
 		Pair:             p,
@@ -207,7 +208,7 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 		return book, err
 	}
 
-	orderbookNew, err := i.GetOrderbook(fpair.String())
+	orderbookNew, err := i.GetOrderbook(ctx, fpair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -253,11 +254,11 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (i *ItBit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	info.Exchange = i.Name
 
-	wallets, err := i.GetWallets(url.Values{})
+	wallets, err := i.GetWallets(ctx, url.Values{})
 	if err != nil {
 		return info, err
 	}
@@ -302,10 +303,10 @@ func (i *ItBit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (i *ItBit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(i.Name, assetType)
 	if err != nil {
-		return i.UpdateAccountInfo(assetType)
+		return i.UpdateAccountInfo(ctx, assetType)
 	}
 
 	return acc, nil
@@ -313,24 +314,24 @@ func (i *ItBit) FetchAccountInfo(assetType asset.Item) (account.Holdings, error)
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (i *ItBit) GetFundingHistory() ([]exchange.FundHistory, error) {
+func (i *ItBit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (i *ItBit) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (i *ItBit) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (i *ItBit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (i *ItBit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = i.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 	var tradeData Trades
-	tradeData, err = i.GetTradeHistory(p.String(), "")
+	tradeData, err = i.GetTradeHistory(ctx, p.String(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -357,20 +358,20 @@ func (i *ItBit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (i *ItBit) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (i *ItBit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	// cannot do time based retrieval of trade data
 	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
-func (i *ItBit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
 	var wallet string
-	wallets, err := i.GetWallets(url.Values{})
+	wallets, err := i.GetWallets(ctx, url.Values{})
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -397,7 +398,8 @@ func (i *ItBit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-	response, err := i.PlaceOrder(wallet,
+	response, err := i.PlaceOrder(ctx,
+		wallet,
 		s.Side.String(),
 		s.Type.String(),
 		fPair.Base.String(),
@@ -421,38 +423,45 @@ func (i *ItBit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (i *ItBit) ModifyOrder(action *order.Modify) (order.Modify, error) {
+func (i *ItBit) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
 	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (i *ItBit) CancelOrder(o *order.Cancel) error {
+func (i *ItBit) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	return i.CancelExistingOrder(o.WalletAddress, o.ID)
+	return i.CancelExistingOrder(ctx, o.WalletAddress, o.ID)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (i *ItBit) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+func (i *ItBit) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (i *ItBit) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (i *ItBit) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	openOrders, err := i.GetOrders(orderCancellation.WalletAddress, "", "open", 0, 0)
+	openOrders, err := i.GetOrders(ctx,
+		orderCancellation.WalletAddress,
+		"",
+		"open",
+		0,
+		0)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
 	for j := range openOrders {
-		err = i.CancelExistingOrder(orderCancellation.WalletAddress, openOrders[j].ID)
+		err = i.CancelExistingOrder(ctx,
+			orderCancellation.WalletAddress,
+			openOrders[j].ID)
 		if err != nil {
 			cancelAllOrdersResponse.Status[openOrders[j].ID] = err.Error()
 		}
@@ -462,7 +471,7 @@ func (i *ItBit) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 }
 
 // GetOrderInfo returns order information based on order ID
-func (i *ItBit) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (i *ItBit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
@@ -471,30 +480,30 @@ func (i *ItBit) GetOrderInfo(orderID string, pair currency.Pair, assetType asset
 // NOTE: This has not been implemented due to the fact you need to generate a
 // a specific wallet ID and they restrict the amount of deposit address you can
 // request limiting them to 2.
-func (i *ItBit) GetDepositAddress(_ currency.Code, _ string) (string, error) {
+func (i *ItBit) GetDepositAddress(_ context.Context, _ currency.Code, _ string) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (i *ItBit) WithdrawCryptocurrencyFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (i *ItBit) WithdrawCryptocurrencyFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (i *ItBit) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (i *ItBit) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (i *ItBit) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (i *ItBit) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (i *ItBit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (i *ItBit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !i.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
@@ -503,11 +512,11 @@ func (i *ItBit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	wallets, err := i.GetWallets(url.Values{})
+	wallets, err := i.GetWallets(ctx, url.Values{})
 	if err != nil {
 		return nil, err
 	}
@@ -515,7 +524,7 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 	var allOrders []Order
 	for x := range wallets {
 		var resp []Order
-		resp, err = i.GetOrders(wallets[x].ID, "", "open", 0, 0)
+		resp, err = i.GetOrders(ctx, wallets[x].ID, "", "open", 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -566,12 +575,12 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 
-	wallets, err := i.GetWallets(url.Values{})
+	wallets, err := i.GetWallets(ctx, url.Values{})
 	if err != nil {
 		return nil, err
 	}
@@ -579,7 +588,7 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 	var allOrders []Order
 	for x := range wallets {
 		var resp []Order
-		resp, err = i.GetOrders(wallets[x].ID, "", "", 0, 0)
+		resp, err = i.GetOrders(ctx, wallets[x].ID, "", "", 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -634,17 +643,17 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (i *ItBit) ValidateCredentials(assetType asset.Item) error {
-	_, err := i.UpdateAccountInfo(assetType)
+func (i *ItBit) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := i.UpdateAccountInfo(ctx, assetType)
 	return i.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (i *ItBit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (i *ItBit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (i *ItBit) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (i *ItBit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }

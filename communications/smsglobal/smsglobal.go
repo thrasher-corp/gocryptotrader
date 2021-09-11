@@ -2,6 +2,7 @@
 package smsglobal
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"net/http"
@@ -179,15 +180,17 @@ func (s *SMSGlobal) SendMessage(to, message string) error {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := common.SendHTTPRequest(http.MethodPost,
+	resp, err := common.SendHTTPRequest(context.TODO(),
+		http.MethodPost,
 		smsGlobalAPIURL,
 		headers,
-		strings.NewReader(values.Encode()))
+		strings.NewReader(values.Encode()),
+		s.Verbose)
 	if err != nil {
 		return err
 	}
 
-	if !strings.Contains(resp, "OK: 0; Sent queued message") {
+	if !strings.Contains(string(resp), "OK: 0; Sent queued message") {
 		return errSMSNotSent
 	}
 	return nil

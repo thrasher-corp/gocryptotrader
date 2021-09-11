@@ -73,75 +73,75 @@ type Bitflyer struct {
 
 // GetLatestBlockCA returns the latest block information from bitflyer chain
 // analysis system
-func (b *Bitflyer) GetLatestBlockCA() (ChainAnalysisBlock, error) {
+func (b *Bitflyer) GetLatestBlockCA(ctx context.Context) (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	return resp, b.SendHTTPRequest(exchange.ChainAnalysis, latestBlock, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.ChainAnalysis, latestBlock, &resp)
 }
 
 // GetBlockCA returns block information by blockhash from bitflyer chain
 // analysis system
-func (b *Bitflyer) GetBlockCA(blockhash string) (ChainAnalysisBlock, error) {
+func (b *Bitflyer) GetBlockCA(ctx context.Context, blockhash string) (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	return resp, b.SendHTTPRequest(exchange.ChainAnalysis, blockByBlockHash+blockhash, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.ChainAnalysis, blockByBlockHash+blockhash, &resp)
 }
 
 // GetBlockbyHeightCA returns the block information by height from bitflyer chain
 // analysis system
-func (b *Bitflyer) GetBlockbyHeightCA(height int64) (ChainAnalysisBlock, error) {
+func (b *Bitflyer) GetBlockbyHeightCA(ctx context.Context, height int64) (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	return resp, b.SendHTTPRequest(exchange.ChainAnalysis, blockByBlockHeight+strconv.FormatInt(height, 10), &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.ChainAnalysis, blockByBlockHeight+strconv.FormatInt(height, 10), &resp)
 }
 
 // GetTransactionByHashCA returns transaction information by txHash from
 // bitflyer chain analysis system
-func (b *Bitflyer) GetTransactionByHashCA(txHash string) (ChainAnalysisTransaction, error) {
+func (b *Bitflyer) GetTransactionByHashCA(ctx context.Context, txHash string) (ChainAnalysisTransaction, error) {
 	var resp ChainAnalysisTransaction
-	return resp, b.SendHTTPRequest(exchange.ChainAnalysis, transaction+txHash, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.ChainAnalysis, transaction+txHash, &resp)
 }
 
 // GetAddressInfoCA returns balance information for address by addressln string
 // from bitflyer chain analysis system
-func (b *Bitflyer) GetAddressInfoCA(addressln string) (ChainAnalysisAddress, error) {
+func (b *Bitflyer) GetAddressInfoCA(ctx context.Context, addressln string) (ChainAnalysisAddress, error) {
 	var resp ChainAnalysisAddress
-	return resp, b.SendHTTPRequest(exchange.ChainAnalysis, address+addressln, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.ChainAnalysis, address+addressln, &resp)
 }
 
 // GetMarkets returns market information
-func (b *Bitflyer) GetMarkets() ([]MarketInfo, error) {
+func (b *Bitflyer) GetMarkets(ctx context.Context) ([]MarketInfo, error) {
 	var resp []MarketInfo
-	return resp, b.SendHTTPRequest(exchange.RestSpot, pubGetMarkets, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, pubGetMarkets, &resp)
 }
 
 // GetOrderBook returns market orderbook depth
-func (b *Bitflyer) GetOrderBook(symbol string) (Orderbook, error) {
+func (b *Bitflyer) GetOrderBook(ctx context.Context, symbol string) (Orderbook, error) {
 	var resp Orderbook
 	v := url.Values{}
 	v.Set("product_code", symbol)
 
-	return resp, b.SendHTTPRequest(exchange.RestSpot, pubGetBoard+"?"+v.Encode(), &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, pubGetBoard+"?"+v.Encode(), &resp)
 }
 
 // GetTicker returns ticker information
-func (b *Bitflyer) GetTicker(symbol string) (Ticker, error) {
+func (b *Bitflyer) GetTicker(ctx context.Context, symbol string) (Ticker, error) {
 	var resp Ticker
 	v := url.Values{}
 	v.Set("product_code", symbol)
-	return resp, b.SendHTTPRequest(exchange.RestSpot, pubGetTicker+"?"+v.Encode(), &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, pubGetTicker+"?"+v.Encode(), &resp)
 }
 
 // GetExecutionHistory returns past trades that were executed on the market
-func (b *Bitflyer) GetExecutionHistory(symbol string) ([]ExecutedTrade, error) {
+func (b *Bitflyer) GetExecutionHistory(ctx context.Context, symbol string) ([]ExecutedTrade, error) {
 	var resp []ExecutedTrade
 	v := url.Values{}
 	v.Set("product_code", symbol)
 
-	return resp, b.SendHTTPRequest(exchange.RestSpot, pubGetExecutionHistory+"?"+v.Encode(), &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, pubGetExecutionHistory+"?"+v.Encode(), &resp)
 }
 
 // GetExchangeStatus returns exchange status information
-func (b *Bitflyer) GetExchangeStatus() (string, error) {
+func (b *Bitflyer) GetExchangeStatus(ctx context.Context) (string, error) {
 	resp := make(map[string]string)
-	err := b.SendHTTPRequest(exchange.RestSpot, pubGetHealth, &resp)
+	err := b.SendHTTPRequest(ctx, exchange.RestSpot, pubGetHealth, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -162,11 +162,11 @@ func (b *Bitflyer) GetExchangeStatus() (string, error) {
 
 // GetChats returns trollbox chat log
 // Note: returns vary from instant to infinty
-func (b *Bitflyer) GetChats(fromDate string) ([]ChatLog, error) {
+func (b *Bitflyer) GetChats(ctx context.Context, fromDate string) ([]ChatLog, error) {
 	var resp []ChatLog
 	v := url.Values{}
 	v.Set("from_date", fromDate)
-	return resp, b.SendHTTPRequest(exchange.RestSpot, pubGetChats+"?"+v.Encode(), &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, pubGetChats+"?"+v.Encode(), &resp)
 }
 
 // GetPermissions returns current permissions for associated with your API
@@ -286,7 +286,7 @@ func (b *Bitflyer) GetTradingCommission() {
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (b *Bitflyer) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
+func (b *Bitflyer) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -299,7 +299,7 @@ func (b *Bitflyer) SendHTTPRequest(ep exchange.URL, path string, result interfac
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 	}
-	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
 	})
 }
