@@ -532,7 +532,7 @@ func TestGetTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = k.GetTrades(cp)
+	_, err = k.GetTrades(context.Background(), cp)
 	if err == nil {
 		t.Error("GetTrades() error: expecting error")
 	}
