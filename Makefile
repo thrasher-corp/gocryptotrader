@@ -30,6 +30,14 @@ else
 	go test $(RACE_FLAG) -coverprofile=coverage.txt -covermode=atomic  ./...
 endif
 
+# This check happens after the test, this is so no irregularities can slip 
+# through before a merge occurs.
+ifeq (git merge-base --is-ancestor master HEAD)
+
+else 
+	$(error A merge or rebase is required on your current branch.)
+endif
+	
 build:
 	GO111MODULE=on go build $(LDFLAGS)
 
