@@ -1,6 +1,7 @@
 package alphapoint
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"time"
@@ -77,22 +78,22 @@ func (a *Alphapoint) SetDefaults() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (a *Alphapoint) FetchTradablePairs(asset asset.Item) ([]string, error) {
+func (a *Alphapoint) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (a *Alphapoint) UpdateTradablePairs(forceUpdate bool) error {
+func (a *Alphapoint) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = a.Name
-	acc, err := a.GetAccountInformation()
+	acc, err := a.GetAccountInformation(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -121,10 +122,10 @@ func (a *Alphapoint) UpdateAccountInfo(assetType asset.Item) (account.Holdings, 
 
 // FetchAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (a *Alphapoint) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(a.Name, assetType)
 	if err != nil {
-		return a.UpdateAccountInfo(assetType)
+		return a.UpdateAccountInfo(ctx, assetType)
 	}
 
 	return acc, nil
@@ -136,8 +137,8 @@ func (a *Alphapoint) UpdateTickers(assetType asset.Item) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := a.GetTicker(p.String())
+func (a *Alphapoint) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tick, err := a.GetTicker(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
@@ -161,18 +162,18 @@ func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticke
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (a *Alphapoint) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (a *Alphapoint) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := ticker.GetTicker(a.Name, p, assetType)
 	if err != nil {
-		return a.UpdateTicker(p, assetType)
+		return a.UpdateTicker(ctx, p, assetType)
 	}
 	return tick, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-	orderbookNew, err := a.GetOrderbook(p.String())
+	orderbookNew, err := a.GetOrderbook(ctx, p.String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -204,23 +205,23 @@ func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (a *Alphapoint) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (a *Alphapoint) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(a.Name, p, assetType)
 	if err != nil {
-		return a.UpdateOrderbook(p, assetType)
+		return a.UpdateOrderbook(ctx, p, assetType)
 	}
 	return ob, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
+func (a *Alphapoint) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	// https://alphapoint.github.io/slate/#generatetreasuryactivityreport
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (a *Alphapoint) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (a *Alphapoint) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -230,13 +231,13 @@ func (a *Alphapoint) GetRecentTrades(_ currency.Pair, _ asset.Item) ([]trade.Dat
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (a *Alphapoint) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (a *Alphapoint) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
-func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
@@ -247,7 +248,8 @@ func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 		return submitOrderResponse, err
 	}
 
-	response, err := a.CreateOrder(fPair.String(),
+	response, err := a.CreateOrder(ctx,
+		fPair.String(),
 		s.Side.String(),
 		s.Type.String(),
 		s.Amount,
@@ -273,7 +275,7 @@ func (a *Alphapoint) ModifyOrder(_ *order.Modify) (order.Modify, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (a *Alphapoint) CancelOrder(o *order.Cancel) error {
+func (a *Alphapoint) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
@@ -281,27 +283,27 @@ func (a *Alphapoint) CancelOrder(o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = a.CancelExistingOrder(orderIDInt, o.AccountID)
+	_, err = a.CancelExistingOrder(ctx, orderIDInt, o.AccountID)
 	return err
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (a *Alphapoint) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+func (a *Alphapoint) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders for a given account
-func (a *Alphapoint) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (a *Alphapoint) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	return order.CancelAllResponse{},
-		a.CancelAllExistingOrders(orderCancellation.AccountID)
+		a.CancelAllExistingOrders(ctx, orderCancellation.AccountID)
 }
 
 // GetOrderInfo returns order information based on order ID
-func (a *Alphapoint) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (float64, error) {
-	orders, err := a.GetOrders()
+func (a *Alphapoint) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (float64, error) {
+	orders, err := a.GetOrders(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -317,8 +319,8 @@ func (a *Alphapoint) GetOrderInfo(orderID string, pair currency.Pair, assetType 
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (a *Alphapoint) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
-	addreses, err := a.GetDepositAddresses()
+func (a *Alphapoint) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
+	addreses, err := a.GetDepositAddresses(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -333,12 +335,12 @@ func (a *Alphapoint) GetDepositAddress(cryptocurrency currency.Code, _ string) (
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *Alphapoint) WithdrawCryptocurrencyFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (a *Alphapoint) WithdrawCryptocurrencyFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
-func (a *Alphapoint) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (a *Alphapoint) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -355,11 +357,11 @@ func (a *Alphapoint) GetFeeByType(_ *exchange.FeeBuilder) (float64, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (a *Alphapoint) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := a.GetOrders()
+	resp, err := a.GetOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -400,12 +402,12 @@ func (a *Alphapoint) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 
-	resp, err := a.GetOrders()
+	resp, err := a.GetOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -445,7 +447,7 @@ func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (a *Alphapoint) ValidateCredentials(assetType asset.Item) error {
-	_, err := a.UpdateAccountInfo(assetType)
+func (a *Alphapoint) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := a.UpdateAccountInfo(ctx, assetType)
 	return a.CheckTransientError(err)
 }

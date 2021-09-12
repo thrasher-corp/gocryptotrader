@@ -23,14 +23,14 @@ Candle retrieval is handled by two methods
 
 GetHistoricCandles which makes a single request to the exchange and follows all exchange limitations
 ```go
-func (b *base) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (b *base) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
 ```
 
 GetHistoricCandlesExtended that will make multiple requests to an exchange if the requested periods are outside exchange limits
 ```go
-func (b *base) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (b *base) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
 ```

@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
+
+	"google.golang.org/grpc"
 )
 
 func clearScreen() error {
@@ -16,5 +20,15 @@ func clearScreen() error {
 		cmd := exec.Command("clear")
 		cmd.Stdout = os.Stdout
 		return cmd.Run()
+	}
+}
+
+func closeConn(conn *grpc.ClientConn, cancel context.CancelFunc) {
+	err := conn.Close()
+	if err != nil {
+		fmt.Println(err)
+	}
+	if cancel != nil {
+		cancel()
 	}
 }

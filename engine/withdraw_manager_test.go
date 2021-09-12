@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -69,7 +70,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 			Bank: bank,
 		},
 	}
-	_, err = m.SubmitWithdrawal(req)
+	_, err = m.SubmitWithdrawal(context.Background(), req)
 	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Errorf("received %v, expected %v", err, common.ErrFunctionNotSupported)
 	}
@@ -77,7 +78,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 	req.Type = withdraw.Crypto
 	req.Currency = currency.BTC
 	req.Crypto.Address = "1337"
-	_, err = m.SubmitWithdrawal(req)
+	_, err = m.SubmitWithdrawal(context.Background(), req)
 	if !errors.Is(err, withdraw.ErrStrAddressNotWhiteListed) {
 		t.Errorf("received %v, expected %v", err, withdraw.ErrStrAddressNotWhiteListed)
 	}
@@ -95,24 +96,24 @@ func TestSubmitWithdrawal(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
-	_, err = m.SubmitWithdrawal(req)
+	_, err = m.SubmitWithdrawal(context.Background(), req)
 	if !errors.Is(err, withdraw.ErrStrExchangeNotSupportedByAddress) {
 		t.Errorf("received %v, expected %v", err, withdraw.ErrStrExchangeNotSupportedByAddress)
 	}
 
 	adds[0].SupportedExchanges = exchangeName
-	_, err = m.SubmitWithdrawal(req)
+	_, err = m.SubmitWithdrawal(context.Background(), req)
 	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
 		t.Errorf("received %v, expected %v", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
-	_, err = m.SubmitWithdrawal(nil)
+	_, err = m.SubmitWithdrawal(context.Background(), nil)
 	if !errors.Is(err, withdraw.ErrRequestCannotBeNil) {
 		t.Errorf("received %v, expected %v", err, withdraw.ErrRequestCannotBeNil)
 	}
 
 	m.isDryRun = true
-	_, err = m.SubmitWithdrawal(req)
+	_, err = m.SubmitWithdrawal(context.Background(), req)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}

@@ -28,6 +28,7 @@ var (
 	errInvalidPath            = errors.New("invalid path")
 	errHeaderResponseMapIsNil = errors.New("header response map is nil")
 	errFailedToRetryRequest   = errors.New("failed to retry request")
+	errContextRequired        = errors.New("context is required")
 )
 
 // New returns a new Requester
@@ -52,6 +53,10 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) *Requ
 func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate) error {
 	if r == nil {
 		return errRequestSystemIsNil
+	}
+
+	if ctx == nil {
+		return errContextRequired
 	}
 
 	defer r.timedLock.UnlockIfLocked()

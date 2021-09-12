@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -542,22 +543,22 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
-func (bot *Engine) GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
+func (bot *Engine) GetSpecificOrderbook(ctx context.Context, p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
 	exch, err := bot.GetExchangeByName(exchangeName)
 	if err != nil {
 		return nil, err
 	}
-	return exch.FetchOrderbook(p, assetType)
+	return exch.FetchOrderbook(ctx, p, assetType)
 }
 
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
-func (bot *Engine) GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
+func (bot *Engine) GetSpecificTicker(ctx context.Context, p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
 	exch, err := bot.GetExchangeByName(exchangeName)
 	if err != nil {
 		return nil, err
 	}
-	return exch.FetchTicker(p, assetType)
+	return exch.FetchTicker(ctx, p, assetType)
 }
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
@@ -668,7 +669,7 @@ func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) 
 
 // GetExchangeCryptocurrencyDepositAddress returns the cryptocurrency deposit address for a particular
 // exchange
-func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(exchName, accountID string, item currency.Code) (string, error) {
+func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, exchName, accountID string, item currency.Code) (string, error) {
 	if bot.DepositAddressManager != nil {
 		return bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, item)
 	}
@@ -677,7 +678,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(exchName, accountID s
 	if err != nil {
 		return "", err
 	}
-	return exch.GetDepositAddress(item, accountID)
+	return exch.GetDepositAddress(ctx, item, accountID)
 }
 
 // GetExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
@@ -702,7 +703,9 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 		cryptoAddr := make(map[string]string)
 		for y := range cryptoCurrencies {
 			cryptocurrency := cryptoCurrencies[y]
-			depositAddr, err := exchanges[x].GetDepositAddress(currency.NewCode(cryptocurrency), "")
+			depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(),
+				currency.NewCode(cryptocurrency),
+				"")
 			if err != nil {
 				log.Errorf(log.Global, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
 				continue
@@ -727,7 +730,7 @@ func (bot *Engine) GetExchangeNames(enabledOnly bool) []string {
 }
 
 // GetAllActiveTickers returns all enabled exchange tickers
-func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
+func (bot *Engine) GetAllActiveTickers(ctx context.Context) []EnabledExchangeCurrencies {
 	var tickerData []EnabledExchangeCurrencies
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
@@ -746,7 +749,7 @@ func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
 				continue
 			}
 			for z := range currencies {
-				tp, err := exchanges[x].FetchTicker(currencies[z], assets[y])
+				tp, err := exchanges[x].FetchTicker(ctx, currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),

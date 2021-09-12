@@ -1,6 +1,7 @@
 package bittrex
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -110,8 +111,8 @@ func (b *Bittrex) UpdateLocalOBBuffer(update *OrderbookUpdateMessage) (bool, err
 }
 
 // SeedLocalOBCache seeds depth data
-func (b *Bittrex) SeedLocalOBCache(p currency.Pair) error {
-	ob, sequence, err := b.GetOrderbook(p.String(), orderbookDepth)
+func (b *Bittrex) SeedLocalOBCache(ctx context.Context, p currency.Pair) error {
+	ob, sequence, err := b.GetOrderbook(ctx, p.String(), orderbookDepth)
 	if err != nil {
 		return err
 	}
@@ -215,7 +216,7 @@ func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 
 // processJob fetches and processes orderbook updates
 func (b *Bittrex) processJob(p currency.Pair) error {
-	err := b.SeedLocalOBCache(p)
+	err := b.SeedLocalOBCache(context.TODO(), p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)
