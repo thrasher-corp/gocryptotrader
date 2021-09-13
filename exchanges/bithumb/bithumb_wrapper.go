@@ -894,8 +894,8 @@ func (b *Bithumb) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) 
 }
 
 // UpdateCurrencyStates updates currency states for exchange
-func (b *Bithumb) UpdateCurrencyStates(a asset.Item) error {
-	status, err := b.GetAssetStatusAll()
+func (b *Bithumb) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
+	status, err := b.GetAssetStatusAll(ctx)
 	if err != nil {
 		return err
 	}

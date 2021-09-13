@@ -91,7 +91,7 @@ type IBotExchange interface {
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 
-	UpdateCurrencyStates(a asset.Item) error
+	UpdateCurrencyStates(ctx context.Context, a asset.Item) error
 	CanTrade(c currency.Code, a asset.Item) error
 	CanWithdraw(c currency.Code, a asset.Item) error
 	CanDeposit(c currency.Code, a asset.Item) error

@@ -1390,6 +1390,6 @@ func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool
 }
 
 // UpdateCurrencyStates updates currency states
-func (b *Base) UpdateCurrencyStates(a asset.Item) error {
+func (b *Base) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
 	return common.ErrNotYetImplemented
 }

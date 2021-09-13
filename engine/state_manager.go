@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -123,7 +124,7 @@ func (s *stateManager) monitor() {
 func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.Items) {
 	defer wg.Done()
 	for y := range enabledAssets {
-		err := exch.UpdateCurrencyStates(enabledAssets[y])
+		err := exch.UpdateCurrencyStates(context.TODO(), enabledAssets[y])
 		if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
 			log.Errorf(log.ExchangeSys, "%s %s %s: %v",
 				StateManagement,
