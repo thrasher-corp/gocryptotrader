@@ -22,6 +22,7 @@
    "asset": "spot",
    "base": "BTC",
    "quote": "USDT",
+   "initial-funds": "0",
    "leverage": {
     "can-use-leverage": false,
     "maximum-orders-with-leverage-ratio": "0",
@@ -49,6 +50,7 @@
    "asset": "spot",
    "base": "ETH",
    "quote": "USDT",
+   "initial-funds": "0",
    "leverage": {
     "can-use-leverage": false,
     "maximum-orders-with-leverage-ratio": "0",

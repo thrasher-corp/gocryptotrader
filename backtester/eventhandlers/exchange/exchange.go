@@ -281,7 +281,7 @@ func (e *Exchange) sizeOfflineOrder(high, low, volume decimal.Decimal, cs *Setti
 	// provide history and estimate volatility
 	slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
 	f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
-	if adjustedAmount != f.Amount {
+	if !adjustedAmount.Equal(f.Amount) {
 		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to fit candle", f.Amount, adjustedAmount))
 	}
 

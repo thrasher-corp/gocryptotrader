@@ -1,16 +1,16 @@
-# GoCryptoTrader Backtester: Rsi package
+# GoCryptoTrader Backtester: Top2bottom2 package
 
 <img src="/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/rsi)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/top2bottom2)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This rsi package is part of the GoCryptoTrader codebase.
+This top2bottom2 package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,17 +18,20 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Rsi package overview
+## Top 2 Bottom 2 package overview
 
-The RSI strategy utilises [the gct-ta RSI package](https://github.com/thrasher-corp/gct-ta) to analyse market signals and output buy or sell signals based on the RSI output.
-This strategy does support `SimultaneousSignalProcessing` aka [use-simultaneous-signal-processing](/backtester/config/README.md).
+The Top 2 Bottom 2 (T2B2) strategy utilises [the gct-ta MFI package](https://github.com/thrasher-corp/gct-ta) to analyse market signals and selects the top and bottom two currencies based on MFI value.
+It is a basic example strategy to highlight how the backtester can perform more complex data event signal processing
+
+This strategy *requires* at least 4 exchange currency settings to determine the 4 signals to process
+This strategy *requires* `SimultaneousSignalProcessing` aka [use-simultaneous-signal-processing](/backtester/config/README.md).
 This strategy does support strategy customisation in the following ways:
 
 | Field | Description |  Example |
 | --- | ------- | --- |
-|rsi-high| The upper bounds of RSI that when met, will trigger a Sell signal | 70 |
-|rsi-low| The lower bounds of RSI that when met, will trigger a Buy signal | 30 |
-|rsi-period| The consecutive candle periods used in order to generate a value. All values less than this number cannot output a buy or sell signal | 14 |
+|mfi-high| The upper bounds of MFI that when met, will trigger a Sell signal | 70 |
+|mfi-low| The lower bounds of MFI that when met, will trigger a Buy signal | 30 |
+|mfi-period| The consecutive candle periods used in order to generate a value. All values less than this number cannot output a buy or sell signal | 14 |
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

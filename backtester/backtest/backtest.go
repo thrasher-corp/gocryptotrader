@@ -181,19 +181,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
 				err)
 		}
-		var exch gctexchange.IBotExchange
-		exch, err = bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
-		if err != nil {
-			return nil, fmt.Errorf("could not get exchange by name %w", err)
-		}
-		b := exch.GetBase()
-		var pFmt currency.PairFormat
-		pFmt, err = b.GetPairFormat(a, true)
-		if err != nil {
-			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
-		}
-		curr = curr.Format(pFmt.Delimiter, pFmt.Uppercase)
-
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = &risk.CurrencySettings{
 			MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
 			MaxLeverageRate:                cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
@@ -501,24 +488,24 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 // getFees will return an exchange's fee rate from GCT's wrapper function
 func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee decimal.Decimal) {
 	fTakerFee, err := exch.GetFeeByType(ctx,
-		&gctexchange.FeeBuilder{		FeeType:       gctexchange.OfflineTradeFee,
-		Pair:          fPair,
-		IsMaker:       false,
-		PurchasePrice: 1,
-		Amount:        1,
-	})
+		&gctexchange.FeeBuilder{FeeType: gctexchange.OfflineTradeFee,
+			Pair:          fPair,
+			IsMaker:       false,
+			PurchasePrice: 1,
+			Amount:        1,
+		})
 	if err != nil {
 		log.Errorf(log.BackTester, "Could not retrieve taker fee for %v. %v", exch.GetName(), err)
 	}
 
 	fMakerFee, err := exch.GetFeeByType(ctx,
 		&gctexchange.FeeBuilder{
-		FeeType:       gctexchange.OfflineTradeFee,
-		Pair:          fPair,
-		IsMaker:       true,
-		PurchasePrice: 1,
-		Amount:        1,
-	})
+			FeeType:       gctexchange.OfflineTradeFee,
+			Pair:          fPair,
+			IsMaker:       true,
+			PurchasePrice: 1,
+			Amount:        1,
+		})
 	if err != nil {
 		log.Errorf(log.BackTester, "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
 	}

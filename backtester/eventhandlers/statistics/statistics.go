@@ -264,28 +264,6 @@ func (s *Statistic) PrintTotalResults() {
 		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement.Round(2))
 		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement.Round(2))
 	}
-	quoteCurrs := make(map[currency.Code]bool)
-	totalCurrs := 0
-	for _, ex := range s.ExchangeAssetPairStatistics {
-		for _, as := range ex {
-			for pair, _ := range as {
-				quoteCurrs[pair.Quote] = true
-				totalCurrs++
-			}
-		}
-	}
-	if len(quoteCurrs) == 1 || totalCurrs != 1 {
-
-		// now we know quote currency is shared and can create the GRAND TOTAL
-		for _, ex := range s.ExchangeAssetPairStatistics {
-			for _, as := range ex {
-				for _, stats := range as {
-					s.GrantTotalValue = s.GrantTotalValue.Add(stats.Events[len(stats.Events)-1].Holdings.TotalValue)
-				}
-			}
-		}
-	}
-	log.Debugf(log.BackTester, "\n\n%v\n\n", s.GrantTotalValue)
 }
 
 // GetBestMarketPerformer returns the best final market movement

@@ -70,18 +70,18 @@ type mfiFundEvent struct {
 }
 
 // ByPrice used for sorting orders by order date
-type byPrice []mfiFundEvent
+type byMFI []mfiFundEvent
 
-func (b byPrice) Len() int           { return len(b) }
-func (b byPrice) Less(i, j int) bool { return b[i].mfi.LessThan(b[j].mfi) }
-func (b byPrice) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b byMFI) Len() int           { return len(b) }
+func (b byMFI) Less(i, j int) bool { return b[i].mfi.LessThan(b[j].mfi) }
+func (b byMFI) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 
 // sortOrdersByPrice the caller function to sort orders
-func sortByMFI(o []mfiFundEvent, reverse bool) {
+func sortByMFI(o *[]mfiFundEvent, reverse bool) {
 	if reverse {
-		sort.Sort(sort.Reverse(byPrice(o)))
+		sort.Sort(sort.Reverse(byMFI(*o)))
 	} else {
-		sort.Sort(byPrice(o))
+		sort.Sort(byMFI(*o))
 	}
 }
 
@@ -155,10 +155,14 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		})
 	}
 
+	return s.selectTopAndBottomPerformers(mfiFundEvents, resp)
+}
+
+func (s *Strategy) selectTopAndBottomPerformers(mfiFundEvents []mfiFundEvent, resp []signal.Event) ([]signal.Event, error) {
 	if len(mfiFundEvents) == 0 {
-		return resp, nil
+		return nil, nil
 	}
-	sortByMFI(mfiFundEvents, true)
+	sortByMFI(&mfiFundEvents, true)
 	buyingOrSelling := false
 	for i := range mfiFundEvents {
 		if i < 2 && mfiFundEvents[i].mfi.GreaterThanOrEqual(s.mfiHigh) {
@@ -168,7 +172,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 			break
 		}
 	}
-	sortByMFI(mfiFundEvents, false)
+	sortByMFI(&mfiFundEvents, false)
 	for i := range mfiFundEvents {
 		if i < 2 && mfiFundEvents[i].mfi.LessThanOrEqual(s.mfiLow) {
 			mfiFundEvents[i].event.SetDirection(order.Buy)
