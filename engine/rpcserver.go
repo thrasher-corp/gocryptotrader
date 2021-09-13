@@ -3886,3 +3886,69 @@ func (s *RPCServer) UpdateDataHistoryJobPrerequisite(_ context.Context, r *gctrp
 	}
 	return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Set job '%v' prerequisite job to '%v' and set status to paused", r.Nickname, r.PrerequisiteJobNickname)}, nil
 }
+
+func (s *RPCServer) StateGetAll(_ context.Context, r *gctrpc.StateGetAllRequest) (*gctrpc.StateResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	sh, err := exch.GetBase().States.GetSnapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	var resp = &gctrpc.StateResponse{}
+	for x := range sh {
+		resp.States = append(resp.States, &gctrpc.State{
+			Currency:        sh[x].Code.String(),
+			Asset:           sh[x].Asset.String(),
+			WithdrawEnabled: *sh[x].Withdraw,
+			DepositEnabled:  *sh[x].Deposit,
+			TradingEnabled:  *sh[x].Trade,
+		})
+	}
+	return resp, nil
+}
+
+func (s *RPCServer) StateWithdraw(_ context.Context, r *gctrpc.StateWithdrawRequest) (*gctrpc.GenericResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.GetBase().States.CanWithdraw(currency.NewCode(r.Code),
+		asset.Item(r.Asset))
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: "enabled"}, nil
+}
+
+func (s *RPCServer) StateDeposit(_ context.Context, r *gctrpc.StateDepositRequest) (*gctrpc.GenericResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.GetBase().States.CanDeposit(currency.NewCode(r.Code),
+		asset.Item(r.Asset))
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: "enabled"}, nil
+}
+
+func (s *RPCServer) StateTrading(_ context.Context, r *gctrpc.StateTradingRequest) (*gctrpc.GenericResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.GetBase().States.CanTrade(currency.NewCode(r.Code),
+		asset.Item(r.Asset))
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: "enabled"}, nil
+}

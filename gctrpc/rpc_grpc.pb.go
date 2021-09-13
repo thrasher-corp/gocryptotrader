@@ -106,6 +106,10 @@ type GoCryptoTraderClient interface {
 	UpdateDataHistoryJobPrerequisite(ctx context.Context, in *UpdateDataHistoryJobPrerequisiteRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetManagedOrders(ctx context.Context, in *GetOrdersRequest, opts ...grpc.CallOption) (*GetOrdersResponse, error)
 	ModifyOrder(ctx context.Context, in *ModifyOrderRequest, opts ...grpc.CallOption) (*ModifyOrderResponse, error)
+	StateGetAll(ctx context.Context, in *StateGetAllRequest, opts ...grpc.CallOption) (*StateResponse, error)
+	StateTrading(ctx context.Context, in *StateTradingRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	StateDeposit(ctx context.Context, in *StateDepositRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	StateWithdraw(ctx context.Context, in *StateWithdrawRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 }
 
 type goCryptoTraderClient struct {
@@ -1046,6 +1050,42 @@ func (c *goCryptoTraderClient) ModifyOrder(ctx context.Context, in *ModifyOrderR
 	return out, nil
 }
 
+func (c *goCryptoTraderClient) StateGetAll(ctx context.Context, in *StateGetAllRequest, opts ...grpc.CallOption) (*StateResponse, error) {
+	out := new(StateResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/StateGetAll", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) StateTrading(ctx context.Context, in *StateTradingRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/StateTrading", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) StateDeposit(ctx context.Context, in *StateDepositRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/StateDeposit", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) StateWithdraw(ctx context.Context, in *StateWithdrawRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/StateWithdraw", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServer is the server API for GoCryptoTrader service.
 // All implementations must embed UnimplementedGoCryptoTraderServer
 // for forward compatibility
@@ -1138,6 +1178,10 @@ type GoCryptoTraderServer interface {
 	UpdateDataHistoryJobPrerequisite(context.Context, *UpdateDataHistoryJobPrerequisiteRequest) (*GenericResponse, error)
 	GetManagedOrders(context.Context, *GetOrdersRequest) (*GetOrdersResponse, error)
 	ModifyOrder(context.Context, *ModifyOrderRequest) (*ModifyOrderResponse, error)
+	StateGetAll(context.Context, *StateGetAllRequest) (*StateResponse, error)
+	StateTrading(context.Context, *StateTradingRequest) (*GenericResponse, error)
+	StateDeposit(context.Context, *StateDepositRequest) (*GenericResponse, error)
+	StateWithdraw(context.Context, *StateWithdrawRequest) (*GenericResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
@@ -1408,6 +1452,18 @@ func (UnimplementedGoCryptoTraderServer) GetManagedOrders(context.Context, *GetO
 }
 func (UnimplementedGoCryptoTraderServer) ModifyOrder(context.Context, *ModifyOrderRequest) (*ModifyOrderResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ModifyOrder not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) StateGetAll(context.Context, *StateGetAllRequest) (*StateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StateGetAll not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) StateTrading(context.Context, *StateTradingRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StateTrading not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) StateDeposit(context.Context, *StateDepositRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StateDeposit not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) StateWithdraw(context.Context, *StateWithdrawRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StateWithdraw not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) mustEmbedUnimplementedGoCryptoTraderServer() {}
 
@@ -3024,6 +3080,78 @@ func _GoCryptoTrader_ModifyOrder_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTrader_StateGetAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StateGetAllRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).StateGetAll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/StateGetAll",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).StateGetAll(ctx, req.(*StateGetAllRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_StateTrading_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StateTradingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).StateTrading(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/StateTrading",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).StateTrading(ctx, req.(*StateTradingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_StateDeposit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StateDepositRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).StateDeposit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/StateDeposit",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).StateDeposit(ctx, req.(*StateDepositRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_StateWithdraw_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StateWithdrawRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).StateWithdraw(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/StateWithdraw",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).StateWithdraw(ctx, req.(*StateWithdrawRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoCryptoTrader_ServiceDesc is the grpc.ServiceDesc for GoCryptoTrader service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3358,6 +3486,22 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ModifyOrder",
 			Handler:    _GoCryptoTrader_ModifyOrder_Handler,
+		},
+		{
+			MethodName: "StateGetAll",
+			Handler:    _GoCryptoTrader_StateGetAll_Handler,
+		},
+		{
+			MethodName: "StateTrading",
+			Handler:    _GoCryptoTrader_StateTrading_Handler,
+		},
+		{
+			MethodName: "StateDeposit",
+			Handler:    _GoCryptoTrader_StateDeposit_Handler,
+		},
+		{
+			MethodName: "StateWithdraw",
+			Handler:    _GoCryptoTrader_StateWithdraw_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

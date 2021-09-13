@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -903,8 +904,8 @@ func (b *Bithumb) UpdateCurrencyStates(ctx context.Context, a asset.Item) error 
 	payload := make(map[currency.Code]state.Options)
 	for coin, options := range status.Data {
 		payload[currency.NewCode(coin)] = state.Options{
-			Withdraw: options.WithdrawalStatus == 1,
-			Deposit:  options.DepositStatus == 1,
+			Withdraw: convert.BoolPtr(options.WithdrawalStatus == 1),
+			Deposit:  convert.BoolPtr(options.DepositStatus == 1),
 		}
 	}
 	return b.States.UpdateAll(a, payload)

@@ -960,6 +960,40 @@ message ModifyOrderResponse {
     string modified_order_id = 1;
 }
 
+message StateGetAllRequest {
+    string exchange = 1;
+}
+
+message StateTradingRequest {
+    string exchange = 1;
+    string code = 2;
+    string asset = 3;
+}
+
+message StateWithdrawRequest {
+    string exchange = 1;
+    string code = 2;
+    string asset = 3;
+}
+
+message StateDepositRequest {
+    string exchange = 1;
+    string code = 2;
+    string asset = 3;
+}
+
+message StateResponse {
+    repeated State states = 1;
+}
+
+message State {
+    string currency = 1;
+    string asset = 2;
+    bool withdraw_enabled = 3;
+    bool deposit_enabled = 4;
+    bool trading_enabled = 5;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -1515,6 +1549,27 @@ service GoCryptoTrader {
     rpc ModifyOrder (ModifyOrderRequest) returns (ModifyOrderResponse) {
         option (google.api.http) = {
             get: "/v1/modifyorder"
+        };
+    }
+
+    rpc StateGetAll (StateGetAllRequest) returns (StateResponse) {
+        option (google.api.http) = {
+            get: "/v1/stategetall"
+        };
+    }
+    rpc StateTrading (StateTradingRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/statetrading"
+        };
+    }
+    rpc StateDeposit (StateDepositRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/statedeposit"
+        };
+    }
+    rpc StateWithdraw (StateWithdrawRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/statewithdraw"
         };
     }
 }

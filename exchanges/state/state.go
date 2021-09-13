@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -20,6 +21,7 @@ var (
 	errUpdatesAreNil         = errors.New("updates are nil")
 	errExchangeNotFound      = errors.New("exchange not found")
 	errExchangeNameIsEmpty   = errors.New("exchange name is empty")
+	errNilStates             = errors.New("states is not started or set up")
 
 	// Specific operational errors
 	errDepositNotAllowed     = errors.New("depositing not allowed")
@@ -117,8 +119,34 @@ type States struct {
 	mtx sync.RWMutex
 }
 
+// GetSnapshot returns the current exchange snapshot of all currency operation
+// attributes
+func (s *States) GetSnapshot() ([]Snapshot, error) {
+	if s == nil {
+		return nil, errNilStates
+	}
+
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	var sh []Snapshot
+	for a, m1 := range s.m {
+		for c, val := range m1 {
+			sh = append(sh, Snapshot{
+				Code:    currency.Code{Item: c},
+				Asset:   a,
+				Options: val.GetState(),
+			})
+		}
+	}
+	return sh, nil
+}
+
 // CanTrade returns if the currency is currently tradeable for this exchange
 func (s *States) CanTrade(c currency.Code, a asset.Item) error {
+	if s == nil {
+		return errNilStates
+	}
+
 	p, err := s.Get(c, a)
 	if err != nil {
 		return err
@@ -131,6 +159,10 @@ func (s *States) CanTrade(c currency.Code, a asset.Item) error {
 
 // CanWithdraw returns if the currency can be withdrawn from this exchange
 func (s *States) CanWithdraw(c currency.Code, a asset.Item) error {
+	if s == nil {
+		return errNilStates
+	}
+
 	p, err := s.Get(c, a)
 	if err != nil {
 		return err
@@ -143,6 +175,10 @@ func (s *States) CanWithdraw(c currency.Code, a asset.Item) error {
 
 // CanDeposit returns if the currency can be deposited onto this exchange
 func (s *States) CanDeposit(c currency.Code, a asset.Item) error {
+	if s == nil {
+		return errNilStates
+	}
+
 	p, err := s.Get(c, a)
 	if err != nil {
 		return err
@@ -155,6 +191,10 @@ func (s *States) CanDeposit(c currency.Code, a asset.Item) error {
 
 // UpdateAll updates the full currency state, used for REST calls
 func (s *States) UpdateAll(a asset.Item, updates map[currency.Code]Options) error {
+	if s == nil {
+		return errNilStates
+	}
+
 	if !a.IsValid() {
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
@@ -172,6 +212,10 @@ func (s *States) UpdateAll(a asset.Item, updates map[currency.Code]Options) erro
 // Update updates a singular currency state, primarily used for singular
 // websocket updates or alerts.
 func (s *States) Update(c currency.Code, a asset.Item, o Options) error {
+	if s == nil {
+		return errNilStates
+	}
+
 	if c.String() == "" {
 		return errEmptyCurrency
 	}
@@ -202,6 +246,10 @@ func (s *States) update(c currency.Code, a asset.Item, o Options) {
 
 // Get returns the currency state by currency code
 func (s *States) Get(c currency.Code, a asset.Item) (*Currency, error) {
+	if s == nil {
+		return nil, errNilStates
+	}
+
 	if c.String() == "" {
 		return nil, errEmptyCurrency
 	}
@@ -233,16 +281,27 @@ type Currency struct {
 // update updates the underlying values
 func (c *Currency) update(o Options) {
 	c.mtx.Lock()
-	if c.withdrawals != o.Withdraw {
-		c.withdrawals = o.Withdraw
+	if o.Withdraw == nil {
+		c.withdrawals = true
+		c.withdrawAlerts.Alert()
+	} else if c.withdrawals != *o.Withdraw {
+		c.withdrawals = *o.Withdraw
 		c.withdrawAlerts.Alert()
 	}
-	if c.deposits != o.Deposit {
-		c.deposits = o.Deposit
+
+	if o.Deposit == nil {
+		c.deposits = true
+		c.depositAlerts.Alert()
+	} else if c.deposits != *o.Deposit {
+		c.deposits = *o.Deposit
 		c.depositAlerts.Alert()
 	}
-	if c.trading != o.Trade {
-		c.trading = o.Trade
+
+	if o.Trade == nil {
+		c.trading = true
+		c.tradingAlerts.Alert()
+	} else if c.trading != *o.Trade {
+		c.trading = *o.Trade
 		c.tradingAlerts.Alert()
 	}
 	c.mtx.Unlock()
@@ -290,9 +349,29 @@ func (c *Currency) WaitWithdraw(kick <-chan struct{}) <-chan bool {
 	return c.withdrawAlerts.Wait(kick)
 }
 
-// Options defines the current allowable options for a currency
+// GetState returns the internal state of the currency
+func (c *Currency) GetState() Options {
+	c.mtx.RLock()
+	defer c.mtx.RUnlock()
+	return Options{
+		Withdraw: convert.BoolPtr(c.withdrawals),
+		Deposit:  convert.BoolPtr(c.deposits),
+		Trade:    convert.BoolPtr(c.trading),
+	}
+}
+
+// Options defines the current allowable options for a currency, using a bool
+// pointer for optional setting for incomplete data, so we can default to true
+// on nil values.
 type Options struct {
-	Withdraw bool
-	Deposit  bool
-	Trade    bool
+	Withdraw *bool
+	Deposit  *bool
+	Trade    *bool
+}
+
+// Snapshot defines a snpashot of the internal asset for exportation
+type Snapshot struct {
+	Code  currency.Code
+	Asset asset.Item
+	Options
 }

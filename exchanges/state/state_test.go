@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -179,9 +180,38 @@ func TestManagerGetExchangeStates(t *testing.T) {
 	}
 }
 
+func TestGetSnapshot(t *testing.T) {
+	t.Parallel()
+	_, err := (*States)(nil).GetSnapshot()
+	if !errors.Is(err, errNilStates) {
+		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
+	}
+
+	o, err := (&States{
+		m: map[asset.Item]map[*currency.Item]*Currency{
+			asset.Spot: {currency.BTC.Item: {
+				withdrawals: true,
+				deposits:    true,
+				trading:     true,
+			}},
+		},
+	}).GetSnapshot()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
+
+	if o == nil {
+		t.Fatal("unexpected value")
+	}
+}
+
 func TestStatesCanTrade(t *testing.T) {
 	t.Parallel()
-	err := (&States{}).CanTrade(currency.Code{}, "")
+	err := (*States)(nil).CanTrade(currency.Code{}, "")
+	if !errors.Is(err, errNilStates) {
+		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
+	}
+	err = (&States{}).CanTrade(currency.Code{}, "")
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -189,7 +219,11 @@ func TestStatesCanTrade(t *testing.T) {
 
 func TestStatesCanWithdraw(t *testing.T) {
 	t.Parallel()
-	err := (&States{}).CanWithdraw(currency.Code{}, "")
+	err := (*States)(nil).CanWithdraw(currency.Code{}, "")
+	if !errors.Is(err, errNilStates) {
+		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
+	}
+	err = (&States{}).CanWithdraw(currency.Code{}, "")
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -197,7 +231,11 @@ func TestStatesCanWithdraw(t *testing.T) {
 
 func TestStatesCanDeposit(t *testing.T) {
 	t.Parallel()
-	err := (&States{}).CanDeposit(currency.Code{}, "")
+	err := (*States)(nil).CanDeposit(currency.Code{}, "")
+	if !errors.Is(err, errNilStates) {
+		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
+	}
+	err = (&States{}).CanDeposit(currency.Code{}, "")
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -205,8 +243,12 @@ func TestStatesCanDeposit(t *testing.T) {
 
 func TestStatesUpdateAll(t *testing.T) {
 	t.Parallel()
+	err := (*States)(nil).UpdateAll("", nil)
+	if !errors.Is(err, errNilStates) {
+		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
+	}
 
-	err := (&States{}).UpdateAll("", nil)
+	err = (&States{}).UpdateAll("", nil)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
 	}
@@ -221,14 +263,21 @@ func TestStatesUpdateAll(t *testing.T) {
 	}
 
 	err = s.UpdateAll(asset.Spot, map[currency.Code]Options{
-		currency.BTC: {Withdraw: true, Trade: true, Deposit: true},
+		currency.BTC: {
+			Withdraw: convert.BoolPtr(true),
+			Trade:    convert.BoolPtr(true),
+			Deposit:  convert.BoolPtr(true)},
 	})
 
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, but expected: %v", err, nil)
 	}
 
-	err = s.UpdateAll(asset.Spot, map[currency.Code]Options{currency.BTC: {}})
+	err = s.UpdateAll(asset.Spot, map[currency.Code]Options{currency.BTC: {
+		Withdraw: convert.BoolPtr(false),
+		Deposit:  convert.BoolPtr(false),
+		Trade:    convert.BoolPtr(false),
+	}})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, but expected: %v", err, nil)
 	}
@@ -245,7 +294,12 @@ func TestStatesUpdateAll(t *testing.T) {
 
 func TestStatesUpdate(t *testing.T) {
 	t.Parallel()
-	err := (&States{}).Update(currency.Code{}, "", Options{})
+	err := (*States)(nil).Update(currency.Code{}, "", Options{})
+	if !errors.Is(err, errNilStates) {
+		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
+	}
+
+	err = (&States{}).Update(currency.Code{}, "", Options{})
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -267,7 +321,12 @@ func TestStatesUpdate(t *testing.T) {
 
 func TestStatesGet(t *testing.T) {
 	t.Parallel()
-	_, err := (&States{}).Get(currency.Code{}, "")
+	_, err := (*States)(nil).Get(currency.Code{}, "")
+	if !errors.Is(err, errNilStates) {
+		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
+	}
+
+	_, err = (&States{}).Get(currency.Code{}, "")
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -283,6 +342,13 @@ func TestStatesGet(t *testing.T) {
 	}
 }
 
+func TestCurrencyGetState(t *testing.T) {
+	o := (&Currency{}).GetState()
+	if *o.Deposit || *o.Trade || *o.Withdraw {
+		t.Fatal("unexpected values")
+	}
+}
+
 func TestAlerting(t *testing.T) {
 	c := Currency{}
 	var start, finish sync.WaitGroup
@@ -292,7 +358,10 @@ func TestAlerting(t *testing.T) {
 	go waitForAlert(c.WaitDeposit(nil), &start, &finish)
 	go waitForAlert(c.WaitWithdraw(nil), &start, &finish)
 	start.Wait()
-	c.update(Options{Trade: true, Withdraw: true, Deposit: true})
+	c.update(Options{
+		Trade:    convert.BoolPtr(true),
+		Withdraw: convert.BoolPtr(true),
+		Deposit:  convert.BoolPtr(true)})
 	finish.Wait()
 }
 
