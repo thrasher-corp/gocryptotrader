@@ -27,6 +27,7 @@ var (
 	errClosedConnection = errors.New("use of closed network connection")
 	// ErrSubscriptionFailure defines an error when a subscription fails
 	ErrSubscriptionFailure = errors.New("subscription failure")
+	errAlreadyRunning      = errors.New("connection monitor is already running")
 )
 
 // New initialises the websocket struct
@@ -42,6 +43,11 @@ func New() *Websocket {
 		Match:             NewMatch(),
 	}
 }
+
+var (
+	errSubscriberUnset           = errors.New("subscriber function needs to be set")
+	errGenerateSubsciptionsUnset = errors.New("generate subscriptions function needs to be set")
+)
 
 // Setup sets main variables for websocket connection
 func (w *Websocket) Setup(s *WebsocketSetup) error {
@@ -65,8 +71,8 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 
 	w.features = s.Features
 
-	if w.features.Subscribe && s.Subscriber == nil {
-		return errors.New("features have been set yet channel subscriber is not set")
+	if s.Subscriber == nil {
+		return errSubscriberUnset
 	}
 	w.Subscriber = s.Subscriber
 
@@ -75,6 +81,9 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	}
 	w.Unsubscriber = s.UnSubscriber
 
+	if s.GenerateSubscriptions == nil {
+		return errGenerateSubsciptionsUnset
+	}
 	w.GenerateSubs = s.GenerateSubscriptions
 
 	w.enabled = s.Enabled
@@ -206,24 +215,28 @@ func (w *Websocket) Connect() error {
 	w.setConnectingStatus(false)
 	w.setInit(true)
 
-	if !w.IsConnectionMonitorRunning() {
-		w.connectionMonitor()
+	err = w.connectionMonitor()
+	if err != nil {
+		log.Errorf(log.WebsocketMgr,
+			"%s cannot start websocket connection monitor %v",
+			w.GetName(),
+			err)
 	}
 
-	// Resubscribe after re-connection
-	if len(w.subscriptions) != 0 {
-		err = w.Subscriber(w.subscriptions)
-		if err != nil {
-			return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
-		}
+	subs, err := w.GenerateSubs() // regenerate state on new connection
+	if err != nil {
+		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
 	}
-
+	err = w.Subscriber(subs)
+	if err != nil {
+		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
+	}
 	return nil
 }
 
 // Disable disables the exchange websocket protocol
 func (w *Websocket) Disable() error {
-	if !w.IsConnected() || !w.IsEnabled() {
+	if !w.IsEnabled() {
 		return fmt.Errorf("websocket is already disabled for exchange %s",
 			w.exchangeName)
 	}
@@ -290,11 +303,11 @@ func (w *Websocket) dataMonitor() {
 }
 
 // connectionMonitor ensures that the WS keeps connecting
-func (w *Websocket) connectionMonitor() {
-	if w.IsConnectionMonitorRunning() {
-		return
+func (w *Websocket) connectionMonitor() error {
+	if w.checkAndSetMonitorRunning() {
+		return errAlreadyRunning
 	}
-	w.setConnectionMonitorRunning(true)
+
 	go func() {
 		timer := time.NewTimer(connectionMonitorDelay)
 
@@ -354,6 +367,7 @@ func (w *Websocket) connectionMonitor() {
 			}
 		}
 	}()
+	return nil
 }
 
 // Shutdown attempts to shut down a websocket connection and associated routines
@@ -527,7 +541,10 @@ func (w *Websocket) trafficMonitor() {
 				// Routine pausing mechanism
 				go func(p chan<- struct{}) {
 					time.Sleep(defaultTrafficPeriod)
-					p <- struct{}{}
+					select {
+					case p <- struct{}{}:
+					default:
+					}
 				}(pause)
 				select {
 				case <-w.ShutdownC:
@@ -605,6 +622,16 @@ func (w *Websocket) IsTrafficMonitorRunning() bool {
 	w.connectionMutex.RLock()
 	defer w.connectionMutex.RUnlock()
 	return w.trafficMonitorRunning
+}
+
+func (w *Websocket) checkAndSetMonitorRunning() (alreadyRunning bool) {
+	w.connectionMutex.Lock()
+	defer w.connectionMutex.Unlock()
+	if w.connectionMonitorRunning {
+		return true
+	}
+	w.connectionMonitorRunning = true
+	return false
 }
 
 func (w *Websocket) setConnectionMonitorRunning(b bool) {

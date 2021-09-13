@@ -71,7 +71,7 @@ func (b *Bittrex) WsConnect() error {
 	}
 
 	var wsHandshakeData WsSignalRHandshakeData
-	err := b.WsSignalRHandshake(&wsHandshakeData)
+	err := b.WsSignalRHandshake(context.TODO(), &wsHandshakeData)
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,9 @@ func (b *Bittrex) WsConnect() error {
 
 	// This reader routine is called prior to initiating a subscription for
 	// efficient processing.
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
+
 	b.setupOrderbookManager()
 	b.tickerCache = &TickerCache{
 		MarketSummaries: make(map[string]*MarketSummaryData),
@@ -126,7 +128,7 @@ func (b *Bittrex) WsConnect() error {
 }
 
 // WsSignalRHandshake requests the SignalR connection token over https
-func (b *Bittrex) WsSignalRHandshake(result interface{}) error {
+func (b *Bittrex) WsSignalRHandshake(ctx context.Context, result interface{}) error {
 	endpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	if err != nil {
 		return err
@@ -140,7 +142,7 @@ func (b *Bittrex) WsSignalRHandshake(result interface{}) error {
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 	}
-	return b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
 	})
 }
@@ -376,7 +378,6 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 
 // wsReadData gets and passes on websocket messages for processing
 func (b *Bittrex) wsReadData() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
 	for {

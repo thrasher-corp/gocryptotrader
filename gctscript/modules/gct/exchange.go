@@ -1,6 +1,7 @@
 package gct
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -63,7 +64,8 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	ob, err := wrappers.GetWrapper().Orderbook(exchangeName, pair, assetType)
+	ob, err := wrappers.GetWrapper().
+		Orderbook(context.TODO(), exchangeName, pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +131,8 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	tx, err := wrappers.GetWrapper().Ticker(exchangeName, pair, assetType)
+	tx, err := wrappers.GetWrapper().
+		Ticker(context.TODO(), exchangeName, pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +232,8 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	rtnValue, err := wrappers.GetWrapper().AccountInformation(exchangeName, assetType)
+	rtnValue, err := wrappers.GetWrapper().
+		AccountInformation(context.TODO(), exchangeName, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +301,8 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	orderDetails, err := wrappers.GetWrapper().QueryOrder(exchangeName, orderID, pair, assetType)
+	orderDetails, err := wrappers.GetWrapper().
+		QueryOrder(context.TODO(), exchangeName, orderID, pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -384,7 +389,8 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 	}
 
 	var isCancelled bool
-	isCancelled, err = wrappers.GetWrapper().CancelOrder(exchangeName, orderID, cp, a)
+	isCancelled, err = wrappers.GetWrapper().
+		CancelOrder(context.TODO(), exchangeName, orderID, cp, a)
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +463,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 		Exchange:  exchangeName,
 	}
 
-	rtn, err := wrappers.GetWrapper().SubmitOrder(tempSubmit)
+	rtn, err := wrappers.GetWrapper().SubmitOrder(context.TODO(), tempSubmit)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +553,8 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 		Amount:      amount,
 	}
 
-	rtn, err := wrappers.GetWrapper().WithdrawalCryptoFunds(withdrawRequest)
+	rtn, err := wrappers.GetWrapper().
+		WithdrawalCryptoFunds(context.TODO(), withdrawRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -589,7 +596,8 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 		Amount:      amount,
 	}
 
-	rtn, err := wrappers.GetWrapper().WithdrawalFiatFunds(bankAccountID, withdrawRequest)
+	rtn, err := wrappers.GetWrapper().
+		WithdrawalFiatFunds(context.TODO(), bankAccountID, withdrawRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -656,7 +664,14 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pair, assetType, startTime, endTime, kline.Interval(interval))
+	ret, err := wrappers.GetWrapper().
+		OHLCV(context.TODO(),
+			exchangeName,
+			pair,
+			assetType,
+			startTime,
+			endTime,
+			kline.Interval(interval))
 	if err != nil {
 		return nil, err
 	}

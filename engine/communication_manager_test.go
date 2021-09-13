@@ -16,8 +16,8 @@ func TestSetup(t *testing.T) {
 	}
 
 	_, err = SetupCommunicationManager(&base.CommunicationsConfig{})
-	if !errors.Is(err, communications.ErrNoCommunicationRelayersEnabled) {
-		t.Errorf("error '%v', expected '%v'", err, communications.ErrNoCommunicationRelayersEnabled)
+	if !errors.Is(err, communications.ErrNoRelayersEnabled) {
+		t.Errorf("error '%v', expected '%v'", err, communications.ErrNoRelayersEnabled)
 	}
 
 	m, err := SetupCommunicationManager(&base.CommunicationsConfig{

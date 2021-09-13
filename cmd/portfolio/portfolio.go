@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -138,7 +139,7 @@ func main() {
 			bf.SetDefaults()
 			bf.Verbose = false
 			pair := "t" + y.Coin.String() + currency.USD.String()
-			ticker, errf := bf.GetTicker(pair)
+			ticker, errf := bf.GetTicker(context.TODO(), pair)
 			if errf != nil {
 				log.Println(errf)
 			} else {

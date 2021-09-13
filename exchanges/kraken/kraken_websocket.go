@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -96,11 +97,12 @@ func (k *Kraken) WsConnect() error {
 	}
 
 	comms := make(chan stream.Response)
+	k.Websocket.Wg.Add(2)
 	go k.wsReadData(comms)
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 
 	if k.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		authToken, err = k.GetWebsocketToken()
+		authToken, err = k.GetWebsocketToken(context.TODO())
 		if err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,
@@ -116,6 +118,7 @@ func (k *Kraken) WsConnect() error {
 					k.Name,
 					err)
 			} else {
+				k.Websocket.Wg.Add(1)
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
 				err = k.wsAuthPingHandler()
 				if err != nil {
@@ -140,7 +143,6 @@ func (k *Kraken) WsConnect() error {
 
 // wsFunnelConnectionData funnels both auth and public ws data into one manageable place
 func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.Response) {
-	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -153,12 +155,26 @@ func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.
 
 // wsReadData receives and passes on websocket messages for processing
 func (k *Kraken) wsReadData(comms chan stream.Response) {
-	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 
 	for {
 		select {
 		case <-k.Websocket.ShutdownC:
+			select {
+			case resp := <-comms:
+				err := k.wsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case k.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr,
+							"%s websocket handle data error: %v",
+							k.Name,
+							err)
+					}
+				}
+			default:
+			}
 			return
 		case resp := <-comms:
 			err := k.wsHandleData(resp.Raw)

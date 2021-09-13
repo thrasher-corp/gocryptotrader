@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -18,13 +19,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var testExchange = "Bitstamp"
@@ -86,6 +92,147 @@ func CreateTestBot(t *testing.T) *Engine {
 	}
 
 	return bot
+}
+
+func TestGetSubsystemsStatus(t *testing.T) {
+	m := (&Engine{}).GetSubsystemsStatus()
+	if len(m) != 14 {
+		t.Fatalf("subsystem count is wrong expecting: %d but received: %d", 14, len(m))
+	}
+}
+
+func TestGetRPCEndpoints(t *testing.T) {
+	_, err := (&Engine{}).GetRPCEndpoints()
+	if !errors.Is(err, errNilConfig) {
+		t.Fatalf("received: %v, but expected: %v", err, errNilConfig)
+	}
+
+	m, err := (&Engine{Config: &config.Config{}}).GetRPCEndpoints()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
+	if len(m) != 4 {
+		t.Fatalf("expected length: %d but received: %d", 4, len(m))
+	}
+}
+
+func TestSetSubsystem(t *testing.T) {
+	testCases := []struct {
+		Subsystem    string
+		Engine       *Engine
+		EnableError  error
+		DisableError error
+	}{
+		{Subsystem: "sillyBilly", EnableError: errNilBot, DisableError: errNilBot},
+		{Subsystem: "sillyBilly", Engine: &Engine{}, EnableError: errNilConfig, DisableError: errNilConfig},
+		{Subsystem: "sillyBilly", Engine: &Engine{Config: &config.Config{}}, EnableError: errSubsystemNotFound, DisableError: errSubsystemNotFound},
+		{
+			Subsystem:    CommunicationsManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  communications.ErrNoRelayersEnabled,
+			DisableError: ErrNilSubsystem,
+		},
+		{
+			Subsystem:    ConnectionManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  nil,
+			DisableError: nil,
+		},
+		{
+			Subsystem:    OrderManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  nil,
+			DisableError: nil,
+		},
+		{
+			Subsystem:    PortfolioManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  errNilExchangeManager,
+			DisableError: ErrNilSubsystem,
+		},
+		{
+			Subsystem:    NTPManagerName,
+			Engine:       &Engine{Config: &config.Config{Logging: log.Config{Enabled: convert.BoolPtr(false)}}},
+			EnableError:  errNilNTPConfigValues,
+			DisableError: ErrNilSubsystem,
+		},
+		{
+			Subsystem:    DatabaseConnectionManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  database.ErrDatabaseSupportDisabled,
+			DisableError: ErrSubSystemNotStarted,
+		},
+		{
+			Subsystem:    SyncManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  errNoSyncItemsEnabled,
+			DisableError: ErrNilSubsystem,
+		},
+		{
+			Subsystem:    dispatch.Name,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  nil,
+			DisableError: nil,
+		},
+
+		{
+			Subsystem:    DeprecatedName,
+			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
+			EnableError:  errServerDisabled,
+			DisableError: ErrSubSystemNotStarted,
+		},
+		{
+			Subsystem:    WebsocketName,
+			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
+			EnableError:  errServerDisabled,
+			DisableError: ErrSubSystemNotStarted,
+		},
+		{
+			Subsystem:    grpcName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  errGRPCManagementFault,
+			DisableError: errGRPCManagementFault},
+		{
+			Subsystem:    grpcProxyName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  errGRPCManagementFault,
+			DisableError: errGRPCManagementFault},
+		{
+			Subsystem:    dataHistoryManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  database.ErrNilInstance,
+			DisableError: ErrNilSubsystem,
+		},
+		{
+			Subsystem:    vm.Name,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  nil,
+			DisableError: nil,
+		},
+	}
+
+	for _, tt := range testCases {
+		tt := tt
+		t.Run(tt.Subsystem, func(t *testing.T) {
+			t.Parallel()
+			err := tt.Engine.SetSubsystem(tt.Subsystem, true)
+			if !errors.Is(err, tt.EnableError) {
+				t.Fatalf(
+					"while enabled %s subsystem received: %#v, but expected: %v",
+					tt.Subsystem,
+					err,
+					tt.EnableError)
+			}
+			err = tt.Engine.SetSubsystem(tt.Subsystem, false)
+			if !errors.Is(err, tt.DisableError) {
+				t.Fatalf(
+					"while disabling %s subsystem received: %#v, but expected: %v",
+					tt.Subsystem,
+					err,
+					tt.DisableError)
+			}
+		})
+	}
 }
 
 func TestGetExchangeOTPs(t *testing.T) {
@@ -627,7 +774,8 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ob, err := e.GetSpecificOrderbook(btsusd, testExchange, asset.Spot)
+	ob, err := e.GetSpecificOrderbook(context.Background(),
+		btsusd, testExchange, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -641,7 +789,8 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = e.GetSpecificOrderbook(ethltc, testExchange, asset.Spot)
+	_, err = e.GetSpecificOrderbook(context.Background(),
+		ethltc, testExchange, asset.Spot)
 	if err == nil {
 		t.Fatal("Unexpected result")
 	}
@@ -669,7 +818,8 @@ func TestGetSpecificTicker(t *testing.T) {
 		t.Fatal("ProcessTicker error", err)
 	}
 
-	tick, err := e.GetSpecificTicker(p, testExchange, asset.Spot)
+	tick, err := e.GetSpecificTicker(context.Background(),
+		p, testExchange, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -683,7 +833,8 @@ func TestGetSpecificTicker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = e.GetSpecificTicker(ethltc, testExchange, asset.Spot)
+	_, err = e.GetSpecificTicker(context.Background(),
+		ethltc, testExchange, asset.Spot)
 	if err == nil {
 		t.Fatal("Unexpected result")
 	}

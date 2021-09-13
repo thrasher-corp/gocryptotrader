@@ -94,6 +94,7 @@ func (b *Bitmex) WsConnect() error {
 			welcomeResp.Limit.Remaining)
 	}
 
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
 	err = b.websocketSendAuth()
@@ -114,7 +115,6 @@ func (b *Bitmex) WsConnect() error {
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bitmex) wsReadData() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
 	for {

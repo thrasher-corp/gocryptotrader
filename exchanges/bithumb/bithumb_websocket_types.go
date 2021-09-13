@@ -87,10 +87,11 @@ type orderbookManager struct {
 }
 
 type update struct {
-	buffer       chan *WsOrderbooks
-	fetchingBook bool
-	initialSync  bool
-	lastUpdated  time.Time
+	buffer            chan *WsOrderbooks
+	fetchingBook      bool
+	initialSync       bool
+	needsFetchingBook bool
+	lastUpdated       time.Time
 }
 
 // job defines a synchonisation job that tells a go routine to fetch an

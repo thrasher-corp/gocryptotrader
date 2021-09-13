@@ -1,6 +1,7 @@
 package okcoin
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
@@ -35,7 +36,7 @@ func (o *OKCoin) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	}
 
 	if o.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = o.UpdateTradablePairs(true)
+		err = o.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -229,7 +230,7 @@ func (o *OKCoin) Run() {
 		return
 	}
 
-	err = o.UpdateTradablePairs(forceUpdate)
+	err = o.UpdateTradablePairs(context.TODO(), forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -239,8 +240,8 @@ func (o *OKCoin) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (o *OKCoin) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	prods, err := o.GetSpotTokenPairDetails()
+func (o *OKCoin) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+	prods, err := o.GetSpotTokenPairDetails(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -262,8 +263,8 @@ func (o *OKCoin) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (o *OKCoin) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := o.FetchTradablePairs(asset.Spot)
+func (o *OKCoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+	pairs, err := o.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
@@ -275,9 +276,9 @@ func (o *OKCoin) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (o *OKCoin) UpdateTickers(a asset.Item) error {
+func (o *OKCoin) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if a == asset.Spot {
-		resp, err := o.GetSpotAllTokenPairsInformation()
+		resp, err := o.GetSpotAllTokenPairsInformation(ctx)
 		if err != nil {
 			return err
 		}
@@ -314,8 +315,8 @@ func (o *OKCoin) UpdateTickers(a asset.Item) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKCoin) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := o.UpdateTickers(a)
+func (o *OKCoin) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := o.UpdateTickers(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -323,16 +324,16 @@ func (o *OKCoin) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, err
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (o *OKCoin) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
+func (o *OKCoin) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
 	tickerData, err = ticker.GetTicker(o.Name, p, assetType)
 	if err != nil {
-		return o.UpdateTicker(p, assetType)
+		return o.UpdateTicker(ctx, p, assetType)
 	}
 	return
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = o.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -342,9 +343,10 @@ func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 	switch assetType {
 	case asset.Spot:
 		var tradeData []okgroup.GetSpotFilledOrdersInformationResponse
-		tradeData, err = o.GetSpotFilledOrdersInformation(okgroup.GetSpotFilledOrdersInformationRequest{
-			InstrumentID: p.String(),
-		})
+		tradeData, err = o.GetSpotFilledOrdersInformation(ctx,
+			okgroup.GetSpotFilledOrdersInformationRequest{
+				InstrumentID: p.String(),
+			})
 		if err != nil {
 			return nil, err
 		}
@@ -378,6 +380,6 @@ func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (o *OKCoin) CancelBatchOrders(orders []order.Cancel) (order.CancelBatchResponse, error) {
+func (o *OKCoin) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }

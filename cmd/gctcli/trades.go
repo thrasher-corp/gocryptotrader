@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -277,19 +276,14 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.FindMissingSavedTradeIntervals(context.Background(),
+	result, err := client.FindMissingSavedTradeIntervals(c.Context,
 		&gctrpc.FindMissingTradePeriodsRequest{
 			ExchangeName: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -332,19 +326,14 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 		}
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.SetExchangeTradeProcessing(context.Background(),
+	result, err := client.SetExchangeTradeProcessing(c.Context,
 		&gctrpc.SetExchangeTradeProcessingRequest{
 			Exchange: exchangeName,
 			Status:   status,
@@ -420,19 +409,14 @@ func getSavedTrades(c *cli.Context) error {
 		return errors.New("start cannot be after end")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetSavedTrades(context.Background(),
+	result, err := client.GetSavedTrades(c.Context,
 		&gctrpc.GetSavedTradesRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -489,19 +473,14 @@ func getRecentTrades(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetRecentTrades(context.Background(),
+	result, err := client.GetRecentTrades(c.Context,
 		&gctrpc.GetSavedTradesRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -581,20 +560,15 @@ func getHistoricTrades(c *cli.Context) error {
 		return errors.New("start cannot be after end")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
 
 	streamStartTime := time.Now()
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetHistoricTrades(context.Background(),
+	result, err := client.GetHistoricTrades(c.Context,
 		&gctrpc.GetSavedTradesRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -724,19 +698,14 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 		return errors.New("start cannot be after end")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.ConvertTradesToCandles(context.Background(),
+	result, err := client.ConvertTradesToCandles(c.Context,
 		&gctrpc.ConvertTradesToCandlesRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{

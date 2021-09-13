@@ -1,6 +1,7 @@
 package ftx
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -60,7 +61,9 @@ func (f *FTX) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
 	}
 
+	f.Websocket.Wg.Add(1)
 	go f.wsReadData()
+
 	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = f.WsAuth()
 		if err != nil {
@@ -210,7 +213,6 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 
 // wsReadData gets and passes on websocket messages for processing
 func (f *FTX) wsReadData() {
-	f.Websocket.Wg.Add(1)
 	defer f.Websocket.Wg.Done()
 
 	for {
@@ -339,7 +341,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(
+			orderVars, err = f.compatibleOrderVars(context.TODO(),
 				resultData.OrderData.Side,
 				resultData.OrderData.Status,
 				resultData.OrderData.OrderType,

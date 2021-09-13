@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -41,7 +42,9 @@ const (
 var (
 	// ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
 	ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
-	errTransportNotSet                           = errors.New("transport not set, cannot set timeout")
+
+	errEndpointStringNotFound = errors.New("endpoint string not found")
+	errTransportNotSet        = errors.New("transport not set, cannot set timeout")
 )
 
 func (b *Base) checkAndInitRequester() {
@@ -847,7 +850,39 @@ func (b *Base) SetAPIURL() error {
 				val == config.WebsocketURLNonDefaultMessage {
 				continue
 			}
+
+			var u URL
+			u, err = getURLTypeFromString(key)
+			if err != nil {
+				return err
+			}
+
+			var defaultURL string
+			defaultURL, err = b.API.Endpoints.GetURL(u)
+			if err != nil {
+				log.Warnf(
+					log.ExchangeSys,
+					"%s: Config cannot match with default endpoint URL: [%s] with key: [%s], please remove or update core support endpoints.",
+					b.Name,
+					val,
+					u)
+				continue
+			}
+
+			if defaultURL == val {
+				continue
+			}
+
+			log.Warnf(
+				log.ExchangeSys,
+				"%s: Config is overwriting default endpoint URL values from: [%s] to: [%s] for: [%s]",
+				b.Name,
+				defaultURL,
+				val,
+				u)
+
 			checkInsecureEndpoint(val)
+
 			err = b.API.Endpoints.SetRunning(key, val)
 			if err != nil {
 				return err
@@ -1105,7 +1140,7 @@ func (b *Base) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Base) AuthenticateWebsocket() error {
+func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -1258,38 +1293,72 @@ func (b *Base) FormatSymbol(pair currency.Pair, assetType asset.Item) (string, e
 func (u URL) String() string {
 	switch u {
 	case RestSpot:
-		return "RestSpotURL"
+		return restSpotURL
 	case RestSpotSupplementary:
-		return "RestSpotSupplementaryURL"
+		return restSpotSupplementaryURL
 	case RestUSDTMargined:
-		return "RestUSDTMarginedFuturesURL"
+		return restUSDTMarginedFuturesURL
 	case RestCoinMargined:
-		return "RestCoinMarginedFuturesURL"
+		return restCoinMarginedFuturesURL
 	case RestFutures:
-		return "RestFuturesURL"
+		return restFuturesURL
 	case RestSandbox:
-		return "RestSandboxURL"
+		return restSandboxURL
 	case RestSwap:
-		return "RestSwapURL"
+		return restSwapURL
 	case WebsocketSpot:
-		return "WebsocketSpotURL"
+		return websocketSpotURL
 	case WebsocketSpotSupplementary:
-		return "WebsocketSpotSupplementaryURL"
+		return websocketSpotSupplementaryURL
 	case ChainAnalysis:
-		return "ChainAnalysisURL"
+		return chainAnalysisURL
 	case EdgeCase1:
-		return "EdgeCase1URL"
+		return edgeCase1URL
 	case EdgeCase2:
-		return "EdgeCase2URL"
+		return edgeCase2URL
 	case EdgeCase3:
-		return "EdgeCase3URL"
+		return edgeCase3URL
 	default:
 		return ""
 	}
 }
 
+// getURLTypeFromString returns URL type from the endpoint string association
+func getURLTypeFromString(ep string) (URL, error) {
+	switch ep {
+	case restSpotURL:
+		return RestSpot, nil
+	case restSpotSupplementaryURL:
+		return RestSpotSupplementary, nil
+	case restUSDTMarginedFuturesURL:
+		return RestUSDTMargined, nil
+	case restCoinMarginedFuturesURL:
+		return RestCoinMargined, nil
+	case restFuturesURL:
+		return RestFutures, nil
+	case restSandboxURL:
+		return RestSandbox, nil
+	case restSwapURL:
+		return RestSwap, nil
+	case websocketSpotURL:
+		return WebsocketSpot, nil
+	case websocketSpotSupplementaryURL:
+		return WebsocketSpotSupplementary, nil
+	case chainAnalysisURL:
+		return ChainAnalysis, nil
+	case edgeCase1URL:
+		return EdgeCase1, nil
+	case edgeCase2URL:
+		return EdgeCase2, nil
+	case edgeCase3URL:
+		return EdgeCase3, nil
+	default:
+		return Invalid, fmt.Errorf("%w for %s", errEndpointStringNotFound, ep)
+	}
+}
+
 // UpdateOrderExecutionLimits updates order execution limits this is overridable
-func (b *Base) UpdateOrderExecutionLimits(a asset.Item) error {
+func (b *Base) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 

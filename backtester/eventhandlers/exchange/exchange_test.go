@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -151,30 +152,30 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	e := Exchange{}
-	_, err = e.placeOrder(1, 1, false, true, nil, nil)
+	_, err = e.placeOrder(context.Background(), 1, 1, false, true, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
 	f := &fill.Fill{}
-	_, err = e.placeOrder(1, 1, false, true, f, bot)
+	_, err = e.placeOrder(context.Background(), 1, 1, false, true, f, bot)
 	if err != nil && err.Error() != "order exchange name must be specified" {
 		t.Error(err)
 	}
 
 	f.Exchange = testExchange
-	_, err = e.placeOrder(1, 1, false, true, f, bot)
+	_, err = e.placeOrder(context.Background(), 1, 1, false, true, f, bot)
 	if !errors.Is(err, gctorder.ErrPairIsEmpty) {
 		t.Errorf("expected: %v, received %v", gctorder.ErrPairIsEmpty, err)
 	}
 	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
-	_, err = e.placeOrder(1, 1, false, true, f, bot)
+	_, err = e.placeOrder(context.Background(), 1, 1, false, true, f, bot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = e.placeOrder(1, 1, true, true, f, bot)
+	_, err = e.placeOrder(context.Background(), 1, 1, true, true, f, bot)
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}
@@ -203,7 +204,7 @@ func TestExecuteOrder(t *testing.T) {
 
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
-	_, err = exch.FetchOrderbook(p, a)
+	_, err = exch.FetchOrderbook(context.Background(), p, a)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,12 +299,12 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
-	_, err = exch.FetchOrderbook(p, a)
+	_, err = exch.FetchOrderbook(context.Background(), p, a)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = exch.UpdateOrderExecutionLimits(asset.Spot)
+	err = exch.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
