@@ -225,6 +225,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				return nil, err
 			}
 		} else {
+			// add any remaining currency items that have no funding data in the strategy config
 			baseItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
 				b,
@@ -1062,7 +1063,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 			return
 		case <-loadNewDataTimer.C:
 			log.Infof(log.BackTester, "fetching data for %v %v %v %v", exch.GetName(), a, fPair, cfg.DataSettings.Interval)
-			loadNewDataTimer.Reset(time.Second * 30)
+			loadNewDataTimer.Reset(time.Second * 15)
 			err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate, dataType)
 			if err != nil {
 				log.Error(log.BackTester, err)

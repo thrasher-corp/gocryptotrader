@@ -1,5 +1,5 @@
 {
- "nickname": "TestGenerateConfigForRSIExchangeLevelFunding",
+ "nickname": "ExampleStrategyTop2Bottom2",
  "goal": "To demonstrate complex strategy using exchange level funding and simultaneous processing of data signals",
  "strategy-settings": {
   "name": "top2bottom2",

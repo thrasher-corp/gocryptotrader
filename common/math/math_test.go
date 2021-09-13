@@ -12,7 +12,7 @@ func TestCalculateFee(t *testing.T) {
 	t.Parallel()
 	originalInput := float64(1)
 	fee := float64(1)
-	expectedOutput := float64(0.01)
+	expectedOutput := 0.01
 	actualResult := CalculateFee(originalInput, fee)
 	if expectedOutput != actualResult {
 		t.Errorf(
@@ -24,7 +24,7 @@ func TestCalculateAmountWithFee(t *testing.T) {
 	t.Parallel()
 	originalInput := float64(1)
 	fee := float64(1)
-	expectedOutput := float64(1.01)
+	expectedOutput := 1.01
 	actualResult := CalculateAmountWithFee(originalInput, fee)
 	if expectedOutput != actualResult {
 		t.Errorf(
@@ -491,7 +491,7 @@ func TestDecimalSortinoRatio(t *testing.T) {
 
 	var r decimal.Decimal
 	r, err = DecimalSortinoRatio(figures, rfr, avg)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrInexactConversion) {
 		t.Error(err)
 	}
 	rf, exact := r.Float64()
@@ -507,7 +507,7 @@ func TestDecimalSortinoRatio(t *testing.T) {
 	}
 
 	r, err = DecimalSortinoRatio(figures, rfr, avg)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrInexactConversion) {
 		t.Error(err)
 	}
 	if !r.Equal(decimal.NewFromFloat(2.8712802265603243)) {
@@ -535,7 +535,7 @@ func TestDecimalSortinoRatio(t *testing.T) {
 		t.Error(err)
 	}
 	r, err = DecimalSortinoRatio(example, decimal.NewFromFloat(0.06), avg)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrInexactConversion) {
 		t.Error(err)
 	}
 	rr := r.Round(1)
@@ -595,7 +595,7 @@ func TestDecimalInformationRatio(t *testing.T) {
 		eachDiff = append(eachDiff, figures[i].Sub(comparisonFigures[i]))
 	}
 	stdDev, err := DecimalPopulationStandardDeviation(eachDiff)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrInexactConversion) {
 		t.Error(err)
 	}
 	if !stdDev.Equal(decimal.NewFromFloat(0.028992588851865227)) {

@@ -23,6 +23,8 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 	var errs gctcommon.Errors
 	var err error
 	first := c.Events[0]
+	sep := fmt.Sprintf("%v %v %v |\t", first.DataEvent.GetExchange(), first.DataEvent.GetAssetType(), first.DataEvent.Pair())
+
 	firstPrice := first.DataEvent.ClosePrice()
 	last := c.Events[len(c.Events)-1]
 	lastPrice := last.DataEvent.ClosePrice()
@@ -108,7 +110,11 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 	}
 	arithmeticSortino, err = gctmath.DecimalSortinoRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
 	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
-		errs = append(errs, err)
+		if errors.Is(err, gctmath.ErrInexactConversion) {
+			log.Warnf(log.BackTester, "%v arithmetic sortino ratio %v", sep, err)
+		} else {
+			errs = append(errs, err)
+		}
 	}
 	arithmeticInformation, err = gctmath.DecimalInformationRatio(returnPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
 	if err != nil {
@@ -141,7 +147,11 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 	}
 	geomSortino, err = gctmath.DecimalSortinoRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
-		errs = append(errs, err)
+		if errors.Is(err, gctmath.ErrInexactConversion) {
+			log.Warnf(log.BackTester, "%v geometric sortino ratio %v", sep, err)
+		} else {
+			errs = append(errs, err)
+		}
 	}
 	geomInformation, err = gctmath.DecimalInformationRatio(returnPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
 	if err != nil {

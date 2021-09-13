@@ -1,5 +1,5 @@
 {
- "nickname": "TestGenerateConfigForDCAAPITrades",
+ "nickname": "ExampleStrategyDCAAPITrades",
  "goal": "To demonstrate running the DCA strategy using API trade data",
  "strategy-settings": {
   "name": "dollarcostaverage",
@@ -10,7 +10,7 @@
  },
  "currency-settings": [
   {
-   "exchange-name": "binance",
+   "exchange-name": "ftx",
    "asset": "spot",
    "base": "BTC",
    "quote": "USDT",
@@ -39,11 +39,11 @@
   }
  ],
  "data-settings": {
-  "interval": 86400000000000,
+  "interval": 3600000000000,
   "data-type": "trade",
   "api-data": {
    "start-date": "2020-08-01T00:00:00+10:00",
-   "end-date": "2020-12-01T00:00:00+11:00",
+   "end-date": "2020-08-04T00:00:00+10:00",
    "inclusive-end-date": false
   }
  },

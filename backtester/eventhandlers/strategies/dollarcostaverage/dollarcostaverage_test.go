@@ -38,7 +38,7 @@ func TestSetCustomSettings(t *testing.T) {
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
 	if !errors.Is(err, base.ErrCustomSettingsUnsupported) {
-		t.Errorf("expected: %v, received %v", base.ErrCustomSettingsUnsupported, err)
+		t.Errorf("received: %v, expected: %v", err, base.ErrCustomSettingsUnsupported)
 	}
 }
 
@@ -46,7 +46,7 @@ func TestOnSignal(t *testing.T) {
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
@@ -125,7 +125,7 @@ func TestOnSignals(t *testing.T) {
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)

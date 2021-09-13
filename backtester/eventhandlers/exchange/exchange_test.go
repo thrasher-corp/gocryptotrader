@@ -70,7 +70,7 @@ func TestSetCurrency(t *testing.T) {
 		t.Error(err)
 	}
 	if !result.InitialFunds.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("expected decimal.NewFromInt(1337), received %v", result.InitialFunds)
+		t.Errorf("received: %v, expected: %v", 1337, result.InitialFunds)
 	}
 
 	e.SetExchangeAssetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
@@ -91,7 +91,7 @@ func TestEnsureOrderFitsWithinHLV(t *testing.T) {
 
 	adjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(decimal.NewFromInt(123), decimal.NewFromInt(1), decimal.NewFromInt(100), decimal.NewFromInt(99), decimal.NewFromInt(80))
 	if !adjustedAmount.Equal(decimal.NewFromFloat(0.799999992)) {
-		t.Errorf("expected %v received %v", 0.799999992, adjustedAmount)
+		t.Errorf("received: %v, expected: %v", adjustedAmount, decimal.NewFromFloat(0.799999992))
 	}
 	if !adjustedPrice.Equal(decimal.NewFromInt(100)) {
 		t.Error("expected 100")
@@ -124,7 +124,7 @@ func TestSizeOrder(t *testing.T) {
 	}
 	_, _, err = e.sizeOfflineOrder(decimal.Zero, decimal.Zero, decimal.Zero, cs, f)
 	if !errors.Is(err, errDataMayBeIncorrect) {
-		t.Errorf("expected: %v, received %v", errDataMayBeIncorrect, err)
+		t.Errorf("received: %v, expected: %v", err, errDataMayBeIncorrect)
 	}
 	var p, a decimal.Decimal
 	p, a, err = e.sizeOfflineOrder(decimal.NewFromInt(10), decimal.NewFromInt(2), decimal.NewFromInt(10), cs, f)
@@ -162,7 +162,7 @@ func TestPlaceOrder(t *testing.T) {
 	e := Exchange{}
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	f := &fill.Fill{}
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot)
@@ -173,7 +173,7 @@ func TestPlaceOrder(t *testing.T) {
 	f.Exchange = testExchange
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot)
 	if !errors.Is(err, gctorder.ErrPairIsEmpty) {
-		t.Errorf("expected: %v, received %v", gctorder.ErrPairIsEmpty, err)
+		t.Errorf("received: %v, expected: %v", err, gctorder.ErrPairIsEmpty)
 	}
 	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
@@ -457,11 +457,11 @@ func TestApplySlippageToPrice(t *testing.T) {
 	t.Parallel()
 	resp := applySlippageToPrice(gctorder.Buy, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
 	if !resp.Equal(decimal.NewFromFloat(1.1)) {
-		t.Errorf("expected 1.1, received %v", resp)
+		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(1.1))
 	}
 	resp = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
 	if !resp.Equal(decimal.NewFromFloat(0.9)) {
-		t.Errorf("expected 0.9, received %v", resp)
+		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(0.9))
 	}
 }
 

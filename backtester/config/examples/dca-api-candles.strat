@@ -1,5 +1,5 @@
 {
- "nickname": "TestGenerateConfigForDCAAPICandles",
+ "nickname": "ExampleStrategyDCAAPICandles",
  "goal": "To demonstrate DCA strategy using API candles",
  "strategy-settings": {
   "name": "dollarcostaverage",

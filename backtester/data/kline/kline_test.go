@@ -27,7 +27,7 @@ func TestLoad(t *testing.T) {
 	d := DataFromKline{}
 	err := d.Load()
 	if !errors.Is(err, errNoCandleData) {
-		t.Errorf("expected: %v, received %v", errNoCandleData, err)
+		t.Errorf("received: %v, expected: %v", err, errNoCandleData)
 	}
 	d.Item = gctkline.Item{
 		Exchange: exch,

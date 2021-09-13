@@ -1,5 +1,5 @@
 {
- "nickname": "TestGenerateConfigForDCADatabaseCandles",
+ "nickname": "ExampleStrategyDCADatabaseCandles",
  "goal": "To demonstrate the DCA strategy using database candle data",
  "strategy-settings": {
   "name": "dollarcostaverage",

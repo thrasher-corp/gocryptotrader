@@ -47,12 +47,12 @@ func TestCreate(t *testing.T) {
 
 	_, err := Create(nil, pair(t), riskFreeRate)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", ErrInitialFundsZero, err)
+		t.Errorf("received: %v, expected: %v", err, ErrInitialFundsZero)
 	}
 
 	_, err = Create(nil, pair(t), riskFreeRate)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 
 	_, err = Create(&fill.Fill{}, pair(t), riskFreeRate)

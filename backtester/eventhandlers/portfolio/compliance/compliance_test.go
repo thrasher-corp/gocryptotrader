@@ -14,7 +14,7 @@ func TestAddSnapshot(t *testing.T) {
 	tt := time.Now()
 	err := m.AddSnapshot([]SnapshotOrder{}, tt, 1, true)
 	if !errors.Is(err, errSnapshotNotFound) {
-		t.Errorf("expected: %v, received %v", errSnapshotNotFound, err)
+		t.Errorf("received: %v, expected: %v", err, errSnapshotNotFound)
 	}
 
 	err = m.AddSnapshot([]SnapshotOrder{}, tt, 1, false)
@@ -57,7 +57,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 
 	_, err = m.GetSnapshotAtTime(time.Now().Add(time.Hour))
 	if !errors.Is(err, errSnapshotNotFound) {
-		t.Errorf("expected: %v, received %v", errSnapshotNotFound, err)
+		t.Errorf("received: %v, expected: %v", err, errSnapshotNotFound)
 	}
 }
 

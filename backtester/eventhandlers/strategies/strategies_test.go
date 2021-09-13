@@ -22,11 +22,11 @@ func TestLoadStrategyByName(t *testing.T) {
 	var resp Handler
 	_, err := LoadStrategyByName("test", false)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("expected: %v, received %v", base.ErrStrategyNotFound, err)
+		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
 	_, err = LoadStrategyByName("test", true)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("expected: %v, received %v", base.ErrStrategyNotFound, err)
+		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
 
 	resp, err = LoadStrategyByName(dollarcostaverage.Name, false)
@@ -53,6 +53,6 @@ func TestLoadStrategyByName(t *testing.T) {
 	}
 	_, err = LoadStrategyByName(rsi.Name, true)
 	if !errors.Is(err, nil) {
-		t.Errorf("expected: %v, received %v", nil, err)
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }

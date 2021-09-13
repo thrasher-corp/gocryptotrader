@@ -1,5 +1,5 @@
 {
- "nickname": "TestGenerateConfigForDCAAPICandlesExchangeLevelFunding",
+ "nickname": "ExampleStrategyDCAAPICandlesExchangeLevelFunding",
  "goal": "To demonstrate DCA strategy using API candles using a shared pool of funds",
  "strategy-settings": {
   "name": "dollarcostaverage",

@@ -1,5 +1,5 @@
 {
- "nickname": "TestGenerateConfigForDCAAPICandlesMultipleCurrencies",
+ "nickname": "ExampleStrategyDCAAPICandlesMultipleCurrencies",
  "goal": "To demonstrate running the DCA strategy using the API against multiple currencies candle data",
  "strategy-settings": {
   "name": "dollarcostaverage",

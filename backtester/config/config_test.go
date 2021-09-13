@@ -23,15 +23,16 @@ const (
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = true
 )
 
 var (
-	startDate = time.Date(time.Now().Year()-1, 8, 1, 0, 0, 0, 0, time.Local)
-	endDate   = time.Date(time.Now().Year()-1, 12, 1, 0, 0, 0, 0, time.Local)
-	makerFee  = decimal.NewFromFloat(0.001)
-	takerFee  = decimal.NewFromFloat(0.002)
-	minMax    = MinMax{
+	startDate    = time.Date(time.Now().Year()-1, 8, 1, 0, 0, 0, 0, time.Local)
+	endDate      = time.Date(time.Now().Year()-1, 12, 1, 0, 0, 0, 0, time.Local)
+	tradeEndDate = startDate.Add(time.Hour * 72)
+	makerFee     = decimal.NewFromFloat(0.001)
+	takerFee     = decimal.NewFromFloat(0.002)
+	minMax       = MinMax{
 		MinimumSize:  decimal.NewFromFloat(0.1),
 		MaximumSize:  decimal.NewFromInt(1),
 		MaximumTotal: decimal.NewFromInt(10000),
@@ -147,7 +148,7 @@ func TestPrintSettings(t *testing.T) {
 
 func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateConfigForDCAAPICandles",
+		Nickname: "ExampleStrategyDCAAPICandles",
 		Goal:     "To demonstrate DCA strategy using API candles",
 		StrategySettings: StrategySettings{
 			Name: dca,
@@ -206,7 +207,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 
 func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateConfigForDCAAPICandlesExchangeLevelFunding",
+		Nickname: "ExampleStrategyDCAAPICandlesExchangeLevelFunding",
 		Goal:     "To demonstrate DCA strategy using API candles using a shared pool of funds",
 		StrategySettings: StrategySettings{
 			Name:                         dca,
@@ -283,14 +284,14 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 
 func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateConfigForDCAAPITrades",
+		Nickname: "ExampleStrategyDCAAPITrades",
 		Goal:     "To demonstrate running the DCA strategy using API trade data",
 		StrategySettings: StrategySettings{
 			Name: dca,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
+				ExchangeName: "ftx",
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
@@ -305,11 +306,11 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 			},
 		},
 		DataSettings: DataSettings{
-			Interval: kline.OneDay.Duration(),
+			Interval: kline.OneHour.Duration(),
 			DataType: common.TradeStr,
 			APIData: &APIData{
 				StartDate:        startDate,
-				EndDate:          endDate,
+				EndDate:          tradeEndDate,
 				InclusiveEndDate: false,
 			},
 		},
@@ -350,7 +351,7 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 
 func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateConfigForDCAAPICandlesMultipleCurrencies",
+		Nickname: "ExampleStrategyDCAAPICandlesMultipleCurrencies",
 		Goal:     "To demonstrate running the DCA strategy using the API against multiple currencies candle data",
 		StrategySettings: StrategySettings{
 			Name: dca,
@@ -423,7 +424,7 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 
 func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateConfigForDCAAPICandlesSimultaneousProcessing",
+		Nickname: "ExampleStrategyDCAAPICandlesSimultaneousProcessing",
 		Goal:     "To demonstrate how simultaneous processing can work",
 		StrategySettings: StrategySettings{
 			Name:                         dca,
@@ -497,7 +498,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 
 func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateConfigForDCALiveCandles",
+		Nickname: "ExampleStrategyDCALiveCandles",
 		Goal:     "To demonstrate live trading proof of concept against candle data",
 		StrategySettings: StrategySettings{
 			Name: dca,
@@ -519,7 +520,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 			},
 		},
 		DataSettings: DataSettings{
-			Interval: kline.OneHour.Duration(),
+			Interval: kline.OneMin.Duration(),
 			DataType: common.CandleStr,
 			LiveData: &LiveData{
 				APIKeyOverride:        "",
@@ -638,7 +639,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 	fp := filepath.Join("..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv")
 	cfg := Config{
-		Nickname: "TestGenerateConfigForDCACSVCandles",
+		Nickname: "ExampleStrategyDCACSVCandles",
 		Goal:     "To demonstrate the DCA strategy using CSV candle data",
 		StrategySettings: StrategySettings{
 			Name: dca,
@@ -696,7 +697,7 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 	fp := filepath.Join("..", "testdata", "binance_BTCUSDT_24h-trades_2020_11_16.csv")
 	cfg := Config{
-		Nickname: "TestGenerateConfigForDCACSVTrades",
+		Nickname: "ExampleStrategyDCACSVTrades",
 		Goal:     "To demonstrate the DCA strategy using CSV trade data",
 		StrategySettings: StrategySettings{
 			Name: dca,
@@ -708,8 +709,6 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
 				InitialFunds: initialFunds2,
-				BuySide:      minMax,
-				SellSide:     minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -725,8 +724,6 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
 			Leverage: Leverage{
 				CanUseLeverage: false,
 			},
@@ -753,7 +750,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 
 func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateConfigForDCADatabaseCandles",
+		Nickname: "ExampleStrategyDCADatabaseCandles",
 		Goal:     "To demonstrate the DCA strategy using database candle data",
 		StrategySettings: StrategySettings{
 			Name: dca,
@@ -821,7 +818,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 
 func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateConfigForRSIExchangeLevelFunding",
+		Nickname: "ExampleStrategyTop2Bottom2",
 		Goal:     "To demonstrate complex strategy using exchange level funding and simultaneous processing of data signals",
 		StrategySettings: StrategySettings{
 			Name:                         top2bottom2.Name,
@@ -986,13 +983,13 @@ func TestValidateDate(t *testing.T) {
 	}
 	err = c.validateDate()
 	if !errors.Is(ErrStartEndUnset, err) {
-		t.Errorf("expected %v, received %v", ErrStartEndUnset, err)
+		t.Errorf("received: %v, expected: %v", err, ErrStartEndUnset)
 	}
 	c.DataSettings.DatabaseData.StartDate = time.Now()
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate
 	err = c.validateDate()
 	if !errors.Is(ErrBadDate, err) {
-		t.Errorf("expected %v, received %v", ErrBadDate, err)
+		t.Errorf("received: %v, expected: %v", err, ErrBadDate)
 	}
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate.Add(time.Minute)
 	err = c.validateDate()
@@ -1002,13 +999,13 @@ func TestValidateDate(t *testing.T) {
 	c.DataSettings.APIData = &APIData{}
 	err = c.validateDate()
 	if !errors.Is(ErrStartEndUnset, err) {
-		t.Errorf("expected %v, received %v", ErrStartEndUnset, err)
+		t.Errorf("received: %v, expected: %v", err, ErrStartEndUnset)
 	}
 	c.DataSettings.APIData.StartDate = time.Now()
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate
 	err = c.validateDate()
 	if !errors.Is(ErrBadDate, err) {
-		t.Errorf("expected %v, received %v", ErrBadDate, err)
+		t.Errorf("received: %v, expected: %v", err, ErrBadDate)
 	}
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate.Add(time.Minute)
 	err = c.validateDate()
@@ -1021,28 +1018,28 @@ func TestValidateCurrencySettings(t *testing.T) {
 	c := Config{}
 	err := c.validateCurrencySettings()
 	if !errors.Is(ErrNoCurrencySettings, err) {
-		t.Errorf("expected %v, received %v", ErrNoCurrencySettings, err)
+		t.Errorf("received: %v, expected: %v", err, ErrNoCurrencySettings)
 	}
 	c.CurrencySettings = append(c.CurrencySettings, CurrencySettings{})
 	err = c.validateCurrencySettings()
 	if !errors.Is(ErrBadInitialFunds, err) {
-		t.Errorf("expected %v, received %v", ErrBadInitialFunds, err)
+		t.Errorf("received: %v, expected: %v", err, ErrBadInitialFunds)
 	}
 	leet := decimal.NewFromInt(1337)
 	c.CurrencySettings[0].InitialFunds = leet
 	err = c.validateCurrencySettings()
 	if !errors.Is(ErrUnsetCurrency, err) {
-		t.Errorf("expected %v, received %v", ErrUnsetCurrency, err)
+		t.Errorf("received: %v, expected: %v", err, ErrUnsetCurrency)
 	}
 	c.CurrencySettings[0].Base = "lol"
 	err = c.validateCurrencySettings()
 	if !errors.Is(ErrUnsetAsset, err) {
-		t.Errorf("expected %v, received %v", ErrUnsetAsset, err)
+		t.Errorf("received: %v, expected: %v", err, ErrUnsetAsset)
 	}
 	c.CurrencySettings[0].Asset = "lol"
 	err = c.validateCurrencySettings()
 	if !errors.Is(ErrUnsetExchange, err) {
-		t.Errorf("expected %v, received %v", ErrUnsetExchange, err)
+		t.Errorf("received: %v, expected: %v", err, ErrUnsetExchange)
 	}
 	c.CurrencySettings[0].ExchangeName = "lol"
 	err = c.validateCurrencySettings()
@@ -1052,18 +1049,18 @@ func TestValidateCurrencySettings(t *testing.T) {
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(-1)
 	err = c.validateCurrencySettings()
 	if !errors.Is(ErrBadSlippageRates, err) {
-		t.Errorf("expected %v, received %v", ErrBadSlippageRates, err)
+		t.Errorf("received: %v, expected: %v", err, ErrBadSlippageRates)
 	}
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
 	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(-1)
 	err = c.validateCurrencySettings()
 	if !errors.Is(ErrBadSlippageRates, err) {
-		t.Errorf("expected %v, received %v", ErrBadSlippageRates, err)
+		t.Errorf("received: %v, expected: %v", err, ErrBadSlippageRates)
 	}
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
 	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(1)
 	err = c.validateCurrencySettings()
 	if !errors.Is(ErrBadSlippageRates, err) {
-		t.Errorf("expected %v, received %v", ErrBadSlippageRates, err)
+		t.Errorf("received: %v, expected: %v", err, ErrBadSlippageRates)
 	}
 }

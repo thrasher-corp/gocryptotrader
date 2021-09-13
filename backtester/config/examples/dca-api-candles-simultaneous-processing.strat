@@ -1,5 +1,5 @@
 {
- "nickname": "TestGenerateConfigForDCAAPICandlesSimultaneousProcessing",
+ "nickname": "ExampleStrategyDCAAPICandlesSimultaneousProcessing",
  "goal": "To demonstrate how simultaneous processing can work",
  "strategy-settings": {
   "name": "dollarcostaverage",

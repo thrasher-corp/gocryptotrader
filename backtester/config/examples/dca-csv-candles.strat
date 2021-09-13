@@ -1,5 +1,5 @@
 {
- "nickname": "TestGenerateConfigForDCACSVCandles",
+ "nickname": "ExampleStrategyDCACSVCandles",
  "goal": "To demonstrate the DCA strategy using CSV candle data",
  "strategy-settings": {
   "name": "dollarcostaverage",

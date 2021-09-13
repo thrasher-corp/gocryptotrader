@@ -326,12 +326,12 @@ func TestEnhanceCandles(t *testing.T) {
 	var d Data
 	err := d.enhanceCandles()
 	if !errors.Is(err, errNoCandles) {
-		t.Errorf("expected: %v, received %v", errNoCandles, err)
+		t.Errorf("received: %v, expected: %v", err, errNoCandles)
 	}
 	d.AddKlineItem(&gctkline.Item{})
 	err = d.enhanceCandles()
 	if !errors.Is(err, errStatisticsUnset) {
-		t.Errorf("expected: %v, received %v", errStatisticsUnset, err)
+		t.Errorf("received: %v, expected: %v", err, errStatisticsUnset)
 	}
 	d.Statistics = &statistics.Statistic{}
 	err = d.enhanceCandles()

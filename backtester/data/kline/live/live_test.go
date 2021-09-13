@@ -47,7 +47,7 @@ func TestLoadCandles(t *testing.T) {
 	}
 	_, err = LoadData(context.Background(), exch, -1, interval.Duration(), cp1, a)
 	if !errors.Is(err, common.ErrInvalidDataType) {
-		t.Errorf("expected '%v' received '%v'", err, common.ErrInvalidDataType)
+		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
 	}
 }
 

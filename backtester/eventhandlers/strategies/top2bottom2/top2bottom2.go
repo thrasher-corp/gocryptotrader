@@ -160,7 +160,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 
 func (s *Strategy) selectTopAndBottomPerformers(mfiFundEvents []mfiFundEvent, resp []signal.Event) ([]signal.Event, error) {
 	if len(mfiFundEvents) == 0 {
-		return nil, nil
+		return resp, nil
 	}
 	sortByMFI(&mfiFundEvents, true)
 	buyingOrSelling := false

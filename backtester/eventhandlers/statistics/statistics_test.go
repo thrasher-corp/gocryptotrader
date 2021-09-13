@@ -51,7 +51,7 @@ func TestAddDataEventForTime(t *testing.T) {
 	s := Statistic{}
 	err := s.SetupEventForTime(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
 		Base: event.Base{
@@ -87,17 +87,17 @@ func TestAddSignalEventForTime(t *testing.T) {
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	err = s.SetEventForOffset(&signal.Signal{})
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
-		t.Errorf("expected: %v, received %v", errExchangeAssetPairStatsUnset, err)
+		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
 	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
 	err = s.SetEventForOffset(&signal.Signal{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
-		t.Errorf("expected: %v, received %v", errCurrencyStatisticsUnset, err)
+		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
@@ -142,17 +142,17 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	err = s.SetEventForOffset(&order.Order{})
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
-		t.Errorf("expected: %v, received %v", errExchangeAssetPairStatsUnset, err)
+		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
 	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
 	err = s.SetEventForOffset(&order.Order{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
-		t.Errorf("expected: %v, received %v", errCurrencyStatisticsUnset, err)
+		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
@@ -202,7 +202,7 @@ func TestAddFillEventForTime(t *testing.T) {
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	err = s.SetEventForOffset(&fill.Fill{})
 	if err != nil && err.Error() != "exchangeAssetPairStatistics not setup" {
@@ -212,7 +212,7 @@ func TestAddFillEventForTime(t *testing.T) {
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
 	err = s.SetEventForOffset(&fill.Fill{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
-		t.Errorf("expected: %v, received %v", errCurrencyStatisticsUnset, err)
+		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
@@ -262,12 +262,12 @@ func TestAddHoldingsForTime(t *testing.T) {
 	s := Statistic{}
 	err := s.AddHoldingsForTime(&holdings.Holding{})
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
-		t.Errorf("expected: %v, received %v", errExchangeAssetPairStatsUnset, err)
+		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
 	err = s.AddHoldingsForTime(&holdings.Holding{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
-		t.Errorf("expected: %v, received %v", errCurrencyStatisticsUnset, err)
+		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
@@ -327,17 +327,17 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 
 	err := s.AddComplianceSnapshotForTime(compliance.Snapshot{}, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{}, &fill.Fill{})
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
-		t.Errorf("expected: %v, received %v", errExchangeAssetPairStatsUnset, err)
+		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
 	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
 	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{}, &fill.Fill{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
-		t.Errorf("expected: %v, received %v", errCurrencyStatisticsUnset, err)
+		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
@@ -517,7 +517,7 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	err := s.SetupEventForTime(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
 		Base: event.Base{
@@ -591,7 +591,7 @@ func TestCalculateTheResults(t *testing.T) {
 	p2 := currency.NewPair(currency.XRP, currency.DOGE)
 	err = s.SetupEventForTime(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
 		Base: event.Base{
