@@ -1024,6 +1024,7 @@ func (bt *BackTest) RunLive() error {
 					if de == nil {
 						break
 					}
+
 					bt.EventQueue.AppendEvent(de)
 					doneARun = true
 					continue
@@ -1104,21 +1105,20 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 		return nil
 	}
 	endDate := candles.Candles[len(candles.Candles)-1].Time.Add(cfg.DataSettings.Interval)
-	if resp.Range == nil || resp.Range.Ranges == nil {
-		dataRange, err := gctkline.CalculateCandleDateRanges(
-			startDate,
-			endDate,
-			gctkline.Interval(cfg.DataSettings.Interval),
-			0,
-		)
-		if err != nil {
-			return err
-		}
-		resp.Range = &gctkline.IntervalRangeHolder{
-			Start:  gctkline.CreateIntervalTime(startDate),
-			End:    gctkline.CreateIntervalTime(endDate),
-			Ranges: dataRange.Ranges,
-		}
+	dataRange, err := gctkline.CalculateCandleDateRanges(
+		startDate,
+		endDate,
+		gctkline.Interval(cfg.DataSettings.Interval),
+		0,
+	)
+	if err != nil {
+		return err
+	}
+
+	resp.Range = &gctkline.IntervalRangeHolder{
+		Start:  gctkline.CreateIntervalTime(startDate),
+		End:    gctkline.CreateIntervalTime(endDate),
+		Ranges: dataRange.Ranges,
 	}
 	var intervalData []gctkline.IntervalData
 	for i := range candles.Candles {
@@ -1128,13 +1128,15 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 			HasData: true,
 		})
 	}
+	resp.Range.End.Time = time.Now().Add(time.Hour * 24 * 365)
+	resp.Range.End.Ticks = resp.Range.End.Time.Unix()
 	resp.Range.Ranges[0].Intervals = intervalData
 	if len(intervalData) > 0 {
 		resp.Range.Ranges[0].End = intervalData[len(intervalData)-1].End
 	}
 
 	resp.Append(candles)
-	bt.Reports.AddKlineItem(&resp.Item)
+	bt.Reports.UpdateItem(&resp.Item)
 	log.Info(log.BackTester, "sleeping for 30 seconds before checking for new candle data")
 	return nil
 }

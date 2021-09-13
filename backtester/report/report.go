@@ -88,6 +88,16 @@ func (d *Data) AddKlineItem(k *kline.Item) {
 	d.OriginalCandles = append(d.OriginalCandles, k)
 }
 
+// UpdateItem updates an existing kline item for LIVE data usage
+func (d *Data) UpdateItem(k *kline.Item) {
+	if len(d.OriginalCandles) == 0 {
+		d.OriginalCandles = append(d.OriginalCandles, k)
+	} else {
+		d.OriginalCandles[0].Candles = append(d.OriginalCandles[0].Candles, k.Candles...)
+		d.OriginalCandles[0].RemoveDuplicates()
+	}
+}
+
 // enhanceCandles will enhance candle data with order information allowing
 // report charts to have annotations to highlight buy and sell events
 func (d *Data) enhanceCandles() error {
@@ -177,7 +187,7 @@ func (d *Data) enhanceCandles() error {
 		}
 		d.EnhancedCandles = append(d.EnhancedCandles, enhancedKline)
 	}
-
+	log.Infof(log.BackTester, "\n\n%+v\n\n", d.EnhancedCandles)
 	return nil
 }
 

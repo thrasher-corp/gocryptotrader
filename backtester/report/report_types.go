@@ -24,6 +24,7 @@ var (
 type Handler interface {
 	GenerateReport() error
 	AddKlineItem(*kline.Item)
+	UpdateItem(*kline.Item)
 	UseDarkMode(bool)
 }
 
