@@ -658,7 +658,11 @@ func (m *OrderManager) processOrders() {
 }
 
 func (m *OrderManager) processMatchingOrders(exch exchange.IBotExchange, orders []order.Detail, requiresProcessing map[string]bool, wg *sync.WaitGroup) {
-	defer wg.Done()
+	defer func() {
+		if wg != nil {
+			wg.Done()
+		}
+	}()
 	for x := range orders {
 		if time.Since(orders[x].LastUpdated) < time.Minute {
 			continue

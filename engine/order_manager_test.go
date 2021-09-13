@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // omfExchange aka ordermanager fake exchange overrides exchange functions
@@ -748,7 +747,6 @@ func TestOrderManager_Modify(t *testing.T) {
 }
 
 func TestProcessOrders(t *testing.T) {
-	log.Warnf(log.OrderMgr, "TestProcessOrders - set up orders starting")
 	var wg sync.WaitGroup
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -1048,7 +1046,7 @@ func Test_processMatchingOrders(t *testing.T) {
 	}
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go m.processMatchingOrders(exch, orders, requiresProcessing, &wg)
+	m.processMatchingOrders(exch, orders, requiresProcessing, &wg)
 	wg.Wait()
 	res, err := m.GetOrdersFiltered(&order.Filter{Exchange: testExchange})
 	if err != nil {
