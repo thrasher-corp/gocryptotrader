@@ -44,6 +44,7 @@ const (
 	unexpectedLackOfError = "unexpected lack of error"
 	migrationsFolder      = "migrations"
 	databaseFolder        = "database"
+	fakeExchangeName      = "fake"
 )
 
 // fExchange is a fake exchange with function overrides
@@ -54,7 +55,7 @@ type fExchange struct {
 
 func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair:     p,
 		Asset:    a,
 		Interval: interval,
@@ -73,7 +74,7 @@ func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a as
 
 func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair:     p,
 		Asset:    a,
 		Interval: interval,
@@ -269,7 +270,7 @@ func TestGetSavedTrades(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -880,7 +881,7 @@ func TestGetRecentTrades(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -928,7 +929,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -965,7 +966,7 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := exch.GetBase()
-	b.Name = "fake"
+	b.Name = fakeExchangeName
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -976,7 +977,7 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
-	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
+	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -990,7 +991,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := exch.GetBase()
-	b.Name = "fake"
+	b.Name = fakeExchangeName
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -1002,18 +1003,18 @@ func TestUpdateAccountInfo(t *testing.T) {
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
-	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
+	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 
-	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Futures.String()})
+	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Futures.String()})
 	if !errors.Is(err, errAssetTypeDisabled) {
 		t.Errorf("received '%v', expected '%v'", err, errAssetTypeDisabled)
 	}
 
 	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{
-		Exchange:  "fake",
+		Exchange:  fakeExchangeName,
 		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, nil) {
@@ -1908,7 +1909,7 @@ func TestStateGetAll(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := exch.GetBase()
-	b.Name = "fake"
+	b.Name = fakeExchangeName
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -1925,7 +1926,7 @@ func TestStateGetAll(t *testing.T) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
 	}
 
-	resp, err := s.StateGetAll(context.Background(), &gctrpc.StateGetAllRequest{Exchange: "fake"})
+	resp, err := s.StateGetAll(context.Background(), &gctrpc.StateGetAllRequest{Exchange: fakeExchangeName})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1943,7 +1944,7 @@ func TestStateWithdraw(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := exch.GetBase()
-	b.Name = "fake"
+	b.Name = fakeExchangeName
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -1962,7 +1963,7 @@ func TestStateWithdraw(t *testing.T) {
 	}
 
 	_, err = s.StateWithdraw(context.Background(), &gctrpc.StateWithdrawRequest{
-		Exchange: "fake"})
+		Exchange: fakeExchangeName})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1976,7 +1977,7 @@ func TestStateDeposit(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := exch.GetBase()
-	b.Name = "fake"
+	b.Name = fakeExchangeName
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -1995,7 +1996,7 @@ func TestStateDeposit(t *testing.T) {
 	}
 
 	_, err = s.StateDeposit(context.Background(),
-		&gctrpc.StateDepositRequest{Exchange: "fake"})
+		&gctrpc.StateDepositRequest{Exchange: fakeExchangeName})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2009,7 +2010,7 @@ func TestStateTrading(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := exch.GetBase()
-	b.Name = "fake"
+	b.Name = fakeExchangeName
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -2028,7 +2029,7 @@ func TestStateTrading(t *testing.T) {
 	}
 
 	_, err = s.StateTrading(context.Background(),
-		&gctrpc.StateTradingRequest{Exchange: "fake"})
+		&gctrpc.StateTradingRequest{Exchange: fakeExchangeName})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2042,7 +2043,7 @@ func TestStateTradingPair(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := exch.GetBase()
-	b.Name = "fake"
+	b.Name = fakeExchangeName
 	b.Enabled = true
 
 	cp, err := currency.NewPairFromString("btc-usd")
@@ -2070,7 +2071,7 @@ func TestStateTradingPair(t *testing.T) {
 	}
 
 	_, err = s.StateTradingPair(context.Background(),
-		&gctrpc.StateTradingPairRequest{Exchange: "fake", Pair: "btc-usd", Asset: "spot"})
+		&gctrpc.StateTradingPairRequest{Exchange: fakeExchangeName, Pair: "btc-usd", Asset: "spot"})
 	if err != nil {
 		t.Fatal(err)
 	}
