@@ -116,8 +116,8 @@ func (by *Bybit) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	by.API.Endpoints = by.NewEndpoints()
 	by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot: bybitAPIURL,
-		// exchange.WebsocketSpot: bybitWSAPIURL,
+		exchange.RestSpot:      bybitAPIURL,
+		exchange.WebsocketSpot: bybitWSURLPublicTopicV2,
 	})
 	by.Websocket = stream.New()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -134,41 +134,35 @@ func (by *Bybit) Setup(exch *config.ExchangeConfig) error {
 
 	by.SetupDefaults(exch)
 
+	wsRunningEndpoint, err := by.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
+	// If websocket is supported, please fill out the following
+	err = by.Websocket.Setup(
+		&stream.WebsocketSetup{
+			Enabled:                          exch.Features.Enabled.Websocket,
+			Verbose:                          exch.Verbose,
+			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+			DefaultURL:                       bybitWSURLPublicTopicV2,
+			ExchangeName:                     exch.Name,
+			RunningURL:                       wsRunningEndpoint,
+			Connector:                        by.WsConnect,
+			Subscriber:                       by.Subscribe,
+			UnSubscriber:                     by.Unsubscribe,
+			Features:                         &by.Features.Supports.WebsocketCapabilities,
+			OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+			BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+			SortBuffer:                       true,
+			SortBufferByUpdateIDs:            true,
+		})
+	if err != nil {
+		return err
+	}
+
 	/*
-		wsRunningEndpoint, err := by.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if err != nil {
-			return err
-		}
-
-		// If websocket is supported, please fill out the following
-
-		err = by.Websocket.Setup(
-			&stream.WebsocketSetup{
-				Enabled:                          exch.Features.Enabled.Websocket,
-				Verbose:                          exch.Verbose,
-				AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-				WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-				DefaultURL:                       bybitWSAPIURL,
-				ExchangeName:                     exch.Name,
-				RunningURL:                       wsRunningEndpoint,
-				Connector:                        by.WsConnect,
-				Subscriber:                       by.Subscribe,
-				UnSubscriber:                     by.Unsubscribe,
-				Features:                         &by.Features.Supports.WebsocketCapabilities,
-			})
-		if err != nil {
-			return err
-		}
-
-		by.WebsocketConn = &stream.WebsocketConnection{
-			ExchangeName:         by.Name,
-			URL:                  by.Websocket.GetWebsocketURL(),
-			ProxyURL:             by.Websocket.GetProxyAddress(),
-			Verbose:              by.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-
 		// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
 		by.Websocket.Orderbook.Setup(
 			exch.OrderbookConfig.WebsocketBufferLimit,

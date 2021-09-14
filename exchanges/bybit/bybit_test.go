@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -36,7 +37,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
-
+	by.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = by.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
@@ -225,8 +226,10 @@ func TestGetWalletBalance(t *testing.T) {
 }
 
 func TestWsSubscription(t *testing.T) {
+	t.Parallel()
+
 	pressXToJSON := []byte(`{
-		"symbol":"BTCUSDT",
+		"symbol": "BTCUSDT",
 		"event": "sub",
 		"topic": "trade",
 		"params": {
@@ -240,6 +243,8 @@ func TestWsSubscription(t *testing.T) {
 }
 
 func TestWsUnsubscribe(t *testing.T) {
+	t.Parallel()
+
 	pressXToJSON := []byte(`{
 		"symbol":"BTCUSDT",
 		"event": "cancel",
@@ -255,11 +260,13 @@ func TestWsUnsubscribe(t *testing.T) {
 }
 
 func TestWsTrade(t *testing.T) {
+	t.Parallel()
+
 	pressXToJSON := []byte(`{
 		"topic": "trade",
 		"params": {
 			"symbol": "BTCUSDT",
-			"binary": "false",
+			"binary": false,
 			"symbolName": "BTCUSDT"
 		},
 		"data": {
@@ -281,7 +288,7 @@ func TestWsOrderbook(t *testing.T) {
 		"topic": "depth",
 		"params": {
 		  "symbol": "BTCUSDT",
-		  "binary": "false",
+		  "binary": false,
 		  "symbolName": "BTCUSDT"
 		},
 		"data": {
@@ -301,6 +308,7 @@ func TestWsOrderbook(t *testing.T) {
 					"9780.4",
 					"0.517813"
 				]
+			],
 			"a": [
 				[
 					"9781.21",
