@@ -141,6 +141,24 @@ func (s *States) GetSnapshot() ([]Snapshot, error) {
 	return sh, nil
 }
 
+// CanTradePair returns if the currency pair is currently tradeable for this
+// exchange. If there are no states loaded for a specific currency, this will
+// assume the currency pair is operational. NOTE: Future exchanges will have
+// functionality specific to a currency.Pair, can upgrade this when needed.
+func (s *States) CanTradePair(pair currency.Pair, a asset.Item) error {
+	err := s.CanTrade(pair.Base, a)
+	if err != nil && err != errCurrencyStateNotFound {
+		return fmt.Errorf("cannot trade base currency %s %s: %w",
+			pair.Base, a, err)
+	}
+	err = s.CanTrade(pair.Quote, a)
+	if err != nil && err != errCurrencyStateNotFound {
+		return fmt.Errorf("cannot trade quote currency %s %s: %w",
+			pair.Base, a, err)
+	}
+	return nil
+}
+
 // CanTrade returns if the currency is currently tradeable for this exchange
 func (s *States) CanTrade(c currency.Code, a asset.Item) error {
 	if s == nil {

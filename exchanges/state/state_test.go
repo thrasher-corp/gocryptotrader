@@ -205,6 +205,78 @@ func TestGetSnapshot(t *testing.T) {
 	}
 }
 
+func TestCanTradePair(t *testing.T) {
+	t.Parallel()
+	err := (*States)(nil).CanTradePair(currency.Pair{}, "")
+	if !errors.Is(err, errNilStates) {
+		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
+	}
+
+	err = (&States{}).CanTradePair(currency.Pair{}, "")
+	if !errors.Is(err, errEmptyCurrency) {
+		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
+	}
+
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	err = (&States{}).CanTradePair(cp, "")
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
+	}
+
+	err = (&States{}).CanTradePair(cp, asset.Spot)
+	if !errors.Is(err, nil) { // not found but default to operational
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
+
+	err = (&States{
+		m: map[asset.Item]map[*currency.Item]*Currency{
+			asset.Spot: {
+				currency.BTC.Item: {trading: true},
+				currency.USD.Item: {trading: true},
+			},
+		},
+	}).CanTradePair(cp, asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
+
+	err = (&States{
+		m: map[asset.Item]map[*currency.Item]*Currency{
+			asset.Spot: {
+				currency.BTC.Item: {trading: false},
+				currency.USD.Item: {trading: true},
+			},
+		},
+	}).CanTradePair(cp, asset.Spot)
+	if !errors.Is(err, errTradingNotAllowed) {
+		t.Fatalf("received: %v, but expected: %v", err, errTradingNotAllowed)
+	}
+
+	err = (&States{
+		m: map[asset.Item]map[*currency.Item]*Currency{
+			asset.Spot: {
+				currency.BTC.Item: {trading: true},
+				currency.USD.Item: {trading: false},
+			},
+		},
+	}).CanTradePair(cp, asset.Spot)
+	if !errors.Is(err, errTradingNotAllowed) {
+		t.Fatalf("received: %v, but expected: %v", err, errTradingNotAllowed)
+	}
+
+	err = (&States{
+		m: map[asset.Item]map[*currency.Item]*Currency{
+			asset.Spot: {
+				currency.BTC.Item: {trading: false},
+				currency.USD.Item: {trading: false},
+			},
+		},
+	}).CanTradePair(cp, asset.Spot)
+	if !errors.Is(err, errTradingNotAllowed) {
+		t.Fatalf("received: %v, but expected: %v", err, errTradingNotAllowed)
+	}
+}
+
 func TestStatesCanTrade(t *testing.T) {
 	t.Parallel()
 	err := (*States)(nil).CanTrade(currency.Code{}, "")
