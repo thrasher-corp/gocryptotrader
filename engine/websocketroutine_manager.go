@@ -83,7 +83,7 @@ func (m *websocketRoutineManager) websocketRoutine() {
 	}
 	exchanges, err := m.exchangeManager.GetExchanges()
 	if err != nil {
-		log.Errorf(log.OrderMgr, "websocket routine manager cannot get exchanges: %v", err)
+		log.Errorf(log.WebsocketMgr, "websocket routine manager cannot get exchanges: %v", err)
 	}
 	for i := range exchanges {
 		go func(i int) {

@@ -459,7 +459,7 @@ func (m *syncManager) worker() {
 	for atomic.LoadInt32(&m.started) != 0 {
 		exchanges, err := m.exchangeManager.GetExchanges()
 		if err != nil {
-			log.Errorf(log.OrderMgr, "Sync manager cannot get exchanges: %v", err)
+			log.Errorf(log.SyncMgr, "Sync manager cannot get exchanges: %v", err)
 		}
 		for x := range exchanges {
 			exchangeName := exchanges[x].GetName()

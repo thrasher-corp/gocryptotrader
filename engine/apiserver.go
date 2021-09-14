@@ -305,7 +305,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 	var orderbookData []EnabledExchangeOrderbooks
 	exchanges, err := m.GetExchanges()
 	if err != nil {
-		log.Errorf(log.OrderMgr, "Cannot get exchanges: %v", err)
+		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
 	}
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes(true)
@@ -345,7 +345,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 	var tickers []EnabledExchangeCurrencies
 	exchanges, err := m.GetExchanges()
 	if err != nil {
-		log.Errorf(log.OrderMgr, "Cannot get exchanges: %v", err)
+		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
 	}
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes(true)
@@ -385,7 +385,7 @@ func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
 	var accounts []AllEnabledExchangeAccounts
 	exchanges, err := m.GetExchanges()
 	if err != nil {
-		log.Errorf(log.OrderMgr, "Cannot get exchanges: %v", err)
+		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
 	}
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes(true)
