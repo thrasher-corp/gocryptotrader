@@ -91,8 +91,6 @@ func (f *FundManager) GenerateReport() *Report {
 	return &Report{Items: items}
 }
 
-// CreateSnapshot makes a funding based snapshot in time to help demonstrate
-
 // Transfer allows transferring funds from one pretend exchange to another
 func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, inclusiveFee bool) error {
 	if sender == nil || receiver == nil {
