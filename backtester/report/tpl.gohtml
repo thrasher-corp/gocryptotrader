@@ -237,8 +237,8 @@
 									<td>${{ printf "%.8v" .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>
 									<td>{{  .IsStrategyProfitable }}</td>
 									<td> {{ .DoesPerformanceBeatTheMarket }}</td>
-									<td>{{ printf "%.2v" .StrategyMovement }}%</td>
-									<td>{{ printf "%.2v" .MarketMovement }}%</td>
+									<td>{{ printf "%.8v" .StrategyMovement }}%</td>
+									<td>{{ printf "%.8v" .MarketMovement}}%</td>
 								</tr>
 							{{end}}
 						{{end}}
@@ -657,7 +657,7 @@
 								{{else}}
 									<tr>
 										<td><b>Biggest Drawdown</b></td>
-										<td><b>Start:</b> {{ $val.MaxDrawdown.Highest.Time }} <b>End:</b> {{ $val.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{printf "%.2v" $val.MaxDrawdown.DrawdownPercent}}%</td>
+										<td><b>Start:</b> {{ $val.MaxDrawdown.Highest.Time }} <b>End:</b> {{ $val.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{printf "%.8v" $val.MaxDrawdown.DrawdownPercent}}%</td>
 									</tr>
 								{{ end }}
 								<tr>
@@ -682,11 +682,11 @@
 								</tr>
 								<tr>
 									<td><b>Market Movement</b></td>
-									<td>{{printf "%.2v" $val.MarketMovement}}%</td>
+									<td>{{printf "%.8v" $val.MarketMovement}}%</td>
 								</tr>
 								<tr>
 									<td><b>Strategy Movement</b></td>
-									<td>{{ printf "%.2v" $val.StrategyMovement}}%</td>
+									<td>{{ printf "%.8v" $val.StrategyMovement}}%</td>
 								</tr>
 								<tr>
 									<td><b>Did it beat the market?</b></td>

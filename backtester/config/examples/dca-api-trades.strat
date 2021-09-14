@@ -35,7 +35,8 @@
    "maker-fee-override": "0.001",
    "taker-fee-override": "0.002",
    "maximum-holdings-ratio": "0",
-   "use-exchange-order-limits": false
+   "use-exchange-order-limits": false,
+   "skip-candle-volume-fitting": true
   }
  ],
  "data-settings": {

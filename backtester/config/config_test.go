@@ -23,7 +23,7 @@ const (
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = true
+	saveConfig = false
 )
 
 var (
@@ -301,8 +301,9 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee:                makerFee,
+				TakerFee:                takerFee,
+				SkipCandleVolumeFitting: true,
 			},
 		},
 		DataSettings: DataSettings{
