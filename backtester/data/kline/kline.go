@@ -14,10 +14,10 @@ import (
 // HasDataAtTime verifies checks the underlying range data
 // To determine whether there is any candle data present at the time provided
 func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
-	if d.Range == nil {
+	if d.RangeHolder == nil {
 		return false
 	}
-	return d.Range.HasDataAtDate(t)
+	return d.RangeHolder.HasDataAtDate(t)
 }
 
 // Load sets the candle data to the stream for processing
@@ -52,8 +52,8 @@ func (d *DataFromKline) Load() error {
 	return nil
 }
 
-// Append adds a candle item to the data stream and sorts it to ensure it is all in order
-func (d *DataFromKline) Append(ki *gctkline.Item) {
+// AppendResults adds a candle item to the data stream and sorts it to ensure it is all in order
+func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[time.Time]bool)
 	}
@@ -85,6 +85,11 @@ func (d *DataFromKline) Append(ki *gctkline.Item) {
 			ValidationIssues: gctCandles[i].ValidationIssues,
 		})
 		candleTimes = append(candleTimes, gctCandles[i].Time)
+	}
+	for i := range d.RangeHolder.Ranges {
+		for j := range d.RangeHolder.Ranges[i].Intervals {
+			d.RangeHolder.Ranges[i].Intervals[j].HasData = true
+		}
 	}
 	log.Debugf(log.BackTester, "appending %v candle intervals: %v", len(gctCandles), candleTimes)
 	d.AppendStream(klineData...)

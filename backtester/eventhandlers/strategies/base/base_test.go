@@ -49,9 +49,9 @@ func TestGetBase(t *testing.T) {
 
 	d.Next()
 	_, err = s.GetBaseData(&datakline.DataFromKline{
-		Item:  gctkline.Item{},
-		Base:  d,
-		Range: &gctkline.IntervalRangeHolder{},
+		Item:        gctkline.Item{},
+		Base:        d,
+		RangeHolder: &gctkline.IntervalRangeHolder{},
 	})
 	if err != nil {
 		t.Error(err)

@@ -562,7 +562,7 @@ func TestFullCycle(t *testing.T) {
 			}},
 		},
 		Base: data.Base{},
-		Range: &gctkline.IntervalRangeHolder{
+		RangeHolder: &gctkline.IntervalRangeHolder{
 			Start: gctkline.CreateIntervalTime(tt),
 			End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
 			Ranges: []gctkline.IntervalRange{
@@ -673,7 +673,7 @@ func TestFullCycleMulti(t *testing.T) {
 			}},
 		},
 		Base: data.Base{},
-		Range: &gctkline.IntervalRangeHolder{
+		RangeHolder: &gctkline.IntervalRangeHolder{
 			Start: gctkline.CreateIntervalTime(tt),
 			End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
 			Ranges: []gctkline.IntervalRange{

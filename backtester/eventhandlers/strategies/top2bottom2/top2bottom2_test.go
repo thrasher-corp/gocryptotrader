@@ -128,9 +128,9 @@ func TestOnSignals(t *testing.T) {
 	}})
 	d.Next()
 	da := &kline.DataFromKline{
-		Item:  gctkline.Item{},
-		Base:  d,
-		Range: &gctkline.IntervalRangeHolder{},
+		Item:        gctkline.Item{},
+		Base:        d,
+		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
 	if !strings.Contains(err.Error(), errStrategyCurrencyRequirements.Error()) {

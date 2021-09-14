@@ -95,8 +95,8 @@ func TestHasDataAtTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	d.Range = ranger
-	d.Range.SetHasDataFromCandles(d.Item.Candles)
+	d.RangeHolder = ranger
+	d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
 	has = d.HasDataAtTime(dInsert)
 	if !has {
 		t.Error("expected true")
@@ -125,7 +125,7 @@ func TestAppend(t *testing.T) {
 			},
 		},
 	}
-	d.Append(&item)
+	d.AppendResults(&item)
 }
 
 func TestStreamOpen(t *testing.T) {

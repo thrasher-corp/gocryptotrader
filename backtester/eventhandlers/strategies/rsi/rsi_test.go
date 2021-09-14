@@ -114,9 +114,9 @@ func TestOnSignal(t *testing.T) {
 	)
 	d.Next()
 	da := &kline.DataFromKline{
-		Item:  gctkline.Item{},
-		Base:  d,
-		Range: &gctkline.IntervalRangeHolder{},
+		Item:        gctkline.Item{},
+		Base:        d,
+		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	var resp signal.Event
 	_, err = s.OnSignal(da, nil)
@@ -155,8 +155,8 @@ func TestOnSignal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	da.Range = ranger
-	da.Range.SetHasDataFromCandles(da.Item.Candles)
+	da.RangeHolder = ranger
+	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
 	resp, err = s.OnSignal(da, nil)
 	if err != nil {
 		t.Error(err)
@@ -194,9 +194,9 @@ func TestOnSignals(t *testing.T) {
 	}})
 	d.Next()
 	da := &kline.DataFromKline{
-		Item:  gctkline.Item{},
-		Base:  d,
-		Range: &gctkline.IntervalRangeHolder{},
+		Item:        gctkline.Item{},
+		Base:        d,
+		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
 	if !strings.Contains(err.Error(), base.ErrTooMuchBadData.Error()) {

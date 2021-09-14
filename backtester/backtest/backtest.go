@@ -560,7 +560,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		}
 		resp.Item.RemoveDuplicates()
 		resp.Item.SortCandlesByTimestamp(false)
-		resp.Range, err = gctkline.CalculateCandleDateRanges(
+		resp.RangeHolder, err = gctkline.CalculateCandleDateRanges(
 			resp.Item.Candles[0].Time,
 			resp.Item.Candles[len(resp.Item.Candles)-1].Time.Add(cfg.DataSettings.Interval),
 			gctkline.Interval(cfg.DataSettings.Interval),
@@ -569,8 +569,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		resp.Range.SetHasDataFromCandles(resp.Item.Candles)
-		summary := resp.Range.DataSummary(false)
+		resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
+		summary := resp.RangeHolder.DataSummary(false)
 		if len(summary) > 0 {
 			log.Warnf(log.BackTester, "%v", summary)
 		}
@@ -608,7 +608,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 
 		resp.Item.RemoveDuplicates()
 		resp.Item.SortCandlesByTimestamp(false)
-		resp.Range, err = gctkline.CalculateCandleDateRanges(
+		resp.RangeHolder, err = gctkline.CalculateCandleDateRanges(
 			cfg.DataSettings.DatabaseData.StartDate,
 			cfg.DataSettings.DatabaseData.EndDate,
 			gctkline.Interval(cfg.DataSettings.Interval),
@@ -617,8 +617,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		resp.Range.SetHasDataFromCandles(resp.Item.Candles)
-		summary := resp.Range.DataSummary(false)
+		resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
+		summary := resp.RangeHolder.DataSummary(false)
 		if len(summary) > 0 {
 			log.Warnf(log.BackTester, "%v", summary)
 		}
@@ -719,8 +719,8 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	candles.FillMissingDataWithEmptyEntries(dates)
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
 	return &kline.DataFromKline{
-		Item:  *candles,
-		Range: dates,
+		Item:        *candles,
+		RangeHolder: dates,
 	}, nil
 }
 
@@ -901,7 +901,7 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 // updateStatsForDataEvent makes various systems aware of price movements from
 // data events
 func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds funding.IPairReader) error {
-	// update statistics with latest price
+	// update statistics with the latest price
 	err := bt.Statistic.SetupEventForTime(ev)
 	if err != nil {
 		if err == statistics.ErrAlreadyProcessed {
@@ -909,7 +909,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		}
 		log.Error(log.BackTester, err)
 	}
-	// update portfoliomanager with latest price
+	// update portfolio manager with the latest price
 	err = bt.Portfolio.UpdateHoldings(ev, funds)
 	if err != nil {
 		log.Error(log.BackTester, err)
@@ -1044,7 +1044,12 @@ func (bt *BackTest) RunLive() error {
 // loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
 // from live. Its purpose is to be able to perform strategy analysis against current data
 func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) {
-	startDate := time.Now()
+	startDate := time.Now().Add(-cfg.DataSettings.Interval * 2)
+	dates, err := gctkline.CalculateCandleDateRanges(
+		startDate,
+		startDate.AddDate(1, 0, 0),
+		gctkline.Interval(cfg.DataSettings.Interval),
+		0)
 	candles, err := live.LoadData(context.TODO(),
 		exch,
 		dataType,
@@ -1055,6 +1060,8 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		log.Errorf(log.BackTester, "%v. Please check your GoCryptoTrader configuration", err)
 		return
 	}
+	dates.SetHasDataFromCandles(candles.Candles)
+	resp.RangeHolder = dates
 	resp.Item = *candles
 
 	loadNewDataTimer := time.NewTimer(time.Second * 5)
@@ -1093,49 +1100,10 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 	if err != nil {
 		return err
 	}
-
-	resp.Item.Candles = append(resp.Item.Candles, candles.Candles...)
-	_, err = exch.FetchOrderbook(context.TODO(), fPair, a)
-	if err != nil {
-		return err
-	}
-	resp.Item.RemoveDuplicates()
-	resp.Item.SortCandlesByTimestamp(false)
 	if len(candles.Candles) == 0 {
 		return nil
 	}
-	endDate := candles.Candles[len(candles.Candles)-1].Time.Add(cfg.DataSettings.Interval)
-	dataRange, err := gctkline.CalculateCandleDateRanges(
-		startDate,
-		endDate,
-		gctkline.Interval(cfg.DataSettings.Interval),
-		0,
-	)
-	if err != nil {
-		return err
-	}
-
-	resp.Range = &gctkline.IntervalRangeHolder{
-		Start:  gctkline.CreateIntervalTime(startDate),
-		End:    gctkline.CreateIntervalTime(endDate),
-		Ranges: dataRange.Ranges,
-	}
-	var intervalData []gctkline.IntervalData
-	for i := range candles.Candles {
-		intervalData = append(intervalData, gctkline.IntervalData{
-			Start:   gctkline.CreateIntervalTime(candles.Candles[i].Time),
-			End:     gctkline.CreateIntervalTime(candles.Candles[i].Time.Add(cfg.DataSettings.Interval)),
-			HasData: true,
-		})
-	}
-	resp.Range.End.Time = time.Now().Add(time.Hour * 24 * 365)
-	resp.Range.End.Ticks = resp.Range.End.Time.Unix()
-	resp.Range.Ranges[0].Intervals = intervalData
-	if len(intervalData) > 0 {
-		resp.Range.Ranges[0].End = intervalData[len(intervalData)-1].End
-	}
-
-	resp.Append(candles)
+	resp.AppendResults(candles)
 	bt.Reports.UpdateItem(&resp.Item)
 	log.Info(log.BackTester, "sleeping for 30 seconds before checking for new candle data")
 	return nil
