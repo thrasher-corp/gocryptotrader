@@ -719,7 +719,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 
 // GetExchangeNames returns a list of enabled or disabled exchanges
 func (bot *Engine) GetExchangeNames(enabledOnly bool) []string {
-	exchanges := bot.ExchangeManager.GetExchanges()
+	exchanges := bot.GetExchanges()
 	var response []string
 	for i := range exchanges {
 		if !enabledOnly || (enabledOnly && exchanges[i].IsEnabled()) {

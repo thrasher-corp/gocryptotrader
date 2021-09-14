@@ -1015,10 +1015,7 @@ func TestGetOrders(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	err = om.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	om.started = 1
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
@@ -1126,7 +1123,7 @@ func TestGetOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	err = om.Start()
+	om.started = 1
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1656,10 +1653,7 @@ func TestGetManagedOrders(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	err = om.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	om.started = 1
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{

@@ -84,6 +84,7 @@ func (b *Bittrex) SetDefaults() {
 				TradeFetching:       true,
 				OrderbookFetching:   true,
 				AutoPairUpdates:     true,
+				GetOrder:            true,
 				GetOrders:           true,
 				CancelOrder:         true,
 				CancelOrders:        true,

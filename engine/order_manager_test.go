@@ -7,10 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 )
 
 // omfExchange aka ordermanager fake exchange overrides exchange functions
@@ -29,8 +32,31 @@ func (f omfExchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 // GetOrderInfo overrides testExchange's get order function
 // to do the bare minimum required with no API calls or credentials required
 func (f omfExchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	if orderID == "" {
+	switch orderID {
+	case "":
 		return order.Detail{}, errors.New("")
+	case "Order1-unknown-to-active":
+		return order.Detail{
+			Exchange:    testExchange,
+			Pair:        currency.Pair{Base: currency.BTC, Quote: currency.USD},
+			AssetType:   asset.Spot,
+			Amount:      1.0,
+			Side:        order.Buy,
+			Status:      order.Active,
+			LastUpdated: time.Now().Add(-time.Hour),
+			ID:          "Order1-unknown-to-active",
+		}, nil
+	case "Order2-active-to-inactive":
+		return order.Detail{
+			Exchange:    testExchange,
+			Pair:        currency.Pair{Base: currency.BTC, Quote: currency.USD},
+			AssetType:   asset.Spot,
+			Amount:      1.0,
+			Side:        order.Sell,
+			Status:      order.Cancelled,
+			LastUpdated: time.Now().Add(-time.Hour),
+			ID:          "Order2-active-to-inactive",
+		}, nil
 	}
 
 	return order.Detail{
@@ -38,7 +64,22 @@ func (f omfExchange) GetOrderInfo(ctx context.Context, orderID string, pair curr
 		ID:        orderID,
 		Pair:      pair,
 		AssetType: assetType,
+		Status:    order.Cancelled,
 	}, nil
+}
+
+// GetActiveOrders overrides the function used by processOrders to return 1 active order
+func (f omfExchange) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
+	return []order.Detail{{
+		Exchange:    testExchange,
+		Pair:        currency.Pair{Base: currency.BTC, Quote: currency.USD},
+		AssetType:   asset.Spot,
+		Amount:      2.0,
+		Side:        order.Sell,
+		Status:      order.Active,
+		LastUpdated: time.Now().Add(-time.Hour),
+		ID:          "Order3-unknown-to-active",
+	}}, nil
 }
 
 func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
@@ -157,11 +198,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-
+	m.started = 1
 	return m
 }
 
@@ -710,8 +747,155 @@ func TestOrderManager_Modify(t *testing.T) {
 }
 
 func TestProcessOrders(t *testing.T) {
-	m := OrdersSetup(t)
+	var wg sync.WaitGroup
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	fakeExchange := omfExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	m.started = 1
+	pairs := currency.Pairs{
+		currency.Pair{Base: currency.BTC, Quote: currency.USD},
+	}
+	// Ensure processOrders() can run the REST calls to GetActiveOrders
+	// and to GetOrders
+	exch.GetBase().API = exchange.API{
+		AuthenticatedSupport:          true,
+		AuthenticatedWebsocketSupport: false,
+	}
+	exch.GetBase().Features = exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			REST: true,
+			RESTCapabilities: protocol.Features{
+				GetOrder: true,
+			},
+		},
+	}
+	exch.GetBase().CurrencyPairs = currency.PairsManager{
+		UseGlobalFormat: true,
+		RequestFormat: &currency.PairFormat{
+			Delimiter: "-",
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: "-",
+			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: {
+				AssetEnabled: convert.BoolPtr(true),
+				Enabled:      pairs,
+				Available:    pairs,
+			},
+		},
+	}
+	exch.GetBase().Config = &config.ExchangeConfig{
+		CurrencyPairs: &currency.PairsManager{
+			UseGlobalFormat: true,
+			RequestFormat: &currency.PairFormat{
+				Delimiter: "-",
+				Uppercase: true,
+			},
+			ConfigFormat: &currency.PairFormat{
+				Delimiter: "-",
+				Uppercase: true,
+			},
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					AssetEnabled: convert.BoolPtr(true),
+					Enabled:      pairs,
+					Available:    pairs,
+				},
+			},
+		},
+	}
+
+	orders := []order.Detail{
+		{
+			Exchange:    testExchange,
+			Pair:        pairs[0],
+			AssetType:   asset.Spot,
+			Amount:      1.0,
+			Side:        order.Buy,
+			Status:      order.UnknownStatus,
+			LastUpdated: time.Now().Add(-time.Hour),
+			ID:          "Order1-unknown-to-active",
+		},
+		{
+			Exchange:    testExchange,
+			Pair:        pairs[0],
+			AssetType:   asset.Spot,
+			Amount:      1.0,
+			Side:        order.Sell,
+			Status:      order.Active,
+			LastUpdated: time.Now().Add(-time.Hour),
+			ID:          "Order2-active-to-inactive",
+		},
+		{
+			Exchange:    testExchange,
+			Pair:        pairs[0],
+			AssetType:   asset.Spot,
+			Amount:      2.0,
+			Side:        order.Sell,
+			Status:      order.UnknownStatus,
+			LastUpdated: time.Now().Add(-time.Hour),
+			ID:          "Order3-unknown-to-active",
+		},
+	}
+	for i := range orders {
+		if err = m.orderStore.add(&orders[i]); err != nil {
+			t.Error(err)
+		}
+	}
+
 	m.processOrders()
+
+	// Order1 is not returned by exch.GetActiveOrders()
+	// It will be fetched by exch.GetOrderInfo(), which will say it is active
+	res, err := m.GetOrdersFiltered(&order.Filter{ID: "Order1-unknown-to-active"})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected 3 result, got: %d", len(res))
+	}
+	if res[0].Status != order.Active {
+		t.Errorf("Order 1 should be active, but status is %s", string(res[0].Status))
+	}
+
+	// Order2 is not returned by exch.GetActiveOrders()
+	// It will be fetched by exch.GetOrderInfo(), which will say it is cancelled
+	res, err = m.GetOrdersFiltered(&order.Filter{ID: "Order2-active-to-inactive"})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected 1 result, got: %d", len(res))
+	}
+	if res[0].Status != order.Cancelled {
+		t.Errorf("Order 2 should be cancelled, but status is %s", string(res[0].Status))
+	}
+
+	// Order3 is returned by exch.GetActiveOrders(), which will say it is active
+	res, err = m.GetOrdersFiltered(&order.Filter{ID: "Order3-unknown-to-active"})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected 1 result, got: %d", len(res))
+	}
+	if res[0].Status != order.Active {
+		t.Errorf("Order 3 should be active, but status is %s", string(res[0].Status))
+	}
 }
 
 func TestGetOrdersFiltered(t *testing.T) {
@@ -773,5 +957,189 @@ func Test_getFilteredOrders(t *testing.T) {
 	}
 	if len(res) != 1 {
 		t.Errorf("Expected 1 result, got: %d", len(res))
+	}
+}
+
+func TestGetOrdersActive(t *testing.T) {
+	m := OrdersSetup(t)
+	var err error
+	orders := []order.Detail{
+		{
+			Exchange: testExchange,
+			Amount:   1.0,
+			Side:     order.Buy,
+			Status:   order.Cancelled,
+			ID:       "Test1",
+		},
+		{
+			Exchange: testExchange,
+			Amount:   1.0,
+			Side:     order.Sell,
+			Status:   order.Active,
+			ID:       "Test2",
+		},
+	}
+	for i := range orders {
+		if err = m.orderStore.add(&orders[i]); err != nil {
+			t.Error(err)
+		}
+	}
+	res, err := m.GetOrdersActive(nil)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("TestGetOrdersActive - Expected 1 result, got: %d", len(res))
+	}
+	res, err = m.GetOrdersActive(&order.Filter{Side: order.Sell})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("TestGetOrdersActive - Expected 1 result, got: %d", len(res))
+	}
+	res, err = m.GetOrdersActive(&order.Filter{Side: order.Buy})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 0 {
+		t.Errorf("TestGetOrdersActive - Expected 0 results, got: %d", len(res))
+	}
+}
+
+func Test_processMatchingOrders(t *testing.T) {
+	m := OrdersSetup(t)
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orders := []order.Detail{
+		{
+			Exchange:    testExchange,
+			ID:          "Test1",
+			LastUpdated: time.Now(),
+		},
+		{
+			Exchange:    testExchange,
+			ID:          "Test2",
+			LastUpdated: time.Now(),
+		},
+		{
+			Exchange:    testExchange,
+			ID:          "Test3",
+			LastUpdated: time.Now().Add(-time.Hour),
+		},
+		{
+			Exchange:    testExchange,
+			ID:          "Test4",
+			LastUpdated: time.Now().Add(-time.Hour),
+		},
+	}
+	requiresProcessing := make(map[string]bool, len(orders))
+	for i := range orders {
+		orders[i].GenerateInternalOrderID()
+		if i%2 == 0 {
+			requiresProcessing[orders[i].InternalOrderID] = false
+		} else {
+			requiresProcessing[orders[i].InternalOrderID] = true
+		}
+	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	m.processMatchingOrders(exch, orders, requiresProcessing, &wg)
+	wg.Wait()
+	res, err := m.GetOrdersFiltered(&order.Filter{Exchange: testExchange})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected 1 result, got: %d", len(res))
+	}
+	if res[0].ID != "Test4" {
+		t.Error("Order Test4 should have been fetched and updated")
+	}
+}
+
+func TestFetchAndUpdateExchangeOrder(t *testing.T) {
+	m := OrdersSetup(t)
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = m.FetchAndUpdateExchangeOrder(exch, nil, asset.Spot)
+	if err == nil {
+		t.Error("Error expected when order is nil")
+	}
+	o := &order.Detail{
+		Exchange: testExchange,
+		Amount:   1.0,
+		Side:     order.Sell,
+		Status:   order.Active,
+		ID:       "Test",
+	}
+	err = m.FetchAndUpdateExchangeOrder(exch, o, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if o.Status != order.Active {
+		t.Error("Order should be active")
+	}
+	res, err := m.GetOrdersFiltered(&order.Filter{Exchange: testExchange})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected 1 result, got: %d", len(res))
+	}
+
+	o.Status = order.PartiallyCancelled
+	err = m.FetchAndUpdateExchangeOrder(exch, o, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	res, err = m.GetOrdersFiltered(&order.Filter{Exchange: testExchange})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 {
+		t.Errorf("Expected 1 result, got: %d", len(res))
+	}
+}
+
+func Test_getActiveOrders(t *testing.T) {
+	m := OrdersSetup(t)
+	var err error
+	orders := []order.Detail{
+		{
+			Exchange: testExchange,
+			Amount:   1.0,
+			Side:     order.Buy,
+			Status:   order.Cancelled,
+			ID:       "Test1",
+		},
+		{
+			Exchange: testExchange,
+			Amount:   1.0,
+			Side:     order.Sell,
+			Status:   order.Active,
+			ID:       "Test2",
+		},
+	}
+	for i := range orders {
+		if err = m.orderStore.add(&orders[i]); err != nil {
+			t.Error(err)
+		}
+	}
+	res := m.orderStore.getActiveOrders(nil)
+	if len(res) != 1 {
+		t.Errorf("Test_getActiveOrders - Expected 1 result, got: %d", len(res))
+	}
+	res = m.orderStore.getActiveOrders(&order.Filter{Side: order.Sell})
+	if len(res) != 1 {
+		t.Errorf("Test_getActiveOrders - Expected 1 result, got: %d", len(res))
+	}
+	res = m.orderStore.getActiveOrders(&order.Filter{Side: order.Buy})
+	if len(res) != 0 {
+		t.Errorf("Test_getActiveOrders - Expected 0 results, got: %d", len(res))
 	}
 }
