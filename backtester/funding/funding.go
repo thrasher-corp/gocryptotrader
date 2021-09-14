@@ -16,7 +16,7 @@ var (
 	ErrFundsNotFound              = errors.New("funding not found")
 	ErrZeroAmountReceived         = errors.New("received less than or equal to zero")
 	ErrNegativeAmountReceived     = errors.New("received negative decimal")
-	ErrAlreadyExists              = errors.New("already exists")
+	ErrAlreadyExists              = errors.New("funding already exists")
 	ErrNotEnoughFunds             = errors.New("not enough funds")
 	errCannotTransferToSameFunds  = errors.New("cannot send funds to self")
 	errTransferMustBeSameCurrency = errors.New("cannot transfer to different currency")

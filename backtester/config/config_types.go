@@ -10,16 +10,17 @@ import (
 
 // Errors for config validation
 var (
-	ErrBadDate                        = errors.New("start date >= end date, please check your config")
-	ErrNoCurrencySettings             = errors.New("no currency settings set in the config")
-	ErrBadInitialFunds                = errors.New("initial funds set with invalid data, please check your config")
-	ErrUnsetExchange                  = errors.New("exchange name unset for currency settings, please check your config")
-	ErrUnsetAsset                     = errors.New("asset unset for currency settings, please check your config")
-	ErrUnsetCurrency                  = errors.New("currency unset for currency settings, please check your config")
-	ErrBadSlippageRates               = errors.New("invalid slippage rates in currency settings, please check your config")
-	ErrStartEndUnset                  = errors.New("data start and end dates are invalid, please check your config")
-	ErrSimultaneousProcessingRequired = errors.New("exchange level funding requires simultaneous processing, please check your config and view funding readme for details")
-	ErrExchangeLevelFundingRequired   = errors.New("invalid config, funding details set while exchange level funding is disabled")
+	ErrBadDate                          = errors.New("start date >= end date, please check your config")
+	ErrNoCurrencySettings               = errors.New("no currency settings set in the config")
+	ErrBadInitialFunds                  = errors.New("initial funds set with invalid data, please check your config")
+	ErrUnsetExchange                    = errors.New("exchange name unset for currency settings, please check your config")
+	ErrUnsetAsset                       = errors.New("asset unset for currency settings, please check your config")
+	ErrUnsetCurrency                    = errors.New("currency unset for currency settings, please check your config")
+	ErrBadSlippageRates                 = errors.New("invalid slippage rates in currency settings, please check your config")
+	ErrStartEndUnset                    = errors.New("data start and end dates are invalid, please check your config")
+	ErrSimultaneousProcessingRequired   = errors.New("exchange level funding requires simultaneous processing, please check your config and view funding readme for details")
+	ErrExchangeLevelFundingRequired     = errors.New("invalid config, funding details set while exchange level funding is disabled")
+	ErrExchangeLevelFundingDataRequired = errors.New("invalid config, exchange level funding enabled with no funding data set")
 )
 
 // Config defines what is in an individual strategy config

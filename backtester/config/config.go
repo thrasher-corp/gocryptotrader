@@ -198,6 +198,16 @@ func (c *Config) validateStrategySettings() error {
 	if len(c.StrategySettings.ExchangeLevelFunding) > 0 && !c.StrategySettings.UseExchangeLevelFunding {
 		return ErrExchangeLevelFundingRequired
 	}
+	if c.StrategySettings.UseExchangeLevelFunding && len(c.StrategySettings.ExchangeLevelFunding) == 0 {
+		return ErrExchangeLevelFundingDataRequired
+	}
+	if c.StrategySettings.UseExchangeLevelFunding {
+		for i := range c.StrategySettings.ExchangeLevelFunding {
+			if c.StrategySettings.ExchangeLevelFunding[i].InitialFunds.IsNegative() {
+				return ErrBadInitialFunds
+			}
+		}
+	}
 	strats := strategies.GetStrategies()
 	for i := range strats {
 		if strings.EqualFold(strats[i].Name(), c.StrategySettings.Name) {
