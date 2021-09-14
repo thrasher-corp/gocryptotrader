@@ -427,11 +427,23 @@ func (f *FTX) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType as
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
 	var resp account.Holdings
-	// Get all wallet balances used so we can transfer between accounts if
-	// needed.
-	data, err := f.GetAllWalletBalances(ctx)
-	if err != nil {
-		return resp, err
+
+	var data AllWalletBalances
+	if f.API.Credentials.Subaccount != "" {
+		balances, err := f.GetBalances(ctx)
+		if err != nil {
+			return resp, err
+		}
+		data = make(AllWalletBalances)
+		data[f.API.Credentials.Subaccount] = balances
+	} else {
+		// Get all wallet balances used so we can transfer between accounts if
+		// needed.
+		var err error
+		data, err = f.GetAllWalletBalances(ctx)
+		if err != nil {
+			return resp, err
+		}
 	}
 
 	for subName, balances := range data {
@@ -449,8 +461,7 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 	}
 
 	resp.Exchange = f.Name
-	err = account.Process(&resp)
-	if err != nil {
+	if err := account.Process(&resp); err != nil {
 		return account.Holdings{}, err
 	}
 
