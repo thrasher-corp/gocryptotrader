@@ -87,6 +87,8 @@ See below for a set of tables and fields, expected values and what they can do
 | MakerFee | The fee to use when sizing and purchasing currency | `0.001` |
 | TakerFee | Unused fee for when an order is placed in the orderbook, rather than taken from the orderbook | `0.002` |
 | MaximumHoldingsRatio | When multiple currency settings are used, you may set a maximum holdings ratio to prevent having too large a stake in a single currency | `0.5` |
+| CanUseExchangeLimits | Will lookup exchange rules around purchase sizing eg minimum order increments of 0.0005. Note: Will retrieve up-to-date rules which may not have existed for the data you are using. Best to use this when considering to use this strategy live | `false` |
+| SkipCandleVolumeFitting | When placing orders, by default the BackTester will shrink an order's size to fit the candle data's volume so as to not rewrite history. Set this to `true` to ignore this and to set order size at what the portfolio manager prescribes | `false` |
 
 #### PortfolioSettings
 
