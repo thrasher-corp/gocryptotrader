@@ -653,6 +653,13 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 	if yn == y || yn == yes {
 		setting.CanUseExchangeLimits = true
 	}
+
+	fmt.Println("Should order size shrink to fit within candle volume? y/n")
+	yn = quickParse(reader)
+	if yn == y || yn == yes {
+		setting.SkipCandleVolumeFitting = true
+	}
+
 	fmt.Println("Do you wish to include slippage? y/n")
 	yn = quickParse(reader)
 	if yn == y || yn == yes {

@@ -418,8 +418,9 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 				MaximumLeverageRate:            cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
 				MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
 			},
-			Limits:               limits,
-			CanUseExchangeLimits: cfg.CurrencySettings[i].CanUseExchangeLimits,
+			Limits:                  limits,
+			SkipCandleVolumeFitting: cfg.CurrencySettings[i].SkipCandleVolumeFitting,
+			CanUseExchangeLimits:    cfg.CurrencySettings[i].CanUseExchangeLimits,
 		})
 	}
 
@@ -659,7 +660,9 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 
 	err = b.ValidateKline(fPair, a, resp.Item.Interval)
 	if err != nil {
-		return nil, err
+		if dataType != common.DataTrade || !strings.EqualFold(err.Error(), "interval not supported") {
+			return nil, err
+		}
 	}
 
 	err = resp.Load()

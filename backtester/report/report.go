@@ -139,11 +139,11 @@ func (d *Data) enhanceCandles() error {
 				Low:          decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Low),
 				Close:        decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Close),
 				Volume:       decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Volume),
-				VolumeColour: "rgba(47, 194, 27, 0.8)",
+				VolumeColour: "rgba(50, 204, 30, 0.5)",
 			}
 			if j != 0 {
 				if d.OriginalCandles[intVal].Candles[j].Close < d.OriginalCandles[intVal].Candles[j-1].Close {
-					enhancedCandle.VolumeColour = "rgba(252, 3, 3, 0.8)"
+					enhancedCandle.VolumeColour = "rgba(232, 3, 3, 0.5)"
 				}
 			}
 			if !requiresIteration {
@@ -187,7 +187,7 @@ func (d *Data) enhanceCandles() error {
 		}
 		d.EnhancedCandles = append(d.EnhancedCandles, enhancedKline)
 	}
-	log.Infof(log.BackTester, "\n\n%+v\n\n", d.EnhancedCandles)
+
 	return nil
 }
 

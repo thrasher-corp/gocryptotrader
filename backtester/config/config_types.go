@@ -126,6 +126,7 @@ type CurrencySettings struct {
 	MaximumHoldingsRatio decimal.Decimal `json:"maximum-holdings-ratio"`
 
 	CanUseExchangeLimits          bool `json:"use-exchange-order-limits"`
+	SkipCandleVolumeFitting       bool `json:"skip-candle-volume-fitting"`
 	ShowExchangeOrderLimitWarning bool `json:"-"`
 }
 

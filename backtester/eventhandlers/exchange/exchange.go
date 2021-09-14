@@ -105,7 +105,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 				limitReducedAmount))
 		}
 	}
-
 	err = verifyOrderWithinLimits(f, limitReducedAmount, &cs)
 	if err != nil {
 		return f, err
@@ -167,7 +166,7 @@ func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount decimal.Decimal, c
 	if cs == nil {
 		return errNilCurrencySettings
 	}
-	exceeded := false
+	isBeyondLimit := false
 	var minMax config.MinMax
 	var direction gctorder.Side
 	switch f.GetDirection() {
@@ -182,21 +181,23 @@ func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount decimal.Decimal, c
 		f.SetDirection(common.DoNothing)
 		return fmt.Errorf("%w: %v", errInvalidDirection, direction)
 	}
-	var exceededLimit string
+	var minOrMax, belowExceed string
 	var size decimal.Decimal
 	if limitReducedAmount.LessThan(minMax.MinimumSize) && minMax.MinimumSize.GreaterThan(decimal.Zero) {
-		exceeded = true
-		exceededLimit = "minimum"
+		isBeyondLimit = true
+		belowExceed = "below"
+		minOrMax = "minimum"
 		size = minMax.MinimumSize
 	}
 	if limitReducedAmount.GreaterThan(minMax.MaximumSize) && minMax.MaximumSize.GreaterThan(decimal.Zero) {
-		exceeded = true
-		exceededLimit = "maximum"
+		isBeyondLimit = true
+		belowExceed = "exceeded"
+		minOrMax = "maximum"
 		size = minMax.MaximumSize
 	}
-	if exceeded {
+	if isBeyondLimit {
 		f.SetDirection(direction)
-		e := fmt.Sprintf("Order size %v exceeded %v size %v", limitReducedAmount, exceededLimit, size)
+		e := fmt.Sprintf("Order size %v %s %s size %v", limitReducedAmount, belowExceed, minOrMax, size)
 		f.AppendReason(e)
 		return fmt.Errorf("%w %v", errExceededPortfolioLimit, e)
 	}
@@ -280,9 +281,14 @@ func (e *Exchange) sizeOfflineOrder(high, low, volume decimal.Decimal, cs *Setti
 	}
 	// provide history and estimate volatility
 	slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
-	f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
-	if !adjustedAmount.Equal(f.Amount) {
-		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to fit candle", f.Amount, adjustedAmount))
+	if cs.SkipCandleVolumeFitting {
+		f.VolumeAdjustedPrice = f.ClosePrice
+		adjustedAmount = f.Amount
+	} else {
+		f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
+		if !adjustedAmount.Equal(f.Amount) {
+			f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to fit candle", f.Amount, adjustedAmount))
+		}
 	}
 
 	if adjustedAmount.LessThanOrEqual(decimal.Zero) && f.Amount.GreaterThan(decimal.Zero) {
