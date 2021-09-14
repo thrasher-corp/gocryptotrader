@@ -475,7 +475,7 @@
 						<h3>{{.Exchange}} {{.Asset}} {{.Pair}}</h3>
 						<script>
 							var chart = LightweightCharts.createChart(document.getElementById("{{.Exchange}}{{.Asset}}{{.Pair}}"), {
-								width: 1200,
+								width: document.getElementById("{{.Exchange}}{{.Asset}}{{.Pair}}").offsetWidth,
 								height: 800,
 								layout: {
 									backgroundColor: '#000',

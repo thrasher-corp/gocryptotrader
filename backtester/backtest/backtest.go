@@ -1053,6 +1053,10 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		startDate.AddDate(1, 0, 0),
 		gctkline.Interval(cfg.DataSettings.Interval),
 		0)
+	if err != nil {
+		log.Errorf(log.BackTester, "%v. Please check your GoCryptoTrader configuration", err)
+		return
+	}
 	candles, err := live.LoadData(context.TODO(),
 		exch,
 		dataType,
@@ -1075,7 +1079,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		case <-loadNewDataTimer.C:
 			log.Infof(log.BackTester, "fetching data for %v %v %v %v", exch.GetName(), a, fPair, cfg.DataSettings.Interval)
 			loadNewDataTimer.Reset(time.Second * 15)
-			err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate, dataType)
+			err = bt.loadLiveData(resp, cfg, exch, fPair, a, dataType)
 			if err != nil {
 				log.Error(log.BackTester, err)
 				return
@@ -1084,7 +1088,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 	}
 }
 
-func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, startDate time.Time, dataType int64) error {
+func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) error {
 	if resp == nil {
 		return errNilData
 	}
