@@ -407,8 +407,8 @@ func TestStatesGet(t *testing.T) {
 	}
 
 	_, err = (&States{}).Get(currency.BTC, asset.Spot)
-	if !errors.Is(err, errCurrencyStateNotFound) {
-		t.Fatalf("received: %v, but expected: %v", err, errCurrencyStateNotFound)
+	if !errors.Is(err, ErrCurrencyStateNotFound) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrCurrencyStateNotFound)
 	}
 }
 

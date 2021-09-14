@@ -14,17 +14,20 @@ import (
 var (
 	manager Manager
 
-	errEmptyCurrency         = errors.New("empty currency")
-	errCurrencyStateNotFound = errors.New("currency state not found")
-	errUpdatesAreNil         = errors.New("updates are nil")
-	errExchangeNotFound      = errors.New("exchange not found")
-	errExchangeNameIsEmpty   = errors.New("exchange name is empty")
-	errNilStates             = errors.New("states is not started or set up")
+	errEmptyCurrency       = errors.New("empty currency")
+	errUpdatesAreNil       = errors.New("updates are nil")
+	errExchangeNotFound    = errors.New("exchange not found")
+	errExchangeNameIsEmpty = errors.New("exchange name is empty")
+	errNilStates           = errors.New("states is not started or set up")
 
 	// Specific operational errors
 	errDepositNotAllowed     = errors.New("depositing not allowed")
 	errWithdrawalsNotAllowed = errors.New("withdrawals not allowed")
 	errTradingNotAllowed     = errors.New("trading not allowed")
+
+	// ErrCurrencyStateNotFound is an error when the currency state has not been
+	// found
+	ErrCurrencyStateNotFound = errors.New("currency state not found")
 )
 
 // GetManager returns the package management struct
@@ -141,12 +144,12 @@ func (s *States) GetStateSnapshot() ([]Snapshot, error) {
 // functionality specific to a currency.Pair, can upgrade this when needed.
 func (s *States) CanTradePair(pair currency.Pair, a asset.Item) error {
 	err := s.CanTrade(pair.Base, a)
-	if err != nil && err != errCurrencyStateNotFound {
+	if err != nil && err != ErrCurrencyStateNotFound {
 		return fmt.Errorf("cannot trade base currency %s %s: %w",
 			pair.Base, a, err)
 	}
 	err = s.CanTrade(pair.Quote, a)
-	if err != nil && err != errCurrencyStateNotFound {
+	if err != nil && err != ErrCurrencyStateNotFound {
 		return fmt.Errorf("cannot trade quote currency %s %s: %w",
 			pair.Base, a, err)
 	}
@@ -274,7 +277,7 @@ func (s *States) Get(c currency.Code, a asset.Item) (*Currency, error) {
 	defer s.mtx.RUnlock()
 	cs, ok := s.m[a][c.Item]
 	if !ok {
-		return nil, errCurrencyStateNotFound
+		return nil, ErrCurrencyStateNotFound
 	}
 	return cs, nil
 }
