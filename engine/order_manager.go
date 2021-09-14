@@ -90,6 +90,7 @@ func (m *OrderManager) gracefulShutdown() {
 		exchanges, err := m.orderStore.exchangeManager.GetExchanges()
 		if err != nil {
 			log.Errorf(log.OrderMgr, "Order manager cannot get exchanges: %v", err)
+			return
 		}
 		m.CancelAllOrders(context.TODO(), exchanges)
 	}
@@ -579,6 +580,7 @@ func (m *OrderManager) processOrders() {
 	exchanges, err := m.orderStore.exchangeManager.GetExchanges()
 	if err != nil {
 		log.Errorf(log.OrderMgr, "Order manager cannot get exchanges: %v", err)
+		return
 	}
 	var wg sync.WaitGroup
 	for i := range exchanges {
