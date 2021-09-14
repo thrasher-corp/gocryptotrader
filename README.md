@@ -156,8 +156,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
+| [lrascao](https://github.com/lrascao) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
-| [lrascao](https://github.com/lrascao) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [yangrq1018](https://github.com/yangrq1018) | 3 |
@@ -192,3 +192,4 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Daanikus](https://github.com/Daanikus) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
+| [soxipy](https://github.com/soxipy) | 2 |

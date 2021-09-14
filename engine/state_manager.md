@@ -19,15 +19,14 @@ You can track ideas, planned features and what's in progress on this Trello boar
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
 ## Current Features for State manager
-
-The state manager keeps currency states up to date, which include:
-
++ The state manager keeps currency states up to date, which include:
 * Withdrawal - Determines if the currency is allowed to be withdrawn from the exchange.
 * Deposit - Determines if the currency is allowed to be deposited to an exchange.
 * Trading - Determines if the currency is allowed to be traded on the exchange.
 
-This allows for an internal state check to compliment internal and external 
++ This allows for an internal state check to compliment internal and external 
 strategies.
+
 
 ## Contribution
 
