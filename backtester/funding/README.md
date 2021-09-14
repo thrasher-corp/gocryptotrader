@@ -34,7 +34,7 @@ Conversely, Exchange level funding and Simultaneous Processing is enabled, so ea
 A funding item holds the initial funding, current funding, reserved funding and transfer fees associated with an exchange, asset and currency. If it is a Pair, then the Item will be linked to the paired Item.
 
 ### What is a funding Pair?
-A funding Item consists of two funding Items, the Base and Quote. If Exchange Level Funding is disabled, the Base and Quote are linked to eachother and the funds cannot be shared with other Pairs or Items. If Exchange Level Funding is enabled, the pair can access the same funds as every other currency that shares the exchange and asset type.
+A funding Pair consists of two funding Items, the Base and Quote. If Exchange Level Funding is disabled, the Base and Quote are linked to eachother and the funds cannot be shared with other Pairs or Items. If Exchange Level Funding is enabled, the pair can access the same funds as every other currency that shares the exchange and asset type.
 
 ### What does Exchange Level Funding mean?
 Exchange level funding allows funds to be shared during a backtesting run. If the strategy contains the two pairs BTC-USDT and BNB-USDT and the strategy sells 3 BTC for $100,000 USDT, then BNB-USDT can use that $100,000 USDT to make a purchase of $20,000 BNB.
