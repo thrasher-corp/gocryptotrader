@@ -3887,6 +3887,8 @@ func (s *RPCServer) UpdateDataHistoryJobPrerequisite(_ context.Context, r *gctrp
 	return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Set job '%v' prerequisite job to '%v' and set status to paused", r.Nickname, r.PrerequisiteJobNickname)}, nil
 }
 
+// StateGetAll returns a full snapshot of currency states, whether they are able
+// to be withdrawn, deposited or traded on an exchange.
 func (s *RPCServer) StateGetAll(_ context.Context, r *gctrpc.StateGetAllRequest) (*gctrpc.StateResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -3903,56 +3905,59 @@ func (s *RPCServer) StateGetAll(_ context.Context, r *gctrpc.StateGetAllRequest)
 		resp.States = append(resp.States, &gctrpc.State{
 			Currency:        sh[x].Code.String(),
 			Asset:           sh[x].Asset.String(),
-			WithdrawEnabled: *sh[x].Withdraw,
-			DepositEnabled:  *sh[x].Deposit,
-			TradingEnabled:  *sh[x].Trade,
+			WithdrawEnabled: sh[x].Withdraw == nil || *sh[x].Withdraw,
+			DepositEnabled:  sh[x].Deposit == nil || *sh[x].Deposit,
+			TradingEnabled:  sh[x].Trade == nil || *sh[x].Trade,
 		})
 	}
 	return resp, nil
 }
 
+// StateDeposit determines via RPC if the currency code is operational for
+// withdrawal from an exchange
 func (s *RPCServer) StateWithdraw(_ context.Context, r *gctrpc.StateWithdrawRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
-	err = exch.CanWithdraw(currency.NewCode(r.Code),
-		asset.Item(r.Asset))
+	err = exch.CanWithdraw(currency.NewCode(r.Code), asset.Item(r.Asset))
 	if err != nil {
 		return nil, err
 	}
 	return &gctrpc.GenericResponse{Status: "enabled"}, nil
 }
 
+// StateDeposit determines via RPC if the currency code is operational for
+// depositing to an exchange
 func (s *RPCServer) StateDeposit(_ context.Context, r *gctrpc.StateDepositRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
-	err = exch.CanDeposit(currency.NewCode(r.Code),
-		asset.Item(r.Asset))
+	err = exch.CanDeposit(currency.NewCode(r.Code), asset.Item(r.Asset))
 	if err != nil {
 		return nil, err
 	}
 	return &gctrpc.GenericResponse{Status: "enabled"}, nil
 }
 
+// StateTrading determines via RPC if the currency code is operational for trading
 func (s *RPCServer) StateTrading(_ context.Context, r *gctrpc.StateTradingRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
-	err = exch.CanTrade(currency.NewCode(r.Code),
-		asset.Item(r.Asset))
+	err = exch.CanTrade(currency.NewCode(r.Code), asset.Item(r.Asset))
 	if err != nil {
 		return nil, err
 	}
 	return &gctrpc.GenericResponse{Status: "enabled"}, nil
 }
 
+// StateTradingPair determines via RPC if the pair is operational for trading
 func (s *RPCServer) StateTradingPair(_ context.Context, r *gctrpc.StateTradingPairRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {

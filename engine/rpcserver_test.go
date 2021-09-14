@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/state"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -120,6 +121,36 @@ func (f fExchange) UpdateAccountInfo(ctx context.Context, a asset.Item) (account
 			},
 		},
 	}, nil
+}
+
+// GetStateSnapshot overrides interface function
+func (f fExchange) GetStateSnapshot() ([]state.Snapshot, error) {
+	return []state.Snapshot{
+		{
+			Code:  currency.BTC,
+			Asset: asset.Spot,
+		},
+	}, nil
+}
+
+// CanTradePair overrides interface function
+func (f fExchange) CanTradePair(p currency.Pair, a asset.Item) error {
+	return nil
+}
+
+// CanTrade overrides interface function
+func (f fExchange) CanTrade(c currency.Code, a asset.Item) error {
+	return nil
+}
+
+// CanWithdraw overrides interface function
+func (f fExchange) CanWithdraw(c currency.Code, a asset.Item) error {
+	return nil
+}
+
+// CanDeposit overrides interface function
+func (f fExchange) CanDeposit(c currency.Code, a asset.Item) error {
+	return nil
 }
 
 // Sets up everything required to run any function inside rpcserver
@@ -1866,5 +1897,181 @@ func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
+	}
+}
+
+func TestStateGetAll(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = "fake"
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	_, err = s.StateGetAll(context.Background(), &gctrpc.StateGetAllRequest{Exchange: "wow"})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
+	}
+
+	resp, err := s.StateGetAll(context.Background(), &gctrpc.StateGetAllRequest{Exchange: "fake"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp == nil {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestStateWithdraw(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = "fake"
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	_, err = s.StateWithdraw(context.Background(), &gctrpc.StateWithdrawRequest{
+		Exchange: "wow"})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
+	}
+
+	_, err = s.StateWithdraw(context.Background(), &gctrpc.StateWithdrawRequest{
+		Exchange: "fake"})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStateDeposit(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = "fake"
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	_, err = s.StateDeposit(context.Background(),
+		&gctrpc.StateDepositRequest{Exchange: "wow"})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
+	}
+
+	_, err = s.StateDeposit(context.Background(),
+		&gctrpc.StateDepositRequest{Exchange: "fake"})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStateTrading(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = "fake"
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	_, err = s.StateTrading(context.Background(),
+		&gctrpc.StateTradingRequest{Exchange: "wow"})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
+	}
+
+	_, err = s.StateTrading(context.Background(),
+		&gctrpc.StateTradingRequest{Exchange: "fake"})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStateTradingPair(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = "fake"
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+
+	_, err = s.StateTradingPair(context.Background(),
+		&gctrpc.StateTradingPairRequest{Exchange: "wow"})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
+	}
+
+	_, err = s.StateTradingPair(context.Background(),
+		&gctrpc.StateTradingPairRequest{Exchange: "fake", Pair: "btc-usd", Asset: "spot"})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

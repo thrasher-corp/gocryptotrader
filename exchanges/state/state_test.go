@@ -36,26 +36,24 @@ func TestRegisterExchangeState(t *testing.T) {
 
 func TestManagerRegister(t *testing.T) {
 	t.Parallel()
-	err := (&Manager{}).Register("", nil)
+	_, err := (&Manager{}).Register("")
 	if !errors.Is(err, errExchangeNameIsEmpty) {
 		t.Fatalf("received: %v, but expected: %v", err, errExchangeNameIsEmpty)
 	}
 
-	err = (&Manager{}).Register("boo", nil)
-	if !errors.Is(err, errStatesIsNil) {
-		t.Fatalf("received: %v, but expected: %v", err, errStatesIsNil)
-	}
-
 	man := &Manager{}
-	s := &States{m: make(map[asset.Item]map[*currency.Item]*Currency)}
-	err = man.Register("boo", s)
+	x, err := man.Register("boo")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, but expected: %v", err, nil)
 	}
 
-	err = man.Register("boo", s)
-	if !errors.Is(err, errStatesAlreadyLoaded) {
-		t.Fatalf("received: %v, but expected: %v", err, errStatesAlreadyLoaded)
+	y, err := man.Register("boo")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
+
+	if x != y {
+		t.Fatal("unexpected value")
 	}
 }
 

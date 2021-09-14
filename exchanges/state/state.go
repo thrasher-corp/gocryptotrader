@@ -15,8 +15,6 @@ var (
 	manager Manager
 
 	errEmptyCurrency         = errors.New("empty currency")
-	errStatesAlreadyLoaded   = errors.New("states already loaded for exchange")
-	errStatesIsNil           = errors.New("states is nil")
 	errCurrencyStateNotFound = errors.New("currency state not found")
 	errUpdatesAreNil         = errors.New("updates are nil")
 	errExchangeNotFound      = errors.New("exchange not found")
@@ -37,11 +35,7 @@ func GetManager() *Manager {
 // RegisterExchangeState generates a new states struct and registers it with the
 // manager
 func RegisterExchangeState(exch string) (*States, error) {
-	if exch == "" {
-		return nil, errExchangeNameIsEmpty
-	}
-	r := &States{m: make(map[asset.Item]map[*currency.Item]*Currency)}
-	return r, manager.Register(exch, r)
+	return manager.Register(exch)
 }
 
 // Manager attempts to govern the different states of currency defined by an
@@ -52,24 +46,24 @@ type Manager struct {
 }
 
 // Register registers a new exchange states struct
-func (m *Manager) Register(exch string, s *States) error {
+func (m *Manager) Register(exch string) (*States, error) {
 	if exch == "" {
-		return errExchangeNameIsEmpty
-	}
-	if s == nil {
-		return errStatesIsNil
+		return nil, errExchangeNameIsEmpty
 	}
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	_, ok := m.m[exch]
+	i, ok := m.m[exch]
 	if ok {
-		return fmt.Errorf("%w %s", errStatesAlreadyLoaded, exch)
+		// opted to return the instance here because when we load and unload
+		// exchanges this will conflict.
+		return i, nil
 	}
 	if m.m == nil {
 		m.m = make(map[string]*States)
 	}
-	m.m[exch] = s
-	return nil
+	r := &States{m: make(map[asset.Item]map[*currency.Item]*Currency)}
+	m.m[exch] = r
+	return r, nil
 }
 
 // CanTrade returns if the currency is currently tradeable on an exchange
