@@ -110,6 +110,7 @@ type GoCryptoTraderClient interface {
 	StateTrading(ctx context.Context, in *StateTradingRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	StateDeposit(ctx context.Context, in *StateDepositRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	StateWithdraw(ctx context.Context, in *StateWithdrawRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	StateTradingPair(ctx context.Context, in *StateTradingPairRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 }
 
 type goCryptoTraderClient struct {
@@ -1086,6 +1087,15 @@ func (c *goCryptoTraderClient) StateWithdraw(ctx context.Context, in *StateWithd
 	return out, nil
 }
 
+func (c *goCryptoTraderClient) StateTradingPair(ctx context.Context, in *StateTradingPairRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/StateTradingPair", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServer is the server API for GoCryptoTrader service.
 // All implementations must embed UnimplementedGoCryptoTraderServer
 // for forward compatibility
@@ -1182,6 +1192,7 @@ type GoCryptoTraderServer interface {
 	StateTrading(context.Context, *StateTradingRequest) (*GenericResponse, error)
 	StateDeposit(context.Context, *StateDepositRequest) (*GenericResponse, error)
 	StateWithdraw(context.Context, *StateWithdrawRequest) (*GenericResponse, error)
+	StateTradingPair(context.Context, *StateTradingPairRequest) (*GenericResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
@@ -1464,6 +1475,9 @@ func (UnimplementedGoCryptoTraderServer) StateDeposit(context.Context, *StateDep
 }
 func (UnimplementedGoCryptoTraderServer) StateWithdraw(context.Context, *StateWithdrawRequest) (*GenericResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StateWithdraw not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) StateTradingPair(context.Context, *StateTradingPairRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StateTradingPair not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) mustEmbedUnimplementedGoCryptoTraderServer() {}
 
@@ -3152,6 +3166,24 @@ func _GoCryptoTrader_StateWithdraw_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTrader_StateTradingPair_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StateTradingPairRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).StateTradingPair(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/StateTradingPair",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).StateTradingPair(ctx, req.(*StateTradingPairRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoCryptoTrader_ServiceDesc is the grpc.ServiceDesc for GoCryptoTrader service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3502,6 +3534,10 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StateWithdraw",
 			Handler:    _GoCryptoTrader_StateWithdraw_Handler,
+		},
+		{
+			MethodName: "StateTradingPair",
+			Handler:    _GoCryptoTrader_StateTradingPair_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

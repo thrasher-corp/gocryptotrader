@@ -182,7 +182,7 @@ func TestManagerGetExchangeStates(t *testing.T) {
 
 func TestGetSnapshot(t *testing.T) {
 	t.Parallel()
-	_, err := (*States)(nil).GetSnapshot()
+	_, err := (*States)(nil).GetStateSnapshot()
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
@@ -195,7 +195,7 @@ func TestGetSnapshot(t *testing.T) {
 				trading:     true,
 			}},
 		},
-	}).GetSnapshot()
+	}).GetStateSnapshot()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, but expected: %v", err, nil)
 	}

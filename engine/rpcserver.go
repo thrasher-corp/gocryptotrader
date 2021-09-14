@@ -3893,7 +3893,7 @@ func (s *RPCServer) StateGetAll(_ context.Context, r *gctrpc.StateGetAllRequest)
 		return nil, err
 	}
 
-	sh, err := exch.GetBase().States.GetSnapshot()
+	sh, err := exch.GetStateSnapshot()
 	if err != nil {
 		return nil, err
 	}
@@ -3917,7 +3917,7 @@ func (s *RPCServer) StateWithdraw(_ context.Context, r *gctrpc.StateWithdrawRequ
 		return nil, err
 	}
 
-	err = exch.GetBase().States.CanWithdraw(currency.NewCode(r.Code),
+	err = exch.CanWithdraw(currency.NewCode(r.Code),
 		asset.Item(r.Asset))
 	if err != nil {
 		return nil, err
@@ -3931,7 +3931,7 @@ func (s *RPCServer) StateDeposit(_ context.Context, r *gctrpc.StateDepositReques
 		return nil, err
 	}
 
-	err = exch.GetBase().States.CanDeposit(currency.NewCode(r.Code),
+	err = exch.CanDeposit(currency.NewCode(r.Code),
 		asset.Item(r.Asset))
 	if err != nil {
 		return nil, err
@@ -3945,8 +3945,32 @@ func (s *RPCServer) StateTrading(_ context.Context, r *gctrpc.StateTradingReques
 		return nil, err
 	}
 
-	err = exch.GetBase().States.CanTrade(currency.NewCode(r.Code),
+	err = exch.CanTrade(currency.NewCode(r.Code),
 		asset.Item(r.Asset))
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: "enabled"}, nil
+}
+
+func (s *RPCServer) StateTradingPair(_ context.Context, r *gctrpc.StateTradingPairRequest) (*gctrpc.GenericResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	cp, err := currency.NewPairFromString(r.Pair)
+	if err != nil {
+		return nil, err
+	}
+
+	a := asset.Item(r.Asset)
+	err = checkParams(r.Exchange, exch, a, cp)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.CanTradePair(cp, a)
 	if err != nil {
 		return nil, err
 	}

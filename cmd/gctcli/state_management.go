@@ -38,10 +38,30 @@ var stateManagementCommand = &cli.Command{
 		},
 		{
 			Name:      "trade",
-			Usage:     "returns if the currency can be deposited onto an exchange",
+			Usage:     "returns if the currency can be traded on the exchange",
 			ArgsUsage: "<exchange> <code> <asset> <enabled>",
 			Flags:     stateFlags,
 			Action:    stateGetTrading,
+		},
+		{
+			Name:      "tradepair",
+			Usage:     "returns if the currency pair can be traded on the exchange",
+			ArgsUsage: "<exchange> <pair> <asset> <enabled>",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "exchange",
+					Usage: "the exchange to act on",
+				},
+				&cli.StringFlag{
+					Name:  "pair",
+					Usage: "the currency pair e.g. btc-usd",
+				},
+				&cli.StringFlag{
+					Name:  "asset",
+					Usage: "the asset type",
+				},
+			},
+			Action: stateGetPairTrading,
 		},
 	},
 }
@@ -222,6 +242,53 @@ func stateGetTrading(c *cli.Context) error {
 		&gctrpc.StateTradingRequest{
 			Exchange: exchange,
 			Code:     code,
+			Asset:    a},
+	)
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+func stateGetPairTrading(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
+	var exchange string
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else {
+		exchange = c.Args().First()
+	}
+
+	var pair string
+	if c.IsSet("pair") {
+		pair = c.String("pair")
+	} else {
+		pair = c.Args().Get(1)
+	}
+
+	var a string
+	if c.IsSet("asset") {
+		a = c.String("asset")
+	} else {
+		a = c.Args().Get(2)
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.StateTradingPair(c.Context,
+		&gctrpc.StateTradingPairRequest{
+			Exchange: exchange,
+			Pair:     pair,
 			Asset:    a},
 	)
 	if err != nil {

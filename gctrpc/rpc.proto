@@ -970,6 +970,12 @@ message StateTradingRequest {
     string asset = 3;
 }
 
+message StateTradingPairRequest {
+    string exchange = 1;
+    string pair = 2;
+    string asset = 3;
+}
+
 message StateWithdrawRequest {
     string exchange = 1;
     string code = 2;
@@ -1570,6 +1576,11 @@ service GoCryptoTrader {
     rpc StateWithdraw (StateWithdrawRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/statewithdraw"
+        };
+    }
+    rpc StateTradingPair (StateTradingPairRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/statetradingpair"
         };
     }
 }

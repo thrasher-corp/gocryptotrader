@@ -121,7 +121,7 @@ type States struct {
 
 // GetSnapshot returns the current exchange snapshot of all currency operation
 // attributes
-func (s *States) GetSnapshot() ([]Snapshot, error) {
+func (s *States) GetStateSnapshot() ([]Snapshot, error) {
 	if s == nil {
 		return nil, errNilStates
 	}
