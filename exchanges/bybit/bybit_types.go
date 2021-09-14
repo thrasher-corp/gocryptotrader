@@ -248,10 +248,10 @@ type WsParams struct {
 // WsTickerData stores ws ticker data
 type WsTickerData struct {
 	Symbol  string  `json:"symbol"`
-	Bid     float64 `json:"bidPrice"`
-	Ask     float64 `json:"askPrice"`
-	BidSize float64 `json:"bidQty"`
-	AskSize float64 `json:"askQty"`
+	Bid     float64 `json:"bidPrice,string"`
+	Ask     float64 `json:"askPrice,string"`
+	BidSize float64 `json:"bidQty,string"`
+	AskSize float64 `json:"askQty,string"`
 	Time    int64   `json:"time"`
 }
 
@@ -282,8 +282,8 @@ type WsOrderbook struct {
 type WsTradeData struct {
 	Time  int64   `json:"t"`
 	ID    string  `json:"v"`
-	Price float64 `json:"p"`
-	Size  float64 `json:"q"`
+	Price float64 `json:"p,string"`
+	Size  float64 `json:"q,string"`
 	Side  bool    `json:"m"`
 }
 
@@ -310,4 +310,49 @@ type WsKline struct {
 	Topic      string       `json:"topic"`
 	Parameters WsParams     `json:"params"`
 	Ticker     WsTickerData `json:"data"`
+}
+
+// wsAccountInfo defines websocket account info data
+type wsAccountInfo struct {
+	EventType   string       `json:"e"`
+	EventTime   time.Time    `json:"E"`
+	CanTrade    bool         `json:"T"`
+	CanWithdraw bool         `json:"W"`
+	CanDeposit  bool         `json:"D"`
+	Balance     []Currencies `json:"B"`
+}
+
+type Currencies struct {
+	Asset     string  `json:"a"`
+	Available float64 `json:"f,string"`
+	Locked    float64 `json:"l,string"`
+}
+
+// wsOrderUpdate defines websocket account order update data
+type wsOrderUpdate struct {
+	EventType                         string    `json:"e"`
+	EventTime                         time.Time `json:"E"`
+	Symbol                            string    `json:"s"`
+	ClientOrderID                     string    `json:"c"`
+	Side                              string    `json:"S"`
+	OrderType                         string    `json:"o"`
+	TimeInForce                       string    `json:"f"`
+	Quantity                          float64   `json:"q,string"`
+	Price                             float64   `json:"p,string"`
+	OrderStatus                       string    `json:"X"`
+	OrderID                           int64     `json:"i"`
+	OpponentOrderID                   string    `json:"M"`
+	LastExecutedQuantity              float64   `json:"l,string"`
+	CumulativeFilledQuantity          float64   `json:"z,string"`
+	LastExecutedPrice                 float64   `json:"L,string"`
+	Commission                        float64   `json:"n,string"`
+	CommissionAsset                   string    `json:"N"`
+	IsNormal                          bool      `json:"u"`
+	IsOnOrderBook                     bool      `json:"w"`
+	IsLimitMaker                      bool      `json:"m"`
+	OrderCreationTime                 time.Time `json:"O"`
+	CumulativeQuoteTransactedQuantity float64   `json:"Z,string"`
+	AccountID                         string    `json:"A"`
+	IsClose                           bool      `json:"C"`
+	Leverage                          string    `json:"v"`
 }

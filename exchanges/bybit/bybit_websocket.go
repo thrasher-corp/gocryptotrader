@@ -3,6 +3,7 @@ package bybit
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -27,12 +28,12 @@ const (
 	bybitWebsocketTimer      = 30 * time.Second
 	wsOrderbook              = "depth"
 	wsTicker                 = "bookTicker"
-	wsTrades                 = "trades"
+	wsTrades                 = "trade"
 	wsMarkets                = "kline"
 
-	wsAccountInfo = "outboundAccountInfo"
-	wsOrder       = "executionReport"
-	wsOrderFilled = "ticketInfo"
+	wsAccountInfoStr = "outboundAccountInfo"
+	wsOrderStr       = "executionReport"
+	wsOrderFilledStr = "ticketInfo"
 
 	wsUpdate    = "update"
 	wsPartial   = "partial"
@@ -201,7 +202,7 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		}
 	}
 	if by.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		var authchan = []string{wsAccountInfo, wsOrder, wsOrderFilled}
+		var authchan = []string{wsAccountInfoStr, wsOrderStr, wsOrderFilledStr}
 		for x := range authchan {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: authchan[x],
@@ -211,15 +212,110 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	return subscriptions, nil
 }
 
-func timestampFromFloat64(ts float64) time.Time {
-	secs := int64(ts)
-	nsecs := int64((ts - float64(secs)) * 1e9)
-	return time.Unix(secs, nsecs).UTC()
+func stringToOrderStatus(status string) (order.Status, error) {
+	switch status {
+	case "NEW":
+		return order.New, nil
+	case "CANCELED":
+		return order.Cancelled, nil
+	case "REJECTED":
+		return order.Rejected, nil
+	case "TRADE":
+		return order.PartiallyFilled, nil
+	case "EXPIRED":
+		return order.Expired, nil
+	default:
+		return order.UnknownStatus, errors.New(status + " not recognised as order status")
+	}
 }
 
 func (by *Bybit) wsHandleData(respRaw []byte) error {
+	var multiStreamData []map[string]interface{}
+	err := json.Unmarshal(respRaw, &multiStreamData)
+	if err != nil {
+		return err
+	}
+
+	for _, eventData := range multiStreamData {
+		if e, ok := eventData["e"].(string); ok {
+			switch e {
+			case wsAccountInfoStr:
+				var data wsAccountInfo
+				err := json.Unmarshal(respRaw, &data)
+				if err != nil {
+					return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s",
+						by.Name,
+						err)
+				}
+				by.Websocket.DataHandler <- data
+				return nil
+			case wsOrderStr:
+				var data wsOrderUpdate
+				err := json.Unmarshal(respRaw, &data)
+				if err != nil {
+					return fmt.Errorf("%v - Could not convert to executionReport structure %s",
+						by.Name,
+						err)
+				}
+				var orderID = strconv.FormatInt(data.OrderID, 10)
+				oType, err := order.StringToOrderType(data.OrderType)
+				if err != nil {
+					by.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: by.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
+				var oSide order.Side
+				oSide, err = order.StringToOrderSide(data.Side)
+				if err != nil {
+					by.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: by.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
+				var oStatus order.Status
+				oStatus, err = stringToOrderStatus(data.OrderStatus)
+				if err != nil {
+					by.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: by.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
+				var p currency.Pair
+				var a asset.Item
+				p, a, err = by.GetRequestFormattedPairAndAssetType(data.Symbol)
+				if err != nil {
+					return err
+				}
+
+				by.Websocket.DataHandler <- &order.Detail{
+					Price:           data.Price,
+					Amount:          data.Quantity,
+					ExecutedAmount:  data.CumulativeFilledQuantity,
+					RemainingAmount: data.Quantity - data.CumulativeFilledQuantity,
+					Exchange:        by.Name,
+					ID:              orderID,
+					Type:            oType,
+					Side:            oSide,
+					Status:          oStatus,
+					AssetType:       a,
+					Date:            data.OrderCreationTime,
+					Pair:            p,
+					ClientOrderID:   data.ClientOrderID,
+				}
+				return nil
+			case wsOrderFilledStr:
+			}
+		}
+	}
+
+	//ticketInfo
+
 	var result map[string]interface{}
-	err := json.Unmarshal(respRaw, &result)
+	err = json.Unmarshal(respRaw, &result)
 	if err != nil {
 		return err
 	}

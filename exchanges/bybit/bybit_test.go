@@ -260,6 +260,7 @@ func TestWsUnsubscribe(t *testing.T) {
 }
 
 func TestWsTrade(t *testing.T) {
+	by.SetSaveTradeDataStatus(true)
 	t.Parallel()
 
 	pressXToJSON := []byte(`{
@@ -323,6 +324,31 @@ func TestWsOrderbook(t *testing.T) {
 					"0.226"
 				]
 			]
+		}
+	}`)
+	err := by.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsTicker(t *testing.T) {
+	t.Parallel()
+
+	pressXToJSON := []byte(`{
+		"topic": "bookTicker",
+		"params": {
+			"symbol": "BTCUSDT",
+			"binary": false,
+			"symbolName": "BTCUSDT"
+		},
+		"data": {
+			"symbol": "BTCUSDT",
+			"bidPrice": "9797.79",
+			"bidQty": "0.177976",
+			"askPrice": "9799",
+			"askQty": "0.65",
+			"time": 1582001830346
 		}
 	}`)
 	err := by.wsHandleData(pressXToJSON)
