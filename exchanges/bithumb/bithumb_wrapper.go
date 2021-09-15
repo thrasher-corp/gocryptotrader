@@ -17,12 +17,12 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/state"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -901,9 +901,9 @@ func (b *Bithumb) UpdateCurrencyStates(ctx context.Context, a asset.Item) error 
 		return err
 	}
 
-	payload := make(map[currency.Code]state.Options)
+	payload := make(map[currency.Code]currencystate.Options)
 	for coin, options := range status.Data {
-		payload[currency.NewCode(coin)] = state.Options{
+		payload[currency.NewCode(coin)] = currencystate.Options{
 			Withdraw: convert.BoolPtr(options.WithdrawalStatus == 1),
 			Deposit:  convert.BoolPtr(options.DepositStatus == 1),
 		}

@@ -1,4 +1,4 @@
-package state
+package currencystate
 
 import (
 	"errors"
@@ -116,9 +116,8 @@ type States struct {
 	mtx sync.RWMutex
 }
 
-// GetSnapshot returns the current exchange snapshot of all currency operation
-// attributes
-func (s *States) GetStateSnapshot() ([]Snapshot, error) {
+// GetCurrencyStateSnapshot returns the exchange currency state snapshot
+func (s *States) GetCurrencyStateSnapshot() ([]Snapshot, error) {
 	if s == nil {
 		return nil, errNilStates
 	}

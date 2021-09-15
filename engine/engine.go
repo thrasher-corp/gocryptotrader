@@ -46,7 +46,7 @@ type Engine struct {
 	websocketRoutineManager *websocketRoutineManager
 	WithdrawManager         *WithdrawManager
 	dataHistoryManager      *DataHistoryManager
-	stateManager            *stateManager
+	currencyStateManager    *currencyStateManager
 	Settings                Settings
 	uptime                  time.Time
 	ServicesWG              sync.WaitGroup
@@ -577,18 +577,24 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableStateManager {
-		bot.stateManager = &stateManager{}
-		err = bot.stateManager.Setup(bot.Settings.StateManagerDelay, bot.ExchangeManager)
+		bot.currencyStateManager, err = SetupCurrencyStateManager(
+			bot.Settings.StateManagerDelay,
+			bot.ExchangeManager)
 		if err != nil {
-			gctlog.Errorf(gctlog.Global, "%s unable to setup: %s", StateManagement, err)
+			gctlog.Errorf(gctlog.Global,
+				"%s unable to setup: %s",
+				CurrencyStateManagementName,
+				err)
 		} else {
-			err = bot.stateManager.Start()
+			err = bot.currencyStateManager.Start()
 			if err != nil {
-				gctlog.Errorf(gctlog.Global, "%s unable to start: %s", StateManagement, err)
+				gctlog.Errorf(gctlog.Global,
+					"%s unable to start: %s",
+					CurrencyStateManagementName,
+					err)
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -668,9 +674,12 @@ func (bot *Engine) Stop() {
 			gctlog.Errorf(gctlog.Global, "websocket routine manager unable to stop. Error: %v", err)
 		}
 	}
-	if bot.stateManager.IsRunning() {
-		if err := bot.stateManager.Stop(); err != nil {
-			gctlog.Errorf(gctlog.Global, "%s unable to stop. Error: %v", StateManagement, err)
+	if bot.currencyStateManager.IsRunning() {
+		if err := bot.currencyStateManager.Stop(); err != nil {
+			gctlog.Errorf(gctlog.Global,
+				"%s unable to stop. Error: %v",
+				CurrencyStateManagementName,
+				err)
 		}
 	}
 

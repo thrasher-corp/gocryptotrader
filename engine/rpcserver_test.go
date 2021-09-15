@@ -28,9 +28,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/state"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -125,8 +125,8 @@ func (f fExchange) UpdateAccountInfo(ctx context.Context, a asset.Item) (account
 }
 
 // GetStateSnapshot overrides interface function
-func (f fExchange) GetStateSnapshot() ([]state.Snapshot, error) {
-	return []state.Snapshot{
+func (f fExchange) GetStateSnapshot() ([]currencystate.Snapshot, error) {
+	return []currencystate.Snapshot{
 		{
 			Code:  currency.BTC,
 			Asset: asset.Spot,

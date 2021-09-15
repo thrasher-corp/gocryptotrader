@@ -8,7 +8,7 @@ import (
 
 	dbwithdraw "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/state"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -49,7 +49,7 @@ func (m *WithdrawManager) SubmitWithdrawal(ctx context.Context, req *withdraw.Re
 
 	// Determines if the currency can be withdrawn from the exchange
 	errF := exch.CanWithdraw(req.Currency, asset.Spot)
-	if errF != nil && !errors.Is(errF, state.ErrCurrencyStateNotFound) { // Suppress not found error
+	if errF != nil && !errors.Is(errF, currencystate.ErrCurrencyStateNotFound) { // Suppress not found error
 		return nil, errF
 	}
 

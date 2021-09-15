@@ -9,10 +9,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/state"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -97,7 +97,7 @@ type IBotExchange interface {
 
 // StateManagement defines functionality for currency state management
 type StateManagement interface {
-	GetStateSnapshot() ([]state.Snapshot, error)
+	GetCurrencyStateSnapshot() ([]currencystate.Snapshot, error)
 	UpdateCurrencyStates(ctx context.Context, a asset.Item) error
 	CanTradePair(p currency.Pair, a asset.Item) error
 	CanTrade(c currency.Code, a asset.Item) error

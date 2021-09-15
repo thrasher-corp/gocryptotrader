@@ -3895,7 +3895,7 @@ func (s *RPCServer) StateGetAll(_ context.Context, r *gctrpc.StateGetAllRequest)
 		return nil, err
 	}
 
-	sh, err := exch.GetStateSnapshot()
+	sh, err := exch.GetCurrencyStateSnapshot()
 	if err != nil {
 		return nil, err
 	}

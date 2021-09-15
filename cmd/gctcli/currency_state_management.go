@@ -5,8 +5,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var stateManagementCommand = &cli.Command{
-	Name:      "state",
+var currencyStateManagementCommand = &cli.Command{
+	Name:      "currencystate",
 	Usage:     "execute exchange currency state management command",
 	ArgsUsage: "<command> <args>",
 	Subcommands: []*cli.Command{
@@ -25,28 +25,28 @@ var stateManagementCommand = &cli.Command{
 		{
 			Name:      "withdraw",
 			Usage:     "returns if the currency can be withdrawn from the exchange",
-			ArgsUsage: "<exchange> <code> <asset> <enabled>",
+			ArgsUsage: "<exchange> <code> <asset>",
 			Flags:     stateFlags,
 			Action:    stateGetWithdrawal,
 		},
 		{
 			Name:      "deposit",
 			Usage:     "returns if the currency can be deposited onto an exchange",
-			ArgsUsage: "<exchange> <code> <asset> <enabled>",
+			ArgsUsage: "<exchange> <code> <asset>",
 			Flags:     stateFlags,
 			Action:    stateGetDeposit,
 		},
 		{
 			Name:      "trade",
 			Usage:     "returns if the currency can be traded on the exchange",
-			ArgsUsage: "<exchange> <code> <asset> <enabled>",
+			ArgsUsage: "<exchange> <code> <asset>",
 			Flags:     stateFlags,
 			Action:    stateGetTrading,
 		},
 		{
 			Name:      "tradepair",
 			Usage:     "returns if the currency pair can be traded on the exchange",
-			ArgsUsage: "<exchange> <pair> <asset> <enabled>",
+			ArgsUsage: "<exchange> <pair> <asset>",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "exchange",

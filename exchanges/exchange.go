@@ -17,10 +17,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/state"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -622,7 +622,7 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	}
 	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
 
-	b.States, err = state.RegisterExchangeState(b.Name)
+	b.States, err = currencystate.RegisterExchangeState(b.Name)
 	return err
 }
 
