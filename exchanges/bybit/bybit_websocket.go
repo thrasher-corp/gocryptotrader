@@ -308,11 +308,10 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 				}
 				return nil
 			case wsOrderFilledStr:
+				return nil
 			}
 		}
 	}
-
-	//ticketInfo
 
 	var result map[string]interface{}
 	err = json.Unmarshal(respRaw, &result)
