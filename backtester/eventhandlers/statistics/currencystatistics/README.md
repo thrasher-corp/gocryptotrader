@@ -35,10 +35,10 @@ It can calculate the following:
 
 | Ratio | Description | A good range |
 | ----- | ----------- | ------------ |
-| Calmar ratio |  It is a function of the fund's average compounded annual rate of return versus its maximum drawdown. The higher the Calmar ratio, the better it performed on a risk-adjusted basis during the given time frame, which is mostly commonly set at 36 months. | 3.0 to 5.0 |
+| Calmar ratio |  It is a function of the fund's average compounded annual rate of return versus its maximum drawdown. The higher the Calmar ratio, the better it performed on a risk-adjusted basis during the given time frame, which is mostly commonly set at 36 months | 3.0 to 5.0 |
 | Information ratio| It is a measurement of portfolio returns beyond the returns of a benchmark, usually an index, compared to the volatility of those returns. The ratio is often used as a measure of a portfolio manager's level of skill and ability to generate excess returns relative to a benchmark | 0.40-0.60. Any positive number means that it has beaten the benchmark |
 | Sharpe ratio | The Sharpe Ratio is a financial metric often used by investors when assessing the performance of investment management products and professionals. It consists of taking the excess return of the portfolio, relative to the risk-free rate, and dividing it by the standard deviation of the portfolio's excess returns | Any Sharpe ratio greater than 1.0 is good. Higher than 2.0 is very good. 3.0 or higher is excellent. Under 1.0 is sub-optimal |
-| Sortino ratio | The Sortino ratio measures the risk-adjusted return of an investment asset, portfolio, or strategy. It is a modification of the Sharpe ratio but penalizes only those returns falling below a user-specified target or required rate of return, while the Sharpe ratio penalizes both upside and downside volatility equally. | The higher the better, but > 2 is considered good. |
+| Sortino ratio | The Sortino ratio measures the risk-adjusted return of an investment asset, portfolio, or strategy. It is a modification of the Sharpe ratio but penalizes only those returns falling below a user-specified target or required rate of return, while the Sharpe ratio penalizes both upside and downside volatility equally | The higher the better, but > 2 is considered good |
 | Compound annual growth rate | Compound annual growth rate is the rate of return that would be required for an investment to grow from its beginning balance to its ending balance, assuming the profits were reinvested at the end of each year of the investment’s lifespan | Any positive number |
 
 ## Arithmetic or versus geometric?
@@ -47,7 +47,7 @@ Both! We calculate ratios where an average is required using both types. The rea
 | Average type | A reason to use it |
 | ------------ | ------------------ |
 | Arithmetic | The arithmetic mean is the average of a sum of numbers, which reflects the central tendency of the position of the numbers |
-| Geometric | The geometric mean differs from the arithmetic average, or arithmetic mean, in how it is calculated because it takes into account the compounding that occurs from period to period. Because of this, investors usually consider the geometric mean a more accurate measure of returns than the arithmetic mean. |
+| Geometric | The geometric mean differs from the arithmetic average, or arithmetic mean, in how it is calculated because it takes into account the compounding that occurs from period to period. Because of this, investors usually consider the geometric mean a more accurate measure of returns than the arithmetic mean |
 
 
 

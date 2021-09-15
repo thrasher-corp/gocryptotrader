@@ -315,8 +315,8 @@ func addEventOutputToTime(events []eventOutputHolder, t time.Time, message strin
 }
 
 // PrintAllEventsChronologically outputs all event details in the CMD
-// rather than separate by eap, its grouped by time to allow a clearer picture
-// of events
+// rather than separated by exchange, asset and currency pair, it's
+// grouped by time to allow a clearer picture of events
 func (s *Statistic) PrintAllEventsChronologically() {
 	var results []eventOutputHolder
 	log.Info(log.BackTester, "------------------Events-------------------------------------")

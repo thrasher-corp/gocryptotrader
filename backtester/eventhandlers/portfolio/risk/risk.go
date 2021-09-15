@@ -17,7 +17,10 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 	if o == nil || latestHoldings == nil {
 		return nil, common.ErrNilArguments
 	}
-	retOrder := o.(*order.Order)
+	retOrder, ok := o.(*order.Order)
+	if !ok {
+		return nil, fmt.Errorf("%w expected order event", common.ErrInvalidDataType)
+	}
 	ex := o.GetExchange()
 	a := o.GetAssetType()
 	p := o.Pair()

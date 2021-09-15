@@ -89,7 +89,6 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			ev.Pair())
 	}
 
-	p.iteration = p.iteration.Add(decimal.NewFromInt(1))
 	if ev.GetDirection() == common.DoNothing ||
 		ev.GetDirection() == common.MissingData ||
 		ev.GetDirection() == common.TransferredFunds ||
@@ -237,12 +236,19 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fi
 		direction == common.CouldNotSell ||
 		direction == common.MissingData ||
 		direction == "" {
-		fe := ev.(*fill.Fill)
+		fe, ok := ev.(*fill.Fill)
+		if !ok {
+			return nil, fmt.Errorf("%w expected fill event", common.ErrInvalidDataType)
+		}
 		fe.ExchangeFee = decimal.Zero
 		return fe, nil
 	}
 
-	return ev.(*fill.Fill), nil
+	fe, ok := ev.(*fill.Fill)
+	if !ok {
+		return nil, fmt.Errorf("%w expected fill event", common.ErrInvalidDataType)
+	}
+	return fe, nil
 }
 
 // addComplianceSnapshot gets the previous snapshot of compliance events, updates with the latest fillevent

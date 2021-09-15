@@ -14,7 +14,7 @@ import (
 var (
 	ErrCannotAllocate             = errors.New("cannot allocate funds")
 	ErrFundsNotFound              = errors.New("funding not found")
-	ErrZeroAmountReceived         = errors.New("received less than or equal to zero")
+	ErrZeroAmountReceived         = errors.New("amount received less than or equal to zero")
 	ErrNegativeAmountReceived     = errors.New("received negative decimal")
 	ErrAlreadyExists              = errors.New("funding already exists")
 	ErrNotEnoughFunds             = errors.New("not enough funds")
@@ -130,12 +130,7 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, i
 		return err
 	}
 	receiver.IncreaseAvailable(receiveAmount)
-	err = sender.Release(sendAmount, decimal.Zero)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return sender.Release(sendAmount, decimal.Zero)
 }
 
 // AddItem appends a new funding item. Will reject if exists by exchange asset currency
@@ -301,7 +296,7 @@ func (p *Pair) CanPlaceOrder(side order.Side) bool {
 // it prevents multiple events from claiming the same resource
 func (i *Item) Reserve(amount decimal.Decimal) error {
 	if amount.LessThanOrEqual(decimal.Zero) {
-		return fmt.Errorf("%w amount", ErrZeroAmountReceived)
+		return ErrZeroAmountReceived
 	}
 	if amount.GreaterThan(i.available) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Available: %v",
@@ -321,7 +316,7 @@ func (i *Item) Reserve(amount decimal.Decimal) error {
 // back to the available amount
 func (i *Item) Release(amount, diff decimal.Decimal) error {
 	if amount.LessThanOrEqual(decimal.Zero) {
-		return fmt.Errorf("%w amount", ErrZeroAmountReceived)
+		return ErrZeroAmountReceived
 	}
 	if diff.IsNegative() {
 		return fmt.Errorf("%w diff", ErrNegativeAmountReceived)
@@ -381,10 +376,8 @@ func (i *Item) Equal(item *Item) bool {
 
 // BasicEqual checks for equality via passed in values
 func (i *Item) BasicEqual(exch string, a asset.Item, currency, pairedCurrency currency.Code) bool {
-	if i == nil {
-		return false
-	}
-	return i.exchange == exch &&
+	return i != nil &&
+		i.exchange == exch &&
 		i.asset == a &&
 		i.currency == currency &&
 		(i.pairedWith == nil ||
@@ -393,24 +386,15 @@ func (i *Item) BasicEqual(exch string, a asset.Item, currency, pairedCurrency cu
 
 // MatchesCurrency checks that an item's currency is equal
 func (i *Item) MatchesCurrency(c currency.Code) bool {
-	if i == nil {
-		return false
-	}
-	return i.currency == c
+	return i != nil && i.currency == c
 }
 
 // MatchesItemCurrency checks that an item's currency is equal
 func (i *Item) MatchesItemCurrency(item *Item) bool {
-	if i == nil || item == nil {
-		return false
-	}
-	return i.currency == item.currency
+	return i != nil && item != nil && i.currency == item.currency
 }
 
 // MatchesExchange checks that an item's exchange is equal
 func (i *Item) MatchesExchange(item *Item) bool {
-	if i == nil || item == nil {
-		return false
-	}
-	return i.exchange == item.exchange
+	return i != nil && item != nil && i.exchange == item.exchange
 }

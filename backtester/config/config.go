@@ -184,11 +184,7 @@ func (c *Config) Validate() error {
 	if err != nil {
 		return err
 	}
-	err = c.validateMinMaxes()
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.validateMinMaxes()
 }
 
 func (c *Config) validateStrategySettings() error {

@@ -161,13 +161,13 @@ Binaries will be published once the codebase reaches a stable condition.
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [yangrq1018](https://github.com/yangrq1018) | 3 |
+| [TaltaM](https://github.com/TaltaM) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [azhang](https://github.com/azhang) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
-| [TaltaM](https://github.com/TaltaM) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [if1live](https://github.com/if1live) | 2 |

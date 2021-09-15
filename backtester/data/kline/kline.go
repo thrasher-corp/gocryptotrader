@@ -103,7 +103,11 @@ func (d *DataFromKline) StreamOpen() []decimal.Decimal {
 
 	ret := make([]decimal.Decimal, o)
 	for x := range s[:o] {
-		ret[x] = s[x].(*kline.Kline).Open
+		if val, ok := s[x].(*kline.Kline); ok {
+			ret[x] = val.Open
+		} else {
+			log.Errorf(log.BackTester, "incorrect data loaded into stream")
+		}
 	}
 	return ret
 }
@@ -115,7 +119,11 @@ func (d *DataFromKline) StreamHigh() []decimal.Decimal {
 
 	ret := make([]decimal.Decimal, o)
 	for x := range s[:o] {
-		ret[x] = s[x].(*kline.Kline).High
+		if val, ok := s[x].(*kline.Kline); ok {
+			ret[x] = val.High
+		} else {
+			log.Errorf(log.BackTester, "incorrect data loaded into stream")
+		}
 	}
 	return ret
 }
@@ -127,7 +135,11 @@ func (d *DataFromKline) StreamLow() []decimal.Decimal {
 
 	ret := make([]decimal.Decimal, o)
 	for x := range s[:o] {
-		ret[x] = s[x].(*kline.Kline).Low
+		if val, ok := s[x].(*kline.Kline); ok {
+			ret[x] = val.Low
+		} else {
+			log.Errorf(log.BackTester, "incorrect data loaded into stream")
+		}
 	}
 	return ret
 }
@@ -139,7 +151,11 @@ func (d *DataFromKline) StreamClose() []decimal.Decimal {
 
 	ret := make([]decimal.Decimal, o)
 	for x := range s[:o] {
-		ret[x] = s[x].(*kline.Kline).Close
+		if val, ok := s[x].(*kline.Kline); ok {
+			ret[x] = val.Close
+		} else {
+			log.Errorf(log.BackTester, "incorrect data loaded into stream")
+		}
 	}
 	return ret
 }
@@ -151,7 +167,11 @@ func (d *DataFromKline) StreamVol() []decimal.Decimal {
 
 	ret := make([]decimal.Decimal, o)
 	for x := range s[:o] {
-		ret[x] = s[x].(*kline.Kline).Volume
+		if val, ok := s[x].(*kline.Kline); ok {
+			ret[x] = val.Volume
+		} else {
+			log.Errorf(log.BackTester, "incorrect data loaded into stream")
+		}
 	}
 	return ret
 }

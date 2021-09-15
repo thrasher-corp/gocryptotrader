@@ -305,10 +305,15 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 				return errors.New("unknown option")
 			}
 			fund.Asset = supported[intNum-1].String()
-		}
-		for i := range supported {
-			if strings.EqualFold(response, supported[i].String()) {
-				fund.Asset = supported[i].String()
+		} else {
+			for i := range supported {
+				if strings.EqualFold(response, supported[i].String()) {
+					fund.Asset = supported[i].String()
+					break
+				}
+			}
+			if fund.Asset == "" {
+				return errors.New("unrecognised data option")
 			}
 		}
 

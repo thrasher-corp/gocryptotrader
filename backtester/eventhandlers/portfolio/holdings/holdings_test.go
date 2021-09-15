@@ -44,17 +44,10 @@ func pair(t *testing.T) *funding.Pair {
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
-
 	_, err := Create(nil, pair(t), riskFreeRate)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, ErrInitialFundsZero)
-	}
-
-	_, err = Create(nil, pair(t), riskFreeRate)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-
 	_, err = Create(&fill.Fill{}, pair(t), riskFreeRate)
 	if err != nil {
 		t.Error(err)
@@ -72,8 +65,8 @@ func TestUpdate(t *testing.T) {
 		Base: event.Base{
 			Time: time.Now(),
 		},
-	},
-		pair(t))
+	}, pair(t))
+
 	if t1.Equal(h.Timestamp) {
 		t.Errorf("expected '%v' received '%v'", h.Timestamp, t1)
 	}

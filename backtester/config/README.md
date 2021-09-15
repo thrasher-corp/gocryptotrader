@@ -42,7 +42,7 @@ See below for a set of tables and fields, expected values and what they can do
 | --- | ------|
 | Nickname | A nickname for the specific config. When running multiple variants of the same strategy, use the nickname to help differentiate between runs |
 | Goal | A description of what you would hope the outcome to be. When verifying output, you can review and confirm whether the strategy met that goal  |
-| CurrencySettings | Currency settings is an array of settings for each individual currency you wish to run the strategy against. |
+| CurrencySettings | Currency settings is an array of settings for each individual currency you wish to run the strategy against |
 | StrategySettings | Select which strategy to run, what custom settings to load and whether the strategy can assess multiple currencies at once to make more in-depth decisions |
 | PortfolioSettings | Contains a list of global rules for the portfolio manager. CurrencySettings contain their own rules on things like how big a position is allowable, the portfolio manager rules are the same, but override any individual currency's settings |
 | StatisticSettings | Contains settings that impact statistics calculation. Such as the risk-free rate for the sharpe ratio |
@@ -53,8 +53,8 @@ See below for a set of tables and fields, expected values and what they can do
 
 | Key | Description | Example |
 | --- | ------- | --- |
-| Name | The strategy to use. | `rsi` |
-| UsesSimultaneousProcessing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC. | `true` |
+| Name | The strategy to use | `rsi` |
+| UsesSimultaneousProcessing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC | `true` |
 | CustomSettings | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12 | `"custom-settings": { "rsi-high": 70, "rsi-low": 30, "rsi-period": 14 } ` |
 | UseExchangeLevelFunding | Allows shared funding at an exchange asset level. You can set funding for `USDT` and all pairs that feature `USDT` will have access to those funds when making orders. See [this](/backtester/funding/README.md) for more information | `false` |
 | ExchangeLevelFunding | An array of exchange level funding settings.  See below, or [this](/backtester/funding/README.md) for more information | `[]` |
@@ -67,7 +67,7 @@ See below for a set of tables and fields, expected values and what they can do
 | Asset | The asset type to set funds. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports| `spot` |
 | Currency | The currency to set funds | `BTC` |
 | InitialFunds | The initial funding for that currency | `1337` |
-| TransferFee | If you strategy utilises transferring of funds via the Funding Manager, this is deducted upon doing so | `0.005` |
+| TransferFee | If your strategy utilises transferring of funds via the Funding Manager, this is deducted upon doing so | `0.005` |
 
 
 #### Currency Settings
@@ -144,7 +144,7 @@ See below for a set of tables and fields, expected values and what they can do
 | APIClientIDOverride | Will set the GoCryptoTrader exchange to use the following API Client ID | `9012` |
 | API2FAOverride | Will set the GoCryptoTrader exchange to use the following 2FA seed | `hello-moto` |
 | APISubaccountOverride | Will set the GoCryptoTrader exchange to use the following subaccount on supported exchanges | `subzero` |
-| RealOrders | Whether to place real orders. You really should never consider using this. Ever ever. | `true` |
+| RealOrders | Whether to place real orders. You really should never consider using this. Ever ever | `true` |
 
 ##### Leverage Settings
 

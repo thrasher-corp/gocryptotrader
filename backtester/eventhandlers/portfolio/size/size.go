@@ -19,7 +19,10 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 	if amountAvailable.LessThanOrEqual(decimal.Zero) {
 		return nil, errNoFunds
 	}
-	retOrder := o.(*order.Order)
+	retOrder, ok := o.(*order.Order)
+	if !ok {
+		return nil, fmt.Errorf("%w expected order event", common.ErrInvalidDataType)
+	}
 	var amount decimal.Decimal
 	var err error
 	switch retOrder.GetDirection() {

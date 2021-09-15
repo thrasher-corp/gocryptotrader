@@ -16,7 +16,7 @@ Conversely, Exchange level funding and Simultaneous Processing is enabled, so ea
 A funding item holds the initial funding, current funding, reserved funding and transfer fees associated with an exchange, asset and currency. If it is a Pair, then the Item will be linked to the paired Item.
 
 ### What is a funding Pair?
-A funding Pair consists of two funding Items, the Base and Quote. If Exchange Level Funding is disabled, the Base and Quote are linked to eachother and the funds cannot be shared with other Pairs or Items. If Exchange Level Funding is enabled, the pair can access the same funds as every other currency that shares the exchange and asset type.
+A funding Pair consists of two funding Items, the Base and Quote. If Exchange Level Funding is disabled, the Base and Quote are linked to each other and the funds cannot be shared with other Pairs or Items. If Exchange Level Funding is enabled, the pair can access the same funds as every other currency that shares the exchange and asset type.
 
 ### What does Exchange Level Funding mean?
 Exchange level funding allows funds to be shared during a backtesting run. If the strategy contains the two pairs BTC-USDT and BNB-USDT and the strategy sells 3 BTC for $100,000 USDT, then BNB-USDT can use that $100,000 USDT to make a purchase of $20,000 BNB.
@@ -46,8 +46,8 @@ No. The already existing `CurrencySettings` will populate the funding manager wi
 
 | Key | Description | Example |
 | --- | ------- | --- |
-| Name | The strategy to use. | `rsi` |
-| UsesSimultaneousProcessing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC. | `true` |
+| Name | The strategy to use | `rsi` |
+| UsesSimultaneousProcessing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC | `true` |
 | CustomSettings | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12 | `"custom-settings": { "rsi-high": 70, "rsi-low": 30, "rsi-period": 14 } ` |
 | UseExchangeLevelFunding | This allows shared exchange funds to be used in your strategy. Requires `UsesSimultaneousProcessing` to be set to `true` to use  | `false` |
 | ExchangeLevelFunding | This is a list of funding definitions if `UseExchangeLevelFunding` is set to true  | See below table |
@@ -60,7 +60,7 @@ No. The already existing `CurrencySettings` will populate the funding manager wi
 | Asset | The asset type to set funds. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports| `spot` |
 | Currency | The currency to set funds | `BTC` |
 | InitialFunds | The initial funding for that currency | `1337` |
-| TransferFee | If you strategy utilises transferring of funds via the Funding Manager, this is deducted upon doing so | `0.005` |
+| TransferFee | If your strategy utilises transferring of funds via the Funding Manager, this is deducted upon doing so | `0.005` |
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 {{template "contributions"}}

@@ -35,7 +35,6 @@ var (
 // Portfolio stores all holdings and rules to assess orders, allowing the portfolio manager to
 // modify, accept or reject strategy signals
 type Portfolio struct {
-	iteration                 decimal.Decimal
 	riskFreeRate              decimal.Decimal
 	sizeManager               SizeHandler
 	riskManager               risk.Handler

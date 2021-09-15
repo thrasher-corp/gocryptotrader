@@ -27,7 +27,7 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
 - CSV data import
 - Database data import
 - Proof of concept live data running
-- Shopspring decimal implementation to track everything more accurately
+- Shopspring decimal implementation to track stats more accurately
 - Can run strategies against multiple cryptocurrencies
 - Can run strategies that can assess multiple currencies simultaneously to make complex decisions
 - Dollar cost strategy example strategies

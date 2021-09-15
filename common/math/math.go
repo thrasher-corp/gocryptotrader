@@ -430,8 +430,7 @@ func DecimalArithmeticMean(values []decimal.Decimal) (decimal.Decimal, error) {
 
 // DecimalSortinoRatio returns sortino ratio of backtest compared to risk-free
 func DecimalSortinoRatio(movementPerCandle []decimal.Decimal, riskFreeRatePerInterval, average decimal.Decimal) (decimal.Decimal, error) {
-	totalIntervals := decimal.NewFromInt(int64(len(movementPerCandle)))
-	if totalIntervals.IsZero() {
+	if len(movementPerCandle) == 0 {
 		return decimal.Zero, errZeroValue
 	}
 	totalNegativeResultsSquared := decimal.Zero

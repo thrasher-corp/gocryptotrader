@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// Create makes a Holding struct to track total values of strategy holdings over the course of a backtesting run
 func Create(ev common.EventHandler, funding funding.IPairReader, riskFreeRate decimal.Decimal) (Holding, error) {
 	if ev == nil {
 		return Holding{}, common.ErrNilEvent
@@ -15,7 +16,7 @@ func Create(ev common.EventHandler, funding funding.IPairReader, riskFreeRate de
 	if funding.QuoteInitialFunds().LessThan(decimal.Zero) {
 		return Holding{}, ErrInitialFundsZero
 	}
-	holding := Holding{
+	return Holding{
 		Offset:            ev.GetOffset(),
 		Pair:              ev.Pair(),
 		Asset:             ev.GetAssetType(),
@@ -27,9 +28,7 @@ func Create(ev common.EventHandler, funding funding.IPairReader, riskFreeRate de
 		BaseSize:          funding.BaseInitialFunds(),
 		RiskFreeRate:      riskFreeRate,
 		TotalInitialValue: funding.BaseInitialFunds().Mul(funding.QuoteInitialFunds()).Add(funding.QuoteInitialFunds()),
-	}
-
-	return holding, nil
+	}, nil
 }
 
 // Update calculates holding statistics for the events time
@@ -47,10 +46,12 @@ func (h *Holding) UpdateValue(d common.DataEventHandler) {
 	h.updateValue(latest)
 }
 
+// HasInvestments determines whether there are any holdings in the base funds
 func (h *Holding) HasInvestments() bool {
 	return h.BaseSize.GreaterThan(decimal.Zero)
 }
 
+// HasFunds determines whether there are any holdings in the quote funds
 func (h *Holding) HasFunds() bool {
 	return h.QuoteSize.GreaterThan(decimal.Zero)
 }

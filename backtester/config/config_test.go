@@ -192,11 +192,11 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 	if saveConfig {
 		result, err := json.MarshalIndent(cfg, "", " ")
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		p, err := os.Getwd()
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, 0770)
 		if err != nil {
@@ -269,11 +269,11 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 	if saveConfig {
 		result, err := json.MarshalIndent(cfg, "", " ")
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		p, err := os.Getwd()
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-exchange-level-funding.strat"), result, 0770)
 		if err != nil {
@@ -337,11 +337,11 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 	if saveConfig {
 		result, err := json.MarshalIndent(cfg, "", " ")
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		p, err := os.Getwd()
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-trades.strat"), result, 0770)
 		if err != nil {
@@ -410,11 +410,11 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 	if saveConfig {
 		result, err := json.MarshalIndent(cfg, "", " ")
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		p, err := os.Getwd()
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multiple-currencies.strat"), result, 0770)
 		if err != nil {
@@ -484,11 +484,11 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 	if saveConfig {
 		result, err := json.MarshalIndent(cfg, "", " ")
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		p, err := os.Getwd()
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-simultaneous-processing.strat"), result, 0770)
 		if err != nil {
@@ -546,11 +546,11 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 	if saveConfig {
 		result, err := json.MarshalIndent(cfg, "", " ")
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		p, err := os.Getwd()
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-candles-live.strat"), result, 0770)
 		if err != nil {
@@ -624,11 +624,11 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 	if saveConfig {
 		result, err := json.MarshalIndent(cfg, "", " ")
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		p, err := os.Getwd()
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		err = ioutil.WriteFile(filepath.Join(p, "examples", "rsi-api-candles.strat"), result, 0770)
 		if err != nil {
@@ -682,11 +682,11 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 	if saveConfig {
 		result, err := json.MarshalIndent(cfg, "", " ")
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		p, err := os.Getwd()
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-csv-candles.strat"), result, 0770)
 		if err != nil {
@@ -736,11 +736,11 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 	if saveConfig {
 		result, err := json.MarshalIndent(cfg, "", " ")
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		p, err := os.Getwd()
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-csv-trades.strat"), result, 0770)
 		if err != nil {
@@ -804,11 +804,11 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 	if saveConfig {
 		result, err := json.MarshalIndent(cfg, "", " ")
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		p, err := os.Getwd()
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-database-candles.strat"), result, 0770)
 		if err != nil {
@@ -820,7 +820,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 	cfg := Config{
 		Nickname: "ExampleStrategyTop2Bottom2",
-		Goal:     "To demonstrate complex strategy using exchange level funding and simultaneous processing of data signals",
+		Goal:     "To demonstrate a complex strategy using exchange level funding and simultaneous processing of data signals",
 		StrategySettings: StrategySettings{
 			Name:                         top2bottom2.Name,
 			UseExchangeLevelFunding:      true,
@@ -933,11 +933,11 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 	if saveConfig {
 		result, err := json.MarshalIndent(cfg, "", " ")
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		p, err := os.Getwd()
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		err = ioutil.WriteFile(filepath.Join(p, "examples", "t2b2-api-candles-exchange-funding.strat"), result, 0770)
 		if err != nil {
@@ -983,13 +983,13 @@ func TestValidateDate(t *testing.T) {
 		DatabaseData: &DatabaseData{},
 	}
 	err = c.validateDate()
-	if !errors.Is(ErrStartEndUnset, err) {
+	if !errors.Is(err, ErrStartEndUnset) {
 		t.Errorf("received: %v, expected: %v", err, ErrStartEndUnset)
 	}
 	c.DataSettings.DatabaseData.StartDate = time.Now()
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate
 	err = c.validateDate()
-	if !errors.Is(ErrBadDate, err) {
+	if !errors.Is(err, ErrBadDate) {
 		t.Errorf("received: %v, expected: %v", err, ErrBadDate)
 	}
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate.Add(time.Minute)
@@ -999,13 +999,13 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.APIData = &APIData{}
 	err = c.validateDate()
-	if !errors.Is(ErrStartEndUnset, err) {
+	if !errors.Is(err, ErrStartEndUnset) {
 		t.Errorf("received: %v, expected: %v", err, ErrStartEndUnset)
 	}
 	c.DataSettings.APIData.StartDate = time.Now()
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate
 	err = c.validateDate()
-	if !errors.Is(ErrBadDate, err) {
+	if !errors.Is(err, ErrBadDate) {
 		t.Errorf("received: %v, expected: %v", err, ErrBadDate)
 	}
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate.Add(time.Minute)
@@ -1018,28 +1018,28 @@ func TestValidateDate(t *testing.T) {
 func TestValidateCurrencySettings(t *testing.T) {
 	c := Config{}
 	err := c.validateCurrencySettings()
-	if !errors.Is(ErrNoCurrencySettings, err) {
+	if !errors.Is(err, ErrNoCurrencySettings) {
 		t.Errorf("received: %v, expected: %v", err, ErrNoCurrencySettings)
 	}
 	c.CurrencySettings = append(c.CurrencySettings, CurrencySettings{})
 	err = c.validateCurrencySettings()
-	if !errors.Is(ErrBadInitialFunds, err) {
+	if !errors.Is(err, ErrBadInitialFunds) {
 		t.Errorf("received: %v, expected: %v", err, ErrBadInitialFunds)
 	}
 	leet := decimal.NewFromInt(1337)
 	c.CurrencySettings[0].InitialFunds = leet
 	err = c.validateCurrencySettings()
-	if !errors.Is(ErrUnsetCurrency, err) {
+	if !errors.Is(err, ErrUnsetCurrency) {
 		t.Errorf("received: %v, expected: %v", err, ErrUnsetCurrency)
 	}
 	c.CurrencySettings[0].Base = "lol"
 	err = c.validateCurrencySettings()
-	if !errors.Is(ErrUnsetAsset, err) {
+	if !errors.Is(err, ErrUnsetAsset) {
 		t.Errorf("received: %v, expected: %v", err, ErrUnsetAsset)
 	}
 	c.CurrencySettings[0].Asset = "lol"
 	err = c.validateCurrencySettings()
-	if !errors.Is(ErrUnsetExchange, err) {
+	if !errors.Is(err, ErrUnsetExchange) {
 		t.Errorf("received: %v, expected: %v", err, ErrUnsetExchange)
 	}
 	c.CurrencySettings[0].ExchangeName = "lol"
@@ -1049,19 +1049,19 @@ func TestValidateCurrencySettings(t *testing.T) {
 	}
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(-1)
 	err = c.validateCurrencySettings()
-	if !errors.Is(ErrBadSlippageRates, err) {
+	if !errors.Is(err, ErrBadSlippageRates) {
 		t.Errorf("received: %v, expected: %v", err, ErrBadSlippageRates)
 	}
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
 	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(-1)
 	err = c.validateCurrencySettings()
-	if !errors.Is(ErrBadSlippageRates, err) {
+	if !errors.Is(err, ErrBadSlippageRates) {
 		t.Errorf("received: %v, expected: %v", err, ErrBadSlippageRates)
 	}
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
 	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(1)
 	err = c.validateCurrencySettings()
-	if !errors.Is(ErrBadSlippageRates, err) {
+	if !errors.Is(err, ErrBadSlippageRates) {
 		t.Errorf("received: %v, expected: %v", err, ErrBadSlippageRates)
 	}
 }

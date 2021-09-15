@@ -24,7 +24,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 | Config | Description |
 | --- | ------ |
-| dca-api-candles.strat | A simple dollar cost average strategy which makes a purchase on every candle. |
+| dca-api-candles.strat | A simple dollar cost average strategy which makes a purchase on every candle |
 | dca-api-candles-multiple-currencies.strat| The same DCA strategy, but applied to multiple currencies |
 | dca-api-candles-simultaneous-processing.strat | The same DCA strategy, but uses simultaneous signal processing |
 | dca-api-candles-exchange-level-funding.strat| The same DCA strategy, but utilises simultaneous signal processing and a shared pool of funding against multiple currencies |
