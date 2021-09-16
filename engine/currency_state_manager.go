@@ -112,7 +112,10 @@ func (c *currencyStateManager) monitor() {
 			var wg sync.WaitGroup
 			exchs, err := c.GetExchanges()
 			if err != nil {
-				log.Errorf(log.Global, "Failed to get exchanges error: %v", err)
+				log.Errorf(log.Global,
+					"%s failed to get exchanges error: %v",
+					CurrencyStateManagementName,
+					err)
 			}
 			for x := range exchs {
 				wg.Add(1)
