@@ -482,7 +482,10 @@ func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequ
 // GetOrderbooks returns a list of orderbooks for all enabled exchanges and all
 // enabled currency pairs
 func (s *RPCServer) GetOrderbooks(ctx context.Context, _ *gctrpc.GetOrderbooksRequest) (*gctrpc.GetOrderbooksResponse, error) {
-	exchanges := s.ExchangeManager.GetExchanges()
+	exchanges, err := s.ExchangeManager.GetExchanges()
+	if err != nil {
+		return nil, err
+	}
 	var obResponse []*gctrpc.Orderbooks
 	var obs []*gctrpc.OrderbookResponse
 	for x := range exchanges {

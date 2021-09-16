@@ -143,7 +143,11 @@ func (m *portfolioManager) processPortfolio() {
 			value)
 	}
 
-	d := m.getExchangeAccountInfo(m.exchangeManager.GetExchanges())
+	exchanges, err := m.exchangeManager.GetExchanges()
+	if err != nil {
+		log.Errorf(log.PortfolioMgr, "Portfolio manager cannot get exchanges: %v", err)
+	}
+	d := m.getExchangeAccountInfo(exchanges)
 	m.seedExchangeAccountInfo(d)
 	atomic.CompareAndSwapInt32(&m.processing, 1, 0)
 }

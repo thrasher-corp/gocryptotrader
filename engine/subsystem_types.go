@@ -42,7 +42,7 @@ var (
 // iExchangeManager limits exposure of accessible functions to exchange manager
 // so that subsystems can use some functionality
 type iExchangeManager interface {
-	GetExchanges() []exchange.IBotExchange
+	GetExchanges() ([]exchange.IBotExchange, error)
 	GetExchangeByName(string) (exchange.IBotExchange, error)
 }
 
