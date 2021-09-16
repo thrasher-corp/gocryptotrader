@@ -1902,6 +1902,14 @@ func TestStateGetAll(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = exch.Setup(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b := exch.GetBase()
 	b.Name = fakeExchangeName
 	b.Enabled = true
@@ -1934,6 +1942,14 @@ func TestStateWithdraw(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = exch.Setup(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1970,6 +1986,14 @@ func TestStateDeposit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = exch.Setup(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b := exch.GetBase()
 	b.Name = fakeExchangeName
 	b.Enabled = true
@@ -2000,6 +2024,14 @@ func TestStateTrading(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = exch.Setup(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
