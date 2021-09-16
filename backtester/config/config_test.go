@@ -1097,7 +1097,7 @@ func TestValidateMinMaxes(t *testing.T) {
 	c.CurrencySettings = []CurrencySettings{
 		{
 			BuySide: MinMax{
-				MinimumSize:  decimal.NewFromInt(1),
+				MinimumSize:  decimal.NewFromInt(2),
 				MaximumTotal: decimal.NewFromInt(10),
 				MaximumSize:  decimal.NewFromInt(1),
 			},
