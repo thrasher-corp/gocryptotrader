@@ -24,8 +24,8 @@ var (
 	errNilCurrencyStateManager = errors.New("currency state manager is nil")
 )
 
-// currencyStateManager manages currency states
-type currencyStateManager struct {
+// CurrencyStateManager manages currency states
+type CurrencyStateManager struct {
 	started  int32
 	shutdown chan struct{}
 	wg       sync.WaitGroup
@@ -35,8 +35,8 @@ type currencyStateManager struct {
 }
 
 // Setup applies configuration parameters before running
-func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*currencyStateManager, error) {
-	var c currencyStateManager
+func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*CurrencyStateManager, error) {
+	var c CurrencyStateManager
 	if interval <= 0 {
 		log.Warnf(log.ExchangeSys,
 			"%s interval is invalid, defaulting to: %s",
@@ -57,7 +57,7 @@ func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*cu
 }
 
 // Start runs the subsystem
-func (c *currencyStateManager) Start() error {
+func (c *CurrencyStateManager) Start() error {
 	if c == nil {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrNilSubsystem)
 	}
@@ -75,7 +75,7 @@ func (c *currencyStateManager) Start() error {
 }
 
 // Stop stops the subsystem
-func (c *currencyStateManager) Stop() error {
+func (c *CurrencyStateManager) Stop() error {
 	if c == nil {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrNilSubsystem)
 	}
@@ -93,14 +93,14 @@ func (c *currencyStateManager) Stop() error {
 }
 
 // IsRunning safely checks whether the subsystem is running
-func (c *currencyStateManager) IsRunning() bool {
+func (c *CurrencyStateManager) IsRunning() bool {
 	if c == nil {
 		return false
 	}
 	return atomic.LoadInt32(&c.started) == 1
 }
 
-func (c *currencyStateManager) monitor() {
+func (c *CurrencyStateManager) monitor() {
 	defer c.wg.Done()
 	timer := time.NewTimer(0) // Prime firing of channel for initial sync.
 	for {
@@ -129,7 +129,7 @@ func (c *currencyStateManager) monitor() {
 	}
 }
 
-func (c *currencyStateManager) update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.Items) {
+func (c *CurrencyStateManager) update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.Items) {
 	defer wg.Done()
 	for y := range enabledAssets {
 		err := exch.UpdateCurrencyStates(context.TODO(), enabledAssets[y])

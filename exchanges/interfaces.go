@@ -92,11 +92,11 @@ type IBotExchange interface {
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 
-	StateManagement
+	CurrencyStateManagement
 }
 
-// StateManagement defines functionality for currency state management
-type StateManagement interface {
+// CurrencyStateManagement defines functionality for currency state management
+type CurrencyStateManagement interface {
 	GetCurrencyStateSnapshot() ([]currencystate.Snapshot, error)
 	UpdateCurrencyStates(ctx context.Context, a asset.Item) error
 	CanTradePair(p currency.Pair, a asset.Item) error

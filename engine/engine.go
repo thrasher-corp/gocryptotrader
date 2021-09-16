@@ -46,7 +46,7 @@ type Engine struct {
 	websocketRoutineManager *websocketRoutineManager
 	WithdrawManager         *WithdrawManager
 	dataHistoryManager      *DataHistoryManager
-	currencyStateManager    *currencyStateManager
+	currencyStateManager    *CurrencyStateManager
 	Settings                Settings
 	uptime                  time.Time
 	ServicesWG              sync.WaitGroup
