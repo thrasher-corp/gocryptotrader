@@ -116,8 +116,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	return nil
 }
 
-// SetFeatureDefaults sets the exchanges default feature
-// support set
+// SetFeatureDefaults sets the exchanges default feature support set
 func (b *Base) SetFeatureDefaults() {
 	if b.Config.Features == nil {
 		s := &config.FeaturesConfig{
@@ -621,8 +620,7 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 			b.Name)
 	}
 	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
-
-	b.States, err = currencystate.RegisterExchangeState(b.Name)
+	b.States = currencystate.NewCurrencyStates()
 	return err
 }
 

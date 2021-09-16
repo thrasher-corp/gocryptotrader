@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -20,16 +19,11 @@ const (
 	DefaultStateManagerDelay    = time.Minute
 )
 
-var (
-	errNilCurrencyStateManager = errors.New("currency state manager is nil")
-)
-
 // CurrencyStateManager manages currency states
 type CurrencyStateManager struct {
 	started  int32
 	shutdown chan struct{}
 	wg       sync.WaitGroup
-	*currencystate.Manager
 	iExchangeManager
 	sleep time.Duration
 }
@@ -46,11 +40,6 @@ func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*Cu
 	} else {
 		c.sleep = interval
 	}
-
-	c.Manager = currencystate.GetManager()
-	if c.Manager == nil {
-		return nil, errNilCurrencyStateManager
-	}
 	c.iExchangeManager = em
 	c.shutdown = make(chan struct{})
 	return &c, nil
@@ -59,10 +48,6 @@ func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*Cu
 // Start runs the subsystem
 func (c *CurrencyStateManager) Start() error {
 	if c == nil {
-		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrNilSubsystem)
-	}
-
-	if c.Manager == nil {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrNilSubsystem)
 	}
 

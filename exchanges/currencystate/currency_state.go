@@ -12,13 +12,9 @@ import (
 )
 
 var (
-	manager Manager
-
-	errEmptyCurrency       = errors.New("empty currency")
-	errUpdatesAreNil       = errors.New("updates are nil")
-	errExchangeNotFound    = errors.New("exchange not found")
-	errExchangeNameIsEmpty = errors.New("exchange name is empty")
-	errNilStates           = errors.New("states is not started or set up")
+	errEmptyCurrency = errors.New("empty currency")
+	errUpdatesAreNil = errors.New("updates are nil")
+	errNilStates     = errors.New("states is not started or set up")
 
 	// Specific operational errors
 	errDepositNotAllowed     = errors.New("depositing not allowed")
@@ -30,84 +26,9 @@ var (
 	ErrCurrencyStateNotFound = errors.New("currency state not found")
 )
 
-// GetManager returns the package management struct
-func GetManager() *Manager {
-	return &manager
-}
-
-// RegisterExchangeState generates a new states struct and registers it with the
-// manager
-func RegisterExchangeState(exch string) (*States, error) {
-	return manager.Register(exch)
-}
-
-// Manager attempts to govern the different states of currency defined by an
-// exchange
-type Manager struct {
-	m   map[string]*States
-	mtx sync.RWMutex
-}
-
-// Register registers a new exchange states struct
-func (m *Manager) Register(exch string) (*States, error) {
-	if exch == "" {
-		return nil, errExchangeNameIsEmpty
-	}
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	i, ok := m.m[exch]
-	if ok {
-		// opted to return the instance here because when we load and unload
-		// exchanges this will conflict.
-		return i, nil
-	}
-	if m.m == nil {
-		m.m = make(map[string]*States)
-	}
-	r := &States{m: make(map[asset.Item]map[*currency.Item]*Currency)}
-	m.m[exch] = r
-	return r, nil
-}
-
-// CanTrade returns if the currency is currently tradeable on an exchange
-func (m *Manager) CanTrade(exch string, c currency.Code, a asset.Item) error {
-	e, err := m.getExchangeStates(exch)
-	if err != nil {
-		return err
-	}
-	return e.CanTrade(c, a)
-}
-
-// CanWithdraw returns if the currency can be withdrawn from an exchange
-func (m *Manager) CanWithdraw(exch string, c currency.Code, a asset.Item) error {
-	e, err := m.getExchangeStates(exch)
-	if err != nil {
-		return err
-	}
-	return e.CanWithdraw(c, a)
-}
-
-// CanDeposit returns if the currency can be deposited onto an exchange
-func (m *Manager) CanDeposit(exch string, c currency.Code, a asset.Item) error {
-	e, err := m.getExchangeStates(exch)
-	if err != nil {
-		return err
-	}
-	return e.CanDeposit(c, a)
-}
-
-// getExchangeStates returns the exchanges states
-func (m *Manager) getExchangeStates(exch string) (*States, error) {
-	if exch == "" {
-		return nil, errExchangeNameIsEmpty
-	}
-	m.mtx.RLock()
-	defer m.mtx.RUnlock()
-	e, ok := m.m[exch]
-	if !ok {
-		return nil, errExchangeNotFound
-	}
-	return e, nil
+// NewCurrencyStates gets a new type for tracking exchange currency states
+func NewCurrencyStates() *States {
+	return &States{m: make(map[asset.Item]map[*currency.Item]*Currency)}
 }
 
 // States defines all currency states for an exchange
