@@ -1267,7 +1267,7 @@ func TestSetAPIKeys(t *testing.T) {
 func TestSetupDefaults(t *testing.T) {
 	t.Parallel()
 
-	var b Base
+	var b = Base{Name: "awesomeTest"}
 	cfg := config.ExchangeConfig{
 		HTTPTimeout: time.Duration(-1),
 		API: config.APIConfig{
