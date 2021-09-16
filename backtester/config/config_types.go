@@ -22,7 +22,7 @@ var (
 	errExchangeLevelFundingRequired     = errors.New("invalid config, funding details set while exchange level funding is disabled")
 	errExchangeLevelFundingDataRequired = errors.New("invalid config, exchange level funding enabled with no funding data set")
 	errSizeLessThanZero                 = errors.New("size less than zero")
-	errMaxSizeMinSizeMismatch           = errors.New("maximum size must be greater than minimum size")
+	errMaxSizeMinSizeMismatch           = errors.New("maximum size must be greater or equal to minimum size")
 )
 
 // Config defines what is in an individual strategy config

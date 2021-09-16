@@ -168,7 +168,7 @@ func (m *MinMax) validate() error {
 	if m.MaximumTotal.IsNegative() {
 		return fmt.Errorf("invalid maximum total set to %w", errSizeLessThanZero)
 	}
-	if m.MaximumSize.LessThanOrEqual(m.MinimumSize) && !m.MinimumSize.IsZero() && !m.MaximumSize.IsZero() {
+	if m.MaximumSize.LessThan(m.MinimumSize) && !m.MinimumSize.IsZero() && !m.MaximumSize.IsZero() {
 		return fmt.Errorf("%w maximum size %v vs minimum size %v",
 			errMaxSizeMinSizeMismatch,
 			m.MaximumSize,
