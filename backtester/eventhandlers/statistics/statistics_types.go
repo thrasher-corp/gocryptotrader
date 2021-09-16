@@ -17,6 +17,8 @@ import (
 )
 
 var (
+	// ErrAlreadyProcessed occurs when an event has already been processed
+	ErrAlreadyProcessed            = errors.New("this event has been processed already")
 	errExchangeAssetPairStatsUnset = errors.New("exchangeAssetPairStatistics not setup")
 	errCurrencyStatisticsUnset     = errors.New("no data")
 )

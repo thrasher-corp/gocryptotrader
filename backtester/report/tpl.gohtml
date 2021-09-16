@@ -294,7 +294,6 @@
 						<th>Asset</th>
 						<th>Currency Base</th>
 						<th>Currency Quote</th>
-						<th>Initial Funds</th>
 						<th>Buy side Min Amount</th>
 						<th>Buy side Max Amount</th>
 						<th>Buy side Max Total</th>
@@ -314,7 +313,6 @@
 							<td>{{.Asset}}</td>
 							<td>{{.Base}}</td>
 							<td>{{.Quote}}</td>
-							<td>{{ printf "$%.8v" .InitialFunds}} {{.Quote}}</td>
 							<td>{{.BuySide.MinimumSize}} {{.Base}}</td>
 							<td>{{.BuySide.MaximumSize}} {{.Base}}</td>
 							<td>${{printf "%.8v" .BuySide.MaximumTotal}} {{.Quote}}</td>

@@ -2,7 +2,6 @@ package statistics
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -26,8 +25,6 @@ import (
 func (s *Statistic) Reset() {
 	*s = Statistic{}
 }
-
-var ErrAlreadyProcessed = errors.New("this event has been processed already")
 
 // SetupEventForTime sets up the big map for to store important data at each time interval
 func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {

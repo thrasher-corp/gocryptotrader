@@ -3,6 +3,7 @@ package backtest
 import (
 	"errors"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -39,7 +40,13 @@ import (
 
 const testExchange = "Bitstamp"
 
-var leet = decimal.NewFromInt(1337)
+var leet *decimal.Decimal
+
+func TestMain(m *testing.M) {
+	oneThreeThreeSeven := decimal.NewFromInt(1337)
+	leet = &oneThreeThreeSeven
+	os.Exit(m.Run())
+}
 
 func newBotWithExchange() *engine.Engine {
 	bot := &engine.Engine{
@@ -146,8 +153,8 @@ func TestNewFromConfig(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errIntervalUnset)
 	}
 	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
-	cfg.CurrencySettings[0].MakerFee = leet
-	cfg.CurrencySettings[0].TakerFee = leet
+	cfg.CurrencySettings[0].MakerFee = decimal.Zero
+	cfg.CurrencySettings[0].TakerFee = decimal.Zero
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, gctcommon.ErrDateUnset) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
@@ -172,16 +179,16 @@ func TestLoadDataAPI(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
-				InitialFunds: leet,
-				Leverage:     config.Leverage{},
-				BuySide:      config.MinMax{},
-				SellSide:     config.MinMax{},
-				MakerFee:     leet,
-				TakerFee:     leet,
+				ExchangeName:      "Binance",
+				Asset:             asset.Spot.String(),
+				Base:              cp.Base.String(),
+				Quote:             cp.Quote.String(),
+				InitialQuoteFunds: leet,
+				Leverage:          config.Leverage{},
+				BuySide:           config.MinMax{},
+				SellSide:          config.MinMax{},
+				MakerFee:          decimal.Zero,
+				TakerFee:          decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -231,16 +238,16 @@ func TestLoadDataDatabase(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
-				InitialFunds: leet,
-				Leverage:     config.Leverage{},
-				BuySide:      config.MinMax{},
-				SellSide:     config.MinMax{},
-				MakerFee:     leet,
-				TakerFee:     leet,
+				ExchangeName:      "Binance",
+				Asset:             asset.Spot.String(),
+				Base:              cp.Base.String(),
+				Quote:             cp.Quote.String(),
+				InitialQuoteFunds: leet,
+				Leverage:          config.Leverage{},
+				BuySide:           config.MinMax{},
+				SellSide:          config.MinMax{},
+				MakerFee:          decimal.Zero,
+				TakerFee:          decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -296,16 +303,16 @@ func TestLoadDataCSV(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
-				InitialFunds: leet,
-				Leverage:     config.Leverage{},
-				BuySide:      config.MinMax{},
-				SellSide:     config.MinMax{},
-				MakerFee:     leet,
-				TakerFee:     leet,
+				ExchangeName:      "Binance",
+				Asset:             asset.Spot.String(),
+				Base:              cp.Base.String(),
+				Quote:             cp.Quote.String(),
+				InitialQuoteFunds: leet,
+				Leverage:          config.Leverage{},
+				BuySide:           config.MinMax{},
+				SellSide:          config.MinMax{},
+				MakerFee:          decimal.Zero,
+				TakerFee:          decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -354,16 +361,16 @@ func TestLoadDataLive(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
-				InitialFunds: leet,
-				Leverage:     config.Leverage{},
-				BuySide:      config.MinMax{},
-				SellSide:     config.MinMax{},
-				MakerFee:     leet,
-				TakerFee:     leet,
+				ExchangeName:      "Binance",
+				Asset:             asset.Spot.String(),
+				Base:              cp.Base.String(),
+				Quote:             cp.Quote.String(),
+				InitialQuoteFunds: leet,
+				Leverage:          config.Leverage{},
+				BuySide:           config.MinMax{},
+				SellSide:          config.MinMax{},
+				MakerFee:          decimal.Zero,
+				TakerFee:          decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -516,7 +523,7 @@ func TestFullCycle(t *testing.T) {
 	}
 	bot := newBotWithExchange()
 	f := &funding.FundManager{}
-	base, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
@@ -524,7 +531,7 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	pair, err := funding.CreatePair(base, quote)
+	pair, err := funding.CreatePair(b, quote)
 	if err != nil {
 		t.Error(err)
 	}
@@ -623,7 +630,7 @@ func TestFullCycleMulti(t *testing.T) {
 	}
 	bot := newBotWithExchange()
 	f := &funding.FundManager{}
-	base, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
@@ -631,7 +638,7 @@ func TestFullCycleMulti(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	pair, err := funding.CreatePair(base, quote)
+	pair, err := funding.CreatePair(b, quote)
 	if err != nil {
 		t.Error(err)
 	}

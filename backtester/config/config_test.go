@@ -11,6 +11,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/top2bottom2"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -33,13 +34,24 @@ var (
 	makerFee     = decimal.NewFromFloat(0.001)
 	takerFee     = decimal.NewFromFloat(0.002)
 	minMax       = MinMax{
-		MinimumSize:  decimal.NewFromFloat(0.1),
-		MaximumSize:  decimal.NewFromInt(1),
-		MaximumTotal: decimal.NewFromInt(10000),
+		MinimumSize:  decimal.NewFromFloat(0.005),
+		MaximumSize:  decimal.NewFromInt(2),
+		MaximumTotal: decimal.NewFromInt(40000),
 	}
-	initialFunds1 = decimal.NewFromInt(1000000)
-	initialFunds2 = decimal.NewFromInt(100000)
+	initialQuoteFunds1 *decimal.Decimal
+	initialQuoteFunds2 *decimal.Decimal
+	initialBaseFunds   *decimal.Decimal
 )
+
+func TestMain(m *testing.M) {
+	iF1 := decimal.NewFromInt(1000000)
+	iF2 := decimal.NewFromInt(100000)
+	iBF := decimal.NewFromInt(10)
+	initialQuoteFunds1 = &iF1
+	initialQuoteFunds2 = &iF2
+	initialBaseFunds = &iBF
+	os.Exit(m.Run())
+}
 
 func TestLoadConfig(t *testing.T) {
 	_, err := LoadConfig([]byte(`{}`))
@@ -92,13 +104,13 @@ func TestPrintSettings(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds1,
-				BuySide:      minMax,
-				SellSide:     minMax,
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.BTC.String(),
+				Quote:             currency.USDT.String(),
+				InitialQuoteFunds: initialQuoteFunds1,
+				BuySide:           minMax,
+				SellSide:          minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -155,13 +167,13 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds2,
-				BuySide:      minMax,
-				SellSide:     minMax,
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.BTC.String(),
+				Quote:             currency.USDT.String(),
+				InitialQuoteFunds: initialQuoteFunds2,
+				BuySide:           minMax,
+				SellSide:          minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -291,13 +303,13 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: "ftx",
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds2,
-				BuySide:      minMax,
-				SellSide:     minMax,
+				ExchangeName:      "ftx",
+				Asset:             asset.Spot.String(),
+				Base:              currency.BTC.String(),
+				Quote:             currency.USDT.String(),
+				InitialQuoteFunds: initialQuoteFunds2,
+				BuySide:           minMax,
+				SellSide:          minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -359,13 +371,13 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds2,
-				BuySide:      minMax,
-				SellSide:     minMax,
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.BTC.String(),
+				Quote:             currency.USDT.String(),
+				InitialQuoteFunds: initialQuoteFunds2,
+				BuySide:           minMax,
+				SellSide:          minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -373,13 +385,13 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 				TakerFee: takerFee,
 			},
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.ETH.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds2,
-				BuySide:      minMax,
-				SellSide:     minMax,
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.ETH.String(),
+				Quote:             currency.USDT.String(),
+				InitialQuoteFunds: initialQuoteFunds2,
+				BuySide:           minMax,
+				SellSide:          minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -433,13 +445,13 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds1,
-				BuySide:      minMax,
-				SellSide:     minMax,
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.BTC.String(),
+				Quote:             currency.USDT.String(),
+				InitialQuoteFunds: initialQuoteFunds1,
+				BuySide:           minMax,
+				SellSide:          minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -447,13 +459,13 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 				TakerFee: takerFee,
 			},
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.ETH.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds2,
-				BuySide:      minMax,
-				SellSide:     minMax,
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.ETH.String(),
+				Quote:             currency.USDT.String(),
+				InitialQuoteFunds: initialQuoteFunds2,
+				BuySide:           minMax,
+				SellSide:          minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -506,13 +518,13 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds2,
-				BuySide:      minMax,
-				SellSide:     minMax,
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.BTC.String(),
+				Quote:             currency.USDT.String(),
+				InitialQuoteFunds: initialQuoteFunds2,
+				BuySide:           minMax,
+				SellSide:          minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -573,13 +585,13 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds2,
-				BuySide:      minMax,
-				SellSide:     minMax,
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.BTC.String(),
+				Quote:             currency.USDT.String(),
+				InitialQuoteFunds: initialQuoteFunds2,
+				BuySide:           minMax,
+				SellSide:          minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -587,13 +599,14 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 				TakerFee: takerFee,
 			},
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.ETH.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds1,
-				BuySide:      minMax,
-				SellSide:     minMax,
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.ETH.String(),
+				Quote:             currency.USDT.String(),
+				InitialBaseFunds:  initialBaseFunds,
+				InitialQuoteFunds: initialQuoteFunds1,
+				BuySide:           minMax,
+				SellSide:          minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -647,13 +660,13 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds2,
-				BuySide:      minMax,
-				SellSide:     minMax,
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.BTC.String(),
+				Quote:             currency.USDT.String(),
+				InitialQuoteFunds: initialQuoteFunds2,
+				BuySide:           minMax,
+				SellSide:          minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -705,11 +718,11 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds2,
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.BTC.String(),
+				Quote:             currency.USDT.String(),
+				InitialQuoteFunds: initialQuoteFunds2,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -758,13 +771,13 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				InitialFunds: initialFunds2,
-				BuySide:      minMax,
-				SellSide:     minMax,
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.BTC.String(),
+				Quote:             currency.USDT.String(),
+				InitialQuoteFunds: initialQuoteFunds2,
+				BuySide:           minMax,
+				SellSide:          minMax,
 				Leverage: Leverage{
 					CanUseLeverage: false,
 				},
@@ -946,33 +959,6 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 	}
 }
 
-func TestValidate(t *testing.T) {
-	m := MinMax{
-		MinimumSize:  decimal.NewFromInt(-1),
-		MaximumSize:  decimal.NewFromInt(-1),
-		MaximumTotal: decimal.NewFromInt(-1),
-	}
-	err := m.validate()
-	if err == nil {
-		t.Error("expected error")
-	}
-	m.MinimumSize = decimal.Zero
-	err = m.validate()
-	if err == nil {
-		t.Error("expected error")
-	}
-	m.MaximumSize = decimal.Zero
-	err = m.validate()
-	if err == nil {
-		t.Error("expected error")
-	}
-	m.MaximumTotal = decimal.Zero
-	err = m.validate()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestValidateDate(t *testing.T) {
 	c := Config{}
 	err := c.validateDate()
@@ -983,14 +969,14 @@ func TestValidateDate(t *testing.T) {
 		DatabaseData: &DatabaseData{},
 	}
 	err = c.validateDate()
-	if !errors.Is(err, ErrStartEndUnset) {
-		t.Errorf("received: %v, expected: %v", err, ErrStartEndUnset)
+	if !errors.Is(err, errStartEndUnset) {
+		t.Errorf("received: %v, expected: %v", err, errStartEndUnset)
 	}
 	c.DataSettings.DatabaseData.StartDate = time.Now()
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate
 	err = c.validateDate()
-	if !errors.Is(err, ErrBadDate) {
-		t.Errorf("received: %v, expected: %v", err, ErrBadDate)
+	if !errors.Is(err, errBadDate) {
+		t.Errorf("received: %v, expected: %v", err, errBadDate)
 	}
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate.Add(time.Minute)
 	err = c.validateDate()
@@ -999,14 +985,14 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.APIData = &APIData{}
 	err = c.validateDate()
-	if !errors.Is(err, ErrStartEndUnset) {
-		t.Errorf("received: %v, expected: %v", err, ErrStartEndUnset)
+	if !errors.Is(err, errStartEndUnset) {
+		t.Errorf("received: %v, expected: %v", err, errStartEndUnset)
 	}
 	c.DataSettings.APIData.StartDate = time.Now()
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate
 	err = c.validateDate()
-	if !errors.Is(err, ErrBadDate) {
-		t.Errorf("received: %v, expected: %v", err, ErrBadDate)
+	if !errors.Is(err, errBadDate) {
+		t.Errorf("received: %v, expected: %v", err, errBadDate)
 	}
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate.Add(time.Minute)
 	err = c.validateDate()
@@ -1018,29 +1004,29 @@ func TestValidateDate(t *testing.T) {
 func TestValidateCurrencySettings(t *testing.T) {
 	c := Config{}
 	err := c.validateCurrencySettings()
-	if !errors.Is(err, ErrNoCurrencySettings) {
-		t.Errorf("received: %v, expected: %v", err, ErrNoCurrencySettings)
+	if !errors.Is(err, errNoCurrencySettings) {
+		t.Errorf("received: %v, expected: %v", err, errNoCurrencySettings)
 	}
 	c.CurrencySettings = append(c.CurrencySettings, CurrencySettings{})
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, ErrBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, ErrBadInitialFunds)
+	if !errors.Is(err, errBadInitialFunds) {
+		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
 	}
 	leet := decimal.NewFromInt(1337)
-	c.CurrencySettings[0].InitialFunds = leet
+	c.CurrencySettings[0].InitialQuoteFunds = &leet
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, ErrUnsetCurrency) {
-		t.Errorf("received: %v, expected: %v", err, ErrUnsetCurrency)
+	if !errors.Is(err, errUnsetCurrency) {
+		t.Errorf("received: %v, expected: %v", err, errUnsetCurrency)
 	}
 	c.CurrencySettings[0].Base = "lol"
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, ErrUnsetAsset) {
-		t.Errorf("received: %v, expected: %v", err, ErrUnsetAsset)
+	if !errors.Is(err, errUnsetAsset) {
+		t.Errorf("received: %v, expected: %v", err, errUnsetAsset)
 	}
 	c.CurrencySettings[0].Asset = "lol"
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, ErrUnsetExchange) {
-		t.Errorf("received: %v, expected: %v", err, ErrUnsetExchange)
+	if !errors.Is(err, errUnsetExchange) {
+		t.Errorf("received: %v, expected: %v", err, errUnsetExchange)
 	}
 	c.CurrencySettings[0].ExchangeName = "lol"
 	err = c.validateCurrencySettings()
@@ -1049,19 +1035,168 @@ func TestValidateCurrencySettings(t *testing.T) {
 	}
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(-1)
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, ErrBadSlippageRates) {
-		t.Errorf("received: %v, expected: %v", err, ErrBadSlippageRates)
+	if !errors.Is(err, errBadSlippageRates) {
+		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
 	}
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
 	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(-1)
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, ErrBadSlippageRates) {
-		t.Errorf("received: %v, expected: %v", err, ErrBadSlippageRates)
+	if !errors.Is(err, errBadSlippageRates) {
+		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
 	}
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
 	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(1)
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, ErrBadSlippageRates) {
-		t.Errorf("received: %v, expected: %v", err, ErrBadSlippageRates)
+	if !errors.Is(err, errBadSlippageRates) {
+		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
+	}
+}
+
+func TestValidateMinMaxes(t *testing.T) {
+	t.Parallel()
+	c := &Config{}
+	err := c.validateMinMaxes()
+	if err != nil {
+		t.Error(err)
+	}
+
+	c.CurrencySettings = []CurrencySettings{
+		{
+			SellSide: MinMax{
+				MinimumSize: decimal.NewFromInt(-1),
+			},
+		},
+	}
+	err = c.validateMinMaxes()
+	if !errors.Is(err, errSizeLessThanZero) {
+		t.Errorf("received %v expected %v", err, errSizeLessThanZero)
+	}
+	c.CurrencySettings = []CurrencySettings{
+		{
+			SellSide: MinMax{
+				MaximumTotal: decimal.NewFromInt(-1),
+			},
+		},
+	}
+	err = c.validateMinMaxes()
+	if !errors.Is(err, errSizeLessThanZero) {
+		t.Errorf("received %v expected %v", err, errSizeLessThanZero)
+	}
+	c.CurrencySettings = []CurrencySettings{
+		{
+			SellSide: MinMax{
+				MaximumSize: decimal.NewFromInt(-1),
+			},
+		},
+	}
+	err = c.validateMinMaxes()
+	if !errors.Is(err, errSizeLessThanZero) {
+		t.Errorf("received %v expected %v", err, errSizeLessThanZero)
+	}
+
+	c.CurrencySettings = []CurrencySettings{
+		{
+			BuySide: MinMax{
+				MinimumSize:  decimal.NewFromInt(1),
+				MaximumTotal: decimal.NewFromInt(10),
+				MaximumSize:  decimal.NewFromInt(1),
+			},
+		},
+	}
+	err = c.validateMinMaxes()
+	if !errors.Is(err, errMaxSizeMinSizeMismatch) {
+		t.Errorf("received %v expected %v", err, errMaxSizeMinSizeMismatch)
+	}
+
+	c.CurrencySettings = []CurrencySettings{
+		{
+			BuySide: MinMax{
+				MinimumSize:  decimal.NewFromInt(1),
+				MaximumTotal: decimal.NewFromInt(10),
+				MaximumSize:  decimal.NewFromInt(2),
+			},
+		},
+	}
+	c.PortfolioSettings = PortfolioSettings{
+		BuySide: MinMax{
+			MinimumSize: decimal.NewFromInt(-1),
+		},
+	}
+	err = c.validateMinMaxes()
+	if !errors.Is(err, errSizeLessThanZero) {
+		t.Errorf("received %v expected %v", err, errSizeLessThanZero)
+	}
+	c.PortfolioSettings = PortfolioSettings{
+		SellSide: MinMax{
+			MinimumSize: decimal.NewFromInt(-1),
+		},
+	}
+	err = c.validateMinMaxes()
+	if !errors.Is(err, errSizeLessThanZero) {
+		t.Errorf("received %v expected %v", err, errSizeLessThanZero)
+	}
+}
+
+func TestValidateStrategySettings(t *testing.T) {
+	t.Parallel()
+	c := &Config{}
+	err := c.validateStrategySettings()
+	if !errors.Is(err, base.ErrStrategyNotFound) {
+		t.Errorf("received %v expected %v", err, base.ErrStrategyNotFound)
+	}
+	c.StrategySettings = StrategySettings{Name: dca}
+	err = c.validateStrategySettings()
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	c.StrategySettings.UseExchangeLevelFunding = true
+	err = c.validateStrategySettings()
+	if !errors.Is(err, errSimultaneousProcessingRequired) {
+		t.Errorf("received %v expected %v", err, errSimultaneousProcessingRequired)
+	}
+	c.StrategySettings.SimultaneousSignalProcessing = true
+	err = c.validateStrategySettings()
+	if !errors.Is(err, errExchangeLevelFundingDataRequired) {
+		t.Errorf("received %v expected %v", err, errExchangeLevelFundingDataRequired)
+	}
+	c.StrategySettings.ExchangeLevelFunding = []ExchangeLevelFunding{
+		{
+			InitialFunds: decimal.NewFromInt(-1),
+		},
+	}
+	err = c.validateStrategySettings()
+	if !errors.Is(err, errBadInitialFunds) {
+		t.Errorf("received %v expected %v", err, errBadInitialFunds)
+	}
+	c.StrategySettings.UseExchangeLevelFunding = false
+	err = c.validateStrategySettings()
+	if !errors.Is(err, errExchangeLevelFundingRequired) {
+		t.Errorf("received %v expected %v", err, errExchangeLevelFundingRequired)
+	}
+}
+
+func TestValidate(t *testing.T) {
+	t.Parallel()
+	c := &Config{
+		StrategySettings: StrategySettings{Name: dca},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName:      testExchange,
+				Asset:             asset.Spot.String(),
+				Base:              currency.BTC.String(),
+				Quote:             currency.USDT.String(),
+				InitialBaseFunds:  initialBaseFunds,
+				InitialQuoteFunds: initialQuoteFunds2,
+				BuySide: MinMax{
+					MinimumSize:  decimal.NewFromInt(1),
+					MaximumSize:  decimal.NewFromInt(10),
+					MaximumTotal: decimal.NewFromInt(10),
+				},
+			},
+		},
+	}
+	err := c.Validate()
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
 	}
 }

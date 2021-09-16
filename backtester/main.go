@@ -80,11 +80,6 @@ func main() {
 	if cfg.GoCryptoTraderConfigPath != "" {
 		path = cfg.GoCryptoTraderConfigPath
 	}
-	err = cfg.Validate()
-	if err != nil {
-		fmt.Printf("Could not read config. Error: %v.\n", err)
-		os.Exit(1)
-	}
 
 	var bot *engine.Engine
 	flags := map[string]bool{
@@ -103,6 +98,12 @@ func main() {
 	if err != nil {
 		fmt.Printf("Could not load backtester. Error: %v.\n", err)
 		os.Exit(-1)
+	}
+
+	err = cfg.Validate()
+	if err != nil {
+		fmt.Printf("Could not read config. Error: %v.\n", err)
+		os.Exit(1)
 	}
 	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, bot)
 	if err != nil {

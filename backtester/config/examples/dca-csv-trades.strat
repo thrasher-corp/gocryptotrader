@@ -4,9 +4,7 @@
  "strategy-settings": {
   "name": "dollarcostaverage",
   "use-simultaneous-signal-processing": false,
-  "use-exchange-level-funding": false,
-  "exchange-level-funding": null,
-  "custom-settings": null
+  "use-exchange-level-funding": false
  },
  "currency-settings": [
   {
@@ -14,7 +12,7 @@
    "asset": "spot",
    "base": "BTC",
    "quote": "USDT",
-   "initial-funds": "100000",
+   "initial-quote-funds": "100000",
    "leverage": {
     "can-use-leverage": false,
     "maximum-orders-with-leverage-ratio": "0",

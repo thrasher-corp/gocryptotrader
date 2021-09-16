@@ -193,38 +193,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		}
 
 		var baseItem, quoteItem *funding.Item
-		if !useExchangeLevelFunding {
-			a, err = asset.New(cfg.CurrencySettings[i].Asset)
-			if err != nil {
-				return nil, err
-			}
-			cp := currency.NewPair(currency.NewCode(cfg.CurrencySettings[i].Base), currency.NewCode(cfg.CurrencySettings[i].Quote))
-			baseItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
-				a,
-				cp.Base,
-				decimal.Zero,
-				decimal.Zero)
-			if err != nil {
-				return nil, err
-			}
-			quoteItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
-				a,
-				cp.Quote,
-				cfg.CurrencySettings[i].InitialFunds,
-				decimal.Zero)
-			if err != nil {
-				return nil, err
-			}
-			var pair *funding.Pair
-			pair, err = funding.CreatePair(baseItem, quoteItem)
-			if err != nil {
-				return nil, err
-			}
-			err = funds.AddPair(pair)
-			if err != nil {
-				return nil, err
-			}
-		} else {
+		if useExchangeLevelFunding {
 			// add any remaining currency items that have no funding data in the strategy config
 			baseItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
@@ -248,6 +217,41 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			}
 			err = funds.AddItem(quoteItem)
 			if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
+				return nil, err
+			}
+		} else {
+			var bFunds, qFunds decimal.Decimal
+			if cfg.CurrencySettings[i].InitialBaseFunds != nil {
+				bFunds = *cfg.CurrencySettings[i].InitialBaseFunds
+			}
+			if cfg.CurrencySettings[i].InitialQuoteFunds != nil {
+				qFunds = *cfg.CurrencySettings[i].InitialQuoteFunds
+			}
+			baseItem, err = funding.CreateItem(
+				cfg.CurrencySettings[i].ExchangeName,
+				a,
+				curr.Base,
+				bFunds,
+				decimal.Zero)
+			if err != nil {
+				return nil, err
+			}
+			quoteItem, err = funding.CreateItem(
+				cfg.CurrencySettings[i].ExchangeName,
+				a,
+				curr.Quote,
+				qFunds,
+				decimal.Zero)
+			if err != nil {
+				return nil, err
+			}
+			var pair *funding.Pair
+			pair, err = funding.CreatePair(baseItem, quoteItem)
+			if err != nil {
+				return nil, err
+			}
+			err = funds.AddPair(pair)
+			if err != nil {
 				return nil, err
 			}
 		}
@@ -399,10 +403,8 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 				cfg.CurrencySettings[i].ShowExchangeOrderLimitWarning = true
 			}
 		}
-
 		resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
 			ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
-			InitialFunds:        cfg.CurrencySettings[i].InitialFunds,
 			MinimumSlippageRate: cfg.CurrencySettings[i].MinimumSlippagePercent,
 			MaximumSlippageRate: cfg.CurrencySettings[i].MaximumSlippagePercent,
 			CurrencyPair:        pair,

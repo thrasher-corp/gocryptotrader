@@ -12,12 +12,14 @@ import (
 )
 
 var (
-	ErrCannotAllocate             = errors.New("cannot allocate funds")
-	ErrFundsNotFound              = errors.New("funding not found")
-	ErrZeroAmountReceived         = errors.New("amount received less than or equal to zero")
-	ErrNegativeAmountReceived     = errors.New("received negative decimal")
+	// ErrFundsNotFound used when funds are requested but the funding is not found in the manager
+	ErrFundsNotFound = errors.New("funding not found")
+	// ErrAlreadyExists used when a matching item or pair is already in the funding manager
 	ErrAlreadyExists              = errors.New("funding already exists")
-	ErrNotEnoughFunds             = errors.New("not enough funds")
+	errCannotAllocate             = errors.New("cannot allocate funds")
+	errZeroAmountReceived         = errors.New("amount received less than or equal to zero")
+	errNegativeAmountReceived     = errors.New("received negative decimal")
+	errNotEnoughFunds             = errors.New("not enough funds")
 	errCannotTransferToSameFunds  = errors.New("cannot send funds to self")
 	errTransferMustBeSameCurrency = errors.New("cannot transfer to different currency")
 )
@@ -31,10 +33,10 @@ func SetupFundingManager(usingExchangeLevelFunding bool) *FundManager {
 // CreateItem creates a new funding item
 func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, transferFee decimal.Decimal) (*Item, error) {
 	if initialFunds.IsNegative() {
-		return nil, fmt.Errorf("%v %v %v %w initial funds: %v", exch, a, ci, ErrNegativeAmountReceived, initialFunds)
+		return nil, fmt.Errorf("%v %v %v %w initial funds: %v", exch, a, ci, errNegativeAmountReceived, initialFunds)
 	}
 	if transferFee.IsNegative() {
-		return nil, fmt.Errorf("%v %v %v %w transfer fee: %v", exch, a, ci, ErrNegativeAmountReceived, transferFee)
+		return nil, fmt.Errorf("%v %v %v %w transfer fee: %v", exch, a, ci, errNegativeAmountReceived, transferFee)
 	}
 
 	return &Item{
@@ -97,15 +99,15 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, i
 		return common.ErrNilArguments
 	}
 	if amount.LessThanOrEqual(decimal.Zero) {
-		return ErrZeroAmountReceived
+		return errZeroAmountReceived
 	}
 	if inclusiveFee {
 		if sender.available.LessThan(amount) {
-			return fmt.Errorf("%w for %v", ErrNotEnoughFunds, sender.currency)
+			return fmt.Errorf("%w for %v", errNotEnoughFunds, sender.currency)
 		}
 	} else {
 		if sender.available.LessThan(amount.Add(sender.transferFee)) {
-			return fmt.Errorf("%w for %v", ErrNotEnoughFunds, sender.currency)
+			return fmt.Errorf("%w for %v", errNotEnoughFunds, sender.currency)
 		}
 	}
 
@@ -241,7 +243,7 @@ func (p *Pair) Reserve(amount decimal.Decimal, side order.Side) error {
 		return p.Base.Reserve(amount)
 	default:
 		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
-			ErrCannotAllocate,
+			errCannotAllocate,
 			p.Base.exchange,
 			p.Base.asset,
 			p.Base.currency,
@@ -260,7 +262,7 @@ func (p *Pair) Release(amount, diff decimal.Decimal, side order.Side) error {
 		return p.Base.Release(amount, diff)
 	default:
 		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
-			ErrCannotAllocate,
+			errCannotAllocate,
 			p.Base.exchange,
 			p.Base.asset,
 			p.Base.currency,
@@ -296,11 +298,11 @@ func (p *Pair) CanPlaceOrder(side order.Side) bool {
 // it prevents multiple events from claiming the same resource
 func (i *Item) Reserve(amount decimal.Decimal) error {
 	if amount.LessThanOrEqual(decimal.Zero) {
-		return ErrZeroAmountReceived
+		return errZeroAmountReceived
 	}
 	if amount.GreaterThan(i.available) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Available: %v",
-			ErrCannotAllocate,
+			errCannotAllocate,
 			i.exchange,
 			i.asset,
 			i.currency,
@@ -316,14 +318,14 @@ func (i *Item) Reserve(amount decimal.Decimal) error {
 // back to the available amount
 func (i *Item) Release(amount, diff decimal.Decimal) error {
 	if amount.LessThanOrEqual(decimal.Zero) {
-		return ErrZeroAmountReceived
+		return errZeroAmountReceived
 	}
 	if diff.IsNegative() {
-		return fmt.Errorf("%w diff", ErrNegativeAmountReceived)
+		return fmt.Errorf("%w diff", errNegativeAmountReceived)
 	}
 	if amount.GreaterThan(i.reserved) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Reserved: %v",
-			ErrCannotAllocate,
+			errCannotAllocate,
 			i.exchange,
 			i.asset,
 			i.currency,

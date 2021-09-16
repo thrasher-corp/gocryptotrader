@@ -40,8 +40,6 @@ type Settings struct {
 	ExchangeName  string
 	UseRealOrders bool
 
-	InitialFunds decimal.Decimal
-
 	CurrencyPair currency.Pair
 	AssetType    asset.Item
 

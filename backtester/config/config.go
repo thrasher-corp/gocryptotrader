@@ -75,7 +75,16 @@ func (c *Config) PrintSetting() {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Infof(log.BackTester, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
 		if !c.StrategySettings.UseExchangeLevelFunding {
-			log.Infof(log.BackTester, "Initial funds: %v", c.CurrencySettings[i].InitialFunds.Round(8))
+			if c.CurrencySettings[i].InitialBaseFunds != nil {
+				log.Infof(log.BackTester, "Initial base funds: %v %v",
+					c.CurrencySettings[i].InitialBaseFunds.Round(8),
+					c.CurrencySettings[i].Base)
+			}
+			if c.CurrencySettings[i].InitialQuoteFunds != nil {
+				log.Infof(log.BackTester, "Initial quote funds: %v %v",
+					c.CurrencySettings[i].InitialQuoteFunds.Round(8),
+					c.CurrencySettings[i].Quote)
+			}
 		}
 		log.Infof(log.BackTester, "Maker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
 		log.Infof(log.BackTester, "Taker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
@@ -131,20 +140,41 @@ func (c *Config) PrintSetting() {
 	log.Info(log.BackTester, "-------------------------------------------------------------\n\n")
 }
 
+// Validate checks all config settings
+func (c *Config) Validate() error {
+	err := c.validateDate()
+	if err != nil {
+		return err
+	}
+	err = c.validateStrategySettings()
+	if err != nil {
+		return err
+	}
+	err = c.validateCurrencySettings()
+	if err != nil {
+		return err
+	}
+	return c.validateMinMaxes()
+}
+
 // validate ensures no one sets bad config values on purpose
 func (m *MinMax) validate() error {
-	if m.MaximumSize.LessThan(decimal.Zero) {
-		return fmt.Errorf("invalid maximum size set to %v", m.MaximumSize)
+	if m.MaximumSize.IsNegative() {
+		return fmt.Errorf("invalid maximum size %w", errSizeLessThanZero)
 	}
 	if m.MinimumSize.IsNegative() {
-		return fmt.Errorf("invalid minimum size set to %v", m.MinimumSize)
+		return fmt.Errorf("invalid minimum size %w", errSizeLessThanZero)
+	}
+	if m.MaximumTotal.IsNegative() {
+		return fmt.Errorf("invalid maximum total set to %w", errSizeLessThanZero)
 	}
 	if m.MaximumSize.LessThanOrEqual(m.MinimumSize) && !m.MinimumSize.IsZero() && !m.MaximumSize.IsZero() {
-		return fmt.Errorf("invalid maximum size set to %v", m.MaximumSize)
+		return fmt.Errorf("%w maximum size %v vs minimum size %v",
+			errMaxSizeMinSizeMismatch,
+			m.MaximumSize,
+			m.MinimumSize)
 	}
-	if m.MaximumTotal.LessThan(decimal.Zero) {
-		return fmt.Errorf("invalid maximum total set to %v", m.MaximumTotal)
-	}
+
 	return nil
 }
 
@@ -170,37 +200,25 @@ func (c *Config) validateMinMaxes() (err error) {
 	return nil
 }
 
-// Validate checks all config settings
-func (c *Config) Validate() error {
-	err := c.validateDate()
-	if err != nil {
-		return err
-	}
-	err = c.validateStrategySettings()
-	if err != nil {
-		return err
-	}
-	err = c.validateCurrencySettings()
-	if err != nil {
-		return err
-	}
-	return c.validateMinMaxes()
-}
-
 func (c *Config) validateStrategySettings() error {
 	if c.StrategySettings.UseExchangeLevelFunding && !c.StrategySettings.SimultaneousSignalProcessing {
-		return ErrSimultaneousProcessingRequired
+		return errSimultaneousProcessingRequired
 	}
 	if len(c.StrategySettings.ExchangeLevelFunding) > 0 && !c.StrategySettings.UseExchangeLevelFunding {
-		return ErrExchangeLevelFundingRequired
+		return errExchangeLevelFundingRequired
 	}
 	if c.StrategySettings.UseExchangeLevelFunding && len(c.StrategySettings.ExchangeLevelFunding) == 0 {
-		return ErrExchangeLevelFundingDataRequired
+		return errExchangeLevelFundingDataRequired
 	}
 	if c.StrategySettings.UseExchangeLevelFunding {
 		for i := range c.StrategySettings.ExchangeLevelFunding {
 			if c.StrategySettings.ExchangeLevelFunding[i].InitialFunds.IsNegative() {
-				return ErrBadInitialFunds
+				return fmt.Errorf("%w for %v %v %v",
+					errBadInitialFunds,
+					c.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
+					c.StrategySettings.ExchangeLevelFunding[i].Asset,
+					c.StrategySettings.ExchangeLevelFunding[i].Currency,
+				)
 			}
 		}
 	}
@@ -211,7 +229,7 @@ func (c *Config) validateStrategySettings() error {
 		}
 	}
 
-	return base.ErrStrategyNotFound
+	return fmt.Errorf("strategty %v %w", c.StrategySettings.Name, base.ErrStrategyNotFound)
 }
 
 // validateDate checks whether someone has set a date poorly in their config
@@ -219,21 +237,21 @@ func (c *Config) validateDate() error {
 	if c.DataSettings.DatabaseData != nil {
 		if c.DataSettings.DatabaseData.StartDate.IsZero() ||
 			c.DataSettings.DatabaseData.EndDate.IsZero() {
-			return ErrStartEndUnset
+			return errStartEndUnset
 		}
 		if c.DataSettings.DatabaseData.StartDate.After(c.DataSettings.DatabaseData.EndDate) ||
 			c.DataSettings.DatabaseData.StartDate.Equal(c.DataSettings.DatabaseData.EndDate) {
-			return ErrBadDate
+			return errBadDate
 		}
 	}
 	if c.DataSettings.APIData != nil {
 		if c.DataSettings.APIData.StartDate.IsZero() ||
 			c.DataSettings.APIData.EndDate.IsZero() {
-			return ErrStartEndUnset
+			return errStartEndUnset
 		}
 		if c.DataSettings.APIData.StartDate.After(c.DataSettings.APIData.EndDate) ||
 			c.DataSettings.APIData.StartDate.Equal(c.DataSettings.APIData.EndDate) {
-			return ErrBadDate
+			return errBadDate
 		}
 	}
 	return nil
@@ -242,26 +260,57 @@ func (c *Config) validateDate() error {
 // validateCurrencySettings checks whether someone has set invalid currency setting data in their config
 func (c *Config) validateCurrencySettings() error {
 	if len(c.CurrencySettings) == 0 {
-		return ErrNoCurrencySettings
+		return errNoCurrencySettings
 	}
 	for i := range c.CurrencySettings {
-		if (!c.CurrencySettings[i].InitialFunds.GreaterThan(decimal.Zero) && !c.StrategySettings.UseExchangeLevelFunding) ||
-			(c.CurrencySettings[i].InitialFunds.LessThanOrEqual(decimal.Zero) && !c.StrategySettings.UseExchangeLevelFunding) {
-			return ErrBadInitialFunds
+		if c.CurrencySettings[i].InitialLegacyFunds > 0 {
+			// temporarily migrate legacy start config value
+			log.Warn(log.BackTester, "config field 'initial-funds' no longer supported, please use 'initial-quote-funds'")
+			log.Warnf(log.BackTester, "temporarily setting 'initial-quote-funds' to 'initial-funds' value of %v", c.CurrencySettings[i].InitialLegacyFunds)
+			iqf := decimal.NewFromFloat(c.CurrencySettings[i].InitialLegacyFunds)
+			c.CurrencySettings[i].InitialQuoteFunds = &iqf
 		}
+		if c.StrategySettings.UseExchangeLevelFunding {
+			if c.CurrencySettings[i].InitialQuoteFunds != nil &&
+				c.CurrencySettings[i].InitialQuoteFunds.GreaterThan(decimal.Zero) {
+				return fmt.Errorf("non-nil quote %w", errBadInitialFunds)
+			}
+			if c.CurrencySettings[i].InitialBaseFunds != nil &&
+				c.CurrencySettings[i].InitialBaseFunds.GreaterThan(decimal.Zero) {
+				return fmt.Errorf("non-nil base %w", errBadInitialFunds)
+			}
+		} else {
+			if c.CurrencySettings[i].InitialQuoteFunds == nil &&
+				c.CurrencySettings[i].InitialBaseFunds == nil {
+				return fmt.Errorf("nil base and quote %w", errBadInitialFunds)
+			}
+			if c.CurrencySettings[i].InitialQuoteFunds != nil &&
+				c.CurrencySettings[i].InitialBaseFunds != nil &&
+				c.CurrencySettings[i].InitialBaseFunds.IsZero() &&
+				c.CurrencySettings[i].InitialQuoteFunds.IsZero() {
+				return fmt.Errorf("base or quote funds set to zero %w", errBadInitialFunds)
+			}
+			if c.CurrencySettings[i].InitialQuoteFunds == nil {
+				c.CurrencySettings[i].InitialQuoteFunds = &decimal.Zero
+			}
+			if c.CurrencySettings[i].InitialBaseFunds == nil {
+				c.CurrencySettings[i].InitialBaseFunds = &decimal.Zero
+			}
+		}
+
 		if c.CurrencySettings[i].Base == "" {
-			return ErrUnsetCurrency
+			return errUnsetCurrency
 		}
 		if c.CurrencySettings[i].Asset == "" {
-			return ErrUnsetAsset
+			return errUnsetAsset
 		}
 		if c.CurrencySettings[i].ExchangeName == "" {
-			return ErrUnsetExchange
+			return errUnsetExchange
 		}
 		if c.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) ||
 			c.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) ||
 			c.CurrencySettings[i].MinimumSlippagePercent.GreaterThan(c.CurrencySettings[i].MaximumSlippagePercent) {
-			return ErrBadSlippageRates
+			return errBadSlippageRates
 		}
 		c.CurrencySettings[i].ExchangeName = strings.ToLower(c.CurrencySettings[i].ExchangeName)
 	}

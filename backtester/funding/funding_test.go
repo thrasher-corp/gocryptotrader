@@ -79,12 +79,12 @@ func TestTransfer(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
 	}
 	err = f.Transfer(decimal.Zero, &Item{}, &Item{}, false)
-	if !errors.Is(err, ErrZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, ErrZeroAmountReceived)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 	err = f.Transfer(elite, &Item{}, &Item{}, false)
-	if !errors.Is(err, ErrNotEnoughFunds) {
-		t.Errorf("received '%v' expected '%v'", err, ErrNotEnoughFunds)
+	if !errors.Is(err, errNotEnoughFunds) {
+		t.Errorf("received '%v' expected '%v'", err, errNotEnoughFunds)
 	}
 	item1 := &Item{exchange: "hello", asset: a, currency: base, available: elite}
 	err = f.Transfer(elite, item1, item1, false)
@@ -478,24 +478,24 @@ func TestReservePair(t *testing.T) {
 	quoteItem.pairedWith = baseItem
 	pairItems := Pair{Base: baseItem, Quote: quoteItem}
 	err = pairItems.Reserve(decimal.Zero, gctorder.Buy)
-	if !errors.Is(err, ErrZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, ErrZeroAmountReceived)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 	err = pairItems.Reserve(elite, gctorder.Buy)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = pairItems.Reserve(decimal.Zero, gctorder.Sell)
-	if !errors.Is(err, ErrZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, ErrZeroAmountReceived)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 	err = pairItems.Reserve(elite, gctorder.Sell)
-	if !errors.Is(err, ErrCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
 	err = pairItems.Reserve(elite, common.DoNothing)
-	if !errors.Is(err, ErrCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
 }
 
@@ -513,47 +513,47 @@ func TestReleasePair(t *testing.T) {
 	quoteItem.pairedWith = baseItem
 	pairItems := Pair{Base: baseItem, Quote: quoteItem}
 	err = pairItems.Reserve(decimal.Zero, gctorder.Buy)
-	if !errors.Is(err, ErrZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, ErrZeroAmountReceived)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 	err = pairItems.Reserve(elite, gctorder.Buy)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = pairItems.Reserve(decimal.Zero, gctorder.Sell)
-	if !errors.Is(err, ErrZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, ErrZeroAmountReceived)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 	err = pairItems.Reserve(elite, gctorder.Sell)
-	if !errors.Is(err, ErrCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
 
 	err = pairItems.Release(decimal.Zero, decimal.Zero, gctorder.Buy)
-	if !errors.Is(err, ErrZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, ErrZeroAmountReceived)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 	err = pairItems.Release(elite, decimal.Zero, gctorder.Buy)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = pairItems.Release(elite, decimal.Zero, gctorder.Buy)
-	if !errors.Is(err, ErrCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
 
 	err = pairItems.Release(elite, decimal.Zero, common.DoNothing)
-	if !errors.Is(err, ErrCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
 
 	err = pairItems.Release(elite, decimal.Zero, gctorder.Sell)
-	if !errors.Is(err, ErrCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
 	err = pairItems.Release(decimal.Zero, decimal.Zero, gctorder.Sell)
-	if !errors.Is(err, ErrZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, ErrZeroAmountReceived)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 }
 
@@ -638,12 +638,12 @@ func TestRelease(t *testing.T) {
 	t.Parallel()
 	i := Item{}
 	err := i.Release(decimal.Zero, decimal.Zero)
-	if !errors.Is(err, ErrZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, ErrZeroAmountReceived)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 	err = i.Release(elite, decimal.Zero)
-	if !errors.Is(err, ErrCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
 	i.reserved = elite
 	err = i.Release(elite, decimal.Zero)
@@ -658,12 +658,12 @@ func TestRelease(t *testing.T) {
 	}
 
 	err = i.Release(neg, decimal.Zero)
-	if !errors.Is(err, ErrZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, ErrZeroAmountReceived)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 	err = i.Release(elite, neg)
-	if !errors.Is(err, ErrNegativeAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, ErrNegativeAmountReceived)
+	if !errors.Is(err, errNegativeAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errNegativeAmountReceived)
 	}
 }
 
@@ -671,18 +671,18 @@ func TestReserve(t *testing.T) {
 	t.Parallel()
 	i := Item{}
 	err := i.Reserve(decimal.Zero)
-	if !errors.Is(err, ErrZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, ErrZeroAmountReceived)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 	err = i.Reserve(elite)
-	if !errors.Is(err, ErrCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
 
 	i.reserved = elite
 	err = i.Reserve(elite)
-	if !errors.Is(err, ErrCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
 
 	i.available = elite
@@ -692,13 +692,13 @@ func TestReserve(t *testing.T) {
 	}
 
 	err = i.Reserve(elite)
-	if !errors.Is(err, ErrCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCannotAllocate)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
 
 	err = i.Reserve(neg)
-	if !errors.Is(err, ErrZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, ErrZeroAmountReceived)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 }
 

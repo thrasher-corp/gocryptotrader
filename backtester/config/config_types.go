@@ -10,17 +10,19 @@ import (
 
 // Errors for config validation
 var (
-	ErrBadDate                          = errors.New("start date >= end date, please check your config")
-	ErrNoCurrencySettings               = errors.New("no currency settings set in the config")
-	ErrBadInitialFunds                  = errors.New("initial funds set with invalid data, please check your config")
-	ErrUnsetExchange                    = errors.New("exchange name unset for currency settings, please check your config")
-	ErrUnsetAsset                       = errors.New("asset unset for currency settings, please check your config")
-	ErrUnsetCurrency                    = errors.New("currency unset for currency settings, please check your config")
-	ErrBadSlippageRates                 = errors.New("invalid slippage rates in currency settings, please check your config")
-	ErrStartEndUnset                    = errors.New("data start and end dates are invalid, please check your config")
-	ErrSimultaneousProcessingRequired   = errors.New("exchange level funding requires simultaneous processing, please check your config and view funding readme for details")
-	ErrExchangeLevelFundingRequired     = errors.New("invalid config, funding details set while exchange level funding is disabled")
-	ErrExchangeLevelFundingDataRequired = errors.New("invalid config, exchange level funding enabled with no funding data set")
+	errBadDate                          = errors.New("start date >= end date, please check your config")
+	errNoCurrencySettings               = errors.New("no currency settings set in the config")
+	errBadInitialFunds                  = errors.New("initial funds set with invalid data, please check your config")
+	errUnsetExchange                    = errors.New("exchange name unset for currency settings, please check your config")
+	errUnsetAsset                       = errors.New("asset unset for currency settings, please check your config")
+	errUnsetCurrency                    = errors.New("currency unset for currency settings, please check your config")
+	errBadSlippageRates                 = errors.New("invalid slippage rates in currency settings, please check your config")
+	errStartEndUnset                    = errors.New("data start and end dates are invalid, please check your config")
+	errSimultaneousProcessingRequired   = errors.New("exchange level funding requires simultaneous processing, please check your config and view funding readme for details")
+	errExchangeLevelFundingRequired     = errors.New("invalid config, funding details set while exchange level funding is disabled")
+	errExchangeLevelFundingDataRequired = errors.New("invalid config, exchange level funding enabled with no funding data set")
+	errSizeLessThanZero                 = errors.New("size less than zero")
+	errMaxSizeMinSizeMismatch           = errors.New("maximum size must be greater than minimum size")
 )
 
 // Config defines what is in an individual strategy config
@@ -53,8 +55,8 @@ type StrategySettings struct {
 	Name                         string                 `json:"name"`
 	SimultaneousSignalProcessing bool                   `json:"use-simultaneous-signal-processing"`
 	UseExchangeLevelFunding      bool                   `json:"use-exchange-level-funding"`
-	ExchangeLevelFunding         []ExchangeLevelFunding `json:"exchange-level-funding"`
-	CustomSettings               map[string]interface{} `json:"custom-settings"`
+	ExchangeLevelFunding         []ExchangeLevelFunding `json:"exchange-level-funding,omitempty"`
+	CustomSettings               map[string]interface{} `json:"custom-settings,omitempty"`
 }
 
 // ExchangeLevelFunding allows the portfolio manager to access
@@ -112,7 +114,9 @@ type CurrencySettings struct {
 	Base         string `json:"base"`
 	Quote        string `json:"quote"`
 
-	InitialFunds decimal.Decimal `json:"initial-funds"`
+	InitialBaseFunds   *decimal.Decimal `json:"initial-base-funds,omitempty"`
+	InitialQuoteFunds  *decimal.Decimal `json:"initial-quote-funds,omitempty"`
+	InitialLegacyFunds float64          `json:"initial-funds,omitempty"`
 
 	Leverage Leverage `json:"leverage"`
 	BuySide  MinMax   `json:"buy-side"`

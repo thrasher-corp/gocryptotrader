@@ -66,7 +66,7 @@ See below for a set of tables and fields, expected values and what they can do
 | ExchangeName | The exchange to set funds. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges | `Binance` |
 | Asset | The asset type to set funds. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports| `spot` |
 | Currency | The currency to set funds | `BTC` |
-| InitialFunds | The initial funding for that currency | `1337` |
+| InitialFunds | The initial funding for the currency | `1337` |
 | TransferFee | If your strategy utilises transferring of funds via the Funding Manager, this is deducted upon doing so | `0.005` |
 
 
@@ -78,7 +78,9 @@ See below for a set of tables and fields, expected values and what they can do
 | Asset | The asset type. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports| `spot` |
 | Base | The base of a currency | `BTC` |
 | Quote | The quote of a currency | `USDT` |
-| InitialFunds | The funds that the GoCryptoTraderBacktester has for the specific currency. This is only required if the strategy setting `UseExchangeLevelFunding` is `false` | `10000` |
+| InitialFunds | A legacy field, will be temporarily migrated to `InitialQuoteFunds` if present in your strat config | `` |
+| InitialBaseFunds | The funds that the GoCryptoTraderBacktester has for the base currency. This is only required if the strategy setting `UseExchangeLevelFunding` is `false` | `2` |
+| InitialQuoteFunds | The funds that the GoCryptoTraderBacktester has for the quote currency. This is only required if the strategy setting `UseExchangeLevelFunding` is `false` | `10000` |
 | Leverage | This struct defines the leverage rules that this specific currency setting must abide by | `1` |
 | BuySide | This struct defines the buying side rules this specific currency setting must abide by such as maximum purchase amount | - |
 | SellSide | This struct defines the selling side rules this specific currency setting must abide by such as maximum selling amount | - |
