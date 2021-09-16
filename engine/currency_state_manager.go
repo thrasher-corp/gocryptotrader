@@ -110,7 +110,10 @@ func (c *currencyStateManager) monitor() {
 
 		case <-timer.C:
 			var wg sync.WaitGroup
-			exchs := c.GetExchanges()
+			exchs, err := c.GetExchanges()
+			if err != nil {
+				log.Errorf(log.Global, "Failed to get exchanges error: %v", err)
+			}
 			for x := range exchs {
 				wg.Add(1)
 				go c.update(exchs[x], &wg, exchs[x].GetAssetTypes(true))
