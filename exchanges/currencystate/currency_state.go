@@ -304,7 +304,7 @@ type Options struct {
 	Trade    *bool
 }
 
-// Snapshot defines a snpashot of the internal asset for exportation
+// Snapshot defines a snapshot of the internal asset for exportation
 type Snapshot struct {
 	Code  currency.Code
 	Asset asset.Item
