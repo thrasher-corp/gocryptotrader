@@ -21,7 +21,7 @@ type Notice struct {
 	m sync.Mutex
 }
 
-// alert establishes a state change on the orderbook depth.
+// Alert establishes a state change on the orderbook depth.
 func (n *Notice) Alert() {
 	// CompareAndSwap is used to swap from 1 -> 2 so we don't keep actuating
 	// the opposing compare and swap in method wait. This function can return
