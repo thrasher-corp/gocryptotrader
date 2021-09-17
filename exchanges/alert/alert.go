@@ -46,7 +46,7 @@ func (n *Notice) actuate() {
 }
 
 // Wait pauses calling routine until depth change has been established via depth
-// method alert. Kick allows for cancellation of waiting or when the caller has
+// method alert. Kick allows for cancellation of waiting or when the caller
 // has been shut down, if this is not needed it can be set to nil. This
 // returns a channel so strategies can cleanly wait on a select statement case.
 func (n *Notice) Wait(kick <-chan struct{}) <-chan bool {
