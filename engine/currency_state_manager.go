@@ -31,15 +31,14 @@ type CurrencyStateManager struct {
 // Setup applies configuration parameters before running
 func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*CurrencyStateManager, error) {
 	var c CurrencyStateManager
-	if interval <= 0 {
-		log.Warnf(log.ExchangeSys,
+if interval <= 0 {
+	log.Warnf(log.ExchangeSys,
 			"%s interval is invalid, defaulting to: %s",
 			CurrencyStateManagementName,
 			DefaultStateManagerDelay)
-		c.sleep = DefaultStateManagerDelay
-	} else {
-		c.sleep = interval
-	}
+	interval = DefaultStateManagerDelay
+}
+c.sleep = interval
 	c.iExchangeManager = em
 	c.shutdown = make(chan struct{})
 	return &c, nil
