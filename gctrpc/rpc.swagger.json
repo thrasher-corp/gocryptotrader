@@ -261,6 +261,204 @@
         ]
       }
     },
+    "/v1/currencystatedeposit": {
+      "get": {
+        "operationId": "GoCryptoTrader_CurrencyStateDeposit",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/currencystategetall": {
+      "get": {
+        "operationId": "GoCryptoTrader_CurrencyStateGetAll",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcCurrencyStateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/currencystatetrading": {
+      "get": {
+        "operationId": "GoCryptoTrader_CurrencyStateTrading",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/currencystatetradingpair": {
+      "get": {
+        "operationId": "GoCryptoTrader_CurrencyStateTradingPair",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/currencystatewithdraw": {
+      "get": {
+        "operationId": "GoCryptoTrader_CurrencyStateWithdraw",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/disableexchange": {
       "post": {
         "operationId": "GoCryptoTrader_DisableExchange",
@@ -2494,204 +2692,6 @@
         ]
       }
     },
-    "/v1/statedeposit": {
-      "get": {
-        "operationId": "GoCryptoTrader_StateDeposit",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "exchange",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "code",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "asset",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
-    "/v1/stategetall": {
-      "get": {
-        "operationId": "GoCryptoTrader_StateGetAll",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcStateResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "exchange",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
-    "/v1/statetrading": {
-      "get": {
-        "operationId": "GoCryptoTrader_StateTrading",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "exchange",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "code",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "asset",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
-    "/v1/statetradingpair": {
-      "get": {
-        "operationId": "GoCryptoTrader_StateTradingPair",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "exchange",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "asset",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
-    "/v1/statewithdraw": {
-      "get": {
-        "operationId": "GoCryptoTrader_StateWithdraw",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "exchange",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "code",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "asset",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
     "/v1/submitorder": {
       "post": {
         "operationId": "GoCryptoTrader_SubmitOrder",
@@ -3507,6 +3507,37 @@
         },
         "quote": {
           "type": "string"
+        }
+      }
+    },
+    "gctrpcCurrencyState": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "withdrawEnabled": {
+          "type": "boolean"
+        },
+        "depositEnabled": {
+          "type": "boolean"
+        },
+        "tradingEnabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "gctrpcCurrencyStateResponse": {
+      "type": "object",
+      "properties": {
+        "currencyStates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCurrencyState"
+          }
         }
       }
     },
@@ -4687,37 +4718,6 @@
         },
         "status": {
           "type": "string"
-        }
-      }
-    },
-    "gctrpcState": {
-      "type": "object",
-      "properties": {
-        "currency": {
-          "type": "string"
-        },
-        "asset": {
-          "type": "string"
-        },
-        "withdrawEnabled": {
-          "type": "boolean"
-        },
-        "depositEnabled": {
-          "type": "boolean"
-        },
-        "tradingEnabled": {
-          "type": "boolean"
-        }
-      }
-    },
-    "gctrpcStateResponse": {
-      "type": "object",
-      "properties": {
-        "states": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/gctrpcState"
-          }
         }
       }
     },

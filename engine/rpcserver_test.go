@@ -124,8 +124,8 @@ func (f fExchange) UpdateAccountInfo(ctx context.Context, a asset.Item) (account
 	}, nil
 }
 
-// GetStateSnapshot overrides interface function
-func (f fExchange) GetStateSnapshot() ([]currencystate.Snapshot, error) {
+// GetCurrencyStateSnapshot overrides interface function
+func (f fExchange) GetCurrencyStateSnapshot() ([]currencystate.Snapshot, error) {
 	return []currencystate.Snapshot{
 		{
 			Code:  currency.BTC,
@@ -1895,7 +1895,7 @@ func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {
 	}
 }
 
-func TestStateGetAll(t *testing.T) {
+func TestCurrencyStateGetAll(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -1923,12 +1923,14 @@ func TestStateGetAll(t *testing.T) {
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
-	_, err = s.StateGetAll(context.Background(), &gctrpc.StateGetAllRequest{Exchange: "wow"})
+	_, err = s.CurrencyStateGetAll(context.Background(),
+		&gctrpc.CurrencyStateGetAllRequest{Exchange: "wow"})
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
 	}
 
-	resp, err := s.StateGetAll(context.Background(), &gctrpc.StateGetAllRequest{Exchange: fakeExchangeName})
+	resp, err := s.CurrencyStateGetAll(context.Background(),
+		&gctrpc.CurrencyStateGetAllRequest{Exchange: fakeExchangeName})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1938,7 +1940,7 @@ func TestStateGetAll(t *testing.T) {
 	}
 }
 
-func TestStateWithdraw(t *testing.T) {
+func TestCurrencyStateWithdraw(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -1966,20 +1968,22 @@ func TestStateWithdraw(t *testing.T) {
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
-	_, err = s.StateWithdraw(context.Background(), &gctrpc.StateWithdrawRequest{
-		Exchange: "wow"})
+	_, err = s.CurrencyStateWithdraw(context.Background(),
+		&gctrpc.CurrencyStateWithdrawRequest{
+			Exchange: "wow"})
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
 	}
 
-	_, err = s.StateWithdraw(context.Background(), &gctrpc.StateWithdrawRequest{
-		Exchange: fakeExchangeName})
+	_, err = s.CurrencyStateWithdraw(context.Background(),
+		&gctrpc.CurrencyStateWithdrawRequest{
+			Exchange: fakeExchangeName})
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestStateDeposit(t *testing.T) {
+func TestCurrencyStateDeposit(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -2007,20 +2011,20 @@ func TestStateDeposit(t *testing.T) {
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
-	_, err = s.StateDeposit(context.Background(),
-		&gctrpc.StateDepositRequest{Exchange: "wow"})
+	_, err = s.CurrencyStateDeposit(context.Background(),
+		&gctrpc.CurrencyStateDepositRequest{Exchange: "wow"})
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
 	}
 
-	_, err = s.StateDeposit(context.Background(),
-		&gctrpc.StateDepositRequest{Exchange: fakeExchangeName})
+	_, err = s.CurrencyStateDeposit(context.Background(),
+		&gctrpc.CurrencyStateDepositRequest{Exchange: fakeExchangeName})
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestStateTrading(t *testing.T) {
+func TestCurrencyStateTrading(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -2048,20 +2052,20 @@ func TestStateTrading(t *testing.T) {
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
-	_, err = s.StateTrading(context.Background(),
-		&gctrpc.StateTradingRequest{Exchange: "wow"})
+	_, err = s.CurrencyStateTrading(context.Background(),
+		&gctrpc.CurrencyStateTradingRequest{Exchange: "wow"})
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
 	}
 
-	_, err = s.StateTrading(context.Background(),
-		&gctrpc.StateTradingRequest{Exchange: fakeExchangeName})
+	_, err = s.CurrencyStateTrading(context.Background(),
+		&gctrpc.CurrencyStateTradingRequest{Exchange: fakeExchangeName})
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestStateTradingPair(t *testing.T) {
+func TestCurrencyStateTradingPair(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -2090,14 +2094,15 @@ func TestStateTradingPair(t *testing.T) {
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
-	_, err = s.StateTradingPair(context.Background(),
-		&gctrpc.StateTradingPairRequest{Exchange: "wow"})
+	_, err = s.CurrencyStateTradingPair(context.Background(),
+		&gctrpc.CurrencyStateTradingPairRequest{Exchange: "wow"})
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
 	}
 
-	_, err = s.StateTradingPair(context.Background(),
-		&gctrpc.StateTradingPairRequest{Exchange: fakeExchangeName, Pair: "btc-usd", Asset: "spot"})
+	_, err = s.CurrencyStateTradingPair(context.Background(),
+		&gctrpc.CurrencyStateTradingPairRequest{
+			Exchange: fakeExchangeName, Pair: "btc-usd", Asset: "spot"})
 	if err != nil {
 		t.Fatal(err)
 	}

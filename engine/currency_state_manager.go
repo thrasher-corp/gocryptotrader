@@ -15,8 +15,11 @@ import (
 )
 
 const (
+	// CurrencyStateManagementName defines the manager name string
 	CurrencyStateManagementName = "CurrencyStateManagement"
-	DefaultStateManagerDelay    = time.Minute
+	// DefaultStateManagerDelay defines the default duration when the manager
+	// fetches and updates each exchange for its currency state
+	DefaultStateManagerDelay = time.Minute
 )
 
 // CurrencyStateManager manages currency states
@@ -30,15 +33,18 @@ type CurrencyStateManager struct {
 
 // SetupCurrencyStateManager applies configuration parameters before running
 func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*CurrencyStateManager, error) {
+	if em == nil {
+		return nil, errNilExchangeManager
+	}
 	var c CurrencyStateManager
-if interval <= 0 {
-	log.Warnf(log.ExchangeSys,
+	if interval <= 0 {
+		log.Warnf(log.ExchangeSys,
 			"%s interval is invalid, defaulting to: %s",
 			CurrencyStateManagementName,
 			DefaultStateManagerDelay)
-	interval = DefaultStateManagerDelay
-}
-c.sleep = interval
+		interval = DefaultStateManagerDelay
+	}
+	c.sleep = interval
 	c.iExchangeManager = em
 	c.shutdown = make(chan struct{})
 	return &c, nil
@@ -91,7 +97,6 @@ func (c *CurrencyStateManager) monitor() {
 		select {
 		case <-c.shutdown:
 			return
-
 		case <-timer.C:
 			var wg sync.WaitGroup
 			exchs, err := c.GetExchanges()

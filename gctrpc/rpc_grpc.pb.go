@@ -106,11 +106,11 @@ type GoCryptoTraderClient interface {
 	UpdateDataHistoryJobPrerequisite(ctx context.Context, in *UpdateDataHistoryJobPrerequisiteRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetManagedOrders(ctx context.Context, in *GetOrdersRequest, opts ...grpc.CallOption) (*GetOrdersResponse, error)
 	ModifyOrder(ctx context.Context, in *ModifyOrderRequest, opts ...grpc.CallOption) (*ModifyOrderResponse, error)
-	StateGetAll(ctx context.Context, in *StateGetAllRequest, opts ...grpc.CallOption) (*StateResponse, error)
-	StateTrading(ctx context.Context, in *StateTradingRequest, opts ...grpc.CallOption) (*GenericResponse, error)
-	StateDeposit(ctx context.Context, in *StateDepositRequest, opts ...grpc.CallOption) (*GenericResponse, error)
-	StateWithdraw(ctx context.Context, in *StateWithdrawRequest, opts ...grpc.CallOption) (*GenericResponse, error)
-	StateTradingPair(ctx context.Context, in *StateTradingPairRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	CurrencyStateGetAll(ctx context.Context, in *CurrencyStateGetAllRequest, opts ...grpc.CallOption) (*CurrencyStateResponse, error)
+	CurrencyStateTrading(ctx context.Context, in *CurrencyStateTradingRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	CurrencyStateDeposit(ctx context.Context, in *CurrencyStateDepositRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	CurrencyStateWithdraw(ctx context.Context, in *CurrencyStateWithdrawRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	CurrencyStateTradingPair(ctx context.Context, in *CurrencyStateTradingPairRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 }
 
 type goCryptoTraderClient struct {
@@ -1051,45 +1051,45 @@ func (c *goCryptoTraderClient) ModifyOrder(ctx context.Context, in *ModifyOrderR
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) StateGetAll(ctx context.Context, in *StateGetAllRequest, opts ...grpc.CallOption) (*StateResponse, error) {
-	out := new(StateResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/StateGetAll", in, out, opts...)
+func (c *goCryptoTraderClient) CurrencyStateGetAll(ctx context.Context, in *CurrencyStateGetAllRequest, opts ...grpc.CallOption) (*CurrencyStateResponse, error) {
+	out := new(CurrencyStateResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/CurrencyStateGetAll", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) StateTrading(ctx context.Context, in *StateTradingRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+func (c *goCryptoTraderClient) CurrencyStateTrading(ctx context.Context, in *CurrencyStateTradingRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
 	out := new(GenericResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/StateTrading", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/CurrencyStateTrading", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) StateDeposit(ctx context.Context, in *StateDepositRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+func (c *goCryptoTraderClient) CurrencyStateDeposit(ctx context.Context, in *CurrencyStateDepositRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
 	out := new(GenericResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/StateDeposit", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/CurrencyStateDeposit", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) StateWithdraw(ctx context.Context, in *StateWithdrawRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+func (c *goCryptoTraderClient) CurrencyStateWithdraw(ctx context.Context, in *CurrencyStateWithdrawRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
 	out := new(GenericResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/StateWithdraw", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/CurrencyStateWithdraw", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) StateTradingPair(ctx context.Context, in *StateTradingPairRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+func (c *goCryptoTraderClient) CurrencyStateTradingPair(ctx context.Context, in *CurrencyStateTradingPairRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
 	out := new(GenericResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/StateTradingPair", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/CurrencyStateTradingPair", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1188,11 +1188,11 @@ type GoCryptoTraderServer interface {
 	UpdateDataHistoryJobPrerequisite(context.Context, *UpdateDataHistoryJobPrerequisiteRequest) (*GenericResponse, error)
 	GetManagedOrders(context.Context, *GetOrdersRequest) (*GetOrdersResponse, error)
 	ModifyOrder(context.Context, *ModifyOrderRequest) (*ModifyOrderResponse, error)
-	StateGetAll(context.Context, *StateGetAllRequest) (*StateResponse, error)
-	StateTrading(context.Context, *StateTradingRequest) (*GenericResponse, error)
-	StateDeposit(context.Context, *StateDepositRequest) (*GenericResponse, error)
-	StateWithdraw(context.Context, *StateWithdrawRequest) (*GenericResponse, error)
-	StateTradingPair(context.Context, *StateTradingPairRequest) (*GenericResponse, error)
+	CurrencyStateGetAll(context.Context, *CurrencyStateGetAllRequest) (*CurrencyStateResponse, error)
+	CurrencyStateTrading(context.Context, *CurrencyStateTradingRequest) (*GenericResponse, error)
+	CurrencyStateDeposit(context.Context, *CurrencyStateDepositRequest) (*GenericResponse, error)
+	CurrencyStateWithdraw(context.Context, *CurrencyStateWithdrawRequest) (*GenericResponse, error)
+	CurrencyStateTradingPair(context.Context, *CurrencyStateTradingPairRequest) (*GenericResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
@@ -1464,20 +1464,20 @@ func (UnimplementedGoCryptoTraderServer) GetManagedOrders(context.Context, *GetO
 func (UnimplementedGoCryptoTraderServer) ModifyOrder(context.Context, *ModifyOrderRequest) (*ModifyOrderResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ModifyOrder not implemented")
 }
-func (UnimplementedGoCryptoTraderServer) StateGetAll(context.Context, *StateGetAllRequest) (*StateResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StateGetAll not implemented")
+func (UnimplementedGoCryptoTraderServer) CurrencyStateGetAll(context.Context, *CurrencyStateGetAllRequest) (*CurrencyStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CurrencyStateGetAll not implemented")
 }
-func (UnimplementedGoCryptoTraderServer) StateTrading(context.Context, *StateTradingRequest) (*GenericResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StateTrading not implemented")
+func (UnimplementedGoCryptoTraderServer) CurrencyStateTrading(context.Context, *CurrencyStateTradingRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CurrencyStateTrading not implemented")
 }
-func (UnimplementedGoCryptoTraderServer) StateDeposit(context.Context, *StateDepositRequest) (*GenericResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StateDeposit not implemented")
+func (UnimplementedGoCryptoTraderServer) CurrencyStateDeposit(context.Context, *CurrencyStateDepositRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CurrencyStateDeposit not implemented")
 }
-func (UnimplementedGoCryptoTraderServer) StateWithdraw(context.Context, *StateWithdrawRequest) (*GenericResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StateWithdraw not implemented")
+func (UnimplementedGoCryptoTraderServer) CurrencyStateWithdraw(context.Context, *CurrencyStateWithdrawRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CurrencyStateWithdraw not implemented")
 }
-func (UnimplementedGoCryptoTraderServer) StateTradingPair(context.Context, *StateTradingPairRequest) (*GenericResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StateTradingPair not implemented")
+func (UnimplementedGoCryptoTraderServer) CurrencyStateTradingPair(context.Context, *CurrencyStateTradingPairRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CurrencyStateTradingPair not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) mustEmbedUnimplementedGoCryptoTraderServer() {}
 
@@ -3094,92 +3094,92 @@ func _GoCryptoTrader_ModifyOrder_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTrader_StateGetAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StateGetAllRequest)
+func _GoCryptoTrader_CurrencyStateGetAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CurrencyStateGetAllRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GoCryptoTraderServer).StateGetAll(ctx, in)
+		return srv.(GoCryptoTraderServer).CurrencyStateGetAll(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTrader/StateGetAll",
+		FullMethod: "/gctrpc.GoCryptoTrader/CurrencyStateGetAll",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).StateGetAll(ctx, req.(*StateGetAllRequest))
+		return srv.(GoCryptoTraderServer).CurrencyStateGetAll(ctx, req.(*CurrencyStateGetAllRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTrader_StateTrading_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StateTradingRequest)
+func _GoCryptoTrader_CurrencyStateTrading_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CurrencyStateTradingRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GoCryptoTraderServer).StateTrading(ctx, in)
+		return srv.(GoCryptoTraderServer).CurrencyStateTrading(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTrader/StateTrading",
+		FullMethod: "/gctrpc.GoCryptoTrader/CurrencyStateTrading",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).StateTrading(ctx, req.(*StateTradingRequest))
+		return srv.(GoCryptoTraderServer).CurrencyStateTrading(ctx, req.(*CurrencyStateTradingRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTrader_StateDeposit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StateDepositRequest)
+func _GoCryptoTrader_CurrencyStateDeposit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CurrencyStateDepositRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GoCryptoTraderServer).StateDeposit(ctx, in)
+		return srv.(GoCryptoTraderServer).CurrencyStateDeposit(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTrader/StateDeposit",
+		FullMethod: "/gctrpc.GoCryptoTrader/CurrencyStateDeposit",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).StateDeposit(ctx, req.(*StateDepositRequest))
+		return srv.(GoCryptoTraderServer).CurrencyStateDeposit(ctx, req.(*CurrencyStateDepositRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTrader_StateWithdraw_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StateWithdrawRequest)
+func _GoCryptoTrader_CurrencyStateWithdraw_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CurrencyStateWithdrawRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GoCryptoTraderServer).StateWithdraw(ctx, in)
+		return srv.(GoCryptoTraderServer).CurrencyStateWithdraw(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTrader/StateWithdraw",
+		FullMethod: "/gctrpc.GoCryptoTrader/CurrencyStateWithdraw",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).StateWithdraw(ctx, req.(*StateWithdrawRequest))
+		return srv.(GoCryptoTraderServer).CurrencyStateWithdraw(ctx, req.(*CurrencyStateWithdrawRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTrader_StateTradingPair_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StateTradingPairRequest)
+func _GoCryptoTrader_CurrencyStateTradingPair_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CurrencyStateTradingPairRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GoCryptoTraderServer).StateTradingPair(ctx, in)
+		return srv.(GoCryptoTraderServer).CurrencyStateTradingPair(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTrader/StateTradingPair",
+		FullMethod: "/gctrpc.GoCryptoTrader/CurrencyStateTradingPair",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).StateTradingPair(ctx, req.(*StateTradingPairRequest))
+		return srv.(GoCryptoTraderServer).CurrencyStateTradingPair(ctx, req.(*CurrencyStateTradingPairRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3520,24 +3520,24 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTrader_ModifyOrder_Handler,
 		},
 		{
-			MethodName: "StateGetAll",
-			Handler:    _GoCryptoTrader_StateGetAll_Handler,
+			MethodName: "CurrencyStateGetAll",
+			Handler:    _GoCryptoTrader_CurrencyStateGetAll_Handler,
 		},
 		{
-			MethodName: "StateTrading",
-			Handler:    _GoCryptoTrader_StateTrading_Handler,
+			MethodName: "CurrencyStateTrading",
+			Handler:    _GoCryptoTrader_CurrencyStateTrading_Handler,
 		},
 		{
-			MethodName: "StateDeposit",
-			Handler:    _GoCryptoTrader_StateDeposit_Handler,
+			MethodName: "CurrencyStateDeposit",
+			Handler:    _GoCryptoTrader_CurrencyStateDeposit_Handler,
 		},
 		{
-			MethodName: "StateWithdraw",
-			Handler:    _GoCryptoTrader_StateWithdraw_Handler,
+			MethodName: "CurrencyStateWithdraw",
+			Handler:    _GoCryptoTrader_CurrencyStateWithdraw_Handler,
 		},
 		{
-			MethodName: "StateTradingPair",
-			Handler:    _GoCryptoTrader_StateTradingPair_Handler,
+			MethodName: "CurrencyStateTradingPair",
+			Handler:    _GoCryptoTrader_CurrencyStateTradingPair_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

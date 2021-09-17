@@ -3890,9 +3890,9 @@ func (s *RPCServer) UpdateDataHistoryJobPrerequisite(_ context.Context, r *gctrp
 	return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Set job '%v' prerequisite job to '%v' and set status to paused", r.Nickname, r.PrerequisiteJobNickname)}, nil
 }
 
-// StateGetAll returns a full snapshot of currency states, whether they are able
-// to be withdrawn, deposited or traded on an exchange.
-func (s *RPCServer) StateGetAll(_ context.Context, r *gctrpc.StateGetAllRequest) (*gctrpc.StateResponse, error) {
+// CurrencyStateGetAll returns a full snapshot of currency states, whether they
+// are able to be withdrawn, deposited or traded on an exchange.
+func (s *RPCServer) CurrencyStateGetAll(_ context.Context, r *gctrpc.CurrencyStateGetAllRequest) (*gctrpc.CurrencyStateResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -3903,9 +3903,9 @@ func (s *RPCServer) StateGetAll(_ context.Context, r *gctrpc.StateGetAllRequest)
 		return nil, err
 	}
 
-	var resp = &gctrpc.StateResponse{}
+	var resp = &gctrpc.CurrencyStateResponse{}
 	for x := range sh {
-		resp.States = append(resp.States, &gctrpc.State{
+		resp.CurrencyStates = append(resp.CurrencyStates, &gctrpc.CurrencyState{
 			Currency:        sh[x].Code.String(),
 			Asset:           sh[x].Asset.String(),
 			WithdrawEnabled: sh[x].Withdraw == nil || *sh[x].Withdraw,
@@ -3916,9 +3916,9 @@ func (s *RPCServer) StateGetAll(_ context.Context, r *gctrpc.StateGetAllRequest)
 	return resp, nil
 }
 
-// StateDeposit determines via RPC if the currency code is operational for
+// CurrencyStateDeposit determines via RPC if the currency code is operational for
 // withdrawal from an exchange
-func (s *RPCServer) StateWithdraw(_ context.Context, r *gctrpc.StateWithdrawRequest) (*gctrpc.GenericResponse, error) {
+func (s *RPCServer) CurrencyStateWithdraw(_ context.Context, r *gctrpc.CurrencyStateWithdrawRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -3931,9 +3931,9 @@ func (s *RPCServer) StateWithdraw(_ context.Context, r *gctrpc.StateWithdrawRequ
 	return &gctrpc.GenericResponse{Status: "enabled"}, nil
 }
 
-// StateDeposit determines via RPC if the currency code is operational for
+// CurrencyStateDeposit determines via RPC if the currency code is operational for
 // depositing to an exchange
-func (s *RPCServer) StateDeposit(_ context.Context, r *gctrpc.StateDepositRequest) (*gctrpc.GenericResponse, error) {
+func (s *RPCServer) CurrencyStateDeposit(_ context.Context, r *gctrpc.CurrencyStateDepositRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -3946,8 +3946,8 @@ func (s *RPCServer) StateDeposit(_ context.Context, r *gctrpc.StateDepositReques
 	return &gctrpc.GenericResponse{Status: "enabled"}, nil
 }
 
-// StateTrading determines via RPC if the currency code is operational for trading
-func (s *RPCServer) StateTrading(_ context.Context, r *gctrpc.StateTradingRequest) (*gctrpc.GenericResponse, error) {
+// CurrencyStateTrading determines via RPC if the currency code is operational for trading
+func (s *RPCServer) CurrencyStateTrading(_ context.Context, r *gctrpc.CurrencyStateTradingRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -3960,8 +3960,8 @@ func (s *RPCServer) StateTrading(_ context.Context, r *gctrpc.StateTradingReques
 	return &gctrpc.GenericResponse{Status: "enabled"}, nil
 }
 
-// StateTradingPair determines via RPC if the pair is operational for trading
-func (s *RPCServer) StateTradingPair(_ context.Context, r *gctrpc.StateTradingPairRequest) (*gctrpc.GenericResponse, error) {
+// CurrencyStateTradingPair determines via RPC if the pair is operational for trading
+func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.CurrencyStateTradingPairRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err

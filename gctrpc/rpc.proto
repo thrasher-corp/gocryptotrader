@@ -960,39 +960,39 @@ message ModifyOrderResponse {
     string modified_order_id = 1;
 }
 
-message StateGetAllRequest {
+message CurrencyStateGetAllRequest {
     string exchange = 1;
 }
 
-message StateTradingRequest {
+message CurrencyStateTradingRequest {
     string exchange = 1;
     string code = 2;
     string asset = 3;
 }
 
-message StateTradingPairRequest {
+message CurrencyStateTradingPairRequest {
     string exchange = 1;
     string pair = 2;
     string asset = 3;
 }
 
-message StateWithdrawRequest {
+message CurrencyStateWithdrawRequest {
     string exchange = 1;
     string code = 2;
     string asset = 3;
 }
 
-message StateDepositRequest {
+message CurrencyStateDepositRequest {
     string exchange = 1;
     string code = 2;
     string asset = 3;
 }
 
-message StateResponse {
-    repeated State states = 1;
+message CurrencyStateResponse {
+    repeated CurrencyState currency_states = 1;
 }
 
-message State {
+message CurrencyState {
     string currency = 1;
     string asset = 2;
     bool withdraw_enabled = 3;
@@ -1558,29 +1558,29 @@ service GoCryptoTrader {
         };
     }
 
-    rpc StateGetAll (StateGetAllRequest) returns (StateResponse) {
+    rpc CurrencyStateGetAll (CurrencyStateGetAllRequest) returns (CurrencyStateResponse) {
         option (google.api.http) = {
-            get: "/v1/stategetall"
+            get: "/v1/currencystategetall"
         };
     }
-    rpc StateTrading (StateTradingRequest) returns (GenericResponse) {
+    rpc CurrencyStateTrading (CurrencyStateTradingRequest) returns (GenericResponse) {
         option (google.api.http) = {
-            get: "/v1/statetrading"
+            get: "/v1/currencystatetrading"
         };
     }
-    rpc StateDeposit (StateDepositRequest) returns (GenericResponse) {
+    rpc CurrencyStateDeposit (CurrencyStateDepositRequest) returns (GenericResponse) {
         option (google.api.http) = {
-            get: "/v1/statedeposit"
+            get: "/v1/currencystatedeposit"
         };
     }
-    rpc StateWithdraw (StateWithdrawRequest) returns (GenericResponse) {
+    rpc CurrencyStateWithdraw (CurrencyStateWithdrawRequest) returns (GenericResponse) {
         option (google.api.http) = {
-            get: "/v1/statewithdraw"
+            get: "/v1/currencystatewithdraw"
         };
     }
-    rpc StateTradingPair (StateTradingPairRequest) returns (GenericResponse) {
+    rpc CurrencyStateTradingPair (CurrencyStateTradingPairRequest) returns (GenericResponse) {
         option (google.api.http) = {
-            get: "/v1/statetradingpair"
+            get: "/v1/currencystatetradingpair"
         };
     }
 }

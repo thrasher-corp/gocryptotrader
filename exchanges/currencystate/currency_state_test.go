@@ -10,6 +10,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+func TestNewCurrencyStates(t *testing.T) {
+	if NewCurrencyStates() == nil {
+		t.Fatal("unexpected value")
+	}
+}
+
 func TestGetSnapshot(t *testing.T) {
 	t.Parallel()
 	_, err := (*States)(nil).GetCurrencyStateSnapshot()
@@ -129,6 +135,28 @@ func TestStatesCanWithdraw(t *testing.T) {
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
+
+	err = (&States{
+		m: map[asset.Item]map[*currency.Item]*Currency{
+			asset.Spot: {
+				currency.BTC.Item: {withdrawals: true},
+			},
+		},
+	}).CanWithdraw(currency.BTC, asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
+
+	err = (&States{
+		m: map[asset.Item]map[*currency.Item]*Currency{
+			asset.Spot: {
+				currency.BTC.Item: {},
+			},
+		},
+	}).CanWithdraw(currency.BTC, asset.Spot)
+	if !errors.Is(err, errWithdrawalsNotAllowed) {
+		t.Fatalf("received: %v, but expected: %v", err, errWithdrawalsNotAllowed)
+	}
 }
 
 func TestStatesCanDeposit(t *testing.T) {
@@ -140,6 +168,28 @@ func TestStatesCanDeposit(t *testing.T) {
 	err = (&States{}).CanDeposit(currency.Code{}, "")
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
+	}
+
+	err = (&States{
+		m: map[asset.Item]map[*currency.Item]*Currency{
+			asset.Spot: {
+				currency.BTC.Item: {deposits: true},
+			},
+		},
+	}).CanDeposit(currency.BTC, asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
+
+	err = (&States{
+		m: map[asset.Item]map[*currency.Item]*Currency{
+			asset.Spot: {
+				currency.BTC.Item: {},
+			},
+		},
+	}).CanDeposit(currency.BTC, asset.Spot)
+	if !errors.Is(err, errDepositNotAllowed) {
+		t.Fatalf("received: %v, but expected: %v", err, errDepositNotAllowed)
 	}
 }
 
