@@ -28,7 +28,7 @@ type CurrencyStateManager struct {
 	sleep time.Duration
 }
 
-// Setup applies configuration parameters before running
+// SetupCurrencyStateManager applies configuration parameters before running
 func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*CurrencyStateManager, error) {
 	var c CurrencyStateManager
 if interval <= 0 {
