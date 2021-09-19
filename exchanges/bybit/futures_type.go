@@ -16,6 +16,19 @@ type OrderbookData struct {
 	Side   string `json:"side"`
 }
 
+// FuturesCandleStick holds kline data
+type FuturesCandleStick struct {
+	Symbol   string  `json:"symbol"`
+	Interval string  `json:"interval"`
+	OpenTime int64   `json:"open_time"`
+	Open     float64 `json:"open"`
+	High     float64 `json:"high"`
+	Low      float64 `json:"low"`
+	Close    float64 `json:"close"`
+	Volume   float64 `json:"volume"`
+	TurnOver float64 `json:"turnover"`
+}
+
 // SymbolPriceTicker stores ticker price stats
 type SymbolPriceTicker struct {
 	Symbol                 string `json:"symbol"`
@@ -46,15 +59,92 @@ type SymbolPriceTicker struct {
 	DeliveryTime           string `json:"delivery_time"`
 }
 
-// FuturesCandleStick holds kline data
-type FuturesCandleStick struct {
-	Symbol   string  `json:"symbol"`
-	Interval string  `json:"interval"`
-	OpenTime int64   `json:"open_time"`
-	Open     float64 `json:"open"`
-	High     float64 `json:"high"`
-	Low      float64 `json:"low"`
-	Close    float64 `json:"close"`
-	Volume   float64 `json:"volume"`
-	TurnOver float64 `json:"turnover"`
+// FuturesPublicTradesData stores recent public trades for futures
+type FuturesPublicTradesData struct {
+	ID     int64   `json:"id"`
+	Symbol string  `json:"symbol"`
+	Price  float64 `json:"price,string"`
+	Qty    float64 `json:"qty,string"`
+	Time   int64   `json:"time"`
+	Side   string  `json:"side"`
+}
+
+// SymbolInfo stores symbol information for futures pair
+type SymbolInfo struct {
+	Name           string `json:"name"`
+	Alias          string `json:"alias"`
+	Status         string `json:"status"`
+	BaseCurrency   string `json:"base_currency"`
+	QuoteCurrency  string `json:"quote_currency"`
+	PriceScale     int64  `json:"price_scale"`
+	TakerFee       string `json:"taker_fee"`
+	MakerFee       string `json:"maker_fee"`
+	LeverageFilter struct {
+		MinLeverage  int64   `json:"min_leverage"`
+		MaxLeverage  int64   `json:"max_leverage"`
+		LeverageStep float64 `json:"leverage_step,string"`
+	} `json:"leverage_filter"`
+	PriceFilter struct {
+		MinPrice float64 `json:"min_price,string"`
+		MaxPrice float64 `json:"max_price,string"`
+		TickSize float64 `json:"tick_size,string"`
+	} `json:"price_filter"`
+	LotSizeFilter struct {
+		MinTradeQty float64 `json:"min_trading_qty,string"`
+		MaxTradeQty float64 `json:"max_trading_qty,string"`
+		QtyStep     float64 `json:"qty_step,string"`
+	} `json:"lot_size_filter"`
+}
+
+// AllLiquidationOrders gets all liquidation orders
+type AllLiquidationOrders struct {
+	ID     int64   `json:"id"`
+	Qty    float64 `json:"origQty,string"`
+	Side   string  `json:"side"`
+	Time   int64   `json:"time"`
+	Symbol string  `json:"symbol"`
+	Price  float64 `json:"price,string"`
+}
+
+type MarkPriceKlineData struct {
+	ID       int64  `json:"id"`
+	Symbol   string `json:"symbol"`
+	Interval string `json:"period"`
+	StartAt  int64  `json:"start_at"`
+	Open     int64  `json:"open"`
+	High     int64  `json:"high"`
+	Low      int64  `json:"low"`
+	Close    int64  `json:"close"`
+}
+
+type IndexPriceKlineData struct {
+	Symbol   string `json:"symbol"`
+	Interval string `json:"period"`
+	StartAt  int64  `json:"open_time"`
+	Open     int64  `json:"open"`
+	High     int64  `json:"high"`
+	Low      int64  `json:"low"`
+	Close    int64  `json:"close"`
+}
+
+// OpenInterestData stores open interest data
+type OpenInterestData struct {
+	OpenInterest int64  `json:"open_interest"`
+	Symbol       string `json:"symbol"`
+	Time         int64  `json:"time"`
+}
+
+type BigDealData struct {
+	Symbol string `json:"symbol"`
+	Side   string `json:"side"`
+	Time   int64  `json:"timestamp"`
+	Value  int64  `json:"value"`
+}
+
+// AccountRatioData stores user accounts long short ratio
+type AccountRatioData struct {
+	Symbol    string  `json:"symbol"`
+	BuyRatio  float64 `json:"buy_ratio"`
+	SellRatio float64 `json:"sell_ratio"`
+	Time      int64   `json:"timestamp"`
 }
