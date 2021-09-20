@@ -261,7 +261,7 @@ func (by *Bybit) GetPremiumIndexPriceKline(symbol currency.Pair, interval string
 }
 
 // GetOpenInterest gets open interest data for a symbol.
-func (by *Bybit) GetOpenInterest(symbol currency.Pair, interval string, limit int64) (OpenInterestData, error) {
+func (by *Bybit) GetOpenInterest(symbol currency.Pair, period string, limit int64) (OpenInterestData, error) {
 	var resp OpenInterestData
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -272,10 +272,10 @@ func (by *Bybit) GetOpenInterest(symbol currency.Pair, interval string, limit in
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp, errors.New("invalid interval parsed")
+	if !common.StringDataCompare(validFuturesPeriods, period) {
+		return resp, errors.New("invalid period parsed")
 	}
-	params.Set("period", interval)
+	params.Set("period", period)
 
 	path := common.EncodeURLValues(cfuturesOpenInterest, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
@@ -299,7 +299,7 @@ func (by *Bybit) GetLatestBigDeal(symbol currency.Pair, limit int64) (BigDealDat
 }
 
 // GetAccountRatio gets user accounts long-short ratio.
-func (by *Bybit) GetAccountRatio(symbol currency.Pair, interval string, limit int64) (AccountRatioData, error) {
+func (by *Bybit) GetAccountRatio(symbol currency.Pair, period string, limit int64) (AccountRatioData, error) {
 	var resp AccountRatioData
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -310,10 +310,10 @@ func (by *Bybit) GetAccountRatio(symbol currency.Pair, interval string, limit in
 	if limit > 0 && limit <= 500 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp, errors.New("invalid interval parsed")
+	if !common.StringDataCompare(validFuturesPeriods, period) {
+		return resp, errors.New("invalid period parsed")
 	}
-	params.Set("period", interval)
+	params.Set("period", period)
 
 	path := common.EncodeURLValues(cfuturesAccountRatio, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
