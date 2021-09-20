@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
@@ -208,6 +209,9 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 	if d.ID == "" {
 		d.ID = m.ID
 	}
+	if d.InternalOrderID == "" {
+		d.InternalOrderID = m.InternalOrderID
+	}
 }
 
 // UpdateOrderFromModify Will update an order detail (used in order management)
@@ -403,6 +407,40 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 		return false
 	}
 	return true
+}
+
+// IsActive returns true if an order has a status that indicates it is
+// currently available on the exchange
+func (d *Detail) IsActive() bool {
+	if d.Amount <= 0 || d.Amount <= d.ExecutedAmount {
+		return false
+	}
+	return d.Status == Active || d.Status == Open || d.Status == PartiallyFilled || d.Status == New ||
+		d.Status == AnyStatus || d.Status == PendingCancel || d.Status == Hidden || d.Status == UnknownStatus ||
+		d.Status == AutoDeleverage || d.Status == Pending
+}
+
+// IsInactive returns true if an order has a status that indicates it is
+// currently not available on the exchange
+func (d *Detail) IsInactive() bool {
+	if d.Amount <= 0 || d.Amount <= d.ExecutedAmount {
+		return true
+	}
+	return d.Status == Filled || d.Status == Cancelled || d.Status == InsufficientBalance || d.Status == MarketUnavailable ||
+		d.Status == Rejected || d.Status == PartiallyCancelled || d.Status == Expired || d.Status == Closed
+}
+
+// GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if
+// the V4 function returns an error
+func (d *Detail) GenerateInternalOrderID() {
+	if d.InternalOrderID == "" {
+		var id uuid.UUID
+		id, err := uuid.NewV4()
+		if err != nil {
+			id = uuid.NewV5(uuid.UUID{}, d.ID)
+		}
+		d.InternalOrderID = id.String()
+	}
 }
 
 // Copy will return a copy of Detail

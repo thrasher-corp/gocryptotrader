@@ -1,6 +1,7 @@
 package localbitcoins
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -41,7 +42,7 @@ func (l *LocalBitcoins) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	}
 
 	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = l.UpdateTradablePairs(true)
+		err = l.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -130,15 +131,15 @@ func (l *LocalBitcoins) Run() {
 		return
 	}
 
-	err := l.UpdateTradablePairs(false)
+	err := l.UpdateTradablePairs(context.TODO(), false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", l.Name, err)
 	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (l *LocalBitcoins) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	currencies, err := l.GetTradableCurrencies()
+func (l *LocalBitcoins) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+	currencies, err := l.GetTradableCurrencies(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -153,8 +154,8 @@ func (l *LocalBitcoins) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (l *LocalBitcoins) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := l.FetchTradablePairs(asset.Spot)
+func (l *LocalBitcoins) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+	pairs, err := l.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
@@ -166,8 +167,8 @@ func (l *LocalBitcoins) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (l *LocalBitcoins) UpdateTickers(a asset.Item) error {
-	tick, err := l.GetTicker()
+func (l *LocalBitcoins) UpdateTickers(ctx context.Context, a asset.Item) error {
+	tick, err := l.GetTicker(ctx)
 	if err != nil {
 		return err
 	}
@@ -197,8 +198,8 @@ func (l *LocalBitcoins) UpdateTickers(a asset.Item) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *LocalBitcoins) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := l.UpdateTickers(a)
+func (l *LocalBitcoins) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	err := l.UpdateTickers(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -206,25 +207,25 @@ func (l *LocalBitcoins) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Pri
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (l *LocalBitcoins) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (l *LocalBitcoins) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(l.Name, p, assetType)
 	if err != nil {
-		return l.UpdateTicker(p, assetType)
+		return l.UpdateTicker(ctx, p, assetType)
 	}
 	return tickerNew, nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (l *LocalBitcoins) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *LocalBitcoins) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(l.Name, p, assetType)
 	if err != nil {
-		return l.UpdateOrderbook(p, assetType)
+		return l.UpdateOrderbook(ctx, p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *LocalBitcoins) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
 		Exchange:        l.Name,
 		Pair:            p,
@@ -232,7 +233,7 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 		VerifyOrderbook: l.CanVerifyOrderbook,
 	}
 
-	orderbookNew, err := l.GetOrderbook(p.Quote.String())
+	orderbookNew, err := l.GetOrderbook(ctx, p.Quote.String())
 	if err != nil {
 		return book, err
 	}
@@ -262,10 +263,10 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // LocalBitcoins exchange
-func (l *LocalBitcoins) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = l.Name
-	accountBalance, err := l.GetWalletBalance()
+	accountBalance, err := l.GetWalletBalance(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -286,10 +287,10 @@ func (l *LocalBitcoins) UpdateAccountInfo(assetType asset.Item) (account.Holding
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (l *LocalBitcoins) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (l *LocalBitcoins) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(l.Name, assetType)
 	if err != nil {
-		return l.UpdateAccountInfo(assetType)
+		return l.UpdateAccountInfo(ctx, assetType)
 	}
 
 	return acc, nil
@@ -297,24 +298,24 @@ func (l *LocalBitcoins) FetchAccountInfo(assetType asset.Item) (account.Holdings
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
+func (l *LocalBitcoins) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (l *LocalBitcoins) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (l *LocalBitcoins) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (l *LocalBitcoins) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (l *LocalBitcoins) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = l.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 	var tradeData []Trade
-	tradeData, err = l.GetTrades(p.Quote.String(), nil)
+	tradeData, err = l.GetTrades(ctx, p.Quote.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -341,12 +342,12 @@ func (l *LocalBitcoins) GetRecentTrades(p currency.Pair, assetType asset.Item) (
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (l *LocalBitcoins) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (l *LocalBitcoins) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
-func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
@@ -380,7 +381,7 @@ func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, erro
 	}
 
 	// Does not return any orderID, so create the add, then get the order
-	err = l.CreateAd(&params)
+	err = l.CreateAd(ctx, &params)
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -390,7 +391,7 @@ func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, erro
 	// Now to figure out what ad we just submitted
 	// The only details we have are the params above
 	var adID string
-	ads, err := l.Getads()
+	ads, err := l.Getads(ctx)
 	for i := range ads.AdList {
 		if ads.AdList[i].Data.PriceEquation == params.PriceEquation &&
 			ads.AdList[i].Data.Lat == float64(params.Latitude) &&
@@ -422,36 +423,36 @@ func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, erro
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *LocalBitcoins) ModifyOrder(action *order.Modify) (order.Modify, error) {
+func (l *LocalBitcoins) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
 	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *LocalBitcoins) CancelOrder(o *order.Cancel) error {
+func (l *LocalBitcoins) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	return l.DeleteAd(o.ID)
+	return l.DeleteAd(ctx, o.ID)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (l *LocalBitcoins) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+func (l *LocalBitcoins) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LocalBitcoins) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
+func (l *LocalBitcoins) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	ads, err := l.Getads()
+	ads, err := l.Getads(ctx)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
 	for i := range ads.AdList {
 		adIDString := strconv.FormatInt(ads.AdList[i].Data.AdID, 10)
-		err = l.DeleteAd(adIDString)
+		err = l.DeleteAd(ctx, adIDString)
 		if err != nil {
 			cancelAllOrdersResponse.Status[adIDString] = err.Error()
 		}
@@ -461,28 +462,29 @@ func (l *LocalBitcoins) CancelAllOrders(_ *order.Cancel) (order.CancelAllRespons
 }
 
 // GetOrderInfo returns order information based on order ID
-func (l *LocalBitcoins) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (l *LocalBitcoins) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (l *LocalBitcoins) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
+func (l *LocalBitcoins) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
 	if !strings.EqualFold(currency.BTC.String(), cryptocurrency.String()) {
 		return "", fmt.Errorf("%s does not have support for currency %s, it only supports bitcoin",
 			l.Name, cryptocurrency)
 	}
 
-	return l.GetWalletAddress()
+	return l.GetWalletAddress(ctx)
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (l *LocalBitcoins) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (l *LocalBitcoins) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	err := l.WalletSend(withdrawRequest.Crypto.Address,
+	err := l.WalletSend(ctx,
+		withdrawRequest.Crypto.Address,
 		withdrawRequest.Amount,
 		withdrawRequest.PIN)
 	if err != nil {
@@ -493,23 +495,23 @@ func (l *LocalBitcoins) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Re
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (l *LocalBitcoins) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (l *LocalBitcoins) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (l *LocalBitcoins) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (l *LocalBitcoins) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
 
-	resp, err := l.GetDashboardInfo()
+	resp, err := l.GetDashboardInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -560,25 +562,25 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
 
 	var allTrades []DashBoardInfo
-	resp, err := l.GetDashboardCancelledTrades()
+	resp, err := l.GetDashboardCancelledTrades(ctx)
 	if err != nil {
 		return nil, err
 	}
 	allTrades = append(allTrades, resp...)
 
-	resp, err = l.GetDashboardClosedTrades()
+	resp, err = l.GetDashboardClosedTrades(ctx)
 	if err != nil {
 		return nil, err
 	}
 	allTrades = append(allTrades, resp...)
 
-	resp, err = l.GetDashboardReleasedTrades()
+	resp, err = l.GetDashboardReleasedTrades(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -646,17 +648,17 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (l *LocalBitcoins) ValidateCredentials(assetType asset.Item) error {
-	_, err := l.UpdateAccountInfo(assetType)
+func (l *LocalBitcoins) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := l.UpdateAccountInfo(ctx, assetType)
 	return l.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (l *LocalBitcoins) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (l *LocalBitcoins) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (l *LocalBitcoins) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (l *LocalBitcoins) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }

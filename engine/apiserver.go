@@ -303,7 +303,10 @@ func (m *apiServerManager) getIndex(w http.ResponseWriter, _ *http.Request) {
 // getAllActiveOrderbooks returns all enabled exchanges orderbooks
 func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 	var orderbookData []EnabledExchangeOrderbooks
-	exchanges := m.GetExchanges()
+	exchanges, err := m.GetExchanges()
+	if err != nil {
+		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
+	}
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
@@ -320,7 +323,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 				continue
 			}
 			for z := range currencies {
-				ob, err := exchanges[x].FetchOrderbook(currencies[z], assets[y])
+				ob, err := exchanges[x].FetchOrderbook(context.TODO(), currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.APIServerMgr,
 						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
@@ -340,7 +343,10 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 // getAllActiveTickers returns all enabled exchanges tickers
 func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 	var tickers []EnabledExchangeCurrencies
-	exchanges := m.GetExchanges()
+	exchanges, err := m.GetExchanges()
+	if err != nil {
+		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
+	}
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
@@ -357,7 +363,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 				continue
 			}
 			for z := range currencies {
-				t, err := exchanges[x].FetchTicker(currencies[z], assets[y])
+				t, err := exchanges[x].FetchTicker(context.TODO(), currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.APIServerMgr,
 						"Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
@@ -377,13 +383,16 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 // getAllActiveAccounts returns all enabled exchanges accounts
 func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
 	var accounts []AllEnabledExchangeAccounts
-	exchanges := m.GetExchanges()
+	exchanges, err := m.GetExchanges()
+	if err != nil {
+		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
+	}
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
 		var exchangeAccounts AllEnabledExchangeAccounts
 		for y := range assets {
-			a, err := exchanges[x].FetchAccountInfo(assets[y])
+			a, err := exchanges[x].FetchAccountInfo(context.TODO(), assets[y])
 			if err != nil {
 				log.Errorf(log.APIServerMgr,
 					"Exchange %s failed to retrieve %s ticker. Err: %s\n",
@@ -818,7 +827,7 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 		}
 		return err
 	}
-	tick, err := exch.FetchTicker(p, a)
+	tick, err := exch.FetchTicker(context.TODO(), p, a)
 	if err != nil {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
@@ -873,7 +882,7 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 		}
 		return err
 	}
-	ob, err := exch.FetchOrderbook(p, a)
+	ob, err := exch.FetchOrderbook(context.TODO(), p, a)
 	if err != nil {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)

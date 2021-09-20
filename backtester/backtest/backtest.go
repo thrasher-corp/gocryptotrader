@@ -1,6 +1,7 @@
 package backtest
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -609,7 +610,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if err != nil {
 		return nil, err
 	}
-	candles, err := api.LoadData(
+	candles, err := api.LoadData(context.TODO(),
 		dataType,
 		cfg.DataSettings.APIData.StartDate,
 		cfg.DataSettings.APIData.EndDate,
@@ -930,7 +931,7 @@ func (bt *BackTest) RunLive() error {
 // from live. Its purpose is to be able to perform strategy analysis against current data
 func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) {
 	startDate := time.Now()
-	candles, err := live.LoadData(
+	candles, err := live.LoadData(context.TODO(),
 		exch,
 		dataType,
 		cfg.DataSettings.Interval,
@@ -969,7 +970,7 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 	if exch == nil {
 		return errNilExchange
 	}
-	candles, err := live.LoadData(
+	candles, err := live.LoadData(context.TODO(),
 		exch,
 		dataType,
 		cfg.DataSettings.Interval,
@@ -980,7 +981,7 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 	}
 
 	resp.Item.Candles = append(resp.Item.Candles, candles.Candles...)
-	_, err = exch.FetchOrderbook(fPair, a)
+	_, err = exch.FetchOrderbook(context.TODO(), fPair, a)
 	if err != nil {
 		return err
 	}

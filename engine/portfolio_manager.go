@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -142,7 +143,11 @@ func (m *portfolioManager) processPortfolio() {
 			value)
 	}
 
-	d := m.getExchangeAccountInfo(m.exchangeManager.GetExchanges())
+	exchanges, err := m.exchangeManager.GetExchanges()
+	if err != nil {
+		log.Errorf(log.PortfolioMgr, "Portfolio manager cannot get exchanges: %v", err)
+	}
+	d := m.getExchangeAccountInfo(exchanges)
 	m.seedExchangeAccountInfo(d)
 	atomic.CompareAndSwapInt32(&m.processing, 1, 0)
 }
@@ -246,7 +251,7 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 		assetTypes := exchanges[x].GetAssetTypes(false) // left as available for now, to sync the full spectrum
 		var exchangeHoldings account.Holdings
 		for y := range assetTypes {
-			accountHoldings, err := exchanges[x].FetchAccountInfo(assetTypes[y])
+			accountHoldings, err := exchanges[x].FetchAccountInfo(context.TODO(), assetTypes[y])
 			if err != nil {
 				log.Errorf(log.PortfolioMgr,
 					"Error encountered retrieving exchange account info for %s. Error %s\n",

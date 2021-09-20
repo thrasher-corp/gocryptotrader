@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -35,7 +36,7 @@ func areTestAPIKeysSet() bool {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetTicker()
+	_, err := p.GetTicker(context.Background())
 	if err != nil {
 		t.Error("Poloniex GetTicker() error", err)
 	}
@@ -43,7 +44,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetVolume(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetVolume()
+	_, err := p.GetVolume(context.Background())
 	if err != nil {
 		t.Error("Test faild - Poloniex GetVolume() error")
 	}
@@ -51,7 +52,7 @@ func TestGetVolume(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetOrderbook("BTC_XMR", 50)
+	_, err := p.GetOrderbook(context.Background(), "BTC_XMR", 50)
 	if err != nil {
 		t.Error("Test faild - Poloniex GetOrderbook() error", err)
 	}
@@ -59,7 +60,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetTradeHistory("BTC_XMR", 0, 0)
+	_, err := p.GetTradeHistory(context.Background(), "BTC_XMR", 0, 0)
 	if err != nil {
 		t.Error("Test faild - Poloniex GetTradeHistory() error", err)
 	}
@@ -67,7 +68,8 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetChartData(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetChartData("BTC_XMR",
+	_, err := p.GetChartData(context.Background(),
+		"BTC_XMR",
 		time.Unix(1405699200, 0), time.Unix(1405699400, 0), "300")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetChartData() error", err)
@@ -76,7 +78,7 @@ func TestGetChartData(t *testing.T) {
 
 func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetCurrencies()
+	_, err := p.GetCurrencies(context.Background())
 	if err != nil {
 		t.Error("Test faild - Poloniex GetCurrencies() error", err)
 	}
@@ -84,7 +86,7 @@ func TestGetCurrencies(t *testing.T) {
 
 func TestGetLoanOrders(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetLoanOrders("BTC")
+	_, err := p.GetLoanOrders(context.Background(), "BTC")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetLoanOrders() error", err)
 	}
@@ -110,7 +112,7 @@ func TestGetActiveOrders(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
-	_, err := p.GetActiveOrders(&getOrdersRequest)
+	_, err := p.GetActiveOrders(context.Background(), &getOrdersRequest)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetActiveOrders() error", err)
@@ -128,7 +130,7 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
-	_, err := p.GetOrderHistory(&getOrdersRequest)
+	_, err := p.GetOrderHistory(context.Background(), &getOrdersRequest)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Errorf("Could not get order history: %s", err)
@@ -172,8 +174,8 @@ func TestGetOrderStatus(t *testing.T) {
 				t.Skip()
 			}
 
-			_, err := p.GetAuthenticatedOrderStatus(tt.orderID)
-
+			_, err := p.GetAuthenticatedOrderStatus(context.Background(),
+				tt.orderID)
 			switch {
 			case areTestAPIKeysSet() && err != nil:
 				t.Errorf("Could not get order status: %s", err)
@@ -227,7 +229,7 @@ func TestGetOrderTrades(t *testing.T) {
 				t.Skip()
 			}
 
-			_, err := p.GetAuthenticatedOrderTrades(tt.orderID)
+			_, err := p.GetAuthenticatedOrderTrades(context.Background(), tt.orderID)
 			switch {
 			case areTestAPIKeysSet() && err != nil:
 				t.Errorf("Could not get order trades: %s", err)
@@ -265,7 +267,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
-	response, err := p.SubmitOrder(orderSubmission)
+	response, err := p.SubmitOrder(context.Background(), orderSubmission)
 	switch {
 	case areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced):
 		t.Errorf("Order failed to be placed: %v", err)
@@ -289,7 +291,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		AssetType:     asset.Spot,
 	}
 
-	err := p.CancelOrder(orderCancellation)
+	err := p.CancelOrder(context.Background(), orderCancellation)
 	switch {
 	case !areTestAPIKeysSet() && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
@@ -315,7 +317,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AssetType:     asset.Spot,
 	}
 
-	resp, err := p.CancelAllOrders(orderCancellation)
+	resp, err := p.CancelAllOrders(context.Background(), orderCancellation)
 	switch {
 	case !areTestAPIKeysSet() && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
@@ -335,7 +337,7 @@ func TestModifyOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := p.ModifyOrder(&order.Modify{ID: "1337",
+	_, err := p.ModifyOrder(context.Background(), &order.Modify{ID: "1337",
 		Price:     1337,
 		AssetType: asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT)})
@@ -366,7 +368,8 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := p.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
+	_, err := p.WithdrawCryptocurrencyFunds(context.Background(),
+		&withdrawCryptoRequest)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Errorf("Withdraw failed to be placed: %v", err)
@@ -384,7 +387,7 @@ func TestWithdrawFiat(t *testing.T) {
 	}
 
 	var withdrawFiatRequest withdraw.Request
-	_, err := p.WithdrawFiatFunds(&withdrawFiatRequest)
+	_, err := p.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",
 			common.ErrFunctionNotSupported, err)
@@ -398,7 +401,8 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 
 	var withdrawFiatRequest withdraw.Request
-	_, err := p.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
+	_, err := p.WithdrawFiatFundsToInternationalBank(context.Background(),
+		&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",
 			common.ErrFunctionNotSupported, err)
@@ -407,7 +411,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetDepositAddress(currency.DASH, "")
+	_, err := p.GetDepositAddress(context.Background(), currency.DASH, "")
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetDepositAddress()", err)
@@ -453,7 +457,7 @@ func TestWsSubAck(t *testing.T) {
 }
 
 func TestWsTicker(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -465,7 +469,7 @@ func TestWsTicker(t *testing.T) {
 }
 
 func TestWsExchangeVolume(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -478,7 +482,7 @@ func TestWsExchangeVolume(t *testing.T) {
 
 func TestWsTrades(t *testing.T) {
 	p.SetSaveTradeDataStatus(true)
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -490,7 +494,7 @@ func TestWsTrades(t *testing.T) {
 }
 
 func TestWsPriceAggregateOrderbook(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -512,17 +516,29 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = p.GetHistoricCandles(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
+	_, err = p.GetHistoricCandles(context.Background(),
+		currencyPair, asset.Spot,
+		time.Unix(1588741402, 0),
+		time.Unix(1588745003, 0),
+		kline.FiveMin)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = p.GetHistoricCandles(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.Interval(time.Hour*7))
+	_, err = p.GetHistoricCandles(context.Background(),
+		currencyPair, asset.Spot,
+		time.Unix(1588741402, 0),
+		time.Unix(1588745003, 0),
+		kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
 
 	currencyPair.Quote = currency.NewCode("LTCC")
-	_, err = p.GetHistoricCandles(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
+	_, err = p.GetHistoricCandles(context.Background(),
+		currencyPair, asset.Spot,
+		time.Unix(1588741402, 0),
+		time.Unix(1588745003, 0),
+		kline.FiveMin)
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -533,17 +549,29 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = p.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
+	_, err = p.GetHistoricCandlesExtended(context.Background(),
+		currencyPair, asset.Spot,
+		time.Unix(1588741402, 0),
+		time.Unix(1588745003, 0),
+		kline.FiveMin)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = p.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.Interval(time.Hour*7))
+	_, err = p.GetHistoricCandlesExtended(context.Background(),
+		currencyPair, asset.Spot,
+		time.Unix(1588741402, 0),
+		time.Unix(1588745003, 0),
+		kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
 
 	currencyPair.Quote = currency.NewCode("LTCC")
-	_, err = p.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
+	_, err = p.GetHistoricCandlesExtended(context.Background(),
+		currencyPair, asset.Spot,
+		time.Unix(1588741402, 0),
+		time.Unix(1588745003, 0),
+		kline.FiveMin)
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -558,7 +586,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if mockTests {
 		t.Skip("relies on time.Now()")
 	}
-	_, err = p.GetRecentTrades(currencyPair, asset.Spot)
+	_, err = p.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -577,14 +605,15 @@ func TestGetHistoricTrades(t *testing.T) {
 		tStart = time.Date(tmNow.Year(), tmNow.Month()-3, 6, 0, 0, 0, 0, time.UTC)
 		tEnd = time.Date(tmNow.Year(), tmNow.Month()-3, 7, 0, 0, 0, 0, time.UTC)
 	}
-	_, err = p.GetHistoricTrades(currencyPair, asset.Spot, tStart, tEnd)
+	_, err = p.GetHistoricTrades(context.Background(),
+		currencyPair, asset.Spot, tStart, tEnd)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestProcessAccountMarginPosition(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -621,7 +650,7 @@ func TestProcessAccountMarginPosition(t *testing.T) {
 }
 
 func TestProcessAccountPendingOrder(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -733,7 +762,7 @@ func TestProcessAccountOrderUpdate(t *testing.T) {
 }
 
 func TestProcessAccountOrderLimit(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -794,7 +823,7 @@ func TestProcessAccountOrderLimit(t *testing.T) {
 }
 
 func TestProcessAccountBalanceUpdate(t *testing.T) {
-	err := p.loadCurrencyDetails()
+	err := p.loadCurrencyDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -904,7 +933,7 @@ func TestGetCompleteBalances(t *testing.T) {
 	if !mockTests && !areTestAPIKeysSet() {
 		t.Skip("API keys not set, mockTests false, skipping test")
 	}
-	_, err := p.GetCompleteBalances()
+	_, err := p.GetCompleteBalances(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -916,7 +945,7 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = p.UpdateTicker(cp, asset.Spot)
+	_, err = p.UpdateTicker(context.Background(), cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -924,7 +953,7 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := p.UpdateTickers(asset.Spot)
+	err := p.UpdateTickers(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

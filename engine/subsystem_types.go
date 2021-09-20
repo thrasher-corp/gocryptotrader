@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
@@ -41,7 +42,7 @@ var (
 // iExchangeManager limits exposure of accessible functions to exchange manager
 // so that subsystems can use some functionality
 type iExchangeManager interface {
-	GetExchanges() []exchange.IBotExchange
+	GetExchanges() ([]exchange.IBotExchange, error)
 	GetExchangeByName(string) (exchange.IBotExchange, error)
 }
 
@@ -54,7 +55,7 @@ type iCommsManager interface {
 type iOrderManager interface {
 	Exists(*order.Detail) bool
 	Add(*order.Detail) error
-	Cancel(*order.Cancel) error
+	Cancel(context.Context, *order.Cancel) error
 	GetByExchangeAndID(string, string) (*order.Detail, error)
 	UpdateExistingOrder(*order.Detail) error
 }

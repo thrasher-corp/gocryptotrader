@@ -43,15 +43,15 @@ type Yobit struct {
 }
 
 // GetInfo returns the Yobit info
-func (y *Yobit) GetInfo() (Info, error) {
+func (y *Yobit) GetInfo(ctx context.Context) (Info, error) {
 	resp := Info{}
 	path := fmt.Sprintf("/%s/%s/", apiPublicVersion, publicInfo)
 
-	return resp, y.SendHTTPRequest(exchange.RestSpot, path, &resp)
+	return resp, y.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
 // GetTicker returns a ticker for a specific currency
-func (y *Yobit) GetTicker(symbol string) (map[string]Ticker, error) {
+func (y *Yobit) GetTicker(ctx context.Context, symbol string) (map[string]Ticker, error) {
 	type Response struct {
 		Data map[string]Ticker
 	}
@@ -59,11 +59,11 @@ func (y *Yobit) GetTicker(symbol string) (map[string]Ticker, error) {
 	response := Response{}
 	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicTicker, symbol)
 
-	return response.Data, y.SendHTTPRequest(exchange.RestSpot, path, &response.Data)
+	return response.Data, y.SendHTTPRequest(ctx, exchange.RestSpot, path, &response.Data)
 }
 
 // GetDepth returns the depth for a specific currency
-func (y *Yobit) GetDepth(symbol string) (Orderbook, error) {
+func (y *Yobit) GetDepth(ctx context.Context, symbol string) (Orderbook, error) {
 	type Response struct {
 		Data map[string]Orderbook
 	}
@@ -72,18 +72,18 @@ func (y *Yobit) GetDepth(symbol string) (Orderbook, error) {
 	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicDepth, symbol)
 
 	return response.Data[symbol],
-		y.SendHTTPRequest(exchange.RestSpot, path, &response.Data)
+		y.SendHTTPRequest(ctx, exchange.RestSpot, path, &response.Data)
 }
 
 // GetTrades returns the trades for a specific currency
-func (y *Yobit) GetTrades(symbol string) ([]Trade, error) {
+func (y *Yobit) GetTrades(ctx context.Context, symbol string) ([]Trade, error) {
 	type respDataHolder struct {
 		Data map[string][]Trade
 	}
 
 	var dataHolder respDataHolder
 	path := "/" + apiPublicVersion + "/" + publicTrades + "/" + symbol
-	err := y.SendHTTPRequest(exchange.RestSpot, path, &dataHolder.Data)
+	err := y.SendHTTPRequest(ctx, exchange.RestSpot, path, &dataHolder.Data)
 	if err != nil {
 		return nil, err
 	}
@@ -95,10 +95,10 @@ func (y *Yobit) GetTrades(symbol string) ([]Trade, error) {
 }
 
 // GetAccountInformation returns a users account info
-func (y *Yobit) GetAccountInformation() (AccountInfo, error) {
+func (y *Yobit) GetAccountInformation(ctx context.Context) (AccountInfo, error) {
 	result := AccountInfo{}
 
-	err := y.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, privateAccountInfo, url.Values{}, &result)
+	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateAccountInfo, url.Values{}, &result)
 	if err != nil {
 		return result, err
 	}
@@ -109,7 +109,7 @@ func (y *Yobit) GetAccountInformation() (AccountInfo, error) {
 }
 
 // Trade places an order and returns the order ID if successful or an error
-func (y *Yobit) Trade(pair, orderType string, amount, price float64) (int64, error) {
+func (y *Yobit) Trade(ctx context.Context, pair, orderType string, amount, price float64) (int64, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 	req.Add("type", strings.ToLower(orderType))
@@ -118,7 +118,7 @@ func (y *Yobit) Trade(pair, orderType string, amount, price float64) (int64, err
 
 	result := TradeOrderResponse{}
 
-	err := y.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, privateTrade, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateTrade, req, &result)
 	if err != nil {
 		return int64(result.OrderID), err
 	}
@@ -129,33 +129,33 @@ func (y *Yobit) Trade(pair, orderType string, amount, price float64) (int64, err
 }
 
 // GetOpenOrders returns the active orders for a specific currency
-func (y *Yobit) GetOpenOrders(pair string) (map[string]ActiveOrders, error) {
+func (y *Yobit) GetOpenOrders(ctx context.Context, pair string) (map[string]ActiveOrders, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 
 	result := map[string]ActiveOrders{}
 
-	return result, y.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, privateActiveOrders, req, &result)
+	return result, y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateActiveOrders, req, &result)
 }
 
 // GetOrderInformation returns the order info for a specific order ID
-func (y *Yobit) GetOrderInformation(orderID int64) (map[string]OrderInfo, error) {
+func (y *Yobit) GetOrderInformation(ctx context.Context, orderID int64) (map[string]OrderInfo, error) {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(orderID, 10))
 
 	result := map[string]OrderInfo{}
 
-	return result, y.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, privateOrderInfo, req, &result)
+	return result, y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateOrderInfo, req, &result)
 }
 
 // CancelExistingOrder cancels an order for a specific order ID
-func (y *Yobit) CancelExistingOrder(orderID int64) error {
+func (y *Yobit) CancelExistingOrder(ctx context.Context, orderID int64) error {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(orderID, 10))
 
 	result := CancelOrder{}
 
-	err := y.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, privateCancelOrder, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCancelOrder, req, &result)
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (y *Yobit) CancelExistingOrder(orderID int64) error {
 }
 
 // GetTradeHistory returns the trade history
-func (y *Yobit) GetTradeHistory(tidFrom, count, tidEnd, since, end int64, order, pair string) (map[string]TradeHistory, error) {
+func (y *Yobit) GetTradeHistory(ctx context.Context, tidFrom, count, tidEnd, since, end int64, order, pair string) (map[string]TradeHistory, error) {
 	req := url.Values{}
 	req.Add("from", strconv.FormatInt(tidFrom, 10))
 	req.Add("count", strconv.FormatInt(count, 10))
@@ -179,7 +179,7 @@ func (y *Yobit) GetTradeHistory(tidFrom, count, tidEnd, since, end int64, order,
 
 	result := TradeHistoryResponse{}
 
-	err := y.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, privateTradeHistory, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateTradeHistory, req, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -191,13 +191,13 @@ func (y *Yobit) GetTradeHistory(tidFrom, count, tidEnd, since, end int64, order,
 }
 
 // GetCryptoDepositAddress returns the deposit address for a specific currency
-func (y *Yobit) GetCryptoDepositAddress(coin string) (DepositAddress, error) {
+func (y *Yobit) GetCryptoDepositAddress(ctx context.Context, coin string) (DepositAddress, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
 
 	result := DepositAddress{}
 
-	err := y.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, privateGetDepositAddress, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetDepositAddress, req, &result)
 	if err != nil {
 		return result, err
 	}
@@ -208,7 +208,7 @@ func (y *Yobit) GetCryptoDepositAddress(coin string) (DepositAddress, error) {
 }
 
 // WithdrawCoinsToAddress initiates a withdrawal to a specified address
-func (y *Yobit) WithdrawCoinsToAddress(coin string, amount float64, address string) (WithdrawCoinsToAddress, error) {
+func (y *Yobit) WithdrawCoinsToAddress(ctx context.Context, coin string, amount float64, address string) (WithdrawCoinsToAddress, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -216,7 +216,7 @@ func (y *Yobit) WithdrawCoinsToAddress(coin string, amount float64, address stri
 
 	result := WithdrawCoinsToAddress{}
 
-	err := y.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, privateWithdrawCoinsToAddress, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateWithdrawCoinsToAddress, req, &result)
 	if err != nil {
 		return result, err
 	}
@@ -227,14 +227,14 @@ func (y *Yobit) WithdrawCoinsToAddress(coin string, amount float64, address stri
 }
 
 // CreateCoupon creates an exchange coupon for a sepcific currency
-func (y *Yobit) CreateCoupon(currency string, amount float64) (CreateCoupon, error) {
+func (y *Yobit) CreateCoupon(ctx context.Context, currency string, amount float64) (CreateCoupon, error) {
 	req := url.Values{}
 	req.Add("currency", currency)
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var result CreateCoupon
 
-	err := y.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, privateCreateCoupon, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCreateCoupon, req, &result)
 	if err != nil {
 		return result, err
 	}
@@ -245,13 +245,13 @@ func (y *Yobit) CreateCoupon(currency string, amount float64) (CreateCoupon, err
 }
 
 // RedeemCoupon redeems an exchange coupon
-func (y *Yobit) RedeemCoupon(coupon string) (RedeemCoupon, error) {
+func (y *Yobit) RedeemCoupon(ctx context.Context, coupon string) (RedeemCoupon, error) {
 	req := url.Values{}
 	req.Add("coupon", coupon)
 
 	result := RedeemCoupon{}
 
-	err := y.SendAuthenticatedHTTPRequest(exchange.RestSpotSupplementary, privateRedeemCoupon, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateRedeemCoupon, req, &result)
 	if err != nil {
 		return result, err
 	}
@@ -262,7 +262,7 @@ func (y *Yobit) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (y *Yobit) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
+func (y *Yobit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
 	endpoint, err := y.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -277,13 +277,13 @@ func (y *Yobit) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 		HTTPRecording: y.HTTPRecording,
 	}
 
-	return y.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+	return y.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
 	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
-func (y *Yobit) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, params url.Values, result interface{}) (err error) {
+func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, params url.Values, result interface{}) (err error) {
 	if !y.AllowAuthenticatedRequest() {
 		return fmt.Errorf("%s %w", y.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
@@ -295,7 +295,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, param
 		params = url.Values{}
 	}
 
-	return y.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+	return y.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		n := y.Requester.GetNonce(false).String()
 
 		params.Set("nonce", n)

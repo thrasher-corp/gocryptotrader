@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -63,20 +64,21 @@ func (p *Poloniex) WsConnect() error {
 		return err
 	}
 
-	err = p.loadCurrencyDetails()
+	err = p.loadCurrencyDetails(context.TODO())
 	if err != nil {
 		return err
 	}
 
+	p.Websocket.Wg.Add(1)
 	go p.wsReadData()
 
 	return nil
 }
 
 // TODO: Create routine to refresh list every day/week(?) for production
-func (p *Poloniex) loadCurrencyDetails() error {
+func (p *Poloniex) loadCurrencyDetails(ctx context.Context) error {
 	if p.details.isInitial() {
-		ticks, err := p.GetTicker()
+		ticks, err := p.GetTicker(ctx)
 		if err != nil {
 			return err
 		}
@@ -85,7 +87,7 @@ func (p *Poloniex) loadCurrencyDetails() error {
 			return err
 		}
 
-		currs, err := p.GetCurrencies()
+		currs, err := p.GetCurrencies(ctx)
 		if err != nil {
 			return err
 		}
@@ -100,9 +102,7 @@ func (p *Poloniex) loadCurrencyDetails() error {
 
 // wsReadData handles data from the websocket connection
 func (p *Poloniex) wsReadData() {
-	p.Websocket.Wg.Add(1)
 	defer p.Websocket.Wg.Done()
-
 	for {
 		resp := p.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {

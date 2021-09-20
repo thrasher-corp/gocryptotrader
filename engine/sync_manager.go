@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -103,7 +104,10 @@ func (m *syncManager) Start() error {
 	m.initSyncWG.Add(1)
 	m.inService.Done()
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
-	exchanges := m.exchangeManager.GetExchanges()
+	exchanges, err := m.exchangeManager.GetExchanges()
+	if err != nil {
+		return err
+	}
 	for x := range exchanges {
 		exchangeName := exchanges[x].GetName()
 		supportsWebsocket := exchanges[x].SupportsWebsocket()
@@ -453,7 +457,10 @@ func (m *syncManager) worker() {
 	defer cleanup()
 
 	for atomic.LoadInt32(&m.started) != 0 {
-		exchanges := m.exchangeManager.GetExchanges()
+		exchanges, err := m.exchangeManager.GetExchanges()
+		if err != nil {
+			log.Errorf(log.SyncMgr, "Sync manager cannot get exchanges: %v", err)
+		}
 		for x := range exchanges {
 			exchangeName := exchanges[x].GetName()
 			supportsREST := exchanges[x].SupportsREST()
@@ -561,7 +568,9 @@ func (m *syncManager) worker() {
 								}
 
 								m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
-								result, err := exchanges[x].UpdateOrderbook(c.Pair, c.AssetType)
+								result, err := exchanges[x].UpdateOrderbook(context.TODO(),
+									c.Pair,
+									c.AssetType)
 								m.PrintOrderbookSummary(result, "REST", err)
 								if err == nil {
 									if m.remoteConfig.WebsocketRPC.Enabled {
@@ -621,9 +630,9 @@ func (m *syncManager) worker() {
 												if m.config.Verbose {
 													log.Debugf(log.SyncMgr, "Initialising %s REST ticker batching", exchangeName)
 												}
-												err = exchanges[x].UpdateTickers(c.AssetType)
+												err = exchanges[x].UpdateTickers(context.TODO(), c.AssetType)
 												if err == nil {
-													result, err = exchanges[x].FetchTicker(c.Pair, c.AssetType)
+													result, err = exchanges[x].FetchTicker(context.TODO(), c.Pair, c.AssetType)
 												}
 												m.tickerBatchLastRequested[exchangeName] = time.Now()
 												m.mux.Unlock()
@@ -631,10 +640,14 @@ func (m *syncManager) worker() {
 												if m.config.Verbose {
 													log.Debugf(log.SyncMgr, "%s Using recent batching cache", exchangeName)
 												}
-												result, err = exchanges[x].FetchTicker(c.Pair, c.AssetType)
+												result, err = exchanges[x].FetchTicker(context.TODO(),
+													c.Pair,
+													c.AssetType)
 											}
 										} else {
-											result, err = exchanges[x].UpdateTicker(c.Pair, c.AssetType)
+											result, err = exchanges[x].UpdateTicker(context.TODO(),
+												c.Pair,
+												c.AssetType)
 										}
 										m.PrintTickerSummary(result, "REST", err)
 										if err == nil {

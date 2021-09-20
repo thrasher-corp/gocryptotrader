@@ -1,6 +1,7 @@
 package bittrex
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -28,11 +29,21 @@ func (b *Bittrex) setupOrderbookManager() {
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
 			jobs:  make(chan job, maxWSOrderbookJobs),
 		}
-
-		for i := 0; i < maxWSOrderbookWorkers; i++ {
-			// 10 workers for synchronising book
-			b.SynchroniseWebsocketOrderbook()
+	} else {
+		// Change state on reconnect for initial sync.
+		for _, m1 := range b.obm.state {
+			for _, m2 := range m1 {
+				for _, update := range m2 {
+					update.initialSync = true
+					update.needsFetchingBook = true
+				}
+			}
 		}
+	}
+
+	for i := 0; i < maxWSOrderbookWorkers; i++ {
+		// 10 workers for synchronising book
+		b.SynchroniseWebsocketOrderbook()
 	}
 }
 
@@ -100,8 +111,8 @@ func (b *Bittrex) UpdateLocalOBBuffer(update *OrderbookUpdateMessage) (bool, err
 }
 
 // SeedLocalOBCache seeds depth data
-func (b *Bittrex) SeedLocalOBCache(p currency.Pair) error {
-	ob, sequence, err := b.GetOrderbook(p.String(), orderbookDepth)
+func (b *Bittrex) SeedLocalOBCache(ctx context.Context, p currency.Pair) error {
+	ob, sequence, err := b.GetOrderbook(ctx, p.String(), orderbookDepth)
 	if err != nil {
 		return err
 	}
@@ -183,6 +194,14 @@ func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 		defer b.Websocket.Wg.Done()
 		for {
 			select {
+			case <-b.Websocket.ShutdownC:
+				for {
+					select {
+					case <-b.obm.jobs:
+					default:
+						return
+					}
+				}
 			case j := <-b.obm.jobs:
 				err := b.processJob(j.Pair)
 				if err != nil {
@@ -190,8 +209,6 @@ func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 						"%s processing websocket orderbook error %v",
 						b.Name, err)
 				}
-			case <-b.Websocket.ShutdownC:
-				return
 			}
 		}
 	}()
@@ -199,7 +216,7 @@ func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 
 // processJob fetches and processes orderbook updates
 func (b *Bittrex) processJob(p currency.Pair) error {
-	err := b.SeedLocalOBCache(p)
+	err := b.SeedLocalOBCache(context.TODO(), p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)

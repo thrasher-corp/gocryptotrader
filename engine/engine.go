@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -211,10 +212,22 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	if b.Settings.GlobalHTTPTimeout <= 0 {
 		b.Settings.GlobalHTTPTimeout = b.Config.GlobalHTTPTimeout
 	}
-	common.SetHTTPClientWithTimeout(b.Settings.GlobalHTTPTimeout)
+
+	err := common.SetHTTPClientWithTimeout(b.Settings.GlobalHTTPTimeout)
+	if err != nil {
+		gctlog.Errorf(gctlog.Global,
+			"Could not set new HTTP Client with timeout %s error: %v",
+			b.Settings.GlobalHTTPTimeout,
+			err)
+	}
 
 	if b.Settings.GlobalHTTPUserAgent != "" {
-		common.HTTPUserAgent = b.Settings.GlobalHTTPUserAgent
+		err = common.SetHTTPUserAgent(b.Settings.GlobalHTTPUserAgent)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "Could not set HTTP User Agent for %s error: %v",
+				b.Settings.GlobalHTTPUserAgent,
+				err)
+		}
 	}
 }
 
@@ -723,7 +736,12 @@ func (bot *Engine) UnloadExchange(exchName string) error {
 
 // GetExchanges retrieves the loaded exchanges
 func (bot *Engine) GetExchanges() []exchange.IBotExchange {
-	return bot.ExchangeManager.GetExchanges()
+	exch, err := bot.ExchangeManager.GetExchanges()
+	if err != nil {
+		gctlog.Warnf(gctlog.ExchangeSys, "Cannot get exchanges: %v", err)
+		return []exchange.IBotExchange{}
+	}
+	return exch
 }
 
 // LoadExchange loads an exchange by name. Optional wait group can be added for
@@ -829,7 +847,7 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 			useAsset = assetTypes[a]
 			break
 		}
-		err = exch.ValidateCredentials(useAsset)
+		err = exch.ValidateCredentials(context.TODO(), useAsset)
 		if err != nil {
 			gctlog.Warnf(gctlog.ExchangeSys,
 				"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",
@@ -924,7 +942,7 @@ func (bot *Engine) SetupExchanges() error {
 		}(configs[x])
 	}
 	wg.Wait()
-	if len(bot.ExchangeManager.GetExchanges()) == 0 {
+	if len(bot.GetExchanges()) == 0 {
 		return ErrNoExchangesLoaded
 	}
 	return nil

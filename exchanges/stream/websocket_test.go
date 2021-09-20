@@ -153,8 +153,14 @@ func TestSetup(t *testing.T) {
 	}
 	websocketSetup.WebsocketTimeout = time.Minute
 	err = w.Setup(websocketSetup)
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, errGenerateSubsciptionsUnset) {
+		t.Fatalf("received: %v but expected: %v", err, errGenerateSubsciptionsUnset)
+	}
+
+	websocketSetup.GenerateSubscriptions = func() ([]ChannelSubscription, error) { return nil, nil }
+	err = w.Setup(websocketSetup)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 }
 
@@ -544,23 +550,33 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	ws.DataHandler = make(chan interface{}, 1)
 	ws.ShutdownC = make(chan struct{}, 1)
 	ws.exchangeName = "hello"
-	ws.trafficTimeout = 1
 	ws.Wg = &sync.WaitGroup{}
-	ws.connectionMonitor()
+	ws.enabled = true
+	err := ws.connectionMonitor()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
-	ws.connectionMonitor() // This one should exit
+	err = ws.connectionMonitor()
+	if !errors.Is(err, errAlreadyRunning) {
+		t.Fatalf("received: %v, but expected: %v", err, errAlreadyRunning)
+	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
-	time.Sleep(time.Millisecond * 100)
+	ws.setEnabled(false)
+	time.Sleep(time.Second * 2)
 	if ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should have exited")
 	}
 	ws.setConnectedStatus(true)  // attempt shutdown when not enabled
 	ws.setConnectingStatus(true) // throw a spanner in the works
-	ws.connectionMonitor()
+	err = ws.connectionMonitor()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
@@ -1083,6 +1099,9 @@ func TestFlushChannels(t *testing.T) {
 	// Disable pair and flush system
 	newgen.EnabledPairs = []currency.Pair{
 		currency.NewPair(currency.BTC, currency.AUD)}
+	web.GenerateSubs = func() ([]ChannelSubscription, error) {
+		return []ChannelSubscription{{Channel: "test"}}, nil
+	}
 	err = web.FlushChannels()
 	if err != nil {
 		t.Fatal(err)
@@ -1181,7 +1200,12 @@ func TestEnable(t *testing.T) {
 		connector: connect,
 		Wg:        new(sync.WaitGroup),
 		ShutdownC: make(chan struct{}),
+		GenerateSubs: func() ([]ChannelSubscription, error) {
+			return []ChannelSubscription{{Channel: "test"}}, nil
+		},
+		Subscriber: func(cs []ChannelSubscription) error { return nil },
 	}
+
 	err := web.Enable()
 	if err != nil {
 		t.Fatal(err)

@@ -1,6 +1,7 @@
 package zb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -65,7 +66,7 @@ func TestSpotNewOrder(t *testing.T) {
 		Amount: 0.01,
 		Price:  10246.1,
 	}
-	_, err := z.SpotNewOrder(arg)
+	_, err := z.SpotNewOrder(context.Background(), arg)
 	if err != nil {
 		t.Errorf("ZB SpotNewOrder: %s", err)
 	}
@@ -78,7 +79,7 @@ func TestCancelExistingOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	err := z.CancelExistingOrder(20180629145864850, testCurrency)
+	err := z.CancelExistingOrder(context.Background(), 20180629145864850, testCurrency)
 	if err != nil {
 		t.Errorf("ZB CancelExistingOrder: %s", err)
 	}
@@ -86,7 +87,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetLatestSpotPrice(testCurrency)
+	_, err := z.GetLatestSpotPrice(context.Background(), testCurrency)
 	if err != nil {
 		t.Errorf("ZB GetLatestSpotPrice: %s", err)
 	}
@@ -94,7 +95,7 @@ func TestGetLatestSpotPrice(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetTicker(testCurrency)
+	_, err := z.GetTicker(context.Background(), testCurrency)
 	if err != nil {
 		t.Errorf("ZB GetTicker: %s", err)
 	}
@@ -102,7 +103,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetTickers()
+	_, err := z.GetTickers(context.Background())
 	if err != nil {
 		t.Errorf("ZB GetTicker: %s", err)
 	}
@@ -110,7 +111,7 @@ func TestGetTickers(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetOrderbook(testCurrency)
+	_, err := z.GetOrderbook(context.Background(), testCurrency)
 	if err != nil {
 		t.Errorf("ZB GetTicker: %s", err)
 	}
@@ -118,7 +119,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetMarkets()
+	_, err := z.GetMarkets(context.Background())
 	if err != nil {
 		t.Errorf("ZB GetMarkets: %s", err)
 	}
@@ -143,7 +144,7 @@ func TestGetActiveOrders(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
-	_, err := z.GetActiveOrders(&getOrdersRequest)
+	_, err := z.GetActiveOrders(context.Background(), &getOrdersRequest)
 	if z.ValidateAPICredentials() && err != nil {
 		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
@@ -163,7 +164,7 @@ func TestGetOrderHistory(t *testing.T) {
 			currency.BTC)},
 	}
 
-	_, err := z.GetOrderHistory(&getOrdersRequest)
+	_, err := z.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if z.ValidateAPICredentials() && err != nil {
 		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
@@ -196,7 +197,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "meowOrder",
 		AssetType: asset.Spot,
 	}
-	response, err := z.SubmitOrder(orderSubmission)
+	response, err := z.SubmitOrder(context.Background(), orderSubmission)
 	if z.ValidateAPICredentials() && err != nil {
 		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
@@ -224,7 +225,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		AssetType:     asset.Spot,
 	}
 
-	err := z.CancelOrder(orderCancellation)
+	err := z.CancelOrder(context.Background(), orderCancellation)
 	if z.ValidateAPICredentials() && err != nil {
 		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
@@ -249,7 +250,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AssetType:     asset.Spot,
 	}
 
-	resp, err := z.CancelAllOrders(orderCancellation)
+	resp, err := z.CancelAllOrders(context.Background(), orderCancellation)
 
 	if z.ValidateAPICredentials() && err != nil {
 		t.Error(err)
@@ -266,12 +267,12 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	if z.ValidateAPICredentials() {
-		_, err := z.UpdateAccountInfo(asset.Spot)
+		_, err := z.UpdateAccountInfo(context.Background(), asset.Spot)
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := z.UpdateAccountInfo(asset.Spot)
+		_, err := z.UpdateAccountInfo(context.Background(), asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
@@ -285,7 +286,8 @@ func TestModifyOrder(t *testing.T) {
 	if z.ValidateAPICredentials() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := z.ModifyOrder(&order.Modify{AssetType: asset.Spot})
+	_, err := z.ModifyOrder(context.Background(),
+		&order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}
@@ -309,7 +311,8 @@ func TestWithdraw(t *testing.T) {
 		Description: "WITHDRAW IT ALL",
 	}
 
-	_, err := z.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
+	_, err := z.WithdrawCryptocurrencyFunds(context.Background(),
+		&withdrawCryptoRequest)
 	if z.ValidateAPICredentials() && err != nil {
 		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
@@ -326,7 +329,7 @@ func TestWithdrawFiat(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = withdraw.Request{}
-	_, err := z.WithdrawFiatFunds(&withdrawFiatRequest)
+	_, err := z.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
@@ -341,7 +344,8 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = withdraw.Request{}
-	_, err := z.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
+	_, err := z.WithdrawFiatFundsToInternationalBank(context.Background(),
+		&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
@@ -352,13 +356,13 @@ func TestGetDepositAddress(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	if z.ValidateAPICredentials() {
-		_, err := z.GetDepositAddress(currency.BTC, "")
+		_, err := z.GetDepositAddress(context.Background(), currency.BTC, "")
 		if err != nil {
 			t.Error("GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",
 				err)
 		}
 	} else {
-		_, err := z.GetDepositAddress(currency.BTC, "")
+		_, err := z.GetDepositAddress(context.Background(), currency.BTC, "")
 		if err == nil {
 			t.Error("GetDepositAddress() Expected error")
 		}
@@ -741,7 +745,7 @@ func TestGetSpotKline(t *testing.T) {
 		arg.Type = "1day"
 	}
 
-	_, err := z.GetSpotKline(arg)
+	_, err := z.GetSpotKline(context.Background(), arg)
 	if err != nil {
 		t.Errorf("ZB GetSpotKline: %s", err)
 	}
@@ -760,11 +764,13 @@ func TestGetHistoricCandles(t *testing.T) {
 		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
 	}
 
-	_, err = z.GetHistoricCandles(currencyPair, asset.Spot, startTime, endTime, kline.OneDay)
+	_, err = z.GetHistoricCandles(context.Background(),
+		currencyPair, asset.Spot, startTime, endTime, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = z.GetHistoricCandles(currencyPair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*7))
+	_, err = z.GetHistoricCandles(context.Background(),
+		currencyPair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
@@ -781,7 +787,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
 	}
-	_, err = z.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, endTime, kline.OneDay)
+	_, err = z.GetHistoricCandlesExtended(context.Background(),
+		currencyPair, asset.Spot, startTime, endTime, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -878,7 +885,7 @@ func TestValidateCandlesRequest(t *testing.T) {
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 
-	trades, err := z.GetTrades("btc_usdt")
+	trades, err := z.GetTrades(context.Background(), "btc_usdt")
 	if err != nil {
 		t.Error(err)
 	}
@@ -894,7 +901,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = z.GetRecentTrades(currencyPair, asset.Spot)
+	_, err = z.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -906,7 +913,8 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = z.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err = z.GetHistoricTrades(context.Background(),
+		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
@@ -918,7 +926,7 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = z.UpdateTicker(cp, asset.Spot)
+	_, err = z.UpdateTicker(context.Background(), cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -926,7 +934,7 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := z.UpdateTickers(asset.Spot)
+	err := z.UpdateTickers(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

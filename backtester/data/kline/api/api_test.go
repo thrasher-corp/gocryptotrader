@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -37,7 +38,8 @@ func TestLoadCandles(t *testing.T) {
 	interval := gctkline.OneMin
 	a := asset.Spot
 	var data *gctkline.Item
-	data, err = LoadData(common.DataCandle, tt1, tt2, interval.Duration(), exch, cp, a)
+	data, err = LoadData(context.Background(),
+		common.DataCandle, tt1, tt2, interval.Duration(), exch, cp, a)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +47,8 @@ func TestLoadCandles(t *testing.T) {
 		t.Error("expected candles")
 	}
 
-	_, err = LoadData(-1, tt1, tt2, interval.Duration(), exch, cp, a)
+	_, err = LoadData(context.Background(),
+		-1, tt1, tt2, interval.Duration(), exch, cp, a)
 	if !errors.Is(err, common.ErrInvalidDataType) {
 		t.Errorf("expected '%v' received '%v'", err, common.ErrInvalidDataType)
 	}
@@ -73,7 +76,8 @@ func TestLoadTrades(t *testing.T) {
 	tt2 := time.Now().Round(interval.Duration())
 	a := asset.Spot
 	var data *gctkline.Item
-	data, err = LoadData(common.DataTrade, tt1, tt2, interval.Duration(), exch, cp, a)
+	data, err = LoadData(context.Background(),
+		common.DataTrade, tt1, tt2, interval.Duration(), exch, cp, a)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,6 +1,7 @@
 package huobi
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -42,7 +43,7 @@ func (h *HUOBI) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	}
 
 	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = h.UpdateTradablePairs(true)
+		err = h.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -330,7 +331,7 @@ func (h *HUOBI) Run() {
 		return
 	}
 
-	err = h.UpdateTradablePairs(forceUpdate)
+	err = h.UpdateTradablePairs(context.TODO(), forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -340,7 +341,7 @@ func (h *HUOBI) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
+func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
 	if !h.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, h.Name)
 	}
@@ -354,7 +355,7 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 
 	switch a {
 	case asset.Spot:
-		symbols, err := h.GetSymbols()
+		symbols, err := h.GetSymbols(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -369,7 +370,7 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 		}
 
 	case asset.CoinMarginedFutures:
-		symbols, err := h.GetSwapMarkets(currency.Pair{})
+		symbols, err := h.GetSwapMarkets(ctx, currency.Pair{})
 		if err != nil {
 			return nil, err
 		}
@@ -384,7 +385,7 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 			}
 		}
 	case asset.Futures:
-		symbols, err := h.FGetContractInfo("", "", currency.Pair{})
+		symbols, err := h.FGetContractInfo(ctx, "", "", currency.Pair{})
 		if err != nil {
 			return nil, err
 		}
@@ -404,8 +405,8 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
-	spotPairs, err := h.FetchTradablePairs(asset.Spot)
+func (h *HUOBI) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+	spotPairs, err := h.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
@@ -418,7 +419,7 @@ func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	futuresPairs, err := h.FetchTradablePairs(asset.Futures)
+	futuresPairs, err := h.FetchTradablePairs(ctx, asset.Futures)
 	if err != nil {
 		return err
 	}
@@ -431,7 +432,7 @@ func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	coinmarginedFuturesPairs, err := h.FetchTradablePairs(asset.CoinMarginedFutures)
+	coinmarginedFuturesPairs, err := h.FetchTradablePairs(ctx, asset.CoinMarginedFutures)
 	if err != nil {
 		return err
 	}
@@ -443,18 +444,18 @@ func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (h *HUOBI) UpdateTickers(a asset.Item) error {
+func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (h *HUOBI) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if !h.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, h.Name)
 	}
 	switch a {
 	case asset.Spot:
-		tickerData, err := h.Get24HrMarketSummary(p)
+		tickerData, err := h.Get24HrMarketSummary(ctx, p)
 		if err != nil {
 			return nil, err
 		}
@@ -472,7 +473,7 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, erro
 			return nil, err
 		}
 	case asset.CoinMarginedFutures:
-		marketData, err := h.GetSwapMarketOverview(p)
+		marketData, err := h.GetSwapMarketOverview(ctx, p)
 		if err != nil {
 			return nil, err
 		}
@@ -500,7 +501,7 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, erro
 			return nil, err
 		}
 	case asset.Futures:
-		marketData, err := h.FGetMarketOverviewData(p)
+		marketData, err := h.FGetMarketOverviewData(ctx, p)
 		if err != nil {
 			return nil, err
 		}
@@ -525,25 +526,25 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, erro
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (h *HUOBI) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (h *HUOBI) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(h.Name, p, assetType)
 	if err != nil {
-		return h.UpdateTicker(p, assetType)
+		return h.UpdateTicker(ctx, p, assetType)
 	}
 	return tickerNew, nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (h *HUOBI) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(h.Name, p, assetType)
 	if err != nil {
-		return h.UpdateOrderbook(p, assetType)
+		return h.UpdateOrderbook(ctx, p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
 		Exchange:        h.Name,
 		Pair:            p,
@@ -554,10 +555,11 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	switch assetType {
 	case asset.Spot:
 		var orderbookNew Orderbook
-		orderbookNew, err = h.GetDepth(OrderBookDataRequestParams{
-			Symbol: p,
-			Type:   OrderBookDataRequestParamsTypeStep0,
-		})
+		orderbookNew, err = h.GetDepth(ctx,
+			OrderBookDataRequestParams{
+				Symbol: p,
+				Type:   OrderBookDataRequestParamsTypeStep0,
+			})
 		if err != nil {
 			return nil, err
 		}
@@ -578,7 +580,7 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 	case asset.Futures:
 		var orderbookNew OBData
-		orderbookNew, err = h.FGetMarketDepth(p, "step0")
+		orderbookNew, err = h.FGetMarketDepth(ctx, p, "step0")
 		if err != nil {
 			return nil, err
 		}
@@ -598,7 +600,7 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 	case asset.CoinMarginedFutures:
 		var orderbookNew SwapMarketDepthData
-		orderbookNew, err = h.GetSwapMarketDepth(p, "step0")
+		orderbookNew, err = h.GetSwapMarketDepth(ctx, p, "step0")
 		if err != nil {
 			return nil, err
 		}
@@ -624,8 +626,8 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 }
 
 // GetAccountID returns the account ID for trades
-func (h *HUOBI) GetAccountID() ([]Account, error) {
-	acc, err := h.GetAccounts()
+func (h *HUOBI) GetAccountID(ctx context.Context) ([]Account, error) {
+	acc, err := h.GetAccounts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -639,7 +641,7 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
-func (h *HUOBI) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
 	info.Exchange = h.Name
@@ -666,13 +668,13 @@ func (h *HUOBI) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 			}
 			acc.Currencies = currencyDetails
 		} else {
-			accounts, err := h.GetAccountID()
+			accounts, err := h.GetAccountID(ctx)
 			if err != nil {
 				return info, err
 			}
 			for i := range accounts {
 				acc.ID = strconv.FormatInt(accounts[i].ID, 10)
-				balances, err := h.GetAccountBalance(acc.ID)
+				balances, err := h.GetAccountBalance(ctx, acc.ID)
 				if err != nil {
 					return info, err
 				}
@@ -711,13 +713,15 @@ func (h *HUOBI) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 		}
 
 	case asset.CoinMarginedFutures:
-		subAccsData, err := h.GetSwapAllSubAccAssets(currency.Pair{})
+		subAccsData, err := h.GetSwapAllSubAccAssets(ctx, currency.Pair{})
 		if err != nil {
 			return info, err
 		}
 		var currencyDetails []account.Balance
 		for x := range subAccsData.Data {
-			a, err := h.SwapSingleSubAccAssets(currency.Pair{}, subAccsData.Data[x].SubUID)
+			a, err := h.SwapSingleSubAccAssets(ctx,
+				currency.Pair{},
+				subAccsData.Data[x].SubUID)
 			if err != nil {
 				return info, err
 			}
@@ -731,13 +735,15 @@ func (h *HUOBI) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 		}
 		acc.Currencies = currencyDetails
 	case asset.Futures:
-		subAccsData, err := h.FGetAllSubAccountAssets(currency.Code{})
+		subAccsData, err := h.FGetAllSubAccountAssets(ctx, currency.Code{})
 		if err != nil {
 			return info, err
 		}
 		var currencyDetails []account.Balance
 		for x := range subAccsData.Data {
-			a, err := h.FGetSingleSubAccountInfo("", strconv.FormatInt(subAccsData.Data[x].SubUID, 10))
+			a, err := h.FGetSingleSubAccountInfo(ctx,
+				"",
+				strconv.FormatInt(subAccsData.Data[x].SubUID, 10))
 			if err != nil {
 				return info, err
 			}
@@ -761,30 +767,30 @@ func (h *HUOBI) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (h *HUOBI) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (h *HUOBI) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(h.Name, assetType)
 	if err != nil {
-		return h.UpdateAccountInfo(assetType)
+		return h.UpdateAccountInfo(ctx, assetType)
 	}
 	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (h *HUOBI) GetFundingHistory() ([]exchange.FundHistory, error) {
+func (h *HUOBI) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (h *HUOBI) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (h *HUOBI) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (h *HUOBI) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	var tradeData []TradeHistory
-	tradeData, err = h.GetTradeHistory(p, 2000)
+	tradeData, err = h.GetTradeHistory(ctx, p, 2000)
 	if err != nil {
 		return nil, err
 	}
@@ -819,12 +825,12 @@ func (h *HUOBI) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (h *HUOBI) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (h *HUOBI) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
-func (h *HUOBI) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
@@ -855,7 +861,7 @@ func (h *HUOBI) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			params.Price = s.Price
 		}
 		params.Type = formattedType
-		response, err := h.SpotNewOrder(&params)
+		response, err := h.SpotNewOrder(ctx, &params)
 		if err != nil {
 			return submitOrderResponse, err
 		}
@@ -881,7 +887,15 @@ func (h *HUOBI) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		case order.PostOnly:
 			oType = "post_only"
 		}
-		order, err := h.PlaceSwapOrders(s.Pair, s.ClientOrderID, oDirection, s.Offset, oType, s.Price, s.Amount, s.Leverage)
+		order, err := h.PlaceSwapOrders(ctx,
+			s.Pair,
+			s.ClientOrderID,
+			oDirection,
+			s.Offset,
+			oType,
+			s.Price,
+			s.Amount,
+			s.Leverage)
 		if err != nil {
 			return submitOrderResponse, err
 		}
@@ -902,7 +916,17 @@ func (h *HUOBI) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		case order.PostOnly:
 			oType = "post_only"
 		}
-		order, err := h.FOrder(s.Pair, "", "", s.ClientOrderID, oDirection, s.Offset, oType, s.Price, s.Amount, s.Leverage)
+		order, err := h.FOrder(ctx,
+			s.Pair,
+			"",
+			"",
+			s.ClientOrderID,
+			oDirection,
+			s.Offset,
+			oType,
+			s.Price,
+			s.Amount,
+			s.Leverage)
 		if err != nil {
 			return submitOrderResponse, err
 		}
@@ -914,12 +938,12 @@ func (h *HUOBI) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (h *HUOBI) ModifyOrder(action *order.Modify) (order.Modify, error) {
+func (h *HUOBI) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
 	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (h *HUOBI) CancelOrder(o *order.Cancel) error {
+func (h *HUOBI) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
@@ -931,11 +955,11 @@ func (h *HUOBI) CancelOrder(o *order.Cancel) error {
 		if err != nil {
 			return err
 		}
-		_, err = h.CancelExistingOrder(orderIDInt)
+		_, err = h.CancelExistingOrder(ctx, orderIDInt)
 	case asset.CoinMarginedFutures:
-		_, err = h.CancelSwapOrder(o.ID, o.ClientID, o.Pair)
+		_, err = h.CancelSwapOrder(ctx, o.ID, o.ClientID, o.Pair)
 	case asset.Futures:
-		_, err = h.FCancelOrder(o.Symbol, o.ClientID, o.ClientOrderID)
+		_, err = h.FCancelOrder(ctx, o.Symbol, o.ClientID, o.ClientOrderID)
 	default:
 		return fmt.Errorf("%v assetType not supported", o.AssetType)
 	}
@@ -943,12 +967,12 @@ func (h *HUOBI) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (h *HUOBI) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+func (h *HUOBI) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (h *HUOBI) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -961,7 +985,8 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 			return cancelAllOrdersResponse, err
 		}
 		for i := range enabledPairs {
-			resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID,
+			resp, err := h.CancelOpenOrdersBatch(ctx,
+				orderCancellation.AccountID,
 				enabledPairs[i])
 			if err != nil {
 				return cancelAllOrdersResponse, err
@@ -982,7 +1007,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 				return cancelAllOrdersResponse, err
 			}
 			for i := range enabledPairs {
-				a, err := h.CancelAllSwapOrders(enabledPairs[i])
+				a, err := h.CancelAllSwapOrders(ctx, enabledPairs[i])
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
@@ -995,7 +1020,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 				}
 			}
 		} else {
-			a, err := h.CancelAllSwapOrders(orderCancellation.Pair)
+			a, err := h.CancelAllSwapOrders(ctx, orderCancellation.Pair)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1014,7 +1039,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 				return cancelAllOrdersResponse, err
 			}
 			for i := range enabledPairs {
-				a, err := h.FCancelAllOrders(enabledPairs[i], "", "")
+				a, err := h.FCancelAllOrders(ctx, enabledPairs[i], "", "")
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
@@ -1027,7 +1052,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 				}
 			}
 		} else {
-			a, err := h.FCancelAllOrders(orderCancellation.Pair, "", "")
+			a, err := h.FCancelAllOrders(ctx, orderCancellation.Pair, "", "")
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1044,7 +1069,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 }
 
 // GetOrderInfo returns order information based on order ID
-func (h *HUOBI) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	switch assetType {
 	case asset.Spot:
@@ -1060,7 +1085,7 @@ func (h *HUOBI) GetOrderInfo(orderID string, pair currency.Pair, assetType asset
 			if err != nil {
 				return orderDetail, err
 			}
-			resp, err := h.GetOrder(oID)
+			resp, err := h.GetOrder(ctx, oID)
 			if err != nil {
 				return orderDetail, err
 			}
@@ -1133,7 +1158,7 @@ func (h *HUOBI) GetOrderInfo(orderID string, pair currency.Pair, assetType asset
 			AssetType:      a,
 		}
 	case asset.CoinMarginedFutures:
-		orderInfo, err := h.GetSwapOrderInfo(pair, orderID, "")
+		orderInfo, err := h.GetSwapOrderInfo(ctx, pair, orderID, "")
 		if err != nil {
 			return orderDetail, err
 		}
@@ -1159,7 +1184,7 @@ func (h *HUOBI) GetOrderInfo(orderID string, pair currency.Pair, assetType asset
 			})
 		}
 	case asset.Futures:
-		orderInfo, err := h.FGetOrderInfo("", orderID, "")
+		orderInfo, err := h.FGetOrderInfo(ctx, "", orderID, "")
 		if err != nil {
 			return orderDetail, err
 		}
@@ -1186,18 +1211,19 @@ func (h *HUOBI) GetOrderInfo(orderID string, pair currency.Pair, assetType asset
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (h *HUOBI) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
-	resp, err := h.QueryDepositAddress(cryptocurrency.Lower().String())
+func (h *HUOBI) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
+	resp, err := h.QueryDepositAddress(ctx, cryptocurrency.Lower().String())
 	return resp.Address, err
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (h *HUOBI) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (h *HUOBI) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := h.Withdraw(withdrawRequest.Currency,
+	resp, err := h.Withdraw(ctx,
+		withdrawRequest.Currency,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.Amount,
@@ -1212,18 +1238,18 @@ func (h *HUOBI) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (h *HUOBI) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (h *HUOBI) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (h *HUOBI) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (h *HUOBI) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -1292,7 +1318,8 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 			}
 		} else {
 			for i := range req.Pairs {
-				resp, err := h.GetOpenOrders(req.Pairs[i],
+				resp, err := h.GetOpenOrders(ctx,
+					req.Pairs[i],
 					h.API.Credentials.ClientID,
 					side,
 					500)
@@ -1321,7 +1348,8 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		for x := range req.Pairs {
 			var currentPage int64 = 0
 			for done := false; !done; {
-				openOrders, err := h.GetSwapOpenOrders(req.Pairs[x], currentPage, 50)
+				openOrders, err := h.GetSwapOpenOrders(ctx,
+					req.Pairs[x], currentPage, 50)
 				if err != nil {
 					return orders, err
 				}
@@ -1360,7 +1388,8 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		for x := range req.Pairs {
 			var currentPage int64 = 0
 			for done := false; !done; {
-				openOrders, err := h.FGetOpenOrders(req.Pairs[x].Base, currentPage, 50)
+				openOrders, err := h.FGetOpenOrders(ctx,
+					req.Pairs[x].Base, currentPage, 50)
 				if err != nil {
 					return orders, err
 				}
@@ -1404,7 +1433,7 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -1416,7 +1445,7 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		}
 		states := "partial-canceled,filled,canceled"
 		for i := range req.Pairs {
-			resp, err := h.GetOrders(
+			resp, err := h.GetOrders(ctx,
 				req.Pairs[i],
 				"",
 				"",
@@ -1449,7 +1478,14 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		for x := range req.Pairs {
 			var currentPage int64 = 0
 			for done := false; !done; {
-				orderHistory, err := h.GetSwapOrderHistory(req.Pairs[x], "all", "all", []order.Status{order.AnyStatus}, int64(req.EndTime.Sub(req.StartTime).Hours()/24), currentPage, 50)
+				orderHistory, err := h.GetSwapOrderHistory(ctx,
+					req.Pairs[x],
+					"all",
+					"all",
+					[]order.Status{order.AnyStatus},
+					int64(req.EndTime.Sub(req.StartTime).Hours()/24),
+					currentPage,
+					50)
 				if err != nil {
 					return orders, err
 				}
@@ -1493,7 +1529,16 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		for x := range req.Pairs {
 			var currentPage int64 = 0
 			for done := false; !done; {
-				openOrders, err := h.FGetOrderHistory(req.Pairs[x], "", "all", "all", "limit", []order.Status{order.AnyStatus}, int64(req.EndTime.Sub(req.StartTime).Hours()/24), currentPage, 50)
+				openOrders, err := h.FGetOrderHistory(ctx,
+					req.Pairs[x],
+					"",
+					"all",
+					"all",
+					"limit",
+					[]order.Status{order.AnyStatus},
+					int64(req.EndTime.Sub(req.StartTime).Hours()/24),
+					currentPage,
+					50)
 				if err != nil {
 					return orders, err
 				}
@@ -1564,14 +1609,14 @@ func setOrderSideAndType(requestType string, orderDetail *order.Detail) {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (h *HUOBI) AuthenticateWebsocket() error {
+func (h *HUOBI) AuthenticateWebsocket(_ context.Context) error {
 	return h.wsLogin()
 }
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (h *HUOBI) ValidateCredentials(assetType asset.Item) error {
-	_, err := h.UpdateAccountInfo(assetType)
+func (h *HUOBI) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := h.UpdateAccountInfo(ctx, assetType)
 	return h.CheckTransientError(err)
 }
 
@@ -1595,7 +1640,7 @@ func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if err := h.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
@@ -1603,7 +1648,7 @@ func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 		Period: h.FormatExchangeKlineInterval(interval),
 		Symbol: pair,
 	}
-	candles, err := h.GetSpotKline(klineParams)
+	candles, err := h.GetSpotKline(ctx, klineParams)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -1632,8 +1677,8 @@ func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (h *HUOBI) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return h.GetHistoricCandles(pair, a, start, end, interval)
+func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return h.GetHistoricCandles(ctx, pair, a, start, end, interval)
 }
 
 // compatibleVars gets compatible variables for order vars

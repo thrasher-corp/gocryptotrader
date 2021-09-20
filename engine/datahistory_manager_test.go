@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"strings"
@@ -1542,7 +1543,7 @@ type dhmExchange struct {
 	exchange.IBotExchange
 }
 
-func (f dhmExchange) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
+func (f dhmExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
 		Exchange: testExchange,
 		Pair:     p,
@@ -1577,7 +1578,7 @@ func (f dhmExchange) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, t
 	}, nil
 }
 
-func (f dhmExchange) GetHistoricTrades(p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
+func (f dhmExchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
 	return []trade.Data{
 		{
 			Exchange:     testExchange,

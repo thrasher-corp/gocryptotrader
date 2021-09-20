@@ -37,6 +37,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/goose"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -51,7 +52,7 @@ type fExchange struct {
 	exchange.IBotExchange
 }
 
-func (f fExchange) GetHistoricCandles(p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
+func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
 		Exchange: "fake",
 		Pair:     p,
@@ -70,7 +71,7 @@ func (f fExchange) GetHistoricCandles(p currency.Pair, a asset.Item, timeStart, 
 	}, nil
 }
 
-func (f fExchange) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
+func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
 		Exchange: "fake",
 		Pair:     p,
@@ -91,7 +92,7 @@ func (f fExchange) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, tim
 
 // FetchAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) FetchAccountInfo(a asset.Item) (account.Holdings, error) {
+func (f fExchange) FetchAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
 	return account.Holdings{
 		Exchange: f.GetName(),
 		Accounts: []account.SubAccount{
@@ -106,7 +107,7 @@ func (f fExchange) FetchAccountInfo(a asset.Item) (account.Holdings, error) {
 
 // UpdateAccountInfo overrides testExchange's update account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
+func (f fExchange) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
 	if a == asset.Futures {
 		return account.Holdings{}, errAssetTypeDisabled
 	}
@@ -906,6 +907,18 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
+// dummyServer implements a basic RPC server interface for deployment in a test
+// when streaming occurs, so we can deliver a context value.
+type dummyServer struct{}
+
+func (d *dummyServer) Send(*gctrpc.SavedTradesResponse) error { return nil }
+func (d *dummyServer) SetHeader(metadata.MD) error            { return nil }
+func (d *dummyServer) SendHeader(metadata.MD) error           { return nil }
+func (d *dummyServer) SetTrailer(metadata.MD)                 {}
+func (d *dummyServer) Context() context.Context               { return context.Background() }
+func (d *dummyServer) SendMsg(m interface{}) error            { return nil }
+func (d *dummyServer) RecvMsg(m interface{}) error            { return nil }
+
 func TestGetHistoricTrades(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
@@ -938,7 +951,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-	}, nil)
+	}, &dummyServer{})
 	if err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
@@ -1033,10 +1046,7 @@ func TestGetOrders(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	err = om.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	om.started = 1
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
@@ -1144,7 +1154,7 @@ func TestGetOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	err = om.Start()
+	om.started = 1
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1674,10 +1684,7 @@ func TestGetManagedOrders(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	err = om.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	om.started = 1
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{

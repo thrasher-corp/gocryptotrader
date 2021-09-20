@@ -1,6 +1,7 @@
 package sharedtestvalues
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -43,35 +44,35 @@ func (c *CustomEx) IsEnabled() bool {
 func (c *CustomEx) SetEnabled(bool) {
 }
 
-func (c *CustomEx) ValidateCredentials(a asset.Item) error {
+func (c *CustomEx) ValidateCredentials(ctx context.Context, a asset.Item) error {
 	return nil
 }
 
-func (c *CustomEx) FetchTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (c *CustomEx) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) UpdateTickers(a asset.Item) error {
+func (c *CustomEx) UpdateTickers(ctx context.Context, a asset.Item) error {
 	return nil
 }
 
-func (c *CustomEx) UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (c *CustomEx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) FetchOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (c *CustomEx) FetchOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (c *CustomEx) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) FetchTradablePairs(a asset.Item) ([]string, error) {
+func (c *CustomEx) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) UpdateTradablePairs(forceUpdate bool) error {
+func (c *CustomEx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	return nil
 }
 
@@ -83,11 +84,11 @@ func (c *CustomEx) GetAvailablePairs(a asset.Item) (currency.Pairs, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) FetchAccountInfo(a asset.Item) (account.Holdings, error) {
+func (c *CustomEx) FetchAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
 
-func (c *CustomEx) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
+func (c *CustomEx) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
 
@@ -103,11 +104,11 @@ func (c *CustomEx) GetAssetTypes(enabled bool) asset.Items {
 	return nil
 }
 
-func (c *CustomEx) GetRecentTrades(p currency.Pair, a asset.Item) ([]trade.Data, error) {
+func (c *CustomEx) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) GetHistoricTrades(p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
+func (c *CustomEx) GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
 	return nil, nil
 }
 
@@ -135,59 +136,59 @@ func (c *CustomEx) SupportsWithdrawPermissions(permissions uint32) bool {
 	return false
 }
 
-func (c *CustomEx) GetFundingHistory() ([]exchange.FundHistory, error) {
+func (c *CustomEx) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+func (c *CustomEx) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
 	return order.SubmitResponse{}, nil
 }
 
-func (c *CustomEx) ModifyOrder(action *order.Modify) (order.Modify, error) {
+func (c *CustomEx) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
 	return order.Modify{}, nil
 }
 
-func (c *CustomEx) CancelOrder(o *order.Cancel) error {
+func (c *CustomEx) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	return nil
 }
 
-func (c *CustomEx) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+func (c *CustomEx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, nil
 }
 
-func (c *CustomEx) CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, error) {
+func (c *CustomEx) CancelAllOrders(ctx context.Context, orders *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{}, nil
 }
 
-func (c *CustomEx) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (c *CustomEx) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	return order.Detail{}, nil
 }
 
-func (c *CustomEx) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
+func (c *CustomEx) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID string) (string, error) {
 	return "", nil
 }
 
-func (c *CustomEx) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (c *CustomEx) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) GetWithdrawalsHistory(code currency.Code) ([]exchange.WithdrawalHistory, error) {
+func (c *CustomEx) GetWithdrawalsHistory(ctx context.Context, code currency.Code) ([]exchange.WithdrawalHistory, error) {
 	return []exchange.WithdrawalHistory{}, nil
 }
 
-func (c *CustomEx) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func (c *CustomEx) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	return []order.Detail{}, nil
 }
 
-func (c *CustomEx) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (c *CustomEx) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (c *CustomEx) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (c *CustomEx) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, nil
 }
 
@@ -222,11 +223,11 @@ func (c *CustomEx) SupportsAsset(assetType asset.Item) bool {
 	return false
 }
 
-func (c *CustomEx) GetHistoricCandles(p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error) {
+func (c *CustomEx) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, nil
 }
 
-func (c *CustomEx) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error) {
+func (c *CustomEx) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, nil
 }
 
@@ -266,7 +267,7 @@ func (c *CustomEx) FlushWebsocketChannels() error {
 	return nil
 }
 
-func (c *CustomEx) AuthenticateWebsocket() error {
+func (c *CustomEx) AuthenticateWebsocket(ctx context.Context) error {
 	return nil
 }
 
@@ -278,6 +279,6 @@ func (c *CustomEx) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, pri
 	return nil
 }
 
-func (c *CustomEx) UpdateOrderExecutionLimits(a asset.Item) error {
+func (c *CustomEx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	return nil
 }
