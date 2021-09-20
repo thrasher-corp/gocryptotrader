@@ -174,6 +174,11 @@ func (m *MinMax) validate() error {
 			m.MaximumSize,
 			m.MinimumSize)
 	}
+	if m.MaximumSize.Equal(m.MinimumSize) && !m.MinimumSize.IsZero() && !m.MaximumSize.IsZero() {
+		return fmt.Errorf("%w %v",
+			errMinMaxEqual,
+			m.MinimumSize)
+	}
 
 	return nil
 }

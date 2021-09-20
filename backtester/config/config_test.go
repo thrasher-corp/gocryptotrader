@@ -1111,6 +1111,19 @@ func TestValidateMinMaxes(t *testing.T) {
 	c.CurrencySettings = []CurrencySettings{
 		{
 			BuySide: MinMax{
+				MinimumSize: decimal.NewFromInt(2),
+				MaximumSize: decimal.NewFromInt(2),
+			},
+		},
+	}
+	err = c.validateMinMaxes()
+	if !errors.Is(err, errMinMaxEqual) {
+		t.Errorf("received %v expected %v", err, errMinMaxEqual)
+	}
+
+	c.CurrencySettings = []CurrencySettings{
+		{
+			BuySide: MinMax{
 				MinimumSize:  decimal.NewFromInt(1),
 				MaximumTotal: decimal.NewFromInt(10),
 				MaximumSize:  decimal.NewFromInt(2),
