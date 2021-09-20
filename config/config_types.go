@@ -37,6 +37,7 @@ const (
 	DefaultAPISecret                     = "Secret"
 	DefaultAPIClientID                   = "ClientID"
 	defaultDataHistoryMonitorCheckTimer  = time.Minute
+	defaultCurrencyStateManagerDelay     = time.Minute
 	defaultMaxJobsPerCycle               = 5
 )
 
@@ -72,23 +73,24 @@ var (
 // prestart management of Portfolio, Communications, Webserver and Enabled
 // Exchanges
 type Config struct {
-	Name               string                    `json:"name"`
-	DataDirectory      string                    `json:"dataDirectory"`
-	EncryptConfig      int                       `json:"encryptConfig"`
-	GlobalHTTPTimeout  time.Duration             `json:"globalHTTPTimeout"`
-	Database           database.Config           `json:"database"`
-	Logging            log.Config                `json:"logging"`
-	ConnectionMonitor  ConnectionMonitorConfig   `json:"connectionMonitor"`
-	DataHistoryManager DataHistoryManager        `json:"dataHistoryManager"`
-	Profiler           Profiler                  `json:"profiler"`
-	NTPClient          NTPClientConfig           `json:"ntpclient"`
-	GCTScript          gctscript.Config          `json:"gctscript"`
-	Currency           CurrencyConfig            `json:"currencyConfig"`
-	Communications     base.CommunicationsConfig `json:"communications"`
-	RemoteControl      RemoteControlConfig       `json:"remoteControl"`
-	Portfolio          portfolio.Base            `json:"portfolioAddresses"`
-	Exchanges          []ExchangeConfig          `json:"exchanges"`
-	BankAccounts       []banking.Account         `json:"bankAccounts"`
+	Name                 string                    `json:"name"`
+	DataDirectory        string                    `json:"dataDirectory"`
+	EncryptConfig        int                       `json:"encryptConfig"`
+	GlobalHTTPTimeout    time.Duration             `json:"globalHTTPTimeout"`
+	Database             database.Config           `json:"database"`
+	Logging              log.Config                `json:"logging"`
+	ConnectionMonitor    ConnectionMonitorConfig   `json:"connectionMonitor"`
+	DataHistoryManager   DataHistoryManager        `json:"dataHistoryManager"`
+	CurrencyStateManager CurrencyStateManager      `json:"currencyStateManager"`
+	Profiler             Profiler                  `json:"profiler"`
+	NTPClient            NTPClientConfig           `json:"ntpclient"`
+	GCTScript            gctscript.Config          `json:"gctscript"`
+	Currency             CurrencyConfig            `json:"currencyConfig"`
+	Communications       base.CommunicationsConfig `json:"communications"`
+	RemoteControl        RemoteControlConfig       `json:"remoteControl"`
+	Portfolio            portfolio.Base            `json:"portfolioAddresses"`
+	Exchanges            []ExchangeConfig          `json:"exchanges"`
+	BankAccounts         []banking.Account         `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
 	Webserver           *WebserverConfig          `json:"webserver,omitempty"`
@@ -108,6 +110,13 @@ type DataHistoryManager struct {
 	MaxJobsPerCycle     int64         `json:"maxJobsPerCycle"`
 	MaxResultInsertions int64         `json:"maxResultInsertions"`
 	Verbose             bool          `json:"verbose"`
+}
+
+// CurrencyStateManager defines a set of configuration options for the currency
+// state manager
+type CurrencyStateManager struct {
+	Enabled *bool         `json:"enabled"`
+	Delay   time.Duration `json:"delay"`
 }
 
 // ConnectionMonitorConfig defines the connection monitor variables to ensure

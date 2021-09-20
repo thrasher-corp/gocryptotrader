@@ -36,8 +36,7 @@ type Settings struct {
 	EnableGCTScriptManager      bool
 	EnableNTPClient             bool
 	EnableWebsocketRoutine      bool
-	EnableStateManager          bool
-	StateManagerDelay           time.Duration
+	EnableCurrencyStateManager  bool
 	EventManagerDelay           time.Duration
 	Verbose                     bool
 

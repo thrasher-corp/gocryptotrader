@@ -146,13 +146,17 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 
 	b.Settings.EnableDataHistoryManager = (flagSet["datahistorymanager"] && b.Settings.EnableDatabaseManager) || b.Config.DataHistoryManager.Enabled
 
+	b.Settings.EnableCurrencyStateManager = (flagSet["currencystatemanager"] &&
+		b.Settings.EnableCurrencyStateManager) ||
+		b.Config.CurrencyStateManager.Enabled != nil &&
+			*b.Config.CurrencyStateManager.Enabled
+
 	b.Settings.EnableGCTScriptManager = b.Settings.EnableGCTScriptManager &&
 		(flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
 
-	if b.Settings.EnablePortfolioManager {
-		if b.Settings.PortfolioManagerDelay <= 0 {
-			b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
-		}
+	if b.Settings.EnablePortfolioManager &&
+		b.Settings.PortfolioManagerDelay <= 0 {
+		b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
 	}
 
 	if !flagSet["grpc"] {
@@ -243,6 +247,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable coinmarketcap analaysis: %v", s.EnableCoinmarketcapAnalysis)
 	gctlog.Debugf(gctlog.Global, "\t Enable portfolio manager: %v", s.EnablePortfolioManager)
 	gctlog.Debugf(gctlog.Global, "\t Enable data history manager: %v", s.EnableDataHistoryManager)
+	gctlog.Debugf(gctlog.Global, "\t Enable currency state manager: %v", s.EnableCurrencyStateManager)
 	gctlog.Debugf(gctlog.Global, "\t Portfolio manager sleep delay: %v\n", s.PortfolioManagerDelay)
 	gctlog.Debugf(gctlog.Global, "\t Enable gPRC: %v", s.EnableGRPC)
 	gctlog.Debugf(gctlog.Global, "\t Enable gRPC Proxy: %v", s.EnableGRPCProxy)
@@ -461,8 +466,7 @@ func (bot *Engine) Start() error {
 		return err
 	}
 
-	if bot.Settings.EnableDeprecatedRPC ||
-		bot.Settings.EnableWebsocketRPC {
+	if bot.Settings.EnableDeprecatedRPC || bot.Settings.EnableWebsocketRPC {
 		var filePath string
 		filePath, err = config.GetAndMigrateDefaultPath(bot.Settings.ConfigFile)
 		if err != nil {
@@ -576,9 +580,9 @@ func (bot *Engine) Start() error {
 		}
 	}
 
-	if bot.Settings.EnableStateManager {
+	if bot.Settings.EnableCurrencyStateManager {
 		bot.currencyStateManager, err = SetupCurrencyStateManager(
-			bot.Settings.StateManagerDelay,
+			bot.Config.CurrencyStateManager.Delay,
 			bot.ExchangeManager)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global,
