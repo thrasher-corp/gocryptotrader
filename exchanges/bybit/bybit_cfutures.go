@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"errors"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -30,6 +31,12 @@ const (
 	cfuturesAccountRatio      = "/public/account-ratio"
 
 	// auth endpoint
+	cfuturesCreateOrder             = "/v2/private/order/create"
+	cfuturesGetActiveOrders         = "/v2/private/order/list"
+	cfuturesCancelActiveOrder       = "/v2/private/order/cancel"
+	cfuturesCancelAllActiveOrders   = "/v2/private/order/cancelAll"
+	cfuturesReplaceActiveOrder      = "/v2/private/order/replace"
+	cfuturesGetActiveRealtimeOrders = "/v2/private/order"
 )
 
 // GetFuturesOrderbook gets orderbook data for CoinMarginedFutures.
@@ -317,4 +324,111 @@ func (by *Bybit) GetAccountRatio(symbol currency.Pair, period string, limit int6
 
 	path := common.EncodeURLValues(cfuturesAccountRatio, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
+}
+
+// CreateFuturesOrder sends a new futures order to the exchange
+func (by *Bybit) CreateFuturesOrder(symbol currency.Pair, side, orderType, timeInForce,
+	orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
+	quantity, price, takeProfit, stopLoss float64, closeOnTrigger, reduceOnly bool) (FuturesOrderData, error) {
+	var resp FuturesOrderData
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
+	params.Set("side", side)
+	params.Set("order_type", orderType)
+	if quantity != 0 {
+		params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
+	} else {
+		return resp, errors.New("quantity can't be zero or missing")
+	}
+	if price != 0 {
+		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	}
+	if timeInForce != "" {
+		params.Set("time_in_force", timeInForce)
+	} else {
+		return resp, errors.New("timeInForce can't be empty or missing")
+	}
+	if closeOnTrigger {
+		params.Set("close_on_trigger", "true")
+	}
+	if orderLinkID != "" {
+		params.Set("order_link_id", orderLinkID)
+	}
+	if takeProfit != 0 {
+		params.Set("take_profit", strconv.FormatFloat(takeProfit, 'f', -1, 64))
+	}
+	if stopLoss != 0 {
+		params.Set("stop_loss", strconv.FormatFloat(stopLoss, 'f', -1, 64))
+	}
+	if takeProfitTriggerBy != "" {
+		params.Set("tp_trigger_by", takeProfitTriggerBy)
+	}
+	if stopLossTriggerBy != "" {
+		params.Set("sl_trigger_by", stopLossTriggerBy)
+	}
+	if reduceOnly {
+		params.Set("reduce_only", "true")
+	}
+	return resp, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesCreateOrder, params, &resp, bybitAuthRate)
+}
+
+// GetActiveFuturesOrders gets list of futures active orders
+func (by *Bybit) GetActiveFuturesOrders(symbol currency.Pair, orderStatus, direction, cursor string, limit int64) (FuturesActiveOrders, error) {
+	var resp FuturesActiveOrders
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
+	if orderStatus != "" {
+		params.Set("order_status", orderStatus)
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if limit > 0 && limit <= 50 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	return resp, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesGetActiveOrders, params, &resp, bybitAuthRate)
+}
+
+// CancelActiveFuturesOrders cancels futures unfilled or partially filled orders
+func (by *Bybit) CancelActiveFuturesOrders(symbol currency.Pair, orderID, orderLinkID string) (FuturesOrderData, error) {
+	var resp FuturesOrderData
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
+	if orderID == "" && orderLinkID == "" {
+		return resp, errors.New("one among orderID or orderLinkID should be present")
+	}
+	if orderID != "" {
+		params.Set("order_id", orderID)
+	}
+	if orderLinkID != "" {
+		params.Set("order_link_id", orderLinkID)
+	}
+	return resp, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesCancelActiveOrder, params, &resp, bybitAuthRate)
+}
+
+// CancelAllActiveFuturesOrders cancels all futures unfilled or partially filled orders
+func (by *Bybit) CancelAllActiveFuturesOrders(symbol currency.Pair) (FuturesOrderData, error) {
+	var resp FuturesOrderData
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
+	return resp, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesCancelAllActiveOrders, params, &resp, bybitAuthRate)
 }
