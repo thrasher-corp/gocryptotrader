@@ -788,7 +788,7 @@ func (s *OrderData) GetCompatible(ctx context.Context, f *FTX) (OrderVars, error
 	if strings.EqualFold(s.OrderType, order.Limit.String()) {
 		resp.OrderType = order.Limit
 	}
-	fees, err := f.GetFee(ctx, s.AvgFillPrice, s.Size, resp.OrderType == order.Market)
+	fees, err := f.GetFee(s.AvgFillPrice, s.Size, resp.OrderType == order.Market)
 	if err != nil {
 		return resp, err
 	}
@@ -922,8 +922,7 @@ func (f *FTX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOr
 			tempResp.Price = orderData[y].Price
 			tempResp.RemainingAmount = orderData[y].RemainingSize
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(ctx,
-				orderData[y].Side,
+			orderVars, err = f.compatibleOrderVars(orderData[y].Side,
 				orderData[y].Status,
 				orderData[y].OrderType,
 				orderData[y].Size,
@@ -961,8 +960,7 @@ func (f *FTX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOr
 			tempResp.Price = triggerOrderData[z].AvgFillPrice
 			tempResp.RemainingAmount = triggerOrderData[z].Size - triggerOrderData[z].FilledSize
 			tempResp.TriggerPrice = triggerOrderData[z].TriggerPrice
-			orderVars, err := f.compatibleOrderVars(ctx,
-				triggerOrderData[z].Side,
+			orderVars, err := f.compatibleOrderVars(triggerOrderData[z].Side,
 				triggerOrderData[z].Status,
 				triggerOrderData[z].OrderType,
 				triggerOrderData[z].Size,
@@ -1026,8 +1024,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 			tempResp.Price = orderData[y].Price
 			tempResp.RemainingAmount = orderData[y].RemainingSize
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(ctx,
-				orderData[y].Side,
+			orderVars, err = f.compatibleOrderVars(orderData[y].Side,
 				orderData[y].Status,
 				orderData[y].OrderType,
 				orderData[y].Size,
@@ -1068,8 +1065,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 			tempResp.Price = triggerOrderData[z].AvgFillPrice
 			tempResp.RemainingAmount = triggerOrderData[z].Size - triggerOrderData[z].FilledSize
 			tempResp.TriggerPrice = triggerOrderData[z].TriggerPrice
-			orderVars, err := f.compatibleOrderVars(ctx,
-				triggerOrderData[z].Side,
+			orderVars, err := f.compatibleOrderVars(triggerOrderData[z].Side,
 				triggerOrderData[z].Status,
 				triggerOrderData[z].OrderType,
 				triggerOrderData[z].Size,
@@ -1220,11 +1216,11 @@ func (f *FTX) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) erro
 }
 
 // UpdateFees updates all the fees associated with the asset type.
-func (f *FTX) UpdateFees(a asset.Item) error {
+func (f *FTX) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
-	ai, err := f.GetAccountInfo()
+	ai, err := f.GetAccountInfo(ctx)
 	if err != nil {
 		return err
 	}

@@ -96,7 +96,7 @@ type IBotExchange interface {
 
 // IFee defines required exchange fee functionality
 type IFee interface {
-	UpdateFees(a asset.Item) error
+	UpdateFees(ctx context.Context, a asset.Item) error
 	GetAllFees() (fee.Options, error)
 
 	GetCommissionFee(a asset.Item) (*fee.CommissionInternal, error)

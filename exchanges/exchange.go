@@ -1390,7 +1390,7 @@ func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool
 }
 
 // UpdateFees updates all fees associated with an account asset
-func (b *Base) UpdateFees(a asset.Item) error {
+func (b *Base) UpdateFees(ctx context.Context, a asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 

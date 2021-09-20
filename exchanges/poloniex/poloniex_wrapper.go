@@ -915,11 +915,11 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 }
 
 // UpdateFees updates current fees associated with account
-func (p *Poloniex) UpdateFees(a asset.Item) error {
+func (p *Poloniex) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
-	fee, err := p.GetFeeInfo()
+	fee, err := p.GetFeeInfo(ctx)
 	if err != nil {
 		return err
 	}

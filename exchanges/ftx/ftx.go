@@ -1197,7 +1197,7 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, 
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (f *FTX) GetFee(ctx context.Context, price, amount float64, maker bool) (float64, error) {
+func (f *FTX) GetFee(price, amount float64, maker bool) (float64, error) {
 	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 		if maker {
 			return f.Fees.CalculateWorstCaseMaker(price, amount, asset.Spot)
@@ -1210,7 +1210,7 @@ func (f *FTX) GetFee(ctx context.Context, price, amount float64, maker bool) (fl
 	return f.Fees.CalculateTaker(price, amount, asset.Spot)
 }
 
-func (f *FTX) compatibleOrderVars(ctx context.Context, orderSide, orderStatus, orderType string, amount, filledAmount, avgFillPrice float64) (OrderVars, error) {
+func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amount, filledAmount, avgFillPrice float64) (OrderVars, error) {
 	if filledAmount > amount {
 		return OrderVars{}, fmt.Errorf("%w, amount: %f filled: %f", errInvalidOrderAmounts, amount, filledAmount)
 	}
@@ -1249,7 +1249,7 @@ func (f *FTX) compatibleOrderVars(ctx context.Context, orderSide, orderStatus, o
 	if strings.EqualFold(orderType, order.Limit.String()) {
 		resp.OrderType = order.Limit
 	}
-	fee, err := f.GetFee(ctx, avgFillPrice, amount, resp.OrderType == order.Market)
+	fee, err := f.GetFee(avgFillPrice, amount, resp.OrderType == order.Market)
 	if err != nil {
 		return resp, err
 	}

@@ -753,11 +753,11 @@ func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 }
 
 // UpdateFees updates current fees associated with account
-func (o *OKGroup) UpdateFees(a asset.Item) error {
+func (o *OKGroup) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
-	resp, err := o.GetAccountWithdrawalFee("")
+	resp, err := o.GetAccountWithdrawalFee(ctx, "")
 	if err != nil {
 		return err
 	}

@@ -1733,10 +1733,10 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 }
 
 // UpdateFees updates current fees associated with account
-func (b *Binance) UpdateFees(a asset.Item) error {
+func (b *Binance) UpdateFees(ctx context.Context, a asset.Item) error {
 	switch a {
 	case asset.Spot:
-		account, err := b.GetAccount()
+		account, err := b.GetAccount(ctx)
 		if err != nil {
 			return err
 		}

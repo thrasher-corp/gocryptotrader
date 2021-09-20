@@ -609,8 +609,7 @@ func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
 			// TODO: Verify value
-			resp.Fee, err = l.Fees.CalculateTaker(ctx,
-				tempResp.Orders[0].Price,
+			resp.Fee, err = l.Fees.CalculateTaker(tempResp.Orders[0].Price,
 				tempResp.Orders[0].Amount,
 				asset.Spot)
 			if err != nil {
@@ -709,8 +708,7 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Get
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
 			// TODO: verify value
-			resp.Fee, err = l.Fees.CalculateTaker(ctx,
-				tempResp.Orders[0].Price,
+			resp.Fee, err = l.Fees.CalculateTaker(tempResp.Orders[0].Price,
 				tempResp.Orders[0].Amount,
 				asset.Spot)
 			if err != nil {
@@ -804,8 +802,7 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 				resp.ExecutedAmount = tempResp.Orders[x].DealAmount
 				resp.RemainingAmount = tempResp.Orders[x].Price - tempResp.Orders[x].DealAmount
 				// TODO: Verify this value
-				resp.Fee, err = l.Fees.CalculateTaker(ctx,
-					tempResp.Orders[x].Price,
+				resp.Fee, err = l.Fees.CalculateTaker(tempResp.Orders[x].Price,
 					tempResp.Orders[x].Amount,
 					asset.Spot)
 				if err != nil {

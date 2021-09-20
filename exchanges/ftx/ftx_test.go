@@ -1279,8 +1279,7 @@ func TestTimestampFromFloat64(t *testing.T) {
 
 func TestCompatibleOrderVars(t *testing.T) {
 	t.Parallel()
-	orderVars, err := f.compatibleOrderVars(context.Background(),
-		"buy",
+	orderVars, err := f.compatibleOrderVars("buy",
 		"closed",
 		"limit",
 		0.5,
@@ -1299,8 +1298,7 @@ func TestCompatibleOrderVars(t *testing.T) {
 		t.Errorf("received %v expected %v", orderVars.Status, order.Filled)
 	}
 
-	orderVars, err = f.compatibleOrderVars(context.Background(),
-		"buy",
+	orderVars, err = f.compatibleOrderVars("buy",
 		"closed",
 		"limit",
 		0,
@@ -1313,8 +1311,7 @@ func TestCompatibleOrderVars(t *testing.T) {
 		t.Errorf("received %v expected %v", orderVars.Status, order.Cancelled)
 	}
 
-	orderVars, err = f.compatibleOrderVars(context.Background(),
-		"buy",
+	orderVars, err = f.compatibleOrderVars("buy",
 		"closed",
 		"limit",
 		0.5,
@@ -1327,8 +1324,7 @@ func TestCompatibleOrderVars(t *testing.T) {
 		t.Errorf("received %v expected %v", orderVars.Status, order.PartiallyCancelled)
 	}
 
-	orderVars, err = f.compatibleOrderVars(context.Background(),
-		"sell",
+	orderVars, err = f.compatibleOrderVars("sell",
 		"closed",
 		"limit",
 		1337,
@@ -1341,8 +1337,7 @@ func TestCompatibleOrderVars(t *testing.T) {
 		t.Errorf("received %v expected %v", orderVars.Status, order.Filled)
 	}
 
-	orderVars, err = f.compatibleOrderVars(context.Background(),
-		"buy",
+	orderVars, err = f.compatibleOrderVars("buy",
 		"closed",
 		"limit",
 		0.1,
@@ -1352,8 +1347,7 @@ func TestCompatibleOrderVars(t *testing.T) {
 		t.Errorf("received %v expected %v", err, errInvalidOrderAmounts)
 	}
 
-	orderVars, err = f.compatibleOrderVars(context.Background(),
-		"buy",
+	orderVars, err = f.compatibleOrderVars("buy",
 		"fake",
 		"limit",
 		0.3,
@@ -1363,8 +1357,7 @@ func TestCompatibleOrderVars(t *testing.T) {
 		t.Errorf("received %v expected %v", err, errUnrecognisedOrderStatus)
 	}
 
-	orderVars, err = f.compatibleOrderVars(context.Background(),
-		"buy",
+	orderVars, err = f.compatibleOrderVars("buy",
 		"new",
 		"limit",
 		0.3,
@@ -1377,8 +1370,7 @@ func TestCompatibleOrderVars(t *testing.T) {
 		t.Errorf("received %v expected %v", orderVars.Status, order.New)
 	}
 
-	orderVars, err = f.compatibleOrderVars(context.Background(),
-		"buy",
+	orderVars, err = f.compatibleOrderVars("buy",
 		"open",
 		"limit",
 		0.3,
