@@ -662,6 +662,9 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 				return info, err
 			}
 			for i := range accounts {
+				if accounts[i].Type != "spot" {
+					continue
+				}
 				acc.ID = strconv.FormatInt(accounts[i].ID, 10)
 				balances, err := h.GetAccountBalance(ctx, acc.ID)
 				if err != nil {
@@ -746,7 +749,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		}
 		acc.Currencies = currencyDetails
 	}
-	acc.AssetType = asset.Futures
+	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
 	err := account.Process(&info)
 	if err != nil {
