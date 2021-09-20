@@ -100,8 +100,8 @@ func stateGetAll(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.StateGetAll(c.Context,
-		&gctrpc.StateGetAllRequest{Exchange: exchange},
+	result, err := client.CurrencyStateGetAll(c.Context,
+		&gctrpc.CurrencyStateGetAllRequest{Exchange: exchange},
 	)
 	if err != nil {
 		return err
@@ -144,8 +144,8 @@ func stateGetDeposit(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.StateDeposit(c.Context,
-		&gctrpc.StateDepositRequest{
+	result, err := client.CurrencyStateDeposit(c.Context,
+		&gctrpc.CurrencyStateDepositRequest{
 			Exchange: exchange,
 			Code:     code,
 			Asset:    a},
@@ -191,8 +191,8 @@ func stateGetWithdrawal(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.StateWithdraw(c.Context,
-		&gctrpc.StateWithdrawRequest{
+	result, err := client.CurrencyStateWithdraw(c.Context,
+		&gctrpc.CurrencyStateWithdrawRequest{
 			Exchange: exchange,
 			Code:     code,
 			Asset:    a},
@@ -238,8 +238,8 @@ func stateGetTrading(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.StateTrading(c.Context,
-		&gctrpc.StateTradingRequest{
+	result, err := client.CurrencyStateTrading(c.Context,
+		&gctrpc.CurrencyStateTradingRequest{
 			Exchange: exchange,
 			Code:     code,
 			Asset:    a},
@@ -285,8 +285,8 @@ func stateGetPairTrading(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.StateTradingPair(c.Context,
-		&gctrpc.StateTradingPairRequest{
+	result, err := client.CurrencyStateTradingPair(c.Context,
+		&gctrpc.CurrencyStateTradingPairRequest{
 			Exchange: exchange,
 			Pair:     pair,
 			Asset:    a},
