@@ -9,9 +9,9 @@ import (
 
 // Exchange specific rate limit consts
 const (
-	bithumbRateInterval = time.Second
-	bithumbAuthRate     = 20
-	bithumbUnauthRate   = 200
+	bybitRateInterval = time.Second
+	bybitAuthRate     = 20
+	bybitUnauthRate   = 200
 )
 
 // RateLimit implements the request.Limiter interface
@@ -33,7 +33,7 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
-		Auth:   request.NewRateLimit(bithumbRateInterval, bithumbAuthRate),
-		UnAuth: request.NewRateLimit(bithumbRateInterval, bithumbUnauthRate),
+		Auth:   request.NewRateLimit(bybitRateInterval, bybitAuthRate),
+		UnAuth: request.NewRateLimit(bybitRateInterval, bybitUnauthRate),
 	}
 }

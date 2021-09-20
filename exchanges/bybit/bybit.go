@@ -518,7 +518,7 @@ func (by *Bybit) CreatePostOrder(o *PlaceOrderRequest) (*PlaceOrderResponse, err
 	resp := struct {
 		Data PlaceOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, resp, bithumbAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, resp, bybitAuthRate)
 	if err != nil {
 		return nil, err
 	}
@@ -541,7 +541,7 @@ func (by *Bybit) QueryOrder(orderID, orderLinkID string) (*QueryOrderResponse, e
 	resp := struct {
 		Data QueryOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, resp, bithumbAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, resp, bybitAuthRate)
 	if err != nil {
 		return nil, err
 	}
@@ -564,7 +564,7 @@ func (by *Bybit) CancelExistingOrder(orderID, orderLinkID string) (*CancelOrderR
 	resp := struct {
 		Data CancelOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, resp, bithumbAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, resp, bybitAuthRate)
 	if err != nil {
 		return nil, err
 	}
@@ -586,7 +586,7 @@ func (by *Bybit) BatchCancelOrder(symbol, side, orderTypes string) (bool, error)
 	resp := struct {
 		Success bool `json:"success"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, resp, bithumbAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, resp, bybitAuthRate)
 	if err != nil {
 		return false, err
 	}
@@ -608,7 +608,7 @@ func (by *Bybit) ListOpenOrders(symbol, orderID string, limit int64) ([]QueryOrd
 	resp := struct {
 		Data []QueryOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitOpenOrder, params, resp, bithumbAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitOpenOrder, params, resp, bybitAuthRate)
 	if err != nil {
 		return nil, err
 	}
@@ -629,7 +629,7 @@ func (by *Bybit) ListPastOrders(symbol, orderID string, limit int64) ([]QueryOrd
 	resp := struct {
 		Data []QueryOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitPastOrder, params, resp, bithumbAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitPastOrder, params, resp, bybitAuthRate)
 	if err != nil {
 		return nil, err
 	}
@@ -654,7 +654,7 @@ func (by *Bybit) GetTradeHistory(symbol string, limit, formID, told int64) ([]Hi
 	resp := struct {
 		Data []HistoricalTrade `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitPastOrder, params, resp, bithumbAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitPastOrder, params, resp, bybitAuthRate)
 	if err != nil {
 		return nil, err
 	}
@@ -667,7 +667,7 @@ func (by *Bybit) GetWalletBalance() ([]Balance, error) {
 			Balances []Balance `json:"balances"`
 		} `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, resp, bithumbAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, resp, bybitAuthRate)
 	if err != nil {
 		return nil, err
 	}
