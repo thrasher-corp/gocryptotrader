@@ -8,12 +8,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// ErrAssetAlreadyEnabled defines an error for the pairs management system
-// that declares the asset is already enabled.
-var ErrAssetAlreadyEnabled = errors.New("asset already enabled")
-
-var ErrPairAlreadyEnabled = errors.New("pair already enabled")
-var ErrPairNotFound = errors.New("pair not found")
+var (
+	// ErrAssetAlreadyEnabled defines an error for the pairs management system
+	// that declares the asset is already enabled.
+	ErrAssetAlreadyEnabled = errors.New("asset already enabled")
+	// ErrPairAlreadyEnabled returns when enabling a pair that is already enabled
+	ErrPairAlreadyEnabled = errors.New("pair already enabled")
+	// ErrPairNotFound is returned when a currency pair is not found
+	ErrPairNotFound = errors.New("pair not found")
+)
 
 // GetAssetTypes returns a list of stored asset types
 func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {

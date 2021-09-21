@@ -9,15 +9,17 @@ import (
 )
 
 var (
+	// ErrNoNegativeResults is returned when no negative results are allowed
+	ErrNoNegativeResults = errors.New("cannot calculate with no negative values")
+	// ErrInexactConversion is returned when a decimal does not convert to float exactly
+	ErrInexactConversion       = errors.New("inexact conversion from decimal to float detected")
 	errZeroValue               = errors.New("cannot calculate average of no values")
-	ErrNoNegativeResults       = errors.New("cannot calculate with no negative values")
 	errNegativeValueOutOfRange = errors.New("received negative number less than -1")
 	errGeometricNegative       = errors.New("cannot calculate a geometric mean with negative values")
 	errCalmarHighest           = errors.New("cannot calculate calmar ratio with highest price of 0")
 	errCAGRNoIntervals         = errors.New("cannot calculate CAGR with no intervals")
 	errCAGRZeroOpenValue       = errors.New("cannot calculate CAGR with an open value of 0")
 	errInformationBadLength    = errors.New("benchmark rates length does not match returns rates")
-	ErrInexactConversion       = errors.New("inexact conversion from decimal to float detected")
 )
 
 // CalculateAmountWithFee returns a calculated fee included amount on fee

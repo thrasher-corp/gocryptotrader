@@ -162,10 +162,13 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 	currCount := 0
 	var finalResults []FinalResultsHolder
 	var err error
-	s.Funding = funds.GenerateReport()
 	for exchangeName, exchangeMap := range s.ExchangeAssetPairStatistics {
 		for assetItem, assetMap := range exchangeMap {
 			for pair, stats := range assetMap {
+				err = funds.BuildReportFromExchangeAssetPair(exchangeName, assetItem, pair)
+				if err != nil {
+					return err
+				}
 				currCount++
 				var f funding.IPairReader
 				last := stats.Events[len(stats.Events)-1]
@@ -208,6 +211,7 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 			}
 		}
 	}
+	s.Funding = funds.GenerateReport()
 	s.TotalOrders = s.TotalBuyOrders + s.TotalSellOrders
 	if currCount > 1 {
 		s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies(finalResults)

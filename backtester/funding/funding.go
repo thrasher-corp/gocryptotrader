@@ -74,6 +74,14 @@ func (f *FundManager) Reset() {
 	*f = FundManager{}
 }
 
+// BuildReportFromExchangeAssetPair seeks to create a more accurate report
+// by knowing what currencies are shared between funds when ExchangeLevelFunding is true
+func (f *FundManager) BuildReportFromExchangeAssetPair(exchangeName string, a asset.Item, pair currency.Pair) {
+	if f.usingExchangeLevelFunding {
+
+	}
+}
+
 // GenerateReport builds report data for result operatiosn
 func (f *FundManager) GenerateReport() *Report {
 	var items []ReportItem
@@ -84,6 +92,7 @@ func (f *FundManager) GenerateReport() *Report {
 			Currency:     f.items[i].currency,
 			InitialFunds: f.items[i].initialFunds,
 			TransferFee:  f.items[i].transferFee,
+			FinalFunds:   f.items[i].available,
 		}
 		if f.items[i].pairedWith != nil {
 			item.PairedWith = f.items[i].pairedWith.currency

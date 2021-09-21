@@ -13,11 +13,13 @@ import (
 type FundManager struct {
 	usingExchangeLevelFunding bool
 	items                     []*Item
+	reportMap                 map[Item]map[Item]ReportItem
 }
 
 // Report holds all funding data for result reporting
 type Report struct {
-	Items []ReportItem
+	Items   []ReportItem
+	ItemMap map[Item][]ReportItem
 }
 
 // ReportItem holds reporting fields
@@ -27,6 +29,7 @@ type ReportItem struct {
 	Currency     currency.Code
 	InitialFunds decimal.Decimal
 	TransferFee  decimal.Decimal
+	FinalFunds   decimal.Decimal
 	PairedWith   currency.Code
 }
 
@@ -39,6 +42,7 @@ type IFundingManager interface {
 	GetFundingForEAP(string, asset.Item, currency.Pair) (*Pair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GenerateReport() *Report
+	BuildReportFromExchangeAssetPair(string, asset.Item, currency.Pair) error
 }
 
 // IFundTransferer allows for funding amounts to be transferred
