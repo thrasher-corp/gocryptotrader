@@ -24,8 +24,7 @@ type Bybit struct {
 }
 
 const (
-	bybitAPIURL     = "https://api.bybit.com"
-	bybitAPIVersion = "v1"
+	bybitAPIURL = "https://api.bybit.com"
 
 	sideBuy  = "BUY"
 	sideSell = "SELL"
