@@ -3916,7 +3916,7 @@ func (s *RPCServer) CurrencyStateGetAll(_ context.Context, r *gctrpc.CurrencySta
 	return resp, nil
 }
 
-// CurrencyStateDeposit determines via RPC if the currency code is operational for
+// CurrencyStateWithdraw determines via RPC if the currency code is operational for
 // withdrawal from an exchange
 func (s *RPCServer) CurrencyStateWithdraw(_ context.Context, r *gctrpc.CurrencyStateWithdrawRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
