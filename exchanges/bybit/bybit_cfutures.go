@@ -50,7 +50,7 @@ func (by *Bybit) GetFuturesOrderbook(symbol currency.Pair) (Orderbook, error) {
 	}
 	params.Set("symbol", symbolValue)
 
-	path := common.EncodeURLValues(cfuturesOrderbook, params)
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesOrderbook, params)
 	err = by.SendHTTPRequest(exchange.RestCoinMargined, path, &data)
 	if err != nil {
 		return resp, err
@@ -107,7 +107,7 @@ func (by *Bybit) GetFuturesKlineData(symbol currency.Pair, interval string, limi
 		return resp, errors.New("startTime can't be zero or missing")
 	}
 
-	path := common.EncodeURLValues(cfuturesKline, params)
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesKline, params)
 	err := by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
 	if err != nil {
 		return resp, err
@@ -127,7 +127,7 @@ func (by *Bybit) GetFuturesSymbolPriceTicker(symbol currency.Pair) ([]SymbolPric
 	}
 	params.Set("symbol", symbolValue)
 
-	path := common.EncodeURLValues(cfuturesSymbolPriceTicker, params)
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesSymbolPriceTicker, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
 }
 
@@ -147,7 +147,7 @@ func (by *Bybit) GetPublicTrades(symbol currency.Pair, limit, fromID int64) ([]F
 		params.Set("fromID", strconv.FormatInt(fromID, 10))
 	}
 
-	path := common.EncodeURLValues(cfuturesRecentTrades, params)
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesRecentTrades, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
 }
 
@@ -185,7 +185,7 @@ func (by *Bybit) GetFuturesLiquidationOrders(symbol currency.Pair, fromID, limit
 		params.Set("end_time", strconv.FormatInt(endTime.Unix()*1000, 10))
 	}
 
-	path := common.EncodeURLValues(cfuturesLiquidationOrders, params)
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesLiquidationOrders, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
 }
 
@@ -211,7 +211,7 @@ func (by *Bybit) GetMarkPriceKline(symbol currency.Pair, interval string, limit 
 		return resp, errors.New("startTime can't be zero or missing")
 	}
 
-	path := common.EncodeURLValues(cfuturesMarkPriceKline, params)
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesMarkPriceKline, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
 }
 
@@ -237,7 +237,7 @@ func (by *Bybit) GetIndexPriceKline(symbol currency.Pair, interval string, limit
 		return resp, errors.New("startTime can't be zero or missing")
 	}
 
-	path := common.EncodeURLValues(cfuturesIndexKline, params)
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesIndexKline, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
 }
 
@@ -263,7 +263,7 @@ func (by *Bybit) GetPremiumIndexPriceKline(symbol currency.Pair, interval string
 		return resp, errors.New("startTime can't be zero or missing")
 	}
 
-	path := common.EncodeURLValues(cfuturesIndexPremiumKline, params)
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesIndexPremiumKline, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
 }
 
@@ -284,7 +284,7 @@ func (by *Bybit) GetOpenInterest(symbol currency.Pair, period string, limit int6
 	}
 	params.Set("period", period)
 
-	path := common.EncodeURLValues(cfuturesOpenInterest, params)
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesOpenInterest, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
 }
 
@@ -301,7 +301,7 @@ func (by *Bybit) GetLatestBigDeal(symbol currency.Pair, limit int64) (BigDealDat
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	path := common.EncodeURLValues(cfuturesBigDeal, params)
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesBigDeal, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
 }
 
@@ -322,7 +322,7 @@ func (by *Bybit) GetAccountRatio(symbol currency.Pair, period string, limit int6
 	}
 	params.Set("period", period)
 
-	path := common.EncodeURLValues(cfuturesAccountRatio, params)
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesAccountRatio, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
 }
 
