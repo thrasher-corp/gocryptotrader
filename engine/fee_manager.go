@@ -19,11 +19,6 @@ const (
 	DefaultFeeManagerDelay = time.Minute
 )
 
-var (
-	errSubsystemNotSetup = errors.New("subsystem not set up")
-	errNilInterface      = errors.New("interface is nil")
-)
-
 // FeeManager manages full fee structures across all enabled exchanges
 type FeeManager struct {
 	started  int32
@@ -104,7 +99,10 @@ func (f *FeeManager) monitor() {
 			var wg sync.WaitGroup
 			exchs, err := f.GetExchanges()
 			if err != nil {
-
+				log.Errorf(log.Global,
+					"%s failed to get exchanges error: %v",
+					FeeManagerName,
+					err)
 			}
 			for x := range exchs {
 				wg.Add(1)

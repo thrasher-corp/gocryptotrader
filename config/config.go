@@ -1422,6 +1422,19 @@ func (c *Config) CheckDataHistoryMonitorConfig() {
 	}
 }
 
+// CheckFeeManager ensures the fee manager config is valid, or sets default
+// values
+func (c *Config) CheckCurrencyStateManager() {
+	m.Lock()
+	defer m.Unlock()
+	if c.FeeManager.Delay <= 0 {
+		c.FeeManager.Delay = defaultFeeManagerDelay
+	}
+	if c.FeeManager.Enabled == nil { // default on, when being upgraded
+		c.FeeManager.Enabled = convert.BoolPtr(true)
+	}
+}
+
 // CheckConnectionMonitorConfig checks and if zero value assigns default values
 func (c *Config) CheckConnectionMonitorConfig() {
 	m.Lock()
@@ -1769,6 +1782,7 @@ func (c *Config) CheckConfig() error {
 
 	c.CheckConnectionMonitorConfig()
 	c.CheckDataHistoryMonitorConfig()
+	c.CheckCurrencyStateManager()
 	c.CheckCommunicationsConfig()
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()

@@ -146,6 +146,11 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 
 	b.Settings.EnableDataHistoryManager = (flagSet["datahistorymanager"] && b.Settings.EnableDatabaseManager) || b.Config.DataHistoryManager.Enabled
 
+	b.Settings.EnableFeeManager = (flagSet["feemanager"] &&
+		b.Settings.EnableFeeManager) ||
+		b.Config.FeeManager.Enabled != nil &&
+			*b.Config.FeeManager.Enabled
+
 	b.Settings.EnableGCTScriptManager = b.Settings.EnableGCTScriptManager &&
 		(flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
 
@@ -243,6 +248,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable coinmarketcap analaysis: %v", s.EnableCoinmarketcapAnalysis)
 	gctlog.Debugf(gctlog.Global, "\t Enable portfolio manager: %v", s.EnablePortfolioManager)
 	gctlog.Debugf(gctlog.Global, "\t Enable data history manager: %v", s.EnableDataHistoryManager)
+	gctlog.Debugf(gctlog.Global, "\t Enable fee manager: %v", s.EnableFeeManager)
 	gctlog.Debugf(gctlog.Global, "\t Portfolio manager sleep delay: %v\n", s.PortfolioManagerDelay)
 	gctlog.Debugf(gctlog.Global, "\t Enable gPRC: %v", s.EnableGRPC)
 	gctlog.Debugf(gctlog.Global, "\t Enable gRPC Proxy: %v", s.EnableGRPCProxy)
@@ -577,7 +583,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableFeeManager {
-		bot.feeManager, err = SetupFeeManager(bot.Settings.FeeManagerDelay, bot.ExchangeManager)
+		bot.feeManager, err = SetupFeeManager(bot.Config.FeeManager.Delay, bot.ExchangeManager)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "%s unable to setup: %s", FeeManagerName, err)
 		} else {

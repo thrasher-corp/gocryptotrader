@@ -144,11 +144,11 @@ func getAllFees(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetAllFees(context.Background(),
@@ -213,11 +213,11 @@ func setCommissionFees(c *cli.Context) error {
 		percentage = b
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.SetCommission(context.Background(),
@@ -295,11 +295,11 @@ func setTransferFees(c *cli.Context) error {
 		setValue = b
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.SetTransferFee(context.Background(),
@@ -382,11 +382,11 @@ func setBankTransferFees(c *cli.Context) error {
 		setValue = b
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.SetBankTransferFee(context.Background(),

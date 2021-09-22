@@ -59,6 +59,7 @@ func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 		WebsocketName:                 bot.Settings.EnableWebsocketRPC,
 		dispatch.Name:                 dispatch.IsRunning(),
 		dataHistoryManagerName:        bot.dataHistoryManager.IsRunning(),
+		FeeManagerName:                bot.feeManager.IsRunning(),
 	}
 }
 
@@ -264,6 +265,19 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.gctScriptManager.Start(&bot.ServicesWG)
 		}
 		return bot.gctScriptManager.Stop()
+	case strings.ToLower(FeeManagerName):
+		if enable {
+			if bot.feeManager == nil {
+				bot.feeManager, err = SetupFeeManager(
+					bot.Config.FeeManager.Delay,
+					bot.ExchangeManager)
+				if err != nil {
+					return err
+				}
+			}
+			return bot.feeManager.Start()
+		}
+		return bot.feeManager.Stop()
 	}
 	return fmt.Errorf("%s: %w", subSystemName, errSubsystemNotFound)
 }

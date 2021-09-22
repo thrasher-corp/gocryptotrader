@@ -37,6 +37,7 @@ const (
 	DefaultAPISecret                     = "Secret"
 	DefaultAPIClientID                   = "ClientID"
 	defaultDataHistoryMonitorCheckTimer  = time.Minute
+	defaultFeeManagerDelay               = time.Minute
 	defaultMaxJobsPerCycle               = 5
 )
 
@@ -80,6 +81,7 @@ type Config struct {
 	Logging            log.Config                `json:"logging"`
 	ConnectionMonitor  ConnectionMonitorConfig   `json:"connectionMonitor"`
 	DataHistoryManager DataHistoryManager        `json:"dataHistoryManager"`
+	FeeManager         FeeManager                `json:"feeManager"`
 	Profiler           Profiler                  `json:"profiler"`
 	NTPClient          NTPClientConfig           `json:"ntpclient"`
 	GCTScript          gctscript.Config          `json:"gctscript"`
@@ -108,6 +110,13 @@ type DataHistoryManager struct {
 	MaxJobsPerCycle     int64         `json:"maxJobsPerCycle"`
 	MaxResultInsertions int64         `json:"maxResultInsertions"`
 	Verbose             bool          `json:"verbose"`
+}
+
+// FeeManager defines all requirements for management of fees
+type FeeManager struct {
+	Enabled *bool         `json:"enabled"`
+	Delay   time.Duration `json:"delay"`
+	Verbose bool          `json:"verbose"`
 }
 
 // ConnectionMonitorConfig defines the connection monitor variables to ensure

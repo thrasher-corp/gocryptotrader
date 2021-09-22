@@ -38,7 +38,6 @@ type Settings struct {
 	EnableWebsocketRoutine      bool
 	EventManagerDelay           time.Duration
 	EnableFeeManager            bool
-	FeeManagerDelay             time.Duration
 	Verbose                     bool
 
 	// Exchange syncer settings
