@@ -130,7 +130,8 @@ func (c *CurrencyStateManager) update(exch exchange.IBotExchange, wg *sync.WaitG
 		if err != nil {
 			if errors.Is(err, common.ErrNotYetImplemented) {
 				// Deploy default values for outbound gRPC aspects.
-				pairs, err := exch.GetAvailablePairs(enabledAssets[y])
+				var pairs currency.Pairs
+				pairs, err = exch.GetAvailablePairs(enabledAssets[y])
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %s %s: %v",
 						CurrencyStateManagementName,
