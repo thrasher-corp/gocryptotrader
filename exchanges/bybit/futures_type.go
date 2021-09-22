@@ -311,3 +311,30 @@ type FuturesCancelOrderData struct {
 	BasePrice         float64 `json:"base_price,string"`
 	ExpectedDirection string  `json:"expected_direction"`
 }
+
+type RiskInfo struct {
+	ID             int64    `json:"id"`
+	Symbol         string   `json:"symbol"`
+	Limit          int64    `json:"limit"`
+	MaintainMargin float64  `json:"maintain_margin"`
+	StartingMargin float64  `json:"starting_margin"`
+	Section        []string `json:"section"`
+	IsLowestRisk   int64    `json:"is_lowest_risk"`
+	CreatedAt      string   `json:"create_at"`
+	UpdateAt       string   `json:"updated_at"`
+	MaxLeverage    float64  `json:"max_leverage"`
+}
+
+type FundingInfo struct {
+	Symbol               string  `json:"symbol"`
+	FundingRate          float64 `json:"funding_rate,string"`
+	FundingRateTimestamp int64   `json:"funding_rate_timestamp"`
+}
+
+type AnnouncementInfo struct {
+	ID        int64  `json:"id"`
+	Title     string `json:"title"`
+	Link      string `json:"link"`
+	Summary   string `json:"summary"`
+	CreatedAt string `json:"created_at"`
+}

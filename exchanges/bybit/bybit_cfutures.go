@@ -20,18 +20,22 @@ const (
 	bybitFuturesAPIVersion = "/v2"
 
 	// public endpoint
-	cfuturesOrderbook         = "/public/orderBook/L2"
-	cfuturesKline             = "/public/kline/list"
-	cfuturesSymbolPriceTicker = "/public/tickers"
-	cfuturesRecentTrades      = "/public/trading-records"
-	cfuturesSymbolInfo        = "/public/symbols"
-	cfuturesLiquidationOrders = "/public/liq-records"
-	cfuturesMarkPriceKline    = "/public/mark-price-kline"
-	cfuturesIndexKline        = "/public/index-price-kline"
-	cfuturesIndexPremiumKline = "/public/premium-index-kline"
-	cfuturesOpenInterest      = "/public/open-interest"
-	cfuturesBigDeal           = "/public/big-deal"
-	cfuturesAccountRatio      = "/public/account-ratio"
+	cfuturesOrderbook          = "/public/orderBook/L2"
+	cfuturesKline              = "/public/kline/list"
+	cfuturesSymbolPriceTicker  = "/public/tickers"
+	cfuturesRecentTrades       = "/public/trading-records"
+	cfuturesSymbolInfo         = "/public/symbols"
+	cfuturesLiquidationOrders  = "/public/liq-records"
+	cfuturesMarkPriceKline     = "/public/mark-price-kline"
+	cfuturesIndexKline         = "/public/index-price-kline"
+	cfuturesIndexPremiumKline  = "/public/premium-index-kline"
+	cfuturesOpenInterest       = "/public/open-interest"
+	cfuturesBigDeal            = "/public/big-deal"
+	cfuturesAccountRatio       = "/public/account-ratio"
+	cfuturesGetRiskLimit       = "/public/risk-limit/list"
+	cfuturesGetLastFundingRate = "/public/funding/prev-funding-rate"
+	cfuturesGetServerTime      = "/public/time"
+	cfuturesGetAnnouncement    = "/public/announcement"
 
 	// auth endpoint
 	cfuturesCreateOrder             = "/private/order/create"
@@ -47,6 +51,26 @@ const (
 	cfuturesCancelAllConditionalOrders   = "/private/stop-order/cancelAll"
 	cfuturesReplaceConditionalOrder      = "/private/stop-order/replace"
 	cfuturesGetConditionalRealtimeOrders = "/private/stop-order"
+
+	cfuturesPosition        = "/private/position/list"
+	cfuturesChangeMargin    = "/private/position/change-position-margin"
+	cfuturesSetTrading      = "/private/position/trading-stop"
+	cfuturesSetLeverage     = "/private/position/leverage/save"
+	cfuturesGetTrades       = "/private/execution/list"
+	cfuturesGetClosedTrades = "/private/trade/closed-pnl/list"
+	cfuturesSwitchPosition  = "/private/tpsl/switch-mode"
+	cfuturesSwitchMargin    = "/private/position/switch-isolated"
+
+	cfuturesSetRiskLimit                   = "/private/position/risk-limit"
+	cfuturesGetMyLastFundingFee            = "/private/funding/prev-funding"
+	cfuturesPredictFundingRate             = "/private/funding/predicted-funding"
+	cfuturesGetAPIKeyInfo                  = "/private/account/api-key"
+	cfuturesGetLiquidityContributionPoints = "/private/account/lcp"
+
+	cfuturesGetWalletBalance           = "/private/wallet/balance"
+	cfuturesGetWalletFundRecords       = "/private/wallet/fund/records"
+	cfuturesGetWalletWithdrawalRecords = "/private/wallet/withdraw/list"
+	cfuturesGetAssetExchangeRecords    = "/private/exchange-order/list"
 )
 
 // GetFuturesOrderbook gets orderbook data for CoinMarginedFutures.
@@ -334,6 +358,58 @@ func (by *Bybit) GetAccountRatio(symbol currency.Pair, period string, limit int6
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesAccountRatio, params)
 	return resp, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
+}
+
+// GetRiskLimit returns risk limit
+func (by *Bybit) GetRiskLimit(symbol currency.Pair) ([]RiskInfo, error) {
+	resp := struct {
+		Data []RiskInfo `json:"result"`
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+		if err != nil {
+			return resp.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	}
+
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesGetRiskLimit, params)
+	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
+}
+
+// GetLastFundingRate returns latest generated funding fee
+func (by *Bybit) GetLastFundingRate(symbol currency.Pair) (FundingInfo, error) {
+	resp := struct {
+		Data FundingInfo `json:"result"`
+	}{}
+
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
+
+	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesGetLastFundingRate, params)
+	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, &resp)
+}
+
+// GetServerTime returns Bybit server time in seconds
+func (by *Bybit) GetServerTime() (float64, error) {
+	resp := struct {
+		TimeNow float64 `json:"time_now"`
+	}{}
+	return resp.TimeNow, by.SendHTTPRequest(exchange.RestCoinMargined, bybitFuturesAPIVersion+cfuturesGetServerTime, &resp)
+}
+
+// GetAnnouncement returns announcements in the last 30 days in reverse order
+func (by *Bybit) GetAnnouncement() ([]AnnouncementInfo, error) {
+	resp := struct {
+		Data []AnnouncementInfo `json:"time_now"`
+	}{}
+	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, bybitFuturesAPIVersion+cfuturesGetAnnouncement, &resp)
 }
 
 // CreateFuturesOrder sends a new futures order to the exchange
