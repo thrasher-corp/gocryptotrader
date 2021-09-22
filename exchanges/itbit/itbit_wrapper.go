@@ -661,7 +661,7 @@ func (i *ItBit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 }
 
 // UpdateFees updates current fees associated with account
-func (i *ItBit) UpdateFees(a asset.Item) error {
+func (i *ItBit) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

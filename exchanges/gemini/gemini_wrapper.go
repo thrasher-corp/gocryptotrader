@@ -800,7 +800,7 @@ func (g *Gemini) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 }
 
 // UpdateFees updates current fees associated with account
-func (g *Gemini) UpdateFees(a asset.Item) error {
+func (g *Gemini) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

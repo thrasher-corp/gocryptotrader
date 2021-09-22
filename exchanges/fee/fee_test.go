@@ -9,54 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-func TestGetManager(t *testing.T) {
-	t.Parallel()
-	if GetManager() == nil {
-		t.Fatal("manager cannot be nil")
-	}
-}
-
-func TestRegisterFeeDefinitions(t *testing.T) {
-	t.Parallel()
-	_, err := RegisterFeeDefinitions("")
-	if !errors.Is(err, errExchangeNameIsEmpty) {
-		t.Fatalf("received: %v but expected: %v", err, errExchangeNameIsEmpty)
-	}
-
-	d, err := RegisterFeeDefinitions("moo")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
-
-	if d == nil {
-		t.Fatal("definitions should not be nil")
-	}
-}
-
-func TestManagerRegister(t *testing.T) {
-	t.Parallel()
-	man := &Manager{}
-	err := man.Register("", nil)
-	if !errors.Is(err, errExchangeNameIsEmpty) {
-		t.Fatalf("received: %v but expected: %v", err, errExchangeNameIsEmpty)
-	}
-
-	err = man.Register("bruh", nil)
-	if !errors.Is(err, ErrDefinitionsAreNil) {
-		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
-	}
-
-	err = man.Register("bruh", &Definitions{})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
-
-	err = man.Register("bruh", &Definitions{})
-	if !errors.Is(err, errFeeDefinitionsAlreadyLoaded) {
-		t.Fatalf("received: %v but expected: %v", err, errFeeDefinitionsAlreadyLoaded)
-	}
-}
-
 var one = decimal.NewFromInt(1)
 var two = decimal.NewFromInt(2)
 

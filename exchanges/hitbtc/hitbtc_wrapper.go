@@ -920,7 +920,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 }
 
 // UpdateFees updates current fees associated with account
-func (h *HitBTC) UpdateFees(a asset.Item) error {
+func (h *HitBTC) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

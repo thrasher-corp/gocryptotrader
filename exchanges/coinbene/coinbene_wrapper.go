@@ -950,7 +950,7 @@ func (c *Coinbene) GetHistoricCandlesExtended(ctx context.Context, pair currency
 }
 
 // UpdateFees updates current fees associated with account
-func (c *Coinbene) UpdateFees(a asset.Item) error {
+func (c *Coinbene) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

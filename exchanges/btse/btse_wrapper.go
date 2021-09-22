@@ -1070,7 +1070,7 @@ func OrderSizeLimits(pair string) (limits OrderSizeLimit, found bool) {
 }
 
 // UpdateFees updates current fees associated with account
-func (b *BTSE) UpdateFees(a asset.Item) error {
+func (b *BTSE) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

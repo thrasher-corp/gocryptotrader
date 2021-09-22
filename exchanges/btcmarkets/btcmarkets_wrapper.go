@@ -1050,7 +1050,7 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, p currency.
 }
 
 // UpdateFees updates current fees associated with account
-func (b *BTCMarkets) UpdateFees(a asset.Item) error {
+func (b *BTCMarkets) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

@@ -46,7 +46,7 @@ type Engine struct {
 	websocketRoutineManager *websocketRoutineManager
 	WithdrawManager         *WithdrawManager
 	dataHistoryManager      *DataHistoryManager
-	feeManager              *feeManager
+	feeManager              *FeeManager
 	Settings                Settings
 	uptime                  time.Time
 	ServicesWG              sync.WaitGroup
@@ -577,14 +577,13 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableFeeManager {
-		bot.feeManager = &feeManager{}
-		err = bot.feeManager.Setup(bot.Settings.FeeManagerDelay, bot.ExchangeManager)
+		bot.feeManager, err = SetupFeeManager(bot.Settings.FeeManagerDelay, bot.ExchangeManager)
 		if err != nil {
-			gctlog.Errorf(gctlog.Global, "%s unable to setup: %s", FeeManagement, err)
+			gctlog.Errorf(gctlog.Global, "%s unable to setup: %s", FeeManagerName, err)
 		} else {
 			err = bot.feeManager.Start()
 			if err != nil {
-				gctlog.Errorf(gctlog.Global, "%s unable to start: %s", FeeManagement, err)
+				gctlog.Errorf(gctlog.Global, "%s unable to start: %s", FeeManagerName, err)
 			}
 		}
 	}
@@ -681,7 +680,7 @@ func (bot *Engine) Stop() {
 
 	if bot.feeManager.IsRunning() {
 		if err := bot.feeManager.Stop(); err != nil {
-			gctlog.Errorf(gctlog.Global, "%s unable to stop. Error: %v", FeeManagement, err)
+			gctlog.Errorf(gctlog.Global, "%s unable to stop. Error: %v", FeeManagerName, err)
 		}
 	}
 

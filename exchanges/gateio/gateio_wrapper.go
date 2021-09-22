@@ -871,7 +871,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 }
 
 // UpdateFees updates current fees associated with account
-func (g *Gateio) UpdateFees(a asset.Item) error {
+func (g *Gateio) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

@@ -11,8 +11,6 @@ import (
 )
 
 var (
-	manager Manager
-
 	// ErrDefinitionsAreNil defines if the exchange specific fee definitions
 	// have bot been loaded or set up.
 	ErrDefinitionsAreNil = errors.New("fee definitions are nil")
@@ -35,50 +33,13 @@ var (
 	errMakerBiggerThanTaker   = errors.New("maker cannot be bigger than taker")
 )
 
-// GetManager returns the package management struct
-func GetManager() *Manager {
-	return &manager
-}
-
-// RegisterExchangeState generates a new fee struct and registers it with the
-// manager
-func RegisterFeeDefinitions(exch string) (*Definitions, error) {
-	if exch == "" {
-		return nil, errExchangeNameIsEmpty
-	}
-	r := &Definitions{
+// NewFeeDefinitions generates a new fee struct for exchange usage
+func NewFeeDefinitions() *Definitions {
+	return &Definitions{
 		commissions:      make(map[asset.Item]*CommissionInternal),
 		transfers:        make(map[asset.Item]map[*currency.Item]*transfer),
 		bankingTransfers: make(map[BankTransaction]map[*currency.Item]*transfer),
 	}
-	return r, manager.Register(exch, r)
-}
-
-// Manager defines operating fee structures across all enabled exchanges
-type Manager struct {
-	m   map[string]*Definitions
-	mtx sync.RWMutex
-}
-
-// Register registers new exchange fee definitions
-func (m *Manager) Register(exch string, s *Definitions) error {
-	if exch == "" {
-		return errExchangeNameIsEmpty
-	}
-	if s == nil {
-		return ErrDefinitionsAreNil
-	}
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	_, ok := m.m[exch]
-	if ok {
-		return fmt.Errorf("%w for %s", errFeeDefinitionsAlreadyLoaded, exch)
-	}
-	if m.m == nil {
-		m.m = make(map[string]*Definitions)
-	}
-	m.m[exch] = s
-	return nil
 }
 
 // Definitions defines the full fee definitions for different currencies

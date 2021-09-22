@@ -980,7 +980,7 @@ func (c *CoinbasePro) ValidateCredentials(ctx context.Context, assetType asset.I
 }
 
 // UpdateFees updates current fees associated with account
-func (c *CoinbasePro) UpdateFees(a asset.Item) error {
+func (c *CoinbasePro) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

@@ -1508,7 +1508,7 @@ func compatibleFillOrderType(fillType string) (order.Type, error) {
 }
 
 // UpdateFees updates current fees associated with account
-func (k *Kraken) UpdateFees(a asset.Item) error {
+func (k *Kraken) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

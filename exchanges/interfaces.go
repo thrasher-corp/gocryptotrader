@@ -91,11 +91,11 @@ type IBotExchange interface {
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 
-	IFee
+	FeeManagement
 }
 
-// IFee defines required exchange fee functionality
-type IFee interface {
+// FeeManagement defines functionality for fee management
+type FeeManagement interface {
 	UpdateFees(ctx context.Context, a asset.Item) error
 	GetAllFees() (fee.Options, error)
 

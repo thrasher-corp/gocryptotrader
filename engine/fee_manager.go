@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -10,12 +11,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
-	FeeManagement          = "FeeManagement"
+	FeeManagerName         = "FeeManager"
 	DefaultFeeManagerDelay = time.Minute
 )
 
@@ -24,46 +24,42 @@ var (
 	errNilInterface      = errors.New("interface is nil")
 )
 
-type feeManager struct {
+// FeeManager manages full fee structures across all enabled exchanges
+type FeeManager struct {
 	started  int32
 	shutdown chan struct{}
 	wg       sync.WaitGroup
-	*fee.Manager
 	iExchangeManager
 	sleep time.Duration
 }
 
-// Setup applies configuration parameters before running
-func (f *feeManager) Setup(interval time.Duration, em iExchangeManager) error {
+// SetupFeeManager applies configuration parameters before running
+func SetupFeeManager(interval time.Duration, em iExchangeManager) (*FeeManager, error) {
 	if em == nil {
-		return errNilInterface
+		return nil, errNilExchangeManager
 	}
-	f.sleep = interval
+	var f FeeManager
 	if interval <= 0 {
 		log.Warnf(log.ExchangeSys,
 			"%s interval is invalid, defaulting to: %s",
-			FeeManagement,
+			FeeManagerName,
 			DefaultFeeManagerDelay)
-		f.sleep = DefaultFeeManagerDelay
+		interval = DefaultFeeManagerDelay
 	}
-	f.Manager = fee.GetManager()
+	f.sleep = interval
 	f.iExchangeManager = em
 	f.shutdown = make(chan struct{})
-	return nil
+	return &f, nil
 }
 
 // Start runs the subsystem
-func (f *feeManager) Start() error {
+func (f *FeeManager) Start() error {
 	if f == nil {
-		return fmt.Errorf("%s %w", FeeManagement, ErrNilSubsystem)
-	}
-
-	if f.Manager == nil {
-		return fmt.Errorf("%s %w", FeeManagement, errSubsystemNotSetup)
+		return fmt.Errorf("%s %w", FeeManagerName, ErrNilSubsystem)
 	}
 
 	if !atomic.CompareAndSwapInt32(&f.started, 0, 1) {
-		return fmt.Errorf("%s %w", FeeManagement, ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("%s %w", FeeManagerName, ErrSubSystemAlreadyStarted)
 	}
 	f.wg.Add(1)
 	go f.monitor()
@@ -71,32 +67,32 @@ func (f *feeManager) Start() error {
 }
 
 // Stop stops the subsystem
-func (f *feeManager) Stop() error {
+func (f *FeeManager) Stop() error {
 	if f == nil {
-		return fmt.Errorf("%s %w", FeeManagement, ErrNilSubsystem)
+		return fmt.Errorf("%s %w", FeeManagerName, ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&f.started) == 0 {
-		return fmt.Errorf("%s %w", FeeManagement, ErrSubSystemNotStarted)
+		return fmt.Errorf("%s %w", FeeManagerName, ErrSubSystemNotStarted)
 	}
 
-	log.Debugf(log.ExchangeSys, "%s %s", FeeManagement, MsgSubSystemShuttingDown)
+	log.Debugf(log.ExchangeSys, "%s %s", FeeManagerName, MsgSubSystemShuttingDown)
 	close(f.shutdown)
 	f.wg.Wait()
 	f.shutdown = make(chan struct{})
-	log.Debugf(log.ExchangeSys, "%s %s", FeeManagement, MsgSubSystemShutdown)
+	log.Debugf(log.ExchangeSys, "%s %s", FeeManagerName, MsgSubSystemShutdown)
 	atomic.CompareAndSwapInt32(&f.started, 1, 0)
 	return nil
 }
 
 // IsRunning safely checks whether the subsystem is running
-func (f *feeManager) IsRunning() bool {
+func (f *FeeManager) IsRunning() bool {
 	if f == nil {
 		return false
 	}
 	return atomic.LoadInt32(&f.started) == 1
 }
 
-func (f *feeManager) monitor() {
+func (f *FeeManager) monitor() {
 	defer f.wg.Done()
 	timer := time.NewTimer(0) // Prime fireing of channel for initial sync.
 	for {
@@ -106,7 +102,10 @@ func (f *feeManager) monitor() {
 
 		case <-timer.C:
 			var wg sync.WaitGroup
-			exchs := f.GetExchanges()
+			exchs, err := f.GetExchanges()
+			if err != nil {
+
+			}
 			for x := range exchs {
 				wg.Add(1)
 				go update(exchs[x], &wg, exchs[x].GetAssetTypes(true))
@@ -122,10 +121,10 @@ func (f *feeManager) monitor() {
 func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.Items) {
 	defer wg.Done()
 	for y := range enabledAssets {
-		err := exch.UpdateFees(enabledAssets[y])
+		err := exch.UpdateFees(context.TODO(), enabledAssets[y])
 		if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
 			log.Errorf(log.ExchangeSys, "%s %s %s: %v",
-				FeeManagement,
+				FeeManagerName,
 				exch.GetName(),
 				enabledAssets[y],
 				err)

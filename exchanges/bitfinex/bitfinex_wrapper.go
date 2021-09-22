@@ -1126,7 +1126,7 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 }
 
 // UpdateFees updates current fees associated with account
-func (b *Bitfinex) UpdateFees(a asset.Item) error {
+func (b *Bitfinex) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

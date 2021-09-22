@@ -622,7 +622,7 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	}
 	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
 
-	b.Fees, err = fee.RegisterFeeDefinitions(b.Name)
+	b.Fees = fee.NewFeeDefinitions()
 	return err
 }
 
