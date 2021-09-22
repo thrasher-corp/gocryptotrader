@@ -1921,7 +1921,8 @@ func TestCurrencyStateGetAll(t *testing.T) {
 		IBotExchange: exch,
 	}
 	em.Add(fakeExchange)
-	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	s := RPCServer{Engine: &Engine{ExchangeManager: em,
+		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em}}}
 
 	_, err = s.CurrencyStateGetAll(context.Background(),
 		&gctrpc.CurrencyStateGetAllRequest{Exchange: "wow"})
@@ -1966,7 +1967,8 @@ func TestCurrencyStateWithdraw(t *testing.T) {
 		IBotExchange: exch,
 	}
 	em.Add(fakeExchange)
-	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	s := RPCServer{Engine: &Engine{ExchangeManager: em,
+		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em}}}
 
 	_, err = s.CurrencyStateWithdraw(context.Background(),
 		&gctrpc.CurrencyStateWithdrawRequest{
@@ -2009,7 +2011,8 @@ func TestCurrencyStateDeposit(t *testing.T) {
 		IBotExchange: exch,
 	}
 	em.Add(fakeExchange)
-	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	s := RPCServer{Engine: &Engine{ExchangeManager: em,
+		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em}}}
 
 	_, err = s.CurrencyStateDeposit(context.Background(),
 		&gctrpc.CurrencyStateDepositRequest{Exchange: "wow"})
@@ -2050,7 +2053,8 @@ func TestCurrencyStateTrading(t *testing.T) {
 		IBotExchange: exch,
 	}
 	em.Add(fakeExchange)
-	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	s := RPCServer{Engine: &Engine{ExchangeManager: em,
+		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em}}}
 
 	_, err = s.CurrencyStateTrading(context.Background(),
 		&gctrpc.CurrencyStateTradingRequest{Exchange: "wow"})
@@ -2092,7 +2096,8 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 		IBotExchange: exch,
 	}
 	em.Add(fakeExchange)
-	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	s := RPCServer{Engine: &Engine{ExchangeManager: em,
+		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em}}}
 
 	_, err = s.CurrencyStateTradingPair(context.Background(),
 		&gctrpc.CurrencyStateTradingPairRequest{Exchange: "wow"})
@@ -2103,7 +2108,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 	_, err = s.CurrencyStateTradingPair(context.Background(),
 		&gctrpc.CurrencyStateTradingPairRequest{
 			Exchange: fakeExchangeName, Pair: "btc-usd", Asset: "spot"})
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
 	}
 }
