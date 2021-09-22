@@ -749,7 +749,9 @@ func TestMatchesExchange(t *testing.T) {
 func TestGenerateReport(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	report := f.GenerateReport()
+	s := time.Now().Add(-time.Hour).Round(time.Hour)
+	e := time.Now()
+	report := f.GenerateReport(s, e)
 	if report == nil {
 		t.Fatal("shouldn't be nil")
 	}
@@ -757,18 +759,45 @@ func TestGenerateReport(t *testing.T) {
 		t.Error("expected 0")
 	}
 	item := &Item{
-		exchange: "hello :)",
+		exchange:     "hello :)",
+		initialFunds: decimal.NewFromInt(100),
+		available:    decimal.NewFromInt(200),
+		currency:     currency.BTC,
 	}
 	err := f.AddItem(item)
 	if err != nil {
 		t.Fatal(err)
 	}
-	report = f.GenerateReport()
+	report = f.GenerateReport(s, e)
 	if len(report.Items) != 1 {
 		t.Fatal("expected 1")
 	}
 	if report.Items[0].Exchange != item.exchange {
 		t.Error("expected matching name")
+	}
+
+	f.usingExchangeLevelFunding = true
+	err = f.AddItem(&Item{
+		exchange:     "hello :)",
+		initialFunds: decimal.NewFromInt(100),
+		available:    decimal.NewFromInt(200),
+		currency:     currency.USD,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report = f.GenerateReport(s, e)
+	if len(report.Items) != 2 {
+		t.Fatal("expected 2")
+	}
+	if report.Items[0].Exchange != item.exchange {
+		t.Error("expected matching name")
+	}
+	if report.Items[0].FinalFundsUSD.Equal(decimal.NewFromInt(200)) {
+		t.Errorf("received %v expected converted values", decimal.NewFromInt(200))
+	}
+	if !report.Items[1].FinalFundsUSD.Equal(decimal.NewFromInt(200)) {
+		t.Errorf("received %v expected %v", report.Items[1].FinalFunds, decimal.NewFromInt(200))
 	}
 }
 

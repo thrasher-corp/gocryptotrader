@@ -1,6 +1,8 @@
 package funding
 
 import (
+	"time"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -13,24 +15,28 @@ import (
 type FundManager struct {
 	usingExchangeLevelFunding bool
 	items                     []*Item
-	reportMap                 map[Item]map[Item]ReportItem
 }
 
 // Report holds all funding data for result reporting
 type Report struct {
-	Items   []ReportItem
-	ItemMap map[Item][]ReportItem
+	InitialTotalUSD decimal.Decimal
+	FinalTotalUSD   decimal.Decimal
+	Items           []ReportItem
 }
 
 // ReportItem holds reporting fields
 type ReportItem struct {
-	Exchange     string
-	Asset        asset.Item
-	Currency     currency.Code
-	InitialFunds decimal.Decimal
-	TransferFee  decimal.Decimal
-	FinalFunds   decimal.Decimal
-	PairedWith   currency.Code
+	Exchange        string
+	Asset           asset.Item
+	Currency        currency.Code
+	InitialFunds    decimal.Decimal
+	InitialFundsUSD decimal.Decimal
+	TransferFee     decimal.Decimal
+	FinalFunds      decimal.Decimal
+	FinalFundsUSD   decimal.Decimal
+	Difference      decimal.Decimal
+	ShowInfinite    bool
+	PairedWith      currency.Code
 }
 
 // IFundingManager limits funding usage for portfolio event handling
@@ -41,8 +47,7 @@ type IFundingManager interface {
 	GetFundingForEvent(common.EventHandler) (*Pair, error)
 	GetFundingForEAP(string, asset.Item, currency.Pair) (*Pair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
-	GenerateReport() *Report
-	BuildReportFromExchangeAssetPair(string, asset.Item, currency.Pair) error
+	GenerateReport(startDate, endDate time.Time) *Report
 }
 
 // IFundTransferer allows for funding amounts to be transferred

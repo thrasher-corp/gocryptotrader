@@ -244,7 +244,7 @@ func TestPrintResults(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cs.PrintResults(exch, a, p, pair)
+	cs.PrintResults(exch, a, p, pair, true)
 }
 
 func TestCalculateMaxDrawdown(t *testing.T) {

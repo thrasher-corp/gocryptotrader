@@ -3,12 +3,17 @@ package funding
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	fbase "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	exchangeratehost "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/exchangerate.host"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -74,32 +79,80 @@ func (f *FundManager) Reset() {
 	*f = FundManager{}
 }
 
-// BuildReportFromExchangeAssetPair seeks to create a more accurate report
-// by knowing what currencies are shared between funds when ExchangeLevelFunding is true
-func (f *FundManager) BuildReportFromExchangeAssetPair(exchangeName string, a asset.Item, pair currency.Pair) {
-	if f.usingExchangeLevelFunding {
-
-	}
-}
-
-// GenerateReport builds report data for result operatiosn
-func (f *FundManager) GenerateReport() *Report {
+// GenerateReport builds report data for result HTML report
+func (f *FundManager) GenerateReport(startDate, endDate time.Time) *Report {
+	report := &Report{}
 	var items []ReportItem
+	var erh exchangeratehost.ExchangeRateHost
+	var skipAPICheck bool
+	err := erh.Setup(fbase.Settings{Enabled: true})
+	if err != nil {
+		log.Errorf(log.CommunicationMgr, "issue setting up exchangerate.host API %v", err)
+		skipAPICheck = true
+	}
 	for i := range f.items {
+		// exact conversion not required for initial version
+		fInitialFunds, _ := f.items[i].initialFunds.Float64()
+		fFinalFunds, _ := f.items[i].available.Float64()
+		var initialWorthDecimal, finalWorthDecimal decimal.Decimal
+		if !skipAPICheck {
+			// calculating totals for shared funding across multiple currency pairs is difficult
+			// converting totals using a free API is better suited as an initial concept
+			// TODO convert currencies without external dependency
+			if strings.Contains(f.items[i].currency.String(), "USD") {
+				// not worth converting
+				initialWorthDecimal = f.items[i].initialFunds
+				finalWorthDecimal = f.items[i].available
+			} else {
+				from := f.items[i].currency.String()
+				to := "USD"
+				if from == "BTC" {
+					// api has conversion difficulties for BTC to USD only
+					to = "BUSD"
+				}
+				if fInitialFunds > 0 {
+					initialWorth, err := erh.ConvertCurrency(from, to, "", "", "crypto", startDate, fInitialFunds, 0)
+					if err != nil {
+						log.Errorf(log.CommunicationMgr, "issue converting %v to %v at %v on exchangerate.host API %v", from, to, startDate, err)
+					} else {
+						initialWorthDecimal = decimal.NewFromFloat(initialWorth.Result)
+					}
+				}
+				if fFinalFunds > 0 {
+					finalWorth, err := erh.ConvertCurrency(from, to, "", "", "crypto", endDate, fFinalFunds, 0)
+					if err != nil {
+						log.Errorf(log.CommunicationMgr, "issue converting %v to %v at %v on exchangerate.host API %v", from, to, endDate, err)
+					} else {
+						finalWorthDecimal = decimal.NewFromFloat(finalWorth.Result)
+					}
+				}
+			}
+		}
 		item := ReportItem{
-			Exchange:     f.items[i].exchange,
-			Asset:        f.items[i].asset,
-			Currency:     f.items[i].currency,
-			InitialFunds: f.items[i].initialFunds,
-			TransferFee:  f.items[i].transferFee,
-			FinalFunds:   f.items[i].available,
+			Exchange:        f.items[i].exchange,
+			Asset:           f.items[i].asset,
+			Currency:        f.items[i].currency,
+			InitialFunds:    f.items[i].initialFunds,
+			InitialFundsUSD: initialWorthDecimal.Round(2),
+			TransferFee:     f.items[i].transferFee,
+			FinalFunds:      f.items[i].available,
+			FinalFundsUSD:   finalWorthDecimal.Round(2),
+		}
+
+		if f.items[i].initialFunds.IsZero() {
+			item.ShowInfinite = true
+		} else {
+			item.Difference = f.items[i].available.Sub(f.items[i].initialFunds).Div(f.items[i].initialFunds).Mul(decimal.NewFromInt(100))
 		}
 		if f.items[i].pairedWith != nil {
 			item.PairedWith = f.items[i].pairedWith.currency
 		}
+		report.InitialTotalUSD = report.InitialTotalUSD.Add(initialWorthDecimal).Round(2)
+		report.FinalTotalUSD = report.FinalTotalUSD.Add(finalWorthDecimal).Round(2)
 		items = append(items, item)
 	}
-	return &Report{Items: items}
+	report.Items = items
+	return report
 }
 
 // Transfer allows transferring funds from one pretend exchange to another

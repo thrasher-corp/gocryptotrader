@@ -422,7 +422,7 @@ func TestPrintTotalResults(t *testing.T) {
 			MarketMovement: eleet,
 		},
 	})
-	s.PrintTotalResults()
+	s.PrintTotalResults(true)
 }
 
 func TestGetBestStrategyPerformer(t *testing.T) {

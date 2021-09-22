@@ -162,16 +162,15 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 	currCount := 0
 	var finalResults []FinalResultsHolder
 	var err error
+	var startDate, endDate time.Time
 	for exchangeName, exchangeMap := range s.ExchangeAssetPairStatistics {
 		for assetItem, assetMap := range exchangeMap {
 			for pair, stats := range assetMap {
-				err = funds.BuildReportFromExchangeAssetPair(exchangeName, assetItem, pair)
-				if err != nil {
-					return err
-				}
 				currCount++
 				var f funding.IPairReader
 				last := stats.Events[len(stats.Events)-1]
+				startDate = stats.Events[0].DataEvent.GetTime()
+				endDate = last.DataEvent.GetTime()
 				var event common.EventHandler
 				switch {
 				case last.FillEvent != nil:
@@ -189,7 +188,7 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 				if err != nil {
 					log.Error(log.BackTester, err)
 				}
-				stats.PrintResults(exchangeName, assetItem, pair, f)
+				stats.PrintResults(exchangeName, assetItem, pair, f, funds.IsUsingExchangeLevelFunding())
 				stats.FinalHoldings = last.Holdings
 				stats.InitialHoldings = stats.Events[0].Holdings
 				stats.FinalOrders = last.Transactions
@@ -211,20 +210,20 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 			}
 		}
 	}
-	s.Funding = funds.GenerateReport()
+	s.Funding = funds.GenerateReport(startDate, endDate)
 	s.TotalOrders = s.TotalBuyOrders + s.TotalSellOrders
 	if currCount > 1 {
 		s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies(finalResults)
 		s.BestMarketMovement = s.GetBestMarketPerformer(finalResults)
 		s.BestStrategyResults = s.GetBestStrategyPerformer(finalResults)
-		s.PrintTotalResults()
+		s.PrintTotalResults(funds.IsUsingExchangeLevelFunding())
 	}
 
 	return nil
 }
 
 // PrintTotalResults outputs all results to the CMD
-func (s *Statistic) PrintTotalResults() {
+func (s *Statistic) PrintTotalResults(isUsingExchangeLevelFunding bool) {
 	log.Info(log.BackTester, "------------------Strategy-----------------------------------")
 	log.Infof(log.BackTester, "Strategy Name: %v", s.StrategyName)
 	log.Infof(log.BackTester, "Strategy Nickname: %v", s.StrategyNickname)
@@ -237,12 +236,30 @@ func (s *Statistic) PrintTotalResults() {
 		if !s.Funding.Items[i].PairedWith.IsEmpty() {
 			log.Infof(log.BackTester, "Paired with: %v", s.Funding.Items[i].PairedWith)
 		}
-		log.Infof(log.BackTester, "Initial funds: %v", s.Funding.Items[i].InitialFunds)
+		log.Infof(log.BackTester, "Initial funds: $%v", s.Funding.Items[i].InitialFunds)
+		if isUsingExchangeLevelFunding {
+			log.Infof(log.BackTester, "Initial funds in USD: $%v", s.Funding.Items[i].InitialFundsUSD)
+		}
+		log.Infof(log.BackTester, "Final funds: %v", s.Funding.Items[i].FinalFunds)
+		if isUsingExchangeLevelFunding {
+			log.Infof(log.BackTester, "Final funds in USD: $%v", s.Funding.Items[i].FinalFundsUSD)
+		}
+		if s.Funding.Items[i].InitialFunds.IsZero() {
+			log.Info(log.BackTester, "Difference: ∞%")
+		} else {
+			log.Infof(log.BackTester, "Difference: %v%%", s.Funding.Items[i].Difference)
+		}
 		if s.Funding.Items[i].TransferFee.GreaterThan(decimal.Zero) {
-			log.Infof(log.BackTester, "Transfer fee: %v", s.Funding.Items[i].TransferFee)
+			log.Infof(log.BackTester, "Transfer fee: $%v", s.Funding.Items[i].TransferFee)
 		}
 		log.Info(log.BackTester, "")
 	}
+	log.Infof(log.BackTester, "Initial total funds in USD: $%v", s.Funding.InitialTotalUSD)
+	log.Infof(log.BackTester, "Final total funds in USD: $%v", s.Funding.FinalTotalUSD)
+	if s.Funding.InitialTotalUSD.GreaterThan(decimal.Zero) {
+		log.Infof(log.BackTester, "Difference %v%%\n", s.Funding.FinalTotalUSD.Sub(s.Funding.InitialTotalUSD).Div(s.Funding.InitialTotalUSD).Mul(decimal.NewFromInt(100)))
+	}
+
 	log.Info(log.BackTester, "------------------Total Results------------------------------")
 	log.Info(log.BackTester, "------------------Orders-------------------------------------")
 	log.Infof(log.BackTester, "Total buy orders: %v", s.TotalBuyOrders)

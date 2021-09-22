@@ -198,7 +198,7 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 }
 
 // PrintResults outputs all calculated statistics to the command line
-func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair, f funding.IPairReader) {
+func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair, f funding.IPairReader, usingExchangeLevelFunding bool) {
 	var errs gctcommon.Errors
 	sort.Slice(c.Events, func(i, j int) bool {
 		return c.Events[i].DataEvent.GetTime().Before(c.Events[j].DataEvent.GetTime())
@@ -237,7 +237,11 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "%s Risk free rate: %v%%", sep, c.RiskFreeRate.Round(2))
 	log.Infof(log.BackTester, "%s Compound Annual Growth Rate: %v\n\n", sep, c.CompoundAnnualGrowthRate.Round(2))
 
-	log.Info(log.BackTester, "------------------Arithmetic Ratios-------------------------------------")
+	log.Info(log.BackTester, "------------------Ratios------------------------------------------------")
+	if usingExchangeLevelFunding {
+		log.Warnf(log.BackTester, "%s This strategy is using Exchange Level Funding. Calculation of ratios may be inaccurate\n", sep)
+	}
+	log.Info(log.BackTester, "------------------Arithmetic--------------------------------------------")
 	if c.ShowMissingDataWarning {
 		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
 		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
@@ -247,7 +251,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "%s Information ratio: %v", sep, c.ArithmeticRatios.InformationRatio.Round(4))
 	log.Infof(log.BackTester, "%s Calmar ratio: %v\n\n", sep, c.ArithmeticRatios.CalmarRatio.Round(4))
 
-	log.Info(log.BackTester, "------------------Geometric Ratios-------------------------------------")
+	log.Info(log.BackTester, "------------------Geometric--------------------------------------------")
 	if c.ShowMissingDataWarning {
 		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
 		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
@@ -264,6 +268,9 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "%s Highest Close Price: $%v", sep, c.HighestClosePrice.Round(8))
 
 	log.Infof(log.BackTester, "%s Market movement: %v%%", sep, c.MarketMovement.Round(2))
+	if usingExchangeLevelFunding {
+		log.Warnf(log.BackTester, "%s This strategy is using Exchange Level Funding. Calculation of strategic performance may be inaccurate", sep)
+	}
 	log.Infof(log.BackTester, "%s Strategy movement: %v%%", sep, c.StrategyMovement.Round(2))
 	log.Infof(log.BackTester, "%s Did it beat the market: %v", sep, c.StrategyMovement.GreaterThan(c.MarketMovement))
 
@@ -274,9 +281,11 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 
 	log.Infof(log.BackTester, "%s Final funds: $%v", sep, last.Holdings.QuoteSize.Round(8))
 	log.Infof(log.BackTester, "%s Final holdings: %v", sep, last.Holdings.BaseSize.Round(8))
+	if usingExchangeLevelFunding {
+		log.Warnf(log.BackTester, "%s This strategy is using Exchange Level Funding. Calculation of holding values may be inaccurate", sep)
+	}
 	log.Infof(log.BackTester, "%s Final holdings value: $%v", sep, last.Holdings.BaseValue.Round(8))
 	log.Infof(log.BackTester, "%s Final total value: $%v\n\n", sep, last.Holdings.TotalValue.Round(8))
-
 	if len(errs) > 0 {
 		log.Info(log.BackTester, "------------------Errors-------------------------------------")
 		for i := range errs {
