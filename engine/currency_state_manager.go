@@ -19,7 +19,7 @@ import (
 
 const (
 	// CurrencyStateManagementName defines the manager name string
-	CurrencyStateManagementName = "CurrencyStateManagement"
+	CurrencyStateManagementName = "currency_state_manager"
 	// DefaultStateManagerDelay defines the default duration when the manager
 	// fetches and updates each exchange for its currency state
 	DefaultStateManagerDelay = time.Minute
