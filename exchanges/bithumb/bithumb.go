@@ -150,7 +150,7 @@ func (b *Bithumb) GetAssetStatus(ctx context.Context, symbol string) (*Status, e
 	return &response, nil
 }
 
-// GetAssetStatus returns the withdrawal and deposit status for the symbol
+// GetAssetStatusAll returns the withdrawal and deposit status for all symbols
 func (b *Bithumb) GetAssetStatusAll(ctx context.Context) (*StatusAll, error) {
 	var response StatusAll
 	err := b.SendHTTPRequest(ctx, exchange.RestSpot, publicAssetStatus+"ALL", &response)
