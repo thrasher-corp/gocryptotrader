@@ -2494,3 +2494,7 @@ func TestWsOutboundAccountPosition(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// func TestFEE(t *testing.T) {
+// 	b.FEE()
+// }

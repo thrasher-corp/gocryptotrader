@@ -1059,3 +1059,13 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 	}
 	return limits, nil
 }
+
+func (b *Binance) FEE() error {
+
+	_, err := common.SendHTTPRequest(context.Background(),
+		http.MethodGet,
+		"https://www.binance.com/en/fee/cryptoFee",
+		nil, nil, true,
+	)
+	return err
+}

@@ -221,8 +221,8 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		// Note: https://www.binance.com/en/fee/trading
 		Commission: map[asset.Item]fee.Commission{
 			asset.Spot:                {Maker: 0.01, Taker: 0.01},
-			asset.USDTMarginedFutures: {Maker: 0.01, Taker: 0.01},
-			asset.CoinMarginedFutures: {Maker: 0.01, Taker: 0.01},
+			asset.USDTMarginedFutures: {Maker: 0.02, Taker: 0.04},
+			asset.CoinMarginedFutures: {Maker: 0.01, Taker: 0.05},
 		},
 		Transfer: withdrawalFees, // TODO: Verify withdrawal fees
 	})

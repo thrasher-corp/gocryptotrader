@@ -105,6 +105,9 @@ func (f *FeeManager) monitor() {
 					err)
 			}
 			for x := range exchs {
+				if !exchs[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+					continue
+				}
 				wg.Add(1)
 				go update(exchs[x], &wg, exchs[x].GetAssetTypes(true))
 			}

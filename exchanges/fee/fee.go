@@ -509,3 +509,73 @@ func (d *Definitions) SetBankTransferFee(c currency.Code, transType BankTransact
 	tFee.Deposit = decimal.NewFromFloat(deposit)
 	return nil
 }
+
+var errNoTransferFees = errors.New("missing transfer fees to load")
+
+// LoadTransferFees allows the loading of current transfer fees for
+// cryptocurrency deposit and withdrawals
+func (d *Definitions) LoadTransferFees(fees map[asset.Item]map[currency.Code]Transfer) error {
+	if d == nil {
+		return ErrDefinitionsAreNil
+	}
+
+	if len(fees) == 0 {
+		return errNoTransferFees
+	}
+
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	for assetItem, m1 := range fees {
+		for code, incomingVal := range m1 {
+			trAssets, ok := d.transfers[assetItem]
+			if !ok {
+				trAssets = make(map[*currency.Item]*transfer)
+				d.transfers[assetItem] = trAssets
+			}
+			trVal, ok := trAssets[code.Item]
+			if !ok {
+				trAssets[code.Item] = incomingVal.convert()
+				continue
+			}
+			err := trVal.update(incomingVal)
+			if err != nil {
+				return fmt.Errorf("loading crypto fees error: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+// LoadBankTransferFees allows the loading of current banking transfer fees for
+// banking deposit and withdrawals
+func (d *Definitions) LoadBankTransferFees(fees map[BankTransaction]map[currency.Code]Transfer) error {
+	if d == nil {
+		return ErrDefinitionsAreNil
+	}
+
+	if len(fees) == 0 {
+		return errNoTransferFees
+	}
+
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	for bankType, m1 := range fees {
+		for code, incomingVal := range m1 {
+			trAssets, ok := d.bankingTransfers[bankType]
+			if !ok {
+				trAssets = make(map[*currency.Item]*transfer)
+				d.bankingTransfers[bankType] = trAssets
+			}
+			trVal, ok := trAssets[code.Item]
+			if !ok {
+				trAssets[code.Item] = incomingVal.convert()
+				continue
+			}
+			err := trVal.update(incomingVal)
+			if err != nil {
+				return fmt.Errorf("loading banking fees error: %w", err)
+			}
+		}
+	}
+	return nil
+}
