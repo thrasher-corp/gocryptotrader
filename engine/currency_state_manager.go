@@ -176,9 +176,9 @@ func (c *CurrencyStateManager) update(exch exchange.IBotExchange, wg *sync.WaitG
 	}
 }
 
-// CurrencyStateGetAllRPC returns a full snapshot of currency states, whether they
-// are able to be withdrawn, deposited or traded on an exchange for RPC.
-func (c *CurrencyStateManager) CurrencyStateGetAllRPC(exchName string) (*gctrpc.CurrencyStateResponse, error) {
+// GetAllRPC returns a full snapshot of currency states, whether they are able
+// to be withdrawn, deposited or traded on an exchange for RPC.
+func (c *CurrencyStateManager) GetAllRPC(exchName string) (*gctrpc.CurrencyStateResponse, error) {
 	if !c.IsRunning() {
 		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
 	}
@@ -205,9 +205,9 @@ func (c *CurrencyStateManager) CurrencyStateGetAllRPC(exchName string) (*gctrpc.
 	return resp, nil
 }
 
-// CurrencyStateWithdraw determines via RPC if the currency code is operational for
-// withdrawal from an exchange for RPC
-func (c *CurrencyStateManager) CurrencyStateWithdrawRPC(exchName string, cc currency.Code, a asset.Item) (*gctrpc.GenericResponse, error) {
+// CanWithdrawRPC determines if the currency code is operational for withdrawal
+// from an exchange for RPC
+func (c *CurrencyStateManager) CanWithdrawRPC(exchName string, cc currency.Code, a asset.Item) (*gctrpc.GenericResponse, error) {
 	if !c.IsRunning() {
 		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
 	}
@@ -224,9 +224,9 @@ func (c *CurrencyStateManager) CurrencyStateWithdrawRPC(exchName string, cc curr
 	return enabled, nil
 }
 
-// CurrencyStateDeposit determines via RPC if the currency code is operational for
-// depositing to an exchange for RPC
-func (c *CurrencyStateManager) CurrencyStateDepositRPC(exchName string, cc currency.Code, a asset.Item) (*gctrpc.GenericResponse, error) {
+// CanDepositRPC determines if the currency code is operational for depositing
+// to an exchange for RPC
+func (c *CurrencyStateManager) CanDepositRPC(exchName string, cc currency.Code, a asset.Item) (*gctrpc.GenericResponse, error) {
 	if !c.IsRunning() {
 		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
 	}
@@ -243,8 +243,9 @@ func (c *CurrencyStateManager) CurrencyStateDepositRPC(exchName string, cc curre
 	return enabled, nil
 }
 
-// CurrencyStateTrading determines via RPC if the currency code is operational for trading
-func (c *CurrencyStateManager) CurrencyStateTradingRPC(exchName string, cc currency.Code, a asset.Item) (*gctrpc.GenericResponse, error) {
+// CanTradeRPC determines if the currency code is operational for trading for
+// RPC
+func (c *CurrencyStateManager) CanTradeRPC(exchName string, cc currency.Code, a asset.Item) (*gctrpc.GenericResponse, error) {
 	if !c.IsRunning() {
 		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
 	}
@@ -261,8 +262,8 @@ func (c *CurrencyStateManager) CurrencyStateTradingRPC(exchName string, cc curre
 	return enabled, nil
 }
 
-// CurrencyStateTradingPair determines via RPC if the pair is operational for trading
-func (c *CurrencyStateManager) CurrencyStateTradingPairRPC(exchName string, pair currency.Pair, a asset.Item) (*gctrpc.GenericResponse, error) {
+// CanTradePairRPC determines if the pair is operational for trading for RPC
+func (c *CurrencyStateManager) CanTradePairRPC(exchName string, pair currency.Pair, a asset.Item) (*gctrpc.GenericResponse, error) {
 	if !c.IsRunning() {
 		return nil, fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
 	}
