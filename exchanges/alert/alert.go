@@ -62,7 +62,7 @@ func (n *Notice) Wait(kick <-chan struct{}) <-chan bool {
 }
 
 // hold waits on either channel in the event that the routine has
-// finished/canceled or an alert from a depth update has occurred.
+// finished/cancelled or an alert from an update has occurred.
 func (n *Notice) hold(ch chan<- bool, kick <-chan struct{}) {
 	select {
 	// In a select statement, if by chance there is no receiver or its late,

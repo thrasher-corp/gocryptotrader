@@ -3,9 +3,11 @@ package engine
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -55,12 +57,14 @@ func (f *fakeExchangeManagerino) GetExchangeByName(_ string) (exchange.IBotExcha
 
 type fakerino struct {
 	exchange.IBotExchange
-	errorMe bool
+	errorMe                bool
+	GetAvailablePairsError bool
+	GetBaseError           bool
 }
 
 func (f *fakerino) UpdateCurrencyStates(_ context.Context, _ asset.Item) error {
 	if f.errorMe {
-		return errExchange
+		return common.ErrNotYetImplemented
 	}
 	return nil
 }
@@ -110,7 +114,21 @@ func (f *fakerino) CanTradePair(p currency.Pair, a asset.Item) error {
 	return nil
 }
 
-func TestCurrencyStateManagerCoolRunnings(t *testing.T) {
+func (f *fakerino) GetAvailablePairs(a asset.Item) (currency.Pairs, error) {
+	if f.GetAvailablePairsError {
+		return nil, errExchange
+	}
+	return currency.Pairs{currency.NewPair(currency.BTC, currency.USD)}, nil
+}
+
+func (f *fakerino) GetBase() *exchange.Base {
+	if f.GetBaseError {
+		return nil
+	}
+	return &exchange.Base{States: currencystate.NewCurrencyStates()}
+}
+
+func TestCurrencyStateManagerIsRunning(t *testing.T) {
 	t.Parallel()
 	err := (*CurrencyStateManager)(nil).Stop()
 	if !errors.Is(err, ErrNilSubsystem) {
@@ -139,7 +157,7 @@ func TestCurrencyStateManagerCoolRunnings(t *testing.T) {
 
 	man := &CurrencyStateManager{
 		shutdown:         make(chan struct{}),
-		iExchangeManager: &fakeExchangeManagerino{},
+		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
 		sleep:            time.Minute}
 	err = man.Start()
 	if !errors.Is(err, nil) {
@@ -166,7 +184,7 @@ func TestCurrencyStateManagerCoolRunnings(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	man.iExchangeManager = &fakeExchangeManagerino{ErrorMeTwo: true}
+	man.iExchangeManager = &fakeExchangeManagerino{ErrorMeOne: true}
 	err = man.Start()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -346,4 +364,13 @@ func TestCanTradePairRPC(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+}
+
+func TestUpdate(t *testing.T) {
+	man := &CurrencyStateManager{}
+	var wg sync.WaitGroup
+	wg.Add(3)
+	man.update(&fakerino{errorMe: true, GetAvailablePairsError: true}, &wg, asset.Items{asset.Spot})
+	man.update(&fakerino{errorMe: true, GetBaseError: true}, &wg, asset.Items{asset.Spot})
+	man.update(&fakerino{errorMe: true}, &wg, asset.Items{asset.Spot})
 }
