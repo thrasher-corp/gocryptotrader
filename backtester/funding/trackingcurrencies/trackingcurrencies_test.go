@@ -4,16 +4,61 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 )
 
-func TestDoEverything(t *testing.T) {
+var (
+	exch = "binance"
+	a    = "spot"
+	b    = "BTC"
+	q    = "USDT"
+)
+
+func TestCreateUSDTrackingPairs(t *testing.T) {
 	t.Parallel()
 
+	_, err := CreateUSDTrackingPairs(nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	_, err = CreateUSDTrackingPairs([]config.CurrencySettings{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	_, err = CreateUSDTrackingPairs([]config.CurrencySettings{{}})
+	if !errors.Is(err, engine.ErrExchangeNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, engine.ErrExchangeNotFound)
+	}
+
+	s1 := config.CurrencySettings{
+		ExchangeName: exch,
+		Asset:        a,
+		Base:         b,
+		Quote:        q,
+	}
+	resp, err := CreateUSDTrackingPairs([]config.CurrencySettings{s1})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(resp) != 1 {
+		t.Error("expected 1 currency setting as it contains a USD equiv")
+	}
+	s1.Base = "LTC"
+	s1.Quote = "BTC"
+	resp, err = CreateUSDTrackingPairs([]config.CurrencySettings{s1})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(resp) != 3 {
+		t.Error("expected 3 currency settings as it did not contain a USD equiv")
+	}
 }
 
 func TestFindMatchingUSDPairs(t *testing.T) {
-	t.Parallel()
 	type testPair struct {
 		description    string
 		initialPair    currency.Pair
@@ -73,21 +118,24 @@ func TestFindMatchingUSDPairs(t *testing.T) {
 		},
 	}
 	for i := range tests {
-		basePair, quotePair, err := FindMatchingUSDPairs(tests[i].initialPair, tests[i].availablePairs)
-		if !errors.Is(err, tests[i].expectedErr) {
-			t.Fatalf("'%v' received '%v' expected '%v'", tests[i].description, err, tests[i].expectedErr)
-		}
-		if basePair != tests[i].basePair {
-			t.Fatalf("'%v' received '%v' expected '%v'", tests[i].description, basePair, tests[i].basePair)
-		}
-		if quotePair != tests[i].quotePair {
-			t.Fatalf("'%v' received '%v' expected '%v'", tests[i].description, quotePair, tests[i].quotePair)
-		}
+		tt := tests[i]
+		t.Run(tt.description, func(t *testing.T) {
+			t.Parallel()
+			basePair, quotePair, err := FindMatchingUSDPairs(tests[i].initialPair, tests[i].availablePairs)
+			if !errors.Is(err, tests[i].expectedErr) {
+				t.Fatalf("'%v' received '%v' expected '%v'", tests[i].description, err, tests[i].expectedErr)
+			}
+			if basePair != tests[i].basePair {
+				t.Fatalf("'%v' received '%v' expected '%v'", tests[i].description, basePair, tests[i].basePair)
+			}
+			if quotePair != tests[i].quotePair {
+				t.Fatalf("'%v' received '%v' expected '%v'", tests[i].description, quotePair, tests[i].quotePair)
+			}
+		})
 	}
 }
 
 func TestPairContainsUSD(t *testing.T) {
-	t.Parallel()
 	type testPair struct {
 		expected bool
 		pair     currency.Pair
@@ -140,9 +188,13 @@ func TestPairContainsUSD(t *testing.T) {
 	}
 	var resp bool
 	for i := range pairs {
-		resp = PairContainsUSD(pairs[i].pair)
-		if resp != pairs[i].expected {
-			t.Errorf("expected %v received %v", pairs[i], resp)
-		}
+		tt := pairs[i]
+		t.Run(tt.pair.String(), func(t *testing.T) {
+			t.Parallel()
+			resp = PairContainsUSD(pairs[i].pair)
+			if resp != pairs[i].expected {
+				t.Errorf("expected %v received %v", pairs[i], resp)
+			}
+		})
 	}
 }

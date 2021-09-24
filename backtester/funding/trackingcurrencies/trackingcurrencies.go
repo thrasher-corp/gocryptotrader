@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -35,37 +37,50 @@ var (
 	errCurrencyContainsUSD     = errors.New("currency already contains a USD equivalent")
 )
 
-func DoEverything(cs []config.CurrencySettings) ([]config.CurrencySettings, error) {
+// CreateUSDTrackingPairs is responsible for loading exchanges,
+// ensuring the exchange have the latest currency pairs and
+// if a pair doesn't have a USD currency to track price, to add those settings
+func CreateUSDTrackingPairs(cs []config.CurrencySettings) ([]config.CurrencySettings, error) {
 	em := engine.SetupExchangeManager()
 	var emm = make(map[string]exchange.IBotExchange)
-	var resp []config.CurrencySettings
-	// exchange, asset, base, quote
-	var maperoo = make(map[string]map[string]map[string]map[string]config.CurrencySettings)
+	var wg sync.WaitGroup
 	var err error
 	for i := range cs {
-		if _, ok := maperoo[cs[i].ExchangeName]; !ok {
-			maperoo[cs[i].ExchangeName] = make(map[string]map[string]map[string]config.CurrencySettings)
-		}
-		var exch exchange.IBotExchange
-		var ok bool
-		if exch, ok = emm[strings.ToLower(cs[i].ExchangeName)]; !ok {
-			exch, err = em.NewExchangeByName(cs[i].ExchangeName)
+		emm[cs[i].ExchangeName] = nil
+	}
+	wg.Add(len(emm))
+	for k := range emm {
+		go func(key string) {
+			defer wg.Done()
+			var exch exchange.IBotExchange
+			exch, err = em.NewExchangeByName(key)
 			if err != nil {
-				return nil, err
+				return
+			}
+			var conf *gctconfig.ExchangeConfig
+			conf, err = exch.GetDefaultConfig()
+			if err != nil {
+				return
 			}
 			exch.SetDefaults()
+			err = exch.Setup(conf)
+			if err != nil {
+				return
+			}
 			err = exch.UpdateTradablePairs(context.Background(), true)
 			if err != nil {
-				return nil, err
+				return
 			}
-			emm[exch.GetName()] = exch
-		}
+			emm[key] = exch
+		}(k)
+	}
+	wg.Wait()
 
-		if _, ok := maperoo[cs[i].ExchangeName][cs[i].Asset]; !ok {
-			maperoo[cs[i].ExchangeName][cs[i].Asset] = make(map[string]map[string]config.CurrencySettings)
-		}
-		if _, ok := maperoo[cs[i].ExchangeName][cs[i].Asset][cs[i].Base]; !ok {
-			maperoo[cs[i].ExchangeName][cs[i].Asset][cs[i].Base] = make(map[string]config.CurrencySettings)
+	var resp []config.CurrencySettings
+	for i := range cs {
+		exch := emm[strings.ToLower(cs[i].ExchangeName)]
+		if exch == nil {
+			return nil, fmt.Errorf("%v %w", cs[i].ExchangeName, engine.ErrExchangeNotFound)
 		}
 		pair, err := currency.NewPairFromStrings(cs[i].Base, cs[i].Quote)
 		if err != nil {
@@ -104,6 +119,8 @@ func DoEverything(cs []config.CurrencySettings) ([]config.CurrencySettings, erro
 	return resp, nil
 }
 
+// PairContainsUSD is a simple check to ensure that the currency pair
+// has some sort of matching USD currency
 func PairContainsUSD(pair currency.Pair) bool {
 	for i := range rankedUSDs {
 		if rankedUSDs[i] == pair.Base {
