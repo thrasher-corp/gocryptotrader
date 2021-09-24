@@ -151,6 +151,9 @@ func (f *FundManager) GenerateReport(startDate, endDate time.Time) *Report {
 		report.FinalTotalUSD = report.FinalTotalUSD.Add(finalWorthDecimal).Round(2)
 		items = append(items, item)
 	}
+	if !report.InitialTotalUSD.IsZero() {
+		report.Difference = report.FinalTotalUSD.Sub(report.InitialTotalUSD).Div(report.InitialTotalUSD).Mul(decimal.NewFromInt(100))
+	}
 	report.Items = items
 	return report
 }

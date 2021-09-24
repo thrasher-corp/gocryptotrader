@@ -32,7 +32,7 @@
 </head>
 <body>
 {{- /*gotype: github.com/thrasher-corp/gocryptotrader/backtester/report.Data*/ -}}
-<header style="margin-bottom: 3%">
+<header style="margin-bottom: 5%">
 	<nav class="navbar navbar-dark bg-dark fixed-top navbar-expand-lg">
 		<!-- Container wrapper -->
 		<div class="container-fluid">
@@ -227,14 +227,14 @@
 								<td>{{.Exchange}}</td>
 								<td>{{.Asset}}</td>
 								<td>{{.Currency}}</td>
-								<td>{{.InitialFunds}}</td>
+								<td>{{.InitialFunds}} {{.Currency}}</td>
 								<td>${{.InitialFundsUSD}}</td>
-								<td>{{.FinalFunds}}</td>
+								<td>{{.FinalFunds}} {{.Currency}}</td>
 								<td>${{.FinalFundsUSD}}</td>
 								{{if .ShowInfinite}}
 									<td>∞%</td>
 								{{ else }}
-									<td>{{ printf "%.8v" .Difference}}%</td>
+									<td>{{ .Difference}}%</td>
 								{{ end }}
 							</tr>
 						{{end}}
@@ -250,6 +250,10 @@
 						<tr>
 							<td><b>Final Total Funds in USD</b></td>
 							<td><b>${{  .Statistics.Funding.FinalTotalUSD}}</b></td>
+						</tr>
+						<tr>
+							<td><b>Difference</b></td>
+							<td><b>{{ .Statistics.Funding.Difference}}%</b></td>
 						</tr>
 						</tbody>
 					</table>
@@ -271,7 +275,7 @@
 										<td>{{ $exchange}}</td>
 										<td>{{ $asset}}</td>
 										<td>{{ $pair}}</td>
-										<td>{{ printf "%.8v" .MarketMovement}}%</td>
+										<td>{{ .MarketMovement}}%</td>
 									</tr>
 								{{end}}
 							{{end}}
@@ -305,16 +309,16 @@
 										<td>{{ $exchange}}</td>
 										<td>{{ $asset}}</td>
 										<td>{{ $pair}}</td>
-										<td>${{ .InitialHoldings.BaseInitialFunds }} {{.FinalHoldings.Pair.Base}}</td>
-										<td>${{ .InitialHoldings.QuoteInitialFunds }} {{.FinalHoldings.Pair.Quote}}</td>
-										<td>${{ .InitialHoldings.TotalInitialValue }} {{.FinalHoldings.Pair.Quote}}</td>
-										<td>${{ .FinalHoldings.BaseSize }} {{ .FinalHoldings.Pair.Base}}</td>
-										<td>${{ .FinalHoldings.QuoteSize }} {{ .FinalHoldings.Pair.Quote}}</td>
-										<td>${{ .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>
+										<td>{{ .InitialHoldings.BaseInitialFunds }} {{.FinalHoldings.Pair.Base}}</td>
+										<td>{{ .InitialHoldings.QuoteInitialFunds }} {{.FinalHoldings.Pair.Quote}}</td>
+										<td>{{ .InitialHoldings.TotalInitialValue }} {{.FinalHoldings.Pair.Quote}}</td>
+										<td>{{ .FinalHoldings.BaseSize }} {{ .FinalHoldings.Pair.Base}}</td>
+										<td>{{ .FinalHoldings.QuoteSize }} {{ .FinalHoldings.Pair.Quote}}</td>
+										<td>{{ .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>
 										<td>{{  .IsStrategyProfitable }}</td>
 										<td> {{ .DoesPerformanceBeatTheMarket }}</td>
-										<td>{{ printf "%.8v" .StrategyMovement }}%</td>
-										<td>{{ printf "%.8v" .MarketMovement}}%</td>
+										<td>{{  .StrategyMovement }}%</td>
+										<td>{{  .MarketMovement}}%</td>
 									</tr>
 								{{end}}
 							{{end}}
@@ -332,6 +336,10 @@
 						<tr>
 							<td><b>Final Total Funds in USD</b></td>
 							<td><b>${{   .Statistics.Funding.FinalTotalUSD}}</b></td>
+						</tr>
+						<tr>
+							<td><b>Difference</b></td>
+							<td><b>{{  .Statistics.Funding.Difference}}%</b></td>
 						</tr>
 						</tbody>
 					</table>
@@ -407,10 +415,10 @@
 							<td>{{.Quote}}</td>
 							<td>{{.BuySide.MinimumSize}} {{.Base}}</td>
 							<td>{{.BuySide.MaximumSize}} {{.Base}}</td>
-							<td>${{printf "%.8v" .BuySide.MaximumTotal}} {{.Quote}}</td>
+							<td>{{.BuySide.MaximumTotal}} {{.Quote}}</td>
 							<td>{{.SellSide.MinimumSize}} {{.Base}}</td>
 							<td>{{.SellSide.MaximumSize}} {{.Base}}</td>
-							<td>${{printf "%.8v" .SellSide.MaximumTotal}} {{.Quote}}</td>
+							<td>{{.SellSide.MaximumTotal}} {{.Quote}}</td>
 							<td>{{.MinimumSlippagePercent}}%</td>
 							<td>{{.MaximumSlippagePercent}}%</td>
 							<td>{{.TakerFee}}</td>
@@ -446,8 +454,8 @@
 							<td>{{.Asset}}</td>
 							<td>{{.Currency}}</td>
 							<td>{{.PairedWith}}</td>
-							<td>{{ printf "$%.8v" .InitialFunds}}</td>
-							<td>{{ printf "$%.8v" .TransferFee}}</td>
+							<td>{{ .InitialFunds}}</td>
+							<td>{{ .TransferFee}}</td>
 						</tr>
 					{{end}}
 					</tbody>
@@ -482,10 +490,10 @@
 						<td>{{.Config.PortfolioSettings.Leverage.MaximumOrdersWithLeverageRatio}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MinimumSize}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MaximumSize}}</td>
-						<td>${{printf "%.8v" .Config.PortfolioSettings.BuySide.MaximumTotal}}</td>
+						<td>{{ .Config.PortfolioSettings.BuySide.MaximumTotal}}</td>
 						<td>{{.Config.PortfolioSettings.SellSide.MinimumSize}}</td>
 						<td>{{.Config.PortfolioSettings.SellSide.MaximumSize}}</td>
-						<td>${{printf "%.8v" .Config.PortfolioSettings.SellSide.MaximumTotal}}</td>
+						<td>{{ .Config.PortfolioSettings.SellSide.MaximumTotal}}</td>
 					</tr>
 					</tbody>
 				</table>
@@ -622,6 +630,12 @@
 								{ time: {{.Time }}, position: {{printf "%s" .Position }}, color: {{printf "%s" .Colour }}, shape: {{printf "%s" .Shape }}, text: {{printf "%s" .Text }} },
 								{{end}}
 							])
+							candleSeries.applyOptions({
+								priceFormat: {
+									type: 'volume',
+									precision: 8,
+								},
+							});
 
 							var volumeSeries = chart.addHistogramSeries({
 								priceFormat: {
@@ -713,11 +727,11 @@
 								<tbody>
 								<tr>
 									<td><b>Base Initial Funds</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.BaseInitialFunds}} {{$val.FinalHoldings.Pair.Base}}</td>
+									<td>{{ $val.FinalHoldings.BaseInitialFunds}} {{$val.FinalHoldings.Pair.Base}}</td>
 								</tr>
 								<tr>
 									<td><b>Quote Initial Funds</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.QuoteInitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>{{ $val.FinalHoldings.QuoteInitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 
 								<tr>
@@ -726,11 +740,11 @@
 								</tr>
 								<tr>
 									<td><b>Buy Value</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>{{ $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Buy Amount</b></td>
-									<td>{{printf "%.8v" $val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
+									<td>{{ $val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
 								</tr>
 								<tr>
 									<td><b>Sell Orders</b></td>
@@ -738,11 +752,11 @@
 								</tr>
 								<tr>
 									<td><b>Sell Value</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>{{ $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Sell Amount</b></td>
-									<td>{{printf "%.8v" $val.FinalHoldings.SoldAmount}} {{$val.FinalHoldings.Pair.Base}}</td>
+									<td>{{ $val.FinalHoldings.SoldAmount}} {{$val.FinalHoldings.Pair.Base}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Orders</b></td>
@@ -757,31 +771,31 @@
 								{{ end }}
 								<tr>
 									<td><b>Starting Close Price</b></td>
-									<td>${{printf "%.8v" $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>{{ $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Ending Close Price</b></td>
-									<td>${{printf "%.8v" $val.EndingClosePrice}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									<td>{{ $val.EndingClosePrice}} {{ $val.FinalHoldings.Pair.Quote }}</td>
 								</tr>
 								<tr>
 									<td><b>Lowest Close Price</b></td>
-									<td>${{printf "%.8v" $val.LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>{{ $val.LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Highest Close Price</b></td>
-									<td>${{printf "%.8v" $val.HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									<td>{{ $val.HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Highest Committed Funds</b></td>
-									<td>${{printf "%.8v" $val.HighestCommittedFunds.Value}} at {{ $val.HighestCommittedFunds.Time}}</td>
+									<td>{{ $val.HighestCommittedFunds.Value}} at {{ $val.HighestCommittedFunds.Time}}</td>
 								</tr>
 								<tr>
 									<td><b>Market Movement</b></td>
-									<td>{{printf "%.8v" $val.MarketMovement}}%</td>
+									<td>{{ $val.MarketMovement}}%</td>
 								</tr>
 								<tr>
 									<td><b>Strategy Movement</b></td>
-									<td>{{ printf "%.8v" $val.StrategyMovement}}%</td>
+									<td>{{  $val.StrategyMovement}}%</td>
 								</tr>
 								<tr>
 									<td><b>Did it beat the market?</b></td>
@@ -789,35 +803,35 @@
 								</tr>
 								<tr>
 									<td><b>Total Value Lost to Volume Sizing</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.TotalValueLostToVolumeSizing}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>{{ $val.FinalHoldings.TotalValueLostToVolumeSizing}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value Lost to Slippage</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.TotalValueLostToSlippage}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									<td>{{ $val.FinalHoldings.TotalValueLostToSlippage}} {{ $val.FinalHoldings.Pair.Quote }}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value Lost</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.TotalValueLost}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>{{ $val.FinalHoldings.TotalValueLost}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Fees</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									<td>{{ $val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
 								</tr>
 								<tr>
 									<td><b>Final Funds</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.QuoteSize}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									<td>{{ $val.FinalHoldings.QuoteSize}} {{ $val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Final Holdings</b></td>
-									<td>{{printf "%.8v" $val.FinalHoldings.BaseSize}} {{$val.FinalHoldings.Pair.Base}}</td>
+									<td>{{ $val.FinalHoldings.BaseSize}} {{$val.FinalHoldings.Pair.Base}}</td>
 								</tr>
 								<tr>
 									<td><b>Final Holdings Value</b></td>
-									<td>${{printf "%.8v" $val.FinalHoldings.BaseValue}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									<td>{{ $val.FinalHoldings.BaseValue}} {{ $val.FinalHoldings.Pair.Quote }}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value</b></td>
-									<td><b>${{printf "%.8v" $val.FinalHoldings.TotalValue}} {{ $val.FinalHoldings.Pair.Quote}}</b></td>
+									<td><b>{{ $val.FinalHoldings.TotalValue}} {{ $val.FinalHoldings.Pair.Quote}}</b></td>
 								</tr>
 								</tbody>
 							</table>
@@ -915,12 +929,12 @@
 									{{range $val.FinalOrders.Orders}}
 										<tr>
 											<td>{{ .Detail.Date }}</td>
-											<td>${{ .ClosePrice}} {{$pair.Quote}}</td>
+											<td>{{ .ClosePrice}} {{$pair.Quote}}</td>
 											<td>{{ .Detail.Side }}</td>
-											<td>${{ .Detail.Price }} {{$pair.Quote}}</td>
-											<td>{{printf "%.8v" .Detail.Amount }} {{$pair.Base}}</td>
-											<td>${{printf "%.8v" .Detail.Fee }} {{$pair.Quote}}</td>
-											<td>${{printf "%.8v" .CostBasis }} {{$pair.Quote}}</td>
+											<td>{{ .Detail.Price }} {{$pair.Quote}}</td>
+											<td>{{ .Detail.Amount }} {{$pair.Base}}</td>
+											<td>{{.Detail.Fee }} {{$pair.Quote}}</td>
+											<td>{{ .CostBasis }} {{$pair.Quote}}</td>
 											<td>{{ .SlippageRate }}%</td>
 										</tr>
 									{{end}}
@@ -961,18 +975,18 @@
 										<tr>
 											{{ if ne $ev.FillEvent nil }}
 												<td><b>{{$ev.FillEvent.GetTime}}</b></td>
-												<td>${{$ev.FillEvent.GetClosePrice}} {{$pair.Quote}}</td>
+												<td>{{$ev.FillEvent.GetClosePrice}} {{$pair.Quote}}</td>
 												<td>{{$ev.FillEvent.GetDirection}}</td>
 												<td>{{$ev.FillEvent.GetReason}}</td>
 											{{ else if ne $ev.SignalEvent nil}}
 												<td>{{$ev.SignalEvent.GetTime}}</td>
-												<td>${{ printf "%v" $ev.SignalEvent.GetPrice}} {{$pair.Quote}}</td>
+												<td>{{ $ev.SignalEvent.GetPrice}} {{$pair.Quote}}</td>
 												<td>{{$ev.SignalEvent.GetDirection}}</td>
 												<td>{{$ev.SignalEvent.GetReason}}</td>
 											{{ end }}
-											<td>${{printf "%.8v" $ev.Holdings.BaseSize}} {{$pair.Base}}</td>
-											<td>${{printf "%.8v" $ev.Holdings.QuoteSize}} {{$pair.Quote}}</td>
-											<td>${{printf "%.8v" $ev.Holdings.TotalValue}} {{$pair.Quote}}</td>
+											<td>{{ $ev.Holdings.BaseSize}} {{$pair.Base}}</td>
+											<td>{{ $ev.Holdings.QuoteSize}} {{$pair.Quote}}</td>
+											<td>{{ $ev.Holdings.TotalValue}} {{$pair.Quote}}</td>
 										</tr>
 									{{end}}
 									</tbody>

@@ -21,6 +21,7 @@ type FundManager struct {
 type Report struct {
 	InitialTotalUSD decimal.Decimal
 	FinalTotalUSD   decimal.Decimal
+	Difference      decimal.Decimal
 	Items           []ReportItem
 }
 

@@ -212,25 +212,25 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	sep := fmt.Sprintf("%v %v %v |\t", e, a, p)
 	currStr := fmt.Sprintf("------------------Stats for %v %v %v------------------------------------------", e, a, p)
 	log.Infof(log.BackTester, currStr[:61])
-	log.Infof(log.BackTester, "%s Initial base funds: $%v", sep, f.BaseInitialFunds())
-	log.Infof(log.BackTester, "%s Initial base quote: $%v", sep, f.QuoteInitialFunds())
-	log.Infof(log.BackTester, "%s Highest committed funds: $%v at %v\n\n", sep, c.HighestCommittedFunds.Value.Round(8), c.HighestCommittedFunds.Time)
+	log.Infof(log.BackTester, "%s Initial base funds: %v", sep, f.BaseInitialFunds())
+	log.Infof(log.BackTester, "%s Initial base quote: %v", sep, f.QuoteInitialFunds())
+	log.Infof(log.BackTester, "%s Highest committed funds: %v at %v\n\n", sep, c.HighestCommittedFunds.Value.Round(8), c.HighestCommittedFunds.Time)
 
 	log.Infof(log.BackTester, "%s Buy orders: %d", sep, c.BuyOrders)
-	log.Infof(log.BackTester, "%s Buy value: $%v", sep, last.Holdings.BoughtValue.Round(8))
+	log.Infof(log.BackTester, "%s Buy value: %v", sep, last.Holdings.BoughtValue.Round(8))
 	log.Infof(log.BackTester, "%s Buy amount: %v %v", sep, last.Holdings.BoughtAmount.Round(8), last.Holdings.Pair.Base)
 	log.Infof(log.BackTester, "%s Sell orders: %d", sep, c.SellOrders)
-	log.Infof(log.BackTester, "%s Sell value: $%v", sep, last.Holdings.SoldValue.Round(8))
+	log.Infof(log.BackTester, "%s Sell value: %v", sep, last.Holdings.SoldValue.Round(8))
 	log.Infof(log.BackTester, "%s Sell amount: %v %v", sep, last.Holdings.SoldAmount.Round(8), last.Holdings.Pair.Base)
 	log.Infof(log.BackTester, "%s Total orders: %d\n\n", sep, c.TotalOrders)
 
 	log.Info(log.BackTester, "------------------Max Drawdown-------------------------------")
-	log.Infof(log.BackTester, "%s Highest Price of drawdown: $%v", sep, c.MaxDrawdown.Highest.Price.Round(8))
+	log.Infof(log.BackTester, "%s Highest Price of drawdown: %v", sep, c.MaxDrawdown.Highest.Price.Round(8))
 	log.Infof(log.BackTester, "%s Time of highest price of drawdown: %v", sep, c.MaxDrawdown.Highest.Time)
-	log.Infof(log.BackTester, "%s Lowest Price of drawdown: $%v", sep, c.MaxDrawdown.Lowest.Price.Round(8))
+	log.Infof(log.BackTester, "%s Lowest Price of drawdown: %v", sep, c.MaxDrawdown.Lowest.Price.Round(8))
 	log.Infof(log.BackTester, "%s Time of lowest price of drawdown: %v", sep, c.MaxDrawdown.Lowest.Time)
 	log.Infof(log.BackTester, "%s Calculated Drawdown: %v%%", sep, c.MaxDrawdown.DrawdownPercent.Round(2))
-	log.Infof(log.BackTester, "%s Difference: $%v", sep, c.MaxDrawdown.Highest.Price.Sub(c.MaxDrawdown.Lowest.Price).Round(2))
+	log.Infof(log.BackTester, "%s Difference: %v", sep, c.MaxDrawdown.Highest.Price.Sub(c.MaxDrawdown.Lowest.Price).Round(2))
 	log.Infof(log.BackTester, "%s Drawdown length: %d\n\n", sep, c.MaxDrawdown.IntervalDuration)
 
 	log.Info(log.BackTester, "------------------Rates-------------------------------------------------")
@@ -262,10 +262,10 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "%s Calmar ratio: %v\n\n", sep, c.GeometricRatios.CalmarRatio.Round(4))
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
-	log.Infof(log.BackTester, "%s Starting Close Price: $%v", sep, c.StartingClosePrice.Round(8))
-	log.Infof(log.BackTester, "%s Finishing Close Price: $%v", sep, c.EndingClosePrice.Round(8))
-	log.Infof(log.BackTester, "%s Lowest Close Price: $%v", sep, c.LowestClosePrice.Round(8))
-	log.Infof(log.BackTester, "%s Highest Close Price: $%v", sep, c.HighestClosePrice.Round(8))
+	log.Infof(log.BackTester, "%s Starting Close Price: %v", sep, c.StartingClosePrice.Round(8))
+	log.Infof(log.BackTester, "%s Finishing Close Price: %v", sep, c.EndingClosePrice.Round(8))
+	log.Infof(log.BackTester, "%s Lowest Close Price: %v", sep, c.LowestClosePrice.Round(8))
+	log.Infof(log.BackTester, "%s Highest Close Price: %v", sep, c.HighestClosePrice.Round(8))
 
 	log.Infof(log.BackTester, "%s Market movement: %v%%", sep, c.MarketMovement.Round(2))
 	if usingExchangeLevelFunding {
@@ -274,18 +274,18 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "%s Strategy movement: %v%%", sep, c.StrategyMovement.Round(2))
 	log.Infof(log.BackTester, "%s Did it beat the market: %v", sep, c.StrategyMovement.GreaterThan(c.MarketMovement))
 
-	log.Infof(log.BackTester, "%s Value lost to volume sizing: $%v", sep, last.Holdings.TotalValueLostToVolumeSizing.Round(2))
-	log.Infof(log.BackTester, "%s Value lost to slippage: $%v", sep, last.Holdings.TotalValueLostToSlippage.Round(2))
-	log.Infof(log.BackTester, "%s Total Value lost: $%v", sep, last.Holdings.TotalValueLost.Round(2))
-	log.Infof(log.BackTester, "%s Total Fees: $%v\n\n", sep, last.Holdings.TotalFees.Round(8))
+	log.Infof(log.BackTester, "%s Value lost to volume sizing: %v", sep, last.Holdings.TotalValueLostToVolumeSizing.Round(2))
+	log.Infof(log.BackTester, "%s Value lost to slippage: %v", sep, last.Holdings.TotalValueLostToSlippage.Round(2))
+	log.Infof(log.BackTester, "%s Total Value lost: %v", sep, last.Holdings.TotalValueLost.Round(2))
+	log.Infof(log.BackTester, "%s Total Fees: %v\n\n", sep, last.Holdings.TotalFees.Round(8))
 
-	log.Infof(log.BackTester, "%s Final funds: $%v", sep, last.Holdings.QuoteSize.Round(8))
+	log.Infof(log.BackTester, "%s Final funds: %v", sep, last.Holdings.QuoteSize.Round(8))
 	log.Infof(log.BackTester, "%s Final holdings: %v", sep, last.Holdings.BaseSize.Round(8))
 	if usingExchangeLevelFunding {
 		log.Warnf(log.BackTester, "%s This strategy is using Exchange Level Funding. Calculation of holding values may be inaccurate", sep)
 	}
-	log.Infof(log.BackTester, "%s Final holdings value: $%v", sep, last.Holdings.BaseValue.Round(8))
-	log.Infof(log.BackTester, "%s Final total value: $%v\n\n", sep, last.Holdings.TotalValue.Round(8))
+	log.Infof(log.BackTester, "%s Final holdings value: %v", sep, last.Holdings.BaseValue.Round(8))
+	log.Infof(log.BackTester, "%s Final total value: %v\n\n", sep, last.Holdings.TotalValue.Round(8))
 	if len(errs) > 0 {
 		log.Info(log.BackTester, "------------------Errors-------------------------------------")
 		for i := range errs {

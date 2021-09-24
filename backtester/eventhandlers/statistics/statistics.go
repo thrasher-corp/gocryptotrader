@@ -236,29 +236,23 @@ func (s *Statistic) PrintTotalResults(isUsingExchangeLevelFunding bool) {
 		if !s.Funding.Items[i].PairedWith.IsEmpty() {
 			log.Infof(log.BackTester, "Paired with: %v", s.Funding.Items[i].PairedWith)
 		}
-		log.Infof(log.BackTester, "Initial funds: $%v", s.Funding.Items[i].InitialFunds)
-		if isUsingExchangeLevelFunding {
-			log.Infof(log.BackTester, "Initial funds in USD: $%v", s.Funding.Items[i].InitialFundsUSD)
-		}
+		log.Infof(log.BackTester, "Initial funds: %v", s.Funding.Items[i].InitialFunds)
+		log.Infof(log.BackTester, "Initial funds in USD: $%v", s.Funding.Items[i].InitialFundsUSD)
 		log.Infof(log.BackTester, "Final funds: %v", s.Funding.Items[i].FinalFunds)
-		if isUsingExchangeLevelFunding {
-			log.Infof(log.BackTester, "Final funds in USD: $%v", s.Funding.Items[i].FinalFundsUSD)
-		}
+		log.Infof(log.BackTester, "Final funds in USD: $%v", s.Funding.Items[i].FinalFundsUSD)
 		if s.Funding.Items[i].InitialFunds.IsZero() {
 			log.Info(log.BackTester, "Difference: ∞%")
 		} else {
 			log.Infof(log.BackTester, "Difference: %v%%", s.Funding.Items[i].Difference)
 		}
 		if s.Funding.Items[i].TransferFee.GreaterThan(decimal.Zero) {
-			log.Infof(log.BackTester, "Transfer fee: $%v", s.Funding.Items[i].TransferFee)
+			log.Infof(log.BackTester, "Transfer fee: %v", s.Funding.Items[i].TransferFee)
 		}
 		log.Info(log.BackTester, "")
 	}
 	log.Infof(log.BackTester, "Initial total funds in USD: $%v", s.Funding.InitialTotalUSD)
 	log.Infof(log.BackTester, "Final total funds in USD: $%v", s.Funding.FinalTotalUSD)
-	if s.Funding.InitialTotalUSD.GreaterThan(decimal.Zero) {
-		log.Infof(log.BackTester, "Difference %v%%\n", s.Funding.FinalTotalUSD.Sub(s.Funding.InitialTotalUSD).Div(s.Funding.InitialTotalUSD).Mul(decimal.NewFromInt(100)))
-	}
+	log.Infof(log.BackTester, "Difference: %v%%\n", s.Funding.Difference)
 
 	log.Info(log.BackTester, "------------------Total Results------------------------------")
 	log.Info(log.BackTester, "------------------Orders-------------------------------------")
@@ -269,12 +263,12 @@ func (s *Statistic) PrintTotalResults(isUsingExchangeLevelFunding bool) {
 	if s.BiggestDrawdown != nil {
 		log.Info(log.BackTester, "------------------Biggest Drawdown-----------------------")
 		log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
-		log.Infof(log.BackTester, "Highest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Round(8))
+		log.Infof(log.BackTester, "Highest Price: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Round(8))
 		log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
-		log.Infof(log.BackTester, "Lowest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price.Round(8))
+		log.Infof(log.BackTester, "Lowest Price: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price.Round(8))
 		log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
 		log.Infof(log.BackTester, "Calculated Drawdown: %v%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent.Round(2))
-		log.Infof(log.BackTester, "Difference: $%v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Price).Round(8))
+		log.Infof(log.BackTester, "Difference: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Price).Round(8))
 		log.Infof(log.BackTester, "Drawdown length: %v\n\n", s.BiggestDrawdown.MaxDrawdown.IntervalDuration)
 	}
 	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {
