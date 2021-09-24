@@ -47,6 +47,7 @@ func (d *DataFromKline) Load() error {
 		}
 		d.addedTimes[d.Item.Candles[i].Time] = true
 	}
+
 	d.SetStream(klineData)
 	d.SortStream()
 	return nil

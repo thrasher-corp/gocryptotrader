@@ -85,14 +85,15 @@ type IPairReleaser interface {
 
 // Item holds funding data per currency item
 type Item struct {
-	exchange     string
-	asset        asset.Item
-	currency     currency.Code
-	initialFunds decimal.Decimal
-	available    decimal.Decimal
-	reserved     decimal.Decimal
-	transferFee  decimal.Decimal
-	pairedWith   *Item
+	exchange        string
+	asset           asset.Item
+	currency        currency.Code
+	initialFunds    decimal.Decimal
+	available       decimal.Decimal
+	reserved        decimal.Decimal
+	transferFee     decimal.Decimal
+	pairedWith      *Item
+	usdPricesAtTime map[time.Time]decimal.Decimal
 }
 
 // Pair holds two currencies that are associated with each other

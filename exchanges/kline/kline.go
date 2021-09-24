@@ -471,6 +471,15 @@ func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 	return false
 }
 
+func (k *Item) GetClosePriceAtTime(t time.Time) (float64, error) {
+	for i := range k.Candles {
+		if k.Candles[i].Time.Equal(t) {
+			return k.Candles[i].Close, nil
+		}
+	}
+	return -1, fmt.Errorf("%w at %v", ErrNotFoundAtTime, t)
+}
+
 // SetHasDataFromCandles will calculate whether there is data in each candle
 // allowing any missing data from an API request to be highlighted
 func (h *IntervalRangeHolder) SetHasDataFromCandles(c []Candle) {
