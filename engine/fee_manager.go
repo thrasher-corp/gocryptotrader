@@ -121,8 +121,11 @@ func (f *FeeManager) monitor() {
 
 func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.Items) {
 	defer wg.Done()
+
+	// Commission fees are maker and taker fees associated with different asset
+	// types
 	for y := range enabledAssets {
-		err := exch.UpdateFees(context.TODO(), enabledAssets[y])
+		err := exch.UpdateCommissionFees(context.TODO(), enabledAssets[y])
 		if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
 			log.Errorf(log.ExchangeSys, "%s %s %s: %v",
 				FeeManagerName,
@@ -131,4 +134,25 @@ func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.
 				err)
 		}
 	}
+
+	// Transfer fees are the common exchange interaction withdrawal and deposit
+	// fees
+	err := exch.UpdateTransferFees(context.TODO())
+	if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
+		log.Errorf(log.ExchangeSys, "%s %s: %v",
+			FeeManagerName,
+			exch.GetName(),
+			err)
+	}
+
+	// Bank fees are the common exchange banking interaction withdrawal and
+	// deposit fees
+	err = exch.UpdateBankTransferFees(context.TODO())
+	if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
+		log.Errorf(log.ExchangeSys, "%s %s: %v",
+			FeeManagerName,
+			exch.GetName(),
+			err)
+	}
+
 }

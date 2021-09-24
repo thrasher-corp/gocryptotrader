@@ -1389,8 +1389,19 @@ func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool
 	return a.unsupported == nil || !a.unsupported[aType]
 }
 
-// UpdateFees updates all fees associated with an account asset
-func (b *Base) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates all commision fees associated with an account
+// asset
+func (b *Base) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
+	return common.ErrNotYetImplemented
+}
+
+// UpdateTransferFees updates all fees associated for exchange transfers
+func (b *Base) UpdateTransferFees(ctx context.Context) error {
+	return common.ErrNotYetImplemented
+}
+
+// UpdateBankFees updates all fees associated with banking transfers
+func (b *Base) UpdateBankTransferFees(ctx context.Context) error {
 	return common.ErrNotYetImplemented
 }
 

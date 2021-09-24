@@ -219,12 +219,14 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 
 	err = b.Fees.LoadStatic(fee.Options{
 		// Note: https://www.binance.com/en/fee/trading
+		// Exchange Transfer fees are done live via method
+		// UpdateTransferFees
 		Commission: map[asset.Item]fee.Commission{
 			asset.Spot:                {Maker: 0.01, Taker: 0.01},
 			asset.USDTMarginedFutures: {Maker: 0.02, Taker: 0.04},
 			asset.CoinMarginedFutures: {Maker: 0.01, Taker: 0.05},
 		},
-		Transfer: withdrawalFees, // TODO: Verify withdrawal fees
+		BankingTransfer: bankTransferFees,
 	})
 	if err != nil {
 		return err
@@ -1732,8 +1734,8 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 	return b.LoadLimits(limits)
 }
 
-// UpdateFees updates current fees associated with account
-func (b *Binance) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (b *Binance) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	switch a {
 	case asset.Spot:
 		account, err := b.GetAccount(ctx)
@@ -1754,4 +1756,38 @@ func (b *Binance) UpdateFees(ctx context.Context, a asset.Item) error {
 	default:
 		return fmt.Errorf("%s: %w", a, errAssetUnhandled)
 	}
+}
+
+// UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
+// deposits for this exchange
+func (b *Binance) UpdateTransferFees(ctx context.Context) error {
+	coins, err := b.GetAllCoinsInformation(ctx)
+	if err != nil {
+		return err
+	}
+
+	transferFee := map[asset.Item]map[currency.Code]fee.Transfer{}
+	for x := range coins {
+		for y := range coins[x].NetworkList {
+			if !coins[x].NetworkList[y].Coin.Match(coins[x].NetworkList[y].Network) {
+				// TODO: Implement an upgrade for different networks, this will
+				// be done in pass 2. NOTE: If this isn't done, this PR cannot
+				// be merged.
+				continue
+			}
+
+			m1, ok := transferFee[asset.Spot]
+			if !ok {
+				m1 = make(map[currency.Code]fee.Transfer)
+				transferFee[asset.Spot] = m1
+			}
+
+			m1[coins[x].Coin] = fee.Transfer{
+				Withdrawal:        coins[x].NetworkList[y].WithdrawFee,
+				MinimumWithdrawal: coins[x].NetworkList[y].WithdrawMin,
+				MaximumWithdrawal: coins[x].NetworkList[y].WithdrawMax,
+			}
+		}
+	}
+	return b.Fees.LoadTransferFees(transferFee)
 }

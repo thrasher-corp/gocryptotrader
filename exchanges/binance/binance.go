@@ -51,12 +51,13 @@ const (
 	historicalTrades  = "/api/v3/historicalTrades"
 
 	// Authenticated endpoints
-	newOrderTest      = "/api/v3/order/test"
-	orderEndpoint     = "/api/v3/order"
-	openOrders        = "/api/v3/openOrders"
-	allOrders         = "/api/v3/allOrders"
-	accountInfo       = "/api/v3/account"
-	marginAccountInfo = "/sapi/v1/margin/account"
+	newOrderTest        = "/api/v3/order/test"
+	orderEndpoint       = "/api/v3/order"
+	openOrders          = "/api/v3/openOrders"
+	allOrders           = "/api/v3/allOrders"
+	accountInfo         = "/api/v3/account"
+	marginAccountInfo   = "/sapi/v1/margin/account"
+	allCoinsInformation = "/sapi/v1/capital/config/getall"
 
 	// Withdraw API endpoints
 	withdrawEndpoint                       = "/wapi/v3/withdraw.html"
@@ -920,6 +921,23 @@ func (b *Binance) WithdrawStatus(ctx context.Context, c currency.Code, status st
 	return response.WithdrawList, nil
 }
 
+// GetAllCoinsInformation retrieves all coin information that is currently
+// supported on the exchange
+func (b *Binance) GetAllCoinsInformation(ctx context.Context) ([]AllCoinsInfo, error) {
+	var response []AllCoinsInfo
+	err := b.SendAuthHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
+		http.MethodGet,
+		allCoinsInformation,
+		nil,
+		spotDefaultRate,
+		&response)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
 // GetDepositAddressForCurrency retrieves the wallet address for a given currency
 func (b *Binance) GetDepositAddressForCurrency(ctx context.Context, currency string) (string, error) {
 	resp := struct {
@@ -1058,14 +1076,4 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 		}
 	}
 	return limits, nil
-}
-
-func (b *Binance) FEE() error {
-
-	_, err := common.SendHTTPRequest(context.Background(),
-		http.MethodGet,
-		"https://www.binance.com/en/fee/cryptoFee",
-		nil, nil, true,
-	)
-	return err
 }

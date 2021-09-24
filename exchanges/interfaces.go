@@ -96,15 +96,17 @@ type IBotExchange interface {
 
 // FeeManagement defines functionality for fee management
 type FeeManagement interface {
-	UpdateFees(ctx context.Context, a asset.Item) error
 	GetAllFees() (fee.Options, error)
 
+	UpdateCommissionFees(ctx context.Context, a asset.Item) error
 	GetCommissionFee(a asset.Item) (*fee.CommissionInternal, error)
 	SetCommissionFee(a asset.Item, maker, taker float64, isSetAmount bool) error
 
+	UpdateTransferFees(ctx context.Context) error
 	GetTransferFee(c currency.Code, a asset.Item) (fee.Transfer, error)
 	SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, isPercentage bool) error
 
+	UpdateBankTransferFees(ctx context.Context) error
 	GetBankTransferFee(c currency.Code, transType fee.BankTransaction) (fee.Transfer, error)
 	SetBankTransferFee(c currency.Code, transType fee.BankTransaction, withdraw, deposit float64, isPercentage bool) error
 }

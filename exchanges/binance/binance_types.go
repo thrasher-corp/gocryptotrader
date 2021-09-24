@@ -480,176 +480,6 @@ type KlinesRequestParams struct {
 	EndTime   time.Time
 }
 
-// withdrawalFees the large list of predefined withdrawal fees. Prone to change.
-var withdrawalFees = map[asset.Item]map[currency.Code]fee.Transfer{
-	asset.Spot: {
-		currency.BNB:     {Withdrawal: 0.13},
-		currency.BTC:     {Withdrawal: 0.0005},
-		currency.NEO:     {Withdrawal: 0},
-		currency.ETH:     {Withdrawal: 0.01},
-		currency.LTC:     {Withdrawal: 0.001},
-		currency.QTUM:    {Withdrawal: 0.01},
-		currency.EOS:     {Withdrawal: 0.1},
-		currency.SNT:     {Withdrawal: 35},
-		currency.BNT:     {Withdrawal: 1},
-		currency.GAS:     {Withdrawal: 0},
-		currency.BCC:     {Withdrawal: 0.001},
-		currency.BTM:     {Withdrawal: 5},
-		currency.USDT:    {Withdrawal: 3.4},
-		currency.HCC:     {Withdrawal: 0.0005},
-		currency.OAX:     {Withdrawal: 6.5},
-		currency.DNT:     {Withdrawal: 54},
-		currency.MCO:     {Withdrawal: 0.31},
-		currency.ICN:     {Withdrawal: 3.5},
-		currency.ZRX:     {Withdrawal: 1.9},
-		currency.OMG:     {Withdrawal: 0.4},
-		currency.WTC:     {Withdrawal: 0.5},
-		currency.LRC:     {Withdrawal: 12.3},
-		currency.LLT:     {Withdrawal: 67.8},
-		currency.YOYO:    {Withdrawal: 1},
-		currency.TRX:     {Withdrawal: 1},
-		currency.STRAT:   {Withdrawal: 0.1},
-		currency.SNGLS:   {Withdrawal: 54},
-		currency.BQX:     {Withdrawal: 3.9},
-		currency.KNC:     {Withdrawal: 3.5},
-		currency.SNM:     {Withdrawal: 25},
-		currency.FUN:     {Withdrawal: 86},
-		currency.LINK:    {Withdrawal: 4},
-		currency.XVG:     {Withdrawal: 0.1},
-		currency.CTR:     {Withdrawal: 35},
-		currency.SALT:    {Withdrawal: 2.3},
-		currency.MDA:     {Withdrawal: 2.3},
-		currency.IOTA:    {Withdrawal: 0.5},
-		currency.SUB:     {Withdrawal: 11.4},
-		currency.ETC:     {Withdrawal: 0.01},
-		currency.MTL:     {Withdrawal: 2},
-		currency.MTH:     {Withdrawal: 45},
-		currency.ENG:     {Withdrawal: 2.2},
-		currency.AST:     {Withdrawal: 14.4},
-		currency.DASH:    {Withdrawal: 0.002},
-		currency.BTG:     {Withdrawal: 0.001},
-		currency.EVX:     {Withdrawal: 2.8},
-		currency.REQ:     {Withdrawal: 29.9},
-		currency.VIB:     {Withdrawal: 30},
-		currency.POWR:    {Withdrawal: 8.2},
-		currency.ARK:     {Withdrawal: 0.2},
-		currency.XRP:     {Withdrawal: 0.25},
-		currency.MOD:     {Withdrawal: 2},
-		currency.ENJ:     {Withdrawal: 26},
-		currency.STORJ:   {Withdrawal: 5.1},
-		currency.KMD:     {Withdrawal: 0.002},
-		currency.RCN:     {Withdrawal: 47},
-		currency.NULS:    {Withdrawal: 0.01},
-		currency.RDN:     {Withdrawal: 2.5},
-		currency.XMR:     {Withdrawal: 0.04},
-		currency.DLT:     {Withdrawal: 19.8},
-		currency.AMB:     {Withdrawal: 8.9},
-		currency.BAT:     {Withdrawal: 8},
-		currency.ZEC:     {Withdrawal: 0.005},
-		currency.BCPT:    {Withdrawal: 14.5},
-		currency.ARN:     {Withdrawal: 3},
-		currency.GVT:     {Withdrawal: 0.13},
-		currency.CDT:     {Withdrawal: 81},
-		currency.GXS:     {Withdrawal: 0.3},
-		currency.POE:     {Withdrawal: 134},
-		currency.QSP:     {Withdrawal: 36},
-		currency.BTS:     {Withdrawal: 1},
-		currency.XZC:     {Withdrawal: 0.02},
-		currency.LSK:     {Withdrawal: 0.1},
-		currency.TNT:     {Withdrawal: 47},
-		currency.FUEL:    {Withdrawal: 79},
-		currency.MANA:    {Withdrawal: 18},
-		currency.BCD:     {Withdrawal: 0.01},
-		currency.DGD:     {Withdrawal: 0.04},
-		currency.ADX:     {Withdrawal: 6.3},
-		currency.ADA:     {Withdrawal: 1},
-		currency.PPT:     {Withdrawal: 0.41},
-		currency.CMT:     {Withdrawal: 12},
-		currency.XLM:     {Withdrawal: 0.01},
-		currency.CND:     {Withdrawal: 58},
-		currency.LEND:    {Withdrawal: 84},
-		currency.WABI:    {Withdrawal: 6.6},
-		currency.SBTC:    {Withdrawal: 0.0005},
-		currency.BCX:     {Withdrawal: 0.5},
-		currency.WAVES:   {Withdrawal: 0.002},
-		currency.TNB:     {Withdrawal: 139},
-		currency.GTO:     {Withdrawal: 20},
-		currency.ICX:     {Withdrawal: 0.02},
-		currency.OST:     {Withdrawal: 32},
-		currency.ELF:     {Withdrawal: 3.9},
-		currency.AION:    {Withdrawal: 3.2},
-		currency.CVC:     {Withdrawal: 10.9},
-		currency.REP:     {Withdrawal: 0.2},
-		currency.GNT:     {Withdrawal: 8.9},
-		currency.DATA:    {Withdrawal: 37},
-		currency.ETF:     {Withdrawal: 1},
-		currency.BRD:     {Withdrawal: 3.8},
-		currency.NEBL:    {Withdrawal: 0.01},
-		currency.VIBE:    {Withdrawal: 17.3},
-		currency.LUN:     {Withdrawal: 0.36},
-		currency.CHAT:    {Withdrawal: 60.7},
-		currency.RLC:     {Withdrawal: 3.4},
-		currency.INS:     {Withdrawal: 3.5},
-		currency.IOST:    {Withdrawal: 105.6},
-		currency.STEEM:   {Withdrawal: 0.01},
-		currency.NANO:    {Withdrawal: 0.01},
-		currency.AE:      {Withdrawal: 1.3},
-		currency.VIA:     {Withdrawal: 0.01},
-		currency.BLZ:     {Withdrawal: 10.3},
-		currency.SYS:     {Withdrawal: 1},
-		currency.NCASH:   {Withdrawal: 247.6},
-		currency.POA:     {Withdrawal: 0.01},
-		currency.ONT:     {Withdrawal: 1},
-		currency.ZIL:     {Withdrawal: 37.2},
-		currency.STORM:   {Withdrawal: 152},
-		currency.XEM:     {Withdrawal: 4},
-		currency.WAN:     {Withdrawal: 0.1},
-		currency.WPR:     {Withdrawal: 43.4},
-		currency.QLC:     {Withdrawal: 1},
-		currency.GRS:     {Withdrawal: 0.2},
-		currency.CLOAK:   {Withdrawal: 0.02},
-		currency.LOOM:    {Withdrawal: 11.9},
-		currency.BCN:     {Withdrawal: 1},
-		currency.TUSD:    {Withdrawal: 1.35},
-		currency.ZEN:     {Withdrawal: 0.002},
-		currency.SKY:     {Withdrawal: 0.01},
-		currency.THETA:   {Withdrawal: 24},
-		currency.IOTX:    {Withdrawal: 90.5},
-		currency.QKC:     {Withdrawal: 24.6},
-		currency.AGI:     {Withdrawal: 29.81},
-		currency.NXS:     {Withdrawal: 0.02},
-		currency.SC:      {Withdrawal: 0.1},
-		currency.EON:     {Withdrawal: 10},
-		currency.NPXS:    {Withdrawal: 897},
-		currency.KEY:     {Withdrawal: 223},
-		currency.NAS:     {Withdrawal: 0.1},
-		currency.ADD:     {Withdrawal: 100},
-		currency.MEETONE: {Withdrawal: 300},
-		currency.ATD:     {Withdrawal: 100},
-		currency.MFT:     {Withdrawal: 175},
-		currency.EOP:     {Withdrawal: 5},
-		currency.DENT:    {Withdrawal: 596},
-		currency.IQ:      {Withdrawal: 50},
-		currency.ARDR:    {Withdrawal: 2},
-		currency.HOT:     {Withdrawal: 1210},
-		currency.VET:     {Withdrawal: 100},
-		currency.DOCK:    {Withdrawal: 68},
-		currency.POLY:    {Withdrawal: 7},
-		currency.VTHO:    {Withdrawal: 21},
-		currency.ONG:     {Withdrawal: 0.1},
-		currency.PHX:     {Withdrawal: 1},
-		currency.HC:      {Withdrawal: 0.005},
-		currency.GO:      {Withdrawal: 0.01},
-		currency.PAX:     {Withdrawal: 1.4},
-		currency.EDO:     {Withdrawal: 1.3},
-		currency.WINGS:   {Withdrawal: 8.9},
-		currency.NAV:     {Withdrawal: 0.2},
-		currency.TRIG:    {Withdrawal: 49.1},
-		currency.APPC:    {Withdrawal: 12.4},
-		currency.PIVX:    {Withdrawal: 0.02},
-	},
-}
-
 // WithdrawResponse contains status of withdrawal request
 type WithdrawResponse struct {
 	Success bool   `json:"success"`
@@ -840,4 +670,46 @@ type update struct {
 // orderbook via the REST protocol
 type job struct {
 	Pair currency.Pair
+}
+
+// AllCoinsInfo defines extended coin information associated with an account.
+type AllCoinsInfo struct {
+	Coin             currency.Code `json:"coin"`
+	DepositAllEnable bool          `json:"depositAllEnable"`
+	Free             float64       `json:"free,string"`
+	Freeze           float64       `json:"freeze,string"`
+	Ipoable          float64       `json:"ipoable,string"`
+	Ipoing           float64       `json:"ipoing,string"`
+	IsLegalMoney     bool          `json:"isLegalMoney"`
+	Locked           float64       `json:"locked,string"`
+	Name             string        `json:"name"`
+	NetworkList      []struct {
+		AddressRegex            string        `json:"addressRegex"`
+		Coin                    currency.Code `json:"coin"`
+		DepositDesc             string        `json:"depositDesc,omitempty"`
+		DepositEnable           bool          `json:"depositEnable"`
+		IsDefault               bool          `json:"isDefault"`
+		MemoRegex               string        `json:"memoRegex"`
+		MinConfirm              int           `json:"minConfirm"`
+		Name                    string        `json:"name"`
+		Network                 currency.Code `json:"network"`
+		ResetAddressStatus      bool          `json:"resetAddressStatus"`
+		SpecialTips             string        `json:"specialTips"`
+		UnLockConfirm           int           `json:"unLockConfirm"`
+		WithdrawDesc            string        `json:"withdrawDesc,omitempty"`
+		WithdrawEnable          bool          `json:"withdrawEnable"`
+		WithdrawFee             float64       `json:"withdrawFee,string"`
+		WithdrawIntegerMultiple float64       `json:"withdrawIntegerMultiple,string"`
+		WithdrawMax             float64       `json:"withdrawMax,string"`
+		WithdrawMin             float64       `json:"withdrawMin,string"`
+		SameAddress             bool          `json:"sameAddress"`
+	} `json:"networkList"`
+	Storage           float64 `json:"storage,string"`
+	Trading           bool    `json:"trading"`
+	WithdrawAllEnable bool    `json:"withdrawAllEnable"`
+	Withdrawing       float64 `json:"withdrawing,string"`
+}
+
+var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
+	fee.WireTransfer: {},
 }

@@ -2495,6 +2495,10 @@ func TestWsOutboundAccountPosition(t *testing.T) {
 	}
 }
 
-// func TestFEE(t *testing.T) {
-// 	b.FEE()
-// }
+func TestGetAllCoinsInformation(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetAllCoinsInformation(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
