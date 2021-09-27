@@ -3889,3 +3889,59 @@ func (s *RPCServer) UpdateDataHistoryJobPrerequisite(_ context.Context, r *gctrp
 	}
 	return &gctrpc.GenericResponse{Status: status, Data: fmt.Sprintf("Set job '%v' prerequisite job to '%v' and set status to paused", r.Nickname, r.PrerequisiteJobNickname)}, nil
 }
+
+// CurrencyStateGetAll returns a full snapshot of currency states, whether they
+// are able to be withdrawn, deposited or traded on an exchange.
+func (s *RPCServer) CurrencyStateGetAll(_ context.Context, r *gctrpc.CurrencyStateGetAllRequest) (*gctrpc.CurrencyStateResponse, error) {
+	return s.currencyStateManager.GetAllRPC(r.Exchange)
+}
+
+// CurrencyStateWithdraw determines via RPC if the currency code is operational for
+// withdrawal from an exchange
+func (s *RPCServer) CurrencyStateWithdraw(_ context.Context, r *gctrpc.CurrencyStateWithdrawRequest) (*gctrpc.GenericResponse, error) {
+	return s.currencyStateManager.CanWithdrawRPC(r.Exchange,
+		currency.NewCode(r.Code),
+		asset.Item(r.Asset))
+}
+
+// CurrencyStateDeposit determines via RPC if the currency code is operational for
+// depositing to an exchange
+func (s *RPCServer) CurrencyStateDeposit(_ context.Context, r *gctrpc.CurrencyStateDepositRequest) (*gctrpc.GenericResponse, error) {
+	return s.currencyStateManager.CanDepositRPC(r.Exchange,
+		currency.NewCode(r.Code),
+		asset.Item(r.Asset))
+}
+
+// CurrencyStateTrading determines via RPC if the currency code is operational for trading
+func (s *RPCServer) CurrencyStateTrading(_ context.Context, r *gctrpc.CurrencyStateTradingRequest) (*gctrpc.GenericResponse, error) {
+	return s.currencyStateManager.CanTradeRPC(r.Exchange,
+		currency.NewCode(r.Code),
+		asset.Item(r.Asset))
+}
+
+// CurrencyStateTradingPair determines via RPC if the pair is operational for trading
+func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.CurrencyStateTradingPairRequest) (*gctrpc.GenericResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	cp, err := currency.NewPairFromString(r.Pair)
+	if err != nil {
+		return nil, err
+	}
+
+	a := asset.Item(r.Asset)
+	err = checkParams(r.Exchange, exch, a, cp)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.CanTradePair(cp, a)
+	if err != nil {
+		return nil, err
+	}
+	return s.currencyStateManager.CanTradePairRPC(r.Exchange,
+		cp,
+		asset.Item(r.Asset))
+}

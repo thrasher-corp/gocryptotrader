@@ -141,6 +141,14 @@ func TestPlaceOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = exch.Setup(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false)
@@ -191,6 +199,14 @@ func TestExecuteOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = exch.Setup(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false)
@@ -287,6 +303,15 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = exch.Setup(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	em.Add(exch)
 	bot.ExchangeManager = em
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, false)

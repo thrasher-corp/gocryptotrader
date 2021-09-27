@@ -960,6 +960,46 @@ message ModifyOrderResponse {
     string modified_order_id = 1;
 }
 
+message CurrencyStateGetAllRequest {
+    string exchange = 1;
+}
+
+message CurrencyStateTradingRequest {
+    string exchange = 1;
+    string code = 2;
+    string asset = 3;
+}
+
+message CurrencyStateTradingPairRequest {
+    string exchange = 1;
+    string pair = 2;
+    string asset = 3;
+}
+
+message CurrencyStateWithdrawRequest {
+    string exchange = 1;
+    string code = 2;
+    string asset = 3;
+}
+
+message CurrencyStateDepositRequest {
+    string exchange = 1;
+    string code = 2;
+    string asset = 3;
+}
+
+message CurrencyStateResponse {
+    repeated CurrencyState currency_states = 1;
+}
+
+message CurrencyState {
+    string currency = 1;
+    string asset = 2;
+    bool withdraw_enabled = 3;
+    bool deposit_enabled = 4;
+    bool trading_enabled = 5;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -1515,6 +1555,32 @@ service GoCryptoTrader {
     rpc ModifyOrder (ModifyOrderRequest) returns (ModifyOrderResponse) {
         option (google.api.http) = {
             get: "/v1/modifyorder"
+        };
+    }
+
+    rpc CurrencyStateGetAll (CurrencyStateGetAllRequest) returns (CurrencyStateResponse) {
+        option (google.api.http) = {
+            get: "/v1/currencystategetall"
+        };
+    }
+    rpc CurrencyStateTrading (CurrencyStateTradingRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/currencystatetrading"
+        };
+    }
+    rpc CurrencyStateDeposit (CurrencyStateDepositRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/currencystatedeposit"
+        };
+    }
+    rpc CurrencyStateWithdraw (CurrencyStateWithdrawRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/currencystatewithdraw"
+        };
+    }
+    rpc CurrencyStateTradingPair (CurrencyStateTradingPairRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/currencystatetradingpair"
         };
     }
 }

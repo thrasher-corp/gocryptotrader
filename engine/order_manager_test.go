@@ -190,6 +190,16 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	}
 	exch.SetDefaults()
 
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = exch.Setup(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	fakeExchange := omfExchange{
 		IBotExchange: exch,
 	}

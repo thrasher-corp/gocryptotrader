@@ -116,7 +116,7 @@ type DerivativeDataResponse struct {
 	MarkPrice            float64
 	InsuranceFundBalance float64
 	NextFundingEventTS   float64
-	NextFundingAccured   float64
+	NextFundingAccrued   float64
 	NextFundingStep      float64
 	CurrentFunding       float64
 	OpenInterest         float64
