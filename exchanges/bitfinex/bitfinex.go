@@ -493,8 +493,17 @@ func (b *Bitfinex) GetDerivativeStatusInfo(ctx context.Context, keys, startTime,
 			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for MarkPrice", b.Name, errTypeAssert)
 		}
 
-		if response.OpenInterest, ok = result[z][18].(float64); !ok {
-			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for OpenInterest", b.Name, errTypeAssert)
+		switch t := result[z][18].(type) {
+		case float64:
+			response.OpenInterest = t
+		case nil:
+			break // OpenInterest will default to 0
+		default:
+			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for OpenInterest. Type received: %v",
+				b.Name,
+				errTypeAssert,
+				t,
+			)
 		}
 		finalResp = append(finalResp, response)
 	}
