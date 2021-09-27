@@ -480,7 +480,7 @@ func (b *Bitfinex) GetDerivativeStatusInfo(ctx context.Context, keys, startTime,
 		if response.NextFundingEventTS, ok = result[z][8].(float64); !ok {
 			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for NextFundingEventTS", b.Name, errTypeAssert)
 		}
-		if response.NextFundingAccured, ok = result[z][9].(float64); !ok {
+		if response.NextFundingAccrued, ok = result[z][9].(float64); !ok {
 			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for NextFundingAccrued", b.Name, errTypeAssert)
 		}
 		if response.NextFundingStep, ok = result[z][10].(float64); !ok {
