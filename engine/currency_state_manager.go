@@ -44,8 +44,7 @@ func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*Cu
 	var c CurrencyStateManager
 	if interval <= 0 {
 		log.Warnf(log.ExchangeSys,
-			"%s interval is invalid, defaulting to: %s",
-			CurrencyStateManagementName,
+			"Currency state manager interval is invalid, defaulting to: %s",
 			DefaultStateManagerDelay)
 		interval = DefaultStateManagerDelay
 	}
@@ -57,6 +56,7 @@ func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*Cu
 
 // Start runs the subsystem
 func (c *CurrencyStateManager) Start() error {
+	log.Debugln(log.ExchangeSys, "Currency state manager starting...")
 	if c == nil {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrNilSubsystem)
 	}
@@ -66,6 +66,7 @@ func (c *CurrencyStateManager) Start() error {
 	}
 	c.wg.Add(1)
 	go c.monitor()
+	log.Debugln(log.ExchangeSys, "Currency state manager started.")
 	return nil
 }
 
@@ -78,11 +79,11 @@ func (c *CurrencyStateManager) Stop() error {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
 	}
 
-	log.Debugf(log.ExchangeSys, "%s %s", CurrencyStateManagementName, MsgSubSystemShuttingDown)
+	log.Debugf(log.ExchangeSys, "Currency state manager %s", MsgSubSystemShuttingDown)
 	close(c.shutdown)
 	c.wg.Wait()
 	c.shutdown = make(chan struct{})
-	log.Debugf(log.ExchangeSys, "%s %s", CurrencyStateManagementName, MsgSubSystemShutdown)
+	log.Debugf(log.ExchangeSys, "Currency state manager %s", MsgSubSystemShutdown)
 	atomic.StoreInt32(&c.started, 0)
 	return nil
 }
@@ -107,8 +108,7 @@ func (c *CurrencyStateManager) monitor() {
 			exchs, err := c.GetExchanges()
 			if err != nil {
 				log.Errorf(log.Global,
-					"%s failed to get exchanges error: %v",
-					CurrencyStateManagementName,
+					"Currency state manager failed to get exchanges error: %v",
 					err)
 			}
 			for x := range exchs {
@@ -133,8 +133,7 @@ func (c *CurrencyStateManager) update(exch exchange.IBotExchange, wg *sync.WaitG
 				var pairs currency.Pairs
 				pairs, err = exch.GetAvailablePairs(enabledAssets[y])
 				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %s %s: %v",
-						CurrencyStateManagementName,
+					log.Errorf(log.ExchangeSys, "Currency state manager %s %s: %v",
 						exch.GetName(),
 						enabledAssets[y],
 						err)
@@ -150,8 +149,7 @@ func (c *CurrencyStateManager) update(exch exchange.IBotExchange, wg *sync.WaitG
 
 				b := exch.GetBase()
 				if b == nil {
-					log.Errorf(log.ExchangeSys, "%s %s %s: %v",
-						CurrencyStateManagementName,
+					log.Errorf(log.ExchangeSys, "Currency state manager %s %s: %v",
 						exch.GetName(),
 						enabledAssets[y],
 						"cannot update because base is nil")
@@ -159,16 +157,14 @@ func (c *CurrencyStateManager) update(exch exchange.IBotExchange, wg *sync.WaitG
 				}
 				err = b.States.UpdateAll(enabledAssets[y], update)
 				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %s %s: %v",
-						CurrencyStateManagementName,
+					log.Errorf(log.ExchangeSys, "Currency state manager %s %s: %v",
 						exch.GetName(),
 						enabledAssets[y],
 						err)
 				}
 				return
 			}
-			log.Errorf(log.ExchangeSys, "%s %s %s: %v",
-				CurrencyStateManagementName,
+			log.Errorf(log.ExchangeSys, "Currency state manager %s %s: %v",
 				exch.GetName(),
 				enabledAssets[y],
 				err)
