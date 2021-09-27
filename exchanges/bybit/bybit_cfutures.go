@@ -813,7 +813,7 @@ func (by *Bybit) GetConditionalRealtimeOrders(symbol currency.Pair, stopOrderID,
 		resp := struct {
 			Data []FuturesConditionalRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, &resp, bybitAuthRate)
+		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, &resp, bybitAuthRate)
 		if err != nil {
 			return data, err
 		}
@@ -824,11 +824,209 @@ func (by *Bybit) GetConditionalRealtimeOrders(symbol currency.Pair, stopOrderID,
 		resp := struct {
 			Data FuturesConditionalRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, &resp, bybitAuthRate)
+		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, &resp, bybitAuthRate)
 		if err != nil {
 			return data, err
 		}
 		data = append(data, resp.Data)
 	}
 	return data, nil
+}
+
+// GetPositions returns list of user positions
+func (by *Bybit) GetPositions(symbol currency.Pair) ([]Position, error) {
+	var data []Position
+	params := url.Values{}
+
+	if !symbol.IsEmpty() {
+		resp := struct {
+			Data Position `json:"result"`
+		}{}
+
+		symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+		if err != nil {
+			return data, err
+		}
+		params.Set("symbol", symbolValue)
+
+		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPosition, params, &resp, bybitAuthRate)
+		if err != nil {
+			return data, err
+		}
+		data = append(data, resp.Data)
+	} else {
+		resp := struct {
+			Data []Position `json:"result"`
+		}{}
+		err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPosition, params, &resp, bybitAuthRate)
+		if err != nil {
+			return data, err
+		}
+		for _, d := range resp.Data {
+			data = append(data, d)
+		}
+	}
+	return data, nil
+}
+
+// SetMargin updates margin
+func (by *Bybit) SetMargin(symbol currency.Pair, margin string) (float64, error) {
+	resp := struct {
+		Data float64 `json:"result"`
+	}{}
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
+	if margin != "" {
+		params.Set("margin", margin)
+	} else {
+		return resp.Data, errors.New("margin can't be empty")
+	}
+	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesChangeMargin, params, &resp, bybitAuthRate)
+}
+
+// SetTradingAndStop sets take profit, stop loss, and trailing stop for your open position
+func (by *Bybit) SetTradingAndStop(symbol currency.Pair, takeProfit, stopLoss, trailingStop, newTrailingActive, stopLossQty, takeProfitQty float64, takeProfitTriggerBy, stopLossTriggerBy string) (Position, error) {
+	resp := struct {
+		Data Position `json:"result"`
+	}{}
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
+	if takeProfit >= 0 {
+		params.Set("take_profit", strconv.FormatFloat(takeProfit, 'f', -1, 64))
+	}
+	if stopLoss >= 0 {
+		params.Set("stop_loss", strconv.FormatFloat(stopLoss, 'f', -1, 64))
+	}
+	if trailingStop >= 0 {
+		params.Set("trailing_stop", strconv.FormatFloat(trailingStop, 'f', -1, 64))
+	}
+	if newTrailingActive != 0 {
+		params.Set("new_trailing_active", strconv.FormatFloat(newTrailingActive, 'f', -1, 64))
+	}
+	if stopLossQty != 0 {
+		params.Set("sl_size", strconv.FormatFloat(stopLossQty, 'f', -1, 64))
+	}
+	if takeProfitQty != 0 {
+		params.Set("tp_size", strconv.FormatFloat(takeProfitQty, 'f', -1, 64))
+	}
+
+	if takeProfitTriggerBy != "" {
+		params.Set("tp_trigger_by", takeProfitTriggerBy)
+	}
+	if stopLossTriggerBy != "" {
+		params.Set("sl_trigger_by", stopLossTriggerBy)
+	}
+
+	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetTrading, params, &resp, bybitAuthRate)
+}
+
+// SetLeverage sets leverage
+func (by *Bybit) SetLeverage(symbol currency.Pair, leverage float64, leverageOnly bool) (float64, error) {
+	resp := struct {
+		Data float64 `json:"result"`
+	}{}
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
+	if leverage > 0 {
+		params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
+	} else {
+		return resp.Data, errors.New("leverage can't be zero or less then it")
+	}
+	if leverageOnly {
+		params.Set("leverage_only", "true")
+	}
+
+	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetLeverage, params, &resp, bybitAuthRate)
+}
+
+// GetUserTradeRecords returns list of user trades
+func (by *Bybit) GetUserTradeRecords(symbol currency.Pair, orderID, order string, startTime, page, limit int64) ([]Trade, error) {
+	params := url.Values{}
+
+	resp := struct {
+		Data struct {
+			OrderID string  `json:"order_id"`
+			Trades  []Trade `json:"trade_list"`
+		} `json:"result"`
+	}{}
+
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Data.Trades, err
+	}
+	params.Set("symbol", symbolValue)
+
+	if orderID != "" {
+		params.Set("order_id", orderID)
+	}
+	if order != "" {
+		params.Set("order", order)
+	}
+	if startTime != 0 {
+		params.Set("start_time", strconv.FormatInt(startTime, 10))
+	}
+	if page != 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTrades, params, &resp, bybitAuthRate)
+	if err != nil {
+		return resp.Data.Trades, err
+	}
+	return resp.Data.Trades, nil
+}
+
+// GetClosedTrades returns closed profit and loss records
+func (by *Bybit) GetClosedTrades(symbol currency.Pair, executionType string, startTime, endTime, page, limit int64) ([]ClosedTrades, error) {
+	params := url.Values{}
+
+	resp := struct {
+		Data struct {
+			CurrentPage int64          `json:"current_page"`
+			Trades      []ClosedTrades `json:"data"`
+		} `json:"result"`
+	}{}
+
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Data.Trades, err
+	}
+	params.Set("symbol", symbolValue)
+
+	if executionType != "" {
+		params.Set("execution_type", executionType)
+	}
+	if startTime != 0 {
+		params.Set("start_time", strconv.FormatInt(startTime, 10))
+	}
+	if endTime != 0 {
+		params.Set("end_time", strconv.FormatInt(endTime, 10))
+	}
+	if page > 0 && page <= 50 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 && limit <= 50 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetClosedTrades, params, &resp, bybitAuthRate)
+	if err != nil {
+		return resp.Data.Trades, err
+	}
+	return resp.Data.Trades, nil
 }

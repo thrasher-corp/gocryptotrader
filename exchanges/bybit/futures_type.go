@@ -338,3 +338,87 @@ type AnnouncementInfo struct {
 	Summary   string `json:"summary"`
 	CreatedAt string `json:"created_at"`
 }
+
+type Position struct {
+	ID                     int64                  `json:"id"`
+	PositionID             int64                  `json:"position_idx"`
+	Mode                   int64                  `json:"mode"`
+	UserID                 int64                  `json:"user_id"`
+	RiskID                 int64                  `json:"risk_id"`
+	Symbol                 string                 `json:"symbol"`
+	Side                   string                 `json:"side"`
+	Size                   int64                  `json:"size"`
+	PositionValue          float64                `json:"position_value,string"`
+	EntryPrice             float64                `json:"entry_price,string"`
+	IsIsolated             bool                   `json:"is_isolated"`
+	AutoAddMargin          int64                  `json:"auto_add_margin"`
+	Leverage               int64                  `json:"leverage"`
+	EffectiveLeverage      int64                  `json:"effective_leverage"`
+	PositionMargin         float64                `json:"position_margin,string"`
+	LiquidationPrice       int64                  `json:"liq_price"`
+	BankruptcyPrice        int64                  `json:"bust_price"`
+	OccupiedClosingFee     float64                `json:"occ_closing_fee,string"`
+	OccupiedFundingFee     float64                `json:"occ_funding_fee"`
+	TakeProfit             float64                `json:"take_profit,string"`
+	StopLoss               float64                `json:"stop_loss,string"`
+	TrailingStop           float64                `json:"trailing_stop,string"`
+	PositionStatus         string                 `json:"position_status"`
+	DeleverageIndicator    int64                  `json:"deleverage_indicator"`
+	CalculatedData         string                 `json:"oc_calc_data"`
+	OrderMargin            float64                `json:"order_margin,string"`
+	WalletBalance          float64                `json:"wallet_balance,string"`
+	RealisedPNL            float64                `json:"realised_pnl,string"`
+	UnrealisedPNL          float64                `json:"unrealised_pnl"`
+	AccumulatedRealisedPNL float64                `json:"cum_realised_pnl,string"`
+	CrossSequence          int64                  `json:"cross_seq"`
+	PositionSequence       int64                  `json:"position_seq"`
+	CreatedAt              string                 `json:"created_at"`
+	UpdateAt               string                 `json:"updated_at"`
+	TakeProfitStopLossMode string                 `json:"tp_sl_mode"` // present in GetPositions API
+	ExtensionField         map[string]interface{} `json:"ext_fields"` // present in SetTradingAndStop API
+}
+
+type Trade struct {
+	ClosedSize     float64 `json:"closed_size"`
+	CrossSequence  int64   `json:"cross_seq"`
+	ExecutionFee   float64 `json:"exec_fee,string"`
+	ExecutionID    string  `json:"exec_id"`
+	ExecutionPrice float64 `json:"exec_price,string"`
+	ExecutionQty   float64 `json:"exec_qty"`
+	ExecutionType  string  `json:"exec_type"`
+	ExecutionValue float64 `json:"exec_value,string"`
+	FeeRate        float64 `json:"fee_rate"`
+	LastLiquidilty string  `json:"last_liquidity_ind"`
+	LeavesQty      float64 `json:"leaves_qty"`
+	NthFill        int64   `json:"nth_fill"`
+	OrderID        string  `json:"order_id"`
+	OrderLinkedID  string  `json:"order_link_id"`
+	OrderPrice     float64 `json:"order_price"`
+	OrderQty       float64 `json:"order_qty"`
+	OrderType      string  `json:"order_type"`
+	OrderSide      string  `json:"side"`
+	Symbol         string  `json:"symbol"`
+	UserID         int64   `json:"user_id"`
+	TradeTime      int64   `json:"trade_time_ms"`
+}
+
+type ClosedTrades struct {
+	ID                   int64   `json:"id"`
+	UserID               int64   `json:"user_id"`
+	Symbol               string  `json:"symbol"`
+	OrderID              string  `json:"order_id"`
+	OrderSide            string  `json:"side"`
+	Qty                  float64 `json:"qty"`
+	OrderPrice           float64 `json:"order_price"`
+	OrderType            string  `json:"order_type"`
+	ExecutionType        string  `json:"exec_type"`
+	ClosedSize           float64 `json:"closed_size"`
+	CumulativeEntryValue float64 `json:"cum_entry_value"`
+	AvgEntryPrice        float64 `json:"avg_entry_price"`
+	CumulativeExitValue  float64 `json:"cum_exit_value"`
+	AvgEntryValue        float64 `json:"avg_exit_price"`
+	ClosedProfitLoss     float64 `json:"closed_pnl"`
+	FillCount            int64   `json:"fill_count"`
+	Leverage             int64   `json:"leverage"`
+	CreatedAt            int64   `json:"created_at"`
+}
