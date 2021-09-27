@@ -134,6 +134,10 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	portfolioRisk := &risk.Risk{
 		CurrencySettings: make(map[string]map[asset.Item]map[currency.Pair]*risk.CurrencySettings),
 	}
+	var trackingPairs []trackingcurrencies.TrackingPair
+	for i := range cfg.CurrencySettings {
+
+	}
 	cfg.CurrencySettings, err = trackingcurrencies.CreateUSDTrackingPairs(cfg.CurrencySettings)
 	if err != nil {
 		return nil, err
@@ -257,6 +261,12 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			}
 		}
 	}
+
+	cfg.CurrencySettings, err = trackingcurrencies.CreateUSDTrackingPairs(cfg.CurrencySettings)
+	if err != nil {
+		return nil, err
+	}
+
 	bt.Funding = funds
 	var p *portfolio.Portfolio
 	p, err = portfolio.Setup(sizeManager, portfolioRisk, cfg.StatisticSettings.RiskFreeRate)
@@ -333,98 +343,107 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		if err != nil {
 			return resp, err
 		}
-		bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
-		var makerFee, takerFee decimal.Decimal
-		if cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {
-			makerFee = cfg.CurrencySettings[i].MakerFee
-		}
-		if cfg.CurrencySettings[i].TakerFee.GreaterThan(decimal.Zero) {
-			takerFee = cfg.CurrencySettings[i].TakerFee
-		}
-		if makerFee.IsZero() || takerFee.IsZero() {
-			var apiMakerFee, apiTakerFee decimal.Decimal
-			apiMakerFee, apiTakerFee = getFees(context.TODO(), exch, pair)
-			if makerFee.IsZero() {
-				makerFee = apiMakerFee
+
+		if cfg.CurrencySettings[i].PriceTrackingOnly {
+			err = bt.Funding.AddUSDTrackingData(klineData)
+			if err != nil {
+				return resp, err
 			}
-			if takerFee.IsZero() {
-				takerFee = apiTakerFee
+		} else {
+			bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
+			var makerFee, takerFee decimal.Decimal
+			if cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {
+				makerFee = cfg.CurrencySettings[i].MakerFee
 			}
-		}
-
-		if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) {
-			log.Warnf(log.BackTester, "invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
-				cfg.CurrencySettings[i].MaximumSlippagePercent,
-				slippage.DefaultMaximumSlippagePercent)
-			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
-		}
-		if cfg.CurrencySettings[i].MaximumSlippagePercent.IsZero() {
-			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
-		}
-		if cfg.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) {
-			log.Warnf(log.BackTester, "invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
-				cfg.CurrencySettings[i].MinimumSlippagePercent,
-				slippage.DefaultMinimumSlippagePercent)
-			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
-		}
-		if cfg.CurrencySettings[i].MinimumSlippagePercent.IsZero() {
-			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
-		}
-		if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(cfg.CurrencySettings[i].MinimumSlippagePercent) {
-			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
-		}
-
-		realOrders := false
-		if cfg.DataSettings.LiveData != nil {
-			realOrders = cfg.DataSettings.LiveData.RealOrders
-		}
-
-		buyRule := config.MinMax{
-			MinimumSize:  cfg.CurrencySettings[i].BuySide.MinimumSize,
-			MaximumSize:  cfg.CurrencySettings[i].BuySide.MaximumSize,
-			MaximumTotal: cfg.CurrencySettings[i].BuySide.MaximumTotal,
-		}
-		sellRule := config.MinMax{
-			MinimumSize:  cfg.CurrencySettings[i].SellSide.MinimumSize,
-			MaximumSize:  cfg.CurrencySettings[i].SellSide.MaximumSize,
-			MaximumTotal: cfg.CurrencySettings[i].SellSide.MaximumTotal,
-		}
-
-		limits, err := exch.GetOrderExecutionLimits(a, pair)
-		if err != nil && !errors.Is(err, gctorder.ErrExchangeLimitNotLoaded) {
-			return resp, err
-		}
-
-		if limits != nil {
-			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
-				log.Warnf(log.BackTester, "exchange %s order execution limits supported but disabled for %s %s, live results may differ",
-					cfg.CurrencySettings[i].ExchangeName,
-					pair,
-					a)
-				cfg.CurrencySettings[i].ShowExchangeOrderLimitWarning = true
+			if cfg.CurrencySettings[i].TakerFee.GreaterThan(decimal.Zero) {
+				takerFee = cfg.CurrencySettings[i].TakerFee
 			}
+			if makerFee.IsZero() || takerFee.IsZero() {
+				var apiMakerFee, apiTakerFee decimal.Decimal
+				apiMakerFee, apiTakerFee = getFees(context.TODO(), exch, pair)
+				if makerFee.IsZero() {
+					makerFee = apiMakerFee
+				}
+				if takerFee.IsZero() {
+					takerFee = apiTakerFee
+				}
+			}
+
+			if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) {
+				log.Warnf(log.BackTester, "invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
+					cfg.CurrencySettings[i].MaximumSlippagePercent,
+					slippage.DefaultMaximumSlippagePercent)
+				cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
+			}
+			if cfg.CurrencySettings[i].MaximumSlippagePercent.IsZero() {
+				cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
+			}
+			if cfg.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) {
+				log.Warnf(log.BackTester, "invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
+					cfg.CurrencySettings[i].MinimumSlippagePercent,
+					slippage.DefaultMinimumSlippagePercent)
+				cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
+			}
+			if cfg.CurrencySettings[i].MinimumSlippagePercent.IsZero() {
+				cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
+			}
+			if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(cfg.CurrencySettings[i].MinimumSlippagePercent) {
+				cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
+			}
+
+			realOrders := false
+			if cfg.DataSettings.LiveData != nil {
+				realOrders = cfg.DataSettings.LiveData.RealOrders
+			}
+
+			buyRule := config.MinMax{
+				MinimumSize:  cfg.CurrencySettings[i].BuySide.MinimumSize,
+				MaximumSize:  cfg.CurrencySettings[i].BuySide.MaximumSize,
+				MaximumTotal: cfg.CurrencySettings[i].BuySide.MaximumTotal,
+			}
+			sellRule := config.MinMax{
+				MinimumSize:  cfg.CurrencySettings[i].SellSide.MinimumSize,
+				MaximumSize:  cfg.CurrencySettings[i].SellSide.MaximumSize,
+				MaximumTotal: cfg.CurrencySettings[i].SellSide.MaximumTotal,
+			}
+
+			limits, err := exch.GetOrderExecutionLimits(a, pair)
+			if err != nil && !errors.Is(err, gctorder.ErrExchangeLimitNotLoaded) {
+				return resp, err
+			}
+
+			if limits != nil {
+				if !cfg.CurrencySettings[i].CanUseExchangeLimits {
+					log.Warnf(log.BackTester, "exchange %s order execution limits supported but disabled for %s %s, live results may differ",
+						cfg.CurrencySettings[i].ExchangeName,
+						pair,
+						a)
+					cfg.CurrencySettings[i].ShowExchangeOrderLimitWarning = true
+				}
+			}
+
+			resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
+				ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
+				MinimumSlippageRate: cfg.CurrencySettings[i].MinimumSlippagePercent,
+				MaximumSlippageRate: cfg.CurrencySettings[i].MaximumSlippagePercent,
+				CurrencyPair:        pair,
+				AssetType:           a,
+				ExchangeFee:         takerFee,
+				MakerFee:            takerFee,
+				TakerFee:            makerFee,
+				UseRealOrders:       realOrders,
+				BuySide:             buyRule,
+				SellSide:            sellRule,
+				Leverage: config.Leverage{
+					CanUseLeverage:                 cfg.CurrencySettings[i].Leverage.CanUseLeverage,
+					MaximumLeverageRate:            cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
+					MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
+				},
+				Limits:                  limits,
+				SkipCandleVolumeFitting: cfg.CurrencySettings[i].SkipCandleVolumeFitting,
+				CanUseExchangeLimits:    cfg.CurrencySettings[i].CanUseExchangeLimits,
+			})
 		}
-		resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
-			ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
-			MinimumSlippageRate: cfg.CurrencySettings[i].MinimumSlippagePercent,
-			MaximumSlippageRate: cfg.CurrencySettings[i].MaximumSlippagePercent,
-			CurrencyPair:        pair,
-			AssetType:           a,
-			ExchangeFee:         takerFee,
-			MakerFee:            takerFee,
-			TakerFee:            makerFee,
-			UseRealOrders:       realOrders,
-			BuySide:             buyRule,
-			SellSide:            sellRule,
-			Leverage: config.Leverage{
-				CanUseLeverage:                 cfg.CurrencySettings[i].Leverage.CanUseLeverage,
-				MaximumLeverageRate:            cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
-				MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
-			},
-			Limits:                  limits,
-			SkipCandleVolumeFitting: cfg.CurrencySettings[i].SkipCandleVolumeFitting,
-			CanUseExchangeLimits:    cfg.CurrencySettings[i].CanUseExchangeLimits,
-		})
 	}
 
 	return resp, nil

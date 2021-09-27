@@ -10,8 +10,8 @@
   {
    "exchange-name": "binance",
    "asset": "spot",
-   "base": "BTC",
-   "quote": "USDT",
+   "base": "LTC",
+   "quote": "BTC",
    "initial-quote-funds": "100000",
    "leverage": {
     "can-use-leverage": false,

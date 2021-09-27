@@ -3,11 +3,14 @@ package funding
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	fbase "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	exchangeratehost "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/exchangerate.host"
@@ -54,6 +57,27 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 	}, nil
 }
 
+// AddUSDTrackingData adds USD tracking data to a funding item
+// only in the event that it is not USD and there is data
+func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
+	if f == nil {
+		return errors.New("woah nelly")
+	}
+	if f.items == nil {
+		return errors.New("woah nelly")
+	}
+	for i := range f.items {
+		if f.items[i].exchange == k.Item.Exchange &&
+			f.items[i].asset == k.Item.Asset &&
+			trackingcurrencies.PairContainsUSD(k.Item.Pair) &&
+			f.items[i].currency == k.Item.Pair.Base &&
+			!trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
+			f.items[i].usdTrackingCandles = k
+		}
+	}
+	return errors.New("woah nelly")
+}
+
 // CreatePair adds two funding items and associates them with one another
 // the association allows for the same currency to be used multiple times when
 // usingExchangeLevelFunding is false. eg BTC-USDT and LTC-USDT do not share the same
@@ -85,17 +109,24 @@ func (f *FundManager) GenerateReport(startDate, endDate time.Time) *Report {
 	var items []ReportItem
 	var erh exchangeratehost.ExchangeRateHost
 	var skipAPICheck bool
-	err := erh.Setup(fbase.Settings{Enabled: true})
-	if err != nil {
-		log.Errorf(log.CommunicationMgr, "issue setting up exchangerate.host API %v", err)
-		skipAPICheck = true
-	}
 	for i := range f.items {
 		// exact conversion not required for initial version
 		fInitialFunds, _ := f.items[i].initialFunds.Float64()
 		fFinalFunds, _ := f.items[i].available.Float64()
 		var initialWorthDecimal, finalWorthDecimal decimal.Decimal
-		if !skipAPICheck {
+		if f.items[i].usdTrackingCandles != nil {
+			usdStream := f.items[i].usdTrackingCandles.StreamClose()
+			initialWorthDecimal = f.items[i].initialFunds.Mul(usdStream[0])
+			finalWorthDecimal = f.items[i].available.Mul(usdStream[len(usdStream)-1])
+		} else {
+			if !skipAPICheck {
+				os.Exit(-1)
+				err := erh.Setup(fbase.Settings{Enabled: true})
+				if err != nil {
+					log.Errorf(log.CommunicationMgr, "issue setting up exchangerate.host API %v", err)
+					skipAPICheck = true
+				}
+			}
 			// calculating totals for shared funding across multiple currency pairs is difficult
 			// converting totals using a free API is better suited as an initial concept
 			// TODO convert currencies without external dependency
@@ -126,8 +157,10 @@ func (f *FundManager) GenerateReport(startDate, endDate time.Time) *Report {
 						finalWorthDecimal = decimal.NewFromFloat(finalWorth.Result)
 					}
 				}
+
 			}
 		}
+
 		item := ReportItem{
 			Exchange:        f.items[i].exchange,
 			Asset:           f.items[i].asset,

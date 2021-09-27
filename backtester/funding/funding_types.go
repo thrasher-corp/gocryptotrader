@@ -5,6 +5,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -49,6 +50,7 @@ type IFundingManager interface {
 	GetFundingForEAP(string, asset.Item, currency.Pair) (*Pair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GenerateReport(startDate, endDate time.Time) *Report
+	AddUSDTrackingData(*kline.DataFromKline) error
 }
 
 // IFundTransferer allows for funding amounts to be transferred
@@ -85,15 +87,15 @@ type IPairReleaser interface {
 
 // Item holds funding data per currency item
 type Item struct {
-	exchange        string
-	asset           asset.Item
-	currency        currency.Code
-	initialFunds    decimal.Decimal
-	available       decimal.Decimal
-	reserved        decimal.Decimal
-	transferFee     decimal.Decimal
-	pairedWith      *Item
-	usdPricesAtTime map[time.Time]decimal.Decimal
+	exchange           string
+	asset              asset.Item
+	currency           currency.Code
+	initialFunds       decimal.Decimal
+	available          decimal.Decimal
+	reserved           decimal.Decimal
+	transferFee        decimal.Decimal
+	pairedWith         *Item
+	usdTrackingCandles *kline.DataFromKline
 }
 
 // Pair holds two currencies that are associated with each other

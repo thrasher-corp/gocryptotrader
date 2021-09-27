@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -37,16 +36,23 @@ var (
 	errCurrencyContainsUSD     = errors.New("currency already contains a USD equivalent")
 )
 
+type TrackingPair struct {
+	Exchange string
+	Asset    string
+	Base     string
+	Quote    string
+}
+
 // CreateUSDTrackingPairs is responsible for loading exchanges,
 // ensuring the exchange have the latest currency pairs and
 // if a pair doesn't have a USD currency to track price, to add those settings
-func CreateUSDTrackingPairs(cs []config.CurrencySettings) ([]config.CurrencySettings, error) {
+func CreateUSDTrackingPairs(cs []TrackingPair) ([]TrackingPair, error) {
 	em := engine.SetupExchangeManager()
 	var emm = make(map[string]exchange.IBotExchange)
 	var wg sync.WaitGroup
 	var err error
 	for i := range cs {
-		emm[cs[i].ExchangeName] = nil
+		emm[cs[i].Exchange] = nil
 	}
 	wg.Add(len(emm))
 	for k := range emm {
@@ -76,11 +82,11 @@ func CreateUSDTrackingPairs(cs []config.CurrencySettings) ([]config.CurrencySett
 	}
 	wg.Wait()
 
-	var resp []config.CurrencySettings
+	var resp []TrackingPair
 	for i := range cs {
-		exch := emm[strings.ToLower(cs[i].ExchangeName)]
+		exch := emm[strings.ToLower(cs[i].Exchange)]
 		if exch == nil {
-			return nil, fmt.Errorf("%v %w", cs[i].ExchangeName, engine.ErrExchangeNotFound)
+			return nil, fmt.Errorf("%v %w", cs[i].Exchange, engine.ErrExchangeNotFound)
 		}
 		pair, err := currency.NewPairFromStrings(cs[i].Base, cs[i].Quote)
 		if err != nil {
@@ -100,23 +106,32 @@ func CreateUSDTrackingPairs(cs []config.CurrencySettings) ([]config.CurrencySett
 				return nil, err
 			}
 			resp = append(resp, cs[i])
-			resp = append(resp, config.CurrencySettings{
-				ExchangeName:      cs[i].ExchangeName,
-				Asset:             cs[i].Asset,
-				Base:              basePair.Base.String(),
-				Quote:             basePair.Quote.String(),
-				PriceTrackingOnly: true,
+			resp = append(resp, TrackingPair{
+				Exchange: cs[i].Exchange,
+				Asset:    cs[i].Asset,
+				Base:     basePair.Base.String(),
+				Quote:    basePair.Quote.String(),
 			})
-			resp = append(resp, config.CurrencySettings{
-				ExchangeName:      cs[i].ExchangeName,
-				Asset:             cs[i].Asset,
-				Base:              quotePair.Base.String(),
-				Quote:             quotePair.Quote.String(),
-				PriceTrackingOnly: true,
+			resp = append(resp, TrackingPair{
+				Exchange: cs[i].Exchange,
+				Asset:    cs[i].Asset,
+				Base:     quotePair.Base.String(),
+				Quote:    quotePair.Quote.String(),
 			})
 		}
 	}
 	return resp, nil
+}
+
+// CurrencyIsUSDTracked checks if the currency passed in
+// tracks against USD value, ie is in rankedUSDs
+func CurrencyIsUSDTracked(code currency.Code) bool {
+	for i := range rankedUSDs {
+		if code == rankedUSDs[i] {
+			return true
+		}
+	}
+	return false
 }
 
 // PairContainsUSD is a simple check to ensure that the currency pair
