@@ -681,8 +681,7 @@ func (bot *Engine) Stop() {
 	if bot.currencyStateManager.IsRunning() {
 		if err := bot.currencyStateManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global,
-				"%s unable to stop. Error: %v",
-				CurrencyStateManagementName,
+				"currency state manager unable to stop. Error: %v",
 				err)
 		}
 	}
