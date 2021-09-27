@@ -37,6 +37,14 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	exch.SetDefaults()
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = exch.Setup(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
 	em.Add(exch)
 	engine.Bot.ExchangeManager = em
 	engine.Bot.WithdrawManager, err = engine.SetupWithdrawManager(em, nil, true)

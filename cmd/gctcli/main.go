@@ -161,6 +161,7 @@ func main() {
 		websocketManagerCommand,
 		tradeCommand,
 		dataHistoryCommands,
+		currencyStateManagementCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

@@ -46,6 +46,7 @@ type Engine struct {
 	websocketRoutineManager *websocketRoutineManager
 	WithdrawManager         *WithdrawManager
 	dataHistoryManager      *DataHistoryManager
+	currencyStateManager    *CurrencyStateManager
 	Settings                Settings
 	uptime                  time.Time
 	ServicesWG              sync.WaitGroup
@@ -145,13 +146,17 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 
 	b.Settings.EnableDataHistoryManager = (flagSet["datahistorymanager"] && b.Settings.EnableDatabaseManager) || b.Config.DataHistoryManager.Enabled
 
+	b.Settings.EnableCurrencyStateManager = (flagSet["currencystatemanager"] &&
+		b.Settings.EnableCurrencyStateManager) ||
+		b.Config.CurrencyStateManager.Enabled != nil &&
+			*b.Config.CurrencyStateManager.Enabled
+
 	b.Settings.EnableGCTScriptManager = b.Settings.EnableGCTScriptManager &&
 		(flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
 
-	if b.Settings.EnablePortfolioManager {
-		if b.Settings.PortfolioManagerDelay <= 0 {
-			b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
-		}
+	if b.Settings.EnablePortfolioManager &&
+		b.Settings.PortfolioManagerDelay <= 0 {
+		b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
 	}
 
 	if !flagSet["grpc"] {
@@ -242,6 +247,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable coinmarketcap analaysis: %v", s.EnableCoinmarketcapAnalysis)
 	gctlog.Debugf(gctlog.Global, "\t Enable portfolio manager: %v", s.EnablePortfolioManager)
 	gctlog.Debugf(gctlog.Global, "\t Enable data history manager: %v", s.EnableDataHistoryManager)
+	gctlog.Debugf(gctlog.Global, "\t Enable currency state manager: %v", s.EnableCurrencyStateManager)
 	gctlog.Debugf(gctlog.Global, "\t Portfolio manager sleep delay: %v\n", s.PortfolioManagerDelay)
 	gctlog.Debugf(gctlog.Global, "\t Enable gPRC: %v", s.EnableGRPC)
 	gctlog.Debugf(gctlog.Global, "\t Enable gRPC Proxy: %v", s.EnableGRPCProxy)
@@ -460,8 +466,7 @@ func (bot *Engine) Start() error {
 		return err
 	}
 
-	if bot.Settings.EnableDeprecatedRPC ||
-		bot.Settings.EnableWebsocketRPC {
+	if bot.Settings.EnableDeprecatedRPC || bot.Settings.EnableWebsocketRPC {
 		var filePath string
 		filePath, err = config.GetAndMigrateDefaultPath(bot.Settings.ConfigFile)
 		if err != nil {
@@ -570,11 +575,30 @@ func (bot *Engine) Start() error {
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "failed to create script manager. Err: %s", err)
 		}
-		if err := bot.gctScriptManager.Start(&bot.ServicesWG); err != nil {
+		if err = bot.gctScriptManager.Start(&bot.ServicesWG); err != nil {
 			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %s", err)
 		}
 	}
 
+	if bot.Settings.EnableCurrencyStateManager {
+		bot.currencyStateManager, err = SetupCurrencyStateManager(
+			bot.Config.CurrencyStateManager.Delay,
+			bot.ExchangeManager)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global,
+				"%s unable to setup: %s",
+				CurrencyStateManagementName,
+				err)
+		} else {
+			err = bot.currencyStateManager.Start()
+			if err != nil {
+				gctlog.Errorf(gctlog.Global,
+					"%s unable to start: %s",
+					CurrencyStateManagementName,
+					err)
+			}
+		}
+	}
 	return nil
 }
 
@@ -599,61 +623,51 @@ func (bot *Engine) Stop() {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.eventManager.IsRunning() {
 		if err := bot.eventManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "event manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.ntpManager.IsRunning() {
 		if err := bot.ntpManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.CommunicationsManager.IsRunning() {
 		if err := bot.CommunicationsManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communication manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.portfolioManager.IsRunning() {
 		if err := bot.portfolioManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Fund manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.connectionManager.IsRunning() {
 		if err := bot.connectionManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.apiServer.IsRESTServerRunning() {
 		if err := bot.apiServer.StopRESTServer(); err != nil {
 			gctlog.Errorf(gctlog.Global, "API Server unable to stop REST server. Error: %s", err)
 		}
 	}
-
 	if bot.apiServer.IsWebsocketServerRunning() {
 		if err := bot.apiServer.StopWebsocketServer(); err != nil {
 			gctlog.Errorf(gctlog.Global, "API Server unable to stop websocket server. Error: %s", err)
 		}
 	}
-
 	if bot.dataHistoryManager.IsRunning() {
 		if err := bot.dataHistoryManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.DataHistory, "data history manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if bot.DatabaseManager.IsRunning() {
 		if err := bot.DatabaseManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to stop. Error: %v", err)
 		}
 	}
-
 	if dispatch.IsRunning() {
 		if err := dispatch.Stop(); err != nil {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatch system unable to stop. Error: %v", err)
@@ -662,6 +676,13 @@ func (bot *Engine) Stop() {
 	if bot.websocketRoutineManager.IsRunning() {
 		if err := bot.websocketRoutineManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "websocket routine manager unable to stop. Error: %v", err)
+		}
+	}
+	if bot.currencyStateManager.IsRunning() {
+		if err := bot.currencyStateManager.Stop(); err != nil {
+			gctlog.Errorf(gctlog.Global,
+				"currency state manager unable to stop. Error: %v",
+				err)
 		}
 	}
 

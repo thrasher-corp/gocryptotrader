@@ -11,11 +11,13 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -890,4 +892,21 @@ func (b *Bithumb) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) 
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
 	return b.LoadLimits(limits)
+}
+
+// UpdateCurrencyStates updates currency states for exchange
+func (b *Bithumb) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
+	status, err := b.GetAssetStatusAll(ctx)
+	if err != nil {
+		return err
+	}
+
+	payload := make(map[currency.Code]currencystate.Options)
+	for coin, options := range status.Data {
+		payload[currency.NewCode(coin)] = currencystate.Options{
+			Withdraw: convert.BoolPtr(options.WithdrawalStatus == 1),
+			Deposit:  convert.BoolPtr(options.DepositStatus == 1),
+		}
+	}
+	return b.States.UpdateAll(a, payload)
 }

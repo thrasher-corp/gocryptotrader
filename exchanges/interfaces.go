@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -90,4 +91,16 @@ type IBotExchange interface {
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*order.Limits, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
+
+	CurrencyStateManagement
+}
+
+// CurrencyStateManagement defines functionality for currency state management
+type CurrencyStateManagement interface {
+	GetCurrencyStateSnapshot() ([]currencystate.Snapshot, error)
+	UpdateCurrencyStates(ctx context.Context, a asset.Item) error
+	CanTradePair(p currency.Pair, a asset.Item) error
+	CanTrade(c currency.Code, a asset.Item) error
+	CanWithdraw(c currency.Code, a asset.Item) error
+	CanDeposit(c currency.Code, a asset.Item) error
 }

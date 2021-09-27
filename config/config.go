@@ -1422,6 +1422,19 @@ func (c *Config) CheckDataHistoryMonitorConfig() {
 	}
 }
 
+// CheckCurrencyStateManager ensures the currency state config is valid, or sets
+// default values
+func (c *Config) CheckCurrencyStateManager() {
+	m.Lock()
+	defer m.Unlock()
+	if c.CurrencyStateManager.Delay <= 0 {
+		c.CurrencyStateManager.Delay = defaultCurrencyStateManagerDelay
+	}
+	if c.CurrencyStateManager.Enabled == nil { // default on, when being upgraded
+		c.CurrencyStateManager.Enabled = convert.BoolPtr(true)
+	}
+}
+
 // CheckConnectionMonitorConfig checks and if zero value assigns default values
 func (c *Config) CheckConnectionMonitorConfig() {
 	m.Lock()
@@ -1769,6 +1782,7 @@ func (c *Config) CheckConfig() error {
 
 	c.CheckConnectionMonitorConfig()
 	c.CheckDataHistoryMonitorConfig()
+	c.CheckCurrencyStateManager()
 	c.CheckCommunicationsConfig()
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()
