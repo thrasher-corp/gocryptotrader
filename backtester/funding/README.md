@@ -1,0 +1,102 @@
+# GoCryptoTrader Backtester: Funding package
+
+<img src="/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
+
+
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester/funding)
+[![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
+
+
+This funding package is part of the GoCryptoTrader codebase.
+
+## This is still in active development
+
+You can track ideas, planned features and what's in progress on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
+
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
+
+## Funding package overview
+
+### What does the funding package do?
+The funding package is responsible for keeping track of all funds across all events during a backtesting run. It is backwards compatible with all existing backtesting strategies
+
+### What is the funding manager?
+The funding manager is responsible for holding all funding Items and Pairs over the course of a backtesting run. It prevents funds from being overwritten and maintains relationships of currency pairs.
+
+Consider the following example: Exchange Level Funding is disabled and Simultaneous Processing is disabled, so each currency in the `.strat` config will execute a strategy individually. If the pairs BTC-USDT, BNB-USDT and LTC-BTC are present, then the funding manager will ensure that none of the funds are shared between each of the currencies, even if they all share base or quote values.
+
+Conversely, Exchange level funding and Simultaneous Processing is enabled, so each currency in the `.strat` file will be processed in one step per time interval. The pairs BTC-USDT, BNB-USDT and BTC-LTC can all share the same base or quote level funds and can make complex decisions on how that funding is used, such as allowing BTC-LTC to make a purchase if an indicator is strongest for that pair.
+
+### What is a funding Item?
+A funding item holds the initial funding, current funding, reserved funding and transfer fees associated with an exchange, asset and currency. If it is a Pair, then the Item will be linked to the paired Item.
+
+### What is a funding Pair?
+A funding Pair consists of two funding Items, the Base and Quote. If Exchange Level Funding is disabled, the Base and Quote are linked to each other and the funds cannot be shared with other Pairs or Items. If Exchange Level Funding is enabled, the pair can access the same funds as every other currency that shares the exchange and asset type.
+
+### What does Exchange Level Funding mean?
+Exchange level funding allows funds to be shared during a backtesting run. If the strategy contains the two pairs BTC-USDT and BNB-USDT and the strategy sells 3 BTC for $100,000 USDT, then BNB-USDT can use that $100,000 USDT to make a purchase of $20,000 BNB.
+It is restricted to an exchange and asset type, so BTC used in spot, cannot be used in a futures contract (futures backtesting is not currently supported). However, the funding manager can transfer funds between exchange and asset types.
+
+Having funding at the exchange level also allows for a finer degree of control while also being more realistic for strategic execution.
+A user can create a strategy with many pairs, such as BTC-USDT, LTC-BTC, DOGE-XRP and XRP-USDT, but only creating funding for USDT and still see the purchase of LTC or DOGE.
+Another strategy could start with funding in the Base currency. So an RSI strategy for BTC-USDT that has 3 BTC as funding will then start by selling rather than buying.
+
+#### Why is Simultaneous Processing a prerequisite of Exchange Level Funding?
+Simultaneous Processing allows a strategy to process multiple data signals for a single time period to be processed in one step. The reason Simultaneous Processing is required for Exchange Level Funding is that if it is disabled, all events are handled in a sequence.
+If any funding was to be shared in such a scenario, the first currency to be processed will always get the choice share of funding. Simultaneous Processing ensures the decision to spend funds for BTC-USDT over BNB-USDT is a measured decision, and not done by the order of currencies in a strategy config.
+
+### Can I transfer funds from one place to another?
+Yes! Though it does use some things to consider.
+- It is handled at the strategy execution level, so when creating a strategy, you design the conditions in which funding may be transferred from one place to another.
+  - For example, if an indicator is very strong on one exchange, but not another, you may wish to transfer funds to the strongest exchange to act upon
+- It comes with the assumption that a transfer is actually possible in the candle timeframe your strategy runs on.
+  - For example, a 1 minute candle strategy likely would not be able to process a transfer of funds and have another exchange use it in that timeframe. So any positive results from such a strategy may not be reflected in real-world scenarios
+- You can only transfer to the same currency eg BTC from Binance to FTX, no conversions
+- You set the transfer fee in your config
+
+### Do I need to add funding settings to my config if Exchange Level Funding is disabled?
+No. The already existing `CurrencySettings` will populate the funding manager with initial funds if Exchange Level Funding is disabled.
+
+#### Strategy Settings
+
+| Key | Description | Example |
+| --- | ------- | --- |
+| Name | The strategy to use | `rsi` |
+| UsesSimultaneousProcessing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC | `true` |
+| CustomSettings | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12 | `"custom-settings": { "rsi-high": 70, "rsi-low": 30, "rsi-period": 14 } ` |
+| UseExchangeLevelFunding | This allows shared exchange funds to be used in your strategy. Requires `UsesSimultaneousProcessing` to be set to `true` to use  | `false` |
+| ExchangeLevelFunding | This is a list of funding definitions if `UseExchangeLevelFunding` is set to true  | See below table |
+
+#### Funding Config Settings
+
+| Key | Description | Example |
+| --- | ------- | ----- |
+| ExchangeName | The exchange to set funds. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges | `Binance` |
+| Asset | The asset type to set funds. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports| `spot` |
+| Currency | The currency to set funds | `BTC` |
+| InitialFunds | The initial funding for the currency | `1337` |
+| TransferFee | If your strategy utilises transferring of funds via the Funding Manager, this is deducted upon doing so | `0.005` |
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+
+## Contribution
+
+Please feel free to submit any pull requests or suggest any desired features to be added.
+
+When submitting a PR, please abide by our coding guidelines:
+
++ Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
++ Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
++ Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/doc/coding_style.md).
++ Pull requests need to be based on and opened against the `master` branch.
+
+## Donations
+
+<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+
+If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
+
+***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***

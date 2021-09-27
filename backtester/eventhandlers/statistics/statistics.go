@@ -3,7 +3,10 @@ package statistics
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
+	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -11,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -23,21 +27,30 @@ func (s *Statistic) Reset() {
 }
 
 // SetupEventForTime sets up the big map for to store important data at each time interval
-func (s *Statistic) SetupEventForTime(e common.DataEventHandler) error {
-	if e == nil {
+func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
+	if ev == nil {
 		return common.ErrNilEvent
 	}
-	ex := e.GetExchange()
-	a := e.GetAssetType()
-	p := e.Pair()
+	ex := ev.GetExchange()
+	a := ev.GetAssetType()
+	p := ev.Pair()
 	s.setupMap(ex, a)
 	lookup := s.ExchangeAssetPairStatistics[ex][a][p]
 	if lookup == nil {
 		lookup = &currencystatistics.CurrencyStatistic{}
 	}
+	for i := range lookup.Events {
+		if lookup.Events[i].DataEvent.GetTime().Equal(ev.GetTime()) &&
+			lookup.Events[i].DataEvent.GetExchange() == ev.GetExchange() &&
+			lookup.Events[i].DataEvent.GetAssetType() == ev.GetAssetType() &&
+			lookup.Events[i].DataEvent.Pair().Equal(ev.Pair()) &&
+			lookup.Events[i].DataEvent.GetOffset() == ev.GetOffset() {
+			return ErrAlreadyProcessed
+		}
+	}
 	lookup.Events = append(lookup.Events,
 		currencystatistics.EventStore{
-			DataEvent: e,
+			DataEvent: ev,
 		},
 	)
 	s.ExchangeAssetPairStatistics[ex][a][p] = lookup
@@ -58,32 +71,32 @@ func (s *Statistic) setupMap(ex string, a asset.Item) {
 }
 
 // SetEventForOffset sets the event for the time period in the event
-func (s *Statistic) SetEventForOffset(e common.EventHandler) error {
-	if e == nil {
+func (s *Statistic) SetEventForOffset(ev common.EventHandler) error {
+	if ev == nil {
 		return common.ErrNilEvent
 	}
 	if s.ExchangeAssetPairStatistics == nil {
 		return errExchangeAssetPairStatsUnset
 	}
-	exch := e.GetExchange()
-	a := e.GetAssetType()
-	p := e.Pair()
-	offset := e.GetOffset()
+	exch := ev.GetExchange()
+	a := ev.GetAssetType()
+	p := ev.Pair()
+	offset := ev.GetOffset()
 	lookup := s.ExchangeAssetPairStatistics[exch][a][p]
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set signal event", errCurrencyStatisticsUnset, exch, a, p)
 	}
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
 		if lookup.Events[i].DataEvent.GetOffset() == offset {
-			return applyEventAtOffset(e, lookup, i)
+			return applyEventAtOffset(ev, lookup, i)
 		}
 	}
 
 	return nil
 }
 
-func applyEventAtOffset(e common.EventHandler, lookup *currencystatistics.CurrencyStatistic, i int) error {
-	switch t := e.(type) {
+func applyEventAtOffset(ev common.EventHandler, lookup *currencystatistics.CurrencyStatistic, i int) error {
+	switch t := ev.(type) {
 	case common.DataEventHandler:
 		lookup.Events[i].DataEvent = t
 	case signal.Event:
@@ -93,7 +106,7 @@ func applyEventAtOffset(e common.EventHandler, lookup *currencystatistics.Curren
 	case fill.Event:
 		lookup.Events[i].FillEvent = t
 	default:
-		return fmt.Errorf("unknown event type received: %v", e)
+		return fmt.Errorf("unknown event type received: %v", ev)
 	}
 	return nil
 }
@@ -143,22 +156,41 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 
 // CalculateAllResults calculates the statistics of all exchange asset pair holdings,
 // orders, ratios and drawdowns
-func (s *Statistic) CalculateAllResults() error {
+func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 	log.Info(log.BackTester, "calculating backtesting results")
-	s.PrintAllEvents()
+	s.PrintAllEventsChronologically()
 	currCount := 0
 	var finalResults []FinalResultsHolder
+	var err error
+	var startDate, endDate time.Time
 	for exchangeName, exchangeMap := range s.ExchangeAssetPairStatistics {
 		for assetItem, assetMap := range exchangeMap {
 			for pair, stats := range assetMap {
 				currCount++
-				err := stats.CalculateResults()
+				var f funding.IPairReader
+				last := stats.Events[len(stats.Events)-1]
+				startDate = stats.Events[0].DataEvent.GetTime()
+				endDate = last.DataEvent.GetTime()
+				var event common.EventHandler
+				switch {
+				case last.FillEvent != nil:
+					event = last.FillEvent
+				case last.SignalEvent != nil:
+					event = last.SignalEvent
+				default:
+					event = last.DataEvent
+				}
+				f, err = funds.GetFundingForEvent(event)
 				if err != nil {
 					return err
 				}
-				stats.PrintResults(exchangeName, assetItem, pair)
-				last := stats.Events[len(stats.Events)-1]
+				err = stats.CalculateResults(f)
+				if err != nil {
+					log.Error(log.BackTester, err)
+				}
+				stats.PrintResults(exchangeName, assetItem, pair, f, funds.IsUsingExchangeLevelFunding())
 				stats.FinalHoldings = last.Holdings
+				stats.InitialHoldings = stats.Events[0].Holdings
 				stats.FinalOrders = last.Transactions
 				s.AllStats = append(s.AllStats, *stats)
 
@@ -178,44 +210,71 @@ func (s *Statistic) CalculateAllResults() error {
 			}
 		}
 	}
+	s.Funding = funds.GenerateReport(startDate, endDate)
 	s.TotalOrders = s.TotalBuyOrders + s.TotalSellOrders
 	if currCount > 1 {
 		s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies(finalResults)
 		s.BestMarketMovement = s.GetBestMarketPerformer(finalResults)
 		s.BestStrategyResults = s.GetBestStrategyPerformer(finalResults)
-		s.PrintTotalResults()
+		s.PrintTotalResults(funds.IsUsingExchangeLevelFunding())
 	}
 
 	return nil
 }
 
 // PrintTotalResults outputs all results to the CMD
-func (s *Statistic) PrintTotalResults() {
+func (s *Statistic) PrintTotalResults(isUsingExchangeLevelFunding bool) {
 	log.Info(log.BackTester, "------------------Strategy-----------------------------------")
 	log.Infof(log.BackTester, "Strategy Name: %v", s.StrategyName)
 	log.Infof(log.BackTester, "Strategy Nickname: %v", s.StrategyNickname)
 	log.Infof(log.BackTester, "Strategy Goal: %v\n\n", s.StrategyGoal)
+	log.Info(log.BackTester, "------------------Funding------------------------------------")
+	for i := range s.Funding.Items {
+		log.Infof(log.BackTester, "Exchange: %v", s.Funding.Items[i].Exchange)
+		log.Infof(log.BackTester, "Asset: %v", s.Funding.Items[i].Asset)
+		log.Infof(log.BackTester, "Currency: %v", s.Funding.Items[i].Currency)
+		if !s.Funding.Items[i].PairedWith.IsEmpty() {
+			log.Infof(log.BackTester, "Paired with: %v", s.Funding.Items[i].PairedWith)
+		}
+		log.Infof(log.BackTester, "Initial funds: %v", s.Funding.Items[i].InitialFunds)
+		log.Infof(log.BackTester, "Initial funds in USD: $%v", s.Funding.Items[i].InitialFundsUSD)
+		log.Infof(log.BackTester, "Final funds: %v", s.Funding.Items[i].FinalFunds)
+		log.Infof(log.BackTester, "Final funds in USD: $%v", s.Funding.Items[i].FinalFundsUSD)
+		if s.Funding.Items[i].InitialFunds.IsZero() {
+			log.Info(log.BackTester, "Difference: ∞%")
+		} else {
+			log.Infof(log.BackTester, "Difference: %v%%", s.Funding.Items[i].Difference)
+		}
+		if s.Funding.Items[i].TransferFee.GreaterThan(decimal.Zero) {
+			log.Infof(log.BackTester, "Transfer fee: %v", s.Funding.Items[i].TransferFee)
+		}
+		log.Info(log.BackTester, "")
+	}
+	log.Infof(log.BackTester, "Initial total funds in USD: $%v", s.Funding.InitialTotalUSD)
+	log.Infof(log.BackTester, "Final total funds in USD: $%v", s.Funding.FinalTotalUSD)
+	log.Infof(log.BackTester, "Difference: %v%%\n", s.Funding.Difference)
+
 	log.Info(log.BackTester, "------------------Total Results------------------------------")
-	log.Info(log.BackTester, "------------------Orders----------------------------------")
+	log.Info(log.BackTester, "------------------Orders-------------------------------------")
 	log.Infof(log.BackTester, "Total buy orders: %v", s.TotalBuyOrders)
 	log.Infof(log.BackTester, "Total sell orders: %v", s.TotalSellOrders)
 	log.Infof(log.BackTester, "Total orders: %v\n\n", s.TotalOrders)
 
 	if s.BiggestDrawdown != nil {
-		log.Info(log.BackTester, "------------------Biggest Drawdown------------------------")
+		log.Info(log.BackTester, "------------------Biggest Drawdown-----------------------")
 		log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
-		log.Infof(log.BackTester, "Highest Price: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price)
+		log.Infof(log.BackTester, "Highest Price: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Round(8))
 		log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
-		log.Infof(log.BackTester, "Lowest Price: $%.2f", s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
+		log.Infof(log.BackTester, "Lowest Price: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price.Round(8))
 		log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
-		log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent)
-		log.Infof(log.BackTester, "Difference: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price-s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
+		log.Infof(log.BackTester, "Calculated Drawdown: %v%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent.Round(2))
+		log.Infof(log.BackTester, "Difference: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Price).Round(8))
 		log.Infof(log.BackTester, "Drawdown length: %v\n\n", s.BiggestDrawdown.MaxDrawdown.IntervalDuration)
 	}
 	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {
 		log.Info(log.BackTester, "------------------Orders----------------------------------")
-		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %f%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement)
-		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %f%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement)
+		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement.Round(2))
+		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement.Round(2))
 	}
 }
 
@@ -223,7 +282,7 @@ func (s *Statistic) PrintTotalResults() {
 func (s *Statistic) GetBestMarketPerformer(results []FinalResultsHolder) *FinalResultsHolder {
 	result := &FinalResultsHolder{}
 	for i := range results {
-		if results[i].MarketMovement > result.MarketMovement || result.MarketMovement == 0 {
+		if results[i].MarketMovement.GreaterThan(result.MarketMovement) || result.MarketMovement.IsZero() {
 			result = &results[i]
 			break
 		}
@@ -236,7 +295,7 @@ func (s *Statistic) GetBestMarketPerformer(results []FinalResultsHolder) *FinalR
 func (s *Statistic) GetBestStrategyPerformer(results []FinalResultsHolder) *FinalResultsHolder {
 	result := &FinalResultsHolder{}
 	for i := range results {
-		if results[i].StrategyMovement > result.StrategyMovement || result.StrategyMovement == 0 {
+		if results[i].StrategyMovement.GreaterThan(result.StrategyMovement) || result.StrategyMovement.IsZero() {
 			result = &results[i]
 		}
 	}
@@ -248,7 +307,7 @@ func (s *Statistic) GetBestStrategyPerformer(results []FinalResultsHolder) *Fina
 func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResultsHolder) *FinalResultsHolder {
 	result := &FinalResultsHolder{}
 	for i := range results {
-		if results[i].MaxDrawdown.DrawdownPercent > result.MaxDrawdown.DrawdownPercent || result.MaxDrawdown.DrawdownPercent == 0 {
+		if results[i].MaxDrawdown.DrawdownPercent.GreaterThan(result.MaxDrawdown.DrawdownPercent) || result.MaxDrawdown.DrawdownPercent.IsZero() {
 			result = &results[i]
 		}
 	}
@@ -256,53 +315,95 @@ func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResults
 	return result
 }
 
-// PrintAllEvents outputs all event details in the CMD
-func (s *Statistic) PrintAllEvents() {
+func addEventOutputToTime(events []eventOutputHolder, t time.Time, message string) []eventOutputHolder {
+	for i := range events {
+		if events[i].Time.Equal(t) {
+			events[i].Events = append(events[i].Events, message)
+			return events
+		}
+	}
+	events = append(events, eventOutputHolder{Time: t, Events: []string{message}})
+	return events
+}
+
+// PrintAllEventsChronologically outputs all event details in the CMD
+// rather than separated by exchange, asset and currency pair, it's
+// grouped by time to allow a clearer picture of events
+func (s *Statistic) PrintAllEventsChronologically() {
+	var results []eventOutputHolder
 	log.Info(log.BackTester, "------------------Events-------------------------------------")
 	var errs gctcommon.Errors
-	for e, x := range s.ExchangeAssetPairStatistics {
+	for exch, x := range s.ExchangeAssetPairStatistics {
 		for a, y := range x {
-			for p, c := range y {
-				for i := range c.Events {
+			for pair, currencyStatistic := range y {
+				for i := range currencyStatistic.Events {
 					switch {
-					case c.Events[i].FillEvent != nil:
-						direction := c.Events[i].FillEvent.GetDirection()
+					case currencyStatistic.Events[i].FillEvent != nil:
+						direction := currencyStatistic.Events[i].FillEvent.GetDirection()
 						if direction == common.CouldNotBuy ||
 							direction == common.CouldNotSell ||
 							direction == common.DoNothing ||
 							direction == common.MissingData ||
+							direction == common.TransferredFunds ||
 							direction == "" {
-							log.Infof(log.BackTester, "%v | Price: $%f - Direction: %v - Reason: %s",
-								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-								c.Events[i].FillEvent.GetClosePrice(),
-								c.Events[i].FillEvent.GetDirection(),
-								c.Events[i].FillEvent.GetReason())
+							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(),
+								fmt.Sprintf("%v %v %v %v | Price: $%v - Direction: %v - Reason: %s",
+									currencyStatistic.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
+									currencyStatistic.Events[i].FillEvent.GetExchange(),
+									currencyStatistic.Events[i].FillEvent.GetAssetType(),
+									currencyStatistic.Events[i].FillEvent.Pair(),
+									currencyStatistic.Events[i].FillEvent.GetClosePrice().Round(8),
+									currencyStatistic.Events[i].FillEvent.GetDirection(),
+									currencyStatistic.Events[i].FillEvent.GetReason()))
 						} else {
-							log.Infof(log.BackTester, "%v | Price: $%f - Amount: %f - Fee: $%f - Total: $%f - Direction %v - Reason: %s",
-								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-								c.Events[i].FillEvent.GetPurchasePrice(),
-								c.Events[i].FillEvent.GetAmount(),
-								c.Events[i].FillEvent.GetExchangeFee(),
-								c.Events[i].FillEvent.GetTotal(),
-								c.Events[i].FillEvent.GetDirection(),
-								c.Events[i].FillEvent.GetReason(),
-							)
+							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(),
+								fmt.Sprintf("%v %v %v %v | Price: $%v - Amount: %v - Fee: $%v - Total: $%v - Direction %v - Reason: %s",
+									currencyStatistic.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
+									currencyStatistic.Events[i].FillEvent.GetExchange(),
+									currencyStatistic.Events[i].FillEvent.GetAssetType(),
+									currencyStatistic.Events[i].FillEvent.Pair(),
+									currencyStatistic.Events[i].FillEvent.GetPurchasePrice().Round(8),
+									currencyStatistic.Events[i].FillEvent.GetAmount().Round(8),
+									currencyStatistic.Events[i].FillEvent.GetExchangeFee().Round(8),
+									currencyStatistic.Events[i].FillEvent.GetTotal().Round(8),
+									currencyStatistic.Events[i].FillEvent.GetDirection(),
+									currencyStatistic.Events[i].FillEvent.GetReason(),
+								))
 						}
-					case c.Events[i].SignalEvent != nil:
-						log.Infof(log.BackTester, "%v | Price: $%f - Reason: %v",
-							c.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-							c.Events[i].SignalEvent.GetPrice(),
-							c.Events[i].SignalEvent.GetReason())
-					case c.Events[i].DataEvent != nil:
-						log.Infof(log.BackTester, "%v | Price: $%f - Reason: %v",
-							c.Events[i].DataEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-							c.Events[i].DataEvent.ClosePrice(),
-							c.Events[i].DataEvent.GetReason())
+					case currencyStatistic.Events[i].SignalEvent != nil:
+						results = addEventOutputToTime(results, currencyStatistic.Events[i].SignalEvent.GetTime(),
+							fmt.Sprintf("%v %v %v %v | Price: $%v - Reason: %v",
+								currencyStatistic.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
+								currencyStatistic.Events[i].SignalEvent.GetExchange(),
+								currencyStatistic.Events[i].SignalEvent.GetAssetType(),
+								currencyStatistic.Events[i].SignalEvent.Pair(),
+								currencyStatistic.Events[i].SignalEvent.GetPrice().Round(8),
+								currencyStatistic.Events[i].SignalEvent.GetReason()))
+					case currencyStatistic.Events[i].DataEvent != nil:
+						results = addEventOutputToTime(results, currencyStatistic.Events[i].DataEvent.GetTime(),
+							fmt.Sprintf("%v %v %v %v | Price: $%v - Reason: %v",
+								currencyStatistic.Events[i].DataEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
+								currencyStatistic.Events[i].DataEvent.GetExchange(),
+								currencyStatistic.Events[i].DataEvent.GetAssetType(),
+								currencyStatistic.Events[i].DataEvent.Pair(),
+								currencyStatistic.Events[i].DataEvent.ClosePrice().Round(8),
+								currencyStatistic.Events[i].DataEvent.GetReason()))
 					default:
-						errs = append(errs, fmt.Errorf("%v %v %v unexpected data received %+v", e, a, p, c.Events[i]))
+						errs = append(errs, fmt.Errorf("%v %v %v unexpected data received %+v", exch, a, pair, currencyStatistic.Events[i]))
 					}
 				}
 			}
+		}
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		b1 := results[i]
+		b2 := results[j]
+		return b1.Time.Before(b2.Time)
+	})
+	for i := range results {
+		for j := range results[i].Events {
+			log.Info(log.BackTester, results[i].Events[j])
 		}
 	}
 	if len(errs) > 0 {

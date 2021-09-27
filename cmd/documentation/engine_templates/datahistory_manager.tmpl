@@ -101,7 +101,7 @@ You can add jobs which will be paused by default by using the `prerequisite` sub
 | enabled | If enabled will run the data history manager on startup | `true` |
 | checkInterval | A golang `time.Duration` interval of when to attempt to fetch all active jobs' data | `15000000000` |
 | maxJobsPerCycle | Allows you to control how many jobs are processed after the `checkInterval` timer finishes. Useful if you have many jobs, but don't wish to constantly be retrieving data | `5` |
-| maxResultInsertions | When saving candle/trade results, loop it in batches of this number. | `10000` |
+| maxResultInsertions | When saving candle/trade results, loop it in batches of this number | `10000` |
 | verbose | Displays some extra logs to your logging output to help debug | `false` |
 
 ## RPC commands
@@ -146,16 +146,16 @@ The following is a screenshot of the relationship between relevant data history 
 | quote | The currency pair quote of the data to be fetching | `doge` |
 | start_time | When to begin fetching data | `01-01-2017T13:33:37Z` |
 | end_time | When to finish fetching data | `01-01-2018T13:33:37Z`  |
-| interval | A golang `time.Duration` representation of the candle interval to use. | `30000000000` |
+| interval | A golang `time.Duration` representation of the candle interval to use | `30000000000` |
 | data_type | The data type to fetch. See job types in table `AddJob commands` above | `0` |
 | request_size | The number of candles to fetch. eg if `500`, the data history manager will break up the request into the appropriate timeframe to ensure the data history run interval will fetch 500 candles to save to the database | `500` |
 | max_retries | For an interval period, the amount of attempts the data history manager is allowed to attempt to fetch data before moving onto the next period. This can be useful for determining whether the exchange is missing the data in that time period or, if just one failure of three, just means that the data history manager couldn't finish one request | `3` |
 | batch_count | The number of requests to make when processing a job | `3` |
 | status | A numerical representation for the status. See data history job status subsection | `0` |
-| created | The date the job was created. | `2020-01-01T13:33:37Z` |
+| created | The date the job was created | `2020-01-01T13:33:37Z` |
 | conversion_interval | When converting data as a job, this determines the resulting interval | `86400000000000` |
 | overwrite_data | If data already exists, the setting allows you to overwrite it | `true` |
-| secondary_exchange_id | For a `secondaryvalidatecandles` job, the exchange id of the exchange to compare data to. | `ftx` |
+| secondary_exchange_id | For a `secondaryvalidatecandles` job, the exchange id of the exchange to compare data to | `ftx` |
 | decimal_place_comparison | When validating API candles, this will round the data to the supplied decimal point to check for equality | `3` |
 | replace_on_issue | When there is an issue validating candles for a `validatecandles` job, the API data will overwrite the existing candle data | `false` |
 
@@ -183,7 +183,7 @@ The candle table also has relationships to data history jobs. Only the relevant 
 
 | Field | Description | Example |
 | ------ | ----------- | ------- |
-| source_job_id | The source job id for where the candle data came from. | `deadbeef-dead-beef-dead-beef13371337` |
+| source_job_id | The source job id for where the candle data came from | `deadbeef-dead-beef-dead-beef13371337` |
 | validation_job_id | When job id for what job validated the candle data | `deadbeef-dead-beef-dead-beef13371337` |
 | validation_issues | If any discrepancies are found, the data will be written to the column | `issues found at 2020-07-08 00:00:00, Open api: 9262.62 db: 9262.69 diff: 3%, replacing database candle data with API data` |
 

@@ -1,0 +1,21 @@
+{{define "backtester eventhandlers strategies top2bottom2" -}}
+{{template "backtester-header" .}}
+## Top 2 Bottom 2 package overview
+
+The Top 2 Bottom 2 (T2B2) strategy utilises [the gct-ta MFI package](https://github.com/thrasher-corp/gct-ta) to analyse market signals and selects the top and bottom two currencies based on MFI value.
+It is a basic example strategy to highlight how the backtester can perform more complex data event signal processing
+
+This strategy *requires* at least 4 exchange currency settings to determine the 4 signals to process
+This strategy *requires* `SimultaneousSignalProcessing` aka [use-simultaneous-signal-processing](/backtester/config/README.md).
+This strategy does support strategy customisation in the following ways:
+
+| Field | Description |  Example |
+| --- | ------- | --- |
+|mfi-high| The upper bounds of MFI that when met, will trigger a Sell signal | 70 |
+|mfi-low| The lower bounds of MFI that when met, will trigger a Buy signal | 30 |
+|mfi-period| The consecutive candle periods used in order to generate a value. All values less than this number cannot output a buy or sell signal | 14 |
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

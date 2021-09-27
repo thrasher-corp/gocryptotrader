@@ -1,6 +1,7 @@
 package kline
 
 import (
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 )
 
@@ -8,10 +9,10 @@ import (
 // a common.DataEventHandler type
 type Kline struct {
 	event.Base
-	Open             float64
-	Close            float64
-	Low              float64
-	High             float64
-	Volume           float64
+	Open             decimal.Decimal
+	Close            decimal.Decimal
+	Low              decimal.Decimal
+	High             decimal.Decimal
+	Volume           decimal.Decimal
 	ValidationIssues string
 }

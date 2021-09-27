@@ -3,6 +3,7 @@ package currencystatistics
 import (
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -14,11 +15,11 @@ import (
 // CurrencyStats defines what is expected in order to
 // calculate statistics based on an exchange, asset type and currency pair
 type CurrencyStats interface {
-	TotalEquityReturn() (float64, error)
+	TotalEquityReturn() (decimal.Decimal, error)
 	MaxDrawdown() Swing
 	LongestDrawdown() Swing
-	SharpeRatio(float64) float64
-	SortinoRatio(float64) float64
+	SharpeRatio(decimal.Decimal) decimal.Decimal
+	SortinoRatio(decimal.Decimal) decimal.Decimal
 }
 
 // EventStore is used to hold all event information
@@ -34,51 +35,54 @@ type EventStore struct {
 
 // CurrencyStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair
 type CurrencyStatistic struct {
-	Events                   []EventStore          `json:"-"`
-	MaxDrawdown              Swing                 `json:"max-drawdown,omitempty"`
-	StartingClosePrice       float64               `json:"starting-close-price"`
-	EndingClosePrice         float64               `json:"ending-close-price"`
-	LowestClosePrice         float64               `json:"lowest-close-price"`
-	HighestClosePrice        float64               `json:"highest-close-price"`
-	MarketMovement           float64               `json:"market-movement"`
-	StrategyMovement         float64               `json:"strategy-movement"`
-	HighestCommittedFunds    HighestCommittedFunds `json:"highest-committed-funds"`
-	RiskFreeRate             float64               `json:"risk-free-rate"`
-	BuyOrders                int64                 `json:"buy-orders"`
-	GeometricRatios          Ratios                `json:"geometric-ratios"`
-	ArithmeticRatios         Ratios                `json:"arithmetic-ratios"`
-	CompoundAnnualGrowthRate float64               `json:"compound-annual-growth-rate"`
-	SellOrders               int64                 `json:"sell-orders"`
-	TotalOrders              int64                 `json:"total-orders"`
-	FinalHoldings            holdings.Holding      `json:"final-holdings"`
-	FinalOrders              compliance.Snapshot   `json:"final-orders"`
-	ShowMissingDataWarning   bool                  `json:"-"`
+	Events                       []EventStore          `json:"-"`
+	MaxDrawdown                  Swing                 `json:"max-drawdown,omitempty"`
+	StartingClosePrice           decimal.Decimal       `json:"starting-close-price"`
+	EndingClosePrice             decimal.Decimal       `json:"ending-close-price"`
+	LowestClosePrice             decimal.Decimal       `json:"lowest-close-price"`
+	HighestClosePrice            decimal.Decimal       `json:"highest-close-price"`
+	MarketMovement               decimal.Decimal       `json:"market-movement"`
+	StrategyMovement             decimal.Decimal       `json:"strategy-movement"`
+	HighestCommittedFunds        HighestCommittedFunds `json:"highest-committed-funds"`
+	RiskFreeRate                 decimal.Decimal       `json:"risk-free-rate"`
+	BuyOrders                    int64                 `json:"buy-orders"`
+	GeometricRatios              Ratios                `json:"geometric-ratios"`
+	ArithmeticRatios             Ratios                `json:"arithmetic-ratios"`
+	CompoundAnnualGrowthRate     decimal.Decimal       `json:"compound-annual-growth-rate"`
+	SellOrders                   int64                 `json:"sell-orders"`
+	TotalOrders                  int64                 `json:"total-orders"`
+	InitialHoldings              holdings.Holding      `json:"initial-holdings-holdings"`
+	FinalHoldings                holdings.Holding      `json:"final-holdings"`
+	FinalOrders                  compliance.Snapshot   `json:"final-orders"`
+	ShowMissingDataWarning       bool                  `json:"-"`
+	IsStrategyProfitable         bool                  `json:"is-strategy-profitable"`
+	DoesPerformanceBeatTheMarket bool                  `json:"does-performance-beat-the-market"`
 }
 
 // Ratios stores all the ratios used for statistics
 type Ratios struct {
-	SharpeRatio      float64 `json:"sharpe-ratio"`
-	SortinoRatio     float64 `json:"sortino-ratio"`
-	InformationRatio float64 `json:"information-ratio"`
-	CalmarRatio      float64 `json:"calmar-ratio"`
+	SharpeRatio      decimal.Decimal `json:"sharpe-ratio"`
+	SortinoRatio     decimal.Decimal `json:"sortino-ratio"`
+	InformationRatio decimal.Decimal `json:"information-ratio"`
+	CalmarRatio      decimal.Decimal `json:"calmar-ratio"`
 }
 
 // Swing holds a drawdown
 type Swing struct {
-	Highest          Iteration `json:"highest"`
-	Lowest           Iteration `json:"lowest"`
-	DrawdownPercent  float64   `json:"drawdown"`
+	Highest          Iteration       `json:"highest"`
+	Lowest           Iteration       `json:"lowest"`
+	DrawdownPercent  decimal.Decimal `json:"drawdown"`
 	IntervalDuration int64
 }
 
 // Iteration is an individual iteration of price at a time
 type Iteration struct {
-	Time  time.Time `json:"time"`
-	Price float64   `json:"price"`
+	Time  time.Time       `json:"time"`
+	Price decimal.Decimal `json:"price"`
 }
 
 // HighestCommittedFunds is an individual iteration of price at a time
 type HighestCommittedFunds struct {
-	Time  time.Time `json:"time"`
-	Value float64   `json:"value"`
+	Time  time.Time       `json:"time"`
+	Value decimal.Decimal `json:"value"`
 }

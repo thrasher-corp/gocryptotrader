@@ -3,6 +3,7 @@ package report
 import (
 	"errors"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -23,6 +24,8 @@ var (
 type Handler interface {
 	GenerateReport() error
 	AddKlineItem(*kline.Item)
+	UpdateItem(*kline.Item)
+	UseDarkMode(bool)
 }
 
 // Data holds all statistical information required to output detailed backtesting results
@@ -34,6 +37,7 @@ type Data struct {
 	TemplatePath    string
 	OutputPath      string
 	Warnings        []Warning
+	UseDarkTheme    bool
 }
 
 // Warning holds any candle warnings
@@ -58,18 +62,18 @@ type DetailedKline struct {
 // DetailedCandle contains extra details to enable rich reporting results
 type DetailedCandle struct {
 	Time           int64
-	Open           float64
-	High           float64
-	Low            float64
-	Close          float64
-	Volume         float64
+	Open           decimal.Decimal
+	High           decimal.Decimal
+	Low            decimal.Decimal
+	Close          decimal.Decimal
+	Volume         decimal.Decimal
 	VolumeColour   string
 	MadeOrder      bool
 	OrderDirection order.Side
-	OrderAmount    float64
+	OrderAmount    decimal.Decimal
 	Shape          string
 	Text           string
 	Position       string
 	Colour         string
-	PurchasePrice  float64
+	PurchasePrice  decimal.Decimal
 }

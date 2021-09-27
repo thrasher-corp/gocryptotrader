@@ -57,6 +57,6 @@ func TestLoadDataInvalid(t *testing.T) {
 		p,
 		a)
 	if !errors.Is(err, common.ErrInvalidDataType) {
-		t.Errorf("expected '%v' received '%v'", err, common.ErrInvalidDataType)
+		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
 	}
 }

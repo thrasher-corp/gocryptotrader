@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
@@ -45,6 +46,8 @@ func main() {
 		StrategySettings: config.StrategySettings{
 			Name:                         "",
 			SimultaneousSignalProcessing: false,
+			UseExchangeLevelFunding:      false,
+			ExchangeLevelFunding:         nil,
 			CustomSettings:               nil,
 		},
 		CurrencySettings: []config.CurrencySettings{},
@@ -66,11 +69,10 @@ func main() {
 	}
 	fmt.Println("-----Strategy Settings-----")
 	var err error
-	var strats []strategies.Handler
 	firstRun := true
 	for err != nil || firstRun {
 		firstRun = false
-		strats, err = parseStrategySettings(&cfg, reader)
+		err = parseStrategySettings(&cfg, reader)
 		if err != nil {
 			log.Println(err)
 		}
@@ -80,7 +82,7 @@ func main() {
 	firstRun = true
 	for err != nil || firstRun {
 		firstRun = false
-		err = parseExchangeSettings(reader, &cfg, strats)
+		err = parseExchangeSettings(reader, &cfg)
 		if err != nil {
 			log.Println(err)
 		}
@@ -170,9 +172,12 @@ func main() {
 
 func parseStatisticsSettings(cfg *config.Config, reader *bufio.Reader) error {
 	fmt.Println("Enter the risk free rate. eg 0.03")
-	var err error
-	cfg.StatisticSettings.RiskFreeRate, err = strconv.ParseFloat(quickParse(reader), 64)
-	return err
+	rfr, err := strconv.ParseFloat(quickParse(reader), 64)
+	if err != nil {
+		return err
+	}
+	cfg.StatisticSettings.RiskFreeRate = decimal.NewFromFloat(rfr)
+	return nil
 }
 
 func parseDataSettings(cfg *config.Config, reader *bufio.Reader) error {
@@ -228,12 +233,12 @@ func parsePortfolioSettings(reader *bufio.Reader, cfg *config.Config) error {
 	return nil
 }
 
-func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config, strats []strategies.Handler) error {
+func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config) error {
 	var err error
 	addCurrency := y
 	for strings.Contains(addCurrency, y) {
 		var currencySetting *config.CurrencySettings
-		currencySetting, err = addCurrencySetting(reader)
+		currencySetting, err = addCurrencySetting(reader, cfg.StrategySettings.UseExchangeLevelFunding)
 		if err != nil {
 			return err
 		}
@@ -243,23 +248,10 @@ func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config, strats []st
 		addCurrency = quickParse(reader)
 	}
 
-	if len(cfg.CurrencySettings) > 1 {
-		for i := range strats {
-			if strats[i].Name() == cfg.StrategySettings.Name &&
-				strats[i].SupportsSimultaneousProcessing() {
-				fmt.Println("Will this strategy use simultaneous processing? y/n")
-				yn := quickParse(reader)
-				if yn == y || yn == yes {
-					cfg.StrategySettings.SimultaneousSignalProcessing = true
-				}
-				break
-			}
-		}
-	}
 	return nil
 }
 
-func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) ([]strategies.Handler, error) {
+func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	fmt.Println("Firstly, please select which strategy you wish to use")
 	strats := strategies.GetStrategies()
 	var strategiesToUse []string
@@ -270,7 +262,7 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) ([]strategi
 	var err error
 	cfg.StrategySettings.Name, err = parseStratName(quickParse(reader), strategiesToUse)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	fmt.Println("What is the goal of your strategy?")
@@ -282,7 +274,71 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) ([]strategi
 	if strings.Contains(customSettings, y) {
 		cfg.StrategySettings.CustomSettings = customSettingsLoop(reader)
 	}
-	return strats, nil
+	fmt.Println("Will this strategy use simultaneous processing? y/n")
+	yn := quickParse(reader)
+	cfg.StrategySettings.SimultaneousSignalProcessing = strings.Contains(yn, y)
+	if !cfg.StrategySettings.SimultaneousSignalProcessing {
+		return nil
+	}
+	fmt.Println("Will this strategy be able to share funds at an exchange level? y/n")
+	yn = quickParse(reader)
+	cfg.StrategySettings.UseExchangeLevelFunding = strings.Contains(yn, y)
+	if !cfg.StrategySettings.UseExchangeLevelFunding {
+		return nil
+	}
+
+	addFunding := y
+	for strings.Contains(addFunding, y) {
+		fund := config.ExchangeLevelFunding{}
+		fmt.Println("What is the exchange name to add funding to?")
+		fund.ExchangeName = quickParse(reader)
+		fmt.Println("What is the asset to add funding to?")
+		supported := asset.Supported()
+		for i := range supported {
+			fmt.Printf("%v. %s\n", i+1, supported[i])
+		}
+		response := quickParse(reader)
+		num, err := strconv.ParseFloat(response, 64)
+		if err == nil {
+			intNum := int(num)
+			if intNum > len(supported) || intNum <= 0 {
+				return errors.New("unknown option")
+			}
+			fund.Asset = supported[intNum-1].String()
+		} else {
+			for i := range supported {
+				if strings.EqualFold(response, supported[i].String()) {
+					fund.Asset = supported[i].String()
+					break
+				}
+			}
+			if fund.Asset == "" {
+				return errors.New("unrecognised data option")
+			}
+		}
+
+		fmt.Println("What is the individual currency to add funding to? eg BTC")
+		fund.Currency = quickParse(reader)
+		fmt.Printf("How much funding for %v?\n", fund.Currency)
+		fund.InitialFunds, err = decimal.NewFromString(quickParse(reader))
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("If your strategy utilises fund transfer, what is the transfer fee?")
+		fee := quickParse(reader)
+		if fee != "" {
+			fund.TransferFee, err = decimal.NewFromString(fee)
+			if err != nil {
+				return err
+			}
+		}
+		cfg.StrategySettings.ExchangeLevelFunding = append(cfg.StrategySettings.ExchangeLevelFunding, fund)
+		fmt.Println("Add another source of funds? y/n")
+		addFunding = quickParse(reader)
+	}
+
+	return nil
 }
 
 func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
@@ -434,7 +490,7 @@ func parseLive(reader *bufio.Reader, cfg *config.Config) {
 			fmt.Println("What is the 2FA seed?")
 			cfg.DataSettings.LiveData.API2FAOverride = quickParse(reader)
 			fmt.Println("What is the subaccount to use?")
-			cfg.DataSettings.LiveData.APISubaccountOverride = quickParse(reader)
+			cfg.DataSettings.LiveData.APISubAccountOverride = quickParse(reader)
 		}
 	}
 }
@@ -517,7 +573,7 @@ func customSettingsLoop(reader *bufio.Reader) map[string]interface{} {
 	return resp
 }
 
-func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) {
+func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*config.CurrencySettings, error) {
 	setting := config.CurrencySettings{
 		BuySide:  config.MinMax{},
 		SellSide: config.MinMax{},
@@ -545,36 +601,52 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 		}
 	}
 
+	var f float64
 	fmt.Println("Enter the currency base. eg BTC")
 	setting.Base = quickParse(reader)
-
-	fmt.Println("Enter the currency quote. eg USDT")
-	setting.Quote = quickParse(reader)
-
-	fmt.Println("Enter the initial funds. eg 10000")
-	parseNum := quickParse(reader)
-	if parseNum != "" {
-		setting.InitialFunds, err = strconv.ParseFloat(parseNum, 64)
-		if err != nil {
-			return nil, err
+	if !usingExchangeLevelFunding {
+		fmt.Println("Enter the initial base funds. eg 0")
+		parseNum := quickParse(reader)
+		if parseNum != "" {
+			f, err = strconv.ParseFloat(parseNum, 64)
+			if err != nil {
+				return nil, err
+			}
+			iqf := decimal.NewFromFloat(f)
+			setting.InitialBaseFunds = &iqf
 		}
 	}
-
+	fmt.Println("Enter the currency quote. eg USDT")
+	setting.Quote = quickParse(reader)
+	if !usingExchangeLevelFunding {
+		fmt.Println("Enter the initial quote funds. eg 10000")
+		parseNum := quickParse(reader)
+		if parseNum != "" {
+			f, err = strconv.ParseFloat(parseNum, 64)
+			if err != nil {
+				return nil, err
+			}
+			iqf := decimal.NewFromFloat(f)
+			setting.InitialQuoteFunds = &iqf
+		}
+	}
 	fmt.Println("Enter the maker-fee. eg 0.001")
-	parseNum = quickParse(reader)
+	parseNum := quickParse(reader)
 	if parseNum != "" {
-		setting.MakerFee, err = strconv.ParseFloat(parseNum, 64)
+		f, err = strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return nil, err
 		}
+		setting.MakerFee = decimal.NewFromFloat(f)
 	}
 	fmt.Println("Enter the taker-fee. eg 0.01")
 	parseNum = quickParse(reader)
 	if parseNum != "" {
-		setting.TakerFee, err = strconv.ParseFloat(parseNum, 64)
+		f, err = strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return nil, err
 		}
+		setting.TakerFee = decimal.NewFromFloat(f)
 	}
 
 	fmt.Println("Will there be buy-side limits? y/n")
@@ -598,6 +670,13 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	if yn == y || yn == yes {
 		setting.CanUseExchangeLimits = true
 	}
+
+	fmt.Println("Should order size shrink to fit within candle volume? y/n")
+	yn = quickParse(reader)
+	if yn == y || yn == yes {
+		setting.SkipCandleVolumeFitting = true
+	}
+
 	fmt.Println("Do you wish to include slippage? y/n")
 	yn = quickParse(reader)
 	if yn == y || yn == yes {
@@ -606,16 +685,18 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 		fmt.Println("If the upper bound is 100, then the price can be unaffected. A minimum of 80 and a maximum of 100 means that the price will randomly be set between those bounds as a way of emulating slippage")
 
 		fmt.Println("What is the lower bounds of slippage? eg 80")
-		setting.MinimumSlippagePercent, err = strconv.ParseFloat(quickParse(reader), 64)
+		f, err = strconv.ParseFloat(quickParse(reader), 64)
 		if err != nil {
 			return nil, err
 		}
+		setting.MinimumSlippagePercent = decimal.NewFromFloat(f)
 
 		fmt.Println("What is the upper bounds of slippage? eg 100")
-		setting.MaximumSlippagePercent, err = strconv.ParseFloat(quickParse(reader), 64)
+		f, err = strconv.ParseFloat(quickParse(reader), 64)
 		if err != nil {
 			return nil, err
 		}
+		setting.MaximumSlippagePercent = decimal.NewFromFloat(f)
 	}
 
 	return &setting, nil
@@ -623,30 +704,32 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 
 func minMaxParse(buySell string, reader *bufio.Reader) (config.MinMax, error) {
 	resp := config.MinMax{}
-	var err error
 	fmt.Printf("What is the maximum %s size? eg 1\n", buySell)
 	parseNum := quickParse(reader)
 	if parseNum != "" {
-		resp.MaximumSize, err = strconv.ParseFloat(parseNum, 64)
+		f, err := strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return resp, err
 		}
+		resp.MaximumSize = decimal.NewFromFloat(f)
 	}
 	fmt.Printf("What is the minimum %s size? eg 0.1\n", buySell)
 	parseNum = quickParse(reader)
 	if parseNum != "" {
-		resp.MinimumSize, err = strconv.ParseFloat(parseNum, 64)
+		f, err := strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return resp, err
 		}
+		resp.MinimumSize = decimal.NewFromFloat(f)
 	}
 	fmt.Printf("What is the maximum spend %s buy? eg 12000\n", buySell)
 	parseNum = quickParse(reader)
 	if parseNum != "" {
-		resp.MaximumTotal, err = strconv.ParseFloat(parseNum, 64)
+		f, err := strconv.ParseFloat(parseNum, 64)
 		if err != nil {
 			return resp, err
 		}
+		resp.MaximumTotal = decimal.NewFromFloat(f)
 	}
 
 	return resp, nil

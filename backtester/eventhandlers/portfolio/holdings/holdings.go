@@ -1,39 +1,41 @@
 package holdings
 
 import (
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// Create takes a fill event and creates a new holding for the exchange, asset, pair
-func Create(f fill.Event, initialFunds, riskFreeRate float64) (Holding, error) {
-	if f == nil {
+// Create makes a Holding struct to track total values of strategy holdings over the course of a backtesting run
+func Create(ev common.EventHandler, funding funding.IPairReader, riskFreeRate decimal.Decimal) (Holding, error) {
+	if ev == nil {
 		return Holding{}, common.ErrNilEvent
 	}
-	if initialFunds <= 0 {
+	if funding.QuoteInitialFunds().LessThan(decimal.Zero) {
 		return Holding{}, ErrInitialFundsZero
 	}
-	h := Holding{
-		Offset:         f.GetOffset(),
-		Pair:           f.Pair(),
-		Asset:          f.GetAssetType(),
-		Exchange:       f.GetExchange(),
-		Timestamp:      f.GetTime(),
-		InitialFunds:   initialFunds,
-		RemainingFunds: initialFunds,
-		RiskFreeRate:   riskFreeRate,
-	}
-	h.update(f)
-
-	return h, nil
+	return Holding{
+		Offset:            ev.GetOffset(),
+		Pair:              ev.Pair(),
+		Asset:             ev.GetAssetType(),
+		Exchange:          ev.GetExchange(),
+		Timestamp:         ev.GetTime(),
+		QuoteInitialFunds: funding.QuoteInitialFunds(),
+		QuoteSize:         funding.QuoteInitialFunds(),
+		BaseInitialFunds:  funding.BaseInitialFunds(),
+		BaseSize:          funding.BaseInitialFunds(),
+		RiskFreeRate:      riskFreeRate,
+		TotalInitialValue: funding.BaseInitialFunds().Mul(funding.QuoteInitialFunds()).Add(funding.QuoteInitialFunds()),
+	}, nil
 }
 
 // Update calculates holding statistics for the events time
-func (h *Holding) Update(f fill.Event) {
-	h.Timestamp = f.GetTime()
-	h.Offset = f.GetOffset()
-	h.update(f)
+func (h *Holding) Update(e fill.Event, f funding.IPairReader) {
+	h.Timestamp = e.GetTime()
+	h.Offset = e.GetOffset()
+	h.update(e, f)
 }
 
 // UpdateValue calculates the holding's value for a data event's time and price
@@ -44,49 +46,58 @@ func (h *Holding) UpdateValue(d common.DataEventHandler) {
 	h.updateValue(latest)
 }
 
-func (h *Holding) update(f fill.Event) {
-	direction := f.GetDirection()
-	o := f.GetOrder()
-	switch direction {
-	case order.Buy:
-		h.CommittedFunds += (o.Amount * o.Price) + o.Fee
-		h.PositionsSize += o.Amount
-		h.PositionsValue += o.Amount * o.Price
-		h.RemainingFunds -= (o.Amount * o.Price) + o.Fee
-		h.TotalFees += o.Fee
-		h.BoughtAmount += o.Amount
-		h.BoughtValue += o.Amount * o.Price
-	case order.Sell:
-		h.CommittedFunds -= (o.Amount * o.Price) + o.Fee
-		h.PositionsSize -= o.Amount
-		h.PositionsValue -= o.Amount * o.Price
-		h.RemainingFunds += (o.Amount * o.Price) - o.Fee
-		h.TotalFees += o.Fee
-		h.SoldAmount += o.Amount
-		h.SoldValue += o.Amount * o.Price
-	case common.DoNothing, common.CouldNotSell, common.CouldNotBuy, common.MissingData, "":
-	}
-	h.TotalValueLostToVolumeSizing += (f.GetClosePrice() - f.GetVolumeAdjustedPrice()) * f.GetAmount()
-	h.TotalValueLostToSlippage += (f.GetVolumeAdjustedPrice() - f.GetPurchasePrice()) * f.GetAmount()
-	h.updateValue(f.GetClosePrice())
+// HasInvestments determines whether there are any holdings in the base funds
+func (h *Holding) HasInvestments() bool {
+	return h.BaseSize.GreaterThan(decimal.Zero)
 }
 
-func (h *Holding) updateValue(l float64) {
-	origPosValue := h.PositionsValue
+// HasFunds determines whether there are any holdings in the quote funds
+func (h *Holding) HasFunds() bool {
+	return h.QuoteSize.GreaterThan(decimal.Zero)
+}
+
+func (h *Holding) update(e fill.Event, f funding.IPairReader) {
+	direction := e.GetDirection()
+	o := e.GetOrder()
+	if o != nil {
+		amount := decimal.NewFromFloat(o.Amount)
+		fee := decimal.NewFromFloat(o.Fee)
+		price := decimal.NewFromFloat(o.Price)
+		h.BaseSize = f.BaseAvailable()
+		h.QuoteSize = f.QuoteAvailable()
+		h.BaseValue = h.BaseSize.Mul(price)
+		h.TotalFees = h.TotalFees.Add(fee)
+		switch direction {
+		case order.Buy:
+			h.BoughtAmount = h.BoughtAmount.Add(amount)
+			h.BoughtValue = h.BoughtAmount.Mul(price)
+		case order.Sell:
+			h.SoldAmount = h.SoldAmount.Add(amount)
+			h.SoldValue = h.SoldAmount.Mul(price)
+		case common.DoNothing, common.CouldNotSell, common.CouldNotBuy, common.MissingData, common.TransferredFunds, "":
+		}
+	}
+	h.TotalValueLostToVolumeSizing = h.TotalValueLostToVolumeSizing.Add(e.GetClosePrice().Sub(e.GetVolumeAdjustedPrice()).Mul(e.GetAmount()))
+	h.TotalValueLostToSlippage = h.TotalValueLostToSlippage.Add(e.GetVolumeAdjustedPrice().Sub(e.GetPurchasePrice()).Mul(e.GetAmount()))
+	h.updateValue(e.GetClosePrice())
+}
+
+func (h *Holding) updateValue(latestPrice decimal.Decimal) {
+	origPosValue := h.BaseValue
 	origBoughtValue := h.BoughtValue
 	origSoldValue := h.SoldValue
 	origTotalValue := h.TotalValue
-	h.PositionsValue = h.PositionsSize * l
-	h.BoughtValue = h.BoughtAmount * l
-	h.SoldValue = h.SoldAmount * l
-	h.TotalValue = h.PositionsValue + h.RemainingFunds
+	h.BaseValue = h.BaseSize.Mul(latestPrice)
+	h.BoughtValue = h.BoughtAmount.Mul(latestPrice)
+	h.SoldValue = h.SoldAmount.Mul(latestPrice)
+	h.TotalValue = h.BaseValue.Add(h.QuoteSize)
 
-	h.TotalValueDifference = h.TotalValue - origTotalValue
-	h.BoughtValueDifference = h.BoughtValue - origBoughtValue
-	h.PositionsValueDifference = h.PositionsValue - origPosValue
-	h.SoldValueDifference = h.SoldValue - origSoldValue
+	h.TotalValueDifference = h.TotalValue.Sub(origTotalValue)
+	h.BoughtValueDifference = h.BoughtValue.Sub(origBoughtValue)
+	h.PositionsValueDifference = h.BaseValue.Sub(origPosValue)
+	h.SoldValueDifference = h.SoldValue.Sub(origSoldValue)
 
-	if origTotalValue != 0 {
-		h.ChangeInTotalValuePercent = (h.TotalValue - origTotalValue) / origTotalValue
+	if !origTotalValue.IsZero() {
+		h.ChangeInTotalValuePercent = h.TotalValue.Sub(origTotalValue).Div(origTotalValue)
 	}
 }

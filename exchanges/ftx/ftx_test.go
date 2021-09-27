@@ -30,7 +30,7 @@ const (
 	testLeverageToken       = "ADAMOON"
 
 	validFTTBTCStartTime   = 1565445600           // Sat Aug 10 2019 14:00:00 GMT+0000
-	validFTTBTCEndTime     = 1565532000           // Sat Aug 10 2019 14:00:00 GMT+0000
+	validFTTBTCEndTime     = 1565532000           // Sat Aug 11 2019 14:00:00 GMT+0000
 	invalidFTTBTCStartTime = 1559881511           // Fri Jun 07 2019 04:25:11 GMT+0000
 	invalidFTTBTCEndTime   = 1559901511           // Fri Jun 07 2019 09:58:31 GMT+0000
 	authStartTime          = validFTTBTCStartTime // Adjust these to test auth requests

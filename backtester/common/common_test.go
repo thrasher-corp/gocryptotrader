@@ -33,7 +33,7 @@ func TestDataTypeConversion(t *testing.T) {
 			got, err := DataTypeToInt(ti.dataType)
 			if ti.expectErr {
 				if err == nil {
-					t.Errorf("expected error")
+					t.Error("expected error")
 				}
 			} else {
 				if err != nil || got != ti.want {

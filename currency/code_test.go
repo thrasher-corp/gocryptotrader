@@ -496,7 +496,7 @@ func TestItemString(t *testing.T) {
 	}
 
 	if newItem.String() != expected {
-		t.Errorf("Item String() error expected %s but received %s",
+		t.Errorf("Currency String() error expected %s but received %s",
 			expected,
 			&newItem)
 	}

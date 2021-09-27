@@ -1,6 +1,7 @@
 package signal
 
 import (
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -21,22 +22,22 @@ func (s *Signal) GetDirection() order.Side {
 }
 
 // SetBuyLimit sets the buy limit
-func (s *Signal) SetBuyLimit(f float64) {
+func (s *Signal) SetBuyLimit(f decimal.Decimal) {
 	s.BuyLimit = f
 }
 
 // GetBuyLimit returns the buy limit
-func (s *Signal) GetBuyLimit() float64 {
+func (s *Signal) GetBuyLimit() decimal.Decimal {
 	return s.BuyLimit
 }
 
 // SetSellLimit sets the sell limit
-func (s *Signal) SetSellLimit(f float64) {
+func (s *Signal) SetSellLimit(f decimal.Decimal) {
 	s.SellLimit = f
 }
 
 // GetSellLimit returns the sell limit
-func (s *Signal) GetSellLimit() float64 {
+func (s *Signal) GetSellLimit() decimal.Decimal {
 	return s.SellLimit
 }
 
@@ -46,11 +47,11 @@ func (s *Signal) Pair() currency.Pair {
 }
 
 // GetPrice returns the price
-func (s *Signal) GetPrice() float64 {
+func (s *Signal) GetPrice() decimal.Decimal {
 	return s.ClosePrice
 }
 
 // SetPrice sets the price
-func (s *Signal) SetPrice(f float64) {
+func (s *Signal) SetPrice(f decimal.Decimal) {
 	s.ClosePrice = f
 }
