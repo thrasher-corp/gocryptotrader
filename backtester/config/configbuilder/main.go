@@ -328,7 +328,7 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 		fmt.Println("If your strategy utilises fund transfer, what is the transfer fee?")
 		fee := quickParse(reader)
 		if fee != "" {
-			fund.TransferFee, err = decimal.NewFromString(quickParse(reader))
+			fund.TransferFee, err = decimal.NewFromString(fee)
 			if err != nil {
 				return err
 			}
