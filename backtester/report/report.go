@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -87,6 +88,16 @@ func (d *Data) AddKlineItem(k *kline.Item) {
 	d.OriginalCandles = append(d.OriginalCandles, k)
 }
 
+// UpdateItem updates an existing kline item for LIVE data usage
+func (d *Data) UpdateItem(k *kline.Item) {
+	if len(d.OriginalCandles) == 0 {
+		d.OriginalCandles = append(d.OriginalCandles, k)
+	} else {
+		d.OriginalCandles[0].Candles = append(d.OriginalCandles[0].Candles, k.Candles...)
+		d.OriginalCandles[0].RemoveDuplicates()
+	}
+}
+
 // enhanceCandles will enhance candle data with order information allowing
 // report charts to have annotations to highlight buy and sell events
 func (d *Data) enhanceCandles() error {
@@ -96,7 +107,7 @@ func (d *Data) enhanceCandles() error {
 	if d.Statistics == nil {
 		return errStatisticsUnset
 	}
-	d.Statistics.RiskFreeRate *= 100
+	d.Statistics.RiskFreeRate = d.Statistics.RiskFreeRate.Mul(decimal.NewFromInt(100))
 
 	for intVal := range d.OriginalCandles {
 		lookup := d.OriginalCandles[intVal]
@@ -123,16 +134,16 @@ func (d *Data) enhanceCandles() error {
 			tt := d.OriginalCandles[intVal].Candles[j].Time.Add(time.Duration(offset) * time.Second)
 			enhancedCandle := DetailedCandle{
 				Time:         tt.Unix(),
-				Open:         d.OriginalCandles[intVal].Candles[j].Open,
-				High:         d.OriginalCandles[intVal].Candles[j].High,
-				Low:          d.OriginalCandles[intVal].Candles[j].Low,
-				Close:        d.OriginalCandles[intVal].Candles[j].Close,
-				Volume:       d.OriginalCandles[intVal].Candles[j].Volume,
-				VolumeColour: "rgba(47, 194, 27, 0.8)",
+				Open:         decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Open),
+				High:         decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].High),
+				Low:          decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Low),
+				Close:        decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Close),
+				Volume:       decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Volume),
+				VolumeColour: "rgba(50, 204, 30, 0.5)",
 			}
 			if j != 0 {
 				if d.OriginalCandles[intVal].Candles[j].Close < d.OriginalCandles[intVal].Candles[j-1].Close {
-					enhancedCandle.VolumeColour = "rgba(252, 3, 3, 0.8)"
+					enhancedCandle.VolumeColour = "rgba(232, 3, 3, 0.5)"
 				}
 			}
 			if !requiresIteration {
@@ -157,8 +168,8 @@ func (d *Data) enhanceCandles() error {
 				}
 				// an order was placed here, can enhance chart!
 				enhancedCandle.MadeOrder = true
-				enhancedCandle.OrderAmount = statsForCandles.FinalOrders.Orders[k].Amount
-				enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Price
+				enhancedCandle.OrderAmount = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Amount)
+				enhancedCandle.PurchasePrice = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Price)
 				enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Side
 				if enhancedCandle.OrderDirection == order.Buy {
 					enhancedCandle.Colour = "green"
@@ -191,4 +202,10 @@ func (d *DetailedCandle) copyCloseFromPreviousEvent(enhancedKline *DetailedKline
 	d.Position = "aboveBar"
 	d.Shape = "arrowDown"
 	d.Text = common.MissingData.String()
+}
+
+// UseDarkMode sets whether to use a dark theme by default
+// for the html generated report
+func (d *Data) UseDarkMode(use bool) {
+	d.UseDarkTheme = use
 }

@@ -3,11 +3,13 @@ package backtest
 import (
 	"errors"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -20,8 +22,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -34,6 +39,14 @@ import (
 )
 
 const testExchange = "Bitstamp"
+
+var leet *decimal.Decimal
+
+func TestMain(m *testing.M) {
+	oneThreeThreeSeven := decimal.NewFromInt(1337)
+	leet = &oneThreeThreeSeven
+	os.Exit(m.Run())
+}
 
 func newBotWithExchange() *engine.Engine {
 	bot := &engine.Engine{
@@ -79,13 +92,13 @@ func TestNewFromConfig(t *testing.T) {
 	cfg := &config.Config{}
 	_, err = NewFromConfig(cfg, "", "", nil)
 	if !errors.Is(err, errNilBot) {
-		t.Errorf("expected: %v, received %v", errNilBot, err)
+		t.Errorf("received: %v, expected: %v", err, errNilBot)
 	}
 
 	bot := newBotWithExchange()
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, config.ErrNoCurrencySettings) {
-		t.Errorf("expected: %v, received %v", config.ErrNoCurrencySettings, err)
+	if !errors.Is(err, base.ErrStrategyNotFound) {
+		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
 
 	cfg.CurrencySettings = []config.CurrencySettings{
@@ -96,20 +109,25 @@ func TestNewFromConfig(t *testing.T) {
 		},
 	}
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, config.ErrBadInitialFunds) {
-		t.Errorf("expected: %v, received %v", config.ErrBadInitialFunds, err)
+	if !errors.Is(err, engine.ErrExchangeNotFound) {
+		t.Errorf("received: %v, expected: %v", err, engine.ErrExchangeNotFound)
 	}
-
-	cfg.CurrencySettings[0].InitialFunds = 1337
+	cfg.CurrencySettings[0].ExchangeName = testExchange
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, config.ErrUnsetAsset) {
-		t.Errorf("expected: %v, received %v", config.ErrUnsetAsset, err)
+	if !errors.Is(err, errInvalidConfigAsset) {
+		t.Errorf("received: %v, expected: %v", err, errInvalidConfigAsset)
 	}
-
 	cfg.CurrencySettings[0].Asset = asset.Spot.String()
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, engine.ErrExchangeNotFound) {
-		t.Errorf("expected: %v, received %v", engine.ErrExchangeNotFound, err)
+	if !errors.Is(err, currency.ErrPairNotFound) {
+		t.Errorf("received: %v, expected: %v", err, currency.ErrPairNotFound)
+	}
+
+	cfg.CurrencySettings[0].Base = "btc"
+	cfg.CurrencySettings[0].Quote = "usd"
+	_, err = NewFromConfig(cfg, "", "", bot)
+	if !errors.Is(err, base.ErrStrategyNotFound) {
+		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
 
 	cfg.StrategySettings = config.StrategySettings{
@@ -118,12 +136,6 @@ func TestNewFromConfig(t *testing.T) {
 			"hello": "moto",
 		},
 	}
-	cfg.CurrencySettings[0].ExchangeName = testExchange
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, errNoDataSource) {
-		t.Errorf("expected: %v, received %v", errNoDataSource, err)
-	}
-
 	cfg.CurrencySettings[0].Base = "BTC"
 	cfg.CurrencySettings[0].Quote = "USD"
 	cfg.DataSettings.APIData = &config.APIData{
@@ -137,24 +149,23 @@ func TestNewFromConfig(t *testing.T) {
 	}
 	cfg.DataSettings.DataType = common.CandleStr
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, config.ErrStartEndUnset) {
-		t.Errorf("expected: %v, received %v", config.ErrStartEndUnset, err)
+	if !errors.Is(err, errIntervalUnset) {
+		t.Errorf("received: %v, expected: %v", err, errIntervalUnset)
+	}
+	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
+	cfg.CurrencySettings[0].MakerFee = decimal.Zero
+	cfg.CurrencySettings[0].TakerFee = decimal.Zero
+	_, err = NewFromConfig(cfg, "", "", bot)
+	if !errors.Is(err, gctcommon.ErrDateUnset) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
 
 	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Minute)
 	cfg.DataSettings.APIData.EndDate = time.Now()
 	cfg.DataSettings.APIData.InclusiveEndDate = true
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, errIntervalUnset) {
-		t.Errorf("expected: %v, received %v", errIntervalUnset, err)
-	}
-
-	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
-	cfg.CurrencySettings[0].MakerFee = 1337
-	cfg.CurrencySettings[0].TakerFee = 1337
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -168,16 +179,16 @@ func TestLoadDataAPI(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
-				InitialFunds: 1337,
-				Leverage:     config.Leverage{},
-				BuySide:      config.MinMax{},
-				SellSide:     config.MinMax{},
-				MakerFee:     1337,
-				TakerFee:     1337,
+				ExchangeName:      "Binance",
+				Asset:             asset.Spot.String(),
+				Base:              cp.Base.String(),
+				Quote:             cp.Quote.String(),
+				InitialQuoteFunds: leet,
+				Leverage:          config.Leverage{},
+				BuySide:           config.MinMax{},
+				SellSide:          config.MinMax{},
+				MakerFee:          decimal.Zero,
+				TakerFee:          decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -227,16 +238,16 @@ func TestLoadDataDatabase(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
-				InitialFunds: 1337,
-				Leverage:     config.Leverage{},
-				BuySide:      config.MinMax{},
-				SellSide:     config.MinMax{},
-				MakerFee:     1337,
-				TakerFee:     1337,
+				ExchangeName:      "Binance",
+				Asset:             asset.Spot.String(),
+				Base:              cp.Base.String(),
+				Quote:             cp.Quote.String(),
+				InitialQuoteFunds: leet,
+				Leverage:          config.Leverage{},
+				BuySide:           config.MinMax{},
+				SellSide:          config.MinMax{},
+				MakerFee:          decimal.Zero,
+				TakerFee:          decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -292,16 +303,16 @@ func TestLoadDataCSV(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
-				InitialFunds: 1337,
-				Leverage:     config.Leverage{},
-				BuySide:      config.MinMax{},
-				SellSide:     config.MinMax{},
-				MakerFee:     1337,
-				TakerFee:     1337,
+				ExchangeName:      "Binance",
+				Asset:             asset.Spot.String(),
+				Base:              cp.Base.String(),
+				Quote:             cp.Quote.String(),
+				InitialQuoteFunds: leet,
+				Leverage:          config.Leverage{},
+				BuySide:           config.MinMax{},
+				SellSide:          config.MinMax{},
+				MakerFee:          decimal.Zero,
+				TakerFee:          decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -350,16 +361,16 @@ func TestLoadDataLive(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
-				InitialFunds: 1337,
-				Leverage:     config.Leverage{},
-				BuySide:      config.MinMax{},
-				SellSide:     config.MinMax{},
-				MakerFee:     1337,
-				TakerFee:     1337,
+				ExchangeName:      "Binance",
+				Asset:             asset.Spot.String(),
+				Base:              cp.Base.String(),
+				Quote:             cp.Quote.String(),
+				InitialQuoteFunds: leet,
+				Leverage:          config.Leverage{},
+				BuySide:           config.MinMax{},
+				SellSide:          config.MinMax{},
+				MakerFee:          decimal.Zero,
+				TakerFee:          decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -460,7 +471,7 @@ func TestLoadLiveData(t *testing.T) {
 	cfg.DataSettings.LiveData.APISecretOverride = "1234"
 	cfg.DataSettings.LiveData.APIClientIDOverride = "1234"
 	cfg.DataSettings.LiveData.API2FAOverride = "1234"
-	cfg.DataSettings.LiveData.APISubaccountOverride = "1234"
+	cfg.DataSettings.LiveData.APISubAccountOverride = "1234"
 	err = loadLiveData(cfg, b)
 	if err != nil {
 		t.Error(err)
@@ -479,6 +490,7 @@ func TestReset(t *testing.T) {
 		Statistic:  &statistics.Statistic{},
 		EventQueue: &eventholder.Holder{},
 		Reports:    &report.Data{},
+		Funding:    &funding.FundManager{},
 	}
 	bt.Reset()
 	if bt.Bot != nil {
@@ -501,7 +513,7 @@ func TestFullCycle(t *testing.T) {
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  config.MinMax{},
 		SellSide: config.MinMax{},
-	}, &risk.Risk{}, 0)
+	}, &risk.Risk{}, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
@@ -509,12 +521,24 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = port.SetInitialFunds(ex, a, cp, 1333337)
+	bot := newBotWithExchange()
+	f := &funding.FundManager{}
+	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
-	bot := newBotWithExchange()
-
+	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	if err != nil {
+		t.Error(err)
+	}
+	pair, err := funding.CreatePair(b, quote)
+	if err != nil {
+		t.Error(err)
+	}
+	err = f.AddPair(pair)
+	if err != nil {
+		t.Error(err)
+	}
 	bt := BackTest{
 		Bot:        bot,
 		shutdown:   nil,
@@ -525,6 +549,7 @@ func TestFullCycle(t *testing.T) {
 		Statistic:  stats,
 		EventQueue: &eventholder.Holder{},
 		Reports:    &report.Data{},
+		Funding:    f,
 	}
 
 	bt.Datas.Setup()
@@ -544,7 +569,7 @@ func TestFullCycle(t *testing.T) {
 			}},
 		},
 		Base: data.Base{},
-		Range: &gctkline.IntervalRangeHolder{
+		RangeHolder: &gctkline.IntervalRangeHolder{
 			Start: gctkline.CreateIntervalTime(tt),
 			End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
 			Ranges: []gctkline.IntervalRange{
@@ -595,7 +620,7 @@ func TestFullCycleMulti(t *testing.T) {
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  config.MinMax{},
 		SellSide: config.MinMax{},
-	}, &risk.Risk{}, 0)
+	}, &risk.Risk{}, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
@@ -603,12 +628,24 @@ func TestFullCycleMulti(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = port.SetInitialFunds(ex, a, cp, 1333337)
+	bot := newBotWithExchange()
+	f := &funding.FundManager{}
+	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
-	bot := newBotWithExchange()
-
+	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	if err != nil {
+		t.Error(err)
+	}
+	pair, err := funding.CreatePair(b, quote)
+	if err != nil {
+		t.Error(err)
+	}
+	err = f.AddPair(pair)
+	if err != nil {
+		t.Error(err)
+	}
 	bt := BackTest{
 		Bot:        bot,
 		shutdown:   nil,
@@ -618,6 +655,7 @@ func TestFullCycleMulti(t *testing.T) {
 		Statistic:  stats,
 		EventQueue: &eventholder.Holder{},
 		Reports:    &report.Data{},
+		Funding:    f,
 	}
 
 	bt.Strategy, err = strategies.LoadStrategyByName(dollarcostaverage.Name, true)
@@ -642,7 +680,7 @@ func TestFullCycleMulti(t *testing.T) {
 			}},
 		},
 		Base: data.Base{},
-		Range: &gctkline.IntervalRangeHolder{
+		RangeHolder: &gctkline.IntervalRangeHolder{
 			Start: gctkline.CreateIntervalTime(tt),
 			End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
 			Ranges: []gctkline.IntervalRange{

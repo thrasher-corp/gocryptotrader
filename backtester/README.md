@@ -27,24 +27,28 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
 - CSV data import
 - Database data import
 - Proof of concept live data running
+- Shopspring decimal implementation to track stats more accurately
 - Can run strategies against multiple cryptocurrencies
 - Can run strategies that can assess multiple currencies simultaneously to make complex decisions
-- Dollar cost strategy implementation
-- RSI strategy implementation
+- Dollar cost strategy example strategies
+- RSI example strategy
+- MFI example strategy
 - Rules customisation via config `.strat` files
+- Strategy config builder application
 - Strategy customisation without requiring recompilation. For example, customising RSI high, low and length values via config `.strat` files.
 - Report generation
 - Portfolio manager to help size orders based on config rules, risk and candle volume
 - Order manager to place orders with customisable slippage estimator
 - Helpful statistics to help determine whether a strategy was effective
 - Compliance manager to keep snapshots of every transaction and their changes at every interval
+- Exchange level funding allows funding to be shared across multiple currency pairs and to allow for complex strategy design
+- Fund transfer. At a strategy level, transfer funds between exchanges to allow for complex strategy design
 
 ## Planned Features
 We welcome pull requests on any feature for the Backtester! We will be especially appreciative of any contribution towards the following planned features:
 
 | Feature | Description |
 |---------|-------------|
-| Add quote-based portfolio funding feature | Funds are currently currency-pair based which is helpful for running the same strategy against many pairs simultaneously. This feature would allow for shared funding pool for an overarching strategy |
 | Add backtesting support for futures asset types | Spot trading is currently the only supported asset type. Futures trading greatly expands the Backtester's potential |
 | Example futures pairs trading strategy | Providing a basic example will allow for esteemed traders to build and customise their own |
 | Save Backtester results to database | This will allow for easier comparison of results over time |

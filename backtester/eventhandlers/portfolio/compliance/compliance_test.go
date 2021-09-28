@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 func TestAddSnapshot(t *testing.T) {
@@ -12,7 +14,7 @@ func TestAddSnapshot(t *testing.T) {
 	tt := time.Now()
 	err := m.AddSnapshot([]SnapshotOrder{}, tt, 1, true)
 	if !errors.Is(err, errSnapshotNotFound) {
-		t.Errorf("expected: %v, received %v", errSnapshotNotFound, err)
+		t.Errorf("received: %v, expected: %v", err, errSnapshotNotFound)
 	}
 
 	err = m.AddSnapshot([]SnapshotOrder{}, tt, 1, false)
@@ -32,7 +34,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	tt := time.Now()
 	err := m.AddSnapshot([]SnapshotOrder{
 		{
-			ClosePrice: 1337,
+			ClosePrice: decimal.NewFromInt(1337),
 		},
 	}, tt, 1, false)
 	if err != nil {
@@ -46,8 +48,8 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	if len(snappySnap.Orders) == 0 {
 		t.Fatal("expected an order")
 	}
-	if snappySnap.Orders[0].ClosePrice != 1337 {
-		t.Error("expected 1337")
+	if !snappySnap.Orders[0].ClosePrice.Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 	if !snappySnap.Timestamp.Equal(tt) {
 		t.Errorf("expected %v, received %v", tt, snappySnap.Timestamp)
@@ -55,7 +57,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 
 	_, err = m.GetSnapshotAtTime(time.Now().Add(time.Hour))
 	if !errors.Is(err, errSnapshotNotFound) {
-		t.Errorf("expected: %v, received %v", errSnapshotNotFound, err)
+		t.Errorf("received: %v, expected: %v", err, errSnapshotNotFound)
 	}
 }
 
@@ -69,7 +71,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	tt := time.Now()
 	err := m.AddSnapshot([]SnapshotOrder{
 		{
-			ClosePrice: 1337,
+			ClosePrice: decimal.NewFromInt(1337),
 		},
 	}, tt, 1, false)
 	if err != nil {
@@ -77,7 +79,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	}
 	err = m.AddSnapshot([]SnapshotOrder{
 		{
-			ClosePrice: 1337,
+			ClosePrice: decimal.NewFromInt(1337),
 		},
 	}, tt.Add(time.Hour), 1, false)
 	if err != nil {

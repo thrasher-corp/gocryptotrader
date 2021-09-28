@@ -4,12 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -19,6 +21,7 @@ import (
 const testExchange = "binance"
 
 func TestCalculateResults(t *testing.T) {
+	t.Parallel()
 	cs := CurrencyStatistic{}
 	tt1 := time.Now()
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
@@ -34,87 +37,101 @@ func TestCalculateResults(t *testing.T) {
 	}
 	ev := EventStore{
 		Holdings: holdings.Holding{
-			ChangeInTotalValuePercent: 0.1333,
+			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
 			Timestamp:                 tt1,
-			InitialFunds:              1337,
+			QuoteInitialFunds:         decimal.NewFromInt(1337),
+			RiskFreeRate:              decimal.NewFromInt(1),
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
-					ClosePrice:          1338,
-					VolumeAdjustedPrice: 1338,
-					SlippageRate:        1338,
-					CostBasis:           1338,
+					ClosePrice:          decimal.NewFromInt(1338),
+					VolumeAdjustedPrice: decimal.NewFromInt(1338),
+					SlippageRate:        decimal.NewFromInt(1338),
+					CostBasis:           decimal.NewFromInt(1338),
 					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
-					ClosePrice:          1337,
-					VolumeAdjustedPrice: 1337,
-					SlippageRate:        1337,
-					CostBasis:           1337,
+					ClosePrice:          decimal.NewFromInt(1337),
+					VolumeAdjustedPrice: decimal.NewFromInt(1337),
+					SlippageRate:        decimal.NewFromInt(1337),
+					CostBasis:           decimal.NewFromInt(1337),
 					Detail:              &order.Detail{Side: order.Sell},
 				},
 			},
 		},
 		DataEvent: &kline.Kline{
 			Base:   even,
-			Open:   2000,
-			Close:  2000,
-			Low:    2000,
-			High:   2000,
-			Volume: 2000,
+			Open:   decimal.NewFromInt(2000),
+			Close:  decimal.NewFromInt(2000),
+			Low:    decimal.NewFromInt(2000),
+			High:   decimal.NewFromInt(2000),
+			Volume: decimal.NewFromInt(2000),
 		},
 		SignalEvent: &signal.Signal{
 			Base:       even,
-			ClosePrice: 2000,
+			ClosePrice: decimal.NewFromInt(2000),
 		},
 	}
 	even2 := even
 	even2.Time = tt2
 	ev2 := EventStore{
 		Holdings: holdings.Holding{
-			ChangeInTotalValuePercent: 0.1337,
+			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
 			Timestamp:                 tt2,
-			InitialFunds:              1337,
+			QuoteInitialFunds:         decimal.NewFromInt(1337),
+			RiskFreeRate:              decimal.NewFromInt(1),
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
-					ClosePrice:          1338,
-					VolumeAdjustedPrice: 1338,
-					SlippageRate:        1338,
-					CostBasis:           1338,
+					ClosePrice:          decimal.NewFromInt(1338),
+					VolumeAdjustedPrice: decimal.NewFromInt(1338),
+					SlippageRate:        decimal.NewFromInt(1338),
+					CostBasis:           decimal.NewFromInt(1338),
 					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
-					ClosePrice:          1337,
-					VolumeAdjustedPrice: 1337,
-					SlippageRate:        1337,
-					CostBasis:           1337,
+					ClosePrice:          decimal.NewFromInt(1337),
+					VolumeAdjustedPrice: decimal.NewFromInt(1337),
+					SlippageRate:        decimal.NewFromInt(1337),
+					CostBasis:           decimal.NewFromInt(1337),
 					Detail:              &order.Detail{Side: order.Sell},
 				},
 			},
 		},
 		DataEvent: &kline.Kline{
 			Base:   even2,
-			Open:   1337,
-			Close:  1337,
-			Low:    1337,
-			High:   1337,
-			Volume: 1337,
+			Open:   decimal.NewFromInt(1337),
+			Close:  decimal.NewFromInt(1337),
+			Low:    decimal.NewFromInt(1337),
+			High:   decimal.NewFromInt(1337),
+			Volume: decimal.NewFromInt(1337),
 		},
 		SignalEvent: &signal.Signal{
 			Base:       even2,
-			ClosePrice: 1337,
+			ClosePrice: decimal.NewFromInt(1337),
 		},
 	}
 
 	cs.Events = append(cs.Events, ev, ev2)
-	err := cs.CalculateResults()
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(13337), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(13337), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pair, err := funding.CreatePair(b, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cs.CalculateResults(pair)
 	if err != nil {
 		t.Error(err)
 	}
-	if cs.MarketMovement != -33.15 {
+	if !cs.MarketMovement.Equal(decimal.NewFromFloat(-33.15)) {
 		t.Error("expected -33.15")
 	}
 }
@@ -135,87 +152,99 @@ func TestPrintResults(t *testing.T) {
 	}
 	ev := EventStore{
 		Holdings: holdings.Holding{
-			ChangeInTotalValuePercent: 0.1333,
+			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
 			Timestamp:                 tt1,
-			InitialFunds:              1337,
+			QuoteInitialFunds:         decimal.NewFromInt(1337),
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
-					ClosePrice:          1338,
-					VolumeAdjustedPrice: 1338,
-					SlippageRate:        1338,
-					CostBasis:           1338,
+					ClosePrice:          decimal.NewFromInt(1338),
+					VolumeAdjustedPrice: decimal.NewFromInt(1338),
+					SlippageRate:        decimal.NewFromInt(1338),
+					CostBasis:           decimal.NewFromInt(1338),
 					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
-					ClosePrice:          1337,
-					VolumeAdjustedPrice: 1337,
-					SlippageRate:        1337,
-					CostBasis:           1337,
+					ClosePrice:          decimal.NewFromInt(1337),
+					VolumeAdjustedPrice: decimal.NewFromInt(1337),
+					SlippageRate:        decimal.NewFromInt(1337),
+					CostBasis:           decimal.NewFromInt(1337),
 					Detail:              &order.Detail{Side: order.Sell},
 				},
 			},
 		},
 		DataEvent: &kline.Kline{
 			Base:   even,
-			Open:   2000,
-			Close:  2000,
-			Low:    2000,
-			High:   2000,
-			Volume: 2000,
+			Open:   decimal.NewFromInt(2000),
+			Close:  decimal.NewFromInt(2000),
+			Low:    decimal.NewFromInt(2000),
+			High:   decimal.NewFromInt(2000),
+			Volume: decimal.NewFromInt(2000),
 		},
 		SignalEvent: &signal.Signal{
 			Base:       even,
-			ClosePrice: 2000,
+			ClosePrice: decimal.NewFromInt(2000),
 		},
 	}
 	even2 := even
 	even2.Time = tt2
 	ev2 := EventStore{
 		Holdings: holdings.Holding{
-			ChangeInTotalValuePercent: 0.1337,
+			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
 			Timestamp:                 tt2,
-			InitialFunds:              1337,
+			QuoteInitialFunds:         decimal.NewFromInt(1337),
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
-					ClosePrice:          1338,
-					VolumeAdjustedPrice: 1338,
-					SlippageRate:        1338,
-					CostBasis:           1338,
+					ClosePrice:          decimal.NewFromInt(1338),
+					VolumeAdjustedPrice: decimal.NewFromInt(1338),
+					SlippageRate:        decimal.NewFromInt(1338),
+					CostBasis:           decimal.NewFromInt(1338),
 					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
-					ClosePrice:          1337,
-					VolumeAdjustedPrice: 1337,
-					SlippageRate:        1337,
-					CostBasis:           1337,
+					ClosePrice:          decimal.NewFromInt(1337),
+					VolumeAdjustedPrice: decimal.NewFromInt(1337),
+					SlippageRate:        decimal.NewFromInt(1337),
+					CostBasis:           decimal.NewFromInt(1337),
 					Detail:              &order.Detail{Side: order.Sell},
 				},
 			},
 		},
 		DataEvent: &kline.Kline{
 			Base:   even2,
-			Open:   1337,
-			Close:  1337,
-			Low:    1337,
-			High:   1337,
-			Volume: 1337,
+			Open:   decimal.NewFromInt(1337),
+			Close:  decimal.NewFromInt(1337),
+			Low:    decimal.NewFromInt(1337),
+			High:   decimal.NewFromInt(1337),
+			Volume: decimal.NewFromInt(1337),
 		},
 		SignalEvent: &signal.Signal{
 			Base:       even2,
-			ClosePrice: 1337,
+			ClosePrice: decimal.NewFromInt(1337),
 		},
 	}
 
 	cs.Events = append(cs.Events, ev, ev2)
-	err := cs.CalculateResults()
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pair, err := funding.CreatePair(b, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cs.CalculateResults(pair)
 	if err != nil {
 		t.Error(err)
 	}
-	cs.PrintResults(exch, a, p)
+	cs.PrintResults(exch, a, p, pair, true)
 }
 
 func TestCalculateMaxDrawdown(t *testing.T) {
@@ -224,7 +253,7 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	var events []common.DataEventHandler
-	for i := 0; i < 100; i++ {
+	for i := int64(0); i < 100; i++ {
 		tt1 = tt1.Add(gctkline.OneDay.Duration())
 		even := event.Base{
 			Exchange:     exch,
@@ -237,16 +266,16 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 			// throw in a wrench, a spike in price
 			events = append(events, &kline.Kline{
 				Base:  even,
-				Close: 1336,
-				High:  1336,
-				Low:   1336,
+				Close: decimal.NewFromInt(1336),
+				High:  decimal.NewFromInt(1336),
+				Low:   decimal.NewFromInt(1336),
 			})
 		} else {
 			events = append(events, &kline.Kline{
 				Base:  even,
-				Close: 1337 - float64(i),
-				High:  1337 - float64(i),
-				Low:   1337 - float64(i),
+				Close: decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
+				High:  decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
+				Low:   decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
 			})
 		}
 	}
@@ -261,9 +290,9 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 	}
 	events = append(events, &kline.Kline{
 		Base:  even,
-		Close: 1338,
-		High:  1338,
-		Low:   1338,
+		Close: decimal.NewFromInt(1338),
+		High:  decimal.NewFromInt(1338),
+		Low:   decimal.NewFromInt(1338),
 	})
 
 	tt1 = tt1.Add(gctkline.OneDay.Duration())
@@ -276,9 +305,9 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 	}
 	events = append(events, &kline.Kline{
 		Base:  even,
-		Close: 1337,
-		High:  1337,
-		Low:   1337,
+		Close: decimal.NewFromInt(1337),
+		High:  decimal.NewFromInt(1337),
+		Low:   decimal.NewFromInt(1337),
 	})
 
 	tt1 = tt1.Add(gctkline.OneDay.Duration())
@@ -291,18 +320,19 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 	}
 	events = append(events, &kline.Kline{
 		Base:  even,
-		Close: 1339,
-		High:  1339,
-		Low:   1339,
+		Close: decimal.NewFromInt(1339),
+		High:  decimal.NewFromInt(1339),
+		Low:   decimal.NewFromInt(1339),
 	})
 
 	resp := calculateMaxDrawdown(events)
-	if resp.Highest.Price != 1337 && resp.Lowest.Price != 1238 {
+	if resp.Highest.Price != decimal.NewFromInt(1337) && !resp.Lowest.Price.Equal(decimal.NewFromInt(1238)) {
 		t.Error("unexpected max drawdown")
 	}
 }
 
 func TestCalculateHighestCommittedFunds(t *testing.T) {
+	t.Parallel()
 	c := CurrencyStatistic{}
 	c.calculateHighestCommittedFunds()
 	if !c.HighestCommittedFunds.Time.IsZero() {
@@ -312,9 +342,9 @@ func TestCalculateHighestCommittedFunds(t *testing.T) {
 	tt2 := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
 	tt3 := time.Date(2021, 3, 1, 0, 0, 0, 0, time.UTC)
 	c.Events = append(c.Events,
-		EventStore{Holdings: holdings.Holding{Timestamp: tt1, CommittedFunds: 10}},
-		EventStore{Holdings: holdings.Holding{Timestamp: tt2, CommittedFunds: 1337}},
-		EventStore{Holdings: holdings.Holding{Timestamp: tt3, CommittedFunds: 11}},
+		EventStore{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1337)}, Holdings: holdings.Holding{Timestamp: tt1, BaseSize: decimal.NewFromInt(10)}},
+		EventStore{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1338)}, Holdings: holdings.Holding{Timestamp: tt2, BaseSize: decimal.NewFromInt(1337)}},
+		EventStore{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1339)}, Holdings: holdings.Holding{Timestamp: tt3, BaseSize: decimal.NewFromInt(11)}},
 	)
 	c.calculateHighestCommittedFunds()
 	if c.HighestCommittedFunds.Time != tt2 {

@@ -105,5 +105,5 @@ const (
 
 // newConfigMutex only locks and unlocks on engine creation functions
 // as engine modifies global files, this protects the main bot creation
-// functions from interfering with eachother
+// functions from interfering with each other
 var newEngineMutex sync.Mutex

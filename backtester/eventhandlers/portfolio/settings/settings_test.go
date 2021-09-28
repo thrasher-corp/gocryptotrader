@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 )
 
@@ -12,7 +13,7 @@ func TestGetLatestHoldings(t *testing.T) {
 	cs := Settings{}
 	h := cs.GetLatestHoldings()
 	if !h.Timestamp.IsZero() {
-		t.Error("expected zero time")
+		t.Error("expected unset holdings")
 	}
 	tt := time.Now()
 	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots, holdings.Holding{Timestamp: tt})
@@ -27,13 +28,18 @@ func TestValue(t *testing.T) {
 	t.Parallel()
 	cs := Settings{}
 	v := cs.Value()
-	if v != 0 {
+	if !v.IsZero() {
 		t.Error("expected 0")
 	}
-	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots, holdings.Holding{TotalValue: 1337})
+	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots,
+		holdings.Holding{
+			Timestamp:  time.Now(),
+			TotalValue: decimal.NewFromInt(1337),
+		},
+	)
 
 	v = cs.Value()
-	if v != 1337 {
-		t.Errorf("expected %v, received %v", 1337, v)
+	if !v.Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("expected %v, received %v", decimal.NewFromInt(1337), v)
 	}
 }

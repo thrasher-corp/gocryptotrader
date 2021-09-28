@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/rsi"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/top2bottom2"
 )
 
 // LoadStrategyByName returns the strategy by its name
@@ -33,11 +34,9 @@ func LoadStrategyByName(name string, useSimultaneousProcessing bool) (Handler, e
 // GetStrategies returns a static list of set strategies
 // they must be set in here for the backtester to recognise them
 func GetStrategies() []Handler {
-	var strats []Handler
-	strats = append(strats,
+	return []Handler{
 		new(dollarcostaverage.Strategy),
 		new(rsi.Strategy),
-	)
-
-	return strats
+		new(top2bottom2.Strategy),
+	}
 }

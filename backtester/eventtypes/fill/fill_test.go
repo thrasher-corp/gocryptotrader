@@ -3,10 +3,12 @@ package fill
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func TestSetDirection(t *testing.T) {
+	t.Parallel()
 	f := Fill{
 		Direction: gctorder.Sell,
 	}
@@ -17,53 +19,59 @@ func TestSetDirection(t *testing.T) {
 }
 
 func TestSetAmount(t *testing.T) {
+	t.Parallel()
 	f := Fill{
-		Amount: 1,
+		Amount: decimal.NewFromInt(1),
 	}
-	f.SetAmount(1337)
-	if f.GetAmount() != 1337 {
-		t.Error("expected 1337")
+	f.SetAmount(decimal.NewFromInt(1337))
+	if !f.GetAmount().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 
 func TestGetClosePrice(t *testing.T) {
+	t.Parallel()
 	f := Fill{
-		ClosePrice: 1337,
+		ClosePrice: decimal.NewFromInt(1337),
 	}
-	if f.GetClosePrice() != 1337 {
-		t.Error("expected 1337")
+	if !f.GetClosePrice().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 
 func TestGetVolumeAdjustedPrice(t *testing.T) {
+	t.Parallel()
 	f := Fill{
-		VolumeAdjustedPrice: 1337,
+		VolumeAdjustedPrice: decimal.NewFromInt(1337),
 	}
-	if f.GetVolumeAdjustedPrice() != 1337 {
-		t.Error("expected 1337")
+	if !f.GetVolumeAdjustedPrice().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 
 func TestGetPurchasePrice(t *testing.T) {
+	t.Parallel()
 	f := Fill{
-		PurchasePrice: 1337,
+		PurchasePrice: decimal.NewFromInt(1337),
 	}
-	if f.GetPurchasePrice() != 1337 {
-		t.Error("expected 1337")
+	if !f.GetPurchasePrice().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 
 func TestSetExchangeFee(t *testing.T) {
+	t.Parallel()
 	f := Fill{
-		ExchangeFee: 1,
+		ExchangeFee: decimal.NewFromInt(1),
 	}
-	f.SetExchangeFee(1337)
-	if f.GetExchangeFee() != 1337 {
-		t.Error("expected 1337")
+	f.SetExchangeFee(decimal.NewFromInt(1337))
+	if !f.GetExchangeFee().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 
 func TestGetOrder(t *testing.T) {
+	t.Parallel()
 	f := Fill{
 		Order: &gctorder.Detail{},
 	}
@@ -73,10 +81,11 @@ func TestGetOrder(t *testing.T) {
 }
 
 func TestGetSlippageRate(t *testing.T) {
+	t.Parallel()
 	f := Fill{
-		Slippage: 1,
+		Slippage: decimal.NewFromInt(1),
 	}
-	if f.GetSlippageRate() != 1 {
+	if !f.GetSlippageRate().Equal(decimal.NewFromInt(1)) {
 		t.Error("expected 1")
 	}
 }

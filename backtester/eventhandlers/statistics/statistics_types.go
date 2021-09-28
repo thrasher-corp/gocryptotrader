@@ -4,17 +4,21 @@ import (
 	"errors"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
+	// ErrAlreadyProcessed occurs when an event has already been processed
+	ErrAlreadyProcessed            = errors.New("this event has been processed already")
 	errExchangeAssetPairStatsUnset = errors.New("exchangeAssetPairStatistics not setup")
 	errCurrencyStatisticsUnset     = errors.New("no data")
 )
@@ -27,7 +31,7 @@ type Statistic struct {
 	StrategyNickname            string                                                                            `json:"strategy-nickname"`
 	StrategyGoal                string                                                                            `json:"strategy-goal"`
 	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic `json:"-"`
-	RiskFreeRate                float64                                                                           `json:"risk-free-rate"`
+	RiskFreeRate                decimal.Decimal                                                                   `json:"risk-free-rate"`
 	TotalBuyOrders              int64                                                                             `json:"total-buy-orders"`
 	TotalSellOrders             int64                                                                             `json:"total-sell-orders"`
 	TotalOrders                 int64                                                                             `json:"total-orders"`
@@ -36,6 +40,7 @@ type Statistic struct {
 	BestMarketMovement          *FinalResultsHolder                                                               `json:"best-market-movement,omitempty"`
 	AllStats                    []currencystatistics.CurrencyStatistic                                            `json:"results"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
 	WasAnyDataMissing           bool                                                                              `json:"was-any-data-missing"`
+	Funding                     *funding.Report                                                                   `json:"funding"`
 }
 
 // FinalResultsHolder holds important stats about a currency's performance
@@ -44,18 +49,18 @@ type FinalResultsHolder struct {
 	Asset            asset.Item               `json:"asset"`
 	Pair             currency.Pair            `json:"currency"`
 	MaxDrawdown      currencystatistics.Swing `json:"max-drawdown"`
-	MarketMovement   float64                  `json:"market-movement"`
-	StrategyMovement float64                  `json:"strategy-movement"`
+	MarketMovement   decimal.Decimal          `json:"market-movement"`
+	StrategyMovement decimal.Decimal          `json:"strategy-movement"`
 }
 
 // Handler interface details what a statistic is expected to do
 type Handler interface {
 	SetStrategyName(string)
 	SetupEventForTime(common.DataEventHandler) error
-	SetEventForOffset(e common.EventHandler) error
+	SetEventForOffset(common.EventHandler) error
 	AddHoldingsForTime(*holdings.Holding) error
 	AddComplianceSnapshotForTime(compliance.Snapshot, fill.Event) error
-	CalculateAllResults() error
+	CalculateAllResults(funding.IFundingManager) error
 	Reset()
 	Serialise() (string, error)
 }
@@ -72,14 +77,19 @@ type Results struct {
 
 // ResultTransactions stores details on a transaction
 type ResultTransactions struct {
-	Time      time.Time     `json:"time"`
-	Direction gctorder.Side `json:"direction"`
-	Price     float64       `json:"price"`
-	Amount    float64       `json:"amount"`
-	Reason    string        `json:"reason,omitempty"`
+	Time      time.Time       `json:"time"`
+	Direction gctorder.Side   `json:"direction"`
+	Price     decimal.Decimal `json:"price"`
+	Amount    decimal.Decimal `json:"amount"`
+	Reason    string          `json:"reason,omitempty"`
 }
 
 // ResultEvent stores the time
 type ResultEvent struct {
 	Time time.Time `json:"time"`
+}
+
+type eventOutputHolder struct {
+	Time   time.Time
+	Events []string
 }

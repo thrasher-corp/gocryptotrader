@@ -3,14 +3,14 @@ package settings
 import (
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 )
 
 // GetLatestHoldings returns the latest holdings after being sorted by time
 func (e *Settings) GetLatestHoldings() holdings.Holding {
-	if e.HoldingsSnapshots == nil {
-		// no holdings yet
-		return holdings.Holding{Offset: 1}
+	if len(e.HoldingsSnapshots) == 0 {
+		return holdings.Holding{}
 	}
 
 	return e.HoldingsSnapshots[len(e.HoldingsSnapshots)-1]
@@ -31,7 +31,10 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 }
 
 // Value returns the total value of the latest holdings
-func (e *Settings) Value() float64 {
+func (e *Settings) Value() decimal.Decimal {
 	latest := e.GetLatestHoldings()
+	if latest.Timestamp.IsZero() {
+		return decimal.Zero
+	}
 	return latest.TotalValue
 }

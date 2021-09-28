@@ -549,7 +549,7 @@ func (f *FTX) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType 
 		return nil, err
 	}
 
-	ts := timestampEnd
+	endTime := timestampEnd
 	var resp []trade.Data
 allTrades:
 	for {
@@ -557,8 +557,8 @@ allTrades:
 		trades, err = f.GetTrades(ctx,
 			p.String(),
 			timestampStart.Unix(),
-			ts.Unix(),
-			100)
+			endTime.Unix(),
+			0)
 		if err != nil {
 			if errors.Is(err, errStartTimeCannotBeAfterEndTime) {
 				break
@@ -573,7 +573,7 @@ allTrades:
 				// reached end of trades to crawl
 				break allTrades
 			}
-			if trades[i].Time.After(ts) {
+			if trades[i].Time.After(endTime) {
 				continue
 			}
 			var side order.Side
@@ -591,11 +591,8 @@ allTrades:
 				Amount:       trades[i].Size,
 				Timestamp:    trades[i].Time,
 			})
-
-			if i == len(trades)-1 {
-				ts = trades[i].Time
-			}
 		}
+		endTime = trades[len(trades)-1].Time
 	}
 
 	err = f.AddTradesToBuffer(resp...)

@@ -1,13 +1,16 @@
 package currencystatistics
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/math"
+	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -16,9 +19,12 @@ import (
 )
 
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
-func (c *CurrencyStatistic) CalculateResults() error {
+func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 	var errs gctcommon.Errors
+	var err error
 	first := c.Events[0]
+	sep := fmt.Sprintf("%v %v %v |\t", first.DataEvent.GetExchange(), first.DataEvent.GetAssetType(), first.DataEvent.Pair())
+
 	firstPrice := first.DataEvent.ClosePrice()
 	last := c.Events[len(c.Events)-1]
 	lastPrice := last.DataEvent.ClosePrice()
@@ -31,19 +37,23 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	}
 	for i := range c.Events {
 		price := c.Events[i].DataEvent.ClosePrice()
-		if c.LowestClosePrice == 0 || price < c.LowestClosePrice {
+		if c.LowestClosePrice.IsZero() || price.LessThan(c.LowestClosePrice) {
 			c.LowestClosePrice = price
 		}
-		if price > c.HighestClosePrice {
+		if price.GreaterThan(c.HighestClosePrice) {
 			c.HighestClosePrice = price
 		}
 	}
-	c.MarketMovement = ((lastPrice - firstPrice) / firstPrice) * 100
-	c.StrategyMovement = ((last.Holdings.TotalValue - last.Holdings.InitialFunds) / last.Holdings.InitialFunds) * 100
+
+	oneHundred := decimal.NewFromInt(100)
+	c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(oneHundred)
+	if first.Holdings.TotalValue.GreaterThan(decimal.Zero) {
+		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue).Mul(oneHundred)
+	}
 	c.calculateHighestCommittedFunds()
-	c.RiskFreeRate = last.Holdings.RiskFreeRate * 100
-	returnPerCandle := make([]float64, len(c.Events))
-	benchmarkRates := make([]float64, len(c.Events))
+	c.RiskFreeRate = last.Holdings.RiskFreeRate.Mul(oneHundred)
+	returnPerCandle := make([]decimal.Decimal, len(c.Events))
+	benchmarkRates := make([]decimal.Decimal, len(c.Events))
 
 	var allDataEvents []common.DataEventHandler
 	for i := range c.Events {
@@ -55,7 +65,9 @@ func (c *CurrencyStatistic) CalculateResults() error {
 		if c.Events[i].SignalEvent != nil && c.Events[i].SignalEvent.GetDirection() == common.MissingData {
 			c.ShowMissingDataWarning = true
 		}
-		benchmarkRates[i] = (c.Events[i].DataEvent.ClosePrice() - c.Events[i-1].DataEvent.ClosePrice()) / c.Events[i-1].DataEvent.ClosePrice()
+		benchmarkRates[i] = c.Events[i].DataEvent.ClosePrice().Sub(
+			c.Events[i-1].DataEvent.ClosePrice()).Div(
+			c.Events[i-1].DataEvent.ClosePrice())
 	}
 
 	// remove the first entry as its zero and impacts
@@ -63,13 +75,12 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	benchmarkRates = benchmarkRates[1:]
 	returnPerCandle = returnPerCandle[1:]
 
-	var arithmeticBenchmarkAverage, geometricBenchmarkAverage float64
-	var err error
-	arithmeticBenchmarkAverage, err = math.ArithmeticMean(benchmarkRates)
+	var arithmeticBenchmarkAverage, geometricBenchmarkAverage decimal.Decimal
+	arithmeticBenchmarkAverage, err = gctmath.DecimalArithmeticMean(benchmarkRates)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geometricBenchmarkAverage, err = math.FinancialGeometricMean(benchmarkRates)
+	geometricBenchmarkAverage, err = gctmath.DecimalFinancialGeometricMean(benchmarkRates)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -78,75 +89,108 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	interval := first.DataEvent.GetInterval()
 	intervalsPerYear := interval.IntervalsPerYear()
 
-	riskFreeRatePerCandle := first.Holdings.RiskFreeRate / intervalsPerYear
-	riskFreeRateForPeriod := riskFreeRatePerCandle * float64(len(benchmarkRates))
+	riskFreeRatePerCandle := first.Holdings.RiskFreeRate.Div(decimal.NewFromFloat(intervalsPerYear))
+	riskFreeRateForPeriod := riskFreeRatePerCandle.Mul(decimal.NewFromInt(int64(len(benchmarkRates))))
 
 	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
-		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar float64
+		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar decimal.Decimal
 
-	arithmeticReturnsPerCandle, err = math.ArithmeticMean(returnPerCandle)
+	arithmeticReturnsPerCandle, err = gctmath.DecimalArithmeticMean(returnPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geometricReturnsPerCandle, err = math.FinancialGeometricMean(returnPerCandle)
+	geometricReturnsPerCandle, err = gctmath.DecimalFinancialGeometricMean(returnPerCandle)
 	if err != nil {
 		errs = append(errs, err)
-	}
-
-	arithmeticSharpe, err = math.SharpeRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
-	if err != nil {
-		errs = append(errs, err)
-	}
-	arithmeticSortino, err = math.SortinoRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
-	if err != nil {
-		errs = append(errs, err)
-	}
-	arithmeticInformation, err = math.InformationRatio(returnPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
-	if err != nil {
-		errs = append(errs, err)
-	}
-	arithmeticCalmar, err = math.CalmarRatio(c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, arithmeticReturnsPerCandle, riskFreeRateForPeriod)
-	if err != nil {
-		errs = append(errs, err)
-	}
-	c.ArithmeticRatios = Ratios{
-		SharpeRatio:      arithmeticSharpe,
-		SortinoRatio:     arithmeticSortino,
-		InformationRatio: arithmeticInformation,
-		CalmarRatio:      arithmeticCalmar,
 	}
 
-	geomSharpe, err = math.SharpeRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
+	arithmeticSharpe, err = gctmath.DecimalSharpeRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geomSortino, err = math.SortinoRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
+	arithmeticSortino, err = gctmath.DecimalSortinoRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
+	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
+		if errors.Is(err, gctmath.ErrInexactConversion) {
+			log.Warnf(log.BackTester, "%v arithmetic sortino ratio %v", sep, err)
+		} else {
+			errs = append(errs, err)
+		}
+	}
+	arithmeticInformation, err = gctmath.DecimalInformationRatio(returnPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geomInformation, err = math.InformationRatio(returnPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
+	mxhp := c.MaxDrawdown.Highest.Price
+	mdlp := c.MaxDrawdown.Lowest.Price
+	arithmeticCalmar, err = gctmath.DecimalCalmarRatio(mxhp, mdlp, arithmeticReturnsPerCandle, riskFreeRateForPeriod)
 	if err != nil {
 		errs = append(errs, err)
-	}
-	geomCalmar, err = math.CalmarRatio(c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, geometricReturnsPerCandle, riskFreeRateForPeriod)
-	if err != nil {
-		errs = append(errs, err)
-	}
-	c.GeometricRatios = Ratios{
-		SharpeRatio:      geomSharpe,
-		SortinoRatio:     geomSortino,
-		InformationRatio: geomInformation,
-		CalmarRatio:      geomCalmar,
 	}
 
-	c.CompoundAnnualGrowthRate, err = math.CompoundAnnualGrowthRate(
-		last.Holdings.InitialFunds,
-		last.Holdings.TotalValue,
-		intervalsPerYear,
-		float64(len(c.Events)))
+	c.ArithmeticRatios = Ratios{}
+	if !arithmeticSharpe.IsZero() {
+		c.ArithmeticRatios.SharpeRatio = arithmeticSharpe
+	}
+	if !arithmeticSortino.IsZero() {
+		c.ArithmeticRatios.SortinoRatio = arithmeticSortino
+	}
+	if !arithmeticInformation.IsZero() {
+		c.ArithmeticRatios.InformationRatio = arithmeticInformation
+	}
+	if !arithmeticCalmar.IsZero() {
+		c.ArithmeticRatios.CalmarRatio = arithmeticCalmar
+	}
+
+	geomSharpe, err = gctmath.DecimalSharpeRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
+	geomSortino, err = gctmath.DecimalSortinoRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
+	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
+		if errors.Is(err, gctmath.ErrInexactConversion) {
+			log.Warnf(log.BackTester, "%v geometric sortino ratio %v", sep, err)
+		} else {
+			errs = append(errs, err)
+		}
+	}
+	geomInformation, err = gctmath.DecimalInformationRatio(returnPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	geomCalmar, err = gctmath.DecimalCalmarRatio(mxhp, mdlp, geometricReturnsPerCandle, riskFreeRateForPeriod)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	c.GeometricRatios = Ratios{}
+	if !arithmeticSharpe.IsZero() {
+		c.GeometricRatios.SharpeRatio = geomSharpe
+	}
+	if !arithmeticSortino.IsZero() {
+		c.GeometricRatios.SortinoRatio = geomSortino
+	}
+	if !arithmeticInformation.IsZero() {
+		c.GeometricRatios.InformationRatio = geomInformation
+	}
+	if !arithmeticCalmar.IsZero() {
+		c.GeometricRatios.CalmarRatio = geomCalmar
+	}
+
+	if last.Holdings.QuoteInitialFunds.GreaterThan(decimal.Zero) {
+		cagr, err := gctmath.DecimalCompoundAnnualGrowthRate(
+			last.Holdings.QuoteInitialFunds,
+			last.Holdings.TotalValue,
+			decimal.NewFromFloat(intervalsPerYear),
+			decimal.NewFromInt(int64(len(c.Events))),
+		)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if !cagr.IsZero() {
+			c.CompoundAnnualGrowthRate = cagr
+		}
+	}
+	c.IsStrategyProfitable = last.Holdings.TotalValue.GreaterThan(first.Holdings.TotalValue)
+	c.DoesPerformanceBeatTheMarket = c.StrategyMovement.GreaterThan(c.MarketMovement)
 	if len(errs) > 0 {
 		return errs
 	}
@@ -154,7 +198,7 @@ func (c *CurrencyStatistic) CalculateResults() error {
 }
 
 // PrintResults outputs all calculated statistics to the command line
-func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair) {
+func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair, f funding.IPairReader, usingExchangeLevelFunding bool) {
 	var errs gctcommon.Errors
 	sort.Slice(c.Events, func(i, j int) bool {
 		return c.Events[i].DataEvent.GetTime().Before(c.Events[j].DataEvent.GetTime())
@@ -164,74 +208,84 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	c.StartingClosePrice = first.DataEvent.ClosePrice()
 	c.EndingClosePrice = last.DataEvent.ClosePrice()
 	c.TotalOrders = c.BuyOrders + c.SellOrders
-	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage + last.Holdings.TotalValueLostToVolumeSizing
+	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage.Add(last.Holdings.TotalValueLostToVolumeSizing)
+	sep := fmt.Sprintf("%v %v %v |\t", e, a, p)
 	currStr := fmt.Sprintf("------------------Stats for %v %v %v------------------------------------------", e, a, p)
-
 	log.Infof(log.BackTester, currStr[:61])
-	log.Infof(log.BackTester, "Initial funds: $%.2f", last.Holdings.InitialFunds)
-	log.Infof(log.BackTester, "Highest committed funds: $%.2f at %v\n\n", c.HighestCommittedFunds.Value, c.HighestCommittedFunds.Time)
+	log.Infof(log.BackTester, "%s Initial base funds: %v", sep, f.BaseInitialFunds())
+	log.Infof(log.BackTester, "%s Initial base quote: %v", sep, f.QuoteInitialFunds())
+	log.Infof(log.BackTester, "%s Highest committed funds: %v at %v\n\n", sep, c.HighestCommittedFunds.Value.Round(8), c.HighestCommittedFunds.Time)
 
-	log.Infof(log.BackTester, "Buy orders: %d", c.BuyOrders)
-	log.Infof(log.BackTester, "Buy value: $%.2f", last.Holdings.BoughtValue)
-	log.Infof(log.BackTester, "Buy amount: %.2f %v", last.Holdings.BoughtAmount, last.Holdings.Pair.Base)
-	log.Infof(log.BackTester, "Sell orders: %d", c.SellOrders)
-	log.Infof(log.BackTester, "Sell value: $%.2f", last.Holdings.SoldValue)
-	log.Infof(log.BackTester, "Sell amount: %.2f %v", last.Holdings.SoldAmount, last.Holdings.Pair.Base)
-	log.Infof(log.BackTester, "Total orders: %d\n\n", c.TotalOrders)
+	log.Infof(log.BackTester, "%s Buy orders: %d", sep, c.BuyOrders)
+	log.Infof(log.BackTester, "%s Buy value: %v", sep, last.Holdings.BoughtValue.Round(8))
+	log.Infof(log.BackTester, "%s Buy amount: %v %v", sep, last.Holdings.BoughtAmount.Round(8), last.Holdings.Pair.Base)
+	log.Infof(log.BackTester, "%s Sell orders: %d", sep, c.SellOrders)
+	log.Infof(log.BackTester, "%s Sell value: %v", sep, last.Holdings.SoldValue.Round(8))
+	log.Infof(log.BackTester, "%s Sell amount: %v %v", sep, last.Holdings.SoldAmount.Round(8), last.Holdings.Pair.Base)
+	log.Infof(log.BackTester, "%s Total orders: %d\n\n", sep, c.TotalOrders)
 
 	log.Info(log.BackTester, "------------------Max Drawdown-------------------------------")
-	log.Infof(log.BackTester, "Highest Price of drawdown: $%.2f", c.MaxDrawdown.Highest.Price)
-	log.Infof(log.BackTester, "Time of highest price of drawdown: %v", c.MaxDrawdown.Highest.Time)
-	log.Infof(log.BackTester, "Lowest Price of drawdown: $%.2f", c.MaxDrawdown.Lowest.Price)
-	log.Infof(log.BackTester, "Time of lowest price of drawdown: %v", c.MaxDrawdown.Lowest.Time)
-	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", c.MaxDrawdown.DrawdownPercent)
-	log.Infof(log.BackTester, "Difference: $%.2f", c.MaxDrawdown.Highest.Price-c.MaxDrawdown.Lowest.Price)
-	log.Infof(log.BackTester, "Drawdown length: %d\n\n", c.MaxDrawdown.IntervalDuration)
+	log.Infof(log.BackTester, "%s Highest Price of drawdown: %v", sep, c.MaxDrawdown.Highest.Price.Round(8))
+	log.Infof(log.BackTester, "%s Time of highest price of drawdown: %v", sep, c.MaxDrawdown.Highest.Time)
+	log.Infof(log.BackTester, "%s Lowest Price of drawdown: %v", sep, c.MaxDrawdown.Lowest.Price.Round(8))
+	log.Infof(log.BackTester, "%s Time of lowest price of drawdown: %v", sep, c.MaxDrawdown.Lowest.Time)
+	log.Infof(log.BackTester, "%s Calculated Drawdown: %v%%", sep, c.MaxDrawdown.DrawdownPercent.Round(2))
+	log.Infof(log.BackTester, "%s Difference: %v", sep, c.MaxDrawdown.Highest.Price.Sub(c.MaxDrawdown.Lowest.Price).Round(2))
+	log.Infof(log.BackTester, "%s Drawdown length: %d\n\n", sep, c.MaxDrawdown.IntervalDuration)
 
 	log.Info(log.BackTester, "------------------Rates-------------------------------------------------")
-	log.Infof(log.BackTester, "Risk free rate: %.3f%%", c.RiskFreeRate)
-	log.Infof(log.BackTester, "Compound Annual Growth Rate: %.2f\n\n", c.CompoundAnnualGrowthRate)
+	log.Infof(log.BackTester, "%s Risk free rate: %v%%", sep, c.RiskFreeRate.Round(2))
+	log.Infof(log.BackTester, "%s Compound Annual Growth Rate: %v\n\n", sep, c.CompoundAnnualGrowthRate.Round(2))
 
-	log.Info(log.BackTester, "------------------Arithmetic Ratios-------------------------------------")
+	log.Info(log.BackTester, "------------------Ratios------------------------------------------------")
+	if usingExchangeLevelFunding {
+		log.Warnf(log.BackTester, "%s This strategy is using Exchange Level Funding. Calculation of ratios may be inaccurate\n", sep)
+	}
+	log.Info(log.BackTester, "------------------Arithmetic--------------------------------------------")
 	if c.ShowMissingDataWarning {
 		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
 		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
 	}
-	log.Infof(log.BackTester, "Sharpe ratio: %.2f", c.ArithmeticRatios.SharpeRatio)
-	log.Infof(log.BackTester, "Sortino ratio: %.2f", c.ArithmeticRatios.SortinoRatio)
-	log.Infof(log.BackTester, "Information ratio: %.2f", c.ArithmeticRatios.InformationRatio)
-	log.Infof(log.BackTester, "Calmar ratio: %.2f\n\n", c.ArithmeticRatios.CalmarRatio)
+	log.Infof(log.BackTester, "%s Sharpe ratio: %v", sep, c.ArithmeticRatios.SharpeRatio.Round(4))
+	log.Infof(log.BackTester, "%s Sortino ratio: %v", sep, c.ArithmeticRatios.SortinoRatio.Round(4))
+	log.Infof(log.BackTester, "%s Information ratio: %v", sep, c.ArithmeticRatios.InformationRatio.Round(4))
+	log.Infof(log.BackTester, "%s Calmar ratio: %v\n\n", sep, c.ArithmeticRatios.CalmarRatio.Round(4))
 
-	log.Info(log.BackTester, "------------------Geometric Ratios-------------------------------------")
+	log.Info(log.BackTester, "------------------Geometric--------------------------------------------")
 	if c.ShowMissingDataWarning {
 		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
 		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
 	}
-	log.Infof(log.BackTester, "Sharpe ratio: %.2f", c.GeometricRatios.SharpeRatio)
-	log.Infof(log.BackTester, "Sortino ratio: %.2f", c.GeometricRatios.SortinoRatio)
-	log.Infof(log.BackTester, "Information ratio: %.2f", c.GeometricRatios.InformationRatio)
-	log.Infof(log.BackTester, "Calmar ratio: %.2f\n\n", c.GeometricRatios.CalmarRatio)
+	log.Infof(log.BackTester, "%s Sharpe ratio: %v", sep, c.GeometricRatios.SharpeRatio.Round(4))
+	log.Infof(log.BackTester, "%s Sortino ratio: %v", sep, c.GeometricRatios.SortinoRatio.Round(4))
+	log.Infof(log.BackTester, "%s Information ratio: %v", sep, c.GeometricRatios.InformationRatio.Round(4))
+	log.Infof(log.BackTester, "%s Calmar ratio: %v\n\n", sep, c.GeometricRatios.CalmarRatio.Round(4))
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
-	log.Infof(log.BackTester, "Starting Close Price: $%.2f", c.StartingClosePrice)
-	log.Infof(log.BackTester, "Finishing Close Price: $%.2f", c.EndingClosePrice)
-	log.Infof(log.BackTester, "Lowest Close Price: $%.2f", c.LowestClosePrice)
-	log.Infof(log.BackTester, "Highest Close Price: $%.2f", c.HighestClosePrice)
+	log.Infof(log.BackTester, "%s Starting Close Price: %v", sep, c.StartingClosePrice.Round(8))
+	log.Infof(log.BackTester, "%s Finishing Close Price: %v", sep, c.EndingClosePrice.Round(8))
+	log.Infof(log.BackTester, "%s Lowest Close Price: %v", sep, c.LowestClosePrice.Round(8))
+	log.Infof(log.BackTester, "%s Highest Close Price: %v", sep, c.HighestClosePrice.Round(8))
 
-	log.Infof(log.BackTester, "Market movement: %.4f%%", c.MarketMovement)
-	log.Infof(log.BackTester, "Strategy movement: %.4f%%", c.StrategyMovement)
-	log.Infof(log.BackTester, "Did it beat the market: %v", c.StrategyMovement > c.MarketMovement)
+	log.Infof(log.BackTester, "%s Market movement: %v%%", sep, c.MarketMovement.Round(2))
+	if usingExchangeLevelFunding {
+		log.Warnf(log.BackTester, "%s This strategy is using Exchange Level Funding. Calculation of strategic performance may be inaccurate", sep)
+	}
+	log.Infof(log.BackTester, "%s Strategy movement: %v%%", sep, c.StrategyMovement.Round(2))
+	log.Infof(log.BackTester, "%s Did it beat the market: %v", sep, c.StrategyMovement.GreaterThan(c.MarketMovement))
 
-	log.Infof(log.BackTester, "Value lost to volume sizing: $%.2f", last.Holdings.TotalValueLostToVolumeSizing)
-	log.Infof(log.BackTester, "Value lost to slippage: $%.2f", last.Holdings.TotalValueLostToSlippage)
-	log.Infof(log.BackTester, "Total Value lost: $%.2f", last.Holdings.TotalValueLost)
-	log.Infof(log.BackTester, "Total Fees: $%.2f\n\n", last.Holdings.TotalFees)
+	log.Infof(log.BackTester, "%s Value lost to volume sizing: %v", sep, last.Holdings.TotalValueLostToVolumeSizing.Round(2))
+	log.Infof(log.BackTester, "%s Value lost to slippage: %v", sep, last.Holdings.TotalValueLostToSlippage.Round(2))
+	log.Infof(log.BackTester, "%s Total Value lost: %v", sep, last.Holdings.TotalValueLost.Round(2))
+	log.Infof(log.BackTester, "%s Total Fees: %v\n\n", sep, last.Holdings.TotalFees.Round(8))
 
-	log.Infof(log.BackTester, "Final funds: $%.2f", last.Holdings.RemainingFunds)
-	log.Infof(log.BackTester, "Final holdings: %.2f", last.Holdings.PositionsSize)
-	log.Infof(log.BackTester, "Final holdings value: $%.2f", last.Holdings.PositionsValue)
-	log.Infof(log.BackTester, "Final total value: $%.2f\n\n", last.Holdings.TotalValue)
-
+	log.Infof(log.BackTester, "%s Final funds: %v", sep, last.Holdings.QuoteSize.Round(8))
+	log.Infof(log.BackTester, "%s Final holdings: %v", sep, last.Holdings.BaseSize.Round(8))
+	if usingExchangeLevelFunding {
+		log.Warnf(log.BackTester, "%s This strategy is using Exchange Level Funding. Calculation of holding values may be inaccurate", sep)
+	}
+	log.Infof(log.BackTester, "%s Final holdings value: %v", sep, last.Holdings.BaseValue.Round(8))
+	log.Infof(log.BackTester, "%s Final total value: %v\n\n", sep, last.Holdings.TotalValue.Round(8))
 	if len(errs) > 0 {
 		log.Info(log.BackTester, "------------------Errors-------------------------------------")
 		for i := range errs {
@@ -241,7 +295,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 }
 
 func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
-	var lowestPrice, highestPrice float64
+	var lowestPrice, highestPrice decimal.Decimal
 	var lowestTime, highestTime time.Time
 	var swings []Swing
 	if len(closePrices) > 0 {
@@ -254,11 +308,11 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 		currHigh := closePrices[i].HighPrice()
 		currLow := closePrices[i].LowPrice()
 		currTime := closePrices[i].GetTime()
-		if lowestPrice > currLow && currLow != 0 {
+		if lowestPrice.GreaterThan(currLow) && !currLow.IsZero() {
 			lowestPrice = currLow
 			lowestTime = currTime
 		}
-		if highestPrice < currHigh && highestPrice > 0 {
+		if highestPrice.LessThan(currHigh) && highestPrice.IsPositive() {
 			if lowestTime.Equal(highestTime) {
 				// create distinction if the greatest drawdown occurs within the same candle
 				lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
@@ -277,7 +331,7 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 					Time:  lowestTime,
 					Price: lowestPrice,
 				},
-				DrawdownPercent:  ((lowestPrice - highestPrice) / highestPrice) * 100,
+				DrawdownPercent:  lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100)),
 				IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
 			})
 			// reset the drawdown
@@ -297,9 +351,9 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 		if err != nil {
 			log.Error(log.BackTester, err)
 		}
-		drawdownPercent := 0.0
-		if highestPrice > 0 {
-			drawdownPercent = ((lowestPrice - highestPrice) / highestPrice) * 100
+		drawdownPercent := decimal.Zero
+		if highestPrice.GreaterThan(decimal.Zero) {
+			drawdownPercent = lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100))
 		}
 		if lowestTime.Equal(highestTime) {
 			// create distinction if the greatest drawdown occurs within the same candle
@@ -324,7 +378,7 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 		maxDrawdown = swings[0]
 	}
 	for i := range swings {
-		if swings[i].DrawdownPercent < maxDrawdown.DrawdownPercent {
+		if swings[i].DrawdownPercent.LessThan(maxDrawdown.DrawdownPercent) {
 			// drawdowns are negative
 			maxDrawdown = swings[i]
 		}
@@ -335,8 +389,8 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 
 func (c *CurrencyStatistic) calculateHighestCommittedFunds() {
 	for i := range c.Events {
-		if c.Events[i].Holdings.CommittedFunds > c.HighestCommittedFunds.Value {
-			c.HighestCommittedFunds.Value = c.Events[i].Holdings.CommittedFunds
+		if c.Events[i].Holdings.BaseSize.Mul(c.Events[i].DataEvent.ClosePrice()).GreaterThan(c.HighestCommittedFunds.Value) {
+			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseSize.Mul(c.Events[i].DataEvent.ClosePrice())
 			c.HighestCommittedFunds.Time = c.Events[i].Holdings.Timestamp
 		}
 	}

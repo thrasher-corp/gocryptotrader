@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
@@ -12,8 +13,8 @@ import (
 
 func TestRandomSlippage(t *testing.T) {
 	t.Parallel()
-	resp := EstimateSlippagePercentage(80, 100)
-	if resp < 0.8 || resp > 1 {
+	resp := EstimateSlippagePercentage(decimal.NewFromInt(80), decimal.NewFromInt(100))
+	if resp.LessThan(decimal.NewFromFloat(0.8)) || resp.GreaterThan(decimal.NewFromInt(1)) {
 		t.Error("expected result > 0.8 and < 100")
 	}
 }
@@ -27,10 +28,10 @@ func TestCalculateSlippageByOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	amountOfFunds := 1000.0
-	feeRate := 0.03
+	amountOfFunds := decimal.NewFromInt(1000)
+	feeRate := decimal.NewFromFloat(0.03)
 	price, amount := CalculateSlippageByOrderbook(ob, gctorder.Buy, amountOfFunds, feeRate)
-	if price*amount+(price*amount*feeRate) > amountOfFunds {
+	if price.Mul(amount).Add(price.Mul(amount).Mul(feeRate)).GreaterThan(amountOfFunds) {
 		t.Error("order size must be less than funds")
 	}
 }

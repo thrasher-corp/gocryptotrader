@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -14,6 +15,8 @@ const (
 	// DoNothing is an explicit signal for the backtester to not perform an action
 	// based upon indicator results
 	DoNothing order.Side = "DO NOTHING"
+	// TransferredFunds is a status signal to do nothing
+	TransferredFunds order.Side = "TRANSFERRED FUNDS"
 	// CouldNotBuy is flagged when a BUY  signal is raised in the strategy/signal phase, but the
 	// portfolio manager or exchange cannot place an order
 	CouldNotBuy order.Side = "COULD NOT BUY"
@@ -55,7 +58,6 @@ type EventHandler interface {
 	GetExchange() string
 	GetInterval() kline.Interval
 	GetAssetType() asset.Item
-
 	GetReason() string
 	AppendReason(string)
 }
@@ -63,10 +65,10 @@ type EventHandler interface {
 // DataEventHandler interface used for loading and interacting with Data
 type DataEventHandler interface {
 	EventHandler
-	ClosePrice() float64
-	HighPrice() float64
-	LowPrice() float64
-	OpenPrice() float64
+	ClosePrice() decimal.Decimal
+	HighPrice() decimal.Decimal
+	LowPrice() decimal.Decimal
+	OpenPrice() decimal.Decimal
 }
 
 // Directioner dictates the side of an order

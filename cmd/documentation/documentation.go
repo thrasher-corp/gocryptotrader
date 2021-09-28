@@ -173,8 +173,8 @@ func main() {
 		// Github API missing contributors
 		contributors = append(contributors, []Contributor{
 			{
-				Login:         "tk42",
-				URL:           "https://github.com/tk42",
+				Login:         "herenow",
+				URL:           "https://github.com/herenow",
 				Contributions: 2,
 			},
 			{
@@ -183,8 +183,13 @@ func main() {
 				Contributions: 2,
 			},
 			{
-				Login:         "herenow",
-				URL:           "https://github.com/herenow",
+				Login:         "soxipy",
+				URL:           "https://github.com/soxipy",
+				Contributions: 2,
+			},
+			{
+				Login:         "tk42",
+				URL:           "https://github.com/tk42",
 				Contributions: 2,
 			},
 			{

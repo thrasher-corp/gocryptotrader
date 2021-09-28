@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -19,12 +20,12 @@ func TestGetBase(t *testing.T) {
 	s := Strategy{}
 	_, err := s.GetBaseData(nil)
 	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("expected: %v, received %v", common.ErrNilArguments, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilArguments)
 	}
 
 	_, err = s.GetBaseData(&datakline.DataFromKline{})
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	tt := time.Now()
 	exch := "binance"
@@ -39,18 +40,18 @@ func TestGetBase(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   decimal.NewFromInt(1337),
+		Close:  decimal.NewFromInt(1337),
+		Low:    decimal.NewFromInt(1337),
+		High:   decimal.NewFromInt(1337),
+		Volume: decimal.NewFromInt(1337),
 	}})
 
 	d.Next()
 	_, err = s.GetBaseData(&datakline.DataFromKline{
-		Item:  gctkline.Item{},
-		Base:  d,
-		Range: &gctkline.IntervalRangeHolder{},
+		Item:        gctkline.Item{},
+		Base:        d,
+		RangeHolder: &gctkline.IntervalRangeHolder{},
 	})
 	if err != nil {
 		t.Error(err)
@@ -59,12 +60,12 @@ func TestGetBase(t *testing.T) {
 
 func TestSetSimultaneousProcessing(t *testing.T) {
 	s := Strategy{}
-	is := s.UseSimultaneousProcessing()
+	is := s.UsingSimultaneousProcessing()
 	if is {
 		t.Error("expected false")
 	}
 	s.SetSimultaneousProcessing(true)
-	is = s.UseSimultaneousProcessing()
+	is = s.UsingSimultaneousProcessing()
 	if !is {
 		t.Error("expected true")
 	}
