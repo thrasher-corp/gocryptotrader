@@ -8,7 +8,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var exchangeFeeManagerCommand = &cli.Command{
+var exchangeFeeManagementCommand = &cli.Command{
 	Name:      "fee",
 	Usage:     "execute fee management command",
 	ArgsUsage: "<command> <args>",

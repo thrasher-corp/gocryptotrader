@@ -305,6 +305,7 @@
     },
     "/v1/currencystategetall": {
       "get": {
+        "summary": "Currency state management endpoints",
         "operationId": "GoCryptoTrader_CurrencyStateGetAll",
         "responses": {
           "200": {
@@ -1073,6 +1074,7 @@
     },
     "/v1/getallfees": {
       "get": {
+        "summary": "Fee management endpoints",
         "operationId": "GoCryptoTrader_GetAllFees",
         "responses": {
           "200": {

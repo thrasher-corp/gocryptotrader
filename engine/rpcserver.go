@@ -4026,6 +4026,11 @@ func (s *RPCServer) CurrencyStateTrading(_ context.Context, r *gctrpc.CurrencySt
 
 // CurrencyStateTradingPair determines via RPC if the pair is operational for trading
 func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.CurrencyStateTradingPairRequest) (*gctrpc.GenericResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
 	cp, err := currency.NewPairFromString(r.Pair)
 	if err != nil {
 		return nil, err
