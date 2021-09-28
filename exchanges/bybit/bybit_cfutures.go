@@ -980,7 +980,7 @@ func (by *Bybit) GetUserTradeRecords(symbol currency.Pair, orderID, order string
 	if page != 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit != 0 {
+	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
@@ -1029,4 +1029,275 @@ func (by *Bybit) GetClosedTrades(symbol currency.Pair, executionType string, sta
 		return resp.Data.Trades, err
 	}
 	return resp.Data.Trades, nil
+}
+
+// ChangeMode switches mode between full or partial position
+func (by *Bybit) ChangeMode(symbol currency.Pair, takeProfitStopLoss string) (string, error) {
+	resp := struct {
+		Data struct {
+			Mode string `json:"tp_sl_mode"`
+		} `json:"result"`
+	}{}
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Data.Mode, err
+	}
+	params.Set("symbol", symbolValue)
+	if takeProfitStopLoss != "" {
+		params.Set("tp_sl_mode", takeProfitStopLoss)
+	} else {
+		return resp.Data.Mode, errors.New("takeProfitStopLoss can't be empty or missing")
+	}
+
+	return resp.Data.Mode, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchPosition, params, &resp, bybitAuthRate)
+}
+
+// ChangeMargin switches margin between cross or isolated
+func (by *Bybit) ChangeMargin(symbol currency.Pair, buyLeverage, sellLeverage float64, isIsolated bool) error {
+	var resp interface{}
+
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return err
+	}
+	params.Set("symbol", symbolValue)
+	params.Set("buy_leverage", strconv.FormatFloat(buyLeverage, 'f', -1, 64))
+	params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
+
+	if isIsolated {
+		params.Set("is_isolated", "true")
+	} else {
+		params.Set("is_isolated", "false")
+	}
+
+	return by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchMargin, params, &resp, bybitAuthRate)
+}
+
+// SetRiskLimit sets risk limit
+func (by *Bybit) SetRiskLimit(symbol currency.Pair, riskID int64) (int64, error) {
+	resp := struct {
+		Data struct {
+			RiskID int64 `json:"risk_id"`
+		} `json:"result"`
+	}{}
+
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Data.RiskID, err
+	}
+	params.Set("symbol", symbolValue)
+
+	if riskID > 0 {
+		params.Set("risk_id", strconv.FormatInt(riskID, 10))
+	} else {
+		return resp.Data.RiskID, errors.New("riskID can't be zero or lesser")
+	}
+
+	return resp.Data.RiskID, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetRiskLimit, params, &resp, bybitAuthRate)
+}
+
+// GetLastFundingFee returns last funding fees
+func (by *Bybit) GetLastFundingFee(symbol currency.Pair) (FundingFee, error) {
+	params := url.Values{}
+
+	resp := struct {
+		Data FundingFee `json:"result"`
+	}{}
+
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
+
+	err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetMyLastFundingFee, params, &resp, bybitAuthRate)
+	if err != nil {
+		return resp.Data, err
+	}
+	return resp.Data, nil
+}
+
+// GetPredictedFundingRate returns predicted funding rates and fees
+func (by *Bybit) GetPredictedFundingRate(symbol currency.Pair) (float64, float64, error) {
+	params := url.Values{}
+
+	resp := struct {
+		Data struct {
+			PredictedFundingRate float64 `json:"predicted_funding_rate"`
+			PredictedFundingFee  float64 `json:"predicted_funding_fee"`
+		} `json:"result"`
+	}{}
+
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Data.PredictedFundingRate, resp.Data.PredictedFundingFee, err
+	}
+	params.Set("symbol", symbolValue)
+
+	err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPredictFundingRate, params, &resp, bybitAuthRate)
+	if err != nil {
+		return resp.Data.PredictedFundingRate, resp.Data.PredictedFundingFee, err
+	}
+	return resp.Data.PredictedFundingRate, resp.Data.PredictedFundingFee, nil
+}
+
+// GetAPIKeyInfo returns user API Key information
+func (by *Bybit) GetAPIKeyInfo() ([]APIKeyData, error) {
+	params := url.Values{}
+
+	resp := struct {
+		Data []APIKeyData `json:"result"`
+	}{}
+
+	err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAPIKeyInfo, params, &resp, bybitAuthRate)
+	if err != nil {
+		return resp.Data, err
+	}
+	return resp.Data, nil
+}
+
+// GetAPIKeyInfo returns user API Key information
+func (by *Bybit) GetLCPInfo(symbol currency.Pair) ([]LCPData, error) {
+	params := url.Values{}
+
+	resp := struct {
+		Data struct {
+			LCPList []LCPData `json:"lcp_list"`
+		} `json:"result"`
+	}{}
+
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Data.LCPList, err
+	}
+	params.Set("symbol", symbolValue)
+
+	err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetLiquidityContributionPoints, params, &resp, bybitAuthRate)
+	if err != nil {
+		return resp.Data.LCPList, err
+	}
+	return resp.Data.LCPList, nil
+}
+
+// GetFutureWalletBalance returns wallet balance
+func (by *Bybit) GetFutureWalletBalance(coin string) (map[string]WalletData, error) {
+	params := url.Values{}
+
+	resp := struct {
+		Wallets map[string]WalletData `json:"result"`
+	}{}
+
+	if coin != "" {
+		params.Set("coin", coin)
+	}
+
+	err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletBalance, params, &resp, bybitAuthRate)
+	if err != nil {
+		return resp.Wallets, err
+	}
+	return resp.Wallets, nil
+}
+
+// GetWalletFundRecords returns wallet fund records
+func (by *Bybit) GetWalletFundRecords(startDate, endDate, currency, coin, walletFundType string, page, limit int64) ([]FundRecord, error) {
+	params := url.Values{}
+
+	resp := struct {
+		Data struct {
+			Records []FundRecord `json:"data"`
+		} `json:"result"`
+	}{}
+
+	if startDate != "" {
+		params.Set("start_date", startDate)
+	}
+	if endDate != "" {
+		params.Set("end_date", endDate)
+	}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if coin != "" {
+		params.Set("coin", coin)
+	}
+	if walletFundType != "" {
+		params.Set("wallet_fund_type", walletFundType)
+	}
+	if page != 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 && limit <= 50 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletFundRecords, params, &resp, bybitAuthRate)
+	if err != nil {
+		return resp.Data.Records, err
+	}
+	return resp.Data.Records, nil
+}
+
+// GetWalletWithdrawalRecords returns wallet withdrawal records
+func (by *Bybit) GetWalletWithdrawalRecords(startDate, endDate, coin, status string, page, limit int64) ([]FundWithdrawalRecord, error) {
+	params := url.Values{}
+
+	resp := struct {
+		Data struct {
+			Records []FundWithdrawalRecord `json:"data"`
+		} `json:"result"`
+	}{}
+
+	if startDate != "" {
+		params.Set("start_date", startDate)
+	}
+	if endDate != "" {
+		params.Set("end_date", endDate)
+	}
+	if coin != "" {
+		params.Set("coin", coin)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if page != 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 && limit <= 50 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletWithdrawalRecords, params, &resp, bybitAuthRate)
+	if err != nil {
+		return resp.Data.Records, err
+	}
+	return resp.Data.Records, nil
+}
+
+// GetAssetExchangeRecords returns wallet asset exchange records
+func (by *Bybit) GetAssetExchangeRecords(direction string, from, limit int64) ([]AssetExchangeRecord, error) {
+	params := url.Values{}
+
+	resp := struct {
+		Data []AssetExchangeRecord `json:"result"`
+	}{}
+
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+
+	if from != 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if limit > 0 && limit <= 50 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAssetExchangeRecords, params, &resp, bybitAuthRate)
+	if err != nil {
+		return resp.Data, err
+	}
+	return resp.Data, nil
 }

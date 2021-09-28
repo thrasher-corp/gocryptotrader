@@ -422,3 +422,85 @@ type ClosedTrades struct {
 	Leverage             int64   `json:"leverage"`
 	CreatedAt            int64   `json:"created_at"`
 }
+
+type FundingFee struct {
+	Symbol        string  `json:"symbol"`
+	Side          string  `json:"side"`
+	Size          float64 `json:"qty"`
+	FundingRate   float64 `json:"funding_rate"`
+	ExecutionFee  float64 `json:"exec_fee"`
+	ExecutionTime int64   `json:"exec_timestamp"`
+}
+
+type APIKeyData struct {
+	APIKey     string   `json:"api_key"`
+	Type       string   `json:"type"`
+	UserID     int64    `json:"user_id"`
+	InviterID  int64    `json:"inviter_id"`
+	IPs        string   `json:"ips"`
+	Note       string   `json:"note"`
+	Permission []string `json:"permissions"`
+	CreatedAt  string   `json:"created_at"`
+	ExpiredAt  string   `json:"expired_at"`
+	ReadOnly   bool     `json:"read_only"`
+}
+
+type LCPData struct {
+	Date          string  `json:"date"`
+	SelfRatio     float64 `json:"self_ratio"`
+	PlatformRatio float64 `json:"platform_ratio"`
+	Score         float64 `json:"score"`
+}
+
+type WalletData struct {
+	Equity                float64 `json:"equity"` //equity = wallet_balance + unrealised_pnl
+	AvailableBalance      float64 `json:"available_balance"`
+	UserMargin            float64 `json:"used_margin"`
+	OrderMargin           float64 `json:"order_margin"`
+	PositionMargin        float64 `json:"position_margin"`
+	PositionClosingFee    float64 `json:"occ_closing_fee"`
+	PositionFundingFee    float64 `json:"occ_funding_fee"`
+	WalletBalance         float64 `json:"wallet_balance"`
+	RealisedPNL           float64 `json:"realised_pnl"`
+	UnrealisedPNL         float64 `json:"unrealised_pnl"`
+	CumulativeRealisedPNL float64 `json:"cum_realised_pnl"`
+	GivenCash             float64 `json:"given_cash"`
+	ServiceCash           float64 `json:"service_cash"`
+}
+
+type FundRecord struct {
+	ID            int64   `json:"id"`
+	UserID        int64   `json:"user_id"`
+	Coin          string  `json:"coin"`
+	Type          string  `json:"type"`
+	Amount        float64 `json:"amount,string"`
+	TxID          string  `json:"tx_id"`
+	Address       string  `json:"address"`
+	WalletBalance float64 `json:"wallet_balance,string"`
+	ExecutionTime string  `json:"exec_time"`
+	CrossSequence int64   `json:"cross_seq"`
+}
+
+type FundWithdrawalRecord struct {
+	ID         int64   `json:"id"`
+	UserID     int64   `json:"user_id"`
+	Coin       string  `json:"coin"`
+	Status     string  `json:"status"`
+	Amount     float64 `json:"amount,string"`
+	Fee        float64 `json:"fee"`
+	Address    string  `json:"address"`
+	TxID       string  `json:"tx_id"`
+	SubmitedAt string  `json:"submited_at"`
+	UpdatedAt  string  `json:"updated_at"`
+}
+
+type AssetExchangeRecord struct {
+	ID           int64   `json:"id"`
+	FromCoin     string  `json:"from_coin"`
+	FromAmount   float64 `json:"from_amount"`
+	ToCoin       string  `json:"from_coin"`
+	ToAmount     float64 `json:"from_amount"`
+	ExchangeRate float64 `json:"exchange_rate"`
+	FromFee      float64 `json:"from_fee"`
+	CreatedAt    string  `json:"created_at"`
+}
