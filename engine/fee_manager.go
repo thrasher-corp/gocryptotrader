@@ -15,7 +15,10 @@ import (
 )
 
 const (
-	FeeManagerName         = "FeeManager"
+	// FeeManagerName defines the manager name string
+	FeeManagerName = "fee_manager"
+	// DefaultFeeManagerDelay defines the default duration when the manager
+	// fetches and updates each exchange for its fees
 	DefaultFeeManagerDelay = time.Minute
 )
 
@@ -36,8 +39,7 @@ func SetupFeeManager(interval time.Duration, em iExchangeManager) (*FeeManager, 
 	var f FeeManager
 	if interval <= 0 {
 		log.Warnf(log.ExchangeSys,
-			"%s interval is invalid, defaulting to: %s",
-			FeeManagerName,
+			"Fee manager interval is invalid, defaulting to: %s",
 			DefaultFeeManagerDelay)
 		interval = DefaultFeeManagerDelay
 	}
@@ -49,6 +51,7 @@ func SetupFeeManager(interval time.Duration, em iExchangeManager) (*FeeManager, 
 
 // Start runs the subsystem
 func (f *FeeManager) Start() error {
+	log.Debugln(log.ExchangeSys, "Fee manager starting...")
 	if f == nil {
 		return fmt.Errorf("%s %w", FeeManagerName, ErrNilSubsystem)
 	}
@@ -58,6 +61,7 @@ func (f *FeeManager) Start() error {
 	}
 	f.wg.Add(1)
 	go f.monitor()
+	log.Debugln(log.ExchangeSys, "Fee manager started.")
 	return nil
 }
 
@@ -70,11 +74,11 @@ func (f *FeeManager) Stop() error {
 		return fmt.Errorf("%s %w", FeeManagerName, ErrSubSystemNotStarted)
 	}
 
-	log.Debugf(log.ExchangeSys, "%s %s", FeeManagerName, MsgSubSystemShuttingDown)
+	log.Debugf(log.ExchangeSys, "Fee manager %s", MsgSubSystemShuttingDown)
 	close(f.shutdown)
 	f.wg.Wait()
 	f.shutdown = make(chan struct{})
-	log.Debugf(log.ExchangeSys, "%s %s", FeeManagerName, MsgSubSystemShutdown)
+	log.Debugf(log.ExchangeSys, "Fee manager %s", MsgSubSystemShutdown)
 	atomic.CompareAndSwapInt32(&f.started, 1, 0)
 	return nil
 }
@@ -100,8 +104,7 @@ func (f *FeeManager) monitor() {
 			exchs, err := f.GetExchanges()
 			if err != nil {
 				log.Errorf(log.Global,
-					"%s failed to get exchanges error: %v",
-					FeeManagerName,
+					"Fee manager failed to get exchanges error: %v",
 					err)
 			}
 			for x := range exchs {
@@ -127,8 +130,7 @@ func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.
 	for y := range enabledAssets {
 		err := exch.UpdateCommissionFees(context.TODO(), enabledAssets[y])
 		if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-			log.Errorf(log.ExchangeSys, "%s %s %s: %v",
-				FeeManagerName,
+			log.Errorf(log.ExchangeSys, "Fee manager %s %s: %v",
 				exch.GetName(),
 				enabledAssets[y],
 				err)
@@ -139,8 +141,7 @@ func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.
 	// fees
 	err := exch.UpdateTransferFees(context.TODO())
 	if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-		log.Errorf(log.ExchangeSys, "%s %s: %v",
-			FeeManagerName,
+		log.Errorf(log.ExchangeSys, "Fee manager %s: %v",
 			exch.GetName(),
 			err)
 	}
@@ -149,8 +150,7 @@ func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.
 	// deposit fees
 	err = exch.UpdateBankTransferFees(context.TODO())
 	if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-		log.Errorf(log.ExchangeSys, "%s %s: %v",
-			FeeManagerName,
+		log.Errorf(log.ExchangeSys, "Fee manager %s: %v",
 			exch.GetName(),
 			err)
 	}
