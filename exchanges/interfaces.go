@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -92,6 +93,7 @@ type IBotExchange interface {
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 
 	FeeManagement
+	CurrencyStateManagement
 }
 
 // FeeManagement defines functionality for fee management
@@ -109,4 +111,14 @@ type FeeManagement interface {
 	UpdateBankTransferFees(ctx context.Context) error
 	GetBankTransferFee(c currency.Code, transType fee.BankTransaction) (fee.Transfer, error)
 	SetBankTransferFee(c currency.Code, transType fee.BankTransaction, withdraw, deposit float64, isPercentage bool) error
+}
+
+// CurrencyStateManagement defines functionality for currency state management
+type CurrencyStateManagement interface {
+	GetCurrencyStateSnapshot() ([]currencystate.Snapshot, error)
+	UpdateCurrencyStates(ctx context.Context, a asset.Item) error
+	CanTradePair(p currency.Pair, a asset.Item) error
+	CanTrade(c currency.Code, a asset.Item) error
+	CanWithdraw(c currency.Code, a asset.Item) error
+	CanDeposit(c currency.Code, a asset.Item) error
 }

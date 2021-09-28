@@ -150,6 +150,21 @@ func (b *Bithumb) GetAssetStatus(ctx context.Context, symbol string) (*Status, e
 	return &response, nil
 }
 
+// GetAssetStatusAll returns the withdrawal and deposit status for all symbols
+func (b *Bithumb) GetAssetStatusAll(ctx context.Context) (*StatusAll, error) {
+	var response StatusAll
+	err := b.SendHTTPRequest(ctx, exchange.RestSpot, publicAssetStatus+"ALL", &response)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Status != noError {
+		return nil, errors.New(response.Message)
+	}
+
+	return &response, nil
+}
+
 // GetTransactionHistory returns recent transactions
 //
 // symbol e.g. "btc"

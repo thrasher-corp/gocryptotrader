@@ -60,6 +60,7 @@ func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 		dispatch.Name:                 dispatch.IsRunning(),
 		dataHistoryManagerName:        bot.dataHistoryManager.IsRunning(),
 		FeeManagerName:                bot.feeManager.IsRunning(),
+		CurrencyStateManagementName:   bot.currencyStateManager.IsRunning(),
 	}
 }
 
@@ -278,6 +279,19 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.feeManager.Start()
 		}
 		return bot.feeManager.Stop()
+	case strings.ToLower(CurrencyStateManagementName):
+		if enable {
+			if bot.currencyStateManager == nil {
+				bot.currencyStateManager, err = SetupCurrencyStateManager(
+					bot.Config.CurrencyStateManager.Delay,
+					bot.ExchangeManager)
+				if err != nil {
+					return err
+				}
+				return bot.currencyStateManager.Start()
+			}
+			return bot.currencyStateManager.Stop()
+		}
 	}
 	return fmt.Errorf("%s: %w", subSystemName, errSubsystemNotFound)
 }

@@ -1424,7 +1424,7 @@ func (c *Config) CheckDataHistoryMonitorConfig() {
 
 // CheckFeeManager ensures the fee manager config is valid, or sets default
 // values
-func (c *Config) CheckCurrencyStateManager() {
+func (c *Config) CheckFeeManager() {
 	m.Lock()
 	defer m.Unlock()
 	if c.FeeManager.Delay <= 0 {
@@ -1432,6 +1432,19 @@ func (c *Config) CheckCurrencyStateManager() {
 	}
 	if c.FeeManager.Enabled == nil { // default on, when being upgraded
 		c.FeeManager.Enabled = convert.BoolPtr(true)
+	}
+}
+
+// CheckCurrencyStateManager ensures the currency state config is valid, or sets
+// default values
+func (c *Config) CheckCurrencyStateManager() {
+	m.Lock()
+	defer m.Unlock()
+	if c.CurrencyStateManager.Delay <= 0 {
+		c.CurrencyStateManager.Delay = defaultCurrencyStateManagerDelay
+	}
+	if c.CurrencyStateManager.Enabled == nil { // default on, when being upgraded
+		c.CurrencyStateManager.Enabled = convert.BoolPtr(true)
 	}
 }
 

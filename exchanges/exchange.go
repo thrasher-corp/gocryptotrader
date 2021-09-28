@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -116,8 +117,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	return nil
 }
 
-// SetFeatureDefaults sets the exchanges default feature
-// support set
+// SetFeatureDefaults sets the exchanges default feature support set
 func (b *Base) SetFeatureDefaults() {
 	if b.Config.Features == nil {
 		s := &config.FeaturesConfig{
@@ -623,7 +623,8 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
 
 	b.Fees = fee.NewFeeDefinitions()
-	return err
+	b.States = currencystate.NewCurrencyStates()
+	return nil
 }
 
 // AllowAuthenticatedRequest checks to see if the required fields have been set
@@ -1441,4 +1442,9 @@ func (b *Base) GetBankTransferFee(c currency.Code, transType fee.BankTransaction
 // bank transaction
 func (b *Base) SetBankTransferFee(c currency.Code, transType fee.BankTransaction, withdraw, deposit float64, isPercentage bool) error {
 	return b.Fees.SetBankTransferFee(c, transType, withdraw, deposit, isPercentage)
+}
+
+// UpdateCurrencyStates updates currency states
+func (b *Base) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
+	return common.ErrNotYetImplemented
 }

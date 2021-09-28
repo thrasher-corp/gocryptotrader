@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -44,6 +45,7 @@ const (
 	unexpectedLackOfError = "unexpected lack of error"
 	migrationsFolder      = "migrations"
 	databaseFolder        = "database"
+	fakeExchangeName      = "fake"
 )
 
 // fExchange is a fake exchange with function overrides
@@ -54,7 +56,7 @@ type fExchange struct {
 
 func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair:     p,
 		Asset:    a,
 		Interval: interval,
@@ -73,7 +75,7 @@ func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a as
 
 func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair:     p,
 		Asset:    a,
 		Interval: interval,
@@ -138,6 +140,16 @@ func (f fExchange) GetAllFees() (fee.Options, error) {
 	}, nil
 }
 
+// GetCurrencyStateSnapshot overrides interface function
+func (f fExchange) GetCurrencyStateSnapshot() ([]currencystate.Snapshot, error) {
+	return []currencystate.Snapshot{
+		{
+			Code:  currency.BTC,
+			Asset: asset.Spot,
+		},
+	}, nil
+}
+
 // SetTransferFee overrides interface function
 func (f fExchange) SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, isPercentage bool) error {
 	return nil
@@ -150,6 +162,27 @@ func (f fExchange) SetCommissionFee(a asset.Item, maker, taker float64, isSetAmo
 
 // SetBankTransferFee overrides interface function
 func (f fExchange) SetBankTransferFee(c currency.Code, transType fee.BankTransaction, withdraw, deposit float64, isPercentage bool) error {
+
+	return nil
+}
+
+// CanTradePair overrides interface function
+func (f fExchange) CanTradePair(p currency.Pair, a asset.Item) error {
+	return nil
+}
+
+// CanTrade overrides interface function
+func (f fExchange) CanTrade(c currency.Code, a asset.Item) error {
+	return nil
+}
+
+// CanWithdraw overrides interface function
+func (f fExchange) CanWithdraw(c currency.Code, a asset.Item) error {
+	return nil
+}
+
+// CanDeposit overrides interface function
+func (f fExchange) CanDeposit(c currency.Code, a asset.Item) error {
 	return nil
 }
 
@@ -269,7 +302,7 @@ func TestGetSavedTrades(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -880,7 +913,7 @@ func TestGetRecentTrades(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -928,7 +961,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -965,7 +998,7 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := exch.GetBase()
-	b.Name = "fake"
+	b.Name = fakeExchangeName
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -976,7 +1009,7 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
-	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
+	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -990,7 +1023,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := exch.GetBase()
-	b.Name = "fake"
+	b.Name = fakeExchangeName
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -1002,18 +1035,18 @@ func TestUpdateAccountInfo(t *testing.T) {
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
-	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
+	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 
-	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Futures.String()})
+	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Futures.String()})
 	if !errors.Is(err, errAssetTypeDisabled) {
 		t.Errorf("received '%v', expected '%v'", err, errAssetTypeDisabled)
 	}
 
 	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{
-		Exchange:  "fake",
+		Exchange:  fakeExchangeName,
 		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, nil) {
@@ -2019,5 +2052,89 @@ func TestSetBankTransferFee(t *testing.T) {
 	_, err = s.SetBankTransferFee(context.Background(), &gctrpc.SetBankTransferFeeRequest{Exchange: "fake"})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCurrencyStateGetAll(t *testing.T) {
+	t.Parallel()
+	_, err := (&RPCServer{Engine: &Engine{}}).CurrencyStateGetAll(context.Background(),
+		&gctrpc.CurrencyStateGetAllRequest{Exchange: fakeExchangeName})
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("received %v, expected %v", err, ErrSubSystemNotStarted)
+	}
+}
+
+func TestCurrencyStateWithdraw(t *testing.T) {
+	t.Parallel()
+	_, err := (&RPCServer{
+		Engine: &Engine{},
+	}).CurrencyStateWithdraw(context.Background(),
+		&gctrpc.CurrencyStateWithdrawRequest{
+			Exchange: "wow"})
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
+	}
+}
+
+func TestCurrencyStateDeposit(t *testing.T) {
+	t.Parallel()
+	_, err := (&RPCServer{
+		Engine: &Engine{},
+	}).CurrencyStateDeposit(context.Background(),
+		&gctrpc.CurrencyStateDepositRequest{Exchange: "wow"})
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
+	}
+}
+
+func TestCurrencyStateTrading(t *testing.T) {
+	t.Parallel()
+	_, err := (&RPCServer{
+		Engine: &Engine{},
+	}).CurrencyStateTrading(context.Background(),
+		&gctrpc.CurrencyStateTradingRequest{Exchange: "wow"})
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
+	}
+}
+
+func TestCurrencyStateTradingPair(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em,
+		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em}}}
+
+	_, err = s.CurrencyStateTradingPair(context.Background(),
+		&gctrpc.CurrencyStateTradingPairRequest{
+			Exchange: fakeExchangeName,
+			Pair:     "btc-usd",
+			Asset:    "spot",
+		})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
 	}
 }

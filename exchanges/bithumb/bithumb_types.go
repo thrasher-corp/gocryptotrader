@@ -339,3 +339,14 @@ type Status struct {
 	} `json:"data"`
 	Message string `json:"message"`
 }
+
+// StatusAll defines the current exchange allowance to deposit or withdraw a
+// currency
+type StatusAll struct {
+	Status string `json:"status"`
+	Data   map[string]struct {
+		DepositStatus    int64 `json:"deposit_status"`
+		WithdrawalStatus int64 `json:"withdrawal_status"`
+	} `json:"data"`
+	Message string `json:"message"`
+}

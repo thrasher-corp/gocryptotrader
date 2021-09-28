@@ -393,6 +393,17 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 			err)
 	}
 
+	// Determines if current trading activity is turned off by the exchange for
+	// the currency pair
+	err = exch.CanTradePair(newOrder.Pair, newOrder.AssetType)
+	if err != nil {
+		return nil, fmt.Errorf("order manager: exchange %s cannot trade pair %s %s: %w",
+			newOrder.Exchange,
+			newOrder.Pair,
+			newOrder.AssetType,
+			err)
+	}
+
 	result, err := exch.SubmitOrder(ctx, newOrder)
 	if err != nil {
 		return nil, err

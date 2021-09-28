@@ -25,6 +25,14 @@ func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManage
 	em := SetupExchangeManager()
 	b := new(binance.Binance)
 	b.SetDefaults()
+	cfg, err := b.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.Setup(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	em.Add(b)
 	pm, err := setupPortfolioManager(em, 0, &portfolio.Base{Addresses: []portfolio.Address{}})
 	if err != nil {

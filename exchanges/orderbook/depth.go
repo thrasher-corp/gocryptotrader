@@ -2,11 +2,11 @@ package orderbook
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -18,7 +18,7 @@ type Depth struct {
 	// unexported stack of nodes
 	stack *stack
 
-	Alert
+	alert.Notice
 
 	mux *dispatch.Mux
 	id  uuid.UUID
@@ -101,7 +101,7 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 	d.restSnapshot = updateByREST
 	d.bids.load(bids, d.stack)
 	d.asks.load(asks, d.stack)
-	d.alert()
+	d.Alert()
 	d.m.Unlock()
 }
 
@@ -112,7 +112,7 @@ func (d *Depth) Flush() {
 	d.lastUpdated = time.Time{}
 	d.bids.load(nil, d.stack)
 	d.asks.load(nil, d.stack)
-	d.alert()
+	d.Alert()
 	d.m.Unlock()
 }
 
@@ -132,7 +132,7 @@ func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int, last
 	if len(askUpdts) != 0 {
 		d.asks.updateInsertByPrice(askUpdts, d.stack, maxDepth, tn)
 	}
-	d.alert()
+	d.Alert()
 	d.m.Unlock()
 }
 
@@ -157,7 +157,7 @@ func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items, lastUpdateID int64, l
 	}
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
-	d.alert()
+	d.Alert()
 	return nil
 }
 
@@ -182,7 +182,7 @@ func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool, lastU
 	}
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
-	d.alert()
+	d.Alert()
 	return nil
 }
 
@@ -207,7 +207,7 @@ func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items, lastUpdateID int64, l
 	}
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
-	d.alert()
+	d.Alert()
 	return nil
 }
 
@@ -230,7 +230,7 @@ func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items, lastUpdateID int64, l
 			return err
 		}
 	}
-	d.alert()
+	d.Alert()
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
 	return nil
@@ -280,80 +280,4 @@ func (d *Depth) IsFundingRate() bool {
 	d.m.Lock()
 	defer d.m.Unlock()
 	return d.isFundingRate
-}
-
-// Alert defines fields required to alert sub-systems of a change of state to
-// re-check depth list
-type Alert struct {
-	// Channel to wait for an alert on.
-	forAlert chan struct{}
-	// Lets the updater functions know if there are any routines waiting for an
-	// alert.
-	sema uint32
-	// After closing the forAlert channel this will notify when all the routines
-	// that have waited, have either checked the orderbook depth or finished.
-	wg sync.WaitGroup
-	// Segregated lock only for waiting routines, so as this does not interfere
-	// with the main depth lock, acts as a rolling gate.
-	m sync.Mutex
-}
-
-// alert establishes a state change on the orderbook depth.
-func (a *Alert) alert() {
-	// CompareAndSwap is used to swap from 1 -> 2 so we don't keep actuating
-	// the opposing compare and swap in method wait. This function can return
-	// freely when an alert operation is in process.
-	if !atomic.CompareAndSwapUint32(&a.sema, 1, 2) {
-		// Return if no waiting routines or currently alerting.
-		return
-	}
-
-	go func() {
-		// Actuate lock in a different routine, as alerting is a second order
-		// priority compared to updating and releasing calling routine.
-		a.m.Lock()
-		// Closing; alerts many waiting routines.
-		close(a.forAlert)
-		// Wait for waiting routines to receive alert and return.
-		a.wg.Wait()
-		atomic.SwapUint32(&a.sema, 0) // Swap back to neutral state.
-		a.m.Unlock()
-	}()
-}
-
-// Wait pauses calling routine until depth change has been established via depth
-// method alert. Kick allows for cancellation of waiting or when the caller has
-// has been shut down, if this is not needed it can be set to nil. This
-// returns a channel so strategies can cleanly wait on a select statement case.
-func (a *Alert) Wait(kick <-chan struct{}) <-chan bool {
-	reply := make(chan bool)
-	a.m.Lock()
-	a.wg.Add(1)
-	if atomic.CompareAndSwapUint32(&a.sema, 0, 1) {
-		a.forAlert = make(chan struct{})
-	}
-	go a.hold(reply, kick)
-	a.m.Unlock()
-	return reply
-}
-
-// hold waits on either channel in the event that the routine has finished or an
-// alert from a depth update has occurred.
-func (a *Alert) hold(ch chan<- bool, kick <-chan struct{}) {
-	select {
-	// In a select statement, if by chance there is no receiver or its late,
-	// we can still close and return, limiting dead-lock potential.
-	case <-a.forAlert: // Main waiting channel from alert
-		select {
-		case ch <- false:
-		default:
-		}
-	case <-kick: // This can be nil.
-		select {
-		case ch <- true:
-		default:
-		}
-	}
-	a.wg.Done()
-	close(ch)
 }

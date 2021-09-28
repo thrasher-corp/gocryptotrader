@@ -652,3 +652,19 @@ func TestGetAssetStatus(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 }
+
+func TestGetAssetStatusAll(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetAssetStatusAll(context.Background())
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+}
+
+func TestUpdateCurrencyStates(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateCurrencyStates(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+}
