@@ -982,14 +982,16 @@ message Commission {
 message TransferFees {
     string currency = 1;
     string asset = 2;
-    double deposit = 3;
-    double maximum_deposit = 4;
-    double minimum_deposit = 5;
-    double withdrawal = 6;
-    double maximum_withdrawal = 7;
-    double minimum_withdrawal = 8;
-    bool is_percentage = 9; 
-    string transfer_type = 10;
+    bool deposit_enabled = 3;
+    double deposit = 4;
+    double maximum_deposit = 5;
+    double minimum_deposit = 6;
+    bool withdrawal_enabled = 7;
+    double withdrawal = 8;
+    double maximum_withdrawal = 9;
+    double minimum_withdrawal = 10;
+    bool is_percentage = 11; 
+    string transfer_type = 12;
 }
 
 message SetCommissionRequest {

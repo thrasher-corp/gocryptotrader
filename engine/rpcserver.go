@@ -3949,6 +3949,7 @@ func addTransferFee(c currency.Code, a asset.Item, bt fee.BankTransaction, val f
 	}
 
 	if val.Deposit != nil {
+		rpcOut.DepositEnabled = true
 		rpcOut.Deposit = *val.Deposit
 		if val.MaximumDeposit != nil {
 			rpcOut.MaximumDeposit = *val.MaximumDeposit
@@ -3958,6 +3959,7 @@ func addTransferFee(c currency.Code, a asset.Item, bt fee.BankTransaction, val f
 		}
 	}
 	if val.Withdrawal != nil {
+		rpcOut.WithdrawalEnabled = true
 		rpcOut.Withdrawal = *val.Withdrawal
 		if val.MaximumWithdrawal != nil {
 			rpcOut.MaximumWithdrawal = *val.MaximumWithdrawal

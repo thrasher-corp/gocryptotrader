@@ -5155,6 +5155,9 @@
         "asset": {
           "type": "string"
         },
+        "depositEnabled": {
+          "type": "boolean"
+        },
         "deposit": {
           "type": "number",
           "format": "double"
@@ -5166,6 +5169,9 @@
         "minimumDeposit": {
           "type": "number",
           "format": "double"
+        },
+        "withdrawalEnabled": {
+          "type": "boolean"
         },
         "withdrawal": {
           "type": "number",

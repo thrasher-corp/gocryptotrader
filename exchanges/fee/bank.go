@@ -66,7 +66,7 @@ func (b BankTransaction) String() string {
 	case Payeer:
 		return "Payeer"
 	case Skrill:
-		return "Skrill" // skrillex dubstep bank lol
+		return "Skrill"
 	case Simplex:
 		return "Simplex"
 	case SEPA:
@@ -91,6 +91,38 @@ func (b BankTransaction) String() string {
 		return "MoneyGram"
 	case Contact:
 		return "Contact"
+	case PayIDOsko:
+		return "PayID/Osko"
+	case BankCardVisa:
+		return "BankCard Visa"
+	case BankCardMastercard:
+		return "BankCard Mastercard"
+	case BankCardMIR:
+		return "BankCard MIR"
+	case CreditCardMastercard:
+		return "CreditCard Mastercard"
+	case Sofort:
+		return "Sofort"
+	case P2P:
+		return "P2P"
+	case Etana:
+		return "Etana"
+	case FasterPayments:
+		return "FasterPayments"
+	case MobileMoney:
+		return "MobileMoney"
+	case CashTransfer:
+		return "CashTransfer"
+	case YandexMoney:
+		return "YandexMoney"
+	case GEOPay:
+		return "GEOPay"
+	case SettlePay:
+		return "SettlePay"
+	case ExchangeFiatDWChannelSignetUSD:
+		return "ExchangeFiatDWChannelSignetUSD"
+	case ExchangeFiatDWChannelSwiftSignatureBar:
+		return "ExchangeFiatDWChannelSignetUSD"
 	default:
 		return ""
 	}
@@ -117,7 +149,23 @@ func (b BankTransaction) Validate() error {
 		Capitalist,
 		WesternUnion,
 		MoneyGram,
-		Contact:
+		Contact,
+		PayIDOsko,
+		BankCardVisa,
+		BankCardMastercard,
+		BankCardMIR,
+		CreditCardMastercard,
+		Sofort,
+		P2P,
+		Etana,
+		FasterPayments,
+		MobileMoney,
+		CashTransfer,
+		YandexMoney,
+		GEOPay,
+		SettlePay,
+		ExchangeFiatDWChannelSignetUSD,
+		ExchangeFiatDWChannelSwiftSignatureBar:
 		return nil
 	default:
 		return fmt.Errorf("%d: %w", b, errUnknownBankTransaction)
