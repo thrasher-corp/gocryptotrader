@@ -1,8 +1,6 @@
 package funding
 
 import (
-	"time"
-
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -15,30 +13,35 @@ import (
 // currencies used in the backtester
 type FundManager struct {
 	usingExchangeLevelFunding bool
+	disableUSDTracking        bool
 	items                     []*Item
 }
 
 // Report holds all funding data for result reporting
 type Report struct {
-	InitialTotalUSD decimal.Decimal
-	FinalTotalUSD   decimal.Decimal
+	USDInitialTotal decimal.Decimal
+	USDFinalTotal   decimal.Decimal
 	Difference      decimal.Decimal
 	Items           []ReportItem
 }
 
 // ReportItem holds reporting fields
 type ReportItem struct {
-	Exchange        string
-	Asset           asset.Item
-	Currency        currency.Code
-	InitialFunds    decimal.Decimal
-	InitialFundsUSD decimal.Decimal
-	TransferFee     decimal.Decimal
-	FinalFunds      decimal.Decimal
-	FinalFundsUSD   decimal.Decimal
-	Difference      decimal.Decimal
-	ShowInfinite    bool
-	PairedWith      currency.Code
+	Exchange             string
+	Asset                asset.Item
+	Currency             currency.Code
+	TransferFee          decimal.Decimal
+	InitialFunds         decimal.Decimal
+	FinalFunds           decimal.Decimal
+	USDInitialFunds      decimal.Decimal
+	USDInitialCostForOne decimal.Decimal
+	USDFinalFunds        decimal.Decimal
+	USDFinalCostForOne   decimal.Decimal
+	USDAllFunds          []decimal.Decimal
+
+	Difference   decimal.Decimal
+	ShowInfinite bool
+	PairedWith   currency.Code
 }
 
 // IFundingManager limits funding usage for portfolio event handling
@@ -49,7 +52,7 @@ type IFundingManager interface {
 	GetFundingForEvent(common.EventHandler) (*Pair, error)
 	GetFundingForEAP(string, asset.Item, currency.Pair) (*Pair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
-	GenerateReport(startDate, endDate time.Time) *Report
+	GenerateReport() *Report
 	AddUSDTrackingData(*kline.DataFromKline) error
 }
 

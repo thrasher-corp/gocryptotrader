@@ -74,7 +74,7 @@ func TestFindMatchingUSDPairs(t *testing.T) {
 			availablePairs: &currency.PairStore{Available: currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)}},
 			basePair:       currency.Pair{},
 			quotePair:      currency.Pair{},
-			expectedErr:    errCurrencyContainsUSD,
+			expectedErr:    ErrCurrencyContainsUSD,
 		},
 		{
 			description:    "successful",

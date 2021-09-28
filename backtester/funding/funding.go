@@ -3,20 +3,15 @@ package funding
 import (
 	"errors"
 	"fmt"
-	"os"
-	"strings"
-	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	fbase "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
-	exchangeratehost "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/exchangerate.host"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -34,8 +29,11 @@ var (
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
 // across all execution handlers and enables fund transfers
-func SetupFundingManager(usingExchangeLevelFunding bool) *FundManager {
-	return &FundManager{usingExchangeLevelFunding: usingExchangeLevelFunding}
+func SetupFundingManager(usingExchangeLevelFunding, disableUSDTracking bool) *FundManager {
+	return &FundManager{
+		usingExchangeLevelFunding: usingExchangeLevelFunding,
+		disableUSDTracking:        disableUSDTracking,
+	}
 }
 
 // CreateItem creates a new funding item
@@ -61,21 +59,49 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 // only in the event that it is not USD and there is data
 func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 	if f == nil {
-		return errors.New("woah nelly")
+		return errors.New("woah nelly, nil manager")
 	}
 	if f.items == nil {
-		return errors.New("woah nelly")
+		return errors.New("woah nelly, nil items")
 	}
+	baseSet := false
+	quoteSet := false
 	for i := range f.items {
+		if baseSet && quoteSet {
+			return nil
+		}
 		if f.items[i].exchange == k.Item.Exchange &&
-			f.items[i].asset == k.Item.Asset &&
-			trackingcurrencies.PairContainsUSD(k.Item.Pair) &&
-			f.items[i].currency == k.Item.Pair.Base &&
-			!trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
-			f.items[i].usdTrackingCandles = k
+			f.items[i].asset == k.Item.Asset {
+
+			if f.items[i].currency == k.Item.Pair.Base {
+				if f.items[i].usdTrackingCandles == nil &&
+					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
+					f.items[i].usdTrackingCandles = k
+				}
+				baseSet = true
+			}
+			if trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
+				if f.items[i].usdTrackingCandles == nil {
+					cpy := *k
+					var cpyCandles []gctkline.Candle
+					copy(cpy.Item.Candles, cpyCandles)
+					cpy.Item.Candles = cpyCandles
+					for j := range cpy.Item.Candles {
+						cpy.Item.Candles[j].Open = 1
+						cpy.Item.Candles[j].High = 1
+						cpy.Item.Candles[j].Low = 1
+						cpy.Item.Candles[j].Close = 1
+					}
+					f.items[i].usdTrackingCandles = &cpy
+				}
+				quoteSet = true
+			}
 		}
 	}
-	return errors.New("woah nelly")
+	if baseSet {
+		return nil
+	}
+	return fmt.Errorf("cannot match %v %v %v to funding items", k.Item.Exchange, k.Item.Asset, k.Item.Pair)
 }
 
 // CreatePair adds two funding items and associates them with one another
@@ -104,74 +130,32 @@ func (f *FundManager) Reset() {
 }
 
 // GenerateReport builds report data for result HTML report
-func (f *FundManager) GenerateReport(startDate, endDate time.Time) *Report {
+func (f *FundManager) GenerateReport() *Report {
 	report := &Report{}
 	var items []ReportItem
-	var erh exchangeratehost.ExchangeRateHost
-	var skipAPICheck bool
 	for i := range f.items {
-		// exact conversion not required for initial version
-		fInitialFunds, _ := f.items[i].initialFunds.Float64()
-		fFinalFunds, _ := f.items[i].available.Float64()
-		var initialWorthDecimal, finalWorthDecimal decimal.Decimal
-		if f.items[i].usdTrackingCandles != nil {
-			usdStream := f.items[i].usdTrackingCandles.StreamClose()
-			initialWorthDecimal = f.items[i].initialFunds.Mul(usdStream[0])
-			finalWorthDecimal = f.items[i].available.Mul(usdStream[len(usdStream)-1])
-		} else {
-			if !skipAPICheck {
-				os.Exit(-1)
-				err := erh.Setup(fbase.Settings{Enabled: true})
-				if err != nil {
-					log.Errorf(log.CommunicationMgr, "issue setting up exchangerate.host API %v", err)
-					skipAPICheck = true
-				}
-			}
-			// calculating totals for shared funding across multiple currency pairs is difficult
-			// converting totals using a free API is better suited as an initial concept
-			// TODO convert currencies without external dependency
-			if strings.Contains(f.items[i].currency.String(), "USD") {
-				// not worth converting
-				initialWorthDecimal = f.items[i].initialFunds
-				finalWorthDecimal = f.items[i].available
-			} else {
-				from := f.items[i].currency.String()
-				to := "USD"
-				if from == "BTC" {
-					// api has conversion difficulties for BTC to USD only
-					to = "BUSD"
-				}
-				if fInitialFunds > 0 {
-					initialWorth, err := erh.ConvertCurrency(from, to, "", "", "crypto", startDate, fInitialFunds, 0)
-					if err != nil {
-						log.Errorf(log.CommunicationMgr, "issue converting %v to %v at %v on exchangerate.host API %v", from, to, startDate, err)
-					} else {
-						initialWorthDecimal = decimal.NewFromFloat(initialWorth.Result)
-					}
-				}
-				if fFinalFunds > 0 {
-					finalWorth, err := erh.ConvertCurrency(from, to, "", "", "crypto", endDate, fFinalFunds, 0)
-					if err != nil {
-						log.Errorf(log.CommunicationMgr, "issue converting %v to %v at %v on exchangerate.host API %v", from, to, endDate, err)
-					} else {
-						finalWorthDecimal = decimal.NewFromFloat(finalWorth.Result)
-					}
-				}
-
-			}
-		}
-
 		item := ReportItem{
 			Exchange:        f.items[i].exchange,
 			Asset:           f.items[i].asset,
 			Currency:        f.items[i].currency,
 			InitialFunds:    f.items[i].initialFunds,
-			InitialFundsUSD: initialWorthDecimal.Round(2),
 			TransferFee:     f.items[i].transferFee,
 			FinalFunds:      f.items[i].available,
-			FinalFundsUSD:   finalWorthDecimal.Round(2),
+			USDInitialFunds: f.items[i].initialFunds,
+			USDFinalFunds:   f.items[i].available,
 		}
-
+		if !f.disableUSDTracking &&
+			f.items[i].usdTrackingCandles != nil &&
+			!trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
+			usdStream := f.items[i].usdTrackingCandles.GetStream()
+			for i := range usdStream {
+				item.USDAllFunds = append(item.USDAllFunds, usdStream[i].ClosePrice())
+			}
+			item.USDInitialFunds = f.items[i].initialFunds.Mul(usdStream[0].ClosePrice())
+			item.USDFinalFunds = f.items[i].available.Mul(usdStream[len(usdStream)-1].ClosePrice())
+			item.USDInitialCostForOne = usdStream[0].ClosePrice()
+			item.USDFinalCostForOne = usdStream[len(usdStream)-1].ClosePrice()
+		}
 		if f.items[i].initialFunds.IsZero() {
 			item.ShowInfinite = true
 		} else {
@@ -180,13 +164,15 @@ func (f *FundManager) GenerateReport(startDate, endDate time.Time) *Report {
 		if f.items[i].pairedWith != nil {
 			item.PairedWith = f.items[i].pairedWith.currency
 		}
-		report.InitialTotalUSD = report.InitialTotalUSD.Add(initialWorthDecimal).Round(2)
-		report.FinalTotalUSD = report.FinalTotalUSD.Add(finalWorthDecimal).Round(2)
+		report.USDInitialTotal = report.USDInitialTotal.Add(item.USDInitialFunds)
+		report.USDFinalTotal = report.USDFinalTotal.Add(item.USDFinalFunds)
 		items = append(items, item)
 	}
-	if !report.InitialTotalUSD.IsZero() {
-		report.Difference = report.FinalTotalUSD.Sub(report.InitialTotalUSD).Div(report.InitialTotalUSD).Mul(decimal.NewFromInt(100))
+	if !report.USDInitialTotal.IsZero() {
+		report.Difference = report.USDFinalTotal.Sub(report.USDInitialTotal).Div(report.USDInitialTotal).Mul(decimal.NewFromInt(100))
 	}
+	report.USDInitialTotal = report.USDInitialTotal.Round(2)
+	report.USDFinalTotal = report.USDFinalTotal.Round(2)
 	report.Items = items
 	return report
 }

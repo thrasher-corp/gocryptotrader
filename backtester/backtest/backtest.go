@@ -105,9 +105,11 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		SellSide: sellRule,
 	}
 
-	useExchangeLevelFunding := cfg.StrategySettings.UseExchangeLevelFunding
-	funds := funding.SetupFundingManager(useExchangeLevelFunding)
-	if useExchangeLevelFunding {
+	funds := funding.SetupFundingManager(
+		cfg.StrategySettings.UseExchangeLevelFunding,
+		cfg.StrategySettings.DisableUSDTracking,
+	)
+	if cfg.StrategySettings.UseExchangeLevelFunding {
 		for i := range cfg.StrategySettings.ExchangeLevelFunding {
 			var a asset.Item
 			a, err = asset.New(cfg.StrategySettings.ExchangeLevelFunding[i].Asset)
@@ -134,14 +136,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	portfolioRisk := &risk.Risk{
 		CurrencySettings: make(map[string]map[asset.Item]map[currency.Pair]*risk.CurrencySettings),
 	}
-	var trackingPairs []trackingcurrencies.TrackingPair
-	for i := range cfg.CurrencySettings {
 
-	}
-	cfg.CurrencySettings, err = trackingcurrencies.CreateUSDTrackingPairs(cfg.CurrencySettings)
-	if err != nil {
-		return nil, err
-	}
 	for i := range cfg.CurrencySettings {
 		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] == nil {
 			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[currency.Pair]*risk.CurrencySettings)
@@ -198,7 +193,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		}
 
 		var baseItem, quoteItem *funding.Item
-		if useExchangeLevelFunding {
+		if cfg.StrategySettings.UseExchangeLevelFunding {
 			// add any remaining currency items that have no funding data in the strategy config
 			baseItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 				a,
@@ -262,11 +257,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		}
 	}
 
-	cfg.CurrencySettings, err = trackingcurrencies.CreateUSDTrackingPairs(cfg.CurrencySettings)
-	if err != nil {
-		return nil, err
-	}
-
 	bt.Funding = funds
 	var p *portfolio.Portfolio
 	p, err = portfolio.Setup(sizeManager, portfolioRisk, cfg.StatisticSettings.RiskFreeRate)
@@ -295,6 +285,40 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	}
 	bt.Statistic = stats
 	reports.Statistics = stats
+
+	if !cfg.StrategySettings.DisableUSDTracking {
+		var trackingPairs []trackingcurrencies.TrackingPair
+		for i := range cfg.CurrencySettings {
+			trackingPairs = append(trackingPairs, trackingcurrencies.TrackingPair{
+				Exchange: cfg.CurrencySettings[i].ExchangeName,
+				Asset:    cfg.CurrencySettings[i].Asset,
+				Base:     cfg.CurrencySettings[i].Base,
+				Quote:    cfg.CurrencySettings[i].Quote,
+			})
+		}
+		trackingPairs, err = trackingcurrencies.CreateUSDTrackingPairs(trackingPairs)
+		if err != nil {
+			return nil, err
+		}
+	trackingPairCheck:
+		for i := range trackingPairs {
+			for j := range cfg.CurrencySettings {
+				if cfg.CurrencySettings[j].ExchangeName == trackingPairs[i].Exchange &&
+					cfg.CurrencySettings[j].Asset == trackingPairs[i].Asset &&
+					cfg.CurrencySettings[j].Base == trackingPairs[i].Base &&
+					cfg.CurrencySettings[j].Quote == trackingPairs[i].Quote {
+					continue trackingPairCheck
+				}
+			}
+			cfg.CurrencySettings = append(cfg.CurrencySettings, config.CurrencySettings{
+				ExchangeName:      trackingPairs[i].Exchange,
+				Asset:             trackingPairs[i].Asset,
+				Base:              trackingPairs[i].Base,
+				Quote:             trackingPairs[i].Quote,
+				PriceTrackingOnly: true,
+			})
+		}
+	}
 
 	e, err := bt.setupExchangeSettings(cfg)
 	if err != nil {
@@ -344,12 +368,11 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			return resp, err
 		}
 
-		if cfg.CurrencySettings[i].PriceTrackingOnly {
-			err = bt.Funding.AddUSDTrackingData(klineData)
-			if err != nil {
-				return resp, err
-			}
-		} else {
+		err = bt.Funding.AddUSDTrackingData(klineData)
+		if err != nil && !errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) {
+			return resp, err
+		}
+		if !cfg.CurrencySettings[i].PriceTrackingOnly {
 			bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
 			var makerFee, takerFee decimal.Decimal
 			if cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {

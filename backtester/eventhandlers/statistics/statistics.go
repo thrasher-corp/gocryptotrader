@@ -162,15 +162,12 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 	currCount := 0
 	var finalResults []FinalResultsHolder
 	var err error
-	var startDate, endDate time.Time
 	for exchangeName, exchangeMap := range s.ExchangeAssetPairStatistics {
 		for assetItem, assetMap := range exchangeMap {
 			for pair, stats := range assetMap {
 				currCount++
 				var f funding.IPairReader
 				last := stats.Events[len(stats.Events)-1]
-				startDate = stats.Events[0].DataEvent.GetTime()
-				endDate = last.DataEvent.GetTime()
 				var event common.EventHandler
 				switch {
 				case last.FillEvent != nil:
@@ -210,7 +207,7 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 			}
 		}
 	}
-	s.Funding = funds.GenerateReport(startDate, endDate)
+	s.Funding = funds.GenerateReport()
 	s.TotalOrders = s.TotalBuyOrders + s.TotalSellOrders
 	if currCount > 1 {
 		s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies(finalResults)
@@ -237,9 +234,9 @@ func (s *Statistic) PrintTotalResults(isUsingExchangeLevelFunding bool) {
 			log.Infof(log.BackTester, "Paired with: %v", s.Funding.Items[i].PairedWith)
 		}
 		log.Infof(log.BackTester, "Initial funds: %v", s.Funding.Items[i].InitialFunds)
-		log.Infof(log.BackTester, "Initial funds in USD: $%v", s.Funding.Items[i].InitialFundsUSD)
+		log.Infof(log.BackTester, "Initial funds in USD: $%v", s.Funding.Items[i].USDInitialFunds)
 		log.Infof(log.BackTester, "Final funds: %v", s.Funding.Items[i].FinalFunds)
-		log.Infof(log.BackTester, "Final funds in USD: $%v", s.Funding.Items[i].FinalFundsUSD)
+		log.Infof(log.BackTester, "Final funds in USD: $%v", s.Funding.Items[i].USDFinalFunds)
 		if s.Funding.Items[i].InitialFunds.IsZero() {
 			log.Info(log.BackTester, "Difference: ∞%")
 		} else {
@@ -250,8 +247,8 @@ func (s *Statistic) PrintTotalResults(isUsingExchangeLevelFunding bool) {
 		}
 		log.Info(log.BackTester, "")
 	}
-	log.Infof(log.BackTester, "Initial total funds in USD: $%v", s.Funding.InitialTotalUSD)
-	log.Infof(log.BackTester, "Final total funds in USD: $%v", s.Funding.FinalTotalUSD)
+	log.Infof(log.BackTester, "Initial total funds in USD: $%v", s.Funding.USDInitialTotal)
+	log.Infof(log.BackTester, "Final total funds in USD: $%v", s.Funding.USDFinalTotal)
 	log.Infof(log.BackTester, "Difference: %v%%\n", s.Funding.Difference)
 
 	log.Info(log.BackTester, "------------------Total Results------------------------------")

@@ -28,12 +28,13 @@ var rankedUSDs = []currency.Code{
 }
 
 var (
-	errNilPairs                = errors.New("cannot assess with nil available pairs")
-	errNoMatchingPairUSDFound  = errors.New("currency pair has no USD back equivalent, cannot track price")
-	errCurrencyNotFoundInPairs = errors.New("currency does not exist in available pairs")
-	errNoMatchingBaseUSDFound  = errors.New("base currency has no USD back equivalent, cannot track price")
-	errNoMatchingQuoteUSDFound = errors.New("quote currency has no USD back equivalent, cannot track price")
-	errCurrencyContainsUSD     = errors.New("currency already contains a USD equivalent")
+	errNilPairs                   = errors.New("cannot assess with nil available pairs")
+	errNoMatchingPairUSDFound     = errors.New("currency pair has no USD backed equivalent, cannot track price")
+	errCurrencyNotFoundInPairs    = errors.New("currency does not exist in available pairs")
+	errNoMatchingBaseUSDFound     = errors.New("base currency has no USD back equivalent, cannot track price")
+	errNoMatchingQuoteUSDFound    = errors.New("quote currency has no USD back equivalent, cannot track price")
+	ErrCurrencyContainsUSD        = errors.New("currency already contains a USD equivalent")
+	ErrCurrencyDoesNotContainsUSD = errors.New("currency does not contains a USD equivalent")
 )
 
 type TrackingPair struct {
@@ -46,13 +47,13 @@ type TrackingPair struct {
 // CreateUSDTrackingPairs is responsible for loading exchanges,
 // ensuring the exchange have the latest currency pairs and
 // if a pair doesn't have a USD currency to track price, to add those settings
-func CreateUSDTrackingPairs(cs []TrackingPair) ([]TrackingPair, error) {
+func CreateUSDTrackingPairs(tp []TrackingPair) ([]TrackingPair, error) {
 	em := engine.SetupExchangeManager()
 	var emm = make(map[string]exchange.IBotExchange)
 	var wg sync.WaitGroup
 	var err error
-	for i := range cs {
-		emm[cs[i].Exchange] = nil
+	for i := range tp {
+		emm[tp[i].Exchange] = nil
 	}
 	wg.Add(len(emm))
 	for k := range emm {
@@ -83,20 +84,20 @@ func CreateUSDTrackingPairs(cs []TrackingPair) ([]TrackingPair, error) {
 	wg.Wait()
 
 	var resp []TrackingPair
-	for i := range cs {
-		exch := emm[strings.ToLower(cs[i].Exchange)]
+	for i := range tp {
+		exch := emm[strings.ToLower(tp[i].Exchange)]
 		if exch == nil {
-			return nil, fmt.Errorf("%v %w", cs[i].Exchange, engine.ErrExchangeNotFound)
+			return nil, fmt.Errorf("%v %w", tp[i].Exchange, engine.ErrExchangeNotFound)
 		}
-		pair, err := currency.NewPairFromStrings(cs[i].Base, cs[i].Quote)
+		pair, err := currency.NewPairFromStrings(tp[i].Base, tp[i].Quote)
 		if err != nil {
 			return nil, err
 		}
 		if PairContainsUSD(pair) {
-			resp = append(resp, cs[i])
+			resp = append(resp, tp[i])
 		} else {
 			b := exch.GetBase()
-			a, err := asset.New(cs[i].Asset)
+			a, err := asset.New(tp[i].Asset)
 			if err != nil {
 				return nil, err
 			}
@@ -105,16 +106,16 @@ func CreateUSDTrackingPairs(cs []TrackingPair) ([]TrackingPair, error) {
 			if err != nil {
 				return nil, err
 			}
-			resp = append(resp, cs[i])
+			resp = append(resp, tp[i])
 			resp = append(resp, TrackingPair{
-				Exchange: cs[i].Exchange,
-				Asset:    cs[i].Asset,
+				Exchange: tp[i].Exchange,
+				Asset:    tp[i].Asset,
 				Base:     basePair.Base.String(),
 				Quote:    basePair.Quote.String(),
 			})
 			resp = append(resp, TrackingPair{
-				Exchange: cs[i].Exchange,
-				Asset:    cs[i].Asset,
+				Exchange: tp[i].Exchange,
+				Asset:    tp[i].Asset,
 				Base:     quotePair.Base.String(),
 				Quote:    quotePair.Quote.String(),
 			})
@@ -155,7 +156,7 @@ func FindMatchingUSDPairs(pair currency.Pair, pairs *currency.PairStore) (basePa
 		return currency.Pair{}, currency.Pair{}, errNilPairs
 	}
 	if PairContainsUSD(pair) {
-		return currency.Pair{}, currency.Pair{}, errCurrencyContainsUSD
+		return currency.Pair{}, currency.Pair{}, ErrCurrencyContainsUSD
 	}
 	if !pairs.Available.Contains(pair, true) {
 		return currency.Pair{}, currency.Pair{}, fmt.Errorf("%v %w", pair, errCurrencyNotFoundInPairs)

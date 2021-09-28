@@ -57,7 +57,9 @@ type StrategySettings struct {
 	SimultaneousSignalProcessing bool                   `json:"use-simultaneous-signal-processing"`
 	UseExchangeLevelFunding      bool                   `json:"use-exchange-level-funding"`
 	ExchangeLevelFunding         []ExchangeLevelFunding `json:"exchange-level-funding,omitempty"`
-	CustomSettings               map[string]interface{} `json:"custom-settings,omitempty"`
+	// If true, won't track USD values against currency pair
+	DisableUSDTracking bool                   `json:"disable-usd-tracking"`
+	CustomSettings     map[string]interface{} `json:"custom-settings,omitempty"`
 }
 
 // ExchangeLevelFunding allows the portfolio manager to access

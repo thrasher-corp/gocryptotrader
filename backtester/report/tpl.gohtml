@@ -228,9 +228,9 @@
 								<td>{{.Asset}}</td>
 								<td>{{.Currency}}</td>
 								<td>{{.InitialFunds}} {{.Currency}}</td>
-								<td>${{.InitialFundsUSD}}</td>
+								<td>${{.USDInitialFunds}}</td>
 								<td>{{.FinalFunds}} {{.Currency}}</td>
-								<td>${{.FinalFundsUSD}}</td>
+								<td>${{.USDFinalFunds}}</td>
 								{{if .ShowInfinite}}
 									<td>∞%</td>
 								{{ else }}
@@ -245,11 +245,11 @@
 						<tbody>
 						<tr>
 							<td><b>Initial Total Funds in USD</b></td>
-							<td><b>${{  .Statistics.Funding.InitialTotalUSD}}</b></td>
+							<td><b>${{  .Statistics.Funding.USDInitialTotal}}</b></td>
 						</tr>
 						<tr>
 							<td><b>Final Total Funds in USD</b></td>
-							<td><b>${{  .Statistics.Funding.FinalTotalUSD}}</b></td>
+							<td><b>${{  .Statistics.Funding.USDFinalTotal}}</b></td>
 						</tr>
 						<tr>
 							<td><b>Difference</b></td>
@@ -331,11 +331,11 @@
 						<tbody>
 						<tr>
 							<td><b>Initial Total Funds in USD</b></td>
-							<td><b>${{   .Statistics.Funding.InitialTotalUSD}}</b></td>
+							<td><b>${{   .Statistics.Funding.USDInitialTotal}}</b></td>
 						</tr>
 						<tr>
 							<td><b>Final Total Funds in USD</b></td>
-							<td><b>${{   .Statistics.Funding.FinalTotalUSD}}</b></td>
+							<td><b>${{   .Statistics.Funding.USDFinalTotal}}</b></td>
 						</tr>
 						<tr>
 							<td><b>Difference</b></td>
@@ -408,22 +408,25 @@
 					</thead>
 					<tbody>
 					{{ range .Config.CurrencySettings}}
-						<tr>
-							<td>{{.ExchangeName}}</td>
-							<td>{{.Asset}}</td>
-							<td>{{.Base}}</td>
-							<td>{{.Quote}}</td>
-							<td>{{.BuySide.MinimumSize}} {{.Base}}</td>
-							<td>{{.BuySide.MaximumSize}} {{.Base}}</td>
-							<td>{{.BuySide.MaximumTotal}} {{.Quote}}</td>
-							<td>{{.SellSide.MinimumSize}} {{.Base}}</td>
-							<td>{{.SellSide.MaximumSize}} {{.Base}}</td>
-							<td>{{.SellSide.MaximumTotal}} {{.Quote}}</td>
-							<td>{{.MinimumSlippagePercent}}%</td>
-							<td>{{.MaximumSlippagePercent}}%</td>
-							<td>{{.TakerFee}}</td>
-							<td>{{.MaximumHoldingsRatio}}</td>
-						</tr>
+						{{if .PriceTrackingOnly}}
+						{{else}}
+							<tr>
+								<td>{{.ExchangeName}}</td>
+								<td>{{.Asset}}</td>
+								<td>{{.Base}}</td>
+								<td>{{.Quote}}</td>
+								<td>{{.BuySide.MinimumSize}} {{.Base}}</td>
+								<td>{{.BuySide.MaximumSize}} {{.Base}}</td>
+								<td>{{.BuySide.MaximumTotal}} {{.Quote}}</td>
+								<td>{{.SellSide.MinimumSize}} {{.Base}}</td>
+								<td>{{.SellSide.MaximumSize}} {{.Base}}</td>
+								<td>{{.SellSide.MaximumTotal}} {{.Quote}}</td>
+								<td>{{.MinimumSlippagePercent}}%</td>
+								<td>{{.MaximumSlippagePercent}}%</td>
+								<td>{{.TakerFee}}</td>
+								<td>{{.MaximumHoldingsRatio}}</td>
+							</tr>
+						{{end}}
 					{{end}}
 					</tbody>
 				</table>
@@ -535,24 +538,27 @@
 					</thead>
 					<tbody>
 					{{ range .Config.CurrencySettings}}
-						{{if  .ShowExchangeOrderLimitWarning}}
-							<tr>
-								<td>{{.ExchangeName}}</td>
-								<td>{{.Asset}}</td>
-								<td>{{.Base}}</td>
-								<td>{{.Quote}}</td>
-								<td>order execution limits supported but disabled, live results may differ</td>
-							</tr>
+						{{if .PriceTrackingOnly}}
+						{{else}}
+							{{if  .ShowExchangeOrderLimitWarning}}
+								<tr>
+									<td>{{.ExchangeName}}</td>
+									<td>{{.Asset}}</td>
+									<td>{{.Base}}</td>
+									<td>{{.Quote}}</td>
+									<td>order execution limits supported but disabled, live results may differ</td>
+								</tr>
+							{{end}}
+							{{ range $.Warnings}}
+								<tr>
+									<td>{{.Exchange}}</td>
+									<td>{{.Asset}}</td>
+									<td>{{.Pair.Base}}</td>
+									<td>{{.Pair.Quote}}</td>
+									<td>{{.Message}}</td>
+								</tr>
+							{{end}}
 						{{end}}
-					{{end}}
-					{{ range .Warnings}}
-						<tr>
-							<td>{{.Exchange}}</td>
-							<td>{{.Asset}}</td>
-							<td>{{.Pair.Base}}</td>
-							<td>{{.Pair.Quote}}</td>
-							<td>{{.Message}}</td>
-						</tr>
 					{{end}}
 					</tbody>
 				</table>
