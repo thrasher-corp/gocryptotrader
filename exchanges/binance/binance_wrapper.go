@@ -219,8 +219,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 
 	err = b.Fees.LoadStatic(fee.Options{
 		// Note: https://www.binance.com/en/fee/trading
-		// Exchange Transfer fees are done live via method
-		// UpdateTransferFees
+		// Exchange Transfer fees are done live via method UpdateTransferFees
 		Commission: map[asset.Item]fee.Commission{
 			asset.Spot:                {Maker: 0.01, Taker: 0.01},
 			asset.USDTMarginedFutures: {Maker: 0.02, Taker: 0.04},

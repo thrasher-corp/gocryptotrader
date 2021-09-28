@@ -337,8 +337,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			takerFee = cfg.CurrencySettings[i].TakerFee
 		}
 		if makerFee.IsZero() || takerFee.IsZero() {
-			var apiMakerFee, apiTakerFee decimal.Decimal
-			apiMakerFee, apiTakerFee = getFees(exch, pair, a)
+			apiMakerFee, apiTakerFee := getFees(exch, pair, a)
 			if makerFee.IsZero() {
 				makerFee = apiMakerFee
 			}
@@ -406,8 +405,8 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			CurrencyPair:        pair,
 			AssetType:           a,
 			ExchangeFee:         takerFee,
-			MakerFee:            takerFee,
-			TakerFee:            makerFee,
+			MakerFee:            makerFee,
+			TakerFee:            takerFee,
 			UseRealOrders:       realOrders,
 			BuySide:             buyRule,
 			SellSide:            sellRule,
