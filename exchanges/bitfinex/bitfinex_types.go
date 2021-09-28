@@ -807,7 +807,10 @@ type WsCancelAllOrdersRequest struct {
 
 var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	fee.WireTransfer: { // TODO: VERIFY THIS:
-		currency.USD: {Withdrawal: 0.001, Deposit: 0.001, IsPercentage: true},
+		currency.USD: {
+			Withdrawal:   fee.Convert(0.001),
+			Deposit:      fee.Convert(0.001),
+			IsPercentage: true},
 	},
 }
 

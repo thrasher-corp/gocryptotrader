@@ -712,9 +712,15 @@ type wsOrderContainer struct {
 
 var transfer = map[asset.Item]map[currency.Code]fee.Transfer{
 	asset.Spot: { // TODO: Recheck these values and add in custom support as below
-		currency.USD: {Withdrawal: 0.001, Deposit: 0.001, IsPercentage: true},
-		currency.CAD: {Withdrawal: 0.005, Deposit: 0.005, IsPercentage: true},
-		currency.SGD: {Withdrawal: 0.001, IsPercentage: true},
+		currency.USD: {
+			Withdrawal:   fee.Convert(0.001),
+			Deposit:      fee.Convert(0.001),
+			IsPercentage: true},
+		currency.CAD: {
+			Withdrawal:   fee.Convert(0.005),
+			Deposit:      fee.Convert(0.005),
+			IsPercentage: true},
+		currency.SGD: {Withdrawal: fee.Convert(0.001), IsPercentage: true},
 	},
 }
 

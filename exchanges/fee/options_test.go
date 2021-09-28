@@ -38,7 +38,7 @@ func TestOptionsValidate(t *testing.T) {
 
 	err = (&Options{
 		Transfer: map[asset.Item]map[currency.Code]Transfer{
-			asset.Spot: {currency.BTC: {Deposit: -1}},
+			asset.Spot: {currency.BTC: {Deposit: Convert(-1)}},
 		},
 	}).validate()
 	if !errors.Is(err, errDepositIsInvalid) {
@@ -47,7 +47,7 @@ func TestOptionsValidate(t *testing.T) {
 
 	err = (&Options{
 		Transfer: map[asset.Item]map[currency.Code]Transfer{
-			asset.Spot: {currency.BTC: {Withdrawal: -1}},
+			asset.Spot: {currency.BTC: {Withdrawal: Convert(-1)}},
 		},
 	}).validate()
 	if !errors.Is(err, errWithdrawalIsInvalid) {
@@ -56,7 +56,7 @@ func TestOptionsValidate(t *testing.T) {
 
 	err = (&Options{
 		BankingTransfer: map[BankTransaction]map[currency.Code]Transfer{
-			255: {currency.BTC: {Deposit: -1}},
+			255: {currency.BTC: {Deposit: Convert(-1)}},
 		},
 	}).validate()
 	if !errors.Is(err, errUnknownBankTransaction) {
@@ -65,7 +65,7 @@ func TestOptionsValidate(t *testing.T) {
 
 	err = (&Options{
 		BankingTransfer: map[BankTransaction]map[currency.Code]Transfer{
-			WireTransfer: {currency.BTC: {Deposit: -1}},
+			WireTransfer: {currency.BTC: {Deposit: Convert(-1)}},
 		},
 	}).validate()
 	if !errors.Is(err, errDepositIsInvalid) {
@@ -74,7 +74,7 @@ func TestOptionsValidate(t *testing.T) {
 
 	err = (&Options{
 		BankingTransfer: map[BankTransaction]map[currency.Code]Transfer{
-			WireTransfer: {currency.BTC: {Withdrawal: -1}},
+			WireTransfer: {currency.BTC: {Withdrawal: Convert(-1)}},
 		},
 	}).validate()
 	if !errors.Is(err, errWithdrawalIsInvalid) {

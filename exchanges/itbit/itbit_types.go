@@ -159,9 +159,9 @@ type WalletTransfer struct {
 }
 
 var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.Swift: {currency.USD: {Withdrawal: 40}},
+	fee.Swift: {currency.USD: {Withdrawal: fee.Convert(40)}},
 	fee.WireTransfer: {
-		currency.USD: {Withdrawal: 40},
-		currency.EUR: {Withdrawal: 1}},
-	fee.SEPA: {currency.EUR: {Withdrawal: 1}},
+		currency.USD: {Withdrawal: fee.Convert(40)},
+		currency.EUR: {Withdrawal: fee.Convert(1)}},
+	fee.SEPA: {currency.EUR: {Withdrawal: fee.Convert(1)}},
 }

@@ -45,6 +45,20 @@ func (c Commission) convert() *CommissionInternal {
 	}
 }
 
+// validate validates commission variables
+func (c Commission) validate() error {
+	if c.Maker < 0 {
+		return errMakerInvalid
+	}
+	if c.Taker < 0 {
+		return errTakerInvalid
+	}
+	if c.Maker > c.Taker {
+		return errMakerBiggerThanTaker
+	}
+	return nil
+}
+
 // CommissionInternal defines a trading fee structure for internal tracking
 type CommissionInternal struct {
 	// SetAmount defines if the value is a set amount (15 USD) rather than a

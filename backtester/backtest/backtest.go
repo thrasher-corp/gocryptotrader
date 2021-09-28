@@ -494,7 +494,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (
 			err)
 	}
 	// TODO: Return commision rate and abstract all fee calcs to fee package.
-	maker, _ := fees.GetWorstCaseTaker()
+	maker, _ := fees.GetWorstCaseMaker()
 	taker, _ := fees.GetWorstCaseTaker()
 	return decimal.NewFromFloat(maker), decimal.NewFromFloat(taker)
 }

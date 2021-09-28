@@ -154,68 +154,116 @@ type WalletHistory struct {
 // Prone to change.
 var withdrawFees = map[asset.Item]map[currency.Code]fee.Transfer{
 	asset.Spot: {
-		currency.BTC:   {Withdrawal: 0.0005},
-		currency.LTC:   {Withdrawal: 0.01},
-		currency.DOGE:  {Withdrawal: 1},
-		currency.DASH:  {Withdrawal: 0.01},
-		currency.ETH:   {Withdrawal: 0.01},
-		currency.WAVES: {Withdrawal: 0.001},
-		currency.ZEC:   {Withdrawal: 0.001},
-		currency.USDT:  {Withdrawal: 5},
-		currency.XMR:   {Withdrawal: 0.05},
-		currency.XRP:   {Withdrawal: 0.02},
-		currency.KICK:  {Withdrawal: 50},
-		currency.ETC:   {Withdrawal: 0.01},
-		currency.BCH:   {Withdrawal: 0.001},
-		currency.BTG:   {Withdrawal: 0.001},
-		currency.HBZ:   {Withdrawal: 65},
-		currency.BTCZ:  {Withdrawal: 5},
-		currency.DXT:   {Withdrawal: 20},
-		currency.STQ:   {Withdrawal: 100},
-		currency.XLM:   {Withdrawal: 0.001},
-		currency.OMG:   {Withdrawal: 0.5},
-		currency.TRX:   {Withdrawal: 1},
-		currency.ADA:   {Withdrawal: 1},
-		currency.INK:   {Withdrawal: 50},
-		currency.ZRX:   {Withdrawal: 1},
-		currency.GNT:   {Withdrawal: 1},
+		currency.BTC:   {Withdrawal: fee.Convert(0.0005)},
+		currency.LTC:   {Withdrawal: fee.Convert(0.01)},
+		currency.DOGE:  {Withdrawal: fee.Convert(1)},
+		currency.DASH:  {Withdrawal: fee.Convert(0.01)},
+		currency.ETH:   {Withdrawal: fee.Convert(0.01)},
+		currency.WAVES: {Withdrawal: fee.Convert(0.001)},
+		currency.ZEC:   {Withdrawal: fee.Convert(0.001)},
+		currency.USDT:  {Withdrawal: fee.Convert(5)},
+		currency.XMR:   {Withdrawal: fee.Convert(0.05)},
+		currency.XRP:   {Withdrawal: fee.Convert(0.02)},
+		currency.KICK:  {Withdrawal: fee.Convert(50)},
+		currency.ETC:   {Withdrawal: fee.Convert(0.01)},
+		currency.BCH:   {Withdrawal: fee.Convert(0.001)},
+		currency.BTG:   {Withdrawal: fee.Convert(0.001)},
+		currency.HBZ:   {Withdrawal: fee.Convert(65)},
+		currency.BTCZ:  {Withdrawal: fee.Convert(5)},
+		currency.DXT:   {Withdrawal: fee.Convert(20)},
+		currency.STQ:   {Withdrawal: fee.Convert(100)},
+		currency.XLM:   {Withdrawal: fee.Convert(0.001)},
+		currency.OMG:   {Withdrawal: fee.Convert(0.5)},
+		currency.TRX:   {Withdrawal: fee.Convert(1)},
+		currency.ADA:   {Withdrawal: fee.Convert(1)},
+		currency.INK:   {Withdrawal: fee.Convert(50)},
+		currency.ZRX:   {Withdrawal: fee.Convert(1)},
+		currency.GNT:   {Withdrawal: fee.Convert(1)},
 	},
 }
 
 var transferBank = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	fee.WireTransfer: {
-		currency.RUB: {Withdrawal: 3200, Deposit: 1600, IsPercentage: true}, // This doesn't seem like a percentage val???
-		currency.PLN: {Withdrawal: 125, Deposit: 30, IsPercentage: true},    // Or this?
-		currency.TRY: {Withdrawal: 0, Deposit: 0, IsPercentage: true},
+		currency.RUB: {
+			Withdrawal:   fee.Convert(3200),
+			Deposit:      fee.Convert(1600),
+			IsPercentage: true}, // This doesn't seem like a percentage val???
+		currency.PLN: {
+			Withdrawal:   fee.Convert(125),
+			Deposit:      fee.Convert(30),
+			IsPercentage: true}, // Or this?
+		currency.TRY: {
+			Withdrawal:   fee.Convert(0),
+			Deposit:      fee.Convert(0),
+			IsPercentage: true},
 	},
 	fee.PerfectMoney: {
-		currency.USD: {Withdrawal: 0.01, IsPercentage: true},
-		currency.EUR: {Withdrawal: 0.0195, IsPercentage: true},
+		currency.USD: {Withdrawal: fee.Convert(0.01), IsPercentage: true},
+		currency.EUR: {Withdrawal: fee.Convert(0.0195), IsPercentage: true},
 	},
 	fee.Neteller: {
-		currency.USD: {Withdrawal: 0.0195, Deposit: 0.035, IsPercentage: true}, // Also has an addition of .29 ??
-		currency.EUR: {Withdrawal: 0.0195, Deposit: 0.035, IsPercentage: true}, // Also has an addition of .25 ??
+		currency.USD: {
+			Withdrawal:   fee.Convert(0.0195),
+			Deposit:      fee.Convert(0.035),
+			IsPercentage: true}, // Also has an addition of .29 ??
+		currency.EUR: {
+			Withdrawal:   fee.Convert(0.0195),
+			Deposit:      fee.Convert(0.035),
+			IsPercentage: true}, // Also has an addition of .25 ??
 	},
 	fee.AdvCash: {
-		currency.USD: {Withdrawal: 0.0295, Deposit: 0.0295, IsPercentage: true},
-		currency.EUR: {Withdrawal: 0.03, Deposit: 0.01, IsPercentage: true},
-		currency.RUB: {Withdrawal: 0.0195, Deposit: 0.0495, IsPercentage: true},
-		currency.UAH: {Withdrawal: 0.0495, Deposit: 0.01, IsPercentage: true},
+		currency.USD: {
+			Withdrawal:   fee.Convert(0.0295),
+			Deposit:      fee.Convert(0.0295),
+			IsPercentage: true},
+		currency.EUR: {
+			Withdrawal:   fee.Convert(0.03),
+			Deposit:      fee.Convert(0.01),
+			IsPercentage: true},
+		currency.RUB: {
+			Withdrawal:   fee.Convert(0.0195),
+			Deposit:      fee.Convert(0.0495),
+			IsPercentage: true},
+		currency.UAH: {
+			Withdrawal:   fee.Convert(0.0495),
+			Deposit:      fee.Convert(0.01),
+			IsPercentage: true},
 	},
 	fee.Payeer: {
-		currency.USD: {Withdrawal: 0.0395, Deposit: 0.0195, IsPercentage: true},
-		currency.EUR: {Withdrawal: 0.01, Deposit: 0.0295, IsPercentage: true},
-		currency.RUB: {Withdrawal: 0.0595, Deposit: 0.0345, IsPercentage: true},
+		currency.USD: {
+			Withdrawal:   fee.Convert(0.0395),
+			Deposit:      fee.Convert(0.0195),
+			IsPercentage: true},
+		currency.EUR: {
+			Withdrawal:   fee.Convert(0.01),
+			Deposit:      fee.Convert(0.0295),
+			IsPercentage: true},
+		currency.RUB: {
+			Withdrawal:   fee.Convert(0.0595),
+			Deposit:      fee.Convert(0.0345),
+			IsPercentage: true},
 	},
 	fee.Skrill: {
-		currency.USD: {Withdrawal: 0.0145, Deposit: 0.0495, IsPercentage: true}, // Also has an addition of .36 ??
-		currency.EUR: {Withdrawal: 0.03, Deposit: 0.0295, IsPercentage: true},   // Also has an addition of .29 ??
-		currency.PLN: {Withdrawal: 0, Deposit: 0.035, IsPercentage: true},       // Also has an addition of 1.21 ??
-		currency.TRY: {Withdrawal: 0, Deposit: 0, IsPercentage: true},
+		currency.USD: {
+			Withdrawal:   fee.Convert(0.0145),
+			Deposit:      fee.Convert(0.0495),
+			IsPercentage: true}, // Also has an addition of .36 ??
+		currency.EUR: {
+			Withdrawal:   fee.Convert(0.03),
+			Deposit:      fee.Convert(0.0295),
+			IsPercentage: true}, // Also has an addition of .29 ??
+		currency.PLN: {
+			Withdrawal:   fee.Convert(0),
+			Deposit:      fee.Convert(0.035),
+			IsPercentage: true}, // Also has an addition of 1.21 ??
+		currency.TRY: {
+			Withdrawal:   fee.Convert(0),
+			Deposit:      fee.Convert(0),
+			IsPercentage: true},
 	},
 	fee.VisaMastercard: {
-		currency.USD: {Withdrawal: 0.06, IsPercentage: true},
-		currency.EUR: {Withdrawal: 0.06, IsPercentage: true},
-		currency.PLN: {Withdrawal: 0.06, IsPercentage: true},
+		currency.USD: {Withdrawal: fee.Convert(0.06), IsPercentage: true},
+		currency.EUR: {Withdrawal: fee.Convert(0.06), IsPercentage: true},
+		currency.PLN: {Withdrawal: fee.Convert(0.06), IsPercentage: true},
 	},
 }

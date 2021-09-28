@@ -1,6 +1,8 @@
 package fee
 
 import (
+	"fmt"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -22,24 +24,17 @@ type Options struct {
 // validate checks for invalid values on struct, should be used prior to lock
 func (o Options) validate() error {
 	for _, v := range o.Commission {
-		if v.Maker < 0 {
-			return errMakerInvalid
-		}
-		if v.Taker < 0 {
-			return errTakerInvalid
-		}
-		if v.Maker > v.Taker {
-			return errMakerBiggerThanTaker
+		err := v.validate()
+		if err != nil {
+			return fmt.Errorf("commission error: %w", err)
 		}
 	}
 
 	for _, m1 := range o.Transfer {
 		for _, v := range m1 {
-			if v.Deposit < 0 {
-				return errDepositIsInvalid
-			}
-			if v.Withdrawal < 0 {
-				return errWithdrawalIsInvalid
+			err := v.validate()
+			if err != nil {
+				return fmt.Errorf("transfer error: %w", err)
 			}
 		}
 	}
@@ -50,11 +45,9 @@ func (o Options) validate() error {
 			return err
 		}
 		for _, v := range m1 {
-			if v.Deposit < 0 {
-				return errDepositIsInvalid
-			}
-			if v.Withdrawal < 0 {
-				return errWithdrawalIsInvalid
+			err := v.validate()
+			if err != nil {
+				return fmt.Errorf("banking transfer error: %w", err)
 			}
 		}
 	}

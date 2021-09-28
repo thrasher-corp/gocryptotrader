@@ -378,11 +378,11 @@ type WsLoginAcknowledgement struct {
 // TODO: Verify and do this.
 var withdrawTransfer = map[asset.Item]map[currency.Code]fee.Transfer{
 	asset.Spot: {
-		currency.USDT: {Withdrawal: 1.08},
-		currency.TUSD: {Withdrawal: 1.09},
-		currency.BTC:  {Withdrawal: 0.0005},
-		currency.ETH:  {Withdrawal: 0.01},
-		currency.LTC:  {Withdrawal: 0.001},
+		currency.USDT: {Withdrawal: fee.Convert(1.08)},
+		currency.TUSD: {Withdrawal: fee.Convert(1.09)},
+		currency.BTC:  {Withdrawal: fee.Convert(0.0005)},
+		currency.ETH:  {Withdrawal: fee.Convert(0.01)},
+		currency.LTC:  {Withdrawal: fee.Convert(0.001)},
 	},
 }
 

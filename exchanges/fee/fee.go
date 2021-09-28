@@ -15,22 +15,17 @@ var (
 	// have bot been loaded or set up.
 	ErrDefinitionsAreNil = errors.New("fee definitions are nil")
 
-	errFeeDefinitionsAlreadyLoaded = errors.New("fee definitions are already loaded for exchange")
-	errExchangeNameIsEmpty         = errors.New("exchange name is empty")
-	errCurrencyIsEmpty             = errors.New("currency is empty")
-	errTransferFeeNotFound         = errors.New("transfer fee not found")
-	errBankTransferFeeNotFound     = errors.New("bank transfer fee not found")
-	errPriceIsZero                 = errors.New("price is zero")
-	errAmountIsZero                = errors.New("amount is zero")
-	errFeeTypeMismatch             = errors.New("fee type mismatch")
-	errRateNotFound                = errors.New("rate not found")
-	// errNotPercentage               = errors.New("loaded values are not percentages")
-	errCommissionRateNotFound = errors.New("Commission rate not found")
-	errTakerInvalid           = errors.New("taker is invalid")
-	errMakerInvalid           = errors.New("maker is invalid")
-	errDepositIsInvalid       = errors.New("deposit is invalid")
-	errWithdrawalIsInvalid    = errors.New("withdrawal is invalid")
-	errMakerBiggerThanTaker   = errors.New("maker cannot be bigger than taker")
+	errCurrencyIsEmpty         = errors.New("currency is empty")
+	errTransferFeeNotFound     = errors.New("transfer fee not found")
+	errBankTransferFeeNotFound = errors.New("bank transfer fee not found")
+	errPriceIsZero             = errors.New("price is zero")
+	errAmountIsZero            = errors.New("amount is zero")
+	errFeeTypeMismatch         = errors.New("fee type mismatch")
+	errRateNotFound            = errors.New("rate not found")
+	errCommissionRateNotFound  = errors.New("Commission rate not found")
+	errTakerInvalid            = errors.New("taker is invalid")
+	errMakerInvalid            = errors.New("maker is invalid")
+	errMakerBiggerThanTaker    = errors.New("maker cannot be bigger than taker")
 )
 
 // NewFeeDefinitions generates a new fee struct for exchange usage
@@ -41,6 +36,11 @@ func NewFeeDefinitions() *Definitions {
 		bankingTransfers: make(map[BankTransaction]map[*currency.Item]*transfer),
 	}
 }
+
+// Convert returns a pointer to a float64 for use in explicit exported
+// parameters to define functionality. TODO: Maybe return a *fee.Value type
+// consideration
+func Convert(f float64) *float64 { return &f }
 
 // Definitions defines the full fee definitions for different currencies
 // TODO: Eventually upgrade with key manager for different fees associated

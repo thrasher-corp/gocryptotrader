@@ -248,8 +248,8 @@ var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	// TODO: Add zero value transaction type?
 	0: {
 		currency.USD: {
-			Withdrawal: 0.0009, // If less than 15 return 15 as fixed TODO Address this
-			Deposit:    0.0005, // This as well by bigger than 300 zero fix max
+			Withdrawal: fee.Convert(0.0009), // If less than 15 return 15 as fixed TODO Address this
+			Deposit:    fee.Convert(0.0005), // This as well by bigger than 300 zero fix max
 		},
 	},
 }

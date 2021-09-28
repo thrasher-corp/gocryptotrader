@@ -482,8 +482,8 @@ type wsStatus struct {
 
 var transfer = map[asset.Item]map[currency.Code]fee.Transfer{
 	asset.Spot: {
-		currency.USD: {Withdrawal: 25, Deposit: 10},
-		currency.EUR: {Withdrawal: 0.15, Deposit: 0.15},
+		currency.USD: {Withdrawal: fee.Convert(25), Deposit: fee.Convert(10)},
+		currency.EUR: {Withdrawal: fee.Convert(0.15), Deposit: fee.Convert(0.15)},
 	},
 }
 

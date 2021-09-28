@@ -732,5 +732,5 @@ type WsGetTradesResponseTrades struct {
 }
 
 var depositFee = map[asset.Item]map[currency.Code]fee.Transfer{
-	asset.Spot: {currency.BTC: {Deposit: 0.0006}}, // Dubious?
+	asset.Spot: {currency.BTC: {Deposit: fee.Convert(0.0006)}}, // Dubious?
 }

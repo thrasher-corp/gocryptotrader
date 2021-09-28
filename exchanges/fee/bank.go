@@ -26,6 +26,22 @@ const (
 	WesternUnion
 	MoneyGram
 	Contact
+	PayIDOsko
+	BankCardVisa
+	BankCardMastercard
+	BankCardMIR // Russian credit card provider
+	CreditCardMastercard
+	Sofort
+	P2P
+	Etana
+	FasterPayments
+	MobileMoney
+	CashTransfer
+	YandexMoney
+	GEOPay
+	SettlePay
+	ExchangeFiatDWChannelSignetUSD         // Binance
+	ExchangeFiatDWChannelSwiftSignatureBar // Binance
 )
 
 var errUnknownBankTransaction = errors.New("unknown bank transaction type")

@@ -298,7 +298,7 @@ type NewOrder struct {
 
 var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	fee.WireTransfer: {
-		currency.JPY: {Withdrawal: 324}, // TODO: add amount switch logic.
+		currency.JPY: {Withdrawal: fee.Convert(324)}, // TODO: add amount switch logic.
 	},
 }
 

@@ -1782,9 +1782,9 @@ func (b *Binance) UpdateTransferFees(ctx context.Context) error {
 			}
 
 			m1[coins[x].Coin] = fee.Transfer{
-				Withdrawal:        coins[x].NetworkList[y].WithdrawFee,
-				MinimumWithdrawal: coins[x].NetworkList[y].WithdrawMin,
-				MaximumWithdrawal: coins[x].NetworkList[y].WithdrawMax,
+				Withdrawal:        fee.Convert(coins[x].NetworkList[y].WithdrawFee),
+				MinimumWithdrawal: fee.Convert(coins[x].NetworkList[y].WithdrawMin),
+				MaximumWithdrawal: fee.Convert(coins[x].NetworkList[y].WithdrawMax),
 			}
 		}
 	}

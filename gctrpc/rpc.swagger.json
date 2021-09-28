@@ -5155,11 +5155,27 @@
         "asset": {
           "type": "string"
         },
-        "withdraw": {
+        "deposit": {
           "type": "number",
           "format": "double"
         },
-        "deposit": {
+        "maximumDeposit": {
+          "type": "number",
+          "format": "double"
+        },
+        "minimumDeposit": {
+          "type": "number",
+          "format": "double"
+        },
+        "withdrawal": {
+          "type": "number",
+          "format": "double"
+        },
+        "maximumWithdrawal": {
+          "type": "number",
+          "format": "double"
+        },
+        "minimumWithdrawal": {
           "type": "number",
           "format": "double"
         },
