@@ -8,26 +8,28 @@ The purpose of this componant is to sychronize the account fees for the supplied
 
 ### usage 
 
-+ To disable: 
++ To disable via command line flag: 
 ```bash
 ./gocryptotrader --feemanager="false"
 ```
 
-+ To enable - enabled by default:
++ To enable by command line - enabled by default:
 ```bash
 ./gocryptotrader 
 ```
 
-+ Modify synchronization time:
-```bash
-./gocryptotrader --feemanagerdelay="1m"
-```
++ Configuration paramaters 
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| enabled | Allows the setting if manager is enabled or disabled |  `true` |
+| delay | Allows the custom delay between full exchange fee synchronization |  `600000000000` |
 
 ### gRPC integration
 
 + Link to [gctcli](../cmd/gctcli)
 + Provides retrieval of all fees by exchange name
-+ Provides ability to set custom fees for global maker and taker fees
++ Provides ability to set custom fees for global maker and taker commission fees
 
 ### package integregration
 
