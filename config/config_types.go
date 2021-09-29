@@ -118,7 +118,6 @@ type DataHistoryManager struct {
 type FeeManager struct {
 	Enabled *bool         `json:"enabled"`
 	Delay   time.Duration `json:"delay"`
-	Verbose bool          `json:"verbose"`
 }
 
 // CurrencyStateManager defines a set of configuration options for the currency

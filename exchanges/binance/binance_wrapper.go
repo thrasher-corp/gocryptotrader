@@ -1741,9 +1741,13 @@ func (b *Binance) UpdateCommissionFees(ctx context.Context, a asset.Item) error 
 		if err != nil {
 			return err
 		}
-		return b.Fees.LoadDynamic( // TODO: verify (This is an int?)
-			float64(account.MakerCommission)/100,
-			float64(account.TakerCommission)/100,
+
+		return b.Fees.LoadDynamic(
+			// Divided by 10000 e.g. 10 is returned as integer / 100 = 0.1%
+			// actual trading fee / 100 resultant gives 0.001 for loadable
+			// commission rate.
+			float64(account.MakerCommission)/10000,
+			float64(account.TakerCommission)/10000,
 			a,
 		)
 	case asset.USDTMarginedFutures:
@@ -1768,10 +1772,8 @@ func (b *Binance) UpdateTransferFees(ctx context.Context) error {
 	transferFee := map[asset.Item]map[currency.Code]fee.Transfer{}
 	for x := range coins {
 		for y := range coins[x].NetworkList {
-			if !coins[x].NetworkList[y].Coin.Match(coins[x].NetworkList[y].Network) {
-				// TODO: Implement an upgrade for different networks, this will
-				// be done in pass 2. NOTE: If this isn't done, this PR cannot
-				// be merged.
+			if !coins[x].NetworkList[y].IsDefault {
+				// TODO: Implement an upgrade for different networks
 				continue
 			}
 
@@ -1781,10 +1783,24 @@ func (b *Binance) UpdateTransferFees(ctx context.Context) error {
 				transferFee[asset.Spot] = m1
 			}
 
+			var deposit *float64
+			if coins[x].NetworkList[y].DepositEnable {
+				// Turn on with zero fees for deposits
+				deposit = fee.Convert(0)
+			}
+
+			var withdrawal, maxWithdraw, minWithdraw *float64
+			if coins[x].NetworkList[y].WithdrawEnable {
+				withdrawal = fee.Convert(coins[x].NetworkList[y].WithdrawFee)
+				minWithdraw = fee.Convert(coins[x].NetworkList[y].WithdrawMin)
+				maxWithdraw = fee.Convert(coins[x].NetworkList[y].WithdrawMax)
+			}
+
 			m1[coins[x].Coin] = fee.Transfer{
-				Withdrawal:        fee.Convert(coins[x].NetworkList[y].WithdrawFee),
-				MinimumWithdrawal: fee.Convert(coins[x].NetworkList[y].WithdrawMin),
-				MaximumWithdrawal: fee.Convert(coins[x].NetworkList[y].WithdrawMax),
+				Withdrawal:        withdrawal,
+				MinimumWithdrawal: minWithdraw,
+				MaximumWithdrawal: maxWithdraw,
+				Deposit:           deposit,
 			}
 		}
 	}

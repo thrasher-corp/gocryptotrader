@@ -1796,6 +1796,7 @@ func (c *Config) CheckConfig() error {
 	c.CheckConnectionMonitorConfig()
 	c.CheckDataHistoryMonitorConfig()
 	c.CheckCurrencyStateManager()
+	c.CheckFeeManager()
 	c.CheckCommunicationsConfig()
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()

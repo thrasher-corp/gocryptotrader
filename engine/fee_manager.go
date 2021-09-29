@@ -94,13 +94,13 @@ func (f *FeeManager) IsRunning() bool {
 func (f *FeeManager) monitor() {
 	defer f.wg.Done()
 	timer := time.NewTimer(0) // Prime fireing of channel for initial sync.
+	var wg sync.WaitGroup
 	for {
 		select {
 		case <-f.shutdown:
 			return
 
 		case <-timer.C:
-			var wg sync.WaitGroup
 			exchs, err := f.GetExchanges()
 			if err != nil {
 				log.Errorf(log.Global,

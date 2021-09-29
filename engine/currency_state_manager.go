@@ -99,12 +99,12 @@ func (c *CurrencyStateManager) IsRunning() bool {
 func (c *CurrencyStateManager) monitor() {
 	defer c.wg.Done()
 	timer := time.NewTimer(0) // Prime firing of channel for initial sync.
+	var wg sync.WaitGroup
 	for {
 		select {
 		case <-c.shutdown:
 			return
 		case <-timer.C:
-			var wg sync.WaitGroup
 			exchs, err := c.GetExchanges()
 			if err != nil {
 				log.Errorf(log.Global,
