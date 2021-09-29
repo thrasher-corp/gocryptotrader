@@ -288,10 +288,11 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 				if err != nil {
 					return err
 				}
-				return bot.currencyStateManager.Start()
+
 			}
-			return bot.currencyStateManager.Stop()
+			return bot.currencyStateManager.Start()
 		}
+		return bot.currencyStateManager.Stop()
 	}
 	return fmt.Errorf("%s: %w", subSystemName, errSubsystemNotFound)
 }
