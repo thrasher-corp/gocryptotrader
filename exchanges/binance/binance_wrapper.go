@@ -29,7 +29,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var errAssetUnhandled = errors.New("asset is unhandled")
+var (
+	errAssetUnhandled  = errors.New("asset is unhandled")
+	errFeeTierNotFound = errors.New("fee tier not found")
+)
 
 // GetDefaultConfig returns a default exchange config
 func (b *Binance) GetDefaultConfig() (*config.ExchangeConfig, error) {
@@ -714,9 +717,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 				Hold:         lockedCurrency,
 			})
 		}
-
 		acc.Currencies = currencyBalance
-
 	case asset.CoinMarginedFutures:
 		accData, err := b.GetFuturesAccountInfo(ctx)
 		if err != nil {
@@ -730,9 +731,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 				Hold:         accData.Assets[i].WalletBalance - accData.Assets[i].MarginBalance,
 			})
 		}
-
 		acc.Currencies = currencyDetails
-
 	case asset.USDTMarginedFutures:
 		accData, err := b.UAccountBalanceV2(ctx)
 		if err != nil {
@@ -746,7 +745,6 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 				Hold:         accData[i].Balance - accData[i].AvailableBalance,
 			})
 		}
-
 		acc.Currencies = currencyDetails
 	case asset.Margin:
 		accData, err := b.GetMarginAccount(ctx)
@@ -761,9 +759,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 				Hold:         accData.UserAssets[i].Locked,
 			})
 		}
-
 		acc.Currencies = currencyDetails
-
 	default:
 		return info, fmt.Errorf("%v assetType not supported", assetType)
 	}
@@ -1751,9 +1747,26 @@ func (b *Binance) UpdateCommissionFees(ctx context.Context, a asset.Item) error 
 			a,
 		)
 	case asset.USDTMarginedFutures:
-		return common.ErrNotYetImplemented
+		accData, err := b.UAccountInformationV2(ctx)
+		if err != nil {
+			return err
+		}
+		f, ok := usdMarginedFeeTier[accData.FeeTier]
+		if !ok {
+			return errFeeTierNotFound
+		}
+		return b.Fees.LoadDynamic(f.Maker, f.Taker, a)
 	case asset.CoinMarginedFutures:
-		return common.ErrNotYetImplemented
+		accData, err := b.GetFuturesAccountInfo(ctx)
+		if err != nil {
+			return err
+		}
+
+		f, ok := coinMarginedFeeTier[accData.FeeTier]
+		if !ok {
+			return errFeeTierNotFound
+		}
+		return b.Fees.LoadDynamic(f.Maker, f.Taker, a)
 	case asset.Margin:
 		return nil
 	default:

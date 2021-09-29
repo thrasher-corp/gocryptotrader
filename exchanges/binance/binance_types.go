@@ -807,3 +807,35 @@ var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(15)},
 	},
 }
+
+// Tier defines maker and taker fees for a fee tier
+type Tier struct {
+	Maker float64
+	Taker float64
+}
+
+var coinMarginedFeeTier = map[int64]Tier{
+	0: {Maker: 0.0001, Taker: 0.0005},
+	1: {Maker: 0.00008, Taker: 0.00045},
+	2: {Maker: 0.00005, Taker: 0.0004},
+	3: {Maker: 0.00003, Taker: 0.0003},
+	4: {Maker: 0, Taker: 0.00025},
+	5: {Maker: -0.00005, Taker: 0.00024},
+	6: {Maker: -0.00006, Taker: 0.00024},
+	7: {Maker: -0.00007, Taker: 0.00024},
+	8: {Maker: -0.00008, Taker: 0.00024},
+	9: {Maker: -0.00009, Taker: 0.00024},
+}
+
+var usdMarginedFeeTier = map[int64]Tier{
+	0: {Maker: 0.0002, Taker: 0.0004},
+	1: {Maker: 0.00016, Taker: 0.0004},
+	2: {Maker: 0.00014, Taker: 0.00035},
+	3: {Maker: 0.00012, Taker: 0.00032},
+	4: {Maker: 0.0001, Taker: 0.0003},
+	5: {Maker: 0.00008, Taker: 0.00027},
+	6: {Maker: 0.00006, Taker: 0.00025},
+	7: {Maker: 0.00004, Taker: 0.00022},
+	8: {Maker: 0.00002, Taker: 0.0002},
+	9: {Maker: 0, Taker: 0.00017},
+}
