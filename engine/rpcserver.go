@@ -3918,14 +3918,20 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 	var transferFees []*gctrpc.TransferFees
 	for a, m1 := range ss.Transfer {
 		for c, val := range m1 {
-			addTransferFee(c, a, 0, val, &transferFees)
+			err = addTransferFee(c, a, 0, val, &transferFees)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	var bankingTransferFees []*gctrpc.TransferFees
 	for bt, m1 := range ss.BankingTransfer {
 		for c, val := range m1 {
-			addTransferFee(c, "", bt, val, &bankingTransferFees)
+			err = addTransferFee(c, "", bt, val, &bankingTransferFees)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return &gctrpc.GetAllFeesResponse{
@@ -3936,7 +3942,7 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 }
 
 // addTransferFee adds transfer fee to a list of rpc transfer fees
-func addTransferFee(c currency.Code, a asset.Item, bt fee.BankTransaction, val fee.Transfer, fees *[]*gctrpc.TransferFees) {
+func addTransferFee(c currency.Code, a asset.Item, bt fee.BankTransaction, val fee.Transfer, fees *[]*gctrpc.TransferFees) error {
 	rpcOut := &gctrpc.TransferFees{
 		Currency:     c.String(),
 		IsPercentage: val.IsPercentage,
@@ -3949,26 +3955,47 @@ func addTransferFee(c currency.Code, a asset.Item, bt fee.BankTransaction, val f
 	}
 
 	if val.Deposit != nil {
+		var err error
 		rpcOut.DepositEnabled = true
-		rpcOut.Deposit = *val.Deposit
+		rpcOut.Deposit, err = val.Deposit.Display()
+		if err != nil {
+			return err
+		}
 		if val.MaximumDeposit != nil {
-			rpcOut.MaximumDeposit = *val.MaximumDeposit
+			rpcOut.MaximumDeposit, err = val.MaximumDeposit.Display()
+			if err != nil {
+				return err
+			}
 		}
 		if val.MinimumDeposit != nil {
-			rpcOut.MinimumDeposit = *val.MinimumDeposit
+			rpcOut.MinimumDeposit, err = val.MinimumDeposit.Display()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if val.Withdrawal != nil {
 		rpcOut.WithdrawalEnabled = true
-		rpcOut.Withdrawal = *val.Withdrawal
+		var err error
+		rpcOut.Withdrawal, err = val.Withdrawal.Display()
+		if err != nil {
+			return err
+		}
 		if val.MaximumWithdrawal != nil {
-			rpcOut.MaximumWithdrawal = *val.MaximumWithdrawal
+			rpcOut.MaximumWithdrawal, err = val.MaximumWithdrawal.Display()
+			if err != nil {
+				return err
+			}
 		}
 		if val.MinimumWithdrawal != nil {
-			rpcOut.MinimumWithdrawal = *val.MinimumWithdrawal
+			rpcOut.MinimumWithdrawal, err = val.MinimumWithdrawal.Display()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	*fees = append(*fees, rpcOut)
+	return nil
 }
 
 // SetCommission sets a current commission fee

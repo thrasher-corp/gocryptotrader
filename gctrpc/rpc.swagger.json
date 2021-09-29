@@ -5159,31 +5159,25 @@
           "type": "boolean"
         },
         "deposit": {
-          "type": "number",
-          "format": "double"
+          "type": "string"
         },
         "maximumDeposit": {
-          "type": "number",
-          "format": "double"
+          "type": "string"
         },
         "minimumDeposit": {
-          "type": "number",
-          "format": "double"
+          "type": "string"
         },
         "withdrawalEnabled": {
           "type": "boolean"
         },
         "withdrawal": {
-          "type": "number",
-          "format": "double"
+          "type": "string"
         },
         "maximumWithdrawal": {
-          "type": "number",
-          "format": "double"
+          "type": "string"
         },
         "minimumWithdrawal": {
-          "type": "number",
-          "format": "double"
+          "type": "string"
         },
         "isPercentage": {
           "type": "boolean"

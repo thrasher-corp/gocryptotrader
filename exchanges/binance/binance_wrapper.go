@@ -1808,13 +1808,13 @@ func (b *Binance) UpdateTransferFees(ctx context.Context) error {
 				transferFee[asset.Spot] = m1
 			}
 
-			var deposit *float64
+			var deposit fee.Value
 			if coins[x].NetworkList[y].DepositEnable {
 				// Turn on with zero fees for deposits
 				deposit = fee.Convert(0)
 			}
 
-			var withdrawal, maxWithdraw, minWithdraw *float64
+			var withdrawal, maxWithdraw, minWithdraw fee.Value
 			if coins[x].NetworkList[y].WithdrawEnable {
 				withdrawal = fee.Convert(coins[x].NetworkList[y].WithdrawFee)
 				minWithdraw = fee.Convert(coins[x].NetworkList[y].WithdrawMin)

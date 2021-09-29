@@ -298,20 +298,6 @@ type NewOrder struct {
 
 var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	fee.WireTransfer: {
-		currency.JPY: {Withdrawal: fee.Convert(324)}, // TODO: add amount switch logic.
+		currency.JPY: {Withdrawal: fee.ConvertWithAmount(540, 756, 30000)},
 	},
 }
-
-// NOTE: For deposit for above
-// func getWithdrawalFee(bankTransactionType fee.BankTransactionType, c currency.Code, amount float64) (fee float64) {
-// 	if bankTransactionType == exchange.WireTransfer {
-// 		if c.Item == currency.JPY.Item {
-// 			if amount < 30000 {
-// 				fee = 540
-// 			} else {
-// 				fee = 756
-// 			}
-// 		}
-// 	}
-// 	return fee
-// }

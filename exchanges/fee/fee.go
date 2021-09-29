@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -36,11 +35,6 @@ func NewFeeDefinitions() *Definitions {
 		bankingTransfers: make(map[BankTransaction]map[*currency.Item]*transfer),
 	}
 }
-
-// Convert returns a pointer to a float64 for use in explicit exported
-// parameters to define functionality. TODO: Maybe return a *fee.Value type
-// consideration
-func Convert(f float64) *float64 { return &f }
 
 // Definitions defines the full fee definitions for different currencies
 // TODO: Eventually upgrade with key manager for different fees associated
@@ -242,19 +236,18 @@ func (d *Definitions) CalculateDeposit(c currency.Code, a asset.Item, amount flo
 }
 
 // GetDeposit returns the deposit fee associated with the currency
-func (d *Definitions) GetDeposit(c currency.Code, a asset.Item) (fee float64, isPercentage bool, err error) {
+func (d *Definitions) GetDeposit(c currency.Code, a asset.Item) (fee Value, isPercentage bool, err error) {
 	if d == nil {
-		return 0, false, ErrDefinitionsAreNil
+		return nil, false, ErrDefinitionsAreNil
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
 	t, err := d.get(c, a)
 	if err != nil {
-		return 0, false, err
+		return nil, false, err
 	}
-	rVal, _ := t.Deposit.Float64()
-	return rVal, t.Percentage, nil
+	return t.Deposit, t.Percentage, nil
 }
 
 // CalculateDeposit returns calculated fee from the amount
@@ -273,15 +266,14 @@ func (d *Definitions) CalculateWithdrawal(c currency.Code, a asset.Item, amount 
 }
 
 // GetWithdrawal returns the withdrawal fee associated with the currency
-func (d *Definitions) GetWithdrawal(c currency.Code, a asset.Item) (fee float64, isPercentage bool, err error) {
+func (d *Definitions) GetWithdrawal(c currency.Code, a asset.Item) (fee Value, isPercentage bool, err error) {
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
 	t, err := d.get(c, a)
 	if err != nil {
-		return 0, false, err
+		return nil, false, err
 	}
-	rVal, _ := t.Withdrawal.Float64()
-	return rVal, t.Percentage, nil
+	return t.Withdrawal, t.Percentage, nil
 }
 
 // get returns the fee structure by the currency and its asset type
@@ -405,6 +397,8 @@ func (d *Definitions) GetTransferFee(c currency.Code, a asset.Item) (Transfer, e
 }
 
 // SetTransferFees sets new transfer fees
+// TODO: need min and max settings might deprecate due to complexity of value
+// types
 func (d *Definitions) SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, isPercentage bool) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
@@ -438,8 +432,8 @@ func (d *Definitions) SetTransferFee(c currency.Code, a asset.Item, withdraw, de
 		return errFeeTypeMismatch
 	}
 
-	t.Withdrawal = decimal.NewFromFloat(withdraw)
-	t.Deposit = decimal.NewFromFloat(deposit)
+	t.Withdrawal = Convert(withdraw) // TODO: need min and max settings
+	t.Deposit = Convert(deposit)     // TODO: need min and max settings
 	return nil
 }
 
@@ -468,7 +462,9 @@ func (d *Definitions) GetBankTransferFee(c currency.Code, transType BankTransact
 	return t.convert(), nil
 }
 
-// SetTransferFees sets new transfer fees
+// SetBankTransferFee sets new bank transfer fees
+// TODO: need min and max settings might deprecate due to complexity of value
+// types
 func (d *Definitions) SetBankTransferFee(c currency.Code, transType BankTransaction, withdraw, deposit float64, isPercentage bool) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
@@ -502,8 +498,8 @@ func (d *Definitions) SetBankTransferFee(c currency.Code, transType BankTransact
 		return errFeeTypeMismatch
 	}
 
-	tFee.Withdrawal = decimal.NewFromFloat(withdraw)
-	tFee.Deposit = decimal.NewFromFloat(deposit)
+	tFee.Withdrawal = Convert(withdraw) // TODO: need min and max settings
+	tFee.Deposit = Convert(deposit)     // TODO: need min and max settings
 	return nil
 }
 
