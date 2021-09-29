@@ -75,7 +75,7 @@ func (k *Kraken) SetDefaults() {
 
 	futures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
-			Delimiter: currency.UnderscoreDelimiter,
+			Delimiter: currency.ColonDelimiter,
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
