@@ -16,7 +16,6 @@ import (
 
 var (
 	errNilConfig           = errors.New("unable to setup backtester with nil config")
-	errNilBot              = errors.New("unable to setup backtester without a loaded GoCryptoTrader bot")
 	errInvalidConfigAsset  = errors.New("invalid asset in config")
 	errAmbiguousDataSource = errors.New("ambiguous settings received. Only one data type can be set")
 	errNoDataSource        = errors.New("no data settings set in config")
@@ -29,15 +28,18 @@ var (
 
 // BackTest is the main holder of all backtesting functionality
 type BackTest struct {
-	Bot             *engine.Engine
-	hasHandledEvent bool
-	shutdown        chan struct{}
-	Datas           data.Holder
-	Strategy        strategies.Handler
-	Portfolio       portfolio.Handler
-	Exchange        exchange.ExecutionHandler
-	Statistic       statistics.Handler
-	EventQueue      eventholder.EventHolder
-	Reports         report.Handler
-	Funding         funding.IFundingManager
+	hasHandledEvent       bool
+	shutdown              chan struct{}
+	Datas                 data.Holder
+	Strategy              strategies.Handler
+	Portfolio             portfolio.Handler
+	Exchange              exchange.ExecutionHandler
+	Statistic             statistics.Handler
+	EventQueue            eventholder.EventHolder
+	Reports               report.Handler
+	Funding               funding.IFundingManager
+	exchangeManager       *engine.ExchangeManager
+	orderManager          *engine.OrderManager
+	databaseManager       *engine.DatabaseConnectionManager
+	communicationsManager *engine.CommunicationManager
 }

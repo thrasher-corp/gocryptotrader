@@ -26,19 +26,25 @@ var (
 
 func TestSetupFundingManager(t *testing.T) {
 	t.Parallel()
-	f := SetupFundingManager(true)
+	f := SetupFundingManager(true, false)
 	if !f.usingExchangeLevelFunding {
 		t.Errorf("expected '%v received '%v'", true, false)
 	}
-	f = SetupFundingManager(false)
+	if f.disableUSDTracking {
+		t.Errorf("expected '%v received '%v'", false, true)
+	}
+	f = SetupFundingManager(false, true)
 	if f.usingExchangeLevelFunding {
 		t.Errorf("expected '%v received '%v'", false, true)
+	}
+	if !f.disableUSDTracking {
+		t.Errorf("expected '%v received '%v'", true, false)
 	}
 }
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	f := SetupFundingManager(true)
+	f := SetupFundingManager(true, false)
 	baseItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -58,7 +64,7 @@ func TestReset(t *testing.T) {
 
 func TestIsUsingExchangeLevelFunding(t *testing.T) {
 	t.Parallel()
-	f := SetupFundingManager(true)
+	f := SetupFundingManager(true, false)
 	if !f.IsUsingExchangeLevelFunding() {
 		t.Errorf("expected '%v received '%v'", true, false)
 	}
@@ -749,9 +755,7 @@ func TestMatchesExchange(t *testing.T) {
 func TestGenerateReport(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	s := time.Now().Add(-time.Hour).Round(time.Hour)
-	e := time.Now()
-	report := f.GenerateReport(s, e)
+	report := f.GenerateReport()
 	if report == nil {
 		t.Fatal("shouldn't be nil")
 	}
@@ -768,7 +772,7 @@ func TestGenerateReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report = f.GenerateReport(s, e)
+	report = f.GenerateReport()
 	if len(report.Items) != 1 {
 		t.Fatal("expected 1")
 	}
@@ -786,15 +790,12 @@ func TestGenerateReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report = f.GenerateReport(s, e)
+	report = f.GenerateReport()
 	if len(report.Items) != 2 {
 		t.Fatal("expected 2")
 	}
 	if report.Items[0].Exchange != item.exchange {
 		t.Error("expected matching name")
-	}
-	if report.Items[0].USDFinalFunds.Equal(decimal.NewFromInt(200)) {
-		t.Errorf("received %v expected converted values", decimal.NewFromInt(200))
 	}
 	if !report.Items[1].USDFinalFunds.Equal(decimal.NewFromInt(200)) {
 		t.Errorf("received %v expected %v", report.Items[1].FinalFunds, decimal.NewFromInt(200))

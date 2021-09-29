@@ -171,25 +171,25 @@ func TestPlaceOrder(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	f := &fill.Fill{}
-	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot.OrderManager)
 	if err != nil && err.Error() != "order exchange name must be specified" {
 		t.Error(err)
 	}
 
 	f.Exchange = testExchange
-	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot.OrderManager)
 	if !errors.Is(err, gctorder.ErrPairIsEmpty) {
 		t.Errorf("received: %v, expected: %v", err, gctorder.ErrPairIsEmpty)
 	}
 	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
-	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot.OrderManager)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), true, true, f, bot)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), true, true, f, bot.OrderManager)
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}
@@ -284,7 +284,7 @@ func TestExecuteOrder(t *testing.T) {
 	}
 	d.Next()
 
-	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -293,7 +293,7 @@ func TestExecuteOrder(t *testing.T) {
 	cs.CanUseExchangeLimits = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}
@@ -404,7 +404,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		t.Error(err)
 	}
 	d.Next()
-	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
@@ -417,7 +417,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.BuySide.MaximumSize = decimal.Zero
 	cs.BuySide.MinimumSize = decimal.NewFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
 		t.Error(err)
 	}
@@ -433,7 +433,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.SellSide.MaximumSize = decimal.Zero
 	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
 		t.Error(err)
 	}
@@ -450,7 +450,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.SellSide.MaximumSize = decimal.Zero
 	cs.SellSide.MinimumSize = decimal.NewFromInt(1)
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
@@ -468,7 +468,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.CanUseExchangeLimits = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d, bot, &fakeFund{})
+	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
 		t.Errorf("received %v expected %v", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}

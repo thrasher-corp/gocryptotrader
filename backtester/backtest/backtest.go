@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -38,6 +39,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -63,19 +65,36 @@ func (bt *BackTest) Reset() {
 	bt.Statistic.Reset()
 	bt.Exchange.Reset()
 	bt.Funding.Reset()
-	bt.Bot = nil
+	bt.exchangeManager = nil
+	bt.orderManager = nil
+	bt.databaseManager = nil
 }
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
-func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.Engine) (*BackTest, error) {
+func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, error) {
 	log.Infoln(log.BackTester, "loading config...")
 	if cfg == nil {
 		return nil, errNilConfig
 	}
-	if bot == nil {
-		return nil, errNilBot
-	}
+	var err error
 	bt := New()
+	bt.exchangeManager = engine.SetupExchangeManager()
+	var wg sync.WaitGroup
+	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &wg, false)
+	if err != nil {
+		return nil, err
+	}
+	err = bt.orderManager.Start()
+	if err != nil {
+		return nil, err
+	}
+	if cfg.DataSettings.DatabaseData != nil {
+		bt.databaseManager, err = engine.SetupDatabaseConnectionManager(cfg.DataSettings.DatabaseData.Config)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	bt.Datas = &data.HandlerPerCurrency{}
 	bt.EventQueue = &eventholder.Holder{}
 	reports := &report.Data{
@@ -84,11 +103,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		OutputPath:   output,
 	}
 	bt.Reports = reports
-
-	err := bt.setupBot(cfg, bot)
-	if err != nil {
-		return nil, err
-	}
 
 	buyRule := config.MinMax{
 		MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
@@ -133,6 +147,36 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		}
 	}
 
+	var emm = make(map[string]gctexchange.IBotExchange)
+	for i := range cfg.CurrencySettings {
+		if exch, ok := emm[cfg.CurrencySettings[i].ExchangeName]; !ok {
+			exch, err = bt.exchangeManager.NewExchangeByName(strings.ToLower(cfg.CurrencySettings[i].ExchangeName))
+			if err != nil {
+				return nil, err
+			}
+			_, err = exch.GetDefaultConfig()
+			if err != nil {
+				return nil, err
+			}
+			exchBase := exch.GetBase()
+			err = exch.UpdateTradablePairs(context.Background(), true)
+			if err != nil {
+				return nil, err
+			}
+			assets := exchBase.CurrencyPairs.GetAssetTypes(false)
+			for i := range assets {
+				exchBase.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
+				err = exch.SetPairs(exchBase.CurrencyPairs.Pairs[assets[i]].Available, assets[i], true)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			bt.exchangeManager.Add(exch)
+			emm[cfg.CurrencySettings[i].ExchangeName] = exch
+		}
+	}
+
 	portfolioRisk := &risk.Risk{
 		CurrencySettings: make(map[string]map[asset.Item]map[currency.Pair]*risk.CurrencySettings),
 	}
@@ -161,10 +205,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		q = currency.NewCode(cfg.CurrencySettings[i].Quote)
 		curr = currency.NewPair(b, q)
 		var exch gctexchange.IBotExchange
-		exch, err = bot.ExchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
-		if err != nil {
-			return nil, err
-		}
+		exch, err = bt.exchangeManager.GetExchangeByName(strings.ToLower(cfg.CurrencySettings[i].ExchangeName))
 		exchBase := exch.GetBase()
 		var requestFormat currency.PairFormat
 		requestFormat, err = exchBase.GetPairFormat(a, true)
@@ -296,7 +337,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				Quote:    cfg.CurrencySettings[i].Quote,
 			})
 		}
-		trackingPairs, err = trackingcurrencies.CreateUSDTrackingPairs(trackingPairs)
+		trackingPairs, err = trackingcurrencies.CreateUSDTrackingPairs(trackingPairs, bt.exchangeManager)
 		if err != nil {
 			return nil, err
 		}
@@ -473,7 +514,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 }
 
 func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
-	e, err := bt.Bot.GetExchangeByName(exch)
+	e, err := bt.exchangeManager.GetExchangeByName(strings.ToLower(exch))
 	if err != nil {
 		return nil, currency.Pair{}, "", err
 	}
@@ -500,36 +541,6 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 		return nil, currency.Pair{}, "", err
 	}
 	return e, fPair, a, nil
-}
-
-// setupBot sets up a basic bot to retrieve exchange data
-// as well as process orders
-func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
-	var err error
-	bt.Bot = bot
-	bt.Bot.ExchangeManager = engine.SetupExchangeManager()
-	for i := range cfg.CurrencySettings {
-		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, nil)
-		if err != nil && !errors.Is(err, engine.ErrExchangeAlreadyLoaded) {
-			return err
-		}
-	}
-	if !bt.Bot.OrderManager.IsRunning() {
-		bt.Bot.OrderManager, err = engine.SetupOrderManager(
-			bt.Bot.ExchangeManager,
-			bt.Bot.CommunicationsManager,
-			&bt.Bot.ServicesWG,
-			bot.Settings.Verbose)
-		if err != nil {
-			return err
-		}
-		err = bt.Bot.OrderManager.Start()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
@@ -624,25 +635,20 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if cfg.DataSettings.DatabaseData.InclusiveEndDate {
 			cfg.DataSettings.DatabaseData.EndDate = cfg.DataSettings.DatabaseData.EndDate.Add(cfg.DataSettings.Interval)
 		}
-		if cfg.DataSettings.DatabaseData.ConfigOverride != nil {
-			bt.Bot.Config.Database = *cfg.DataSettings.DatabaseData.ConfigOverride
+		if cfg.DataSettings.DatabaseData.Config != nil {
 			gctdatabase.DB.DataPath = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
-			err = gctdatabase.DB.SetConfig(cfg.DataSettings.DatabaseData.ConfigOverride)
+			err = gctdatabase.DB.SetConfig(cfg.DataSettings.DatabaseData.Config)
 			if err != nil {
 				return nil, err
 			}
 		}
-		bt.Bot.DatabaseManager, err = engine.SetupDatabaseConnectionManager(gctdatabase.DB.GetConfig())
-		if err != nil {
-			return nil, err
-		}
-
-		err = bt.Bot.DatabaseManager.Start(&bt.Bot.ServicesWG)
+		var wg sync.WaitGroup
+		err = bt.databaseManager.Start(&wg)
 		if err != nil {
 			return nil, err
 		}
 		defer func() {
-			stopErr := bt.Bot.DatabaseManager.Stop()
+			stopErr := bt.databaseManager.Stop()
 			if stopErr != nil {
 				log.Error(log.BackTester, stopErr)
 			}
@@ -988,7 +994,7 @@ func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IPairReser
 
 func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IPairReleaser) {
 	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.Bot, funds)
+	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.orderManager, funds)
 	if err != nil {
 		if f == nil {
 			log.Errorf(log.BackTester, "fill event should always be returned, please fix, %v", err)

@@ -1,17 +1,24 @@
 package trackingcurrencies
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"strings"
-	"sync"
 
-	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+)
+
+var (
+	errNilPairs                   = errors.New("cannot assess with nil available pairs")
+	errNoMatchingPairUSDFound     = errors.New("currency pair has no USD backed equivalent, cannot track price")
+	errCurrencyNotFoundInPairs    = errors.New("currency does not exist in available pairs")
+	errNoMatchingBaseUSDFound     = errors.New("base currency has no USD back equivalent, cannot track price")
+	errNoMatchingQuoteUSDFound    = errors.New("quote currency has no USD back equivalent, cannot track price")
+	ErrCurrencyContainsUSD        = errors.New("currency already contains a USD equivalent")
+	ErrCurrencyDoesNotContainsUSD = errors.New("currency does not contains a USD equivalent")
+	errNilPairsReceived           = errors.New("nil tracking pairs received")
+	errExchangeManagerRequired    = errors.New("exchange manager required")
 )
 
 // rankedUSDs is a slice of USD tracked currencies
@@ -27,16 +34,6 @@ var rankedUSDs = []currency.Code{
 	currency.PAX,
 }
 
-var (
-	errNilPairs                   = errors.New("cannot assess with nil available pairs")
-	errNoMatchingPairUSDFound     = errors.New("currency pair has no USD backed equivalent, cannot track price")
-	errCurrencyNotFoundInPairs    = errors.New("currency does not exist in available pairs")
-	errNoMatchingBaseUSDFound     = errors.New("base currency has no USD back equivalent, cannot track price")
-	errNoMatchingQuoteUSDFound    = errors.New("quote currency has no USD back equivalent, cannot track price")
-	ErrCurrencyContainsUSD        = errors.New("currency already contains a USD equivalent")
-	ErrCurrencyDoesNotContainsUSD = errors.New("currency does not contains a USD equivalent")
-)
-
 type TrackingPair struct {
 	Exchange string
 	Asset    string
@@ -47,47 +44,19 @@ type TrackingPair struct {
 // CreateUSDTrackingPairs is responsible for loading exchanges,
 // ensuring the exchange have the latest currency pairs and
 // if a pair doesn't have a USD currency to track price, to add those settings
-func CreateUSDTrackingPairs(tp []TrackingPair) ([]TrackingPair, error) {
-	em := engine.SetupExchangeManager()
-	var emm = make(map[string]exchange.IBotExchange)
-	var wg sync.WaitGroup
-	var err error
-	for i := range tp {
-		emm[tp[i].Exchange] = nil
+func CreateUSDTrackingPairs(tp []TrackingPair, em *engine.ExchangeManager) ([]TrackingPair, error) {
+	if len(tp) == 0 {
+		return nil, errNilPairsReceived
 	}
-	wg.Add(len(emm))
-	for k := range emm {
-		go func(key string) {
-			defer wg.Done()
-			var exch exchange.IBotExchange
-			exch, err = em.NewExchangeByName(key)
-			if err != nil {
-				return
-			}
-			var conf *gctconfig.ExchangeConfig
-			conf, err = exch.GetDefaultConfig()
-			if err != nil {
-				return
-			}
-			exch.SetDefaults()
-			err = exch.Setup(conf)
-			if err != nil {
-				return
-			}
-			err = exch.UpdateTradablePairs(context.Background(), true)
-			if err != nil {
-				return
-			}
-			emm[key] = exch
-		}(k)
+	if em == nil {
+		return nil, errExchangeManagerRequired
 	}
-	wg.Wait()
 
 	var resp []TrackingPair
 	for i := range tp {
-		exch := emm[strings.ToLower(tp[i].Exchange)]
-		if exch == nil {
-			return nil, fmt.Errorf("%v %w", tp[i].Exchange, engine.ErrExchangeNotFound)
+		exch, err := em.GetExchangeByName(tp[i].Exchange)
+		if err != nil {
+			return nil, err
 		}
 		pair, err := currency.NewPairFromStrings(tp[i].Base, tp[i].Quote)
 		if err != nil {
@@ -138,15 +107,7 @@ func CurrencyIsUSDTracked(code currency.Code) bool {
 // PairContainsUSD is a simple check to ensure that the currency pair
 // has some sort of matching USD currency
 func PairContainsUSD(pair currency.Pair) bool {
-	for i := range rankedUSDs {
-		if rankedUSDs[i] == pair.Base {
-			return true
-		}
-		if rankedUSDs[i] == pair.Quote {
-			return true
-		}
-	}
-	return false
+	return CurrencyIsUSDTracked(pair.Base) || CurrencyIsUSDTracked(pair.Quote)
 }
 
 // FindMatchingUSDPairs will return a USD pair for both the base and quote currency provided
@@ -162,6 +123,7 @@ func FindMatchingUSDPairs(pair currency.Pair, pairs *currency.PairStore) (basePa
 		return currency.Pair{}, currency.Pair{}, fmt.Errorf("%v %w", pair, errCurrencyNotFoundInPairs)
 	}
 	var baseFound, quoteFound bool
+
 	for i := range rankedUSDs {
 		if !baseFound && pairs.Available.Contains(currency.NewPair(pair.Base, rankedUSDs[i]), true) {
 			baseFound = true

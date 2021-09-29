@@ -156,7 +156,7 @@ type CSVData struct {
 type DatabaseData struct {
 	StartDate        time.Time        `json:"start-date"`
 	EndDate          time.Time        `json:"end-date"`
-	ConfigOverride   *database.Config `json:"config-override"`
+	Config           *database.Config `json:"config-override"`
 	InclusiveEndDate bool             `json:"inclusive-end-date"`
 }
 

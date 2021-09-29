@@ -33,8 +33,8 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 }
 
 // GenDefaultSettings return struct with known sane/working logger settings
-func GenDefaultSettings() (log Config) {
-	log = Config{
+func GenDefaultSettings() Config {
+	return Config{
 		Enabled: convert.BoolPtr(true),
 		SubLoggerConfig: SubLoggerConfig{
 			Level:  "INFO|DEBUG|WARN|ERROR",
@@ -57,7 +57,6 @@ func GenDefaultSettings() (log Config) {
 			},
 		},
 	}
-	return
 }
 
 func configureSubLogger(logger, levels string, output io.Writer) error {

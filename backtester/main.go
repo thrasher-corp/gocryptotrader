@@ -9,8 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/backtest"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
-	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
@@ -30,7 +29,7 @@ func main() {
 			wd,
 			"config",
 			"examples",
-			"t2b2-api-candles-exchange-funding.strat"),
+			"dca-api-candles-exchange-level-funding.strat"),
 		"the config containing strategy params")
 	flag.StringVar(
 		&templatePath,
@@ -66,6 +65,11 @@ func main() {
 
 	var bt *backtest.BackTest
 	var cfg *config.Config
+	// because globals
+	logConfig := log.GenDefaultSettings()
+	log.GlobalLogConfig = &logConfig
+	log.SetupGlobalLogger()
+
 	fmt.Println("reading config...")
 	cfg, err = config.ReadConfigFromFile(configPath)
 	if err != nil {
@@ -76,36 +80,12 @@ func main() {
 		fmt.Print(common.ASCIILogo)
 	}
 
-	path := gctconfig.DefaultFilePath()
-	if cfg.GoCryptoTraderConfigPath != "" {
-		path = cfg.GoCryptoTraderConfigPath
-	}
-
-	var bot *engine.Engine
-	flags := map[string]bool{
-		"tickersync":    false,
-		"orderbooksync": false,
-		"tradesync":     false,
-		"ratelimiter":   true,
-		"ordermanager":  false,
-	}
-	bot, err = engine.NewFromSettings(&engine.Settings{
-		ConfigFile:                    path,
-		EnableDryRun:                  true,
-		EnableAllPairs:                true,
-		EnableExchangeHTTPRateLimiter: true,
-	}, flags)
-	if err != nil {
-		fmt.Printf("Could not load backtester. Error: %v.\n", err)
-		os.Exit(-1)
-	}
-
 	err = cfg.Validate()
 	if err != nil {
 		fmt.Printf("Could not read config. Error: %v.\n", err)
 		os.Exit(1)
 	}
-	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, bot)
+	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput)
 	if err != nil {
 		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
 		os.Exit(1)

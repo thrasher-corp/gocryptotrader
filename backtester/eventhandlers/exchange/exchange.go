@@ -28,7 +28,7 @@ func (e *Exchange) Reset() {
 
 // ExecuteOrder assesses the portfolio manager's order event and if it passes validation
 // will send an order to the exchange/fake order manager to be stored and raise a fill event
-func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.Engine, funds funding.IPairReleaser) (*fill.Fill, error) {
+func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *engine.OrderManager, funds funding.IPairReleaser) (*fill.Fill, error) {
 	f := &fill.Fill{
 		Base: event.Base{
 			Offset:       o.GetOffset(),
@@ -111,7 +111,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	}
 	f.ExchangeFee = calculateExchangeFee(adjustedPrice, limitReducedAmount, cs.ExchangeFee)
 
-	orderID, err := e.placeOrder(context.TODO(), adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, bot)
+	orderID, err := e.placeOrder(context.TODO(), adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, orderManager)
 	if err != nil {
 		fundErr := funds.Release(eventFunds, eventFunds, f.GetDirection())
 		if fundErr != nil {
@@ -139,7 +139,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		funds.IncreaseAvailable(limitReducedAmount.Mul(adjustedPrice), f.GetDirection())
 	}
 
-	ords, _ := bot.OrderManager.GetOrdersSnapshot("")
+	ords, _ := orderManager.GetOrdersSnapshot("")
 	for i := range ords {
 		if ords[i].ID != orderID {
 			continue
@@ -221,7 +221,7 @@ func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal 
 	return amount
 }
 
-func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal, useRealOrders, useExchangeLimits bool, f *fill.Fill, bot *engine.Engine) (string, error) {
+func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal, useRealOrders, useExchangeLimits bool, f *fill.Fill, orderManager *engine.OrderManager) (string, error) {
 	if f == nil {
 		return "", common.ErrNilEvent
 	}
@@ -248,7 +248,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 	}
 
 	if useRealOrders {
-		resp, err := bot.OrderManager.Submit(ctx, o)
+		resp, err := orderManager.Submit(ctx, o)
 		if resp != nil {
 			orderID = resp.OrderID
 		}
@@ -265,7 +265,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 			Cost:          p,
 			FullyMatched:  true,
 		}
-		resp, err := bot.OrderManager.SubmitFakeOrder(o, submitResponse, useExchangeLimits)
+		resp, err := orderManager.SubmitFakeOrder(o, submitResponse, useExchangeLimits)
 		if resp != nil {
 			orderID = resp.OrderID
 		}

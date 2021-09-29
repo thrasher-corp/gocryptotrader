@@ -414,31 +414,31 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	fmt.Println("Do you wish to override GoCryptoTrader's database config? y/n")
 	input = quickParse(reader)
 	if input == y || input == yes {
-		cfg.DataSettings.DatabaseData.ConfigOverride = &database.Config{
+		cfg.DataSettings.DatabaseData.Config = &database.Config{
 			Enabled: true,
 		}
 		fmt.Println("Do you want database verbose output? y/n")
 		input = quickParse(reader)
-		cfg.DataSettings.DatabaseData.ConfigOverride.Verbose = input == y || input == yes
+		cfg.DataSettings.DatabaseData.Config.Verbose = input == y || input == yes
 
 		fmt.Printf("What database driver to use? %v %v or %v\n", database.DBPostgreSQL, database.DBSQLite, database.DBSQLite3)
-		cfg.DataSettings.DatabaseData.ConfigOverride.Driver = quickParse(reader)
+		cfg.DataSettings.DatabaseData.Config.Driver = quickParse(reader)
 
 		fmt.Println("What is the database host?")
-		cfg.DataSettings.DatabaseData.ConfigOverride.Host = quickParse(reader)
+		cfg.DataSettings.DatabaseData.Config.Host = quickParse(reader)
 
 		fmt.Println("What is the database username?")
-		cfg.DataSettings.DatabaseData.ConfigOverride.Username = quickParse(reader)
+		cfg.DataSettings.DatabaseData.Config.Username = quickParse(reader)
 
 		fmt.Println("What is the database password? eg 1234")
-		cfg.DataSettings.DatabaseData.ConfigOverride.Password = quickParse(reader)
+		cfg.DataSettings.DatabaseData.Config.Password = quickParse(reader)
 
 		fmt.Println("What is the database? eg database.db")
-		cfg.DataSettings.DatabaseData.ConfigOverride.Database = quickParse(reader)
+		cfg.DataSettings.DatabaseData.Config.Database = quickParse(reader)
 
-		if cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBPostgreSQL {
+		if cfg.DataSettings.DatabaseData.Config.Driver == database.DBPostgreSQL {
 			fmt.Println("What is the database SSLMode? eg disable")
-			cfg.DataSettings.DatabaseData.ConfigOverride.SSLMode = quickParse(reader)
+			cfg.DataSettings.DatabaseData.Config.SSLMode = quickParse(reader)
 		}
 		fmt.Println("What is the database Port? eg 1337")
 		input = quickParse(reader)
@@ -449,19 +449,19 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 				return err
 			}
 		}
-		cfg.DataSettings.DatabaseData.ConfigOverride.Port = uint16(port)
-		err = database.DB.SetConfig(cfg.DataSettings.DatabaseData.ConfigOverride)
+		cfg.DataSettings.DatabaseData.Config.Port = uint16(port)
+		err = database.DB.SetConfig(cfg.DataSettings.DatabaseData.Config)
 		if err != nil {
 			return fmt.Errorf("database failed to set config: %w", err)
 		}
-		if cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBPostgreSQL {
-			_, err = dbPSQL.Connect(cfg.DataSettings.DatabaseData.ConfigOverride)
+		if cfg.DataSettings.DatabaseData.Config.Driver == database.DBPostgreSQL {
+			_, err = dbPSQL.Connect(cfg.DataSettings.DatabaseData.Config)
 			if err != nil {
 				return fmt.Errorf("database failed to connect: %v", err)
 			}
-		} else if cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBSQLite ||
-			cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBSQLite3 {
-			_, err = dbsqlite3.Connect(cfg.DataSettings.DatabaseData.ConfigOverride.Database)
+		} else if cfg.DataSettings.DatabaseData.Config.Driver == database.DBSQLite ||
+			cfg.DataSettings.DatabaseData.Config.Driver == database.DBSQLite3 {
+			_, err = dbsqlite3.Connect(cfg.DataSettings.DatabaseData.Config.Database)
 			if err != nil {
 				return fmt.Errorf("database failed to connect: %v", err)
 			}
