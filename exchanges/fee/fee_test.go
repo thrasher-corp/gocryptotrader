@@ -280,7 +280,7 @@ func TestCalculateDeposit(t *testing.T) {
 	d := &Definitions{
 		transfers: map[asset.Item]map[*currency.Item]*transfer{
 			asset.Spot: {
-				currency.BTC.Item: {Deposit: decimal.NewFromFloat(0.01)},
+				currency.BTC.Item: {Deposit: Convert(0.01)},
 			},
 		},
 	}
@@ -309,7 +309,7 @@ func TestGetDeposit(t *testing.T) {
 	d := &Definitions{
 		transfers: map[asset.Item]map[*currency.Item]*transfer{
 			asset.Spot: {
-				currency.BTC.Item: {Deposit: decimal.NewFromFloat(0.01)},
+				currency.BTC.Item: {Deposit: Convert(0.01)},
 			},
 		},
 	}
@@ -323,7 +323,7 @@ func TestGetDeposit(t *testing.T) {
 		t.Fatal("unexpected percentage value")
 	}
 
-	if fee != 0.01 {
+	if !fee.(Standard).Decimal.Equal(decimal.NewFromFloat(0.01)) {
 		t.Fatal("unexpected fee value")
 	}
 }
@@ -342,7 +342,7 @@ func TestCalculateWithdrawal(t *testing.T) {
 	d := &Definitions{
 		transfers: map[asset.Item]map[*currency.Item]*transfer{
 			asset.Spot: {
-				currency.BTC.Item: {Withdrawal: decimal.NewFromFloat(0.01)},
+				currency.BTC.Item: {Withdrawal: Convert(0.01)},
 			},
 		},
 	}
@@ -376,7 +376,7 @@ func TestGetWithdrawal(t *testing.T) {
 	d := &Definitions{
 		transfers: map[asset.Item]map[*currency.Item]*transfer{
 			asset.Spot: {
-				currency.BTC.Item: {Withdrawal: decimal.NewFromFloat(0.01)},
+				currency.BTC.Item: {Withdrawal: Convert(0.01)},
 			},
 		},
 	}
@@ -390,7 +390,7 @@ func TestGetWithdrawal(t *testing.T) {
 		t.Fatal("unexpected percentage value")
 	}
 
-	if fee != 0.01 {
+	if !fee.(Standard).Decimal.Equal(decimal.NewFromFloat(0.01)) {
 		t.Fatal("unexpected fee value")
 	}
 }
