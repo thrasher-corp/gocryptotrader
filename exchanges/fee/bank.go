@@ -9,6 +9,7 @@ import (
 const (
 	NotApplicable BankTransaction = iota
 	WireTransfer
+	ExpressWireTransfer
 	PerfectMoney
 	Neteller
 	AdvCash
@@ -57,6 +58,8 @@ func (b BankTransaction) String() string {
 		return "NotApplicable"
 	case WireTransfer:
 		return "WireTransfer"
+	case ExpressWireTransfer:
+		return "ExpressWireTransfer"
 	case PerfectMoney:
 		return "PerfectMoney"
 	case Neteller:
@@ -133,6 +136,7 @@ func (b BankTransaction) Validate() error {
 	switch b {
 	case NotApplicable,
 		WireTransfer,
+		ExpressWireTransfer,
 		PerfectMoney,
 		Neteller,
 		AdvCash,

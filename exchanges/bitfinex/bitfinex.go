@@ -974,13 +974,26 @@ func (b *Bitfinex) GetAccountFees(ctx context.Context) ([]AccountInfo, error) {
 }
 
 // GetWithdrawalFees - Gets all fee rates for withdrawals
-func (b *Bitfinex) GetWithdrawalFees(ctx context.Context) (AccountFees, error) {
-	response := AccountFees{}
-	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
+func (b *Bitfinex) GetWithdrawalFees(ctx context.Context) (map[currency.Code]float64, error) {
+	var response AccountFees
+	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
 		bitfinexAccountFees,
 		nil,
 		&response,
 		getWithdrawalFees)
+	if err != nil {
+		return nil, err
+	}
+
+	var fees = map[currency.Code]float64{}
+	for key, val := range response.Withdraw {
+		fee, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			return nil, err
+		}
+		fees[currency.NewCode(key)] = fee
+	}
+	return fees, nil
 }
 
 // GetAccountSummary returns a 30-day summary of your trading volume and return
@@ -1631,41 +1644,6 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchan
 			HTTPRecording: b.HTTPRecording,
 		}, nil
 	})
-}
-
-// GetCryptocurrencyWithdrawalFee returns an estimate of fee based on type of transaction
-func (b *Bitfinex) GetCryptocurrencyWithdrawalFee(c currency.Code, accountFees AccountFees) (fee float64, err error) {
-	switch result := accountFees.Withdraw[c.String()].(type) {
-	case string:
-		fee, err = strconv.ParseFloat(result, 64)
-		if err != nil {
-			return 0, err
-		}
-	case float64:
-		fee = result
-	}
-
-	return fee, nil
-}
-
-// CalculateTradingFee returns an estimate of fee based on type of whether is maker or taker fee
-func (b *Bitfinex) CalculateTradingFee(i []AccountInfo, purchasePrice, amount float64, c currency.Code, isMaker bool) (fee float64, err error) {
-	for x := range i {
-		for y := range i[x].Fees {
-			if c.String() == i[x].Fees[y].Pairs {
-				if isMaker {
-					fee = i[x].Fees[y].MakerFees
-				} else {
-					fee = i[x].Fees[y].TakerFees
-				}
-				break
-			}
-		}
-		if fee > 0 {
-			break
-		}
-	}
-	return (fee / 100) * purchasePrice * amount, err
 }
 
 // ConvertSymbolToWithdrawalType You need to have specific withdrawal types to withdraw from Bitfinex

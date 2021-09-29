@@ -306,7 +306,7 @@ func TestGetAccountFees(t *testing.T) {
 	}
 	t.Parallel()
 
-	_, err := b.UpdateAccountInfo(context.Background(), asset.Spot)
+	_, err := b.GetAccountFees(context.Background())
 	if err != nil {
 		t.Error("GetAccountInfo error", err)
 	}

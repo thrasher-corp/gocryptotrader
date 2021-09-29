@@ -222,7 +222,7 @@ type AccountInfoFees struct {
 
 // AccountFees stores withdrawal account fee data from Bitfinex
 type AccountFees struct {
-	Withdraw map[string]interface{} `json:"withdraw"`
+	Withdraw map[string]string `json:"withdraw"`
 }
 
 // AccountSummary holds account summary data
@@ -805,20 +805,35 @@ type WsCancelAllOrdersRequest struct {
 	All int64 `json:"all"`
 }
 
-var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.WireTransfer: { // TODO: VERIFY THIS:
+// bankTransferFees defines bank transfer fees. Subject to change.
+// Note: https://www.bitfinex.com/fees/#deposit-table
+var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
+	fee.WireTransfer: {
 		currency.USD: {
-			Withdrawal:   fee.Convert(0.001),
-			Deposit:      fee.Convert(0.001),
-			IsPercentage: true},
+			Withdrawal:        fee.Convert(0.001),
+			MinimumWithdrawal: fee.Convert(60),
+			Deposit:           fee.Convert(0.001),
+			MinimumDeposit:    fee.Convert(60),
+			IsPercentage:      true,
+		},
+		currency.EUR: {
+			Withdrawal:        fee.Convert(0.001),
+			MinimumWithdrawal: fee.Convert(60),
+			Deposit:           fee.Convert(0.001),
+			MinimumDeposit:    fee.Convert(60),
+			IsPercentage:      true,
+		},
+	},
+	fee.ExpressWireTransfer: {
+		currency.USD: {
+			Withdrawal:        fee.Convert(0.01),
+			MinimumWithdrawal: fee.Convert(100),
+			IsPercentage:      true,
+		},
+		currency.EUR: {
+			Withdrawal:        fee.Convert(0.01),
+			MinimumWithdrawal: fee.Convert(100),
+			IsPercentage:      true,
+		},
 	},
 }
-
-// NOTE FOR ABOVE:
-// func getInternationalBankDepositFee(amount float64) float64 {
-// 	return 0.001 * amount
-// }
-
-// func getInternationalBankWithdrawalFee(amount float64) float64 {
-// 	return 0.001 * amount
-// }

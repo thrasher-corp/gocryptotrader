@@ -192,11 +192,11 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Fees.LoadStatic(fee.Options{
-		// https://www.bitfinex.com/fees/
+		// NOTE: https://www.bitfinex.com/fees/
 		Commission: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.001, Taker: 0.001},
 		},
-		BankingTransfer: bankTransfer,
+		BankingTransfer: bankTransferFees,
 	})
 	if err != nil {
 		return err
@@ -1130,35 +1130,35 @@ func (b *Bitfinex) UpdateFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
+	// TODO: Implement LEO discounts
+	info, err := b.GetAccountFees(ctx)
+	if err != nil {
+		return err
+	}
+	if len(info) < 1 {
+		return errors.New("no returned data")
+	}
+	return b.Fees.LoadDynamic(info[0].MakerFees, info[0].TakerFees, a)
+}
 
-	// TODO: Load trade fees
-	// accountInfos, err := b.GetAccountFees()
-	// if err != nil {
-	// 	return 0, err
-	// }
-	// f, err = b.CalculateTradingFee(accountInfos,
-	// 	feeBuilder.PurchasePrice,
-	// 	feeBuilder.Amount,
-	// 	feeBuilder.Pair.Base,
-	// 	feeBuilder.IsMaker)
-	// if err != nil {
-	// 	return 0, err
-	// }
-
-	// TODO: Load withdrawal fees
-	// acc, err := b.GetWithdrawalFees()
-	// if err != nil {
-	// 	return 0, err
-	// }
-	// f, err = b.GetCryptocurrencyWithdrawalFee(feeBuilder.Pair.Base, acc)
-	// if err != nil {
-	// 	return 0, err
-	// }
-
-	// ALSO:
-
-	//TODO: fee is charged when < $1000USD is transferred (deposited), need to
-	// infer value in some way
-
-	return nil
+// UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
+// deposits for this exchange
+func (b *Bitfinex) UpdateTransferFees(ctx context.Context) error {
+	withdrawFees, err := b.GetWithdrawalFees(ctx)
+	if err != nil {
+		return err
+	}
+	transferFee := map[asset.Item]map[currency.Code]fee.Transfer{}
+	for code, value := range withdrawFees {
+		m1, ok := transferFee[asset.Spot]
+		if !ok {
+			m1 = make(map[currency.Code]fee.Transfer)
+			transferFee[asset.Spot] = m1
+		}
+		m1[code] = fee.Transfer{
+			Withdrawal: fee.Convert(value),
+			Deposit:    fee.Convert(0), // Default on deposit
+		}
+	}
+	return b.Fees.LoadTransferFees(transferFee)
 }
