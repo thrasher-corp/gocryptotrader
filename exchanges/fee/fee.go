@@ -64,9 +64,6 @@ func (d *Definitions) LoadDynamic(maker, taker float64, a asset.Item) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}
-	if maker < 0 {
-		return errMakerInvalid
-	}
 	if taker < 0 {
 		return errTakerInvalid
 	}

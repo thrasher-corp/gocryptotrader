@@ -205,6 +205,7 @@ func (c *CommissionInternal) calculate(fee decimal.Decimal, price, amount float6
 		return setValue, nil
 	}
 	// Return fee derived from percentage, price and amount values
+	// TODO: Add rebate for negative values
 	var val = decimal.NewFromFloat(price).Mul(decimal.NewFromFloat(amount)).Mul(fee)
 	rVal, _ := val.Float64()
 	return rVal, nil
