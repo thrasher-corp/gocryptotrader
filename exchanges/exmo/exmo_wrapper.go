@@ -535,7 +535,7 @@ func (e *EXMO) GetDepositAddress(ctx context.Context, cryptocurrency currency.Co
 	}
 
 	curr := cryptocurrency.Upper().String()
-	if chain != "" {
+	if chain != "" && !strings.EqualFold(chain, curr) {
 		curr += strings.ToUpper(chain)
 	}
 
@@ -550,7 +550,7 @@ func (e *EXMO) GetDepositAddress(ctx context.Context, cryptocurrency currency.Co
 			// rather than assume, return an error
 			return nil, fmt.Errorf("currency %s has %v chains available, one must be specified", cryptocurrency, chains)
 		}
-		return nil, fmt.Errorf("currency %s could not be found, please generate via the exmo website", cryptocurrency.String())
+		return nil, fmt.Errorf("deposit address for %s could not be found, please generate via the exmo website", cryptocurrency.String())
 	}
 
 	var tag string
@@ -562,6 +562,7 @@ func (e *EXMO) GetDepositAddress(ctx context.Context, cryptocurrency currency.Co
 	return &deposit.Address{
 		Address: addr,
 		Tag:     tag,
+		Chain:   chain,
 	}, nil
 }
 

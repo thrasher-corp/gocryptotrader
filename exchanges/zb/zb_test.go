@@ -473,7 +473,7 @@ func TestGetMultiChainDepositAddress(t *testing.T) {
 				err)
 		}
 	} else {
-		_, err := z.GetDepositAddress(context.Background(), currency.BTC, "", "")
+		_, err := z.GetMultiChainDepositAddress(context.Background(), currency.USDT)
 		if err == nil {
 			t.Error("GetDepositAddress() Expected error")
 		}

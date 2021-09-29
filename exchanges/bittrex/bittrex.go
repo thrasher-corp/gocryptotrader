@@ -243,7 +243,7 @@ func (b *Bittrex) GetCryptoDepositAddresses(ctx context.Context) ([]AddressData,
 }
 
 // GetCryptoDepositAddress is used to retrieve an address for a specific currency
-func (b *Bittrex) GetCryptoDepositAddress(ctx context.Context, currency string, create bool) (AddressData, error) {
+func (b *Bittrex) GetCryptoDepositAddress(ctx context.Context, currency string) (AddressData, error) {
 	var resp AddressData
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(getDepositAddress, currency), nil, nil, &resp, nil)
 }

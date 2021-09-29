@@ -1550,8 +1550,8 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gc
 		var depositAddrs []*gctrpc.DepositAddress
 		for a := range v {
 			depositAddrs = append(depositAddrs, &gctrpc.DepositAddress{
-				Address: v[a].Address.Address,
-				Tag:     v[a].Address.Tag,
+				Address: v[a].Address,
+				Tag:     v[a].Tag,
 				Chain:   v[a].Chain,
 			})
 		}
@@ -1579,7 +1579,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 	}
 
 	return &gctrpc.GetCryptocurrencyDepositAddressResponse{
-		Address: addr.Address.Address,
+		Address: addr.Address,
 		Tag:     addr.Tag,
 	}, err
 }
@@ -1634,8 +1634,8 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 		return nil, err
 	}
 
-	if otpSecret := exchCfg.API.Credentials.OTPSecret; otpSecret != "" {
-		code, errOTP := totp.GenerateCode(otpSecret, time.Now())
+	if exchCfg.API.Credentials.OTPSecret != "" {
+		code, errOTP := totp.GenerateCode(exchCfg.API.Credentials.OTPSecret, time.Now())
 		if errOTP != nil {
 			return nil, errOTP
 		}
@@ -1647,8 +1647,8 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 		request.OneTimePassword = codeNum
 	}
 
-	if pin := exchCfg.API.Credentials.PIN; pin != "" {
-		pinCode, errPin := strconv.ParseInt(pin, 10, 64)
+	if exchCfg.API.Credentials.PIN != "" {
+		pinCode, errPin := strconv.ParseInt(exchCfg.API.Credentials.PIN, 10, 64)
 		if err != nil {
 			return nil, errPin
 		}
@@ -1704,8 +1704,8 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 		return nil, err
 	}
 
-	if otpSecret := exchCfg.API.Credentials.OTPSecret; otpSecret != "" {
-		code, errOTP := totp.GenerateCode(otpSecret, time.Now())
+	if exchCfg.API.Credentials.OTPSecret != "" {
+		code, errOTP := totp.GenerateCode(exchCfg.API.Credentials.OTPSecret, time.Now())
 		if err != nil {
 			return nil, errOTP
 		}
@@ -1717,8 +1717,8 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 		request.OneTimePassword = codeNum
 	}
 
-	if pin := exchCfg.API.Credentials.PIN; pin != "" {
-		pinCode, errPIN := strconv.ParseInt(pin, 10, 64)
+	if exchCfg.API.Credentials.PIN != "" {
+		pinCode, errPIN := strconv.ParseInt(exchCfg.API.Credentials.PIN, 10, 64)
 		if err != nil {
 			return nil, errPIN
 		}

@@ -66,11 +66,6 @@ func TestMain(m *testing.M) {
 	}
 	f.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	f.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-
-	if !areTestAPIKeysSet() {
-		f.API.AuthenticatedSupport = false
-		f.API.AuthenticatedWebsocketSupport = false
-	}
 	os.Exit(m.Run())
 }
 
@@ -485,7 +480,7 @@ func TestWithdraw(t *testing.T) {
 		"",
 		"trx",
 		"715913",
-		10)
+		-1)
 	if err != nil {
 		t.Error(err)
 	}

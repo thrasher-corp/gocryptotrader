@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -2712,7 +2711,7 @@ func getAvailableTransferChains(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetAvailableTransferChains(context.Background(),
+	result, err := client.GetAvailableTransferChains(c.Context,
 		&gctrpc.GetAvailableTransferChainsRequest{
 			Exchange:       exchangeName,
 			Cryptocurrency: cryptocurrency,

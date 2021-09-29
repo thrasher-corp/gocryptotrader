@@ -284,7 +284,7 @@ func TestProvisionNewDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("api keys not set")
 	}
-	_, err := b.ProvisionNewDepositAddress(context.Background(), "XRP")
+	_, err := b.ProvisionNewDepositAddress(context.Background(), currency.XRP.String())
 	if err != nil {
 		t.Error(err)
 	}

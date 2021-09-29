@@ -1680,8 +1680,9 @@ func TestAccetableMethodStore(t *testing.T) {
 	if name := a.Lookup(currency.NewCode("BTC")); len(name) != 1 && name[1] != "BITCOIN" {
 		t.Error("incorrect values")
 	}
-	if name := a.Lookup(currency.NewCode("UST")); name[0] != "TETHER1" && name[1] != "TETHER2" {
-		t.Error("incorrect values")
+	if name := a.Lookup(currency.NewCode("UST")); (name[0] != "TETHER1" && name[1] != "TETHER2") &&
+		(name[0] != "TETHER2" && name[1] != "TETHER1") {
+		t.Errorf("incorrect values")
 	}
 	if name := a.Lookup(currency.NewCode("PANDA_HORSE")); len(name) != 0 {
 		t.Error("incorrect values")

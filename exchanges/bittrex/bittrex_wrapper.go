@@ -699,7 +699,7 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *Bittrex) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
-	depositAddr, err := b.GetCryptoDepositAddress(ctx, cryptocurrency.String(), false)
+	depositAddr, err := b.GetCryptoDepositAddress(ctx, cryptocurrency.String())
 	if err != nil {
 		return nil, err
 	}

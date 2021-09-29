@@ -68,7 +68,6 @@ func (m *WithdrawManager) SubmitWithdrawal(ctx context.Context, req *withdraw.Re
 				return nil, withdraw.ErrStrExchangeNotSupportedByAddress
 			}
 		}
-
 		if req.Type == withdraw.Fiat {
 			ret, err = exch.WithdrawFiatFunds(ctx, req)
 			if err != nil {

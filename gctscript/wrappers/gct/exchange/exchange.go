@@ -141,7 +141,7 @@ func (e Exchange) DepositAddress(exch, chain string, currencyCode currency.Code)
 		return nil, errors.New("currency code is empty")
 	}
 	resp, err := engine.Bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exch, chain, currencyCode)
-	return &deposit.Address{Address: resp.Address.Address, Tag: resp.Address.Tag}, err
+	return &deposit.Address{Address: resp.Address, Tag: resp.Tag}, err
 }
 
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
