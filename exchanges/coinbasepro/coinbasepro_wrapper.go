@@ -798,7 +798,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 			return nil, err
 		}
 		resp, err := c.GetOrders(ctx,
-			[]string{"done", "settled"},
+			[]string{"done"},
 			fpair.String())
 		if err != nil {
 			return nil, err
