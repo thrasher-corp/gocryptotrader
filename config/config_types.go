@@ -37,7 +37,7 @@ const (
 	DefaultAPISecret                     = "Secret"
 	DefaultAPIClientID                   = "ClientID"
 	defaultDataHistoryMonitorCheckTimer  = time.Minute
-	defaultFeeManagerDelay               = time.Minute
+	defaultFeeManagerDelay               = time.Minute * 10
 	defaultCurrencyStateManagerDelay     = time.Minute
 	defaultMaxJobsPerCycle               = 5
 )

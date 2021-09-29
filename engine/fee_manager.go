@@ -19,7 +19,7 @@ const (
 	FeeManagerName = "fee_manager"
 	// DefaultFeeManagerDelay defines the default duration when the manager
 	// fetches and updates each exchange for its fees
-	DefaultFeeManagerDelay = time.Minute
+	DefaultFeeManagerDelay = time.Minute * 10
 )
 
 // FeeManager manages full fee structures across all enabled exchanges
