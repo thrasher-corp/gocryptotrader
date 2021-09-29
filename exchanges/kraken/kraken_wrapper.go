@@ -462,7 +462,11 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 		for x := range t.Tickers {
-			pair, err := currency.NewPairFromString(t.Tickers[x].Symbol)
+			// yeah, some ticker entries have no pair
+			if t.Tickers[x].Pair == "" {
+				continue
+			}
+			pair, err := currency.NewPairFromString(t.Tickers[x].Pair)
 			if err != nil {
 				return err
 			}
@@ -604,7 +608,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		for name := range bal.Accounts {
 			for code := range bal.Accounts[name].Balances {
 				balances = append(balances, account.Balance{
-					CurrencyName: currency.NewCode(name),
+					CurrencyName: currency.NewCode(code),
 					TotalValue:   bal.Accounts[name].Balances[code],
 				})
 			}
