@@ -43,6 +43,8 @@ const (
 	SettlePay
 	ExchangeFiatDWChannelSignetUSD         // Binance
 	ExchangeFiatDWChannelSwiftSignatureBar // Binance
+	AutomaticClearingHouse
+	FedWire
 )
 
 var errUnknownBankTransaction = errors.New("unknown bank transaction type")
@@ -126,6 +128,10 @@ func (b BankTransaction) String() string {
 		return "ExchangeFiatDWChannelSignetUSD"
 	case ExchangeFiatDWChannelSwiftSignatureBar:
 		return "ExchangeFiatDWChannelSignetUSD"
+	case AutomaticClearingHouse:
+		return "AutomaticClearingHouse"
+	case FedWire:
+		return "FedWire"
 	default:
 		return ""
 	}
@@ -169,7 +175,9 @@ func (b BankTransaction) Validate() error {
 		GEOPay,
 		SettlePay,
 		ExchangeFiatDWChannelSignetUSD,
-		ExchangeFiatDWChannelSwiftSignatureBar:
+		ExchangeFiatDWChannelSwiftSignatureBar,
+		AutomaticClearingHouse,
+		FedWire:
 		return nil
 	default:
 		return fmt.Errorf("%d: %w", b, errUnknownBankTransaction)

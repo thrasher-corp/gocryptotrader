@@ -117,14 +117,13 @@ func (b *Bitflyer) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	// TODO: Figure out the weird fee structure. Do we use Bitcoin Easy Exchange,
-	// Lightning Spot,Bitcoin Market,Lightning FX/Futures etc.
 	return b.Fees.LoadStatic(fee.Options{
-		// bitflyer has fee tiers, but does not disclose them via API, so the
-		// largest has to be assumed
+		// NOTE: https://bitflyer.com/en-us/commission
+		// TODO: Account level integration for fees.
 		Commission: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.0012, Taker: 0.0012},
+			asset.Spot: {Maker: 0.001, Taker: 0.001},
 		},
+		Transfer:        transferFee,
 		BankingTransfer: bankTransfer,
 	})
 }

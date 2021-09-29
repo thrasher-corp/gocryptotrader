@@ -2,6 +2,7 @@ package bitflyer
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -296,8 +297,22 @@ type NewOrder struct {
 	TimeInForce    string  `json:"time_in_force"`
 }
 
-var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.WireTransfer: {
-		currency.JPY: {Withdrawal: fee.ConvertWithAmount(540, 756, 30000)},
+var transferFee = map[asset.Item]map[currency.Code]fee.Transfer{
+	asset.Spot: {
+		currency.BTC: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0004)},
+		currency.ETH: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+		currency.ETC: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+		currency.LTC: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+		currency.BCH: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0002)},
 	},
+}
+
+var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
+	fee.AutomaticClearingHouse: {
+		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
+	},
+	fee.FedWire: {
+		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
+	},
+	// NOTE: JPY bank withdrawals and deposits are not available.
 }
