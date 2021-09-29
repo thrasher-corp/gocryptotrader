@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -354,5 +355,13 @@ func TestWsTicker(t *testing.T) {
 	err := by.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetFuturesOrderbook(t *testing.T) {
+	t.Parallel()
+	_, err := by.GetFuturesOrderbook(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 1000)
+	if err != nil {
+		t.Error(err)
 	}
 }

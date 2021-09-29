@@ -498,8 +498,8 @@ type AssetExchangeRecord struct {
 	ID           int64   `json:"id"`
 	FromCoin     string  `json:"from_coin"`
 	FromAmount   float64 `json:"from_amount"`
-	ToCoin       string  `json:"from_coin"`
-	ToAmount     float64 `json:"from_amount"`
+	ToCoin       string  `json:"to_coin"`
+	ToAmount     float64 `json:"to_amount"`
 	ExchangeRate float64 `json:"exchange_rate"`
 	FromFee      float64 `json:"from_fee"`
 	CreatedAt    string  `json:"created_at"`
