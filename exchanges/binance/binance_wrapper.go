@@ -1171,13 +1171,15 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if err != nil {
 			return respData, err
 		}
-		fee, err := b.Fees.CalculateTaker(orderData.AveragePrice,
+		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
+		var fee float64
+		fee, err = b.getFee(orderVars.OrderType,
+			orderData.AveragePrice,
 			orderData.ExecutedQuantity,
-			asset.CoinMarginedFutures) // TODO: Verify
+			asset.CoinMarginedFutures)
 		if err != nil {
 			return respData, err
 		}
-		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
 		respData.Amount = orderData.OriginalQuantity
 		respData.AssetType = assetType
 		respData.ClientOrderID = orderData.ClientOrderID
@@ -1198,13 +1200,15 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if err != nil {
 			return respData, err
 		}
-		fee, err := b.Fees.CalculateTaker(orderData.AveragePrice,
+		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
+		var fee float64
+		fee, err = b.getFee(orderVars.OrderType,
+			orderData.AveragePrice,
 			orderData.ExecutedQuantity,
-			asset.USDTMarginedFutures) // TODO: Verify
+			asset.CoinMarginedFutures)
 		if err != nil {
 			return respData, err
 		}
-		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
 		respData.Amount = orderData.OriginalQuantity
 		respData.AssetType = assetType
 		respData.ClientOrderID = orderData.ClientOrderID
@@ -1304,13 +1308,15 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				return nil, err
 			}
 			for y := range openOrders {
-				fee, err := b.Fees.CalculateTaker(openOrders[y].AvgPrice,
+				orderVars := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
+				var fee float64
+				fee, err = b.getFee(orderVars.OrderType,
+					openOrders[y].AvgPrice,
 					openOrders[y].ExecutedQty,
-					asset.CoinMarginedFutures) // TODO: Verify
+					asset.CoinMarginedFutures)
 				if err != nil {
 					return orders, err
 				}
-				orderVars := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
 				orders = append(orders, order.Detail{
 					Price:           openOrders[y].Price,
 					Amount:          openOrders[y].OrigQty,
@@ -1335,13 +1341,15 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				return nil, err
 			}
 			for y := range openOrders {
-				fee, err := b.Fees.CalculateTaker(openOrders[y].AveragePrice,
+				orderVars := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
+				var fee float64
+				fee, err = b.getFee(orderVars.OrderType,
+					openOrders[y].AveragePrice,
 					openOrders[y].ExecutedQuantity,
-					asset.USDTMarginedFutures) // TODO: Verify
+					asset.USDTMarginedFutures)
 				if err != nil {
 					return orders, err
 				}
-				orderVars := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
 				orders = append(orders, order.Detail{
 					Price:           openOrders[y].Price,
 					Amount:          openOrders[y].OriginalQuantity,
@@ -1448,13 +1456,15 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				return nil, fmt.Errorf("invalid combination of input params")
 			}
 			for y := range orderHistory {
-				fee, err := b.Fees.CalculateTaker(orderHistory[y].AvgPrice,
+				orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
+				var fee float64
+				fee, err = b.getFee(orderVars.OrderType,
+					orderHistory[y].AvgPrice,
 					orderHistory[y].ExecutedQty,
-					asset.CoinMarginedFutures) // TODO: Verify
+					asset.CoinMarginedFutures)
 				if err != nil {
 					return orders, err
 				}
-				orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
 				orders = append(orders, order.Detail{
 					Price:           orderHistory[y].Price,
 					Amount:          orderHistory[y].OrigQty,
@@ -1504,13 +1514,15 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				return nil, fmt.Errorf("invalid combination of input params")
 			}
 			for y := range orderHistory {
-				fee, err := b.Fees.CalculateTaker(orderHistory[y].AvgPrice,
+				orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
+				var fee float64
+				fee, err = b.getFee(orderVars.OrderType,
+					orderHistory[y].AvgPrice,
 					orderHistory[y].ExecutedQty,
-					asset.USDTMarginedFutures) // TODO: Verify
+					asset.USDTMarginedFutures)
 				if err != nil {
 					return orders, err
 				}
-				orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
 				orders = append(orders, order.Detail{
 					Price:           orderHistory[y].Price,
 					Amount:          orderHistory[y].OrigQty,
@@ -1818,4 +1830,14 @@ func (b *Binance) UpdateTransferFees(ctx context.Context) error {
 		}
 	}
 	return b.Fees.LoadTransferFees(transferFee)
+}
+
+// getFee returns fee based off order type
+func (b *Binance) getFee(o order.Type, avgPrice, execQuantity float64, a asset.Item) (float64, error) {
+	if o == order.Market {
+		return b.Fees.CalculateTaker(avgPrice, execQuantity, a)
+	} else if o == order.Limit {
+		return b.Fees.CalculateMaker(avgPrice, execQuantity, a)
+	}
+	return 0, nil
 }
