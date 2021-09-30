@@ -87,7 +87,7 @@ func (s Switch) GetFee(amount float64) decimal.Decimal {
 
 // Display implements Value interface
 func (s Switch) Display() (string, error) {
-	data, err := json.MarshalIndent(s, "", "")
+	data, err := json.Marshal(s)
 	if err != nil {
 		return "", err
 	}
