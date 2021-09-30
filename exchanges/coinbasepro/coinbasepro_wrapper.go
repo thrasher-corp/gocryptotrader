@@ -837,6 +837,8 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 			ExecutedAmount: respOrders[i].FilledSize,
 			Type:           orderType,
 			Date:           respOrders[i].CreatedAt,
+			Fee:            respOrders[i].FillFees,
+			FeeAsset:       curr.Quote,
 			Side:           orderSide,
 			Pair:           curr,
 			Price:          respOrders[i].Price,
