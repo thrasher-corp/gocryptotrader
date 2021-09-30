@@ -1032,6 +1032,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
 	cp := currency.NewPair(currency.ETH, currency.USD)
 	_, err := b.UpdateTicker(context.Background(), cp, asset.PerpetualContract)
 	if err != nil {
@@ -1040,7 +1041,19 @@ func TestUpdateTicker(t *testing.T) {
 }
 
 func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
 	err := b.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetUserCommission(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping due to unset test keys")
+	}
+	_, err := b.GetUserCommission(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

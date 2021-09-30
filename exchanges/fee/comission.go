@@ -47,9 +47,6 @@ func (c Commission) convert() *CommissionInternal {
 
 // validate validates commission variables
 func (c Commission) validate() error {
-	if c.Maker < 0 {
-		return errMakerInvalid
-	}
 	if c.Taker < 0 {
 		return errTakerInvalid
 	}

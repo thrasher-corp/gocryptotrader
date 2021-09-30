@@ -35,6 +35,11 @@ func ConvertWithAmount(feeWhenLower, feeWhenHigherOrEqual, amount float64) Value
 	}
 }
 
+// ConvertBlockchain is a placeholder for blockchain specific fees
+func ConvertBlockchain(blockchain string) Value {
+	return Blockchain(blockchain)
+}
+
 // Standard standard float fee
 type Standard struct {
 	decimal.Decimal
@@ -110,5 +115,33 @@ func (s Switch) Validate() error {
 
 // Display implements Value interface
 func (s Switch) LessThan(_ Value) (bool, error) {
+	return false, errors.New("cannot compare")
+}
+
+// Blockchain is a subtype implementing the value interface to designate
+// certain fee options as a blockchain componant. This will be deprecated in
+// the future when another PR can help resolve this.
+type Blockchain string
+
+// GetFee implements Value interface
+func (b Blockchain) GetFee(amount float64) decimal.Decimal {
+	return decimal.Zero
+}
+
+// Display implements Value interface
+func (b Blockchain) Display() (string, error) {
+	return fmt.Sprintf("current fees are %s blockchain transaction fees", b), nil
+}
+
+// Display implements Value interface
+func (s Blockchain) Validate() error {
+	if s == "" {
+		return errors.New("blockchain string is empty")
+	}
+	return nil
+}
+
+// Display implements Value interface
+func (s Blockchain) LessThan(_ Value) (bool, error) {
 	return false, errors.New("cannot compare")
 }

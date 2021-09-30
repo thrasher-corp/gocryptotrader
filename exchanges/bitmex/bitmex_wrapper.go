@@ -154,7 +154,22 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 
 	err = b.Fees.LoadStatic(fee.Options{
 		Commission: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.0005, Taker: 0.00075}, // TODO: verify
+			// Bitmex is offering maker rebates of '-0.0001'
+			asset.Futures:           {Maker: -0.0001, Taker: 0.0005},
+			asset.Index:             {Maker: -0.0001, Taker: 0.0005},
+			asset.PerpetualContract: {Maker: -0.0001, Taker: 0.0005},
+		},
+		Transfer: map[asset.Item]map[currency.Code]fee.Transfer{
+			asset.Spot: {
+				currency.BTC: {
+					Deposit: fee.Convert(0),
+					// TODO: Withdrawals are subject to current blockchain fees
+					// Would need to add a seperate link that implements the
+					// fee.Value interface to generate correct fee withdraws
+					// ad-hoc, which can be added in a separate PR.
+					Withdrawal:     fee.ConvertBlockchain(currency.BTC.String()),
+					MinimumDeposit: fee.Convert(0.0001)},
+			},
 		},
 	})
 	if err != nil {
@@ -837,4 +852,13 @@ func (b *Bitmex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bitmex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// UpdateFees updates current fees associated with account
+func (b *Bitmex) UpdateFees(ctx context.Context, a asset.Item) error {
+	info, err := b.GetUserCommission(ctx)
+	if err != nil {
+		return err
+	}
+	return b.Fees.LoadDynamic(info.MakerFee, info.TakerFee, a)
 }
