@@ -425,6 +425,22 @@ func TestGetOrderHistory(t *testing.T) {
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
+
+	getOrdersRequest.Pairs = []currency.Pair{}
+	_, err = c.GetOrderHistory(context.Background(), &getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get order history: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+
+	getOrdersRequest.Pairs = nil
+	_, err = c.GetOrderHistory(context.Background(), &getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get order history: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
 }
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them

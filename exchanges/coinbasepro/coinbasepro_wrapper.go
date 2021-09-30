@@ -792,18 +792,28 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		return nil, err
 	}
 	var respOrders []GeneralizedOrderResponse
-	for i := range req.Pairs {
-		fpair, err := c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
-		if err != nil {
-			return nil, err
+	if len(req.Pairs) > 0 {
+		for i := range req.Pairs {
+			fpair, err := c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+			if err != nil {
+				return nil, err
+			}
+			resp, err := c.GetOrders(ctx,
+				[]string{"done"},
+				fpair.String())
+			if err != nil {
+				return nil, err
+			}
+			respOrders = append(respOrders, resp...)
 		}
+	} else {
 		resp, err := c.GetOrders(ctx,
 			[]string{"done"},
-			fpair.String())
+			"")
 		if err != nil {
 			return nil, err
 		}
-		respOrders = append(respOrders, resp...)
+		respOrders = resp
 	}
 
 	format, err := c.GetPairFormat(asset.Spot, false)
@@ -827,8 +837,11 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 			ExecutedAmount: respOrders[i].FilledSize,
 			Type:           orderType,
 			Date:           respOrders[i].CreatedAt,
+			Fee:            respOrders[i].FillFees,
+			FeeAsset:       curr.Quote,
 			Side:           orderSide,
 			Pair:           curr,
+			Price:          respOrders[i].Price,
 			Exchange:       c.Name,
 		})
 	}
