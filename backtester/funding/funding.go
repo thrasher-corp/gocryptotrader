@@ -144,6 +144,7 @@ func (f *FundManager) GenerateReport() *Report {
 			FinalFunds:      f.items[i].available,
 			USDInitialFunds: f.items[i].initialFunds,
 			USDFinalFunds:   f.items[i].available,
+			USDPairCandle:   f.items[i].usdTrackingCandles,
 		}
 		if !f.disableUSDTracking &&
 			f.items[i].usdTrackingCandles != nil &&

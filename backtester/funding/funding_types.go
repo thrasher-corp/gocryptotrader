@@ -38,6 +38,7 @@ type ReportItem struct {
 	USDFinalFunds        decimal.Decimal
 	USDFinalCostForOne   decimal.Decimal
 	USDAllFunds          []decimal.Decimal
+	USDPairCandle        *kline.DataFromKline
 
 	Difference   decimal.Decimal
 	ShowInfinite bool
