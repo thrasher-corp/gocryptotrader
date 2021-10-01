@@ -26,21 +26,21 @@ var (
 // Statistic holds all statistical information for a backtester run, from drawdowns to ratios.
 // Any currency specific information is handled in currencystatistics
 type Statistic struct {
-	StrategyName                string                                                                            `json:"strategy-name"`
-	StrategyDescription         string                                                                            `json:"strategy-description"`
-	StrategyNickname            string                                                                            `json:"strategy-nickname"`
-	StrategyGoal                string                                                                            `json:"strategy-goal"`
-	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic `json:"-"`
-	RiskFreeRate                decimal.Decimal                                                                   `json:"risk-free-rate"`
-	TotalBuyOrders              int64                                                                             `json:"total-buy-orders"`
-	TotalSellOrders             int64                                                                             `json:"total-sell-orders"`
-	TotalOrders                 int64                                                                             `json:"total-orders"`
-	BiggestDrawdown             *FinalResultsHolder                                                               `json:"biggest-drawdown,omitempty"`
-	BestStrategyResults         *FinalResultsHolder                                                               `json:"best-start-results,omitempty"`
-	BestMarketMovement          *FinalResultsHolder                                                               `json:"best-market-movement,omitempty"`
-	AllStats                    []currencystatistics.CurrencyStatistic                                            `json:"results"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
-	WasAnyDataMissing           bool                                                                              `json:"was-any-data-missing"`
-	Funding                     *funding.Report                                                                   `json:"funding"`
+	StrategyName                string                                                                                `json:"strategy-name"`
+	StrategyDescription         string                                                                                `json:"strategy-description"`
+	StrategyNickname            string                                                                                `json:"strategy-nickname"`
+	StrategyGoal                string                                                                                `json:"strategy-goal"`
+	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic `json:"-"`
+	RiskFreeRate                decimal.Decimal                                                                       `json:"risk-free-rate"`
+	TotalBuyOrders              int64                                                                                 `json:"total-buy-orders"`
+	TotalSellOrders             int64                                                                                 `json:"total-sell-orders"`
+	TotalOrders                 int64                                                                                 `json:"total-orders"`
+	BiggestDrawdown             *FinalResultsHolder                                                                   `json:"biggest-drawdown,omitempty"`
+	BestStrategyResults         *FinalResultsHolder                                                                   `json:"best-start-results,omitempty"`
+	BestMarketMovement          *FinalResultsHolder                                                                   `json:"best-market-movement,omitempty"`
+	AllStats                    []currencystatistics.CurrencyPairStatistic                                            `json:"results"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
+	WasAnyDataMissing           bool                                                                                  `json:"was-any-data-missing"`
+	Funding                     *funding.Report                                                                       `json:"funding"`
 }
 
 // FinalResultsHolder holds important stats about a currency's performance

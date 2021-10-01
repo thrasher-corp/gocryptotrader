@@ -33,8 +33,11 @@ type EventStore struct {
 	FillEvent    fill.Event
 }
 
-// CurrencyStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair
 type CurrencyStatistic struct {
+}
+
+// CurrencyPairStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair
+type CurrencyPairStatistic struct {
 	ShowMissingDataWarning       bool `json:"-"`
 	IsStrategyProfitable         bool `json:"is-strategy-profitable"`
 	DoesPerformanceBeatTheMarket bool `json:"does-performance-beat-the-market"`

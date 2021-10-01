@@ -22,7 +22,7 @@ const testExchange = "binance"
 
 func TestCalculateResults(t *testing.T) {
 	t.Parallel()
-	cs := CurrencyStatistic{}
+	cs := CurrencyPairStatistic{}
 	tt1 := time.Now()
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
@@ -137,7 +137,7 @@ func TestCalculateResults(t *testing.T) {
 }
 
 func TestPrintResults(t *testing.T) {
-	cs := CurrencyStatistic{}
+	cs := CurrencyPairStatistic{}
 	tt1 := time.Now()
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
@@ -333,7 +333,7 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 
 func TestCalculateHighestCommittedFunds(t *testing.T) {
 	t.Parallel()
-	c := CurrencyStatistic{}
+	c := CurrencyPairStatistic{}
 	c.calculateHighestCommittedFunds()
 	if !c.HighestCommittedFunds.Time.IsZero() {
 		t.Error("expected no time with not committed funds")

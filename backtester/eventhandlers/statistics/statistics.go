@@ -37,7 +37,7 @@ func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
 	s.setupMap(ex, a)
 	lookup := s.ExchangeAssetPairStatistics[ex][a][p]
 	if lookup == nil {
-		lookup = &currencystatistics.CurrencyStatistic{}
+		lookup = &currencystatistics.CurrencyPairStatistic{}
 	}
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(ev.GetTime()) &&
@@ -60,13 +60,13 @@ func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
 
 func (s *Statistic) setupMap(ex string, a asset.Item) {
 	if s.ExchangeAssetPairStatistics == nil {
-		s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
+		s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
 	}
 	if s.ExchangeAssetPairStatistics[ex] == nil {
-		s.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
+		s.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
 	}
 	if s.ExchangeAssetPairStatistics[ex][a] == nil {
-		s.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatistics.CurrencyStatistic)
+		s.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
 	}
 }
 
@@ -95,7 +95,7 @@ func (s *Statistic) SetEventForOffset(ev common.EventHandler) error {
 	return nil
 }
 
-func applyEventAtOffset(ev common.EventHandler, lookup *currencystatistics.CurrencyStatistic, i int) error {
+func applyEventAtOffset(ev common.EventHandler, lookup *currencystatistics.CurrencyPairStatistic, i int) error {
 	switch t := ev.(type) {
 	case common.DataEventHandler:
 		lookup.Events[i].DataEvent = t

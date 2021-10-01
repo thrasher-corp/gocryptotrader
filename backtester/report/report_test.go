@@ -234,10 +234,10 @@ func TestGenerateReport(t *testing.T) {
 		Statistics: &statistics.Statistic{
 			Funding:      &funding.Report{},
 			StrategyName: "testStrat",
-			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic{
+			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic{
 				e: {
 					a: {
-						p: &currencystatistics.CurrencyStatistic{
+						p: &currencystatistics.CurrencyPairStatistic{
 							MaxDrawdown:              currencystatistics.Swing{},
 							LowestClosePrice:         decimal.NewFromInt(100),
 							HighestClosePrice:        decimal.NewFromInt(200),
@@ -339,10 +339,10 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &currencystatistics.CurrencyStatistic{}
+	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &currencystatistics.CurrencyPairStatistic{}
 
 	d.AddKlineItem(&gctkline.Item{
 		Exchange: testExchange,

@@ -24,6 +24,9 @@ import (
 // if using Exchange Level Funding, the goal is to see how the overall strategy performs versus
 // how an individual currency pair performs in a strategy when it is disabled
 func (c *CurrencyStatistic) CalculateExchangeLevelFundingResults(report *funding.Report) error {
+	for i := range report.Items {
+		report.Items[i].
+	}
 	return nil
 	/*
 		first := c.Events[0]
@@ -68,7 +71,7 @@ func (c *CurrencyStatistic) CalculateExchangeLevelFundingResults(report *funding
 }
 
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
-func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
+func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 	var errs gctcommon.Errors
 	var err error
 	first := c.Events[0]
@@ -253,7 +256,7 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 }
 
 // PrintResults outputs all calculated statistics to the command line
-func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair, f funding.IPairReader, usingExchangeLevelFunding bool) {
+func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.Pair, f funding.IPairReader, usingExchangeLevelFunding bool) {
 	var errs gctcommon.Errors
 	sort.Slice(c.Events, func(i, j int) bool {
 		return c.Events[i].DataEvent.GetTime().Before(c.Events[j].DataEvent.GetTime())
@@ -437,7 +440,7 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 	return maxDrawdown
 }
 
-func (c *CurrencyStatistic) calculateHighestCommittedFunds() {
+func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() {
 	for i := range c.Events {
 		if c.Events[i].Holdings.BaseSize.Mul(c.Events[i].DataEvent.ClosePrice()).GreaterThan(c.HighestCommittedFunds.Value) {
 			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseSize.Mul(c.Events[i].DataEvent.ClosePrice())

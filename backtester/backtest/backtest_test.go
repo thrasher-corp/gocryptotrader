@@ -461,9 +461,9 @@ func TestFullCycle(t *testing.T) {
 	tt := time.Now()
 
 	stats := &statistics.Statistic{}
-	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatistics.CurrencyStatistic)
+	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
 
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  config.MinMax{},
@@ -566,9 +566,9 @@ func TestFullCycleMulti(t *testing.T) {
 	tt := time.Now()
 
 	stats := &statistics.Statistic{}
-	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatistics.CurrencyStatistic)
+	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
 
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  config.MinMax{},
