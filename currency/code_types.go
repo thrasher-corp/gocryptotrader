@@ -1775,4 +1775,8 @@ var (
 	PCI        = NewCode("PCI")
 	SOL        = NewCode("SOL")
 	LN         = NewCode("LN")
+	GUSD       = NewCode("GUSD")
+	AUDIO      = NewCode("AUDIO")
+	EURT       = NewCode("EURT")
+	ALPHA      = NewCode("ALPHA")
 )

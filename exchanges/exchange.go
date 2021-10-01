@@ -1413,13 +1413,13 @@ func (b *Base) GetAllFees() (fee.Options, error) {
 
 // GetCommissionFee returns the Commission fees (maker and taker) includes worst
 // case scenario fees
-func (b *Base) GetCommissionFee(a asset.Item) (*fee.CommissionInternal, error) {
-	return b.Fees.GetCommissionFee(a)
+func (b *Base) GetCommissionFee(a asset.Item, pair currency.Pair) (*fee.CommissionInternal, error) {
+	return b.Fees.GetCommissionFee(a, pair)
 }
 
 // SetCommissionFee sets a new rate for maker and taker
-func (b *Base) SetCommissionFee(a asset.Item, maker, taker float64, isSetAmount bool) error {
-	return b.Fees.SetCommissionFee(a, maker, taker, isSetAmount)
+func (b *Base) SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker float64, isSetAmount bool) error {
+	return b.Fees.SetCommissionFee(a, pair, maker, taker, isSetAmount)
 }
 
 // GetTransferFee returns the transfer fees to and from an exchange via crypto

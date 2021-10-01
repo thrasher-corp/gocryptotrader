@@ -178,7 +178,7 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 
 	err = c.Fees.LoadStatic(fee.Options{
 		// TODO: Actually have WCS values
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0, Taker: 0.0},
 		},
 	})
@@ -949,8 +949,8 @@ func (c *Coinbene) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	return c.GetHistoricCandles(ctx, pair, a, start, end, interval)
 }
 
-// UpdateFees updates current fees associated with account
-func (c *Coinbene) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (c *Coinbene) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

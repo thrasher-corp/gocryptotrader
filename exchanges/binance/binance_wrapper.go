@@ -223,7 +223,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	err = b.Fees.LoadStatic(fee.Options{
 		// Note: https://www.binance.com/en/fee/trading
 		// Exchange Transfer fees are done live via method UpdateTransferFees
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot:                {Maker: 0.01, Taker: 0.01},
 			asset.USDTMarginedFutures: {Maker: 0.02, Taker: 0.04},
 			asset.CoinMarginedFutures: {Maker: 0.01, Taker: 0.05},
@@ -1757,6 +1757,7 @@ func (b *Binance) UpdateCommissionFees(ctx context.Context, a asset.Item) error 
 			float64(account.MakerCommission)/10000,
 			float64(account.TakerCommission)/10000,
 			a,
+			fee.OmitPair,
 		)
 	case asset.USDTMarginedFutures:
 		accData, err := b.UAccountInformationV2(ctx)
@@ -1767,7 +1768,7 @@ func (b *Binance) UpdateCommissionFees(ctx context.Context, a asset.Item) error 
 		if !ok {
 			return errFeeTierNotFound
 		}
-		return b.Fees.LoadDynamic(f.Maker, f.Taker, a)
+		return b.Fees.LoadDynamic(f.Maker, f.Taker, a, fee.OmitPair)
 	case asset.CoinMarginedFutures:
 		accData, err := b.GetFuturesAccountInfo(ctx)
 		if err != nil {
@@ -1778,7 +1779,7 @@ func (b *Binance) UpdateCommissionFees(ctx context.Context, a asset.Item) error 
 		if !ok {
 			return errFeeTierNotFound
 		}
-		return b.Fees.LoadDynamic(f.Maker, f.Taker, a)
+		return b.Fees.LoadDynamic(f.Maker, f.Taker, a, fee.OmitPair)
 	case asset.Margin:
 		return nil
 	default:
@@ -1835,9 +1836,9 @@ func (b *Binance) UpdateTransferFees(ctx context.Context) error {
 // getFee returns fee based off order type
 func (b *Binance) getFee(o order.Type, avgPrice, execQuantity float64, a asset.Item) (float64, error) {
 	if o == order.Market {
-		return b.Fees.CalculateTaker(avgPrice, execQuantity, a)
+		return b.Fees.CalculateTaker(avgPrice, execQuantity, a, currency.Pair{})
 	} else if o == order.Limit {
-		return b.Fees.CalculateMaker(avgPrice, execQuantity, a)
+		return b.Fees.CalculateMaker(avgPrice, execQuantity, a, currency.Pair{})
 	}
 	return 0, nil
 }

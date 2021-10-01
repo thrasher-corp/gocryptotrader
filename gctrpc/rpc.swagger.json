@@ -2612,6 +2612,12 @@
             "type": "string"
           },
           {
+            "name": "pair",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
             "name": "maker",
             "in": "query",
             "required": false,
@@ -3663,6 +3669,9 @@
       "properties": {
         "asset": {
           "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
         },
         "maker": {
           "type": "number",

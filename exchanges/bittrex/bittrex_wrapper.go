@@ -153,7 +153,7 @@ func (b *Bittrex) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0025, Taker: 0.0025}, // TODO: verify
 		},
 	})
@@ -1027,8 +1027,8 @@ func (b *Bittrex) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	return kline.Item{}, common.ErrNotYetImplemented
 }
 
-// UpdateFees updates current fees associated with account
-func (b *Bittrex) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (b *Bittrex) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

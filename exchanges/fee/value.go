@@ -40,6 +40,15 @@ func ConvertBlockchain(blockchain string) Value {
 	return Blockchain(blockchain)
 }
 
+// ConvertWithMaxAndMin returns a fee value with maximum and minimum fees
+func ConvertWithMaxAndMin(fee, maximum, minimum float64) Value {
+	return MinMax{
+		Fee:     decimal.NewFromFloat(fee),
+		Maximum: decimal.NewFromFloat(maximum),
+		Minimum: decimal.NewFromFloat(minimum),
+	}
+}
+
 // Standard standard float fee
 type Standard struct {
 	decimal.Decimal
@@ -143,5 +152,53 @@ func (s Blockchain) Validate() error {
 
 // Display implements Value interface
 func (s Blockchain) LessThan(_ Value) (bool, error) {
+	return false, errors.New("cannot compare")
+}
+
+// MinMax implements the value interface for when there are min and max fees
+type MinMax struct {
+	Minimum decimal.Decimal `json:"minimumFee"`
+	Maximum decimal.Decimal `json:"maximumFee"`
+	Fee     decimal.Decimal `json:"fee"`
+}
+
+// GetFee implements Value interface
+func (m MinMax) GetFee(amount float64) decimal.Decimal {
+	amt := decimal.NewFromFloat(amount)
+	potential := amt.Mul(m.Fee)
+	if m.Maximum.GreaterThan(decimal.Zero) && potential.GreaterThan(m.Maximum) {
+		return m.Maximum
+	}
+	if m.Minimum.GreaterThan(decimal.Zero) && potential.LessThan(m.Minimum) {
+		return m.Minimum
+	}
+	return potential
+}
+
+// Display implements Value interface
+func (m MinMax) Display() (string, error) {
+	data, err := json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+// Display implements Value interface
+func (m MinMax) Validate() error {
+	if m.Fee.LessThan(decimal.Zero) {
+		return errors.New("invalid fee")
+	}
+	if m.Maximum.LessThan(decimal.Zero) {
+		return errors.New("invalid maximum fee")
+	}
+	if m.Minimum.LessThan(decimal.Zero) {
+		return errors.New("invalid minimum fee")
+	}
+	return nil
+}
+
+// Display implements Value interface
+func (m MinMax) LessThan(_ Value) (bool, error) {
 	return false, errors.New("cannot compare")
 }

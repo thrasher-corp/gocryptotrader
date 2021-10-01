@@ -67,7 +67,7 @@ func TestLoadStatic(t *testing.T) {
 		bankingTransfers: make(map[BankTransaction]map[*currency.Item]*transfer),
 	}
 	err = d.LoadStatic(Options{
-		Commission: map[asset.Item]Commission{
+		GlobalCommissions: map[asset.Item]Commission{
 			asset.Spot: {Maker: -1},
 		},
 	}) // Validate coverage
@@ -76,7 +76,7 @@ func TestLoadStatic(t *testing.T) {
 	}
 
 	err = d.LoadStatic(Options{
-		Commission: map[asset.Item]Commission{
+		GlobalCommissions: map[asset.Item]Commission{
 			asset.Spot: {},
 		},
 		Transfer: map[asset.Item]map[currency.Code]Transfer{

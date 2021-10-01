@@ -193,7 +193,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 
 	err = b.Fees.LoadStatic(fee.Options{
 		// NOTE: https://www.bitfinex.com/fees/
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.001, Taker: 0.001},
 		},
 		BankingTransfer: bankTransferFees,
@@ -1125,8 +1125,8 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 	return string(runes), nil
 }
 
-// UpdateFees updates current fees associated with account
-func (b *Bitfinex) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (b *Bitfinex) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
@@ -1138,7 +1138,7 @@ func (b *Bitfinex) UpdateFees(ctx context.Context, a asset.Item) error {
 	if len(info) < 1 {
 		return errors.New("no returned data")
 	}
-	return b.Fees.LoadDynamic(info[0].MakerFees, info[0].TakerFees, a)
+	return b.Fees.LoadDynamic(info[0].MakerFees, info[0].TakerFees, a, fee.OmitPair)
 }
 
 // UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and

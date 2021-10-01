@@ -161,7 +161,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = c.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0025, Taker: 0.0025},
 		},
 		Transfer: transfer, // TODO: validate
@@ -979,8 +979,8 @@ func (c *CoinbasePro) ValidateCredentials(ctx context.Context, assetType asset.I
 	return c.CheckTransientError(err)
 }
 
-// UpdateFees updates current fees associated with account
-func (c *CoinbasePro) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (c *CoinbasePro) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

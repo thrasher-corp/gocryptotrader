@@ -159,7 +159,7 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = h.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
 		},
 		Transfer: depositFee,
@@ -919,8 +919,8 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	return ret, nil
 }
 
-// UpdateFees updates current fees associated with account
-func (h *HitBTC) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (h *HitBTC) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

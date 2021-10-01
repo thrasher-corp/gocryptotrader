@@ -190,7 +190,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 
 	err = h.Fees.LoadStatic(fee.Options{
 		// TODO: This is crypto/crypto pair add in crypto/Fiat 0.001 RECHECK
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
 		},
 	})

@@ -180,7 +180,7 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.001, Taker: 0.002},
 		},
 		Transfer: withdrawTransfer,
@@ -1069,8 +1069,8 @@ func OrderSizeLimits(pair string) (limits OrderSizeLimit, found bool) {
 	return val, ok
 }
 
-// UpdateFees updates current fees associated with account
-func (b *BTSE) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (b *BTSE) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

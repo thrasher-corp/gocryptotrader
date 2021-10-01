@@ -3904,7 +3904,7 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 	}
 
 	var commission []*gctrpc.Commission
-	for a, val := range ss.Commission {
+	for a, val := range ss.GlobalCommissions {
 		commission = append(commission, &gctrpc.Commission{
 			Asset:          a.String(),
 			Maker:          val.Maker,
@@ -3913,6 +3913,24 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 			WorstCaseTaker: val.WorstCaseTaker,
 			IsSetAmount:    val.IsSetAmount,
 		})
+	}
+
+	for a, m1 := range ss.PairCommissions {
+		for pair, val := range m1 {
+			commission = append(commission, &gctrpc.Commission{
+				Asset: a.String(),
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: currency.DashDelimiter,
+					Base:      pair.Base.String(),
+					Quote:     pair.Quote.String(),
+				},
+				Maker:          val.Maker,
+				Taker:          val.Taker,
+				WorstCaseMaker: val.WorstCaseMaker,
+				WorstCaseTaker: val.WorstCaseTaker,
+				IsSetAmount:    val.IsSetAmount,
+			})
+		}
 	}
 
 	var transferFees []*gctrpc.TransferFees
@@ -4005,7 +4023,12 @@ func (s *RPCServer) SetCommission(_ context.Context, r *gctrpc.SetCommissionRequ
 		return nil, err
 	}
 
-	err = exch.SetCommissionFee(asset.Item(r.Asset), r.Maker, r.Taker, r.IsSetAmount)
+	pair, err := currency.NewPairFromString(r.Pair)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.SetCommissionFee(asset.Item(r.Asset), pair, r.Maker, r.Taker, r.IsSetAmount)
 	if err != nil {
 		return nil, err
 	}

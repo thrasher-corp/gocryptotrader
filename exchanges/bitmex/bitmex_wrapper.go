@@ -153,7 +153,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			// Bitmex is offering maker rebates of '-0.0001'
 			asset.Futures:           {Maker: -0.0001, Taker: 0.0005},
 			asset.Index:             {Maker: -0.0001, Taker: 0.0005},
@@ -854,11 +854,11 @@ func (b *Bitmex) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
 
-// UpdateFees updates current fees associated with account
-func (b *Bitmex) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (b *Bitmex) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	info, err := b.GetUserCommission(ctx)
 	if err != nil {
 		return err
 	}
-	return b.Fees.LoadDynamic(info.MakerFee, info.TakerFee, a)
+	return b.Fees.LoadDynamic(info.MakerFee, info.TakerFee, a, fee.OmitPair)
 }

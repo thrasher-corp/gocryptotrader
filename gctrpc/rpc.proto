@@ -972,11 +972,12 @@ message GetAllFeesResponse {
 
 message Commission {
     string asset = 1;
-    double maker = 2;
-    double taker = 3;
-    double worst_case_maker = 4;
-    double worst_case_taker = 5;
-    bool is_set_amount = 6;
+    CurrencyPair pair = 2; 
+    double maker = 3;
+    double taker = 4;
+    double worst_case_maker = 5;
+    double worst_case_taker = 6;
+    bool is_set_amount = 7;
 }
 
 message TransferFees {
@@ -997,9 +998,10 @@ message TransferFees {
 message SetCommissionRequest {
     string exchange = 1;
     string asset = 2;
-    double maker = 3;
-    double taker = 4;
-    bool is_set_amount = 5;
+    string pair = 3;
+    double maker = 4;
+    double taker = 5;
+    bool is_set_amount = 6;
 }
 
 message SetTransferFeeRequest {

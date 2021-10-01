@@ -128,7 +128,7 @@ func (f fExchange) UpdateAccountInfo(ctx context.Context, a asset.Item) (account
 // GetAllFees overrides interface function
 func (f fExchange) GetAllFees() (fee.Options, error) {
 	return fee.Options{
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {},
 		},
 		Transfer: map[asset.Item]map[currency.Code]fee.Transfer{

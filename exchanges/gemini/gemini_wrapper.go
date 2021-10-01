@@ -143,7 +143,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = g.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.01, Taker: 0.01},
 		},
 	})
@@ -799,8 +799,8 @@ func (g *Gemini) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
 
-// UpdateFees updates current fees associated with account
-func (g *Gemini) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (g *Gemini) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

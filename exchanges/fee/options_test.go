@@ -10,7 +10,7 @@ import (
 
 func TestOptionsValidate(t *testing.T) {
 	err := (&Options{
-		Commission: map[asset.Item]Commission{
+		GlobalCommissions: map[asset.Item]Commission{
 			asset.Spot: {Maker: -1},
 		},
 	}).validate()
@@ -19,7 +19,7 @@ func TestOptionsValidate(t *testing.T) {
 	}
 
 	err = (&Options{
-		Commission: map[asset.Item]Commission{
+		GlobalCommissions: map[asset.Item]Commission{
 			asset.Spot: {Maker: 0, Taker: -1},
 		},
 	}).validate()
@@ -28,7 +28,7 @@ func TestOptionsValidate(t *testing.T) {
 	}
 
 	err = (&Options{
-		Commission: map[asset.Item]Commission{
+		GlobalCommissions: map[asset.Item]Commission{
 			asset.Spot: {Maker: 10, Taker: 1},
 		},
 	}).validate()

@@ -117,7 +117,7 @@ func (i *ItBit) Setup(exch *config.ExchangeConfig) error {
 	}
 	return i.Fees.LoadStatic(fee.Options{
 		// TODO: Check maker seems dubious
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: -0.0003, Taker: 0.0035},
 		},
 		BankingTransfer: bankTransfer,
@@ -660,8 +660,8 @@ func (i *ItBit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
 
-// UpdateFees updates current fees associated with account
-func (i *ItBit) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (i *ItBit) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

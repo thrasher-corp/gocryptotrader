@@ -212,6 +212,12 @@ func (c *CommissionInternal) calculate(fee decimal.Decimal, price, amount float6
 func (c *CommissionInternal) load(maker, taker float64) {
 	c.mtx.Lock()
 	c.maker = decimal.NewFromFloat(maker)
+	if c.worstCaseMaker.Equal(decimal.Zero) {
+		c.worstCaseMaker = c.maker
+	}
 	c.taker = decimal.NewFromFloat(taker)
+	if c.worstCaseTaker.Equal(decimal.Zero) {
+		c.worstCaseTaker = c.maker
+	}
 	c.mtx.Unlock()
 }

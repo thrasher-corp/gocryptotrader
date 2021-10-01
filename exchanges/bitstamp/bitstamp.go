@@ -155,46 +155,85 @@ func (b *Bitstamp) GetEURUSDConversionRate(ctx context.Context) (EURUSDConversio
 }
 
 // GetBalance returns full balance of currency held on the exchange
+// This is done to keep items in order because maps have randomized access.
 func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
-	var balance map[string]string
+	var balance json.RawMessage
 	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIBalance, true, nil, &balance)
 	if err != nil {
 		return nil, err
 	}
-	balances := make(map[string]Balance)
-	for k := range balance {
-		curr := k[0:3]
-		_, ok := balances[strings.ToUpper(curr)]
+
+	data := string(balance)
+	data = strings.Trim(data, "{")
+	data = strings.Trim(data, "}")
+	run := strings.Split(data, ",")
+
+	var balances = map[currency.Code]*Balance{}
+	var ID currency.Code
+	for x := 0; x < len(run); x++ {
+		run[x] = strings.ReplaceAll(run[x], "\"", "")
+		run[x] = strings.ReplaceAll(run[x], " ", "")
+
+		element := strings.Split(run[x], ":")
+		serviceID := strings.Split(element[0], "_")
+		var quote currency.Code
+		if ID.IsEmpty() {
+			ID = currency.NewCode(serviceID[0])
+		} else {
+
+			translations, ok := stableTranslation[ID.Item]
+			if !ok && !strings.Contains(serviceID[0], ID.String()) {
+				ID = currency.NewCode(serviceID[0])
+			} else {
+				for y := range translations {
+					if strings.Contains(serviceID[0], translations[y].String()) {
+						ID = currency.NewCode(serviceID[0])
+						break
+					}
+				}
+				for y := range translations {
+					if strings.Contains(serviceID[0], translations[y].String()) {
+						quote = translations[y]
+						break
+					}
+				}
+			}
+			if quote.IsEmpty() {
+				cleaned := strings.Replace(serviceID[0], ID.String(), "", 1)
+				quote = currency.NewCode(cleaned)
+			}
+		}
+
+		balance, ok := balances[ID]
 		if !ok {
-			avail, _ := strconv.ParseFloat(balance[curr+"_available"], 64)
-			bal, _ := strconv.ParseFloat(balance[curr+"_balance"], 64)
-			reserved, _ := strconv.ParseFloat(balance[curr+"_reserved"], 64)
-			withdrawalFee, _ := strconv.ParseFloat(balance[curr+"_withdrawal_fee"], 64)
-			currBalance := Balance{
-				Available:     avail,
-				Balance:       bal,
-				Reserved:      reserved,
-				WithdrawalFee: withdrawalFee,
-			}
-			switch strings.ToUpper(curr) {
-			case currency.USD.String():
-				eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
-				currBalance.EURFee = eurFee
-			case currency.EUR.String():
-				usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
-				currBalance.USDFee = usdFee
-			default:
-				btcFee, _ := strconv.ParseFloat(balance[curr+"btc_fee"], 64)
-				currBalance.BTCFee = btcFee
-				eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
-				currBalance.EURFee = eurFee
-				usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
-				currBalance.USDFee = usdFee
-			}
-			balances[strings.ToUpper(curr)] = currBalance
+			balance = &Balance{TransactionFees: make(map[currency.Code]float64)}
+			balances[ID] = balance
+		}
+
+		value, err := strconv.ParseFloat(element[1], 64)
+		if err != nil {
+			return nil, err
+		}
+
+		switch serviceID[1] {
+		case "available":
+			balance.Available = value
+		case "balance":
+			balance.Balance = value
+		case "reserved":
+			balance.Reserved = value
+		case "withdrawal":
+			balance.WithdrawalFee = value
+		case "fee":
+			balance.TransactionFees[quote] = value
 		}
 	}
 	return balances, nil
+}
+
+var stableTranslation = map[*currency.Item][]currency.Code{
+	currency.USD.Item: {currency.USDT.Lower(), currency.USDC.Lower()},
+	currency.EUR.Item: {currency.EURT.Lower()},
 }
 
 // GetUserTransactions returns an array of transactions

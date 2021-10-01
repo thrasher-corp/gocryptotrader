@@ -160,7 +160,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = p.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
 		},
 		Transfer: WithdrawalFees,
@@ -914,14 +914,14 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	return p.GetHistoricCandles(ctx, pair, a, start, end, interval)
 }
 
-// UpdateFees updates current fees associated with account
-func (p *Poloniex) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (p *Poloniex) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
-	fee, err := p.GetFeeInfo(ctx)
+	fees, err := p.GetFeeInfo(ctx)
 	if err != nil {
 		return err
 	}
-	return p.Fees.LoadDynamic(fee.MakerFee, fee.TakerFee, a)
+	return p.Fees.LoadDynamic(fees.MakerFee, fees.TakerFee, a, fee.OmitPair)
 }

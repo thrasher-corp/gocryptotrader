@@ -101,8 +101,8 @@ type FeeManagement interface {
 	GetAllFees() (fee.Options, error)
 
 	UpdateCommissionFees(ctx context.Context, a asset.Item) error
-	GetCommissionFee(a asset.Item) (*fee.CommissionInternal, error)
-	SetCommissionFee(a asset.Item, maker, taker float64, isSetAmount bool) error
+	GetCommissionFee(a asset.Item, pair currency.Pair) (*fee.CommissionInternal, error)
+	SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker float64, isSetAmount bool) error
 
 	UpdateTransferFees(ctx context.Context) error
 	GetTransferFee(c currency.Code, a asset.Item) (fee.Transfer, error)

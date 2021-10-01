@@ -132,7 +132,7 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = l.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
 		},
 	})
@@ -611,7 +611,8 @@ func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			// TODO: Verify value
 			resp.Fee, err = l.Fees.CalculateTaker(tempResp.Orders[0].Price,
 				tempResp.Orders[0].Amount,
-				asset.Spot)
+				asset.Spot,
+				currency.Pair{})
 			if err != nil {
 				return resp, err
 			}
@@ -710,7 +711,8 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Get
 			// TODO: verify value
 			resp.Fee, err = l.Fees.CalculateTaker(tempResp.Orders[0].Price,
 				tempResp.Orders[0].Amount,
-				asset.Spot)
+				asset.Spot,
+				currency.Pair{})
 			if err != nil {
 				return nil, err
 			}
@@ -804,7 +806,8 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 				// TODO: Verify this value
 				resp.Fee, err = l.Fees.CalculateTaker(tempResp.Orders[x].Price,
 					tempResp.Orders[x].Amount,
-					asset.Spot)
+					asset.Spot,
+					currency.Pair{})
 				if err != nil {
 					resp.Fee = lbankFeeNotFound
 				}
@@ -985,8 +988,8 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 	return ret, nil
 }
 
-// UpdateFees updates current fees associated with account
-func (l *Lbank) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (l *Lbank) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

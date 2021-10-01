@@ -21,18 +21,22 @@ var (
 	errAmountIsZero            = errors.New("amount is zero")
 	errFeeTypeMismatch         = errors.New("fee type mismatch")
 	errRateNotFound            = errors.New("rate not found")
-	errCommissionRateNotFound  = errors.New("Commission rate not found")
+	errCommissionRateNotFound  = errors.New("commission rate not found")
 	errTakerInvalid            = errors.New("taker is invalid")
 	errMakerInvalid            = errors.New("maker is invalid")
 	errMakerBiggerThanTaker    = errors.New("maker cannot be bigger than taker")
+
+	// OmitPair is a an empty pair designation for unused pair variables
+	OmitPair = currency.Pair{}
 )
 
 // NewFeeDefinitions generates a new fee struct for exchange usage
 func NewFeeDefinitions() *Definitions {
 	return &Definitions{
-		commissions:      make(map[asset.Item]*CommissionInternal),
-		transfers:        make(map[asset.Item]map[*currency.Item]*transfer),
-		bankingTransfers: make(map[BankTransaction]map[*currency.Item]*transfer),
+		globalCommissions: make(map[asset.Item]*CommissionInternal),
+		pairCommissions:   make(map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal),
+		transfers:         make(map[asset.Item]map[*currency.Item]*transfer),
+		bankingTransfers:  make(map[BankTransaction]map[*currency.Item]*transfer),
 	}
 }
 
@@ -41,7 +45,10 @@ func NewFeeDefinitions() *Definitions {
 // with different accounts/keys.
 type Definitions struct {
 	// Commission is the holder for the up to date comission rates for the assets.
-	commissions map[asset.Item]*CommissionInternal
+	globalCommissions map[asset.Item]*CommissionInternal
+	// pairCommissions is the holder for the up to date commissions rates for
+	// the specific trading pairs.
+	pairCommissions map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal
 	// transfer defines a map of currencies with differing withdrawal and
 	// deposit fee definitions. These will commonly be real values.
 	transfers map[asset.Item]map[*currency.Item]*transfer
@@ -53,8 +60,10 @@ type Definitions struct {
 }
 
 // LoadDynamic loads the current dynamic account fee structure for maker and
-// taker values.
-func (d *Definitions) LoadDynamic(maker, taker float64, a asset.Item) error {
+// taker values. The pair is an optional paramater if ommited will designate
+// global/exchange maker, taker fees irrespective of individual trading
+// operations.
+func (d *Definitions) LoadDynamic(maker, taker float64, a asset.Item, pair currency.Pair) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}
@@ -70,9 +79,31 @@ func (d *Definitions) LoadDynamic(maker, taker float64, a asset.Item) error {
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	c, ok := d.commissions[a]
-	if !ok {
-		return errCommissionRateNotFound
+	var c *CommissionInternal
+	if !pair.IsEmpty() {
+		// NOTE: These will create maps, as we can initially start out as global
+		// commission rates and update ad-hoc.
+		m1, ok := d.pairCommissions[a]
+		if !ok {
+			m1 = make(map[*currency.Item]map[*currency.Item]*CommissionInternal)
+			d.pairCommissions[a] = m1
+		}
+		m2, ok := m1[pair.Base.Item]
+		if !ok {
+			m2 = make(map[*currency.Item]*CommissionInternal)
+			m1[pair.Base.Item] = m2
+		}
+		c, ok = m2[pair.Quote.Item]
+		if !ok {
+			c = new(CommissionInternal)
+			m2[pair.Quote.Item] = c
+		}
+	} else {
+		var ok bool
+		c, ok = d.globalCommissions[a]
+		if !ok {
+			return fmt.Errorf("global %w", errCommissionRateNotFound)
+		}
 	}
 	c.load(maker, taker)
 	return nil
@@ -92,9 +123,25 @@ func (d *Definitions) LoadStatic(o Options) error {
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	// Loads standard commission rates based on asset item
-	for a, value := range o.Commission {
-		d.commissions[a] = value.convert()
+	// Loads global commission rates based on asset item
+	for a, value := range o.GlobalCommissions {
+		d.globalCommissions[a] = value.convert()
+	}
+
+	// Loads pair specific commission rates
+	for a, incoming := range o.PairCommissions {
+		for pair, value := range incoming {
+			m1, ok := d.pairCommissions[a]
+			if !ok {
+				m1 = make(map[*currency.Item]map[*currency.Item]*CommissionInternal)
+				d.pairCommissions[a] = m1
+			}
+			m2, ok := m1[pair.Base.Item]
+			if !ok {
+				m2 = make(map[*currency.Item]*CommissionInternal)
+			}
+			m2[pair.Quote.Item] = value.convert()
+		}
 	}
 
 	// Loads exchange withdrawal and deposit fees
@@ -123,50 +170,88 @@ func (d *Definitions) LoadStatic(o Options) error {
 	return nil
 }
 
+// GetCommissionFee returns a pointer of the current commission rate for the
+// asset type.
+func (d *Definitions) GetCommissionFee(a asset.Item, pair currency.Pair) (*CommissionInternal, error) {
+	if d == nil {
+		return nil, ErrDefinitionsAreNil
+	}
+	d.mtx.RLock()
+	defer d.mtx.RUnlock()
+	return d.getCommission(a, pair)
+}
+
+// getCommission returns the internal commission rate based on provided params
+func (d *Definitions) getCommission(a asset.Item, pair currency.Pair) (*CommissionInternal, error) {
+	if len(d.pairCommissions) != 0 && !pair.IsEmpty() {
+		m1, ok := d.pairCommissions[a]
+		if !ok {
+			return nil, fmt.Errorf("pair %w", errCommissionRateNotFound)
+		}
+
+		m2, ok := m1[pair.Base.Item]
+		if !ok {
+			return nil, fmt.Errorf("pair %w", errCommissionRateNotFound)
+		}
+
+		c, ok := m2[pair.Quote.Item]
+		if !ok {
+			return nil, fmt.Errorf("pair %w", errCommissionRateNotFound)
+		}
+		return c, nil
+	} else {
+		c, ok := d.globalCommissions[a]
+		if !ok {
+			return nil, fmt.Errorf("global %w", errCommissionRateNotFound)
+		}
+		return c, nil
+	}
+}
+
 // CalculateMaker returns the fee amount derived from the price, amount and fee
 // percentage.
-func (d *Definitions) CalculateMaker(price, amount float64, a asset.Item) (float64, error) {
+func (d *Definitions) CalculateMaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
 	if d == nil {
 		return 0, ErrDefinitionsAreNil
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commissions[a]
-	if !ok {
-		return 0, errRateNotFound
+	c, err := d.getCommission(a, pair)
+	if err != nil {
+		return 0, err
 	}
 	return c.CalculateMaker(price, amount)
 }
 
 // CalculateWorstCaseMaker returns the fee amount derived from the price, amount
 // and fee percentage using the worst-case scenario trading fee.
-func (d *Definitions) CalculateWorstCaseMaker(price, amount float64, a asset.Item) (float64, error) {
+func (d *Definitions) CalculateWorstCaseMaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
 	if d == nil {
 		return 0, ErrDefinitionsAreNil
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commissions[a]
-	if !ok {
-		return 0, errRateNotFound
+	c, err := d.getCommission(a, pair)
+	if err != nil {
+		return 0, err
 	}
 	return c.CalculateWorstCaseMaker(price, amount)
 }
 
 // GetMaker returns the maker fee value and if it is a percentage or whole
 // number
-func (d *Definitions) GetMaker(a asset.Item) (fee float64, isSetAmount bool, err error) {
+func (d *Definitions) GetMaker(a asset.Item, pair currency.Pair) (fee float64, isSetAmount bool, err error) {
 	if d == nil {
 		return 0, false, ErrDefinitionsAreNil
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commissions[a]
-	if !ok {
-		return 0, false, errRateNotFound
+	c, err := d.getCommission(a, pair)
+	if err != nil {
+		return 0, false, err
 	}
 	fee, isSetAmount = c.GetMaker()
 	return
@@ -174,47 +259,47 @@ func (d *Definitions) GetMaker(a asset.Item) (fee float64, isSetAmount bool, err
 
 // CalculateTaker returns the fee amount derived from the price, amount and fee
 // percentage.
-func (d *Definitions) CalculateTaker(price, amount float64, a asset.Item) (float64, error) {
+func (d *Definitions) CalculateTaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
 	if d == nil {
 		return 0, ErrDefinitionsAreNil
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commissions[a]
-	if !ok {
-		return 0, errRateNotFound
+	c, err := d.getCommission(a, pair)
+	if err != nil {
+		return 0, err
 	}
 	return c.CalculateTaker(price, amount)
 }
 
 // CalculateWorstCaseTaker returns the fee amount derived from the price, amount
 // and fee percentage using the worst-case scenario trading fee.
-func (d *Definitions) CalculateWorstCaseTaker(price, amount float64, a asset.Item) (float64, error) {
+func (d *Definitions) CalculateWorstCaseTaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
 	if d == nil {
 		return 0, ErrDefinitionsAreNil
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commissions[a]
-	if !ok {
-		return 0, errRateNotFound
+	c, err := d.getCommission(a, pair)
+	if err != nil {
+		return 0, err
 	}
 	return c.CalculateWorstCaseTaker(price, amount)
 }
 
 // GetTaker returns the taker fee value and if it is a percentage or real number
-func (d *Definitions) GetTaker(a asset.Item) (fee float64, isSetAmount bool, err error) {
+func (d *Definitions) GetTaker(a asset.Item, pair currency.Pair) (fee float64, isSetAmount bool, err error) {
 	if d == nil {
 		return 0, false, ErrDefinitionsAreNil
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	c, ok := d.commissions[a]
-	if !ok {
-		return 0, false, errRateNotFound
+	c, err := d.getCommission(a, pair)
+	if err != nil {
+		return 0, false, err
 	}
 	fee, isSetAmount = c.GetTaker()
 	return
@@ -301,13 +386,28 @@ func (d *Definitions) GetAllFees() (Options, error) {
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
 	op := Options{
-		Commission:      make(map[asset.Item]Commission),
-		Transfer:        make(map[asset.Item]map[currency.Code]Transfer),
-		BankingTransfer: make(map[BankTransaction]map[currency.Code]Transfer),
+		GlobalCommissions: make(map[asset.Item]Commission),
+		PairCommissions:   make(map[asset.Item]map[currency.Pair]Commission),
+		Transfer:          make(map[asset.Item]map[currency.Code]Transfer),
+		BankingTransfer:   make(map[BankTransaction]map[currency.Code]Transfer),
 	}
 
-	for a, value := range d.commissions {
-		op.Commission[a] = value.convert()
+	for a, value := range d.globalCommissions {
+		op.GlobalCommissions[a] = value.convert()
+	}
+
+	for a, mInternal := range d.pairCommissions {
+		for c1, mInternal2 := range mInternal {
+			for c2, value := range mInternal2 {
+				mOutgoing, ok := op.PairCommissions[a]
+				if !ok {
+					mOutgoing = make(map[currency.Pair]Commission)
+					op.PairCommissions[a] = mOutgoing
+				}
+				p := currency.NewPair(currency.Code{Item: c1}, currency.Code{Item: c2})
+				mOutgoing[p] = value.convert()
+			}
+		}
 	}
 
 	for as, m1 := range d.transfers {
@@ -328,31 +428,11 @@ func (d *Definitions) GetAllFees() (Options, error) {
 	return op, nil
 }
 
-// GetCommissionFee returns a pointer of the current commission rate for the
-// asset type.
-func (d *Definitions) GetCommissionFee(a asset.Item) (*CommissionInternal, error) {
-	if d == nil {
-		return nil, ErrDefinitionsAreNil
-	}
-
-	d.mtx.RLock()
-	defer d.mtx.RUnlock()
-	c, ok := d.commissions[a]
-	if !ok {
-		return nil, errRateNotFound
-	}
-	return c, nil
-}
-
 // SetCommissionFee sets new global fees and forces custom control for that
 // asset
-func (d *Definitions) SetCommissionFee(a asset.Item, maker, taker float64, setAmount bool) error {
+func (d *Definitions) SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker float64, setAmount bool) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
-	}
-
-	if maker < 0 { // TODO: rebates will be negative so we can deprecate this
-		return errMakerInvalid
 	}
 
 	if taker < 0 {
@@ -365,9 +445,9 @@ func (d *Definitions) SetCommissionFee(a asset.Item, maker, taker float64, setAm
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	c, ok := d.commissions[a]
-	if !ok {
-		return errRateNotFound
+	c, err := d.getCommission(a, pair)
+	if err != nil {
+		return err
 	}
 	return c.set(maker, taker, setAmount)
 }

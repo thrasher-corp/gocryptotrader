@@ -42,7 +42,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = o.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0005, Taker: 0.0015},
 		},
 	})
@@ -752,8 +752,8 @@ func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	return ret, nil
 }
 
-// UpdateFees updates current fees associated with account
-func (o *OKGroup) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (o *OKGroup) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

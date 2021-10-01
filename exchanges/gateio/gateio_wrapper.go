@@ -158,7 +158,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = g.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
 		},
 		Transfer: withdrawalFees,
@@ -870,8 +870,8 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	return g.GetHistoricCandles(ctx, pair, a, start, end, interval)
 }
 
-// UpdateFees updates current fees associated with account
-func (g *Gateio) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (g *Gateio) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}

@@ -3,6 +3,7 @@ package bitstamp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -158,11 +159,19 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	// NOTE: https://www.bitstamp.net/fee-schedule/
+	// NOTE: There is also non standard processing which that has intentionally
+	// been excluded.
 	err = b.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.0025, Taker: 0.0025},
+		GlobalCommissions: map[asset.Item]fee.Commission{
+			// This will be a general loading of global commissions for worse
+			// case but once the fee manager is operational it will be broken
+			// down to individual updating.
+			// NOTE: There is no difference between taker and maker fees.
+			asset.Spot: {Maker: 0.005, Taker: 0.005},
 		},
 		BankingTransfer: bankTransfer,
+		Transfer:        transferFees,
 	})
 	if err != nil {
 		return err
@@ -431,7 +440,7 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	var currencies []account.Balance
 	for k, v := range accountBalance {
 		currencies = append(currencies, account.Balance{
-			CurrencyName: currency.NewCode(k),
+			CurrencyName: k,
 			TotalValue:   v.Available,
 			Hold:         v.Reserved,
 		})
@@ -964,37 +973,37 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	return ret, nil
 }
 
-// UpdateFees updates current fees associated with account
-func (b *Bitstamp) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (b *Bitstamp) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
-	// TODO: Load balances
-	// balance, err := b.GetBalance()
-	// if err != nil {
-	// 	return 0, err
-	// }
-	// f = b.CalculateTradingFee(feeBuilder.Pair.Base,
-	// 	feeBuilder.Pair.Quote,
-	// 	feeBuilder.PurchasePrice,
-	// 	feeBuilder.Amount,
-	// 	balance)
-	return nil
-}
 
-// NOTE: For above
-// // CalculateTradingFee returns fee on a currency pair
-// func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, balances Balances) float64 {
-// 	var f float64
-// 	if v, ok := balances[base.String()]; ok {
-// 		switch quote {
-// 		case currency.BTC:
-// 			f = v.BTCFee
-// 		case currency.USD:
-// 			f = v.USDFee
-// 		case currency.EUR:
-// 			f = v.EURFee
-// 		}
-// 	}
-// 	return f * purchasePrice * amount
-// }
+	balances, err := b.GetBalance(ctx)
+	if err != nil {
+		return err
+	}
+
+	var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{}
+	for base, balance := range balances {
+		tM1, ok := transferFees[a]
+		if !ok {
+			tM1 = make(map[currency.Code]fee.Transfer)
+			transferFees[a] = tM1
+		}
+
+		tM1[base] = fee.Transfer{Withdrawal: fee.Convert(balance.WithdrawalFee)}
+
+		for quote, val := range balance.TransactionFees {
+			fmt.Println("meow")
+			// NOTE: There is no differentiation between maker and taker fees
+			err = b.Fees.LoadDynamic(val, val, a, currency.NewPair(base, quote))
+			if err != nil {
+				return err
+			}
+		}
+	}
+	// Note: Because we want to limit multiple request to the same endpoint,
+	// loading of transfers fees is done in this function.
+	return b.Fees.LoadTransferFees(transferFees)
+}

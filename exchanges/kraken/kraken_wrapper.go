@@ -205,7 +205,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = k.Fees.LoadStatic(fee.Options{
-		Commission: map[asset.Item]fee.Commission{
+		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0016, Taker: 0.0016},
 		},
 		Transfer: transferFees,
@@ -1507,8 +1507,8 @@ func compatibleFillOrderType(fillType string) (order.Type, error) {
 	return resp, nil
 }
 
-// UpdateFees updates current fees associated with account
-func (k *Kraken) UpdateFees(ctx context.Context, a asset.Item) error {
+// UpdateCommissionFees updates current fees associated with account
+func (k *Kraken) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
@@ -1519,7 +1519,7 @@ func (k *Kraken) UpdateFees(ctx context.Context, a asset.Item) error {
 	// }
 
 	// fee.Fees
-	// return k.Fees.LoadDynamic(fee.MakerFee, fee.TakerFee)
+	// return k.Fees.LoadDynamic(fee.MakerFee, fee.TakerFee, a, fee.OmitPair)
 
 	// depositMethods, err := k.GetDepositMethods(feeBuilder.FiatCurrency.String())
 	// 	if err != nil {
