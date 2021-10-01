@@ -3,7 +3,6 @@ package bitstamp
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -995,9 +994,9 @@ func (b *Bitstamp) UpdateCommissionFees(ctx context.Context, a asset.Item) error
 		tM1[base] = fee.Transfer{Withdrawal: fee.Convert(balance.WithdrawalFee)}
 
 		for quote, val := range balance.TransactionFees {
-			fmt.Println("meow")
 			// NOTE: There is no differentiation between maker and taker fees
-			err = b.Fees.LoadDynamic(val, val, a, currency.NewPair(base, quote))
+			ratio := val / 100
+			err = b.Fees.LoadDynamic(ratio, ratio, a, currency.NewPair(base, quote))
 			if err != nil {
 				return err
 			}

@@ -486,7 +486,7 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
 func getFees(exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (makerFee, takerFee decimal.Decimal) {
-	fees, err := exch.GetCommissionFee(a)
+	fees, err := exch.GetCommissionFee(a, fPair)
 	if err != nil {
 		log.Errorf(log.BackTester,
 			"Could not retrieve offline fees for %v. %v",

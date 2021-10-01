@@ -156,7 +156,7 @@ func (f fExchange) SetTransferFee(c currency.Code, a asset.Item, withdraw, depos
 }
 
 // SetCommissionFee overrides interface function
-func (f fExchange) SetCommissionFee(a asset.Item, maker, taker float64, isSetAmount bool) error {
+func (f fExchange) SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker float64, isSetAmount bool) error {
 	return nil
 }
 

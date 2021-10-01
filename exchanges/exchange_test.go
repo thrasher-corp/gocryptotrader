@@ -2420,7 +2420,7 @@ func TestGetAllFees(t *testing.T) {
 
 func TestGetCommissionFee(t *testing.T) {
 	t.Parallel()
-	_, err := (&Base{}).GetCommissionFee(asset.Spot)
+	_, err := (&Base{}).GetCommissionFee(asset.Spot, fee.OmitPair)
 	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
@@ -2428,7 +2428,7 @@ func TestGetCommissionFee(t *testing.T) {
 
 func TestSetCommissionFee(t *testing.T) {
 	t.Parallel()
-	err := (&Base{}).SetCommissionFee(asset.Spot, -1, -1, true)
+	err := (&Base{}).SetCommissionFee(asset.Spot, fee.OmitPair, -1, -1, true)
 	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}

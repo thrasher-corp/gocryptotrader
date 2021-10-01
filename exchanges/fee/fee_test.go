@@ -14,42 +14,42 @@ var two = decimal.NewFromInt(2)
 
 func TestLoadDynamic(t *testing.T) {
 	t.Parallel()
-	err := (*Definitions)(nil).LoadDynamic(0, 0, asset.Spot)
+	err := (*Definitions)(nil).LoadDynamic(0, 0, asset.Spot, OmitPair)
 	if !errors.Is(err, ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
-	err = (&Definitions{}).LoadDynamic(-1, 0, asset.Spot)
+	err = (&Definitions{}).LoadDynamic(-1, 0, asset.Spot, OmitPair)
 	if !errors.Is(err, errMakerInvalid) {
 		t.Fatalf("received: %v but expected: %v", err, errMakerInvalid)
 	}
 
-	err = (&Definitions{}).LoadDynamic(0, -1, asset.Spot)
+	err = (&Definitions{}).LoadDynamic(0, -1, asset.Spot, OmitPair)
 	if !errors.Is(err, errTakerInvalid) {
 		t.Fatalf("received: %v but expected: %v", err, errTakerInvalid)
 	}
 
-	err = (&Definitions{}).LoadDynamic(30, 12, asset.Spot)
+	err = (&Definitions{}).LoadDynamic(30, 12, asset.Spot, OmitPair)
 	if !errors.Is(err, errMakerBiggerThanTaker) {
 		t.Fatalf("received: %v but expected: %v", err, errMakerBiggerThanTaker)
 	}
 
-	err = (&Definitions{}).LoadDynamic(1, 1, "bruh")
+	err = (&Definitions{}).LoadDynamic(1, 1, "bruh", OmitPair)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
 	}
 
-	err = (&Definitions{}).LoadDynamic(1, 1, asset.Spot)
+	err = (&Definitions{}).LoadDynamic(1, 1, asset.Spot, OmitPair)
 	if !errors.Is(err, errCommissionRateNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
 	}
 
 	d := &Definitions{
-		commissions: map[asset.Item]*CommissionInternal{
+		globalCommissions: map[asset.Item]*CommissionInternal{
 			asset.Spot: {},
 		},
 	}
-	err = d.LoadDynamic(1, 1, asset.Spot)
+	err = d.LoadDynamic(1, 1, asset.Spot, OmitPair)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -62,9 +62,9 @@ func TestLoadStatic(t *testing.T) {
 	}
 
 	d := &Definitions{
-		commissions:      make(map[asset.Item]*CommissionInternal),
-		transfers:        make(map[asset.Item]map[*currency.Item]*transfer),
-		bankingTransfers: make(map[BankTransaction]map[*currency.Item]*transfer),
+		globalCommissions: make(map[asset.Item]*CommissionInternal),
+		transfers:         make(map[asset.Item]map[*currency.Item]*transfer),
+		bankingTransfers:  make(map[BankTransaction]map[*currency.Item]*transfer),
 	}
 	err = d.LoadStatic(Options{
 		GlobalCommissions: map[asset.Item]Commission{
@@ -94,23 +94,23 @@ func TestLoadStatic(t *testing.T) {
 func TestCalculateMaker(t *testing.T) {
 	t.Parallel()
 
-	_, err := (*Definitions)(nil).CalculateMaker(50000, 1, asset.Spot)
+	_, err := (*Definitions)(nil).CalculateMaker(50000, 1, asset.Spot, OmitPair)
 	if !errors.Is(err, ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
 	d := &Definitions{
-		commissions: map[asset.Item]*CommissionInternal{
+		globalCommissions: map[asset.Item]*CommissionInternal{
 			asset.Spot: {maker: decimal.NewFromFloat(0.01)},
 		},
 	}
 
-	_, err = d.CalculateMaker(50000, 1, asset.Futures)
+	_, err = d.CalculateMaker(50000, 1, asset.Futures, OmitPair)
 	if !errors.Is(err, errRateNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
 	}
 
-	val, err := d.CalculateMaker(50000, 1, asset.Spot)
+	val, err := d.CalculateMaker(50000, 1, asset.Spot, OmitPair)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -123,23 +123,23 @@ func TestCalculateMaker(t *testing.T) {
 func TestCalculateWorstCaseMaker(t *testing.T) {
 	t.Parallel()
 
-	_, err := (*Definitions)(nil).CalculateWorstCaseMaker(50000, 1, asset.Spot)
+	_, err := (*Definitions)(nil).CalculateWorstCaseMaker(50000, 1, asset.Spot, OmitPair)
 	if !errors.Is(err, ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
 	d := &Definitions{
-		commissions: map[asset.Item]*CommissionInternal{
+		globalCommissions: map[asset.Item]*CommissionInternal{
 			asset.Spot: {worstCaseMaker: decimal.NewFromFloat(0.01)},
 		},
 	}
 
-	_, err = d.CalculateWorstCaseMaker(50000, 1, asset.Futures)
+	_, err = d.CalculateWorstCaseMaker(50000, 1, asset.Futures, OmitPair)
 	if !errors.Is(err, errRateNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
 	}
 
-	val, err := d.CalculateWorstCaseMaker(50000, 1, asset.Spot)
+	val, err := d.CalculateWorstCaseMaker(50000, 1, asset.Spot, OmitPair)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -150,23 +150,23 @@ func TestCalculateWorstCaseMaker(t *testing.T) {
 }
 
 func TestGetMaker(t *testing.T) {
-	_, _, err := (*Definitions)(nil).GetMaker(asset.Spot)
+	_, _, err := (*Definitions)(nil).GetMaker(asset.Spot, OmitPair)
 	if !errors.Is(err, ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
 	d := &Definitions{
-		commissions: map[asset.Item]*CommissionInternal{
+		globalCommissions: map[asset.Item]*CommissionInternal{
 			asset.Spot: {maker: decimal.NewFromFloat(0.01)},
 		},
 	}
 
-	_, _, err = d.GetMaker(asset.Futures)
+	_, _, err = d.GetMaker(asset.Futures, OmitPair)
 	if !errors.Is(err, errRateNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
 	}
 
-	fee, isSetAmount, err := d.GetMaker(asset.Spot)
+	fee, isSetAmount, err := d.GetMaker(asset.Spot, OmitPair)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,23 +181,23 @@ func TestGetMaker(t *testing.T) {
 func TestCalculateTaker(t *testing.T) {
 	t.Parallel()
 
-	_, err := (*Definitions)(nil).CalculateTaker(50000, 1, asset.Spot)
+	_, err := (*Definitions)(nil).CalculateTaker(50000, 1, asset.Spot, OmitPair)
 	if !errors.Is(err, ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
 	d := &Definitions{
-		commissions: map[asset.Item]*CommissionInternal{
+		globalCommissions: map[asset.Item]*CommissionInternal{
 			asset.Spot: {taker: decimal.NewFromFloat(0.01)},
 		},
 	}
 
-	_, err = d.CalculateTaker(50000, 1, asset.Futures)
+	_, err = d.CalculateTaker(50000, 1, asset.Futures, OmitPair)
 	if !errors.Is(err, errRateNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
 	}
 
-	val, err := d.CalculateTaker(50000, 1, asset.Spot)
+	val, err := d.CalculateTaker(50000, 1, asset.Spot, OmitPair)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -210,23 +210,23 @@ func TestCalculateTaker(t *testing.T) {
 func TestCalculateWorstCaseTaker(t *testing.T) {
 	t.Parallel()
 
-	_, err := (*Definitions)(nil).CalculateWorstCaseTaker(50000, 1, asset.Spot)
+	_, err := (*Definitions)(nil).CalculateWorstCaseTaker(50000, 1, asset.Spot, OmitPair)
 	if !errors.Is(err, ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
 	d := &Definitions{
-		commissions: map[asset.Item]*CommissionInternal{
+		globalCommissions: map[asset.Item]*CommissionInternal{
 			asset.Spot: {worstCaseTaker: decimal.NewFromFloat(0.01)},
 		},
 	}
 
-	_, err = d.CalculateWorstCaseTaker(50000, 1, asset.Futures)
+	_, err = d.CalculateWorstCaseTaker(50000, 1, asset.Futures, OmitPair)
 	if !errors.Is(err, errRateNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
 	}
 
-	val, err := d.CalculateWorstCaseTaker(50000, 1, asset.Spot)
+	val, err := d.CalculateWorstCaseTaker(50000, 1, asset.Spot, OmitPair)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -238,23 +238,23 @@ func TestCalculateWorstCaseTaker(t *testing.T) {
 
 func TestGetTaker(t *testing.T) {
 	t.Parallel()
-	_, _, err := (*Definitions)(nil).GetTaker(asset.Spot)
+	_, _, err := (*Definitions)(nil).GetTaker(asset.Spot, OmitPair)
 	if !errors.Is(err, ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
 	d := &Definitions{
-		commissions: map[asset.Item]*CommissionInternal{
+		globalCommissions: map[asset.Item]*CommissionInternal{
 			asset.Spot: {taker: decimal.NewFromFloat(0.01)},
 		},
 	}
 
-	_, _, err = d.GetTaker(asset.Futures)
+	_, _, err = d.GetTaker(asset.Futures, OmitPair)
 	if !errors.Is(err, errRateNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
 	}
 
-	fee, isSetAmount, err := d.GetTaker(asset.Spot)
+	fee, isSetAmount, err := d.GetTaker(asset.Spot, OmitPair)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,7 +402,7 @@ func TestGetAllFees(t *testing.T) {
 	}
 
 	d := Definitions{
-		commissions: map[asset.Item]*CommissionInternal{
+		globalCommissions: map[asset.Item]*CommissionInternal{
 			asset.Spot: {},
 		},
 		transfers: map[asset.Item]map[*currency.Item]*transfer{
@@ -419,57 +419,57 @@ func TestGetAllFees(t *testing.T) {
 }
 
 func TestGetCommissionFee(t *testing.T) {
-	_, err := (*Definitions)(nil).GetCommissionFee(asset.Spot)
+	_, err := (*Definitions)(nil).GetCommissionFee(asset.Spot, OmitPair)
 	if !errors.Is(err, ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
-	_, err = (&Definitions{}).GetCommissionFee(asset.Spot)
+	_, err = (&Definitions{}).GetCommissionFee(asset.Spot, OmitPair)
 	if !errors.Is(err, errRateNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
 	}
 
 	_, err = (&Definitions{
-		commissions: map[asset.Item]*CommissionInternal{
+		globalCommissions: map[asset.Item]*CommissionInternal{
 			asset.Spot: {},
 		},
-	}).GetCommissionFee(asset.Spot)
+	}).GetCommissionFee(asset.Spot, OmitPair)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 }
 
 func TestSetCommissionFee(t *testing.T) {
-	err := (*Definitions)(nil).SetCommissionFee("", 0, 0, true)
+	err := (*Definitions)(nil).SetCommissionFee("", OmitPair, 0, 0, true)
 	if !errors.Is(err, ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
-	err = (&Definitions{}).SetCommissionFee("", -1, 0, true)
+	err = (&Definitions{}).SetCommissionFee("", OmitPair, -1, 0, true)
 	if !errors.Is(err, errMakerInvalid) {
 		t.Fatalf("received: %v but expected: %v", err, errMakerInvalid)
 	}
 
-	err = (&Definitions{}).SetCommissionFee("", 0, -1, true)
+	err = (&Definitions{}).SetCommissionFee("", OmitPair, 0, -1, true)
 	if !errors.Is(err, errTakerInvalid) {
 		t.Fatalf("received: %v but expected: %v", err, errTakerInvalid)
 	}
 
-	err = (&Definitions{}).SetCommissionFee("", 0, 0, true)
+	err = (&Definitions{}).SetCommissionFee("", OmitPair, 0, 0, true)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
 	}
 
-	err = (&Definitions{}).SetCommissionFee(asset.Spot, 0, 0, true)
+	err = (&Definitions{}).SetCommissionFee(asset.Spot, OmitPair, 0, 0, true)
 	if !errors.Is(err, errRateNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
 	}
 
 	err = (&Definitions{
-		commissions: map[asset.Item]*CommissionInternal{
+		globalCommissions: map[asset.Item]*CommissionInternal{
 			asset.Spot: {},
 		},
-	}).SetCommissionFee(asset.Spot, 0, 0, false)
+	}).SetCommissionFee(asset.Spot, OmitPair, 0, 0, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}

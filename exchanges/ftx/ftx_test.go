@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -1077,14 +1078,14 @@ func TestGetFee(t *testing.T) {
 
 func TestGetOfflineTradingFee(t *testing.T) {
 	t.Parallel()
-	fees, err := f.Fees.CalculateWorstCaseMaker(10, 1, asset.Spot)
+	fees, err := f.Fees.CalculateWorstCaseMaker(10, 1, asset.Spot, fee.OmitPair)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if fees != 0.002 {
 		t.Errorf("incorrect offline maker fee")
 	}
-	fees, err = f.Fees.CalculateWorstCaseTaker(10, 1, asset.Spot)
+	fees, err = f.Fees.CalculateWorstCaseTaker(10, 1, asset.Spot, fee.OmitPair)
 	if err != nil {
 		t.Fatal(err)
 	}
