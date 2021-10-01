@@ -51,6 +51,7 @@ type CurrencyStatistic struct {
 	StrategyMovement             decimal.Decimal `json:"strategy-movement"`
 	RiskFreeRate                 decimal.Decimal `json:"risk-free-rate"`
 	CompoundAnnualGrowthRate     decimal.Decimal `json:"compound-annual-growth-rate"`
+	TotalAssetValue              decimal.Decimal
 	TotalFees                    decimal.Decimal
 	TotalValueLostToVolumeSizing decimal.Decimal
 	TotalValueLostToSlippage     decimal.Decimal

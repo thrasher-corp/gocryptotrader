@@ -24,43 +24,45 @@ import (
 // if using Exchange Level Funding, the goal is to see how the overall strategy performs versus
 // how an individual currency pair performs in a strategy when it is disabled
 func (c *CurrencyStatistic) CalculateExchangeLevelFundingResults(report *funding.Report) error {
-	first := c.Events[0]
-	sep := fmt.Sprintf("%v %v %v |\t", first.DataEvent.GetExchange(), first.DataEvent.GetAssetType(), first.DataEvent.Pair())
-
-	firstPrice := first.DataEvent.ClosePrice()
-	last := c.Events[len(c.Events)-1]
-	lastPrice := last.DataEvent.ClosePrice()
-	for i := range last.Transactions.Orders {
-		if last.Transactions.Orders[i].Side == gctorder.Buy {
-			c.BuyOrders++
-		} else if last.Transactions.Orders[i].Side == gctorder.Sell {
-			c.SellOrders++
-		}
-	}
-	for i := range c.Events {
-		price := c.Events[i].DataEvent.ClosePrice()
-		if c.LowestClosePrice.IsZero() || price.LessThan(c.LowestClosePrice) {
-			c.LowestClosePrice = price
-		}
-		if price.GreaterThan(c.HighestClosePrice) {
-			c.HighestClosePrice = price
-		}
-	}
-
-	for i := range report.Items {
-		report.Items[i].USDPairCandle.StreamClose()
-	}
-
-	// we need to figure out these as a replacement for `last.Holdings` as these do not represent actual figures
-	// if we calculate conversion rates, we
+	return nil
 	/*
-		log.Infof(log.BackTester, "%s Value lost to volume sizing: %v", sep, last.Holdings.TotalValueLostToVolumeSizing.Round(2))
-		log.Infof(log.BackTester, "%s Value lost to slippage: %v", sep, last.Holdings.TotalValueLostToSlippage.Round(2))
-		log.Infof(log.BackTester, "%s Total Value lost: %v", sep, last.Holdings.TotalValueLost.Round(2))
-		log.Infof(log.BackTester, "%s Total Fees: %v\n\n", sep, last.Holdings.TotalFees.Round(8))
+		first := c.Events[0]
+		sep := fmt.Sprintf("%v %v %v |\t", first.DataEvent.GetExchange(), first.DataEvent.GetAssetType(), first.DataEvent.Pair())
 
-		log.Infof(log.BackTester, "%s Final funds: %v", sep, last.Holdings.QuoteSize.Round(8))
-		log.Infof(log.BackTester, "%s Final holdings: %v", sep, last.Holdings.BaseSize.Round(8))
+		firstPrice := first.DataEvent.ClosePrice()
+		last := c.Events[len(c.Events)-1]
+		lastPrice := last.DataEvent.ClosePrice()
+		for i := range last.Transactions.Orders {
+			if last.Transactions.Orders[i].Side == gctorder.Buy {
+				c.BuyOrders++
+			} else if last.Transactions.Orders[i].Side == gctorder.Sell {
+				c.SellOrders++
+			}
+		}
+		for i := range c.Events {
+			price := c.Events[i].DataEvent.ClosePrice()
+			if c.LowestClosePrice.IsZero() || price.LessThan(c.LowestClosePrice) {
+				c.LowestClosePrice = price
+			}
+			if price.GreaterThan(c.HighestClosePrice) {
+				c.HighestClosePrice = price
+			}
+		}
+
+		for i := range report.Items {
+			report.Items[i].USDPairCandle.StreamClose()
+		}
+
+		// we need to figure out these as a replacement for `last.Holdings` as these do not represent actual figures
+		// if we calculate conversion rates, we
+		/*
+			log.Infof(log.BackTester, "%s Value lost to volume sizing: %v", sep, last.Holdings.TotalValueLostToVolumeSizing.Round(2))
+			log.Infof(log.BackTester, "%s Value lost to slippage: %v", sep, last.Holdings.TotalValueLostToSlippage.Round(2))
+			log.Infof(log.BackTester, "%s Total Value lost: %v", sep, last.Holdings.TotalValueLost.Round(2))
+			log.Infof(log.BackTester, "%s Total Fees: %v\n\n", sep, last.Holdings.TotalFees.Round(8))
+
+			log.Infof(log.BackTester, "%s Final funds: %v", sep, last.Holdings.QuoteSize.Round(8))
+			log.Infof(log.BackTester, "%s Final holdings: %v", sep, last.Holdings.BaseSize.Round(8))
 	*/
 
 }
@@ -243,7 +245,7 @@ func (c *CurrencyStatistic) CalculateResults(f funding.IPairReader) error {
 	c.TotalValueLostToVolumeSizing = last.Holdings.TotalValueLostToVolumeSizing.Round(2)
 	c.TotalValueLost = last.Holdings.TotalValueLost.Round(2)
 	c.TotalValueLostToSlippage = last.Holdings.TotalValueLostToSlippage.Round(2)
-
+	c.TotalAssetValue = last.Holdings.BaseValue.Round(8)
 	if len(errs) > 0 {
 		return errs
 	}
@@ -291,9 +293,6 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "%s Compound Annual Growth Rate: %v\n\n", sep, c.CompoundAnnualGrowthRate.Round(2))
 
 	log.Info(log.BackTester, "------------------Ratios------------------------------------------------")
-	if usingExchangeLevelFunding {
-		log.Warnf(log.BackTester, "%s This strategy is using Exchange Level Funding. Calculation of ratios may be inaccurate\n", sep)
-	}
 	log.Info(log.BackTester, "------------------Arithmetic--------------------------------------------")
 	if c.ShowMissingDataWarning {
 		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
@@ -321,9 +320,6 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "%s Highest Close Price: %v", sep, c.HighestClosePrice.Round(8))
 
 	log.Infof(log.BackTester, "%s Market movement: %v%%", sep, c.MarketMovement.Round(2))
-	if usingExchangeLevelFunding {
-		log.Warnf(log.BackTester, "%s This strategy is using Exchange Level Funding. Calculation of strategic performance may be inaccurate", sep)
-	}
 	log.Infof(log.BackTester, "%s Strategy movement: %v%%", sep, c.StrategyMovement.Round(2))
 	log.Infof(log.BackTester, "%s Did it beat the market: %v", sep, c.StrategyMovement.GreaterThan(c.MarketMovement))
 
@@ -332,13 +328,14 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "%s Total Value lost: %v", sep, c.TotalValueLost.Round(2))
 	log.Infof(log.BackTester, "%s Total Fees: %v\n\n", sep, c.TotalFees.Round(8))
 
-	log.Infof(log.BackTester, "%s Final funds: %v", sep, last.Holdings.QuoteSize.Round(8))
-	log.Infof(log.BackTester, "%s Final holdings: %v", sep, last.Holdings.BaseSize.Round(8))
-	if usingExchangeLevelFunding {
-		log.Warnf(log.BackTester, "%s This strategy is using Exchange Level Funding. Calculation of holding values may be inaccurate", sep)
+	log.Infof(log.BackTester, "%s Final holdings value: %v", sep, c.TotalAssetValue.Round(8))
+	if !usingExchangeLevelFunding {
+		// the following have no direct translation to individual exchange level funds as they
+		// combine base and quote values
+		log.Infof(log.BackTester, "%s Final funds: %v", sep, last.Holdings.QuoteSize.Round(8))
+		log.Infof(log.BackTester, "%s Final holdings: %v", sep, last.Holdings.BaseSize.Round(8))
+		log.Infof(log.BackTester, "%s Final total value: %v\n\n", sep, last.Holdings.TotalValue.Round(8))
 	}
-	log.Infof(log.BackTester, "%s Final holdings value: %v", sep, last.Holdings.BaseValue.Round(8))
-	log.Infof(log.BackTester, "%s Final total value: %v\n\n", sep, last.Holdings.TotalValue.Round(8))
 	if len(errs) > 0 {
 		log.Info(log.BackTester, "------------------Errors-------------------------------------")
 		for i := range errs {

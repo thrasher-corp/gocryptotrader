@@ -62,11 +62,11 @@ type DetailedKline struct {
 // DetailedCandle contains extra details to enable rich reporting results
 type DetailedCandle struct {
 	Time           int64
-	Open           decimal.Decimal
-	High           decimal.Decimal
-	Low            decimal.Decimal
-	Close          decimal.Decimal
-	Volume         decimal.Decimal
+	Open           float64
+	High           float64
+	Low            float64
+	Close          float64
+	Volume         float64
 	VolumeColour   string
 	MadeOrder      bool
 	OrderDirection order.Side
@@ -75,5 +75,5 @@ type DetailedCandle struct {
 	Text           string
 	Position       string
 	Colour         string
-	PurchasePrice  decimal.Decimal
+	PurchasePrice  float64
 }

@@ -134,11 +134,11 @@ func (d *Data) enhanceCandles() error {
 			tt := d.OriginalCandles[intVal].Candles[j].Time.Add(time.Duration(offset) * time.Second)
 			enhancedCandle := DetailedCandle{
 				Time:         tt.Unix(),
-				Open:         decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Open),
-				High:         decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].High),
-				Low:          decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Low),
-				Close:        decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Close),
-				Volume:       decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Volume),
+				Open:         d.OriginalCandles[intVal].Candles[j].Open,
+				High:         d.OriginalCandles[intVal].Candles[j].High,
+				Low:          d.OriginalCandles[intVal].Candles[j].Low,
+				Close:        d.OriginalCandles[intVal].Candles[j].Close,
+				Volume:       d.OriginalCandles[intVal].Candles[j].Volume,
 				VolumeColour: "rgba(50, 204, 30, 0.5)",
 			}
 			if j != 0 {
@@ -169,7 +169,7 @@ func (d *Data) enhanceCandles() error {
 				// an order was placed here, can enhance chart!
 				enhancedCandle.MadeOrder = true
 				enhancedCandle.OrderAmount = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Amount)
-				enhancedCandle.PurchasePrice = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Price)
+				enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Price
 				enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Side
 				if enhancedCandle.OrderDirection == order.Buy {
 					enhancedCandle.Colour = "green"

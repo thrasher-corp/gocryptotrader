@@ -22,6 +22,21 @@
 	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/js/mdb.min.js"></script>
 	<!-- Tradingview lightweight charts -->
 	<script type="application/javascript" src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+	<!-- Highcharts -->
+	<link rel="stylesheet" type="text/css" href="https://code.highcharts.com/css/stocktools/gui.css">
+	<link rel="stylesheet" type="text/css" href="https://code.highcharts.com/css/annotations/popup.css">
+
+
+	<script type="application/javascript"  src="https://code.highcharts.com/stock/highstock.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/stock/modules/data.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/stock/indicators/indicators-all.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/stock/modules/drag-panes.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/modules/annotations-advanced.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/modules/price-indicator.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/modules/full-screen.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/modules/stock-tools.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/stock/modules/heikinashi.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/stock/modules/hollowcandlestick.js"></script>
 	<style>
 		h2 {
 			padding-top:  75px;
@@ -572,94 +587,143 @@
 			</div>
 			<div class="card-body card-body-cascade ">
 				{{ range .EnhancedCandles}}
-					{{ if .IsOverLimit}}
-						<p>Note: Number of candles processed is higher than chart can render. Only showing the first 1,100</p>
-					{{end}}
-					<div id="{{.Exchange}}{{.Asset}}{{.Pair}}" >
+					<div id="{{.Exchange}}{{.Asset}}{{.Pair}}" style="max-height: 800px;min-height: 75vh;" >
 						<h3>{{.Exchange}} {{.Asset}} {{.Pair}}</h3>
 						<script>
-							var chart = LightweightCharts.createChart(document.getElementById("{{.Exchange}}{{.Asset}}{{.Pair}}"), {
-								width: document.getElementById("{{.Exchange}}{{.Asset}}{{.Pair}}").offsetWidth,
-								height: 800,
-								layout: {
-									backgroundColor: '#000',
-									textColor: 'rgba(255, 255, 255, 0.9)',
-								},
-								grid: {
-									vertLines: {
-										color: 'rgba(197, 203, 206, 0)',
-									},
-									horzLines: {
-										color: 'rgba(197, 203, 206, 0)',
-									},
-								},
-								crosshair: {
-									mode: LightweightCharts.CrosshairMode.Normal,
-								},
-								rightPriceScale: {
-									borderColor: 'rgba(197, 203, 206, 0.8)',
-								},
-								timeScale: {
-									borderColor: 'rgba(197, 203, 206, 0.8)',
-									timeVisible: true,
-								},
-								watermark: {
-									color: 'rgba(11, 94, 29, 0.4)',
-									visible: true,
-									text: {{.Watermark}},
-									fontSize: 72,
-									horzAlign: 'center',
-									vertAlign: 'center',
-								},
-								priceScale: {
-									autoScale: true,
-								}
-							});
+								// split the data set into ohlc and volume
+								var ohlc = [],
+										volume = [],
+										i = 0;
 
-							var candleSeries = chart.addCandlestickSeries({
-								upColor: 'rgba(47, 194, 27, 0)',
-								downColor: 'rgba(252, 3, 3, 1)',
-								borderDownColor: 'rgba(252, 3, 3, 1)',
-								borderUpColor: 'rgba(47, 194, 27, 1)',
-								wickDownColor: 'rgba(252, 3, 3, 1)',
-								wickUpColor: 'rgba(47, 194, 27, 1)',
-							});
-
-							candleSeries.setData([
 								{{ range .Candles}}
-								{ time: {{.Time }}, open: {{.Open}}, high: {{.High}}, low: {{.Low}}, close: {{.Close}} },
-								{{ end }}
-							])
+								ohlc.push([
+										{{.Time}},
+										{{.Open}},
+										{{.High}},
+										{{.Low}},
+										{{.Close}},
+									]);
 
-							candleSeries.setMarkers([
-								{{ range .Candles}}
-								{ time: {{.Time }}, position: {{printf "%s" .Position }}, color: {{printf "%s" .Colour }}, shape: {{printf "%s" .Shape }}, text: {{printf "%s" .Text }} },
+									volume.push([
+										{{.Time}},
+										{{.Volume}},
+									]);
 								{{end}}
-							])
-							candleSeries.applyOptions({
-								priceFormat: {
-									type: 'volume',
-									precision: 8,
-								},
-							});
 
-							var volumeSeries = chart.addHistogramSeries({
-								priceFormat: {
-									type: 'volume',
-								},
-								priceScaleId: '',
-								scaleMargins: {
-									top: 0.95,
-									bottom: 0,
-								}})
 
-							volumeSeries.setData([
-								{{ range .Candles}}
-								{ time: {{.Time }}, value: {{.Volume}}, color: {{printf "%s" .VolumeColour}} },
-								{{end}}
-							])
+								Highcharts.stockChart('{{.Exchange}}{{.Asset}}{{.Pair}}', {
+									yAxis: [{
+										labels: {
+											align: 'left'
+										},
+										height: '80%',
+										resize: {
+											enabled: true
+										}
+									}, {
+										labels: {
+											align: 'left'
+										},
+										top: '80%',
+										height: '20%',
+										offset: 0
+									}],
+									tooltip: {
+										shape: 'square',
+										headerShape: 'callout',
+										borderWidth: 0,
+										shadow: false,
+										positioner: function (width, height, point) {
+											var chart = this.chart,
+													position;
 
-							chart.timeScale().fitContent();
+											if (point.isHeader) {
+												position = {
+													x: Math.max(
+															// Left side limit
+															chart.plotLeft,
+															Math.min(
+																	point.plotX + chart.plotLeft - width / 2,
+																	// Right side limit
+																	chart.chartWidth - width - chart.marginRight
+															)
+													),
+													y: point.plotY
+												};
+											} else {
+												position = {
+													x: point.series.chart.plotLeft,
+													y: point.series.yAxis.top - chart.plotTop
+												};
+											}
+
+											return position;
+										}
+									},
+									series: [{
+										type: 'candlestick',
+										id: '{{.Exchange}}{{.Asset}}{{.Pair}}-ohlc',
+										name: '{{.Exchange}} {{.Asset}} {{.Pair}} Prices',
+										data: ohlc,
+										tooltip: {
+											valueDecimals: 4
+										},
+										color: Highcharts.getOptions().colors[0],
+									},
+									{
+										type: 'flags',
+										name: 'Flags on series',
+										data:
+										[
+											{{range .Candles}}
+											{{ if .Text }}
+													{
+														x: {{.Time}} ,
+														title: {{.Text}},
+														text: {{.OrderAmount}} + ' @ ' + {{.PurchasePrice}}
+													},
+											{{end}}
+											{{end}}
+										],
+										onSeries: '{{.Exchange}}{{.Asset}}{{.Pair}}-ohlc',
+										shape: 'squarepin',
+										color: Highcharts.getOptions().colors[0], // same as onSeries
+										fillColor: Highcharts.getOptions().colors[0],
+										width: 16,
+										style: { // text style
+											color: 'white'
+										},
+										states: {
+											hover: {
+												fillColor: '#395C84' // darker
+											}
+										}
+									},
+									 {
+										type: 'column',
+										id: '{{.Exchange}}{{.Asset}}{{.Pair}}-volume',
+										name: '{{.Exchange}} {{.Asset}} {{.Pair}} Volume',
+										data: volume,
+										yAxis: 1
+									}],
+									navigator: {
+										series: {
+											color: Highcharts.getOptions().colors[0]
+										}
+									},
+									responsive: {
+										rules: [{
+											condition: {
+												maxWidth: 800
+											},
+											chartOptions: {
+												rangeSelector: {
+													inputEnabled: true
+												}
+											}
+										}]
+									}
+								});
 						</script>
 					</div>
 				{{end}}
