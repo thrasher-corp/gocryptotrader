@@ -630,21 +630,25 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 
 	var orders []order.Detail
 	for i := range allOrders {
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(allOrders[i].Pair, format.Delimiter)
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(allOrders[i].Pair, format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
 		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
 		side := order.Side(strings.ToUpper(allOrders[i].Type))
 		orders = append(orders, order.Detail{
-			ID:       strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
-			Amount:   allOrders[i].Amount,
-			Price:    allOrders[i].Rate,
-			Side:     side,
-			Date:     orderDate,
-			Pair:     symbol,
-			Exchange: y.Name,
+			ID:                   strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
+			Amount:               allOrders[i].Amount,
+			ExecutedAmount:       allOrders[i].Amount,
+			Cost:                 allOrders[i].Amount * allOrders[i].Rate,
+			CostAsset:            pair.Quote,
+			Price:                allOrders[i].Rate,
+			AverageExecutedPrice: allOrders[i].Rate,
+			Side:                 side,
+			Date:                 orderDate,
+			Pair:                 pair,
+			Exchange:             y.Name,
 		})
 	}
 

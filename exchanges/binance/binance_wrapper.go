@@ -1408,15 +1408,21 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					return nil, err
 				}
 				orders = append(orders, order.Detail{
-					Amount:   resp[i].OrigQty,
-					Date:     resp[i].Time,
-					Exchange: b.Name,
-					ID:       strconv.FormatInt(resp[i].OrderID, 10),
-					Side:     orderSide,
-					Type:     orderType,
-					Price:    resp[i].Price,
-					Pair:     pair,
-					Status:   order.Status(resp[i].Status),
+					Amount:               resp[i].OrigQty,
+					ExecutedAmount:       resp[i].ExecutedQty,
+					RemainingAmount:      resp[i].OrigQty - resp[i].ExecutedQty,
+					Cost:                 resp[i].CummulativeQuoteQty,
+					CostAsset:            pair.Quote,
+					Date:                 resp[i].Time,
+					LastUpdated:          resp[i].UpdateTime,
+					Exchange:             b.Name,
+					ID:                   strconv.FormatInt(resp[i].OrderID, 10),
+					Side:                 orderSide,
+					Type:                 orderType,
+					Price:                resp[i].Price,
+					AverageExecutedPrice: resp[i].ExecutedQty / resp[i].CummulativeQuoteQty,
+					Pair:                 pair,
+					Status:               order.Status(resp[i].Status),
 				})
 			}
 		}

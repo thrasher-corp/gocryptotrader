@@ -875,11 +875,18 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 			if !matchType(currentOrder[y].OrderType, orderDeref.Type) {
 				continue
 			}
+			orderTime := time.Unix(currentOrder[y].Timestamp, 0)
 			tempOrder := order.Detail{
-				Price:  currentOrder[y].Price,
-				Amount: currentOrder[y].Size,
-				Side:   order.Side(currentOrder[y].Side),
-				Pair:   orderDeref.Pairs[x],
+				Price:                currentOrder[y].Price,
+				AverageExecutedPrice: currentOrder[y].AverageFillPrice,
+				Amount:               currentOrder[y].Size,
+				ExecutedAmount:       currentOrder[y].FilledSize,
+				RemainingAmount:      currentOrder[y].Size - currentOrder[y].FilledSize,
+				Cost:                 currentOrder[y].OrderValue,
+				CostAsset:            orderDeref.Pairs[x].Quote,
+				Date:                 orderTime,
+				Side:                 order.Side(currentOrder[y].Side),
+				Pair:                 orderDeref.Pairs[x],
 			}
 			switch currentOrder[x].OrderState {
 			case "STATUS_ACTIVE":

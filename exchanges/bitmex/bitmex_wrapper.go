@@ -745,7 +745,7 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		orderDetail := order.Detail{
 			Date:     resp[i].Timestamp,
 			Price:    resp[i].Price,
-			Amount:   float64(resp[i].OrderQty),
+			Amount:   resp[i].OrderQty,
 			Exchange: b.Name,
 			ID:       resp[i].OrderID,
 			Side:     orderSide,
@@ -792,18 +792,24 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		if orderType == "" {
 			orderType = order.UnknownType
 		}
+		pair := currency.NewPairWithDelimiter(resp[i].Symbol, resp[i].SettlCurrency, format.Delimiter)
 
 		orderDetail := order.Detail{
-			Price:    resp[i].Price,
-			Amount:   float64(resp[i].OrderQty),
-			Exchange: b.Name,
-			ID:       resp[i].OrderID,
-			Side:     orderSide,
-			Type:     orderType,
-			Status:   order.Status(resp[i].OrdStatus),
-			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
-				resp[i].SettlCurrency,
-				format.Delimiter),
+			Price:                resp[i].Price,
+			AverageExecutedPrice: resp[i].AvgPx,
+			Amount:               resp[i].OrderQty,
+			ExecutedAmount:       resp[i].CumQty,
+			RemainingAmount:      resp[i].LeavesQty,
+			Cost:                 resp[i].CumQty * resp[i].AvgPx,
+			CostAsset:            pair.Quote,
+			Date:                 resp[i].TransactTime,
+			CloseTime:            resp[i].Timestamp,
+			Exchange:             b.Name,
+			ID:                   resp[i].OrderID,
+			Side:                 orderSide,
+			Type:                 orderType,
+			Status:               order.Status(resp[i].OrdStatus),
+			Pair:                 pair,
 		}
 
 		orders = append(orders, orderDetail)

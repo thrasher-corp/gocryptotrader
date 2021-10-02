@@ -754,13 +754,16 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			}
 
 			orderDate := time.Unix(resp.Data[i].OrderDate, 0)
+			dateCompleted := time.Unix(resp.Data[i].DateCompleted, 0)
 			orderDetail := order.Detail{
 				Amount:          resp.Data[i].Units,
+				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
+				RemainingAmount: resp.Data[i].UnitsRemaining,
 				Exchange:        b.Name,
 				ID:              resp.Data[i].OrderID,
 				Date:            orderDate,
+				CloseTime:       dateCompleted,
 				Price:           resp.Data[i].Price,
-				RemainingAmount: resp.Data[i].UnitsRemaining,
 				Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 					resp.Data[i].PaymentCurrency,
 					format.Delimiter),

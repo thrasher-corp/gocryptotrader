@@ -624,14 +624,17 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 
 		orders = append(orders, order.Detail{
-			ID:              allOrders[j].ID,
-			Side:            side,
-			Amount:          allOrders[j].Amount,
-			ExecutedAmount:  allOrders[j].AmountFilled,
-			RemainingAmount: (allOrders[j].Amount - allOrders[j].AmountFilled),
-			Exchange:        i.Name,
-			Date:            orderDate,
-			Pair:            symbol,
+			ID:                   allOrders[j].ID,
+			Side:                 side,
+			Amount:               allOrders[j].Amount,
+			ExecutedAmount:       allOrders[j].AmountFilled,
+			RemainingAmount:      allOrders[j].Amount - allOrders[j].AmountFilled,
+			Cost:                 allOrders[j].AmountFilled * allOrders[j].VolumeWeightedAveragePrice,
+			Price:                allOrders[j].Price,
+			AverageExecutedPrice: allOrders[j].VolumeWeightedAveragePrice,
+			Exchange:             i.Name,
+			Date:                 orderDate,
+			Pair:                 symbol,
 		})
 	}
 

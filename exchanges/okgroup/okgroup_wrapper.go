@@ -535,8 +535,8 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 		if err != nil {
 			return nil, err
 		}
-		var spotOpenOrders []GetSpotOrderResponse
-		spotOpenOrders, err = o.GetSpotOrders(ctx,
+		var spotOrders []GetSpotOrderResponse
+		spotOrders, err = o.GetSpotOrders(ctx,
 			GetSpotOrdersRequest{
 				Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
 				InstrumentID: fPair.String(),
@@ -544,18 +544,22 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 		if err != nil {
 			return resp, err
 		}
-		for i := range spotOpenOrders {
+		for i := range spotOrders {
 			resp = append(resp, order.Detail{
-				ID:             spotOpenOrders[i].OrderID,
-				Price:          spotOpenOrders[i].Price,
-				Amount:         spotOpenOrders[i].Size,
-				Pair:           req.Pairs[x],
-				Exchange:       o.Name,
-				Side:           order.Side(spotOpenOrders[i].Side),
-				Type:           order.Type(spotOpenOrders[i].Type),
-				ExecutedAmount: spotOpenOrders[i].FilledSize,
-				Date:           spotOpenOrders[i].Timestamp,
-				Status:         order.Status(spotOpenOrders[i].Status),
+				ID:                   spotOrders[i].OrderID,
+				Price:                spotOrders[i].Price,
+				AverageExecutedPrice: spotOrders[i].PriceAvg,
+				Amount:               spotOrders[i].Size,
+				ExecutedAmount:       spotOrders[i].FilledSize,
+				RemainingAmount:      spotOrders[i].Size - spotOrders[i].FilledSize,
+				Cost:                 spotOrders[i].FilledSize * spotOrders[i].PriceAvg,
+				CostAsset:            req.Pairs[x].Quote,
+				Pair:                 req.Pairs[x],
+				Exchange:             o.Name,
+				Side:                 order.Side(spotOrders[i].Side),
+				Type:                 order.Type(spotOrders[i].Type),
+				Date:                 spotOrders[i].Timestamp,
+				Status:               order.Status(spotOrders[i].Status),
 			})
 		}
 	}

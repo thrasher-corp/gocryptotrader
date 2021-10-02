@@ -604,7 +604,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		for name := range bal.Accounts {
 			for code := range bal.Accounts[name].Balances {
 				balances = append(balances, account.Balance{
-					CurrencyName: currency.NewCode(code),
+					CurrencyName: currency.NewCode(name),
 					TotalValue:   bal.Accounts[name].Balances[code],
 				})
 			}
@@ -1210,17 +1210,20 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 			side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
 			orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
 			orders = append(orders, order.Detail{
-				ID:              i,
-				Amount:          resp.Closed[i].Volume,
-				RemainingAmount: (resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted),
-				ExecutedAmount:  resp.Closed[i].VolumeExecuted,
-				Exchange:        k.Name,
-				Date:            convert.TimeFromUnixTimestampDecimal(resp.Closed[i].OpenTime),
-				CloseTime:       convert.TimeFromUnixTimestampDecimal(resp.Closed[i].CloseTime),
-				Price:           resp.Closed[i].Description.Price,
-				Side:            side,
-				Type:            orderType,
-				Pair:            p,
+				ID:                   i,
+				Amount:               resp.Closed[i].Volume,
+				ExecutedAmount:       resp.Closed[i].VolumeExecuted,
+				RemainingAmount:      resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted,
+				Cost:                 resp.Closed[i].Cost,
+				CostAsset:            p.Quote,
+				Exchange:             k.Name,
+				Date:                 convert.TimeFromUnixTimestampDecimal(resp.Closed[i].OpenTime),
+				CloseTime:            convert.TimeFromUnixTimestampDecimal(resp.Closed[i].CloseTime),
+				Price:                resp.Closed[i].Description.Price,
+				AverageExecutedPrice: resp.Closed[i].Cost / resp.Closed[i].VolumeExecuted,
+				Side:                 side,
+				Type:                 orderType,
+				Pair:                 p,
 			})
 		}
 	case asset.Futures:

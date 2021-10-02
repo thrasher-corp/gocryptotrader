@@ -792,21 +792,25 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var orders []order.Detail
 	for i := range trades {
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(trades[i].Pair, format.Delimiter)
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(trades[i].Pair, format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
 		side := order.Side(strings.ToUpper(trades[i].Type))
 		orderDate := time.Unix(trades[i].TimeUnix, 0)
 		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(trades[i].OrderID, 10),
-			Amount:   trades[i].Amount,
-			Price:    trades[i].Rate,
-			Date:     orderDate,
-			Side:     side,
-			Exchange: g.Name,
-			Pair:     symbol,
+			ID:                   strconv.FormatInt(trades[i].OrderID, 10),
+			Amount:               trades[i].Amount,
+			ExecutedAmount:       trades[i].Amount,
+			Cost:                 trades[i].Rate * trades[i].Amount,
+			CostAsset:            pair.Quote,
+			Price:                trades[i].Rate,
+			AverageExecutedPrice: trades[i].Rate,
+			Date:                 orderDate,
+			Side:                 side,
+			Exchange:             g.Name,
+			Pair:                 pair,
 		})
 	}
 

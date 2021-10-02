@@ -802,9 +802,12 @@ func (c *Coinbene) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			tempResp.Date = tempData[y].OrderTime
 			tempResp.Status = order.Status(tempData[y].OrderStatus)
 			tempResp.Price = tempData[y].OrderPrice
+			tempResp.AverageExecutedPrice = tempData[y].AvgPrice
 			tempResp.Amount = tempData[y].Amount
 			tempResp.ExecutedAmount = tempData[y].FilledAmount
 			tempResp.RemainingAmount = tempData[y].Amount - tempData[y].FilledAmount
+			tempResp.Cost = tempData[y].Quantity
+			tempResp.CostAsset = tempResp.Pair.Quote
 			tempResp.Fee = tempData[y].TotalFee
 			resp = append(resp, tempResp)
 		}

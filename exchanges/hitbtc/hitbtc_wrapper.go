@@ -771,21 +771,27 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var orders []order.Detail
 	for i := range allOrders {
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(allOrders[i].Symbol,
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(allOrders[i].Symbol,
 			format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
 		side := order.Side(strings.ToUpper(allOrders[i].Side))
 		orders = append(orders, order.Detail{
-			ID:       allOrders[i].ID,
-			Amount:   allOrders[i].Quantity,
-			Exchange: h.Name,
-			Price:    allOrders[i].Price,
-			Date:     allOrders[i].CreatedAt,
-			Side:     side,
-			Pair:     symbol,
+			ID:                   allOrders[i].ID,
+			Amount:               allOrders[i].Quantity,
+			ExecutedAmount:       allOrders[i].CumQuantity,
+			RemainingAmount:      allOrders[i].Quantity - allOrders[i].CumQuantity,
+			Cost:                 allOrders[i].CumQuantity * allOrders[i].AvgPrice,
+			CostAsset:            pair.Quote,
+			Exchange:             h.Name,
+			Price:                allOrders[i].Price,
+			AverageExecutedPrice: allOrders[i].AvgPrice,
+			Date:                 allOrders[i].CreatedAt,
+			LastUpdated:          allOrders[i].UpdatedAt,
+			Side:                 side,
+			Pair:                 pair,
 		})
 	}
 

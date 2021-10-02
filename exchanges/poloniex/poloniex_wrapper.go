@@ -819,8 +819,8 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 
 	var orders []order.Detail
 	for key := range resp.Data {
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(key, format.Delimiter)
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(key, format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
@@ -839,13 +839,17 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			}
 
 			orders = append(orders, order.Detail{
-				ID:       strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
-				Side:     orderSide,
-				Amount:   resp.Data[key][i].Amount,
-				Date:     orderDate,
-				Price:    resp.Data[key][i].Rate,
-				Pair:     symbol,
-				Exchange: p.Name,
+				ID:                   strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
+				Side:                 orderSide,
+				Amount:               resp.Data[key][i].Amount,
+				ExecutedAmount:       resp.Data[key][i].Amount,
+				Cost:                 resp.Data[key][i].Amount * resp.Data[key][i].Rate,
+				CostAsset:            pair.Quote,
+				Date:                 orderDate,
+				Price:                resp.Data[key][i].Rate,
+				AverageExecutedPrice: resp.Data[key][i].Rate,
+				Pair:                 pair,
+				Exchange:             p.Name,
 			})
 		}
 	}

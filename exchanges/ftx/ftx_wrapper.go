@@ -1009,7 +1009,10 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 			tempResp.ID = strconv.FormatInt(orderData[y].ID, 10)
 			tempResp.Amount = orderData[y].Size
 			tempResp.AssetType = assetType
+			tempResp.AverageExecutedPrice = orderData[y].AvgFillPrice
 			tempResp.ClientOrderID = orderData[y].ClientID
+			tempResp.Cost = orderData[y].FilledSize * orderData[y].AvgFillPrice
+			tempResp.CostAsset = p.Quote
 			tempResp.Date = orderData[y].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = orderData[y].Size - orderData[y].RemainingSize

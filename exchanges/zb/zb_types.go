@@ -40,7 +40,7 @@ type Order struct {
 	Price       float64 `json:"price"`
 	Status      int     `json:"status"`
 	TotalAmount float64 `json:"total_amount"`
-	TradeAmount int     `json:"trade_amount"`
+	TradeAmount float64 `json:"trade_amount"`
 	TradeDate   int     `json:"trade_date"`
 	TradeMoney  float64 `json:"trade_money"`
 	Type        int64   `json:"type"`

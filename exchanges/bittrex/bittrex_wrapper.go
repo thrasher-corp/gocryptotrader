@@ -865,6 +865,7 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				ExecutedAmount:  orderData[i].FillQuantity,
 				Price:           orderData[i].Limit,
 				Date:            orderData[i].CreatedAt,
+				CloseTime:       orderData[i].ClosedAt,
 				ID:              orderData[i].ID,
 				Exchange:        b.Name,
 				Type:            orderType,
