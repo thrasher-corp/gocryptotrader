@@ -705,6 +705,27 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		}
 
 	case asset.CoinMarginedFutures:
+		// fetch swap account info
+		acctInfo, err := h.GetSwapAccountInfo(ctx, currency.Pair{})
+		if err != nil {
+			return info, err
+		}
+
+		var mainAcctBalances []account.Balance
+		for x := range acctInfo.Data {
+			mainAcctBalances = append(mainAcctBalances, account.Balance{
+				CurrencyName: currency.NewCode(acctInfo.Data[x].Symbol),
+				TotalValue:   acctInfo.Data[x].MarginBalance,
+				Hold:         acctInfo.Data[x].MarginFrozen,
+			})
+		}
+
+		info.Accounts = append(info.Accounts, account.SubAccount{
+			Currencies: mainAcctBalances,
+			AssetType:  assetType,
+		})
+
+		// fetch subaccounts data
 		subAccsData, err := h.GetSwapAllSubAccAssets(ctx, currency.Pair{})
 		if err != nil {
 			return info, err
@@ -727,6 +748,27 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		}
 		acc.Currencies = currencyDetails
 	case asset.Futures:
+		// fetch main account data
+		mainAcctData, err := h.FGetAccountInfo(ctx, currency.Code{})
+		if err != nil {
+			return info, err
+		}
+
+		var mainAcctBalances []account.Balance
+		for x := range mainAcctData.AccData {
+			mainAcctBalances = append(mainAcctBalances, account.Balance{
+				CurrencyName: currency.NewCode(mainAcctData.AccData[x].Symbol),
+				TotalValue:   mainAcctData.AccData[x].MarginBalance,
+				Hold:         mainAcctData.AccData[x].MarginFrozen,
+			})
+		}
+
+		info.Accounts = append(info.Accounts, account.SubAccount{
+			Currencies: mainAcctBalances,
+			AssetType:  assetType,
+		})
+
+		// fetch subaccounts data
 		subAccsData, err := h.FGetAllSubAccountAssets(ctx, currency.Code{})
 		if err != nil {
 			return info, err
