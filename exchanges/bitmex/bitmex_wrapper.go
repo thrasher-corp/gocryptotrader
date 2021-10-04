@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -179,6 +180,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                  bitmexWSURL,
 	})
 }
 
@@ -415,27 +417,36 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 func (b *Bitmex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 
-	bal, err := b.GetAllUserMargin(ctx)
+	userMargins, err := b.GetAllUserMargin(ctx)
 	if err != nil {
 		return info, err
 	}
 
-	// Need to update to add Margin/Liquidity availibilty
+	var accountID string
 	var balances []account.Balance
-	for i := range bal {
+	// Need to update to add Margin/Liquidity availability
+	for i := range userMargins {
+		accountID = strconv.FormatInt(userMargins[i].Account, 10)
+
+		wallet, err := b.GetWalletInfo(ctx, userMargins[i].Currency)
+		if err != nil {
+			continue
+		}
+
 		balances = append(balances, account.Balance{
-			CurrencyName: currency.NewCode(bal[i].Currency),
-			TotalValue:   float64(bal[i].WalletBalance),
+			CurrencyName: currency.NewCode(wallet.Currency),
+			TotalValue:   wallet.Amount,
 		})
 	}
 
+	info.Accounts = append(info.Accounts,
+		account.SubAccount{
+			ID:         accountID,
+			Currencies: balances,
+		})
 	info.Exchange = b.Name
-	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currencies: balances,
-	})
 
-	err = account.Process(&info)
-	if err != nil {
+	if err := account.Process(&info); err != nil {
 		return account.Holdings{}, err
 	}
 
