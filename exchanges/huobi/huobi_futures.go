@@ -903,9 +903,9 @@ func (h *HUOBI) FGetOrderHistory(ctx context.Context, contractCode currency.Pair
 		return resp, fmt.Errorf("invalid reqType")
 	}
 	req["type"] = rType
-	var reqStatus string = "0"
+	reqStatus := "0"
 	if len(status) > 0 {
-		var firstTime bool = true
+		firstTime := true
 		for x := range status {
 			sType, ok := validOrderStatus[status[x]]
 			if !ok {
