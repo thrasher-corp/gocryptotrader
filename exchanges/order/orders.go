@@ -488,6 +488,38 @@ func (s Status) String() string {
 	return string(s)
 }
 
+func EnrichOrderDetail(order *Detail) Detail {
+	if order.Amount > 0 {
+		// Enrich based on Amount == ExecutedAmount + RemainingAmount
+		if order.ExecutedAmount == 0 {
+			if order.RemainingAmount == 0 {
+				return *order
+			}
+			order.ExecutedAmount = order.Amount - order.RemainingAmount
+		} else if order.RemainingAmount == 0 {
+			order.RemainingAmount = order.Amount - order.ExecutedAmount
+		}
+
+		// Enrich based on Cost == AveragedExecutedPrice * ExecutedAmount
+		if order.ExecutedAmount > 0 {
+			if order.AverageExecutedPrice == 0 {
+				if order.Cost != 0 {
+					order.AverageExecutedPrice = order.Cost / order.ExecutedAmount
+				} else {
+					order.AverageExecutedPrice = order.Price
+				}
+			}
+			if order.Cost == 0 {
+				order.Cost = order.AverageExecutedPrice * order.ExecutedAmount
+			}
+			if order.CostAsset.Item == nil {
+				order.CostAsset = order.Pair.Quote
+			}
+		}
+	}
+	return *order
+}
+
 // FilterOrdersBySide removes any order details that don't match the
 // order status provided
 func FilterOrdersBySide(orders *[]Detail, side Side) {

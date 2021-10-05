@@ -793,8 +793,6 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 				resp.Amount = tempResp.Orders[x].Amount
 				resp.Date = time.Unix(tempResp.Orders[x].CreateTime, 0)
 				resp.ExecutedAmount = tempResp.Orders[x].DealAmount
-				resp.RemainingAmount = tempResp.Orders[x].Price - tempResp.Orders[x].DealAmount
-				resp.Cost = tempResp.Orders[x].DealAmount * tempResp.Orders[x].AvgPrice
 				resp.Fee, err = l.GetFeeByType(ctx,
 					&exchange.FeeBuilder{
 						FeeType:       exchange.CryptocurrencyTradeFee,
@@ -803,7 +801,7 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 				if err != nil {
 					resp.Fee = lbankFeeNotFound
 				}
-				finalResp = append(finalResp, resp)
+				finalResp = append(finalResp, order.EnrichOrderDetail(&resp))
 				b++
 			}
 		}

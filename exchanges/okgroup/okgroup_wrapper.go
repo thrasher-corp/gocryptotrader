@@ -545,22 +545,23 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			return resp, err
 		}
 		for i := range spotOrders {
-			resp = append(resp, order.Detail{
-				ID:                   spotOrders[i].OrderID,
-				Price:                spotOrders[i].Price,
-				AverageExecutedPrice: spotOrders[i].PriceAvg,
-				Amount:               spotOrders[i].Size,
-				ExecutedAmount:       spotOrders[i].FilledSize,
-				RemainingAmount:      spotOrders[i].Size - spotOrders[i].FilledSize,
-				Cost:                 spotOrders[i].FilledSize * spotOrders[i].PriceAvg,
-				CostAsset:            req.Pairs[x].Quote,
-				Pair:                 req.Pairs[x],
-				Exchange:             o.Name,
-				Side:                 order.Side(spotOrders[i].Side),
-				Type:                 order.Type(spotOrders[i].Type),
-				Date:                 spotOrders[i].Timestamp,
-				Status:               order.Status(spotOrders[i].Status),
-			})
+			resp = append(
+				resp, order.EnrichOrderDetail(
+					&order.Detail{
+						ID:                   spotOrders[i].OrderID,
+						Price:                spotOrders[i].Price,
+						AverageExecutedPrice: spotOrders[i].PriceAvg,
+						Amount:               spotOrders[i].Size,
+						ExecutedAmount:       spotOrders[i].FilledSize,
+						Pair:                 req.Pairs[x],
+						Exchange:             o.Name,
+						Side:                 order.Side(spotOrders[i].Side),
+						Type:                 order.Type(spotOrders[i].Type),
+						Date:                 spotOrders[i].Timestamp,
+						Status:               order.Status(spotOrders[i].Status),
+					},
+				),
+			)
 		}
 	}
 	return resp, err

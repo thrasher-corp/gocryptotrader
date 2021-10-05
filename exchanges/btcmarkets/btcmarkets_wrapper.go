@@ -870,9 +870,7 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 			tempResp.AverageExecutedPrice = tempData.Orders[c].Price
 			tempResp.Amount = tempData.Orders[c].Amount
 			tempResp.ExecutedAmount = tempData.Orders[c].Amount
-			tempResp.Cost = tempData.Orders[c].Amount * tempData.Orders[c].Price
-			tempResp.CostAsset = p.Quote
-			resp = append(resp, tempResp)
+			resp = append(resp, order.EnrichOrderDetail(&tempResp))
 		}
 	}
 	return resp, nil

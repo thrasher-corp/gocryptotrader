@@ -1459,23 +1459,23 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 				return nil, err
 			}
 			for x := range resp {
-				orderDetail := order.Detail{
-					ID:                   strconv.FormatInt(resp[x].ID, 10),
-					Price:                resp[x].Price,
-					AverageExecutedPrice: resp[x].FilledCashAmount / resp[x].FilledAmount,
-					Amount:               resp[x].Amount,
-					ExecutedAmount:       resp[x].FilledAmount,
-					RemainingAmount:      resp[x].Amount - resp[x].FilledAmount,
-					Cost:                 resp[x].FilledCashAmount,
-					CostAsset:            req.Pairs[i].Quote,
-					Pair:                 req.Pairs[i],
-					Exchange:             h.Name,
-					Date:                 time.Unix(0, resp[x].CreatedAt*int64(time.Millisecond)),
-					CloseTime:            time.Unix(0, resp[x].FinishedAt*int64(time.Millisecond)),
-					Status:               order.Status(resp[x].State),
-					AccountID:            strconv.FormatInt(resp[x].AccountID, 10),
-					Fee:                  resp[x].FilledFees,
-				}
+				orderDetail := order.EnrichOrderDetail(
+					&order.Detail{
+						ID:             strconv.FormatInt(resp[x].ID, 10),
+						Price:          resp[x].Price,
+						Amount:         resp[x].Amount,
+						ExecutedAmount: resp[x].FilledAmount,
+						Cost:           resp[x].FilledCashAmount,
+						CostAsset:      req.Pairs[i].Quote,
+						Pair:           req.Pairs[i],
+						Exchange:       h.Name,
+						Date:           time.Unix(0, resp[x].CreatedAt*int64(time.Millisecond)),
+						CloseTime:      time.Unix(0, resp[x].FinishedAt*int64(time.Millisecond)),
+						Status:         order.Status(resp[x].State),
+						AccountID:      strconv.FormatInt(resp[x].AccountID, 10),
+						Fee:            resp[x].FilledFees,
+					},
+				)
 				setOrderSideAndType(resp[x].Type, &orderDetail)
 				orders = append(orders, orderDetail)
 			}

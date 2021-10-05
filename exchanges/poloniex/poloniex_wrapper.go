@@ -838,19 +838,21 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 					resp.Data[key][i].Date)
 			}
 
-			orders = append(orders, order.Detail{
-				ID:                   strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
-				Side:                 orderSide,
-				Amount:               resp.Data[key][i].Amount,
-				ExecutedAmount:       resp.Data[key][i].Amount,
-				Cost:                 resp.Data[key][i].Amount * resp.Data[key][i].Rate,
-				CostAsset:            pair.Quote,
-				Date:                 orderDate,
-				Price:                resp.Data[key][i].Rate,
-				AverageExecutedPrice: resp.Data[key][i].Rate,
-				Pair:                 pair,
-				Exchange:             p.Name,
-			})
+			orders = append(
+				orders, order.EnrichOrderDetail(
+					&order.Detail{
+						ID:                   strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
+						Side:                 orderSide,
+						Amount:               resp.Data[key][i].Amount,
+						ExecutedAmount:       resp.Data[key][i].Amount,
+						Date:                 orderDate,
+						Price:                resp.Data[key][i].Rate,
+						AverageExecutedPrice: resp.Data[key][i].Rate,
+						Pair:                 pair,
+						Exchange:             p.Name,
+					},
+				),
+			)
 		}
 	}
 

@@ -859,21 +859,24 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				continue
 			}
 
-			resp = append(resp, order.Detail{
-				Amount:          orderData[i].Quantity,
-				RemainingAmount: orderData[i].Quantity - orderData[i].FillQuantity,
-				ExecutedAmount:  orderData[i].FillQuantity,
-				Price:           orderData[i].Limit,
-				Date:            orderData[i].CreatedAt,
-				CloseTime:       orderData[i].ClosedAt,
-				ID:              orderData[i].ID,
-				Exchange:        b.Name,
-				Type:            orderType,
-				Side:            orderSide,
-				Status:          orderStatus,
-				Fee:             orderData[i].Commission,
-				Pair:            pair,
-			})
+			resp = append(
+				resp, order.EnrichOrderDetail(
+					&order.Detail{
+						Amount:         orderData[i].Quantity,
+						ExecutedAmount: orderData[i].FillQuantity,
+						Price:          orderData[i].Limit,
+						Date:           orderData[i].CreatedAt,
+						CloseTime:      orderData[i].ClosedAt,
+						ID:             orderData[i].ID,
+						Exchange:       b.Name,
+						Type:           orderType,
+						Side:           orderSide,
+						Status:         orderStatus,
+						Fee:            orderData[i].Commission,
+						Pair:           pair,
+					},
+				),
+			)
 		}
 
 		order.FilterOrdersByType(&resp, req.Type)

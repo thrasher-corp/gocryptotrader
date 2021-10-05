@@ -757,7 +757,6 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			dateCompleted := time.Unix(resp.Data[i].DateCompleted, 0)
 			orderDetail := order.Detail{
 				Amount:          resp.Data[i].Units,
-				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
 				RemainingAmount: resp.Data[i].UnitsRemaining,
 				Exchange:        b.Name,
 				ID:              resp.Data[i].OrderID,
@@ -775,7 +774,7 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				orderDetail.Side = order.Sell
 			}
 
-			orders = append(orders, orderDetail)
+			orders = append(orders, order.EnrichOrderDetail(&orderDetail))
 		}
 	}
 

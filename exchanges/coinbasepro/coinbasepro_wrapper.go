@@ -828,24 +828,26 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		}
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
-		orders = append(orders, order.Detail{
-			ID:                   respOrders[i].ID,
-			Amount:               respOrders[i].Size,
-			ExecutedAmount:       respOrders[i].FilledSize,
-			RemainingAmount:      respOrders[i].Size - respOrders[i].FilledSize,
-			Cost:                 respOrders[i].ExecutedValue,
-			CostAsset:            curr.Quote,
-			Type:                 orderType,
-			Date:                 respOrders[i].CreatedAt,
-			CloseTime:            respOrders[i].DoneAt,
-			Fee:                  respOrders[i].FillFees,
-			FeeAsset:             curr.Quote,
-			Side:                 orderSide,
-			Pair:                 curr,
-			Price:                respOrders[i].Price,
-			AverageExecutedPrice: respOrders[i].ExecutedValue / respOrders[i].FilledSize,
-			Exchange:             c.Name,
-		})
+		orders = append(
+			orders, order.EnrichOrderDetail(
+				&order.Detail{
+					ID:             respOrders[i].ID,
+					Amount:         respOrders[i].Size,
+					ExecutedAmount: respOrders[i].FilledSize,
+					Cost:           respOrders[i].ExecutedValue,
+					CostAsset:      curr.Quote,
+					Type:           orderType,
+					Date:           respOrders[i].CreatedAt,
+					CloseTime:      respOrders[i].DoneAt,
+					Fee:            respOrders[i].FillFees,
+					FeeAsset:       curr.Quote,
+					Side:           orderSide,
+					Pair:           curr,
+					Price:          respOrders[i].Price,
+					Exchange:       c.Name,
+				},
+			),
+		)
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)

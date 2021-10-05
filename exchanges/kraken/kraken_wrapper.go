@@ -1209,22 +1209,24 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 
 			side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
 			orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
-			orders = append(orders, order.Detail{
-				ID:                   i,
-				Amount:               resp.Closed[i].Volume,
-				ExecutedAmount:       resp.Closed[i].VolumeExecuted,
-				RemainingAmount:      resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted,
-				Cost:                 resp.Closed[i].Cost,
-				CostAsset:            p.Quote,
-				Exchange:             k.Name,
-				Date:                 convert.TimeFromUnixTimestampDecimal(resp.Closed[i].OpenTime),
-				CloseTime:            convert.TimeFromUnixTimestampDecimal(resp.Closed[i].CloseTime),
-				Price:                resp.Closed[i].Description.Price,
-				AverageExecutedPrice: resp.Closed[i].Cost / resp.Closed[i].VolumeExecuted,
-				Side:                 side,
-				Type:                 orderType,
-				Pair:                 p,
-			})
+			orders = append(
+				orders, order.EnrichOrderDetail(
+					&order.Detail{
+						ID:             i,
+						Amount:         resp.Closed[i].Volume,
+						ExecutedAmount: resp.Closed[i].VolumeExecuted,
+						Cost:           resp.Closed[i].Cost,
+						CostAsset:      p.Quote,
+						Exchange:       k.Name,
+						Date:           convert.TimeFromUnixTimestampDecimal(resp.Closed[i].OpenTime),
+						CloseTime:      convert.TimeFromUnixTimestampDecimal(resp.Closed[i].CloseTime),
+						Price:          resp.Closed[i].Description.Price,
+						Side:           side,
+						Type:           orderType,
+						Pair:           p,
+					},
+				),
+			)
 		}
 	case asset.Futures:
 		var orderHistory FuturesRecentOrdersData

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -875,19 +876,20 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 			if !matchType(currentOrder[y].OrderType, orderDeref.Type) {
 				continue
 			}
-			orderTime := time.Unix(currentOrder[y].Timestamp, 0)
-			tempOrder := order.Detail{
-				Price:                currentOrder[y].Price,
-				AverageExecutedPrice: currentOrder[y].AverageFillPrice,
-				Amount:               currentOrder[y].Size,
-				ExecutedAmount:       currentOrder[y].FilledSize,
-				RemainingAmount:      currentOrder[y].Size - currentOrder[y].FilledSize,
-				Cost:                 currentOrder[y].OrderValue,
-				CostAsset:            orderDeref.Pairs[x].Quote,
-				Date:                 orderTime,
-				Side:                 order.Side(currentOrder[y].Side),
-				Pair:                 orderDeref.Pairs[x],
-			}
+			orderTime := time.Unix(0, convert.UnixMillisToNano(currentOrder[y].Timestamp))
+			tempOrder := order.EnrichOrderDetail(
+				&order.Detail{
+					Price:                currentOrder[y].Price,
+					AverageExecutedPrice: currentOrder[y].AverageFillPrice,
+					Amount:               currentOrder[y].Size,
+					ExecutedAmount:       currentOrder[y].FilledSize,
+					Cost:                 currentOrder[y].OrderValue,
+					CostAsset:            orderDeref.Pairs[x].Quote,
+					Date:                 orderTime,
+					Side:                 order.Side(currentOrder[y].Side),
+					Pair:                 orderDeref.Pairs[x],
+				},
+			)
 			switch currentOrder[x].OrderState {
 			case "STATUS_ACTIVE":
 				tempOrder.Status = order.Active

@@ -809,20 +809,21 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 		}
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
-		orders = append(orders, order.Detail{
-			ID:                   strconv.FormatInt(allOrders[i].ID, 10),
-			Amount:               allOrders[i].TotalAmount,
-			ExecutedAmount:       allOrders[i].TradeAmount,
-			RemainingAmount:      allOrders[i].TotalAmount - allOrders[i].TradeAmount,
-			Cost:                 allOrders[i].TradeAmount * allOrders[i].TradePrice,
-			CostAsset:            pair.Quote,
-			Exchange:             z.Name,
-			Date:                 orderDate,
-			Price:                allOrders[i].Price,
-			AverageExecutedPrice: allOrders[i].TradePrice,
-			Side:                 orderSide,
-			Pair:                 pair,
-		})
+		orders = append(
+			orders, order.EnrichOrderDetail(
+				&order.Detail{
+					ID:                   strconv.FormatInt(allOrders[i].ID, 10),
+					Amount:               allOrders[i].TotalAmount,
+					ExecutedAmount:       allOrders[i].TradeAmount,
+					Exchange:             z.Name,
+					Date:                 orderDate,
+					Price:                allOrders[i].Price,
+					AverageExecutedPrice: allOrders[i].TradePrice,
+					Side:                 orderSide,
+					Pair:                 pair,
+				},
+			),
+		)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

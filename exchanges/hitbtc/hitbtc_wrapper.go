@@ -778,21 +778,22 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			return nil, err
 		}
 		side := order.Side(strings.ToUpper(allOrders[i].Side))
-		orders = append(orders, order.Detail{
-			ID:                   allOrders[i].ID,
-			Amount:               allOrders[i].Quantity,
-			ExecutedAmount:       allOrders[i].CumQuantity,
-			RemainingAmount:      allOrders[i].Quantity - allOrders[i].CumQuantity,
-			Cost:                 allOrders[i].CumQuantity * allOrders[i].AvgPrice,
-			CostAsset:            pair.Quote,
-			Exchange:             h.Name,
-			Price:                allOrders[i].Price,
-			AverageExecutedPrice: allOrders[i].AvgPrice,
-			Date:                 allOrders[i].CreatedAt,
-			LastUpdated:          allOrders[i].UpdatedAt,
-			Side:                 side,
-			Pair:                 pair,
-		})
+		orders = append(
+			orders, order.EnrichOrderDetail(
+				&order.Detail{
+					ID:                   allOrders[i].ID,
+					Amount:               allOrders[i].Quantity,
+					ExecutedAmount:       allOrders[i].CumQuantity,
+					Exchange:             h.Name,
+					Price:                allOrders[i].Price,
+					AverageExecutedPrice: allOrders[i].AvgPrice,
+					Date:                 allOrders[i].CreatedAt,
+					LastUpdated:          allOrders[i].UpdatedAt,
+					Side:                 side,
+					Pair:                 pair,
+				},
+			),
+		)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

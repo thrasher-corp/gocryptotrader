@@ -1407,23 +1407,31 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				if err != nil {
 					return nil, err
 				}
-				orders = append(orders, order.Detail{
-					Amount:               resp[i].OrigQty,
-					ExecutedAmount:       resp[i].ExecutedQty,
-					RemainingAmount:      resp[i].OrigQty - resp[i].ExecutedQty,
-					Cost:                 resp[i].CummulativeQuoteQty,
-					CostAsset:            pair.Quote,
-					Date:                 resp[i].Time,
-					LastUpdated:          resp[i].UpdateTime,
-					Exchange:             b.Name,
-					ID:                   strconv.FormatInt(resp[i].OrderID, 10),
-					Side:                 orderSide,
-					Type:                 orderType,
-					Price:                resp[i].Price,
-					AverageExecutedPrice: resp[i].ExecutedQty / resp[i].CummulativeQuoteQty,
-					Pair:                 pair,
-					Status:               order.Status(resp[i].Status),
-				})
+				var cost float64
+				// For some historical orders cummulativeQuoteQty will be < 0,
+				// meaning the data is not available at this time.
+				if resp[i].CummulativeQuoteQty > 0 {
+					cost = resp[i].CummulativeQuoteQty
+				}
+				orders = append(
+					orders, order.EnrichOrderDetail(
+						&order.Detail{
+							Amount:         resp[i].OrigQty,
+							ExecutedAmount: resp[i].ExecutedQty,
+							Cost:           cost,
+							CostAsset:      pair.Quote,
+							Date:           resp[i].Time,
+							LastUpdated:    resp[i].UpdateTime,
+							Exchange:       b.Name,
+							ID:             strconv.FormatInt(resp[i].OrderID, 10),
+							Side:           orderSide,
+							Type:           orderType,
+							Price:          resp[i].Price,
+							Pair:           pair,
+							Status:         order.Status(resp[i].Status),
+						},
+					),
+				)
 			}
 		}
 	case asset.CoinMarginedFutures:
