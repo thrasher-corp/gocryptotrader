@@ -479,6 +479,7 @@ message GetCryptocurrencyDepositAddressRequest {
     string exchange = 1;
     string cryptocurrency = 2;
     string chain = 3;
+    bool bypass = 4;
 }
 
 message GetCryptocurrencyDepositAddressResponse {

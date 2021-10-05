@@ -156,9 +156,9 @@ Binaries will be published once the codebase reaches a stable condition.
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
 | [ydm](https://github.com/ydm) | 11 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
+| [lrascao](https://github.com/lrascao) | 8 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
-| [lrascao](https://github.com/lrascao) | 7 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
@@ -173,7 +173,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
-| [lozdog245](https://github.com/lozdog245) | 2 |
+| [khcchiu](https://github.com/khcchiu) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [mshogin](https://github.com/mshogin) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
@@ -196,3 +196,4 @@ Binaries will be published once the codebase reaches a stable condition.
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
 | [soxipy](https://github.com/soxipy) | 2 |
+| [lozdog245](https://github.com/lozdog245) | 2 |

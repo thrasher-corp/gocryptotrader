@@ -4001,6 +4001,9 @@
         },
         "chain": {
           "type": "string"
+        },
+        "bypass": {
+          "type": "boolean"
         }
       }
     },

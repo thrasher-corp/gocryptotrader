@@ -14,7 +14,32 @@ const (
 	btc      = "BTC"
 )
 
+func TestIsSynced(t *testing.T) {
+	t.Parallel()
+	var d DepositAddressManager
+	if d.IsSynced() {
+		t.Error("should be false")
+	}
+	m := SetupDepositAddressManager()
+	err := m.Sync(map[string]map[string][]deposit.Address{
+		bitStamp: {
+			btc: []deposit.Address{
+				{
+					Address: address,
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if !m.IsSynced() {
+		t.Error("should be synced")
+	}
+}
+
 func TestSetupDepositAddressManager(t *testing.T) {
+	t.Parallel()
 	m := SetupDepositAddressManager()
 	if m.store == nil {
 		t.Fatal("expected store")
@@ -22,6 +47,7 @@ func TestSetupDepositAddressManager(t *testing.T) {
 }
 
 func TestSync(t *testing.T) {
+	t.Parallel()
 	m := SetupDepositAddressManager()
 	err := m.Sync(map[string]map[string][]deposit.Address{
 		bitStamp: {
@@ -73,6 +99,7 @@ func TestSync(t *testing.T) {
 }
 
 func TestGetDepositAddressByExchangeAndCurrency(t *testing.T) {
+	t.Parallel()
 	m := SetupDepositAddressManager()
 	_, err := m.GetDepositAddressByExchangeAndCurrency("", "", currency.BTC)
 	if !errors.Is(err, ErrDepositAddressStoreIsNil) {
@@ -88,12 +115,16 @@ func TestGetDepositAddressByExchangeAndCurrency(t *testing.T) {
 			},
 			"USDT": []deposit.Address{
 				{
+					Address: "ABsdZ",
+					Chain:   "SOL",
+				},
+				{
 					Address: "0x1b",
 					Chain:   "ERC20",
 				},
 				{
-					Address: "1asdasda",
-					Chain:   "OMNI",
+					Address: "1asdad",
+					Chain:   "USDT",
 				},
 			},
 			"BNB": nil,
@@ -103,30 +134,28 @@ func TestGetDepositAddressByExchangeAndCurrency(t *testing.T) {
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Errorf("received %v, expected %v", err, ErrExchangeNotFound)
 	}
-
 	_, err = m.GetDepositAddressByExchangeAndCurrency(bitStamp, "", currency.LTC)
 	if !errors.Is(err, ErrDepositAddressNotFound) {
 		t.Errorf("received %v, expected %v", err, ErrDepositAddressNotFound)
 	}
-
 	_, err = m.GetDepositAddressByExchangeAndCurrency(bitStamp, "", currency.BNB)
 	if !errors.Is(err, errNoDepositAddressesRetrieved) {
 		t.Errorf("received %v, expected %v", err, errNoDepositAddressesRetrieved)
 	}
-
 	_, err = m.GetDepositAddressByExchangeAndCurrency(bitStamp, "NON-EXISTENT-CHAIN", currency.USDT)
 	if !errors.Is(err, errDepositAddressChainNotFound) {
 		t.Errorf("received %v, expected %v", err, errDepositAddressChainNotFound)
 	}
 
-	if r, _ := m.GetDepositAddressByExchangeAndCurrency(bitStamp, "oMnI", currency.USDT); r.Address != "1asdasda" && r.Chain != "OMNI" {
+	if r, _ := m.GetDepositAddressByExchangeAndCurrency(bitStamp, "ErC20", currency.USDT); r.Address != "0x1b" && r.Chain != "ERC20" {
 		t.Error("unexpected values")
 	}
-
-	if r, _ := m.GetDepositAddressByExchangeAndCurrency(bitStamp, "", currency.USDT); r.Address != "0x1b" && r.Chain != "ERC20" {
+	if r, _ := m.GetDepositAddressByExchangeAndCurrency(bitStamp, "sOl", currency.USDT); r.Address != "ABsdZ" && r.Chain != "SOL" {
 		t.Error("unexpected values")
 	}
-
+	if r, _ := m.GetDepositAddressByExchangeAndCurrency(bitStamp, "", currency.USDT); r.Address != "1asdad" && r.Chain != "USDT" {
+		t.Error("unexpected values")
+	}
 	_, err = m.GetDepositAddressByExchangeAndCurrency(bitStamp, "", currency.BTC)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
@@ -134,6 +163,7 @@ func TestGetDepositAddressByExchangeAndCurrency(t *testing.T) {
 }
 
 func TestGetDepositAddressesByExchange(t *testing.T) {
+	t.Parallel()
 	m := SetupDepositAddressManager()
 	_, err := m.GetDepositAddressesByExchange("")
 	if !errors.Is(err, ErrDepositAddressStoreIsNil) {

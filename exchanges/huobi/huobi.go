@@ -62,7 +62,7 @@ const (
 	huobiMarginAccountBalance        = "/margin/accounts/balance"
 	huobiWithdrawCreate              = "/dw/withdraw/api/create"
 	huobiWithdrawCancel              = "/dw/withdraw-virtual/%s/cancel"
-	huobiStatusError                 = "/error"
+	huobiStatusError                 = "error"
 	huobiMarginRates                 = "/margin/loan-info"
 	huobiCurrenciesReference         = "/v2/reference/currencies"
 )
@@ -845,8 +845,13 @@ func (h *HUOBI) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 
 	var errCap errorCapture
 	if err := json.Unmarshal(tempResp, &errCap); err == nil {
-		if errCap.ErrMsg != "" {
-			return errors.New(errCap.ErrMsg)
+		if errCap.ErrMsgType1 != "" {
+			return fmt.Errorf("error code: %v error message: %s", errCap.CodeType1,
+				errors.New(errCap.ErrMsgType1))
+		}
+		if errCap.ErrMsgType2 != "" {
+			return fmt.Errorf("error code: %v error message: %s", errCap.CodeType2,
+				errors.New(errCap.ErrMsgType2))
 		}
 	}
 	return json.Unmarshal(tempResp, result)
@@ -931,14 +936,14 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 		var errCap ResponseV2
 		if err = json.Unmarshal(interim, &errCap); err == nil {
 			if errCap.Code != 200 && errCap.Message != "" {
-				return errors.New(errCap.Message)
+				return fmt.Errorf("error code: %v error message: %s", errCap.Code, errCap.Message)
 			}
 		}
 	} else {
 		var errCap Response
 		if err = json.Unmarshal(interim, &errCap); err == nil {
 			if errCap.Status == huobiStatusError && errCap.ErrorMessage != "" {
-				return errors.New(errCap.ErrorMessage)
+				return fmt.Errorf("error code: %v error message: %s", errCap.ErrorCode, errCap.ErrorMessage)
 			}
 		}
 	}

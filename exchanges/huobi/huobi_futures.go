@@ -1115,6 +1115,11 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
+	if ep == exchange.RestFutures && ePoint[len(ePoint)-1] == '/' {
+		// prevent signature errors for non-standard paths until we can
+		// have a method to force update endpoints
+		ePoint = ePoint[:len(ePoint)-1]
+	}
 	if values == nil {
 		values = url.Values{}
 	}
@@ -1174,8 +1179,13 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 	var errCap errorCapture
 	if err := json.Unmarshal(tempResp, &errCap); err == nil {
-		if errCap.ErrMsg != "" {
-			return errors.New(errCap.ErrMsg)
+		if errCap.ErrMsgType1 != "" {
+			return fmt.Errorf("error code: %v error message: %s", errCap.CodeType1,
+				errors.New(errCap.ErrMsgType1))
+		}
+		if errCap.ErrMsgType2 != "" {
+			return fmt.Errorf("error code: %v error message: %s", errCap.CodeType2,
+				errors.New(errCap.ErrMsgType2))
 		}
 	}
 	return json.Unmarshal(tempResp, result)

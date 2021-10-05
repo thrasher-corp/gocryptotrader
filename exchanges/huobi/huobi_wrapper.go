@@ -1253,14 +1253,21 @@ func (h *HUOBI) GetDepositAddress(ctx context.Context, cryptocurrency currency.C
 	}
 
 	for x := range resp {
-		if strings.EqualFold(resp[x].Chain, chain) {
+		if chain != "" && strings.EqualFold(resp[x].Chain, chain) {
+			if strings.EqualFold(resp[x].Chain, chain) {
+				return &deposit.Address{
+					Address: resp[x].Address,
+					Tag:     resp[x].AddressTag,
+				}, nil
+			}
+		} else if chain == "" && strings.EqualFold(resp[x].Currency, cryptocurrency.String()) {
 			return &deposit.Address{
 				Address: resp[x].Address,
 				Tag:     resp[x].AddressTag,
 			}, nil
 		}
 	}
-	return nil, fmt.Errorf("supplied chain %s not found", chain)
+	return nil, fmt.Errorf("unable to match deposit address currency or chain")
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

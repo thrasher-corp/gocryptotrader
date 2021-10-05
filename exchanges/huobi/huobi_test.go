@@ -2175,6 +2175,16 @@ func TestQueryDepositAddress(t *testing.T) {
 	}
 }
 
+func TestGetDepositAddress(t *testing.T) {
+	_, err := h.GetDepositAddress(context.Background(), currency.USDT, "", "uSdTeRc20")
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
+	}
+}
+
 func TestQueryWithdrawQuota(t *testing.T) {
 	_, err := h.QueryWithdrawQuotas(context.Background(),
 		currency.BTC.Lower().String())

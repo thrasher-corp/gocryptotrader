@@ -26,7 +26,7 @@ type DepositAddressManager struct {
 
 // IsSynced returns whether or not the deposit address store has synced its data
 func (m *DepositAddressManager) IsSynced() bool {
-	if m == nil {
+	if m.store == nil {
 		return false
 	}
 	m.m.RLock()
@@ -64,13 +64,20 @@ func (m *DepositAddressManager) GetDepositAddressByExchangeAndCurrency(exchName,
 	if len(addr) == 0 {
 		return deposit.Address{}, errNoDepositAddressesRetrieved
 	}
+
 	if chain != "" {
 		for x := range addr {
-			if strings.EqualFold(addr[x].Chain, chain) {
+			if chain != "" && strings.EqualFold(addr[x].Chain, chain) {
 				return addr[x], nil
 			}
 		}
 		return deposit.Address{}, errDepositAddressChainNotFound
+	}
+
+	for x := range addr {
+		if strings.EqualFold(addr[x].Chain, currencyItem.String()) {
+			return addr[x], nil
+		}
 	}
 	return addr[0], nil
 }

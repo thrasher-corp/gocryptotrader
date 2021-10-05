@@ -2592,7 +2592,7 @@ func getCryptocurrencyDepositAddresses(c *cli.Context) error {
 var getCryptocurrencyDepositAddressCommand = &cli.Command{
 	Name:      "getcryptocurrencydepositaddress",
 	Usage:     "gets the cryptocurrency deposit address for an exchange and cryptocurrency",
-	ArgsUsage: "<exchange> <cryptocurrency> <chain>",
+	ArgsUsage: "<exchange> <cryptocurrency> <chain> <bypass>",
 	Action:    getCryptocurrencyDepositAddress,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -2606,6 +2606,10 @@ var getCryptocurrencyDepositAddressCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:  "chain",
 			Usage: "the chain to use for the deposit",
+		},
+		&cli.BoolFlag{
+			Name:  "bypass",
+			Usage: "whether to bypass the deposit address manager cache if enabled",
 		},
 	},
 }
@@ -2641,6 +2645,17 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 		chain = c.Args().Get(2)
 	}
 
+	var bypass bool
+	if c.IsSet("bypass") {
+		bypass = c.Bool("bypass")
+	} else if c.Args().Get(3) != "" {
+		b, err := strconv.ParseBool(c.Args().Get(3))
+		if err != nil {
+			return err
+		}
+		bypass = b
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -2653,6 +2668,7 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 			Exchange:       exchangeName,
 			Cryptocurrency: cryptocurrency,
 			Chain:          chain,
+			Bypass:         bypass,
 		},
 	)
 	if err != nil {

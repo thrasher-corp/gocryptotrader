@@ -1573,6 +1573,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 		"",
 		r.Chain,
 		currency.NewCode(r.Cryptocurrency),
+		r.Bypass,
 	)
 	if err != nil {
 		return nil, err

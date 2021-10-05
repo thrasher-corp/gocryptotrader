@@ -672,7 +672,10 @@ func (bot *Engine) GetCryptocurrenciesByExchange(exchangeName string, enabledExc
 // GetCryptocurrencyDepositAddressesByExchange returns the cryptocurrency deposit addresses for a particular exchange
 func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) (map[string][]deposit.Address, error) {
 	if bot.DepositAddressManager != nil {
-		return bot.DepositAddressManager.GetDepositAddressesByExchange(exchName)
+		if bot.DepositAddressManager.IsSynced() {
+			return bot.DepositAddressManager.GetDepositAddressesByExchange(exchName)
+		}
+		return nil, errors.New("deposit address manager has not yet synced all exchange deposit addresses")
 	}
 
 	result := bot.GetExchangeCryptocurrencyDepositAddresses()
@@ -685,15 +688,13 @@ func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) 
 
 // GetExchangeCryptocurrencyDepositAddress returns the cryptocurrency deposit address for a particular
 // exchange
-func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, exchName, accountID, chain string, item currency.Code) (*deposit.Address, error) {
-	if bot.DepositAddressManager != nil {
-		if bot.DepositAddressManager.IsSynced() {
-			resp, err := bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, chain, item)
-			if err != nil {
-				return nil, err
-			}
-			return &resp, nil
+func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, exchName, accountID, chain string, item currency.Code, bypassCache bool) (*deposit.Address, error) {
+	if bot.DepositAddressManager != nil && bot.DepositAddressManager.IsSynced() && !bypassCache {
+		resp, err := bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, chain, item)
+		if err != nil {
+			return nil, err
 		}
+		return &resp, nil
 	}
 	exch, err := bot.GetExchangeByName(exchName)
 	if err != nil {
@@ -739,6 +740,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 						continue
 					}
 					if len(availChains) > 0 {
+						// store the default non-chain specified address for a specificed crypto
 						chainContainsItself := common.StringDataCompareInsensitive(availChains, cryptocurrency)
 						if !chainContainsItself && !requiresChainSet {
 							depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
@@ -753,9 +755,6 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 							depositAddrs = append(depositAddrs, *depositAddr)
 						}
 						for z := range availChains {
-							if strings.EqualFold(cryptocurrency, availChains[z]) && !chainContainsItself {
-								continue
-							}
 							depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", availChains[z])
 							if err != nil {
 								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s [chain %s]. Err: %s\n",
@@ -769,6 +768,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 							depositAddrs = append(depositAddrs, *depositAddr)
 						}
 					} else {
+						// cryptocurrency doesn't support multichain transfers
 						isSingular = true
 					}
 				}

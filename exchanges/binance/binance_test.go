@@ -1991,8 +1991,6 @@ func TestWithdraw(t *testing.T) {
 		t.Error("Withdraw() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Withdraw() expecting an error when no keys are set")
-	case mockTests && err == nil:
-		t.Error("should error due to invalid amount")
 	}
 }
 
@@ -2453,10 +2451,13 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("api keys not set")
-	}
-	if _, err := b.GetAvailableTransferChains(context.Background(), currency.BTC); err != nil {
+	_, err := b.GetAvailableTransferChains(context.Background(), currency.BTC)
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error(err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("error cannot be nil")
+	case mockTests && err != nil:
 		t.Error(err)
 	}
 }

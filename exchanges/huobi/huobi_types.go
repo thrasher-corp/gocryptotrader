@@ -6,10 +6,12 @@ import (
 )
 
 type errorCapture struct {
-	Status    string `json:"status"`
-	Code      string `json:"err-code"`
-	ErrMsg    string `json:"err-msg"`
-	Timestamp int64  `json:"ts"`
+	Status      string      `json:"status"`
+	CodeType1   interface{} `json:"err-code"` // can be either a string or int depending on the endpoint
+	ErrMsgType1 string      `json:"err-msg"`
+	CodeType2   interface{} `json:"err_code"`
+	ErrMsgType2 string      `json:"err_msg"`
+	Timestamp   int64       `json:"ts"`
 }
 
 // MarketSummary24Hr stores past 24hr market summary data of a given symbol

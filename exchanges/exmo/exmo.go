@@ -222,7 +222,6 @@ func (e *EXMO) GetCryptoDepositAddress(ctx context.Context) (map[string]string, 
 			mapString[key] = v
 		}
 		return mapString, nil
-
 	default:
 		return nil, errors.New("no addresses found, generate required addresses via site")
 	}
