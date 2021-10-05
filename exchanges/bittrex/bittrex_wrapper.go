@@ -152,9 +152,10 @@ func (b *Bittrex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	// Note: https://bittrexglobal.zendesk.com/hc/en-us/articles/360009625260-What-fees-does-Bittrex-Global-charge-
 	err = b.Fees.LoadStatic(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.0025, Taker: 0.0025}, // TODO: verify
+			asset.Spot: {Maker: 0.0075, Taker: 0.0075},
 		},
 	})
 	if err != nil {
@@ -1030,20 +1031,52 @@ func (b *Bittrex) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 // UpdateCommissionFees updates current fees associated with account
 func (b *Bittrex) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	// // Load withdrawalfees
-	// var f float64
 
-	// currencies, err := b.GetCurrencies()
-	// if err != nil {
-	// 	return 0, err
-	// }
-	// for i := range currencies {
-	// 	if currencies[i].Symbol == c.String() {
-	// 		f = currencies[i].TxFee
-	// 	}
-	// }
-	// return f, nil
+	fees, err := b.GetAccountTradingFees(ctx, fee.OmitPair)
+	if err != nil {
+		return err
+	}
+
+	for i := range fees {
+		err = b.Fees.LoadDynamic(fees[i].MakerRate,
+			fees[i].TakerRate,
+			a,
+			fees[i].MarketSymbol)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
+// deposits for this exchange
+func (b *Bittrex) UpdateTransferFees(ctx context.Context) error {
+	data, err := b.GetCurrencies(ctx)
+	if err != nil {
+		return err
+	}
+
+	transferFees := map[asset.Item]map[currency.Code]fee.Transfer{}
+	for i := range data {
+		m1, ok := transferFees[asset.Spot]
+		if !ok {
+			m1 = make(map[currency.Code]fee.Transfer)
+			transferFees[asset.Spot] = m1
+		}
+
+		if data[i].Status != "ONLINE" {
+			// Turn off
+			m1[data[i].Symbol] = fee.Transfer{}
+			continue
+		}
+
+		m1[data[i].Symbol] = fee.Transfer{
+			Deposit:    fee.Convert(0),
+			Withdrawal: fee.Convert(data[i].TxFee),
+		}
+	}
+	return b.Fees.LoadTransferFees(transferFees)
 }

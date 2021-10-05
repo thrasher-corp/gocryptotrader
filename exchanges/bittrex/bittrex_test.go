@@ -2,6 +2,7 @@ package bittrex
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"testing"
@@ -566,6 +567,61 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err = b.GetHistoricTrades(context.Background(),
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAccountTradingFees(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("credentials not set")
+	}
+	r1, err := b.GetAccountTradingFees(context.Background(),
+		currency.NewPair(currency.ALGO, currency.USDT))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(r1) != 1 {
+		t.Fatal("unexpected response")
+	}
+
+	r2, err := b.GetAccountTradingFees(context.Background(),
+		currency.NewPair(currency.ALGO, currency.USDT))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(r2) < 2 {
+		t.Fatal("unexpected response")
+	}
+}
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, asset.ErrNotSupported)
+	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip("credentials not set")
+	}
+
+	err = b.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, nil)
+	}
+}
+
+func TestUpdateTransferFees(t *testing.T) {
+	err := b.UpdateTransferFees(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.Fees.GetTransferFee(currency.BTC, asset.Spot)
+	if err != nil {
 		t.Fatal(err)
 	}
 }

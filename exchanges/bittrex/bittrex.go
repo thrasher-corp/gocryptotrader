@@ -13,6 +13,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -42,21 +43,22 @@ const (
 	getCurrencies        = "/currencies"
 
 	// Authenticated endpoints
-	getBalances          = "/balances"
-	getBalance           = "/balances/%s"
-	getDepositAddress    = "/addresses/%s"
-	getAllOpenOrders     = "/orders/open"
-	getOpenOrders        = "/orders/open?marketSymbol=%s"
-	getOrder             = "/orders/%s"
-	getClosedOrders      = "/orders/closed?marketSymbol=%s"
-	cancelOrder          = "/orders/%s"
-	cancelOpenOrders     = "/orders/open"
-	getClosedWithdrawals = "/withdrawals/closed"
-	getOpenWithdrawals   = "/withdrawals/open"
-	submitWithdrawal     = "/transfers"
-	getClosedDeposits    = "/deposits/closed"
-	getOpenDeposits      = "/deposits/open"
-	submitOrder          = "/orders"
+	getBalances           = "/balances"
+	getBalance            = "/balances/%s"
+	getDepositAddress     = "/addresses/%s"
+	getAllOpenOrders      = "/orders/open"
+	getOpenOrders         = "/orders/open?marketSymbol=%s"
+	getOrder              = "/orders/%s"
+	getClosedOrders       = "/orders/closed?marketSymbol=%s"
+	cancelOrder           = "/orders/%s"
+	cancelOpenOrders      = "/orders/open"
+	getClosedWithdrawals  = "/withdrawals/closed"
+	getOpenWithdrawals    = "/withdrawals/open"
+	submitWithdrawal      = "/transfers"
+	getClosedDeposits     = "/deposits/closed"
+	getOpenDeposits       = "/deposits/open"
+	submitOrder           = "/orders"
+	getAccountFeesTrading = "/account/fees/trading"
 
 	// Other Consts
 	ratePeriod     = time.Minute
@@ -338,6 +340,31 @@ func (b *Bittrex) GetOpenDepositsForCurrency(ctx context.Context, currency strin
 	params.Set("currencySymbol", currency)
 
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOpenDeposits, params, nil, &resp, nil)
+}
+
+// GetAccountTradingFees returns all current trading fees associated with a
+// currency pair. Currency pair omitted will result in all trading fees returned.
+func (b *Bittrex) GetAccountTradingFees(ctx context.Context, pair currency.Pair) ([]TradingFee, error) {
+	path := getAccountFeesTrading
+
+	if !pair.IsEmpty() {
+		var temp TradingFee
+		path += "/" + pair.Format(currency.DashDelimiter, true).String()
+		err := b.SendAuthHTTPRequest(ctx,
+			exchange.RestSpot, http.MethodGet, path, nil, nil, &temp, nil)
+		if err != nil {
+			return nil, err
+		}
+		return []TradingFee{temp}, nil
+	}
+
+	var resp []TradingFee
+	err := b.SendAuthHTTPRequest(ctx,
+		exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, nil)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

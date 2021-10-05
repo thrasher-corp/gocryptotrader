@@ -130,15 +130,15 @@ type AddressData struct {
 // CurrencyData holds currency data
 // Status is ONLINE or OFFLINE
 type CurrencyData struct {
-	Symbol           string   `json:"symbol"`
-	Name             string   `json:"name"`
-	CoinType         string   `json:"coinType"`
-	Status           string   `json:"status"`
-	MinConfirmations int32    `json:"minConfirmations"`
-	Notice           string   `json:"notice"`
-	TxFee            float64  `json:"txFee,string"`
-	LogoURL          string   `json:"logoUrl"`
-	ProhibitedIn     []string `json:"prohibitedIn"`
+	Symbol           currency.Code `json:"symbol"`
+	Name             string        `json:"name"`
+	CoinType         string        `json:"coinType"`
+	Status           string        `json:"status"`
+	MinConfirmations int32         `json:"minConfirmations"`
+	Notice           string        `json:"notice"`
+	TxFee            float64       `json:"txFee,string"`
+	LogoURL          string        `json:"logoUrl"`
+	ProhibitedIn     []string      `json:"prohibitedIn"`
 }
 
 // WithdrawalData holds withdrawal data
@@ -294,4 +294,11 @@ type update struct {
 // orderbook via the REST protocol
 type job struct {
 	Pair currency.Pair
+}
+
+// TradingFee defines trading fee rates for a specific trading pair
+type TradingFee struct {
+	MarketSymbol currency.Pair `json:"marketSymbol"`
+	MakerRate    float64       `json:"makerRate,string"`
+	TakerRate    float64       `json:"takerRate,string"`
 }
