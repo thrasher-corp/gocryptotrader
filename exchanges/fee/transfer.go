@@ -204,8 +204,12 @@ func (t transfer) calculate(val Value, amount float64) (float64, error) {
 	}
 	// When getting fee it is highly dependant on underlying interface value
 	// see value.go for different amount tier systems definitions.
-	fee := val.GetFee(amount)
-	if !t.Percentage {
+	fee, err := val.GetFee(amount)
+	if err != nil {
+		return 0, err
+	}
+	if !t.Percentage { // TODO: Needs to be checked, might need to have the
+		// p value at the interface layer
 		// Returns the whole number
 		feeFloat, _ := fee.Float64()
 		return feeFloat, nil

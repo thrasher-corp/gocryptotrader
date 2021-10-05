@@ -12,7 +12,7 @@ var errInvalid = errors.New("invalid value")
 
 // Value defines fee value calculation functionality
 type Value interface {
-	GetFee(amount float64) decimal.Decimal
+	GetFee(amount float64) (decimal.Decimal, error)
 	Display() (string, error)
 	Validate() error
 	LessThan(val Value) (bool, error)
@@ -55,8 +55,8 @@ type Standard struct {
 }
 
 // GetFee implements Value interface
-func (s Standard) GetFee(amount float64) decimal.Decimal {
-	return s.Decimal
+func (s Standard) GetFee(amount float64) (decimal.Decimal, error) {
+	return s.Decimal, nil
 }
 
 // Display implements Value interface
@@ -91,12 +91,12 @@ type Switch struct {
 }
 
 // GetFee implements Value interface
-func (s Switch) GetFee(amount float64) decimal.Decimal {
+func (s Switch) GetFee(amount float64) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
 	if amt.GreaterThanOrEqual(s.Amount) {
-		return s.FeeWhenHigherOrEqual
+		return s.FeeWhenHigherOrEqual, nil
 	}
-	return s.FeeWhenLower
+	return s.FeeWhenLower, nil
 }
 
 // Display implements Value interface
@@ -133,8 +133,8 @@ func (s Switch) LessThan(_ Value) (bool, error) {
 type Blockchain string
 
 // GetFee implements Value interface
-func (b Blockchain) GetFee(amount float64) decimal.Decimal {
-	return decimal.Zero
+func (b Blockchain) GetFee(amount float64) (decimal.Decimal, error) {
+	return decimal.Zero, nil
 }
 
 // Display implements Value interface
@@ -163,16 +163,16 @@ type MinMax struct {
 }
 
 // GetFee implements Value interface
-func (m MinMax) GetFee(amount float64) decimal.Decimal {
+func (m MinMax) GetFee(amount float64) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
 	potential := amt.Mul(m.Fee)
 	if m.Maximum.GreaterThan(decimal.Zero) && potential.GreaterThan(m.Maximum) {
-		return m.Maximum
+		return m.Maximum, nil
 	}
 	if m.Minimum.GreaterThan(decimal.Zero) && potential.LessThan(m.Minimum) {
-		return m.Minimum
+		return m.Minimum, nil
 	}
-	return potential
+	return potential, nil
 }
 
 // Display implements Value interface

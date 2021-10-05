@@ -183,7 +183,8 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.001, Taker: 0.002},
 		},
-		Transfer: withdrawTransfer,
+		Transfer:        transferFees,
+		BankingTransfer: bankTransferFees,
 	})
 	if err != nil {
 		return err

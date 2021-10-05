@@ -252,7 +252,7 @@ var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	fee.AutomaticClearingHouse: {
 		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 	},
-	fee.FasterPayments: {
+	fee.FasterPaymentService: {
 		currency.GBP: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
 	},
 	fee.WireTransfer: {

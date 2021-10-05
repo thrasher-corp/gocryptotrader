@@ -763,7 +763,7 @@ var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 			Withdrawal:   fee.Convert(0.001),
 			IsPercentage: true},
 	},
-	fee.FasterPayments: {
+	fee.FasterPaymentService: {
 		currency.GBP: {Deposit: fee.Convert(0.05), Withdrawal: fee.Convert(0.5)},
 	},
 	fee.MobileMoney: {

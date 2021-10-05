@@ -35,7 +35,7 @@ const (
 	Sofort
 	P2P
 	Etana
-	FasterPayments
+	FasterPaymentService
 	MobileMoney
 	CashTransfer
 	YandexMoney
@@ -112,8 +112,8 @@ func (b BankTransaction) String() string {
 		return "P2P"
 	case Etana:
 		return "Etana"
-	case FasterPayments:
-		return "FasterPayments"
+	case FasterPaymentService:
+		return "FasterPaymentService(FPS)"
 	case MobileMoney:
 		return "MobileMoney"
 	case CashTransfer:
@@ -168,7 +168,7 @@ func (b BankTransaction) Validate() error {
 		Sofort,
 		P2P,
 		Etana,
-		FasterPayments,
+		FasterPaymentService,
 		MobileMoney,
 		CashTransfer,
 		YandexMoney,
