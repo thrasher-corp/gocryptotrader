@@ -2,6 +2,10 @@ package btcmarkets
 
 import (
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
 // Market holds a tradable market instrument
@@ -188,8 +192,8 @@ type DepositAddress struct {
 
 // WithdrawalFeeData stores data for fees
 type WithdrawalFeeData struct {
-	AssetName string  `json:"assetName"`
-	Fee       float64 `json:"fee,string"`
+	AssetName currency.Code `json:"assetName"`
+	Fee       float64       `json:"fee,string"`
 }
 
 // AssetData stores data for given asset
@@ -323,9 +327,9 @@ type CancelOrderMethod struct {
 
 // TradingFeeData stores trading fee data
 type TradingFeeData struct {
-	MakerFeeRate float64 `json:"makerFeeRate,string"`
-	TakerFeeRate float64 `json:"takerFeeRate,string"`
-	MarketID     string  `json:"marketId"`
+	MakerFeeRate float64       `json:"makerFeeRate,string"`
+	TakerFeeRate float64       `json:"takerFeeRate,string"`
+	MarketID     currency.Pair `json:"marketId"`
 }
 
 // TradingFeeResponse stores trading fee data
@@ -428,3 +432,32 @@ type WsError struct {
 
 // CandleResponse holds OHLCV data for exchange
 type CandleResponse [][6]string
+
+var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
+	asset.Spot: {
+		currency.BTC:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0003)},
+		currency.LTC:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+		currency.ETH:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+		currency.ETC:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+		currency.XRP:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+		currency.POWR: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(54)},
+		currency.OMG:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
+		currency.BCH:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0001)},
+		currency.BSV:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0001)},
+		currency.GNT:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(55)},
+		currency.BAT:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
+		currency.XLM:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+		currency.ENJ:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(14)},
+		currency.LINK: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.6)},
+		currency.COMP: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.035)},
+		currency.ALGO: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+		currency.MCAU: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0003)},
+		currency.USDT: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
+	},
+}
+
+var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
+	fee.WireTransfer: {
+		currency.AUD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
+	},
+}

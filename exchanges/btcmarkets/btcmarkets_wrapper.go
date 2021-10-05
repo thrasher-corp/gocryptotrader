@@ -48,7 +48,6 @@ func (b *BTCMarkets) GetDefaultConfig() (*config.ExchangeConfig, error) {
 			return nil, err
 		}
 	}
-
 	return exchCfg, nil
 }
 
@@ -148,11 +147,13 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	// NOTE: https://www.btcmarkets.net/fees
 	err = b.Fees.LoadStatic(fee.Options{
-		// TODO: Check this Add support for crypto pair as it has 0.002 fee
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0085, Taker: 0.0085},
 		},
+		Transfer:        transferFees,
+		BankingTransfer: bankTransferFees,
 	})
 	if err != nil {
 		return err
@@ -1052,36 +1053,51 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, p currency.
 // UpdateCommissionFees updates current fees associated with account
 func (b *BTCMarkets) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	// TODO: Load full withdrawal fees
-	// temp, err := b.GetTradingFees()
-	// if err != nil {
-	// 	return f, err
-	// }
-	// for x := range temp.FeeByMarkets {
-	// 	p, err := currency.NewPairFromString(temp.FeeByMarkets[x].MarketID)
-	// 	if err != nil {
-	// 		return 0, err
-	// 	}
-	// 	if p == feeBuilder.Pair {
-	// 		f = temp.FeeByMarkets[x].MakerFeeRate
-	// 		if !feeBuilder.IsMaker {
-	// 			f = temp.FeeByMarkets[x].TakerFeeRate
-	// 		}
-	// 	}
-	// }
+	temp, err := b.GetTradingFees(ctx)
+	if err != nil {
+		return err
+	}
 
-	// TODO: Load withdrawal fees
-	// temp, err := b.GetWithdrawalFees()
-	// if err != nil {
-	// 	return f, err
-	// }
-	// for x := range temp {
-	// 	if currency.NewCode(temp[x].AssetName) == feeBuilder.Pair.Base {
-	// 		f = temp[x].Fee * feeBuilder.PurchasePrice * feeBuilder.Amount
-	// 	}
-	// }
+	for x := range temp.FeeByMarkets {
+		err = b.Fees.LoadDynamic(temp.FeeByMarkets[x].MakerFeeRate,
+			temp.FeeByMarkets[x].TakerFeeRate,
+			a,
+			temp.FeeByMarkets[x].MarketID)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
+// deposits for this exchange
+func (b *BTCMarkets) UpdateTransferFees(ctx context.Context) error {
+	temp, err := b.GetWithdrawalFees(ctx)
+	if err != nil {
+		return err
+	}
+
+	transferFees := map[asset.Item]map[currency.Code]fee.Transfer{}
+	for x := range temp {
+		m1, ok := transferFees[asset.Spot]
+		if !ok {
+			m1 = make(map[currency.Code]fee.Transfer)
+			transferFees[asset.Spot] = m1
+		}
+
+		if temp[x].AssetName.Item == currency.AUD.Item {
+			// Filter out fiat bank transfer
+			continue
+		}
+
+		m1[temp[x].AssetName] = fee.Transfer{
+			Deposit:    fee.Convert(0),
+			Withdrawal: fee.Convert(temp[x].Fee),
+		}
+	}
+	return b.Fees.LoadTransferFees(transferFees)
 }

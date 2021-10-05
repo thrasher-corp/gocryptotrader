@@ -1779,4 +1779,5 @@ var (
 	AUDIO      = NewCode("AUDIO")
 	EURT       = NewCode("EURT")
 	ALPHA      = NewCode("ALPHA")
+	MCAU       = NewCode("MCAU")
 )
