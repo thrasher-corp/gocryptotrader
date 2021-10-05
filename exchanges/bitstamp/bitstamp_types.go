@@ -243,6 +243,8 @@ type OHLCResponse struct {
 	} `json:"data"`
 }
 
+// bankTransfer defines bank transfer fees to and from the exchange. Subject to
+// change.
 var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	fee.SEPA: {
 		currency.EUR: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(3)},
@@ -269,6 +271,8 @@ var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 	},
 }
 
+// transferFees defines crypto transfer fees to and from the exchange. Subject
+// to change.
 var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
 	asset.Spot: {
 		currency.BTC:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0005)},
