@@ -18,58 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// CalculateExchangeLevelFundingResults operates by calculating all the same ratios and statistics as
-// CalculateResults, however it performs them on an individual currency basis as a currency pair's
-// performance cannot be determined when another currency pair takes funding away and damages return metrics
-// if using Exchange Level Funding, the goal is to see how the overall strategy performs versus
-// how an individual currency pair performs in a strategy when it is disabled
-func (c *CurrencyStatistic) CalculateExchangeLevelFundingResults(report *funding.Report) error {
-	for i := range report.Items {
-		report.Items[i].
-	}
-	return nil
-	/*
-		first := c.Events[0]
-		sep := fmt.Sprintf("%v %v %v |\t", first.DataEvent.GetExchange(), first.DataEvent.GetAssetType(), first.DataEvent.Pair())
-
-		firstPrice := first.DataEvent.ClosePrice()
-		last := c.Events[len(c.Events)-1]
-		lastPrice := last.DataEvent.ClosePrice()
-		for i := range last.Transactions.Orders {
-			if last.Transactions.Orders[i].Side == gctorder.Buy {
-				c.BuyOrders++
-			} else if last.Transactions.Orders[i].Side == gctorder.Sell {
-				c.SellOrders++
-			}
-		}
-		for i := range c.Events {
-			price := c.Events[i].DataEvent.ClosePrice()
-			if c.LowestClosePrice.IsZero() || price.LessThan(c.LowestClosePrice) {
-				c.LowestClosePrice = price
-			}
-			if price.GreaterThan(c.HighestClosePrice) {
-				c.HighestClosePrice = price
-			}
-		}
-
-		for i := range report.Items {
-			report.Items[i].USDPairCandle.StreamClose()
-		}
-
-		// we need to figure out these as a replacement for `last.Holdings` as these do not represent actual figures
-		// if we calculate conversion rates, we
-		/*
-			log.Infof(log.BackTester, "%s Value lost to volume sizing: %v", sep, last.Holdings.TotalValueLostToVolumeSizing.Round(2))
-			log.Infof(log.BackTester, "%s Value lost to slippage: %v", sep, last.Holdings.TotalValueLostToSlippage.Round(2))
-			log.Infof(log.BackTester, "%s Total Value lost: %v", sep, last.Holdings.TotalValueLost.Round(2))
-			log.Infof(log.BackTester, "%s Total Fees: %v\n\n", sep, last.Holdings.TotalFees.Round(8))
-
-			log.Infof(log.BackTester, "%s Final funds: %v", sep, last.Holdings.QuoteSize.Round(8))
-			log.Infof(log.BackTester, "%s Final holdings: %v", sep, last.Holdings.BaseSize.Round(8))
-	*/
-
-}
-
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
 func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 	var errs gctcommon.Errors

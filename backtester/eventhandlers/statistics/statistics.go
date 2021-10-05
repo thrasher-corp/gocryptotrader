@@ -189,7 +189,7 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 				stats.FinalHoldings = last.Holdings
 				stats.InitialHoldings = stats.Events[0].Holdings
 				stats.FinalOrders = last.Transactions
-				s.AllStats = append(s.AllStats, *stats)
+				s.CurrencyPairStatistics = append(s.CurrencyPairStatistics, *stats)
 
 				finalResults = append(finalResults, FinalResultsHolder{
 					Exchange:         exchangeName,

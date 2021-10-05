@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/fundingstatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -38,9 +39,10 @@ type Statistic struct {
 	BiggestDrawdown             *FinalResultsHolder                                                                   `json:"biggest-drawdown,omitempty"`
 	BestStrategyResults         *FinalResultsHolder                                                                   `json:"best-start-results,omitempty"`
 	BestMarketMovement          *FinalResultsHolder                                                                   `json:"best-market-movement,omitempty"`
-	AllStats                    []currencystatistics.CurrencyPairStatistic                                            `json:"results"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
+	CurrencyPairStatistics      []currencystatistics.CurrencyPairStatistic                                            `json:"currency-pair-statistics"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
 	WasAnyDataMissing           bool                                                                                  `json:"was-any-data-missing"`
 	Funding                     *funding.Report                                                                       `json:"funding"`
+	FundingStatistics           []fundingstatistics.FundingStatistics                                                 `json:"funding-statistics"`
 }
 
 // FinalResultsHolder holds important stats about a currency's performance
