@@ -1,6 +1,8 @@
 package fundingstatistics
 
 import (
+	"time"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
@@ -58,6 +60,7 @@ func CalculateResults(f funding.IFundingManager, currStats map[string]map[asset.
 			}
 		}
 		item.TotalOrders = item.BuyOrders + item.SellOrders
+
 		//  StrategyMovement:         decimal.Decimal{},
 		//	RiskFreeRate:             decimal.Decimal{},
 		//	CompoundAnnualGrowthRate: decimal.Decimal{},
@@ -75,6 +78,7 @@ type FundingStatistics struct {
 	USDFinalTotal   decimal.Decimal
 	Difference      decimal.Decimal
 	Items           []FundingItemStatistics
+	Snapshots       map[time.Time]funding.Snapshot
 }
 
 type FundingItemStatistics struct {

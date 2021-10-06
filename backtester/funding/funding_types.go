@@ -1,6 +1,8 @@
 package funding
 
 import (
+	"time"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -15,34 +17,21 @@ type FundManager struct {
 	usingExchangeLevelFunding bool
 	disableUSDTracking        bool
 	items                     []*Item
+	snapshots                 map[time.Time]Snapshot
 }
 
-// Report holds all funding data for result reporting
-type Report struct {
-	USDInitialTotal decimal.Decimal
-	USDFinalTotal   decimal.Decimal
-	Difference      decimal.Decimal
-	Items           []ReportItem
+type Snapshot struct {
+	time  time.Time
+	items []ItemSnapshot
 }
 
-// ReportItem holds reporting fields
-type ReportItem struct {
-	Exchange             string
-	Asset                asset.Item
-	Currency             currency.Code
-	TransferFee          decimal.Decimal
-	InitialFunds         decimal.Decimal
-	FinalFunds           decimal.Decimal
-	USDInitialFunds      decimal.Decimal
-	USDInitialCostForOne decimal.Decimal
-	USDFinalFunds        decimal.Decimal
-	USDFinalCostForOne   decimal.Decimal
-	USDAllFunds          []decimal.Decimal
-	USDPairCandle        *kline.DataFromKline
-
-	Difference   decimal.Decimal
-	ShowInfinite bool
-	PairedWith   currency.Code
+type ItemSnapshot struct {
+	exchange   string
+	asset      asset.Item
+	currency   currency.Code
+	available  decimal.Decimal
+	usdValue   decimal.Decimal
+	pairedWith *Item
 }
 
 // IFundingManager limits funding usage for portfolio event handling
@@ -55,6 +44,7 @@ type IFundingManager interface {
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GenerateReport() *Report
 	AddUSDTrackingData(*kline.DataFromKline) error
+	CreateSnapshot(time.Time)
 }
 
 // IFundTransferer allows for funding amounts to be transferred
@@ -106,4 +96,33 @@ type Item struct {
 type Pair struct {
 	Base  *Item
 	Quote *Item
+}
+
+// Report holds all funding data for result reporting
+type Report struct {
+	USDInitialTotal decimal.Decimal
+	USDFinalTotal   decimal.Decimal
+	Difference      decimal.Decimal
+	Items           []ReportItem
+	Snapshots       map[time.Time]Snapshot
+}
+
+// ReportItem holds reporting fields
+type ReportItem struct {
+	Exchange             string
+	Asset                asset.Item
+	Currency             currency.Code
+	TransferFee          decimal.Decimal
+	InitialFunds         decimal.Decimal
+	FinalFunds           decimal.Decimal
+	USDInitialFunds      decimal.Decimal
+	USDInitialCostForOne decimal.Decimal
+	USDFinalFunds        decimal.Decimal
+	USDFinalCostForOne   decimal.Decimal
+
+	USDPairCandle *kline.DataFromKline
+
+	Difference   decimal.Decimal
+	ShowInfinite bool
+	PairedWith   currency.Code
 }

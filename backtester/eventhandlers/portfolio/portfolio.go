@@ -46,6 +46,40 @@ func (p *Portfolio) Reset() {
 	p.exchangeAssetPairSettings = nil
 }
 
+// GetOrdersForEvent gets orders related to the event
+func (p *Portfolio) GetOrdersForEvent(e common.EventHandler) ([]gctorder.Detail, error) {
+	eapSettings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	if !ok {
+		return nil, nil
+	}
+	var resp []gctorder.Detail
+	ss := eapSettings.ComplianceManager.GetLatestSnapshot()
+	for i := range ss.Orders {
+		if ss.Orders[i].IsActive() {
+			resp = append(resp, ss.Orders[i].Copy())
+		}
+	}
+	return resp, nil
+}
+
+// GetAllOrders returns all
+func (p *Portfolio) GetAllOrders() ([]gctorder.Detail, error) {
+	var resp []gctorder.Detail
+	for _, exchangeMap := range p.exchangeAssetPairSettings {
+		for _, assetMap := range exchangeMap {
+			for _, pairMap := range assetMap {
+				ss := pairMap.ComplianceManager.GetLatestSnapshot()
+				for i := range ss.Orders {
+					if ss.Orders[i].IsActive() {
+						resp = append(resp, ss.Orders[i].Copy())
+					}
+				}
+			}
+		}
+	}
+	return resp, nil
+}
+
 // OnSignal receives the event from the strategy on whether it has signalled to buy, do nothing or sell
 // on buy/sell, the portfolio manager will size the order and assess the risk of the order
 // if successful, it will pass on an order.Order to be used by the exchange event handler to place an order based on

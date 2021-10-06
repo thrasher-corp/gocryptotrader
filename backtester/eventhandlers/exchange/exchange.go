@@ -7,7 +7,6 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -168,7 +167,7 @@ func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount decimal.Decimal, c
 		return errNilCurrencySettings
 	}
 	isBeyondLimit := false
-	var minMax config.MinMax
+	var minMax MinMax
 	var direction gctorder.Side
 	switch f.GetDirection() {
 	case gctorder.Buy:

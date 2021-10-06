@@ -369,6 +369,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 	bt.Exchange = &e
 	for i := range e.CurrencySettings {
 		var lookup *settings.Settings
+
 		lookup, err = p.SetupCurrencySettingsMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
 		if err != nil {
 			return nil, err
@@ -460,12 +461,12 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 				realOrders = cfg.DataSettings.LiveData.RealOrders
 			}
 
-			buyRule := config.MinMax{
+			buyRule := exchange.MinMax{
 				MinimumSize:  cfg.CurrencySettings[i].BuySide.MinimumSize,
 				MaximumSize:  cfg.CurrencySettings[i].BuySide.MaximumSize,
 				MaximumTotal: cfg.CurrencySettings[i].BuySide.MaximumTotal,
 			}
-			sellRule := config.MinMax{
+			sellRule := exchange.MinMax{
 				MinimumSize:  cfg.CurrencySettings[i].SellSide.MinimumSize,
 				MaximumSize:  cfg.CurrencySettings[i].SellSide.MaximumSize,
 				MaximumTotal: cfg.CurrencySettings[i].SellSide.MaximumTotal,
@@ -498,7 +499,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 				UseRealOrders:       realOrders,
 				BuySide:             buyRule,
 				SellSide:            sellRule,
-				Leverage: config.Leverage{
+				Leverage: exchange.Leverage{
 					CanUseLeverage:                 cfg.CurrencySettings[i].Leverage.CanUseLeverage,
 					MaximumLeverageRate:            cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
 					MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
@@ -864,9 +865,19 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 	switch eType := ev.(type) {
 	case common.DataEventHandler:
 		if bt.Strategy.UsingSimultaneousProcessing() {
-			return bt.processSimultaneousDataEvents()
+			err = bt.processSimultaneousDataEvents()
+			if err != nil {
+				return err
+			}
+			bt.Funding.CreateSnapshot(ev.GetTime())
+			return nil
 		}
-		return bt.processSingleDataEvent(eType, funds)
+		err = bt.processSingleDataEvent(eType, funds)
+		if err != nil {
+			return err
+		}
+		bt.Funding.CreateSnapshot(ev.GetTime())
+		return nil
 	case signal.Event:
 		bt.processSignalEvent(eType, funds)
 	case order.Event:
@@ -888,7 +899,7 @@ func (bt *BackTest) processSingleDataEvent(ev common.DataEventHandler, funds fun
 		return err
 	}
 	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-	s, err := bt.Strategy.OnSignal(d, bt.Funding)
+	s, err := bt.Strategy.OnSignal(d, bt.Funding, bt.Portfolio)
 	if err != nil {
 		if errors.Is(err, base.ErrTooMuchBadData) {
 			// too much bad data is a severe error and backtesting must cease
@@ -933,7 +944,7 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 			}
 		}
 	}
-	signals, err := bt.Strategy.OnSimultaneousSignals(dataEvents, bt.Funding)
+	signals, err := bt.Strategy.OnSimultaneousSignals(dataEvents, bt.Funding, bt.Portfolio)
 	if err != nil {
 		if errors.Is(err, base.ErrTooMuchBadData) {
 			// too much bad data is a severe error and backtesting must cease

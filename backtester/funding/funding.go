@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -34,6 +35,7 @@ func SetupFundingManager(usingExchangeLevelFunding, disableUSDTracking bool) *Fu
 	return &FundManager{
 		usingExchangeLevelFunding: usingExchangeLevelFunding,
 		disableUSDTracking:        disableUSDTracking,
+		snapshots:                 make(map[time.Time]Snapshot),
 	}
 }
 
@@ -54,6 +56,34 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 		available:    initialFunds,
 		transferFee:  transferFee,
 	}, nil
+}
+
+// CreateSnapshot creates a Snapshot for an event's point in time
+// as funding.snapshots is a map, it allows for the last event
+// in the chronological list to establish the canon at X time
+func (f *FundManager) CreateSnapshot(t time.Time) {
+	ss := Snapshot{
+		time: t,
+	}
+	var usdValue decimal.Decimal
+	for i := range f.items {
+		butts := f.items[i].usdTrackingCandles.GetStream()
+		for j := range butts {
+			if butts[j].GetTime().Equal(t) {
+				usdValue = butts[j].ClosePrice()
+				break
+			}
+		}
+		ss.items = append(ss.items, ItemSnapshot{
+			exchange:   f.items[i].exchange,
+			asset:      f.items[i].asset,
+			currency:   f.items[i].currency,
+			available:  f.items[i].available,
+			pairedWith: f.items[i].pairedWith,
+			usdValue:   usdValue.Mul(f.items[i].available),
+		})
+	}
+	f.snapshots[t] = ss
 }
 
 // AddUSDTrackingData adds USD tracking data to a funding item
@@ -150,9 +180,6 @@ func (f *FundManager) GenerateReport() *Report {
 			f.items[i].usdTrackingCandles != nil &&
 			!trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
 			usdStream := f.items[i].usdTrackingCandles.GetStream()
-			for i := range usdStream {
-				item.USDAllFunds = append(item.USDAllFunds, usdStream[i].ClosePrice())
-			}
 			item.USDInitialFunds = f.items[i].initialFunds.Mul(usdStream[0].ClosePrice())
 			item.USDFinalFunds = f.items[i].available.Mul(usdStream[len(usdStream)-1].ClosePrice())
 			item.USDInitialCostForOne = usdStream[0].ClosePrice()
@@ -176,6 +203,7 @@ func (f *FundManager) GenerateReport() *Report {
 	report.USDInitialTotal = report.USDInitialTotal.Round(2)
 	report.USDFinalTotal = report.USDFinalTotal.Round(2)
 	report.Items = items
+	report.Snapshots = f.snapshots
 	return report
 }
 

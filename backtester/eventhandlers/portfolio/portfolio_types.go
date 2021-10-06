@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
@@ -45,6 +46,8 @@ type Portfolio struct {
 type Handler interface {
 	OnSignal(signal.Event, *exchange.Settings, funding.IPairReserver) (*order.Order, error)
 	OnFill(fill.Event, funding.IPairReader) (*fill.Fill, error)
+	GetOrdersForEvent(common.EventHandler) ([]gctorder.Detail, error)
+	GetAllOrders() ([]gctorder.Detail, error)
 
 	ViewHoldingAtTimePeriod(common.EventHandler) (*holdings.Holding, error)
 	setHoldingsForOffset(*holdings.Holding, bool) error
@@ -56,6 +59,11 @@ type Handler interface {
 	GetFee(string, asset.Item, currency.Pair) decimal.Decimal
 
 	Reset()
+}
+
+type IStrategyHelper interface {
+	GetActiveOrdersForEvent(common.EventHandler) ([]order.Order, error)
+	GetAllActiveOrders() ([]order.Order, error)
 }
 
 // SizeHandler is the interface to help size orders
