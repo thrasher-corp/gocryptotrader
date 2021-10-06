@@ -104,12 +104,12 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 	}
 	bt.Reports = reports
 
-	buyRule := config.MinMax{
+	buyRule := exchange.MinMax{
 		MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
 		MaximumSize:  cfg.PortfolioSettings.BuySide.MaximumSize,
 		MaximumTotal: cfg.PortfolioSettings.BuySide.MaximumTotal,
 	}
-	sellRule := config.MinMax{
+	sellRule := exchange.MinMax{
 		MinimumSize:  cfg.PortfolioSettings.SellSide.MinimumSize,
 		MaximumSize:  cfg.PortfolioSettings.SellSide.MaximumSize,
 		MaximumTotal: cfg.PortfolioSettings.SellSide.MaximumTotal,

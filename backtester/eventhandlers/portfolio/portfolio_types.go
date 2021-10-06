@@ -61,11 +61,6 @@ type Handler interface {
 	Reset()
 }
 
-type IStrategyHelper interface {
-	GetActiveOrdersForEvent(common.EventHandler) ([]order.Order, error)
-	GetAllActiveOrders() ([]order.Order, error)
-}
-
 // SizeHandler is the interface to help size orders
 type SizeHandler interface {
 	SizeOrder(order.Event, decimal.Decimal, *exchange.Settings) (*order.Order, error)

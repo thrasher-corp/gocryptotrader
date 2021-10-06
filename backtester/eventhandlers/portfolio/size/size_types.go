@@ -3,7 +3,7 @@ package size
 import (
 	"errors"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 )
 
 var (
@@ -14,6 +14,6 @@ var (
 
 // Size contains buy and sell side rules
 type Size struct {
-	BuySide  config.MinMax
-	SellSide config.MinMax
+	BuySide  exchange.MinMax
+	SellSide exchange.MinMax
 }
