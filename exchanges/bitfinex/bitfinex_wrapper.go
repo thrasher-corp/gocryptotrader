@@ -779,16 +779,20 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 		return nil, err
 	}
 
-	if withdrawRequest.Currency == currency.USDT {
-		withdrawRequest.Currency = currency.NewCode("UST")
+	tmpCurr := withdrawRequest.Currency
+	if tmpCurr == currency.USDT {
+		tmpCurr = currency.NewCode("UST")
 	}
 
-	methods := acceptableMethods.Lookup(withdrawRequest.Currency)
+	methods := acceptableMethods.Lookup(tmpCurr)
 	if len(methods) == 0 {
-		return nil, errors.New("unsupported currency")
+		return nil, errors.New("no transfer methods returned for currency")
 	}
 	method := methods[0]
 	if len(methods) > 1 && withdrawRequest.Crypto.Chain != "" {
+		if !common.StringDataCompareInsensitive(methods, withdrawRequest.Crypto.Chain) {
+			return nil, fmt.Errorf("invalid chain %s supplied, %v available", withdrawRequest.Crypto.Chain, methods)
+		}
 		method = withdrawRequest.Crypto.Chain
 	} else if len(methods) > 1 && withdrawRequest.Crypto.Chain == "" {
 		return nil, fmt.Errorf("a chain must be specified, %s available", methods)
