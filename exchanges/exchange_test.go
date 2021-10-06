@@ -1130,6 +1130,25 @@ func TestSupportsPair(t *testing.T) {
 	}
 }
 
+func TestCurrencyPairActivation(t *testing.T) {
+	t.Parallel()
+
+	b := Base{
+		Name: "TESTNAME",
+		CurrencyPairs: currency.PairsManager{
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					AssetEnabled: convert.BoolPtr(false),
+				},
+			},
+		},
+	}
+
+	if err := b.ActivatePair(asset.Spot, currency.NewPair(currency.ETH, currency.USD)); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFormatExchangeCurrencies(t *testing.T) {
 	t.Parallel()
 
@@ -2392,6 +2411,19 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	// enable futures asset
+	err = b.StoreAssetPairFormat(asset.Futures, currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	err = b.DisableAssetWebsocketSupport(asset.Spot)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error: %v but received: %v", nil, err)
@@ -2399,6 +2431,15 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 
 	if b.IsAssetWebsocketSupported(asset.Spot) {
 		t.Fatal("error asset is not turned off, unexpected response")
+	}
+
+	err = b.EnableAssetWebsocketSupport(asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected error: %v but received: %v", nil, err)
+	}
+
+	if !b.IsAssetWebsocketSupported(asset.Futures) {
+		t.Fatal("error asset is not turned on, unexpected response")
 	}
 
 	// Edge case

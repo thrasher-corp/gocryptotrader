@@ -403,6 +403,37 @@ func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 	return *ps.ConfigFormat, nil
 }
 
+// ActivatePair activates and makes available the provided asset type, currency
+// pair.
+func (b *Base) ActivatePair(a asset.Item, p currency.Pair) error {
+	if err := b.CurrencyPairs.IsAssetEnabled(a); err != nil {
+		// asset type was not previously enabled, take care of that here
+		if err := b.CurrencyPairs.SetAssetEnabled(a, true); err != nil {
+			return err
+		}
+	}
+
+	// updated enabled pairs
+	enabledpairs, err := b.CurrencyPairs.GetPairs(a, true)
+	if err != nil {
+		return err
+	}
+
+	enabledpairs = append(enabledpairs, p)
+	b.CurrencyPairs.StorePairs(a, enabledpairs, true)
+
+	// updated available pairs
+	availablepairs, err := b.CurrencyPairs.GetPairs(a, false)
+	if err != nil {
+		return err
+	}
+
+	availablepairs = append(availablepairs, p)
+	b.CurrencyPairs.StorePairs(a, availablepairs, false)
+
+	return nil
+}
+
 // GetEnabledPairs is a method that returns the enabled currency pairs of
 // the exchange by asset type, if the asset type is disabled this will return no
 // enabled pairs
@@ -1375,6 +1406,23 @@ func (b *Base) DisableAssetWebsocketSupport(aType asset.Item) error {
 		b.AssetWebsocketSupport.unsupported = make(map[asset.Item]bool)
 	}
 	b.AssetWebsocketSupport.unsupported[aType] = true
+	b.AssetWebsocketSupport.m.Unlock()
+	return nil
+}
+
+// EnableAssetWebsocketSupport enables websocket functionality for the
+// supplied asset item.
+func (b *Base) EnableAssetWebsocketSupport(aType asset.Item) error {
+	if !b.SupportsAsset(aType) {
+		return fmt.Errorf("%s %w",
+			aType,
+			asset.ErrNotSupported)
+	}
+	b.AssetWebsocketSupport.m.Lock()
+	if b.AssetWebsocketSupport.unsupported == nil {
+		return nil
+	}
+	delete(b.AssetWebsocketSupport.unsupported, aType)
 	b.AssetWebsocketSupport.m.Unlock()
 	return nil
 }
