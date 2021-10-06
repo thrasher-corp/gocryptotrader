@@ -1071,8 +1071,13 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	}
 	var errCap SpotAuthError
 	if err = json.Unmarshal(interim, &errCap); err == nil {
-		if len(errCap.Error) != 0 {
-			return errors.New(errCap.Error[0])
+		if errCap.Error != nil {
+			switch e := errCap.Error.(type) {
+			case []string:
+				return errors.New(e[0])
+			case string:
+				return errors.New(e)
+			}
 		}
 	}
 	return json.Unmarshal(interim, result)
@@ -1148,7 +1153,7 @@ func calculateTradingFee(currency string, feePair map[string]TradeVolumeFee, pur
 }
 
 // GetCryptoDepositAddress returns a deposit address for a cryptocurrency
-func (k *Kraken) GetCryptoDepositAddress(ctx context.Context, method, code string, createNew bool) (*DepositAddress, error) {
+func (k *Kraken) GetCryptoDepositAddress(ctx context.Context, method, code string, createNew bool) ([]DepositAddress, error) {
 	var resp = struct {
 		Error  []string         `json:"error"`
 		Result []DepositAddress `json:"result"`
@@ -1167,11 +1172,10 @@ func (k *Kraken) GetCryptoDepositAddress(ctx context.Context, method, code strin
 		return nil, err
 	}
 
-	if len(resp.Result) > 0 {
-		return &resp.Result[0], nil
+	if len(resp.Result) == 0 {
+		return nil, errors.New("no addresses returned")
 	}
-
-	return nil, errors.New("no addresses returned")
+	return resp.Result, nil
 }
 
 // WithdrawStatus gets the status of recent withdrawals

@@ -1254,12 +1254,10 @@ func (h *HUOBI) GetDepositAddress(ctx context.Context, cryptocurrency currency.C
 
 	for x := range resp {
 		if chain != "" && strings.EqualFold(resp[x].Chain, chain) {
-			if strings.EqualFold(resp[x].Chain, chain) {
-				return &deposit.Address{
-					Address: resp[x].Address,
-					Tag:     resp[x].AddressTag,
-				}, nil
-			}
+			return &deposit.Address{
+				Address: resp[x].Address,
+				Tag:     resp[x].AddressTag,
+			}, nil
 		} else if chain == "" && strings.EqualFold(resp[x].Currency, cryptocurrency.String()) {
 			return &deposit.Address{
 				Address: resp[x].Address,
@@ -1448,9 +1446,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 					})
 				}
 				currentPage++
-				if currentPage == openOrders.Data.TotalPage {
-					done = true
-				}
+				done = currentPage == openOrders.Data.TotalPage
 			}
 		}
 	case asset.Futures:
@@ -1492,9 +1488,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 					})
 				}
 				currentPage++
-				if currentPage == openOrders.Data.TotalPage {
-					done = true
-				}
+				done = currentPage == openOrders.Data.TotalPage
 			}
 		}
 	}
@@ -1593,9 +1587,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 					})
 				}
 				currentPage++
-				if currentPage == orderHistory.Data.TotalPage {
-					done = true
-				}
+				done = currentPage == orderHistory.Data.TotalPage
 			}
 		}
 	case asset.Futures:
@@ -1654,9 +1646,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 					})
 				}
 				currentPage++
-				if currentPage == openOrders.Data.TotalPage {
-					done = true
-				}
+				done = currentPage == openOrders.Data.TotalPage
 			}
 		}
 	}

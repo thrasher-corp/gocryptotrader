@@ -533,8 +533,8 @@ func getInternationalBankDepositFee(c currency.Code, amount float64, bankTransac
 }
 
 // GetCryptoPaymentProvidersList returns a map of all the supported cryptocurrency transfer settings
-func (e *EXMO) GetCryptoPaymentProvidersList(ctx context.Context) (map[string][]CrptoPaymentProvider, error) {
-	var result map[string][]CrptoPaymentProvider
+func (e *EXMO) GetCryptoPaymentProvidersList(ctx context.Context) (map[string][]CryptoPaymentProvider, error) {
+	var result map[string][]CryptoPaymentProvider
 	path := "/v" + exmoAPIVersion + "/" + exmoCryptoPaymentProviderList
 	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
 }

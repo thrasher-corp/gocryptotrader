@@ -1066,8 +1066,8 @@ func (b *Bitfinex) GetAccountSummary(ctx context.Context) (AccountSummary, error
 // Method - Example methods accepted: “bitcoin”, “litecoin”, “ethereum”,
 // “tethers", "ethereumc", "zcash", "monero", "iota", "bcash"
 // WalletName - accepted: "exchange", "margin", "funding" (can also use the old labels
-//	which are "exchange", "trading" and "deposit" respectively). If none is set,
-//  "funding" will be used by default
+// which are "exchange", "trading" and "deposit" respectively). If none is set,
+// "funding" will be used by default
 // renew - Default is 0. If set to 1, will return a new unused deposit address
 func (b *Bitfinex) NewDeposit(ctx context.Context, method, walletName string, renew uint8) (*Deposit, error) {
 	if walletName == "" {
@@ -1106,26 +1106,26 @@ func (b *Bitfinex) NewDeposit(ctx context.Context, method, walletName string, re
 	}
 	depositMethod, ok := depositInfo[1].(string)
 	if !ok {
-		return nil, errors.New("unable to typecast depositMethod to string")
+		return nil, errors.New("unable to type assert depositMethod to string")
 	}
 	coin, ok := depositInfo[2].(string)
 	if !ok {
-		return nil, errors.New("unable to typecast coin to string")
+		return nil, errors.New("unable to type assert coin to string")
 	}
 	var address, poolAddress string
 	if depositInfo[5] == nil {
 		address, ok = depositInfo[4].(string)
 		if !ok {
-			return nil, errors.New("unable to typecast address to string")
+			return nil, errors.New("unable to type assert address to string")
 		}
 	} else {
 		poolAddress, ok = depositInfo[4].(string)
 		if !ok {
-			return nil, errors.New("unable to typecast poolAddress to string")
+			return nil, errors.New("unable to type assert poolAddress to string")
 		}
 		address, ok = depositInfo[5].(string)
 		if !ok {
-			return nil, errors.New("unable to typecast address to string")
+			return nil, errors.New("unable to type assert address to string")
 		}
 	}
 
@@ -1198,10 +1198,10 @@ func (b *Bitfinex) WalletTransfer(ctx context.Context, amount float64, currency,
 
 // WithdrawCryptocurrency requests a withdrawal from one of your wallets.
 // For FIAT, use WithdrawFIAT
-func (b *Bitfinex) WithdrawCryptocurrency(ctx context.Context, wallet, address, paymentID, currency string, amount float64) (Withdrawal, error) {
+func (b *Bitfinex) WithdrawCryptocurrency(ctx context.Context, wallet, address, paymentID, curr string, amount float64) (Withdrawal, error) {
 	var response []Withdrawal
 	req := make(map[string]interface{})
-	req["withdraw_type"] = strings.ToLower(currency)
+	req["withdraw_type"] = strings.ToLower(curr)
 	req["walletselected"] = wallet
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	req["address"] = address
@@ -1842,7 +1842,7 @@ func (b *Bitfinex) CalculateTradingFee(i []AccountInfo, purchasePrice, amount fl
 // PopulateAcceptableMethods retrieves all accepted currency strings and
 // populates a map to check
 func (b *Bitfinex) PopulateAcceptableMethods(ctx context.Context) error {
-	if !AcceptableMethods.Loaded() {
+	if !acceptableMethods.Loaded() {
 		var response [][][]interface{}
 		err := b.SendHTTPRequest(ctx,
 			exchange.RestSpot,
@@ -1853,33 +1853,36 @@ func (b *Bitfinex) PopulateAcceptableMethods(ctx context.Context) error {
 			return err
 		}
 
-		if response == nil {
+		if len(response) == 0 {
 			return errors.New("response contains no data cannot populate acceptable method map")
 		}
 
 		data := response[0]
 		storeData := make(map[string][]string)
 		for x := range data {
+			if len(data[x]) == 0 {
+				return fmt.Errorf("data should not be empty")
+			}
 			name, ok := data[x][0].(string)
 			if !ok {
-				return fmt.Errorf("unable to typecast name")
+				return fmt.Errorf("unable to type assert name")
 			}
 
 			var availOptions []string
 			options, ok := data[x][1].([]interface{})
 			if !ok {
-				return fmt.Errorf("unable to typecast options")
+				return fmt.Errorf("unable to type assert options")
 			}
 			for x := range options {
 				o, ok := options[x].(string)
 				if !ok {
-					return fmt.Errorf("unable to typecast option to string")
+					return fmt.Errorf("unable to type assert option to string")
 				}
 				availOptions = append(availOptions, o)
 			}
 			storeData[name] = availOptions
 		}
-		AcceptableMethods.Load(storeData)
+		acceptableMethods.Load(storeData)
 	}
 	return nil
 }

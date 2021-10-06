@@ -67,7 +67,7 @@ func (m *DepositAddressManager) GetDepositAddressByExchangeAndCurrency(exchName,
 
 	if chain != "" {
 		for x := range addr {
-			if chain != "" && strings.EqualFold(addr[x].Chain, chain) {
+			if strings.EqualFold(addr[x].Chain, chain) {
 				return addr[x], nil
 			}
 		}
@@ -97,7 +97,11 @@ func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (
 		return nil, ErrDepositAddressNotFound
 	}
 
-	return r, nil
+	cpy := make(map[string][]deposit.Address, len(r))
+	for k, v := range r {
+		cpy[k] = v
+	}
+	return cpy, nil
 }
 
 // Sync synchronises all deposit addresses

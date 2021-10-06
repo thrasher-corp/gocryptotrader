@@ -748,7 +748,7 @@ func (b *Bitfinex) GetDepositAddress(ctx context.Context, c currency.Code, accou
 		return nil, err
 	}
 
-	methods := AcceptableMethods.Lookup(c)
+	methods := acceptableMethods.Lookup(c)
 	if len(methods) == 0 {
 		return nil, errors.New("unsupported currency")
 	}
@@ -783,7 +783,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 		withdrawRequest.Currency = currency.NewCode("UST")
 	}
 
-	methods := AcceptableMethods.Lookup(withdrawRequest.Currency)
+	methods := acceptableMethods.Lookup(withdrawRequest.Currency)
 	if len(methods) == 0 {
 		return nil, errors.New("unsupported currency")
 	}
@@ -1175,7 +1175,7 @@ func (b *Bitfinex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 		cryptocurrency = currency.NewCode("UST")
 	}
 
-	availChains := AcceptableMethods.Lookup(cryptocurrency)
+	availChains := acceptableMethods.Lookup(cryptocurrency)
 	if len(availChains) == 0 {
 		return nil, fmt.Errorf("unable to find any available chains")
 	}

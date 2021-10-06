@@ -1637,16 +1637,19 @@ func TestReOrderbyID(t *testing.T) {
 
 func TestPopulateAcceptableMethods(t *testing.T) {
 	t.Parallel()
-	if err := b.PopulateAcceptableMethods(context.Background()); err != nil {
-		t.Error(err)
+	if acceptableMethods.Loaded() {
+		t.Error("acceptable method store should not be loaded")
 	}
-	if !AcceptableMethods.Loaded() {
+	if err := b.PopulateAcceptableMethods(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if !acceptableMethods.Loaded() {
 		t.Error("acceptable method store should be loaded")
 	}
-	if methods := AcceptableMethods.Lookup(currency.NewCode("UST")); len(methods) == 0 {
+	if methods := acceptableMethods.Lookup(currency.NewCode("UST")); len(methods) == 0 {
 		t.Error("USDT should have many available methods")
 	}
-	if methods := AcceptableMethods.Lookup(currency.NewCode("ASdasdasdasd")); len(methods) != 0 {
+	if methods := acceptableMethods.Lookup(currency.NewCode("ASdasdasdasd")); len(methods) != 0 {
 		t.Error("non-existent code should return no methods")
 	}
 }

@@ -144,7 +144,7 @@ type UserAddress struct {
 		IsSuccessful bool   `json:"isSuc"`
 		Data         struct {
 			Address string `json:"key"`
-			Tag     string
+			Tag     string // custom field we populate
 		} `json:"datas"`
 	} `json:"message"`
 }

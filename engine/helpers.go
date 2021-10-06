@@ -707,12 +707,12 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, 
 func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[string][]deposit.Address {
 	result := make(map[string]map[string][]deposit.Address)
 	exchanges := bot.GetExchanges()
-	var depositSyner sync.WaitGroup
-	depositSyner.Add(len(exchanges))
+	var depositSyncer sync.WaitGroup
+	depositSyncer.Add(len(exchanges))
 	var m sync.Mutex
 	for x := range exchanges {
 		go func(x int) {
-			defer depositSyner.Done()
+			defer depositSyncer.Done()
 			exchName := exchanges[x].GetName()
 			if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 				if bot.Settings.Verbose {
@@ -791,7 +791,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 			m.Unlock()
 		}(x)
 	}
-	depositSyner.Wait()
+	depositSyncer.Wait()
 	if len(result) > 0 {
 		log.Infoln(log.Global, "Deposit addresses synced")
 	}

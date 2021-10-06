@@ -58,8 +58,8 @@ type acceptableMethodStore struct {
 	m sync.RWMutex
 }
 
-// AcceptableMethods holds the available acceptable deposit and withdraw methods
-var AcceptableMethods acceptableMethodStore
+// acceptableMethods holds the available acceptable deposit and withdraw methods
+var acceptableMethods acceptableMethodStore
 
 func (a *acceptableMethodStore) Lookup(curr currency.Code) []string {
 	a.m.RLock()

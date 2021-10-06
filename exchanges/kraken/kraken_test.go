@@ -1094,11 +1094,29 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 }
 
+func TestGetCryptoDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set")
+	}
+	_, err := k.GetCryptoDepositAddress(context.Background(), "Bitcoin", "XBT", false)
+	if err != nil {
+		t.Error(err)
+	}
+	if !canManipulateRealOrders {
+		t.Skip("canManipulateRealOrders not set, skipping test")
+	}
+	_, err = k.GetCryptoDepositAddress(context.Background(), "Bitcoin", "XBT", true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // TestGetDepositAddress wrapper test
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	if areTestAPIKeysSet() {
-		_, err := k.GetDepositAddress(context.Background(), currency.ETH, "", "")
+		_, err := k.GetDepositAddress(context.Background(), currency.USDT, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error", err)
 		}

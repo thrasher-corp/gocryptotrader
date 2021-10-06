@@ -429,7 +429,7 @@ func (b *Bitstamp) CryptoWithdrawal(ctx context.Context, amount float64, address
 	}
 
 	var resp CryptoWithdrawalResponse
-	endpoint = strings.ToLower(symbol) + "_" + "withdrawal"
+	endpoint = strings.ToLower(symbol) + "_withdrawal"
 	return &resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, endpoint, true, req, &resp)
 }
 
@@ -485,7 +485,7 @@ func (b *Bitstamp) OpenInternationalBankWithdrawal(ctx context.Context, amount f
 // GetCryptoDepositAddress returns a depositing address by crypto
 // crypto - example "btc", "ltc", "eth", "xrp" or "bch"
 func (b *Bitstamp) GetCryptoDepositAddress(ctx context.Context, crypto currency.Code) (*DepositAddress, error) {
-	path := crypto.Lower().String() + "_" + "address"
+	path := crypto.Lower().String() + "_address"
 	var resp DepositAddress
 	return &resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
 }

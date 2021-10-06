@@ -90,7 +90,7 @@ type AuthErrorData struct {
 
 // SpotAuthError stores authenticated error messages
 type SpotAuthError struct {
-	Error []string `json:"error"`
+	Error interface{} `json:"error"` // can be a []string or string
 }
 
 // Asset holds asset information

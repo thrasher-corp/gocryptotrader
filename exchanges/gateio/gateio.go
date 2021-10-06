@@ -522,8 +522,8 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 }
 
 // WithdrawCrypto withdraws cryptocurrency to your selected wallet
-func (g *Gateio) WithdrawCrypto(ctx context.Context, currency, address, memo, chain string, amount float64) (*withdraw.ExchangeResponse, error) {
-	if currency == "" || address == "" || amount <= 0 {
+func (g *Gateio) WithdrawCrypto(ctx context.Context, curr, address, memo, chain string, amount float64) (*withdraw.ExchangeResponse, error) {
+	if curr == "" || address == "" || amount <= 0 {
 		return nil, errors.New("currency, address and amount must be set")
 	}
 
@@ -534,7 +534,7 @@ func (g *Gateio) WithdrawCrypto(ctx context.Context, currency, address, memo, ch
 	}{}
 
 	vals := url.Values{}
-	vals.Set("currency", strings.ToUpper(currency))
+	vals.Set("currency", strings.ToUpper(curr))
 	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	// Transaction MEMO has to be entered after the address separated by a space
@@ -561,10 +561,10 @@ func (g *Gateio) WithdrawCrypto(ctx context.Context, currency, address, memo, ch
 }
 
 // GetCryptoDepositAddress returns a deposit address for a cryptocurrency
-func (g *Gateio) GetCryptoDepositAddress(ctx context.Context, currency string) (*DepositAddr, error) {
+func (g *Gateio) GetCryptoDepositAddress(ctx context.Context, curr string) (*DepositAddr, error) {
 	var result DepositAddr
 	params := fmt.Sprintf("currency=%s",
-		currency)
+		curr)
 
 	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioDepositAddress, params, &result)
 	if err != nil {

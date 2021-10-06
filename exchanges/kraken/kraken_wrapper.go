@@ -1002,8 +1002,8 @@ func (k *Kraken) GetDepositAddress(ctx context.Context, cryptocurrency currency.
 		}
 	}
 	return &deposit.Address{
-		Address: depositAddr.Address,
-		Tag:     depositAddr.Tag,
+		Address: depositAddr[0].Address,
+		Tag:     depositAddr[0].Tag,
 	}, nil
 }
 
