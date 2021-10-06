@@ -73,7 +73,7 @@ func TestFTX_wsHandleData_Details(t *testing.T) {
 	p := parseRaw(t, inputPartiallyCancelled)
 	x, ok := p.(*order.Detail)
 	if !ok {
-		t.Fatalf("have %T, want order.Detail", p)
+		t.Fatalf("have %T, want *order.Detail", p)
 	}
 	// "reduceOnly" and "liquidation" do not have corresponding fields in
 	// order.Detail.
@@ -214,7 +214,7 @@ func TestFTX_wsHandleData_Price(t *testing.T) {
 	x, ok := p.(*ticker.Price)
 
 	if !ok {
-		t.Fatalf("have %T, want order.Detail", p)
+		t.Fatalf("have %T, want *ticker.Price", p)
 	}
 
 	if x.AssetType != asset.Spot ||
