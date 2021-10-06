@@ -22,7 +22,7 @@ func TestUnsafe(t *testing.T) {
 
 	ob2 := &externalBook{}
 	ob.Lock()
-	ob.Unlock() // nolint:staticcheck // Not needed in test
+	ob.Unlock() // nolint:staticcheck, gocritic // Not needed in test
 	ob.LockWith(ob2)
 	ob.UnlockWith(ob2)
 }

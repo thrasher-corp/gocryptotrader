@@ -1600,6 +1600,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 
 	// Make a sneaky copy for bank account testing
+	// nolint: gocritic
 	cpy := append(cfg.Exchanges[:0:0], cfg.Exchanges...)
 
 	// Test empty exchange name for an enabled exchange

@@ -180,6 +180,7 @@ func (s *Service) update(p *Price) error {
 	}
 
 	t.Price = *p
+	// nolint: gocritic
 	ids := append(t.Assoc, t.Main)
 	s.Unlock()
 	return s.mux.Publish(ids, p)
