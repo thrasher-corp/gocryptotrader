@@ -137,7 +137,6 @@ type OrderData struct {
 	Price           float64 `json:"price,string"`
 	Fee             float64 `json:"fee,string"`
 	Total           float64 `json:"total,string"`
-	DateCompleted   int64   `json:"date_completed"`
 }
 
 // UserTransactions holds users full transaction list
