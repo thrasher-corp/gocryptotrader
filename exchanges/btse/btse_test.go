@@ -861,3 +861,16 @@ func TestWsUnexpectedData(t *testing.T) {
 		t.Error("expected error response from bad data")
 	}
 }
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateCommissionFees(context.Background(), asset.PerpetualSwap)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+	b.Verbose = true
+	err = b.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}

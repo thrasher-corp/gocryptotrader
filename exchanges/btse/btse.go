@@ -183,6 +183,16 @@ func (b *BTSE) GetFeeInformation(ctx context.Context, symbol string) ([]AccountF
 	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseUserFee, true, urlValues, nil, &resp, queryFunc)
 }
 
+// GetFuturesFeeInformation retrieve fee's (maker/taker) for requested symbol
+func (b *BTSE) GetFuturesFeeInformation(ctx context.Context, symbol string) ([]AccountFees, error) {
+	var resp []AccountFees
+	urlValues := url.Values{}
+	if symbol != "" {
+		urlValues.Add("symbol", symbol)
+	}
+	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, btseUserFee, false, urlValues, nil, &resp, queryFunc)
+}
+
 // GetWalletHistory returns the users account balance
 func (b *BTSE) GetWalletHistory(ctx context.Context, symbol string, start, end time.Time, count int) (WalletHistory, error) {
 	var resp WalletHistory

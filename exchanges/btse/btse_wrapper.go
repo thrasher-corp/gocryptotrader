@@ -181,7 +181,8 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 
 	err = b.Fees.LoadStatic(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.001, Taker: 0.002},
+			asset.Spot:    {Maker: 0.001, Taker: 0.0012},
+			asset.Futures: {Maker: -0.0001, Taker: 0.0004},
 		},
 		Transfer:        transferFees,
 		BankingTransfer: bankTransferFees,
@@ -1072,27 +1073,33 @@ func OrderSizeLimits(pair string) (limits OrderSizeLimit, found bool) {
 
 // UpdateCommissionFees updates current fees associated with account
 func (b *BTSE) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
-	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+	var feeTiers []AccountFees
+	var err error
+	switch a {
+	case asset.Spot:
+		feeTiers, err = b.GetFeeInformation(ctx, "")
+		if err != nil {
+			return err
+		}
+	case asset.Futures:
+		feeTiers, err = b.GetFuturesFeeInformation(ctx, "")
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	// // TODO: Loading trading fees
-	// formattedPair, err := b.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
-	// if err != nil {
-	// 	if feeBuilder.IsMaker {
-	// 		return 0.001
-	// 	}
-	// 	return 0.002
-	// }
-	// feeTiers, err := b.GetFeeInformation(formattedPair.String())
-	// if err != nil {
-	// 	if feeBuilder.IsMaker {
-	// 		return 0.001
-	// 	}
-	// 	return 0.002
-	// }
-	// if feeBuilder.IsMaker {
-	// 	return feeTiers[0].MakerFee
-	// }
-	// return feeTiers[0].TakerFee
+
+	for x := range feeTiers {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(feeTiers[x].Symbol)
+		if err != nil {
+			return err
+		}
+		err = b.Fees.LoadDynamic(feeTiers[x].MakerFee, feeTiers[x].TakerFee, a, pair)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
