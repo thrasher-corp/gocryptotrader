@@ -638,7 +638,7 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
 		side := order.Side(strings.ToUpper(allOrders[i].Type))
 		orders = append(
-			orders, order.EnrichOrderDetail(
+			orders, order.CalculateCostsAndAmounts(
 				&order.Detail{
 					ID:                   strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
 					Amount:               allOrders[i].Amount,

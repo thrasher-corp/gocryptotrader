@@ -877,7 +877,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 				continue
 			}
 			orderTime := time.Unix(0, convert.UnixMillisToNano(currentOrder[y].Timestamp))
-			tempOrder := order.EnrichOrderDetail(
+			tempOrder := order.CalculateCostsAndAmounts(
 				&order.Detail{
 					Price:                currentOrder[y].Price,
 					AverageExecutedPrice: currentOrder[y].AverageFillPrice,

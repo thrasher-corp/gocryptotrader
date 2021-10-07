@@ -1414,7 +1414,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					cost = resp[i].CummulativeQuoteQty
 				}
 				orders = append(
-					orders, order.EnrichOrderDetail(
+					orders, order.CalculateCostsAndAmounts(
 						&order.Detail{
 							Amount:         resp[i].OrigQty,
 							ExecutedAmount: resp[i].ExecutedQty,

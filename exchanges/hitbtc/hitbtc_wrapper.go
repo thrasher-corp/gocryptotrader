@@ -779,7 +779,7 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		}
 		side := order.Side(strings.ToUpper(allOrders[i].Side))
 		orders = append(
-			orders, order.EnrichOrderDetail(
+			orders, order.CalculateCostsAndAmounts(
 				&order.Detail{
 					ID:                   allOrders[i].ID,
 					Amount:               allOrders[i].Quantity,

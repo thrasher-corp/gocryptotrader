@@ -839,7 +839,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			}
 
 			orders = append(
-				orders, order.EnrichOrderDetail(
+				orders, order.CalculateCostsAndAmounts(
 					&order.Detail{
 						ID:                   strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
 						Side:                 orderSide,

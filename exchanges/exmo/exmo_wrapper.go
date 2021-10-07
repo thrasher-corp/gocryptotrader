@@ -650,7 +650,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 		orderDate := time.Unix(allTrades[i].Date, 0)
 		orderSide := order.Side(strings.ToUpper(allTrades[i].Type))
 		orders = append(
-			orders, order.EnrichOrderDetail(
+			orders, order.CalculateCostsAndAmounts(
 				&order.Detail{
 					ID:             strconv.FormatInt(allTrades[i].TradeID, 10),
 					Amount:         allTrades[i].Quantity,

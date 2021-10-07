@@ -912,7 +912,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			return nil, err
 		}
 
-		orderDetail := order.EnrichOrderDetail(
+		orderDetail := order.CalculateCostsAndAmounts(
 			&order.Detail{
 				Amount:               resp[i].OriginalAmount,
 				Date:                 orderDate,

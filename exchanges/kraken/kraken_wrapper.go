@@ -604,7 +604,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		for name := range bal.Accounts {
 			for code := range bal.Accounts[name].Balances {
 				balances = append(balances, account.Balance{
-					CurrencyName: currency.NewCode(name),
+					CurrencyName: currency.NewCode(code),
 					TotalValue:   bal.Accounts[name].Balances[code],
 				})
 			}
@@ -1210,7 +1210,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 			side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
 			orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
 			orders = append(
-				orders, order.EnrichOrderDetail(
+				orders, order.CalculateCostsAndAmounts(
 					&order.Detail{
 						ID:             i,
 						Amount:         resp.Closed[i].Volume,

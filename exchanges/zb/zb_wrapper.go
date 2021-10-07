@@ -810,7 +810,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders = append(
-			orders, order.EnrichOrderDetail(
+			orders, order.CalculateCostsAndAmounts(
 				&order.Detail{
 					ID:                   strconv.FormatInt(allOrders[i].ID, 10),
 					Amount:               allOrders[i].TotalAmount,

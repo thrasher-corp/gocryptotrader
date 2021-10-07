@@ -624,7 +624,7 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 
 		orders = append(
-			orders, order.EnrichOrderDetail(
+			orders, order.CalculateCostsAndAmounts(
 				&order.Detail{
 					ID:                   allOrders[j].ID,
 					Side:                 side,

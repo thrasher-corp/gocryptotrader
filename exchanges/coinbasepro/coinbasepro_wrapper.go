@@ -607,21 +607,21 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 		return order.Detail{}, fmt.Errorf("error parsing order side: %s", errP)
 	}
 
-	response := order.Detail{
-		Exchange:             c.GetName(),
-		ID:                   genOrderDetail.ID,
-		Pair:                 p,
-		Side:                 ss,
-		Type:                 tt,
-		Date:                 genOrderDetail.DoneAt,
-		Status:               os,
-		Price:                genOrderDetail.Price,
-		AverageExecutedPrice: genOrderDetail.ExecutedValue / genOrderDetail.FilledSize,
-		Amount:               genOrderDetail.Size,
-		ExecutedAmount:       genOrderDetail.FilledSize,
-		RemainingAmount:      genOrderDetail.Size - genOrderDetail.FilledSize,
-		Fee:                  genOrderDetail.FillFees,
-	}
+	response := order.CalculateCostsAndAmounts(
+		&order.Detail{
+			Exchange:       c.GetName(),
+			ID:             genOrderDetail.ID,
+			Pair:           p,
+			Side:           ss,
+			Type:           tt,
+			Date:           genOrderDetail.DoneAt,
+			Status:         os,
+			Price:          genOrderDetail.Price,
+			Amount:         genOrderDetail.Size,
+			ExecutedAmount: genOrderDetail.FilledSize,
+			Fee:            genOrderDetail.FillFees,
+		},
+	)
 	fillResponse, errGF := c.GetFills(ctx, orderID, genOrderDetail.ProductID)
 	if errGF != nil {
 		return response, fmt.Errorf("error retrieving the order fills: %s", errGF)
@@ -829,7 +829,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
 		orders = append(
-			orders, order.EnrichOrderDetail(
+			orders, order.CalculateCostsAndAmounts(
 				&order.Detail{
 					ID:             respOrders[i].ID,
 					Amount:         respOrders[i].Size,

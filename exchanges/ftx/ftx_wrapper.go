@@ -1074,7 +1074,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 			tempResp.Side = orderVars.Side
 			tempResp.Type = orderVars.OrderType
 			tempResp.Fee = orderVars.Fee
-			resp = append(resp, order.EnrichOrderDetail(&tempResp))
+			resp = append(resp, order.CalculateCostsAndAmounts(&tempResp))
 		}
 	}
 	return resp, nil

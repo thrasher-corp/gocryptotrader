@@ -488,36 +488,39 @@ func (s Status) String() string {
 	return string(s)
 }
 
-func EnrichOrderDetail(order *Detail) Detail {
-	if order.Amount > 0 {
-		// Enrich based on Amount == ExecutedAmount + RemainingAmount
-		if order.ExecutedAmount == 0 {
-			if order.RemainingAmount == 0 {
-				return *order
-			}
-			order.ExecutedAmount = order.Amount - order.RemainingAmount
-		} else if order.RemainingAmount == 0 {
-			order.RemainingAmount = order.Amount - order.ExecutedAmount
-		}
+// CalculateCostsAndAmounts calculates order costs using execution information when available
+func CalculateCostsAndAmounts(d *Detail) Detail {
+	if d.Amount <= 0 {
+		return *d
+	}
 
-		// Enrich based on Cost == AveragedExecutedPrice * ExecutedAmount
-		if order.ExecutedAmount > 0 {
-			if order.AverageExecutedPrice == 0 {
-				if order.Cost != 0 {
-					order.AverageExecutedPrice = order.Cost / order.ExecutedAmount
-				} else {
-					order.AverageExecutedPrice = order.Price
-				}
-			}
-			if order.Cost == 0 {
-				order.Cost = order.AverageExecutedPrice * order.ExecutedAmount
-			}
-			if order.CostAsset.Item == nil {
-				order.CostAsset = order.Pair.Quote
-			}
+	if d.ExecutedAmount == 0 {
+		if d.RemainingAmount == 0 {
+			return *d
+		}
+		d.ExecutedAmount = d.Amount - d.RemainingAmount
+	} else if d.RemainingAmount == 0 {
+		d.RemainingAmount = d.Amount - d.ExecutedAmount
+	}
+
+	if d.ExecutedAmount <= 0 {
+		return *d
+	}
+
+	if d.AverageExecutedPrice == 0 {
+		if d.Cost != 0 {
+			d.AverageExecutedPrice = d.Cost / d.ExecutedAmount
+		} else {
+			d.AverageExecutedPrice = d.Price
 		}
 	}
-	return *order
+	if d.Cost == 0 {
+		d.Cost = d.AverageExecutedPrice * d.ExecutedAmount
+	}
+	if d.CostAsset.IsEmpty() {
+		d.CostAsset = d.Pair.Quote
+	}
+	return *d
 }
 
 // FilterOrdersBySide removes any order details that don't match the
