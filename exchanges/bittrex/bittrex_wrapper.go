@@ -445,6 +445,7 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	if err != nil {
 		return resp, err
 	}
+	// nolint: gocritic
 	depositData := append(closedDepositData, openDepositData...)
 
 	for x := range depositData {
@@ -468,6 +469,7 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	if err != nil {
 		return resp, err
 	}
+	// nolint: gocritic
 	withdrawalData := append(closedWithdrawalData, openWithdrawalData...)
 
 	for x := range withdrawalData {

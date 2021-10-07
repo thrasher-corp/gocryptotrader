@@ -652,6 +652,7 @@ func BenchmarkReverse(b *testing.B) {
 func BenchmarkSortAsksDecending(b *testing.B) {
 	s := deploySliceOrdered()
 	for i := 0; i < b.N; i++ {
+		// nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortAsks()
 	}
@@ -662,6 +663,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
 	for i := 0; i < b.N; i++ {
+		// nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortBids()
 	}
@@ -671,6 +673,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 func BenchmarkSortAsksStandard(b *testing.B) {
 	s := deployUnorderedSlice()
 	for i := 0; i < b.N; i++ {
+		// nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortAsks()
 	}
@@ -680,6 +683,7 @@ func BenchmarkSortAsksStandard(b *testing.B) {
 func BenchmarkSortBidsStandard(b *testing.B) {
 	s := deployUnorderedSlice()
 	for i := 0; i < b.N; i++ {
+		// nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortBids()
 	}
@@ -689,6 +693,7 @@ func BenchmarkSortBidsStandard(b *testing.B) {
 func BenchmarkSortAsksAscending(b *testing.B) {
 	s := deploySliceOrdered()
 	for i := 0; i < b.N; i++ {
+		// nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortAsks()
 	}
@@ -699,6 +704,7 @@ func BenchmarkSortBidsDescending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
 	for i := 0; i < b.N; i++ {
+		// nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortBids()
 	}
