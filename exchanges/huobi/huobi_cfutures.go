@@ -427,11 +427,13 @@ func (h *HUOBI) GetBasisData(ctx context.Context, code currency.Pair, period, ba
 func (h *HUOBI) GetSwapAccountInfo(ctx context.Context, code currency.Pair) (SwapAccountInformation, error) {
 	var resp SwapAccountInformation
 	req := make(map[string]interface{})
-	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
-	if err != nil {
-		return resp, err
+	if !code.IsEmpty() {
+		codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
+		if err != nil {
+			return resp, err
+		}
+		req["contract_code"] = codeValue
 	}
-	req["contract_code"] = codeValue
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapAccInfo, nil, req, &resp)
 }
 
