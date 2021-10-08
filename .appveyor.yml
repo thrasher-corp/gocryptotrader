@@ -46,6 +46,7 @@ build_script:
 before_test:
   - cd c:\gopath\src\github.com\thrasher-corp\gocryptotrader
   - go env
+  - go version
   - go get
 
 test_script:
