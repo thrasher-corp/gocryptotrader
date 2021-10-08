@@ -490,17 +490,15 @@ func (s Status) String() string {
 
 // CalculateCostsAndAmounts calculates order costs using execution information when available
 func CalculateCostsAndAmounts(d *Detail) Detail {
-	if d.Amount <= 0 {
-		return *d
-	}
-
-	if d.ExecutedAmount == 0 {
-		if d.RemainingAmount == 0 {
-			return *d
+	if d.Amount > 0 {
+		if d.ExecutedAmount == 0 {
+			if d.RemainingAmount == 0 {
+				return *d
+			}
+			d.ExecutedAmount = d.Amount - d.RemainingAmount
+		} else if d.RemainingAmount == 0 {
+			d.RemainingAmount = d.Amount - d.ExecutedAmount
 		}
-		d.ExecutedAmount = d.Amount - d.RemainingAmount
-	} else if d.RemainingAmount == 0 {
-		d.RemainingAmount = d.Amount - d.ExecutedAmount
 	}
 
 	if d.ExecutedAmount <= 0 {
