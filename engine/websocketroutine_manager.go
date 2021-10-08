@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -244,6 +245,10 @@ func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data int
 	case account.Change:
 		if m.verbose {
 			m.printAccountHoldingsChangeSummary(d)
+		}
+	case []trade.Data:
+		if m.verbose {
+			log.Infof(log.Trade, "%+v", d)
 		}
 	default:
 		if m.verbose {

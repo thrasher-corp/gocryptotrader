@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 // Websocket functionality list and state consts
@@ -72,6 +73,9 @@ type Websocket struct {
 	// Orderbook is a local buffer of orderbooks
 	Orderbook buffer.Orderbook
 
+	// Trade is a notifier of occurring trades
+	Trade trade.Trade
+
 	// trafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}
 	// ReadMessageErrors will received all errors from ws.ReadMessage() and
@@ -100,6 +104,7 @@ type WebsocketSetup struct {
 	SortBuffer            bool
 	SortBufferByUpdateIDs bool
 	UpdateEntriesByID     bool
+	TradeFeed             bool
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS
