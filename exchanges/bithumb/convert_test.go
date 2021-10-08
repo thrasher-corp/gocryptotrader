@@ -20,7 +20,7 @@ func TestBithumbTime(t *testing.T) {
 
 	tt := newTime.Time()
 	if tt.UTC().String() != "2021-08-12 03:39:50 +0000 UTC" {
-		t.Fatalf("expected: %s but receieved: %s",
+		t.Fatalf("expected: %s but received: %s",
 			"2021-08-12 03:39:50 +0000 UTC",
 			tt.UTC().String())
 	}

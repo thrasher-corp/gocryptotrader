@@ -556,7 +556,7 @@ func TestBasicLimiter(t *testing.T) {
 	defer cancel()
 	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &i, nil })
 	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("receieved: %v but expected: %v", err, context.DeadlineExceeded)
+		t.Fatalf("received: %v but expected: %v", err, context.DeadlineExceeded)
 	}
 }
 

@@ -99,7 +99,7 @@ func TestTestConnection(t *testing.T) {
 	t.Parallel()
 	var T Telegram
 	if err := T.TestConnection(); err.Error() != testErrNotFound {
-		t.Errorf("receieved %s, expected: %s", err, testErrNotFound)
+		t.Errorf("received %s, expected: %s", err, testErrNotFound)
 	}
 }
 
