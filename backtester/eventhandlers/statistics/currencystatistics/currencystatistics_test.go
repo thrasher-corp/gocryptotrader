@@ -325,7 +325,7 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 		Low:   decimal.NewFromInt(1339),
 	})
 
-	resp := calculateMaxDrawdown(events)
+	resp := CalculateMaxDrawdown(events)
 	if resp.Highest.Price != decimal.NewFromInt(1337) && !resp.Lowest.Price.Equal(decimal.NewFromInt(1238)) {
 		t.Error("unexpected max drawdown")
 	}

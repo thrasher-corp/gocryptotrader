@@ -3,6 +3,7 @@ package funding
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -35,7 +36,6 @@ func SetupFundingManager(usingExchangeLevelFunding, disableUSDTracking bool) *Fu
 	return &FundManager{
 		usingExchangeLevelFunding: usingExchangeLevelFunding,
 		disableUSDTracking:        disableUSDTracking,
-		snapshots:                 make(map[time.Time]Snapshot),
 	}
 }
 
@@ -55,6 +55,7 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 		initialFunds: initialFunds,
 		available:    initialFunds,
 		transferFee:  transferFee,
+		snapshot:     make(map[time.Time]ItemSnapshot),
 	}, nil
 }
 
@@ -62,28 +63,22 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 // as funding.snapshots is a map, it allows for the last event
 // in the chronological list to establish the canon at X time
 func (f *FundManager) CreateSnapshot(t time.Time) {
-	ss := Snapshot{
-		time: t,
-	}
-	var usdValue decimal.Decimal
 	for i := range f.items {
-		butts := f.items[i].usdTrackingCandles.GetStream()
-		for j := range butts {
-			if butts[j].GetTime().Equal(t) {
-				usdValue = butts[j].ClosePrice()
+		var usdClosePrice decimal.Decimal
+		usdCandles := f.items[i].usdTrackingCandles.GetStream()
+		for j := range usdCandles {
+			if usdCandles[j].GetTime().Equal(t) {
+				usdClosePrice = usdCandles[j].ClosePrice()
 				break
 			}
 		}
-		ss.items = append(ss.items, ItemSnapshot{
-			exchange:   f.items[i].exchange,
-			asset:      f.items[i].asset,
-			currency:   f.items[i].currency,
-			available:  f.items[i].available,
-			pairedWith: f.items[i].pairedWith,
-			usdValue:   usdValue.Mul(f.items[i].available),
-		})
+		f.items[i].snapshot[t] = ItemSnapshot{
+			Available:     f.items[i].available,
+			USDClosePrice: usdClosePrice,
+			USDValue:      usdClosePrice.Mul(f.items[i].available),
+			Time:          t,
+		}
 	}
-	f.snapshots[t] = ss
 }
 
 // AddUSDTrackingData adds USD tracking data to a funding item
@@ -160,30 +155,52 @@ func (f *FundManager) Reset() {
 	*f = FundManager{}
 }
 
+// USDTrackingDisabled clears all settings
+func (f *FundManager) USDTrackingDisabled() bool {
+	return f.disableUSDTracking
+}
+
 // GenerateReport builds report data for result HTML report
 func (f *FundManager) GenerateReport() *Report {
-	report := &Report{}
+	report := Report{
+		USDTotals: make(map[time.Time]ItemSnapshot),
+	}
 	var items []ReportItem
 	for i := range f.items {
 		item := ReportItem{
-			Exchange:        f.items[i].exchange,
-			Asset:           f.items[i].asset,
-			Currency:        f.items[i].currency,
-			InitialFunds:    f.items[i].initialFunds,
-			TransferFee:     f.items[i].transferFee,
-			FinalFunds:      f.items[i].available,
-			USDInitialFunds: f.items[i].initialFunds,
-			USDFinalFunds:   f.items[i].available,
-			USDPairCandle:   f.items[i].usdTrackingCandles,
+			Exchange:     f.items[i].exchange,
+			Asset:        f.items[i].asset,
+			Currency:     f.items[i].currency,
+			InitialFunds: f.items[i].initialFunds,
+			TransferFee:  f.items[i].transferFee,
+			FinalFunds:   f.items[i].available,
 		}
 		if !f.disableUSDTracking &&
-			f.items[i].usdTrackingCandles != nil &&
-			!trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
+			f.items[i].usdTrackingCandles != nil {
+
 			usdStream := f.items[i].usdTrackingCandles.GetStream()
 			item.USDInitialFunds = f.items[i].initialFunds.Mul(usdStream[0].ClosePrice())
 			item.USDFinalFunds = f.items[i].available.Mul(usdStream[len(usdStream)-1].ClosePrice())
 			item.USDInitialCostForOne = usdStream[0].ClosePrice()
 			item.USDFinalCostForOne = usdStream[len(usdStream)-1].ClosePrice()
+			item.USDPairCandle = f.items[i].usdTrackingCandles
+
+			report.USDInitialTotal = report.USDInitialTotal.Add(item.USDInitialFunds)
+			report.USDFinalTotal = report.USDFinalTotal.Add(item.USDFinalFunds)
+
+			// maps do not guarantee order, convert to ordered slice
+			var pricingOverTime []ItemSnapshot
+			for _, v := range f.items[i].snapshot {
+				pricingOverTime = append(pricingOverTime, v)
+				usdTotalForPeriod := report.USDTotals[v.Time]
+				usdTotalForPeriod.Time = v.Time
+				usdTotalForPeriod.USDValue = usdTotalForPeriod.USDValue.Add(v.USDValue)
+				report.USDTotals[v.Time] = usdTotalForPeriod
+			}
+			sort.Slice(pricingOverTime, func(i, j int) bool {
+				return pricingOverTime[i].Time.Before(pricingOverTime[j].Time)
+			})
+			item.Snapshots = pricingOverTime
 		}
 		if f.items[i].initialFunds.IsZero() {
 			item.ShowInfinite = true
@@ -193,18 +210,20 @@ func (f *FundManager) GenerateReport() *Report {
 		if f.items[i].pairedWith != nil {
 			item.PairedWith = f.items[i].pairedWith.currency
 		}
-		report.USDInitialTotal = report.USDInitialTotal.Add(item.USDInitialFunds)
-		report.USDFinalTotal = report.USDFinalTotal.Add(item.USDFinalFunds)
+
 		items = append(items, item)
 	}
-	if !report.USDInitialTotal.IsZero() {
-		report.Difference = report.USDFinalTotal.Sub(report.USDInitialTotal).Div(report.USDInitialTotal).Mul(decimal.NewFromInt(100))
+	if !f.disableUSDTracking {
+		if !report.USDInitialTotal.IsZero() {
+			report.Difference = report.USDFinalTotal.Sub(report.USDInitialTotal).Div(report.USDInitialTotal).Mul(decimal.NewFromInt(100))
+		}
+		report.USDInitialTotal = report.USDInitialTotal.Round(2)
+		report.USDFinalTotal = report.USDFinalTotal.Round(2)
 	}
-	report.USDInitialTotal = report.USDInitialTotal.Round(2)
-	report.USDFinalTotal = report.USDFinalTotal.Round(2)
+
 	report.Items = items
-	report.Snapshots = f.snapshots
-	return report
+	report.DisableUSDTracking = f.disableUSDTracking
+	return &report
 }
 
 // Transfer allows transferring funds from one pretend exchange to another

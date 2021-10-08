@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/fundingstatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -207,20 +208,25 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 			}
 		}
 	}
-	s.Funding = funds.GenerateReport()
+	if !funds.USDTrackingDisabled() {
+		something := fundingstatistics.CalculateResults(funds, s.ExchangeAssetPairStatistics)
+		s.Funding = something.Report
+		log.Debugf(log.BackTester, "%+v", something)
+	}
+
 	s.TotalOrders = s.TotalBuyOrders + s.TotalSellOrders
 	if currCount > 1 {
 		s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies(finalResults)
 		s.BestMarketMovement = s.GetBestMarketPerformer(finalResults)
 		s.BestStrategyResults = s.GetBestStrategyPerformer(finalResults)
-		s.PrintTotalResults(funds.IsUsingExchangeLevelFunding())
+		s.PrintTotalResults()
 	}
 
 	return nil
 }
 
 // PrintTotalResults outputs all results to the CMD
-func (s *Statistic) PrintTotalResults(isUsingExchangeLevelFunding bool) {
+func (s *Statistic) PrintTotalResults() {
 	log.Info(log.BackTester, "------------------Strategy-----------------------------------")
 	log.Infof(log.BackTester, "Strategy Name: %v", s.StrategyName)
 	log.Infof(log.BackTester, "Strategy Nickname: %v", s.StrategyNickname)

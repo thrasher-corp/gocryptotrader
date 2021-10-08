@@ -52,12 +52,12 @@ func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 	}
 	c.calculateHighestCommittedFunds()
 	c.RiskFreeRate = last.Holdings.RiskFreeRate.Mul(oneHundred)
-	returnPerCandle := make([]decimal.Decimal, len(c.Events))
+	returnsPerCandle := make([]decimal.Decimal, len(c.Events))
 	benchmarkRates := make([]decimal.Decimal, len(c.Events))
 
 	var allDataEvents []common.DataEventHandler
 	for i := range c.Events {
-		returnPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
+		returnsPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 		if i == 0 {
 			continue
@@ -73,7 +73,7 @@ func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 	// remove the first entry as its zero and impacts
 	// ratio calculations as no movement has been made
 	benchmarkRates = benchmarkRates[1:]
-	returnPerCandle = returnPerCandle[1:]
+	returnsPerCandle = returnsPerCandle[1:]
 
 	var arithmeticBenchmarkAverage, geometricBenchmarkAverage decimal.Decimal
 	arithmeticBenchmarkAverage, err = gctmath.DecimalArithmeticMean(benchmarkRates)
@@ -85,7 +85,7 @@ func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 		errs = append(errs, err)
 	}
 
-	c.MaxDrawdown = calculateMaxDrawdown(allDataEvents)
+	c.MaxDrawdown = CalculateMaxDrawdown(allDataEvents)
 	interval := first.DataEvent.GetInterval()
 	intervalsPerYear := interval.IntervalsPerYear()
 
@@ -95,20 +95,20 @@ func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
 		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar decimal.Decimal
 
-	arithmeticReturnsPerCandle, err = gctmath.DecimalArithmeticMean(returnPerCandle)
+	arithmeticReturnsPerCandle, err = gctmath.DecimalArithmeticMean(returnsPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geometricReturnsPerCandle, err = gctmath.DecimalFinancialGeometricMean(returnPerCandle)
+	geometricReturnsPerCandle, err = gctmath.DecimalFinancialGeometricMean(returnsPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	arithmeticSharpe, err = gctmath.DecimalSharpeRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
+	arithmeticSharpe, err = gctmath.DecimalSharpeRatio(returnsPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	arithmeticSortino, err = gctmath.DecimalSortinoRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
+	arithmeticSortino, err = gctmath.DecimalSortinoRatio(returnsPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
 	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
 		if errors.Is(err, gctmath.ErrInexactConversion) {
 			log.Warnf(log.BackTester, "%v arithmetic sortino ratio %v", sep, err)
@@ -116,7 +116,7 @@ func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 			errs = append(errs, err)
 		}
 	}
-	arithmeticInformation, err = gctmath.DecimalInformationRatio(returnPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
+	arithmeticInformation, err = gctmath.DecimalInformationRatio(returnsPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -141,11 +141,11 @@ func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 		c.ArithmeticRatios.CalmarRatio = arithmeticCalmar
 	}
 
-	geomSharpe, err = gctmath.DecimalSharpeRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
+	geomSharpe, err = gctmath.DecimalSharpeRatio(returnsPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geomSortino, err = gctmath.DecimalSortinoRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
+	geomSortino, err = gctmath.DecimalSortinoRatio(returnsPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
 		if errors.Is(err, gctmath.ErrInexactConversion) {
 			log.Warnf(log.BackTester, "%v geometric sortino ratio %v", sep, err)
@@ -153,7 +153,7 @@ func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 			errs = append(errs, err)
 		}
 	}
-	geomInformation, err = gctmath.DecimalInformationRatio(returnPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
+	geomInformation, err = gctmath.DecimalInformationRatio(returnsPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -295,7 +295,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	}
 }
 
-func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
+func CalculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 	var lowestPrice, highestPrice decimal.Decimal
 	var lowestTime, highestTime time.Time
 	var swings []Swing

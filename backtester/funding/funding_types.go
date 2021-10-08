@@ -17,21 +17,13 @@ type FundManager struct {
 	usingExchangeLevelFunding bool
 	disableUSDTracking        bool
 	items                     []*Item
-	snapshots                 map[time.Time]Snapshot
-}
-
-type Snapshot struct {
-	time  time.Time
-	items []ItemSnapshot
 }
 
 type ItemSnapshot struct {
-	exchange   string
-	asset      asset.Item
-	currency   currency.Code
-	available  decimal.Decimal
-	usdValue   decimal.Decimal
-	pairedWith *Item
+	Time          time.Time
+	Available     decimal.Decimal
+	USDClosePrice decimal.Decimal
+	USDValue      decimal.Decimal
 }
 
 // IFundingManager limits funding usage for portfolio event handling
@@ -45,6 +37,7 @@ type IFundingManager interface {
 	GenerateReport() *Report
 	AddUSDTrackingData(*kline.DataFromKline) error
 	CreateSnapshot(time.Time)
+	USDTrackingDisabled() bool
 }
 
 // IFundTransferer allows for funding amounts to be transferred
@@ -90,6 +83,7 @@ type Item struct {
 	transferFee        decimal.Decimal
 	pairedWith         *Item
 	usdTrackingCandles *kline.DataFromKline
+	snapshot           map[time.Time]ItemSnapshot
 }
 
 // Pair holds two currencies that are associated with each other
@@ -100,11 +94,12 @@ type Pair struct {
 
 // Report holds all funding data for result reporting
 type Report struct {
-	USDInitialTotal decimal.Decimal
-	USDFinalTotal   decimal.Decimal
-	Difference      decimal.Decimal
-	Items           []ReportItem
-	Snapshots       map[time.Time]Snapshot
+	DisableUSDTracking bool
+	USDInitialTotal    decimal.Decimal
+	USDFinalTotal      decimal.Decimal
+	Difference         decimal.Decimal
+	Items              []ReportItem
+	USDTotals          map[time.Time]ItemSnapshot
 }
 
 // ReportItem holds reporting fields
@@ -119,10 +114,10 @@ type ReportItem struct {
 	USDInitialCostForOne decimal.Decimal
 	USDFinalFunds        decimal.Decimal
 	USDFinalCostForOne   decimal.Decimal
+	Snapshots            []ItemSnapshot
 
 	USDPairCandle *kline.DataFromKline
-
-	Difference   decimal.Decimal
-	ShowInfinite bool
-	PairedWith   currency.Code
+	Difference    decimal.Decimal
+	ShowInfinite  bool
+	PairedWith    currency.Code
 }
