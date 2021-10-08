@@ -27,6 +27,29 @@ func (p *Processor) setup(wg *sync.WaitGroup) {
 	go p.Run(wg)
 }
 
+func (t *Trade) Setup(exchangeName string, saveTradeData, tradeFeedEnabled bool, c chan interface{}) error {
+	t.exchangeName = exchangeName
+	t.dataHandler = c
+	t.saveTradeData = saveTradeData
+	t.tradeFeedEnabled = tradeFeedEnabled
+
+	return nil
+}
+
+func (t *Trade) Update(data ...Data) error {
+	if t.saveTradeData {
+		if err := AddTradesToBuffer(t.exchangeName, data...); err != nil {
+			return err
+		}
+	}
+
+	if t.tradeFeedEnabled {
+		t.dataHandler <- data
+	}
+
+	return nil
+}
+
 // AddTradesToBuffer will push trade data onto the buffer
 func AddTradesToBuffer(exchangeName string, data ...Data) error {
 	cfg := database.DB.GetConfig()

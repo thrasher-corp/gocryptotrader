@@ -121,14 +121,25 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.Wg = new(sync.WaitGroup)
 	w.SetCanUseAuthenticatedEndpoints(s.AuthenticatedWebsocketAPISupport)
 
-	return w.Orderbook.Setup(s.OrderbookBufferLimit,
+	if err := w.Orderbook.Setup(s.OrderbookBufferLimit,
 		s.BufferEnabled,
 		s.SortBuffer,
 		s.SortBufferByUpdateIDs,
 		s.UpdateEntriesByID,
 		s.Verbose,
 		w.exchangeName,
-		w.DataHandler)
+		w.DataHandler); err != nil {
+		return err
+	}
+
+	if err := w.Trade.Setup(w.exchangeName,
+		s.SaveTradeData,
+		s.TradeFeed,
+		w.DataHandler); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // SetupNewConnection sets up an auth or unauth streaming connection

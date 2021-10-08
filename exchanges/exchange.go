@@ -167,6 +167,10 @@ func (b *Base) SetFeatureDefaults() {
 			b.SetSaveTradeDataStatus(b.Config.Features.Enabled.SaveTradeData)
 		}
 
+		if b.IsTradeFeedEnabled() != b.Config.Features.Enabled.TradeFeed {
+			b.SetTradeFeedStatus(b.Config.Features.Enabled.TradeFeed)
+		}
+
 		b.Features.Enabled.AutoPairUpdates = b.Config.Features.Enabled.AutoPairUpdates
 	}
 }
@@ -1205,6 +1209,27 @@ func (b *Base) SetSaveTradeDataStatus(enabled bool) {
 	b.Config.Features.Enabled.SaveTradeData = enabled
 	if b.Verbose {
 		log.Debugf(log.Trade, "Set %v 'SaveTradeData' to %v", b.Name, enabled)
+	}
+}
+
+// IsTradeFeedEnabled checks the state of
+// TradeFeed in a concurrent-friendly manner
+func (b *Base) IsTradeFeedEnabled() bool {
+	b.settingsMutex.RLock()
+	isEnabled := b.Features.Enabled.TradeFeed
+	b.settingsMutex.RUnlock()
+	return isEnabled
+}
+
+// SetTradeFeedStatus locks and sets the status of
+// the config and the exchange's setting for TradeFeed
+func (b *Base) SetTradeFeedStatus(enabled bool) {
+	b.settingsMutex.Lock()
+	defer b.settingsMutex.Unlock()
+	b.Features.Enabled.TradeFeed = enabled
+	b.Config.Features.Enabled.TradeFeed = enabled
+	if b.Verbose {
+		log.Debugf(log.Trade, "Set %v 'TradeFeed' to %v", b.Name, enabled)
 	}
 }
 

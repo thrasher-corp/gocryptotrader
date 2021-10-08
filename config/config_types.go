@@ -281,6 +281,7 @@ type FeaturesEnabledConfig struct {
 	AutoPairUpdates bool `json:"autoPairUpdates"`
 	Websocket       bool `json:"websocketAPI"`
 	SaveTradeData   bool `json:"saveTradeData"`
+	TradeFeed       bool `json:"tradeFeed"`
 }
 
 // FeaturesConfig stores the exchanges supported and enabled features
