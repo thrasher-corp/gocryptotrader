@@ -90,11 +90,13 @@ func (f *FTX) WsAuth() error {
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{Operation: "login",
 		Args: AuthenticationData{
-			Key:  f.API.Credentials.Key,
-			Sign: sign,
-			Time: intNonce,
+			Key:        f.API.Credentials.Key,
+			Sign:       sign,
+			Time:       intNonce,
+			SubAccount: f.API.Credentials.Subaccount,
 		},
 	}
+
 	return f.Websocket.Conn.SendJSONMessage(req)
 }
 
