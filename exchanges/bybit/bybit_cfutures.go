@@ -521,8 +521,8 @@ func (by *Bybit) CancelAllActiveFuturesOrders(symbol currency.Pair) (FuturesOrde
 }
 
 // ReplaceActiveFuturesOrders modify unfilled or partially filled orders
-func (by *Bybit) ReplaceActiveFuturesOrders(symbol currency.Pair, orderID, orderLinkID string,
-	updatedQty, updatedPrice, takeProfitPrice, stopLossPrice, takeProfitTriggerBy, stopLossTriggerBy float64) (string, error) {
+func (by *Bybit) ReplaceActiveFuturesOrders(symbol currency.Pair, orderID, orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
+	updatedQty, updatedPrice, takeProfitPrice, stopLossPrice float64) (string, error) {
 	resp := struct {
 		Data struct {
 			OrderID string `json:"order_id"`
@@ -556,11 +556,11 @@ func (by *Bybit) ReplaceActiveFuturesOrders(symbol currency.Pair, orderID, order
 	if stopLossPrice != 0 {
 		params.Set("stop_loss", strconv.FormatFloat(stopLossPrice, 'f', -1, 64))
 	}
-	if takeProfitTriggerBy != 0 {
-		params.Set("tp_trigger_by", strconv.FormatFloat(takeProfitTriggerBy, 'f', -1, 64))
+	if takeProfitTriggerBy != "" {
+		params.Set("tp_trigger_by", takeProfitTriggerBy)
 	}
-	if stopLossTriggerBy != 0 {
-		params.Set("sl_trigger_by", strconv.FormatFloat(stopLossTriggerBy, 'f', -1, 64))
+	if stopLossTriggerBy != "" {
+		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
 	return resp.Data.OrderID, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesReplaceActiveOrder, params, &resp, bybitAuthRate)
 }
@@ -739,8 +739,8 @@ func (by *Bybit) CancelAllConditionalFuturesOrders(symbol currency.Pair) ([]Futu
 }
 
 // ReplaceConditionalFuturesOrders modify unfilled or partially filled conditional orders
-func (by *Bybit) ReplaceConditionalFuturesOrders(symbol currency.Pair, stopOrderID, orderLinkID string,
-	updatedQty, updatedPrice, takeProfitPrice, stopLossPrice, takeProfitTriggerBy, stopLossTriggerBy, orderTriggerPrice float64) (string, error) {
+func (by *Bybit) ReplaceConditionalFuturesOrders(symbol currency.Pair, stopOrderID, orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
+	updatedQty, updatedPrice, takeProfitPrice, stopLossPrice, orderTriggerPrice float64) (string, error) {
 	resp := struct {
 		Data struct {
 			OrderID string `json:"stop_order_id"`
@@ -777,11 +777,11 @@ func (by *Bybit) ReplaceConditionalFuturesOrders(symbol currency.Pair, stopOrder
 	if stopLossPrice != 0 {
 		params.Set("stop_loss", strconv.FormatFloat(stopLossPrice, 'f', -1, 64))
 	}
-	if takeProfitTriggerBy != 0 {
-		params.Set("tp_trigger_by", strconv.FormatFloat(takeProfitTriggerBy, 'f', -1, 64))
+	if takeProfitTriggerBy != "" {
+		params.Set("tp_trigger_by", takeProfitTriggerBy)
 	}
-	if stopLossTriggerBy != 0 {
-		params.Set("sl_trigger_by", strconv.FormatFloat(stopLossTriggerBy, 'f', -1, 64))
+	if stopLossTriggerBy != "" {
+		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
 	return resp.Data.OrderID, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesReplaceConditionalOrder, params, &resp, bybitAuthRate)
 }
