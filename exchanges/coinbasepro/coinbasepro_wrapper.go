@@ -609,7 +609,7 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 
 	response := order.CalculateCostsAndAmounts(
 		&order.Detail{
-			Exchange:       c.GetName(),
+			Exchange:       c.Name,
 			ID:             genOrderDetail.ID,
 			Pair:           p,
 			Side:           ss,
