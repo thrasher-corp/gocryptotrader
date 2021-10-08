@@ -14,15 +14,15 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
+	apiKey    = ""
+	apiSecret = ""
 )
 
 var by Bybit
 
 func TestMain(m *testing.M) {
 	by.SetDefaults()
+	by.Verbose = true
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -60,7 +60,6 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestGetAllPairs(t *testing.T) {
-	by.Verbose = true
 	t.Parallel()
 
 	_, err := by.GetAllPairs()
@@ -359,8 +358,214 @@ func TestWsTicker(t *testing.T) {
 }
 
 func TestGetFuturesOrderbook(t *testing.T) {
-	t.Parallel()
-	_, err := by.GetFuturesOrderbook(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 1000)
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = by.GetFuturesOrderbook(pair)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetFuturesKlineData(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = by.GetFuturesKlineData(pair, "M", 5, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = by.GetFuturesKlineData(pair, "60", 5, time.Unix(1577836800, 0))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesSymbolPriceTicker(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetFuturesSymbolPriceTicker(pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPublicTrades(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetPublicTrades(pair, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = by.GetPublicTrades(pair, 0, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSymbolsInfo(t *testing.T) {
+	_, err := by.GetSymbolsInfo()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarkPriceKline(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetMarkPriceKline(pair, "D", 0, time.Unix(1577836800, 0))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetIndexPriceKline(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetIndexPriceKline(pair, "D", 0, time.Unix(1577836800, 0))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPremiumIndexPriceKline(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetPremiumIndexPriceKline(pair, "D", 0, time.Unix(1577836800, 0))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetOpenInterest(pair, "5min", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLatestBigDeal(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetLatestBigDeal(pair, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountRatio(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetAccountRatio(pair, "1d", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRiskLimit(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetRiskLimit(pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLastFundingRate(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetLastFundingRate(pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetServerTime(t *testing.T) {
+	_, err := by.GetServerTime()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAnnouncement(t *testing.T) {
+	_, err := by.GetAnnouncement()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateFuturesOrder(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.CreateFuturesOrder(pair, "Buy", "Limit", "GTC", "", "", "", 1, 0, 0, 0, false, false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetActiveFuturesOrders(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetActiveFuturesOrders(pair, "", "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = by.GetActiveFuturesOrders(pair, "Filled", "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelActiveFuturesOrders(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.CancelActiveFuturesOrders(pair, "", "")
 	if err != nil {
 		t.Error(err)
 	}

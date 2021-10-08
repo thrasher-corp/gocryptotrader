@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -230,177 +231,181 @@ func stringToOrderStatus(status string) (order.Status, error) {
 }
 
 func (by *Bybit) wsHandleData(respRaw []byte) error {
-	var multiStreamData []map[string]interface{}
+	var multiStreamData map[string]interface{}
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
 		return err
 	}
 
-	for _, eventData := range multiStreamData {
-		if e, ok := eventData["e"].(string); ok {
-			switch e {
-			case wsAccountInfoStr:
-				var data wsAccountInfo
-				err := json.Unmarshal(respRaw, &data)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s",
-						by.Name,
-						err)
-				}
-				by.Websocket.DataHandler <- data
-				return nil
-			case wsOrderStr:
-				var data wsOrderUpdate
-				err := json.Unmarshal(respRaw, &data)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to executionReport structure %s",
-						by.Name,
-						err)
-				}
-				var orderID = strconv.FormatInt(data.OrderID, 10)
-				oType, err := order.StringToOrderType(data.OrderType)
-				if err != nil {
-					by.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: by.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				var oSide order.Side
-				oSide, err = order.StringToOrderSide(data.Side)
-				if err != nil {
-					by.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: by.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				var oStatus order.Status
-				oStatus, err = stringToOrderStatus(data.OrderStatus)
-				if err != nil {
-					by.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: by.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				var p currency.Pair
-				var a asset.Item
-				p, a, err = by.GetRequestFormattedPairAndAssetType(data.Symbol)
-				if err != nil {
-					return err
-				}
-
-				by.Websocket.DataHandler <- &order.Detail{
-					Price:           data.Price,
-					Amount:          data.Quantity,
-					ExecutedAmount:  data.CumulativeFilledQuantity,
-					RemainingAmount: data.Quantity - data.CumulativeFilledQuantity,
-					Exchange:        by.Name,
-					ID:              orderID,
-					Type:            oType,
-					Side:            oSide,
-					Status:          oStatus,
-					AssetType:       a,
-					Date:            data.OrderCreationTime,
-					Pair:            p,
-					ClientOrderID:   data.ClientOrderID,
-				}
-				return nil
-			case wsOrderFilledStr:
-				return nil
-			}
-		}
-	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(respRaw, &result)
-	if err != nil {
-		return err
-	}
-
-	switch result["topic"] {
-	case wsOrderbook:
-		var data WsOrderbook
-		err := json.Unmarshal(respRaw, &data)
-		if err != nil {
-			return err
-		}
-		p, err := currency.NewPairFromString(data.OBData.Symbol)
-		if err != nil {
-			return err
-		}
-
-		a, err := by.GetPairAssetType(p)
-		if err != nil {
-			return err
-		}
-
-		err = by.wsUpdateOrderbook(data.OBData, p, a)
-		if err != nil {
-			return err
-		}
-
-	case wsTrades:
-		if !by.IsSaveTradeDataEnabled() {
+	if method, ok := multiStreamData["event"].(string); ok {
+		if strings.EqualFold(method, subscribe) {
 			return nil
 		}
-		var data WsTrade
-		err := json.Unmarshal(respRaw, &data)
-		if err != nil {
-			return err
+		if strings.EqualFold(method, unsubscribe) {
+			return nil
 		}
-
-		p, err := currency.NewPairFromString(data.Parameters.Symbol)
-		if err != nil {
-			return err
-		}
-
-		side := order.Sell
-		if data.TradeData.Side {
-			side = order.Buy
-		}
-		var a asset.Item
-		a, err = by.GetPairAssetType(p)
-		if err != nil {
-			return err
-		}
-		return trade.AddTradesToBuffer(by.Name, trade.Data{
-			Timestamp:    time.Unix(data.TradeData.Time, 0),
-			CurrencyPair: p,
-			AssetType:    a,
-			Exchange:     by.Name,
-			Price:        data.TradeData.Price,
-			Amount:       data.TradeData.Size,
-			Side:         side,
-			TID:          data.TradeData.ID,
-		})
-
-	case wsTicker:
-		var data WsTicker
-		err := json.Unmarshal(respRaw, &data)
-		if err != nil {
-			return err
-		}
-
-		p, err := currency.NewPairFromString(data.Ticker.Symbol)
-		if err != nil {
-			return err
-		}
-
-		by.Websocket.DataHandler <- &ticker.Price{
-			ExchangeName: by.Name,
-			Bid:          data.Ticker.Bid,
-			Ask:          data.Ticker.Ask,
-			LastUpdated:  time.Unix(data.Ticker.Time, 0),
-			AssetType:    asset.Spot,
-			Pair:         p,
-		}
-
-	case wsMarkets:
-	default:
-		by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + string(respRaw)}
 	}
+
+	if e, ok := multiStreamData["e"].(string); ok {
+		switch e {
+		case wsAccountInfoStr:
+			var data wsAccountInfo
+			err := json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s",
+					by.Name,
+					err)
+			}
+			by.Websocket.DataHandler <- data
+			return nil
+		case wsOrderStr:
+			var data wsOrderUpdate
+			err := json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to executionReport structure %s",
+					by.Name,
+					err)
+			}
+			var orderID = strconv.FormatInt(data.OrderID, 10)
+			oType, err := order.StringToOrderType(data.OrderType)
+			if err != nil {
+				by.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: by.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
+			var oSide order.Side
+			oSide, err = order.StringToOrderSide(data.Side)
+			if err != nil {
+				by.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: by.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
+			var oStatus order.Status
+			oStatus, err = stringToOrderStatus(data.OrderStatus)
+			if err != nil {
+				by.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: by.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
+			var p currency.Pair
+			var a asset.Item
+			p, a, err = by.GetRequestFormattedPairAndAssetType(data.Symbol)
+			if err != nil {
+				return err
+			}
+
+			by.Websocket.DataHandler <- &order.Detail{
+				Price:           data.Price,
+				Amount:          data.Quantity,
+				ExecutedAmount:  data.CumulativeFilledQuantity,
+				RemainingAmount: data.Quantity - data.CumulativeFilledQuantity,
+				Exchange:        by.Name,
+				ID:              orderID,
+				Type:            oType,
+				Side:            oSide,
+				Status:          oStatus,
+				AssetType:       a,
+				Date:            data.OrderCreationTime,
+				Pair:            p,
+				ClientOrderID:   data.ClientOrderID,
+			}
+			return nil
+		case wsOrderFilledStr:
+			return nil
+		}
+	}
+
+	if t, ok := multiStreamData["topic"].(string); ok {
+		switch t {
+		case wsOrderbook:
+			var data WsOrderbook
+			err := json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return err
+			}
+			p, err := currency.NewPairFromString(data.OBData.Symbol)
+			if err != nil {
+				return err
+			}
+
+			a, err := by.GetPairAssetType(p)
+			if err != nil {
+				return err
+			}
+
+			err = by.wsUpdateOrderbook(data.OBData, p, a)
+			if err != nil {
+				return err
+			}
+
+		case wsTrades:
+			if !by.IsSaveTradeDataEnabled() {
+				return nil
+			}
+			var data WsTrade
+			err := json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return err
+			}
+
+			p, err := currency.NewPairFromString(data.Parameters.Symbol)
+			if err != nil {
+				return err
+			}
+
+			side := order.Sell
+			if data.TradeData.Side {
+				side = order.Buy
+			}
+			var a asset.Item
+			a, err = by.GetPairAssetType(p)
+			if err != nil {
+				return err
+			}
+			return trade.AddTradesToBuffer(by.Name, trade.Data{
+				Timestamp:    time.Unix(data.TradeData.Time, 0),
+				CurrencyPair: p,
+				AssetType:    a,
+				Exchange:     by.Name,
+				Price:        data.TradeData.Price,
+				Amount:       data.TradeData.Size,
+				Side:         side,
+				TID:          data.TradeData.ID,
+			})
+
+		case wsTicker:
+			var data WsTicker
+			err := json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return err
+			}
+
+			p, err := currency.NewPairFromString(data.Ticker.Symbol)
+			if err != nil {
+				return err
+			}
+
+			by.Websocket.DataHandler <- &ticker.Price{
+				ExchangeName: by.Name,
+				Bid:          data.Ticker.Bid,
+				Ask:          data.Ticker.Ask,
+				LastUpdated:  time.Unix(data.Ticker.Time, 0),
+				AssetType:    asset.Spot,
+				Pair:         p,
+			}
+
+		case wsMarkets:
+		default:
+			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + string(respRaw)}
+		}
+	}
+
 	return nil
 }
 

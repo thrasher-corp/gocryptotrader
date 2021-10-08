@@ -1,5 +1,7 @@
 package bybit
 
+import "time"
+
 var (
 	validFuturesIntervals = []string{
 		"1", "3", "5", "15", "30", "60", "120", "240", "360", "720",
@@ -13,7 +15,7 @@ var (
 
 // OrderbookData stores ob data for cmargined futures
 type OrderbookData struct {
-	Symbol int64  `json:"symbol"`
+	Symbol string `json:"symbol"`
 	Price  string `json:"price"`
 	Size   int64  `json:"size"`
 	Side   string `json:"side"`
@@ -24,12 +26,12 @@ type FuturesCandleStick struct {
 	Symbol   string  `json:"symbol"`
 	Interval string  `json:"interval"`
 	OpenTime int64   `json:"open_time"`
-	Open     float64 `json:"open"`
-	High     float64 `json:"high"`
-	Low      float64 `json:"low"`
-	Close    float64 `json:"close"`
-	Volume   float64 `json:"volume"`
-	TurnOver float64 `json:"turnover"`
+	Open     float64 `json:"open,string"`
+	High     float64 `json:"high,string"`
+	Low      float64 `json:"low,string"`
+	Close    float64 `json:"close,string"`
+	Volume   float64 `json:"volume,string"`
+	TurnOver float64 `json:"turnover,string"`
 }
 
 // SymbolPriceTicker stores ticker price stats
@@ -64,12 +66,12 @@ type SymbolPriceTicker struct {
 
 // FuturesPublicTradesData stores recent public trades for futures
 type FuturesPublicTradesData struct {
-	ID     int64   `json:"id"`
-	Symbol string  `json:"symbol"`
-	Price  float64 `json:"price,string"`
-	Qty    float64 `json:"qty,string"`
-	Time   int64   `json:"time"`
-	Side   string  `json:"side"`
+	ID     int64     `json:"id"`
+	Symbol string    `json:"symbol"`
+	Price  float64   `json:"price"`
+	Qty    float64   `json:"qty"`
+	Time   time.Time `json:"time"`
+	Side   string    `json:"side"`
 }
 
 // SymbolInfo stores symbol information for futures pair
@@ -93,41 +95,31 @@ type SymbolInfo struct {
 		TickSize float64 `json:"tick_size,string"`
 	} `json:"price_filter"`
 	LotSizeFilter struct {
-		MinTradeQty float64 `json:"min_trading_qty,string"`
-		MaxTradeQty float64 `json:"max_trading_qty,string"`
-		QtyStep     float64 `json:"qty_step,string"`
+		MinTradeQty float64 `json:"min_trading_qty"`
+		MaxTradeQty float64 `json:"max_trading_qty"`
+		QtyStep     float64 `json:"qty_step"`
 	} `json:"lot_size_filter"`
 }
 
-// AllLiquidationOrders gets all liquidation orders
-type AllLiquidationOrders struct {
-	ID     int64   `json:"id"`
-	Qty    float64 `json:"origQty,string"`
-	Side   string  `json:"side"`
-	Time   int64   `json:"time"`
-	Symbol string  `json:"symbol"`
-	Price  float64 `json:"price,string"`
-}
-
 type MarkPriceKlineData struct {
-	ID       int64  `json:"id"`
-	Symbol   string `json:"symbol"`
-	Interval string `json:"period"`
-	StartAt  int64  `json:"start_at"`
-	Open     int64  `json:"open"`
-	High     int64  `json:"high"`
-	Low      int64  `json:"low"`
-	Close    int64  `json:"close"`
+	ID       int64   `json:"id"`
+	Symbol   string  `json:"symbol"`
+	Interval string  `json:"period"`
+	StartAt  int64   `json:"start_at"`
+	Open     float64 `json:"open"`
+	High     float64 `json:"high"`
+	Low      float64 `json:"low"`
+	Close    float64 `json:"close"`
 }
 
 type IndexPriceKlineData struct {
-	Symbol   string `json:"symbol"`
-	Interval string `json:"period"`
-	StartAt  int64  `json:"open_time"`
-	Open     int64  `json:"open"`
-	High     int64  `json:"high"`
-	Low      int64  `json:"low"`
-	Close    int64  `json:"close"`
+	Symbol   string  `json:"symbol"`
+	Interval string  `json:"period"`
+	StartAt  int64   `json:"open_time"`
+	Open     float64 `json:"open,string"`
+	High     float64 `json:"high,string"`
+	Low      float64 `json:"low,string"`
+	Close    float64 `json:"close,string"`
 }
 
 // OpenInterestData stores open interest data
@@ -316,13 +308,13 @@ type RiskInfo struct {
 	ID             int64    `json:"id"`
 	Symbol         string   `json:"symbol"`
 	Limit          int64    `json:"limit"`
-	MaintainMargin float64  `json:"maintain_margin"`
-	StartingMargin float64  `json:"starting_margin"`
+	MaintainMargin float64  `json:"maintain_margin,string"`
+	StartingMargin float64  `json:"starting_margin,string"`
 	Section        []string `json:"section"`
 	IsLowestRisk   int64    `json:"is_lowest_risk"`
 	CreatedAt      string   `json:"create_at"`
 	UpdateAt       string   `json:"updated_at"`
-	MaxLeverage    float64  `json:"max_leverage"`
+	MaxLeverage    float64  `json:"max_leverage,string"`
 }
 
 type FundingInfo struct {

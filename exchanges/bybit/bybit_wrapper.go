@@ -74,16 +74,11 @@ func (by *Bybit) SetDefaults() {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 	}
 
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
-	}
-
 	err = by.StoreAssetPairFormat(asset.Spot, fmt1)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = by.StoreAssetPairFormat(asset.Margin, fmt2)
+	err = by.StoreAssetPairFormat(asset.CoinMarginedFutures, fmt1)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -116,8 +111,9 @@ func (by *Bybit) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	by.API.Endpoints = by.NewEndpoints()
 	by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      bybitAPIURL,
-		exchange.WebsocketSpot: bybitWSURLPublicTopicV2,
+		exchange.RestSpot:         bybitAPIURL,
+		exchange.WebsocketSpot:    bybitWSURLPublicTopicV2,
+		exchange.RestCoinMargined: bybitAPIURL,
 	})
 	by.Websocket = stream.New()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
