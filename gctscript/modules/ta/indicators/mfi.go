@@ -49,7 +49,10 @@ func mfi(args ...objects.Object) (objects.Object, error) {
 	var allErrors []string
 
 	for x := range ohlcvInputData {
-		t := ohlcvInputData[x].([]interface{})
+		t, ok := ohlcvInputData[x].([]interface{})
+		if !ok {
+			return nil, errors.New("ohlcvInputData type assert failed")
+		}
 		value, err := toFloat64(t[2])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())

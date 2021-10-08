@@ -484,18 +484,14 @@ func TestGetNonce(t *testing.T) {
 		new(http.Client),
 		WithLimiter(&globalshell))
 
-	n1 := r.GetNonce(false)
-	n2 := r.GetNonce(false)
-	if n1 == n2 {
+	if n1, n2 := r.GetNonce(false), r.GetNonce(false); n1 == n2 {
 		t.Fatal(unexpected)
 	}
 
 	r2 := New("test",
 		new(http.Client),
 		WithLimiter(&globalshell))
-	n3 := r2.GetNonce(true)
-	n4 := r2.GetNonce(true)
-	if n3 == n4 {
+	if n1, n2 := r2.GetNonce(true), r2.GetNonce(true); n1 == n2 {
 		t.Fatal(unexpected)
 	}
 }
@@ -505,9 +501,7 @@ func TestGetNonceMillis(t *testing.T) {
 	r := New("test",
 		new(http.Client),
 		WithLimiter(&globalshell))
-	m1 := r.GetNonceMilli()
-	m2 := r.GetNonceMilli()
-	if m1 == m2 {
+	if m1, m2 := r.GetNonceMilli(), r.GetNonceMilli(); m1 == m2 {
 		log.Fatal(unexpected)
 	}
 }

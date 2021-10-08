@@ -10,8 +10,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -214,46 +216,59 @@ func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval str
 		Data  map[string]interface{} `json:"result"`
 	}
 
-	var OHLC []OpenHighLowClose
 	var result Response
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenOHLC, values.Encode())
 
 	err = k.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
 	if err != nil {
-		return OHLC, err
+		return nil, err
 	}
 
 	if len(result.Error) != 0 {
-		return OHLC, fmt.Errorf("getOHLC error: %s", result.Error)
+		return nil, fmt.Errorf("getOHLC error: %s", result.Error)
 	}
 
-	_, ok := result.Data[translatedAsset].([]interface{})
+	ohlcData, ok := result.Data[translatedAsset].([]interface{})
 	if !ok {
 		return nil, errors.New("invalid data returned")
 	}
 
-	for _, y := range result.Data[translatedAsset].([]interface{}) {
-		o := OpenHighLowClose{}
-		for i, x := range y.([]interface{}) {
-			switch i {
-			case 0:
-				o.Time = x.(float64)
-			case 1:
-				o.Open, _ = strconv.ParseFloat(x.(string), 64)
-			case 2:
-				o.High, _ = strconv.ParseFloat(x.(string), 64)
-			case 3:
-				o.Low, _ = strconv.ParseFloat(x.(string), 64)
-			case 4:
-				o.Close, _ = strconv.ParseFloat(x.(string), 64)
-			case 5:
-				o.VolumeWeightedAveragePrice, _ = strconv.ParseFloat(x.(string), 64)
-			case 6:
-				o.Volume, _ = strconv.ParseFloat(x.(string), 64)
-			case 7:
-				o.Count = x.(float64)
-			}
+	var OHLC []OpenHighLowClose
+	for x := range ohlcData {
+		subData, ok := ohlcData[x].([]interface{})
+		if !ok {
+			return nil, errors.New("unable to type assert subData")
+		}
+
+		if len(subData) < 8 {
+			return nil, errors.New("unexpected data length returned")
+		}
+
+		var o OpenHighLowClose
+		if o.Time, ok = subData[0].(float64); !ok {
+			return nil, errors.New("unable to type assert time")
+		}
+		if o.Open, err = convert.FloatFromString(subData[1]); err != nil {
+			return nil, err
+		}
+		if o.High, err = convert.FloatFromString(subData[2]); err != nil {
+			return nil, err
+		}
+		if o.Low, err = convert.FloatFromString(subData[3]); err != nil {
+			return nil, err
+		}
+		if o.Close, err = convert.FloatFromString(subData[4]); err != nil {
+			return nil, err
+		}
+		if o.VolumeWeightedAveragePrice, err = convert.FloatFromString(subData[5]); err != nil {
+			return nil, err
+		}
+		if o.Volume, err = convert.FloatFromString(subData[6]); err != nil {
+			return nil, err
+		}
+		if o.Count, ok = subData[7].(float64); !ok {
+			return nil, errors.New("unable to type assert count")
 		}
 		OHLC = append(OHLC, o)
 	}
@@ -280,24 +295,40 @@ func (k *Kraken) GetDepth(ctx context.Context, symbol currency.Pair) (Orderbook,
 		return orderBook, fmt.Errorf("%s GetDepth result is nil", k.Name)
 	}
 
-	data := result.(map[string]interface{})
-	if data["result"] == nil {
+	data, ok := result.(map[string]interface{})
+	if !ok {
+		return orderBook, errors.New("unable to type assert data")
+	}
+	orderbookData, ok := data["result"].(map[string]interface{})
+	if !ok {
 		return orderBook, fmt.Errorf("%s GetDepth data[result] is nil", k.Name)
 	}
-	orderbookData := data["result"].(map[string]interface{})
-
 	var bidsData []interface{}
 	var asksData []interface{}
 	for _, y := range orderbookData {
-		yData := y.(map[string]interface{})
-		bidsData = yData["bids"].([]interface{})
-		asksData = yData["asks"].([]interface{})
+		yData, ok := y.(map[string]interface{})
+		if !ok {
+			return orderBook, errors.New("unable to type assert yData")
+		}
+		if bidsData, ok = yData["bids"].([]interface{}); !ok {
+			return orderBook, errors.New("unable to type assert bidsData")
+		}
+		if asksData, ok = yData["asks"].([]interface{}); !ok {
+			return orderBook, errors.New("unable to type assert asksData")
+		}
 	}
 
 	processOrderbook := func(data []interface{}) ([]OrderbookBase, error) {
 		var result []OrderbookBase
 		for x := range data {
-			entry := data[x].([]interface{})
+			entry, ok := data[x].([]interface{})
+			if !ok {
+				return nil, errors.New("unable to type assert entry")
+			}
+
+			if len(entry) < 2 {
+				return nil, errors.New("unexpected entry length")
+			}
 
 			price, priceErr := strconv.ParseFloat(entry[0].(string), 64)
 			if priceErr != nil {
@@ -439,30 +470,48 @@ func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread,
 	}
 	values.Set("pair", symbolValue)
 
-	var peanutButter []Spread
-	var response interface{}
-
+	resp := struct {
+		SpreadData map[string]interface{} `json:"result"`
+	}{}
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenSpread, values.Encode())
-
-	err = k.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
+	err = k.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 	if err != nil {
-		return peanutButter, err
+		return nil, err
 	}
 
-	data := response.(map[string]interface{})
-	result := data["result"].(map[string]interface{})
+	data, ok := resp.SpreadData[symbolValue]
+	if !ok {
+		return nil, fmt.Errorf("unable to find %s in spread data", symbolValue)
+	}
 
-	for _, x := range result[symbolValue].([]interface{}) {
-		s := Spread{}
-		for i, y := range x.([]interface{}) {
-			switch i {
-			case 0:
-				s.Time = y.(float64)
-			case 1:
-				s.Bid, _ = strconv.ParseFloat(y.(string), 64)
-			case 2:
-				s.Ask, _ = strconv.ParseFloat(y.(string), 64)
-			}
+	spreadData, ok := data.([]interface{})
+	if !ok {
+		return nil, errors.New("unable to type assert spreadData")
+	}
+
+	var peanutButter []Spread
+	for x := range spreadData {
+		subData, ok := spreadData[x].([]interface{})
+		if !ok {
+			return nil, errors.New("unable to type assert subData")
+		}
+
+		if len(subData) < 3 {
+			return nil, errors.New("unexpected data length")
+		}
+
+		var s Spread
+		timeData, ok := subData[0].(float64)
+		if !ok {
+			return nil, errors.New("unable to type assert timeData")
+		}
+		s.Time = time.Unix(int64(timeData), 0)
+
+		if s.Bid, err = convert.FloatFromString(subData[1]); err != nil {
+			return nil, err
+		}
+		if s.Ask, err = convert.FloatFromString(subData[2]); err != nil {
+			return nil, err
 		}
 		peanutButter = append(peanutButter, s)
 	}
@@ -1203,8 +1252,7 @@ func (a *assetTranslatorStore) Seed(orig, alt string) {
 		a.Assets = make(map[string]string)
 	}
 
-	_, ok := a.Assets[orig]
-	if ok {
+	if _, ok := a.Assets[orig]; ok {
 		a.l.Unlock()
 		return
 	}

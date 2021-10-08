@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -283,8 +282,7 @@ func (z *ZB) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (z *ZB) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := z.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := z.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(z.Name, p, a)
@@ -389,8 +387,7 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 		Currencies: balances,
 	})
 
-	err := account.Process(&info)
-	if err != nil {
+	if err := account.Process(&info); err != nil {
 		return account.Holdings{}, err
 	}
 
@@ -864,7 +861,7 @@ func (z *ZB) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.It
 	klineParams := KlinesRequestParams{
 		Type:   z.FormatExchangeKlineInterval(interval),
 		Symbol: p.String(),
-		Since:  convert.UnixMillis(start),
+		Since:  start.UnixMilli(),
 		Size:   int64(z.Features.Enabled.Kline.ResultLimit),
 	}
 	var candles KLineResponse
@@ -909,7 +906,7 @@ allKlines:
 		klineParams := KlinesRequestParams{
 			Type:   z.FormatExchangeKlineInterval(interval),
 			Symbol: p.String(),
-			Since:  convert.UnixMillis(startTime),
+			Since:  startTime.UnixMilli(),
 			Size:   int64(z.Features.Enabled.Kline.ResultLimit),
 		}
 

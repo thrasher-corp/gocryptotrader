@@ -32,10 +32,8 @@ func TestFloatFromString(t *testing.T) {
 func TestIntFromString(t *testing.T) {
 	t.Parallel()
 	testString := "1337"
-	expectedOutput := 1337
-
 	actualOutput, err := IntFromString(testString)
-	if actualOutput != expectedOutput || err != nil {
+	if expectedOutput := 1337; actualOutput != expectedOutput || err != nil {
 		t.Errorf("Common IntFromString. Expected '%v'. Actual '%v'. Error: %s",
 			expectedOutput, actualOutput, err)
 	}
@@ -136,31 +134,17 @@ func TestUnixTimestampStrToTime(t *testing.T) {
 		t.Errorf(
 			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
 	}
-	actualResult, err = UnixTimestampStrToTime(incorrectTime)
+	_, err = UnixTimestampStrToTime(incorrectTime)
 	if err == nil {
-		t.Error("Common UnixTimestampStrToTime error")
-	}
-}
-
-func TestUnixMillis(t *testing.T) {
-	t.Parallel()
-	testTime := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
-	expectedOutput := int64(1414456320000)
-
-	actualOutput := UnixMillis(testTime)
-	if actualOutput != expectedOutput {
-		t.Errorf("Common UnixMillis. Expected '%d'. Actual '%d'.",
-			expectedOutput, actualOutput)
+		t.Error("should throw an error")
 	}
 }
 
 func TestRecvWindow(t *testing.T) {
 	t.Parallel()
 	testTime := time.Duration(24760000)
-	expectedOutput := int64(24)
-
 	actualOutput := RecvWindow(testTime)
-	if actualOutput != expectedOutput {
+	if expectedOutput := int64(24); actualOutput != expectedOutput {
 		t.Errorf("Common RecvWindow. Expected '%d'. Actual '%d'",
 			expectedOutput, actualOutput)
 	}

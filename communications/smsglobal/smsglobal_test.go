@@ -18,9 +18,8 @@ func TestSetup(t *testing.T) {
 func TestConnect(t *testing.T) {
 	t.Parallel()
 	var s SMSGlobal
-	err := s.Connect()
-	if err != nil {
-		t.Error("SMSGlobal Connect() error", err)
+	if err := s.Connect(); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -43,9 +42,8 @@ func TestGetEnabledContacts(t *testing.T) {
 			},
 		},
 	}
-	v := s.GetEnabledContacts()
-	if v != 1 {
-		t.Error("SMSGlobal GetEnabledContacts() error")
+	if v := s.GetEnabledContacts(); v != 1 {
+		t.Error("expected one enabled contact")
 	}
 }
 

@@ -399,8 +399,7 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	}
 
 	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
-	endDate := quickParse(reader)
-	if endDate != "" {
+	if endDate := quickParse(reader); endDate != "" {
 		cfg.DataSettings.DatabaseData.EndDate, err = time.Parse(endDate, gctcommon.SimpleTimeFormat)
 		if err != nil {
 			return err

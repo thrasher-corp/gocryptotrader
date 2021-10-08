@@ -50,7 +50,10 @@ func correlationCoefficient(args ...objects.Object) (objects.Object, error) {
 
 		var ohlcvClose []float64
 		for x := range ohlcvInputData {
-			t := ohlcvInputData[x].([]interface{})
+			t, ok := ohlcvInputData[x].([]interface{})
+			if !ok {
+				return nil, errors.New("ohlcvInputData type assert failed")
+			}
 			value, err := toFloat64(t[4])
 			if err != nil {
 				allErrors = append(allErrors, err.Error())

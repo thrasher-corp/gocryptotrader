@@ -25,11 +25,18 @@ linters:
 # disabled by default linters
     - asciicheck
     - bodyclose
+#   - cyclop
     - depguard
     - dogsled
 #   - dupl
+    - durationcheck
+    - errname
+#   - errorlint
 #   - exhaustive
+#   - exhaustivestruct
     - exportloopref
+#   - forbidigo
+    - forcetypeassert
 #   - funlen
     - gci
 #   - gochecknoglobals
@@ -45,29 +52,43 @@ linters:
 #   - gofumpt
     - goheader
     - goimports
-    - golint
+#   - golint // deprecated since 1.41.0, replaced by revive
 #   - gomnd
+    - gomoddirectives
     - gomodguard
     - goprintffuncname
     - gosec
+    - ifshort
+#   - importas
 #   - interfacer
-#   - lll
+#   - lll 
+    - makezero
 #   - maligned
     - misspell
     - nakedret
 #   - nestif
+#   - nilerr
 #   - nlreturn
     - noctx
     - nolintlint
+#   - paralleltest
 #   - prealloc
+    - predeclared
+    - promlinter
+    - revive
     - rowserrcheck
-    - scopelint
+#   - scopelint // deprecated since v1.39.0, replaced by exportloopref
     - sqlclosecheck
     - stylecheck
+#   - tagliatelle
 #   - testpackage
+    - thelper
+    - tparallel
     - unconvert
     - unparam
+    - wastedassign
     - whitespace
+#   - wrapcheck
 #   - wsl
 
 linters-settings:

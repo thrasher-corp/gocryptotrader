@@ -291,8 +291,7 @@ func (b *Bithumb) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bithumb) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := b.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := b.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)
@@ -819,8 +818,10 @@ func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 	for x := range candle.Data {
 		var tempCandle kline.Candle
-
-		tempTime := candle.Data[x][0].(float64)
+		tempTime, ok := candle.Data[x][0].(float64)
+		if !ok {
+			return kline.Item{}, errors.New("timestamp conversion failed")
+		}
 		timestamp := time.Unix(0, int64(tempTime)*int64(time.Millisecond))
 		if timestamp.Before(start) {
 			continue

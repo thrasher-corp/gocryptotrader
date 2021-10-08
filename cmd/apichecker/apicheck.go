@@ -565,7 +565,10 @@ func addExch(exchName, checkType string, data interface{}, isUpdate bool) error 
 func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error) {
 	switch checkType {
 	case github:
-		tempData := data.(GithubData)
+		tempData, ok := data.(GithubData)
+		if !ok {
+			return ExchangeInfo{}, errors.New("unable to type assert GithubData")
+		}
 		tempSha, err := getSha(path)
 		if err != nil {
 			return ExchangeInfo{}, err
@@ -579,7 +582,10 @@ func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error
 			},
 		}, nil
 	case htmlScrape:
-		tempData := data.(HTMLScrapingData)
+		tempData, ok := data.(HTMLScrapingData)
+		if !ok {
+			return ExchangeInfo{}, errors.New("unable to type assert HTMLScrapingData")
+		}
 		checkStr, err := checkChangeLog(&tempData)
 		if err != nil {
 			return ExchangeInfo{}, err

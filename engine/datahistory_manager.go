@@ -455,7 +455,7 @@ ranges:
 		lookup = append(lookup, *result)
 		job.Results[result.IntervalStartDate] = lookup
 	}
-	completed := true
+	completed := true // nolint:ifshort // false positive
 	allResultsSuccessful := true
 	allResultsFailed := true
 completionCheck:
@@ -553,7 +553,7 @@ timesToFetch:
 		job.Results[result.IntervalStartDate] = lookup
 	}
 
-	completed := true
+	completed := true // nolint:ifshort // false positive
 	allResultsSuccessful := true
 	allResultsFailed := true
 completionCheck:

@@ -605,9 +605,7 @@ func TestReverse(t *testing.T) {
 	var b Base
 	b.VerifyOrderbook = true
 
-	length := 1000
-	b.Bids = deploySliceOrdered()
-	if len(b.Bids) != length {
+	if b.Bids = deploySliceOrdered(); len(b.Bids) != 1000 {
 		t.Fatal("incorrect length")
 	}
 
@@ -637,9 +635,8 @@ func TestReverse(t *testing.T) {
 
 // 705985	      1856 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkReverse(b *testing.B) {
-	length := 1000
 	s := deploySliceOrdered()
-	if len(s) != length {
+	if len(s) != 1000 {
 		b.Fatal("incorrect length")
 	}
 

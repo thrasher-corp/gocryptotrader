@@ -752,8 +752,7 @@ func TestGetName(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	name := b.GetName()
-	if name != "TESTNAME" {
+	if name := b.GetName(); name != "TESTNAME" {
 		t.Error("Exchange GetName() returned incorrect name")
 	}
 }
@@ -1167,8 +1166,7 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 	if err != nil {
 		t.Errorf("Exchange TestFormatExchangeCurrencies error %s", err)
 	}
-	expected := "btc~usd^ltc~btc"
-	if actual != expected {
+	if expected := "btc~usd^ltc~btc"; actual != expected {
 		t.Errorf("Exchange TestFormatExchangeCurrencies %s != %s",
 			actual, expected)
 	}
@@ -1801,8 +1799,7 @@ func TestGetBase(t *testing.T) {
 func TestGetAssetType(t *testing.T) {
 	var b Base
 	p := currency.NewPair(currency.BTC, currency.USD)
-	_, err := b.GetPairAssetType(p)
-	if err == nil {
+	if _, err := b.GetPairAssetType(p); err == nil {
 		t.Fatal("error cannot be nil")
 	}
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
@@ -2410,6 +2407,7 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 }
 
 func TestGetGetURLTypeFromString(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		Endpoint string
 		Expected URL

@@ -76,9 +76,15 @@ func (g *Gateio) GetMarketInfo(ctx context.Context) (MarketInfoResponse, error) 
 
 	result.Result = res.Result
 	for _, v := range res.Pairs {
-		item := v.(map[string]interface{})
+		item, ok := v.(map[string]interface{})
+		if !ok {
+			return result, errors.New("unable to type assert item")
+		}
 		for itemk, itemv := range item {
-			pairv := itemv.(map[string]interface{})
+			pairv, ok := itemv.(map[string]interface{})
+			if !ok {
+				return result, errors.New("unable to type assert pairv")
+			}
 			result.Pairs = append(result.Pairs, MarketInfoPairsResponse{
 				Symbol:        itemk,
 				DecimalPlaces: pairv["decimal_places"].(float64),

@@ -113,7 +113,10 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 			return "", nil
 		}
 
-		data := resultType[0].(map[string]interface{})
+		data, ok := resultType[0].(map[string]interface{})
+		if !ok {
+			return "", errors.New("unable to type assert data")
+		}
 		if _, ok := data["clientOrderId"]; ok {
 			return "order", nil
 		} else if _, ok := data["available"]; ok {

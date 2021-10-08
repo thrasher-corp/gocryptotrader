@@ -793,8 +793,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	err := account.Process(&info)
-	if err != nil {
+	if err := account.Process(&info); err != nil {
 		return info, err
 	}
 	return info, nil
@@ -1389,7 +1388,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		}
 	case asset.CoinMarginedFutures:
 		for x := range req.Pairs {
-			var currentPage int64 = 0
+			var currentPage int64
 			for done := false; !done; {
 				openOrders, err := h.GetSwapOpenOrders(ctx,
 					req.Pairs[x], currentPage, 50)
@@ -1429,7 +1428,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		}
 	case asset.Futures:
 		for x := range req.Pairs {
-			var currentPage int64 = 0
+			var currentPage int64
 			for done := false; !done; {
 				openOrders, err := h.FGetOpenOrders(ctx,
 					req.Pairs[x].Base, currentPage, 50)
@@ -1519,7 +1518,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 	case asset.CoinMarginedFutures:
 		for x := range req.Pairs {
-			var currentPage int64 = 0
+			var currentPage int64
 			for done := false; !done; {
 				orderHistory, err := h.GetSwapOrderHistory(ctx,
 					req.Pairs[x],
@@ -1570,7 +1569,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 	case asset.Futures:
 		for x := range req.Pairs {
-			var currentPage int64 = 0
+			var currentPage int64
 			for done := false; !done; {
 				openOrders, err := h.FGetOrderHistory(ctx,
 					req.Pairs[x],

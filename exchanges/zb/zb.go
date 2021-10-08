@@ -236,8 +236,15 @@ func (z *ZB) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (KLineRe
 		return res, errors.New("zb GetSpotKline rawKlines is nil")
 	}
 
-	res.Symbol = rawKlines["symbol"].(string)
-	res.MoneyType = rawKlines["moneyType"].(string)
+	var ok bool
+	res.Symbol, ok = rawKlines["symbol"].(string)
+	if !ok {
+		return res, errors.New("unable to type assert symbol")
+	}
+	res.MoneyType, ok = rawKlines["moneyType"].(string)
+	if !ok {
+		return res, errors.New("unable to type assert moneyType")
+	}
 
 	rawKlineDatasString, _ := json.Marshal(rawKlines["data"].([]interface{}))
 	var rawKlineDatas [][]interface{}
@@ -245,6 +252,9 @@ func (z *ZB) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (KLineRe
 		return res, errors.New("zb rawKlines unmarshal failed")
 	}
 	for _, k := range rawKlineDatas {
+		if len(rawKlineDatas) < 6 {
+			return res, errors.New("unexpected kline data length")
+		}
 		ot, err := convert.TimeFromUnixTimestampFloat(k[0])
 		if err != nil {
 			return res, errors.New("zb cannot parse Kline.OpenTime")
@@ -325,7 +335,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 	var intermediary json.RawMessage
 	newRequest := func() (*request.Item, error) {
 		now := time.Now()
-		params.Set("reqTime", fmt.Sprintf("%d", convert.UnixMillis(now)))
+		params.Set("reqTime", strconv.FormatInt(now.UnixMilli(), 10))
 		params.Set("sign", fmt.Sprintf("%x", hmac))
 
 		urlPath := fmt.Sprintf("%s/%s?%s",

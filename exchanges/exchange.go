@@ -1156,7 +1156,7 @@ func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 // ValidateKline confirms that the requested pair, asset & interval are supported and/or enabled by the requested exchange
 func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
 	var errorList []string
-	var err kline.ErrorKline
+	var err kline.Error
 	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
 		err.Asset = a
 		errorList = append(errorList, "asset not enabled")

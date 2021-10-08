@@ -1622,6 +1622,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if tt.mock != mockTests {
 				t.Skip()
 			}
@@ -1677,6 +1678,7 @@ func TestGetAggregatedTradesErrors(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := b.GetAggregatedTrades(context.Background(), tt.args)
 			if err == nil {
 				t.Errorf("Binance.GetAggregatedTrades() error = %v, wantErr true", err)
@@ -2583,8 +2585,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 func TestWsOutboundAccountPosition(t *testing.T) {
 	t.Parallel()
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
-	err := b.wsHandleData(payload)
-	if err != nil {
+	if err := b.wsHandleData(payload); err != nil {
 		t.Fatal(err)
 	}
 }

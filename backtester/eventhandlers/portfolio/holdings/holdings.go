@@ -58,8 +58,7 @@ func (h *Holding) HasFunds() bool {
 
 func (h *Holding) update(e fill.Event, f funding.IPairReader) {
 	direction := e.GetDirection()
-	o := e.GetOrder()
-	if o != nil {
+	if o := e.GetOrder(); o != nil {
 		amount := decimal.NewFromFloat(o.Amount)
 		fee := decimal.NewFromFloat(o.Fee)
 		price := decimal.NewFromFloat(o.Price)

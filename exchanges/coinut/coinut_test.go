@@ -59,6 +59,7 @@ func TestMain(m *testing.M) {
 }
 
 func setupWSTestAuth(t *testing.T) {
+	t.Helper()
 	if wsSetupRan {
 		return
 	}
@@ -430,8 +431,7 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuthGetAccountBalance dials websocket, retrieves account balance
 func TestWsAuthGetAccountBalance(t *testing.T) {
 	setupWSTestAuth(t)
-	_, err := c.wsGetAccountBalance()
-	if err != nil {
+	if _, err := c.wsGetAccountBalance(); err != nil {
 		t.Error(err)
 	}
 }
@@ -449,8 +449,7 @@ func TestWsAuthSubmitOrder(t *testing.T) {
 		Price:    1,
 		Side:     order.Buy,
 	}
-	_, err := c.wsSubmitOrder(&ord)
-	if err != nil {
+	if _, err := c.wsSubmitOrder(&ord); err != nil {
 		t.Error(err)
 	}
 }

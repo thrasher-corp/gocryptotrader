@@ -951,12 +951,10 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 // disruptFormatting adds in an unused delimiter and strange casing features to
 // ensure format currency pair is used throughout the code base.
 func disruptFormatting(p currency.Pair) (currency.Pair, error) {
-	base := p.Base.String()
-	if base == "" {
+	if p.Base.String() == "" {
 		return currency.Pair{}, errors.New("cannot disrupt formatting as base is not populated")
 	}
-	quote := p.Quote.String()
-	if quote == "" {
+	if p.Quote.String() == "" {
 		return currency.Pair{}, errors.New("cannot disrupt formatting as quote is not populated")
 	}
 

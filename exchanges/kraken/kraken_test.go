@@ -1128,6 +1128,7 @@ func TestWithdrawCancel(t *testing.T) {
 // ---------------------------- Websocket tests -----------------------------------------
 
 func setupWsTests(t *testing.T) {
+	t.Helper()
 	if wsSetupRan {
 		return
 	}
@@ -1205,16 +1206,14 @@ func TestWsAddOrder(t *testing.T) {
 
 func TestWsCancelOrder(t *testing.T) {
 	setupWsTests(t)
-	err := k.wsCancelOrders([]string{"1337"})
-	if err != nil {
+	if err := k.wsCancelOrders([]string{"1337"}); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsCancelAllOrders(t *testing.T) {
 	setupWsTests(t)
-	_, err := k.wsCancelAllOrders()
-	if err != nil {
+	if _, err := k.wsCancelAllOrders(); err != nil {
 		t.Error(err)
 	}
 }
@@ -1994,6 +1993,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 		test := testCases[x]
 
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			ret := k.FormatExchangeKlineInterval(test.interval)
 
 			if ret != test.output {

@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"strconv"
 	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
 // binanceTime provides an internal conversion helper
@@ -27,7 +25,7 @@ func (t binanceTime) Time() time.Time {
 
 // timeString gets the time as Binance timestamp
 func timeString(t time.Time) string {
-	return strconv.FormatInt(convert.UnixMillis(t), 10)
+	return strconv.FormatInt(t.UnixMilli(), 10)
 }
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp
@@ -78,7 +76,7 @@ func (a *NewOrderResponse) UnmarshalJSON(data []byte) error {
 	if aux != nil {
 		a.TransactionTime = aux.TransactionTime.Time()
 	} else {
-		a = nil
+		a = nil // nolint // false positive
 	}
 	return nil
 }

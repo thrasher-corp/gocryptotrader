@@ -546,11 +546,11 @@ func FormatParameters(request interface{}) (parameters string) {
 func (o *OKGroup) GetErrorCode(code interface{}) error {
 	var assertedCode string
 
-	switch reflect.TypeOf(code).String() {
-	case "float64":
-		assertedCode = strconv.FormatFloat(code.(float64), 'f', -1, 64)
-	case "string":
-		assertedCode = code.(string)
+	switch d := code.(type) {
+	case float64:
+		assertedCode = strconv.FormatFloat(d, 'f', -1, 64)
+	case string:
+		assertedCode = d
 	default:
 		return errors.New("unusual type returned")
 	}

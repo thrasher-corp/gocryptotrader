@@ -262,8 +262,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 		return err
 	}
 	prevSnap := complianceManager.GetLatestSnapshot()
-	fo := fillEvent.GetOrder()
-	if fo != nil {
+	if fo := fillEvent.GetOrder(); fo != nil {
 		price := decimal.NewFromFloat(fo.Price)
 		amount := decimal.NewFromFloat(fo.Amount)
 		fee := decimal.NewFromFloat(fo.Fee)

@@ -1364,7 +1364,7 @@ func TestCompatibleOrderVars(t *testing.T) {
 		t.Errorf("received %v expected %v", orderVars.Status, order.Filled)
 	}
 
-	orderVars, err = f.compatibleOrderVars(context.Background(),
+	_, err = f.compatibleOrderVars(context.Background(),
 		"buy",
 		"closed",
 		"limit",
@@ -1375,7 +1375,7 @@ func TestCompatibleOrderVars(t *testing.T) {
 		t.Errorf("received %v expected %v", err, errInvalidOrderAmounts)
 	}
 
-	orderVars, err = f.compatibleOrderVars(context.Background(),
+	_, err = f.compatibleOrderVars(context.Background(),
 		"buy",
 		"fake",
 		"limit",

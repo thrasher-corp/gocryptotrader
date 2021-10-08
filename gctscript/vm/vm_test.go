@@ -279,7 +279,7 @@ func TestVMWithRunnerOnce(t *testing.T) {
 		config:  configHelper(true, true, maxTestVirtualMachines),
 		started: 1,
 	}
-	vmCount := VMSCount.Len()
+	vmCount := VMSCount.Len() // nolint:ifshort // ignore
 	VM := manager.New()
 	if VM == nil {
 		t.Fatal("Failed to allocate new VM exiting")
@@ -533,8 +533,7 @@ func TestVMLimit(t *testing.T) {
 		config:  configHelper(true, false, 0),
 		started: 1,
 	}
-	testVM := manager.New()
-	if testVM != nil {
+	if testVM := manager.New(); testVM != nil {
 		t.Fatal("expected nil but received pointer to VM")
 	}
 }

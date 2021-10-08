@@ -97,6 +97,7 @@ func TestTrades(t *testing.T) {
 }
 
 func tradeSQLTester(t *testing.T) {
+	t.Helper()
 	var trades, trades2 []Data
 	firstTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	for i := 0; i < 20; i++ {

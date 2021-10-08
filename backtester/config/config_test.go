@@ -1208,8 +1208,7 @@ func TestValidate(t *testing.T) {
 			},
 		},
 	}
-	err := c.Validate()
-	if !errors.Is(err, nil) {
+	if err := c.Validate(); !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 }

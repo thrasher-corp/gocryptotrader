@@ -42,8 +42,7 @@ func TestMatch(t *testing.T) {
 		fmt.Println("should not have been able to match")
 	}
 
-	data := <-m.C
-	if data != nil {
+	if data := <-m.C; data != nil {
 		t.Fatal("wow")
 	}
 
