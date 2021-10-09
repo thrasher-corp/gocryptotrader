@@ -172,7 +172,7 @@ func TestFLastTradeData(t *testing.T) {
 
 func TestFRequestPublicBatchTrades(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NW")
+	cp, err := currency.NewPairFromString("BTC_NQ")
 	if err != nil {
 		t.Error(err)
 	}
@@ -212,7 +212,7 @@ func TestFQueryTieredAdjustmentFactor(t *testing.T) {
 func TestFQueryHisOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := h.FQueryHisOpenInterest(context.Background(),
-		"BTC", "next_week", "60min", "cont", 3)
+		"BTC", "next_quarter", "60min", "cont", 3)
 	if err != nil {
 		t.Error(err)
 	}
