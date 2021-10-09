@@ -1403,10 +1403,6 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					continue
 				}
 
-				pair, err := currency.NewPairFromString(resp[i].Symbol)
-				if err != nil {
-					return nil, err
-				}
 				orders = append(orders, order.Detail{
 					Amount:   resp[i].OrigQty,
 					Date:     resp[i].Time,
@@ -1415,7 +1411,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					Side:     orderSide,
 					Type:     orderType,
 					Price:    resp[i].Price,
-					Pair:     pair,
+					Pair:     req.Pairs[x],
 					Status:   order.Status(resp[i].Status),
 				})
 			}
