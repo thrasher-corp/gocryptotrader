@@ -344,13 +344,13 @@ type Position struct {
 	EntryPrice             float64                `json:"entry_price,string"`
 	IsIsolated             bool                   `json:"is_isolated"`
 	AutoAddMargin          int64                  `json:"auto_add_margin"`
-	Leverage               int64                  `json:"leverage"`
-	EffectiveLeverage      int64                  `json:"effective_leverage"`
+	Leverage               float64                `json:"leverage,string"`
+	EffectiveLeverage      float64                `json:"effective_leverage,string"`
 	PositionMargin         float64                `json:"position_margin,string"`
-	LiquidationPrice       int64                  `json:"liq_price"`
-	BankruptcyPrice        int64                  `json:"bust_price"`
+	LiquidationPrice       float64                `json:"liq_price,string"`
+	BankruptcyPrice        float64                `json:"bust_price,string"`
 	OccupiedClosingFee     float64                `json:"occ_closing_fee,string"`
-	OccupiedFundingFee     float64                `json:"occ_funding_fee"`
+	OccupiedFundingFee     float64                `json:"occ_funding_fee,string"`
 	TakeProfit             float64                `json:"take_profit,string"`
 	StopLoss               float64                `json:"stop_loss,string"`
 	TrailingStop           float64                `json:"trailing_stop,string"`
@@ -429,7 +429,7 @@ type APIKeyData struct {
 	Type       string   `json:"type"`
 	UserID     int64    `json:"user_id"`
 	InviterID  int64    `json:"inviter_id"`
-	IPs        string   `json:"ips"`
+	IPs        []string `json:"ips"`
 	Note       string   `json:"note"`
 	Permission []string `json:"permissions"`
 	CreatedAt  string   `json:"created_at"`

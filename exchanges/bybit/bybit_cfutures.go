@@ -489,15 +489,17 @@ func (by *Bybit) GetActiveFuturesOrders(symbol currency.Pair, orderStatus, direc
 
 // CancelActiveFuturesOrders cancels futures unfilled or partially filled orders
 func (by *Bybit) CancelActiveFuturesOrders(symbol currency.Pair, orderID, orderLinkID string) (FuturesOrderData, error) {
-	var resp FuturesOrderData
+	resp := struct {
+		Data FuturesOrderData `json:"result"`
+	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
-		return resp, err
+		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
 	if orderID == "" && orderLinkID == "" {
-		return resp, errors.New("one among orderID or orderLinkID should be present")
+		return resp.Data, errors.New("one among orderID or orderLinkID should be present")
 	}
 	if orderID != "" {
 		params.Set("order_id", orderID)
@@ -505,24 +507,26 @@ func (by *Bybit) CancelActiveFuturesOrders(symbol currency.Pair, orderID, orderL
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
-	return resp, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelActiveOrder, params, &resp, bybitAuthRate)
+	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelActiveOrder, params, &resp, bybitAuthRate)
 }
 
 // CancelAllActiveFuturesOrders cancels all futures unfilled or partially filled orders
-func (by *Bybit) CancelAllActiveFuturesOrders(symbol currency.Pair) (FuturesOrderData, error) {
-	var resp FuturesOrderData
+func (by *Bybit) CancelAllActiveFuturesOrders(symbol currency.Pair) ([]FuturesOrderData, error) {
+	resp := struct {
+		Data []FuturesOrderData `json:"result"`
+	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
-		return resp, err
+		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	return resp, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelAllActiveOrders, params, &resp, bybitAuthRate)
+	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelAllActiveOrders, params, &resp, bybitAuthRate)
 }
 
 // ReplaceActiveFuturesOrders modify unfilled or partially filled orders
 func (by *Bybit) ReplaceActiveFuturesOrders(symbol currency.Pair, orderID, orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
-	updatedQty, updatedPrice, takeProfitPrice, stopLossPrice float64) (string, error) {
+	updatedQty int64, updatedPrice, takeProfitPrice, stopLossPrice float64) (string, error) {
 	resp := struct {
 		Data struct {
 			OrderID string `json:"order_id"`
@@ -545,7 +549,7 @@ func (by *Bybit) ReplaceActiveFuturesOrders(symbol currency.Pair, orderID, order
 		params.Set("order_link_id", orderLinkID)
 	}
 	if updatedQty != 0 {
-		params.Set("p_r_qty", strconv.FormatFloat(updatedQty, 'f', -1, 64))
+		params.Set("p_r_qty", strconv.FormatInt(updatedQty, 10))
 	}
 	if updatedPrice != 0 {
 		params.Set("p_r_price", strconv.FormatFloat(updatedPrice, 'f', -1, 64))
@@ -574,9 +578,6 @@ func (by *Bybit) GetActiveRealtimeOrders(symbol currency.Pair, orderID, orderLin
 		return data, err
 	}
 	params.Set("symbol", symbolValue)
-	if orderID == "" && orderLinkID == "" {
-		return data, errors.New("one among orderID or orderLinkID should be present")
-	}
 	if orderID != "" {
 		params.Set("order_id", orderID)
 	}
@@ -588,7 +589,7 @@ func (by *Bybit) GetActiveRealtimeOrders(symbol currency.Pair, orderID, orderLin
 		resp := struct {
 			Data []FuturesActiveRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesGetActiveRealtimeOrders, params, &resp, bybitAuthRate)
+		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveRealtimeOrders, params, &resp, bybitAuthRate)
 		if err != nil {
 			return data, err
 		}
@@ -599,7 +600,7 @@ func (by *Bybit) GetActiveRealtimeOrders(symbol currency.Pair, orderID, orderLin
 		resp := struct {
 			Data FuturesActiveRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesGetActiveRealtimeOrders, params, &resp, bybitAuthRate)
+		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveRealtimeOrders, params, &resp, bybitAuthRate)
 		if err != nil {
 			return data, err
 		}
@@ -795,9 +796,6 @@ func (by *Bybit) GetConditionalRealtimeOrders(symbol currency.Pair, stopOrderID,
 		return data, err
 	}
 	params.Set("symbol", symbolValue)
-	if stopOrderID == "" && orderLinkID == "" {
-		return data, errors.New("one among stopOrderID or orderLinkID should be present")
-	}
 	if stopOrderID != "" {
 		params.Set("stop_order_id", stopOrderID)
 	}

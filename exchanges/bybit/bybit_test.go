@@ -22,7 +22,6 @@ var by Bybit
 
 func TestMain(m *testing.M) {
 	by.SetDefaults()
-	by.Verbose = true
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -43,6 +42,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	by.Verbose = true
 
 	os.Exit(m.Run())
 }
@@ -536,7 +536,7 @@ func TestCreateFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CreateFuturesOrder(pair, "Buy", "Limit", "GTC", "", "", "", 1, 0, 0, 0, false, false)
+	_, err = by.CreateFuturesOrder(pair, "Buy", "Limit", "GTC", "", "", "", 1, 1, 0, 0, false, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -565,7 +565,7 @@ func TestCancelActiveFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelActiveFuturesOrders(pair, "", "")
+	_, err = by.CancelActiveFuturesOrders(pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -589,7 +589,7 @@ func TestReplaceActiveFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.ReplaceActiveFuturesOrders(pair, "", "", "", "", 0.6, 2, 0, 0)
+	_, err = by.ReplaceActiveFuturesOrders(pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "", "", "", 1, 2, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -613,7 +613,7 @@ func TestCreateConditionalFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CreateConditionalFuturesOrder(pair, "Buy", "Limit", "GTC", "", "", "", "", 1, 0, 0, 0, 0, 0, false)
+	_, err = by.CreateConditionalFuturesOrder(pair, "Buy", "Limit", "GTC", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -637,7 +637,7 @@ func TestCancelConditionalFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelConditionalFuturesOrders(pair, "", "")
+	_, err = by.CancelConditionalFuturesOrders(pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -661,7 +661,7 @@ func TestReplaceConditionalFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.ReplaceConditionalFuturesOrders(pair, "", "", "", "", 0.6, 2, 0, 0, 0)
+	_, err = by.ReplaceConditionalFuturesOrders(pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "", "", "", 0, 0, 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -697,7 +697,7 @@ func TestSetMargin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.SetMargin(pair, "1")
+	_, err = by.SetMargin(pair, "10")
 	if err != nil {
 		t.Error(err)
 	}
@@ -757,7 +757,7 @@ func TestChangeMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.ChangeMode(pair, "")
+	_, err = by.ChangeMode(pair, "Partial")
 	if err != nil {
 		t.Error(err)
 	}
@@ -769,7 +769,7 @@ func TestChangeMargin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = by.ChangeMargin(pair, 0, 0, true)
+	err = by.ChangeMargin(pair, 1, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -781,7 +781,7 @@ func TestSetRiskLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.SetRiskLimit(pair, 1)
+	_, err = by.SetRiskLimit(pair, 2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -838,14 +838,14 @@ func TestGetFutureWalletBalance(t *testing.T) {
 }
 
 func TestGetWalletFundRecords(t *testing.T) {
-	_, err := by.GetWalletFundRecords("2021-09-11", "2021-09-11", "ETH", "", "", 0, 0)
+	_, err := by.GetWalletFundRecords("2021-09-11", "2021-10-09", "ETH", "", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetWalletWithdrawalRecords(t *testing.T) {
-	_, err := by.GetWalletWithdrawalRecords("2021-09-11", "2021-09-11", "ETH", "", 0, 0)
+	_, err := by.GetWalletWithdrawalRecords("2021-09-11", "2021-10-09", "ETH", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
