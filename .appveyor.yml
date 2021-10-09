@@ -49,11 +49,11 @@ before_test:
   - cd c:\gopath\src\github.com\thrasher-corp\gocryptotrader
   - go env
   - go version
-  - go get
+  - go install
 
 test_script:
   # test back-end
-  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.1
+  - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.1
   - '%GOPATH%\bin\golangci-lint.exe run --verbose'
   - ps: >-
       if($env:APPVEYOR_SCHEDULED_BUILD -eq 'true') {

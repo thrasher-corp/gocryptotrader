@@ -14,11 +14,11 @@ CONFIG_FLAG = $(if $(CONFIG),-config $(CONFIG),)
 all: check build
 
 get:
-	GO111MODULE=on go get $(GCTPKG)
+	go install $(GCTPKG)
 
 linter:
-	GO111MODULE=on go get $(GCTPKG)
-	GO111MODULE=on go get $(LINTPKG)
+	go install $(GCTPKG)
+	go install $(LINTPKG)
 	test -z "$$($(LINTBIN) run --verbose | tee /dev/stderr)"
 
 check: linter test
@@ -31,19 +31,19 @@ else
 endif
 
 build:
-	GO111MODULE=on go build $(LDFLAGS)
+	go build $(LDFLAGS)
 
 install:
-	GO111MODULE=on go install $(LDFLAGS)
+	go install $(LDFLAGS)
 
 fmt:
 	gofmt -l -w -s $(shell find . -type f -name '*.go')
 
 update_deps:
-	GO111MODULE=on go mod verify
-	GO111MODULE=on go mod tidy
+	go mod verify
+	go mod tidy
 	rm -rf vendor
-	GO111MODULE=on go mod vendor
+	go mod vendor
 
 .PHONY: profile_heap
 profile_heap:

@@ -30,17 +30,17 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 [SQLBoiler](https://github.com/thrasher-corp/sqlboiler)
 ```shell script
-go get -u github.com/thrasher-corp/sqlboiler
+go install github.com/thrasher-corp/sqlboiler
 ```
 
 [Postgres Driver](https://github.com/thrasher-corp/sqlboiler/drivers/sqlboiler-psql)
 ```shell script
-go get -u github.com/thrasher-corp/sqlboiler/drivers/sqlboiler-psql
+go install github.com/thrasher-corp/sqlboiler/drivers/sqlboiler-psql
 ```
 
 [SQLite Driver](https://github.com/thrasher-corp/sqlboiler-sqlite3)
 ```shell script
-go get -u github.com/thrasher-corp/sqlboiler-sqlite3
+go install github.com/thrasher-corp/sqlboiler-sqlite3
 ```
 
 ##### Configuration
