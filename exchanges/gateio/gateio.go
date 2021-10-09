@@ -52,9 +52,6 @@ func (g *Gateio) GetSymbols(ctx context.Context) ([]string, error) {
 	var result []string
 	urlPath := fmt.Sprintf("/%s/%s", gateioAPIVersion, gateioSymbol)
 	err := g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &result)
-	if err != nil {
-		return nil, nil
-	}
 	return result, err
 }
 

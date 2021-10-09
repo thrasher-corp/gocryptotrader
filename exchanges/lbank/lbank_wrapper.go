@@ -498,7 +498,7 @@ func (l *Lbank) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Can
 	var resp order.CancelAllResponse
 	orderIDs, err := l.getAllOpenOrderID(ctx)
 	if err != nil {
-		return resp, nil
+		return resp, err
 	}
 
 	for key := range orderIDs {

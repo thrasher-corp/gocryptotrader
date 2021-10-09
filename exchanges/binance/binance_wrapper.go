@@ -371,7 +371,7 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 	case asset.CoinMarginedFutures:
 		cInfo, err := b.FuturesExchangeInfo(ctx)
 		if err != nil {
-			return pairs, nil
+			return pairs, err
 		}
 		for z := range cInfo.Symbols {
 			if cInfo.Symbols[z].ContractStatus == "TRADING" {
@@ -385,7 +385,7 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 	case asset.USDTMarginedFutures:
 		uInfo, err := b.UExchangeInfo(ctx)
 		if err != nil {
-			return pairs, nil
+			return pairs, err
 		}
 		for u := range uInfo.Symbols {
 			if uInfo.Symbols[u].Status == "TRADING" {

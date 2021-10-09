@@ -50,7 +50,7 @@ linters:
 #   - goerr113
     - gofmt
 #   - gofumpt
-    - goheader
+#   - goheader
     - goimports
 #   - golint // deprecated since 1.41.0, replaced by revive
 #   - gomnd
@@ -60,25 +60,25 @@ linters:
     - gosec
     - ifshort
 #   - importas
-#   - interfacer
+#   - interfacer // deprecated by its owner
 #   - lll 
     - makezero
 #   - maligned
     - misspell
     - nakedret
 #   - nestif
-#   - nilerr
+    - nilerr
 #   - nlreturn
     - noctx
     - nolintlint
 #   - paralleltest
 #   - prealloc
     - predeclared
-    - promlinter
+#   - promlinter
     - revive
     - rowserrcheck
 #   - scopelint // deprecated since v1.39.0, replaced by exportloopref
-    - sqlclosecheck
+#   - sqlclosecheck
     - stylecheck
 #   - tagliatelle
 #   - testpackage

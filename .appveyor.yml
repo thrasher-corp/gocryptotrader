@@ -1,5 +1,7 @@
 build: off
 
+image: Visual Studio 2019
+
 clone_folder: c:\gopath\src\github.com\thrasher-corp\gocryptotrader
 
 cache:
@@ -26,7 +28,7 @@ environment:
   PSQL_SSLMODE: disable
   PSQL_SKIPSQLCMD: true
   PSQL_TESTDBNAME: gct_dev_ci
-stack: go 1.17
+stack: go 1.17.x
 
 services:
   - postgresql96

@@ -588,7 +588,7 @@ func (b *BTSE) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 
 	allOrders, err := b.CancelExistingOrder(ctx, "", fPair.String(), "")
 	if err != nil {
-		return resp, nil
+		return resp, err
 	}
 
 	resp.Status = make(map[string]string)
