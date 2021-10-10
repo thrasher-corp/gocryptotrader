@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/arbitrage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/rsi"
@@ -38,5 +39,6 @@ func GetStrategies() []Handler {
 		new(dollarcostaverage.Strategy),
 		new(rsi.Strategy),
 		new(top2bottom2.Strategy),
+		new(arbitrage.Strategy),
 	}
 }
