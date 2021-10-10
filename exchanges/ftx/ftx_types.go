@@ -329,6 +329,7 @@ type TriggerData struct {
 // FillsData stores fills' data
 type FillsData struct {
 	Fee           float64   `json:"fee"`
+	FeeCurrency   string    `json:"feeCurrency"`
 	FeeRate       float64   `json:"feeRate"`
 	Future        string    `json:"future"`
 	ID            int64     `json:"id"`
