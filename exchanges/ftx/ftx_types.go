@@ -141,6 +141,8 @@ type FuturesData struct {
 	Mark                float64     `json:"mark"`
 	MoveStart           interface{} `json:"moveStart"`
 	Name                string      `json:"name"`
+	OpenInterest        float64     `json:"openInterest"`
+	OpenInterestUSD     float64     `json:"openInterestUsd"`
 	Perpetual           bool        `json:"perpetual"`
 	PositionLimitWeight float64     `json:"positionLimitWeight"`
 	PostOnly            bool        `json:"postOnly"`
