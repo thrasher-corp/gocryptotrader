@@ -196,6 +196,7 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		Features:                         &f.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
 		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		OrderbookPublishPeriod:           exch.OrderbookConfig.PublishPeriod,
 	})
 	if err != nil {
 		return err
