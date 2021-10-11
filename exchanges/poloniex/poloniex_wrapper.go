@@ -732,29 +732,29 @@ func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 	}
 
 	// Handle coins like BTC or multichain coins
-	targetAddr := cryptocurrency.String()
+	targetCurrency := cryptocurrency.String()
 	if chain != "" && !strings.EqualFold(chain, cryptocurrency.String()) {
-		targetAddr = chain
+		targetCurrency = chain
 	}
 
-	address, ok = depositAddrs.Addresses[strings.ToUpper(targetAddr)]
+	address, ok = depositAddrs.Addresses[strings.ToUpper(targetCurrency)]
 	if !ok {
-		if len(coinParams.ChildChains) > 1 && chain != "" && !common.StringDataCompare(coinParams.ChildChains, targetAddr) {
+		if len(coinParams.ChildChains) > 1 && chain != "" && !common.StringDataCompare(coinParams.ChildChains, targetCurrency) {
 			// rather than assume, return an error
 			return nil, fmt.Errorf("currency %s has %v chains available, one of these must be specified",
 				cryptocurrency,
 				coinParams.ChildChains)
 		}
 
-		coinParams, ok = currencies[strings.ToUpper(targetAddr)]
+		coinParams, ok = currencies[strings.ToUpper(targetCurrency)]
 		if !ok {
 			return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
 		}
 		if coinParams.WithdrawalDepositDisabled == 1 {
-			return nil, fmt.Errorf("deposits and withdrawals for %v are currently disabled", targetAddr)
+			return nil, fmt.Errorf("deposits and withdrawals for %v are currently disabled", targetCurrency)
 		}
 
-		newAddr, err := p.GenerateNewAddress(ctx, targetAddr)
+		newAddr, err := p.GenerateNewAddress(ctx, targetCurrency)
 		if err != nil {
 			return nil, err
 		}

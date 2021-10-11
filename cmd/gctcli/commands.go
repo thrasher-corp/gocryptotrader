@@ -2616,7 +2616,7 @@ var getCryptocurrencyDepositAddressCommand = &cli.Command{
 
 func getCryptocurrencyDepositAddress(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getcryptocurrencydepositaddresses")
+		return cli.ShowCommandHelp(c, "getcryptocurrencydepositaddress")
 	}
 
 	var exchangeName string

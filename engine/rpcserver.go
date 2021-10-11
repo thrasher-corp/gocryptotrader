@@ -1534,9 +1534,13 @@ func (s *RPCServer) RemoveEvent(ctx context.Context, r *gctrpc.RemoveEventReques
 // GetCryptocurrencyDepositAddresses returns a list of cryptocurrency deposit
 // addresses specified by an exchange
 func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gctrpc.GetCryptocurrencyDepositAddressesRequest) (*gctrpc.GetCryptocurrencyDepositAddressesResponse, error) {
-	_, err := s.GetExchangeByName(r.Exchange)
+	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
+	}
+
+	if !exch.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+		return nil, exchange.ErrAuthenticatedRequestWithoutCredentialsSet
 	}
 
 	result, err := s.GetCryptocurrencyDepositAddressesByExchange(r.Exchange)
@@ -1563,9 +1567,13 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gc
 // GetCryptocurrencyDepositAddress returns a cryptocurrency deposit address
 // specified by exchange and cryptocurrency
 func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctrpc.GetCryptocurrencyDepositAddressRequest) (*gctrpc.GetCryptocurrencyDepositAddressResponse, error) {
-	_, err := s.GetExchangeByName(r.Exchange)
+	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
+	}
+
+	if !exch.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+		return nil, exchange.ErrAuthenticatedRequestWithoutCredentialsSet
 	}
 
 	addr, err := s.GetExchangeCryptocurrencyDepositAddress(ctx,
@@ -1601,6 +1609,10 @@ func (s *RPCServer) GetAvailableTransferChains(ctx context.Context, r *gctrpc.Ge
 	resp, err := exch.GetAvailableTransferChains(ctx, curr)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(resp) == 0 {
+		return nil, errors.New("no available transfer chains found")
 	}
 
 	return &gctrpc.GetAvailableTransferChainsResponse{

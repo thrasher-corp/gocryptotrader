@@ -90,14 +90,14 @@ func TestGetCurrenciesIncludingChains(t *testing.T) {
 		t.Error(err)
 	}
 	if len(r) == 1 {
-		t.Error("should of got more results")
+		t.Error("expected 1 result")
 	}
 	r, err = h.GetCurrenciesIncludingChains(context.Background(), currency.USDT)
 	if err != nil {
 		t.Error(err)
 	}
 	if len(r) < 1 {
-		t.Error("should of got more results")
+		t.Error("expected >= 1 results")
 	}
 }
 
