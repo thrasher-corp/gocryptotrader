@@ -553,9 +553,10 @@ type OptionFillsData struct {
 
 // AuthenticationData stores authentication variables required
 type AuthenticationData struct {
-	Key  string `json:"key"`
-	Sign string `json:"sign"`
-	Time int64  `json:"time"`
+	Key        string `json:"key"`
+	Sign       string `json:"sign"`
+	Time       int64  `json:"time"`
+	SubAccount string `json:"subaccount,omitempty"`
 }
 
 // Authenticate stores authentication variables required
