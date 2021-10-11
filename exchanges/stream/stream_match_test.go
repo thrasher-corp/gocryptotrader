@@ -43,7 +43,7 @@ func TestMatch(t *testing.T) {
 	}
 
 	if data := <-m.C; data != nil {
-		t.Fatal("wow")
+		t.Fatal("data chan should be nil")
 	}
 
 	m.Cleanup()

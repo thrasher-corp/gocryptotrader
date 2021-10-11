@@ -72,11 +72,8 @@ func (a *NewOrderResponse) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	// there can be an empty response, then `a` is set to nil
 	if aux != nil {
 		a.TransactionTime = aux.TransactionTime.Time()
-	} else {
-		a = nil // nolint // false positive
 	}
 	return nil
 }

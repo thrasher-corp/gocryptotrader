@@ -120,7 +120,6 @@ type KlinesRequestParams struct {
 
 // KLineResponseData Kline Data
 type KLineResponseData struct {
-	ID        float64   `json:"id"` // K线ID
 	KlineTime time.Time `json:"klineTime"`
 	Open      float64   `json:"open"`  // 开盘价
 	Close     float64   `json:"close"` // 收盘价, 当K线为最晚的一根时, 时最新成交价
