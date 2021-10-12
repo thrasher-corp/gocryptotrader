@@ -756,6 +756,14 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		if err != nil {
 			return submitOrderResponse, err
 		}
+
+		// check the status, anything that is not placed we error out
+		if order.SendStatus.Status != "placed" {
+			return submitOrderResponse,
+				fmt.Errorf("submit order failed: %s",
+					order.SendStatus.Status)
+		}
+
 		submitOrderResponse.OrderID = order.SendStatus.OrderID
 		submitOrderResponse.IsOrderPlaced = true
 	default:
