@@ -528,7 +528,7 @@ type FuturesRecentOrdersData struct {
 
 // BatchOrderData stores batch order data
 type BatchOrderData struct {
-	Result      bool   `json:"result"`
+	Result      string `json:"result"`
 	ServerTime  string `json:"serverTime"`
 	BatchStatus []struct {
 		Status           string `json:"status"`
