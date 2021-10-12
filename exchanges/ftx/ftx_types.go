@@ -120,35 +120,38 @@ type OHLCVData struct {
 
 // FuturesData stores data for futures
 type FuturesData struct {
-	Ask                 float64     `json:"ask"`
-	Bid                 float64     `json:"bid"`
-	Change1h            float64     `json:"change1h"`
-	Change24h           float64     `json:"change24h"`
-	ChangeBod           float64     `json:"changeBod"`
-	VolumeUSD24h        float64     `json:"volumeUsd24h"`
-	Volume              float64     `json:"volume"`
-	Description         string      `json:"description"`
-	Enabled             bool        `json:"enabled"`
-	Expired             bool        `json:"expired"`
-	Expiry              time.Time   `json:"expiry"`
-	ExpiryDescription   string      `json:"expiryDescription"`
-	Group               string      `json:"group"`
-	Index               float64     `json:"index"`
-	IMFFactor           float64     `json:"imfFactor"`
-	Last                float64     `json:"last"`
-	LowerBound          float64     `json:"lowerBound"`
-	MarginPrice         float64     `json:"marginPrice"`
-	Mark                float64     `json:"mark"`
-	MoveStart           interface{} `json:"moveStart"`
-	Name                string      `json:"name"`
-	Perpetual           bool        `json:"perpetual"`
-	PositionLimitWeight float64     `json:"positionLimitWeight"`
-	PostOnly            bool        `json:"postOnly"`
-	PriceIncrement      float64     `json:"priceIncrement"`
-	SizeIncrement       float64     `json:"sizeIncrement"`
-	Underlying          string      `json:"underlying"`
-	UpperBound          float64     `json:"upperBound"`
-	FutureType          string      `json:"type"`
+	Ask                   float64     `json:"ask"`
+	Bid                   float64     `json:"bid"`
+	Change1h              float64     `json:"change1h"`
+	Change24h             float64     `json:"change24h"`
+	ChangeBod             float64     `json:"changeBod"`
+	VolumeUSD24h          float64     `json:"volumeUsd24h"`
+	Volume                float64     `json:"volume"`
+	Description           string      `json:"description"`
+	Enabled               bool        `json:"enabled"`
+	Expired               bool        `json:"expired"`
+	Expiry                time.Time   `json:"expiry"`
+	ExpiryDescription     string      `json:"expiryDescription"`
+	Group                 string      `json:"group"`
+	Index                 float64     `json:"index"`
+	IMFFactor             float64     `json:"imfFactor"`
+	Last                  float64     `json:"last"`
+	LowerBound            float64     `json:"lowerBound"`
+	MarginPrice           float64     `json:"marginPrice"`
+	Mark                  float64     `json:"mark"`
+	MoveStart             interface{} `json:"moveStart"`
+	Name                  string      `json:"name"`
+	OpenInterest          float64     `json:"openInterest"`
+	OpenInterestUSD       float64     `json:"openInterestUsd"`
+	Perpetual             bool        `json:"perpetual"`
+	PositionLimitWeight   float64     `json:"positionLimitWeight"`
+	PostOnly              bool        `json:"postOnly"`
+	PriceIncrement        float64     `json:"priceIncrement"`
+	SizeIncrement         float64     `json:"sizeIncrement"`
+	Underlying            string      `json:"underlying"`
+	UnderlyingDescription string      `json:"underlyingDescription"`
+	UpperBound            float64     `json:"upperBound"`
+	FutureType            string      `json:"type"`
 }
 
 // FutureStatsData stores data on futures stats
@@ -327,6 +330,7 @@ type TriggerData struct {
 // FillsData stores fills' data
 type FillsData struct {
 	Fee           float64   `json:"fee"`
+	FeeCurrency   string    `json:"feeCurrency"`
 	FeeRate       float64   `json:"feeRate"`
 	Future        string    `json:"future"`
 	ID            int64     `json:"id"`
