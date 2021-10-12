@@ -316,7 +316,7 @@ type FuturesEditedOrderData struct {
 // FuturesSendOrderData stores send order data
 type FuturesSendOrderData struct {
 	SendStatus struct {
-		OrderID      string `json:"orderId"`
+		OrderID      string `json:"order_id"`
 		Status       string `json:"status"`
 		ReceivedTime string `json:"receivedTime"`
 		OrderEvents  []struct {
