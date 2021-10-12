@@ -2,6 +2,7 @@ package coinbasepro
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -210,93 +211,6 @@ func TestAuthRequests(t *testing.T) {
 	if err != nil {
 		t.Error("GetCoinbaseAccounts() error", err)
 	}
-}
-
-func TestCalculateTradingFee(t *testing.T) {
-	// t.Parallel()
-	// // uppercase
-	// var volume = []Volume{
-	// 	{
-	// 		ProductID: "BTC_USD",
-	// 		Volume:    100,
-	// 	},
-	// }
-
-	// if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.003) {
-	// 	t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
-	// }
-
-	// // lowercase
-	// volume = []Volume{
-	// 	{
-	// 		ProductID: "btc_usd",
-	// 		Volume:    100,
-	// 	},
-	// }
-
-	// if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.003) {
-	// 	t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
-	// }
-
-	// // mixedCase
-	// volume = []Volume{
-	// 	{
-	// 		ProductID: "btc_USD",
-	// 		Volume:    100,
-	// 	},
-	// }
-
-	// if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.003) {
-	// 	t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
-	// }
-
-	// // medium volume
-	// volume = []Volume{
-	// 	{
-	// 		ProductID: "btc_USD",
-	// 		Volume:    10000001,
-	// 	},
-	// }
-
-	// if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.002) {
-	// 	t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
-	// }
-
-	// // high volume
-	// volume = []Volume{
-	// 	{
-	// 		ProductID: "btc_USD",
-	// 		Volume:    100000010000,
-	// 	},
-	// }
-
-	// if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.001) {
-	// 	t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
-	// }
-
-	// // no match
-	// volume = []Volume{
-	// 	{
-	// 		ProductID: "btc_beeteesee",
-	// 		Volume:    100000010000,
-	// 	},
-	// }
-
-	// if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0) {
-	// 	t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
-	// }
-
-	// // taker
-	// volume = []Volume{
-	// 	{
-	// 		ProductID: "btc_USD",
-	// 		Volume:    100000010000,
-	// 	},
-	// }
-
-	// if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, true); resp != float64(0) {
-	// 	t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
-	// }
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
@@ -861,67 +775,6 @@ func TestParseTime(t *testing.T) {
 	}
 }
 
-// func TestCheckInterval(t *testing.T) {
-// 	interval := time.Minute
-// 	i, err := checkInterval(interval)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if i != 60 {
-// 		t.Fatal("incorrect return")
-// 	}
-// 	interval = time.Minute * 5
-// 	i, err = checkInterval(interval)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if i != 300 {
-// 		t.Fatal("incorrect return")
-// 	}
-
-// 	interval = time.Minute * 15
-// 	i, err = checkInterval(interval)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if i != 900 {
-// 		t.Fatal("incorrect return")
-// 	}
-
-// 	interval = time.Hour
-// 	i, err = checkInterval(interval)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if i != 3600 {
-// 		t.Fatal("incorrect return")
-// 	}
-
-// 	interval = time.Hour * 6
-// 	i, err = checkInterval(interval)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if i != 21600 {
-// 		t.Fatal("incorrect return")
-// 	}
-
-// 	interval = time.Hour * 24
-// 	i, err = checkInterval(interval)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if i != 86400 {
-// 		t.Fatal("incorrect return")
-// 	}
-
-// 	interval = time.Hour * 1337
-// 	_, err = checkInterval(interval)
-// 	if err == nil {
-// 		t.Fatal("error cannot be nil")
-// 	}
-// }
-
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetRecentTrades(context.Background(), testPair, asset.Spot)
@@ -936,5 +789,19 @@ func TestGetHistoricTrades(t *testing.T) {
 		testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
+	}
+}
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	c.Verbose = true
+	err := c.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
+	}
+
+	err = c.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }

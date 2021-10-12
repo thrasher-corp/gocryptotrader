@@ -162,9 +162,9 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 
 	err = c.Fees.LoadStatic(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.0025, Taker: 0.0025},
+			asset.Spot: {Maker: 0.005, Taker: 0.005},
 		},
-		Transfer: transfer, // TODO: validate
+		BankingTransfer: bankTransfers,
 	})
 	if err != nil {
 		return err
@@ -841,25 +841,6 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 	return orders, nil
 }
 
-// // checkInterval checks allowable interval
-// func checkInterval(i time.Duration) (int64, error) { // TODO: Check why?
-// 	switch i.Seconds() {
-// 	case 60:
-// 		return 60, nil
-// 	case 300:
-// 		return 300, nil
-// 	case 900:
-// 		return 900, nil
-// 	case 3600:
-// 		return 3600, nil
-// 	case 21600:
-// 		return 21600, nil
-// 	case 86400:
-// 		return 86400, nil
-// 	}
-// 	return 0, fmt.Errorf("interval not allowed %v", i.Seconds())
-// }
-
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
 func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
@@ -985,39 +966,6 @@ func (c *CoinbasePro) UpdateCommissionFees(ctx context.Context, a asset.Item) er
 		return common.ErrNotYetImplemented
 	}
 
-	// TODO: Add custom volume tracking to derive fee levels
-	// trailingVolume, err := c.GetTrailingVolume()
-	// 	if err != nil {
-	// 		return 0, err
-	// 	}
-	// 	f = c.calculateTradingFee(trailingVolume,
-	// 		feeBuilder.Pair.Base,
-	// 		feeBuilder.Pair.Quote,
-	// 		feeBuilder.Pair.Delimiter,
-	// 		feeBuilder.PurchasePrice,
-	// 		feeBuilder.Amount,
-	// 		feeBuilder.IsMaker)
-
+	// TODO: To get commission fees OAuth2 needs to be implemented.
 	return nil
 }
-
-// REFERENCE:
-// func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, base, quote currency.Code, delimiter string, purchasePrice, amount float64, isMaker bool) float64 {
-// 	var f float64
-// 	for _, i := range trailingVolume {
-// 		if strings.EqualFold(i.ProductID, base.String()+delimiter+quote.String()) {
-// 			switch {
-// 			case isMaker:
-// 				f = 0
-// 			case i.Volume <= 10000000:
-// 				f = 0.003
-// 			case i.Volume > 10000000 && i.Volume <= 100000000:
-// 				f = 0.002
-// 			case i.Volume > 100000000:
-// 				f = 0.001
-// 			}
-// 			break
-// 		}
-// 	}
-// 	return f * amount * purchasePrice
-// }

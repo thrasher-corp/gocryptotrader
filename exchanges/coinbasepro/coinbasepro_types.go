@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -480,33 +479,21 @@ type wsStatus struct {
 	Type string `json:"type"`
 }
 
-var transfer = map[asset.Item]map[currency.Code]fee.Transfer{
-	asset.Spot: {
-		currency.USD: {Withdrawal: fee.Convert(25), Deposit: fee.Convert(10)},
-		currency.EUR: {Withdrawal: fee.Convert(0.15), Deposit: fee.Convert(0.15)},
+// bankTransfers defines banking transfers. Subject to change.
+// NOTE: https://help.coinbase.com/en/pro/trading-and-funding/trading-rules-and-fees/fees
+var bankTransfers = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
+	fee.AutomaticClearingHouse: {
+		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
+		currency.EUR: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
+		currency.GBP: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
+	},
+	fee.WireTransfer: {
+		currency.USD: {Deposit: fee.Convert(10), Withdrawal: fee.Convert(25)},
+	},
+	fee.SEPA: {
+		currency.EUR: {Deposit: fee.Convert(.15), Withdrawal: fee.Convert(.15)},
+	},
+	fee.Swift: {
+		currency.GBP: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
 	},
 }
-
-// func getInternationalBankWithdrawalFee(c currency.Code) float64 {
-// 	var f float64
-
-// 	if c == currency.USD {
-// 		f = 25
-// 	} else if c == currency.EUR {
-// 		f = 0.15
-// 	}
-
-// 	return f
-// }
-
-// func getInternationalBankDepositFee(c currency.Code) float64 {
-// 	var f float64
-
-// 	if c == currency.USD {
-// 		f = 10
-// 	} else if c == currency.EUR {
-// 		f = 0.15
-// 	}
-
-// 	return f
-// }
