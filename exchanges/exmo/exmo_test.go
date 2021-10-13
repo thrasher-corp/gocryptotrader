@@ -2,6 +2,7 @@ package exmo
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"testing"
@@ -114,6 +115,7 @@ func TestGetRequiredAmount(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
+	t.Parallel()
 	expectedResult := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.NoFiatWithdrawalsText
 	withdrawPermissions := e.FormatWithdrawPermissions()
 	if withdrawPermissions != expectedResult {
@@ -122,6 +124,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
@@ -136,6 +139,7 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
@@ -159,6 +163,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -185,6 +190,7 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -208,6 +214,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -236,6 +243,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -246,6 +254,7 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -270,6 +279,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -282,6 +292,7 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -295,6 +306,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() {
 		_, err := e.GetDepositAddress(context.Background(), currency.LTC, "")
 		if err != nil {
@@ -346,8 +358,30 @@ func TestUpdateTicker(t *testing.T) {
 }
 
 func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
 	err := e.UpdateTickers(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetPairInfo(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetPairInfo(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	err := e.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
+	}
+
+	err = e.UpdateCommissionFees(context.Background(), asset.Margin)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }

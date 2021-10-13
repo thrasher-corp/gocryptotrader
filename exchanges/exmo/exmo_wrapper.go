@@ -130,11 +130,12 @@ func (e *EXMO) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	// Note: https://exmo.com/en/wallet/commissions
 	return e.Fees.LoadStatic(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.002, Taker: 0.002},
+			asset.Spot: {Maker: 0.003, Taker: 0.003},
 		},
-		Transfer:        withdrawFees,
+		Transfer:        transferFees,
 		BankingTransfer: transferBank,
 	})
 }
@@ -683,4 +684,34 @@ func (e *EXMO) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (e *EXMO) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// UpdateCommissionFees updates current fees associated with account
+func (e *EXMO) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
+	switch a {
+	case asset.Spot:
+		// There does not seem to be an API endpoint for retrieving fee structure.
+		return common.ErrNotYetImplemented
+	case asset.Margin:
+		pairInfo, err := e.GetPairInfo(ctx)
+		if err != nil {
+			return err
+		}
+
+		for x := range pairInfo {
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(pairInfo[x].Name)
+			if err != nil {
+				return err
+			}
+			err = e.Fees.LoadDynamic(pairInfo[x].TradeMakerFee/100,
+				pairInfo[x].TradeTakerFee/100,
+				a,
+				pair)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

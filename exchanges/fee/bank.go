@@ -48,6 +48,8 @@ const (
 	TelegraphicTransfer // Coinut
 	SDDomesticCheque    // Coinut
 	Xfers               // Coinut
+	ExmoGiftCard        // Exmo
+	Terminal            // Exmo
 )
 
 var errUnknownBankTransaction = errors.New("unknown bank transaction type")
@@ -141,6 +143,10 @@ func (b BankTransaction) String() string {
 		return "SDDomesticCheque"
 	case Xfers:
 		return "Xfers"
+	case ExmoGiftCard:
+		return "ExmoGiftCard"
+	case Terminal:
+		return "Terminal"
 	default:
 		return ""
 	}
@@ -189,7 +195,9 @@ func (b BankTransaction) Validate() error {
 		FedWire,
 		TelegraphicTransfer,
 		SDDomesticCheque,
-		Xfers:
+		Xfers,
+		ExmoGiftCard,
+		Terminal:
 		return nil
 	default:
 		return fmt.Errorf("%d: %w", b, errUnknownBankTransaction)
