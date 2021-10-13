@@ -177,9 +177,9 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = c.Fees.LoadStatic(fee.Options{
-		// TODO: Actually have WCS values
 		GlobalCommissions: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.0, Taker: 0.0},
+			asset.Spot:          {Maker: 0.002, Taker: 0.002},
+			asset.PerpetualSwap: {Maker: 0.002, Taker: 0.002},
 		},
 	})
 	if err != nil {
@@ -952,23 +952,28 @@ func (c *Coinbene) GetHistoricCandlesExtended(ctx context.Context, pair currency
 // UpdateCommissionFees updates current fees associated with account
 func (c *Coinbene) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
+		// Perpetual swap, maker and taker endpoints not found.
 		return common.ErrNotYetImplemented
 	}
 
-	// TODO: Implement fetching all pair info fees and load.
-	// fpair, err := c.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
-	// if err != nil {
-	// 	return 0, err
-	// }
+	tradingPairs, err := c.GetPairsAuth(ctx)
+	if err != nil {
+		return err
+	}
 
-	// tempData, err := c.GetPairInfo(fpair.String())
-	// if err != nil {
-	// 	return 0, err
-	// }
-
-	// if feeBuilder.IsMaker {
-	// 	return feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.MakerFeeRate, nil
-	// }
-	// return feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.TakerFeeRate, nil
+	for x := range tradingPairs {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(tradingPairs[x].Symbol)
+		if err != nil {
+			return err
+		}
+		err = c.Fees.LoadDynamic(tradingPairs[x].MakerFeeRate,
+			tradingPairs[x].TakerFeeRate,
+			a,
+			pair)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

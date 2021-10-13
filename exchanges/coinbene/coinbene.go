@@ -1116,6 +1116,29 @@ func (c *Coinbene) GetSwapFundingRates(ctx context.Context, pageNum, pageSize in
 	return r.Data, nil
 }
 
+// GetPairsAuth returns the pairs with an authenticated request.
+func (c *Coinbene) GetPairsAuth(ctx context.Context) ([]PairData, error) {
+	type resp struct {
+		Data []PairData `json:"data"`
+	}
+
+	var r resp
+	path := coinbeneAPIVersion + coinbeneGetAllPairs
+	err := c.SendAuthHTTPRequest(ctx,
+		exchange.RestSpot,
+		http.MethodGet,
+		path,
+		coinbeneGetAllPairs,
+		true,
+		nil,
+		&r,
+		contractGetFundingRates)
+	if err != nil {
+		return nil, err
+	}
+	return r.Data, nil
+}
+
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (c *Coinbene) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
 	endpoint, err := c.API.Endpoints.GetURL(ep)

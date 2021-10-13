@@ -794,7 +794,6 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestUpdateCommissionFees(t *testing.T) {
 	t.Parallel()
-	c.Verbose = true
 	err := c.UpdateCommissionFees(context.Background(), asset.Futures)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
