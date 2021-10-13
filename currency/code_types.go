@@ -1810,4 +1810,5 @@ var (
 	WUSD       = NewCode("WUSD")
 	WXMR       = NewCode("WXMR")
 	XAUT       = NewCode("XAUT")
+	XSGD       = NewCode("XSGD")
 )

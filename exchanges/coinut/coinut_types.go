@@ -710,62 +710,53 @@ type wsOrderContainer struct {
 	} `json:"commission"`
 }
 
-var transfer = map[asset.Item]map[currency.Code]fee.Transfer{
-	asset.Spot: { // TODO: Recheck these values and add in custom support as below
-		currency.USD: {
-			Withdrawal:   fee.Convert(0.001),
-			Deposit:      fee.Convert(0.001),
-			IsPercentage: true},
-		currency.CAD: {
-			Withdrawal:   fee.Convert(0.005),
-			Deposit:      fee.Convert(0.005),
-			IsPercentage: true},
-		currency.SGD: {Withdrawal: fee.Convert(0.001), IsPercentage: true},
+// transferFees defines crypto currency withdrawal and deposit fees. Subject
+// to change.
+// NOTE: https://coinut.zendesk.com/hc/en-us/articles/360001471394-What-is-the-minimum-amount-to-deposit-withdraw-
+var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
+	asset.Spot: {
+		currency.BTC: {
+			Withdrawal: fee.ConvertWithMinimumAmount(0.0015, 0.0004),
+			Deposit:    fee.Convert(0),
+		},
+		currency.LTC: {
+			Withdrawal: fee.ConvertWithMinimumAmount(0.01, 0.001),
+			Deposit:    fee.Convert(0),
+		},
+		currency.ETH: {
+			Withdrawal: fee.ConvertWithMinimumAmount(0.05, 0.003),
+			Deposit:    fee.Convert(0),
+		},
+		currency.XMR: {
+			Withdrawal: fee.ConvertWithMinimumAmount(0.1, 0.04),
+			Deposit:    fee.Convert(0),
+		},
+		currency.USDT: { // ERC20 TODO: Add in OMNI chain support
+			Withdrawal: fee.ConvertWithMinimumAmount(20, 10),
+			Deposit:    fee.Convert(0),
+		},
+		currency.DAI: {
+			Withdrawal: fee.ConvertWithMinimumAmount(20, 10),
+			Deposit:    fee.Convert(0),
+		},
+		currency.XSGD: {
+			Withdrawal: fee.ConvertWithMinimumAmount(20, 10),
+			Deposit:    fee.Convert(0),
+		},
 	},
 }
 
-// func getInternationalBankDepositFee(c currency.Code, amount float64) float64 {
-// 	var f float64
-
-// 	if c == currency.USD {
-// 		if amount*0.001 < 10 {
-// 			f = 10
-// 		} else {
-// 			f = amount * 0.001
-// 		}
-// 	} else if c == currency.CAD {
-// 		if amount*0.005 < 10 {
-// 			f = 2
-// 		} else {
-// 			f = amount * 0.005
-// 		}
-// 	}
-
-// 	return f
-// }
-
-// func getInternationalBankWithdrawalFee(c currency.Code, amount float64) float64 {
-// 	var f float64
-
-// 	switch c {
-// 	case currency.USD:
-// 		if amount*0.001 < 10 {
-// 			f = 10
-// 		} else {
-// 			f = amount * 0.001
-// 		}
-// 	case currency.CAD:
-// 		if amount*0.005 < 10 {
-// 			f = 2
-// 		} else {
-// 			f = amount * 0.005
-// 		}
-// 	case currency.SGD:
-// 		if amount*0.001 < 10 {
-// 			f = 10
-// 		} else {
-// 			f = amount * 0.001
-// 		}
-// 	}
-// 	return f
-// }
+// bankTransfers defines fiat currency banking withdrawal and deposit fees.
+// Subject to change.
+var bankTransfers = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
+	fee.Xfers: {
+		currency.SGD: {
+			Deposit:      fee.Convert(0.0055),
+			Withdrawal:   fee.Convert(0.0055),
+			IsPercentage: true,
+		},
+	},
+	fee.WireTransfer:        {currency.CAD: {}}, // Not available
+	fee.TelegraphicTransfer: {currency.USD: {}}, // Not available
+	fee.SDDomesticCheque:    {currency.USD: {}}, // Not available
+}

@@ -142,11 +142,15 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	// NOTE: https://coinut.zendesk.com/hc/en-us/articles/360001416133-Fee-schedule
 	err = c.Fees.LoadStatic(fee.Options{
-		GlobalCommissions: map[asset.Item]fee.Commission{ // TODO: Recheck values
-			asset.Spot: {Maker: 0.0, Taker: 0.001}, // TODO: If operation is on a crypto-fiat pair 0.002 or 0.0035 for wcs ??
+		// There seems to be no API endpoint to determine your current maker or
+		// taker fee rate.
+		GlobalCommissions: map[asset.Item]fee.Commission{
+			asset.Spot: {Maker: 0.0045, Taker: 0.005},
 		},
-		Transfer: transfer, // TODO: check these
+		Transfer:        transferFees,
+		BankingTransfer: bankTransfers,
 	})
 	if err != nil {
 		return err

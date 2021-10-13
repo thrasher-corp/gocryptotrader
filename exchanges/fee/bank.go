@@ -45,6 +45,9 @@ const (
 	ExchangeFiatDWChannelSwiftSignatureBar // Binance
 	AutomaticClearingHouse
 	FedWire
+	TelegraphicTransfer // Coinut
+	SDDomesticCheque    // Coinut
+	Xfers               // Coinut
 )
 
 var errUnknownBankTransaction = errors.New("unknown bank transaction type")
@@ -132,6 +135,12 @@ func (b BankTransaction) String() string {
 		return "AutomaticClearingHouse"
 	case FedWire:
 		return "FedWire"
+	case TelegraphicTransfer:
+		return "TelegraphicTransfer"
+	case SDDomesticCheque:
+		return "SDDomesticCheque"
+	case Xfers:
+		return "Xfers"
 	default:
 		return ""
 	}
@@ -177,7 +186,10 @@ func (b BankTransaction) Validate() error {
 		ExchangeFiatDWChannelSignetUSD,
 		ExchangeFiatDWChannelSwiftSignatureBar,
 		AutomaticClearingHouse,
-		FedWire:
+		FedWire,
+		TelegraphicTransfer,
+		SDDomesticCheque,
+		Xfers:
 		return nil
 	default:
 		return fmt.Errorf("%d: %w", b, errUnknownBankTransaction)

@@ -202,3 +202,51 @@ func (m MinMax) Validate() error {
 func (m MinMax) LessThan(_ Value) (bool, error) {
 	return false, errors.New("cannot compare")
 }
+
+// ConvertWithMinimumAmount returns a value with a minimum amount required
+func ConvertWithMinimumAmount(minAmount, fee float64) Value {
+	return WithMinimumAmount{
+		MinimumAmount: decimal.NewFromFloat(minAmount),
+		Fee:           decimal.NewFromFloat(fee),
+	}
+}
+
+// WithMinimumAmount
+type WithMinimumAmount struct {
+	MinimumAmount decimal.Decimal `json:"withMinimumAmount"`
+	Fee           decimal.Decimal `json:"fee"`
+}
+
+// GetFee implements Value interface
+func (m WithMinimumAmount) GetFee(amount float64) (decimal.Decimal, error) {
+	amt := decimal.NewFromFloat(amount)
+	if amt.LessThan(m.MinimumAmount) {
+		return decimal.Zero, errors.New("amount is less than minimum")
+	}
+	return m.Fee, nil
+}
+
+// Display implements Value interface
+func (m WithMinimumAmount) Display() (string, error) {
+	data, err := json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+// Display implements Value interface
+func (m WithMinimumAmount) Validate() error {
+	if m.Fee.LessThan(decimal.Zero) {
+		return errors.New("invalid fee")
+	}
+	if m.MinimumAmount.LessThanOrEqual(decimal.Zero) {
+		return errors.New("invalid minimum amount")
+	}
+	return nil
+}
+
+// LessThan implements Value interface
+func (m WithMinimumAmount) LessThan(_ Value) (bool, error) {
+	return false, errors.New("cannot compare")
+}
