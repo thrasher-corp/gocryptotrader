@@ -57,7 +57,7 @@ func (b *BTSE) WsConnect() error {
 
 // WsAuthenticate Send an authentication message to receive auth data
 func (b *BTSE) WsAuthenticate() error {
-	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
+	nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	path := "/spotWS" + nonce
 
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,

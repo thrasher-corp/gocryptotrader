@@ -497,8 +497,8 @@ allTrades:
 			p.String(),
 			"",
 			"",
-			ts.UnixNano()/int64(time.Millisecond),
-			timestampEnd.UnixNano()/int64(time.Millisecond),
+			ts.UnixMilli(),
+			timestampEnd.UnixMilli(),
 			int64(limit),
 			0)
 		if err != nil {

@@ -76,18 +76,8 @@ func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
 	return time.Unix(i, 0), nil
 }
 
-// RecvWindow converts a supplied time.Duration to milliseconds
-func RecvWindow(d time.Duration) int64 {
-	return int64(d) / int64(time.Millisecond)
-}
-
 // BoolPtr takes in boolen condition and returns pointer version of it
 func BoolPtr(condition bool) *bool {
 	b := condition
 	return &b
-}
-
-// UnixMillisToNano converts Unix milli time to UnixNano
-func UnixMillisToNano(milli int64) int64 {
-	return milli * int64(time.Millisecond)
 }

@@ -140,16 +140,6 @@ func TestUnixTimestampStrToTime(t *testing.T) {
 	}
 }
 
-func TestRecvWindow(t *testing.T) {
-	t.Parallel()
-	testTime := time.Duration(24760000)
-	actualOutput := RecvWindow(testTime)
-	if expectedOutput := int64(24); actualOutput != expectedOutput {
-		t.Errorf("Common RecvWindow. Expected '%d'. Actual '%d'",
-			expectedOutput, actualOutput)
-	}
-}
-
 func TestBoolPtr(t *testing.T) {
 	y := BoolPtr(true)
 	if !*y {
@@ -158,12 +148,5 @@ func TestBoolPtr(t *testing.T) {
 	z := BoolPtr(false)
 	if *z {
 		t.Fatal("false expected received true")
-	}
-}
-
-func TestUnixMillisToNano(t *testing.T) {
-	v := UnixMillisToNano(1588653603424)
-	if v != 1588653603424000000 {
-		t.Fatalf("unexpected result received %v", v)
 	}
 }

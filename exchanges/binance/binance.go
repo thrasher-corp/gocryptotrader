@@ -792,7 +792,7 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 	}
 
 	if params.Get("recvWindow") == "" {
-		params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(defaultRecvWindow), 10))
+		params.Set("recvWindow", strconv.FormatInt(defaultRecvWindow.Milliseconds(), 10))
 	}
 
 	interim := json.RawMessage{}

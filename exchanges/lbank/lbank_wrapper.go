@@ -386,7 +386,7 @@ allTrades:
 		tradeData, err = l.GetTrades(ctx,
 			p.String(),
 			int64(limit),
-			ts.UnixNano()/int64(time.Millisecond))
+			ts.UnixMilli())
 		if err != nil {
 			return nil, err
 		}
