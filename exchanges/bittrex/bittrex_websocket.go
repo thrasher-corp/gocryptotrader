@@ -156,7 +156,7 @@ func (b *Bittrex) WsAuth() error {
 	if err != nil {
 		return err
 	}
-	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+	timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA512,
 		[]byte(timestamp+randomContent.String()),

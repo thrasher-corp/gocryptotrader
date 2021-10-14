@@ -77,7 +77,7 @@ func (f *FTX) WsConnect() error {
 
 // WsAuth sends an authentication message to receive auth data
 func (f *FTX) WsAuth() error {
-	intNonce := time.Now().UnixNano() / 1000000
+	intNonce := time.Now().UnixMilli()
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,

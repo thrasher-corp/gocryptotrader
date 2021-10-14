@@ -370,7 +370,7 @@ func (b *Bittrex) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, meth
 	}
 
 	newRequest := func() (*request.Item, error) {
-		ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+		ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		path := common.EncodeURLValues(action, params)
 
 		var body io.Reader
