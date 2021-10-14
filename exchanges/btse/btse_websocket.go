@@ -216,7 +216,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Side:         oSide,
 				Status:       oStatus,
 				AssetType:    a,
-				Date:         time.Unix(0, notification.Data[i].Timestamp*int64(time.Millisecond)),
+				Date:         time.UnixMilli(notification.Data[i].Timestamp),
 				Pair:         p,
 			}
 		}
@@ -250,7 +250,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			trades = append(trades, trade.Data{
-				Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
+				Timestamp:    time.UnixMilli(tradeHistory.Data[x].TransactionTime),
 				CurrencyPair: p,
 				AssetType:    a,
 				Exchange:     b.Name,

@@ -14,7 +14,7 @@ func (t *binanceTime) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &timestamp); err != nil {
 		return err
 	}
-	*t = binanceTime(time.Unix(0, timestamp*int64(time.Millisecond)))
+	*t = binanceTime(time.UnixMilli(timestamp))
 	return nil
 }
 

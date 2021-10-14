@@ -2552,8 +2552,8 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Side:                 order.Buy,
 		Status:               order.New,
 		AssetType:            asset.Spot,
-		Date:                 time.Unix(0, 1616627567900*int64(time.Millisecond)),
-		LastUpdated:          time.Unix(0, 1616627567900*int64(time.Millisecond)),
+		Date:                 time.UnixMilli(1616627567900),
+		LastUpdated:          time.UnixMilli(1616627567900),
 		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
 	}
 	// empty the channel. otherwise mock_test will fail

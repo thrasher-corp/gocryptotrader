@@ -1009,7 +1009,7 @@ func (b *Bitfinex) GetLeaderboard(ctx context.Context, key, timeframe, symbol st
 			return nil, errors.New("unable to type assert value")
 		}
 		result = append(result, LeaderboardEntry{
-			Timestamp:     time.Unix(0, int64(tm)*int64(time.Millisecond)),
+			Timestamp:     time.UnixMilli(int64(tm)),
 			Username:      username,
 			Ranking:       int(ranking),
 			Value:         value,

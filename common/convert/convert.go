@@ -52,7 +52,7 @@ func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
 	if !ok {
 		return time.Time{}, fmt.Errorf("unable to parse, value not float64: %T", raw)
 	}
-	return time.Unix(0, int64(ts)*int64(time.Millisecond)), nil
+	return time.UnixMilli(int64(ts)), nil
 }
 
 // TimeFromUnixTimestampDecimal converts a unix timestamp in decimal form to

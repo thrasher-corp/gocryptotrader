@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -303,8 +304,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 							Amount: rateAmount})
 					}
 				}
-				err := b.WsInsertSnapshot(pair, chanAsset, newOrderbook, fundingRate)
-				if err != nil {
+				if err = b.WsInsertSnapshot(pair, chanAsset, newOrderbook, fundingRate); err != nil {
 					return fmt.Errorf("inserting snapshot error: %s",
 						err)
 				}
@@ -336,8 +336,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						Amount: amountRate})
 				}
 
-				err := b.WsUpdateOrderbook(pair, chanAsset, newOrderbook, chanID, int64(sequenceNo), fundingRate)
-				if err != nil {
+				if err = b.WsUpdateOrderbook(pair, chanAsset, newOrderbook, chanID, int64(sequenceNo), fundingRate); err != nil {
 					return fmt.Errorf("updating orderbook error: %s",
 						err)
 				}
@@ -353,36 +352,65 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				switch candleData := candleBundle[0].(type) {
 				case []interface{}:
 					for i := range candleBundle {
-						element, ok := candleBundle[i].([]interface{})
+						var element []interface{}
+						element, ok = candleBundle[i].([]interface{})
 						if !ok {
 							return errors.New("type assertion for element data")
 						}
-
-						b.Websocket.DataHandler <- stream.KlineData{
-							Timestamp:  time.Unix(0, int64(element[0].(float64))*int64(time.Millisecond)),
-							Exchange:   b.Name,
-							AssetType:  chanAsset,
-							Pair:       pair,
-							OpenPrice:  element[1].(float64),
-							ClosePrice: element[2].(float64),
-							HighPrice:  element[3].(float64),
-							LowPrice:   element[4].(float64),
-							Volume:     element[5].(float64),
+						if len(element) < 6 {
+							return errors.New("invalid candleBundle length")
 						}
+						var klineData stream.KlineData
+						if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(element[0]); err != nil {
+							return fmt.Errorf("unable to convert timestamp: %w", err)
+						}
+						if klineData.OpenPrice, ok = element[1].(float64); !ok {
+							return errors.New("unable to type assert OpenPrice")
+						}
+						if klineData.ClosePrice, ok = element[2].(float64); !ok {
+							return errors.New("unable to type assert ClosePrice")
+						}
+						if klineData.HighPrice, ok = element[3].(float64); !ok {
+							return errors.New("unable to type assert HighPrice")
+						}
+						if klineData.LowPrice, ok = element[4].(float64); !ok {
+							return errors.New("unable to type assert LowPrice")
+						}
+						if klineData.Volume, ok = element[5].(float64); !ok {
+							return errors.New("unable to type assert volume")
+						}
+						klineData.Exchange = b.Name
+						klineData.AssetType = chanAsset
+						klineData.Pair = pair
+						b.Websocket.DataHandler <- klineData
 					}
-
 				case float64:
-					b.Websocket.DataHandler <- stream.KlineData{
-						Timestamp:  time.Unix(0, int64(candleData)*int64(time.Millisecond)),
-						Exchange:   b.Name,
-						AssetType:  chanAsset,
-						Pair:       pair,
-						OpenPrice:  candleBundle[1].(float64),
-						ClosePrice: candleBundle[2].(float64),
-						HighPrice:  candleBundle[3].(float64),
-						LowPrice:   candleBundle[4].(float64),
-						Volume:     candleBundle[5].(float64),
+					if len(candleBundle) < 6 {
+						return errors.New("invalid candleBundle length")
 					}
+					var klineData stream.KlineData
+					if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(candleData); err != nil {
+						return fmt.Errorf("unable to convert timestamp: %w", err)
+					}
+					if klineData.OpenPrice, ok = candleBundle[1].(float64); !ok {
+						return errors.New("unable to type assert OpenPrice")
+					}
+					if klineData.ClosePrice, ok = candleBundle[2].(float64); !ok {
+						return errors.New("unable to type assert ClosePrice")
+					}
+					if klineData.HighPrice, ok = candleBundle[3].(float64); !ok {
+						return errors.New("unable to type assert HighPrice")
+					}
+					if klineData.LowPrice, ok = candleBundle[4].(float64); !ok {
+						return errors.New("unable to type assert LowPrice")
+					}
+					if klineData.Volume, ok = candleBundle[5].(float64); !ok {
+						return errors.New("unable to type assert volume")
+					}
+					klineData.Exchange = b.Name
+					klineData.AssetType = chanAsset
+					klineData.Pair = pair
+					b.Websocket.DataHandler <- klineData
 				}
 			}
 			return nil
@@ -501,7 +529,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				trades = append(trades, trade.Data{
 					TID:          strconv.FormatInt(tradeHolder[i].ID, 10),
 					CurrencyPair: pair,
-					Timestamp:    time.Unix(0, tradeHolder[i].Timestamp*int64(time.Millisecond)),
+					Timestamp:    time.UnixMilli(tradeHolder[i].Timestamp),
 					Price:        price,
 					Amount:       newAmount,
 					Exchange:     b.Name,

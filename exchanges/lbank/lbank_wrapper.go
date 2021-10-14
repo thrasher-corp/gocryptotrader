@@ -391,7 +391,7 @@ allTrades:
 			return nil, err
 		}
 		for i := range tradeData {
-			tradeTime := time.Unix(0, tradeData[i].DateMS*int64(time.Millisecond))
+			tradeTime := time.UnixMilli(tradeData[i].DateMS)
 			if tradeTime.Before(timestampStart) || tradeTime.After(timestampEnd) {
 				break allTrades
 			}
