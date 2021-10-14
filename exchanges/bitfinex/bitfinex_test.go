@@ -1642,8 +1642,8 @@ func TestPopulateAcceptableMethods(t *testing.T) {
 		acceptableMethods.m.Lock()
 		acceptableMethods.a = make(map[string][]string)
 		acceptableMethods.m.Unlock()
-		if !acceptableMethods.Loaded() {
-			t.Error("expected acceptableMethods store to be reset")
+		if acceptableMethods.Loaded() {
+			t.Error("expected false")
 		}
 	}
 	if err := b.PopulateAcceptableMethods(context.Background()); err != nil {
