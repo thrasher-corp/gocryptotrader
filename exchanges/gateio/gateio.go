@@ -52,9 +52,6 @@ func (g *Gateio) GetSymbols(ctx context.Context) ([]string, error) {
 	var result []string
 	urlPath := fmt.Sprintf("/%s/%s", gateioAPIVersion, gateioSymbol)
 	err := g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &result)
-	if err != nil {
-		return nil, nil
-	}
 	return result, err
 }
 
@@ -76,9 +73,15 @@ func (g *Gateio) GetMarketInfo(ctx context.Context) (MarketInfoResponse, error) 
 
 	result.Result = res.Result
 	for _, v := range res.Pairs {
-		item := v.(map[string]interface{})
+		item, ok := v.(map[string]interface{})
+		if !ok {
+			return result, errors.New("unable to type assert item")
+		}
 		for itemk, itemv := range item {
-			pairv := itemv.(map[string]interface{})
+			pairv, ok := itemv.(map[string]interface{})
+			if !ok {
+				return result, errors.New("unable to type assert pairv")
+			}
 			result.Pairs = append(result.Pairs, MarketInfoPairsResponse{
 				Symbol:        itemk,
 				DecimalPlaces: pairv["decimal_places"].(float64),
@@ -203,28 +206,27 @@ func (g *Gateio) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (kli
 		arg.GroupSec,
 		arg.HourSize)
 
-	var rawKlines map[string]interface{}
-	err := g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &rawKlines)
-	if err != nil {
+	resp := struct {
+		Data   [][]string `json:"data"`
+		Result string     `json:"result"`
+	}{}
+
+	if err := g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &resp); err != nil {
 		return kline.Item{}, err
+	}
+	if resp.Result != "true" || len(resp.Data) == 0 {
+		return kline.Item{}, errors.New("rawKlines unexpected data returned")
 	}
 
 	result := kline.Item{
 		Exchange: g.Name,
 	}
 
-	if rawKlines == nil || rawKlines["data"] == nil {
-		return kline.Item{}, errors.New("rawKlines is nil")
-	}
-
-	rawKlineDatasString, _ := json.Marshal(rawKlines["data"].([]interface{}))
-	var rawKlineDatas [][]interface{}
-	if err := json.Unmarshal(rawKlineDatasString, &rawKlineDatas); err != nil {
-		return kline.Item{}, fmt.Errorf("rawKlines unmarshal failed. Err: %s", err)
-	}
-
-	for _, k := range rawKlineDatas {
-		otString, err := strconv.ParseFloat(k[0].(string), 64)
+	for x := range resp.Data {
+		if len(resp.Data[x]) < 6 {
+			return kline.Item{}, fmt.Errorf("unexpected kline data length")
+		}
+		otString, err := strconv.ParseFloat(resp.Data[x][0], 64)
 		if err != nil {
 			return kline.Item{}, err
 		}
@@ -232,23 +234,23 @@ func (g *Gateio) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (kli
 		if err != nil {
 			return kline.Item{}, fmt.Errorf("cannot parse Kline.OpenTime. Err: %s", err)
 		}
-		_vol, err := convert.FloatFromString(k[1])
+		_vol, err := convert.FloatFromString(resp.Data[x][1])
 		if err != nil {
 			return kline.Item{}, fmt.Errorf("cannot parse Kline.Volume. Err: %s", err)
 		}
-		_close, err := convert.FloatFromString(k[2])
+		_close, err := convert.FloatFromString(resp.Data[x][2])
 		if err != nil {
 			return kline.Item{}, fmt.Errorf("cannot parse Kline.Close. Err: %s", err)
 		}
-		_high, err := convert.FloatFromString(k[3])
+		_high, err := convert.FloatFromString(resp.Data[x][3])
 		if err != nil {
 			return kline.Item{}, fmt.Errorf("cannot parse Kline.High. Err: %s", err)
 		}
-		_low, err := convert.FloatFromString(k[4])
+		_low, err := convert.FloatFromString(resp.Data[x][4])
 		if err != nil {
 			return kline.Item{}, fmt.Errorf("cannot parse Kline.Low. Err: %s", err)
 		}
-		_open, err := convert.FloatFromString(k[5])
+		_open, err := convert.FloatFromString(resp.Data[x][5])
 		if err != nil {
 			return kline.Item{}, fmt.Errorf("cannot parse Kline.Open. Err: %s", err)
 		}

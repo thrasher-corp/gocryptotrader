@@ -213,7 +213,11 @@ func (e *EXMO) GetCryptoDepositAddress(ctx context.Context) (map[string]string, 
 	case map[string]interface{}:
 		mapString := make(map[string]string)
 		for key, value := range r {
-			mapString[key] = value.(string)
+			v, ok := value.(string)
+			if !ok {
+				return nil, errors.New("unable to type assert value data")
+			}
+			mapString[key] = v
 		}
 		return mapString, nil
 

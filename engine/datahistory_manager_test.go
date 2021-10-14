@@ -655,6 +655,7 @@ func TestCompareJobsToData(t *testing.T) {
 }
 
 func TestRunJob(t *testing.T) {
+	t.Parallel()
 	testCases := []*DataHistoryJob{
 		{
 			Nickname:  "TestRunJobDataHistoryCandleDataType",
@@ -923,6 +924,7 @@ func TestConverters(t *testing.T) {
 
 // test helper functions
 func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJob) {
+	t.Helper()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {

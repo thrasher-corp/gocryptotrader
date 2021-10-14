@@ -19,8 +19,7 @@ func NewSubLogger(name string) (*SubLogger, error) {
 		return nil, errEmptyLoggerName
 	}
 	name = strings.ToUpper(name)
-	_, ok := subLoggers[name]
-	if ok {
+	if _, ok := subLoggers[name]; ok {
 		return nil, errSubLoggerAlreadyregistered
 	}
 	return registerNewSubLogger(name), nil
@@ -43,7 +42,10 @@ func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
 		return errors.New("io.Writer not set")
 	}
 
-	e := eventPool.Get().(*Event)
+	e, ok := eventPool.Get().(*Event)
+	if !ok {
+		return errors.New("unable to type asset event")
+	}
 	e.output = w
 	e.data = append(e.data, []byte(header)...)
 	if l.ShowLogSystemName {

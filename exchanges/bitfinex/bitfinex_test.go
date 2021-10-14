@@ -1067,9 +1067,9 @@ func TestWsAuth(t *testing.T) {
 }
 
 func runAuth(t *testing.T) {
+	t.Helper()
 	setupWs()
-	err := b.WsSendAuth()
-	if err != nil {
+	if err := b.WsSendAuth(); err != nil {
 		t.Error(err)
 	}
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
@@ -1118,8 +1118,7 @@ func TestWsCancelOrder(t *testing.T) {
 	if !wsAuthExecuted {
 		runAuth(t)
 	}
-	err := b.WsCancelOrder(1234)
-	if err != nil {
+	if err := b.WsCancelOrder(1234); err != nil {
 		t.Error(err)
 	}
 }
@@ -1150,8 +1149,7 @@ func TestWsCancelAllOrders(t *testing.T) {
 	if !wsAuthExecuted {
 		runAuth(t)
 	}
-	err := b.WsCancelAllOrders()
-	if err != nil {
+	if err := b.WsCancelAllOrders(); err != nil {
 		t.Error(err)
 	}
 }
@@ -1198,8 +1196,7 @@ func TestWsCancelOffer(t *testing.T) {
 	if !wsAuthExecuted {
 		runAuth(t)
 	}
-	err := b.WsCancelOffer(1234)
-	if err != nil {
+	if err := b.WsCancelOffer(1234); err != nil {
 		t.Error(err)
 	}
 }

@@ -82,7 +82,6 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 		if err != nil {
 			log.Errorf(log.Global,
 				"Unable to setup CoinMarketCap analysis. Error: %s", err)
-			c = nil
 			settings.CryptocurrencyProvider.Enabled = false
 		} else {
 			s.currencyAnalysis = c

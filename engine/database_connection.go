@@ -51,8 +51,7 @@ func SetupDatabaseConnectionManager(cfg *database.Config) (*DatabaseConnectionMa
 		cfg:      *cfg,
 		dbConn:   database.DB,
 	}
-	err := m.dbConn.SetConfig(cfg)
-	if err != nil {
+	if err := m.dbConn.SetConfig(cfg); err != nil {
 		return nil, err
 	}
 
@@ -177,8 +176,7 @@ func (m *DatabaseConnectionManager) checkConnection() error {
 		return database.ErrNoDatabaseProvided
 	}
 
-	err := m.dbConn.Ping()
-	if err != nil {
+	if err := m.dbConn.Ping(); err != nil {
 		m.dbConn.SetConnected(false)
 		return err
 	}

@@ -51,8 +51,7 @@ func TestRoleMarshalJSON(t *testing.T) {
 		t.Error("Role MarshalJSON() error", err)
 	}
 
-	expected := `"fiatCurrency"`
-	if string(d) != expected {
+	if expected := `"fiatCurrency"`; string(d) != expected {
 		t.Errorf("Role MarshalJSON() error expected %s but received %s",
 			expected,
 			string(d))
@@ -337,18 +336,14 @@ func TestBaseCode(t *testing.T) {
 }
 
 func TestCodeString(t *testing.T) {
-	expected := "TEST"
-	cc := NewCode("TEST")
-	if cc.String() != expected {
+	if cc, expected := NewCode("TEST"), "TEST"; cc.String() != expected {
 		t.Errorf("Currency Code String() error expected %s but received %s",
 			expected, cc)
 	}
 }
 
 func TestCodeLower(t *testing.T) {
-	expected := "test"
-	cc := NewCode("TEST")
-	if cc.Lower().String() != expected {
+	if cc, expected := NewCode("TEST"), "test"; cc.Lower().String() != expected {
 		t.Errorf("Currency Code Lower() error expected %s but received %s",
 			expected,
 			cc.Lower())
@@ -356,9 +351,7 @@ func TestCodeLower(t *testing.T) {
 }
 
 func TestCodeUpper(t *testing.T) {
-	expected := "TEST"
-	cc := NewCode("test")
-	if cc.Upper().String() != expected {
+	if cc, expected := NewCode("test"), "TEST"; cc.Upper().String() != expected {
 		t.Errorf("Currency Code Upper() error expected %s but received %s",
 			expected,
 			cc.Upper())

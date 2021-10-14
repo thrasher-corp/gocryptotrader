@@ -371,7 +371,7 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 	case asset.CoinMarginedFutures:
 		cInfo, err := b.FuturesExchangeInfo(ctx)
 		if err != nil {
-			return pairs, nil
+			return pairs, err
 		}
 		for z := range cInfo.Symbols {
 			if cInfo.Symbols[z].ContractStatus == "TRADING" {
@@ -385,7 +385,7 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 	case asset.USDTMarginedFutures:
 		uInfo, err := b.UExchangeInfo(ctx)
 		if err != nil {
-			return pairs, nil
+			return pairs, err
 		}
 		for u := range uInfo.Symbols {
 			if uInfo.Symbols[u].Status == "TRADING" {
@@ -751,8 +751,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	err := account.Process(&info)
-	if err != nil {
+	if err := account.Process(&info); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil

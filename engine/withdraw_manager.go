@@ -98,8 +98,7 @@ func (m *WithdrawManager) WithdrawalEventByID(id string) (*withdraw.Response, er
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	v := withdraw.Cache.Get(id)
-	if v != nil {
+	if v := withdraw.Cache.Get(id); v != nil {
 		return v.(*withdraw.Response), nil
 	}
 

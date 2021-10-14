@@ -236,7 +236,11 @@ func (b *Bithumb) GetAccountBalance(ctx context.Context, c string) (FullBalance,
 				return fullBalance, err
 			}
 		} else {
-			val = datum.(float64)
+			var ok bool
+			val, ok = datum.(float64)
+			if !ok {
+				return fullBalance, errors.New("unable to type assert datum")
+			}
 		}
 
 		switch splitTag[0] {
@@ -529,7 +533,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 	var intermediary json.RawMessage
 	err = b.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
 		// This is time window sensitive
-		tnMS := time.Now().UnixNano() / int64(time.Millisecond)
+		tnMS := time.Now().UnixMilli()
 		n := strconv.FormatInt(tnMS, 10)
 
 		params.Set("endpoint", path)

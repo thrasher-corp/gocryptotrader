@@ -188,7 +188,7 @@ type Orderbook struct {
 
 // Spread holds the spread between trades
 type Spread struct {
-	Time float64
+	Time time.Time
 	Bid  float64
 	Ask  float64
 }

@@ -292,7 +292,10 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 	}
 
 	// Get an unused channel from the channel pool
-	unusedChan := d.outbound.Get().(chan interface{})
+	unusedChan, ok := d.outbound.Get().(chan interface{})
+	if !ok {
+		return nil, errors.New("unable to type assert unusedChan")
+	}
 
 	// Lock for writing to the route list
 	d.rMtx.Lock()
@@ -356,11 +359,11 @@ func (d *Dispatcher) getNewID() (uuid.UUID, error) {
 
 	// Check to see if it already exists
 	d.rMtx.RLock()
-	_, ok := d.routes[newID]
-	d.rMtx.RUnlock()
-	if ok {
+	if _, ok := d.routes[newID]; ok {
+		d.rMtx.RUnlock()
 		return newID, errors.New("dispatcher collision detected, uuid already exists")
 	}
+	d.rMtx.RUnlock()
 
 	// Write the key into system
 	d.rMtx.Lock()

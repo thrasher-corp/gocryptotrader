@@ -109,8 +109,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 // StartRPCServer starts a gRPC server with TLS auth
 func StartRPCServer(engine *Engine) {
 	targetDir := utils.GetTLSDir(engine.Settings.DataDir)
-	err := checkCerts(targetDir)
-	if err != nil {
+	if err := checkCerts(targetDir); err != nil {
 		log.Errorf(log.GRPCSys, "gRPC checkCerts failed. err: %s\n", err)
 		return
 	}
@@ -678,7 +677,15 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			return errDispatchSystem
 		}
 
-		acc := (*data.(*interface{})).(account.Holdings)
+		d := *data.(*interface{})
+		if d == nil {
+			return errors.New("unable to type assert data")
+		}
+
+		acc, ok := d.(account.Holdings)
+		if !ok {
+			return errors.New("unable to type assert account holdings data")
+		}
 
 		var accounts []*gctrpc.Account
 		for x := range acc.Accounts {
@@ -1977,7 +1984,16 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 			return errDispatchSystem
 		}
 
-		ob := (*data.(*interface{})).(orderbook.Base)
+		d := *data.(*interface{})
+		if d == nil {
+			return errors.New("unable to type assert data")
+		}
+
+		ob, ok := d.(orderbook.Base)
+		if !ok {
+			return errors.New("unable to type assert orderbook data")
+		}
+
 		bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
 		for i := range ob.Bids {
 			bids[i] = &gctrpc.OrderbookItem{
@@ -2050,7 +2066,16 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 		if !ok {
 			return errDispatchSystem
 		}
-		t := (*data.(*interface{})).(ticker.Price)
+
+		d := *data.(*interface{})
+		if d == nil {
+			return errors.New("unable to type assert data")
+		}
+
+		t, ok := d.(ticker.Price)
+		if !ok {
+			return errors.New("unable to type assert ticker data")
+		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
 			Pair: &gctrpc.CurrencyPair{
@@ -2099,7 +2124,16 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 		if !ok {
 			return errDispatchSystem
 		}
-		t := (*data.(*interface{})).(ticker.Price)
+
+		d := *data.(*interface{})
+		if d == nil {
+			return errors.New("unable to type assert data")
+		}
+
+		t, ok := d.(ticker.Price)
+		if !ok {
+			return errors.New("unable to type assert ticker data")
+		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
 			Pair: &gctrpc.CurrencyPair{
@@ -2355,7 +2389,11 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatus
 	}
 
 	gctscript.AllVMSync.Range(func(k, v interface{}) bool {
-		vm := v.(*gctscript.VM)
+		vm, ok := v.(*gctscript.VM)
+		if !ok {
+			log.Errorf(log.GRPCSys, "Unable to type assert gctscript.VM")
+			return false
+		}
 		resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
 			UUID:    vm.ID.String(),
 			Name:    vm.ShortName(),
@@ -2376,6 +2414,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 
 	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
+		// nolint:nilerr // error is returned in the GCTScriptQueryResponse
 		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
@@ -2415,9 +2454,8 @@ func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecu
 	}
 
 	script := filepath.Join(r.Script.Path, r.Script.Name)
-	err := gctVM.Load(script)
-	if err != nil {
-		return &gctrpc.GenericResponse{
+	if err := gctVM.Load(script); err != nil {
+		return &gctrpc.GenericResponse{ // nolint:nilerr // error is returned in the generic response
 			Status: MsgStatusError,
 			Data:   err.Error(),
 		}, nil
@@ -2439,7 +2477,7 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 
 	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil
+		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
 	}
 
 	if v, f := gctscript.AllVMSync.Load(UUID); f {
@@ -2603,7 +2641,7 @@ func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRe
 
 	err := s.gctScriptManager.ShutdownAll()
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
+		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
 	}
 
 	return &gctrpc.GenericResponse{
@@ -2621,6 +2659,7 @@ func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScri
 	if r.Status {
 		err := s.gctScriptManager.Autoload(r.Script, true)
 		if err != nil {
+			// nolint:nilerr // error is returned in the generic response
 			return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
 		}
 		return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " removed from autoload list"}, nil
@@ -2628,7 +2667,7 @@ func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScri
 
 	err := s.gctScriptManager.Autoload(r.Script, false)
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
+		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
 	}
 	return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " added to autoload list"}, nil
 }
@@ -2726,7 +2765,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.
 		return nil, err
 	}
 
-	base := exch.GetBase()
+	base := exch.GetBase() // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 	if base == nil {
 		return nil, errExchangeBaseNotFound
 	}

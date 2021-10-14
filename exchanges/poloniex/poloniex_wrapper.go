@@ -312,8 +312,7 @@ func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (p *Poloniex) UpdateTicker(ctx context.Context, currencyPair currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := p.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := p.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(p.Name, currencyPair, a)

@@ -55,9 +55,8 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer) (signal.E
 		return nil, err
 	}
 	es.SetPrice(d.Latest().ClosePrice())
-	offset := d.Offset()
 
-	if offset <= int(s.rsiPeriod.IntPart()) {
+	if offset := d.Offset(); offset <= int(s.rsiPeriod.IntPart()) {
 		es.AppendReason("Not enough data for signal generation")
 		es.SetDirection(common.DoNothing)
 		return &es, nil

@@ -382,8 +382,7 @@ func (c *Coinbene) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *Coinbene) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := c.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := c.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(c.Name, p, a)
@@ -893,11 +892,17 @@ func (c *Coinbene) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	}
 
 	for x := range candles.Data {
+		if len(candles.Data[x]) < 6 {
+			return kline.Item{}, errors.New("unexpected candle data length")
+		}
 		var tempCandle kline.Candle
-		tempTime := candles.Data[x][0].(string)
+		tempTime, ok := candles.Data[x][0].(string)
+		if !ok {
+			return kline.Item{}, errors.New("timestamp conversion failed")
+		}
 		timestamp, err := time.Parse(time.RFC3339, tempTime)
 		if err != nil {
-			continue
+			return kline.Item{}, err
 		}
 		tempCandle.Time = timestamp
 		open, ok := candles.Data[x][1].(string)

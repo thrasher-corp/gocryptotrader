@@ -358,8 +358,7 @@ func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HitBTC) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := h.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := h.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(h.Name, p, a)
@@ -498,8 +497,8 @@ allTrades:
 			p.String(),
 			"",
 			"",
-			ts.UnixNano()/int64(time.Millisecond),
-			timestampEnd.UnixNano()/int64(time.Millisecond),
+			ts.UnixMilli(),
+			timestampEnd.UnixMilli(),
 			int64(limit),
 			0)
 		if err != nil {

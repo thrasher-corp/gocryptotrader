@@ -272,7 +272,7 @@ func (r *Requester) GetNonce(isNano bool) nonce.Value {
 func (r *Requester) GetNonceMilli() nonce.Value {
 	r.timedLock.LockForDuration()
 	if r.Nonce.Get() == 0 {
-		r.Nonce.Set(time.Now().UnixNano() / int64(time.Millisecond))
+		r.Nonce.Set(time.Now().UnixMilli())
 		return r.Nonce.Get()
 	}
 	return r.Nonce.GetInc()

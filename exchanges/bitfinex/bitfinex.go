@@ -319,16 +319,18 @@ func (b *Bitfinex) GetV2FundingInfo(ctx context.Context, key string) (MarginFund
 	if len(fundingData) < 4 {
 		return response, fmt.Errorf("%v GetV2FundingInfo: invalid length of fundingData", b.Name)
 	}
-	for x := 0; x < 3; x++ {
-		_, ok := fundingData[x].(float64)
-		if !ok {
-			return response, fmt.Errorf("type conversion failed for x = %d", x)
-		}
+	if response.Data.YieldLoan, ok = fundingData[0].(float64); !ok {
+		return response, errors.New("type conversion failed for YieldLoan")
 	}
-	response.Data.YieldLoan = fundingData[0].(float64)
-	response.Data.YieldLend = fundingData[1].(float64)
-	response.Data.DurationLoan = fundingData[2].(float64)
-	response.Data.DurationLend = fundingData[3].(float64)
+	if response.Data.YieldLend, ok = fundingData[1].(float64); !ok {
+		return response, errors.New("type conversion failed for YieldLend")
+	}
+	if response.Data.DurationLoan, ok = fundingData[2].(float64); !ok {
+		return response, errors.New("type conversion failed for DurationLoan")
+	}
+	if response.Data.DurationLend, ok = fundingData[3].(float64); !ok {
+		return response, errors.New("type conversion failed for DurationLend")
+	}
 	return response, nil
 }
 
@@ -637,7 +639,10 @@ func (b *Bitfinex) GetTrades(ctx context.Context, currencyPair string, limit, ti
 
 	var history []Trade
 	for i := range resp {
-		amount := resp[i][2].(float64)
+		amount, ok := resp[i][2].(float64)
+		if !ok {
+			return nil, errors.New("unable to type assert amount")
+		}
 		side := order.Buy.String()
 		if amount < 0 {
 			side = order.Sell.String()
@@ -693,10 +698,21 @@ func (b *Bitfinex) GetOrderbook(ctx context.Context, symbol, precision string, l
 			var b Book
 			if len(response[x]) > 3 {
 				// Funding currency
-				b.Amount = response[x][3].(float64)
-				b.Rate = response[x][2].(float64)
-				b.Period = response[x][1].(float64)
-				b.OrderID = int64(response[x][0].(float64))
+				var ok bool
+				if b.Amount, ok = response[x][3].(float64); !ok {
+					return Orderbook{}, errors.New("unable to type assert amount")
+				}
+				if b.Rate, ok = response[x][2].(float64); !ok {
+					return Orderbook{}, errors.New("unable to type assert rate")
+				}
+				if b.Period, ok = response[x][1].(float64); !ok {
+					return Orderbook{}, errors.New("unable to type assert period")
+				}
+				orderID, ok := response[x][0].(float64)
+				if !ok {
+					return Orderbook{}, errors.New("unable to type assert orderID")
+				}
+				b.OrderID = int64(orderID)
 				if b.Amount > 0 {
 					o.Asks = append(o.Asks, b)
 				} else {
@@ -705,9 +721,18 @@ func (b *Bitfinex) GetOrderbook(ctx context.Context, symbol, precision string, l
 				}
 			} else {
 				// Trading currency
-				b.Amount = response[x][2].(float64)
-				b.Price = response[x][1].(float64)
-				b.OrderID = int64(response[x][0].(float64))
+				var ok bool
+				if b.Amount, ok = response[x][2].(float64); !ok {
+					return Orderbook{}, errors.New("unable to type assert amount")
+				}
+				if b.Price, ok = response[x][1].(float64); !ok {
+					return Orderbook{}, errors.New("unable to type assert price")
+				}
+				orderID, ok := response[x][0].(float64)
+				if !ok {
+					return Orderbook{}, errors.New("unable to type assert order ID")
+				}
+				b.OrderID = int64(orderID)
 				if b.Amount > 0 {
 					o.Bids = append(o.Bids, b)
 				} else {
@@ -721,10 +746,21 @@ func (b *Bitfinex) GetOrderbook(ctx context.Context, symbol, precision string, l
 			var b Book
 			if len(response[x]) > 3 {
 				// Funding currency
-				b.Amount = response[x][3].(float64)
-				b.Count = int64(response[x][2].(float64))
-				b.Period = response[x][1].(float64)
-				b.Rate = response[x][0].(float64)
+				var ok bool
+				if b.Amount, ok = response[x][3].(float64); !ok {
+					return Orderbook{}, errors.New("unable to type assert amount")
+				}
+				count, ok := response[x][2].(float64)
+				if !ok {
+					return Orderbook{}, errors.New("unable to type assert count")
+				}
+				b.Count = int64(count)
+				if b.Period, ok = response[x][1].(float64); !ok {
+					return Orderbook{}, errors.New("unable to type assert period")
+				}
+				if b.Rate, ok = response[x][0].(float64); !ok {
+					return Orderbook{}, errors.New("unable to type assert rate")
+				}
 				if b.Amount > 0 {
 					o.Asks = append(o.Asks, b)
 				} else {
@@ -733,9 +769,18 @@ func (b *Bitfinex) GetOrderbook(ctx context.Context, symbol, precision string, l
 				}
 			} else {
 				// Trading currency
-				b.Amount = response[x][2].(float64)
-				b.Count = int64(response[x][1].(float64))
-				b.Price = response[x][0].(float64)
+				var ok bool
+				if b.Amount, ok = response[x][2].(float64); !ok {
+					return Orderbook{}, errors.New("unable to type assert amount")
+				}
+				count, ok := response[x][1].(float64)
+				if !ok {
+					return Orderbook{}, errors.New("unable to type assert count")
+				}
+				b.Count = int64(count)
+				if b.Price, ok = response[x][0].(float64); !ok {
+					return Orderbook{}, errors.New("unable to type assert price")
+				}
 				if b.Amount > 0 {
 					o.Bids = append(o.Bids, b)
 				} else {
@@ -940,12 +985,34 @@ func (b *Bitfinex) GetLeaderboard(ctx context.Context, key, timeframe, symbol st
 
 	var result []LeaderboardEntry
 	for x := range resp {
-		r := resp[x].([]interface{})
+		r, ok := resp[x].([]interface{})
+		if !ok {
+			return nil, errors.New("unable to type assert leaderboard")
+		}
+		if len(r) < 10 {
+			return nil, errors.New("unexpected leaderboard data length")
+		}
+		tm, ok := r[0].(float64)
+		if !ok {
+			return nil, errors.New("unable to type assert time")
+		}
+		username, ok := r[2].(string)
+		if !ok {
+			return nil, errors.New("unable to type assert username")
+		}
+		ranking, ok := r[3].(float64)
+		if !ok {
+			return nil, errors.New("unable to type assert ranking")
+		}
+		value, ok := r[6].(float64)
+		if !ok {
+			return nil, errors.New("unable to type assert value")
+		}
 		result = append(result, LeaderboardEntry{
-			Timestamp:     time.Unix(0, int64(r[0].(float64))*int64(time.Millisecond)),
-			Username:      r[2].(string),
-			Ranking:       int(r[3].(float64)),
-			Value:         r[6].(float64),
+			Timestamp:     time.UnixMilli(int64(tm)),
+			Username:      username,
+			Ranking:       int(ranking),
+			Value:         value,
 			TwitterHandle: parseTwitterHandle(r[9]),
 		})
 	}

@@ -324,7 +324,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				Side:            oSide,
 				Status:          oStatus,
 				AssetType:       asset.Spot,
-				Date:            time.Unix(0, result[i].Timestampms*int64(time.Millisecond)),
+				Date:            time.UnixMilli(result[i].Timestampms),
 				Pair:            pair,
 			}
 		}

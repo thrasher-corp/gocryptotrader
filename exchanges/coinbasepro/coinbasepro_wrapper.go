@@ -432,7 +432,10 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		return book, err
 	}
 
-	obNew := orderbookNew.(OrderbookL1L2)
+	obNew, ok := orderbookNew.(OrderbookL1L2)
+	if !ok {
+		return book, errors.New("unable to type assert orderbook data")
+	}
 	for x := range obNew.Bids {
 		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: obNew.Bids[x].Amount,

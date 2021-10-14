@@ -374,51 +374,59 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 
 	path := candleStick + "?" + params.Encode()
 
-	if err := b.SendHTTPRequest(ctx,
+	err = b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		path,
 		spotDefaultRate,
-		&resp); err != nil {
-		return klineData, err
+		&resp)
+	if err != nil {
+		return nil, err
 	}
-
-	for _, responseData := range resp.([]interface{}) {
+	responseData, ok := resp.([]interface{})
+	if !ok {
+		return nil, errors.New("unable to type assert responseData")
+	}
+	for x := range responseData {
+		individualData, ok := responseData[x].([]interface{})
+		if !ok {
+			return nil, errors.New("unable to type assert individualData")
+		}
+		if len(individualData) != 12 {
+			return nil, errors.New("unexpected kline data length")
+		}
 		var candle CandleStick
-		for i, individualData := range responseData.([]interface{}) {
-			switch i {
-			case 0:
-				tempTime := individualData.(float64)
-				var err error
-				candle.OpenTime, err = convert.TimeFromUnixTimestampFloat(tempTime)
-				if err != nil {
-					return klineData, err
-				}
-			case 1:
-				candle.Open, _ = strconv.ParseFloat(individualData.(string), 64)
-			case 2:
-				candle.High, _ = strconv.ParseFloat(individualData.(string), 64)
-			case 3:
-				candle.Low, _ = strconv.ParseFloat(individualData.(string), 64)
-			case 4:
-				candle.Close, _ = strconv.ParseFloat(individualData.(string), 64)
-			case 5:
-				candle.Volume, _ = strconv.ParseFloat(individualData.(string), 64)
-			case 6:
-				tempTime := individualData.(float64)
-				var err error
-				candle.CloseTime, err = convert.TimeFromUnixTimestampFloat(tempTime)
-				if err != nil {
-					return klineData, err
-				}
-			case 7:
-				candle.QuoteAssetVolume, _ = strconv.ParseFloat(individualData.(string), 64)
-			case 8:
-				candle.TradeCount = individualData.(float64)
-			case 9:
-				candle.TakerBuyAssetVolume, _ = strconv.ParseFloat(individualData.(string), 64)
-			case 10:
-				candle.TakerBuyQuoteAssetVolume, _ = strconv.ParseFloat(individualData.(string), 64)
-			}
+		if candle.OpenTime, err = convert.TimeFromUnixTimestampFloat(individualData[0]); err != nil {
+			return nil, err
+		}
+		if candle.Open, err = convert.FloatFromString(individualData[1]); err != nil {
+			return nil, err
+		}
+		if candle.High, err = convert.FloatFromString(individualData[2]); err != nil {
+			return nil, err
+		}
+		if candle.Low, err = convert.FloatFromString(individualData[3]); err != nil {
+			return nil, err
+		}
+		if candle.Close, err = convert.FloatFromString(individualData[4]); err != nil {
+			return nil, err
+		}
+		if candle.Volume, err = convert.FloatFromString(individualData[5]); err != nil {
+			return nil, err
+		}
+		if candle.CloseTime, err = convert.TimeFromUnixTimestampFloat(individualData[6]); err != nil {
+			return nil, err
+		}
+		if candle.QuoteAssetVolume, err = convert.FloatFromString(individualData[7]); err != nil {
+			return nil, err
+		}
+		if candle.TradeCount, ok = individualData[8].(float64); !ok {
+			return nil, errors.New("unable to type assert trade count")
+		}
+		if candle.TakerBuyAssetVolume, err = convert.FloatFromString(individualData[9]); err != nil {
+			return nil, err
+		}
+		if candle.TakerBuyQuoteAssetVolume, err = convert.FloatFromString(individualData[10]); err != nil {
+			return nil, err
 		}
 		klineData = append(klineData, candle)
 	}
@@ -784,7 +792,7 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 	}
 
 	if params.Get("recvWindow") == "" {
-		params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(defaultRecvWindow), 10))
+		params.Set("recvWindow", strconv.FormatInt(defaultRecvWindow.Milliseconds(), 10))
 	}
 
 	interim := json.RawMessage{}

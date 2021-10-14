@@ -708,8 +708,7 @@ func (bot *Engine) Stop() {
 
 	// Wait for services to gracefully shutdown
 	bot.ServicesWG.Wait()
-	err := gctlog.CloseLogger()
-	if err != nil {
+	if err := gctlog.CloseLogger(); err != nil {
 		log.Printf("Failed to close logger. Error: %v\n", err)
 	}
 }

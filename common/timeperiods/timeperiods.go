@@ -100,7 +100,6 @@ func (t *TimePeriodCalculator) calculateRanges() {
 		}
 		tr.HasDataInRange = t.TimePeriods[len(t.TimePeriods)-1].dataInRange
 		t.TimeRanges = append(t.TimeRanges, tr)
-		tr = TimeRange{}
 	}
 }
 

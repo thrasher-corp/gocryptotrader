@@ -950,8 +950,8 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	year, month, day := start.Date()
 	curYear, curMonth, curDay := time.Now().Date()
 
-	getHistoric := false
-	getRecent := false
+	getHistoric := false // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	getRecent := false   // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 
 	switch interval {
 	case kline.OneMin, kline.FiveMin:

@@ -211,8 +211,7 @@ func TestGetRates(t *testing.T) {
 		t.Skip("API key not set, skipping test")
 	}
 
-	_, err := e.GetRates("EUR", "")
-	if err != nil {
+	if _, err := e.GetRates("EUR", ""); err != nil {
 		t.Fatalf("failed to GetRates. Err: %s", err)
 	}
 }

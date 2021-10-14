@@ -276,8 +276,7 @@ func (o *OKGroup) GetFundingHistory(ctx context.Context) (resp []exchange.FundHi
 
 // SubmitOrder submits a new order
 func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	err := s.Validate()
-	if err != nil {
+	if err := s.Validate(); err != nil {
 		return order.SubmitResponse{}, err
 	}
 
@@ -625,37 +624,34 @@ func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	}
 
 	for x := range candles {
-		t := candles[x].([]interface{})
-		tempCandle := kline.Candle{}
+		t, ok := candles[x].([]interface{})
+		if !ok {
+			return kline.Item{}, errors.New("unable to type asset candle data")
+		}
+		if len(t) < 6 {
+			return kline.Item{}, errors.New("incorrect candles data length")
+		}
 		v, ok := t[0].(string)
 		if !ok {
-			return kline.Item{}, errors.New("unexpected value received")
+			return kline.Item{}, errors.New("unable to type asset time data")
 		}
-		tempCandle.Time, err = time.Parse(time.RFC3339, v)
-		if err != nil {
+		var tempCandle kline.Candle
+		if tempCandle.Time, err = time.Parse(time.RFC3339, v); err != nil {
 			return kline.Item{}, err
 		}
-		tempCandle.Open, err = convert.FloatFromString(t[1])
-		if err != nil {
+		if tempCandle.Open, err = convert.FloatFromString(t[1]); err != nil {
 			return kline.Item{}, err
 		}
-		tempCandle.High, err = convert.FloatFromString(t[2])
-		if err != nil {
+		if tempCandle.High, err = convert.FloatFromString(t[2]); err != nil {
 			return kline.Item{}, err
 		}
-
-		tempCandle.Low, err = convert.FloatFromString(t[3])
-		if err != nil {
+		if tempCandle.Low, err = convert.FloatFromString(t[3]); err != nil {
 			return kline.Item{}, err
 		}
-
-		tempCandle.Close, err = convert.FloatFromString(t[4])
-		if err != nil {
+		if tempCandle.Close, err = convert.FloatFromString(t[4]); err != nil {
 			return kline.Item{}, err
 		}
-
-		tempCandle.Volume, err = convert.FloatFromString(t[5])
-		if err != nil {
+		if tempCandle.Volume, err = convert.FloatFromString(t[5]); err != nil {
 			return kline.Item{}, err
 		}
 		ret.Candles = append(ret.Candles, tempCandle)
@@ -703,37 +699,37 @@ func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		}
 
 		for i := range candles {
-			t := candles[i].([]interface{})
-			tempCandle := kline.Candle{}
+			t, ok := candles[i].([]interface{})
+			if !ok {
+				return kline.Item{}, errors.New("unable to type assert candles data")
+			}
+			if len(t) < 6 {
+				return kline.Item{}, errors.New("candle data length invalid")
+			}
 			v, ok := t[0].(string)
 			if !ok {
-				return kline.Item{}, errors.New("unexpected value received")
+				return kline.Item{}, errors.New("unable to type assert time value")
 			}
-			tempCandle.Time, err = time.Parse(time.RFC3339, v)
-			if err != nil {
+			var tempCandle kline.Candle
+			if tempCandle.Time, err = time.Parse(time.RFC3339, v); err != nil {
 				return kline.Item{}, err
 			}
-			tempCandle.Open, err = convert.FloatFromString(t[1])
-			if err != nil {
+			if tempCandle.Open, err = convert.FloatFromString(t[1]); err != nil {
 				return kline.Item{}, err
 			}
-			tempCandle.High, err = convert.FloatFromString(t[2])
-			if err != nil {
-				return kline.Item{}, err
-			}
-
-			tempCandle.Low, err = convert.FloatFromString(t[3])
-			if err != nil {
+			if tempCandle.High, err = convert.FloatFromString(t[2]); err != nil {
 				return kline.Item{}, err
 			}
 
-			tempCandle.Close, err = convert.FloatFromString(t[4])
-			if err != nil {
+			if tempCandle.Low, err = convert.FloatFromString(t[3]); err != nil {
 				return kline.Item{}, err
 			}
 
-			tempCandle.Volume, err = convert.FloatFromString(t[5])
-			if err != nil {
+			if tempCandle.Close, err = convert.FloatFromString(t[4]); err != nil {
+				return kline.Item{}, err
+			}
+
+			if tempCandle.Volume, err = convert.FloatFromString(t[5]); err != nil {
 				return kline.Item{}, err
 			}
 			ret.Candles = append(ret.Candles, tempCandle)

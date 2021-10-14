@@ -12,7 +12,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -35,6 +34,7 @@ var z ZB
 var wsSetupRan bool
 
 func setupWsAuth(t *testing.T) {
+	t.Helper()
 	if wsSetupRan {
 		return
 	}
@@ -500,8 +500,7 @@ func TestWsTransferFunds(t *testing.T) {
 // TestGetSubUserList ws test
 func TestGetSubUserList(t *testing.T) {
 	setupWsAuth(t)
-	_, err := z.wsGetSubUserList()
-	if err != nil {
+	if _, err := z.wsGetSubUserList(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -833,7 +832,7 @@ func TestGetSpotKline(t *testing.T) {
 	}
 	if mockTests {
 		startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-		arg.Since = convert.UnixMillis(startTime)
+		arg.Since = startTime.UnixMilli()
 		arg.Type = "1day"
 	}
 

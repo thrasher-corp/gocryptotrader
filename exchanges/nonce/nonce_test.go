@@ -8,9 +8,7 @@ import (
 func TestGet(t *testing.T) {
 	var nonce Nonce
 	nonce.Set(112321313)
-	expected := Value(112321313)
-	result := nonce.Get()
-	if expected != result {
+	if expected, result := Value(112321313), nonce.Get(); expected != result {
 		t.Errorf("Expected %d got %d", expected, result)
 	}
 }
@@ -18,9 +16,7 @@ func TestGet(t *testing.T) {
 func TestGetInc(t *testing.T) {
 	var nonce Nonce
 	nonce.Set(1)
-	expected := Value(2)
-	result := nonce.GetInc()
-	if expected != result {
+	if expected, result := Value(2), nonce.GetInc(); expected != result {
 		t.Errorf("Expected %d got %d", expected, result)
 	}
 }
@@ -28,9 +24,7 @@ func TestGetInc(t *testing.T) {
 func TestSet(t *testing.T) {
 	var nonce Nonce
 	nonce.Set(1)
-	expected := Value(1)
-	result := nonce.Get()
-	if expected != result {
+	if result, expected := nonce.Get(), Value(1); expected != result {
 		t.Errorf("Expected %d got %d", expected, result)
 	}
 }
@@ -62,9 +56,7 @@ func TestNonceConcurrency(t *testing.T) {
 
 	wg.Wait()
 
-	result := nonce.Get()
-	expected := Value(12312 + 1000)
-	if expected != result {
+	if expected, result := Value(12312+1000), nonce.Get(); expected != result {
 		t.Errorf("Expected %d got %d", expected, result)
 	}
 }

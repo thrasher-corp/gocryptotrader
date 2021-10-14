@@ -248,15 +248,13 @@ func TestStringDataContains(t *testing.T) {
 	originalHaystack := []string{"hello", "world", "USDT", "Contains", "string"}
 	originalNeedle := "USD"
 	anotherNeedle := "thing"
-	expectedOutput := true
-	expectedOutputTwo := false
 	actualResult := StringDataContains(originalHaystack, originalNeedle)
-	if actualResult != expectedOutput {
+	if expectedOutput := true; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 	actualResult = StringDataContains(originalHaystack, anotherNeedle)
-	if actualResult != expectedOutputTwo {
+	if expectedOutput := false; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
@@ -267,15 +265,13 @@ func TestStringDataCompare(t *testing.T) {
 	originalHaystack := []string{"hello", "WoRld", "USDT", "Contains", "string"}
 	originalNeedle := "WoRld"
 	anotherNeedle := "USD"
-	expectedOutput := true
-	expectedOutputTwo := false
 	actualResult := StringDataCompare(originalHaystack, originalNeedle)
-	if actualResult != expectedOutput {
+	if expectedOutput := true; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 	actualResult = StringDataCompare(originalHaystack, anotherNeedle)
-	if actualResult != expectedOutputTwo {
+	if expectedOutput := false; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
@@ -286,16 +282,14 @@ func TestStringDataCompareUpper(t *testing.T) {
 	originalHaystack := []string{"hello", "WoRld", "USDT", "Contains", "string"}
 	originalNeedle := "WoRld"
 	anotherNeedle := "WoRldD"
-	expectedOutput := true
-	expectedOutputTwo := false
 	actualResult := StringDataCompareInsensitive(originalHaystack, originalNeedle)
-	if actualResult != expectedOutput {
+	if expectedOutput := true; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 
 	actualResult = StringDataCompareInsensitive(originalHaystack, anotherNeedle)
-	if actualResult != expectedOutputTwo {
+	if expectedOutput := false; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
@@ -306,15 +300,13 @@ func TestStringDataContainsUpper(t *testing.T) {
 	originalHaystack := []string{"bLa", "BrO", "sUp"}
 	originalNeedle := "Bla"
 	anotherNeedle := "ning"
-	expectedOutput := true
-	expectedOutputTwo := false
 	actualResult := StringDataContainsInsensitive(originalHaystack, originalNeedle)
-	if actualResult != expectedOutput {
+	if expectedOutput := true; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 	actualResult = StringDataContainsInsensitive(originalHaystack, anotherNeedle)
-	if actualResult != expectedOutputTwo {
+	if expectedOutput := false; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
@@ -410,8 +402,7 @@ func TestGetURIPath(t *testing.T) {
 
 func TestGetExecutablePath(t *testing.T) {
 	t.Parallel()
-	_, err := GetExecutablePath()
-	if err != nil {
+	if _, err := GetExecutablePath(); err != nil {
 		t.Errorf("Common GetExecutablePath. Error: %s", err)
 	}
 }

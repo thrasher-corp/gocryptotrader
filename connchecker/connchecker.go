@@ -48,8 +48,7 @@ func New(dnsList, domainList []string, checkInterval time.Duration) (*Checker, e
 		c.CheckInterval = checkInterval
 	}
 
-	err := c.initialCheck()
-	if err != nil {
+	if err := c.initialCheck(); err != nil {
 		return nil, err
 	}
 

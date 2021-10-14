@@ -365,8 +365,7 @@ func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitfinex) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := b.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := b.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)
@@ -567,7 +566,7 @@ allTrades:
 			return nil, err
 		}
 		for i := range tradeData {
-			tradeTS := time.Unix(0, tradeData[i].Timestamp*int64(time.Millisecond))
+			tradeTS := time.UnixMilli(tradeData[i].Timestamp)
 			if tradeTS.Before(timestampStart) && !timestampStart.IsZero() {
 				break allTrades
 			}
@@ -579,7 +578,7 @@ allTrades:
 				AssetType:    assetType,
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Amount,
-				Timestamp:    time.Unix(0, tradeData[i].Timestamp*int64(time.Millisecond)),
+				Timestamp:    time.UnixMilli(tradeData[i].Timestamp),
 			})
 			if i == len(tradeData)-1 {
 				if ts.Equal(tradeTS) {

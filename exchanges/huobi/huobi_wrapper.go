@@ -793,8 +793,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	err := account.Process(&info)
-	if err != nil {
+	if err := account.Process(&info); err != nil {
 		return info, err
 	}
 	return info, nil
@@ -844,7 +843,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 				Side:         side,
 				Price:        tradeData[i].Trades[j].Price,
 				Amount:       tradeData[i].Trades[j].Amount,
-				Timestamp:    time.Unix(0, tradeData[i].Timestamp*int64(time.Millisecond)),
+				Timestamp:    time.UnixMilli(tradeData[i].Timestamp),
 			})
 		}
 	}
@@ -1183,7 +1182,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			Pair:           p,
 			Type:           orderType,
 			Side:           orderSide,
-			Date:           time.Unix(0, respData.CreatedAt*int64(time.Millisecond)),
+			Date:           time.UnixMilli(respData.CreatedAt),
 			Status:         orderStatus,
 			Price:          respData.Price,
 			Amount:         respData.Amount,
@@ -1349,7 +1348,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 						Pair:            req.Pairs[i],
 						Type:            orderType,
 						Side:            orderSide,
-						Date:            time.Unix(0, resp.Data[j].CreatedAt*int64(time.Millisecond)),
+						Date:            time.UnixMilli(resp.Data[j].CreatedAt),
 						Status:          orderStatus,
 						Price:           resp.Data[j].Price,
 						Amount:          resp.Data[j].OrderAmount,
@@ -1377,7 +1376,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 						Pair:           req.Pairs[i],
 						Exchange:       h.Name,
 						ExecutedAmount: resp[x].FilledAmount,
-						Date:           time.Unix(0, resp[x].CreatedAt*int64(time.Millisecond)),
+						Date:           time.UnixMilli(resp[x].CreatedAt),
 						Status:         order.Status(resp[x].State),
 						AccountID:      strconv.FormatInt(resp[x].AccountID, 10),
 						Fee:            resp[x].FilledFees,
@@ -1389,7 +1388,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		}
 	case asset.CoinMarginedFutures:
 		for x := range req.Pairs {
-			var currentPage int64 = 0
+			var currentPage int64
 			for done := false; !done; {
 				openOrders, err := h.GetSwapOpenOrders(ctx,
 					req.Pairs[x], currentPage, 50)
@@ -1429,7 +1428,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		}
 	case asset.Futures:
 		for x := range req.Pairs {
-			var currentPage int64 = 0
+			var currentPage int64
 			for done := false; !done; {
 				openOrders, err := h.FGetOpenOrders(ctx,
 					req.Pairs[x].Base, currentPage, 50)
@@ -1508,7 +1507,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 					Pair:           req.Pairs[i],
 					Exchange:       h.Name,
 					ExecutedAmount: resp[x].FilledAmount,
-					Date:           time.Unix(0, resp[x].CreatedAt*int64(time.Millisecond)),
+					Date:           time.UnixMilli(resp[x].CreatedAt),
 					Status:         order.Status(resp[x].State),
 					AccountID:      strconv.FormatInt(resp[x].AccountID, 10),
 					Fee:            resp[x].FilledFees,
@@ -1519,7 +1518,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 	case asset.CoinMarginedFutures:
 		for x := range req.Pairs {
-			var currentPage int64 = 0
+			var currentPage int64
 			for done := false; !done; {
 				orderHistory, err := h.GetSwapOrderHistory(ctx,
 					req.Pairs[x],
@@ -1570,7 +1569,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 	case asset.Futures:
 		for x := range req.Pairs {
-			var currentPage int64 = 0
+			var currentPage int64
 			for done := false; !done; {
 				openOrders, err := h.FGetOrderHistory(ctx,
 					req.Pairs[x],

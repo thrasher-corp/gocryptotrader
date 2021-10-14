@@ -313,8 +313,7 @@ func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := b.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := b.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)
@@ -589,7 +588,7 @@ func (b *BTSE) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 
 	allOrders, err := b.CancelExistingOrder(ctx, "", fPair.String(), "")
 	if err != nil {
-		return resp, nil
+		return resp, err
 	}
 
 	resp.Status = make(map[string]string)

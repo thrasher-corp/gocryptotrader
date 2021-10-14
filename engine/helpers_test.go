@@ -36,6 +36,7 @@ import (
 var testExchange = "Bitstamp"
 
 func CreateTestBot(t *testing.T) *Engine {
+	t.Helper()
 	cFormat := &currency.PairFormat{Uppercase: true}
 	cp1 := currency.NewPair(currency.BTC, currency.USD)
 	cp2 := currency.NewPair(currency.BTC, currency.USDT)
@@ -86,11 +87,9 @@ func CreateTestBot(t *testing.T) *Engine {
 				},
 			},
 		}}}
-	err := bot.LoadExchange(testExchange, nil)
-	if err != nil {
+	if err := bot.LoadExchange(testExchange, nil); err != nil {
 		t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 	}
-
 	return bot
 }
 
@@ -117,6 +116,7 @@ func TestGetRPCEndpoints(t *testing.T) {
 }
 
 func TestSetSubsystem(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		Subsystem    string
 		Engine       *Engine

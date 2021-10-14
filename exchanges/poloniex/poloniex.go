@@ -246,7 +246,10 @@ func (p *Poloniex) GetBalances(ctx context.Context) (Balance, error) {
 		return Balance{}, err
 	}
 
-	data := result.(map[string]interface{})
+	data, ok := result.(map[string]interface{})
+	if !ok {
+		return Balance{}, errors.New("unable to type assert balance result")
+	}
 	balance := Balance{}
 	balance.Currency = make(map[string]float64)
 
@@ -287,7 +290,10 @@ func (p *Poloniex) GetDepositAddresses(ctx context.Context) (DepositAddresses, e
 	}
 
 	for x, y := range data {
-		addresses.Addresses[x] = y.(string)
+		addresses.Addresses[x], ok = y.(string)
+		if !ok {
+			return addresses, errors.New("unable to type assert address to string")
+		}
 	}
 
 	return addresses, nil

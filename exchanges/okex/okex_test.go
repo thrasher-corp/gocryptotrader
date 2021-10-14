@@ -187,6 +187,7 @@ func TestGetPerpSwapMarkets(t *testing.T) {
 }
 
 func testStandardErrorHandling(t *testing.T, err error) {
+	t.Helper()
 	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set")
 	}

@@ -12,9 +12,7 @@ func TestCalculateFee(t *testing.T) {
 	t.Parallel()
 	originalInput := float64(1)
 	fee := float64(1)
-	expectedOutput := 0.01
-	actualResult := CalculateFee(originalInput, fee)
-	if expectedOutput != actualResult {
+	if expectedOutput, actualResult := 0.01, CalculateFee(originalInput, fee); expectedOutput != actualResult {
 		t.Errorf(
 			"Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
@@ -24,9 +22,7 @@ func TestCalculateAmountWithFee(t *testing.T) {
 	t.Parallel()
 	originalInput := float64(1)
 	fee := float64(1)
-	expectedOutput := 1.01
-	actualResult := CalculateAmountWithFee(originalInput, fee)
-	if expectedOutput != actualResult {
+	if actualResult, expectedOutput := CalculateAmountWithFee(originalInput, fee), 1.01; expectedOutput != actualResult {
 		t.Errorf(
 			"Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
@@ -62,9 +58,8 @@ func TestCalculateNetProfit(t *testing.T) {
 	priceThen := float64(1)
 	priceNow := float64(10)
 	costs := float64(1)
-	expectedOutput := float64(44)
 	actualResult := CalculateNetProfit(amount, priceThen, priceNow, costs)
-	if expectedOutput != actualResult {
+	if expectedOutput := float64(44); expectedOutput != actualResult {
 		t.Errorf(
 			"Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
@@ -164,8 +159,7 @@ func TestSortinoRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	rr := math.Round(r*10) / 10
-	if rr != 0.2 {
+	if rr := math.Round(r*10) / 10; rr != 0.2 {
 		t.Errorf("expected 0.2, received %v", rr)
 	}
 }
@@ -538,8 +532,7 @@ func TestDecimalSortinoRatio(t *testing.T) {
 	if err != nil && !errors.Is(err, ErrInexactConversion) {
 		t.Error(err)
 	}
-	rr := r.Round(1)
-	if !rr.Equal(decimal.NewFromFloat(0.2)) {
+	if rr := r.Round(1); !rr.Equal(decimal.NewFromFloat(0.2)) {
 		t.Errorf("expected 0.2, received %v", rr)
 	}
 }

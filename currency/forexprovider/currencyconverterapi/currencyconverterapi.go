@@ -63,8 +63,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 	}
 
 	currLen := len(completedStrings)
-	mod := currLen % 2
-	if mod == 0 {
+	if mod := currLen % 2; mod == 0 {
 		processBatch(currLen)
 		return rates, nil
 	}

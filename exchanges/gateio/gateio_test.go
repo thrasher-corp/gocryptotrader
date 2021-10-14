@@ -544,14 +544,14 @@ func TestWsGetOrderInfo(t *testing.T) {
 }
 
 func setupWSTestAuth(t *testing.T) {
+	t.Helper()
 	if wsSetupRan {
 		return
 	}
 	if !g.Websocket.IsEnabled() && !g.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
-	err := g.Websocket.Connect()
-	if err != nil {
+	if err := g.Websocket.Connect(); err != nil {
 		t.Fatal(err)
 	}
 	wsSetupRan = true

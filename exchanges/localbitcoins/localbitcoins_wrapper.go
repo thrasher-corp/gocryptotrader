@@ -199,8 +199,7 @@ func (l *LocalBitcoins) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (l *LocalBitcoins) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := l.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := l.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(l.Name, p, a)

@@ -57,6 +57,7 @@ func TestMain(m *testing.M) {
 }
 
 func setupWsTests(t *testing.T) {
+	t.Helper()
 	if wsSetupRan {
 		return
 	}
@@ -2196,8 +2197,7 @@ func TestQueryWithdrawQuota(t *testing.T) {
 // TestWsGetAccountsList connects to WS, logs in, gets account list
 func TestWsGetAccountsList(t *testing.T) {
 	setupWsTests(t)
-	_, err := h.wsGetAccountsList()
-	if err != nil {
+	if _, err := h.wsGetAccountsList(); err != nil {
 		t.Fatal(err)
 	}
 }

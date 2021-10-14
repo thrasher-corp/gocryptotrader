@@ -73,8 +73,7 @@ func (g *GctScriptManager) Stop() error {
 		atomic.CompareAndSwapInt32(&g.started, 1, 0)
 	}()
 
-	err := g.ShutdownAll()
-	if err != nil {
+	if err := g.ShutdownAll(); err != nil {
 		return err
 	}
 	close(g.shutdown)

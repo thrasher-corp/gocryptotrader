@@ -443,8 +443,7 @@ func (c *Coinbene) getCurrencyFromWsTopic(assetType asset.Item, channelTopic str
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *Coinbene) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	maxSubsPerHour := 240
-	if len(channelsToSubscribe) > maxSubsPerHour {
+	if maxSubsPerHour := 240; len(channelsToSubscribe) > maxSubsPerHour {
 		return fmt.Errorf("channel subscriptions length %d exceeds coinbene's limit of %d, try reducing enabled pairs",
 			len(channelsToSubscribe),
 			maxSubsPerHour)

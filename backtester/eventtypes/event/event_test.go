@@ -25,8 +25,7 @@ func TestEvent_GetAssetType(t *testing.T) {
 	e := &Base{
 		AssetType: asset.Spot,
 	}
-	y := e.GetAssetType()
-	if y != asset.Spot {
+	if y := e.GetAssetType(); y != asset.Spot {
 		t.Error("expected spot")
 	}
 }
@@ -36,8 +35,7 @@ func TestEvent_GetExchange(t *testing.T) {
 	e := &Base{
 		Exchange: "test",
 	}
-	y := e.GetExchange()
-	if y != "test" {
+	if y := e.GetExchange(); y != "test" {
 		t.Error("expected test")
 	}
 }
@@ -47,8 +45,7 @@ func TestEvent_GetInterval(t *testing.T) {
 	e := &Base{
 		Interval: gctkline.OneMin,
 	}
-	y := e.GetInterval()
-	if y != gctkline.OneMin {
+	if y := e.GetInterval(); y != gctkline.OneMin {
 		t.Error("expected one minute")
 	}
 }

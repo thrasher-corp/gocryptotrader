@@ -487,8 +487,7 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (k *Kraken) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := k.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := k.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(k.Name, p, a)
@@ -615,8 +614,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			})
 		}
 	}
-	err := account.Process(&info)
-	if err != nil {
+	if err := account.Process(&info); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil
@@ -698,8 +696,7 @@ func (k *Kraken) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 // SubmitOrder submits a new order
 func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-	err := s.Validate()
-	if err != nil {
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 	switch s.AssetType {
@@ -707,7 +704,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			var resp string
 			s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
-			resp, err = k.wsAddOrder(&WsAddOrderRequest{
+			resp, err := k.wsAddOrder(&WsAddOrderRequest{
 				OrderType: s.Type.Lower(),
 				OrderSide: s.Side.Lower(),
 				Pair:      s.Pair.String(),
@@ -721,7 +718,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			submitOrderResponse.IsOrderPlaced = true
 		} else {
 			var response AddOrderResponse
-			response, err = k.AddOrder(ctx,
+			response, err := k.AddOrder(ctx,
 				s.Pair,
 				s.Side.String(),
 				s.Type.String(),

@@ -1151,7 +1151,7 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, 
 	}
 
 	newRequest := func() (*request.Item, error) {
-		ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+		ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		var body io.Reader
 		var hmac, payload []byte
 
