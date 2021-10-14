@@ -872,11 +872,10 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 
 	interim := json.RawMessage{}
 	newRequest := func() (*request.Item, error) {
-		now := time.Now()
 		values.Set("AccessKeyId", h.API.Credentials.Key)
 		values.Set("SignatureMethod", "HmacSHA256")
 		values.Set("SignatureVersion", "2")
-		values.Set("Timestamp", now.UTC().Format("2006-01-02T15:04:05"))
+		values.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
 
 		if isVersion2API {
 			endpoint = "/v" + huobiAPIVersion2 + endpoint

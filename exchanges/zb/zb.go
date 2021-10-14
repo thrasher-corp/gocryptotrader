@@ -366,8 +366,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 
 	var intermediary json.RawMessage
 	newRequest := func() (*request.Item, error) {
-		now := time.Now()
-		params.Set("reqTime", strconv.FormatInt(now.UnixMilli(), 10))
+		params.Set("reqTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
 		params.Set("sign", fmt.Sprintf("%x", hmac))
 
 		urlPath := fmt.Sprintf("%s/%s?%s",

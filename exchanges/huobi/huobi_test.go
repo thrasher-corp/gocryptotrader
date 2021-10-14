@@ -34,7 +34,7 @@ const (
 var (
 	h               HUOBI
 	wsSetupRan      bool
-	futuresTestPair = currency.NewPair(currency.BTC, currency.NewCode("NW"))
+	futuresTestPair = currency.NewPair(currency.BTC, currency.NewCode("NQ"))
 )
 
 func TestMain(m *testing.M) {
@@ -2696,8 +2696,8 @@ func TestFormatFuturesPair(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r != "BTC_NW" {
-		t.Errorf("expected BTC_NW, got %s", r)
+	if r != "BTC_NQ" {
+		t.Errorf("expected BTC_NQ, got %s", r)
 	}
 	availInstruments, err := h.FetchTradablePairs(context.Background(), asset.Futures)
 	if err != nil {

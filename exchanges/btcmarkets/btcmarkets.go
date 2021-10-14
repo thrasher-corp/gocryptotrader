@@ -716,9 +716,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 	}
 
 	newRequest := func() (*request.Item, error) {
-		now := time.Now()
-		strTime := strconv.FormatInt(now.UTC().UnixMilli(), 10)
-
+		strTime := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		var body io.Reader
 		var payload, hmac []byte
 		switch data.(type) {

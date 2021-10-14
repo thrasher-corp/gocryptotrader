@@ -1126,11 +1126,10 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 	var tempResp json.RawMessage
 	newRequest := func() (*request.Item, error) {
-		now := time.Now()
 		values.Set("AccessKeyId", h.API.Credentials.Key)
 		values.Set("SignatureMethod", "HmacSHA256")
 		values.Set("SignatureVersion", "2")
-		values.Set("Timestamp", now.UTC().Format("2006-01-02T15:04:05"))
+		values.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
 		sigPath := fmt.Sprintf("%s\napi.hbdm.com\n%s\n%s",
 			method, endpoint, values.Encode())
 		headers := make(map[string]string)
