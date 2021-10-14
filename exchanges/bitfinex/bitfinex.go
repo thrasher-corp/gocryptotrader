@@ -1842,47 +1842,49 @@ func (b *Bitfinex) CalculateTradingFee(i []AccountInfo, purchasePrice, amount fl
 // PopulateAcceptableMethods retrieves all accepted currency strings and
 // populates a map to check
 func (b *Bitfinex) PopulateAcceptableMethods(ctx context.Context) error {
-	if !acceptableMethods.Loaded() {
-		var response [][][]interface{}
-		err := b.SendHTTPRequest(ctx,
-			exchange.RestSpot,
-			bitfinexAPIVersion2+bitfinexDepositMethod,
-			&response,
-			configs)
-		if err != nil {
-			return err
-		}
-
-		if len(response) == 0 {
-			return errors.New("response contains no data cannot populate acceptable method map")
-		}
-
-		data := response[0]
-		storeData := make(map[string][]string)
-		for x := range data {
-			if len(data[x]) == 0 {
-				return fmt.Errorf("data should not be empty")
-			}
-			name, ok := data[x][0].(string)
-			if !ok {
-				return fmt.Errorf("unable to type assert name")
-			}
-
-			var availOptions []string
-			options, ok := data[x][1].([]interface{})
-			if !ok {
-				return fmt.Errorf("unable to type assert options")
-			}
-			for x := range options {
-				o, ok := options[x].(string)
-				if !ok {
-					return fmt.Errorf("unable to type assert option to string")
-				}
-				availOptions = append(availOptions, o)
-			}
-			storeData[name] = availOptions
-		}
-		acceptableMethods.Load(storeData)
+	if acceptableMethods.Loaded() {
+		return nil
 	}
+
+	var response [][][]interface{}
+	err := b.SendHTTPRequest(ctx,
+		exchange.RestSpot,
+		bitfinexAPIVersion2+bitfinexDepositMethod,
+		&response,
+		configs)
+	if err != nil {
+		return err
+	}
+
+	if len(response) == 0 {
+		return errors.New("response contains no data cannot populate acceptable method map")
+	}
+
+	data := response[0]
+	storeData := make(map[string][]string)
+	for x := range data {
+		if len(data[x]) == 0 {
+			return fmt.Errorf("data should not be empty")
+		}
+		name, ok := data[x][0].(string)
+		if !ok {
+			return fmt.Errorf("unable to type assert name")
+		}
+
+		var availOptions []string
+		options, ok := data[x][1].([]interface{})
+		if !ok {
+			return fmt.Errorf("unable to type assert options")
+		}
+		for x := range options {
+			o, ok := options[x].(string)
+			if !ok {
+				return fmt.Errorf("unable to type assert option to string")
+			}
+			availOptions = append(availOptions, o)
+		}
+		storeData[name] = availOptions
+	}
+	acceptableMethods.Load(storeData)
 	return nil
 }

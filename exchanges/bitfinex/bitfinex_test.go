@@ -1638,7 +1638,13 @@ func TestReOrderbyID(t *testing.T) {
 func TestPopulateAcceptableMethods(t *testing.T) {
 	t.Parallel()
 	if acceptableMethods.Loaded() {
-		t.Error("acceptable method store should not be loaded")
+		// we may have have been loaded from another test, so reset
+		acceptableMethods.m.Lock()
+		acceptableMethods.a = make(map[string][]string)
+		acceptableMethods.m.Unlock()
+		if !acceptableMethods.Loaded() {
+			t.Error("expected acceptableMethods store to be reset")
+		}
 	}
 	if err := b.PopulateAcceptableMethods(context.Background()); err != nil {
 		t.Fatal(err)
@@ -1651,6 +1657,10 @@ func TestPopulateAcceptableMethods(t *testing.T) {
 	}
 	if methods := acceptableMethods.Lookup(currency.NewCode("ASdasdasdasd")); len(methods) != 0 {
 		t.Error("non-existent code should return no methods")
+	}
+	// since we're already loaded, this will return nil
+	if err := b.PopulateAcceptableMethods(context.Background()); err != nil {
+		t.Fatal(err)
 	}
 }
 
