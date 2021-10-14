@@ -53,6 +53,9 @@ func mfi(args ...objects.Object) (objects.Object, error) {
 		if !ok {
 			return nil, errors.New("ohlcvInputData type assert failed")
 		}
+		if len(t) < 6 {
+			return nil, errors.New("ohlcvInputData invalid data length")
+		}
 		value, err := toFloat64(t[2])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())

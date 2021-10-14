@@ -1361,6 +1361,10 @@ func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 		return "", errors.New("unable to type assert respData")
 	}
 
+	if len(responseDataDetail) < 4 {
+		return "", errors.New("invalid responseDataDetail length")
+	}
+
 	responseOrderDetail, ok := responseDataDetail[4].([]interface{})
 	if !ok {
 		return "", errors.New("unable to type assert responseOrderDetail")
@@ -1372,13 +1376,13 @@ func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 		}
 	}
 	var errorMessage, errCode string
-	if responseDataDetail[6] != nil {
+	if len(responseDataDetail) > 6 {
 		errCode, ok = responseDataDetail[6].(string)
 		if !ok {
 			return "", errors.New("unable to type assert errCode")
 		}
 	}
-	if responseDataDetail[7] != nil {
+	if len(responseDataDetail) > 7 {
 		errorMessage, ok = responseDataDetail[7].(string)
 		if !ok {
 			return "", errors.New("unable to type assert errorMessage")
@@ -1414,13 +1418,13 @@ func (b *Bitfinex) WsModifyOrder(data *WsUpdateOrderRequest) error {
 		return errors.New("unable to type assert responseOrderData")
 	}
 	var errorMessage, errCode string
-	if responseOrderData[6] != nil {
+	if len(responseOrderData) > 6 {
 		errCode, ok = responseOrderData[6].(string)
 		if !ok {
 			return errors.New("unable to type assert errCode")
 		}
 	}
-	if responseOrderData[7] != nil {
+	if len(responseOrderData) > 7 {
 		errorMessage, ok = responseOrderData[7].(string)
 		if !ok {
 			return errors.New("unable to type assert errorMessage")
@@ -1467,13 +1471,13 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 		return errors.New("unable to type assert responseOrderData")
 	}
 	var errorMessage, errCode string
-	if responseOrderData[6] != nil {
+	if len(responseOrderData) > 6 {
 		errCode, ok = responseOrderData[6].(string)
 		if !ok {
 			return errors.New("unable to type assert errCode")
 		}
 	}
-	if responseOrderData[7] != nil {
+	if len(responseOrderData) > 7 {
 		errorMessage, ok = responseOrderData[7].(string)
 		if !ok {
 			return errors.New("unable to type assert errorMessage")
@@ -1524,13 +1528,13 @@ func (b *Bitfinex) WsCancelOffer(orderID int64) error {
 		return errors.New("unable to type assert responseOrderData")
 	}
 	var errorMessage, errCode string
-	if responseOrderData[6] != nil {
+	if len(responseOrderData) > 6 {
 		errCode, ok = responseOrderData[6].(string)
 		if !ok {
 			return errors.New("unable to type assert errCode")
 		}
 	}
-	if responseOrderData[7] != nil {
+	if len(responseOrderData) > 7 {
 		errorMessage, ok = responseOrderData[7].(string)
 		if !ok {
 			return errors.New("unable to type assert errorMessage")

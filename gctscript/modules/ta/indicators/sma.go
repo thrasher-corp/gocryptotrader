@@ -53,6 +53,9 @@ func sma(args ...objects.Object) (objects.Object, error) {
 		if !ok {
 			return nil, errors.New("unable to type assert ohlcvInputData")
 		}
+		if len(t) < 5 {
+			return nil, errors.New("ohlcvInputData invalid data length")
+		}
 		value, err := toFloat64(t[4])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
