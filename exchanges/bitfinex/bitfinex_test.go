@@ -1637,25 +1637,25 @@ func TestReOrderbyID(t *testing.T) {
 
 func TestPopulateAcceptableMethods(t *testing.T) {
 	t.Parallel()
-	if acceptableMethods.Loaded() {
+	if acceptableMethods.loaded() {
 		// we may have have been loaded from another test, so reset
 		acceptableMethods.m.Lock()
 		acceptableMethods.a = make(map[string][]string)
 		acceptableMethods.m.Unlock()
-		if acceptableMethods.Loaded() {
+		if acceptableMethods.loaded() {
 			t.Error("expected false")
 		}
 	}
 	if err := b.PopulateAcceptableMethods(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if !acceptableMethods.Loaded() {
+	if !acceptableMethods.loaded() {
 		t.Error("acceptable method store should be loaded")
 	}
-	if methods := acceptableMethods.Lookup(currency.NewCode("UST")); len(methods) == 0 {
+	if methods := acceptableMethods.lookup(currency.NewCode("UST")); len(methods) == 0 {
 		t.Error("USDT should have many available methods")
 	}
-	if methods := acceptableMethods.Lookup(currency.NewCode("ASdasdasdasd")); len(methods) != 0 {
+	if methods := acceptableMethods.lookup(currency.NewCode("ASdasdasdasd")); len(methods) != 0 {
 		t.Error("non-existent code should return no methods")
 	}
 	// since we're already loaded, this will return nil
@@ -1678,7 +1678,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 func TestAccetableMethodStore(t *testing.T) {
 	t.Parallel()
 	var a acceptableMethodStore
-	if a.Loaded() {
+	if a.loaded() {
 		t.Error("should be empty")
 	}
 	data := map[string][]string{
@@ -1686,18 +1686,18 @@ func TestAccetableMethodStore(t *testing.T) {
 		"TETHER1": {"UST"},
 		"TETHER2": {"UST"},
 	}
-	a.Load(data)
-	if !a.Loaded() {
+	a.load(data)
+	if !a.loaded() {
 		t.Error("data should be loaded")
 	}
-	if name := a.Lookup(currency.NewCode("BTC")); len(name) != 1 && name[1] != "BITCOIN" {
+	if name := a.lookup(currency.NewCode("BTC")); len(name) != 1 && name[1] != "BITCOIN" {
 		t.Error("incorrect values")
 	}
-	if name := a.Lookup(currency.NewCode("UST")); (name[0] != "TETHER1" && name[1] != "TETHER2") &&
+	if name := a.lookup(currency.NewCode("UST")); (name[0] != "TETHER1" && name[1] != "TETHER2") &&
 		(name[0] != "TETHER2" && name[1] != "TETHER1") {
 		t.Errorf("incorrect values")
 	}
-	if name := a.Lookup(currency.NewCode("PANDA_HORSE")); len(name) != 0 {
+	if name := a.lookup(currency.NewCode("PANDA_HORSE")); len(name) != 0 {
 		t.Error("incorrect values")
 	}
 }

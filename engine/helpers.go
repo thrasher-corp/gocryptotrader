@@ -678,7 +678,7 @@ func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) 
 		return nil, errors.New("deposit address manager has not yet synced all exchange deposit addresses")
 	}
 
-	result := bot.GetExchangeCryptocurrencyDepositAddresses()
+	result := bot.GetAllExchangeCryptocurrencyDepositAddresses()
 	r, ok := result[exchName]
 	if !ok {
 		return nil, ErrExchangeNotFound
@@ -703,8 +703,8 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, 
 	return exch.GetDepositAddress(ctx, item, accountID, chain)
 }
 
-// GetExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
-func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[string][]deposit.Address {
+// GetAllExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
+func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map[string][]deposit.Address {
 	result := make(map[string]map[string][]deposit.Address)
 	exchanges := bot.GetExchanges()
 	var depositSyncer sync.WaitGroup
@@ -716,7 +716,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 			exchName := exchanges[x].GetName()
 			if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 				if bot.Settings.Verbose {
-					log.Debugf(log.ExchangeSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
+					log.Debugf(log.ExchangeSys, "GetAllExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
 				}
 				return
 			}
@@ -740,7 +740,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 						continue
 					}
 					if len(availChains) > 0 {
-						// store the default non-chain specified address for a specificed crypto
+						// store the default non-chain specified address for a specified crypto
 						chainContainsItself := common.StringDataCompareInsensitive(availChains, cryptocurrency)
 						if !chainContainsItself && !requiresChainSet {
 							depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")

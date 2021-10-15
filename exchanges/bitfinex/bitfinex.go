@@ -1842,7 +1842,7 @@ func (b *Bitfinex) CalculateTradingFee(i []AccountInfo, purchasePrice, amount fl
 // PopulateAcceptableMethods retrieves all accepted currency strings and
 // populates a map to check
 func (b *Bitfinex) PopulateAcceptableMethods(ctx context.Context) error {
-	if acceptableMethods.Loaded() {
+	if acceptableMethods.loaded() {
 		return nil
 	}
 
@@ -1885,6 +1885,6 @@ func (b *Bitfinex) PopulateAcceptableMethods(ctx context.Context) error {
 		}
 		storeData[name] = availOptions
 	}
-	acceptableMethods.Load(storeData)
+	acceptableMethods.load(storeData)
 	return nil
 }

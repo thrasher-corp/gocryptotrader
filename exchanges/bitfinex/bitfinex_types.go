@@ -61,7 +61,7 @@ type acceptableMethodStore struct {
 // acceptableMethods holds the available acceptable deposit and withdraw methods
 var acceptableMethods acceptableMethodStore
 
-func (a *acceptableMethodStore) Lookup(curr currency.Code) []string {
+func (a *acceptableMethodStore) lookup(curr currency.Code) []string {
 	a.m.RLock()
 	defer a.m.RUnlock()
 	var methods []string
@@ -73,13 +73,13 @@ func (a *acceptableMethodStore) Lookup(curr currency.Code) []string {
 	return methods
 }
 
-func (a *acceptableMethodStore) Load(data map[string][]string) {
+func (a *acceptableMethodStore) load(data map[string][]string) {
 	a.m.Lock()
 	defer a.m.Unlock()
 	a.a = data
 }
 
-func (a *acceptableMethodStore) Loaded() bool {
+func (a *acceptableMethodStore) loaded() bool {
 	a.m.RLock()
 	defer a.m.RUnlock()
 	return len(a.a) > 0

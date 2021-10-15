@@ -1590,7 +1590,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 	return &gctrpc.GetCryptocurrencyDepositAddressResponse{
 		Address: addr.Address,
 		Tag:     addr.Tag,
-	}, err
+	}, nil
 }
 
 // GetAvailableTransferChains returns the supported transfer chains specified by

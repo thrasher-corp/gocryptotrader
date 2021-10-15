@@ -1103,7 +1103,7 @@ func TestGetCryptocurrencyDepositAddressesByExchange(t *testing.T) {
 	if err == nil {
 		t.Error("expected error")
 	}
-	if err = e.DepositAddressManager.Sync(e.GetExchangeCryptocurrencyDepositAddresses()); err != nil {
+	if err = e.DepositAddressManager.Sync(e.GetAllExchangeCryptocurrencyDepositAddresses()); err != nil {
 		t.Fatal(err)
 	}
 	_, err = e.GetCryptocurrencyDepositAddressesByExchange(exchName)
@@ -1127,7 +1127,7 @@ func TestGetExchangeCryptocurrencyDepositAddress(t *testing.T) {
 		t.Error("unexpected address")
 	}
 	e.DepositAddressManager = SetupDepositAddressManager()
-	if err := e.DepositAddressManager.Sync(e.GetExchangeCryptocurrencyDepositAddresses()); err != nil {
+	if err := e.DepositAddressManager.Sync(e.GetAllExchangeCryptocurrencyDepositAddresses()); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), "meow", "", "", currency.BTC, false); !errors.Is(err, ErrExchangeNotFound) {
@@ -1138,34 +1138,34 @@ func TestGetExchangeCryptocurrencyDepositAddress(t *testing.T) {
 	}
 }
 
-func TestGetExchangeCryptocurrencyDepositAddresses(t *testing.T) {
+func TestGetAllExchangeCryptocurrencyDepositAddresses(t *testing.T) {
 	t.Parallel()
 	e := createDepositEngine(&fakeDepositExchangeOpts{})
-	if r := e.GetExchangeCryptocurrencyDepositAddresses(); len(r) > 0 {
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r) > 0 {
 		t.Error("should have no addresses returned for an unauthenticated exchange")
 	}
 	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, ThrowPairError: true})
-	if r := e.GetExchangeCryptocurrencyDepositAddresses(); len(r) > 0 {
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r) > 0 {
 		t.Error("should have no cryptos returned for no enabled pairs")
 	}
 	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, ThrowTransferChainError: true})
-	if r := e.GetExchangeCryptocurrencyDepositAddresses(); len(r["fake"]) != 0 {
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]) != 0 {
 		t.Error("should have returned no deposit addresses for a fake exchange with transfer error")
 	}
 	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, ThrowDepositAddressError: true})
-	if r := e.GetExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) != 0 {
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) != 0 {
 		t.Error("should have returned no deposit addresses for fake exchange with deposit error, with multichain support enabled")
 	}
 	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, RequiresChainSet: true})
-	if r := e.GetExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) == 0 {
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) == 0 {
 		t.Error("should of returned a BTC address")
 	}
 	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true})
-	if r := e.GetExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) == 0 {
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) == 0 {
 		t.Error("should of returned a BTC address")
 	}
 	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true})
-	if r := e.GetExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["xrp"]) == 0 {
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["xrp"]) == 0 {
 		t.Error("should have returned a XRP address")
 	}
 }
