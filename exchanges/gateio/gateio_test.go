@@ -423,6 +423,7 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    g.Name,
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
@@ -472,12 +473,12 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := g.GetDepositAddress(context.Background(), currency.ETC, "")
+		_, err := g.GetDepositAddress(context.Background(), currency.USDT, "", "TRX")
 		if err != nil {
 			t.Error("Test Fail - GetDepositAddress error", err)
 		}
 	} else {
-		_, err := g.GetDepositAddress(context.Background(), currency.ETC, "")
+		_, err := g.GetDepositAddress(context.Background(), currency.ETC, "", "")
 		if err == nil {
 			t.Error("Test Fail - GetDepositAddress error cannot be nil")
 		}
@@ -863,6 +864,28 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	err := g.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCryptoDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set")
+	}
+	_, err := g.GetCryptoDepositAddress(context.Background(), currency.USDT.String())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAvailableTransferTrains(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set")
+	}
+	_, err := g.GetAvailableTransferChains(context.Background(), currency.USDT)
 	if err != nil {
 		t.Error(err)
 	}

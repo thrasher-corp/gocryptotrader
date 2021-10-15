@@ -27,10 +27,13 @@ const (
 	canManipulateRealOrders = false
 )
 
-var b Binance
-
-// this lock guards against orderbook tests race
-var binanceOrderBookLock = &sync.Mutex{}
+var (
+	b Binance
+	// this lock guards against orderbook tests race
+	binanceOrderBookLock = &sync.Mutex{}
+	// this pair is used to ensure that endpoints match it correctly
+	testPairMapping = currency.NewPair(currency.DOGE, currency.USDT)
+)
 
 func areTestAPIKeysSet() bool {
 	return b.ValidateAPICredentials()
@@ -53,22 +56,31 @@ func TestUServerTime(t *testing.T) {
 	}
 }
 
+func TestParseSAPITime(t *testing.T) {
+	t.Parallel()
+	tm, err := time.Parse(binanceSAPITimeLayout, "2021-05-27 03:56:46")
+	if err != nil {
+		t.Fatal(tm)
+	}
+	tm = tm.UTC()
+	if tm.Year() != 2021 ||
+		tm.Month() != 5 ||
+		tm.Day() != 27 ||
+		tm.Hour() != 3 ||
+		tm.Minute() != 56 ||
+		tm.Second() != 46 {
+		t.Fatal("incorrect values")
+	}
+}
+
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	spotPairs, err := b.FetchTradablePairs(context.Background(), asset.Spot)
+	r, err := b.UpdateTicker(context.Background(), testPairMapping, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
-	if len(spotPairs) == 0 {
-		t.Error("no tradable pairs")
-	}
-	spotCP, err := currency.NewPairFromString(spotPairs[0])
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.UpdateTicker(context.Background(), spotCP, asset.Spot)
-	if err != nil {
-		t.Error(err)
+	if r.Pair.Base != currency.DOGE && r.Pair.Quote != currency.USDT {
+		t.Error("invalid pair values")
 	}
 	tradablePairs, err := b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
 	if err != nil {
@@ -1945,6 +1957,17 @@ func TestModifyOrder(t *testing.T) {
 	}
 }
 
+func TestGetAllCoinsInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() && !mockTests {
+		t.Skip("API keys not set")
+	}
+	_, err := b.GetAllCoinsInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
@@ -1953,7 +1976,7 @@ func TestWithdraw(t *testing.T) {
 
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    b.Name,
-		Amount:      0.00001337,
+		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
@@ -1968,8 +1991,20 @@ func TestWithdraw(t *testing.T) {
 		t.Error("Withdraw() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Withdraw() expecting an error when no keys are set")
-	case mockTests && err != nil:
+	}
+}
+
+func TestDepositHistory(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	_, err := b.DepositHistory(context.Background(), currency.ETH, "", time.Time{}, time.Time{}, 0, 10000)
+	switch {
+	case areTestAPIKeysSet() && err != nil:
 		t.Error(err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("expecting an error when no keys are set")
 	}
 }
 
@@ -1978,7 +2013,7 @@ func TestWithdrawHistory(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.GetWithdrawalsHistory(context.Background(), currency.XBT)
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.ETH)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetWithdrawalsHistory() error", err)
@@ -2007,7 +2042,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetDepositAddress(context.Background(), currency.BTC, "")
+	_, err := b.GetDepositAddress(context.Background(), currency.USDT, "", currency.BNB.String())
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetDepositAddress() error", err)
@@ -2414,6 +2449,19 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetAvailableTransferChains(context.Background(), currency.BTC)
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error(err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("error cannot be nil")
+	case mockTests && err != nil:
+		t.Error(err)
+	}
+}
+
 func TestSeedLocalCache(t *testing.T) {
 	t.Parallel()
 	err := b.SeedLocalCache(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
@@ -2428,7 +2476,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(subs) != 4 {
+	if len(subs) != 8 {
 		t.Fatal("unexpected subscription length")
 	}
 }

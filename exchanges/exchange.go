@@ -1391,3 +1391,9 @@ func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool
 func (b *Base) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
 	return common.ErrNotYetImplemented
 }
+
+// GetAvailableTransferChains returns a list of supported transfer chains based
+// on the supplied cryptocurrency
+func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([]string, error) {
+	return nil, common.ErrFunctionNotSupported
+}

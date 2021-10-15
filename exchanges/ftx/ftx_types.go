@@ -223,22 +223,27 @@ type AccountInfoData struct {
 
 // WalletCoinsData stores data about wallet coins
 type WalletCoinsData struct {
-	Bep2Asset        interface{} `json:"bep2Asset"`
-	CanConvert       bool        `json:"canConvert"`
-	CanDeposit       bool        `json:"canDeposit"`
-	CanWithdraw      bool        `json:"canWithdraw"`
-	Collateral       bool        `json:"collateral"`
-	CollateralWeight float64     `json:"collateralWeight"`
-	CreditTo         interface{} `json:"creditTo"`
-	ERC20Contract    interface{} `json:"erc20Contract"`
-	Fiat             bool        `json:"fiat"`
-	HasTag           bool        `json:"hasTag"`
-	Hidden           bool        `json:"hidden"`
-	IsETF            bool        `json:"isEtf"`
-	IsToken          bool        `json:"isToken"`
-	Methods          []interface{}
-	ID               string `json:"id"`
-	Name             string `json:"name"`
+	USDFungible      bool     `json:"usdFungible"`
+	CanDeposit       bool     `json:"canDeposit"`
+	CanWithdraw      bool     `json:"canWithdraw"`
+	CanConvert       bool     `json:"canConvert"`
+	Collateral       bool     `json:"collateral"`
+	CollateralWeight float64  `json:"collateralWeight"`
+	CreditTo         string   `json:"creditTo"`
+	ERC20Contract    string   `json:"erc20Contract"`
+	BEP2Asset        string   `json:"bep2Asset"`
+	TRC20Contract    string   `json:"trc20Contract"`
+	SpotMargin       bool     `json:"spotMargin"`
+	IndexPrice       float64  `json:"indexPrice"`
+	SPLMint          string   `json:"splMint"`
+	Fiat             bool     `json:"fiat"`
+	HasTag           bool     `json:"hasTag"`
+	Hidden           bool     `json:"hidden"`
+	IsETF            bool     `json:"isEtf"`
+	IsToken          bool     `json:"isToken"`
+	Methods          []string `json:"methods"`
+	ID               string   `json:"id"`
+	Name             string   `json:"name"`
 }
 
 // WalletBalance stores balances data
@@ -258,10 +263,12 @@ type AllWalletBalances map[string][]WalletBalance
 type DepositData struct {
 	Address string `json:"address"`
 	Tag     string `json:"tag"`
+	Method  string `json:"method"`
+	Coin    string `json:"coin"`
 }
 
-// TransactionData stores data about deposit history
-type TransactionData struct {
+// DepositItem stores data about deposit history
+type DepositItem struct {
 	Coin          string    `json:"coin"`
 	Confirmations int64     `json:"conformations"`
 	ConfirmedTime time.Time `json:"confirmedTime"`
@@ -272,6 +279,28 @@ type TransactionData struct {
 	Status        string    `json:"status"`
 	Time          time.Time `json:"time"`
 	TxID          string    `json:"txid"`
+	Address       struct {
+		Address string `json:"address"`
+		Tag     string `json:"tag"`
+		Method  string `json:"method"`
+	} `json:"address"`
+}
+
+// WithdrawItem stores data about withdraw history
+type WithdrawItem struct {
+	ID              int64     `json:"id"`
+	Coin            string    `json:"coin"`
+	Address         string    `json:"address"`
+	Tag             string    `json:"tag"`
+	Method          string    `json:"method"`
+	TXID            string    `json:"txid"`
+	Size            float64   `json:"size"`
+	Fee             float64   `json:"fee"`
+	Status          string    `json:"status"`
+	Complete        time.Time `json:"complete"`
+	Time            time.Time `json:"time"`
+	Notes           string    `json:"notes"`
+	DestinationName string    `json:"destinationName"`
 }
 
 // OrderData stores open order data

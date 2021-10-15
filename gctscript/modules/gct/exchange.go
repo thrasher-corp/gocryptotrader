@@ -483,7 +483,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeDepositAddress returns deposit address (if supported by exchange)
 func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 2 {
+	if len(args) != 3 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
@@ -495,15 +495,24 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyCode)
 	}
+	chain, ok := objects.ToString(args[2])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, chain)
+	}
 
 	currCode := currency.NewCode(currencyCode)
 
-	rtn, err := wrappers.GetWrapper().DepositAddress(exchangeName, currCode)
+	rtn, err := wrappers.GetWrapper().DepositAddress(exchangeName, chain, currCode)
 	if err != nil {
 		return nil, err
 	}
 
-	return &objects.String{Value: rtn}, nil
+	data := make(map[string]objects.Object, 2)
+	data["address"] = &objects.String{Value: rtn.Address}
+	data["tag"] = &objects.String{Value: rtn.Tag}
+	return &objects.Map{
+		Value: data,
+	}, nil
 }
 
 // ExchangeWithdrawCrypto submit request to withdraw crypto assets

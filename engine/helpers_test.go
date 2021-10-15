@@ -24,9 +24,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
@@ -115,8 +118,7 @@ func TestGetRPCEndpoints(t *testing.T) {
 	}
 }
 
-func TestSetSubsystem(t *testing.T) {
-	t.Parallel()
+func TestSetSubsystem(t *testing.T) { // nolint // TO-DO: Fix race t.Parallel() usage
 	testCases := []struct {
 		Subsystem    string
 		Engine       *Engine
@@ -983,10 +985,188 @@ func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 func TestGetCryptocurrenciesByExchange(t *testing.T) {
 	t.Parallel()
 	e := CreateTestBot(t)
-
 	_, err := e.GetCryptocurrenciesByExchange("Bitfinex", false, false, asset.Spot)
 	if err != nil {
 		t.Fatalf("Err %s", err)
+	}
+}
+
+type fakeDepositExchangeOpts struct {
+	SupportsAuth             bool
+	SupportsMultiChain       bool
+	RequiresChainSet         bool
+	ReturnMultipleChains     bool
+	ThrowPairError           bool
+	ThrowTransferChainError  bool
+	ThrowDepositAddressError bool
+}
+
+type fakeDepositExchange struct {
+	exchange.IBotExchange
+	*fakeDepositExchangeOpts
+}
+
+func (f fakeDepositExchange) GetName() string {
+	return "fake"
+}
+
+func (f fakeDepositExchange) GetAuthenticatedAPISupport(endpoint uint8) bool {
+	return f.SupportsAuth
+}
+
+func (f fakeDepositExchange) GetBase() *exchange.Base {
+	return &exchange.Base{
+		Features: exchange.Features{Supports: exchange.FeaturesSupported{
+			RESTCapabilities: protocol.Features{
+				MultiChainDeposits:                f.SupportsMultiChain,
+				MultiChainDepositRequiresChainSet: f.RequiresChainSet,
+			},
+		}},
+	}
+}
+
+func (f fakeDepositExchange) GetAvailableTransferChains(_ context.Context, c currency.Code) ([]string, error) {
+	if f.ThrowTransferChainError {
+		return nil, errors.New("unable to get available transfer chains")
+	}
+	if c.Match(currency.XRP) {
+		return nil, nil
+	}
+	if c.Match(currency.USDT) {
+		return []string{"sol", "btc", "usdt"}, nil
+	}
+	return []string{"BITCOIN"}, nil
+}
+
+func (f fakeDepositExchange) GetDepositAddress(_ context.Context, c currency.Code, chain, accountID string) (*deposit.Address, error) {
+	if f.ThrowDepositAddressError {
+		return nil, errors.New("unable to get deposit address")
+	}
+	return &deposit.Address{Address: "fakeaddr"}, nil
+}
+
+func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
+	ps := currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		Enabled: currency.Pairs{
+			currency.NewPair(currency.BTC, currency.USDT),
+			currency.NewPair(currency.XRP, currency.USDT),
+		},
+		Available: currency.Pairs{
+			currency.NewPair(currency.BTC, currency.USDT),
+			currency.NewPair(currency.XRP, currency.USDT),
+		},
+	}
+	if opts.ThrowPairError {
+		ps.Available = nil
+	}
+	return &Engine{
+		Settings: Settings{Verbose: true},
+		Config: &config.Config{
+			Exchanges: []config.ExchangeConfig{
+				{
+					Name:    "fake",
+					Enabled: true,
+					CurrencyPairs: &currency.PairsManager{
+						UseGlobalFormat: true,
+						ConfigFormat:    &currency.PairFormat{},
+						Pairs: map[asset.Item]*currency.PairStore{
+							asset.Spot: &ps,
+						},
+					},
+				},
+			},
+		},
+		ExchangeManager: &ExchangeManager{
+			exchanges: map[string]exchange.IBotExchange{
+				"fake": fakeDepositExchange{
+					fakeDepositExchangeOpts: opts,
+				},
+			},
+		},
+	}
+}
+
+func TestGetCryptocurrencyDepositAddressesByExchange(t *testing.T) {
+	t.Parallel()
+	const exchName = "fake"
+	e := createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true})
+	_, err := e.GetCryptocurrencyDepositAddressesByExchange(exchName)
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = e.GetCryptocurrencyDepositAddressesByExchange("non-existent"); !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received %s, expected: %s", err, ErrExchangeNotFound)
+	}
+	e.DepositAddressManager = SetupDepositAddressManager()
+	_, err = e.GetCryptocurrencyDepositAddressesByExchange(exchName)
+	if err == nil {
+		t.Error("expected error")
+	}
+	if err = e.DepositAddressManager.Sync(e.GetAllExchangeCryptocurrencyDepositAddresses()); err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.GetCryptocurrencyDepositAddressesByExchange(exchName)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetExchangeCryptocurrencyDepositAddress(t *testing.T) {
+	t.Parallel()
+	e := createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true})
+	const exchName = "fake"
+	if _, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), "non-existent", "", "", currency.BTC, false); !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received %s, expected: %s", err, ErrExchangeNotFound)
+	}
+	r, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), exchName, "", "", currency.BTC, false)
+	if err != nil {
+		t.Error(err)
+	}
+	if r.Address != "fakeaddr" {
+		t.Error("unexpected address")
+	}
+	e.DepositAddressManager = SetupDepositAddressManager()
+	if err := e.DepositAddressManager.Sync(e.GetAllExchangeCryptocurrencyDepositAddresses()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), "meow", "", "", currency.BTC, false); !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received %s, expected: %s", err, ErrExchangeNotFound)
+	}
+	if _, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), exchName, "", "", currency.BTC, false); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllExchangeCryptocurrencyDepositAddresses(t *testing.T) {
+	t.Parallel()
+	e := createDepositEngine(&fakeDepositExchangeOpts{})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r) > 0 {
+		t.Error("should have no addresses returned for an unauthenticated exchange")
+	}
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, ThrowPairError: true})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r) > 0 {
+		t.Error("should have no cryptos returned for no enabled pairs")
+	}
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, ThrowTransferChainError: true})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]) != 0 {
+		t.Error("should have returned no deposit addresses for a fake exchange with transfer error")
+	}
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, ThrowDepositAddressError: true})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) != 0 {
+		t.Error("should have returned no deposit addresses for fake exchange with deposit error, with multichain support enabled")
+	}
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, RequiresChainSet: true})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) == 0 {
+		t.Error("should of returned a BTC address")
+	}
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) == 0 {
+		t.Error("should of returned a BTC address")
+	}
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["xrp"]) == 0 {
+		t.Error("should have returned a XRP address")
 	}
 }
 

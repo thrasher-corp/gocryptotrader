@@ -575,8 +575,7 @@ func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMeth
 
 	var intermediary json.RawMessage
 	newRequest := func() (*request.Item, error) {
-		now := time.Now()
-		utcTime := now.UTC().Format(time.RFC3339)
+		utcTime := time.Now().UTC().Format(time.RFC3339)
 		payload := []byte("")
 
 		if data != nil {

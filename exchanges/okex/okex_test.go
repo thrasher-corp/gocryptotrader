@@ -1905,6 +1905,7 @@ func TestWithdraw(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange: o.Name,
 		Crypto: withdraw.CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
 			FeeAmount: 1,

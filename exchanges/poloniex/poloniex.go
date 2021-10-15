@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -220,12 +221,16 @@ func (p *Poloniex) GetChartData(ctx context.Context, currencyPair string, start,
 }
 
 // GetCurrencies returns information about currencies
-func (p *Poloniex) GetCurrencies(ctx context.Context) (map[string]Currencies, error) {
+func (p *Poloniex) GetCurrencies(ctx context.Context) (map[string]*Currencies, error) {
 	type Response struct {
-		Data map[string]Currencies
+		Data map[string]*Currencies
 	}
 	resp := Response{}
-	return resp.Data, p.SendHTTPRequest(ctx, exchange.RestSpot, "/public?command=returnCurrencies", &resp.Data)
+	return resp.Data, p.SendHTTPRequest(ctx,
+		exchange.RestSpot,
+		"/public?command=returnCurrencies&includeMultiChainCurrencies=true",
+		&resp.Data,
+	)
 }
 
 // GetLoanOrders returns the list of loan offers and demands for a given
@@ -577,12 +582,15 @@ func (p *Poloniex) MoveOrder(ctx context.Context, orderID int64, rate, amount fl
 	return result, nil
 }
 
-// Withdraw withdraws a currency to a specific delegated address
+// Withdraw withdraws a currency to a specific delegated address.
+// For currencies where there are multiple networks to choose from (like USDT or BTC),
+// you can specify the chain by setting the "currency" parameter to be a multiChain currency
+// name, like USDTTRON, USDTETH, or BTCTRON
 func (p *Poloniex) Withdraw(ctx context.Context, currency, address string, amount float64) (*Withdraw, error) {
 	result := &Withdraw{}
 	values := url.Values{}
 
-	values.Set("currency", currency)
+	values.Set("currency", strings.ToUpper(currency))
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	values.Set("address", address)
 
@@ -869,7 +877,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 		headers["Key"] = p.API.Credentials.Key
-		values.Set("nonce", strconv.FormatInt(time.Now().UnixNano(), 10))
+		values.Set("nonce", p.Requester.GetNonce(true).String())
 		values.Set("command", endpoint)
 
 		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
@@ -888,6 +896,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Body:          bytes.NewBufferString(values.Encode()),
 			Result:        result,
 			AuthRequest:   true,
+			NonceEnabled:  true,
 			Verbose:       p.Verbose,
 			HTTPDebugging: p.HTTPDebugging,
 			HTTPRecording: p.HTTPRecording,

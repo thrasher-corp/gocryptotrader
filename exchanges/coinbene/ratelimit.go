@@ -50,6 +50,8 @@ const (
 	queryTradeFillsSpotReqRate       = 3
 	cancelOrderSpotReqRate           = 6
 	cancelOrdersBatchSpotReqRate     = 3
+	capitalDepositReqRate            = 1
+	capitalWithdrawReqRate           = 1
 
 	// Rate limit functionality
 	contractOrderbook request.EndpointLimit = iota
@@ -88,6 +90,8 @@ const (
 	spotQueryTradeFills
 	spotCancelOrder
 	spotCancelOrdersBatch
+	capitalDeposit
+	capitalWithdraw
 )
 
 // RateLimit implements the request.Limiter interface
@@ -127,6 +131,8 @@ type RateLimit struct {
 	SpotQueryTradeFills   *rate.Limiter
 	SpotCancelOrder       *rate.Limiter
 	SpotCancelOrdersBatch *rate.Limiter
+	CapitalDeposit        *rate.Limiter
+	CapitalWithdraw       *rate.Limiter
 }
 
 // Limit limits outbound requests
@@ -178,6 +184,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.SpotSpecificTicker.Wait(ctx)
 	case spotMarketTrades:
 		return r.SpotMarketTrades.Wait(ctx)
+	case capitalDeposit:
+		return r.CapitalDeposit.Wait(ctx)
+	case capitalWithdraw:
+		return r.CapitalWithdraw.Wait(ctx)
 	// case spotKline: // Not implemented yet
 	// 	return r.SpotKline.Wait(ctx)
 	// case spotExchangeRate:
@@ -243,5 +253,7 @@ func SetRateLimit() *RateLimit {
 		SpotQueryTradeFills:           request.NewRateLimit(spotRateInterval, queryTradeFillsSpotReqRate),
 		SpotCancelOrder:               request.NewRateLimit(spotRateInterval, cancelOrderSpotReqRate),
 		SpotCancelOrdersBatch:         request.NewRateLimit(spotRateInterval, cancelOrdersBatchSpotReqRate),
+		CapitalDeposit:                request.NewRateLimit(spotRateInterval, capitalDepositReqRate),
+		CapitalWithdraw:               request.NewRateLimit(spotRateInterval, capitalWithdrawReqRate),
 	}
 }

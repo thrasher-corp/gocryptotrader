@@ -93,6 +93,7 @@ type WalletAddressRes struct {
 	Status string `json:"status"`
 	Data   struct {
 		WalletAddress string `json:"wallet_address"`
+		Tag           string // custom field we populate
 		Currency      string `json:"currency"`
 	} `json:"data"`
 	Message string `json:"message"`

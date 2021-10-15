@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -35,6 +36,7 @@ const (
 	zbGetOrdersGet                    = "getOrders"
 	zbWithdraw                        = "withdraw"
 	zbDepositAddress                  = "getUserAddress"
+	zbMultiChainDepositAddress        = "getPayinAddress"
 )
 
 // ZB is the overarching type across this package
@@ -267,15 +269,55 @@ func (z *ZB) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (KLineRe
 // NOTE - PLEASE BE AWARE THAT YOU NEED TO GENERATE A DEPOSIT ADDRESS VIA
 // LOGGING IN AND NOT BY USING THIS ENDPOINT OTHERWISE THIS WILL GIVE YOU A
 // GENERAL ERROR RESPONSE.
-func (z *ZB) GetCryptoAddress(ctx context.Context, currency currency.Code) (UserAddress, error) {
+func (z *ZB) GetCryptoAddress(ctx context.Context, currency currency.Code) (*UserAddress, error) {
 	var resp UserAddress
 
 	vals := url.Values{}
 	vals.Set("method", zbDepositAddress)
 	vals.Set("currency", currency.Lower().String())
 
-	return resp,
-		z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)
+	if err := z.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
+		http.MethodGet,
+		vals,
+		&resp,
+		request.Auth); err != nil {
+		return nil, err
+	}
+
+	if !resp.Message.IsSuccessful {
+		return nil, errors.New(resp.Message.Description)
+	}
+
+	if strings.Contains(resp.Message.Data.Address, "_") {
+		splitter := strings.Split(resp.Message.Data.Address, "_")
+		resp.Message.Data.Address, resp.Message.Data.Tag = splitter[0], splitter[1]
+	}
+
+	return &resp, nil
+}
+
+// GetMultiChainDepositAddress returns deposit addresses for a given currency
+func (z *ZB) GetMultiChainDepositAddress(ctx context.Context, currency currency.Code) ([]MultiChainDepositAddress, error) {
+	var resp MultiChainDepositAddressResponse
+
+	vals := url.Values{}
+	vals.Set("method", zbMultiChainDepositAddress)
+	vals.Set("currency", currency.Lower().String())
+
+	if err := z.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
+		http.MethodGet,
+		vals,
+		&resp,
+		request.Auth); err != nil {
+		return nil, err
+	}
+
+	if !resp.Message.IsSuccessful {
+		return nil, errors.New(resp.Message.Description)
+	}
+	return resp.Message.Data, nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -324,8 +366,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 
 	var intermediary json.RawMessage
 	newRequest := func() (*request.Item, error) {
-		now := time.Now()
-		params.Set("reqTime", strconv.FormatInt(now.UnixMilli(), 10))
+		params.Set("reqTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
 		params.Set("sign", fmt.Sprintf("%x", hmac))
 
 		urlPath := fmt.Sprintf("%s/%s?%s",
@@ -357,9 +398,10 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {
 		if errCap.Code > 1000 {
-			return fmt.Errorf("sendAuthenticatedHTTPRequest error code: %d message %s",
+			return fmt.Errorf("error code: %d error code message: %s error message: %s",
 				errCap.Code,
-				errorCode[errCap.Code])
+				errorCode[errCap.Code],
+				errCap.Message)
 		}
 	}
 
