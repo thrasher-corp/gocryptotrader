@@ -45,7 +45,7 @@ func (o *OKGroup) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = o.Websocket.Setup(&stream.WebsocketSetup{
-		Config:                exch,
+		ExchangeConfig:        exch,
 		DefaultURL:            wsEndpoint,
 		RunningURL:            wsEndpoint,
 		Connector:             o.WsConnect,

@@ -53,7 +53,7 @@ type testResponse struct {
 }
 
 var defaultSetup = &WebsocketSetup{
-	Config: &config.Exchange{
+	ExchangeConfig: &config.Exchange{
 		Features: &config.FeaturesConfig{
 			Enabled: config.FeaturesEnabledConfig{Websocket: true},
 		},
@@ -119,12 +119,12 @@ func TestSetup(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigIsNil)
 	}
 
-	websocketSetup.Config = &config.Exchange{}
+	websocketSetup.ExchangeConfig = &config.Exchange{}
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errConfigExchangeNameUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigExchangeNameUnset)
+	if !errors.Is(err, errExchangeConfigNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigNameUnset)
 	}
-	websocketSetup.Config.Name = "testname"
+	websocketSetup.ExchangeConfig.Name = "testname"
 
 	err = w.Setup(websocketSetup)
 	if !errors.Is(err, errWebsocketFeaturesIsUnset) {
@@ -137,7 +137,7 @@ func TestSetup(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigFeaturesIsNil)
 	}
 
-	websocketSetup.Config.Features = &config.FeaturesConfig{}
+	websocketSetup.ExchangeConfig.Features = &config.FeaturesConfig{}
 	err = w.Setup(websocketSetup)
 	if !errors.Is(err, errWebsocketConnectorUnset) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketConnectorUnset)
@@ -193,7 +193,7 @@ func TestSetup(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidTrafficTimeout)
 	}
 
-	websocketSetup.Config.WebsocketTrafficTimeout = time.Minute
+	websocketSetup.ExchangeConfig.WebsocketTrafficTimeout = time.Minute
 	err = w.Setup(websocketSetup)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
@@ -330,7 +330,7 @@ func TestWebsocket(t *testing.T) {
 	t.Parallel()
 	wsInit := Websocket{}
 	err := wsInit.Setup(&WebsocketSetup{
-		Config: &config.Exchange{
+		ExchangeConfig: &config.Exchange{
 			Features: &config.FeaturesConfig{
 				Enabled: config.FeaturesEnabledConfig{Websocket: true},
 			},

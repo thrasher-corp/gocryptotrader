@@ -145,7 +145,7 @@ type Exchange struct {
 	API                           APIConfig              `json:"api"`
 	Features                      *FeaturesConfig        `json:"features"`
 	BankAccounts                  []banking.Account      `json:"bankAccounts,omitempty"`
-	Orderbook                     `json:"orderbook"`
+	Orderbook                     Orderbook              `json:"orderbook"`
 
 	// Deprecated settings which will be removed in a future update
 	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`

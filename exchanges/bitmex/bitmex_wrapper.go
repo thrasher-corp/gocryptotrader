@@ -158,7 +158,7 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Config:                exch,
+		ExchangeConfig:        exch,
 		DefaultURL:            bitmexWSURL,
 		RunningURL:            wsEndpoint,
 		Connector:             b.WsConnect,

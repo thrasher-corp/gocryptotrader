@@ -163,7 +163,7 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 	}
 
 	err = z.Websocket.Setup(&stream.WebsocketSetup{
-		Config:                exch,
+		ExchangeConfig:        exch,
 		DefaultURL:            zbWebsocketAPI,
 		RunningURL:            wsRunningURL,
 		Connector:             z.WsConnect,

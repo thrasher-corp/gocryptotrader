@@ -166,7 +166,7 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Config:                exch,
+		ExchangeConfig:        exch,
 		DefaultURL:            wsEndpoint,
 		RunningURL:            ePoint,
 		Connector:             b.WsConnect,

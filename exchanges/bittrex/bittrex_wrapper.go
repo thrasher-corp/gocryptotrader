@@ -158,7 +158,7 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 
 	// Websocket details setup below
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Config:                exch,
+		ExchangeConfig:        exch,
 		DefaultURL:            bittrexAPIWSURL, // Default ws endpoint so we can roll back via CLI if needed.
 		RunningURL:            wsRunningEndpoint,
 		Connector:             b.WsConnect,                                // Connector function outlined above.

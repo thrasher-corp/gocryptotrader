@@ -177,7 +177,7 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 	}
 
 	err = f.Websocket.Setup(&stream.WebsocketSetup{
-		Config:                exch,
+		ExchangeConfig:        exch,
 		DefaultURL:            ftxWSURL,
 		RunningURL:            wsEndpoint,
 		Connector:             f.WsConnect,

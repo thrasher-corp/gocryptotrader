@@ -163,7 +163,7 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 	}
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		Config:                exch,
+		ExchangeConfig:        exch,
 		DefaultURL:            hitbtcWebsocketAddress,
 		RunningURL:            wsRunningURL,
 		Connector:             h.WsConnect,

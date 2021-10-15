@@ -147,7 +147,7 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		Config:                exch,
+		ExchangeConfig:        exch,
 		DefaultURL:            coinutWebsocketURL,
 		RunningURL:            wsRunningURL,
 		Connector:             c.WsConnect,

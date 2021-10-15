@@ -37,7 +37,7 @@ var (
 	errDefaultURLIsEmpty                    = errors.New("default url is empty")
 	errRunningURLIsEmpty                    = errors.New("running url cannot be empty")
 	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
-	errConfigExchangeNameUnset              = errors.New("config exchange name unset")
+	errExchangeConfigNameUnset              = errors.New("exchange config name unset")
 	errInvalidTrafficTimeout                = errors.New("invalid traffic timeout")
 	errWebsocketSubscriberUnset             = errors.New("websocket subscriber function needs to be set")
 	errWebsocketUnsubscriberUnset           = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
@@ -74,25 +74,25 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyInitialised)
 	}
 
-	if s.Config == nil {
+	if s.ExchangeConfig == nil {
 		return errExchangeConfigIsNil
 	}
 
-	if s.Config.Name == "" {
-		return errConfigExchangeNameUnset
+	if s.ExchangeConfig.Name == "" {
+		return errExchangeConfigNameUnset
 	}
-	w.exchangeName = s.Config.Name
-	w.verbose = s.Config.Verbose
+	w.exchangeName = s.ExchangeConfig.Name
+	w.verbose = s.ExchangeConfig.Verbose
 
 	if s.Features == nil {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketFeaturesIsUnset)
 	}
 	w.features = s.Features
 
-	if s.Config.Features == nil {
+	if s.ExchangeConfig.Features == nil {
 		return fmt.Errorf("%s %w", w.exchangeName, errConfigFeaturesIsNil)
 	}
-	w.enabled = s.Config.Features.Enabled.Websocket
+	w.enabled = s.ExchangeConfig.Features.Enabled.Websocket
 
 	if s.Connector == nil {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketConnectorUnset)
@@ -133,25 +133,22 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		}
 	}
 
-	if s.Config.WebsocketTrafficTimeout < time.Second {
+	if s.ExchangeConfig.WebsocketTrafficTimeout < time.Second {
 		return fmt.Errorf("%s %w cannot be less than %s",
 			w.exchangeName,
 			errInvalidTrafficTimeout,
 			time.Second)
 	}
-	w.trafficTimeout = s.Config.WebsocketTrafficTimeout
+	w.trafficTimeout = s.ExchangeConfig.WebsocketTrafficTimeout
 
 	w.ShutdownC = make(chan struct{})
 	w.Wg = new(sync.WaitGroup)
-	w.SetCanUseAuthenticatedEndpoints(s.Config.API.AuthenticatedWebsocketSupport)
+	w.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
-	return w.Orderbook.Setup(s.Config.Orderbook.WebsocketBufferLimit,
-		s.Config.Orderbook.WebsocketBufferEnabled,
+	return w.Orderbook.Setup(s.ExchangeConfig,
 		s.SortBuffer,
 		s.SortBufferByUpdateIDs,
 		s.UpdateEntriesByID,
-		s.Config.Verbose,
-		w.exchangeName,
 		w.DataHandler)
 }
 

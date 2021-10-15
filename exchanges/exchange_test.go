@@ -1319,7 +1319,7 @@ func TestSetupDefaults(t *testing.T) {
 	b.Websocket = stream.New()
 	b.Features.Supports.Websocket = true
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Config: &config.Exchange{
+		ExchangeConfig: &config.Exchange{
 			WebsocketTrafficTimeout: time.Second * 30,
 			Name:                    "test",
 			Features:                &config.FeaturesConfig{},
@@ -1669,7 +1669,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 
 	b.Websocket = stream.New()
 	err := b.Websocket.Setup(&stream.WebsocketSetup{
-		Config: &config.Exchange{
+		ExchangeConfig: &config.Exchange{
 			Enabled:                 true,
 			WebsocketTrafficTimeout: time.Second * 30,
 			Name:                    "test",

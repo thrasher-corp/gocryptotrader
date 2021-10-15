@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -15,7 +16,7 @@ import (
 const packageError = "websocket orderbook buffer error: %w"
 
 var (
-	errUnsetExchangeName            = errors.New("exchange name unset")
+	errExchangeConfigNil            = errors.New("exchange config is nil")
 	errUnsetDataHandler             = errors.New("datahandler unset")
 	errIssueBufferEnabledButNoLimit = errors.New("buffer enabled but no limit set")
 	errUpdateIsNil                  = errors.New("update is nil")
@@ -25,32 +26,28 @@ var (
 )
 
 // Setup sets private variables
-func (w *Orderbook) Setup(obBufferLimit int,
-	bufferEnabled,
-	sortBuffer,
-	sortBufferByUpdateIDs,
-	updateEntriesByID,
-	verbose bool,
-	exchangeName string,
-	dataHandler chan interface{}) error {
-	if exchangeName == "" {
-		return fmt.Errorf(packageError, errUnsetExchangeName)
+func (w *Orderbook) Setup(cfg *config.Exchange, sortBuffer, sortBufferByUpdateIDs, updateEntriesByID bool, dataHandler chan interface{}) error {
+	if cfg == nil { // exchange config fields are checked in stream package
+		// prior to calling this, so further checks are not needed.
+		return fmt.Errorf(packageError, errExchangeConfigNil)
 	}
 	if dataHandler == nil {
 		return fmt.Errorf(packageError, errUnsetDataHandler)
 	}
-	if bufferEnabled && obBufferLimit < 1 {
+	if cfg.Orderbook.WebsocketBufferEnabled &&
+		cfg.Orderbook.WebsocketBufferLimit < 1 {
 		return fmt.Errorf(packageError, errIssueBufferEnabledButNoLimit)
 	}
-	w.obBufferLimit = obBufferLimit
-	w.bufferEnabled = bufferEnabled
+
+	w.bufferEnabled = cfg.Orderbook.WebsocketBufferEnabled
+	w.obBufferLimit = cfg.Orderbook.WebsocketBufferLimit
 	w.sortBuffer = sortBuffer
 	w.sortBufferByUpdateIDs = sortBufferByUpdateIDs
 	w.updateEntriesByID = updateEntriesByID
-	w.exchangeName = exchangeName
+	w.exchangeName = cfg.Name
 	w.dataHandler = dataHandler
 	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
-	w.verbose = verbose
+	w.verbose = cfg.Verbose
 	return nil
 }
 

@@ -181,7 +181,7 @@ func (c *Coinbene) Setup(exch *config.Exchange) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		Config:                exch,
+		ExchangeConfig:        exch,
 		DefaultURL:            wsContractURL,
 		RunningURL:            wsRunningURL,
 		Connector:             c.WsConnect,

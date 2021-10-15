@@ -193,7 +193,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 	}
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		Config:                exch,
+		ExchangeConfig:        exch,
 		DefaultURL:            wsMarketURL,
 		RunningURL:            wsRunningURL,
 		Connector:             h.WsConnect,

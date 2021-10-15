@@ -153,7 +153,7 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Config:                exch,
+		ExchangeConfig:        exch,
 		DefaultURL:            btcMarketsWSURL,
 		RunningURL:            wsURL,
 		Connector:             b.WsConnect,

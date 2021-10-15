@@ -162,7 +162,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	}
 
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		Config:                exch,
+		ExchangeConfig:        exch,
 		DefaultURL:            gateioWebsocketEndpoint,
 		RunningURL:            wsRunningURL,
 		Connector:             g.WsConnect,
