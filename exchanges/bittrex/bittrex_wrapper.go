@@ -158,24 +158,18 @@ func (b *Bittrex) Setup(exch *config.ExchangeConfig) error {
 
 	// Websocket details setup below
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       bittrexAPIWSURL, // Default ws endpoint so we can roll back via CLI if needed.
-		ExchangeName:                     exch.Name,       // Sets websocket name to the exchange name.
-		RunningURL:                       wsRunningEndpoint,
-		Connector:                        b.WsConnect,                                // Connector function outlined above.
-		Subscriber:                       b.Subscribe,                                // Subscriber function outlined above.
-		UnSubscriber:                     b.Unsubscribe,                              // Unsubscriber function outlined above.
-		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,             // GenerateDefaultSubscriptions function outlined above.
-		Features:                         &b.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
+		Config:                exch,
+		DefaultURL:            bittrexAPIWSURL, // Default ws endpoint so we can roll back via CLI if needed.
+		RunningURL:            wsRunningEndpoint,
+		Connector:             b.WsConnect,                                // Connector function outlined above.
+		Subscriber:            b.Subscribe,                                // Subscriber function outlined above.
+		Unsubscriber:          b.Unsubscribe,                              // Unsubscriber function outlined above.
+		GenerateSubscriptions: b.GenerateDefaultSubscriptions,             // GenerateDefaultSubscriptions function outlined above.
+		Features:              &b.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
 
 		// Orderbook buffer specific variables for processing orderbook updates via websocket feed.
 		// Other orderbook buffer vars:
 		// UpdateEntriesByID     bool
-		OrderbookBufferLimit:  exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:         exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:            true,
 		SortBufferByUpdateIDs: true,
 	})

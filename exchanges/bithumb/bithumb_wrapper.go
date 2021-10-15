@@ -166,19 +166,13 @@ func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsEndpoint,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       ePoint,
-		Connector:                        b.WsConnect,
-		Subscriber:                       b.Subscribe,
-		GenerateSubscriptions:            b.GenerateSubscriptions,
-		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		Config:                exch,
+		DefaultURL:            wsEndpoint,
+		RunningURL:            ePoint,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		GenerateSubscriptions: b.GenerateSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

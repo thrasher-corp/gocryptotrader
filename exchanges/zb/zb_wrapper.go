@@ -163,19 +163,13 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = z.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       zbWebsocketAPI,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        z.WsConnect,
-		GenerateSubscriptions:            z.GenerateDefaultSubscriptions,
-		Subscriber:                       z.Subscribe,
-		Features:                         &z.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		Config:                exch,
+		DefaultURL:            zbWebsocketAPI,
+		RunningURL:            wsRunningURL,
+		Connector:             z.WsConnect,
+		GenerateSubscriptions: z.GenerateDefaultSubscriptions,
+		Subscriber:            z.Subscribe,
+		Features:              &z.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

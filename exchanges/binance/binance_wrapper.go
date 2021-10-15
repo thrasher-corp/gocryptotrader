@@ -218,22 +218,16 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       binanceDefaultWebsocketURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       ePoint,
-		Connector:                        b.WsConnect,
-		Subscriber:                       b.Subscribe,
-		UnSubscriber:                     b.Unsubscribe,
-		GenerateSubscriptions:            b.GenerateSubscriptions,
-		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
-		SortBufferByUpdateIDs:            true,
+		Config:                exch,
+		DefaultURL:            binanceDefaultWebsocketURL,
+		RunningURL:            ePoint,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.GenerateSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
+		SortBufferByUpdateIDs: true,
 	})
 	if err != nil {
 		return err

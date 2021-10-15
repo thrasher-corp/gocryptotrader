@@ -154,20 +154,14 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       geminiWebsocketEndpoint,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        g.WsConnect,
-		Subscriber:                       g.Subscribe,
-		UnSubscriber:                     g.Unsubscribe,
-		GenerateSubscriptions:            g.GenerateDefaultSubscriptions,
-		Features:                         &g.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		Config:                exch,
+		DefaultURL:            geminiWebsocketEndpoint,
+		RunningURL:            wsRunningURL,
+		Connector:             g.WsConnect,
+		Subscriber:            g.Subscribe,
+		Unsubscriber:          g.Unsubscribe,
+		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+		Features:              &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

@@ -153,20 +153,14 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       btcMarketsWSURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsURL,
-		Connector:                        b.WsConnect,
-		Subscriber:                       b.Subscribe,
-		GenerateSubscriptions:            b.generateDefaultSubscriptions,
-		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
+		Config:                exch,
+		DefaultURL:            btcMarketsWSURL,
+		RunningURL:            wsURL,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		GenerateSubscriptions: b.generateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
 	})
 	if err != nil {
 		return err

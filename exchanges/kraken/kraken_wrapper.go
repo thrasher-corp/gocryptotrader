@@ -208,21 +208,15 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 	err = k.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       krakenWSURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        k.WsConnect,
-		Subscriber:                       k.Subscribe,
-		UnSubscriber:                     k.Unsubscribe,
-		GenerateSubscriptions:            k.GenerateDefaultSubscriptions,
-		Features:                         &k.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
+		Config:                exch,
+		DefaultURL:            krakenWSURL,
+		RunningURL:            wsRunningURL,
+		Connector:             k.WsConnect,
+		Subscriber:            k.Subscribe,
+		Unsubscriber:          k.Unsubscribe,
+		GenerateSubscriptions: k.GenerateDefaultSubscriptions,
+		Features:              &k.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
 	})
 	if err != nil {
 		return err

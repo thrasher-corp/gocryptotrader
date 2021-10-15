@@ -45,20 +45,14 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 	err = o.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsEndpoint,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsEndpoint,
-		Connector:                        o.WsConnect,
-		Subscriber:                       o.Subscribe,
-		UnSubscriber:                     o.Unsubscribe,
-		GenerateSubscriptions:            o.GenerateDefaultSubscriptions,
-		Features:                         &o.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		Config:                exch,
+		DefaultURL:            wsEndpoint,
+		RunningURL:            wsEndpoint,
+		Connector:             o.WsConnect,
+		Subscriber:            o.Subscribe,
+		Unsubscriber:          o.Unsubscribe,
+		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
+		Features:              &o.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

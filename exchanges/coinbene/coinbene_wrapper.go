@@ -181,21 +181,15 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsContractURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        c.WsConnect,
-		Subscriber:                       c.Subscribe,
-		UnSubscriber:                     c.Unsubscribe,
-		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
-		Features:                         &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
+		Config:                exch,
+		DefaultURL:            wsContractURL,
+		RunningURL:            wsRunningURL,
+		Connector:             c.WsConnect,
+		Subscriber:            c.Subscribe,
+		Unsubscriber:          c.Unsubscribe,
+		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
+		Features:              &c.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
 	})
 	if err != nil {
 		return err

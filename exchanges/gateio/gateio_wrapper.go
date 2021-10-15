@@ -162,19 +162,13 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       gateioWebsocketEndpoint,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        g.WsConnect,
-		Subscriber:                       g.Subscribe,
-		GenerateSubscriptions:            g.GenerateDefaultSubscriptions,
-		Features:                         &g.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		Config:                exch,
+		DefaultURL:            gateioWebsocketEndpoint,
+		RunningURL:            wsRunningURL,
+		Connector:             g.WsConnect,
+		Subscriber:            g.Subscribe,
+		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+		Features:              &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
