@@ -145,8 +145,8 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.Wg = new(sync.WaitGroup)
 	w.SetCanUseAuthenticatedEndpoints(s.Config.API.AuthenticatedWebsocketSupport)
 
-	return w.Orderbook.Setup(s.Config.OrderbookConfig.WebsocketBufferLimit,
-		s.Config.OrderbookConfig.WebsocketBufferEnabled,
+	return w.Orderbook.Setup(s.Config.Orderbook.WebsocketBufferLimit,
+		s.Config.Orderbook.WebsocketBufferEnabled,
 		s.SortBuffer,
 		s.SortBufferByUpdateIDs,
 		s.UpdateEntriesByID,

@@ -614,12 +614,12 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	}
 	b.BaseCurrencies = exch.BaseCurrencies
 
-	if exch.OrderbookConfig.VerificationBypass {
+	if exch.Orderbook.VerificationBypass {
 		log.Warnf(log.ExchangeSys,
 			"%s orderbook verification has been bypassed via config.",
 			b.Name)
 	}
-	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
+	b.CanVerifyOrderbook = !exch.Orderbook.VerificationBypass
 	b.States = currencystate.NewCurrencyStates()
 	return err
 }

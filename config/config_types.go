@@ -145,7 +145,7 @@ type ExchangeConfig struct {
 	API                           APIConfig              `json:"api"`
 	Features                      *FeaturesConfig        `json:"features"`
 	BankAccounts                  []banking.Account      `json:"bankAccounts,omitempty"`
-	OrderbookConfig               `json:"orderbook"`
+	Orderbook                     `json:"orderbook"`
 
 	// Deprecated settings which will be removed in a future update
 	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`
@@ -329,8 +329,8 @@ type APIConfig struct {
 	Endpoints            map[string]string              `json:"urlEndpoints"`
 }
 
-// OrderbookConfig stores the orderbook configuration variables
-type OrderbookConfig struct {
+// Orderbook stores the orderbook configuration variables
+type Orderbook struct {
 	VerificationBypass     bool `json:"verificationBypass"`
 	WebsocketBufferLimit   int  `json:"websocketBufferLimit"`
 	WebsocketBufferEnabled bool `json:"websocketBufferEnabled"`
