@@ -763,7 +763,7 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		orderDate := time.Unix(trades[i].Timestamp, 0)
 
 		orders = append(
-			orders, order.CalculateCostsAndAmounts(
+			orders, order.InferAmountsCostsAndTimes(
 				&order.Detail{
 					ID:                   strconv.FormatInt(trades[i].OrderID, 10),
 					Amount:               trades[i].Amount,

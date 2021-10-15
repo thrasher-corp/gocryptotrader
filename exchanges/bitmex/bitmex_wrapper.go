@@ -794,7 +794,7 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		}
 		pair := currency.NewPairWithDelimiter(resp[i].Symbol, resp[i].SettlCurrency, format.Delimiter)
 
-		orderDetail := order.CalculateCostsAndAmounts(
+		orderDetail := order.InferAmountsCostsAndTimes(
 			&order.Detail{
 				Price:                resp[i].Price,
 				AverageExecutedPrice: resp[i].AvgPx,

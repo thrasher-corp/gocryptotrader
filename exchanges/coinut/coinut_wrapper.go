@@ -970,7 +970,7 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 					}
 
 					allOrders = append(
-						allOrders, order.CalculateCostsAndAmounts(
+						allOrders, order.InferAmountsCostsAndTimes(
 							&order.Detail{
 								Exchange:        c.Name,
 								ID:              strconv.FormatInt(trades.Trades[x].OrderID, 10),

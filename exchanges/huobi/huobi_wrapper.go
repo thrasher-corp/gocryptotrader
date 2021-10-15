@@ -1459,7 +1459,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 				return nil, err
 			}
 			for x := range resp {
-				orderDetail := order.CalculateCostsAndAmounts(
+				orderDetail := order.InferAmountsCostsAndTimes(
 					&order.Detail{
 						ID:             strconv.FormatInt(resp[x].ID, 10),
 						Price:          resp[x].Price,

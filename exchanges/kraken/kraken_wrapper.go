@@ -1210,7 +1210,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 			side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
 			orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
 			orders = append(
-				orders, order.CalculateCostsAndAmounts(
+				orders, order.InferAmountsCostsAndTimes(
 					&order.Detail{
 						ID:             i,
 						Amount:         resp.Closed[i].Volume,

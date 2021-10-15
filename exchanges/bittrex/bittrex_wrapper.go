@@ -860,7 +860,7 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			}
 
 			resp = append(
-				resp, order.CalculateCostsAndAmounts(
+				resp, order.InferAmountsCostsAndTimes(
 					&order.Detail{
 						Amount:         orderData[i].Quantity,
 						ExecutedAmount: orderData[i].FillQuantity,

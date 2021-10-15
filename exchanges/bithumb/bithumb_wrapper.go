@@ -770,7 +770,7 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				orderDetail.Side = order.Sell
 			}
 
-			orders = append(orders, order.CalculateCostsAndAmounts(&orderDetail))
+			orders = append(orders, order.InferAmountsCostsAndTimes(&orderDetail))
 		}
 	}
 

@@ -488,8 +488,20 @@ func (s Status) String() string {
 	return string(s)
 }
 
-// CalculateCostsAndAmounts calculates order costs using execution information when available
-func CalculateCostsAndAmounts(d *Detail) Detail {
+// InferAmountsCostsAndTimes infer order costs using execution information and times when available
+func InferAmountsCostsAndTimes(d *Detail) Detail {
+	if d.CostAsset.IsEmpty() {
+		d.CostAsset = d.Pair.Quote
+	}
+
+	if d.LastUpdated.IsZero() {
+		if d.CloseTime.IsZero() {
+			d.LastUpdated = d.Date
+		} else {
+			d.LastUpdated = d.CloseTime
+		}
+	}
+
 	if d.Amount > 0 {
 		if d.ExecutedAmount == 0 {
 			if d.RemainingAmount == 0 {
@@ -514,9 +526,6 @@ func CalculateCostsAndAmounts(d *Detail) Detail {
 	}
 	if d.Cost == 0 {
 		d.Cost = d.AverageExecutedPrice * d.ExecutedAmount
-	}
-	if d.CostAsset.IsEmpty() {
-		d.CostAsset = d.Pair.Quote
 	}
 	return *d
 }

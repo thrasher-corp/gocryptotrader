@@ -546,7 +546,7 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 		}
 		for i := range spotOrders {
 			resp = append(
-				resp, order.CalculateCostsAndAmounts(
+				resp, order.InferAmountsCostsAndTimes(
 					&order.Detail{
 						ID:                   spotOrders[i].OrderID,
 						Price:                spotOrders[i].Price,
