@@ -22,7 +22,7 @@ import (
 // IBotExchange enforces standard functions for all exchanges supported in
 // GoCryptoTrader
 type IBotExchange interface {
-	Setup(exch *config.ExchangeConfig) error
+	Setup(exch *config.Exchange) error
 	Start(wg *sync.WaitGroup)
 	SetDefaults()
 	GetName() string
@@ -71,7 +71,7 @@ type IBotExchange interface {
 	SetClientProxyAddress(addr string) error
 	SupportsREST() bool
 	GetSubscriptions() ([]stream.ChannelSubscription, error)
-	GetDefaultConfig() (*config.ExchangeConfig, error)
+	GetDefaultConfig() (*config.Exchange, error)
 	GetBase() *Base
 	SupportsAsset(assetType asset.Item) bool
 	GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)

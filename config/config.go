@@ -734,7 +734,7 @@ func (c *Config) GetCurrencyPairDisplayConfig() *CurrencyPairFormatConfig {
 }
 
 // GetAllExchangeConfigs returns all exchange configurations
-func (c *Config) GetAllExchangeConfigs() []ExchangeConfig {
+func (c *Config) GetAllExchangeConfigs() []Exchange {
 	m.Lock()
 	configs := c.Exchanges
 	m.Unlock()
@@ -742,7 +742,7 @@ func (c *Config) GetAllExchangeConfigs() []ExchangeConfig {
 }
 
 // GetExchangeConfig returns exchange configurations by its indivdual name
-func (c *Config) GetExchangeConfig(name string) (*ExchangeConfig, error) {
+func (c *Config) GetExchangeConfig(name string) (*Exchange, error) {
 	m.Lock()
 	defer m.Unlock()
 	for i := range c.Exchanges {
@@ -786,7 +786,7 @@ func (c *Config) GetPrimaryForexProvider() string {
 }
 
 // UpdateExchangeConfig updates exchange configurations
-func (c *Config) UpdateExchangeConfig(e *ExchangeConfig) error {
+func (c *Config) UpdateExchangeConfig(e *Exchange) error {
 	m.Lock()
 	defer m.Unlock()
 	for i := range c.Exchanges {

@@ -28,9 +28,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (y *Yobit) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (y *Yobit) GetDefaultConfig() (*config.Exchange, error) {
 	y.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = y.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = y.BaseCurrencies
@@ -110,7 +110,7 @@ func (y *Yobit) SetDefaults() {
 }
 
 // Setup sets exchange configuration parameters for Yobit
-func (y *Yobit) Setup(exch *config.ExchangeConfig) error {
+func (y *Yobit) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		y.SetEnabled(false)
 		return nil

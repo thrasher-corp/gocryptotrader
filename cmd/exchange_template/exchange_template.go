@@ -93,7 +93,7 @@ func main() {
 	exchangeDirectory := filepath.Join(targetPath, exch.Name)
 	configTestFile := config.GetConfig()
 
-	var newConfig *config.ExchangeConfig
+	var newConfig *config.Exchange
 	newConfig, err = makeExchange(exchangeDirectory, configTestFile, &exch)
 	if err != nil {
 		log.Fatal(err)
@@ -122,7 +122,7 @@ func checkExchangeName(exchName string) error {
 	return nil
 }
 
-func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch *exchange) (*config.ExchangeConfig, error) {
+func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch *exchange) (*config.Exchange, error) {
 	err := configTestFile.LoadConfig(exchangeConfigPath, true)
 	if err != nil {
 		return nil, err
@@ -147,7 +147,7 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 
 	exch.CapitalName = strings.Title(exch.Name)
 	exch.Variable = exch.Name[0:2]
-	newExchConfig := &config.ExchangeConfig{}
+	newExchConfig := &config.Exchange{}
 	newExchConfig.Name = exch.CapitalName
 	newExchConfig.Enabled = true
 	newExchConfig.API.Credentials.Key = "Key"
@@ -229,7 +229,7 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 	return newExchConfig, nil
 }
 
-func saveConfig(exchangeDirectory string, configTestFile *config.Config, newExchConfig *config.ExchangeConfig) error {
+func saveConfig(exchangeDirectory string, configTestFile *config.Config, newExchConfig *config.Exchange) error {
 	cmd := exec.Command("go", "fmt")
 	cmd.Dir = exchangeDirectory
 	out, err := cmd.Output()

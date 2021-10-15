@@ -29,9 +29,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (h *HUOBI) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (h *HUOBI) GetDefaultConfig() (*config.Exchange, error) {
 	h.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = h.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = h.BaseCurrencies
@@ -176,7 +176,7 @@ func (h *HUOBI) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
+func (h *HUOBI) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 		return nil
@@ -268,7 +268,7 @@ func (h *HUOBI) Run() {
 
 	if common.StringDataContains(h.BaseCurrencies.Strings(), currency.CNY.String()) {
 		cfg := config.GetConfig()
-		var exchCfg *config.ExchangeConfig
+		var exchCfg *config.Exchange
 		exchCfg, err = cfg.GetExchangeConfig(h.Name)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,

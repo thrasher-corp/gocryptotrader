@@ -87,7 +87,7 @@ type Websocket struct {
 
 // WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
-	Config                *config.ExchangeConfig
+	Config                *config.Exchange
 	DefaultURL            string
 	RunningURL            string
 	RunningURLAuth        string

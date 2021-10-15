@@ -29,9 +29,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *BTCMarkets) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *BTCMarkets) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -136,7 +136,7 @@ func (b *BTCMarkets) SetDefaults() {
 }
 
 // Setup takes in an exchange configuration and sets all parameters
-func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
+func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil

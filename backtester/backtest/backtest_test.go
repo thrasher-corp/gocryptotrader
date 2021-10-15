@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 func newBotWithExchange() *engine.Engine {
 	bot := &engine.Engine{
 		Config: &gctconfig.Config{
-			Exchanges: []gctconfig.ExchangeConfig{
+			Exchanges: []gctconfig.Exchange{
 				{
 					Name:                    testExchange,
 					Enabled:                 true,

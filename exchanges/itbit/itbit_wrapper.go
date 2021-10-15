@@ -28,9 +28,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (i *ItBit) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (i *ItBit) GetDefaultConfig() (*config.Exchange, error) {
 	i.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = i.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = i.BaseCurrencies
@@ -105,7 +105,7 @@ func (i *ItBit) SetDefaults() {
 }
 
 // Setup sets the exchange parameters from exchange config
-func (i *ItBit) Setup(exch *config.ExchangeConfig) error {
+func (i *ItBit) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		i.SetEnabled(false)
 		return nil

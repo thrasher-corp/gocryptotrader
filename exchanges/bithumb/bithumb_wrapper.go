@@ -35,9 +35,9 @@ const wsRateLimitMillisecond = 1000
 var errNotEnoughPairs = errors.New("at least one currency is required to fetch order history")
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bithumb) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *Bithumb) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -146,7 +146,7 @@ func (b *Bithumb) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
+func (b *Bithumb) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil

@@ -1095,7 +1095,7 @@ Add websocket functionality if supported to Setup:
 
 ```go
 // Setup takes in the supplied exchange configuration details and sets params
-func (f *FTX) Setup(exch *config.ExchangeConfig) error {
+func (f *FTX) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		f.SetEnabled(false)
 		return nil

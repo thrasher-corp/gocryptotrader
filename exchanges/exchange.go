@@ -558,7 +558,7 @@ func (b *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
 }
 
 // SetupDefaults sets the exchange settings based on the supplied config
-func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
+func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	b.Enabled = true
 	b.LoadedByConfig = true
 	b.Config = exch

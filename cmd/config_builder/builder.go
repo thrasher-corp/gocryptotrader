@@ -30,10 +30,10 @@ func main() {
 	wg.Wait()
 	log.Println("Done.")
 
-	var cfgs []config.ExchangeConfig
+	var cfgs []config.Exchange
 	exchanges := engine.Bot.GetExchanges()
 	for x := range exchanges {
-		var cfg *config.ExchangeConfig
+		var cfg *config.Exchange
 		cfg, err = exchanges[x].GetDefaultConfig()
 		if err != nil {
 			log.Printf("Failed to get exchanges default config. Err: %s", err)

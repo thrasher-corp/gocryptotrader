@@ -53,7 +53,7 @@ type testResponse struct {
 }
 
 var defaultSetup = &WebsocketSetup{
-	Config: &config.ExchangeConfig{
+	Config: &config.Exchange{
 		Features: &config.FeaturesConfig{
 			Enabled: config.FeaturesEnabledConfig{Websocket: true},
 		},
@@ -119,7 +119,7 @@ func TestSetup(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigIsNil)
 	}
 
-	websocketSetup.Config = &config.ExchangeConfig{}
+	websocketSetup.Config = &config.Exchange{}
 	err = w.Setup(websocketSetup)
 	if !errors.Is(err, errConfigExchangeNameUnset) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigExchangeNameUnset)
@@ -330,7 +330,7 @@ func TestWebsocket(t *testing.T) {
 	t.Parallel()
 	wsInit := Websocket{}
 	err := wsInit.Setup(&WebsocketSetup{
-		Config: &config.ExchangeConfig{
+		Config: &config.Exchange{
 			Features: &config.FeaturesConfig{
 				Enabled: config.FeaturesEnabledConfig{Websocket: true},
 			},

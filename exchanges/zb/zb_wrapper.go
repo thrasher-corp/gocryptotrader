@@ -29,9 +29,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (z *ZB) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (z *ZB) GetDefaultConfig() (*config.Exchange, error) {
 	z.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = z.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = z.BaseCurrencies
@@ -146,7 +146,7 @@ func (z *ZB) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (z *ZB) Setup(exch *config.ExchangeConfig) error {
+func (z *ZB) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		z.SetEnabled(false)
 		return nil

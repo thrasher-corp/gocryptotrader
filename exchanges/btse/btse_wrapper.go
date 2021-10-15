@@ -30,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *BTSE) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *BTSE) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -167,7 +167,7 @@ func (b *BTSE) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
+func (b *BTSE) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil

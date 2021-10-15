@@ -807,7 +807,7 @@ func TestProcessOrders(t *testing.T) {
 			},
 		},
 	}
-	exch.GetBase().Config = &config.ExchangeConfig{
+	exch.GetBase().Config = &config.Exchange{
 		CurrencyPairs: &currency.PairsManager{
 			UseGlobalFormat: true,
 			RequestFormat: &currency.PairFormat{

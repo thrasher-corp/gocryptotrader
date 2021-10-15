@@ -57,7 +57,7 @@ func CreateTestBot(t *testing.T) *Engine {
 	}
 	bot := &Engine{
 		ExchangeManager: SetupExchangeManager(),
-		Config: &config.Config{Exchanges: []config.ExchangeConfig{
+		Config: &config.Config{Exchanges: []config.Exchange{
 			{
 				Name:                    testExchange,
 				Enabled:                 true,
@@ -366,7 +366,7 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 		},
 	}
 	e.Config = &config.Config{
-		Exchanges: []config.ExchangeConfig{
+		Exchanges: []config.Exchange{
 			{
 				Enabled: true,
 				Name:    testExchange,
@@ -712,7 +712,7 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 
 	e := CreateTestBot(t)
 	bf := "Bitflyer"
-	e.Config.Exchanges = append(e.Config.Exchanges, config.ExchangeConfig{
+	e.Config.Exchanges = append(e.Config.Exchanges, config.Exchange{
 		Enabled: true,
 		Name:    bf,
 		CurrencyPairs: &currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{

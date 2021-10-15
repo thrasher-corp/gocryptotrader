@@ -29,9 +29,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (f *FTX) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (f *FTX) GetDefaultConfig() (*config.Exchange, error) {
 	f.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = f.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = f.BaseCurrencies
@@ -160,7 +160,7 @@ func (f *FTX) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (f *FTX) Setup(exch *config.ExchangeConfig) error {
+func (f *FTX) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		f.SetEnabled(false)
 		return nil

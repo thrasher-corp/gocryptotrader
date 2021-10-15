@@ -29,9 +29,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (c *Coinbene) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (c *Coinbene) GetDefaultConfig() (*config.Exchange, error) {
 	c.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = c.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = c.BaseCurrencies
@@ -164,7 +164,7 @@ func (c *Coinbene) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
+func (c *Coinbene) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		c.SetEnabled(false)
 		return nil

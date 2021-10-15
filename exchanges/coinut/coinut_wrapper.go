@@ -30,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (c *COINUT) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (c *COINUT) GetDefaultConfig() (*config.Exchange, error) {
 	c.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = c.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = c.BaseCurrencies
@@ -130,7 +130,7 @@ func (c *COINUT) SetDefaults() {
 }
 
 // Setup sets the current exchange configuration
-func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
+func (c *COINUT) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		c.SetEnabled(false)
 		return nil

@@ -29,7 +29,7 @@ import (
 // When circumstances change, wrapper funcs can be split appropriately
 
 // Setup sets user exchange configuration settings
-func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
+func (o *OKGroup) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		o.SetEnabled(false)
 		return nil

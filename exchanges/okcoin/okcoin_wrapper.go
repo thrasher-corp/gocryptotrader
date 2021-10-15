@@ -23,9 +23,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (o *OKCoin) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (o *OKCoin) GetDefaultConfig() (*config.Exchange, error) {
 	o.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = o.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = o.BaseCurrencies

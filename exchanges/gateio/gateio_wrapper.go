@@ -30,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (g *Gateio) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (g *Gateio) GetDefaultConfig() (*config.Exchange, error) {
 	g.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = g.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = g.BaseCurrencies
@@ -145,7 +145,7 @@ func (g *Gateio) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
+func (g *Gateio) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 		return nil

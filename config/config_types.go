@@ -89,7 +89,7 @@ type Config struct {
 	Communications       base.CommunicationsConfig `json:"communications"`
 	RemoteControl        RemoteControlConfig       `json:"remoteControl"`
 	Portfolio            portfolio.Base            `json:"portfolioAddresses"`
-	Exchanges            []ExchangeConfig          `json:"exchanges"`
+	Exchanges            []Exchange                `json:"exchanges"`
 	BankAccounts         []banking.Account         `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
@@ -127,8 +127,8 @@ type ConnectionMonitorConfig struct {
 	CheckInterval    time.Duration `json:"checkInterval"`
 }
 
-// ExchangeConfig holds all the information needed for each enabled Exchange.
-type ExchangeConfig struct {
+// Exchange holds all the information needed for each enabled Exchange.
+type Exchange struct {
 	Name                          string                 `json:"name"`
 	Enabled                       bool                   `json:"enabled"`
 	Verbose                       bool                   `json:"verbose"`

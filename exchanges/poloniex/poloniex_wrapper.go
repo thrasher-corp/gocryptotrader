@@ -28,9 +28,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (p *Poloniex) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (p *Poloniex) GetDefaultConfig() (*config.Exchange, error) {
 	p.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = p.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = p.BaseCurrencies
@@ -147,7 +147,7 @@ func (p *Poloniex) SetDefaults() {
 }
 
 // Setup sets user exchange configuration settings
-func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
+func (p *Poloniex) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		p.SetEnabled(false)
 		return nil

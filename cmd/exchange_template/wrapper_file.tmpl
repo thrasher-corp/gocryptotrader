@@ -24,9 +24,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig() (*config.Exchange, error) {
 	{{.Variable}}.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = {{.Variable}}.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = {{.Variable}}.BaseCurrencies
@@ -126,7 +126,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error {
+func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		{{.Variable}}.SetEnabled(false)
 		return nil

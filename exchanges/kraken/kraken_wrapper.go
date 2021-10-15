@@ -30,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (k *Kraken) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (k *Kraken) GetDefaultConfig() (*config.Exchange, error) {
 	k.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = k.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = k.BaseCurrencies
@@ -187,7 +187,7 @@ func (k *Kraken) SetDefaults() {
 }
 
 // Setup sets current exchange configuration
-func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
+func (k *Kraken) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		k.SetEnabled(false)
 		return nil

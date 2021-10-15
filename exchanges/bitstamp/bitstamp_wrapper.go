@@ -28,9 +28,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bitstamp) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *Bitstamp) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -146,7 +146,7 @@ func (b *Bitstamp) SetDefaults() {
 }
 
 // Setup sets configuration values to bitstamp
-func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
+func (b *Bitstamp) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil

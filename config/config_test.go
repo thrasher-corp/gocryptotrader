@@ -79,7 +79,7 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 	t.Parallel()
 
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{{
+		Exchanges: []Exchange{{
 			Name:    bfx,
 			Enabled: true,
 			BankAccounts: []banking.Account{
@@ -140,7 +140,7 @@ func TestCheckBankAccountConfig(t *testing.T) {
 func TestUpdateExchangeBankAccounts(t *testing.T) {
 	t.Parallel()
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{
 				Name:    bfx,
 				Enabled: true,
@@ -273,7 +273,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 func TestPurgeExchangeCredentials(t *testing.T) {
 	t.Parallel()
 	var c Config
-	c.Exchanges = []ExchangeConfig{
+	c.Exchanges = []Exchange{
 		{
 			Name: testString,
 			API: APIConfig{
@@ -483,7 +483,7 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
 				Pairs: map[asset.Item]*currency.PairStore{
@@ -520,7 +520,7 @@ func TestSupportsExchangeAssetType(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
 				Pairs: map[asset.Item]*currency.PairStore{
@@ -566,7 +566,7 @@ func TestSetPairs(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 		},
 	)
@@ -602,7 +602,7 @@ func TestGetCurrencyPairConfig(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 		},
 	)
@@ -654,7 +654,7 @@ func TestCheckPairConfigFormats(t *testing.T) {
 	}
 	// Test nil pair store
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 		},
 	)
@@ -754,7 +754,7 @@ func TestCheckPairConsistency(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 		},
 	)
@@ -903,7 +903,7 @@ func TestSupportsPair(t *testing.T) {
 	t.Parallel()
 	fmt := &currency.PairFormat{}
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{
 				Name:    bfx,
 				Enabled: true,
@@ -945,7 +945,7 @@ func TestGetPairFormat(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 		},
 	)
@@ -1043,7 +1043,7 @@ func TestGetAvailablePairs(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name:          testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{},
 		},
@@ -1086,7 +1086,7 @@ func TestGetEnabledPairs(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name:          testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{},
 		},
@@ -1126,7 +1126,7 @@ func TestGetEnabledPairs(t *testing.T) {
 
 func TestGetEnabledExchanges(t *testing.T) {
 	t.Parallel()
-	cfg := &Config{Exchanges: []ExchangeConfig{
+	cfg := &Config{Exchanges: []Exchange{
 		{
 			Name:    bfx,
 			Enabled: true,
@@ -1143,7 +1143,7 @@ func TestGetEnabledExchanges(t *testing.T) {
 
 func TestGetDisabledExchanges(t *testing.T) {
 	t.Parallel()
-	cfg := &Config{Exchanges: []ExchangeConfig{
+	cfg := &Config{Exchanges: []Exchange{
 		{
 			Name:    bfx,
 			Enabled: true,
@@ -1180,7 +1180,7 @@ func TestGetDisabledExchanges(t *testing.T) {
 
 func TestCountEnabledExchanges(t *testing.T) {
 	t.Parallel()
-	cfg := &Config{Exchanges: []ExchangeConfig{
+	cfg := &Config{Exchanges: []Exchange{
 		{
 			Enabled: true,
 		},
@@ -1212,7 +1212,7 @@ func TestGetCurrencyPairDisplayConfig(t *testing.T) {
 func TestGetAllExchangeConfigs(t *testing.T) {
 	t.Parallel()
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{},
 		},
 	}
@@ -1224,7 +1224,7 @@ func TestGetAllExchangeConfigs(t *testing.T) {
 func TestGetExchangeConfig(t *testing.T) {
 	t.Parallel()
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{
 				Name: bfx,
 			},
@@ -1312,14 +1312,14 @@ func TestUpdateExchangeConfig(t *testing.T) {
 	t.Parallel()
 	ok := "OKEX"
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{
 				Name: ok,
 				API:  APIConfig{Credentials: APICredentialsConfig{}},
 			},
 		},
 	}
-	e := &ExchangeConfig{}
+	e := &Exchange{}
 	err := cfg.UpdateExchangeConfig(e)
 	if err == nil {
 		t.Error("Expected error from non-existent exchange")
@@ -1705,7 +1705,7 @@ func TestRetrieveConfigCurrencyPairs(t *testing.T) {
 	cp1 := currency.NewPair(currency.DOGE, currency.XRP)
 	cp2 := currency.NewPair(currency.DOGE, currency.USD)
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{
 				Enabled: true,
 				BaseCurrencies: currency.Currencies{
@@ -1911,7 +1911,7 @@ func TestCheckConfig(t *testing.T) {
 	cp1 := currency.NewPair(currency.DOGE, currency.XRP)
 	cp2 := currency.NewPair(currency.DOGE, currency.USD)
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{
 				Name:    testFakeExchangeName,
 				Enabled: true,
@@ -2187,7 +2187,7 @@ func TestRemoveExchange(t *testing.T) {
 	t.Parallel()
 	var c Config
 	const testExchangeName = "0xBAAAAAAD"
-	c.Exchanges = append(c.Exchanges, ExchangeConfig{
+	c.Exchanges = append(c.Exchanges, Exchange{
 		Name: testExchangeName,
 	})
 	_, err := c.GetExchangeConfig(testExchangeName)

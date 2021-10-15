@@ -849,7 +849,7 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	b.Config = &config.ExchangeConfig{
+	b.Config = &config.Exchange{
 		Features: &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{SaveTradeData: false}},
 	}
 	em.Add(exch)

@@ -23,7 +23,7 @@ type CustomEx struct {
 	exchange.Base
 }
 
-func (c *CustomEx) Setup(exch *config.ExchangeConfig) error {
+func (c *CustomEx) Setup(exch *config.Exchange) error {
 	return nil
 }
 
@@ -215,7 +215,7 @@ func (c *CustomEx) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (c *CustomEx) GetDefaultConfig() (*config.Exchange, error) {
 	return nil, nil
 }
 

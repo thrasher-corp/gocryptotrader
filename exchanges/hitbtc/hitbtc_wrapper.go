@@ -29,9 +29,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (h *HitBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (h *HitBTC) GetDefaultConfig() (*config.Exchange, error) {
 	h.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = h.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = h.BaseCurrencies
@@ -146,7 +146,7 @@ func (h *HitBTC) SetDefaults() {
 }
 
 // Setup sets user exchange configuration settings
-func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
+func (h *HitBTC) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 		return nil

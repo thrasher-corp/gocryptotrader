@@ -29,9 +29,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (c *CoinbasePro) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (c *CoinbasePro) GetDefaultConfig() (*config.Exchange, error) {
 	c.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = c.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = c.BaseCurrencies
@@ -148,7 +148,7 @@ func (c *CoinbasePro) SetDefaults() {
 }
 
 // Setup initialises the exchange parameters with the current configuration
-func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
+func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		c.SetEnabled(false)
 		return nil
