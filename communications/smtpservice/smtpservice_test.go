@@ -17,8 +17,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestConnect(t *testing.T) {
-	err := s.Connect()
-	if err != nil {
+	if err := s.Connect(); err != nil {
 		t.Error("smtpservice Connect() error", err)
 	}
 }

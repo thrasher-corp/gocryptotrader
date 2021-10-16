@@ -93,7 +93,7 @@ func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
 			return pairs[x]
 		}
 	}
-	return Pair{Base: NewCode(""), Quote: NewCode("")}
+	return Pair{}
 }
 
 // FormatPairs formats a string array to a list of currency pairs with the

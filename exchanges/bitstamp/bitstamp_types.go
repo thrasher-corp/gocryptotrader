@@ -133,6 +133,12 @@ type CancelOrder struct {
 	ID     int64   `json:"id"`
 }
 
+// DepositAddress holds the deposit info
+type DepositAddress struct {
+	Address        string `json:"address"`
+	DestinationTag int64  `json:"destination_tag"`
+}
+
 // WithdrawalRequests holds request information on withdrawals
 type WithdrawalRequests struct {
 	OrderID       int64   `json:"id"`
@@ -147,15 +153,12 @@ type WithdrawalRequests struct {
 
 // CryptoWithdrawalResponse response from a crypto withdrawal request
 type CryptoWithdrawalResponse struct {
-	ID    string              `json:"id"`
-	Error map[string][]string `json:"error"`
+	ID int64 `json:"id"`
 }
 
 // FIATWithdrawalResponse response from a fiat withdrawal request
 type FIATWithdrawalResponse struct {
-	ID     string              `json:"id"`
-	Status string              `json:"status"`
-	Reason map[string][]string `json:"reason"`
+	ID int64 `json:"id"`
 }
 
 // UnconfirmedBTCTransactions holds address information about unconfirmed

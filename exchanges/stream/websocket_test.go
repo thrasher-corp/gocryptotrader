@@ -167,8 +167,7 @@ func TestSetup(t *testing.T) {
 func TestTrafficMonitorTimeout(t *testing.T) {
 	t.Parallel()
 	ws := *New()
-	err := ws.Setup(defaultSetup)
-	if err != nil {
+	if err := ws.Setup(defaultSetup); err != nil {
 		t.Fatal(err)
 	}
 	ws.trafficTimeout = time.Second * 2
@@ -650,6 +649,7 @@ func TestDial(t *testing.T) {
 	for i := range testCases {
 		testData := &testCases[i]
 		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
+			t.Parallel()
 			if testData.WC.ProxyURL != "" && !useProxyTests {
 				t.Skip("Proxy testing not enabled, skipping")
 			}
@@ -697,6 +697,7 @@ func TestSendMessage(t *testing.T) {
 	for i := range testCases {
 		testData := &testCases[i]
 		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
+			t.Parallel()
 			if testData.WC.ProxyURL != "" && !useProxyTests {
 				t.Skip("Proxy testing not enabled, skipping")
 			}
@@ -737,7 +738,7 @@ func TestSendMessageWithResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	go readMessages(wc, t)
+	go readMessages(t, wc)
 
 	request := testRequest{
 		Event: "subscribe",
@@ -755,7 +756,8 @@ func TestSendMessageWithResponse(t *testing.T) {
 }
 
 // readMessages helper func
-func readMessages(wc *WebsocketConnection, t *testing.T) {
+func readMessages(t *testing.T, wc *WebsocketConnection) {
+	t.Helper()
 	timer := time.NewTimer(20 * time.Second)
 	for {
 		select {

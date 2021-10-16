@@ -719,8 +719,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			}
 		}
 
-		now := time.Now()
-		n := strconv.FormatInt(now.Unix(), 10)
+		n := strconv.FormatInt(time.Now().Unix(), 10)
 		message := n + method + "/" + path + string(payload)
 
 		hmac, err := crypto.GetHMAC(crypto.HashSHA256,

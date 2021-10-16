@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -445,6 +446,7 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	if err != nil {
 		return resp, err
 	}
+	// nolint: gocritic
 	depositData := append(closedDepositData, openDepositData...)
 
 	for x := range depositData {
@@ -468,6 +470,7 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	if err != nil {
 		return resp, err
 	}
+	// nolint: gocritic
 	withdrawalData := append(closedWithdrawalData, openWithdrawalData...)
 
 	for x := range withdrawalData {
@@ -695,16 +698,16 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bittrex) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
+func (b *Bittrex) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
 	depositAddr, err := b.GetCryptoDepositAddress(ctx, cryptocurrency.String())
 	if err != nil {
-		return "", err
-	}
-	if depositAddr.Status != "PROVISIONED" {
-		return "", errors.New("no deposit address found for currency" + cryptocurrency.String())
+		return nil, err
 	}
 
-	return depositAddr.CryptoAddress, nil
+	return &deposit.Address{
+		Address: depositAddr.CryptoAddress,
+		Tag:     depositAddr.CryptoAddressTag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -952,8 +955,8 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	year, month, day := start.Date()
 	curYear, curMonth, curDay := time.Now().Date()
 
-	getHistoric := false
-	getRecent := false
+	getHistoric := false // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	getRecent := false   // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 
 	switch interval {
 	case kline.OneMin, kline.FiveMin:

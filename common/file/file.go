@@ -116,8 +116,7 @@ func WriteAsCSV(filename string, records [][]string) error {
 
 	w.Flush()
 
-	err := w.Error()
-	if err != nil {
+	if err := w.Error(); err != nil {
 		return err
 	}
 	return Write(filename, buf.Bytes())

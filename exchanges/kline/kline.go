@@ -19,8 +19,7 @@ func CreateKline(trades []order.TradeHistory, interval Interval, p currency.Pair
 		return Item{}, fmt.Errorf("invalid time interval: [%s]", interval)
 	}
 
-	err := validateData(trades)
-	if err != nil {
+	if err := validateData(trades); err != nil {
 		return Item{}, err
 	}
 

@@ -24,8 +24,7 @@ func clearScreen() error {
 }
 
 func closeConn(conn *grpc.ClientConn, cancel context.CancelFunc) {
-	err := conn.Close()
-	if err != nil {
+	if err := conn.Close(); err != nil {
 		fmt.Println(err)
 	}
 	if cancel != nil {

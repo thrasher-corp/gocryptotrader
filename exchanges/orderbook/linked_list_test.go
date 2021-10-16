@@ -40,7 +40,7 @@ func (ll *linkedList) display() {
 
 func TestLoad(t *testing.T) {
 	list := asks{}
-	Check(list, 0, 0, 0, t)
+	Check(t, list, 0, 0, 0)
 
 	stack := newStack()
 	list.load(Items{
@@ -56,7 +56,7 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
 	}
 
-	Check(list, 6, 36, 6, t)
+	Check(t, list, 6, 36, 6)
 
 	list.load(Items{
 		{Price: 1, Amount: 1},
@@ -68,7 +68,7 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.getCount())
 	}
 
-	Check(list, 3, 9, 3, t)
+	Check(t, list, 3, 9, 3)
 
 	list.load(Items{
 		{Price: 1, Amount: 1},
@@ -81,7 +81,7 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 2, stack.getCount())
 	}
 
-	Check(list, 4, 16, 4, t)
+	Check(t, list, 4, 16, 4)
 
 	// purge entire list
 	list.load(nil, stack)
@@ -90,7 +90,7 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 6, stack.getCount())
 	}
 
-	Check(list, 0, 0, 0, t)
+	Check(t, list, 0, 0, 0)
 }
 
 // 22222386	        57.3 ns/op	       0 B/op	       0 allocs/op (old)
@@ -121,7 +121,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 1, Amount: 2},
 	}, stack, 0, getNow())
 
-	Check(a, 7, 37, 6, t)
+	Check(t, a, 7, 37, 6)
 
 	if stack.getCount() != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
@@ -132,7 +132,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 0.5, Amount: 2},
 	}, stack, 0, getNow())
 
-	Check(a, 9, 38, 7, t)
+	Check(t, a, 9, 38, 7)
 
 	if stack.getCount() != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
@@ -143,7 +143,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 12, Amount: 2},
 	}, stack, 0, getNow())
 
-	Check(a, 11, 62, 8, t)
+	Check(t, a, 11, 62, 8)
 
 	if stack.getCount() != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
@@ -156,7 +156,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 13, Amount: 2},
 	}, stack, 10, getNow())
 
-	Check(a, 15, 106, 10, t)
+	Check(t, a, 15, 106, 10)
 
 	if stack.getCount() != 1 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 1, stack.getCount())
@@ -167,7 +167,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 12, Amount: 0},
 	}, stack, 0, getNow())
 
-	Check(a, 13, 82, 9, t)
+	Check(t, a, 13, 82, 9)
 
 	if stack.getCount() != 2 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 2, stack.getCount())
@@ -178,7 +178,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 7, Amount: 0},
 	}, stack, 0, getNow())
 
-	Check(a, 12, 75, 8, t)
+	Check(t, a, 12, 75, 8)
 
 	if stack.getCount() != 3 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.getCount())
@@ -189,7 +189,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 0.5, Amount: 0},
 	}, stack, 0, getNow())
 
-	Check(a, 10, 74, 7, t)
+	Check(t, a, 10, 74, 7)
 
 	if stack.getCount() != 4 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 4, stack.getCount())
@@ -208,7 +208,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 11, Amount: 1},
 	}, stack, 0, getNow())
 
-	Check(a, 6, 36, 6, t)
+	Check(t, a, 6, 36, 6)
 
 	if stack.getCount() != 5 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 4, stack.getCount())
@@ -230,7 +230,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 11, Amount: 2},
 	}, stack, 0, getNow())
 
-	Check(b, 7, 47, 6, t)
+	Check(t, b, 7, 47, 6)
 
 	if stack.getCount() != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
@@ -241,7 +241,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 12, Amount: 2},
 	}, stack, 0, getNow())
 
-	Check(b, 9, 71, 7, t)
+	Check(t, b, 9, 71, 7)
 
 	if stack.getCount() != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
@@ -252,7 +252,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 0.5, Amount: 2},
 	}, stack, 0, getNow())
 
-	Check(b, 11, 72, 8, t)
+	Check(t, b, 11, 72, 8)
 
 	if stack.getCount() != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
@@ -265,7 +265,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 13, Amount: 2},
 	}, stack, 10, getNow())
 
-	Check(b, 15, 141, 10, t)
+	Check(t, b, 15, 141, 10)
 
 	if stack.getCount() != 1 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
@@ -276,7 +276,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 1, Amount: 0},
 	}, stack, 0, getNow())
 
-	Check(b, 14, 140, 9, t)
+	Check(t, b, 14, 140, 9)
 
 	if stack.getCount() != 2 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 2, stack.getCount())
@@ -287,7 +287,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 10.5, Amount: 0},
 	}, stack, 0, getNow())
 
-	Check(b, 12, 119, 8, t)
+	Check(t, b, 12, 119, 8)
 
 	if stack.getCount() != 3 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.getCount())
@@ -298,7 +298,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 13, Amount: 0},
 	}, stack, 0, getNow())
 
-	Check(b, 10, 93, 7, t)
+	Check(t, b, 10, 93, 7)
 
 	if stack.getCount() != 4 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 4, stack.getCount())
@@ -317,7 +317,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 11, Amount: 1},
 	}, stack, 0, getNow())
 
-	Check(b, 6, 36, 6, t)
+	Check(t, b, 6, 36, 6)
 
 	if stack.getCount() != 5 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 4, stack.getCount())
@@ -338,15 +338,15 @@ func TestCleanup(t *testing.T) {
 	a.load(asksSnapshot, stack)
 
 	a.cleanup(6, stack)
-	Check(a, 6, 36, 6, t)
+	Check(t, a, 6, 36, 6)
 	a.cleanup(5, stack)
-	Check(a, 5, 25, 5, t)
+	Check(t, a, 5, 25, 5)
 	a.cleanup(1, stack)
-	Check(a, 1, 1, 1, t)
+	Check(t, a, 1, 1, 1)
 	a.cleanup(10, stack)
-	Check(a, 1, 1, 1, t)
+	Check(t, a, 1, 1, 1)
 	a.cleanup(0, stack) // will purge, underlying checks are done elseware to prevent this
-	Check(a, 0, 0, 0, t)
+	Check(t, a, 0, 0, 0)
 }
 
 // 46154023	        24.0 ns/op	       0 B/op	       0 allocs/op (old)
@@ -421,7 +421,7 @@ func TestUpdateByID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 6, 36, 6, t)
+	Check(t, a, 6, 36, 6)
 
 	err = a.updateByID(Items{
 		{Price: 11, Amount: 1, ID: 1337},
@@ -496,7 +496,7 @@ func TestDeleteByID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 5, 35, 5, t)
+	Check(t, a, 5, 35, 5)
 
 	// Delete at tail
 	err = a.deleteByID(Items{
@@ -506,7 +506,7 @@ func TestDeleteByID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 4, 24, 4, t)
+	Check(t, a, 4, 24, 4)
 
 	// Delete in middle
 	err = a.deleteByID(Items{
@@ -516,7 +516,7 @@ func TestDeleteByID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 3, 19, 3, t)
+	Check(t, a, 3, 19, 3)
 
 	// Intentional error
 	err = a.deleteByID(Items{
@@ -556,7 +556,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 7, 37, 6, t)
+	Check(t, a, 7, 37, 6)
 
 	// Reset
 	a.load(asksSnapshot, s)
@@ -574,7 +574,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 12, 72, 6, t)
+	Check(t, a, 12, 72, 6)
 
 	// Update all instances with matching ID in backwards
 	err = a.updateInsertByID(Items{
@@ -589,7 +589,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 12, 72, 6, t)
+	Check(t, a, 12, 72, 6)
 
 	// Update all instances with matching ID all over the ship
 	err = a.updateInsertByID(Items{
@@ -604,7 +604,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 12, 72, 6, t)
+	Check(t, a, 12, 72, 6)
 
 	// Update all instances move one before ID in middle
 	err = a.updateInsertByID(Items{
@@ -619,7 +619,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 12, 66, 6, t)
+	Check(t, a, 12, 66, 6)
 
 	// Update all instances move one before ID at head
 	err = a.updateInsertByID(Items{
@@ -634,7 +634,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 12, 63, 6, t)
+	Check(t, a, 12, 63, 6)
 
 	// Reset
 	a.load(asksSnapshot, s)
@@ -652,7 +652,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 12, 78, 6, t)
+	Check(t, a, 12, 78, 6)
 
 	// Reset
 	a.load(asksSnapshot, s)
@@ -670,7 +670,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 12, 86, 6, t)
+	Check(t, a, 12, 86, 6)
 
 	// Update all instances then pop new instance
 	err = a.updateInsertByID(Items{
@@ -686,7 +686,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 14, 106, 7, t)
+	Check(t, a, 14, 106, 7)
 
 	// Reset
 	a.load(asksSnapshot, s)
@@ -705,7 +705,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 14, 87, 7, t)
+	Check(t, a, 14, 87, 7)
 
 	// bookmark head and move to mid
 	err = a.updateInsertByID(Items{
@@ -715,7 +715,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 14, 101, 7, t)
+	Check(t, a, 14, 101, 7)
 
 	// bookmark head and move to tail
 	err = a.updateInsertByID(Items{
@@ -725,7 +725,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 14, 124, 7, t)
+	Check(t, a, 14, 124, 7)
 
 	// move tail location to head
 	err = a.updateInsertByID(Items{
@@ -735,7 +735,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 14, 104, 7, t)
+	Check(t, a, 14, 104, 7)
 
 	// move tail location to mid
 	err = a.updateInsertByID(Items{
@@ -745,7 +745,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 14, 96, 7, t)
+	Check(t, a, 14, 96, 7)
 
 	// insert at tail dont match
 	err = a.updateInsertByID(Items{
@@ -755,7 +755,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 16, 156, 8, t)
+	Check(t, a, 16, 156, 8)
 
 	// insert between last and 2nd last
 	err = a.updateInsertByID(Items{
@@ -765,7 +765,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 18, 180, 9, t)
+	Check(t, a, 18, 180, 9)
 
 	// readjust at end
 	err = a.updateInsertByID(Items{
@@ -775,7 +775,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 19, 207, 9, t)
+	Check(t, a, 19, 207, 9)
 
 	// readjust further and decrease price past tail
 	err = a.updateInsertByID(Items{
@@ -785,7 +785,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 19, 213, 9, t)
+	Check(t, a, 19, 213, 9)
 
 	// purge
 	a.load(nil, s)
@@ -804,7 +804,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 14, 87, 7, t)
+	Check(t, a, 14, 87, 7)
 }
 
 func TestUpdateInsertByIDBids(t *testing.T) {
@@ -828,7 +828,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 7, 37, 6, t)
+	Check(t, b, 7, 37, 6)
 
 	// Reset
 	b.load(bidsSnapshot, s)
@@ -846,7 +846,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 12, 72, 6, t)
+	Check(t, b, 12, 72, 6)
 
 	// Update all instances with matching ID in backwards
 	err = b.updateInsertByID(Items{
@@ -861,7 +861,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 12, 72, 6, t)
+	Check(t, b, 12, 72, 6)
 
 	// Update all instances with matching ID all over the ship
 	err = b.updateInsertByID(Items{
@@ -876,7 +876,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 12, 72, 6, t)
+	Check(t, b, 12, 72, 6)
 
 	// Update all instances move one before ID in middle
 	err = b.updateInsertByID(Items{
@@ -891,7 +891,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 12, 66, 6, t)
+	Check(t, b, 12, 66, 6)
 
 	// Update all instances move one before ID at head
 	err = b.updateInsertByID(Items{
@@ -906,7 +906,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 12, 63, 6, t)
+	Check(t, b, 12, 63, 6)
 
 	// Reset
 	b.load(bidsSnapshot, s)
@@ -924,7 +924,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 12, 78, 6, t)
+	Check(t, b, 12, 78, 6)
 
 	// Reset
 	b.load(bidsSnapshot, s)
@@ -942,7 +942,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 12, 86, 6, t)
+	Check(t, b, 12, 86, 6)
 
 	// Update all instances then pop new instance
 	err = b.updateInsertByID(Items{
@@ -958,7 +958,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 14, 106, 7, t)
+	Check(t, b, 14, 106, 7)
 
 	// Reset
 	b.load(bidsSnapshot, s)
@@ -977,7 +977,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 14, 87, 7, t)
+	Check(t, b, 14, 87, 7)
 
 	// bookmark head and move to mid
 	err = b.updateInsertByID(Items{
@@ -987,7 +987,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 14, 82, 7, t)
+	Check(t, b, 14, 82, 7)
 
 	// bookmark head and move to tail
 	err = b.updateInsertByID(Items{
@@ -997,7 +997,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 14, 60.5, 7, t)
+	Check(t, b, 14, 60.5, 7)
 
 	// move tail location to head
 	err = b.updateInsertByID(Items{
@@ -1007,7 +1007,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 14, 80, 7, t)
+	Check(t, b, 14, 80, 7)
 
 	// move tail location to mid
 	err = b.updateInsertByID(Items{
@@ -1017,7 +1017,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 14, 94, 7, t)
+	Check(t, b, 14, 94, 7)
 
 	// insert at head dont match
 	err = b.updateInsertByID(Items{
@@ -1027,7 +1027,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 16, 154, 8, t)
+	Check(t, b, 16, 154, 8)
 
 	// insert between last and 2nd last
 	err = b.updateInsertByID(Items{
@@ -1036,7 +1036,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Check(b, 18, 157, 9, t)
+	Check(t, b, 18, 157, 9)
 
 	// readjust at end
 	err = b.updateInsertByID(Items{
@@ -1045,7 +1045,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Check(b, 19, 158, 9, t)
+	Check(t, b, 19, 158, 9)
 
 	// readjust further and decrease price past tail
 	err = b.updateInsertByID(Items{
@@ -1054,7 +1054,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Check(b, 19, 157.7, 9, t)
+	Check(t, b, 19, 157.7, 9)
 
 	// purge
 	b.load(nil, s)
@@ -1073,7 +1073,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 14, 87, 7, t)
+	Check(t, b, 14, 87, 7)
 }
 
 func TestInsertUpdatesBid(t *testing.T) {
@@ -1101,7 +1101,7 @@ func TestInsertUpdatesBid(t *testing.T) {
 		t.Fatalf("expected error %s but received %v", errCollisionDetected, err)
 	}
 
-	Check(b, 6, 36, 6, t)
+	Check(t, b, 6, 36, 6)
 
 	// Insert at head
 	err = b.insertUpdates(Items{
@@ -1111,7 +1111,7 @@ func TestInsertUpdatesBid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 7, 48, 7, t)
+	Check(t, b, 7, 48, 7)
 
 	// Insert at tail
 	err = b.insertUpdates(Items{
@@ -1121,7 +1121,7 @@ func TestInsertUpdatesBid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 8, 48.5, 8, t)
+	Check(t, b, 8, 48.5, 8)
 
 	// Insert at mid
 	err = b.insertUpdates(Items{
@@ -1131,7 +1131,7 @@ func TestInsertUpdatesBid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 9, 54, 9, t)
+	Check(t, b, 9, 54, 9)
 
 	// purge
 	b.load(nil, s)
@@ -1144,7 +1144,7 @@ func TestInsertUpdatesBid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(b, 1, 5.5, 1, t)
+	Check(t, b, 1, 5.5, 1)
 }
 
 func TestInsertUpdatesAsk(t *testing.T) {
@@ -1172,7 +1172,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 		t.Fatalf("expected error %s but received %v", errCollisionDetected, err)
 	}
 
-	Check(a, 6, 36, 6, t)
+	Check(t, a, 6, 36, 6)
 
 	// Insert at tail
 	err = a.insertUpdates(Items{
@@ -1182,7 +1182,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 7, 48, 7, t)
+	Check(t, a, 7, 48, 7)
 
 	// Insert at head
 	err = a.insertUpdates(Items{
@@ -1192,7 +1192,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 8, 48.5, 8, t)
+	Check(t, a, 8, 48.5, 8)
 
 	// Insert at mid
 	err = a.insertUpdates(Items{
@@ -1202,7 +1202,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 9, 54, 9, t)
+	Check(t, a, 9, 54, 9)
 
 	// purge
 	a.load(nil, s)
@@ -1215,11 +1215,11 @@ func TestInsertUpdatesAsk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Check(a, 1, 5.5, 1, t)
+	Check(t, a, 1, 5.5, 1)
 }
 
 // check checks depth values after an update has taken place
-func Check(depth interface{}, liquidity, value float64, nodeCount int, t *testing.T) {
+func Check(t *testing.T, depth interface{}, liquidity, value float64, nodeCount int) {
 	t.Helper()
 	b, isBid := depth.(bids)
 	a, isAsk := depth.(asks)
@@ -1434,7 +1434,7 @@ func TestShiftBookmark(t *testing.T) {
 		t.Fatal("nilBookmark not reassigned")
 	}
 
-	head := bookmarkedNode
+	head := bookmarkedNode // nolint // ifshort false positive
 	bookmarkedNode.Prev = nil
 	bookmarkedNode.Next = originalBookmarkNext
 	tip.Next = nil

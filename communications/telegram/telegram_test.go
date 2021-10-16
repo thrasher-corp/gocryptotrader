@@ -36,9 +36,8 @@ func TestSetup(t *testing.T) {
 func TestConnect(t *testing.T) {
 	t.Parallel()
 	var T Telegram
-	err := T.Connect()
-	if err == nil {
-		t.Error("telegram Connect() error")
+	if err := T.Connect(); err == nil {
+		t.Error("expected error")
 	}
 }
 
@@ -91,8 +90,7 @@ func TestHandleMessages(t *testing.T) {
 func TestGetUpdates(t *testing.T) {
 	t.Parallel()
 	var T Telegram
-	_, err := T.GetUpdates()
-	if err != nil {
+	if _, err := T.GetUpdates(); err != nil {
 		t.Error("telegram GetUpdates() error", err)
 	}
 }
@@ -100,10 +98,8 @@ func TestGetUpdates(t *testing.T) {
 func TestTestConnection(t *testing.T) {
 	t.Parallel()
 	var T Telegram
-	err := T.TestConnection()
-	if err.Error() != testErrNotFound {
-		t.Errorf("telegram TestConnection() error, expected 'Not found' got '%s'",
-			err)
+	if err := T.TestConnection(); err.Error() != testErrNotFound {
+		t.Errorf("received %s, expected: %s", err, testErrNotFound)
 	}
 }
 

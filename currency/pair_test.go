@@ -16,13 +16,11 @@ func TestLower(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	actual := pair.Lower()
 	expected, err := NewPairFromString(defaultPair)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if actual.String() != expected.Lower().String() {
+	if actual := pair.Lower(); actual.String() != expected.Lower().String() {
 		t.Errorf("Lower(): %s was not equal to expected value: %s",
 			actual,
 			expected.Lower())
@@ -35,12 +33,11 @@ func TestUpper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	actual := pair.Upper()
 	expected, err := NewPairFromString(defaultPair)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if actual.String() != expected.String() {
+	if actual := pair.Upper(); actual.String() != expected.String() {
 		t.Errorf("Upper(): %s was not equal to expected value: %s",
 			actual, expected)
 	}
@@ -126,9 +123,7 @@ func TestIsFiatPair(t *testing.T) {
 func TestString(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := defaultPair
-	expected := pair.String()
-	if actual != expected {
+	if actual, expected := defaultPair, pair.String(); actual != expected {
 		t.Errorf("String(): %s was not equal to expected value: %s",
 			actual, expected)
 	}
@@ -137,9 +132,7 @@ func TestString(t *testing.T) {
 func TestFirstCurrency(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := pair.Base
-	expected := BTC
-	if actual != expected {
+	if actual, expected := pair.Base, BTC; actual != expected {
 		t.Errorf(
 			"GetFirstCurrency(): %s was not equal to expected value: %s",
 			actual, expected,
@@ -150,9 +143,7 @@ func TestFirstCurrency(t *testing.T) {
 func TestSecondCurrency(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := pair.Quote
-	expected := USD
-	if actual != expected {
+	if actual, expected := pair.Quote, USD; actual != expected {
 		t.Errorf(
 			"GetSecondCurrency(): %s was not equal to expected value: %s",
 			actual, expected,
@@ -163,9 +154,7 @@ func TestSecondCurrency(t *testing.T) {
 func TestPair(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := pair.String()
-	expected := defaultPair
-	if actual != expected {
+	if actual, expected := pair.String(), defaultPair; actual != expected {
 		t.Errorf(
 			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
@@ -282,9 +271,7 @@ func TestEqualIncludeReciprocal(t *testing.T) {
 func TestSwap(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := pair.Swap().String()
-	expected := "USDBTC"
-	if actual != expected {
+	if actual, expected := pair.Swap().String(), "USDBTC"; actual != expected {
 		t.Errorf(
 			"TestSwap: %s was not equal to expected value: %s",
 			actual, expected,
@@ -308,9 +295,7 @@ func TestEmpty(t *testing.T) {
 func TestNewPair(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := pair.String()
-	expected := defaultPair
-	if actual != expected {
+	if expected, actual := defaultPair, pair.String(); actual != expected {
 		t.Errorf(
 			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,

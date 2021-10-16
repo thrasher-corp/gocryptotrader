@@ -9,11 +9,13 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -188,6 +190,42 @@ func TestFetchOrderInfo(t *testing.T) {
 	_, err := c.FetchSpotOrderInfo(context.Background(), "adfjashjgsag")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	_, err := c.GetDepositAddress(context.Background(), currency.USDT, "", "ETH")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdraw(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    c.Name,
+		Amount:      -1,
+		Currency:    currency.BTC,
+		Description: "WITHDRAW IT ALL",
+		Crypto: withdraw.CryptoRequest{
+			Address: core.BitcoinDonationAddress,
+		},
+	}
+
+	_, err := c.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
 
@@ -812,5 +850,27 @@ func TestGetHistoricTrades(t *testing.T) {
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
+	}
+}
+
+func TestListDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set")
+	}
+	_, err := c.ListDepositAddress(context.Background(), currency.USDT)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAvailableTransferCurrencies(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set")
+	}
+	_, err := c.GetAvailableTransferChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

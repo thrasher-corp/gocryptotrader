@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -35,6 +36,7 @@ const (
 	zbGetOrdersGet                    = "getOrders"
 	zbWithdraw                        = "withdraw"
 	zbDepositAddress                  = "getUserAddress"
+	zbMultiChainDepositAddress        = "getPayinAddress"
 )
 
 // ZB is the overarching type across this package
@@ -227,39 +229,39 @@ func (z *ZB) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (KLineRe
 	urlPath := fmt.Sprintf("/%s/%s/%s?%s", zbData, zbAPIVersion, zbKline, vals.Encode())
 
 	var res KLineResponse
-	var rawKlines map[string]interface{}
-	err := z.SendHTTPRequest(ctx, exchange.RestSpot, urlPath, &rawKlines, klineFunc)
+	resp := struct {
+		Data      [][]float64 `json:"data"`
+		MoneyType string      `json:"moneyType"`
+		Symbol    string      `json:"symbol"`
+	}{}
+	err := z.SendHTTPRequest(ctx, exchange.RestSpot, urlPath, &resp, klineFunc)
 	if err != nil {
 		return res, err
 	}
-	if rawKlines == nil || rawKlines["symbol"] == nil {
-		return res, errors.New("zb GetSpotKline rawKlines is nil")
+	if resp.Data == nil || resp.Symbol == "" || resp.MoneyType == "" {
+		return res, errors.New("GetSpotKline received empty data")
 	}
+	res.MoneyType = resp.MoneyType
+	res.Symbol = resp.Symbol
 
-	res.Symbol = rawKlines["symbol"].(string)
-	res.MoneyType = rawKlines["moneyType"].(string)
+	for x := range resp.Data {
+		if len(resp.Data[x]) < 6 {
+			return res, errors.New("unexpected kline data length")
+		}
 
-	rawKlineDatasString, _ := json.Marshal(rawKlines["data"].([]interface{}))
-	var rawKlineDatas [][]interface{}
-	if err := json.Unmarshal(rawKlineDatasString, &rawKlineDatas); err != nil {
-		return res, errors.New("zb rawKlines unmarshal failed")
-	}
-	for _, k := range rawKlineDatas {
-		ot, err := convert.TimeFromUnixTimestampFloat(k[0])
+		ot, err := convert.TimeFromUnixTimestampFloat(resp.Data[x][0])
 		if err != nil {
-			return res, errors.New("zb cannot parse Kline.OpenTime")
+			return res, err
 		}
 		res.Data = append(res.Data, &KLineResponseData{
-			ID:        k[0].(float64),
 			KlineTime: ot,
-			Open:      k[1].(float64),
-			High:      k[2].(float64),
-			Low:       k[3].(float64),
-			Close:     k[4].(float64),
-			Volume:    k[5].(float64),
+			Open:      resp.Data[x][1],
+			High:      resp.Data[x][2],
+			Low:       resp.Data[x][3],
+			Close:     resp.Data[x][4],
+			Volume:    resp.Data[x][5],
 		})
 	}
-
 	return res, nil
 }
 
@@ -267,15 +269,55 @@ func (z *ZB) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (KLineRe
 // NOTE - PLEASE BE AWARE THAT YOU NEED TO GENERATE A DEPOSIT ADDRESS VIA
 // LOGGING IN AND NOT BY USING THIS ENDPOINT OTHERWISE THIS WILL GIVE YOU A
 // GENERAL ERROR RESPONSE.
-func (z *ZB) GetCryptoAddress(ctx context.Context, currency currency.Code) (UserAddress, error) {
+func (z *ZB) GetCryptoAddress(ctx context.Context, currency currency.Code) (*UserAddress, error) {
 	var resp UserAddress
 
 	vals := url.Values{}
 	vals.Set("method", zbDepositAddress)
 	vals.Set("currency", currency.Lower().String())
 
-	return resp,
-		z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)
+	if err := z.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
+		http.MethodGet,
+		vals,
+		&resp,
+		request.Auth); err != nil {
+		return nil, err
+	}
+
+	if !resp.Message.IsSuccessful {
+		return nil, errors.New(resp.Message.Description)
+	}
+
+	if strings.Contains(resp.Message.Data.Address, "_") {
+		splitter := strings.Split(resp.Message.Data.Address, "_")
+		resp.Message.Data.Address, resp.Message.Data.Tag = splitter[0], splitter[1]
+	}
+
+	return &resp, nil
+}
+
+// GetMultiChainDepositAddress returns deposit addresses for a given currency
+func (z *ZB) GetMultiChainDepositAddress(ctx context.Context, currency currency.Code) ([]MultiChainDepositAddress, error) {
+	var resp MultiChainDepositAddressResponse
+
+	vals := url.Values{}
+	vals.Set("method", zbMultiChainDepositAddress)
+	vals.Set("currency", currency.Lower().String())
+
+	if err := z.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
+		http.MethodGet,
+		vals,
+		&resp,
+		request.Auth); err != nil {
+		return nil, err
+	}
+
+	if !resp.Message.IsSuccessful {
+		return nil, errors.New(resp.Message.Description)
+	}
+	return resp.Message.Data, nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -324,8 +366,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 
 	var intermediary json.RawMessage
 	newRequest := func() (*request.Item, error) {
-		now := time.Now()
-		params.Set("reqTime", fmt.Sprintf("%d", convert.UnixMillis(now)))
+		params.Set("reqTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
 		params.Set("sign", fmt.Sprintf("%x", hmac))
 
 		urlPath := fmt.Sprintf("%s/%s?%s",
@@ -357,9 +398,10 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {
 		if errCap.Code > 1000 {
-			return fmt.Errorf("sendAuthenticatedHTTPRequest error code: %d message %s",
+			return fmt.Errorf("error code: %d error code message: %s error message: %s",
 				errCap.Code,
-				errorCode[errCap.Code])
+				errorCode[errCap.Code],
+				errCap.Message)
 		}
 	}
 

@@ -48,8 +48,7 @@ func (m *Match) IncomingWithData(signature interface{}, data []byte) bool {
 func (m *Match) set(signature interface{}) (matcher, error) {
 	var ch chan []byte
 	m.Lock()
-	_, ok := m.m[signature]
-	if ok {
+	if _, ok := m.m[signature]; ok {
 		m.Unlock()
 		return matcher{}, errors.New("signature collision")
 	}

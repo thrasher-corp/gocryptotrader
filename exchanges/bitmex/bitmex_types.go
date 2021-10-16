@@ -649,7 +649,7 @@ type MinWithdrawalFee struct {
 type WalletInfo struct {
 	Account          int64     `json:"account"`
 	Addr             string    `json:"addr"`
-	Amount           int64     `json:"amount"`
+	Amount           float64   `json:"amount"`
 	ConfirmedDebit   int64     `json:"confirmedDebit"`
 	Currency         string    `json:"currency"`
 	DeltaAmount      int64     `json:"deltaAmount"`

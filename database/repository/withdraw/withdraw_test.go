@@ -151,6 +151,7 @@ func seedWithdrawData() {
 	}
 }
 func withdrawHelper(t *testing.T) {
+	t.Helper()
 	seedWithdrawData()
 
 	_, err := GetEventByUUID(withdraw.DryRunID.String())

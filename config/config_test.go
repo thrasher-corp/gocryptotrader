@@ -35,8 +35,7 @@ func TestGetNonExistentDefaultFilePathDoesNotCreateDefaultDir(t *testing.T) {
 	if file.Exists(dir) {
 		t.Skip("The default directory already exists before running the test")
 	}
-	_, _, err := GetFilePath("")
-	if err != nil {
+	if _, _, err := GetFilePath(""); err != nil {
 		t.Fatal(err)
 	}
 	if file.Exists(dir) {
@@ -921,7 +920,7 @@ func TestSupportsPair(t *testing.T) {
 			},
 		},
 	}
-	assetType := asset.Spot
+	assetType := asset.Spot // nolint // ifshort false positive
 	if cfg.SupportsPair("asdf",
 		currency.NewPair(currency.BTC, currency.USD), assetType) {
 		t.Error(
@@ -1284,7 +1283,7 @@ func TestGetForexProviders(t *testing.T) {
 
 func TestGetPrimaryForexProvider(t *testing.T) {
 	t.Parallel()
-	fxr := "Fixer"
+	fxr := "Fixer" // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 	cfg := &Config{
 		Currency: CurrencyConfig{
 			ForexProviders: []currency.FXSettings{
@@ -1600,6 +1599,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 
 	// Make a sneaky copy for bank account testing
+	// nolint: gocritic
 	cpy := append(cfg.Exchanges[:0:0], cfg.Exchanges...)
 
 	// Test empty exchange name for an enabled exchange
@@ -1936,8 +1936,7 @@ func TestCheckConfig(t *testing.T) {
 			},
 		},
 	}
-	err := cfg.CheckConfig()
-	if err != nil {
+	if err := cfg.CheckConfig(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -2208,6 +2207,7 @@ func TestRemoveExchange(t *testing.T) {
 }
 
 func TestGetDataPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		dir  string
@@ -2237,6 +2237,7 @@ func TestGetDataPath(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			t.Helper()
 			c := &Config{
 				DataDirectory: tt.dir,
 			}
@@ -2277,6 +2278,7 @@ func TestMigrateConfig(t *testing.T) {
 		{
 			name: "source present, no target dir",
 			setup: func(t *testing.T) {
+				t.Helper()
 				test, err := os.Create("test.json")
 				if err != nil {
 					t.Fatal(err)
@@ -2284,6 +2286,7 @@ func TestMigrateConfig(t *testing.T) {
 				test.Close()
 			},
 			cleanup: func(t *testing.T) {
+				t.Helper()
 				os.Remove("test.json")
 			},
 			args: args{
@@ -2296,6 +2299,7 @@ func TestMigrateConfig(t *testing.T) {
 		{
 			name: "source same as target",
 			setup: func(t *testing.T) {
+				t.Helper()
 				err := file.Write(filepath.Join(dir, File), nil)
 				if err != nil {
 					t.Fatal(err)
@@ -2311,6 +2315,7 @@ func TestMigrateConfig(t *testing.T) {
 		{
 			name: "source and target present",
 			setup: func(t *testing.T) {
+				t.Helper()
 				err := file.Write(filepath.Join(dir, File), nil)
 				if err != nil {
 					t.Fatal(err)

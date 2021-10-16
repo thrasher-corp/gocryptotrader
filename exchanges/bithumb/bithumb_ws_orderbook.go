@@ -442,7 +442,7 @@ func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
 	newOrderBook.Pair = p
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Exchange = b.Name
-	newOrderBook.LastUpdated = time.Unix(0, o.Data.Timestamp*int64(time.Millisecond))
+	newOrderBook.LastUpdated = time.UnixMilli(o.Data.Timestamp)
 	newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

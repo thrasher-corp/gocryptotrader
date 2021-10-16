@@ -23,7 +23,6 @@ var (
 	errRequestSystemIsNil     = errors.New("request system is nil")
 	errMaxRequestJobs         = errors.New("max request jobs reached")
 	errRequestFunctionIsNil   = errors.New("request function is nil")
-	errServiceNameUnset       = errors.New("service name unset")
 	errRequestItemNil         = errors.New("request item is nil")
 	errInvalidPath            = errors.New("invalid path")
 	errHeaderResponseMapIsNil = errors.New("header response map is nil")
@@ -272,7 +271,7 @@ func (r *Requester) GetNonce(isNano bool) nonce.Value {
 func (r *Requester) GetNonceMilli() nonce.Value {
 	r.timedLock.LockForDuration()
 	if r.Nonce.Get() == 0 {
-		r.Nonce.Set(time.Now().UnixNano() / int64(time.Millisecond))
+		r.Nonce.Set(time.Now().UnixMilli())
 		return r.Nonce.Get()
 	}
 	return r.Nonce.GetInc()

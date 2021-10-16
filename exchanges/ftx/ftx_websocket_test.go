@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
 func parseRaw(t *testing.T, input string) interface{} {
@@ -72,7 +73,7 @@ func TestFTX_wsHandleData_Details(t *testing.T) {
 	p := parseRaw(t, inputPartiallyCancelled)
 	x, ok := p.(*order.Detail)
 	if !ok {
-		t.Fatalf("have %T, want order.Detail", p)
+		t.Fatalf("have %T, want *order.Detail", p)
 	}
 	// "reduceOnly" and "liquidation" do not have corresponding fields in
 	// order.Detail.
@@ -194,6 +195,40 @@ func TestFTX_wsHandleData_wsFills(t *testing.T) {
 	}
 }
 
+func TestFTX_wsHandleData_Price(t *testing.T) {
+	const input = `{
+		"channel": "ticker", 
+		"market": "BTC/USDT", 
+		"type": "update", 
+		"data": {
+			"bid": 16.0, 
+			"ask": 32.0, 
+			"bidSize": 64.0, 
+			"askSize": 128.0, 
+			"last": 256.0, 
+			"time": 1073741824.0
+		}
+	}`
+
+	p := parseRaw(t, input)
+	x, ok := p.(*ticker.Price)
+
+	if !ok {
+		t.Fatalf("have %T, want *ticker.Price", p)
+	}
+
+	if x.AssetType != asset.Spot ||
+		!x.Pair.Equal(currency.NewPair(currency.BTC, currency.USDT)) ||
+		x.Bid != 16 ||
+		x.BidSize != 64 ||
+		x.Ask != 32 ||
+		x.AskSize != 128 ||
+		x.Last != 256 ||
+		!x.LastUpdated.Equal(time.Unix(1073741824, 0)) {
+		t.Error("parsed values do not match")
+	}
+}
+
 func TestParsingOrders(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{
@@ -216,8 +251,7 @@ func TestParsingOrders(t *testing.T) {
 		  },
 		  "type": "update"
 		}`)
-	err := f.wsHandleData(data)
-	if err != nil {
+	if err := f.wsHandleData(data); err != nil {
 		t.Error(err)
 	}
 }
@@ -239,8 +273,7 @@ func TestParsingWSTradesData(t *testing.T) {
 			}
 		]
 	}`)
-	err := f.wsHandleData(data)
-	if err != nil {
+	if err := f.wsHandleData(data); err != nil {
 		t.Error(err)
 	}
 }
@@ -260,8 +293,7 @@ func TestParsingWSTickerData(t *testing.T) {
 			"time": 1589505004.4237103
 		}
 	}`)
-	err := f.wsHandleData(data)
-	if err != nil {
+	if err := f.wsHandleData(data); err != nil {
 		t.Error(err)
 	}
 }
@@ -288,8 +320,7 @@ func TestParsingWSOrdersData(t *testing.T) {
 		},
 		"type": "update"
 	  }`)
-	err := f.wsHandleData(data)
-	if err != nil {
+	if err := f.wsHandleData(data); err != nil {
 		t.Error(err)
 	}
 }
@@ -325,8 +356,7 @@ func TestParsingMarketsData(t *testing.T) {
 				"group": "quarterly"}}},
 		"action": "partial"
 	  }`)
-	err := f.wsHandleData(data)
-	if err != nil {
+	if err := f.wsHandleData(data); err != nil {
 		t.Error(err)
 	}
 }

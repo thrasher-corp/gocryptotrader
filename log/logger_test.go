@@ -68,27 +68,26 @@ func BenchmarkInfo(b *testing.B) {
 }
 
 func SetupTestDisabled(t *testing.T) {
+	t.Helper()
 	SetupDisabled()
 }
 
 func TestAddWriter(t *testing.T) {
 	mw := MultiWriter()
-	m := mw.(*multiWriter)
+	m := mw.(*multiWriter) // nolint // type assert not required
 
 	m.Add(ioutil.Discard)
 	m.Add(os.Stdin)
 	m.Add(os.Stdout)
 
-	total := len(m.writers)
-
-	if total != 3 {
+	if total := len(m.writers); total != 3 {
 		t.Errorf("expected m.Writers to be 3 %v", total)
 	}
 }
 
 func TestRemoveWriter(t *testing.T) {
 	mw := MultiWriter()
-	m := mw.(*multiWriter)
+	m := mw.(*multiWriter) // nolint // type assert not required
 
 	m.Add(ioutil.Discard)
 	m.Add(os.Stdin)
@@ -148,8 +147,7 @@ func TestValidSubLogger(t *testing.T) {
 }
 
 func TestCloseLogger(t *testing.T) {
-	err := CloseLogger()
-	if err != nil {
+	if err := CloseLogger(); err != nil {
 		t.Errorf("CloseLogger() failed %v", err)
 	}
 }

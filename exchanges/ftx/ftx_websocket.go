@@ -77,7 +77,7 @@ func (f *FTX) WsConnect() error {
 
 // WsAuth sends an authentication message to receive auth data
 func (f *FTX) WsAuth() error {
-	intNonce := time.Now().UnixNano() / 1000000
+	intNonce := time.Now().UnixMilli()
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
@@ -90,11 +90,13 @@ func (f *FTX) WsAuth() error {
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{Operation: "login",
 		Args: AuthenticationData{
-			Key:  f.API.Credentials.Key,
-			Sign: sign,
-			Time: intNonce,
+			Key:        f.API.Credentials.Key,
+			Sign:       sign,
+			Time:       intNonce,
+			SubAccount: f.API.Credentials.Subaccount,
 		},
 	}
+
 	return f.Websocket.Conn.SendJSONMessage(req)
 }
 
@@ -270,7 +272,9 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			f.Websocket.DataHandler <- &ticker.Price{
 				ExchangeName: f.Name,
 				Bid:          resultData.Ticker.Bid,
+				BidSize:      resultData.Ticker.BidSize,
 				Ask:          resultData.Ticker.Ask,
+				AskSize:      resultData.Ticker.AskSize,
 				Last:         resultData.Ticker.Last,
 				LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
 				Pair:         p,

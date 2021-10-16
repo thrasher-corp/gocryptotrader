@@ -12,7 +12,7 @@ import (
 
 func getWriters(s *SubLoggerConfig) io.Writer {
 	mw := MultiWriter()
-	m := mw.(*multiWriter)
+	m := mw.(*multiWriter) // nolint // type assert not required
 
 	outputWriters := strings.Split(s.Output, "|")
 	for x := range outputWriters {

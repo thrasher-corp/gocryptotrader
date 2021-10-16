@@ -475,8 +475,7 @@ func (w *Websocket) FlushChannels() error {
 		return nil
 	}
 
-	err := w.Shutdown()
-	if err != nil {
+	if err := w.Shutdown(); err != nil {
 		return err
 	}
 	return w.Connect()
@@ -867,8 +866,7 @@ func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) error {
 			}
 		}
 	}
-	err := w.Subscriber(channels)
-	if err != nil {
+	if err := w.Subscriber(channels); err != nil {
 		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
 	}
 	return nil

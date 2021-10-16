@@ -81,8 +81,7 @@ func TestHasDataAtTime(t *testing.T) {
 			},
 		},
 	}
-	err := d.Load()
-	if err != nil {
+	if err := d.Load(); err != nil {
 		t.Error(err)
 	}
 

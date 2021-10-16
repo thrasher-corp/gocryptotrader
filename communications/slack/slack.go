@@ -67,8 +67,7 @@ func (s *Slack) Setup(cfg *base.CommunicationsConfig) {
 
 // Connect connects to the service
 func (s *Slack) Connect() error {
-	err := s.NewConnection()
-	if err != nil {
+	if err := s.NewConnection(); err != nil {
 		return err
 	}
 

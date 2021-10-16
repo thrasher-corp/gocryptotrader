@@ -34,8 +34,7 @@ func promptForConfigEncryption() (bool, error) {
 	log.Println("Would you like to encrypt your config file (y/n)?")
 
 	input := ""
-	_, err := fmt.Scanln(&input)
-	if err != nil {
+	if _, err := fmt.Scanln(&input); err != nil {
 		return false, err
 	}
 
@@ -194,8 +193,7 @@ func ConfirmECS(file []byte) bool {
 // or errors, if the prefix wasn't found
 func skipECS(file io.Reader) error {
 	buf := make([]byte, len(EncryptConfirmString))
-	_, err := io.ReadFull(file, buf)
-	if err != nil {
+	if _, err := io.ReadFull(file, buf); err != nil {
 		return err
 	}
 	if string(buf) != EncryptConfirmString {

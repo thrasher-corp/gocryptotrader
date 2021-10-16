@@ -35,9 +35,8 @@ func TestBase64Decode(t *testing.T) {
 func TestBase64Encode(t *testing.T) {
 	t.Parallel()
 	originalInput := []byte("hello")
-	expectedOutput := "aGVsbG8="
 	actualResult := Base64Encode(originalInput)
-	if actualResult != expectedOutput {
+	if expectedOutput := "aGVsbG8="; actualResult != expectedOutput {
 		t.Errorf("Expected '%s'. Actual '%s'",
 			expectedOutput, actualResult)
 	}

@@ -241,25 +241,19 @@ func TestSeries(t *testing.T) {
 				t.Errorf("unexpected number of results received:  %v", len(ret.Candles))
 			}
 
-			ret, err = Series("", "", "", 0, "", start, end)
+			_, err = Series("", "", "", 0, "", start, end)
 			if !errors.Is(err, errInvalidInput) {
 				t.Fatal(err)
 			}
 
-			ret, err = Series(testExchanges[0].Name,
+			_, err = Series(testExchanges[0].Name,
 				"BTC", "MOON",
 				864000, "spot",
 				start, end)
-			if err != nil {
-				if !errors.Is(err, errInvalidInput) {
-					if !errors.Is(err, ErrNoCandleDataFound) {
-						t.Fatal(err)
-					}
-				}
+			if err != nil && !errors.Is(err, errInvalidInput) && !errors.Is(err, ErrNoCandleDataFound) {
+				t.Fatal(err)
 			}
-
-			err = testhelpers.CloseDatabase(dbConn)
-			if err != nil {
+			if err = testhelpers.CloseDatabase(dbConn); err != nil {
 				t.Error(err)
 			}
 		})

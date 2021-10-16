@@ -21,25 +21,27 @@ const (
 	exmoAPIURL     = "https://api.exmo.com"
 	exmoAPIVersion = "1"
 
-	exmoTrades          = "trades"
-	exmoOrderbook       = "order_book"
-	exmoTicker          = "ticker"
-	exmoPairSettings    = "pair_settings"
-	exmoCurrency        = "currency"
-	exmoUserInfo        = "user_info"
-	exmoOrderCreate     = "order_create"
-	exmoOrderCancel     = "order_cancel"
-	exmoOpenOrders      = "user_open_orders"
-	exmoUserTrades      = "user_trades"
-	exmoCancelledOrders = "user_cancelled_orders"
-	exmoOrderTrades     = "order_trades"
-	exmoRequiredAmount  = "required_amount"
-	exmoDepositAddress  = "deposit_address"
-	exmoWithdrawCrypt   = "withdraw_crypt"
-	exmoGetWithdrawTXID = "withdraw_get_txid"
-	exmoExcodeCreate    = "excode_create"
-	exmoExcodeLoad      = "excode_load"
-	exmoWalletHistory   = "wallet_history"
+	exmoTrades       = "trades"
+	exmoOrderbook    = "order_book"
+	exmoTicker       = "ticker"
+	exmoPairSettings = "pair_settings"
+	exmoCurrency     = "currency"
+
+	exmoUserInfo                  = "user_info"
+	exmoOrderCreate               = "order_create"
+	exmoOrderCancel               = "order_cancel"
+	exmoOpenOrders                = "user_open_orders"
+	exmoUserTrades                = "user_trades"
+	exmoCancelledOrders           = "user_cancelled_orders"
+	exmoOrderTrades               = "order_trades"
+	exmoRequiredAmount            = "required_amount"
+	exmoDepositAddress            = "deposit_address"
+	exmoWithdrawCrypt             = "withdraw_crypt"
+	exmoGetWithdrawTXID           = "withdraw_get_txid"
+	exmoExcodeCreate              = "excode_create"
+	exmoExcodeLoad                = "excode_load"
+	exmoWalletHistory             = "wallet_history"
+	exmoCryptoPaymentProviderList = "payments/providers/crypto/list"
 
 	// Rate limit: 180 per/minute
 	exmoRateInterval = time.Minute
@@ -213,10 +215,13 @@ func (e *EXMO) GetCryptoDepositAddress(ctx context.Context) (map[string]string, 
 	case map[string]interface{}:
 		mapString := make(map[string]string)
 		for key, value := range r {
-			mapString[key] = value.(string)
+			v, ok := value.(string)
+			if !ok {
+				return nil, errors.New("unable to type assert value data")
+			}
+			mapString[key] = v
 		}
 		return mapString, nil
-
 	default:
 		return nil, errors.New("no addresses found, generate required addresses via site")
 	}
@@ -224,7 +229,7 @@ func (e *EXMO) GetCryptoDepositAddress(ctx context.Context) (map[string]string, 
 
 // WithdrawCryptocurrency withdraws a cryptocurrency from the exchange to the desired address
 // NOTE: This API function is available only after request to their tech support team
-func (e *EXMO) WithdrawCryptocurrency(ctx context.Context, currency, address, invoice string, amount float64) (int64, error) {
+func (e *EXMO) WithdrawCryptocurrency(ctx context.Context, currency, address, invoice, transport string, amount float64) (int64, error) {
 	type response struct {
 		TaskID  int64  `json:"task_id,string"`
 		Result  bool   `json:"result"`
@@ -236,8 +241,12 @@ func (e *EXMO) WithdrawCryptocurrency(ctx context.Context, currency, address, in
 	v.Set("currency", currency)
 	v.Set("address", address)
 
-	if strings.EqualFold(currency, "XRP") {
-		v.Set(invoice, invoice)
+	if invoice != "" {
+		v.Set("invoice", invoice)
+	}
+
+	if transport != "" {
+		v.Set("transport", strings.ToUpper(transport))
 	}
 
 	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -521,4 +530,11 @@ func getInternationalBankDepositFee(c currency.Code, amount float64, bankTransac
 	}
 
 	return fee
+}
+
+// GetCryptoPaymentProvidersList returns a map of all the supported cryptocurrency transfer settings
+func (e *EXMO) GetCryptoPaymentProvidersList(ctx context.Context) (map[string][]CryptoPaymentProvider, error) {
+	var result map[string][]CryptoPaymentProvider
+	path := "/v" + exmoAPIVersion + "/" + exmoCryptoPaymentProviderList
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
 }

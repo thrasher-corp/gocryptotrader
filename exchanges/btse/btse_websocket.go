@@ -57,7 +57,7 @@ func (b *BTSE) WsConnect() error {
 
 // WsAuthenticate Send an authentication message to receive auth data
 func (b *BTSE) WsAuthenticate() error {
-	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
+	nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	path := "/spotWS" + nonce
 
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
@@ -216,7 +216,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Side:         oSide,
 				Status:       oStatus,
 				AssetType:    a,
-				Date:         time.Unix(0, notification.Data[i].Timestamp*int64(time.Millisecond)),
+				Date:         time.UnixMilli(notification.Data[i].Timestamp),
 				Pair:         p,
 			}
 		}
@@ -250,7 +250,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			trades = append(trades, trade.Data{
-				Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
+				Timestamp:    time.UnixMilli(tradeHistory.Data[x].TransactionTime),
 				CurrencyPair: p,
 				AssetType:    a,
 				Exchange:     b.Name,

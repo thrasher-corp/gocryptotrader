@@ -394,6 +394,7 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    h.Name,
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
@@ -443,18 +444,19 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := h.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := h.GetDepositAddress(context.Background(), currency.XRP, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error", err)
 		}
 	} else {
-		_, err := h.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := h.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err == nil {
 			t.Error("GetDepositAddress() error cannot be nil")
 		}
 	}
 }
 func setupWsAuth(t *testing.T) {
+	t.Helper()
 	if wsSetupRan {
 		return
 	}
@@ -524,8 +526,7 @@ func TestWsReplaceOrder(t *testing.T) {
 // TestWsGetActiveOrders dials websocket, sends get active orders request.
 func TestWsGetActiveOrders(t *testing.T) {
 	setupWsAuth(t)
-	_, err := h.wsGetActiveOrders()
-	if err != nil {
+	if _, err := h.wsGetActiveOrders(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -533,8 +534,7 @@ func TestWsGetActiveOrders(t *testing.T) {
 // TestWsGetTradingBalance dials websocket, sends get trading balance request.
 func TestWsGetTradingBalance(t *testing.T) {
 	setupWsAuth(t)
-	_, err := h.wsGetTradingBalance()
-	if err != nil {
+	if _, err := h.wsGetTradingBalance(); err != nil {
 		t.Fatal(err)
 	}
 }

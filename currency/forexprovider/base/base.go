@@ -4,6 +4,11 @@ import (
 	"time"
 )
 
+// Base enforces standard variables across the provider packages
+type Base struct {
+	Settings `json:"settings"`
+}
+
 // GetName returns name of provider
 func (b *Base) GetName() string {
 	return b.Name
@@ -31,9 +36,4 @@ type Settings struct {
 	APIKey           string        `json:"apiKey"`
 	APIKeyLvl        int           `json:"apiKeyLvl"`
 	PrimaryProvider  bool          `json:"primaryProvider"`
-}
-
-// Base enforces standard variables across the provider packages
-type Base struct {
-	Settings `json:"settings"`
 }
