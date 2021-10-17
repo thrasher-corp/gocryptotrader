@@ -52,8 +52,17 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundTransferer) ([]signal.Event, error) {
 	var resp []signal.Event
 	var errs gctcommon.Errors
-	d1 := d[0]
-	d2 := d[1]
+	var d1, d2 data.Handler
+	
+	if len(d) == 2 {
+		d1 = d[0]
+		d2 = d[1]
+	} else {
+		d1 = nil
+		d2 = nil
+		return nil, common.ErrNilArguments
+	}
+	
 
 	if d1 == nil || d2 == nil {
 		return nil, common.ErrNilEvent
@@ -144,8 +153,8 @@ func (s *Strategy) calculateReturns(d1 data.Handler, d2 data.Handler) ([]decimal
 	var ret []decimal.Decimal
 	d1_close := d1.Latest().ClosePrice()
 	d2_close := d2.Latest().ClosePrice()
-	return_d1_vs_d2 := decimal.Decimal.Div(d1_close, decimal.Decimal.Add(d2_close, decimal.NewFromFloat(1)))
-	return_d2_vs_d1 := decimal.Decimal.Div(d2_close, decimal.Decimal.Add(d1_close, decimal.NewFromFloat(1)))
+	return_d1_vs_d2 := d1_close.Div(d2_close.Add(decimal.NewFromFloat(1)))
+	return_d2_vs_d1 := d2_close.Div(d1_close.Add(decimal.NewFromFloat(1)))
 	ret = append(ret, return_d1_vs_d2)
 	ret = append(ret, return_d2_vs_d1)
 	return ret
