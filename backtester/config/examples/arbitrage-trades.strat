@@ -1,6 +1,6 @@
 {
  "nickname": "ExampleArbitrageTickStrat",
- "goal": "To demonstrate the arbitrage strategy using API candle data and custom settings",
+ "goal": "To demonstrate the arbitrage strategy using API trades data and custom settings",
  "strategy-settings": {
   "name": "arbitrage",
   "use-simultaneous-signal-processing": true,
