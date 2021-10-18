@@ -20,6 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
+var errInvalidBatchOrderType = errors.New("invalid batch order type")
+
 // GetFuturesOrderbook gets orderbook data for futures
 func (k *Kraken) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) (FuturesOrderbookData, error) {
 	var resp FuturesOrderbookData
@@ -70,6 +72,11 @@ func (k *Kraken) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderDa
 		formattedPair, err := k.FormatExchangeCurrency(unformattedPair, asset.Futures)
 		if err != nil {
 			return resp, err
+		}
+		if !common.StringDataCompare(validBatchOrderType, data[x].PlaceOrderType) {
+			return resp, fmt.Errorf("%s %w",
+				data[x].PlaceOrderType,
+				errInvalidBatchOrderType)
 		}
 		data[x].Symbol = formattedPair.String()
 	}
