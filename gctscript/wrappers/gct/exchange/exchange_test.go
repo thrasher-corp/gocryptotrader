@@ -47,8 +47,7 @@ var (
 
 func TestMain(m *testing.M) {
 	var t int
-	err := setupEngine()
-	if err != nil {
+	if err := setupEngine(); err != nil {
 		fmt.Printf("Failed to configure exchange test cannot continue: %v", err)
 		os.Exit(1)
 	}
@@ -59,10 +58,8 @@ func TestMain(m *testing.M) {
 
 func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()
-	x := exchangeTest.Exchanges(false)
-	y := len(x)
-	if y != 1 {
-		t.Fatalf("expected 1 received %v", y)
+	if x := exchangeTest.Exchanges(false); len(x) != 1 {
+		t.Fatalf("expected 1 received %v", x)
 	}
 }
 

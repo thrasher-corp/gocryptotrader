@@ -132,7 +132,7 @@ func TestGetWalletAddress(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := b.GetWalletAddress(context.Background(), "")
+	_, err := b.GetWalletAddress(context.Background(), currency.BTC)
 	if err == nil {
 		t.Error("Bithumb GetWalletAddress() Expected error")
 	}
@@ -425,6 +425,7 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    b.Name,
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
@@ -486,12 +487,12 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	if areTestAPIKeysSet() {
-		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error", err)
 		}
 	} else {
-		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err == nil {
 			t.Error("GetDepositAddress() error cannot be nil")
 		}

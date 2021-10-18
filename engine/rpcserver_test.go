@@ -1589,8 +1589,7 @@ func TestGetActiveDataHistoryJobs(t *testing.T) {
 		Interval:  kline.OneMin,
 	}
 
-	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
+	if err := m.UpsertJob(dhj, false); !errors.Is(err, nil) {
 		t.Fatalf("received %v, expected %v", err, nil)
 	}
 

@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -344,8 +345,7 @@ func (b *BTCMarkets) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCMarkets) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := b.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := b.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)
@@ -661,12 +661,15 @@ func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, pair curr
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *BTCMarkets) GetDepositAddress(ctx context.Context, c currency.Code, accountID string) (string, error) {
-	temp, err := b.FetchDepositAddress(ctx, strings.ToUpper(c.String()), -1, -1, -1)
+func (b *BTCMarkets) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, _ string) (*deposit.Address, error) {
+	depositAddr, err := b.FetchDepositAddress(ctx, cryptocurrency, -1, -1, -1)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return temp.Address, nil
+	return &deposit.Address{
+		Address: depositAddr.Address,
+		Tag:     depositAddr.Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted

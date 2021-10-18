@@ -46,6 +46,7 @@ const (
 	getBalances           = "/balances"
 	getBalance            = "/balances/%s"
 	getDepositAddress     = "/addresses/%s"
+	depositAddresses      = "/addresses/"
 	getAllOpenOrders      = "/orders/open"
 	getOpenOrders         = "/orders/open?marketSymbol=%s"
 	getOrder              = "/orders/%s"
@@ -236,10 +237,24 @@ func (b *Bittrex) GetAccountBalanceByCurrency(ctx context.Context, currency stri
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(getBalance, currency), nil, nil, &resp, nil)
 }
 
+// GetCryptoDepositAddresses is used to retrieve all deposit addresses
+func (b *Bittrex) GetCryptoDepositAddresses(ctx context.Context) ([]AddressData, error) {
+	var resp []AddressData
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, depositAddresses, nil, nil, &resp, nil)
+}
+
 // GetCryptoDepositAddress is used to retrieve an address for a specific currency
 func (b *Bittrex) GetCryptoDepositAddress(ctx context.Context, currency string) (AddressData, error) {
 	var resp AddressData
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(getDepositAddress, currency), nil, nil, &resp, nil)
+}
+
+// ProvisionNewDepositAddress provisions a new deposit address for a specific currency
+func (b *Bittrex) ProvisionNewDepositAddress(ctx context.Context, currency string) (*ProvisionNewAddressData, error) {
+	req := make(map[string]interface{}, 1)
+	req["currencySymbol"] = currency
+	var resp ProvisionNewAddressData
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, depositAddresses, nil, req, &resp, nil)
 }
 
 // Withdraw is used to withdraw funds from your account.
@@ -396,7 +411,7 @@ func (b *Bittrex) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, meth
 	}
 
 	newRequest := func() (*request.Item, error) {
-		ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+		ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		path := common.EncodeURLValues(action, params)
 
 		var body io.Reader

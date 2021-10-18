@@ -188,6 +188,7 @@ type TransferData struct {
 type DepositAddress struct {
 	Address   string `json:"address"`
 	AssetName string `json:"assetName"`
+	Tag       string // custom field we populate
 }
 
 // WithdrawalFeeData stores data for fees

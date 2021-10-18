@@ -485,7 +485,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 
 		var hmac []byte
 		var body io.Reader
-		nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
+		nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		headers := map[string]string{
 			"btse-api":   b.API.Credentials.Key,
 			"btse-nonce": nonce,

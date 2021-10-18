@@ -32,9 +32,6 @@ const (
 	privateWithdrawCoinsToAddress = "WithdrawCoinsToAddress"
 	privateCreateCoupon           = "CreateYobicode"
 	privateRedeemCoupon           = "RedeemYobicode"
-
-	yobitAuthRate   = 0
-	yobitUnauthRate = 0
 )
 
 // Yobit is the overarching type across the Yobit package
@@ -191,20 +188,27 @@ func (y *Yobit) GetTradeHistory(ctx context.Context, tidFrom, count, tidEnd, sin
 }
 
 // GetCryptoDepositAddress returns the deposit address for a specific currency
-func (y *Yobit) GetCryptoDepositAddress(ctx context.Context, coin string) (DepositAddress, error) {
+func (y *Yobit) GetCryptoDepositAddress(ctx context.Context, coin string, createNew bool) (*DepositAddress, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
+	if createNew {
+		req.Set("need_new", "1")
+	}
 
-	result := DepositAddress{}
-
-	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetDepositAddress, req, &result)
+	var result DepositAddress
+	err := y.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
+		privateGetDepositAddress,
+		req,
+		&result)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 	if result.Success != 1 {
-		return result, fmt.Errorf("%s", result.Error)
+		return nil, errors.New(result.Error)
 	}
-	return result, nil
+
+	return &result, nil
 }
 
 // WithdrawCoinsToAddress initiates a withdrawal to a specified address

@@ -1884,7 +1884,7 @@ func (c *Config) AssetTypeEnabled(a asset.Item, exch string) (bool, error) {
 
 	err = cfg.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
-		return false, nil
+		return false, nil // nolint:nilerr // non-fatal error
 	}
 	return true, nil
 }

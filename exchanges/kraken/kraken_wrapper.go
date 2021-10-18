@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -105,27 +106,29 @@ func (k *Kraken) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				KlineFetching:       true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				UserTradeHistory:    true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				FiatDeposit:         true,
-				FiatWithdraw:        true,
-				TradeFee:            true,
-				FiatDepositFee:      true,
-				FiatWithdrawalFee:   true,
-				CryptoDepositFee:    true,
-				CryptoWithdrawalFee: true,
+				TickerBatching:        true,
+				TickerFetching:        true,
+				KlineFetching:         true,
+				TradeFetching:         true,
+				OrderbookFetching:     true,
+				AutoPairUpdates:       true,
+				AccountInfo:           true,
+				GetOrder:              true,
+				GetOrders:             true,
+				CancelOrder:           true,
+				SubmitOrder:           true,
+				UserTradeHistory:      true,
+				CryptoDeposit:         true,
+				CryptoWithdrawal:      true,
+				FiatDeposit:           true,
+				FiatWithdraw:          true,
+				TradeFee:              true,
+				FiatDepositFee:        true,
+				FiatWithdrawalFee:     true,
+				CryptoDepositFee:      true,
+				CryptoWithdrawalFee:   true,
+				MultiChainDeposits:    true,
+				MultiChainWithdrawals: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:     true,
@@ -498,8 +501,7 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (k *Kraken) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := k.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := k.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(k.Name, p, a)
@@ -615,7 +617,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		for name := range bal.Accounts {
 			for code := range bal.Accounts[name].Balances {
 				balances = append(balances, account.Balance{
-					CurrencyName: currency.NewCode(name),
+					CurrencyName: currency.NewCode(code),
 					TotalValue:   bal.Accounts[name].Balances[code],
 				})
 			}
@@ -626,8 +628,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			})
 		}
 	}
-	err := account.Process(&info)
-	if err != nil {
+	if err := account.Process(&info); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil
@@ -709,8 +710,7 @@ func (k *Kraken) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 // SubmitOrder submits a new order
 func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-	err := s.Validate()
-	if err != nil {
+	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 	switch s.AssetType {
@@ -718,7 +718,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			var resp string
 			s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
-			resp, err = k.wsAddOrder(&WsAddOrderRequest{
+			resp, err := k.wsAddOrder(&WsAddOrderRequest{
 				OrderType: s.Type.Lower(),
 				OrderSide: s.Side.Lower(),
 				Pair:      s.Pair.String(),
@@ -732,7 +732,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			submitOrderResponse.IsOrderPlaced = true
 		} else {
 			var response AddOrderResponse
-			response, err = k.AddOrder(ctx,
+			response, err := k.AddOrder(ctx,
 				s.Pair,
 				s.Side.String(),
 				s.Type.String(),
@@ -989,19 +989,33 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (k *Kraken) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	methods, err := k.GetDepositMethods(ctx, cryptocurrency.String())
+func (k *Kraken) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+	if chain == "" {
+		methods, err := k.GetDepositMethods(ctx, cryptocurrency.String())
+		if err != nil {
+			return nil, err
+		}
+		if len(methods) == 0 {
+			return nil, errors.New("unable to get any deposit methods")
+		}
+		chain = methods[0].Method
+	}
+
+	depositAddr, err := k.GetCryptoDepositAddress(ctx, chain, cryptocurrency.String(), false)
 	if err != nil {
-		return "", err
+		if strings.Contains(err.Error(), "no addresses returned") {
+			depositAddr, err = k.GetCryptoDepositAddress(ctx, chain, cryptocurrency.String(), true)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
-	var method string
-	for _, m := range methods {
-		method = m.Method
-	}
-	if method == "" {
-		return "", errors.New("method not found")
-	}
-	return k.GetCryptoDepositAddress(ctx, method, cryptocurrency.String())
+	return &deposit.Address{
+		Address: depositAddr[0].Address,
+		Tag:     depositAddr[0].Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal
@@ -1505,6 +1519,21 @@ func compatibleFillOrderType(fillType string) (order.Type, error) {
 		return resp, fmt.Errorf("invalid orderPriceType")
 	}
 	return resp, nil
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (k *Kraken) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	methods, err := k.GetDepositMethods(ctx, cryptocurrency.String())
+	if err != nil {
+		return nil, err
+	}
+
+	var availableChains []string
+	for x := range methods {
+		availableChains = append(availableChains, methods[x].Method)
+	}
+	return availableChains, nil
 }
 
 // UpdateCommissionFees updates current fees associated with account

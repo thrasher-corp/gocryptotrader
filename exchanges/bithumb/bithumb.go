@@ -236,7 +236,11 @@ func (b *Bithumb) GetAccountBalance(ctx context.Context, c string) (FullBalance,
 				return fullBalance, err
 			}
 		} else {
-			val = datum.(float64)
+			var ok bool
+			val, ok = datum.(float64)
+			if !ok {
+				return fullBalance, errors.New("unable to type assert datum")
+			}
 		}
 
 		switch splitTag[0] {
@@ -267,10 +271,10 @@ func (b *Bithumb) GetAccountBalance(ctx context.Context, c string) (FullBalance,
 // GetWalletAddress returns customer wallet address
 //
 // currency e.g. btc, ltc or "", will default to btc without currency specified
-func (b *Bithumb) GetWalletAddress(ctx context.Context, currency string) (WalletAddressRes, error) {
+func (b *Bithumb) GetWalletAddress(ctx context.Context, curr currency.Code) (WalletAddressRes, error) {
 	response := WalletAddressRes{}
 	params := url.Values{}
-	params.Set("currency", strings.ToUpper(currency))
+	params.Set("currency", curr.Upper().String())
 
 	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateWalletAdd, params, &response)
 	if err != nil {
@@ -280,7 +284,30 @@ func (b *Bithumb) GetWalletAddress(ctx context.Context, currency string) (Wallet
 	if response.Data.WalletAddress == "" {
 		return response,
 			fmt.Errorf("deposit address needs to be created via the Bithumb website before retrieval for currency %s",
-				currency)
+				curr.String())
+	}
+
+	var address, tag string
+	switch curr {
+	case currency.XRP:
+		splitStr := "&dt="
+		if !strings.Contains(response.Data.WalletAddress, splitStr) {
+			return response, errors.New("unable to parse XRP deposit address")
+		}
+		splitter := strings.Split(response.Data.WalletAddress, splitStr)
+		address, tag = splitter[0], splitter[1]
+	case currency.XLM, currency.BNB:
+		splitStr := "&memo="
+		if !strings.Contains(response.Data.WalletAddress, splitStr) {
+			return response, fmt.Errorf("unable to parse %s deposit address", curr.String())
+		}
+		splitter := strings.Split(response.Data.WalletAddress, splitStr)
+		address, tag = splitter[0], splitter[1]
+	}
+
+	if tag != "" {
+		response.Data.WalletAddress = address
+		response.Data.Tag = tag
 	}
 
 	return response, nil
@@ -529,7 +556,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 	var intermediary json.RawMessage
 	err = b.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
 		// This is time window sensitive
-		tnMS := time.Now().UnixNano() / int64(time.Millisecond)
+		tnMS := time.Now().UnixMilli()
 		n := strconv.FormatInt(tnMS, 10)
 
 		params.Set("endpoint", path)

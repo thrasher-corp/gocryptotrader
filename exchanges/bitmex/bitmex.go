@@ -93,6 +93,8 @@ const (
 	bitmexEndpointUserWalletSummary     = "/user/walletSummary"
 	bitmexEndpointUserRequestWithdraw   = "/user/requestWithdrawal"
 
+	constSatoshiBTC = 1e-08
+
 	// ContractPerpetual perpetual contract type
 	ContractPerpetual = iota
 	// ContractFutures futures contract type
@@ -774,10 +776,21 @@ func (b *Bitmex) UserRequestWithdrawal(ctx context.Context, params UserRequestWi
 func (b *Bitmex) GetWalletInfo(ctx context.Context, currency string) (WalletInfo, error) {
 	var info WalletInfo
 
-	return info, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+	if err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		bitmexEndpointUserWallet,
 		UserCurrencyParams{Currency: currency},
-		&info)
+		&info); err != nil {
+		return info, err
+	}
+
+	// Bitmex has an "interesting" of dealing with currencies,
+	// for instance XBt is actually BTC but in Satoshi units,
+	// for sanity purposes apply here a conversion to normalize
+	// this
+	// avoid a copy here since this is a big struct
+	normalizeWalletInfo(&info)
+
+	return info, nil
 }
 
 // GetWalletHistory returns user wallet history transaction data
@@ -910,11 +923,21 @@ func (b *Bitmex) CaptureError(resp, reType interface{}) error {
 	}
 
 	err = json.Unmarshal(marshalled, &Error)
-	if err == nil {
+	if err == nil && Error.Error.Name != "" {
 		return fmt.Errorf("bitmex error %s: %s",
 			Error.Error.Name,
 			Error.Error.Message)
 	}
 
 	return json.Unmarshal(marshalled, reType)
+}
+
+// normalizeWalletInfo converts any non-standard currencies (eg. XBt -> BTC)
+func normalizeWalletInfo(w *WalletInfo) {
+	if w.Currency != "XBt" {
+		return
+	}
+
+	w.Currency = "BTC"
+	w.Amount *= constSatoshiBTC
 }

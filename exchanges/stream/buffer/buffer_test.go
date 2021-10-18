@@ -794,6 +794,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	holder := orderbookHolder{}
 
 	asks := deploySliceOrdered(100)
+	// nolint: gocritic
 	bids := append(asks[:0:0], asks...)
 	bids.Reverse()
 

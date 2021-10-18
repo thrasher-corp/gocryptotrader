@@ -23,6 +23,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -695,8 +696,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{getActiveOrdersResponse}),
 		})
 
-		var getDepositAddressResponse string
-		getDepositAddressResponse, err = e.GetDepositAddress(context.TODO(), p.Base, "")
+		var getDepositAddressResponse *deposit.Address
+		getDepositAddressResponse, err = e.GetDepositAddress(context.TODO(), p.Base, "", "")
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -952,12 +953,10 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 // disruptFormatting adds in an unused delimiter and strange casing features to
 // ensure format currency pair is used throughout the code base.
 func disruptFormatting(p currency.Pair) (currency.Pair, error) {
-	base := p.Base.String()
-	if base == "" {
+	if p.Base.IsEmpty() {
 		return currency.Pair{}, errors.New("cannot disrupt formatting as base is not populated")
 	}
-	quote := p.Quote.String()
-	if quote == "" {
+	if p.Quote.IsEmpty() {
 		return currency.Pair{}, errors.New("cannot disrupt formatting as quote is not populated")
 	}
 

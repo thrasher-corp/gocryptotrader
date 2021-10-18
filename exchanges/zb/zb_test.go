@@ -12,7 +12,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -35,6 +34,7 @@ var z ZB
 var wsSetupRan bool
 
 func setupWsAuth(t *testing.T) {
+	t.Helper()
 	if wsSetupRan {
 		return
 	}
@@ -302,6 +302,7 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange: z.Name,
 		Crypto: withdraw.CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
 			FeeAmount: 1,
@@ -356,13 +357,31 @@ func TestGetDepositAddress(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	if z.ValidateAPICredentials() {
-		_, err := z.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := z.GetDepositAddress(context.Background(), currency.XRP, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",
 				err)
 		}
 	} else {
-		_, err := z.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := z.GetDepositAddress(context.Background(), currency.BTC, "", "")
+		if err == nil {
+			t.Error("GetDepositAddress() Expected error")
+		}
+	}
+}
+
+func TestGetMultiChainDepositAddress(t *testing.T) {
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
+	if z.ValidateAPICredentials() {
+		_, err := z.GetMultiChainDepositAddress(context.Background(), currency.USDT)
+		if err != nil {
+			t.Error("GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",
+				err)
+		}
+	} else {
+		_, err := z.GetMultiChainDepositAddress(context.Background(), currency.USDT)
 		if err == nil {
 			t.Error("GetDepositAddress() Expected error")
 		}
@@ -408,8 +427,7 @@ func TestWsTransferFunds(t *testing.T) {
 // TestGetSubUserList ws test
 func TestGetSubUserList(t *testing.T) {
 	setupWsAuth(t)
-	_, err := z.wsGetSubUserList()
-	if err != nil {
+	if _, err := z.wsGetSubUserList(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -741,7 +759,7 @@ func TestGetSpotKline(t *testing.T) {
 	}
 	if mockTests {
 		startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-		arg.Since = convert.UnixMillis(startTime)
+		arg.Since = startTime.UnixMilli()
 		arg.Type = "1day"
 	}
 
@@ -934,8 +952,25 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := z.UpdateTickers(context.Background(), asset.Spot)
+	if err := z.UpdateTickers(context.Background(), asset.Spot); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	if !z.ValidateAPICredentials() {
+		t.Skip("api keys not set")
+	}
+	_, err := z.GetAvailableTransferChains(context.Background(), currency.BTC)
 	if err != nil {
 		t.Error(err)
+	}
+	r, err := z.GetAvailableTransferChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(r) != 3 {
+		t.Error("expected 3 results")
 	}
 }

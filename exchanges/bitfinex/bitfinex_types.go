@@ -2,8 +2,10 @@ package bitfinex
 
 import (
 	"errors"
+	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -52,8 +54,37 @@ var AcceptedOrderType = []string{"market", "limit", "stop", "trailing-stop",
 var AcceptedWalletNames = []string{"trading", "exchange", "deposit", "margin",
 	"funding"}
 
-// AcceptableMethods defines a map of currency codes to methods
-var AcceptableMethods = make(map[string]string)
+type acceptableMethodStore struct {
+	a map[string][]string
+	m sync.RWMutex
+}
+
+// acceptableMethods holds the available acceptable deposit and withdraw methods
+var acceptableMethods acceptableMethodStore
+
+func (a *acceptableMethodStore) lookup(curr currency.Code) []string {
+	a.m.RLock()
+	defer a.m.RUnlock()
+	var methods []string
+	for k, v := range a.a {
+		if common.StringDataCompareInsensitive(v, curr.Upper().String()) {
+			methods = append(methods, k)
+		}
+	}
+	return methods
+}
+
+func (a *acceptableMethodStore) load(data map[string][]string) {
+	a.m.Lock()
+	defer a.m.Unlock()
+	a.a = data
+}
+
+func (a *acceptableMethodStore) loaded() bool {
+	a.m.RLock()
+	defer a.m.RUnlock()
+	return len(a.a) > 0
+}
 
 // MarginV2FundingData stores margin funding data
 type MarginV2FundingData struct {
@@ -240,12 +271,12 @@ type Currency struct {
 	Amount   float64 `json:"amount,string"`
 }
 
-// DepositResponse holds deposit address information
-type DepositResponse struct {
-	Result   string `json:"string"`
-	Method   string `json:"method"`
-	Currency string `json:"currency"`
-	Address  string `json:"address"`
+// Deposit holds the deposit address info
+type Deposit struct {
+	Method       string
+	CurrencyCode string
+	Address      string // Deposit address (instead of the address, this field will show Tag/Memo/Payment_ID for currencies that require it)
+	PoolAddress  string // Pool address (for currencies that require a Tag/Memo/Payment_ID)
 }
 
 // KeyPermissions holds the key permissions for the API key set

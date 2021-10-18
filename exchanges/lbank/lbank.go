@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	gctcrypto "github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -114,70 +115,32 @@ func (l *Lbank) GetTrades(ctx context.Context, symbol string, limit, time int64)
 }
 
 // GetKlines returns kline data
-func (l *Lbank) GetKlines(ctx context.Context, symbol, size, klineType, time string) ([]KlineResponse, error) {
-	var klineTemp interface{}
-	var k []KlineResponse
+func (l *Lbank) GetKlines(ctx context.Context, symbol, size, klineType, tm string) ([]KlineResponse, error) {
+	var klineTemp [][]float64
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("size", size)
 	params.Set("type", klineType)
-	params.Set("time", time)
+	params.Set("time", tm)
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion, lbankKlines, params.Encode())
 	err := l.SendHTTPRequest(ctx, exchange.RestSpot, path, &klineTemp)
 	if err != nil {
-		return k, err
+		return nil, err
 	}
 
-	resp, ok := klineTemp.([]interface{})
-	if !ok {
-		return nil, errors.New("response received is invalid")
-	}
-
-	for i := range resp {
-		resp2, ok := resp[i].([]interface{})
-		if !ok {
-			return nil, errors.New("response received is invalid")
+	var k []KlineResponse
+	for x := range klineTemp {
+		if len(klineTemp[x]) < 6 {
+			return nil, errors.New("unexpected kline data length")
 		}
-		var tempResp KlineResponse
-		for x := range resp2 {
-			switch x {
-			case 0:
-				tempResp.TimeStamp = int64(resp2[x].(float64))
-			case 1:
-				if val, ok := resp2[x].(int64); ok {
-					tempResp.OpenPrice = float64(val)
-				} else {
-					tempResp.OpenPrice = resp2[x].(float64)
-				}
-			case 2:
-				if val, ok := resp2[x].(int64); ok {
-					tempResp.HigestPrice = float64(val)
-				} else {
-					tempResp.HigestPrice = resp2[x].(float64)
-				}
-			case 3:
-				if val, ok := resp2[x].(int64); ok {
-					tempResp.LowestPrice = float64(val)
-				} else {
-					tempResp.LowestPrice = resp2[x].(float64)
-				}
-
-			case 4:
-				if val, ok := resp2[x].(int64); ok {
-					tempResp.ClosePrice = float64(val)
-				} else {
-					tempResp.ClosePrice = resp2[x].(float64)
-				}
-
-			case 5:
-				if val, ok := resp2[x].(int64); ok {
-					tempResp.TradingVolume = float64(val)
-				} else {
-					tempResp.TradingVolume = resp2[x].(float64)
-				}
-			}
-		}
-		k = append(k, tempResp)
+		k = append(k, KlineResponse{
+			TimeStamp:     time.Unix(int64(klineTemp[x][0]), 0).UTC(),
+			OpenPrice:     klineTemp[x][1],
+			HigestPrice:   klineTemp[x][2],
+			LowestPrice:   klineTemp[x][3],
+			ClosePrice:    klineTemp[x][4],
+			TradingVolume: klineTemp[x][5],
+		})
 	}
 	return k, nil
 }

@@ -503,7 +503,7 @@ func (bot *Engine) Start() error {
 	if bot.Settings.EnableDepositAddressManager {
 		bot.DepositAddressManager = SetupDepositAddressManager()
 		go func() {
-			err = bot.DepositAddressManager.Sync(bot.GetExchangeCryptocurrencyDepositAddresses())
+			err = bot.DepositAddressManager.Sync(bot.GetAllExchangeCryptocurrencyDepositAddresses())
 			if err != nil {
 				gctlog.Errorf(gctlog.Global, "Deposit address manager unable to setup: %s", err)
 			}
@@ -735,8 +735,7 @@ func (bot *Engine) Stop() {
 
 	// Wait for services to gracefully shutdown
 	bot.ServicesWG.Wait()
-	err := gctlog.CloseLogger()
-	if err != nil {
+	if err := gctlog.CloseLogger(); err != nil {
 		log.Printf("Failed to close logger. Error: %v\n", err)
 	}
 }

@@ -275,7 +275,7 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 
 	interim := json.RawMessage{}
 	newRequest := func() (*request.Item, error) {
-		nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+		nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		reqData := ""
 		if len(data) > 0 {
 			temp, err := json.Marshal(data)

@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -199,8 +200,7 @@ func (l *LocalBitcoins) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (l *LocalBitcoins) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := l.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := l.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(l.Name, p, a)
@@ -468,13 +468,18 @@ func (l *LocalBitcoins) GetOrderInfo(ctx context.Context, orderID string, pair c
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (l *LocalBitcoins) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
+func (l *LocalBitcoins) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
 	if !strings.EqualFold(currency.BTC.String(), cryptocurrency.String()) {
-		return "", fmt.Errorf("%s does not have support for currency %s, it only supports bitcoin",
+		return nil, fmt.Errorf("%s does not have support for currency %s, it only supports bitcoin",
 			l.Name, cryptocurrency)
 	}
 
-	return l.GetWalletAddress(ctx)
+	depositAddr, err := l.GetWalletAddress(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &deposit.Address{Address: depositAddr}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

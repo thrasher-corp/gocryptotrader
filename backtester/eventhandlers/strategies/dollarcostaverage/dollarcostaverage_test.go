@@ -21,8 +21,7 @@ import (
 
 func TestName(t *testing.T) {
 	d := Strategy{}
-	n := d.Name()
-	if n != Name {
+	if n := d.Name(); n != Name {
 		t.Errorf("expected %v", Name)
 	}
 }

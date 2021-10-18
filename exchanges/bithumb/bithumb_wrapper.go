@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -303,8 +304,7 @@ func (b *Bithumb) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bithumb) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := b.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := b.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)
@@ -607,13 +607,16 @@ func (b *Bithumb) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bithumb) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	addr, err := b.GetWalletAddress(ctx, cryptocurrency.String())
+func (b *Bithumb) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
+	addr, err := b.GetWalletAddress(ctx, cryptocurrency)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return addr.Data.WalletAddress, nil
+	return &deposit.Address{
+		Address: addr.Data.WalletAddress,
+		Tag:     addr.Data.Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -821,60 +824,33 @@ func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	}
 
 	for x := range candle.Data {
+		if len(candle.Data[x]) < 6 {
+			return kline.Item{}, errors.New("invalid candle length")
+		}
 		var tempCandle kline.Candle
-
-		tempTime := candle.Data[x][0].(float64)
-		timestamp := time.Unix(0, int64(tempTime)*int64(time.Millisecond))
-		if timestamp.Before(start) {
+		if tempCandle.Time, err = convert.TimeFromUnixTimestampFloat(candle.Data[x][0]); err != nil {
+			return kline.Item{}, fmt.Errorf("unable to convert timestamp: %w", err)
+		}
+		if tempCandle.Time.Before(start) {
 			continue
 		}
-		if timestamp.After(end) {
+		if tempCandle.Time.After(end) {
 			break
 		}
-		tempCandle.Time = timestamp
-
-		open, ok := candle.Data[x][1].(string)
-		if !ok {
-			return kline.Item{}, errors.New("open conversion failed")
+		if tempCandle.Open, err = convert.FloatFromString(candle.Data[x][1]); err != nil {
+			return kline.Item{}, fmt.Errorf("kline open conversion failed: %w", err)
 		}
-		tempCandle.Open, err = strconv.ParseFloat(open, 64)
-		if err != nil {
-			return kline.Item{}, err
+		if tempCandle.High, err = convert.FloatFromString(candle.Data[x][2]); err != nil {
+			return kline.Item{}, fmt.Errorf("kline high conversion failed: %w", err)
 		}
-		high, ok := candle.Data[x][2].(string)
-		if !ok {
-			return kline.Item{}, errors.New("high conversion failed")
+		if tempCandle.Low, err = convert.FloatFromString(candle.Data[x][3]); err != nil {
+			return kline.Item{}, fmt.Errorf("kline low conversion failed: %w", err)
 		}
-		tempCandle.High, err = strconv.ParseFloat(high, 64)
-		if err != nil {
-			return kline.Item{}, err
+		if tempCandle.Close, err = convert.FloatFromString(candle.Data[x][4]); err != nil {
+			return kline.Item{}, fmt.Errorf("kline close conversion failed: %w", err)
 		}
-
-		low, ok := candle.Data[x][3].(string)
-		if !ok {
-			return kline.Item{}, errors.New("low conversion failed")
-		}
-		tempCandle.Low, err = strconv.ParseFloat(low, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		closeTemp, ok := candle.Data[x][4].(string)
-		if !ok {
-			return kline.Item{}, errors.New("close conversion failed")
-		}
-		tempCandle.Close, err = strconv.ParseFloat(closeTemp, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		vol, ok := candle.Data[x][5].(string)
-		if !ok {
-			return kline.Item{}, errors.New("vol conversion failed")
-		}
-		tempCandle.Volume, err = strconv.ParseFloat(vol, 64)
-		if err != nil {
-			return kline.Item{}, err
+		if tempCandle.Volume, err = convert.FloatFromString(candle.Data[x][5]); err != nil {
+			return kline.Item{}, fmt.Errorf("kline volume conversion failed: %w", err)
 		}
 		ret.Candles = append(ret.Candles, tempCandle)
 	}

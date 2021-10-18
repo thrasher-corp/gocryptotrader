@@ -546,11 +546,11 @@ func FormatParameters(request interface{}) (parameters string) {
 func (o *OKGroup) GetErrorCode(code interface{}) error {
 	var assertedCode string
 
-	switch reflect.TypeOf(code).String() {
-	case "float64":
-		assertedCode = strconv.FormatFloat(code.(float64), 'f', -1, 64)
-	case "string":
-		assertedCode = code.(string)
+	switch d := code.(type) {
+	case float64:
+		assertedCode = strconv.FormatFloat(d, 'f', -1, 64)
+	case string:
+		assertedCode = d
 	default:
 		return errors.New("unusual type returned")
 	}
@@ -575,8 +575,7 @@ func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMeth
 
 	var intermediary json.RawMessage
 	newRequest := func() (*request.Item, error) {
-		now := time.Now()
-		utcTime := now.UTC().Format(time.RFC3339)
+		utcTime := time.Now().UTC().Format(time.RFC3339)
 		payload := []byte("")
 
 		if data != nil {

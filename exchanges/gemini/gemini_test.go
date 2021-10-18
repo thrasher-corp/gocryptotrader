@@ -23,8 +23,6 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	apiKeyRole              = ""
-	sessionHeartBeat        = false
 	canManipulateRealOrders = false
 )
 
@@ -382,6 +380,7 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    g.Name,
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
@@ -440,7 +439,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetDepositAddress(context.Background(), currency.BTC, "")
+	_, err := g.GetDepositAddress(context.Background(), currency.BTC, "", "")
 	if err == nil {
 		t.Error("GetDepositAddress error cannot be nil")
 	}

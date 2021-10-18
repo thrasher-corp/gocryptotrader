@@ -174,7 +174,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetActiveOrders")
 	}
 
-	_, err = e.GetDepositAddress(context.TODO(), currency.BTC, "")
+	_, err = e.GetDepositAddress(context.TODO(), currency.BTC, "", "")
 	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetDepositAddress")
 	}

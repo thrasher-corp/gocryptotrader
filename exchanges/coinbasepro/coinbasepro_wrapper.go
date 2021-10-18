@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -443,7 +444,10 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		return book, err
 	}
 
-	obNew := orderbookNew.(OrderbookL1L2)
+	obNew, ok := orderbookNew.(OrderbookL1L2)
+	if !ok {
+		return book, errors.New("unable to type assert orderbook data")
+	}
 	for x := range obNew.Bids {
 		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: obNew.Bids[x].Amount,
@@ -660,8 +664,8 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *CoinbasePro) GetDepositAddress(_ context.Context, _ currency.Code, accountID string) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (c *CoinbasePro) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -794,18 +798,28 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		return nil, err
 	}
 	var respOrders []GeneralizedOrderResponse
-	for i := range req.Pairs {
-		fpair, err := c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
-		if err != nil {
-			return nil, err
+	if len(req.Pairs) > 0 {
+		for i := range req.Pairs {
+			fpair, err := c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+			if err != nil {
+				return nil, err
+			}
+			resp, err := c.GetOrders(ctx,
+				[]string{"done"},
+				fpair.String())
+			if err != nil {
+				return nil, err
+			}
+			respOrders = append(respOrders, resp...)
 		}
+	} else {
 		resp, err := c.GetOrders(ctx,
-			[]string{"done", "settled"},
-			fpair.String())
+			[]string{"done"},
+			"")
 		if err != nil {
 			return nil, err
 		}
-		respOrders = append(respOrders, resp...)
+		respOrders = resp
 	}
 
 	format, err := c.GetPairFormat(asset.Spot, false)
@@ -829,8 +843,11 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 			ExecutedAmount: respOrders[i].FilledSize,
 			Type:           orderType,
 			Date:           respOrders[i].CreatedAt,
+			Fee:            respOrders[i].FillFees,
+			FeeAsset:       curr.Quote,
 			Side:           orderSide,
 			Pair:           curr,
+			Price:          respOrders[i].Price,
 			Exchange:       c.Name,
 		})
 	}

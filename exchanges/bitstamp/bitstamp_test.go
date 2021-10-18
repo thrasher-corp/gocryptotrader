@@ -345,6 +345,7 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    b.Name,
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
@@ -454,7 +455,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetDepositAddress(context.Background(), currency.BTC, "")
+	_, err := b.GetDepositAddress(context.Background(), currency.XRP, "", "")
 	switch {
 	case areTestAPIKeysSet() && customerID != "" && err != nil && !mockTests:
 		t.Error("GetDepositAddress error", err)

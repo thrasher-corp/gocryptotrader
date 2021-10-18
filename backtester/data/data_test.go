@@ -19,8 +19,7 @@ type fakeDataHandler struct {
 func TestBaseDataFunctions(t *testing.T) {
 	t.Parallel()
 	var d Base
-	latest := d.Latest()
-	if latest != nil {
+	if latest := d.Latest(); latest != nil {
 		t.Error("expected nil")
 	}
 	d.Next()
@@ -37,17 +36,14 @@ func TestBaseDataFunctions(t *testing.T) {
 	if o != 0 {
 		t.Error("expected 0")
 	}
-	list := d.List()
-	if list != nil {
+	if list := d.List(); list != nil {
 		t.Error("expected nil")
 	}
-	history := d.History()
-	if history != nil {
+	if history := d.History(); history != nil {
 		t.Error("expected nil")
 	}
 	d.SetStream(nil)
-	st := d.GetStream()
-	if st != nil {
+	if st := d.GetStream(); st != nil {
 		t.Error("expected nil")
 	}
 	d.Reset()
@@ -91,24 +87,24 @@ func TestStream(t *testing.T) {
 
 	d.SortStream()
 
-	f = d.Next().(fakeDataHandler)
-	if f.time != 1 {
+	f, ok := d.Next().(fakeDataHandler)
+	if f.time != 1 || !ok {
 		t.Error("expected 1")
 	}
-	f = d.Next().(fakeDataHandler)
-	if f.time != 2 {
+	f, ok = d.Next().(fakeDataHandler)
+	if f.time != 2 || !ok {
 		t.Error("expected 2")
 	}
-	f = d.Next().(fakeDataHandler)
-	if f.time != 4 {
+	f, ok = d.Next().(fakeDataHandler)
+	if f.time != 4 || !ok {
 		t.Error("expected 4")
 	}
-	f = d.Next().(fakeDataHandler)
-	if f.time != 10 {
+	f, ok = d.Next().(fakeDataHandler)
+	if f.time != 10 || !ok {
 		t.Error("expected 10")
 	}
-	f = d.Next().(fakeDataHandler)
-	if f.time != 20 {
+	f, ok = d.Next().(fakeDataHandler)
+	if f.time != 20 || !ok {
 		t.Error("expected 20")
 	}
 }

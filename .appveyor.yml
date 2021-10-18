@@ -1,5 +1,7 @@
 build: off
 
+image: Visual Studio 2019
+
 clone_folder: c:\gopath\src\github.com\thrasher-corp\gocryptotrader
 
 cache:
@@ -26,7 +28,7 @@ environment:
   PSQL_SSLMODE: disable
   PSQL_SKIPSQLCMD: true
   PSQL_TESTDBNAME: gct_dev_ci
-stack: go 1.16.x
+stack: go 1.17.x
 
 services:
   - postgresql96
@@ -45,11 +47,13 @@ build_script:
 
 before_test:
   - cd c:\gopath\src\github.com\thrasher-corp\gocryptotrader
-  - go get
+  - go env
+  - go version
+  - go install
 
 test_script:
   # test back-end
-  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.31.0
+  - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.1
   - '%GOPATH%\bin\golangci-lint.exe run --verbose'
   - ps: >-
       if($env:APPVEYOR_SCHEDULED_BUILD -eq 'true') {

@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 	}
 
 	engine.Bot.DepositAddressManager = engine.SetupDepositAddressManager()
-	err = engine.Bot.DepositAddressManager.Sync(engine.Bot.GetExchangeCryptocurrencyDepositAddresses())
+	err = engine.Bot.DepositAddressManager.Sync(engine.Bot.GetAllExchangeCryptocurrencyDepositAddresses())
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
@@ -261,7 +261,8 @@ func TestExchangeDepositAddress(t *testing.T) {
 	}
 
 	currCode := &objects.String{Value: "BTC"}
-	_, err = gct.ExchangeDepositAddress(exch, currCode)
+	chain := &objects.String{Value: ""}
+	_, err = gct.ExchangeDepositAddress(exch, currCode, chain)
 	if err != nil && err.Error() != "deposit address store is nil" {
 		t.Error(err)
 	}

@@ -10,6 +10,7 @@ import (
 )
 
 func TestRateLimit_Limit(t *testing.T) {
+	t.Parallel()
 	symbol := "BTC-USDT"
 
 	testTable := map[string]struct {
@@ -56,6 +57,7 @@ func TestRateLimit_Limit(t *testing.T) {
 }
 
 func TestRateLimit_LimitStatic(t *testing.T) {
+	t.Parallel()
 	testTable := map[string]request.EndpointLimit{
 		"Default":           spotDefaultRate,
 		"Historical Trades": spotHistoricalTradesRate,

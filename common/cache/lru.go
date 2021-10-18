@@ -47,8 +47,7 @@ func (l *LRU) Get(key interface{}) interface{} {
 
 // GetOldest returns the oldest entry
 func (l *LRU) getOldest() (key, value interface{}) {
-	x := l.l.Back()
-	if x != nil {
+	if x := l.l.Back(); x != nil {
 		return x.Value.(*item).key, x.Value.(*item).value
 	}
 	return
@@ -56,8 +55,7 @@ func (l *LRU) getOldest() (key, value interface{}) {
 
 // GetNewest returns the newest entry
 func (l *LRU) getNewest() (key, value interface{}) {
-	x := l.l.Front()
-	if x != nil {
+	if x := l.l.Front(); x != nil {
 		return x.Value.(*item).key, x.Value.(*item).value
 	}
 	return
@@ -93,8 +91,7 @@ func (l *LRU) Len() uint64 {
 
 // removeOldest removes the oldest item from the cache.
 func (l *LRU) removeOldestEntry() {
-	i := l.l.Back()
-	if i != nil {
+	if i := l.l.Back(); i != nil {
 		l.removeElement(i)
 	}
 }

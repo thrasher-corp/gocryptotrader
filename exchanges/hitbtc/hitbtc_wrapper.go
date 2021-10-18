@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -369,8 +370,7 @@ func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HitBTC) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := h.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := h.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(h.Name, p, a)
@@ -509,8 +509,8 @@ allTrades:
 			p.String(),
 			"",
 			"",
-			ts.UnixNano()/int64(time.Millisecond),
-			timestampEnd.UnixNano()/int64(time.Millisecond),
+			ts.UnixMilli(),
+			timestampEnd.UnixMilli(),
 			int64(limit),
 			0)
 		if err != nil {
@@ -658,13 +658,16 @@ func (h *HitBTC) GetOrderInfo(ctx context.Context, orderID string, pair currency
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (h *HitBTC) GetDepositAddress(ctx context.Context, c currency.Code, _ string) (string, error) {
-	resp, err := h.GetDepositAddresses(ctx, c.String())
+func (h *HitBTC) GetDepositAddress(ctx context.Context, currency currency.Code, _, _ string) (*deposit.Address, error) {
+	resp, err := h.GetDepositAddresses(ctx, currency.String())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return resp.Address, nil
+	return &deposit.Address{
+		Address: resp.Address,
+		Tag:     resp.PaymentID,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

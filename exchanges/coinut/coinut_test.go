@@ -59,6 +59,7 @@ func TestMain(m *testing.M) {
 }
 
 func setupWSTestAuth(t *testing.T) {
+	t.Helper()
 	if wsSetupRan {
 		return
 	}
@@ -248,6 +249,7 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    c.Name,
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
@@ -293,7 +295,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	_, err := c.GetDepositAddress(context.Background(), currency.BTC, "")
+	_, err := c.GetDepositAddress(context.Background(), currency.BTC, "", "")
 	if err == nil {
 		t.Error("GetDepositAddress() function unsupported cannot be nil")
 	}
@@ -302,8 +304,7 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuthGetAccountBalance dials websocket, retrieves account balance
 func TestWsAuthGetAccountBalance(t *testing.T) {
 	setupWSTestAuth(t)
-	_, err := c.wsGetAccountBalance()
-	if err != nil {
+	if _, err := c.wsGetAccountBalance(); err != nil {
 		t.Error(err)
 	}
 }
@@ -321,8 +322,7 @@ func TestWsAuthSubmitOrder(t *testing.T) {
 		Price:    1,
 		Side:     order.Buy,
 	}
-	_, err := c.wsSubmitOrder(&ord)
-	if err != nil {
+	if _, err := c.wsSubmitOrder(&ord); err != nil {
 		t.Error(err)
 	}
 }

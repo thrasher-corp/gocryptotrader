@@ -351,7 +351,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		h.Websocket.DataHandler <- stream.KlineData{
-			Timestamp:  time.Unix(0, kline.Timestamp*int64(time.Millisecond)),
+			Timestamp:  time.UnixMilli(kline.Timestamp),
 			Exchange:   h.Name,
 			AssetType:  a,
 			Pair:       p,
@@ -388,12 +388,11 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 				Exchange:     h.Name,
 				AssetType:    a,
 				CurrencyPair: p,
-				Timestamp: time.Unix(0,
-					t.Tick.Data[i].Timestamp*int64(time.Millisecond)),
-				Amount: t.Tick.Data[i].Amount,
-				Price:  t.Tick.Data[i].Price,
-				Side:   side,
-				TID:    strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
+				Timestamp:    time.UnixMilli(t.Tick.Data[i].Timestamp),
+				Amount:       t.Tick.Data[i].Amount,
+				Price:        t.Tick.Data[i].Price,
+				Side:         side,
+				TID:          strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
 			})
 		}
 		return trade.AddTradesToBuffer(h.Name, trades...)
@@ -427,7 +426,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			QuoteVolume:  wsTicker.Tick.Volume,
 			High:         wsTicker.Tick.High,
 			Low:          wsTicker.Tick.Low,
-			LastUpdated:  time.Unix(0, wsTicker.Timestamp*int64(time.Millisecond)),
+			LastUpdated:  time.UnixMilli(wsTicker.Timestamp),
 			AssetType:    a,
 			Pair:         p,
 		}

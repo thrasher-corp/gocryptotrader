@@ -127,6 +127,13 @@ type AddressData struct {
 	CryptoAddressTag string `json:"cryptoAddressTag"`
 }
 
+// ProvisionNewAddressData holds the provision deposit data
+// Status is REQUESTED
+type ProvisionNewAddressData struct {
+	Status         string `json:"status"`
+	CurrencySymbol string `json:"currencySymbol"`
+}
+
 // CurrencyData holds currency data
 // Status is ONLINE or OFFLINE
 type CurrencyData struct {

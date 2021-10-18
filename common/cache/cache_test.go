@@ -130,16 +130,14 @@ func TestRemove(t *testing.T) {
 
 func TestGetNewest(t *testing.T) {
 	lruCache := New(2)
-	k, _ := lruCache.getNewest()
-	if k != nil {
+	if k, _ := lruCache.getNewest(); k != nil {
 		t.Fatal("expected GetNewest() on empty cache to return nil")
 	}
 }
 
 func TestGetOldest(t *testing.T) {
 	lruCache := New(2)
-	k, _ := lruCache.getOldest()
-	if k != nil {
+	if k, _ := lruCache.getOldest(); k != nil {
 		t.Fatal("expected GetOldest() on empty cache to return nil")
 	}
 }

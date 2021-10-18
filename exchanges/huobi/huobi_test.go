@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,8 +31,11 @@ const (
 	testSymbol              = "btcusdt"
 )
 
-var h HUOBI
-var wsSetupRan bool
+var (
+	h               HUOBI
+	wsSetupRan      bool
+	futuresTestPair = currency.NewPair(currency.BTC, currency.NewCode("NQ"))
+)
 
 func TestMain(m *testing.M) {
 	h.SetDefaults()
@@ -57,6 +61,7 @@ func TestMain(m *testing.M) {
 }
 
 func setupWsTests(t *testing.T) {
+	t.Helper()
 	if wsSetupRan {
 		return
 	}
@@ -76,6 +81,24 @@ func setupWsTests(t *testing.T) {
 	}
 
 	wsSetupRan = true
+}
+
+func TestGetCurrenciesIncludingChains(t *testing.T) {
+	t.Parallel()
+	r, err := h.GetCurrenciesIncludingChains(context.Background(), currency.Code{})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(r) == 1 {
+		t.Error("expected 1 result")
+	}
+	r, err = h.GetCurrenciesIncludingChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(r) < 1 {
+		t.Error("expected >= 1 results")
+	}
 }
 
 func TestFGetContractInfo(t *testing.T) {
@@ -122,11 +145,7 @@ func TestFGetEstimatedDeliveryPrice(t *testing.T) {
 
 func TestFGetMarketDepth(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NW")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FGetMarketDepth(context.Background(), cp, "step5")
+	_, err := h.FGetMarketDepth(context.Background(), futuresTestPair, "step5")
 	if err != nil {
 		t.Error(err)
 	}
@@ -134,12 +153,7 @@ func TestFGetMarketDepth(t *testing.T) {
 
 func TestFGetKlineData(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NW")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FGetKlineData(context.Background(),
-		cp, "5min", 5, time.Now().Add(-time.Minute*5), time.Now())
+	_, err := h.FGetKlineData(context.Background(), futuresTestPair, "5min", 5, time.Now().Add(-time.Minute*5), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -147,11 +161,7 @@ func TestFGetKlineData(t *testing.T) {
 
 func TestFGetMarketOverviewData(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NW")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FGetMarketOverviewData(context.Background(), cp)
+	_, err := h.FGetMarketOverviewData(context.Background(), futuresTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -159,11 +169,7 @@ func TestFGetMarketOverviewData(t *testing.T) {
 
 func TestFLastTradeData(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NW")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FLastTradeData(context.Background(), cp)
+	_, err := h.FLastTradeData(context.Background(), futuresTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -171,11 +177,7 @@ func TestFLastTradeData(t *testing.T) {
 
 func TestFRequestPublicBatchTrades(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NW")
-	if err != nil {
-		t.Error(err)
-	}
-	a, err := h.FRequestPublicBatchTrades(context.Background(), cp, 50)
+	a, err := h.FRequestPublicBatchTrades(context.Background(), futuresTestPair, 50)
 	if err != nil {
 		t.Error(err)
 	}
@@ -211,7 +213,7 @@ func TestFQueryTieredAdjustmentFactor(t *testing.T) {
 func TestFQueryHisOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := h.FQueryHisOpenInterest(context.Background(),
-		"BTC", "next_week", "60min", "cont", 3)
+		"BTC", "next_quarter", "60min", "cont", 3)
 	if err != nil {
 		t.Error(err)
 	}
@@ -252,11 +254,7 @@ func TestFLiquidationOrders(t *testing.T) {
 
 func TestFIndexKline(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NQ")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FIndexKline(context.Background(), cp, "5min", 5)
+	_, err := h.FIndexKline(context.Background(), futuresTestPair, "5min", 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -264,11 +262,7 @@ func TestFIndexKline(t *testing.T) {
 
 func TestFGetBasisData(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_NQ")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FGetBasisData(context.Background(), cp, "5min", "open", 3)
+	_, err := h.FGetBasisData(context.Background(), futuresTestPair, "5min", "open", 3)
 	if err != nil {
 		t.Error(err)
 	}
@@ -681,11 +675,11 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTickerSpot(t *testing.T) {
 	t.Parallel()
-	sp, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Error(err)
+	_, err := h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("INV", "ALID", "-"), asset.Spot)
+	if err == nil {
+		t.Error("exepcted invalid pair")
 	}
-	_, err = h.UpdateTicker(context.Background(), sp, asset.Spot)
+	_, err = h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -693,11 +687,11 @@ func TestUpdateTickerSpot(t *testing.T) {
 
 func TestUpdateTickerCMF(t *testing.T) {
 	t.Parallel()
-	cp1, err := currency.NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Error(err)
+	_, err := h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("INV", "ALID", "_"), asset.CoinMarginedFutures)
+	if err == nil {
+		t.Error("exepcted invalid contract code")
 	}
-	_, err = h.UpdateTicker(context.Background(), cp1, asset.CoinMarginedFutures)
+	_, err = h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("BTC", "USD", "_"), asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -777,7 +771,7 @@ func TestUpdateOrderbookFuture(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.UpdateOrderbook(context.Background(), cp2, asset.Futures)
+	_, err = h.UpdateOrderbook(context.Background(), cp2, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1076,8 +1070,7 @@ func TestGetSystemStatusInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.GetSystemStatusInfo(context.Background(),
-		cp, "5min", "cryptocurrency", 50)
+	_, err = h.GetSystemStatusInfo(context.Background(), cp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1800,7 +1793,7 @@ func TestSpotNewOrder(t *testing.T) {
 	}
 	arg := SpotNewOrderRequestParams{
 		Symbol:    cp,
-		AccountID: 1,
+		AccountID: 1997024,
 		Amount:    0.01,
 		Price:     10.1,
 		Type:      SpotNewOrderRequestTypeBuyLimit,
@@ -1926,7 +1919,7 @@ func TestSubmitOrder(t *testing.T) {
 		},
 		Side:      order.Buy,
 		Type:      order.Limit,
-		Price:     1,
+		Price:     5,
 		Amount:    1,
 		ClientID:  strconv.FormatInt(accounts[0].ID, 10),
 		AssetType: asset.Spot,
@@ -2032,6 +2025,7 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    h.Name,
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
@@ -2080,8 +2074,17 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestQueryDepositAddress(t *testing.T) {
-	_, err := h.QueryDepositAddress(context.Background(),
-		currency.BTC.Lower().String())
+	_, err := h.QueryDepositAddress(context.Background(), currency.USDT)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	_, err := h.GetDepositAddress(context.Background(), currency.USDT, "", "uSdTeRc20")
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -2104,8 +2107,7 @@ func TestQueryWithdrawQuota(t *testing.T) {
 // TestWsGetAccountsList connects to WS, logs in, gets account list
 func TestWsGetAccountsList(t *testing.T) {
 	setupWsTests(t)
-	_, err := h.wsGetAccountsList()
-	if err != nil {
+	if _, err := h.wsGetAccountsList(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -2583,5 +2585,46 @@ func TestGetHistoricTrades(t *testing.T) {
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
+	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	r, err := h.GetAvailableTransferChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r) < 2 {
+		t.Error("expected more than one result")
+	}
+}
+
+func TestFormatFuturesPair(t *testing.T) {
+	r, err := h.formatFuturesPair(futuresTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r != "BTC_NQ" {
+		t.Errorf("expected BTC_NQ, got %s", r)
+	}
+	availInstruments, err := h.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(availInstruments) == 0 {
+		t.Fatal("expected instruments, got 0")
+	}
+	// test getting a tradable pair in the format of BTC210827 but make it lower
+	// case to test correct formatting
+	p, err := currency.NewPairFromString(strings.ToLower(availInstruments[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err = h.formatFuturesPair(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r != availInstruments[0] {
+		t.Errorf("expected %s, got %s", availInstruments[0], r)
 	}
 }

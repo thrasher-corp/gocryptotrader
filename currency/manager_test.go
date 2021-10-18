@@ -10,6 +10,7 @@ import (
 var p PairsManager
 
 func initTest(t *testing.T) {
+	t.Helper()
 	spotAvailable, err := NewPairsFromStrings([]string{"BTC-USD", "LTC-USD"})
 	if err != nil {
 		t.Fatal(err)

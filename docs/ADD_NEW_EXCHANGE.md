@@ -462,7 +462,7 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data
 // within time receive windows. NOTE: This is not always necessary and the above
 // SendHTTPRequest example will suffice. 
 	generate := func() (*request.Item, error) {
-		ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+		ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		var body io.Reader
 		var hmac, payload []byte
 		var err error
@@ -1028,8 +1028,7 @@ https://docs.ftx.com/#private-channels
 ```go
 // WsAuth sends an authentication message to receive auth data
 func (f *FTX) WsAuth() error {
-	intNonce := time.Now().UnixNano() / 1000000
-	strNonce := strconv.FormatInt(intNonce, 10)
+	strNonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	hmac := crypto.GetHMAC(
 		crypto.HashSHA256,
 		[]byte(strNonce+"websocket_login"),

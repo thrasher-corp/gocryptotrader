@@ -88,8 +88,7 @@ func TestGetOHLC(t *testing.T) {
 
 func TestGetUsageStats(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetUsageStats(false)
-	if err == nil {
+	if _, err := o.GetUsageStats(false); err == nil {
 		t.Error("GetUsageStats() Expected error")
 	}
 }

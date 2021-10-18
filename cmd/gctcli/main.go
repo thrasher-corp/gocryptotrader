@@ -143,6 +143,7 @@ func main() {
 		removeEventCommand,
 		getCryptocurrencyDepositAddressesCommand,
 		getCryptocurrencyDepositAddressCommand,
+		getAvailableTransferChainsCommand,
 		withdrawCryptocurrencyFundsCommand,
 		withdrawFiatFundsCommand,
 		withdrawalRequestCommand,

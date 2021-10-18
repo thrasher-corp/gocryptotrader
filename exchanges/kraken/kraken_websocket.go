@@ -717,16 +717,38 @@ func (k *Kraken) wsProcessTickers(channelData *WebsocketChannelData, data map[st
 
 // wsProcessSpread converts spread/orderbook data and sends it to the datahandler
 func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data []interface{}) {
-	bestBid := data[0].(string)
-	bestAsk := data[1].(string)
+	if len(data) < 5 {
+		k.Websocket.DataHandler <- fmt.Errorf("%s unexpected wsProcessSpread data length", k.Name)
+		return
+	}
+	bestBid, ok := data[0].(string)
+	if !ok {
+		k.Websocket.DataHandler <- fmt.Errorf("%s wsProcessSpread: unable to type assert bestBid", k.Name)
+		return
+	}
+	bestAsk, ok := data[1].(string)
+	if !ok {
+		k.Websocket.DataHandler <- fmt.Errorf("%s wsProcessSpread: unable to type assert bestAsk", k.Name)
+		return
+	}
 	timeData, err := strconv.ParseFloat(data[2].(string), 64)
 	if err != nil {
-		k.Websocket.DataHandler <- err
+		k.Websocket.DataHandler <- fmt.Errorf("%s wsProcessSpread: unable to parse timeData. Error: %s",
+			k.Name,
+			err)
+		return
+	}
+	bidVolume, ok := data[3].(string)
+	if !ok {
+		k.Websocket.DataHandler <- fmt.Errorf("%s wsProcessSpread: unable to type assert bidVolume", k.Name)
+		return
+	}
+	askVolume, ok := data[4].(string)
+	if !ok {
+		k.Websocket.DataHandler <- fmt.Errorf("%s wsProcessSpread: unable to type assert askVolume", k.Name)
 		return
 	}
 
-	bidVolume := data[3].(string)
-	askVolume := data[4].(string)
 	if k.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%v Spread data for '%v' received. Best bid: '%v' Best ask: '%v' Time: '%v', Bid volume '%v', Ask volume '%v'",
@@ -839,7 +861,13 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 	// to respect both within a reasonable degree
 	var highestLastUpdate time.Time
 	for i := range askData {
-		asks := askData[i].([]interface{})
+		asks, ok := askData[i].([]interface{})
+		if !ok {
+			return errors.New("unable to type assert asks")
+		}
+		if len(asks) < 3 {
+			return errors.New("unexpected asks length")
+		}
 		price, err := strconv.ParseFloat(asks[0].(string), 64)
 		if err != nil {
 			return err
@@ -863,7 +891,13 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 	}
 
 	for i := range bidData {
-		bids := bidData[i].([]interface{})
+		bids, ok := bidData[i].([]interface{})
+		if !ok {
+			return errors.New("unable to type assert bids")
+		}
+		if len(bids) < 3 {
+			return errors.New("unexpected bids length")
+		}
 		price, err := strconv.ParseFloat(bids[0].(string), 64)
 		if err != nil {
 			return err
@@ -906,7 +940,10 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 	var highestLastUpdate time.Time
 	// Ask data is not always sent
 	for i := range askData {
-		asks := askData[i].([]interface{})
+		asks, ok := askData[i].([]interface{})
+		if !ok {
+			return errors.New("asks type assertion failure")
+		}
 
 		priceStr, ok := asks[0].(string)
 		if !ok {
@@ -966,7 +1003,10 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 
 	// Bid data is not always sent
 	for i := range bidData {
-		bids := bidData[i].([]interface{})
+		bids, ok := bidData[i].([]interface{})
+		if !ok {
+			return errors.New("unable to type assert bids")
+		}
 
 		priceStr, ok := bids[0].(string)
 		if !ok {

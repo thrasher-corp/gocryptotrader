@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pquerna/otp/totp"
@@ -27,6 +28,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -683,12 +685,15 @@ func (bot *Engine) GetCryptocurrenciesByExchange(exchangeName string, enabledExc
 }
 
 // GetCryptocurrencyDepositAddressesByExchange returns the cryptocurrency deposit addresses for a particular exchange
-func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) (map[string]string, error) {
+func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) (map[string][]deposit.Address, error) {
 	if bot.DepositAddressManager != nil {
-		return bot.DepositAddressManager.GetDepositAddressesByExchange(exchName)
+		if bot.DepositAddressManager.IsSynced() {
+			return bot.DepositAddressManager.GetDepositAddressesByExchange(exchName)
+		}
+		return nil, errors.New("deposit address manager has not yet synced all exchange deposit addresses")
 	}
 
-	result := bot.GetExchangeCryptocurrencyDepositAddresses()
+	result := bot.GetAllExchangeCryptocurrencyDepositAddresses()
 	r, ok := result[exchName]
 	if !ok {
 		return nil, ErrExchangeNotFound
@@ -698,50 +703,112 @@ func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) 
 
 // GetExchangeCryptocurrencyDepositAddress returns the cryptocurrency deposit address for a particular
 // exchange
-func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, exchName, accountID string, item currency.Code) (string, error) {
-	if bot.DepositAddressManager != nil {
-		return bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, item)
+func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, exchName, accountID, chain string, item currency.Code, bypassCache bool) (*deposit.Address, error) {
+	if bot.DepositAddressManager != nil && bot.DepositAddressManager.IsSynced() && !bypassCache {
+		resp, err := bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, chain, item)
+		if err != nil {
+			return nil, err
+		}
+		return &resp, nil
 	}
-
 	exch, err := bot.GetExchangeByName(exchName)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return exch.GetDepositAddress(ctx, item, accountID)
+	return exch.GetDepositAddress(ctx, item, accountID, chain)
 }
 
-// GetExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
-func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
-	result := make(map[string]map[string]string)
+// GetAllExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
+func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map[string][]deposit.Address {
+	result := make(map[string]map[string][]deposit.Address)
 	exchanges := bot.GetExchanges()
+	var depositSyncer sync.WaitGroup
+	depositSyncer.Add(len(exchanges))
+	var m sync.Mutex
 	for x := range exchanges {
-		exchName := exchanges[x].GetName()
-		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-			if bot.Settings.Verbose {
-				log.Debugf(log.ExchangeSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
+		go func(x int) {
+			defer depositSyncer.Done()
+			exchName := exchanges[x].GetName()
+			if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+				if bot.Settings.Verbose {
+					log.Debugf(log.ExchangeSys, "GetAllExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
+				}
+				return
 			}
-			continue
-		}
 
-		cryptoCurrencies, err := bot.GetCryptocurrenciesByExchange(exchName, true, true, asset.Spot)
-		if err != nil {
-			log.Debugf(log.ExchangeSys, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
-			continue
-		}
-
-		cryptoAddr := make(map[string]string)
-		for y := range cryptoCurrencies {
-			cryptocurrency := cryptoCurrencies[y]
-			depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(),
-				currency.NewCode(cryptocurrency),
-				"")
+			cryptoCurrencies, err := bot.GetCryptocurrenciesByExchange(exchName, true, true, asset.Spot)
 			if err != nil {
-				log.Errorf(log.Global, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
-				continue
+				log.Errorf(log.ExchangeSys, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
+				return
 			}
-			cryptoAddr[cryptocurrency] = depositAddr
-		}
-		result[exchName] = cryptoAddr
+			supportsMultiChain := exchanges[x].GetBase().Features.Supports.RESTCapabilities.MultiChainDeposits
+			requiresChainSet := exchanges[x].GetBase().Features.Supports.RESTCapabilities.MultiChainDepositRequiresChainSet
+			cryptoAddr := make(map[string][]deposit.Address)
+			for y := range cryptoCurrencies {
+				cryptocurrency := cryptoCurrencies[y]
+				isSingular := false
+				var depositAddrs []deposit.Address
+				if supportsMultiChain {
+					availChains, err := exchanges[x].GetAvailableTransferChains(context.TODO(), currency.NewCode(cryptocurrency))
+					if err != nil {
+						log.Errorf(log.Global, "%s failed to get cryptocurrency available transfer chains. Err: %s\n", exchName, err)
+						continue
+					}
+					if len(availChains) > 0 {
+						// store the default non-chain specified address for a specified crypto
+						chainContainsItself := common.StringDataCompareInsensitive(availChains, cryptocurrency)
+						if !chainContainsItself && !requiresChainSet {
+							depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
+							if err != nil {
+								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s. Err: %s\n",
+									exchName,
+									cryptocurrency,
+									err)
+								continue
+							}
+							depositAddr.Chain = cryptocurrency
+							depositAddrs = append(depositAddrs, *depositAddr)
+						}
+						for z := range availChains {
+							depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", availChains[z])
+							if err != nil {
+								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s [chain %s]. Err: %s\n",
+									exchName,
+									cryptocurrency,
+									availChains[z],
+									err)
+								continue
+							}
+							depositAddr.Chain = availChains[z]
+							depositAddrs = append(depositAddrs, *depositAddr)
+						}
+					} else {
+						// cryptocurrency doesn't support multichain transfers
+						isSingular = true
+					}
+				}
+
+				if !supportsMultiChain || isSingular {
+					depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
+					if err != nil {
+						log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s. Err: %s\n",
+							exchName,
+							cryptocurrency,
+							err)
+						continue
+					}
+					depositAddrs = append(depositAddrs, *depositAddr)
+				}
+				cryptoAddr[cryptocurrency] = depositAddrs
+			}
+			m.Lock()
+			result[exchName] = cryptoAddr
+			m.Unlock()
+		}(x)
+	}
+	depositSyncer.Wait()
+	if len(result) > 0 {
+		log.Infoln(log.Global, "Deposit addresses synced")
 	}
 	return result
 }

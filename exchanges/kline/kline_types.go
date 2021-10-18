@@ -128,8 +128,8 @@ type ExchangeCapabilitiesEnabled struct {
 // Interval type for kline Interval usage
 type Interval time.Duration
 
-// ErrorKline struct to hold kline interval errors
-type ErrorKline struct {
+// Error struct to hold kline interval errors
+type Error struct {
 	Asset    asset.Item
 	Pair     currency.Pair
 	Interval Interval
@@ -137,13 +137,13 @@ type ErrorKline struct {
 }
 
 // Error returns short interval unsupported message
-func (k *ErrorKline) Error() string {
-	return k.Err.Error()
+func (e *Error) Error() string {
+	return e.Err.Error()
 }
 
 // Unwrap returns interval unsupported message
-func (k *ErrorKline) Unwrap() error {
-	return k.Err
+func (e *Error) Unwrap() error {
+	return e.Err
 }
 
 // IntervalRangeHolder holds the entire range of intervals

@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -124,25 +125,27 @@ func (b *Binance) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				KlineFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrders:        true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				DepositHistory:      true,
-				WithdrawalHistory:   true,
-				TradeFetching:       true,
-				UserTradeHistory:    true,
-				TradeFee:            true,
-				CryptoWithdrawalFee: true,
+				TickerBatching:        true,
+				TickerFetching:        true,
+				KlineFetching:         true,
+				OrderbookFetching:     true,
+				AutoPairUpdates:       true,
+				AccountInfo:           true,
+				CryptoDeposit:         true,
+				CryptoWithdrawal:      true,
+				GetOrder:              true,
+				GetOrders:             true,
+				CancelOrders:          true,
+				CancelOrder:           true,
+				SubmitOrder:           true,
+				DepositHistory:        true,
+				WithdrawalHistory:     true,
+				TradeFetching:         true,
+				UserTradeHistory:      true,
+				TradeFee:              true,
+				CryptoWithdrawalFee:   true,
+				MultiChainDeposits:    true,
+				MultiChainWithdrawals: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TradeFetching:          true,
@@ -392,7 +395,7 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 	case asset.CoinMarginedFutures:
 		cInfo, err := b.FuturesExchangeInfo(ctx)
 		if err != nil {
-			return pairs, nil
+			return pairs, err
 		}
 		for z := range cInfo.Symbols {
 			if cInfo.Symbols[z].ContractStatus == "TRADING" {
@@ -406,7 +409,7 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 	case asset.USDTMarginedFutures:
 		uInfo, err := b.UExchangeInfo(ctx)
 		if err != nil {
-			return pairs, nil
+			return pairs, err
 		}
 		for u := range uInfo.Symbols {
 			if uInfo.Symbols[u].Status == "TRADING" {
@@ -452,27 +455,40 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
-		for y := range tick {
-			cp, err := currency.NewPairFromString(tick[y].Symbol)
-			if err != nil {
-				return err
-			}
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tick[y].LastPrice,
-				High:         tick[y].HighPrice,
-				Low:          tick[y].LowPrice,
-				Bid:          tick[y].BidPrice,
-				Ask:          tick[y].AskPrice,
-				Volume:       tick[y].Volume,
-				QuoteVolume:  tick[y].QuoteVolume,
-				Open:         tick[y].OpenPrice,
-				Close:        tick[y].PrevClosePrice,
-				Pair:         cp,
-				ExchangeName: b.Name,
-				AssetType:    a,
-			})
-			if err != nil {
-				return err
+
+		pairs, err := b.GetEnabledPairs(a)
+		if err != nil {
+			return err
+		}
+
+		for i := range pairs {
+			for y := range tick {
+				pairFmt, err := b.FormatExchangeCurrency(pairs[i], a)
+				if err != nil {
+					return err
+				}
+
+				if tick[y].Symbol != pairFmt.String() {
+					continue
+				}
+
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         tick[y].LastPrice,
+					High:         tick[y].HighPrice,
+					Low:          tick[y].LowPrice,
+					Bid:          tick[y].BidPrice,
+					Ask:          tick[y].AskPrice,
+					Volume:       tick[y].Volume,
+					QuoteVolume:  tick[y].QuoteVolume,
+					Open:         tick[y].OpenPrice,
+					Close:        tick[y].PrevClosePrice,
+					Pair:         pairFmt,
+					ExchangeName: b.Name,
+					AssetType:    a,
+				})
+				if err != nil {
+					return err
+				}
 			}
 		}
 	case asset.USDTMarginedFutures:
@@ -543,10 +559,6 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 		if err != nil {
 			return nil, err
 		}
-		cp, err := currency.NewPairFromString(tick.Symbol)
-		if err != nil {
-			return nil, err
-		}
 		err = ticker.ProcessTicker(&ticker.Price{
 			Last:         tick.LastPrice,
 			High:         tick.HighPrice,
@@ -557,7 +569,7 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 			QuoteVolume:  tick.QuoteVolume,
 			Open:         tick.OpenPrice,
 			Close:        tick.PrevClosePrice,
-			Pair:         cp,
+			Pair:         p,
 			ExchangeName: b.Name,
 			AssetType:    a,
 		})
@@ -569,10 +581,6 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 		if err != nil {
 			return nil, err
 		}
-		cp, err := currency.NewPairFromString(tick[0].Symbol)
-		if err != nil {
-			return nil, err
-		}
 		err = ticker.ProcessTicker(&ticker.Price{
 			Last:         tick[0].LastPrice,
 			High:         tick[0].HighPrice,
@@ -581,7 +589,7 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 			QuoteVolume:  tick[0].QuoteVolume,
 			Open:         tick[0].OpenPrice,
 			Close:        tick[0].PrevClosePrice,
-			Pair:         cp,
+			Pair:         p,
 			ExchangeName: b.Name,
 			AssetType:    a,
 		})
@@ -593,10 +601,6 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 		if err != nil {
 			return nil, err
 		}
-		cp, err := currency.NewPairFromString(tick[0].Symbol)
-		if err != nil {
-			return nil, err
-		}
 		err = ticker.ProcessTicker(&ticker.Price{
 			Last:         tick[0].LastPrice,
 			High:         tick[0].HighPrice,
@@ -605,7 +609,7 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 			QuoteVolume:  tick[0].QuoteVolume,
 			Open:         tick[0].OpenPrice,
 			Close:        tick[0].PrevClosePrice,
-			Pair:         cp,
+			Pair:         p,
 			ExchangeName: b.Name,
 			AssetType:    a,
 		})
@@ -765,8 +769,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	err := account.Process(&info)
-	if err != nil {
+	if err := account.Process(&info); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil
@@ -778,7 +781,6 @@ func (b *Binance) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
@@ -790,21 +792,26 @@ func (b *Binance) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
-	w, err := b.WithdrawStatus(ctx, c, "", 0, 0)
+	w, err := b.WithdrawHistory(ctx, c, "", time.Time{}, time.Time{}, 0, 10000)
 	if err != nil {
 		return nil, err
 	}
 
 	for i := range w {
+		tm, err := time.Parse(binanceSAPITimeLayout, w[i].ApplyTime)
+		if err != nil {
+			return nil, err
+		}
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:          strconv.FormatInt(w[i].Status, 10),
 			TransferID:      w[i].ID,
-			Currency:        w[i].Asset,
+			Currency:        w[i].Coin,
 			Amount:          w[i].Amount,
 			Fee:             w[i].TransactionFee,
 			CryptoToAddress: w[i].Address,
-			CryptoTxID:      w[i].TxID,
-			Timestamp:       time.Unix(w[i].ApplyTime/1000, 0),
+			CryptoTxID:      w[i].TransactionID,
+			CryptoChain:     w[i].Network,
+			Timestamp:       tm,
 		})
 	}
 
@@ -1231,8 +1238,16 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Binance) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	return b.GetDepositAddressForCurrency(ctx, cryptocurrency.String())
+func (b *Binance) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+	addr, err := b.GetDepositAddressForCurrency(ctx, cryptocurrency.String(), chain)
+	if err != nil {
+		return nil, err
+	}
+
+	return &deposit.Address{
+		Address: addr.Address,
+		Tag:     addr.Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -1244,9 +1259,13 @@ func (b *Binance) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 	amountStr := strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
 	v, err := b.WithdrawCrypto(ctx,
 		withdrawRequest.Currency.String(),
+		"", // withdrawal order ID
+		withdrawRequest.Crypto.Chain,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
-		withdrawRequest.Description, amountStr)
+		withdrawRequest.Description,
+		amountStr,
+		false)
 	if err != nil {
 		return nil, err
 	}
@@ -1408,10 +1427,6 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					continue
 				}
 
-				pair, err := currency.NewPairFromString(resp[i].Symbol)
-				if err != nil {
-					return nil, err
-				}
 				orders = append(orders, order.Detail{
 					Amount:   resp[i].OrigQty,
 					Date:     resp[i].Time,
@@ -1420,7 +1435,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					Side:     orderSide,
 					Type:     orderType,
 					Price:    resp[i].Price,
-					Pair:     pair,
+					Pair:     req.Pairs[x],
 					Status:   order.Status(resp[i].Status),
 				})
 			}
@@ -1739,6 +1754,25 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		return fmt.Errorf("cannot update exchange execution limits: %v", err)
 	}
 	return b.LoadLimits(limits)
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (b *Binance) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	coinInfo, err := b.GetAllCoinsInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var availableChains []string
+	for x := range coinInfo {
+		if strings.EqualFold(coinInfo[x].Coin, cryptocurrency.String()) {
+			for y := range coinInfo[x].NetworkList {
+				availableChains = append(availableChains, coinInfo[x].NetworkList[y].Network)
+			}
+		}
+	}
+	return availableChains, nil
 }
 
 // UpdateCommissionFees updates current fees associated with account

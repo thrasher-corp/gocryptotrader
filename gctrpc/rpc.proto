@@ -461,17 +461,39 @@ message GetCryptocurrencyDepositAddressesRequest {
     string exchange = 1;
 }
 
+message DepositAddress {
+    string address = 1;
+    string tag = 2;
+    string chain = 3;
+}
+
+message DepositAddresses {
+    repeated DepositAddress addresses = 1; 
+}
+
 message GetCryptocurrencyDepositAddressesResponse {
-    map<string, string> addresses = 1;
+    map<string, DepositAddresses> addresses = 1;
 }
 
 message GetCryptocurrencyDepositAddressRequest {
     string exchange = 1;
     string cryptocurrency = 2;
+    string chain = 3;
+    bool bypass = 4;
 }
 
 message GetCryptocurrencyDepositAddressResponse {
     string address = 1;
+    string tag = 2;
+}
+
+message GetAvailableTransferChainsRequest {
+    string exchange = 1;
+    string cryptocurrency = 2;
+}
+
+message GetAvailableTransferChainsResponse {
+    repeated string chains = 1;
 }
 
 message WithdrawFiatRequest {
@@ -490,6 +512,7 @@ message WithdrawCryptoRequest {
     double amount = 5;
     double fee = 6;
     string description = 7;
+    string chain = 8;
 }
 
 message WithdrawResponse {
@@ -1316,6 +1339,12 @@ service GoCryptoTrader {
         };
     }
 
+    rpc GetAvailableTransferChains(GetAvailableTransferChainsRequest) returns (GetAvailableTransferChainsResponse) {
+        option (google.api.http) = {
+            post: "/v1/getavailabletransferchains"
+            body: "*"
+        };
+    }
 
     rpc WithdrawFiatFunds(WithdrawFiatRequest) returns (WithdrawResponse) {
         option (google.api.http) = {

@@ -232,23 +232,6 @@ func (b *Bittrex) processJob(p currency.Pair) error {
 	return b.applyBufferUpdate(p)
 }
 
-// flushAndCleanup flushes orderbook and clean local cache
-func (b *Bittrex) flushAndCleanup(p currency.Pair) {
-	errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s flushing websocket error: %v",
-			b.Name,
-			errClean)
-	}
-	errClean = b.obm.cleanup(p)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
-			b.Name,
-			errClean)
-	}
-}
-
 // stageWsUpdate stages websocket update to roll through updates that need to
 // be applied to a fetched orderbook via REST.
 func (o *orderbookManager) stageWsUpdate(u *OrderbookUpdateMessage, pair currency.Pair, a asset.Item) error {
@@ -310,25 +293,6 @@ func (o *orderbookManager) stopFetchingBook(pair currency.Pair) error {
 	return nil
 }
 
-// stopNeedsFetchingBook completes the book fetching initiation.
-func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
-	o.Lock()
-	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-	if !ok {
-		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
-			pair,
-			asset.Spot)
-	}
-	if !state.needsFetchingBook {
-		return fmt.Errorf("needs fetching book already set to false for %s %s",
-			pair,
-			asset.Spot)
-	}
-	state.needsFetchingBook = false
-	return nil
-}
-
 // setNeedsFetchingBook completes the book fetching initiation.
 func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair) error {
 	o.Lock()
@@ -366,25 +330,6 @@ func (o *orderbookManager) handleFetchingBook(pair currency.Pair) (fetching, nee
 		return false, true, nil
 	}
 	return false, false, nil
-}
-
-// completeInitialSync sets if an asset type has completed its initial sync
-func (o *orderbookManager) completeInitialSync(pair currency.Pair) error {
-	o.Lock()
-	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-	if !ok {
-		return fmt.Errorf("complete initial sync cannot match currency pair %s asset type %s",
-			pair,
-			asset.Spot)
-	}
-	if !state.initialSync {
-		return fmt.Errorf("initital sync already set to false for %s %s",
-			pair,
-			asset.Spot)
-	}
-	state.initialSync = false
-	return nil
 }
 
 // checkIsInitialSync checks status if the book is Initial Sync being via the REST
@@ -487,32 +432,4 @@ func (u *update) validate(updt *OrderbookUpdateMessage, recent *orderbook.Base) 
 			asset.Spot)
 	}
 	return true, nil
-}
-
-// cleanup cleans up buffer and reset fetch and init
-func (o *orderbookManager) cleanup(pair currency.Pair) error {
-	o.Lock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-	if !ok {
-		o.Unlock()
-		return fmt.Errorf("cleanup cannot match %s %s to hash table",
-			pair,
-			asset.Spot)
-	}
-
-bufferEmpty:
-	for {
-		select {
-		case <-state.buffer:
-			// bleed and discard buffer
-		default:
-			break bufferEmpty
-		}
-	}
-	o.Unlock()
-	// disable rest orderbook synchronisation
-	_ = o.stopFetchingBook(pair)
-	_ = o.completeInitialSync(pair)
-	_ = o.stopNeedsFetchingBook(pair)
-	return nil
 }

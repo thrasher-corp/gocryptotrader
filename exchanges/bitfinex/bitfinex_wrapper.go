@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -90,29 +91,32 @@ func (b *Bitfinex) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				FiatWithdraw:        true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrders:        true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				SubmitOrders:        true,
-				DepositHistory:      true,
-				WithdrawalHistory:   true,
-				TradeFetching:       true,
-				UserTradeHistory:    true,
-				TradeFee:            true,
-				FiatDepositFee:      true,
-				FiatWithdrawalFee:   true,
-				CryptoDepositFee:    true,
-				CryptoWithdrawalFee: true,
+				TickerBatching:                    true,
+				TickerFetching:                    true,
+				OrderbookFetching:                 true,
+				AutoPairUpdates:                   true,
+				AccountInfo:                       true,
+				CryptoDeposit:                     true,
+				CryptoWithdrawal:                  true,
+				FiatWithdraw:                      true,
+				GetOrder:                          true,
+				GetOrders:                         true,
+				CancelOrders:                      true,
+				CancelOrder:                       true,
+				SubmitOrder:                       true,
+				SubmitOrders:                      true,
+				DepositHistory:                    true,
+				WithdrawalHistory:                 true,
+				TradeFetching:                     true,
+				UserTradeHistory:                  true,
+				TradeFee:                          true,
+				FiatDepositFee:                    true,
+				FiatWithdrawalFee:                 true,
+				CryptoDepositFee:                  true,
+				CryptoWithdrawalFee:               true,
+				MultiChainDeposits:                true,
+				MultiChainWithdrawals:             true,
+				MultiChainDepositRequiresChainSet: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				AccountBalance:         true,
@@ -378,8 +382,7 @@ func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitfinex) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := b.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := b.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)
@@ -580,7 +583,7 @@ allTrades:
 			return nil, err
 		}
 		for i := range tradeData {
-			tradeTS := time.Unix(0, tradeData[i].Timestamp*int64(time.Millisecond))
+			tradeTS := time.UnixMilli(tradeData[i].Timestamp)
 			if tradeTS.Before(timestampStart) && !timestampStart.IsZero() {
 				break allTrades
 			}
@@ -592,7 +595,7 @@ allTrades:
 				AssetType:    assetType,
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Amount,
-				Timestamp:    time.Unix(0, tradeData[i].Timestamp*int64(time.Millisecond)),
+				Timestamp:    time.UnixMilli(tradeData[i].Timestamp),
 			})
 			if i == len(tradeData)-1 {
 				if ts.Equal(tradeTS) {
@@ -745,18 +748,39 @@ func (b *Bitfinex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitfinex) GetDepositAddress(ctx context.Context, c currency.Code, accountID string) (string, error) {
+func (b *Bitfinex) GetDepositAddress(ctx context.Context, c currency.Code, accountID, chain string) (*deposit.Address, error) {
 	if accountID == "" {
-		accountID = "deposit"
+		accountID = "funding"
 	}
 
-	method, err := b.ConvertSymbolToDepositMethod(ctx, c)
-	if err != nil {
-		return "", err
+	if c == currency.USDT {
+		// USDT is UST on Bitfinex
+		c = currency.NewCode("UST")
+	}
+
+	if err := b.PopulateAcceptableMethods(ctx); err != nil {
+		return nil, err
+	}
+
+	methods := acceptableMethods.lookup(c)
+	if len(methods) == 0 {
+		return nil, errors.New("unsupported currency")
+	}
+	method := methods[0]
+	if len(methods) > 1 && chain != "" {
+		method = chain
+	} else if len(methods) > 1 && chain == "" {
+		return nil, fmt.Errorf("a chain must be specified, %s available", methods)
 	}
 
 	resp, err := b.NewDeposit(ctx, method, accountID, 0)
-	return resp.Address, err
+	if err != nil {
+		return nil, err
+	}
+	return &deposit.Address{
+		Address: resp.Address,
+		Tag:     resp.PoolAddress,
+	}, err
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
@@ -764,6 +788,31 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
+
+	if err := b.PopulateAcceptableMethods(ctx); err != nil {
+		return nil, err
+	}
+
+	tmpCurr := withdrawRequest.Currency
+	if tmpCurr == currency.USDT {
+		// USDT is UST on Bitfinex
+		tmpCurr = currency.NewCode("UST")
+	}
+
+	methods := acceptableMethods.lookup(tmpCurr)
+	if len(methods) == 0 {
+		return nil, errors.New("no transfer methods returned for currency")
+	}
+	method := methods[0]
+	if len(methods) > 1 && withdrawRequest.Crypto.Chain != "" {
+		if !common.StringDataCompareInsensitive(methods, withdrawRequest.Crypto.Chain) {
+			return nil, fmt.Errorf("invalid chain %s supplied, %v available", withdrawRequest.Crypto.Chain, methods)
+		}
+		method = withdrawRequest.Crypto.Chain
+	} else if len(methods) > 1 && withdrawRequest.Crypto.Chain == "" {
+		return nil, fmt.Errorf("a chain must be specified, %s available", methods)
+	}
+
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
 	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
@@ -771,9 +820,9 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	resp, err := b.WithdrawCryptocurrency(ctx,
 		walletType,
 		withdrawRequest.Crypto.Address,
-		withdrawRequest.Description,
-		withdrawRequest.Amount,
-		withdrawRequest.Currency)
+		withdrawRequest.Crypto.AddressTag,
+		method,
+		withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -1123,6 +1172,25 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 	}
 	runes[0] = unicode.ToLower(runes[0])
 	return string(runes), nil
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (b *Bitfinex) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	if err := b.PopulateAcceptableMethods(ctx); err != nil {
+		return nil, err
+	}
+
+	if cryptocurrency == currency.USDT {
+		// USDT is UST on Bitfinex
+		cryptocurrency = currency.NewCode("UST")
+	}
+
+	availChains := acceptableMethods.lookup(cryptocurrency)
+	if len(availChains) == 0 {
+		return nil, fmt.Errorf("unable to find any available chains")
+	}
+	return availChains, nil
 }
 
 // UpdateCommissionFees updates current fees associated with account

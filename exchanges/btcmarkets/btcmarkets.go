@@ -514,13 +514,13 @@ func (b *BTCMarkets) GetTransfer(ctx context.Context, id string) (TransferData, 
 }
 
 // FetchDepositAddress gets deposit address for the given asset
-func (b *BTCMarkets) FetchDepositAddress(ctx context.Context, assetName string, before, after, limit int64) (DepositAddress, error) {
+func (b *BTCMarkets) FetchDepositAddress(ctx context.Context, curr currency.Code, before, after, limit int64) (*DepositAddress, error) {
 	var resp DepositAddress
 	if (before > 0) && (after >= 0) {
-		return resp, errors.New("BTCMarkets only supports either before or after, not both")
+		return nil, errors.New("BTCMarkets only supports either before or after, not both")
 	}
 	params := url.Values{}
-	params.Set("assetName", assetName)
+	params.Set("assetName", curr.Upper().String())
 	if before > 0 {
 		params.Set("before", strconv.FormatInt(before, 10))
 	}
@@ -530,11 +530,24 @@ func (b *BTCMarkets) FetchDepositAddress(ctx context.Context, assetName string, 
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp, b.SendAuthenticatedRequest(ctx, http.MethodGet,
+	if err := b.SendAuthenticatedRequest(ctx,
+		http.MethodGet,
 		common.EncodeURLValues(btcMarketsAddresses, params),
 		nil,
 		&resp,
-		request.Auth)
+		request.Auth); err != nil {
+		return nil, err
+	}
+	if curr == currency.XRP {
+		splitStr := "?dt="
+		if !strings.Contains(resp.Address, splitStr) {
+			return nil, errors.New("unable to find split string for XRP")
+		}
+		splitter := strings.Split(resp.Address, splitStr)
+		resp.Address = splitter[0]
+		resp.Tag = splitter[1]
+	}
+	return &resp, nil
 }
 
 // GetWithdrawalFees gets withdrawal fees for all assets
@@ -703,9 +716,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 	}
 
 	newRequest := func() (*request.Item, error) {
-		now := time.Now()
-		strTime := strconv.FormatInt(now.UTC().UnixNano()/1000000, 10)
-
+		strTime := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		var body io.Reader
 		var payload, hmac []byte
 		switch data.(type) {

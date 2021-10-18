@@ -410,7 +410,7 @@ func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 	err := b.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
-		return nil, nil
+		return nil, nil // nolint:nilerr // non-fatal error
 	}
 	format, err := b.GetPairFormat(a, false)
 	if err != nil {
@@ -1159,7 +1159,7 @@ func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 // ValidateKline confirms that the requested pair, asset & interval are supported and/or enabled by the requested exchange
 func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
 	var errorList []string
-	var err kline.ErrorKline
+	var err kline.Error
 	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
 		err.Asset = a
 		errorList = append(errorList, "asset not enabled")
@@ -1245,7 +1245,7 @@ func (e *Endpoints) SetRunning(key, val string) error {
 			key,
 			val,
 			e.Exchange)
-		return nil
+		return nil // nolint:nilerr // non-fatal error as we won't update the running URL
 	}
 	e.defaults[key] = val
 	return nil
@@ -1447,4 +1447,10 @@ func (b *Base) SetBankTransferFee(c currency.Code, transType fee.BankTransaction
 // UpdateCurrencyStates updates currency states
 func (b *Base) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetAvailableTransferChains returns a list of supported transfer chains based
+// on the supplied cryptocurrency
+func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([]string, error) {
+	return nil, common.ErrFunctionNotSupported
 }

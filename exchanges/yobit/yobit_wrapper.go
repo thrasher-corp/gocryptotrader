@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -234,8 +235,7 @@ func (y *Yobit) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (y *Yobit) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := y.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := y.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(y.Name, p, a)
@@ -508,13 +508,18 @@ func (y *Yobit) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (y *Yobit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	a, err := y.GetCryptoDepositAddress(ctx, cryptocurrency.String())
-	if err != nil {
-		return "", err
+func (y *Yobit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
+	if cryptocurrency == currency.XRP {
+		// {"success":1,"return":{"status":"online","blocks":65778672,"address":996707783,"processed_amount":0.00000000,"server_time":1629425030}}
+		return nil, errors.New("XRP isn't supported as the API does not return a valid address")
 	}
 
-	return a.Return.Address, nil
+	addr, err := y.GetCryptoDepositAddress(ctx, cryptocurrency.String(), false)
+	if err != nil {
+		return nil, err
+	}
+
+	return &deposit.Address{Address: addr.Return.Address}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

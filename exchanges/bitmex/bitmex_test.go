@@ -163,8 +163,8 @@ func TestGetTrollboxChannels(t *testing.T) {
 func TestGetTrollboxConnectedUsers(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTrollboxConnectedUsers(context.Background())
-	if err == nil {
-		t.Error("GetTrollboxConnectedUsers() Expected error")
+	if err != nil {
+		t.Error("GetTrollboxConnectedUsers() error", err)
 	}
 }
 
@@ -231,8 +231,8 @@ func TestGetActiveAndIndexInstruments(t *testing.T) {
 func TestGetActiveIntervals(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetActiveIntervals(context.Background())
-	if err == nil {
-		t.Error("GetActiveIntervals() Expected error")
+	if err != nil {
+		t.Error("GetActiveIntervals() error", err)
 	}
 }
 
@@ -642,12 +642,22 @@ func TestGetAccountInfo(t *testing.T) {
 	if areTestAPIKeysSet() {
 		_, err := b.UpdateAccountInfo(context.Background(), asset.Spot)
 		if err != nil {
-			t.Error("GetAccountInfo() error", err)
+			t.Error("GetAccountInfo(spot) error", err)
+		}
+
+		_, err = b.UpdateAccountInfo(context.Background(), asset.Futures)
+		if err != nil {
+			t.Error("GetAccountInfo(futures) error", err)
 		}
 	} else {
 		_, err := b.UpdateAccountInfo(context.Background(), asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() error")
+		}
+
+		_, err = b.UpdateAccountInfo(context.Background(), asset.Futures)
+		if err == nil {
+			t.Error("GetAccountInfo(futures) error")
 		}
 	}
 }
@@ -667,6 +677,7 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange: b.Name,
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
@@ -720,12 +731,12 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	if areTestAPIKeysSet() {
-		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error", err)
 		}
 	} else {
-		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := b.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err == nil {
 			t.Error("GetDepositAddress() error cannot be nil")
 		}
@@ -1045,6 +1056,23 @@ func TestUpdateTickers(t *testing.T) {
 	err := b.UpdateTickers(context.Background(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCurrencyNormalization(t *testing.T) {
+	w := &WalletInfo{
+		Currency: "XBt",
+		Amount:   1e+08,
+	}
+
+	normalizeWalletInfo(w)
+
+	if w.Currency != "BTC" {
+		t.Errorf("currency mismatch, expected BTC, got %s", w.Currency)
+	}
+
+	if w.Amount != 1.0 {
+		t.Errorf("amount mismatch, expected 1.0, got %f", w.Amount)
 	}
 }
 

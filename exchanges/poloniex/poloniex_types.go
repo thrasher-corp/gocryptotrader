@@ -117,14 +117,23 @@ type ChartData struct {
 
 // Currencies contains currency information
 type Currencies struct {
-	ID                        float64 `json:"id"`
-	Name                      string  `json:"name"`
-	TxFee                     float64 `json:"txFee,string"`
-	MinConfirmations          int64   `json:"minConf"`
-	DepositAddress            string  `json:"depositAddress"`
-	WithdrawalDepositDisabled uint8   `json:"disabled"`
-	Delisted                  uint8   `json:"delisted"`
-	Frozen                    uint8   `json:"frozen"`
+	ID                        float64  `json:"id"`
+	Name                      string   `json:"name"`
+	HumanType                 string   `json:"humanType"`
+	CurrencyType              string   `json:"currencyType"`
+	TxFee                     float64  `json:"txFee,string"`
+	MinConfirmations          int64    `json:"minConf"`
+	DepositAddress            string   `json:"depositAddress"`
+	WithdrawalDepositDisabled uint8    `json:"disabled"`
+	Frozen                    uint8    `json:"frozen"`
+	HexColour                 string   `json:"hexColor"`
+	Blockchain                string   `json:"blockchain"`
+	Delisted                  uint8    `json:"delisted"`
+	ParentChain               string   `json:"parentChain"`
+	IsMultiChain              uint8    `json:"isMultiChain"`
+	IsChildChain              uint8    `json:"isChildChain"`
+	ChildChains               []string `json:"childChains"`
+	IsGeofenced               uint8    `json:"isGeofenced"`
 }
 
 // LoanOrder holds loan order information

@@ -92,7 +92,7 @@ func TestValidateData(t *testing.T) {
 
 func TestCreateKline(t *testing.T) {
 	t.Parallel()
-	c, err := CreateKline(nil,
+	_, err := CreateKline(nil,
 		OneMin,
 		currency.NewPair(currency.BTC, currency.USD),
 		asset.Spot,
@@ -113,7 +113,7 @@ func TestCreateKline(t *testing.T) {
 		})
 	}
 
-	c, err = CreateKline(trades,
+	_, err = CreateKline(trades,
 		0,
 		currency.NewPair(currency.BTC, currency.USD),
 		asset.Spot,
@@ -122,7 +122,7 @@ func TestCreateKline(t *testing.T) {
 		t.Fatal("error cannot be nil")
 	}
 
-	c, err = CreateKline(trades,
+	c, err := CreateKline(trades,
 		OneMin,
 		currency.NewPair(currency.BTC, currency.USD),
 		asset.Spot,
@@ -251,6 +251,8 @@ func TestDurationToWord(t *testing.T) {
 	for x := range testCases {
 		test := testCases[x]
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			t.Helper()
 			v := durationToWord(test.interval)
 			if !strings.EqualFold(v, test.name) {
 				t.Fatalf("%v: received %v expected %v", test.name, v, test.name)
@@ -261,7 +263,7 @@ func TestDurationToWord(t *testing.T) {
 
 func TestKlineErrors(t *testing.T) {
 	t.Parallel()
-	v := ErrorKline{
+	v := Error{
 		Interval: OneYear,
 		Pair:     currency.NewPair(currency.BTC, currency.AUD),
 		Err:      errors.New("hello world"),
@@ -398,6 +400,7 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 	for x := range testCases {
 		test := testCases[x]
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			v := TotalCandlesPerInterval(start, end, test.interval)
 			if v != test.expected {
 				t.Fatalf("%v: received %v expected %v", test.name, v, test.expected)
@@ -506,6 +509,7 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 }
 
 func setupTest(t *testing.T) {
+	t.Helper()
 	if verbose {
 		testhelpers.EnableVerboseTestOutput()
 	}

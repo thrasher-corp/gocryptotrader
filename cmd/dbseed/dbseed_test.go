@@ -38,8 +38,7 @@ func TestLoad(t *testing.T) {
 	fs := &flag.FlagSet{}
 	fs.String("config", testConfig, "")
 	newCtx := cli.NewContext(testApp, fs, &cli.Context{})
-	err := load(newCtx)
-	if err != nil {
+	if err := load(newCtx); err != nil {
 		t.Fatal(err)
 	}
 }

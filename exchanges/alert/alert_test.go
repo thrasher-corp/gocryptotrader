@@ -26,10 +26,10 @@ func TestWait(t *testing.T) {
 
 	wg.Wait()
 	wg.Add(100)
-	isLeaky(&wait, nil, t)
+	isLeaky(t, &wait, nil)
 	wait.Alert()
 	wg.Wait()
-	isLeaky(&wait, nil, t)
+	isLeaky(t, &wait, nil)
 
 	// use kick
 	ch := make(chan struct{})
@@ -46,11 +46,11 @@ func TestWait(t *testing.T) {
 	}
 	wg.Wait()
 	wg.Add(100)
-	isLeaky(&wait, ch, t)
+	isLeaky(t, &wait, ch)
 	close(ch)
 	wg.Wait()
 	ch = make(chan struct{})
-	isLeaky(&wait, ch, t)
+	isLeaky(t, &wait, ch)
 
 	// late receivers
 	wg.Add(100)
@@ -70,15 +70,15 @@ func TestWait(t *testing.T) {
 	}
 	wg.Wait()
 	wg.Add(100)
-	isLeaky(&wait, ch, t)
+	isLeaky(t, &wait, ch)
 	wait.Alert()
 	wg.Wait()
-	isLeaky(&wait, ch, t)
+	isLeaky(t, &wait, ch)
 }
 
 // isLeaky tests to see if the wait functionality is returning an abnormal
 // channel that is operational when it shouldn't be.
-func isLeaky(a *Notice, ch chan struct{}, t *testing.T) {
+func isLeaky(t *testing.T, a *Notice, ch chan struct{}) {
 	t.Helper()
 	check := a.Wait(ch)
 	time.Sleep(time.Millisecond * 5) // When we call wait a routine for hold is

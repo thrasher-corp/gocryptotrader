@@ -177,8 +177,7 @@ func seed() error {
 
 func TestLoadCSV(t *testing.T) {
 	testData := filepath.Join("..", "..", "..", "testdata", "exchangelist.csv")
-	_, err := LoadCSV(testData)
-	if err != nil {
+	if _, err := LoadCSV(testData); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -1826,4 +1826,5 @@ var (
 	TONCOIN    = NewCode("TONCOIN")
 	VLX        = NewCode("VLX")
 	WXT        = NewCode("WXT")
+	UST        = NewCode("UST")
 )
