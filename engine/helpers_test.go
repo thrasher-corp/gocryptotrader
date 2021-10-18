@@ -1063,7 +1063,7 @@ func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
 	return &Engine{
 		Settings: Settings{Verbose: true},
 		Config: &config.Config{
-			Exchanges: []config.ExchangeConfig{
+			Exchanges: []config.Exchange{
 				{
 					Name:    "fake",
 					Enabled: true,
