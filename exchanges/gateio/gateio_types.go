@@ -532,3 +532,19 @@ type wsOrderbook struct {
 	Bids [][]string `json:"bids"`
 	ID   int64      `json:"id"`
 }
+
+// DepositAddr stores the deposit address info
+type DepositAddr struct {
+	Result              bool   `json:"result,string"`
+	Code                int    `json:"code"`
+	Message             string `json:"message"`
+	Address             string `json:"addr"`
+	Tag                 string
+	MultichainAddresses []struct {
+		Chain        string `json:"chain"`
+		Address      string `json:"address"`
+		PaymentID    string `json:"payment_id"`
+		PaymentName  string `json:"payment_name"`
+		ObtainFailed uint8  `json:"obtain_failed"`
+	} `json:"multichain_addresses"`
+}

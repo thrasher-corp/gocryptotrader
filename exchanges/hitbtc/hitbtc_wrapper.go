@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -640,13 +641,16 @@ func (h *HitBTC) GetOrderInfo(ctx context.Context, orderID string, pair currency
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (h *HitBTC) GetDepositAddress(ctx context.Context, c currency.Code, _ string) (string, error) {
-	resp, err := h.GetDepositAddresses(ctx, c.String())
+func (h *HitBTC) GetDepositAddress(ctx context.Context, currency currency.Code, _, _ string) (*deposit.Address, error) {
+	resp, err := h.GetDepositAddresses(ctx, currency.String())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return resp.Address, nil
+	return &deposit.Address{
+		Address: resp.Address,
+		Tag:     resp.PaymentID,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

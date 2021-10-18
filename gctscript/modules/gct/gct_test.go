@@ -245,12 +245,13 @@ func TestExchangeDepositAddress(t *testing.T) {
 	}
 
 	currCode := &objects.String{Value: "BTC"}
-	_, err = ExchangeDepositAddress(exch, currCode)
+	chain := &objects.String{Value: ""}
+	_, err = ExchangeDepositAddress(exch, currCode, chain)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = ExchangeDepositAddress(exchError, currCode)
+	_, err = ExchangeDepositAddress(exchError, currCode, chain)
 	if err != nil && !errors.Is(err, errTestFailed) {
 		t.Error(err)
 	}

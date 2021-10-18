@@ -319,7 +319,7 @@ func (a *Alphapoint) GetOrderInfo(ctx context.Context, orderID string, pair curr
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (a *Alphapoint) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
+func (a *Alphapoint) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (string, error) {
 	addreses, err := a.GetDepositAddresses(ctx)
 	if err != nil {
 		return "", err

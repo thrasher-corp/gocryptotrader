@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -611,8 +612,8 @@ func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (l *Lbank) GetDepositAddress(ctx context.Context, c currency.Code, accountID string) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (l *Lbank) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -622,9 +623,10 @@ func (l *Lbank) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 		return nil, err
 	}
 	resp, err := l.Withdraw(ctx,
-		withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(),
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Currency.String(),
 		strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64),
-		"",
+		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.Description,
 		"")
 	if err != nil {

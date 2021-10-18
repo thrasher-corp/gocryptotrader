@@ -5,7 +5,6 @@ import (
 	"errors"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -584,8 +584,21 @@ func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, pair curren
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitstamp) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	return b.GetCryptoDepositAddress(ctx, cryptocurrency)
+func (b *Bitstamp) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
+	addr, err := b.GetCryptoDepositAddress(ctx, cryptocurrency)
+	if err != nil {
+		return nil, err
+	}
+
+	var tag string
+	if addr.DestinationTag != 0 {
+		tag = strconv.FormatInt(addr.DestinationTag, 10)
+	}
+
+	return &deposit.Address{
+		Address: addr.Address,
+		Tag:     tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -598,21 +611,13 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 		withdrawRequest.Amount,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Currency.String(),
-		withdrawRequest.Crypto.AddressTag,
-		true)
+		withdrawRequest.Crypto.AddressTag)
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.Error) != 0 {
-		var details strings.Builder
-		for x := range resp.Error {
-			details.WriteString(strings.Join(resp.Error[x], ""))
-		}
-		return nil, errors.New(details.String())
-	}
 
 	return &withdraw.ExchangeResponse{
-		ID: resp.ID,
+		ID: strconv.FormatInt(resp.ID, 10),
 	}, nil
 }
 
@@ -637,17 +642,9 @@ func (b *Bitstamp) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withd
 	if err != nil {
 		return nil, err
 	}
-	if resp.Status == errStr {
-		var details strings.Builder
-		for x := range resp.Reason {
-			details.WriteString(strings.Join(resp.Reason[x], ""))
-		}
-		return nil, errors.New(details.String())
-	}
 
 	return &withdraw.ExchangeResponse{
-		ID:     resp.ID,
-		Status: resp.Status,
+		ID: strconv.FormatInt(resp.ID, 10),
 	}, nil
 }
 
@@ -678,17 +675,9 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(ctx context.Context, wit
 	if err != nil {
 		return nil, err
 	}
-	if resp.Status == errStr {
-		var details strings.Builder
-		for x := range resp.Reason {
-			details.WriteString(strings.Join(resp.Reason[x], ""))
-		}
-		return nil, errors.New(details.String())
-	}
 
 	return &withdraw.ExchangeResponse{
-		ID:     resp.ID,
-		Status: resp.Status,
+		ID: strconv.FormatInt(resp.ID, 10),
 	}, nil
 }
 

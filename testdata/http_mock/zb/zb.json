@@ -1,5 +1,53 @@
 {
  "routes": {
+  "/api/getPayinAddress": {
+   "GET": [
+    {
+     "data": {
+      "code": 1001,
+      "message": "暂无地址，请先前往APP或WEB获取地址"
+     },
+     "queryString": "accesskey=\u0026currency=btc\u0026method=getPayinAddress\u0026reqTime=1631162511742\u0026sign=b223f64c54af7f040455d5ee15ff2242",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 1000,
+      "message": {
+       "datas": [
+        {
+         "address": "0x7425dd3bf8dd3ec40522988a4431fe7e812b2011",
+         "blockChain": "eth",
+         "canDeposit": true,
+         "canWithdraw": true,
+         "isUseMemo": false
+        },
+        {
+         "address": "TULhiu4Ffng27BABRJAkAUzqLpiLjNgwfC",
+         "blockChain": "trx",
+         "canDeposit": true,
+         "canWithdraw": true,
+         "isUseMemo": false
+        },
+        {
+         "address": "1DoWTZHg4kF1DnR2kZ7J9wezVVReigrMjZ",
+         "blockChain": "btc",
+         "canDeposit": true,
+         "canWithdraw": true,
+         "isUseMemo": false
+        }
+       ],
+       "des": "success",
+       "isSuc": true
+      }
+     },
+     "queryString": "accesskey=\u0026currency=usdt\u0026method=getPayinAddress\u0026reqTime=1631162512275\u0026sign=25ba302f911b23ad2364394906d6033f",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/data/v1/allTicker": {
    "GET": [
     {

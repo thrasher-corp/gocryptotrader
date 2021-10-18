@@ -12,6 +12,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -135,11 +136,12 @@ func (e Exchange) AccountInformation(ctx context.Context, exch string, assetType
 }
 
 // DepositAddress gets the address required to deposit funds for currency type
-func (e Exchange) DepositAddress(exch string, currencyCode currency.Code) (out string, err error) {
+func (e Exchange) DepositAddress(exch, chain string, currencyCode currency.Code) (depositAddr *deposit.Address, err error) {
 	if currencyCode.IsEmpty() {
-		return "", errors.New("currency code is empty")
+		return nil, errors.New("currency code is empty")
 	}
-	return engine.Bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exch, currencyCode)
+	resp, err := engine.Bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exch, chain, currencyCode)
+	return &deposit.Address{Address: resp.Address, Tag: resp.Tag}, err
 }
 
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source

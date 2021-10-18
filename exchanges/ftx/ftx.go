@@ -526,35 +526,44 @@ func (f *FTX) GetAllWalletBalances(ctx context.Context) (AllWalletBalances, erro
 }
 
 // FetchDepositAddress gets deposit address for a given coin
-func (f *FTX) FetchDepositAddress(ctx context.Context, coin currency.Code) (DepositData, error) {
+func (f *FTX) FetchDepositAddress(ctx context.Context, coin currency.Code, chain string) (*DepositData, error) {
 	resp := struct {
 		Data DepositData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getDepositAddress+coin.Upper().String(), nil, &resp)
+	vals := url.Values{}
+	if chain != "" {
+		vals.Set("method", strings.ToLower(chain))
+	}
+	path := common.EncodeURLValues(getDepositAddress+coin.Upper().String(), vals)
+	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
 }
 
 // FetchDepositHistory gets deposit history
-func (f *FTX) FetchDepositHistory(ctx context.Context) ([]TransactionData, error) {
+func (f *FTX) FetchDepositHistory(ctx context.Context) ([]DepositItem, error) {
 	resp := struct {
-		Data []TransactionData `json:"result"`
+		Data []DepositItem `json:"result"`
 	}{}
 	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getDepositHistory, nil, &resp)
 }
 
 // FetchWithdrawalHistory gets withdrawal history
-func (f *FTX) FetchWithdrawalHistory(ctx context.Context) ([]TransactionData, error) {
+func (f *FTX) FetchWithdrawalHistory(ctx context.Context) ([]WithdrawItem, error) {
 	resp := struct {
-		Data []TransactionData `json:"result"`
+		Data []WithdrawItem `json:"result"`
 	}{}
 	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getWithdrawalHistory, nil, &resp)
 }
 
 // Withdraw sends a withdrawal request
-func (f *FTX) Withdraw(ctx context.Context, coin currency.Code, address, tag, password, code string, size float64) (TransactionData, error) {
+func (f *FTX) Withdraw(ctx context.Context, coin currency.Code, address, tag, password, chain, code string, size float64) (*WithdrawItem, error) {
+	if coin.IsEmpty() || address == "" || size == 0 {
+		return nil, errors.New("coin, address and size must be specified")
+	}
+
 	req := make(map[string]interface{})
 	req["coin"] = coin.Upper().String()
-	req["address"] = address
 	req["size"] = size
+	req["address"] = address
 	if code != "" {
 		req["code"] = code
 	}
@@ -564,10 +573,13 @@ func (f *FTX) Withdraw(ctx context.Context, coin currency.Code, address, tag, pa
 	if password != "" {
 		req["password"] = password
 	}
+	if chain != "" {
+		req["method"] = chain
+	}
 	resp := struct {
-		Data TransactionData `json:"result"`
+		Data WithdrawItem `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, withdrawRequest, req, &resp)
+	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, withdrawRequest, req, &resp)
 }
 
 // GetOpenOrders gets open orders
@@ -1145,6 +1157,10 @@ func (f *FTX) StakeRequest(ctx context.Context, coin currency.Code, size float64
 
 // SendAuthHTTPRequest sends an authenticated request
 func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, data, result interface{}) error {
+	if !f.AllowAuthenticatedRequest() {
+		return fmt.Errorf("%s %w", f.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	}
+
 	endpoint, err := f.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -1295,13 +1311,13 @@ func (f *FTX) RequestForQuotes(ctx context.Context, base, quote currency.Code, a
 }
 
 // GetOTCQuoteStatus gets quote status of a quote
-func (f *FTX) GetOTCQuoteStatus(ctx context.Context, marketName, quoteID string) ([]QuoteStatusData, error) {
+func (f *FTX) GetOTCQuoteStatus(ctx context.Context, marketName, quoteID string) (*QuoteStatusData, error) {
 	resp := struct {
-		Data []QuoteStatusData `json:"result"`
+		Data QuoteStatusData `json:"result"`
 	}{}
 	params := url.Values{}
 	params.Set("market", marketName)
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOTCQuoteStatus+quoteID, params, &resp)
+	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOTCQuoteStatus+quoteID, params, &resp)
 }
 
 // AcceptOTCQuote requests for otc quotes

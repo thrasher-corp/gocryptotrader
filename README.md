@@ -78,6 +78,8 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
 + Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
 + WebGUI (discontinued).
++ Exchange HTTP mock testing. See [mock](/exchanges/mock/README.md).
++ Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](/docs/MULTICHAIN_TRANSFER_SUPPORT.md).
 
 ## Planned Features
 
@@ -144,19 +146,19 @@ Binaries will be published once the codebase reaches a stable condition.
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 658 |
 | [shazbert](https://github.com/shazbert) | 223 |
-| [gloriousCode](https://github.com/gloriousCode) | 190 |
+| [gloriousCode](https://github.com/gloriousCode) | 191 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 23 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 24 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
 | [ydm](https://github.com/ydm) | 11 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
+| [lrascao](https://github.com/lrascao) | 8 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
-| [lrascao](https://github.com/lrascao) | 7 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
@@ -171,7 +173,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
-| [lozdog245](https://github.com/lozdog245) | 2 |
+| [khcchiu](https://github.com/khcchiu) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [mshogin](https://github.com/mshogin) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
@@ -194,3 +196,4 @@ Binaries will be published once the codebase reaches a stable condition.
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
 | [soxipy](https://github.com/soxipy) | 2 |
+| [lozdog245](https://github.com/lozdog245) | 2 |
