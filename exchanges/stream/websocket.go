@@ -30,7 +30,7 @@ var (
 	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
 	errWebsocketIsNil                       = errors.New("websocket is nil")
-	errWebsocketSetupIsNil                    = errors.New("websocket setup is nil")
+	errWebsocketSetupIsNil                  = errors.New("websocket setup is nil")
 	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
 	errWebsocketFeaturesIsUnset             = errors.New("websocket features is unset")
 	errConfigFeaturesIsNil                  = errors.New("exchange config features is nil")
@@ -67,7 +67,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	}
 
 	if s == nil {
-		return errWebsocketSetIsNil
+		return errWebsocketSetupIsNil
 	}
 
 	if !w.Init {

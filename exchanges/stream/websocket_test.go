@@ -103,8 +103,8 @@ func TestSetup(t *testing.T) {
 
 	w = &Websocket{DataHandler: make(chan interface{})}
 	err = w.Setup(nil)
-	if !errors.Is(err, errWebsocketSetIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSetIsNil)
+	if !errors.Is(err, errWebsocketSetupIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSetupIsNil)
 	}
 
 	websocketSetup := &WebsocketSetup{}
