@@ -2444,3 +2444,11 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetAvailableTransferChains(context.Background(), currency.BTC); !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
+	}
+}

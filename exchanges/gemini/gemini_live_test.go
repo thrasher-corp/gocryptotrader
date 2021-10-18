@@ -1,4 +1,5 @@
-//+build mock_test_off
+//go:build mock_test_off
+// +build mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
@@ -35,9 +36,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Gemini setup error", err)
 	}
-	err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL)
+	err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiAPIURL)
 	if err != nil {
-		log.Fatalf("endpoint setting failed. key: %s, val: %s", exchange.RestSpot.String(), geminiSandboxAPIURL)
+		log.Fatalf("endpoint setting failed. key: %s, val: %s", exchange.RestSpot.String(), geminiAPIURL)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, g.Name)
 	os.Exit(m.Run())

@@ -377,6 +377,7 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    c.Name,
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
@@ -422,7 +423,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	_, err := c.GetDepositAddress(context.Background(), currency.BTC, "")
+	_, err := c.GetDepositAddress(context.Background(), currency.BTC, "", "")
 	if err == nil {
 		t.Error("GetDepositAddress() function unsupported cannot be nil")
 	}

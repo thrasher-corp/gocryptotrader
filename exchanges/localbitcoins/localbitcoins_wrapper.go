@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -467,13 +468,18 @@ func (l *LocalBitcoins) GetOrderInfo(ctx context.Context, orderID string, pair c
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (l *LocalBitcoins) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
+func (l *LocalBitcoins) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
 	if !strings.EqualFold(currency.BTC.String(), cryptocurrency.String()) {
-		return "", fmt.Errorf("%s does not have support for currency %s, it only supports bitcoin",
+		return nil, fmt.Errorf("%s does not have support for currency %s, it only supports bitcoin",
 			l.Name, cryptocurrency)
 	}
 
-	return l.GetWalletAddress(ctx)
+	depositAddr, err := l.GetWalletAddress(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &deposit.Address{Address: depositAddr}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

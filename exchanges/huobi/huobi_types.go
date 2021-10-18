@@ -6,10 +6,12 @@ import (
 )
 
 type errorCapture struct {
-	Status    string `json:"status"`
-	Code      int64  `json:"err_code"`
-	ErrMsg    string `json:"err_msg"`
-	Timestamp int64  `json:"ts"`
+	Status      string      `json:"status"`
+	CodeType1   interface{} `json:"err-code"` // can be either a string or int depending on the endpoint
+	ErrMsgType1 string      `json:"err-msg"`
+	CodeType2   interface{} `json:"err_code"`
+	ErrMsgType2 string      `json:"err_msg"`
+	Timestamp   int64       `json:"ts"`
 }
 
 // MarketSummary24Hr stores past 24hr market summary data of a given symbol
@@ -25,6 +27,35 @@ type MarketSummary24Hr struct {
 		Version int64   `json:"version"`
 		Volume  float64 `json:"vol"`
 	}
+}
+
+// CurrenciesChainData stores currency and chain info
+type CurrenciesChainData struct {
+	Currency   string `json:"currency"`
+	AssetType  uint8  `json:"assetType"`
+	InstStatus string `json:"instStatus"`
+	ChainData  []struct {
+		Chain                     string  `json:"chain"`
+		DisplayName               string  `json:"displayName"`
+		BaseChain                 string  `json:"baseChain"`
+		BaseChainProtocol         string  `json:"baseChainProtocol"`
+		IsDynamic                 bool    `json:"isDynamic"`
+		NumberOfConfirmations     uint16  `json:"numOfConfirmations"`
+		NumberOfFastConfirmations uint16  `json:"numOfFastConfirmations"`
+		DepositStatus             string  `json:"depositStatus"`
+		MinimumDepositAmount      float64 `json:"minDepositAmt,string"`
+		WithdrawStatus            string  `json:"withdrawStatus"`
+		MinimumWithdrawalAmount   float64 `json:"minWithdrawAmt,string"`
+		WithdrawPrecision         int16   `json:"withdrawPrecision"`
+		MaximumWithdrawAmount     float64 `json:"maxWithdrawwAmt,string"`
+		WithdrawQuotaPerDay       float64 `json:"withdrawQuotaPerDay,string"`
+		WithdrawQuotaPerYear      float64 `json:"withdrawQuotaPerYear,string"`
+		WithdrawQuotaTotal        float64 `json:"withdrawQuotaTotal,string"`
+		WithdrawFeeType           string  `json:"withdrawFeeType"`
+		TransactFeeWithdraw       float64 `json:"transactFeeWithdraw,string"`
+		AddressWithTag            bool    `json:"addrWithTag"`
+		AddressDepositTag         bool    `json:"addrDepositTag"`
+	} `json:"chains"`
 }
 
 // WsKlineData stores kline data for futures and swap websocket
@@ -699,6 +730,7 @@ type SpotNewOrderRequestParams struct {
 
 // DepositAddress stores the users deposit address info
 type DepositAddress struct {
+	UserID     int64  `json:"userId"`
 	Currency   string `json:"currency"`
 	Address    string `json:"address"`
 	AddressTag string `json:"addressTag"`
@@ -1023,21 +1055,6 @@ type WsPong struct {
 	Pong int64 `json:"pong"`
 }
 
-type wsKlineResponse struct {
-	Data []struct {
-		Amount float64 `json:"amount"`
-		Close  float64 `json:"close"`
-		Count  float64 `json:"count"`
-		High   float64 `json:"high"`
-		ID     int64   `json:"id"`
-		Low    float64 `json:"low"`
-		Open   float64 `json:"open"`
-		Volume float64 `json:"vol"`
-	} `json:"data"`
-	Rep    string `json:"rep"`
-	Status string `json:"status"`
-}
-
 type authenticationPing struct {
 	OP string `json:"op"`
 	TS int64  `json:"ts"`
@@ -1125,6 +1142,10 @@ var (
 
 	validContractTypes = []string{
 		"this_week", "next_week", "quarter", "next_quarter",
+	}
+
+	validContractShortTypes = []string{
+		"cw", "nw", "cq", "nq",
 	}
 
 	validFuturesPeriods = []string{

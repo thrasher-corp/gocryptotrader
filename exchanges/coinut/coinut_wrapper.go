@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -810,8 +811,8 @@ func (c *COINUT) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ as
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *COINUT) GetDepositAddress(_ context.Context, _ currency.Code, _ string) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (c *COINUT) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

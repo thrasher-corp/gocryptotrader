@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -426,12 +427,15 @@ func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (o *OKGroup) GetDepositAddress(ctx context.Context, p currency.Code, _ string) (string, error) {
+func (o *OKGroup) GetDepositAddress(ctx context.Context, p currency.Code, _, _ string) (*deposit.Address, error) {
 	wallet, err := o.GetAccountDepositAddressForCurrency(ctx, p.Lower().String())
 	if err != nil || len(wallet) == 0 {
-		return "", err
+		return nil, err
 	}
-	return wallet[0].Address, nil
+	return &deposit.Address{
+		Address: wallet[0].Address,
+		Tag:     wallet[0].Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

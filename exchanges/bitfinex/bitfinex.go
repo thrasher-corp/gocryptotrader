@@ -30,7 +30,6 @@ const (
 	bitfinexAccountInfo        = "account_infos"
 	bitfinexAccountFees        = "account_fees"
 	bitfinexAccountSummary     = "summary"
-	bitfinexDeposit            = "deposit/new"
 	bitfinexBalances           = "balances"
 	bitfinexTransfer           = "transfer"
 	bitfinexWithdrawal         = "withdraw"
@@ -77,7 +76,8 @@ const (
 	bitfinexCandles         = "candles/trade"
 	bitfinexKeyPermissions  = "key_info"
 	bitfinexMarginInfo      = "margin_infos"
-	bitfinexDepositMethod   = "conf/pub:map:currency:label"
+	bitfinexDepositMethod   = "conf/pub:map:tx:method"
+	bitfinexDepositAddress  = "auth/w/deposit/address"
 	bitfinexMarginPairs     = "conf/pub:list:pair:margin"
 
 	// Bitfinex platform status values
@@ -1065,27 +1065,76 @@ func (b *Bitfinex) GetAccountSummary(ctx context.Context) (AccountSummary, error
 // NewDeposit returns a new deposit address
 // Method - Example methods accepted: “bitcoin”, “litecoin”, “ethereum”,
 // “tethers", "ethereumc", "zcash", "monero", "iota", "bcash"
-// WalletName - accepted: “trading”, “exchange”, “deposit”
+// WalletName - accepted: "exchange", "margin", "funding" (can also use the old labels
+// which are "exchange", "trading" and "deposit" respectively). If none is set,
+// "funding" will be used by default
 // renew - Default is 0. If set to 1, will return a new unused deposit address
-func (b *Bitfinex) NewDeposit(ctx context.Context, method, walletName string, renew int) (DepositResponse, error) {
-	if !common.StringDataCompare(AcceptedWalletNames, walletName) {
-		return DepositResponse{},
+func (b *Bitfinex) NewDeposit(ctx context.Context, method, walletName string, renew uint8) (*Deposit, error) {
+	if walletName == "" {
+		walletName = "funding"
+	} else if !common.StringDataCompare(AcceptedWalletNames, walletName) {
+		return nil,
 			fmt.Errorf("walletname: [%s] is not allowed, supported: %s",
 				walletName,
 				AcceptedWalletNames)
 	}
 
-	response := DepositResponse{}
-	req := make(map[string]interface{})
-	req["method"] = method
-	req["wallet_name"] = walletName
-	req["renew"] = renew
+	req := make(map[string]interface{}, 3)
+	req["wallet"] = walletName
+	req["method"] = strings.ToLower(method)
+	req["op_renew"] = renew
+	var result []interface{}
 
-	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
-		bitfinexDeposit,
+	err := b.SendAuthenticatedHTTPRequestV2(ctx,
+		exchange.RestSpot,
+		http.MethodPost,
+		bitfinexDepositAddress,
 		req,
-		&response,
+		&result,
 		newDepositAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result) != 8 {
+		return nil, errors.New("expected result to have a len of 8")
+	}
+
+	depositInfo, ok := result[4].([]interface{})
+	if !ok || len(depositInfo) != 6 {
+		return nil, errors.New("unable to get deposit data")
+	}
+	depositMethod, ok := depositInfo[1].(string)
+	if !ok {
+		return nil, errors.New("unable to type assert depositMethod to string")
+	}
+	coin, ok := depositInfo[2].(string)
+	if !ok {
+		return nil, errors.New("unable to type assert coin to string")
+	}
+	var address, poolAddress string
+	if depositInfo[5] == nil {
+		address, ok = depositInfo[4].(string)
+		if !ok {
+			return nil, errors.New("unable to type assert address to string")
+		}
+	} else {
+		poolAddress, ok = depositInfo[4].(string)
+		if !ok {
+			return nil, errors.New("unable to type assert poolAddress to string")
+		}
+		address, ok = depositInfo[5].(string)
+		if !ok {
+			return nil, errors.New("unable to type assert address to string")
+		}
+	}
+
+	return &Deposit{
+		Method:       depositMethod,
+		CurrencyCode: coin,
+		Address:      address,
+		PoolAddress:  poolAddress,
+	}, nil
 }
 
 // GetKeyPermissions checks the permissions of the key being used to generate
@@ -1149,10 +1198,10 @@ func (b *Bitfinex) WalletTransfer(ctx context.Context, amount float64, currency,
 
 // WithdrawCryptocurrency requests a withdrawal from one of your wallets.
 // For FIAT, use WithdrawFIAT
-func (b *Bitfinex) WithdrawCryptocurrency(ctx context.Context, wallet, address, paymentID string, amount float64, c currency.Code) (Withdrawal, error) {
+func (b *Bitfinex) WithdrawCryptocurrency(ctx context.Context, wallet, address, paymentID, curr string, amount float64) (Withdrawal, error) {
 	var response []Withdrawal
 	req := make(map[string]interface{})
-	req["withdraw_type"] = b.ConvertSymbolToWithdrawalType(c)
+	req["withdraw_type"] = strings.ToLower(curr)
 	req["walletselected"] = wallet
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	req["address"] = address
@@ -1666,18 +1715,16 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchan
 			body = bytes.NewBuffer(payload)
 		}
 
-		// This is done in a weird way because bitfinex doesn't accept unixnano
-		n := strconv.FormatInt(int64(b.Requester.GetNonce(false))*1e9, 10)
+		n := strconv.FormatInt(time.Now().Unix()*1e9, 10)
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		headers["Accept"] = "application/json"
 		headers["bfx-apikey"] = b.API.Credentials.Key
 		headers["bfx-nonce"] = n
-		strPath := "/api" + bitfinexAPIVersion2 + path + string(payload)
-		signStr := strPath + n
+		sig := "/api" + bitfinexAPIVersion2 + path + n + string(payload)
 		hmac, err := crypto.GetHMAC(
 			crypto.HashSHA512_384,
-			[]byte(signStr),
+			[]byte(sig),
 			[]byte(b.API.Credentials.Secret),
 		)
 		if err != nil {
@@ -1792,89 +1839,52 @@ func (b *Bitfinex) CalculateTradingFee(i []AccountInfo, purchasePrice, amount fl
 	return (fee / 100) * purchasePrice * amount, err
 }
 
-// ConvertSymbolToWithdrawalType You need to have specific withdrawal types to withdraw from Bitfinex
-func (b *Bitfinex) ConvertSymbolToWithdrawalType(c currency.Code) string {
-	switch c {
-	case currency.BTC:
-		return "bitcoin"
-	case currency.LTC:
-		return "litecoin"
-	case currency.ETH:
-		return "ethereum"
-	case currency.ETC:
-		return "ethereumc"
-	case currency.USDT:
-		return "tetheruso"
-	case currency.ZEC:
-		return "zcash"
-	case currency.XMR:
-		return "monero"
-	case currency.DSH:
-		return "dash"
-	case currency.XRP:
-		return "ripple"
-	case currency.SAN:
-		return "santiment"
-	case currency.OMG:
-		return "omisego"
-	case currency.BCH:
-		return "bcash"
-	case currency.ETP:
-		return "metaverse"
-	case currency.AVT:
-		return "aventus"
-	case currency.EDO:
-		return "eidoo"
-	case currency.BTG:
-		return "bgold"
-	case currency.DATA:
-		return "datacoin"
-	case currency.GNT:
-		return "golem"
-	case currency.SNT:
-		return "status"
-	default:
-		return c.Lower().String()
-	}
-}
-
-// ConvertSymbolToDepositMethod returns a converted currency deposit method
-func (b *Bitfinex) ConvertSymbolToDepositMethod(ctx context.Context, c currency.Code) (string, error) {
-	if err := b.PopulateAcceptableMethods(ctx); err != nil {
-		return "", err
-	}
-	method, ok := AcceptableMethods[c.String()]
-	if !ok {
-		return "", fmt.Errorf("currency %s not supported in method list",
-			c)
-	}
-
-	return strings.ToLower(method), nil
-}
-
 // PopulateAcceptableMethods retrieves all accepted currency strings and
 // populates a map to check
 func (b *Bitfinex) PopulateAcceptableMethods(ctx context.Context) error {
-	if len(AcceptableMethods) == 0 {
-		var response [][][2]string
-		err := b.SendHTTPRequest(ctx, exchange.RestSpot,
-			bitfinexAPIVersion2+bitfinexDepositMethod,
-			&response,
-			configs)
-		if err != nil {
-			return err
-		}
-
-		if len(response) == 0 {
-			return errors.New("response contains no data cannot populate acceptable method map")
-		}
-
-		for i := range response[0] {
-			if len(response[0][i]) != 2 {
-				return errors.New("response contains no data cannot populate acceptable method map")
-			}
-			AcceptableMethods[response[0][i][0]] = response[0][i][1]
-		}
+	if acceptableMethods.loaded() {
+		return nil
 	}
+
+	var response [][][]interface{}
+	err := b.SendHTTPRequest(ctx,
+		exchange.RestSpot,
+		bitfinexAPIVersion2+bitfinexDepositMethod,
+		&response,
+		configs)
+	if err != nil {
+		return err
+	}
+
+	if len(response) == 0 {
+		return errors.New("response contains no data cannot populate acceptable method map")
+	}
+
+	data := response[0]
+	storeData := make(map[string][]string)
+	for x := range data {
+		if len(data[x]) == 0 {
+			return fmt.Errorf("data should not be empty")
+		}
+		name, ok := data[x][0].(string)
+		if !ok {
+			return fmt.Errorf("unable to type assert name")
+		}
+
+		var availOptions []string
+		options, ok := data[x][1].([]interface{})
+		if !ok {
+			return fmt.Errorf("unable to type assert options")
+		}
+		for x := range options {
+			o, ok := options[x].(string)
+			if !ok {
+				return fmt.Errorf("unable to type assert option to string")
+			}
+			availOptions = append(availOptions, o)
+		}
+		storeData[name] = availOptions
+	}
+	acceptableMethods.load(storeData)
 	return nil
 }

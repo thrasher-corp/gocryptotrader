@@ -1665,4 +1665,5 @@ var (
 	BUSD       = NewCode("BUSD")
 	SRM        = NewCode("SRM")
 	FTT        = NewCode("FTT")
+	UST        = NewCode("UST")
 )

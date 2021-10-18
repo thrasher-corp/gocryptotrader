@@ -23,7 +23,6 @@ var (
 	errRequestSystemIsNil     = errors.New("request system is nil")
 	errMaxRequestJobs         = errors.New("max request jobs reached")
 	errRequestFunctionIsNil   = errors.New("request function is nil")
-	errServiceNameUnset       = errors.New("service name unset")
 	errRequestItemNil         = errors.New("request item is nil")
 	errInvalidPath            = errors.New("invalid path")
 	errHeaderResponseMapIsNil = errors.New("header response map is nil")

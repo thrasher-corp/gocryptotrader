@@ -57,6 +57,7 @@ type GoCryptoTraderClient interface {
 	RemoveEvent(ctx context.Context, in *RemoveEventRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetCryptocurrencyDepositAddresses(ctx context.Context, in *GetCryptocurrencyDepositAddressesRequest, opts ...grpc.CallOption) (*GetCryptocurrencyDepositAddressesResponse, error)
 	GetCryptocurrencyDepositAddress(ctx context.Context, in *GetCryptocurrencyDepositAddressRequest, opts ...grpc.CallOption) (*GetCryptocurrencyDepositAddressResponse, error)
+	GetAvailableTransferChains(ctx context.Context, in *GetAvailableTransferChainsRequest, opts ...grpc.CallOption) (*GetAvailableTransferChainsResponse, error)
 	WithdrawFiatFunds(ctx context.Context, in *WithdrawFiatRequest, opts ...grpc.CallOption) (*WithdrawResponse, error)
 	WithdrawCryptocurrencyFunds(ctx context.Context, in *WithdrawCryptoRequest, opts ...grpc.CallOption) (*WithdrawResponse, error)
 	WithdrawalEventByID(ctx context.Context, in *WithdrawalEventByIDRequest, opts ...grpc.CallOption) (*WithdrawalEventByIDResponse, error)
@@ -489,6 +490,15 @@ func (c *goCryptoTraderClient) GetCryptocurrencyDepositAddresses(ctx context.Con
 func (c *goCryptoTraderClient) GetCryptocurrencyDepositAddress(ctx context.Context, in *GetCryptocurrencyDepositAddressRequest, opts ...grpc.CallOption) (*GetCryptocurrencyDepositAddressResponse, error) {
 	out := new(GetCryptocurrencyDepositAddressResponse)
 	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetCryptocurrencyDepositAddress", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) GetAvailableTransferChains(ctx context.Context, in *GetAvailableTransferChainsRequest, opts ...grpc.CallOption) (*GetAvailableTransferChainsResponse, error) {
+	out := new(GetAvailableTransferChainsResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetAvailableTransferChains", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1139,6 +1149,7 @@ type GoCryptoTraderServer interface {
 	RemoveEvent(context.Context, *RemoveEventRequest) (*GenericResponse, error)
 	GetCryptocurrencyDepositAddresses(context.Context, *GetCryptocurrencyDepositAddressesRequest) (*GetCryptocurrencyDepositAddressesResponse, error)
 	GetCryptocurrencyDepositAddress(context.Context, *GetCryptocurrencyDepositAddressRequest) (*GetCryptocurrencyDepositAddressResponse, error)
+	GetAvailableTransferChains(context.Context, *GetAvailableTransferChainsRequest) (*GetAvailableTransferChainsResponse, error)
 	WithdrawFiatFunds(context.Context, *WithdrawFiatRequest) (*WithdrawResponse, error)
 	WithdrawCryptocurrencyFunds(context.Context, *WithdrawCryptoRequest) (*WithdrawResponse, error)
 	WithdrawalEventByID(context.Context, *WithdrawalEventByIDRequest) (*WithdrawalEventByIDResponse, error)
@@ -1316,6 +1327,9 @@ func (UnimplementedGoCryptoTraderServer) GetCryptocurrencyDepositAddresses(conte
 }
 func (UnimplementedGoCryptoTraderServer) GetCryptocurrencyDepositAddress(context.Context, *GetCryptocurrencyDepositAddressRequest) (*GetCryptocurrencyDepositAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCryptocurrencyDepositAddress not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) GetAvailableTransferChains(context.Context, *GetAvailableTransferChainsRequest) (*GetAvailableTransferChainsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAvailableTransferChains not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) WithdrawFiatFunds(context.Context, *WithdrawFiatRequest) (*WithdrawResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WithdrawFiatFunds not implemented")
@@ -2193,6 +2207,24 @@ func _GoCryptoTrader_GetCryptocurrencyDepositAddress_Handler(srv interface{}, ct
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GoCryptoTraderServer).GetCryptocurrencyDepositAddress(ctx, req.(*GetCryptocurrencyDepositAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_GetAvailableTransferChains_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAvailableTransferChainsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).GetAvailableTransferChains(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/GetAvailableTransferChains",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).GetAvailableTransferChains(ctx, req.(*GetAvailableTransferChainsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3342,6 +3374,10 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCryptocurrencyDepositAddress",
 			Handler:    _GoCryptoTrader_GetCryptocurrencyDepositAddress_Handler,
+		},
+		{
+			MethodName: "GetAvailableTransferChains",
+			Handler:    _GoCryptoTrader_GetAvailableTransferChains_Handler,
 		},
 		{
 			MethodName: "WithdrawFiatFunds",

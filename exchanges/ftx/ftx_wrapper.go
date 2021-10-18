@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -94,22 +95,26 @@ func (f *FTX) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:      true,
-				TickerBatching:      true,
-				KlineFetching:       true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrders:        true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				TradeFee:            true,
-				FiatDepositFee:      true,
-				FiatWithdrawalFee:   true,
-				CryptoWithdrawalFee: true,
+				TickerFetching:        true,
+				TickerBatching:        true,
+				KlineFetching:         true,
+				TradeFetching:         true,
+				OrderbookFetching:     true,
+				AutoPairUpdates:       true,
+				AccountInfo:           true,
+				GetOrder:              true,
+				GetOrders:             true,
+				CancelOrders:          true,
+				CancelOrder:           true,
+				SubmitOrder:           true,
+				TradeFee:              true,
+				FiatDepositFee:        true,
+				FiatWithdrawalFee:     true,
+				CryptoWithdrawalFee:   true,
+				CryptoDeposit:         true,
+				CryptoWithdrawal:      true,
+				MultiChainDeposits:    true,
+				MultiChainWithdrawals: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				OrderbookFetching: true,
@@ -119,7 +124,7 @@ func (f *FTX) SetDefaults() {
 				GetOrders:         true,
 				GetOrder:          true,
 			},
-			WithdrawPermissions: exchange.NoAPIWithdrawalMethods,
+			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
@@ -491,7 +496,9 @@ func (f *FTX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, er
 		tempData.Fee = depositData[x].Fee
 		tempData.Timestamp = depositData[x].Time
 		tempData.ExchangeName = f.Name
+		tempData.CryptoToAddress = depositData[x].Address.Address
 		tempData.CryptoTxID = depositData[x].TxID
+		tempData.CryptoChain = depositData[x].Address.Method
 		tempData.Status = depositData[x].Status
 		tempData.Amount = depositData[x].Size
 		tempData.Currency = depositData[x].Coin
@@ -504,14 +511,16 @@ func (f *FTX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, er
 	}
 	for y := range withdrawalData {
 		var tempData exchange.FundHistory
-		tempData.Fee = depositData[y].Fee
-		tempData.Timestamp = depositData[y].Time
+		tempData.Fee = withdrawalData[y].Fee
+		tempData.Timestamp = withdrawalData[y].Time
 		tempData.ExchangeName = f.Name
-		tempData.CryptoTxID = depositData[y].TxID
-		tempData.Status = depositData[y].Status
-		tempData.Amount = depositData[y].Size
-		tempData.Currency = depositData[y].Coin
-		tempData.TransferID = strconv.FormatInt(depositData[y].ID, 10)
+		tempData.CryptoToAddress = withdrawalData[y].Address
+		tempData.CryptoTxID = withdrawalData[y].TXID
+		tempData.CryptoChain = withdrawalData[y].Method
+		tempData.Status = withdrawalData[y].Status
+		tempData.Amount = withdrawalData[y].Size
+		tempData.Currency = withdrawalData[y].Coin
+		tempData.TransferID = strconv.FormatInt(withdrawalData[y].ID, 10)
 		resp = append(resp, tempData)
 	}
 	return resp, nil
@@ -824,12 +833,15 @@ func (f *FTX) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pa
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (f *FTX) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	a, err := f.FetchDepositAddress(ctx, cryptocurrency)
+func (f *FTX) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+	a, err := f.FetchDepositAddress(ctx, cryptocurrency, chain)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return a.Address, nil
+	return &deposit.Address{
+		Address: a.Address,
+		Tag:     a.Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -843,6 +855,7 @@ func (f *FTX) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.TradePassword,
+		withdrawRequest.Crypto.Chain,
 		strconv.FormatInt(withdrawRequest.OneTimePassword, 10),
 		withdrawRequest.Amount)
 	if err != nil {
@@ -1213,4 +1226,23 @@ func (f *FTX) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) erro
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
 	return f.LoadLimits(limits)
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	coins, err := f.GetCoins(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var availableChains []string
+	for x := range coins {
+		if strings.EqualFold(coins[x].ID, cryptocurrency.String()) {
+			for y := range coins[x].Methods {
+				availableChains = append(availableChains, coins[x].Methods[y])
+			}
+		}
+	}
+	return availableChains, nil
 }

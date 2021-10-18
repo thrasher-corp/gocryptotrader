@@ -1071,8 +1071,13 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	}
 	var errCap SpotAuthError
 	if err = json.Unmarshal(interim, &errCap); err == nil {
-		if len(errCap.Error) != 0 {
-			return errors.New(errCap.Error[0])
+		if errCap.Error != nil {
+			switch e := errCap.Error.(type) {
+			case []string:
+				return errors.New(e[0])
+			case string:
+				return errors.New(e)
+			}
 		}
 	}
 	return json.Unmarshal(interim, result)
@@ -1148,7 +1153,7 @@ func calculateTradingFee(currency string, feePair map[string]TradeVolumeFee, pur
 }
 
 // GetCryptoDepositAddress returns a deposit address for a cryptocurrency
-func (k *Kraken) GetCryptoDepositAddress(ctx context.Context, method, code string) (string, error) {
+func (k *Kraken) GetCryptoDepositAddress(ctx context.Context, method, code string, createNew bool) ([]DepositAddress, error) {
 	var resp = struct {
 		Error  []string         `json:"error"`
 		Result []DepositAddress `json:"result"`
@@ -1158,16 +1163,19 @@ func (k *Kraken) GetCryptoDepositAddress(ctx context.Context, method, code strin
 	values.Set("asset", code)
 	values.Set("method", method)
 
+	if createNew {
+		values.Set("new", "1")
+	}
+
 	err := k.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenDepositAddresses, values, &resp)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	for _, a := range resp.Result {
-		return a.Address, nil
+	if len(resp.Result) == 0 {
+		return nil, errors.New("no addresses returned")
 	}
-
-	return "", errors.New("no addresses returned")
+	return resp.Result, nil
 }
 
 // WithdrawStatus gets the status of recent withdrawals

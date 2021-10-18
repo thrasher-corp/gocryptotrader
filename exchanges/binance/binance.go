@@ -59,10 +59,6 @@ const (
 	marginAccountInfo = "/sapi/v1/margin/account"
 
 	// Withdraw API endpoints
-	withdrawEndpoint                       = "/wapi/v3/withdraw.html"
-	depositHistory                         = "/wapi/v3/depositHistory.html"
-	withdrawalHistory                      = "/wapi/v3/withdrawHistory.html"
-	depositAddress                         = "/wapi/v3/depositAddress.html"
 	accountStatus                          = "/wapi/v3/accountStatus.html"
 	systemStatus                           = "/wapi/v3/systemStatus.html"
 	dustLog                                = "/wapi/v3/userAssetDribbletLog.html"
@@ -71,7 +67,15 @@ const (
 	undocumentedInterestHistory            = "/gateway-api/v1/public/isolated-margin/pair/vip-level"
 	undocumentedCrossMarginInterestHistory = "/gateway-api/v1/friendly/margin/vip/spec/list-all"
 
-	defaultRecvWindow = 5 * time.Second
+	// Wallet endpoints
+	allCoinsInfo     = "/sapi/v1/capital/config/getall"
+	withdrawEndpoint = "/sapi/v1/capital/withdraw/apply"
+	depositHistory   = "/sapi/v1/capital/deposit/hisrec"
+	withdrawHistory  = "/sapi/v1/capital/withdraw/history"
+	depositAddress   = "/sapi/v1/capital/deposit/address"
+
+	defaultRecvWindow     = 5 * time.Second
+	binanceSAPITimeLayout = "2006-01-02 15:04:05"
 )
 
 // GetInterestHistory gets interest history for currency/currencies provided
@@ -906,98 +910,185 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 	return WithdrawalFees[c]
 }
 
-// WithdrawCrypto sends cryptocurrency to the address of your choosing
-func (b *Binance) WithdrawCrypto(ctx context.Context, asset, address, addressTag, name, amount string) (string, error) {
-	var resp WithdrawResponse
-
-	params := url.Values{}
-	params.Set("asset", asset)
-	params.Set("address", address)
-	params.Set("amount", amount)
-	if len(name) > 0 {
-		params.Set("name", name)
-	}
-	if len(addressTag) > 0 {
-		params.Set("addressTag", addressTag)
-	}
-
+// GetAllCoinsInfo returns details about all supported coins
+func (b *Binance) GetAllCoinsInfo(ctx context.Context) ([]CoinInfo, error) {
+	var resp []CoinInfo
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
-		http.MethodPost, withdrawEndpoint,
-		params, spotDefaultRate, &resp); err != nil {
+		http.MethodGet,
+		allCoinsInfo,
+		nil,
+		spotDefaultRate,
+		&resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// WithdrawCrypto sends cryptocurrency to the address of your choosing
+func (b *Binance) WithdrawCrypto(ctx context.Context, cryptoAsset, withdrawOrderID, network, address, addressTag, name, amount string, transactionFeeFlag bool) (string, error) {
+	if cryptoAsset == "" || address == "" || amount == "" {
+		return "", errors.New("asset, address and amount must not be empty")
+	}
+
+	params := url.Values{}
+	params.Set("coin", cryptoAsset)
+	params.Set("address", address)
+	params.Set("amount", amount)
+
+	// optional params
+	if withdrawOrderID != "" {
+		params.Set("withdrawOrderId", withdrawOrderID)
+	}
+	if network != "" {
+		params.Set("network", network)
+	}
+	if addressTag != "" {
+		params.Set("addressTag", addressTag)
+	}
+	if transactionFeeFlag {
+		params.Set("transactionFeeFlag", "true")
+	}
+	if name != "" {
+		params.Set("name", url.QueryEscape(name))
+	}
+
+	var resp WithdrawResponse
+	if err := b.SendAuthHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
+		http.MethodPost,
+		withdrawEndpoint,
+		params,
+		spotDefaultRate,
+		&resp); err != nil {
 		return "", err
 	}
 
-	if !resp.Success {
-		return resp.ID, errors.New(resp.Msg)
+	if resp.ID == "" {
+		return "", errors.New("ID is nil")
 	}
 
 	return resp.ID, nil
 }
 
-// WithdrawStatus gets the status of recent withdrawals
+// DepositHistory returns the deposit history based on the supplied params
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (b *Binance) WithdrawStatus(ctx context.Context, c currency.Code, status string, startTime, endTime int64) ([]WithdrawStatusResponse, error) {
-	var response struct {
-		Success      bool                     `json:"success"`
-		WithdrawList []WithdrawStatusResponse `json:"withdrawList"`
-	}
+func (b *Binance) DepositHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]DepositHistory, error) {
+	var response []DepositHistory
 
 	params := url.Values{}
-	params.Set("asset", c.String())
+	if !c.IsEmpty() {
+		params.Set("coin", c.String())
+	}
 
 	if status != "" {
 		i, err := strconv.Atoi(status)
 		if err != nil {
-			return response.WithdrawList, fmt.Errorf("wrong param (status): %s. Error: %v", status, err)
+			return nil, fmt.Errorf("wrong param (status): %s. Error: %v", status, err)
 		}
 
 		switch i {
 		case EmailSent, Cancelled, AwaitingApproval, Rejected, Processing, Failure, Completed:
 		default:
-			return response.WithdrawList, fmt.Errorf("wrong param (status): %s", status)
+			return nil, fmt.Errorf("wrong param (status): %s", status)
 		}
 
 		params.Set("status", status)
 	}
 
-	if startTime > 0 {
-		params.Set("startTime", strconv.FormatInt(startTime, 10))
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UTC().Unix(), 10))
 	}
 
-	if endTime > 0 {
-		params.Set("endTime", strconv.FormatInt(endTime, 10))
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UTC().Unix(), 10))
+	}
+
+	if offset != 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+
+	if limit != 0 {
+		params.Set("limit", strconv.Itoa(limit))
 	}
 
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
-		http.MethodGet, withdrawalHistory,
-		params, spotDefaultRate,
+		http.MethodGet,
+		depositHistory,
+		params,
+		spotDefaultRate,
 		&response); err != nil {
-		return response.WithdrawList, err
+		return nil, err
 	}
 
-	return response.WithdrawList, nil
+	return response, nil
+}
+
+// WithdrawHistory gets the status of recent withdrawals
+// status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
+func (b *Binance) WithdrawHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]WithdrawStatusResponse, error) {
+	params := url.Values{}
+	if !c.IsEmpty() {
+		params.Set("coin", c.String())
+	}
+
+	if status != "" {
+		i, err := strconv.Atoi(status)
+		if err != nil {
+			return nil, fmt.Errorf("wrong param (status): %s. Error: %v", status, err)
+		}
+
+		switch i {
+		case EmailSent, Cancelled, AwaitingApproval, Rejected, Processing, Failure, Completed:
+		default:
+			return nil, fmt.Errorf("wrong param (status): %s", status)
+		}
+
+		params.Set("status", status)
+	}
+
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UTC().Unix(), 10))
+	}
+
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UTC().Unix(), 10))
+	}
+
+	if offset != 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+
+	if limit != 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+
+	var withdrawStatus []WithdrawStatusResponse
+	if err := b.SendAuthHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
+		http.MethodGet,
+		withdrawHistory,
+		params,
+		spotDefaultRate,
+		&withdrawStatus); err != nil {
+		return nil, err
+	}
+
+	return withdrawStatus, nil
 }
 
 // GetDepositAddressForCurrency retrieves the wallet address for a given currency
-func (b *Binance) GetDepositAddressForCurrency(ctx context.Context, currency string) (string, error) {
-	resp := struct {
-		Address    string `json:"address"`
-		Success    bool   `json:"success"`
-		AddressTag string `json:"addressTag"`
-	}{}
-
+func (b *Binance) GetDepositAddressForCurrency(ctx context.Context, currency, chain string) (*DepositAddress, error) {
 	params := url.Values{}
-	params.Set("asset", currency)
-	params.Set("status", "true")
+	params.Set("coin", currency)
+	if chain != "" {
+		params.Set("network", chain)
+	}
 	params.Set("recvWindow", "10000")
-
-	return resp.Address,
-		b.SendAuthHTTPRequest(ctx,
-			exchange.RestSpotSupplementary,
-			http.MethodGet, depositAddress,
-			params, spotDefaultRate, &resp)
+	var d DepositAddress
+	return &d,
+		b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, depositAddress, params, spotDefaultRate, &d)
 }
 
 // GetWsAuthStreamKey will retrieve a key to use for authorised WS streaming

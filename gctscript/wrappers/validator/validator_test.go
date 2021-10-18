@@ -112,12 +112,12 @@ func TestWrapper_CancelOrder(t *testing.T) {
 }
 
 func TestWrapper_DepositAddress(t *testing.T) {
-	_, err := testWrapper.DepositAddress(exchError.String(), currency.NewCode("BTC"))
+	_, err := testWrapper.DepositAddress(exchError.String(), "", currency.NewCode("BTC"))
 	if err == nil {
 		t.Fatal("expected DepositAddress to return error on invalid name")
 	}
 
-	_, err = testWrapper.DepositAddress(exchName, currency.NewCode("BTC"))
+	_, err = testWrapper.DepositAddress(exchName, "", currency.NewCode("BTC"))
 	if err != nil {
 		t.Fatal(err)
 	}

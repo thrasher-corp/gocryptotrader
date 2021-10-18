@@ -569,6 +569,18 @@ func TestGetBalance(t *testing.T) {
 }
 
 // TestGetTradeBalance API endpoint test
+func TestGetDepositMethods(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("no api keys set")
+	}
+	_, err := k.GetDepositMethods(context.Background(), "USDT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestGetTradeBalance API endpoint test
 func TestGetTradeBalance(t *testing.T) {
 	t.Parallel()
 	args := TradeBalanceOptions{Asset: "ZEUR"}
@@ -1090,16 +1102,34 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 }
 
+func TestGetCryptoDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set")
+	}
+	_, err := k.GetCryptoDepositAddress(context.Background(), "Bitcoin", "XBT", false)
+	if err != nil {
+		t.Error(err)
+	}
+	if !canManipulateRealOrders {
+		t.Skip("canManipulateRealOrders not set, skipping test")
+	}
+	_, err = k.GetCryptoDepositAddress(context.Background(), "Bitcoin", "XBT", true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // TestGetDepositAddress wrapper test
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	if areTestAPIKeysSet() {
-		_, err := k.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := k.GetDepositAddress(context.Background(), currency.USDT, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error", err)
 		}
 	} else {
-		_, err := k.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := k.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err == nil {
 			t.Error("GetDepositAddress() error can not be nil")
 		}

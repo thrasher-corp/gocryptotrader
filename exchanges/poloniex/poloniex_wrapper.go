@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -78,25 +80,27 @@ func (p *Poloniex) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				KlineFetching:       true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrder:         true,
-				CancelOrders:        true,
-				SubmitOrder:         true,
-				DepositHistory:      true,
-				WithdrawalHistory:   true,
-				UserTradeHistory:    true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				TradeFee:            true,
-				CryptoWithdrawalFee: true,
+				TickerBatching:        true,
+				TickerFetching:        true,
+				KlineFetching:         true,
+				TradeFetching:         true,
+				OrderbookFetching:     true,
+				AutoPairUpdates:       true,
+				AccountInfo:           true,
+				GetOrder:              true,
+				GetOrders:             true,
+				CancelOrder:           true,
+				CancelOrders:          true,
+				SubmitOrder:           true,
+				DepositHistory:        true,
+				WithdrawalHistory:     true,
+				UserTradeHistory:      true,
+				CryptoDeposit:         true,
+				CryptoWithdrawal:      true,
+				TradeFee:              true,
+				CryptoWithdrawalFee:   true,
+				MultiChainDeposits:    true,
+				MultiChainWithdrawals: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -691,19 +695,72 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	a, err := p.GetDepositAddresses(ctx)
+func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+	depositAddrs, err := p.GetDepositAddresses(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	address, ok := a.Addresses[cryptocurrency.Upper().String()]
+	// Some coins use a main address, so we must use this in conjunction with the returned
+	// deposit address to produce the full deposit address and tag
+	currencies, err := p.GetCurrencies(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	coinParams, ok := currencies[cryptocurrency.Upper().String()]
 	if !ok {
-		return "", fmt.Errorf("cannot find deposit address for %s",
-			cryptocurrency)
+		return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
 	}
 
-	return address, nil
+	// Handle coins with payment ID's like XRP
+	var address, tag string
+	if coinParams.CurrencyType == "address-payment-id" && coinParams.DepositAddress != "" {
+		address = coinParams.DepositAddress
+		tag, ok = depositAddrs.Addresses[cryptocurrency.Upper().String()]
+		if !ok {
+			newAddr, err := p.GenerateNewAddress(ctx, cryptocurrency.Upper().String())
+			if err != nil {
+				return nil, err
+			}
+			tag = newAddr
+		}
+		return &deposit.Address{
+			Address: address,
+			Tag:     tag,
+		}, nil
+	}
+
+	// Handle coins like BTC or multichain coins
+	targetCurrency := cryptocurrency.String()
+	if chain != "" && !strings.EqualFold(chain, cryptocurrency.String()) {
+		targetCurrency = chain
+	}
+
+	address, ok = depositAddrs.Addresses[strings.ToUpper(targetCurrency)]
+	if !ok {
+		if len(coinParams.ChildChains) > 1 && chain != "" && !common.StringDataCompare(coinParams.ChildChains, targetCurrency) {
+			// rather than assume, return an error
+			return nil, fmt.Errorf("currency %s has %v chains available, one of these must be specified",
+				cryptocurrency,
+				coinParams.ChildChains)
+		}
+
+		coinParams, ok = currencies[strings.ToUpper(targetCurrency)]
+		if !ok {
+			return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
+		}
+		if coinParams.WithdrawalDepositDisabled == 1 {
+			return nil, fmt.Errorf("deposits and withdrawals for %v are currently disabled", targetCurrency)
+		}
+
+		newAddr, err := p.GenerateNewAddress(ctx, targetCurrency)
+		if err != nil {
+			return nil, err
+		}
+		address = newAddr
+	}
+	return &deposit.Address{Address: address}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -712,7 +769,12 @@ func (p *Poloniex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	v, err := p.Withdraw(ctx, withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, withdrawRequest.Amount)
+
+	targetCurrency := withdrawRequest.Currency.String()
+	if withdrawRequest.Crypto.Chain != "" {
+		targetCurrency = withdrawRequest.Crypto.Chain
+	}
+	v, err := p.Withdraw(ctx, targetCurrency, withdrawRequest.Crypto.Address, withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -909,4 +971,20 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return p.GetHistoricCandles(ctx, pair, a, start, end, interval)
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (p *Poloniex) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	currencies, err := p.GetCurrencies(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	curr, ok := currencies[cryptocurrency.Upper().String()]
+	if !ok {
+		return nil, errors.New("unable to locate currency in map")
+	}
+
+	return curr.ChildChains, nil
 }
