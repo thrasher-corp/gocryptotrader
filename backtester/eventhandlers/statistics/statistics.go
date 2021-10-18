@@ -208,8 +208,8 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 	}
 	if !funds.USDTrackingDisabled() {
 		var resp interface{}
-		s.Funding = funds.GenerateReport()
-		resp, err = CalculateTotalUSDFundingStatistics(s.Funding, s.ExchangeAssetPairStatistics)
+		report := funds.GenerateReport()
+		s.FundingStatistics, err = CalculateTotalUSDFundingStatistics(report, s.ExchangeAssetPairStatistics)
 		if err != nil {
 			return err
 		}
@@ -221,10 +221,74 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 		s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies(finalResults)
 		s.BestMarketMovement = s.GetBestMarketPerformer(finalResults)
 		s.BestStrategyResults = s.GetBestStrategyPerformer(finalResults)
+		s.PrintFundingResults()
 		s.PrintTotalResults()
 	}
 
 	return nil
+}
+
+func (s *Statistic) PrintFundingResults() {
+	log.Info(log.BackTester, "------------------Funding------------------------------------")
+
+	log.Info(log.BackTester, "------------------Funding Items------------------------------")
+	for i := range s.FundingStatistics.Report.Items {
+		log.Infof(log.BackTester, "Exchange: %v", s.FundingStatistics.Report.Items[i].Exchange)
+		log.Infof(log.BackTester, "Asset: %v", s.FundingStatistics.Report.Items[i].Asset)
+		log.Infof(log.BackTester, "Currency: %v", s.FundingStatistics.Report.Items[i].Currency)
+		if !s.FundingStatistics.Report.Items[i].PairedWith.IsEmpty() {
+			log.Infof(log.BackTester, "Paired with: %v", s.FundingStatistics.Report.Items[i].PairedWith)
+		}
+		log.Infof(log.BackTester, "Initial funds: %v", s.FundingStatistics.Report.Items[i].InitialFunds)
+		log.Infof(log.BackTester, "Initial funds in USD: $%v", s.FundingStatistics.Report.Items[i].USDInitialFunds)
+		log.Infof(log.BackTester, "Final funds: %v", s.FundingStatistics.Report.Items[i].FinalFunds)
+		log.Infof(log.BackTester, "Final funds in USD: $%v", s.FundingStatistics.Report.Items[i].USDFinalFunds)
+		if s.FundingStatistics.Report.Items[i].InitialFunds.IsZero() {
+			log.Info(log.BackTester, "Difference: ∞%")
+		} else {
+			log.Infof(log.BackTester, "Difference: %v%%", s.FundingStatistics.Report.Items[i].Difference)
+		}
+		if s.FundingStatistics.Report.Items[i].TransferFee.GreaterThan(decimal.Zero) {
+			log.Infof(log.BackTester, "Transfer fee: %v", s.FundingStatistics.Report.Items[i].TransferFee)
+		}
+		log.Info(log.BackTester, "")
+	}
+	log.Info(log.BackTester, "------------------Funding-Totals-----------------------------")
+	log.Infof(log.BackTester, "Benchmark Market Movement: %v%%", s.FundingStatistics.TotalUSDStatistics.BenchmarkMarketMovement)
+	log.Infof(log.BackTester, "Strategy Movement: %v%%", s.FundingStatistics.TotalUSDStatistics.StrategyMovement)
+	log.Infof(log.BackTester, "Did strategy make a profit: %v", s.FundingStatistics.TotalUSDStatistics.DidStrategyMakeProfit)
+	log.Infof(log.BackTester, "Did strategy beat the market: %v", s.FundingStatistics.TotalUSDStatistics.DidStrategyBeatTheMarket)
+	log.Infof(log.BackTester, "Buy Orders: %v", s.FundingStatistics.TotalUSDStatistics.BuyOrders)
+	log.Infof(log.BackTester, "Sell Orders: %v", s.FundingStatistics.TotalUSDStatistics.SellOrders)
+	log.Infof(log.BackTester, "Total Orders: %v", s.FundingStatistics.TotalUSDStatistics.TotalOrders)
+	log.Infof(log.BackTester, "Highest funds: %v at %v", s.FundingStatistics.TotalUSDStatistics.HighestHoldingValue.Value, s.FundingStatistics.TotalUSDStatistics.HighestHoldingValue.Time)
+	log.Infof(log.BackTester, "Lowest funds: %v at %v", s.FundingStatistics.TotalUSDStatistics.LowestHoldingValue.Value, s.FundingStatistics.TotalUSDStatistics.LowestHoldingValue.Time)
+
+	log.Info(log.BackTester, "------------------Rates-------------------------------------------------")
+	log.Infof(log.BackTester, "%s Risk free rate: %v%%", s.FundingStatistics.TotalUSDStatistics.RiskFreeRate.Round(2))
+	log.Infof(log.BackTester, "Compound Annual Growth Rate: %v%%", s.FundingStatistics.TotalUSDStatistics.CompoundAnnualGrowthRate)
+
+	log.Info(log.BackTester, "------------------Ratios------------------------------------------------")
+	log.Info(log.BackTester, "------------------Arithmetic--------------------------------------------")
+	if s.WasAnyDataMissing {
+		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
+		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
+	}
+	log.Infof(log.BackTester, "Sharpe ratio: %v", s.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.SharpeRatio.Round(4))
+	log.Infof(log.BackTester, "Sortino ratio: %v", s.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.SortinoRatio.Round(4))
+	log.Infof(log.BackTester, "Information ratio: %v", s.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.InformationRatio.Round(4))
+	log.Infof(log.BackTester, "Calmar ratio: %v\n\n", s.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.CalmarRatio.Round(4))
+
+	log.Info(log.BackTester, "------------------Geometric--------------------------------------------")
+	if s.WasAnyDataMissing {
+		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
+		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
+	}
+	log.Infof(log.BackTester, "Sharpe ratio: %v", s.FundingStatistics.TotalUSDStatistics.GeometricRatios.SharpeRatio.Round(4))
+	log.Infof(log.BackTester, "Sortino ratio: %v", s.FundingStatistics.TotalUSDStatistics.GeometricRatios.SortinoRatio.Round(4))
+	log.Infof(log.BackTester, "Information ratio: %v", s.FundingStatistics.TotalUSDStatistics.GeometricRatios.InformationRatio.Round(4))
+	log.Infof(log.BackTester, "Calmar ratio: %v\n\n", s.FundingStatistics.TotalUSDStatistics.GeometricRatios.CalmarRatio.Round(4))
+
 }
 
 // PrintTotalResults outputs all results to the CMD
@@ -233,31 +297,10 @@ func (s *Statistic) PrintTotalResults() {
 	log.Infof(log.BackTester, "Strategy Name: %v", s.StrategyName)
 	log.Infof(log.BackTester, "Strategy Nickname: %v", s.StrategyNickname)
 	log.Infof(log.BackTester, "Strategy Goal: %v\n\n", s.StrategyGoal)
-	log.Info(log.BackTester, "------------------Funding------------------------------------")
-	for i := range s.Funding.Items {
-		log.Infof(log.BackTester, "Exchange: %v", s.Funding.Items[i].Exchange)
-		log.Infof(log.BackTester, "Asset: %v", s.Funding.Items[i].Asset)
-		log.Infof(log.BackTester, "Currency: %v", s.Funding.Items[i].Currency)
-		if !s.Funding.Items[i].PairedWith.IsEmpty() {
-			log.Infof(log.BackTester, "Paired with: %v", s.Funding.Items[i].PairedWith)
-		}
-		log.Infof(log.BackTester, "Initial funds: %v", s.Funding.Items[i].InitialFunds)
-		log.Infof(log.BackTester, "Initial funds in USD: $%v", s.Funding.Items[i].USDInitialFunds)
-		log.Infof(log.BackTester, "Final funds: %v", s.Funding.Items[i].FinalFunds)
-		log.Infof(log.BackTester, "Final funds in USD: $%v", s.Funding.Items[i].USDFinalFunds)
-		if s.Funding.Items[i].InitialFunds.IsZero() {
-			log.Info(log.BackTester, "Difference: ∞%")
-		} else {
-			log.Infof(log.BackTester, "Difference: %v%%", s.Funding.Items[i].Difference)
-		}
-		if s.Funding.Items[i].TransferFee.GreaterThan(decimal.Zero) {
-			log.Infof(log.BackTester, "Transfer fee: %v", s.Funding.Items[i].TransferFee)
-		}
-		log.Info(log.BackTester, "")
-	}
-	log.Infof(log.BackTester, "Initial total funds in USD: $%v", s.Funding.USDInitialTotal)
-	log.Infof(log.BackTester, "Final total funds in USD: $%v", s.Funding.USDFinalTotal)
-	log.Infof(log.BackTester, "Difference: %v%%\n", s.Funding.Difference)
+
+	log.Infof(log.BackTester, "Initial total funds in USD: $%v", s.FundingStatistics.Report.USDInitialTotal)
+	log.Infof(log.BackTester, "Final total funds in USD: $%v", s.FundingStatistics.Report.USDFinalTotal)
+	log.Infof(log.BackTester, "Difference: %v%%\n", s.FundingStatistics.Report.Difference)
 
 	log.Info(log.BackTester, "------------------Total Results------------------------------")
 	log.Info(log.BackTester, "------------------Orders-------------------------------------")
