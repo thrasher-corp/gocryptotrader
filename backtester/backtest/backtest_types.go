@@ -28,18 +28,17 @@ var (
 
 // BackTest is the main holder of all backtesting functionality
 type BackTest struct {
-	hasHandledEvent       bool
-	shutdown              chan struct{}
-	Datas                 data.Holder
-	Strategy              strategies.Handler
-	Portfolio             portfolio.Handler
-	Exchange              exchange.ExecutionHandler
-	Statistic             statistics.Handler
-	EventQueue            eventholder.EventHolder
-	Reports               report.Handler
-	Funding               funding.IFundingManager
-	exchangeManager       *engine.ExchangeManager
-	orderManager          *engine.OrderManager
-	databaseManager       *engine.DatabaseConnectionManager
-	communicationsManager *engine.CommunicationManager
+	hasHandledEvent bool
+	shutdown        chan struct{}
+	Datas           data.Holder
+	Strategy        strategies.Handler
+	Portfolio       portfolio.Handler
+	Exchange        exchange.ExecutionHandler
+	Statistic       statistics.Handler
+	EventQueue      eventholder.EventHolder
+	Reports         report.Handler
+	Funding         funding.IFundingManager
+	exchangeManager *engine.ExchangeManager
+	orderManager    *engine.OrderManager
+	databaseManager *engine.DatabaseConnectionManager
 }

@@ -68,6 +68,7 @@ func TestCreateUSDTrackingPairs(t *testing.T) {
 }
 
 func TestFindMatchingUSDPairs(t *testing.T) {
+	t.Parallel()
 	type testPair struct {
 		description    string
 		initialPair    currency.Pair
@@ -145,6 +146,7 @@ func TestFindMatchingUSDPairs(t *testing.T) {
 }
 
 func TestPairContainsUSD(t *testing.T) {
+	t.Parallel()
 	type testPair struct {
 		description string
 		expected    bool

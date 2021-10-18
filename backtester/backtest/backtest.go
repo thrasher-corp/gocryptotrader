@@ -26,7 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/settings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
@@ -149,32 +148,35 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 
 	var emm = make(map[string]gctexchange.IBotExchange)
 	for i := range cfg.CurrencySettings {
-		if exch, ok := emm[cfg.CurrencySettings[i].ExchangeName]; !ok {
-			exch, err = bt.exchangeManager.NewExchangeByName(strings.ToLower(cfg.CurrencySettings[i].ExchangeName))
-			if err != nil {
-				return nil, err
-			}
-			_, err = exch.GetDefaultConfig()
-			if err != nil {
-				return nil, err
-			}
-			exchBase := exch.GetBase()
-			err = exch.UpdateTradablePairs(context.Background(), true)
-			if err != nil {
-				return nil, err
-			}
-			assets := exchBase.CurrencyPairs.GetAssetTypes(false)
-			for i := range assets {
-				exchBase.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
-				err = exch.SetPairs(exchBase.CurrencyPairs.Pairs[assets[i]].Available, assets[i], true)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			bt.exchangeManager.Add(exch)
-			emm[cfg.CurrencySettings[i].ExchangeName] = exch
+		_, ok := emm[cfg.CurrencySettings[i].ExchangeName]
+		if ok {
+			continue
 		}
+		var exch gctexchange.IBotExchange
+		exch, err = bt.exchangeManager.NewExchangeByName(strings.ToLower(cfg.CurrencySettings[i].ExchangeName))
+		if err != nil {
+			return nil, err
+		}
+		_, err = exch.GetDefaultConfig()
+		if err != nil {
+			return nil, err
+		}
+		exchBase := exch.GetBase()
+		err = exch.UpdateTradablePairs(context.Background(), true)
+		if err != nil {
+			return nil, err
+		}
+		assets := exchBase.CurrencyPairs.GetAssetTypes(false)
+		for i := range assets {
+			exchBase.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
+			err = exch.SetPairs(exchBase.CurrencyPairs.Pairs[assets[i]].Available, assets[i], true)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		bt.exchangeManager.Add(exch)
+		emm[cfg.CurrencySettings[i].ExchangeName] = exch
 	}
 
 	portfolioRisk := &risk.Risk{
@@ -206,6 +208,9 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		curr = currency.NewPair(b, q)
 		var exch gctexchange.IBotExchange
 		exch, err = bt.exchangeManager.GetExchangeByName(strings.ToLower(cfg.CurrencySettings[i].ExchangeName))
+		if err != nil {
+			return nil, err
+		}
 		exchBase := exch.GetBase()
 		var requestFormat currency.PairFormat
 		requestFormat, err = exchBase.GetPairFormat(a, true)
@@ -368,7 +373,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 
 	bt.Exchange = &e
 	for i := range e.CurrencySettings {
-		var lookup *settings.Settings
+		var lookup *portfolio.Settings
 
 		lookup, err = p.SetupCurrencySettingsMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
 		if err != nil {

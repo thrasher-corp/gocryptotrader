@@ -98,7 +98,6 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 		}
 		if strings.EqualFold(f.items[i].exchange, k.Item.Exchange) &&
 			f.items[i].asset == k.Item.Asset {
-
 			if f.items[i].currency == k.Item.Pair.Base {
 				if f.items[i].usdTrackingCandles == nil &&
 					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
@@ -177,7 +176,6 @@ func (f *FundManager) GenerateReport() *Report {
 		}
 		if !f.disableUSDTracking &&
 			f.items[i].usdTrackingCandles != nil {
-
 			usdStream := f.items[i].usdTrackingCandles.GetStream()
 			item.USDInitialFunds = f.items[i].initialFunds.Mul(usdStream[0].ClosePrice())
 			item.USDFinalFunds = f.items[i].available.Mul(usdStream[len(usdStream)-1].ClosePrice())

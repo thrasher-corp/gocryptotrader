@@ -21,6 +21,7 @@ type relatedStat struct {
 
 func CalculateResults(f funding.IFundingManager, currStats map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic) *FundingStatistics {
 	report := f.GenerateReport()
+	var errs common.Errors
 	response := &FundingStatistics{
 		Report: report,
 	}
@@ -95,10 +96,8 @@ func CalculateResults(f funding.IFundingManager, currStats map[string]map[asset.
 					item.ReportItem.Snapshots[j-1].USDClosePrice).Div(
 					item.ReportItem.Snapshots[j-1].USDClosePrice)
 			}
-
 		}
 		var err error
-		var errs common.Errors
 		// remove the first entry as its zero and impacts
 		// ratio calculations as no movement has been made
 		benchmarkRates = benchmarkRates[1:]
@@ -216,6 +215,9 @@ func CalculateResults(f funding.IFundingManager, currStats map[string]map[asset.
 			}
 		}
 		response.Items = append(response.Items, item)
+	}
+	if len(errs) > 0 {
+		log.Error(log.BackTester, errs)
 	}
 	return response
 }

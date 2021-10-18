@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/settings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -29,7 +28,7 @@ const testExchange = "binance"
 func TestReset(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{
-		exchangeAssetPairSettings: make(map[string]map[asset.Item]map[currency.Pair]*settings.Settings),
+		exchangeAssetPairSettings: make(map[string]map[asset.Item]map[currency.Pair]*Settings),
 	}
 	p.Reset()
 	if p.exchangeAssetPairSettings != nil {
@@ -516,5 +515,41 @@ func TestOnSignal(t *testing.T) {
 	}
 	if resp.Amount.IsZero() {
 		t.Error("expected an amount to be sized")
+	}
+}
+
+func TestGetLatestHoldings(t *testing.T) {
+	t.Parallel()
+	cs := Settings{}
+	h := cs.GetLatestHoldings()
+	if !h.Timestamp.IsZero() {
+		t.Error("expected unset holdings")
+	}
+	tt := time.Now()
+	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots, holdings.Holding{Timestamp: tt})
+
+	h = cs.GetLatestHoldings()
+	if !h.Timestamp.Equal(tt) {
+		t.Errorf("expected %v, received %v", tt, h.Timestamp)
+	}
+}
+
+func TestValue(t *testing.T) {
+	t.Parallel()
+	cs := Settings{}
+	v := cs.Value()
+	if !v.IsZero() {
+		t.Error("expected 0")
+	}
+	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots,
+		holdings.Holding{
+			Timestamp:  time.Now(),
+			TotalValue: decimal.NewFromInt(1337),
+		},
+	)
+
+	v = cs.Value()
+	if !v.Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("expected %v, received %v", decimal.NewFromInt(1337), v)
 	}
 }

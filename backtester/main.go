@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
@@ -99,7 +98,7 @@ func main() {
 			}
 		}()
 		interrupt := signaler.WaitForInterrupt()
-		gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
+		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
 		bt.Stop()
 	} else {
 		err = bt.Run()
@@ -111,7 +110,7 @@ func main() {
 
 	err = bt.Statistic.CalculateAllResults(bt.Funding)
 	if err != nil {
-		gctlog.Error(gctlog.BackTester, err)
+		log.Error(log.BackTester, err)
 		os.Exit(1)
 	}
 
@@ -119,7 +118,7 @@ func main() {
 		bt.Reports.UseDarkMode(darkReport)
 		err = bt.Reports.GenerateReport()
 		if err != nil {
-			gctlog.Error(gctlog.BackTester, err)
+			log.Error(log.BackTester, err)
 		}
 	}
 }

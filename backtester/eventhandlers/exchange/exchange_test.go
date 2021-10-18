@@ -9,7 +9,6 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -57,9 +56,9 @@ func TestSetCurrency(t *testing.T) {
 		ExchangeFee:         decimal.Zero,
 		MakerFee:            decimal.Zero,
 		TakerFee:            decimal.Zero,
-		BuySide:             config.MinMax{},
-		SellSide:            config.MinMax{},
-		Leverage:            config.Leverage{},
+		BuySide:             MinMax{},
+		SellSide:            MinMax{},
+		Leverage:            Leverage{},
 		MinimumSlippageRate: decimal.Zero,
 		MaximumSlippageRate: decimal.Zero,
 	}
@@ -239,9 +238,9 @@ func TestExecuteOrder(t *testing.T) {
 		ExchangeFee:         decimal.NewFromFloat(0.01),
 		MakerFee:            decimal.NewFromFloat(0.01),
 		TakerFee:            decimal.NewFromFloat(0.01),
-		BuySide:             config.MinMax{},
-		SellSide:            config.MinMax{},
-		Leverage:            config.Leverage{},
+		BuySide:             MinMax{},
+		SellSide:            MinMax{},
+		Leverage:            Leverage{},
 		MinimumSlippageRate: decimal.Zero,
 		MaximumSlippageRate: decimal.NewFromInt(1),
 	}
@@ -353,15 +352,15 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		ExchangeFee:   decimal.NewFromFloat(0.01),
 		MakerFee:      decimal.NewFromFloat(0.01),
 		TakerFee:      decimal.NewFromFloat(0.01),
-		BuySide: config.MinMax{
+		BuySide: MinMax{
 			MaximumSize: decimal.NewFromFloat(0.01),
 			MinimumSize: decimal.Zero,
 		},
-		SellSide: config.MinMax{
+		SellSide: MinMax{
 			MaximumSize: decimal.NewFromFloat(0.1),
 			MinimumSize: decimal.Zero,
 		},
-		Leverage:            config.Leverage{},
+		Leverage:            Leverage{},
 		MinimumSlippageRate: decimal.Zero,
 		MaximumSlippageRate: decimal.NewFromInt(1),
 		Limits:              limits,
@@ -531,7 +530,7 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 	s := &Settings{
-		BuySide: config.MinMax{
+		BuySide: MinMax{
 			MinimumSize: decimal.NewFromInt(1),
 			MaximumSize: decimal.NewFromInt(1),
 		},
@@ -547,7 +546,7 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 	}
 
 	f.Direction = gctorder.Sell
-	s.SellSide = config.MinMax{
+	s.SellSide = MinMax{
 		MinimumSize: decimal.NewFromInt(1),
 		MaximumSize: decimal.NewFromInt(1),
 	}

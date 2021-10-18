@@ -75,19 +75,21 @@ func CreateUSDTrackingPairs(tp []TrackingPair, em *engine.ExchangeManager) ([]Tr
 			if err != nil {
 				return nil, err
 			}
-			resp = append(resp, tp[i])
-			resp = append(resp, TrackingPair{
-				Exchange: tp[i].Exchange,
-				Asset:    tp[i].Asset,
-				Base:     basePair.Base.String(),
-				Quote:    basePair.Quote.String(),
-			})
-			resp = append(resp, TrackingPair{
-				Exchange: tp[i].Exchange,
-				Asset:    tp[i].Asset,
-				Base:     quotePair.Base.String(),
-				Quote:    quotePair.Quote.String(),
-			})
+			resp = append(resp,
+				tp[i],
+				TrackingPair{
+					Exchange: tp[i].Exchange,
+					Asset:    tp[i].Asset,
+					Base:     basePair.Base.String(),
+					Quote:    basePair.Quote.String(),
+				},
+				TrackingPair{
+					Exchange: tp[i].Exchange,
+					Asset:    tp[i].Asset,
+					Base:     quotePair.Base.String(),
+					Quote:    quotePair.Quote.String(),
+				},
+			)
 		}
 	}
 	return resp, nil
@@ -112,7 +114,7 @@ func PairContainsUSD(pair currency.Pair) bool {
 
 // FindMatchingUSDPairs will return a USD pair for both the base and quote currency provided
 // this will allow for data retrieval and total tracking on backtesting runs
-func FindMatchingUSDPairs(pair currency.Pair, pairs *currency.PairStore) (basePair currency.Pair, quotePair currency.Pair, err error) {
+func FindMatchingUSDPairs(pair currency.Pair, pairs *currency.PairStore) (basePair, quotePair currency.Pair, err error) {
 	if pairs == nil {
 		return currency.Pair{}, currency.Pair{}, errNilPairs
 	}

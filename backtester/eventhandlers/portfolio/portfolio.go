@@ -3,6 +3,7 @@ package portfolio
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -10,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/settings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -438,7 +438,7 @@ func (p *Portfolio) ViewHoldingAtTimePeriod(ev common.EventHandler) (*holdings.H
 }
 
 // SetupCurrencySettingsMap ensures a map is created and no panics happen
-func (p *Portfolio) SetupCurrencySettingsMap(exch string, a asset.Item, cp currency.Pair) (*settings.Settings, error) {
+func (p *Portfolio) SetupCurrencySettingsMap(exch string, a asset.Item, cp currency.Pair) (*Settings, error) {
 	if exch == "" {
 		return nil, errExchangeUnset
 	}
@@ -449,17 +449,49 @@ func (p *Portfolio) SetupCurrencySettingsMap(exch string, a asset.Item, cp curre
 		return nil, errCurrencyPairUnset
 	}
 	if p.exchangeAssetPairSettings == nil {
-		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*settings.Settings)
+		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*Settings)
 	}
 	if p.exchangeAssetPairSettings[exch] == nil {
-		p.exchangeAssetPairSettings[exch] = make(map[asset.Item]map[currency.Pair]*settings.Settings)
+		p.exchangeAssetPairSettings[exch] = make(map[asset.Item]map[currency.Pair]*Settings)
 	}
 	if p.exchangeAssetPairSettings[exch][a] == nil {
-		p.exchangeAssetPairSettings[exch][a] = make(map[currency.Pair]*settings.Settings)
+		p.exchangeAssetPairSettings[exch][a] = make(map[currency.Pair]*Settings)
 	}
 	if _, ok := p.exchangeAssetPairSettings[exch][a][cp]; !ok {
-		p.exchangeAssetPairSettings[exch][a][cp] = &settings.Settings{}
+		p.exchangeAssetPairSettings[exch][a][cp] = &Settings{}
 	}
 
 	return p.exchangeAssetPairSettings[exch][a][cp], nil
+}
+
+// GetLatestHoldings returns the latest holdings after being sorted by time
+func (e *Settings) GetLatestHoldings() holdings.Holding {
+	if len(e.HoldingsSnapshots) == 0 {
+		return holdings.Holding{}
+	}
+
+	return e.HoldingsSnapshots[len(e.HoldingsSnapshots)-1]
+}
+
+// GetHoldingsForTime returns the holdings for a time period, or an empty holding if not found
+func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
+	if e.HoldingsSnapshots == nil {
+		// no holdings yet
+		return holdings.Holding{}
+	}
+	for i := len(e.HoldingsSnapshots) - 1; i >= 0; i-- {
+		if e.HoldingsSnapshots[i].Timestamp.Equal(t) {
+			return e.HoldingsSnapshots[i]
+		}
+	}
+	return holdings.Holding{}
+}
+
+// Value returns the total value of the latest holdings
+func (e *Settings) Value() decimal.Decimal {
+	latest := e.GetLatestHoldings()
+	if latest.Timestamp.IsZero() {
+		return decimal.Zero
+	}
+	return latest.TotalValue
 }
