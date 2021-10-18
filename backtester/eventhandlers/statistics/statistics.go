@@ -208,7 +208,8 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 	}
 	if !funds.USDTrackingDisabled() {
 		var resp interface{}
-		resp, err = CalculateTotalUSDFundingStatistics(funds, s.ExchangeAssetPairStatistics)
+		s.Funding = funds.GenerateReport()
+		resp, err = CalculateTotalUSDFundingStatistics(s.Funding, s.ExchangeAssetPairStatistics)
 		if err != nil {
 			return err
 		}

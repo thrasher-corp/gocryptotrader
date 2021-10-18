@@ -16,14 +16,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func CalculateTotalUSDFundingStatistics(f funding.IFundingManager, currStats map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic) (*FundingStatistics, error) {
-	if f == nil {
-		return nil, funding.ErrFundsNotFound
-	}
+func CalculateTotalUSDFundingStatistics(report *funding.Report, currStats map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic) (*FundingStatistics, error) {
 	if currStats == nil {
 		return nil, common.ErrNilArguments
 	}
-	report := f.GenerateReport()
 	var interval *gctkline.Interval
 	var rfr decimal.Decimal
 	response := &FundingStatistics{
@@ -102,9 +98,9 @@ func CalculateTotalUSDFundingStatistics(f funding.IFundingManager, currStats map
 			returnsPerCandle[j] = usdStats.HoldingValues[j].Value.Sub(usdStats.HoldingValues[j-1].Value).Div(usdStats.HoldingValues[j-1].Value)
 		}
 	}
-	usdStats.BenchmarkMarketMovement = benchmarkRates[len(benchmarkRates)-1].Sub(benchmarkRates[0]).Div(benchmarkRates[0]).Mul(decimal.NewFromInt(100))
 	benchmarkRates = benchmarkRates[1:]
 	returnsPerCandle = returnsPerCandle[1:]
+	usdStats.BenchmarkMarketMovement = benchmarkRates[len(benchmarkRates)-1].Sub(benchmarkRates[0]).Div(benchmarkRates[0]).Mul(decimal.NewFromInt(100))
 	var err error
 	var arithmeticBenchmarkAverage, geometricBenchmarkAverage decimal.Decimal
 	arithmeticBenchmarkAverage, err = gctmath.DecimalArithmeticMean(benchmarkRates)

@@ -832,7 +832,7 @@
 									<td><b>Total Orders</b></td>
 									<td>{{$val.TotalOrders}}</td>
 								</tr>
-								{{ if $val.MaxDrawdown.Highest.Price.IsZero }}
+								{{ if $val.MaxDrawdown.Highest.Value.IsZero }}
 								{{else}}
 									<tr>
 										<td><b>Biggest Drawdown</b></td>
