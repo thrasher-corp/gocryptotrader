@@ -8,8 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/fundingstatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -27,32 +25,32 @@ var (
 // Statistic holds all statistical information for a backtester run, from drawdowns to ratios.
 // Any currency specific information is handled in currencystatistics
 type Statistic struct {
-	StrategyName                string                                                                                `json:"strategy-name"`
-	StrategyDescription         string                                                                                `json:"strategy-description"`
-	StrategyNickname            string                                                                                `json:"strategy-nickname"`
-	StrategyGoal                string                                                                                `json:"strategy-goal"`
-	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic `json:"-"`
-	RiskFreeRate                decimal.Decimal                                                                       `json:"risk-free-rate"`
-	TotalBuyOrders              int64                                                                                 `json:"total-buy-orders"`
-	TotalSellOrders             int64                                                                                 `json:"total-sell-orders"`
-	TotalOrders                 int64                                                                                 `json:"total-orders"`
-	BiggestDrawdown             *FinalResultsHolder                                                                   `json:"biggest-drawdown,omitempty"`
-	BestStrategyResults         *FinalResultsHolder                                                                   `json:"best-start-results,omitempty"`
-	BestMarketMovement          *FinalResultsHolder                                                                   `json:"best-market-movement,omitempty"`
-	CurrencyPairStatistics      []currencystatistics.CurrencyPairStatistic                                            `json:"currency-pair-statistics"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
-	WasAnyDataMissing           bool                                                                                  `json:"was-any-data-missing"`
-	Funding                     *funding.Report                                                                       `json:"funding"`
-	FundingStatistics           []fundingstatistics.FundingStatistics                                                 `json:"funding-statistics"`
+	StrategyName                string                                                             `json:"strategy-name"`
+	StrategyDescription         string                                                             `json:"strategy-description"`
+	StrategyNickname            string                                                             `json:"strategy-nickname"`
+	StrategyGoal                string                                                             `json:"strategy-goal"`
+	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic `json:"-"`
+	RiskFreeRate                decimal.Decimal                                                    `json:"risk-free-rate"`
+	TotalBuyOrders              int64                                                              `json:"total-buy-orders"`
+	TotalSellOrders             int64                                                              `json:"total-sell-orders"`
+	TotalOrders                 int64                                                              `json:"total-orders"`
+	BiggestDrawdown             *FinalResultsHolder                                                `json:"biggest-drawdown,omitempty"`
+	BestStrategyResults         *FinalResultsHolder                                                `json:"best-start-results,omitempty"`
+	BestMarketMovement          *FinalResultsHolder                                                `json:"best-market-movement,omitempty"`
+	CurrencyPairStatistics      []CurrencyPairStatistic                                            `json:"currency-pair-statistics"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
+	WasAnyDataMissing           bool                                                               `json:"was-any-data-missing"`
+	Funding                     *funding.Report                                                    `json:"funding"`
+	FundingStatistics           []FundingStatistics                                                `json:"funding-statistics"`
 }
 
 // FinalResultsHolder holds important stats about a currency's performance
 type FinalResultsHolder struct {
-	Exchange         string                   `json:"exchange"`
-	Asset            asset.Item               `json:"asset"`
-	Pair             currency.Pair            `json:"currency"`
-	MaxDrawdown      currencystatistics.Swing `json:"max-drawdown"`
-	MarketMovement   decimal.Decimal          `json:"market-movement"`
-	StrategyMovement decimal.Decimal          `json:"strategy-movement"`
+	Exchange         string          `json:"exchange"`
+	Asset            asset.Item      `json:"asset"`
+	Pair             currency.Pair   `json:"currency"`
+	MaxDrawdown      Swing           `json:"max-drawdown"`
+	MarketMovement   decimal.Decimal `json:"market-movement"`
+	StrategyMovement decimal.Decimal `json:"strategy-movement"`
 }
 
 // Handler interface details what a statistic is expected to do

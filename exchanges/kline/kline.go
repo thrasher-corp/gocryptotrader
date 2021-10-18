@@ -327,6 +327,9 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out float
 // IntervalsPerYear helps determine the number of intervals in a year
 // used in CAGR calculation to know the amount of time of an interval in a year
 func (i *Interval) IntervalsPerYear() float64 {
+	if i.Duration() == 0 {
+		return 0
+	}
 	return float64(OneYear.Duration().Nanoseconds()) / float64(i.Duration().Nanoseconds())
 }
 

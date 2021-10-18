@@ -1,4 +1,4 @@
-package currencystatistics
+package statistics
 
 import (
 	"time"
@@ -62,13 +62,13 @@ type CurrencyPairStatistic struct {
 
 	Events []EventStore `json:"-"`
 
-	MaxDrawdown           Swing                 `json:"max-drawdown,omitempty"`
-	HighestCommittedFunds HighestCommittedFunds `json:"highest-committed-funds"`
-	GeometricRatios       Ratios                `json:"geometric-ratios"`
-	ArithmeticRatios      Ratios                `json:"arithmetic-ratios"`
-	InitialHoldings       holdings.Holding      `json:"initial-holdings-holdings"`
-	FinalHoldings         holdings.Holding      `json:"final-holdings"`
-	FinalOrders           compliance.Snapshot   `json:"final-orders"`
+	MaxDrawdown           Swing               `json:"max-drawdown,omitempty"`
+	HighestCommittedFunds ValueAtTime         `json:"highest-committed-funds"`
+	GeometricRatios       Ratios              `json:"geometric-ratios"`
+	ArithmeticRatios      Ratios              `json:"arithmetic-ratios"`
+	InitialHoldings       holdings.Holding    `json:"initial-holdings-holdings"`
+	FinalHoldings         holdings.Holding    `json:"final-holdings"`
+	FinalOrders           compliance.Snapshot `json:"final-orders"`
 }
 
 // Ratios stores all the ratios used for statistics
@@ -81,20 +81,14 @@ type Ratios struct {
 
 // Swing holds a drawdown
 type Swing struct {
-	Highest          Iteration       `json:"highest"`
-	Lowest           Iteration       `json:"lowest"`
+	Highest          ValueAtTime     `json:"highest"`
+	Lowest           ValueAtTime     `json:"lowest"`
 	DrawdownPercent  decimal.Decimal `json:"drawdown"`
 	IntervalDuration int64
 }
 
-// Iteration is an individual iteration of price at a time
-type Iteration struct {
-	Time  time.Time       `json:"time"`
-	Price decimal.Decimal `json:"price"`
-}
-
-// HighestCommittedFunds is an individual iteration of price at a time
-type HighestCommittedFunds struct {
+// ValueAtTime is an individual iteration of price at a time
+type ValueAtTime struct {
 	Time  time.Time       `json:"time"`
 	Value decimal.Decimal `json:"value"`
 }

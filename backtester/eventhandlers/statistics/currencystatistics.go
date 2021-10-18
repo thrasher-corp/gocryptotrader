@@ -1,4 +1,4 @@
-package currencystatistics
+package statistics
 
 import (
 	"errors"
@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// CalculateResults calculates all statistics for the exchange, asset, currency pair
+// CalculateIndividualFundingStatistics calculates all statistics for the exchange, asset, currency pair
 func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 	var errs gctcommon.Errors
 	var err error
@@ -85,7 +85,7 @@ func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 		errs = append(errs, err)
 	}
 
-	c.MaxDrawdown = CalculateMaxDrawdown(allDataEvents)
+	c.MaxDrawdown = CalculateBiggestEventDrawdown(allDataEvents)
 	interval := first.DataEvent.GetInterval()
 	intervalsPerYear := interval.IntervalsPerYear()
 
@@ -120,8 +120,8 @@ func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-	mxhp := c.MaxDrawdown.Highest.Price
-	mdlp := c.MaxDrawdown.Lowest.Price
+	mxhp := c.MaxDrawdown.Highest.Value
+	mdlp := c.MaxDrawdown.Lowest.Value
 	arithmeticCalmar, err = gctmath.DecimalCalmarRatio(mxhp, mdlp, arithmeticReturnsPerCandle, riskFreeRateForPeriod)
 	if err != nil {
 		errs = append(errs, err)
@@ -231,12 +231,12 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	log.Infof(log.BackTester, "%s Total orders: %d\n\n", sep, c.TotalOrders)
 
 	log.Info(log.BackTester, "------------------Max Drawdown-------------------------------")
-	log.Infof(log.BackTester, "%s Highest Price of drawdown: %v", sep, c.MaxDrawdown.Highest.Price.Round(8))
+	log.Infof(log.BackTester, "%s Highest Price of drawdown: %v", sep, c.MaxDrawdown.Highest.Value.Round(8))
 	log.Infof(log.BackTester, "%s Time of highest price of drawdown: %v", sep, c.MaxDrawdown.Highest.Time)
-	log.Infof(log.BackTester, "%s Lowest Price of drawdown: %v", sep, c.MaxDrawdown.Lowest.Price.Round(8))
+	log.Infof(log.BackTester, "%s Lowest Price of drawdown: %v", sep, c.MaxDrawdown.Lowest.Value.Round(8))
 	log.Infof(log.BackTester, "%s Time of lowest price of drawdown: %v", sep, c.MaxDrawdown.Lowest.Time)
 	log.Infof(log.BackTester, "%s Calculated Drawdown: %v%%", sep, c.MaxDrawdown.DrawdownPercent.Round(2))
-	log.Infof(log.BackTester, "%s Difference: %v", sep, c.MaxDrawdown.Highest.Price.Sub(c.MaxDrawdown.Lowest.Price).Round(2))
+	log.Infof(log.BackTester, "%s Difference: %v", sep, c.MaxDrawdown.Highest.Value.Sub(c.MaxDrawdown.Lowest.Value).Round(2))
 	log.Infof(log.BackTester, "%s Drawdown length: %d\n\n", sep, c.MaxDrawdown.IntervalDuration)
 
 	log.Info(log.BackTester, "------------------Rates-------------------------------------------------")
@@ -295,7 +295,8 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	}
 }
 
-func CalculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
+// CalculateBiggestEventDrawdown calculates the biggest drawdown using a slice of DataEvents
+func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) Swing {
 	var lowestPrice, highestPrice decimal.Decimal
 	var lowestTime, highestTime time.Time
 	var swings []Swing
@@ -324,13 +325,13 @@ func CalculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 				continue
 			}
 			swings = append(swings, Swing{
-				Highest: Iteration{
+				Highest: ValueAtTime{
 					Time:  highestTime,
-					Price: highestPrice,
+					Value: highestPrice,
 				},
-				Lowest: Iteration{
+				Lowest: ValueAtTime{
 					Time:  lowestTime,
-					Price: lowestPrice,
+					Value: lowestPrice,
 				},
 				DrawdownPercent:  lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100)),
 				IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
@@ -342,7 +343,7 @@ func CalculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 			lowestTime = currTime
 		}
 	}
-	if (len(swings) > 0 && swings[len(swings)-1].Lowest.Price != closePrices[len(closePrices)-1].LowPrice()) || swings == nil {
+	if (len(swings) > 0 && swings[len(swings)-1].Lowest.Value != closePrices[len(closePrices)-1].LowPrice()) || swings == nil {
 		// need to close out the final drawdown
 		if lowestTime.Equal(highestTime) {
 			// create distinction if the greatest drawdown occurs within the same candle
@@ -361,13 +362,13 @@ func CalculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 			lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
 		}
 		swings = append(swings, Swing{
-			Highest: Iteration{
+			Highest: ValueAtTime{
 				Time:  highestTime,
-				Price: highestPrice,
+				Value: highestPrice,
 			},
-			Lowest: Iteration{
+			Lowest: ValueAtTime{
 				Time:  lowestTime,
-				Price: lowestPrice,
+				Value: lowestPrice,
 			},
 			DrawdownPercent:  drawdownPercent,
 			IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
@@ -380,7 +381,6 @@ func CalculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 	}
 	for i := range swings {
 		if swings[i].DrawdownPercent.LessThan(maxDrawdown.DrawdownPercent) {
-			// drawdowns are negative
 			maxDrawdown = swings[i]
 		}
 	}
@@ -395,4 +395,97 @@ func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() {
 			c.HighestCommittedFunds.Time = c.Events[i].Holdings.Timestamp
 		}
 	}
+}
+
+// CalculateBiggestValueAtTimeDrawdown calculates the biggest drawdown using a slice of ValueAtTimes
+func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gctkline.Interval) Swing {
+	var lowestPrice, highestPrice decimal.Decimal
+	var lowestTime, highestTime time.Time
+	var swings []Swing
+	if len(closePrices) > 0 {
+		lowestPrice = closePrices[0].Value
+		highestPrice = closePrices[0].Value
+		lowestTime = closePrices[0].Time
+		highestTime = closePrices[0].Time
+	}
+	for i := range closePrices {
+		currHigh := closePrices[i].Value
+		currLow := closePrices[i].Value
+		currTime := closePrices[i].Time
+		if lowestPrice.GreaterThan(currLow) && !currLow.IsZero() {
+			lowestPrice = currLow
+			lowestTime = currTime
+		}
+		if highestPrice.LessThan(currHigh) && highestPrice.IsPositive() {
+			if lowestTime.Equal(highestTime) {
+				// create distinction if the greatest drawdown occurs within the same candle
+				lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
+			}
+			intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, interval, 0)
+			if err != nil {
+				log.Error(log.BackTester, err)
+				continue
+			}
+			swings = append(swings, Swing{
+				Highest: ValueAtTime{
+					Time:  highestTime,
+					Value: highestPrice,
+				},
+				Lowest: ValueAtTime{
+					Time:  lowestTime,
+					Value: lowestPrice,
+				},
+				DrawdownPercent:  lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100)),
+				IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
+			})
+			// reset the drawdown
+			highestPrice = currHigh
+			highestTime = currTime
+			lowestPrice = currLow
+			lowestTime = currTime
+		}
+	}
+	if (len(swings) > 0 && !swings[len(swings)-1].Lowest.Value.Equal(closePrices[len(closePrices)-1].Value)) || swings == nil {
+		// need to close out the final drawdown
+		if lowestTime.Equal(highestTime) {
+			// create distinction if the greatest drawdown occurs within the same candle
+			lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
+		}
+		intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, interval, 0)
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
+		drawdownPercent := decimal.Zero
+		if highestPrice.GreaterThan(decimal.Zero) {
+			drawdownPercent = lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100))
+		}
+		if lowestTime.Equal(highestTime) {
+			// create distinction if the greatest drawdown occurs within the same candle
+			lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
+		}
+		swings = append(swings, Swing{
+			Highest: ValueAtTime{
+				Time:  highestTime,
+				Value: highestPrice,
+			},
+			Lowest: ValueAtTime{
+				Time:  lowestTime,
+				Value: lowestPrice,
+			},
+			DrawdownPercent:  drawdownPercent,
+			IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
+		})
+	}
+
+	var maxDrawdown Swing
+	if len(swings) > 0 {
+		maxDrawdown = swings[0]
+	}
+	for i := range swings {
+		if swings[i].DrawdownPercent.LessThan(maxDrawdown.DrawdownPercent) {
+			maxDrawdown = swings[i]
+		}
+	}
+
+	return maxDrawdown
 }

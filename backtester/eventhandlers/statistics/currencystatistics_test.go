@@ -1,4 +1,4 @@
-package currencystatistics
+package statistics
 
 import (
 	"testing"
@@ -18,7 +18,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const testExchange = "binance"
+func TestButts(t *testing.T) {
+	hi := make(map[bool]decimal.Decimal)
+	hi[true] = hi[true].Add(decimal.NewFromInt(1))
+	t.Log(hi)
+}
 
 func TestCalculateResults(t *testing.T) {
 	t.Parallel()
@@ -325,8 +329,8 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 		Low:   decimal.NewFromInt(1339),
 	})
 
-	resp := CalculateMaxDrawdown(events)
-	if resp.Highest.Price != decimal.NewFromInt(1337) && !resp.Lowest.Price.Equal(decimal.NewFromInt(1238)) {
+	resp := CalculateBiggestEventDrawdown(events)
+	if resp.Highest.Value != decimal.NewFromInt(1337) && !resp.Lowest.Value.Equal(decimal.NewFromInt(1238)) {
 		t.Error("unexpected max drawdown")
 	}
 }

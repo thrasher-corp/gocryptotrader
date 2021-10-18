@@ -10,8 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/fundingstatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -38,7 +36,7 @@ func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
 	s.setupMap(ex, a)
 	lookup := s.ExchangeAssetPairStatistics[ex][a][p]
 	if lookup == nil {
-		lookup = &currencystatistics.CurrencyPairStatistic{}
+		lookup = &CurrencyPairStatistic{}
 	}
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(ev.GetTime()) &&
@@ -50,7 +48,7 @@ func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
 		}
 	}
 	lookup.Events = append(lookup.Events,
-		currencystatistics.EventStore{
+		EventStore{
 			DataEvent: ev,
 		},
 	)
@@ -61,13 +59,13 @@ func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
 
 func (s *Statistic) setupMap(ex string, a asset.Item) {
 	if s.ExchangeAssetPairStatistics == nil {
-		s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+		s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	}
 	if s.ExchangeAssetPairStatistics[ex] == nil {
-		s.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+		s.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	}
 	if s.ExchangeAssetPairStatistics[ex][a] == nil {
-		s.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+		s.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*CurrencyPairStatistic)
 	}
 }
 
@@ -96,7 +94,7 @@ func (s *Statistic) SetEventForOffset(ev common.EventHandler) error {
 	return nil
 }
 
-func applyEventAtOffset(ev common.EventHandler, lookup *currencystatistics.CurrencyPairStatistic, i int) error {
+func applyEventAtOffset(ev common.EventHandler, lookup *CurrencyPairStatistic, i int) error {
 	switch t := ev.(type) {
 	case common.DataEventHandler:
 		lookup.Events[i].DataEvent = t
@@ -209,9 +207,12 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 		}
 	}
 	if !funds.USDTrackingDisabled() {
-		something := fundingstatistics.CalculateResults(funds, s.ExchangeAssetPairStatistics)
-		s.Funding = something.Report
-		log.Debugf(log.BackTester, "%+v", something)
+		var resp interface{}
+		resp, err = CalculateTotalUSDFundingStatistics(funds, s.ExchangeAssetPairStatistics)
+		if err != nil {
+			return err
+		}
+		log.Debugf(log.BackTester, "%+v", resp)
 	}
 
 	s.TotalOrders = s.TotalBuyOrders + s.TotalSellOrders
@@ -266,12 +267,12 @@ func (s *Statistic) PrintTotalResults() {
 	if s.BiggestDrawdown != nil {
 		log.Info(log.BackTester, "------------------Biggest Drawdown-----------------------")
 		log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
-		log.Infof(log.BackTester, "Highest Price: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Round(8))
+		log.Infof(log.BackTester, "Highest Price: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Value.Round(8))
 		log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
-		log.Infof(log.BackTester, "Lowest Price: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price.Round(8))
+		log.Infof(log.BackTester, "Lowest Price: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Value.Round(8))
 		log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
 		log.Infof(log.BackTester, "Calculated Drawdown: %v%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent.Round(2))
-		log.Infof(log.BackTester, "Difference: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Price.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Price).Round(8))
+		log.Infof(log.BackTester, "Difference: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Value.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Value).Round(8))
 		log.Infof(log.BackTester, "Drawdown length: %v\n\n", s.BiggestDrawdown.MaxDrawdown.IntervalDuration)
 	}
 	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {

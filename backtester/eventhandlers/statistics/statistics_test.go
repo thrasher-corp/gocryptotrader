@@ -9,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -94,7 +93,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
 	s.setupMap(exch, a)
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	err = s.SetEventForOffset(&signal.Signal{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
@@ -149,7 +148,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
 	s.setupMap(exch, a)
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	err = s.SetEventForOffset(&order.Order{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
@@ -209,7 +208,7 @@ func TestAddFillEventForTime(t *testing.T) {
 		t.Error(err)
 	}
 	s.setupMap(exch, a)
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	err = s.SetEventForOffset(&fill.Fill{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
@@ -264,7 +263,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	err = s.AddHoldingsForTime(&holdings.Holding{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
@@ -334,7 +333,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
 	s.setupMap(exch, a)
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{}, &fill.Fill{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
@@ -400,7 +399,7 @@ func TestPrintTotalResults(t *testing.T) {
 	s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies([]FinalResultsHolder{
 		{
 			Exchange: "test",
-			MaxDrawdown: currencystatistics.Swing{
+			MaxDrawdown: Swing{
 				DrawdownPercent: eleet,
 			},
 		},
@@ -410,7 +409,7 @@ func TestPrintTotalResults(t *testing.T) {
 			Exchange:         "test",
 			Asset:            asset.Spot,
 			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
-			MaxDrawdown:      currencystatistics.Swing{},
+			MaxDrawdown:      Swing{},
 			MarketMovement:   eleet,
 			StrategyMovement: eleet,
 		},
@@ -437,7 +436,7 @@ func TestGetBestStrategyPerformer(t *testing.T) {
 			Exchange:         "test",
 			Asset:            asset.Spot,
 			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
-			MaxDrawdown:      currencystatistics.Swing{},
+			MaxDrawdown:      Swing{},
 			MarketMovement:   eleet,
 			StrategyMovement: eleet,
 		},
@@ -445,7 +444,7 @@ func TestGetBestStrategyPerformer(t *testing.T) {
 			Exchange:         "test2",
 			Asset:            asset.Spot,
 			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
-			MaxDrawdown:      currencystatistics.Swing{},
+			MaxDrawdown:      Swing{},
 			MarketMovement:   eleeb,
 			StrategyMovement: eleeb,
 		},
@@ -467,13 +466,13 @@ func TestGetTheBiggestDrawdownAcrossCurrencies(t *testing.T) {
 	result = s.GetTheBiggestDrawdownAcrossCurrencies([]FinalResultsHolder{
 		{
 			Exchange: "test",
-			MaxDrawdown: currencystatistics.Swing{
+			MaxDrawdown: Swing{
 				DrawdownPercent: eleet,
 			},
 		},
 		{
 			Exchange: "test2",
-			MaxDrawdown: currencystatistics.Swing{
+			MaxDrawdown: Swing{
 				DrawdownPercent: eleeb,
 			},
 		},
