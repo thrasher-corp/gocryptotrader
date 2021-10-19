@@ -120,7 +120,7 @@ func TestFIndexPriceInfo(t *testing.T) {
 func TestFContractPriceLimitations(t *testing.T) {
 	t.Parallel()
 	_, err := h.FContractPriceLimitations(context.Background(),
-		"BTC", "this_week", currency.Pair{})
+		"BTC", "next_quarter", currency.Pair{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -129,7 +129,7 @@ func TestFContractPriceLimitations(t *testing.T) {
 func TestFContractOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := h.FContractOpenInterest(context.Background(),
-		"BTC", "this_week", currency.Pair{})
+		"BTC", "next_quarter", currency.Pair{})
 	if err != nil {
 		t.Error(err)
 	}
