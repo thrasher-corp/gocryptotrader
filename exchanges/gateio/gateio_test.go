@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -298,16 +299,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if apiSecret == "" || apiKey == "" {
-		_, err := g.UpdateAccountInfo(context.Background(), asset.Spot)
-		if err == nil {
-			t.Error("GetAccountInfo() Expected error")
-		}
-	} else {
-		_, err := g.UpdateAccountInfo(context.Background(), asset.Spot)
-		if err != nil {
-			t.Error("GetAccountInfo() error", err)
-		}
+	t.Parallel()
+	_, err := g.UpdateAccountInfo(context.Background(), asset.Spot)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("GetAccountInfo() Expected error")
+	} else if err != nil {
+		t.Error("GetAccountInfo() error", err)
 	}
 }
 
@@ -789,5 +786,30 @@ func TestGetAvailableTransferTrains(t *testing.T) {
 	_, err := g.GetAvailableTransferChains(context.Background(), currency.USDT)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetTradingFees(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set")
+	}
+	_, err := g.GetTradingFees(context.Background())
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	g.Verbose = true
+	err := g.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
+	}
+
+	err = g.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }

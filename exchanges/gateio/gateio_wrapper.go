@@ -138,6 +138,7 @@ func (g *Gateio) SetDefaults() {
 		exchange.RestSpot:              gateioTradeURL,
 		exchange.RestSpotSupplementary: gateioMarketURL,
 		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
+		exchange.EdgeCase1:             gateioV4Host,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -162,9 +163,10 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 
 	err = g.Fees.LoadStatic(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.002, Taker: 0.002},
+			asset.Spot:    {Maker: 0.002, Taker: 0.002},
+			asset.Futures: {Maker: 0, Taker: 0.00075},
 		},
-		Transfer: withdrawalFees,
+		Transfer: transferFees,
 	})
 	if err != nil {
 		return err
@@ -907,37 +909,17 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 // UpdateCommissionFees updates current fees associated with account
 func (g *Gateio) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	// TODO: LOAD TRADE FEES
-	// feePairs, err := g.GetMarketInfo()
-	// if err != nil {
-	// 	return 0, err
-	// }
-
-	// currencyPair := feeBuilder.Pair.Base.String() +
-	// 	feeBuilder.Pair.Delimiter +
-	// 	feeBuilder.Pair.Quote.String()
-
-	// var feeForPair float64
-	// for _, i := range feePairs.Pairs {
-	// 	if strings.EqualFold(currencyPair, i.Symbol) {
-	// 		feeForPair = i.Fee
-	// 	}
-	// }
-
-	// if feeForPair == 0 {
-	// 	return 0, fmt.Errorf("currency '%s' failed to find fee data",
-	// 		currencyPair)
-	// }
-
-	// f = calculateTradingFee(feeForPair,
-	// 	feeBuilder.PurchasePrice,
-	// 	feeBuilder.Amount)
-	return nil
+	// TODO: Requires V4 key but our UpdateAccountInfo is V1 keys which are
+	// deprecated and cannot be generated. A full V4 update needs to occur.
+	tradingFees, err := g.GetTradingFees(ctx)
+	if err != nil {
+		return err
+	}
+	return g.Fees.LoadDynamic(tradingFees.MakerFee,
+		tradingFees.TakerFee,
+		a,
+		fee.OmitPair)
 }
-
-// func calculateTradingFee(feeForPair, purchasePrice, amount float64) float64 {
-// 	return (feeForPair / 100) * purchasePrice * amount
-// }

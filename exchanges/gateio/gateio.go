@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -19,9 +20,11 @@ import (
 )
 
 const (
-	gateioTradeURL   = "https://api.gateio.io"
-	gateioMarketURL  = "https://data.gateio.io"
-	gateioAPIVersion = "api2/1"
+	gateioTradeURL    = "https://api.gateio.io"
+	gateioMarketURL   = "https://data.gateio.io"
+	gateioAPIVersion  = "api2/1"
+	gateioV4Host      = "https://api.gateio.ws"
+	gateioAPIVersion4 = "api/v4"
 
 	gateioSymbol          = "pairs"
 	gateioMarketInfo      = "marketinfo"
@@ -38,6 +41,7 @@ const (
 	gateioTrades          = "tradeHistory"
 	gateioTickers         = "tickers"
 	gateioOrderbook       = "orderBook"
+	gateioUserFee         = "spot/fee"
 
 	gateioGenerateAddress = "New address is being generated for you, please wait a moment and refresh this page. "
 )
@@ -270,7 +274,7 @@ func (g *Gateio) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (kli
 func (g *Gateio) GetBalances(ctx context.Context) (BalancesResponse, error) {
 	var result BalancesResponse
 	return result,
-		g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioBalances, "", &result)
+		g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioBalances, "", gateioAPIVersion, &result)
 }
 
 // SpotNewOrder places a new order
@@ -285,7 +289,7 @@ func (g *Gateio) SpotNewOrder(ctx context.Context, arg SpotNewOrderRequestParams
 	)
 
 	urlPath := fmt.Sprintf("%s/%s", gateioOrder, arg.Type)
-	return result, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, urlPath, params, &result)
+	return result, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, urlPath, params, gateioAPIVersion, &result)
 }
 
 // CancelExistingOrder cancels an order given the supplied orderID and symbol
@@ -304,7 +308,7 @@ func (g *Gateio) CancelExistingOrder(ctx context.Context, orderID int64, symbol 
 		orderID,
 		symbol,
 	)
-	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioCancelOrder, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioCancelOrder, params, gateioAPIVersion, &result)
 	if err != nil {
 		return false, err
 	}
@@ -348,7 +352,7 @@ func (g *Gateio) CancelAllExistingOrders(ctx context.Context, orderType int64, s
 		orderType,
 		symbol,
 	)
-	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioCancelAllOrders, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioCancelAllOrders, params, gateioAPIVersion, &result)
 	if err != nil {
 		return err
 	}
@@ -369,7 +373,7 @@ func (g *Gateio) GetOpenOrders(ctx context.Context, symbol string) (OpenOrdersRe
 		params = fmt.Sprintf("currencyPair=%s", symbol)
 	}
 
-	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioOpenOrders, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioOpenOrders, params, gateioAPIVersion, &result)
 	if err != nil {
 		return result, err
 	}
@@ -381,13 +385,26 @@ func (g *Gateio) GetOpenOrders(ctx context.Context, symbol string) (OpenOrdersRe
 	return result, nil
 }
 
+// GetTradingFees retrieves user applicable trading fees
+func (g *Gateio) GetTradingFees(ctx context.Context) (AccountFees, error) {
+	var result AccountFees
+	err := g.SendAuthenticatedHTTPRequest(ctx,
+		exchange.EdgeCase1,
+		http.MethodGet,
+		gateioUserFee,
+		"",
+		gateioAPIVersion4,
+		&result)
+	return result, err
+}
+
 // GetTradeHistory retrieves all orders with an optional symbol filter
 func (g *Gateio) GetTradeHistory(ctx context.Context, symbol string) (TradHistoryResponse, error) {
 	var params string
 	var result TradHistoryResponse
 	params = fmt.Sprintf("currencyPair=%s", symbol)
 
-	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioTradeHistory, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioTradeHistory, params, gateioAPIVersion, &result)
 	if err != nil {
 		return result, err
 	}
@@ -405,9 +422,26 @@ func (g *Gateio) GenerateSignature(message string) ([]byte, error) {
 		[]byte(g.API.Credentials.Secret))
 }
 
+func (g *Gateio) GenerateV4Signature(tn int64, method, url, payload string) ([]byte, error) {
+	payloadHash, err := crypto.GetSHA512([]byte(payload))
+	if err != nil {
+		return nil, err
+	}
+
+	message := fmt.Sprintf("%s\n%s\n%s\n%s\n%s",
+		method,
+		url,
+		payload,
+		crypto.HexEncodeToString(payloadHash),
+		strconv.FormatInt(tn, 10))
+
+	fmt.Println("V4 payload:", message)
+	return crypto.GetHMAC(crypto.HashSHA512, []byte(message), []byte(g.API.Credentials.Secret))
+}
+
 // SendAuthenticatedHTTPRequest sends authenticated requests to the Gateio API
 // To use this you must setup an APIKey and APISecret from the exchange
-func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint, param string, result interface{}) error {
+func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint, param, version string, result interface{}) error {
 	if !g.AllowAuthenticatedRequest() {
 		return fmt.Errorf("%s %w", g.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
@@ -419,21 +453,31 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["key"] = g.API.Credentials.Key
 
-	hmac, err := g.GenerateSignature(param)
-	if err != nil {
-		return err
+	urlPath := fmt.Sprintf("%s/%s/%s", ePoint, version, endpoint)
+
+	var hmac []byte
+	if version == gateioAPIVersion {
+		hmac, err = g.GenerateSignature(param)
+		if err != nil {
+			return err
+		}
+	} else {
+		tn := time.Now().Unix()
+		headers["Timestamp"] = strconv.FormatInt(tn, 10)
+		hmac, err = g.GenerateV4Signature(tn, method, "/"+version+"/"+endpoint, param)
+		if err != nil {
+			return err
+		}
 	}
 
 	headers["sign"] = crypto.HexEncodeToString(hmac)
 
-	urlPath := fmt.Sprintf("%s/%s/%s", ePoint, gateioAPIVersion, endpoint)
-
-	var intermidiary json.RawMessage
+	var intermediary json.RawMessage
 	item := &request.Item{
 		Method:        method,
 		Path:          urlPath,
 		Headers:       headers,
-		Result:        &intermidiary,
+		Result:        &intermediary,
 		AuthRequest:   true,
 		Verbose:       g.Verbose,
 		HTTPDebugging: g.HTTPDebugging,
@@ -453,15 +497,15 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		Message string `json:"message"`
 	}{}
 
-	if err := json.Unmarshal(intermidiary, &errCap); err == nil {
-		if !errCap.Result {
+	if err := json.Unmarshal(intermediary, &errCap); err == nil {
+		if !errCap.Result && errCap.Code != 0 && errCap.Message != "" {
 			return fmt.Errorf("%s auth request error, code: %d message: %s",
 				g.Name,
 				errCap.Code,
 				errCap.Message)
 		}
 	}
-	return json.Unmarshal(intermidiary, result)
+	return json.Unmarshal(intermediary, result)
 }
 
 // WithdrawCrypto withdraws cryptocurrency to your selected wallet
@@ -469,12 +513,6 @@ func (g *Gateio) WithdrawCrypto(ctx context.Context, curr, address, memo, chain 
 	if curr == "" || address == "" || amount <= 0 {
 		return nil, errors.New("currency, address and amount must be set")
 	}
-
-	resp := struct {
-		Result  bool   `json:"result"`
-		Message string `json:"message"`
-		Code    int    `json:"code"`
-	}{}
 
 	vals := url.Values{}
 	vals.Set("currency", strings.ToUpper(curr))
@@ -486,11 +524,13 @@ func (g *Gateio) WithdrawCrypto(ctx context.Context, curr, address, memo, chain 
 	}
 	vals.Set("address", address)
 
-	if chain != "" {
-		vals.Set("chain", strings.ToUpper(chain))
-	}
-
-	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioWithdraw, vals.Encode(), &resp)
+	params := fmt.Sprintf("currency=%v&amount=%v&address=%v", curr, address, amount)
+	resp := struct {
+		Result  bool   `json:"result"`
+		Message string `json:"message"`
+		Code    int    `json:"code"`
+	}{}
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioWithdraw, params, gateioAPIVersion, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -509,7 +549,7 @@ func (g *Gateio) GetCryptoDepositAddress(ctx context.Context, curr string) (*Dep
 	params := fmt.Sprintf("currency=%s",
 		curr)
 
-	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioDepositAddress, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gateioDepositAddress, params, gateioAPIVersion, &result)
 	if err != nil {
 		return nil, err
 	}
