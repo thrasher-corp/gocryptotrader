@@ -200,7 +200,7 @@ func TestFuturesSendOrder(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = k.FuturesSendOrder(context.Background(),
-		order.Limit, cp, "buy", "", "", "", 1, 1, 0.9)
+		order.Limit, cp, "buy", "", "", "", true, 1, 1, 0.9)
 	if err != nil {
 		t.Error(err)
 	}

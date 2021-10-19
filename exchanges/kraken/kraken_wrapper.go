@@ -749,6 +749,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			"",
 			s.ClientOrderID,
 			"",
+			s.ImmediateOrCancel,
 			s.Amount,
 			s.Price,
 			0,
