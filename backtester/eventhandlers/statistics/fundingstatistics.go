@@ -54,7 +54,7 @@ func CalculateTotalUSDFundingStatistics(report *funding.Report, currStats map[st
 	usdStats := &TotalFundingStatistics{
 		HighestHoldingValue: ValueAtTime{},
 		LowestHoldingValue:  ValueAtTime{},
-		RiskFreeRate:        rfr,
+		RiskFreeRate:        rfr.Div(decimal.NewFromInt(100)),
 	}
 	holdingValues := make(map[time.Time]decimal.Decimal)
 
@@ -80,7 +80,7 @@ func CalculateTotalUSDFundingStatistics(report *funding.Report, currStats map[st
 		usdStats.HoldingValues = append(usdStats.HoldingValues, ValueAtTime{Time: k, Value: v})
 	}
 	sort.Slice(usdStats.HoldingValues, func(i, j int) bool {
-		return usdStats.HoldingValues[i].Value.LessThan(usdStats.HoldingValues[j].Value)
+		return usdStats.HoldingValues[i].Time.Before(usdStats.HoldingValues[j].Time)
 	})
 
 	if !usdStats.HoldingValues[0].Value.IsZero() {
@@ -89,18 +89,21 @@ func CalculateTotalUSDFundingStatistics(report *funding.Report, currStats map[st
 			usdStats.HoldingValues[0].Value).Mul(
 			decimal.NewFromInt(100))
 	}
-
+	riskFreeRatePerCandle := usdStats.RiskFreeRate.Div(decimal.NewFromFloat(interval.IntervalsPerYear()))
 	returnsPerCandle := make([]decimal.Decimal, len(usdStats.HoldingValues))
 	benchmarkRates := make([]decimal.Decimal, len(usdStats.HoldingValues))
+	benchmarkMovement := usdStats.HoldingValues[0].Value
+	benchmarkRates[0] = usdStats.HoldingValues[0].Value
 	for j := range usdStats.HoldingValues {
 		if j != 0 && !usdStats.HoldingValues[j-1].Value.IsZero() {
-			benchmarkRates[j] = usdStats.HoldingValues[j].Value.Sub(usdStats.HoldingValues[j-1].Value).Div(usdStats.HoldingValues[j-1].Value)
+			benchmarkMovement = benchmarkMovement.Add(benchmarkMovement.Mul(riskFreeRatePerCandle))
+			benchmarkRates[j] = riskFreeRatePerCandle
 			returnsPerCandle[j] = usdStats.HoldingValues[j].Value.Sub(usdStats.HoldingValues[j-1].Value).Div(usdStats.HoldingValues[j-1].Value)
 		}
 	}
 	benchmarkRates = benchmarkRates[1:]
 	returnsPerCandle = returnsPerCandle[1:]
-	usdStats.BenchmarkMarketMovement = benchmarkRates[len(benchmarkRates)-1].Sub(benchmarkRates[0]).Div(benchmarkRates[0]).Mul(decimal.NewFromInt(100))
+	usdStats.BenchmarkMarketMovement = benchmarkMovement.Sub(usdStats.HoldingValues[0].Value).Div(usdStats.HoldingValues[0].Value).Mul(decimal.NewFromInt(100))
 	var err error
 	var arithmeticBenchmarkAverage, geometricBenchmarkAverage decimal.Decimal
 	arithmeticBenchmarkAverage, err = gctmath.DecimalArithmeticMean(benchmarkRates)
@@ -112,7 +115,6 @@ func CalculateTotalUSDFundingStatistics(report *funding.Report, currStats map[st
 		return nil, err
 	}
 
-	riskFreeRatePerCandle := usdStats.RiskFreeRate.Div(decimal.NewFromFloat(interval.IntervalsPerYear()))
 	riskFreeRateForPeriod := riskFreeRatePerCandle.Mul(decimal.NewFromInt(int64(len(benchmarkRates))))
 
 	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
@@ -399,4 +401,66 @@ func CalculateIndividualFundingStatistics(reportItem *funding.ReportItem, releva
 		}
 	}
 	return item, nil
+}
+
+func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) {
+	log.Info(log.BackTester, "------------------Funding------------------------------------")
+	log.Info(log.BackTester, "------------------Funding Items------------------------------")
+	for i := range f.Report.Items {
+		log.Infof(log.BackTester, "Exchange: %v", f.Report.Items[i].Exchange)
+		log.Infof(log.BackTester, "Asset: %v", f.Report.Items[i].Asset)
+		log.Infof(log.BackTester, "Currency: %v", f.Report.Items[i].Currency)
+		if !f.Report.Items[i].PairedWith.IsEmpty() {
+			log.Infof(log.BackTester, "Paired with: %v", f.Report.Items[i].PairedWith)
+		}
+		log.Infof(log.BackTester, "Initial funds: %v", f.Report.Items[i].InitialFunds)
+		log.Infof(log.BackTester, "Initial funds in USD: $%v", f.Report.Items[i].USDInitialFunds)
+		log.Infof(log.BackTester, "Final funds: %v", f.Report.Items[i].FinalFunds)
+		log.Infof(log.BackTester, "Final funds in USD: $%v", f.Report.Items[i].USDFinalFunds)
+		if f.Report.Items[i].InitialFunds.IsZero() {
+			log.Info(log.BackTester, "Difference: ∞%")
+		} else {
+			log.Infof(log.BackTester, "Difference: %v%%", f.Report.Items[i].Difference)
+		}
+		if f.Report.Items[i].TransferFee.GreaterThan(decimal.Zero) {
+			log.Infof(log.BackTester, "Transfer fee: %v", f.Report.Items[i].TransferFee)
+		}
+		log.Info(log.BackTester, "")
+	}
+	log.Info(log.BackTester, "------------------Funding-Totals-----------------------------")
+	log.Infof(log.BackTester, "Benchmark Market Movement: %v%%", f.TotalUSDStatistics.BenchmarkMarketMovement)
+	log.Infof(log.BackTester, "Strategy Movement: %v%%", f.TotalUSDStatistics.StrategyMovement)
+	log.Infof(log.BackTester, "Did strategy make a profit: %v", f.TotalUSDStatistics.DidStrategyMakeProfit)
+	log.Infof(log.BackTester, "Did strategy beat the benchmark: %v", f.TotalUSDStatistics.DidStrategyBeatTheMarket)
+	log.Infof(log.BackTester, "Buy Orders: %v", f.TotalUSDStatistics.BuyOrders)
+	log.Infof(log.BackTester, "Sell Orders: %v", f.TotalUSDStatistics.SellOrders)
+	log.Infof(log.BackTester, "Total Orders: %v", f.TotalUSDStatistics.TotalOrders)
+	log.Infof(log.BackTester, "Highest funds: %v at %v", f.TotalUSDStatistics.HighestHoldingValue.Value, f.TotalUSDStatistics.HighestHoldingValue.Time)
+	log.Infof(log.BackTester, "Lowest funds: %v at %v", f.TotalUSDStatistics.LowestHoldingValue.Value, f.TotalUSDStatistics.LowestHoldingValue.Time)
+
+	log.Info(log.BackTester, "------------------Rates-------------------------------------------------")
+	log.Infof(log.BackTester, "Risk free rate: %v%%", f.TotalUSDStatistics.RiskFreeRate.Mul(decimal.NewFromInt(100)).Round(2))
+	log.Infof(log.BackTester, "Compound Annual Growth Rate: %v%%", f.TotalUSDStatistics.CompoundAnnualGrowthRate)
+
+	log.Info(log.BackTester, "------------------Ratios------------------------------------------------")
+	log.Info(log.BackTester, "------------------Arithmetic--------------------------------------------")
+	if wasAnyDataMissing {
+		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
+		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
+	}
+	log.Infof(log.BackTester, "Sharpe ratio: %v", f.TotalUSDStatistics.ArithmeticRatios.SharpeRatio.Round(4))
+	log.Infof(log.BackTester, "Sortino ratio: %v", f.TotalUSDStatistics.ArithmeticRatios.SortinoRatio.Round(4))
+	log.Infof(log.BackTester, "Information ratio: %v", f.TotalUSDStatistics.ArithmeticRatios.InformationRatio.Round(4))
+	log.Infof(log.BackTester, "Calmar ratio: %v\n\n", f.TotalUSDStatistics.ArithmeticRatios.CalmarRatio.Round(4))
+
+	log.Info(log.BackTester, "------------------Geometric--------------------------------------------")
+	if wasAnyDataMissing {
+		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
+		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
+	}
+	log.Infof(log.BackTester, "Sharpe ratio: %v", f.TotalUSDStatistics.GeometricRatios.SharpeRatio.Round(4))
+	log.Infof(log.BackTester, "Sortino ratio: %v", f.TotalUSDStatistics.GeometricRatios.SortinoRatio.Round(4))
+	log.Infof(log.BackTester, "Information ratio: %v", f.TotalUSDStatistics.GeometricRatios.InformationRatio.Round(4))
+	log.Infof(log.BackTester, "Calmar ratio: %v\n\n", f.TotalUSDStatistics.GeometricRatios.CalmarRatio.Round(4))
+
 }

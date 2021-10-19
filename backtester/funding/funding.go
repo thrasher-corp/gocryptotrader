@@ -3,6 +3,7 @@ package funding
 import (
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -107,15 +108,27 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 			}
 			if trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
 				if f.items[i].usdTrackingCandles == nil {
+					usdCandles := gctkline.Item{
+						Exchange: k.Item.Exchange,
+						Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
+						Asset:    k.Item.Asset,
+						Interval: k.Item.Interval,
+						Candles:  make([]gctkline.Candle, len(k.Item.Candles)),
+					}
+
+					if num := copy(usdCandles.Candles, k.Item.Candles); num != len(k.Item.Candles) {
+						os.Exit(-1)
+					}
+					for j := range usdCandles.Candles {
+						usdCandles.Candles[j].Open = 1
+						usdCandles.Candles[j].High = 1
+						usdCandles.Candles[j].Low = 1
+						usdCandles.Candles[j].Close = 1
+					}
 					cpy := *k
-					var cpyCandles []gctkline.Candle
-					copy(cpy.Item.Candles, cpyCandles)
-					cpy.Item.Candles = cpyCandles
-					for j := range cpy.Item.Candles {
-						cpy.Item.Candles[j].Open = 1
-						cpy.Item.Candles[j].High = 1
-						cpy.Item.Candles[j].Low = 1
-						cpy.Item.Candles[j].Close = 1
+					cpy.Item = usdCandles
+					if err := cpy.Load(); err != nil {
+						return err
 					}
 					f.items[i].usdTrackingCandles = &cpy
 				}
