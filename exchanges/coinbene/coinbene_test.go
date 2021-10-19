@@ -888,3 +888,14 @@ func TestUpdateCommissionFees(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }
+
+func TestGetPairsAuth(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set")
+	}
+	_, err := c.GetPairsAuth(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}

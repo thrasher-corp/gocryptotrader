@@ -1090,13 +1090,11 @@ func (c *Coinbene) GetPairsAuth(ctx context.Context) ([]PairData, error) {
 	}
 
 	var r resp
-	path := coinbeneAPIVersion + coinbeneGetAllPairs
 	err := c.SendAuthHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodGet,
-		path,
 		coinbeneGetAllPairs,
-		true,
+		APISpotPath,
 		nil,
 		&r,
 		contractGetFundingRates)
