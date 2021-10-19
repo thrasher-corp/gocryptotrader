@@ -8,7 +8,6 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,8 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// CalculateIndividualFundingStatistics calculates all statistics for the exchange, asset, currency pair
-func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
+// CalculateResults calculates all statistics for the exchange, asset, currency pair
+func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) error {
 	var errs gctcommon.Errors
 	var err error
 	first := c.Events[0]
@@ -51,7 +50,6 @@ func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue).Mul(oneHundred)
 	}
 	c.calculateHighestCommittedFunds()
-	c.RiskFreeRate = last.Holdings.RiskFreeRate.Mul(oneHundred)
 	returnsPerCandle := make([]decimal.Decimal, len(c.Events))
 	benchmarkRates := make([]decimal.Decimal, len(c.Events))
 
@@ -89,7 +87,7 @@ func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 	interval := first.DataEvent.GetInterval()
 	intervalsPerYear := interval.IntervalsPerYear()
 
-	riskFreeRatePerCandle := first.Holdings.RiskFreeRate.Div(decimal.NewFromFloat(intervalsPerYear))
+	riskFreeRatePerCandle := riskFreeRate.Div(decimal.NewFromFloat(intervalsPerYear))
 	riskFreeRateForPeriod := riskFreeRatePerCandle.Mul(decimal.NewFromInt(int64(len(benchmarkRates))))
 
 	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
@@ -204,7 +202,7 @@ func (c *CurrencyPairStatistic) CalculateResults(f funding.IPairReader) error {
 }
 
 // PrintResults outputs all calculated statistics to the command line
-func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.Pair, f funding.IPairReader, usingExchangeLevelFunding bool) {
+func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.Pair, usingExchangeLevelFunding bool) {
 	var errs gctcommon.Errors
 	sort.Slice(c.Events, func(i, j int) bool {
 		return c.Events[i].DataEvent.GetTime().Before(c.Events[j].DataEvent.GetTime())
@@ -218,10 +216,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	sep := fmt.Sprintf("%v %v %v |\t", e, a, p)
 	currStr := fmt.Sprintf("------------------Stats for %v %v %v------------------------------------------", e, a, p)
 	log.Infof(log.BackTester, currStr[:61])
-	log.Infof(log.BackTester, "%s Initial base funds: %v", sep, f.BaseInitialFunds())
-	log.Infof(log.BackTester, "%s Initial base quote: %v", sep, f.QuoteInitialFunds())
 	log.Infof(log.BackTester, "%s Highest committed funds: %v at %v\n\n", sep, c.HighestCommittedFunds.Value.Round(8), c.HighestCommittedFunds.Time)
-
 	log.Infof(log.BackTester, "%s Buy orders: %d", sep, c.BuyOrders)
 	log.Infof(log.BackTester, "%s Buy value: %v", sep, last.Holdings.BoughtValue.Round(8))
 	log.Infof(log.BackTester, "%s Buy amount: %v %v", sep, last.Holdings.BoughtAmount.Round(8), last.Holdings.Pair.Base)
@@ -239,11 +234,8 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	log.Infof(log.BackTester, "%s Difference: %v", sep, c.MaxDrawdown.Highest.Value.Sub(c.MaxDrawdown.Lowest.Value).Round(2))
 	log.Infof(log.BackTester, "%s Drawdown length: %d\n\n", sep, c.MaxDrawdown.IntervalDuration)
 
-	log.Info(log.BackTester, "------------------Rates-------------------------------------------------")
-	log.Infof(log.BackTester, "%s Risk free rate: %v%%", sep, c.RiskFreeRate.Round(2))
-	log.Infof(log.BackTester, "%s Compound Annual Growth Rate: %v\n\n", sep, c.CompoundAnnualGrowthRate.Round(2))
-
 	log.Info(log.BackTester, "------------------Ratios------------------------------------------------")
+	log.Infof(log.BackTester, "%s Compound Annual Growth Rate: %v\n\n", sep, c.CompoundAnnualGrowthRate.Round(2))
 	log.Info(log.BackTester, "------------------Arithmetic--------------------------------------------")
 	if c.ShowMissingDataWarning {
 		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")

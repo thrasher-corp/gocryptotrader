@@ -196,9 +196,6 @@ func (f *FundManager) GenerateReport() *Report {
 			item.USDFinalCostForOne = usdStream[len(usdStream)-1].ClosePrice()
 			item.USDPairCandle = f.items[i].usdTrackingCandles
 
-			report.USDInitialTotal = report.USDInitialTotal.Add(item.USDInitialFunds)
-			report.USDFinalTotal = report.USDFinalTotal.Add(item.USDFinalFunds)
-
 			// maps do not guarantee order, convert to ordered slice
 			var pricingOverTime []ItemSnapshot
 			for _, v := range f.items[i].snapshot {
@@ -224,14 +221,6 @@ func (f *FundManager) GenerateReport() *Report {
 
 		items = append(items, item)
 	}
-	if !f.disableUSDTracking {
-		if !report.USDInitialTotal.IsZero() {
-			report.Difference = report.USDFinalTotal.Sub(report.USDInitialTotal).Div(report.USDInitialTotal).Mul(decimal.NewFromInt(100))
-		}
-		report.USDInitialTotal = report.USDInitialTotal.Round(2)
-		report.USDFinalTotal = report.USDFinalTotal.Round(2)
-	}
-
 	report.Items = items
 	report.DisableUSDTracking = f.disableUSDTracking
 	return &report

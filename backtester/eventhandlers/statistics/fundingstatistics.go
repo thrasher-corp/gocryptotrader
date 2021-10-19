@@ -16,12 +16,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func CalculateTotalUSDFundingStatistics(report *funding.Report, currStats map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic) (*FundingStatistics, error) {
+func CalculateTotalUSDFundingStatistics(report *funding.Report, currStats map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic, riskFreeRate decimal.Decimal) (*FundingStatistics, error) {
 	if currStats == nil {
 		return nil, common.ErrNilArguments
 	}
 	var interval *gctkline.Interval
-	var rfr decimal.Decimal
 	response := &FundingStatistics{
 		Report: report,
 	}
@@ -30,9 +29,6 @@ func CalculateTotalUSDFundingStatistics(report *funding.Report, currStats map[st
 		var relevantStats []relatedStat
 		for k, v := range exchangeAssetStats {
 			if k.Base == report.Items[i].Currency {
-				if rfr.IsZero() {
-					rfr = v.RiskFreeRate
-				}
 				if interval == nil {
 					dei := v.Events[0].DataEvent.GetInterval()
 					interval = &dei
@@ -54,7 +50,7 @@ func CalculateTotalUSDFundingStatistics(report *funding.Report, currStats map[st
 	usdStats := &TotalFundingStatistics{
 		HighestHoldingValue: ValueAtTime{},
 		LowestHoldingValue:  ValueAtTime{},
-		RiskFreeRate:        rfr.Div(decimal.NewFromInt(100)),
+		RiskFreeRate:        riskFreeRate,
 	}
 	holdingValues := make(map[time.Time]decimal.Decimal)
 
@@ -229,8 +225,7 @@ func CalculateIndividualFundingStatistics(reportItem *funding.ReportItem, releva
 	}
 	interval := relevantStats[0].stat.Events[0].DataEvent.GetInterval()
 	item := &FundingItemStatistics{
-		ReportItem:   reportItem,
-		RiskFreeRate: relevantStats[0].stat.RiskFreeRate,
+		ReportItem: reportItem,
 	}
 	closePrices := reportItem.Snapshots
 	sep := fmt.Sprintf("%v %v %v |\t", item.ReportItem.Exchange, item.ReportItem.Asset, item.ReportItem.Currency)

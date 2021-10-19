@@ -19,13 +19,6 @@ type FundManager struct {
 	items                     []*Item
 }
 
-type ItemSnapshot struct {
-	Time          time.Time
-	Available     decimal.Decimal
-	USDClosePrice decimal.Decimal
-	USDValue      decimal.Decimal
-}
-
 // IFundingManager limits funding usage for portfolio event handling
 type IFundingManager interface {
 	Reset()
@@ -95,9 +88,6 @@ type Pair struct {
 // Report holds all funding data for result reporting
 type Report struct {
 	DisableUSDTracking bool
-	USDInitialTotal    decimal.Decimal
-	USDFinalTotal      decimal.Decimal
-	Difference         decimal.Decimal
 	Items              []ReportItem
 	USDTotals          map[time.Time]ItemSnapshot
 }
@@ -120,4 +110,11 @@ type ReportItem struct {
 	Difference    decimal.Decimal
 	ShowInfinite  bool
 	PairedWith    currency.Code
+}
+
+type ItemSnapshot struct {
+	Time          time.Time
+	Available     decimal.Decimal
+	USDClosePrice decimal.Decimal
+	USDValue      decimal.Decimal
 }

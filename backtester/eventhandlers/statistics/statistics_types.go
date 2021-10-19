@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -29,8 +30,11 @@ type Statistic struct {
 	StrategyDescription         string                                                             `json:"strategy-description"`
 	StrategyNickname            string                                                             `json:"strategy-nickname"`
 	StrategyGoal                string                                                             `json:"strategy-goal"`
-	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic `json:"-"`
+	StartDate                   time.Time                                                          `json:"start-time"`
+	EndTime                     time.Time                                                          `json:"end-time"`
+	CandleInterval              gctkline.Interval                                                  `json:"candle-interval"`
 	RiskFreeRate                decimal.Decimal                                                    `json:"risk-free-rate"`
+	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic `json:"exchange-asset-pair-statistics"`
 	TotalBuyOrders              int64                                                              `json:"total-buy-orders"`
 	TotalSellOrders             int64                                                              `json:"total-sell-orders"`
 	TotalOrders                 int64                                                              `json:"total-orders"`

@@ -233,7 +233,7 @@
 						</tr>
 						</thead>
 						<tbody>
-						{{ range .Statistics.Funding.Items}}
+						{{ range .Statistics.FundingStatistics.Report.Items}}
 							<tr>
 								<td>{{.Exchange}}</td>
 								<td>{{.Asset}}</td>
@@ -256,15 +256,15 @@
 						<tbody>
 						<tr>
 							<td><b>Initial Total Funds in USD</b></td>
-							<td><b>${{  .Statistics.Funding.USDInitialTotal}}</b></td>
+							<td><b>${{  .Statistics.FundingStatistics.Report.USDInitialTotal}}</b></td>
 						</tr>
 						<tr>
 							<td><b>Final Total Funds in USD</b></td>
-							<td><b>${{  .Statistics.Funding.USDFinalTotal}}</b></td>
+							<td><b>${{  .Statistics.FundingStatistics.Report.USDFinalTotal}}</b></td>
 						</tr>
 						<tr>
 							<td><b>Difference</b></td>
-							<td><b>{{ .Statistics.Funding.Difference}}%</b></td>
+							<td><b>{{ .Statistics.FundingStatistics.Report.Difference}}%</b></td>
 						</tr>
 						</tbody>
 					</table>
@@ -342,15 +342,15 @@
 						<tbody>
 						<tr>
 							<td><b>Initial Total Funds in USD</b></td>
-							<td><b>${{   .Statistics.Funding.USDInitialTotal}}</b></td>
+							<td><b>${{   .Statistics.FundingStatistics.Report.USDInitialTotal}}</b></td>
 						</tr>
 						<tr>
 							<td><b>Final Total Funds in USD</b></td>
-							<td><b>${{   .Statistics.Funding.USDFinalTotal}}</b></td>
+							<td><b>${{   .Statistics.FundingStatistics.Report.USDFinalTotal}}</b></td>
 						</tr>
 						<tr>
 							<td><b>Difference</b></td>
-							<td><b>{{  .Statistics.Funding.Difference}}%</b></td>
+							<td><b>{{  .Statistics.FundingStatistics.Report.Difference}}%</b></td>
 						</tr>
 						</tbody>
 					</table>
@@ -462,7 +462,7 @@
 					</tr>
 					</thead>
 					<tbody>
-					{{ range .Statistics.Funding.Items}}
+					{{ range .Statistics.FundingStatistics.Report.Items}}
 						<tr>
 							<td>{{.Exchange}}</td>
 							<td>{{.Asset}}</td>
@@ -582,6 +582,82 @@
 				<h2 id="charts" class="px-4 card-header-title text-light">Charts</h2>
 			</div>
 			<div class="card-body card-body-cascade ">
+				<div id="usdtotals" style="max-height: 800px;min-height: 75vh;" >
+					<script>
+						var totals = [];
+						{{ range .Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues}}
+								totals.push([
+									{{.Value}},
+								]);
+						{{end}}
+						var arrayOfNumbers = totals.map(Number);
+						Highcharts.chart('usdtotals', {
+
+							title: {
+								text: 'Holding value over strategy duration'
+							},
+
+							yAxis: {
+								title: {
+									text: 'USD'
+								}
+							},
+
+							xAxis: {
+
+							},
+
+							legend: {
+								layout: 'vertical',
+								align: 'right',
+								verticalAlign: 'middle'
+							},
+
+							plotOptions: {
+								series: {
+									label: {
+										connectorAllowed: false
+									},
+									pointStart:
+								}
+							},
+
+							series: [{
+								name: 'Combined USD Total',
+								data:	arrayOfNumbers
+							}, {
+								name: 'Manufacturing',
+								data: [24916, 24064, 29742, 29851, 32490, 30282, 38121, 40434]
+							}, {
+								name: 'Sales & Distribution',
+								data: [11744, 17722, 16005, 19771, 20185, 24377, 32147, 39387]
+							}, {
+								name: 'Project Development',
+								data: [null, null, 7988, 12169, 15112, 22452, 34400, 34227]
+							}, {
+								name: 'Other',
+								data: [12908, 5948, 8105, 11248, 8989, 11816, 18274, 18111]
+							}],
+
+							responsive: {
+								rules: [{
+									condition: {
+										maxWidth: 500
+									},
+									chartOptions: {
+										legend: {
+											layout: 'horizontal',
+											align: 'center',
+											verticalAlign: 'bottom'
+										}
+									}
+								}]
+							}
+
+						});
+					</script>
+
+				</div>
 				{{ range .EnhancedCandles}}
 					<div id="{{.Exchange}}{{.Asset}}{{.Pair}}" style="max-height: 800px;min-height: 75vh;" >
 						<h3>{{.Exchange}} {{.Asset}} {{.Pair}}</h3>

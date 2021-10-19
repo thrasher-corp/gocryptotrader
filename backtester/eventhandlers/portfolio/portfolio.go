@@ -243,7 +243,7 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fi
 	} else {
 		h = lookup.GetLatestHoldings()
 		if h.Timestamp.IsZero() {
-			h, err = holdings.Create(ev, funding, p.riskFreeRate)
+			h, err = holdings.Create(ev, funding)
 			if err != nil {
 				return nil, err
 			}
@@ -358,7 +358,7 @@ func (p *Portfolio) UpdateHoldings(ev common.DataEventHandler, funds funding.IPa
 	h := lookup.GetLatestHoldings()
 	if h.Timestamp.IsZero() {
 		var err error
-		h, err = holdings.Create(ev, funds, p.riskFreeRate)
+		h, err = holdings.Create(ev, funds)
 		if err != nil {
 			return err
 		}

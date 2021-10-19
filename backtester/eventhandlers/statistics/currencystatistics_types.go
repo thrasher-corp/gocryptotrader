@@ -52,7 +52,6 @@ type CurrencyPairStatistic struct {
 	HighestClosePrice            decimal.Decimal `json:"highest-close-price"`
 	MarketMovement               decimal.Decimal `json:"market-movement"`
 	StrategyMovement             decimal.Decimal `json:"strategy-movement"`
-	RiskFreeRate                 decimal.Decimal `json:"risk-free-rate"`
 	CompoundAnnualGrowthRate     decimal.Decimal `json:"compound-annual-growth-rate"`
 	TotalAssetValue              decimal.Decimal
 	TotalFees                    decimal.Decimal
