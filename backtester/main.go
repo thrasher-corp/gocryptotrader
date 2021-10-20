@@ -28,7 +28,7 @@ func main() {
 			wd,
 			"config",
 			"examples",
-			"dca-api-candles-exchange-level-funding.strat"),
+			"t2b2-api-candles-exchange-funding.strat"),
 		"the config containing strategy params")
 	flag.StringVar(
 		&templatePath,

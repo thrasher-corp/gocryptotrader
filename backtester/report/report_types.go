@@ -30,14 +30,31 @@ type Handler interface {
 
 // Data holds all statistical information required to output detailed backtesting results
 type Data struct {
-	OriginalCandles []*kline.Item
-	EnhancedCandles []DetailedKline
-	Statistics      *statistics.Statistic
-	Config          *config.Config
-	TemplatePath    string
-	OutputPath      string
-	Warnings        []Warning
-	UseDarkTheme    bool
+	OriginalCandles       []*kline.Item
+	EnhancedCandles       []DetailedKline
+	Statistics            *statistics.Statistic
+	Config                *config.Config
+	TemplatePath          string
+	OutputPath            string
+	Warnings              []Warning
+	UseDarkTheme          bool
+	USDTotalsChart        []TotalsChart
+	HoldingsOverTimeChart []TotalsChart
+}
+
+type TotalsChart struct {
+	Name       string
+	DataPoints []ChartPlot
+}
+
+type ChartPlot struct {
+	Value  float64
+	Year   int64
+	Month  int64
+	Day    int64
+	Hour   int64
+	Second int64
+	Flag   string
 }
 
 // Warning holds any candle warnings

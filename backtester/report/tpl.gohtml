@@ -251,23 +251,7 @@
 						{{end}}
 						</tbody>
 					</table>
-					<h5>Totals</h5>
-					<table class="table table-hover table-bordered table-striped">
-						<tbody>
-						<tr>
-							<td><b>Initial Total Funds in USD</b></td>
-							<td><b>${{  .Statistics.FundingStatistics.Report.USDInitialTotal}}</b></td>
-						</tr>
-						<tr>
-							<td><b>Final Total Funds in USD</b></td>
-							<td><b>${{  .Statistics.FundingStatistics.Report.USDFinalTotal}}</b></td>
-						</tr>
-						<tr>
-							<td><b>Difference</b></td>
-							<td><b>{{ .Statistics.FundingStatistics.Report.Difference}}%</b></td>
-						</tr>
-						</tbody>
-					</table>
+
 					<h5>Pair market movement</h5>
 					<table class="table table-hover table-bordered table-striped">
 						<thead>
@@ -582,63 +566,45 @@
 				<h2 id="charts" class="px-4 card-header-title text-light">Charts</h2>
 			</div>
 			<div class="card-body card-body-cascade ">
+				<h3>USD Totals</h3>
 				<div id="usdtotals" style="max-height: 800px;min-height: 75vh;" >
 					<script>
-						var totals = [];
-						{{ range .Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues}}
-								totals.push([
-									{{.Value}},
-								]);
-						{{end}}
-						var arrayOfNumbers = totals.map(Number);
 						Highcharts.chart('usdtotals', {
-
 							title: {
 								text: 'Holding value over strategy duration'
 							},
-
 							yAxis: {
 								title: {
 									text: 'USD'
 								}
 							},
-
 							xAxis: {
-
+								type: 'datetime'
 							},
-
 							legend: {
 								layout: 'vertical',
 								align: 'right',
 								verticalAlign: 'middle'
 							},
-
 							plotOptions: {
 								series: {
 									label: {
 										connectorAllowed: false
 									},
-									pointStart:
 								}
 							},
-
-							series: [{
-								name: 'Combined USD Total',
-								data:	arrayOfNumbers
-							}, {
-								name: 'Manufacturing',
-								data: [24916, 24064, 29742, 29851, 32490, 30282, 38121, 40434]
-							}, {
-								name: 'Sales & Distribution',
-								data: [11744, 17722, 16005, 19771, 20185, 24377, 32147, 39387]
-							}, {
-								name: 'Project Development',
-								data: [null, null, 7988, 12169, 15112, 22452, 34400, 34227]
-							}, {
-								name: 'Other',
-								data: [12908, 5948, 8105, 11248, 8989, 11816, 18274, 18111]
-							}],
-
+							series: [
+								{{ range .USDTotalsChart }}
+								{
+									name: {{.Name}},
+									data: [
+										{{ range .DataPoints }}
+											[Date.UTC({{.Year}},{{.Month}},{{.Day}},{{.Hour}},{{.Second}}), {{.Value}}],
+										{{end}}
+									]
+								},
+								{{end}}
+								],
 							responsive: {
 								rules: [{
 									condition: {
@@ -658,9 +624,71 @@
 					</script>
 
 				</div>
+				<h3>Holdings Over Time</h3>
+				<div id="holdingsovertime" style="max-height: 800px;min-height: 75vh;" >
+					<script>
+						Highcharts.chart('holdingsovertime', {
+							title: {
+								text: 'Holdings over strategy duration'
+							},
+							yAxis: {
+								title: {
+									text: 'Quantity'
+								}
+							},
+							xAxis: {
+								type: 'datetime'
+							},
+							legend: {
+								layout: 'vertical',
+								align: 'right',
+								verticalAlign: 'middle'
+							},
+							plotOptions: {
+								series: {
+									label: {
+										connectorAllowed: false
+									},
+								}
+							},
+							series: [
+								{{ range .HoldingsOverTimeChart }}
+								{
+									name: {{.Name}},
+									data: [
+										{{ range .DataPoints }}
+											[Date.UTC({{.Year}},{{.Month}},{{.Day}},{{.Hour}},{{.Second}}), {{.Value}}],
+										{{end}}
+									]
+								},
+								{{end}}
+								],
+							responsive: {
+								rules: [{
+									condition: {
+										maxWidth: 500
+									},
+									chartOptions: {
+										legend: {
+											layout: 'horizontal',
+											align: 'center',
+											verticalAlign: 'bottom'
+										}
+									}
+								}]
+							}
+
+						});
+					</script>
+				</div>
+
+
+
+
+
 				{{ range .EnhancedCandles}}
+					<h3>{{.Exchange}} {{.Asset}} {{.Pair}} Transactions</h3>
 					<div id="{{.Exchange}}{{.Asset}}{{.Pair}}" style="max-height: 800px;min-height: 75vh;" >
-						<h3>{{.Exchange}} {{.Asset}} {{.Pair}}</h3>
 						<script>
 								// split the data set into ohlc and volume
 								var ohlc = [],
@@ -982,7 +1010,7 @@
 								<tbody>
 								<tr>
 									<td><b>Risk Free Rate</b></td>
-									<td>{{$val.RiskFreeRate}}%</td>
+									<td>{{$.Statistics.RiskFreeRate}}%</td>
 								</tr>
 								<tr>
 									<td><b>Compound Annual Growth Rate</b></td>

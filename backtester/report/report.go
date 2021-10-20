@@ -43,6 +43,8 @@ func (d *Data) GenerateReport() error {
 			d.EnhancedCandles[i].Candles = d.EnhancedCandles[i].Candles[:maxChartLimit]
 		}
 	}
+	d.USDTotalsChart = d.CreateUSDTotalsChart()
+	d.HoldingsOverTimeChart = d.CreateHoldingsOverTimeChart()
 
 	tmpl := template.Must(
 		template.ParseFiles(
@@ -80,6 +82,75 @@ func (d *Data) GenerateReport() error {
 	}
 	log.Infof(log.BackTester, "successfully saved report to %v\\%v", d.OutputPath, fileName)
 	return nil
+}
+
+func (d *Data) CreateUSDTotalsChart() []TotalsChart {
+	var response []TotalsChart
+	var usdTotalChartPlot []ChartPlot
+	for i := range d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues {
+		// exact matters less for chart rendering, ignoring "exact" response
+		floatValue, _ := d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Value.Float64()
+		usdTotalChartPlot = append(usdTotalChartPlot, ChartPlot{
+			Value:  floatValue,
+			Year:   int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Year()),
+			Month:  int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Month()),
+			Day:    int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Day()),
+			Hour:   int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Hour()),
+			Second: int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Second()),
+		})
+
+	}
+	response = append(response, TotalsChart{
+		Name:       "Total USD value",
+		DataPoints: usdTotalChartPlot,
+	})
+
+	for i := range d.Statistics.FundingStatistics.Items {
+		var plots []ChartPlot
+		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
+			// exact matters less for chart rendering, ignoring "exact" response
+			floatValue, _ := d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].USDValue.Float64()
+			plots = append(plots, ChartPlot{
+				Value:  floatValue,
+				Year:   int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Year()),
+				Month:  int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Month()),
+				Day:    int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Day()),
+				Hour:   int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Hour()),
+				Second: int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Second()),
+			})
+		}
+		response = append(response, TotalsChart{
+			Name:       fmt.Sprintf("%v %v %v USD value", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
+			DataPoints: plots,
+		})
+	}
+
+	return response
+}
+
+func (d *Data) CreateHoldingsOverTimeChart() []TotalsChart {
+	var response []TotalsChart
+	for i := range d.Statistics.FundingStatistics.Items {
+		var plots []ChartPlot
+		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
+			// exact matters less for chart rendering, ignoring "exact" response
+			floatValue, _ := d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Available.Float64()
+			plots = append(plots, ChartPlot{
+				Value:  floatValue,
+				Year:   int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Year()),
+				Month:  int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Month()),
+				Day:    int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Day()),
+				Hour:   int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Hour()),
+				Second: int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Second()),
+			})
+		}
+		response = append(response, TotalsChart{
+			Name:       fmt.Sprintf("%v %v %v holdings", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
+			DataPoints: plots,
+		})
+	}
+
+	return response
 }
 
 // AddKlineItem appends a SET of candles for the report to enhance upon
