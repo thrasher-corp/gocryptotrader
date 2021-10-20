@@ -190,7 +190,7 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 			}
 		}
 	}
-	if !funds.USDTrackingDisabled() {
+	if !funds.USDTrackingDisabled() && funds.IsUsingExchangeLevelFunding() {
 		report := funds.GenerateReport()
 		s.FundingStatistics, err = CalculateTotalUSDFundingStatistics(report, s.ExchangeAssetPairStatistics, s.RiskFreeRate)
 		if err != nil {

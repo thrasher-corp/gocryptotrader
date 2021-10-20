@@ -64,6 +64,9 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 // as funding.snapshots is a map, it allows for the last event
 // in the chronological list to establish the canon at X time
 func (f *FundManager) CreateSnapshot(t time.Time) {
+	if !f.usingExchangeLevelFunding || f.disableUSDTracking {
+		return
+	}
 	for i := range f.items {
 		var usdClosePrice decimal.Decimal
 		usdCandles := f.items[i].usdTrackingCandles.GetStream()

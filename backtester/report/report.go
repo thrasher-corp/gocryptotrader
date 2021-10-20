@@ -85,6 +85,9 @@ func (d *Data) GenerateReport() error {
 }
 
 func (d *Data) CreateUSDTotalsChart() []TotalsChart {
+	if d.Statistics.FundingStatistics == nil {
+		return nil
+	}
 	var response []TotalsChart
 	var usdTotalChartPlot []ChartPlot
 	for i := range d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues {
@@ -129,6 +132,9 @@ func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 }
 
 func (d *Data) CreateHoldingsOverTimeChart() []TotalsChart {
+	if d.Statistics.FundingStatistics == nil {
+		return nil
+	}
 	var response []TotalsChart
 	for i := range d.Statistics.FundingStatistics.Items {
 		var plots []ChartPlot
