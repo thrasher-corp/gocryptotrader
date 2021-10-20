@@ -190,8 +190,8 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		Unsubscriber:          f.Unsubscribe,
 		GenerateSubscriptions: f.GenerateDefaultSubscriptions,
 		Features:              &f.Features.Supports.WebsocketCapabilities,
-		SaveTradeData:         f.Features.Enabled.SaveTradeData,
 		TradeFeed:             f.Features.Enabled.TradeFeed,
+		FillsFeed:             f.Features.Enabled.FillsFeed,
 	})
 	if err != nil {
 		return err
