@@ -30,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (f *FTX) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (f *FTX) GetDefaultConfig() (*config.Exchange, error) {
 	f.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = f.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = f.BaseCurrencies
@@ -165,7 +165,7 @@ func (f *FTX) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (f *FTX) Setup(exch *config.ExchangeConfig) error {
+func (f *FTX) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		f.SetEnabled(false)
 		return nil
@@ -182,21 +182,14 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = f.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       ftxWSURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsEndpoint,
-		Connector:                        f.WsConnect,
-		Subscriber:                       f.Subscribe,
-		UnSubscriber:                     f.Unsubscribe,
-		GenerateSubscriptions:            f.GenerateDefaultSubscriptions,
-		Features:                         &f.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		OrderbookPublishPeriod:           exch.OrderbookConfig.PublishPeriod,
+		ExchangeConfig:        exch,
+		DefaultURL:            ftxWSURL,
+		RunningURL:            wsEndpoint,
+		Connector:             f.WsConnect,
+		Subscriber:            f.Subscribe,
+		Unsubscriber:          f.Unsubscribe,
+		GenerateSubscriptions: f.GenerateDefaultSubscriptions,
+		Features:              &f.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

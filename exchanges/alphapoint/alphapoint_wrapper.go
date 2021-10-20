@@ -23,7 +23,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config for Alphapoint
-func (a *Alphapoint) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (a *Alphapoint) GetDefaultConfig() (*config.Exchange, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

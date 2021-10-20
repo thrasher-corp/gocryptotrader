@@ -30,7 +30,7 @@ import (
 // When circumstances change, wrapper funcs can be split appropriately
 
 // Setup sets user exchange configuration settings
-func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
+func (o *OKGroup) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		o.SetEnabled(false)
 		return nil
@@ -46,21 +46,14 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 	err = o.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsEndpoint,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsEndpoint,
-		Connector:                        o.WsConnect,
-		Subscriber:                       o.Subscribe,
-		UnSubscriber:                     o.Unsubscribe,
-		GenerateSubscriptions:            o.GenerateDefaultSubscriptions,
-		Features:                         &o.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		OrderbookPublishPeriod:           exch.OrderbookConfig.PublishPeriod,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		ExchangeConfig:        exch,
+		DefaultURL:            wsEndpoint,
+		RunningURL:            wsEndpoint,
+		Connector:             o.WsConnect,
+		Subscriber:            o.Subscribe,
+		Unsubscriber:          o.Unsubscribe,
+		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
+		Features:              &o.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

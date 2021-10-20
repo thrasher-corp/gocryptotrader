@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 )
@@ -86,28 +87,19 @@ type Websocket struct {
 
 // WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
-	Enabled                          bool
-	Verbose                          bool
-	AuthenticatedWebsocketAPISupport bool
-	WebsocketTimeout                 time.Duration
-	DefaultURL                       string
-	ExchangeName                     string
-	RunningURL                       string
-	RunningURLAuth                   string
-	Connector                        func() error
-	Subscriber                       func([]ChannelSubscription) error
-	UnSubscriber                     func([]ChannelSubscription) error
-	GenerateSubscriptions            func() ([]ChannelSubscription, error)
-	Features                         *protocol.Features
+	ExchangeConfig        *config.Exchange
+	DefaultURL            string
+	RunningURL            string
+	RunningURLAuth        string
+	Connector             func() error
+	Subscriber            func([]ChannelSubscription) error
+	Unsubscriber          func([]ChannelSubscription) error
+	GenerateSubscriptions func() ([]ChannelSubscription, error)
+	Features              *protocol.Features
 	// Local orderbook buffer config values
-	OrderbookBufferLimit  int
-	BufferEnabled         bool
 	SortBuffer            bool
 	SortBufferByUpdateIDs bool
 	UpdateEntriesByID     bool
-	// OrderbookPublishPeriod is a pointer for the same reason as it is in `OrderbookConfig`:
-	// to allow distinguishing between a zeroed out value and a missing one
-	OrderbookPublishPeriod *time.Duration
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS

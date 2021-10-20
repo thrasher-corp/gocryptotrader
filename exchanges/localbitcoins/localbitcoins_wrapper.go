@@ -30,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (l *LocalBitcoins) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (l *LocalBitcoins) GetDefaultConfig() (*config.Exchange, error) {
 	l.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = l.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = l.BaseCurrencies
@@ -105,7 +105,7 @@ func (l *LocalBitcoins) SetDefaults() {
 }
 
 // Setup sets exchange configuration parameters
-func (l *LocalBitcoins) Setup(exch *config.ExchangeConfig) error {
+func (l *LocalBitcoins) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		l.SetEnabled(false)
 		return nil

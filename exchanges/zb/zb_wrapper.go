@@ -30,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (z *ZB) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (z *ZB) GetDefaultConfig() (*config.Exchange, error) {
 	z.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = z.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = z.BaseCurrencies
@@ -148,7 +148,7 @@ func (z *ZB) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (z *ZB) Setup(exch *config.ExchangeConfig) error {
+func (z *ZB) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		z.SetEnabled(false)
 		return nil
@@ -165,20 +165,13 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = z.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       zbWebsocketAPI,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        z.WsConnect,
-		GenerateSubscriptions:            z.GenerateDefaultSubscriptions,
-		Subscriber:                       z.Subscribe,
-		Features:                         &z.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		OrderbookPublishPeriod:           exch.OrderbookConfig.PublishPeriod,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		ExchangeConfig:        exch,
+		DefaultURL:            zbWebsocketAPI,
+		RunningURL:            wsRunningURL,
+		Connector:             z.WsConnect,
+		GenerateSubscriptions: z.GenerateDefaultSubscriptions,
+		Subscriber:            z.Subscribe,
+		Features:              &z.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

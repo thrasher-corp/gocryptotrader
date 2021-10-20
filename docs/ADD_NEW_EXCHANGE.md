@@ -1095,7 +1095,7 @@ Add websocket functionality if supported to Setup:
 
 ```go
 // Setup takes in the supplied exchange configuration details and sets params
-func (f *FTX) Setup(exch *config.ExchangeConfig) error {
+func (f *FTX) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		f.SetEnabled(false)
 		return nil
@@ -1108,23 +1108,27 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 
 	// Websocket details setup below
 	err = f.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       ftxWSURL, // Default ws endpoint so we can roll back via CLI if needed.
-		ExchangeName:                     exch.Name, // Sets websocket name to the exchange name.
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
-		Connector:                        f.WsConnect, // Connector function outlined above.
-		Subscriber:                       f.Subscribe, // Subscriber function outlined above.
-		UnSubscriber:                     f.Unsubscribe, // Unsubscriber function outlined above.
-		GenerateSubscriptions:            f.GenerateDefaultSubscriptions, // GenerateDefaultSubscriptions function outlined above.
-		Features:                         &f.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
+		ExchangeConfig:        	exch,
+		// DefaultURL defines the default endpoint in the event a rollback is 
+		// needed via gctcli.
+		DefaultURL:             ftxWSURL, 
+		RunningURL:             exch.API.Endpoints.WebsocketURL,
+		// Connector function outlined above.
+		Connector:              f.WsConnect, 
+		// Subscriber function outlined above.
+		Subscriber:             f.Subscribe, 
+		// Unsubscriber function outlined above.
+		UnSubscriber:           f.Unsubscribe,
+		// GenerateDefaultSubscriptions function outlined above. 
+		GenerateSubscriptions:  f.GenerateDefaultSubscriptions, 
+		// Defines the capabilities of the websocket outlined in supported 
+		// features struct. This allows the websocket connection to be flushed 
+		// appropriately if we have a pair/asset enable/disable change. This is 
+		// outlined below.
+		Features:               &f.Features.Supports.WebsocketCapabilities, 
 
-		// Orderbook buffer specific variables for processing orderbook updates via websocket feed. 
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		// Other orderbook buffer vars:
-		// BufferEnabled         bool 
+		// Orderbook buffer specific variables for processing orderbook updates 
+		// via websocket feed: 
 		// SortBuffer            bool 
 		// SortBufferByUpdateIDs bool 
 		// UpdateEntriesByID     bool 

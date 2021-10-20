@@ -29,9 +29,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (e *EXMO) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (e *EXMO) GetDefaultConfig() (*config.Exchange, error) {
 	e.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = e.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = e.BaseCurrencies
@@ -123,7 +123,7 @@ func (e *EXMO) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (e *EXMO) Setup(exch *config.ExchangeConfig) error {
+func (e *EXMO) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil

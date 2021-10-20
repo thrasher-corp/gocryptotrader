@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("ZB load config error", err)
 	}
-	var zbConfig *config.ExchangeConfig
+	var zbConfig *config.Exchange
 	zbConfig, err = cfg.GetExchangeConfig("ZB")
 	if err != nil {
 		log.Fatal("ZB Setup() init error", err)
