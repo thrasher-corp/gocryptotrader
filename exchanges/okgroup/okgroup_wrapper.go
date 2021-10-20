@@ -59,6 +59,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            o.GenerateDefaultSubscriptions,
 		Features:                         &o.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		OrderbookPublishPeriod:           exch.OrderbookConfig.PublishPeriod,
 		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 	})
 	if err != nil {

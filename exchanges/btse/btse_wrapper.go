@@ -198,6 +198,7 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		OrderbookPublishPeriod:           exch.OrderbookConfig.PublishPeriod,
 		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 	})
 	if err != nil {

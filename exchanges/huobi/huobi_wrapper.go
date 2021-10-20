@@ -208,6 +208,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            h.GenerateDefaultSubscriptions,
 		Features:                         &h.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		OrderbookPublishPeriod:           exch.OrderbookConfig.PublishPeriod,
 		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 	})
 	if err != nil {

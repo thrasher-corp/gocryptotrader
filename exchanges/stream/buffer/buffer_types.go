@@ -9,10 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-// timerDefault defines the amount of time between alerting the sync manager of
-// an update.
-var timerDefault = time.Second * 10
-
 // Orderbook defines a local cache of orderbooks for amending, appending
 // and deleting changes and updates the main store for a stream
 type Orderbook struct {
@@ -25,6 +21,7 @@ type Orderbook struct {
 	exchangeName          string
 	dataHandler           chan interface{}
 	verbose               bool
+	publishPeriod         time.Duration
 	m                     sync.Mutex
 }
 

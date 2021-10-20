@@ -199,6 +199,7 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
 		Features:                         &c.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		OrderbookPublishPeriod:           exch.OrderbookConfig.PublishPeriod,
 		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:                       true,
 	})

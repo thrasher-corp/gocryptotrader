@@ -175,10 +175,11 @@ func (b *Bittrex) Setup(exch *config.ExchangeConfig) error {
 		// Orderbook buffer specific variables for processing orderbook updates via websocket feed.
 		// Other orderbook buffer vars:
 		// UpdateEntriesByID     bool
-		OrderbookBufferLimit:  exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:         exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:            true,
-		SortBufferByUpdateIDs: true,
+		OrderbookBufferLimit:   exch.OrderbookConfig.WebsocketBufferLimit,
+		OrderbookPublishPeriod: exch.OrderbookConfig.PublishPeriod,
+		BufferEnabled:          exch.OrderbookConfig.WebsocketBufferEnabled,
+		SortBuffer:             true,
+		SortBufferByUpdateIDs:  true,
 	})
 	if err != nil {
 		return err

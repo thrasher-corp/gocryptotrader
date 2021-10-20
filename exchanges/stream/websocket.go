@@ -121,12 +121,19 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.Wg = new(sync.WaitGroup)
 	w.SetCanUseAuthenticatedEndpoints(s.AuthenticatedWebsocketAPISupport)
 
+	// default publish period if missing
+	orderbookPublishPeriod := config.DefaultOrderbookPublishPeriod
+	if s.OrderbookPublishPeriod != nil {
+		orderbookPublishPeriod = *s.OrderbookPublishPeriod
+	}
+
 	return w.Orderbook.Setup(s.OrderbookBufferLimit,
 		s.BufferEnabled,
 		s.SortBuffer,
 		s.SortBufferByUpdateIDs,
 		s.UpdateEntriesByID,
 		s.Verbose,
+		orderbookPublishPeriod,
 		w.exchangeName,
 		w.DataHandler)
 }

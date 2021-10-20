@@ -177,6 +177,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       z.Subscribe,
 		Features:                         &z.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		OrderbookPublishPeriod:           exch.OrderbookConfig.PublishPeriod,
 		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 	})
 	if err != nil {
