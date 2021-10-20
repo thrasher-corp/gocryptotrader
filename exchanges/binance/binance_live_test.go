@@ -3,6 +3,7 @@
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
+//	eg. go test -run=TestFuturesNewOrder -tags mock_test_off ./exchanges/binance
 package binance
 
 import (

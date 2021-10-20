@@ -1043,6 +1043,46 @@ func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, cfuturesOrder, params, cFuturesOrdersDefaultRate, &resp)
 }
 
+// FuturesModifyOrder modifies a futures order
+//       https://binance-docs.github.io/apidocs/delivery/en/#modify-order-trade
+//
+//	Either orderId or origClientOrderId must be sent, and the orderId will prevail if both are sent.
+func (b *Binance) FuturesModifyOrder(ctx context.Context, symbol currency.Pair,
+	side, orderID, origClientOrderID string,
+	quantity, price float64,
+	recvWindow int64) (FuturesOrderModifyData, error) {
+	var resp FuturesOrderModifyData
+	params := url.Values{}
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
+	params.Set("side", side)
+
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+
+	if quantity != 0 {
+		params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
+	}
+
+	if price != 0 {
+		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	}
+
+	if recvWindow != 0 {
+		params.Set("recvWindow", strconv.FormatInt(recvWindow, 10))
+	}
+
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPut, cfuturesOrder, params, cFuturesOrdersDefaultRate, &resp)
+}
+
 // FuturesBatchOrder sends a batch order request
 func (b *Binance) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderData) ([]FuturesOrderPlaceData, error) {
 	var resp []FuturesOrderPlaceData

@@ -283,6 +283,31 @@ type FuturesOrderGetData struct {
 	PriceProtect       bool      `json:"priceProtect"`
 }
 
+// FuturesOrderGetData stores futures order data for modify requests
+type FuturesOrderModifyData struct {
+	Symbol             string    `json:"symbol"`
+	Pair               string    `json:"pair"`
+	Status             string    `json:"status"`
+	OrderID            int64     `json:"orderId"`
+	ClientOrderID      string    `json:"clientOrderID"`
+	Price              float64   `json:"price,string"`
+	AveragePrice       float64   `json:"avgPrice,string"`
+	ExecutedQuantity   float64   `json:"executedQty,string"`
+	CumulativeQuantity float64   `json:"cumQty,string"`
+	CumulativeBase     float64   `json:"cumBase,string"`
+	TimeInForce        string    `json:"timeInForce"`
+	OrderType          string    `json:"type"`
+	ReduceOnly         bool      `json:"reduceOnly"`
+	ClosePosition      bool      `json:"closePosition"`
+	Side               string    `json:"buy"`
+	PositionSide       string    `json:"positionSide"`
+	StopPrice          float64   `json:"stopPrice,string"`
+	WorkingType        string    `json:"workingType"`
+	PriceProtect       bool      `json:"priceProtect"`
+	OriginalType       string    `json:"origType"`
+	UpdateTime         time.Time `json:"updateTime"`
+}
+
 // FuturesOrderData stores order data for futures
 type FuturesOrderData struct {
 	AvgPrice      float64   `json:"avgPrice,string"`
