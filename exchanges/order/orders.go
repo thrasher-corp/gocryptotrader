@@ -488,8 +488,10 @@ func (s Status) String() string {
 	return string(s)
 }
 
+var errInvalidAmounts = errors.New("executed and remaining amounts are both zero")
+
 // InferAmountsCostsAndTimes infer order costs using execution information and times when available
-func InferAmountsCostsAndTimes(d *Detail) Detail {
+func (d *Detail) InferAmountsCostsAndTimes() error {
 	if d.CostAsset.IsEmpty() {
 		d.CostAsset = d.Pair.Quote
 	}
@@ -505,7 +507,17 @@ func InferAmountsCostsAndTimes(d *Detail) Detail {
 	if d.Amount > 0 {
 		if d.ExecutedAmount == 0 {
 			if d.RemainingAmount == 0 {
-				return *d
+				if d.Status == Cancelled || d.Status == Rejected || d.Status == InsufficientBalance || d.
+					Status == MarketUnavailable {
+					d.RemainingAmount = d.Amount
+				} else {
+					return fmt.Errorf(
+						"cannot infer order detail for %s %s: %w",
+						d.Exchange,
+						d.ID,
+						errInvalidAmounts,
+					)
+				}
 			}
 			d.ExecutedAmount = d.Amount - d.RemainingAmount
 		} else if d.RemainingAmount == 0 {
@@ -514,7 +526,7 @@ func InferAmountsCostsAndTimes(d *Detail) Detail {
 	}
 
 	if d.ExecutedAmount <= 0 {
-		return *d
+		return nil
 	}
 
 	if d.AverageExecutedPrice == 0 {
@@ -527,7 +539,7 @@ func InferAmountsCostsAndTimes(d *Detail) Detail {
 	if d.Cost == 0 {
 		d.Cost = d.AverageExecutedPrice * d.ExecutedAmount
 	}
-	return *d
+	return nil
 }
 
 // FilterOrdersBySide removes any order details that don't match the

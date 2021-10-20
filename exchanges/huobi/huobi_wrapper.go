@@ -1525,24 +1525,24 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 				return nil, err
 			}
 			for x := range resp {
-
-				orderDetail := order.InferAmountsCostsAndTimes(
-					&order.Detail{
-						ID:             strconv.FormatInt(resp[x].ID, 10),
-						Price:          resp[x].Price,
-						Amount:         resp[x].Amount,
-						ExecutedAmount: resp[x].FilledAmount,
-						Cost:           resp[x].FilledCashAmount,
-						CostAsset:      req.Pairs[i].Quote,
-						Pair:           req.Pairs[i],
-						Exchange:       h.Name,
-						Date:           time.UnixMilli(resp[x].CreatedAt),
-						CloseTime:      time.UnixMilli(resp[x].FinishedAt),
-						Status:         order.Status(resp[x].State),
-						AccountID:      strconv.FormatInt(resp[x].AccountID, 10),
-						Fee:            resp[x].FilledFees,
-					},
-				)
+				orderDetail := order.Detail{
+					ID:             strconv.FormatInt(resp[x].ID, 10),
+					Price:          resp[x].Price,
+					Amount:         resp[x].Amount,
+					ExecutedAmount: resp[x].FilledAmount,
+					Cost:           resp[x].FilledCashAmount,
+					CostAsset:      req.Pairs[i].Quote,
+					Pair:           req.Pairs[i],
+					Exchange:       h.Name,
+					Date:           time.UnixMilli(resp[x].CreatedAt),
+					CloseTime:      time.UnixMilli(resp[x].FinishedAt),
+					Status:         order.Status(resp[x].State),
+					AccountID:      strconv.FormatInt(resp[x].AccountID, 10),
+					Fee:            resp[x].FilledFees,
+				}
+				if err = orderDetail.InferAmountsCostsAndTimes(); err != nil {
+					log.Errorln(log.ExchangeSys, err)
+				}
 				setOrderSideAndType(resp[x].Type, &orderDetail)
 				orders = append(orders, orderDetail)
 			}

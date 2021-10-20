@@ -1428,25 +1428,25 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				if resp[i].CummulativeQuoteQty > 0 {
 					cost = resp[i].CummulativeQuoteQty
 				}
-				orders = append(
-					orders, order.InferAmountsCostsAndTimes(
-						&order.Detail{
-							Amount:         resp[i].OrigQty,
-							ExecutedAmount: resp[i].ExecutedQty,
-							Cost:           cost,
-							CostAsset:      req.Pairs[x].Quote,
-							Date:           resp[i].Time,
-							LastUpdated:    resp[i].UpdateTime,
-							Exchange:       b.Name,
-							ID:             strconv.FormatInt(resp[i].OrderID, 10),
-							Side:           orderSide,
-							Type:           orderType,
-							Price:          resp[i].Price,
-							Pair:           req.Pairs[x],
-							Status:         order.Status(resp[i].Status),
-						},
-					),
-				)
+				detail := order.Detail{
+					Amount:         resp[i].OrigQty,
+					ExecutedAmount: resp[i].ExecutedQty,
+					Cost:           cost,
+					CostAsset:      req.Pairs[x].Quote,
+					Date:           resp[i].Time,
+					LastUpdated:    resp[i].UpdateTime,
+					Exchange:       b.Name,
+					ID:             strconv.FormatInt(resp[i].OrderID, 10),
+					Side:           orderSide,
+					Type:           orderType,
+					Price:          resp[i].Price,
+					Pair:           req.Pairs[x],
+					Status:         order.Status(resp[i].Status),
+				}
+				if err = detail.InferAmountsCostsAndTimes(); err != nil {
+					log.Errorln(log.ExchangeSys, err)
+				}
+				orders = append(orders, detail)
 			}
 		}
 	case asset.CoinMarginedFutures:

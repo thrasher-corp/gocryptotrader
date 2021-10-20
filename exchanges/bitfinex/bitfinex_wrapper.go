@@ -961,20 +961,21 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			return nil, err
 		}
 
-		orderDetail := order.InferAmountsCostsAndTimes(
-			&order.Detail{
-				Amount:               resp[i].OriginalAmount,
-				Date:                 orderDate,
-				Exchange:             b.Name,
-				ID:                   strconv.FormatInt(resp[i].ID, 10),
-				Side:                 orderSide,
-				Price:                resp[i].Price,
-				AverageExecutedPrice: resp[i].AverageExecutionPrice,
-				RemainingAmount:      resp[i].RemainingAmount,
-				ExecutedAmount:       resp[i].ExecutedAmount,
-				Pair:                 pair,
-			},
-		)
+		orderDetail := order.Detail{
+			Amount:               resp[i].OriginalAmount,
+			Date:                 orderDate,
+			Exchange:             b.Name,
+			ID:                   strconv.FormatInt(resp[i].ID, 10),
+			Side:                 orderSide,
+			Price:                resp[i].Price,
+			AverageExecutedPrice: resp[i].AverageExecutionPrice,
+			RemainingAmount:      resp[i].RemainingAmount,
+			ExecutedAmount:       resp[i].ExecutedAmount,
+			Pair:                 pair,
+		}
+		if err = orderDetail.InferAmountsCostsAndTimes(); err != nil {
+			log.Errorln(log.ExchangeSys, err)
+		}
 
 		switch {
 		case resp[i].IsLive:

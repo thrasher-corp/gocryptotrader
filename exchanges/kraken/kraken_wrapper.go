@@ -1223,24 +1223,24 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 
 			side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
 			orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
-			orders = append(
-				orders, order.InferAmountsCostsAndTimes(
-					&order.Detail{
-						ID:             i,
-						Amount:         resp.Closed[i].Volume,
-						ExecutedAmount: resp.Closed[i].VolumeExecuted,
-						Cost:           resp.Closed[i].Cost,
-						CostAsset:      p.Quote,
-						Exchange:       k.Name,
-						Date:           convert.TimeFromUnixTimestampDecimal(resp.Closed[i].OpenTime),
-						CloseTime:      convert.TimeFromUnixTimestampDecimal(resp.Closed[i].CloseTime),
-						Price:          resp.Closed[i].Description.Price,
-						Side:           side,
-						Type:           orderType,
-						Pair:           p,
-					},
-				),
-			)
+			detail := order.Detail{
+				ID:             i,
+				Amount:         resp.Closed[i].Volume,
+				ExecutedAmount: resp.Closed[i].VolumeExecuted,
+				Cost:           resp.Closed[i].Cost,
+				CostAsset:      p.Quote,
+				Exchange:       k.Name,
+				Date:           convert.TimeFromUnixTimestampDecimal(resp.Closed[i].OpenTime),
+				CloseTime:      convert.TimeFromUnixTimestampDecimal(resp.Closed[i].CloseTime),
+				Price:          resp.Closed[i].Description.Price,
+				Side:           side,
+				Type:           orderType,
+				Pair:           p,
+			}
+			if err = detail.InferAmountsCostsAndTimes(); err != nil {
+				log.Errorln(log.ExchangeSys, err)
+			}
+			orders = append(orders, detail)
 		}
 	case asset.Futures:
 		var orderHistory FuturesRecentOrdersData

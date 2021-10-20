@@ -818,21 +818,21 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		}
 		side := order.Side(strings.ToUpper(trades[i].Type))
 		orderDate := time.Unix(trades[i].TimeUnix, 0)
-		orders = append(
-			orders, order.InferAmountsCostsAndTimes(
-				&order.Detail{
-					ID:                   strconv.FormatInt(trades[i].OrderID, 10),
-					Amount:               trades[i].Amount,
-					ExecutedAmount:       trades[i].Amount,
-					Price:                trades[i].Rate,
-					AverageExecutedPrice: trades[i].Rate,
-					Date:                 orderDate,
-					Side:                 side,
-					Exchange:             g.Name,
-					Pair:                 pair,
-				},
-			),
-		)
+		detail := order.Detail{
+			ID:                   strconv.FormatInt(trades[i].OrderID, 10),
+			Amount:               trades[i].Amount,
+			ExecutedAmount:       trades[i].Amount,
+			Price:                trades[i].Rate,
+			AverageExecutedPrice: trades[i].Rate,
+			Date:                 orderDate,
+			Side:                 side,
+			Exchange:             g.Name,
+			Pair:                 pair,
+		}
+		if err = detail.InferAmountsCostsAndTimes(); err != nil {
+			log.Errorln(log.ExchangeSys, err)
+		}
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

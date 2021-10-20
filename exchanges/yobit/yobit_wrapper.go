@@ -642,21 +642,21 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
 		side := order.Side(strings.ToUpper(allOrders[i].Type))
-		orders = append(
-			orders, order.InferAmountsCostsAndTimes(
-				&order.Detail{
-					ID:                   strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
-					Amount:               allOrders[i].Amount,
-					ExecutedAmount:       allOrders[i].Amount,
-					Price:                allOrders[i].Rate,
-					AverageExecutedPrice: allOrders[i].Rate,
-					Side:                 side,
-					Date:                 orderDate,
-					Pair:                 pair,
-					Exchange:             y.Name,
-				},
-			),
-		)
+		detail := order.Detail{
+			ID:                   strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
+			Amount:               allOrders[i].Amount,
+			ExecutedAmount:       allOrders[i].Amount,
+			Price:                allOrders[i].Rate,
+			AverageExecutedPrice: allOrders[i].Rate,
+			Side:                 side,
+			Date:                 orderDate,
+			Pair:                 pair,
+			Exchange:             y.Name,
+		}
+		if err = detail.InferAmountsCostsAndTimes(); err != nil {
+			log.Errorln(log.ExchangeSys, err)
+		}
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)

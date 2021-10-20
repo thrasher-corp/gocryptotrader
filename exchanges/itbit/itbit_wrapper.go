@@ -624,21 +624,21 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 				allOrders[j].CreatedTime)
 		}
 
-		orders = append(
-			orders, order.InferAmountsCostsAndTimes(
-				&order.Detail{
-					ID:                   allOrders[j].ID,
-					Side:                 side,
-					Amount:               allOrders[j].Amount,
-					ExecutedAmount:       allOrders[j].AmountFilled,
-					Price:                allOrders[j].Price,
-					AverageExecutedPrice: allOrders[j].VolumeWeightedAveragePrice,
-					Exchange:             i.Name,
-					Date:                 orderDate,
-					Pair:                 symbol,
-				},
-			),
-		)
+		detail := order.Detail{
+			ID:                   allOrders[j].ID,
+			Side:                 side,
+			Amount:               allOrders[j].Amount,
+			ExecutedAmount:       allOrders[j].AmountFilled,
+			Price:                allOrders[j].Price,
+			AverageExecutedPrice: allOrders[j].VolumeWeightedAveragePrice,
+			Exchange:             i.Name,
+			Date:                 orderDate,
+			Pair:                 symbol,
+		}
+		if err = detail.InferAmountsCostsAndTimes(); err != nil {
+			log.Errorln(log.ExchangeSys, err)
+		}
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

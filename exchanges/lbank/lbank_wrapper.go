@@ -802,7 +802,10 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 				if err != nil {
 					resp.Fee = lbankFeeNotFound
 				}
-				finalResp = append(finalResp, order.InferAmountsCostsAndTimes(&resp))
+				if err = resp.InferAmountsCostsAndTimes(); err != nil {
+					log.Errorln(log.ExchangeSys, err)
+				}
+				finalResp = append(finalResp, resp)
 				b++
 			}
 		}

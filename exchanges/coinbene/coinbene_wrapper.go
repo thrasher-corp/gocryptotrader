@@ -845,7 +845,10 @@ func (c *Coinbene) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			tempResp.Cost = tempData[y].Quantity
 			tempResp.CostAsset = tempResp.Pair.Quote
 			tempResp.Fee = tempData[y].TotalFee
-			resp = append(resp, order.InferAmountsCostsAndTimes(&tempResp))
+			if err = tempResp.InferAmountsCostsAndTimes(); err != nil {
+				log.Errorln(log.ExchangeSys, err)
+			}
+			resp = append(resp, tempResp)
 		}
 	}
 	return resp, nil

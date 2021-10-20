@@ -548,23 +548,23 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			return resp, err
 		}
 		for i := range spotOrders {
-			resp = append(
-				resp, order.InferAmountsCostsAndTimes(
-					&order.Detail{
-						ID:                   spotOrders[i].OrderID,
-						Price:                spotOrders[i].Price,
-						AverageExecutedPrice: spotOrders[i].PriceAvg,
-						Amount:               spotOrders[i].Size,
-						ExecutedAmount:       spotOrders[i].FilledSize,
-						Pair:                 req.Pairs[x],
-						Exchange:             o.Name,
-						Side:                 order.Side(spotOrders[i].Side),
-						Type:                 order.Type(spotOrders[i].Type),
-						Date:                 spotOrders[i].Timestamp,
-						Status:               order.Status(spotOrders[i].Status),
-					},
-				),
-			)
+			detail := order.Detail{
+				ID:                   spotOrders[i].OrderID,
+				Price:                spotOrders[i].Price,
+				AverageExecutedPrice: spotOrders[i].PriceAvg,
+				Amount:               spotOrders[i].Size,
+				ExecutedAmount:       spotOrders[i].FilledSize,
+				Pair:                 req.Pairs[x],
+				Exchange:             o.Name,
+				Side:                 order.Side(spotOrders[i].Side),
+				Type:                 order.Type(spotOrders[i].Type),
+				Date:                 spotOrders[i].Timestamp,
+				Status:               order.Status(spotOrders[i].Status),
+			}
+			if err = detail.InferAmountsCostsAndTimes(); err != nil {
+				log.Errorln(log.ExchangeSys, err)
+			}
+			resp = append(resp, detail)
 		}
 	}
 	return resp, err

@@ -831,26 +831,26 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		}
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
-		orders = append(
-			orders, order.InferAmountsCostsAndTimes(
-				&order.Detail{
-					ID:             respOrders[i].ID,
-					Amount:         respOrders[i].Size,
-					ExecutedAmount: respOrders[i].FilledSize,
-					Cost:           respOrders[i].ExecutedValue,
-					CostAsset:      curr.Quote,
-					Type:           orderType,
-					Date:           respOrders[i].CreatedAt,
-					CloseTime:      respOrders[i].DoneAt,
-					Fee:            respOrders[i].FillFees,
-					FeeAsset:       curr.Quote,
-					Side:           orderSide,
-					Pair:           curr,
-					Price:          respOrders[i].Price,
-					Exchange:       c.Name,
-				},
-			),
-		)
+		detail := order.Detail{
+			ID:             respOrders[i].ID,
+			Amount:         respOrders[i].Size,
+			ExecutedAmount: respOrders[i].FilledSize,
+			Cost:           respOrders[i].ExecutedValue,
+			CostAsset:      curr.Quote,
+			Type:           orderType,
+			Date:           respOrders[i].CreatedAt,
+			CloseTime:      respOrders[i].DoneAt,
+			Fee:            respOrders[i].FillFees,
+			FeeAsset:       curr.Quote,
+			Side:           orderSide,
+			Pair:           curr,
+			Price:          respOrders[i].Price,
+			Exchange:       c.Name,
+		}
+		if err = detail.InferAmountsCostsAndTimes(); err != nil {
+			log.Errorln(log.ExchangeSys, err)
+		}
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)

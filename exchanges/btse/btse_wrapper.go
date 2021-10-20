@@ -893,20 +893,21 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 				continue
 			}
 			orderTime := time.UnixMilli(currentOrder[y].Timestamp)
-			tempOrder := order.InferAmountsCostsAndTimes(
-				&order.Detail{
-					ID:                   currentOrder[y].OrderID,
-					ClientID:             currentOrder[y].ClOrderID,
-					Exchange:             b.Name,
-					Price:                currentOrder[y].Price,
-					AverageExecutedPrice: currentOrder[y].AverageFillPrice,
-					Amount:               currentOrder[y].Size,
-					ExecutedAmount:       currentOrder[y].FilledSize,
-					Date:                 orderTime,
-					Side:                 order.Side(currentOrder[y].Side),
-					Pair:                 orderDeref.Pairs[x],
-				},
-			)
+			tempOrder := order.Detail{
+				ID:                   currentOrder[y].OrderID,
+				ClientID:             currentOrder[y].ClOrderID,
+				Exchange:             b.Name,
+				Price:                currentOrder[y].Price,
+				AverageExecutedPrice: currentOrder[y].AverageFillPrice,
+				Amount:               currentOrder[y].Size,
+				ExecutedAmount:       currentOrder[y].FilledSize,
+				Date:                 orderTime,
+				Side:                 order.Side(currentOrder[y].Side),
+				Pair:                 orderDeref.Pairs[x],
+			}
+			if err = tempOrder.InferAmountsCostsAndTimes(); err != nil {
+				log.Errorln(log.ExchangeSys, err)
+			}
 			switch currentOrder[x].OrderState {
 			case "STATUS_ACTIVE":
 				tempOrder.Status = order.Active
