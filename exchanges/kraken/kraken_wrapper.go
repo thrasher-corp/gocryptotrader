@@ -600,7 +600,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		for name := range bal.Accounts {
 			for code := range bal.Accounts[name].Balances {
 				balances = append(balances, account.Balance{
-					CurrencyName: currency.NewCode(code),
+					CurrencyName: currency.NewCode(code).Upper(),
 					TotalValue:   bal.Accounts[name].Balances[code],
 				})
 			}
@@ -743,6 +743,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			"",
 			s.ClientOrderID,
 			"",
+			s.ImmediateOrCancel,
 			s.Amount,
 			s.Price,
 			0,
@@ -750,6 +751,14 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		if err != nil {
 			return submitOrderResponse, err
 		}
+
+		// check the status, anything that is not placed we error out
+		if order.SendStatus.Status != "placed" {
+			return submitOrderResponse,
+				fmt.Errorf("submit order failed: %s",
+					order.SendStatus.Status)
+		}
+
 		submitOrderResponse.OrderID = order.SendStatus.OrderID
 		submitOrderResponse.IsOrderPlaced = true
 	default:

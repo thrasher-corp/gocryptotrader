@@ -48,6 +48,13 @@ func (w *Orderbook) Setup(cfg *config.Exchange, sortBuffer, sortBufferByUpdateID
 	w.dataHandler = dataHandler
 	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 	w.verbose = cfg.Verbose
+
+	// set default publish period if missing
+	orderbookPublishPeriod := config.DefaultOrderbookPublishPeriod
+	if cfg.Orderbook.PublishPeriod != nil {
+		orderbookPublishPeriod = *cfg.Orderbook.PublishPeriod
+	}
+	w.publishPeriod = orderbookPublishPeriod
 	return nil
 }
 
@@ -124,6 +131,17 @@ func (w *Orderbook) Update(u *Update) error {
 		}
 	}
 
+	// a nil ticker means that a zero publish period has been requested,
+	// this means publish now whatever was received with no throttling
+	if book.ticker == nil {
+		go func() {
+			w.dataHandler <- book.ob.Retrieve()
+			book.ob.Publish()
+		}()
+
+		return nil
+	}
+
 	select {
 	case <-book.ticker.C:
 		// Opted to wait for receiver because we are limiting here and the sync
@@ -140,6 +158,7 @@ func (w *Orderbook) Update(u *Update) error {
 			book.ob.Publish()
 		}
 	}
+
 	return nil
 }
 
@@ -249,7 +268,11 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		}
 		depth.AssignOptions(book)
 		buffer := make([]Update, w.obBufferLimit)
-		ticker := time.NewTicker(timerDefault)
+
+		var ticker *time.Ticker
+		if w.publishPeriod != 0 {
+			ticker = time.NewTicker(w.publishPeriod)
+		}
 		holder = &orderbookHolder{
 			ob:     depth,
 			buffer: &buffer,

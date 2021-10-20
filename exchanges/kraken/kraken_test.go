@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -156,16 +157,23 @@ func TestWrapperGetOrderInfo(t *testing.T) {
 
 func TestFuturesBatchOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
-	}
 	var data []PlaceBatchOrderData
 	var tempData PlaceBatchOrderData
-	tempData.PlaceOrderType = "cancel"
+	tempData.PlaceOrderType = "meow"
 	tempData.OrderID = "test123"
 	tempData.Symbol = "pi_xbtusd"
 	data = append(data, tempData)
 	_, err := k.FuturesBatchOrder(context.Background(), data)
+	if !errors.Is(err, errInvalidBatchOrderType) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidBatchOrderType)
+	}
+
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
+	}
+
+	data[0].PlaceOrderType = "cancel"
+	_, err = k.FuturesBatchOrder(context.Background(), data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -192,7 +200,7 @@ func TestFuturesSendOrder(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = k.FuturesSendOrder(context.Background(),
-		order.Limit, cp, "buy", "", "", "", 1, 1, 0.9)
+		order.Limit, cp, "buy", "", "", "", true, 1, 1, 0.9)
 	if err != nil {
 		t.Error(err)
 	}
