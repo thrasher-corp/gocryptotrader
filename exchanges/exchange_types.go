@@ -160,6 +160,7 @@ type FeaturesEnabled struct {
 	Kline           kline.ExchangeCapabilitiesEnabled
 	SaveTradeData   bool
 	TradeFeed       bool
+	FillsFeed       bool
 }
 
 // FeaturesSupported stores the exchanges supported features

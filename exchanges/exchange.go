@@ -171,6 +171,10 @@ func (b *Base) SetFeatureDefaults() {
 			b.SetTradeFeedStatus(b.Config.Features.Enabled.TradeFeed)
 		}
 
+		if b.IsFillsFeedEnabled() != b.Config.Features.Enabled.FillsFeed {
+			b.SetFillsFeedStatus(b.Config.Features.Enabled.FillsFeed)
+		}
+
 		b.Features.Enabled.AutoPairUpdates = b.Config.Features.Enabled.AutoPairUpdates
 	}
 }
@@ -1230,6 +1234,27 @@ func (b *Base) SetTradeFeedStatus(enabled bool) {
 	b.Config.Features.Enabled.TradeFeed = enabled
 	if b.Verbose {
 		log.Debugf(log.Trade, "Set %v 'TradeFeed' to %v", b.Name, enabled)
+	}
+}
+
+// IsFillsFeedEnabled checks the state of
+// FillsFeed in a concurrent-friendly manner
+func (b *Base) IsFillsFeedEnabled() bool {
+	b.settingsMutex.RLock()
+	isEnabled := b.Features.Enabled.FillsFeed
+	b.settingsMutex.RUnlock()
+	return isEnabled
+}
+
+// SetFillsFeedStatus locks and sets the status of
+// the config and the exchange's setting for FillsFeed
+func (b *Base) SetFillsFeedStatus(enabled bool) {
+	b.settingsMutex.Lock()
+	defer b.settingsMutex.Unlock()
+	b.Features.Enabled.FillsFeed = enabled
+	b.Config.Features.Enabled.FillsFeed = enabled
+	if b.Verbose {
+		log.Debugf(log.Trade, "Set %v 'FillsFeed' to %v", b.Name, enabled)
 	}
 }
 

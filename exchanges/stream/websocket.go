@@ -157,6 +157,9 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		s.TradeFeed,
 		w.DataHandler)
 
+	w.Fills.Setup(s.FillsFeed,
+		w.DataHandler)
+
 	return nil
 }
 
