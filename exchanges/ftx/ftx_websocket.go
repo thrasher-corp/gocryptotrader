@@ -298,7 +298,8 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		case wsTrades:
-			if !f.IsSaveTradeDataEnabled() {
+			if !f.IsSaveTradeDataEnabled() &&
+				!f.IsTradeFeedEnabled() {
 				return nil
 			}
 			var resultData WsTradeDataStore
@@ -327,7 +328,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 					TID:          strconv.FormatInt(resultData.TradeData[z].ID, 10),
 				})
 			}
-			return trade.AddTradesToBuffer(f.Name, trades...)
+			return f.Websocket.Trade.Update(trades...)
 		case wsOrders:
 			var resultData WsOrderDataStore
 			err = json.Unmarshal(respRaw, &resultData)
