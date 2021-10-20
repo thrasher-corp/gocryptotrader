@@ -64,24 +64,28 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 // as funding.snapshots is a map, it allows for the last event
 // in the chronological list to establish the canon at X time
 func (f *FundManager) CreateSnapshot(t time.Time) {
-	if !f.usingExchangeLevelFunding || f.disableUSDTracking {
+	if !f.usingExchangeLevelFunding {
 		return
 	}
 	for i := range f.items {
-		var usdClosePrice decimal.Decimal
-		usdCandles := f.items[i].usdTrackingCandles.GetStream()
-		for j := range usdCandles {
-			if usdCandles[j].GetTime().Equal(t) {
-				usdClosePrice = usdCandles[j].ClosePrice()
-				break
+		iss := ItemSnapshot{
+			Available: f.items[i].available,
+			Time:      t,
+		}
+		if !f.disableUSDTracking {
+			var usdClosePrice decimal.Decimal
+			usdCandles := f.items[i].usdTrackingCandles.GetStream()
+			for j := range usdCandles {
+				if usdCandles[j].GetTime().Equal(t) {
+					usdClosePrice = usdCandles[j].ClosePrice()
+					break
+				}
 			}
+			iss.USDClosePrice = usdClosePrice
+			iss.USDValue = usdClosePrice.Mul(f.items[i].available)
 		}
-		f.items[i].snapshot[t] = ItemSnapshot{
-			Available:     f.items[i].available,
-			USDClosePrice: usdClosePrice,
-			USDValue:      usdClosePrice.Mul(f.items[i].available),
-			Time:          t,
-		}
+
+		f.items[i].snapshot[t] = iss
 	}
 }
 
@@ -198,21 +202,23 @@ func (f *FundManager) GenerateReport() *Report {
 			item.USDInitialCostForOne = usdStream[0].ClosePrice()
 			item.USDFinalCostForOne = usdStream[len(usdStream)-1].ClosePrice()
 			item.USDPairCandle = f.items[i].usdTrackingCandles
+		}
 
-			// maps do not guarantee order, convert to ordered slice
-			var pricingOverTime []ItemSnapshot
-			for _, v := range f.items[i].snapshot {
-				pricingOverTime = append(pricingOverTime, v)
+		var pricingOverTime []ItemSnapshot
+		for _, v := range f.items[i].snapshot {
+			pricingOverTime = append(pricingOverTime, v)
+			if !f.disableUSDTracking {
 				usdTotalForPeriod := report.USDTotals[v.Time]
 				usdTotalForPeriod.Time = v.Time
 				usdTotalForPeriod.USDValue = usdTotalForPeriod.USDValue.Add(v.USDValue)
 				report.USDTotals[v.Time] = usdTotalForPeriod
 			}
-			sort.Slice(pricingOverTime, func(i, j int) bool {
-				return pricingOverTime[i].Time.Before(pricingOverTime[j].Time)
-			})
-			item.Snapshots = pricingOverTime
 		}
+		sort.Slice(pricingOverTime, func(i, j int) bool {
+			return pricingOverTime[i].Time.Before(pricingOverTime[j].Time)
+		})
+		item.Snapshots = pricingOverTime
+
 		if f.items[i].initialFunds.IsZero() {
 			item.ShowInfinite = true
 		} else {

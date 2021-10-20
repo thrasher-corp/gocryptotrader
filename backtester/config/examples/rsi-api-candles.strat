@@ -5,6 +5,7 @@
   "name": "rsi",
   "use-simultaneous-signal-processing": false,
   "use-exchange-level-funding": false,
+  "disable-usd-tracking": false,
   "custom-settings": {
    "rsi-high": 70,
    "rsi-low": 30,

@@ -13,7 +13,7 @@ import (
 
 func TestCalculateTotalUSDFundingStatistics(t *testing.T) {
 	t.Parallel()
-	_, err := CalculateTotalUSDFundingStatistics(nil, nil)
+	_, err := CalculateFundingStatistics(nil, nil)
 	if !errors.Is(err, funding.ErrFundsNotFound) {
 		t.Errorf("received %v expected %v", err, funding.ErrFundsNotFound)
 	}
@@ -27,7 +27,7 @@ func TestCalculateTotalUSDFundingStatistics(t *testing.T) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 
-	_, err = CalculateTotalUSDFundingStatistics(f, nil)
+	_, err = CalculateFundingStatistics(f, nil)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
 	}

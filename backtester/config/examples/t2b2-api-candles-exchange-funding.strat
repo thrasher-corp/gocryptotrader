@@ -21,6 +21,7 @@
     "transfer-fee": "0"
    }
   ],
+  "disable-usd-tracking": false,
   "custom-settings": {
    "mfi-high": 68,
    "mfi-low": 32,

@@ -225,6 +225,7 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 			Name:                         dca,
 			SimultaneousSignalProcessing: true,
 			UseExchangeLevelFunding:      true,
+			DisableUSDTracking:           true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
 					ExchangeName: testExchange,

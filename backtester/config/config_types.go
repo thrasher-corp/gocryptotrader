@@ -117,7 +117,7 @@ type CurrencySettings struct {
 	Base         string `json:"base"`
 	Quote        string `json:"quote"`
 	// PriceTrackingOnly is used for price tracking data only
-	PriceTrackingOnly bool
+	PriceTrackingOnly bool `json:"-"`
 
 	InitialBaseFunds   *decimal.Decimal `json:"initial-base-funds,omitempty"`
 	InitialQuoteFunds  *decimal.Decimal `json:"initial-quote-funds,omitempty"`

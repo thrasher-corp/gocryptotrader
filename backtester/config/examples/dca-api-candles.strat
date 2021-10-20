@@ -4,14 +4,15 @@
  "strategy-settings": {
   "name": "dollarcostaverage",
   "use-simultaneous-signal-processing": false,
-  "use-exchange-level-funding": false
+  "use-exchange-level-funding": false,
+  "disable-usd-tracking": false
  },
  "currency-settings": [
   {
    "exchange-name": "binance",
    "asset": "spot",
-   "base": "LTC",
-   "quote": "BTC",
+   "base": "BTC",
+   "quote": "USDT",
    "initial-quote-funds": "100000",
    "leverage": {
     "can-use-leverage": false,

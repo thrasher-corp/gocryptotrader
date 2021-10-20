@@ -4,7 +4,8 @@
  "strategy-settings": {
   "name": "dollarcostaverage",
   "use-simultaneous-signal-processing": false,
-  "use-exchange-level-funding": false
+  "use-exchange-level-funding": false,
+  "disable-usd-tracking": false
  },
  "currency-settings": [
   {

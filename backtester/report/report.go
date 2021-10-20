@@ -85,7 +85,7 @@ func (d *Data) GenerateReport() error {
 }
 
 func (d *Data) CreateUSDTotalsChart() []TotalsChart {
-	if d.Statistics.FundingStatistics == nil {
+	if d.Statistics.FundingStatistics == nil || d.Statistics.FundingStatistics.Report.DisableUSDTracking {
 		return nil
 	}
 	var response []TotalsChart

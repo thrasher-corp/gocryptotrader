@@ -226,9 +226,11 @@
 							<th>Asset</th>
 							<th>Currency</th>
 							<th>Initial Funds</th>
-							<th>Initial Fund in USD</th>
 							<th>Final Funds</th>
+							{{ if eq $.Statistics.FundingStatistics.Report.DisableUSDTracking false}}
+							<th>Initial Fund in USD</th>
 							<th>Final Funds in USD</th>
+							{{end}}
 							<th>Difference</th>
 						</tr>
 						</thead>
@@ -239,9 +241,11 @@
 								<td>{{.Asset}}</td>
 								<td>{{.Currency}}</td>
 								<td>{{.InitialFunds}} {{.Currency}}</td>
-								<td>${{.USDInitialFunds}}</td>
 								<td>{{.FinalFunds}} {{.Currency}}</td>
-								<td>${{.USDFinalFunds}}</td>
+								{{ if eq $.Statistics.FundingStatistics.Report.DisableUSDTracking false}}
+									<td>${{.USDInitialFunds}}</td>
+									<td>${{.USDFinalFunds}}</td>
+								{{ end }}
 								{{if .ShowInfinite}}
 									<td>∞%</td>
 								{{ else }}
@@ -764,6 +768,7 @@
 				// Apply the theme
 				Highcharts.setOptions(Highcharts.theme);
 			</script>
+			{{ if eq .Statistics.FundingStatistics.Report.DisableUSDTracking false }}
 			<div class="card-body card-body-cascade ">
 				<h3>USD Totals</h3>
 				<div id="usdtotals" style="max-height: 800px;min-height: 75vh;" >
@@ -823,6 +828,7 @@
 					</script>
 
 				</div>
+				{{end }}
 				<h3>Holdings Over Time</h3>
 				<div id="holdingsovertime" style="max-height: 800px;min-height: 75vh;" >
 					<script>
