@@ -190,14 +190,11 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 			}
 		}
 	}
-	if funds.IsUsingExchangeLevelFunding() {
-		report := funds.GenerateReport()
-		s.FundingStatistics, err = CalculateFundingStatistics(report, s.ExchangeAssetPairStatistics, s.RiskFreeRate)
-		if err != nil {
-			return err
-		}
-		s.FundingStatistics.PrintResults(s.WasAnyDataMissing)
+	s.FundingStatistics, err = CalculateFundingStatistics(funds, s.ExchangeAssetPairStatistics, s.RiskFreeRate)
+	if err != nil {
+		return err
 	}
+	s.FundingStatistics.PrintResults(s.WasAnyDataMissing)
 
 	s.TotalOrders = s.TotalBuyOrders + s.TotalSellOrders
 	if currCount > 1 {

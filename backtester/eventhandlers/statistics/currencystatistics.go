@@ -233,28 +233,29 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	log.Infof(log.BackTester, "%s Calculated Drawdown: %v%%", sep, c.MaxDrawdown.DrawdownPercent.Round(2))
 	log.Infof(log.BackTester, "%s Difference: %v", sep, c.MaxDrawdown.Highest.Value.Sub(c.MaxDrawdown.Lowest.Value).Round(2))
 	log.Infof(log.BackTester, "%s Drawdown length: %d\n\n", sep, c.MaxDrawdown.IntervalDuration)
+	if !usingExchangeLevelFunding {
+		log.Info(log.BackTester, "------------------Ratios------------------------------------------------")
+		log.Infof(log.BackTester, "%s Compound Annual Growth Rate: %v\n\n", sep, c.CompoundAnnualGrowthRate.Round(2))
+		log.Info(log.BackTester, "------------------Arithmetic--------------------------------------------")
+		if c.ShowMissingDataWarning {
+			log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
+			log.Infoln(log.BackTester, "Ratio calculations will be skewed")
+		}
+		log.Infof(log.BackTester, "%s Sharpe ratio: %v", sep, c.ArithmeticRatios.SharpeRatio.Round(4))
+		log.Infof(log.BackTester, "%s Sortino ratio: %v", sep, c.ArithmeticRatios.SortinoRatio.Round(4))
+		log.Infof(log.BackTester, "%s Information ratio: %v", sep, c.ArithmeticRatios.InformationRatio.Round(4))
+		log.Infof(log.BackTester, "%s Calmar ratio: %v\n\n", sep, c.ArithmeticRatios.CalmarRatio.Round(4))
 
-	log.Info(log.BackTester, "------------------Ratios------------------------------------------------")
-	log.Infof(log.BackTester, "%s Compound Annual Growth Rate: %v\n\n", sep, c.CompoundAnnualGrowthRate.Round(2))
-	log.Info(log.BackTester, "------------------Arithmetic--------------------------------------------")
-	if c.ShowMissingDataWarning {
-		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
-		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
+		log.Info(log.BackTester, "------------------Geometric--------------------------------------------")
+		if c.ShowMissingDataWarning {
+			log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
+			log.Infoln(log.BackTester, "Ratio calculations will be skewed")
+		}
+		log.Infof(log.BackTester, "%s Sharpe ratio: %v", sep, c.GeometricRatios.SharpeRatio.Round(4))
+		log.Infof(log.BackTester, "%s Sortino ratio: %v", sep, c.GeometricRatios.SortinoRatio.Round(4))
+		log.Infof(log.BackTester, "%s Information ratio: %v", sep, c.GeometricRatios.InformationRatio.Round(4))
+		log.Infof(log.BackTester, "%s Calmar ratio: %v\n\n", sep, c.GeometricRatios.CalmarRatio.Round(4))
 	}
-	log.Infof(log.BackTester, "%s Sharpe ratio: %v", sep, c.ArithmeticRatios.SharpeRatio.Round(4))
-	log.Infof(log.BackTester, "%s Sortino ratio: %v", sep, c.ArithmeticRatios.SortinoRatio.Round(4))
-	log.Infof(log.BackTester, "%s Information ratio: %v", sep, c.ArithmeticRatios.InformationRatio.Round(4))
-	log.Infof(log.BackTester, "%s Calmar ratio: %v\n\n", sep, c.ArithmeticRatios.CalmarRatio.Round(4))
-
-	log.Info(log.BackTester, "------------------Geometric--------------------------------------------")
-	if c.ShowMissingDataWarning {
-		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
-		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
-	}
-	log.Infof(log.BackTester, "%s Sharpe ratio: %v", sep, c.GeometricRatios.SharpeRatio.Round(4))
-	log.Infof(log.BackTester, "%s Sortino ratio: %v", sep, c.GeometricRatios.SortinoRatio.Round(4))
-	log.Infof(log.BackTester, "%s Information ratio: %v", sep, c.GeometricRatios.InformationRatio.Round(4))
-	log.Infof(log.BackTester, "%s Calmar ratio: %v\n\n", sep, c.GeometricRatios.CalmarRatio.Round(4))
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
 	log.Infof(log.BackTester, "%s Starting Close Price: %v", sep, c.StartingClosePrice.Round(8))
@@ -263,8 +264,10 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	log.Infof(log.BackTester, "%s Highest Close Price: %v", sep, c.HighestClosePrice.Round(8))
 
 	log.Infof(log.BackTester, "%s Market movement: %v%%", sep, c.MarketMovement.Round(2))
-	log.Infof(log.BackTester, "%s Strategy movement: %v%%", sep, c.StrategyMovement.Round(2))
-	log.Infof(log.BackTester, "%s Did it beat the market: %v", sep, c.StrategyMovement.GreaterThan(c.MarketMovement))
+	if !usingExchangeLevelFunding {
+		log.Infof(log.BackTester, "%s Strategy movement: %v%%", sep, c.StrategyMovement.Round(2))
+		log.Infof(log.BackTester, "%s Did it beat the market: %v", sep, c.StrategyMovement.GreaterThan(c.MarketMovement))
+	}
 
 	log.Infof(log.BackTester, "%s Value lost to volume sizing: %v", sep, c.TotalValueLostToVolumeSizing.Round(2))
 	log.Infof(log.BackTester, "%s Value lost to slippage: %v", sep, c.TotalValueLostToSlippage.Round(2))

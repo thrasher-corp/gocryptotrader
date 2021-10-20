@@ -11,9 +11,10 @@ type relatedStat struct {
 }
 
 type FundingStatistics struct {
-	Report             *funding.Report
-	Items              []FundingItemStatistics
-	TotalUSDStatistics *TotalFundingStatistics
+	UsingExchangeLevelFundsing bool
+	Report                     *funding.Report
+	Items                      []FundingItemStatistics
+	TotalUSDStatistics         *TotalFundingStatistics
 }
 
 type FundingItemStatistics struct {

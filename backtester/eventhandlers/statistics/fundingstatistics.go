@@ -16,10 +16,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func CalculateFundingStatistics(report *funding.Report, currStats map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic, riskFreeRate decimal.Decimal) (*FundingStatistics, error) {
+func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic, riskFreeRate decimal.Decimal) (*FundingStatistics, error) {
 	if currStats == nil {
 		return nil, common.ErrNilArguments
 	}
+	report := funds.GenerateReport()
 	var interval *gctkline.Interval
 	response := &FundingStatistics{
 		Report: report,
@@ -30,8 +31,8 @@ func CalculateFundingStatistics(report *funding.Report, currStats map[string]map
 		for k, v := range exchangeAssetStats {
 			if k.Base == report.Items[i].Currency {
 				if interval == nil {
-					dei := v.Events[0].DataEvent.GetInterval()
-					interval = &dei
+					dataEventInterval := v.Events[0].DataEvent.GetInterval()
+					interval = &dataEventInterval
 				}
 				relevantStats = append(relevantStats, relatedStat{isBaseCurrency: true, stat: v})
 				continue
@@ -46,7 +47,7 @@ func CalculateFundingStatistics(report *funding.Report, currStats map[string]map
 		}
 		response.Items = append(response.Items, *fundingStat)
 	}
-	if report.DisableUSDTracking {
+	if report.DisableUSDTracking || !funds.IsUsingExchangeLevelFunding() {
 		return response, nil
 	}
 	usdStats := &TotalFundingStatistics{
@@ -416,11 +417,11 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) {
 		}
 		log.Infof(log.BackTester, "Initial funds: %v", f.Report.Items[i].InitialFunds)
 		log.Infof(log.BackTester, "Final funds: %v", f.Report.Items[i].FinalFunds)
-		if !f.Report.DisableUSDTracking {
+		if !f.Report.DisableUSDTracking && f.UsingExchangeLevelFundsing {
 			log.Infof(log.BackTester, "Initial funds in USD: $%v", f.Report.Items[i].USDInitialFunds)
 			log.Infof(log.BackTester, "Final funds in USD: $%v", f.Report.Items[i].USDFinalFunds)
 		}
-		if f.Report.Items[i].InitialFunds.IsZero() {
+		if f.Report.Items[i].ShowInfinite {
 			log.Info(log.BackTester, "Difference: ∞%")
 		} else {
 			log.Infof(log.BackTester, "Difference: %v%%", f.Report.Items[i].Difference)
@@ -428,9 +429,13 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) {
 		if f.Report.Items[i].TransferFee.GreaterThan(decimal.Zero) {
 			log.Infof(log.BackTester, "Transfer fee: %v", f.Report.Items[i].TransferFee)
 		}
+		if f.Report.DisableUSDTracking || !f.UsingExchangeLevelFundsing {
+			log.Info(log.BackTester, "")
+			continue
+		}
 		log.Info(log.BackTester, "")
 	}
-	if f.Report.DisableUSDTracking {
+	if f.Report.DisableUSDTracking || !f.UsingExchangeLevelFundsing {
 		return
 	}
 	log.Info(log.BackTester, "------------------Funding-Totals-----------------------------")
@@ -468,5 +473,4 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) {
 	log.Infof(log.BackTester, "Sortino ratio: %v", f.TotalUSDStatistics.GeometricRatios.SortinoRatio.Round(4))
 	log.Infof(log.BackTester, "Information ratio: %v", f.TotalUSDStatistics.GeometricRatios.InformationRatio.Round(4))
 	log.Infof(log.BackTester, "Calmar ratio: %v\n\n", f.TotalUSDStatistics.GeometricRatios.CalmarRatio.Round(4))
-
 }
