@@ -1022,13 +1022,13 @@ func (c *Config) CheckExchangeConfigValues() error {
 					defaultWebsocketOrderbookBufferLimit)
 				c.Exchanges[i].Orderbook.WebsocketBufferLimit = defaultWebsocketOrderbookBufferLimit
 			}
-			if c.Exchanges[i].OrderbookConfig.PublishPeriod == nil || c.Exchanges[i].OrderbookConfig.PublishPeriod.Nanoseconds() < 0 {
+			if c.Exchanges[i].Orderbook.PublishPeriod == nil || c.Exchanges[i].Orderbook.PublishPeriod.Nanoseconds() < 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket orderbook publish period value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
 					DefaultOrderbookPublishPeriod)
 				publishPeriod := DefaultOrderbookPublishPeriod
-				c.Exchanges[i].OrderbookConfig.PublishPeriod = &publishPeriod
+				c.Exchanges[i].Orderbook.PublishPeriod = &publishPeriod
 			}
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)
 			if err != nil {

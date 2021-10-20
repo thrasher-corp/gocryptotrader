@@ -144,17 +144,13 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 
 	err = {{.Variable}}.Websocket.Setup(
 		&stream.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       {{.Name}}WSAPIURL,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       wsRunningEndpoint,
-			Connector:                        {{.Variable}}.WsConnect,
-			Subscriber:                       {{.Variable}}.Subscribe,
-			UnSubscriber:                     {{.Variable}}.Unsubscribe,
-			Features:                         &{{.Variable}}.Features.Supports.WebsocketCapabilities,
+			ExchangeConfig:  exch,
+			DefaultURL:      {{.Name}}WSAPIURL,
+			RunningURL:      wsRunningEndpoint,
+			Connector:       {{.Variable}}.WsConnect,
+			Subscriber:      {{.Variable}}.Subscribe,
+			UnSubscriber:    {{.Variable}}.Unsubscribe,
+			Features:        &{{.Variable}}.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err
@@ -168,16 +164,6 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
-
-	// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
-	{{.Variable}}.Websocket.Orderbook.Setup(
-		exch.OrderbookConfig.WebsocketBufferLimit,
-		true,
-		true,
-		false,
-		false,
-		exch.Name)
-	*/
 	return nil
 }
 

@@ -100,9 +100,6 @@ type WebsocketSetup struct {
 	SortBuffer            bool
 	SortBufferByUpdateIDs bool
 	UpdateEntriesByID     bool
-	// OrderbookPublishPeriod is a pointer for the same reason as it is in `OrderbookConfig`:
-	// to allow distinguishing between a zeroed out value and a missing one
-	OrderbookPublishPeriod *time.Duration
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS
