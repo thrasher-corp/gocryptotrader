@@ -175,7 +175,7 @@ func TestInferAmountsCostsAndTimes(t *testing.T) {
 			detail.ExecutedAmount+detail.RemainingAmount,
 		)
 	}
-	if !strings.Contains(err.Error(), errInvalidAmounts.Error()) {
+	if !strings.Contains(err.Error(), ErrInvalidAmounts.Error()) {
 		t.Error("Expected error not returned")
 	}
 

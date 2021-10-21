@@ -488,8 +488,6 @@ func (s Status) String() string {
 	return string(s)
 }
 
-var errInvalidAmounts = errors.New("executed and remaining amounts are both zero")
-
 // InferAmountsCostsAndTimes infer order costs using execution information and times when available
 func (d *Detail) InferAmountsCostsAndTimes() error {
 	if d.CostAsset.IsEmpty() {
@@ -515,7 +513,7 @@ func (d *Detail) InferAmountsCostsAndTimes() error {
 						"cannot infer order detail for %s %s: %w",
 						d.Exchange,
 						d.ID,
-						errInvalidAmounts,
+						ErrInvalidAmounts,
 					)
 				}
 			}

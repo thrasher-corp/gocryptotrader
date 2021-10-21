@@ -1301,6 +1301,10 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			for x := range resp {
 				orderSide := order.Side(strings.ToUpper(resp[x].Side))
 				orderType := order.Type(strings.ToUpper(resp[x].Type))
+				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
+				if err != nil {
+					return orders, err
+				}
 				orders = append(orders, order.Detail{
 					Amount:        resp[x].OrigQty,
 					Date:          resp[x].Time,
@@ -1310,7 +1314,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 					Side:          orderSide,
 					Type:          orderType,
 					Price:         resp[x].Price,
-					Status:        order.Status(resp[x].Status),
+					Status:        orderStatus,
 					Pair:          req.Pairs[i],
 					AssetType:     req.AssetType,
 					LastUpdated:   resp[x].UpdateTime,
@@ -1417,8 +1421,12 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			for i := range resp {
 				orderSide := order.Side(strings.ToUpper(resp[i].Side))
 				orderType := order.Type(strings.ToUpper(resp[i].Type))
+				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
+				if err != nil {
+					return orders, err
+				}
 				// New orders are covered in GetOpenOrders
-				if resp[i].Status == "NEW" {
+				if orderStatus == order.New {
 					continue
 				}
 
@@ -1441,7 +1449,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					Type:           orderType,
 					Price:          resp[i].Price,
 					Pair:           req.Pairs[x],
-					Status:         order.Status(resp[i].Status),
+					Status:         orderStatus,
 				}
 				if err = detail.InferAmountsCostsAndTimes(); err != nil {
 					log.Errorln(log.ExchangeSys, err)

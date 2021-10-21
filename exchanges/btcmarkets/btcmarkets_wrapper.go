@@ -871,7 +871,6 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 			tempResp.Date = tempData.Orders[c].CreationTime
 			tempResp.Price = tempData.Orders[c].Price
 			tempResp.Amount = tempData.Orders[c].Amount
-			tempResp.ExecutedAmount = tempData.Orders[c].Amount - tempData.Orders[c].OpenAmount
 			tempResp.RemainingAmount = tempData.Orders[c].OpenAmount
 			if err = tempResp.InferAmountsCostsAndTimes(); err != nil {
 				log.Errorln(log.ExchangeSys, err)
