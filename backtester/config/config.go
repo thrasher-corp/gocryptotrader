@@ -53,6 +53,7 @@ func (c *Config) PrintSetting() {
 	}
 	log.Infof(log.BackTester, "Simultaneous Signal Processing: %v", c.StrategySettings.SimultaneousSignalProcessing)
 	log.Infof(log.BackTester, "Use Exchange Level Funding: %v", c.StrategySettings.UseExchangeLevelFunding)
+	log.Infof(log.BackTester, "USD value tracking: %v", !c.StrategySettings.DisableUSDTracking)
 	if c.StrategySettings.UseExchangeLevelFunding && c.StrategySettings.SimultaneousSignalProcessing {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Info(log.BackTester, "------------------Funding Settings---------------------------")

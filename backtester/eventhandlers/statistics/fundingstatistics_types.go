@@ -55,4 +55,8 @@ type TotalFundingStatistics struct {
 	ArithmeticRatios         Ratios
 	DidStrategyBeatTheMarket bool
 	DidStrategyMakeProfit    bool
+	// Used in report template
+	InitialHoldingValue    ValueAtTime
+	FinalHoldingValue      ValueAtTime
+	HoldingValueDifference decimal.Decimal
 }

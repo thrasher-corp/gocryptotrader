@@ -11,9 +11,9 @@
   {
    "exchange-name": "binance",
    "asset": "spot",
-   "base": "BTC",
-   "quote": "USDT",
-   "initial-quote-funds": "100000",
+   "base": "LTC",
+   "quote": "BTC",
+   "initial-quote-funds": "20",
    "leverage": {
     "can-use-leverage": false,
     "maximum-orders-with-leverage-ratio": "0",

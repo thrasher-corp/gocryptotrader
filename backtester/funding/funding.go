@@ -22,7 +22,9 @@ var (
 	// ErrFundsNotFound used when funds are requested but the funding is not found in the manager
 	ErrFundsNotFound = errors.New("funding not found")
 	// ErrAlreadyExists used when a matching item or pair is already in the funding manager
-	ErrAlreadyExists              = errors.New("funding already exists")
+	ErrAlreadyExists = errors.New("funding already exists")
+	// ErrUSDTrackingDisabled used when attempting to track USD values when disabled
+	ErrUSDTrackingDisabled        = errors.New("usd tracking disabled")
 	errCannotAllocate             = errors.New("cannot allocate funds")
 	errZeroAmountReceived         = errors.New("amount received less than or equal to zero")
 	errNegativeAmountReceived     = errors.New("received negative decimal")
@@ -64,9 +66,6 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 // as funding.snapshots is a map, it allows for the last event
 // in the chronological list to establish the canon at X time
 func (f *FundManager) CreateSnapshot(t time.Time) {
-	if !f.usingExchangeLevelFunding {
-		return
-	}
 	for i := range f.items {
 		iss := ItemSnapshot{
 			Available: f.items[i].available,
@@ -92,11 +91,11 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 // AddUSDTrackingData adds USD tracking data to a funding item
 // only in the event that it is not USD and there is data
 func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
-	if f == nil {
-		return errors.New("woah nelly, nil manager")
+	if f == nil || f.items == nil {
+		return common.ErrNilArguments
 	}
-	if f.items == nil {
-		return errors.New("woah nelly, nil items")
+	if f.disableUSDTracking {
+		return ErrUSDTrackingDisabled
 	}
 	baseSet := false
 	quoteSet := false
@@ -182,7 +181,7 @@ func (f *FundManager) USDTrackingDisabled() bool {
 // GenerateReport builds report data for result HTML report
 func (f *FundManager) GenerateReport() *Report {
 	report := Report{
-		USDTotals: make(map[time.Time]ItemSnapshot),
+		USDTotalsOverTime: make(map[time.Time]ItemSnapshot),
 	}
 	var items []ReportItem
 	for i := range f.items {
@@ -208,10 +207,10 @@ func (f *FundManager) GenerateReport() *Report {
 		for _, v := range f.items[i].snapshot {
 			pricingOverTime = append(pricingOverTime, v)
 			if !f.disableUSDTracking {
-				usdTotalForPeriod := report.USDTotals[v.Time]
+				usdTotalForPeriod := report.USDTotalsOverTime[v.Time]
 				usdTotalForPeriod.Time = v.Time
 				usdTotalForPeriod.USDValue = usdTotalForPeriod.USDValue.Add(v.USDValue)
-				report.USDTotals[v.Time] = usdTotalForPeriod
+				report.USDTotalsOverTime[v.Time] = usdTotalForPeriod
 			}
 		}
 		sort.Slice(pricingOverTime, func(i, j int) bool {

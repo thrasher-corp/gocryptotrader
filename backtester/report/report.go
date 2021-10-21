@@ -210,7 +210,11 @@ func (d *Data) enhanceCandles() error {
 			_, offset := time.Now().Zone()
 			tt := d.OriginalCandles[intVal].Candles[j].Time.Add(time.Duration(offset) * time.Second)
 			enhancedCandle := DetailedCandle{
-				Time:         tt.Unix(),
+				Year:         int64(tt.UTC().Year()),
+				Month:        int64(tt.UTC().Month()),
+				Day:          int64(tt.UTC().Day()),
+				Hour:         int64(tt.UTC().Hour()),
+				Second:       int64(tt.UTC().Second()),
 				Open:         d.OriginalCandles[intVal].Candles[j].Open,
 				High:         d.OriginalCandles[intVal].Candles[j].High,
 				Low:          d.OriginalCandles[intVal].Candles[j].Low,

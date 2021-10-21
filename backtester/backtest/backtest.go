@@ -415,9 +415,12 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 
 		err = bt.Funding.AddUSDTrackingData(klineData)
-		if err != nil && !errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) {
+		if err != nil &&
+			!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) &&
+			!errors.Is(err, funding.ErrUSDTrackingDisabled) {
 			return resp, err
 		}
+
 		if !cfg.CurrencySettings[i].PriceTrackingOnly {
 			bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
 			var makerFee, takerFee decimal.Decimal

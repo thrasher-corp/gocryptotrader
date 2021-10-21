@@ -89,7 +89,7 @@ type Pair struct {
 type Report struct {
 	DisableUSDTracking bool
 	Items              []ReportItem
-	USDTotals          map[time.Time]ItemSnapshot
+	USDTotalsOverTime  map[time.Time]ItemSnapshot
 }
 
 // ReportItem holds reporting fields

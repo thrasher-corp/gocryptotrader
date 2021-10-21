@@ -78,7 +78,11 @@ type DetailedKline struct {
 
 // DetailedCandle contains extra details to enable rich reporting results
 type DetailedCandle struct {
-	Time           int64
+	Year           int64
+	Month          int64
+	Day            int64
+	Hour           int64
+	Second         int64
 	Open           float64
 	High           float64
 	Low            float64

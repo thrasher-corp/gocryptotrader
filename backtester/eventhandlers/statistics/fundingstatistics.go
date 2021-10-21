@@ -47,7 +47,7 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		}
 		response.Items = append(response.Items, *fundingStat)
 	}
-	if report.DisableUSDTracking || !funds.IsUsingExchangeLevelFunding() {
+	if report.DisableUSDTracking {
 		return response, nil
 	}
 	usdStats := &TotalFundingStatistics{
@@ -88,6 +88,10 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 			usdStats.HoldingValues[0].Value).Mul(
 			decimal.NewFromInt(100))
 	}
+	usdStats.InitialHoldingValue = usdStats.HoldingValues[0]
+	usdStats.FinalHoldingValue = usdStats.HoldingValues[len(usdStats.HoldingValues)-1]
+	usdStats.HoldingValueDifference = usdStats.FinalHoldingValue.Value.Sub(usdStats.InitialHoldingValue.Value).Div(usdStats.InitialHoldingValue.Value).Mul(decimal.NewFromInt(100))
+
 	riskFreeRatePerCandle := usdStats.RiskFreeRate.Div(decimal.NewFromFloat(interval.IntervalsPerYear()))
 	returnsPerCandle := make([]decimal.Decimal, len(usdStats.HoldingValues))
 	benchmarkRates := make([]decimal.Decimal, len(usdStats.HoldingValues))
