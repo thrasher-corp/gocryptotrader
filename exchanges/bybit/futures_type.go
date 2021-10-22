@@ -23,6 +23,7 @@ type OrderbookData struct {
 
 // FuturesCandleStick holds kline data
 type FuturesCandleStick struct {
+	ID       int64   `json:"id"`
 	Symbol   string  `json:"symbol"`
 	Interval string  `json:"interval"`
 	OpenTime int64   `json:"open_time"`
@@ -66,12 +67,13 @@ type SymbolPriceTicker struct {
 
 // FuturesPublicTradesData stores recent public trades for futures
 type FuturesPublicTradesData struct {
-	ID     int64     `json:"id"`
-	Symbol string    `json:"symbol"`
-	Price  float64   `json:"price"`
-	Qty    float64   `json:"qty"`
-	Time   time.Time `json:"time"`
-	Side   string    `json:"side"`
+	ID             int64     `json:"id"`
+	Symbol         string    `json:"symbol"`
+	Price          float64   `json:"price"`
+	Qty            float64   `json:"qty"`
+	Time           time.Time `json:"time"`
+	Side           string    `json:"side"`
+	TimeInMilliSec int64     `json:"trade_time_ms"`
 }
 
 // SymbolInfo stores symbol information for futures pair
