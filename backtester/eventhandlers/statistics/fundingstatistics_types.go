@@ -11,19 +11,19 @@ type relatedStat struct {
 }
 
 type FundingStatistics struct {
-	UsingExchangeLevelFundsing bool
-	Report                     *funding.Report
-	Items                      []FundingItemStatistics
-	TotalUSDStatistics         *TotalFundingStatistics
+	UsingExchangeLevelFunding bool
+	Report                    *funding.Report
+	Items                     []FundingItemStatistics
+	TotalUSDStatistics        *TotalFundingStatistics
 }
 
 type FundingItemStatistics struct {
 	ReportItem *funding.ReportItem
 	// USD stats
-	StartingClosePrice       decimal.Decimal
-	EndingClosePrice         decimal.Decimal
-	LowestClosePrice         decimal.Decimal
-	HighestClosePrice        decimal.Decimal
+	StartingClosePrice       ValueAtTime
+	EndingClosePrice         ValueAtTime
+	LowestClosePrice         ValueAtTime
+	HighestClosePrice        ValueAtTime
 	MarketMovement           decimal.Decimal
 	StrategyMovement         decimal.Decimal
 	DidStrategyBeatTheMarket bool
@@ -35,12 +35,12 @@ type FundingItemStatistics struct {
 	TotalOrders           int64
 	MaxDrawdown           Swing
 	HighestCommittedFunds ValueAtTime
-	GeometricRatios       Ratios
-	ArithmeticRatios      Ratios
 }
 
 type TotalFundingStatistics struct {
 	HoldingValues            []ValueAtTime
+	InitialHoldingValue      ValueAtTime
+	FinalHoldingValue        ValueAtTime
 	HighestHoldingValue      ValueAtTime
 	LowestHoldingValue       ValueAtTime
 	BenchmarkMarketMovement  decimal.Decimal
@@ -51,12 +51,11 @@ type TotalFundingStatistics struct {
 	SellOrders               int64
 	TotalOrders              int64
 	MaxDrawdown              Swing
-	GeometricRatios          Ratios
-	ArithmeticRatios         Ratios
+	GeometricRatios          *Ratios
+	ArithmeticRatios         *Ratios
 	DidStrategyBeatTheMarket bool
 	DidStrategyMakeProfit    bool
 	// Used in report template
-	InitialHoldingValue    ValueAtTime
-	FinalHoldingValue      ValueAtTime
+
 	HoldingValueDifference decimal.Decimal
 }

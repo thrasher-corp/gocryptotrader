@@ -63,8 +63,8 @@ type CurrencyPairStatistic struct {
 
 	MaxDrawdown           Swing               `json:"max-drawdown,omitempty"`
 	HighestCommittedFunds ValueAtTime         `json:"highest-committed-funds"`
-	GeometricRatios       Ratios              `json:"geometric-ratios"`
-	ArithmeticRatios      Ratios              `json:"arithmetic-ratios"`
+	GeometricRatios       *Ratios             `json:"geometric-ratios"`
+	ArithmeticRatios      *Ratios             `json:"arithmetic-ratios"`
 	InitialHoldings       holdings.Holding    `json:"initial-holdings-holdings"`
 	FinalHoldings         holdings.Holding    `json:"final-holdings"`
 	FinalOrders           compliance.Snapshot `json:"final-orders"`

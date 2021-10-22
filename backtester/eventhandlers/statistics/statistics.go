@@ -2,10 +2,12 @@ package statistics
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -14,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -387,4 +390,101 @@ func (s *Statistic) Serialise() (string, error) {
 	}
 
 	return string(resp), nil
+}
+
+func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFreeRatePerCandle decimal.Decimal, maxDrawdown *Swing, logMessage string) (arithmeticStats, geometricStats *Ratios, err error) {
+	var arithmeticBenchmarkAverage, geometricBenchmarkAverage decimal.Decimal
+	arithmeticBenchmarkAverage, err = gctmath.DecimalArithmeticMean(benchmarkRates)
+	if err != nil {
+		return nil, nil, err
+	}
+	geometricBenchmarkAverage, err = gctmath.DecimalFinancialGeometricMean(benchmarkRates)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	riskFreeRateForPeriod := riskFreeRatePerCandle.Mul(decimal.NewFromInt(int64(len(benchmarkRates))))
+
+	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
+		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar decimal.Decimal
+
+	arithmeticReturnsPerCandle, err = gctmath.DecimalArithmeticMean(returnsPerCandle)
+	if err != nil {
+		return nil, nil, err
+	}
+	geometricReturnsPerCandle, err = gctmath.DecimalFinancialGeometricMean(returnsPerCandle)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	arithmeticSharpe, err = gctmath.DecimalSharpeRatio(returnsPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
+	if err != nil {
+		return nil, nil, err
+	}
+	arithmeticSortino, err = gctmath.DecimalSortinoRatio(returnsPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
+	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
+		if errors.Is(err, gctmath.ErrInexactConversion) {
+			log.Warnf(log.BackTester, "%s funding arithmetic sortino ratio %v", logMessage, err)
+		} else {
+			return nil, nil, err
+		}
+	}
+	arithmeticInformation, err = gctmath.DecimalInformationRatio(returnsPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
+	if err != nil {
+		return nil, nil, err
+	}
+	arithmeticCalmar, err = gctmath.DecimalCalmarRatio(maxDrawdown.Highest.Value, maxDrawdown.Lowest.Value, arithmeticReturnsPerCandle, riskFreeRateForPeriod)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	arithmeticStats = &Ratios{}
+	if !arithmeticSharpe.IsZero() {
+		arithmeticStats.SharpeRatio = arithmeticSharpe
+	}
+	if !arithmeticSortino.IsZero() {
+		arithmeticStats.SortinoRatio = arithmeticSortino
+	}
+	if !arithmeticInformation.IsZero() {
+		arithmeticStats.InformationRatio = arithmeticInformation
+	}
+	if !arithmeticCalmar.IsZero() {
+		arithmeticStats.CalmarRatio = arithmeticCalmar
+	}
+
+	geomSharpe, err = gctmath.DecimalSharpeRatio(returnsPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
+	if err != nil {
+		return nil, nil, err
+	}
+	geomSortino, err = gctmath.DecimalSortinoRatio(returnsPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
+	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
+		if errors.Is(err, gctmath.ErrInexactConversion) {
+			log.Warnf(log.BackTester, "%s geometric sortino ratio %v", logMessage, err)
+		} else {
+			return nil, nil, err
+		}
+	}
+	geomInformation, err = gctmath.DecimalInformationRatio(returnsPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
+	if err != nil {
+		return nil, nil, err
+	}
+	geomCalmar, err = gctmath.DecimalCalmarRatio(maxDrawdown.Highest.Value, maxDrawdown.Lowest.Value, geometricReturnsPerCandle, riskFreeRateForPeriod)
+	if err != nil {
+		return nil, nil, err
+	}
+	geometricStats = &Ratios{}
+	if !arithmeticSharpe.IsZero() {
+		geometricStats.SharpeRatio = geomSharpe
+	}
+	if !arithmeticSortino.IsZero() {
+		geometricStats.SortinoRatio = geomSortino
+	}
+	if !arithmeticInformation.IsZero() {
+		geometricStats.InformationRatio = geomInformation
+	}
+	if !arithmeticCalmar.IsZero() {
+		geometricStats.CalmarRatio = geomCalmar
+	}
+
+	return arithmeticStats, geometricStats, nil
 }

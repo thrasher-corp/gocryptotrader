@@ -1,7 +1,6 @@
 package statistics
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -23,7 +22,8 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 	report := funds.GenerateReport()
 	var interval *gctkline.Interval
 	response := &FundingStatistics{
-		Report: report,
+		Report:                    report,
+		UsingExchangeLevelFunding: funds.IsUsingExchangeLevelFunding(),
 	}
 	for i := range report.Items {
 		exchangeAssetStats := currStats[report.Items[i].Exchange][report.Items[i].Asset]
@@ -70,11 +70,15 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 	for k, v := range holdingValues {
 		if usdStats.HighestHoldingValue.Value.LessThan(v) {
 			usdStats.HighestHoldingValue.Time = k
-			usdStats.HighestHoldingValue.Value = v
+			usdStats.HighestHoldingValue.Value = v.Round(2)
 		}
-		if usdStats.LowestHoldingValue.Value.GreaterThan(v) {
+		if usdStats.LowestHoldingValue.Value.IsZero() {
 			usdStats.LowestHoldingValue.Time = k
-			usdStats.LowestHoldingValue.Value = v
+			usdStats.LowestHoldingValue.Value = v.Round(2)
+		}
+		if usdStats.LowestHoldingValue.Value.GreaterThan(v) && !usdStats.LowestHoldingValue.Value.IsZero() {
+			usdStats.LowestHoldingValue.Time = k
+			usdStats.LowestHoldingValue.Value = v.Round(2)
 		}
 		usdStats.HoldingValues = append(usdStats.HoldingValues, ValueAtTime{Time: k, Value: v})
 	}
@@ -107,101 +111,12 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 	benchmarkRates = benchmarkRates[1:]
 	returnsPerCandle = returnsPerCandle[1:]
 	usdStats.BenchmarkMarketMovement = benchmarkMovement.Sub(usdStats.HoldingValues[0].Value).Div(usdStats.HoldingValues[0].Value).Mul(decimal.NewFromInt(100))
-	var err error
-	var arithmeticBenchmarkAverage, geometricBenchmarkAverage decimal.Decimal
-	arithmeticBenchmarkAverage, err = gctmath.DecimalArithmeticMean(benchmarkRates)
-	if err != nil {
-		return nil, err
-	}
-	geometricBenchmarkAverage, err = gctmath.DecimalFinancialGeometricMean(benchmarkRates)
-	if err != nil {
-		return nil, err
-	}
-
-	riskFreeRateForPeriod := riskFreeRatePerCandle.Mul(decimal.NewFromInt(int64(len(benchmarkRates))))
-
-	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
-		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar decimal.Decimal
-
-	arithmeticReturnsPerCandle, err = gctmath.DecimalArithmeticMean(returnsPerCandle)
-	if err != nil {
-		return nil, err
-	}
-	geometricReturnsPerCandle, err = gctmath.DecimalFinancialGeometricMean(returnsPerCandle)
-	if err != nil {
-		return nil, err
-	}
-
-	arithmeticSharpe, err = gctmath.DecimalSharpeRatio(returnsPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
-	if err != nil {
-		return nil, err
-	}
-	arithmeticSortino, err = gctmath.DecimalSortinoRatio(returnsPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
-	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
-		if errors.Is(err, gctmath.ErrInexactConversion) {
-			log.Warnf(log.BackTester, "USD Totals |\t funding arithmetic sortino ratio %v", err)
-		} else {
-			return nil, err
-		}
-	}
-	arithmeticInformation, err = gctmath.DecimalInformationRatio(returnsPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
-	if err != nil {
-		return nil, err
-	}
 	usdStats.MaxDrawdown = CalculateBiggestValueAtTimeDrawdown(usdStats.HoldingValues, *interval)
-	mxhp := usdStats.MaxDrawdown.Highest.Value
-	mdlp := usdStats.MaxDrawdown.Lowest.Value
-	arithmeticCalmar, err = gctmath.DecimalCalmarRatio(mxhp, mdlp, arithmeticReturnsPerCandle, riskFreeRateForPeriod)
+	var err error
+	sep := "USD Totals |\t"
+	usdStats.ArithmeticRatios, usdStats.GeometricRatios, err = CalculateRatios(benchmarkRates, returnsPerCandle, riskFreeRatePerCandle, &usdStats.MaxDrawdown, sep)
 	if err != nil {
 		return nil, err
-	}
-
-	usdStats.ArithmeticRatios = Ratios{}
-	if !arithmeticSharpe.IsZero() {
-		usdStats.ArithmeticRatios.SharpeRatio = arithmeticSharpe
-	}
-	if !arithmeticSortino.IsZero() {
-		usdStats.ArithmeticRatios.SortinoRatio = arithmeticSortino
-	}
-	if !arithmeticInformation.IsZero() {
-		usdStats.ArithmeticRatios.InformationRatio = arithmeticInformation
-	}
-	if !arithmeticCalmar.IsZero() {
-		usdStats.ArithmeticRatios.CalmarRatio = arithmeticCalmar
-	}
-
-	geomSharpe, err = gctmath.DecimalSharpeRatio(returnsPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
-	if err != nil {
-		return nil, err
-	}
-	geomSortino, err = gctmath.DecimalSortinoRatio(returnsPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
-	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
-		if errors.Is(err, gctmath.ErrInexactConversion) {
-			log.Warnf(log.BackTester, "USD Totals |\t geometric sortino ratio %v", err)
-		} else {
-			return nil, err
-		}
-	}
-	geomInformation, err = gctmath.DecimalInformationRatio(returnsPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
-	if err != nil {
-		return nil, err
-	}
-	geomCalmar, err = gctmath.DecimalCalmarRatio(mxhp, mdlp, geometricReturnsPerCandle, riskFreeRateForPeriod)
-	if err != nil {
-		return nil, err
-	}
-	usdStats.GeometricRatios = Ratios{}
-	if !arithmeticSharpe.IsZero() {
-		usdStats.GeometricRatios.SharpeRatio = geomSharpe
-	}
-	if !arithmeticSortino.IsZero() {
-		usdStats.GeometricRatios.SortinoRatio = geomSortino
-	}
-	if !arithmeticInformation.IsZero() {
-		usdStats.GeometricRatios.InformationRatio = geomInformation
-	}
-	if !arithmeticCalmar.IsZero() {
-		usdStats.GeometricRatios.CalmarRatio = geomCalmar
 	}
 
 	if !usdStats.HoldingValues[0].Value.IsZero() {
@@ -230,7 +145,6 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 		// continue or error for being unrelated
 		return nil, fmt.Errorf("somehow this has happened")
 	}
-	interval := relevantStats[0].stat.Events[0].DataEvent.GetInterval()
 	item := &FundingItemStatistics{
 		ReportItem: reportItem,
 	}
@@ -239,18 +153,25 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 	}
 
 	closePrices := reportItem.Snapshots
-	sep := fmt.Sprintf("%v %v %v |\t", item.ReportItem.Exchange, item.ReportItem.Asset, item.ReportItem.Currency)
-	item.StartingClosePrice = closePrices[0].USDClosePrice
-	item.EndingClosePrice = closePrices[len(closePrices)-1].USDClosePrice
+	item.StartingClosePrice = ValueAtTime{
+		Time:  closePrices[0].Time,
+		Value: closePrices[0].USDClosePrice,
+	}
+	item.EndingClosePrice = ValueAtTime{
+		Time:  closePrices[len(closePrices)-1].Time,
+		Value: closePrices[len(closePrices)-1].USDClosePrice,
+	}
 	for j := range closePrices {
-		if closePrices[j].USDClosePrice.LessThan(item.LowestClosePrice) || item.LowestClosePrice.IsZero() {
-			item.LowestClosePrice = closePrices[j].USDClosePrice
+		if closePrices[j].USDClosePrice.LessThan(item.LowestClosePrice.Value) || item.LowestClosePrice.Value.IsZero() {
+			item.LowestClosePrice.Value = closePrices[j].USDClosePrice
+			item.LowestClosePrice.Time = closePrices[j].Time
 		}
-		if closePrices[j].USDClosePrice.GreaterThan(item.HighestClosePrice) || item.HighestClosePrice.IsZero() {
-			item.HighestClosePrice = closePrices[j].USDClosePrice
+		if closePrices[j].USDClosePrice.GreaterThan(item.HighestClosePrice.Value) || item.HighestClosePrice.Value.IsZero() {
+			item.HighestClosePrice.Value = closePrices[j].USDClosePrice
+			item.HighestClosePrice.Time = closePrices[j].Time
 		}
 	}
-	item.MarketMovement = item.EndingClosePrice.Sub(item.StartingClosePrice).Div(item.StartingClosePrice).Mul(decimal.NewFromInt(100))
+	item.MarketMovement = item.EndingClosePrice.Value.Sub(item.StartingClosePrice.Value).Div(item.StartingClosePrice.Value).Mul(decimal.NewFromInt(100))
 	for j := range relevantStats {
 		if relevantStats[j].isBaseCurrency {
 			item.BuyOrders += relevantStats[j].stat.BuyOrders
@@ -273,8 +194,6 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 		decimal.NewFromInt(100))
 	item.DidStrategyBeatTheMarket = item.StrategyMovement.GreaterThan(item.MarketMovement)
 	item.HighestCommittedFunds = ValueAtTime{}
-	returnsPerCandle := make([]decimal.Decimal, len(item.ReportItem.Snapshots))
-	benchmarkRates := make([]decimal.Decimal, len(item.ReportItem.Snapshots))
 	for j := range item.ReportItem.Snapshots {
 		if item.ReportItem.Snapshots[j].USDValue.GreaterThan(item.HighestCommittedFunds.Value) {
 			item.HighestCommittedFunds = ValueAtTime{
@@ -282,130 +201,8 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 				Value: item.ReportItem.Snapshots[j].USDValue,
 			}
 		}
-		if j != 0 && !item.ReportItem.Snapshots[j-1].USDValue.IsZero() {
-			returnsPerCandle[j] = item.ReportItem.Snapshots[j].USDValue.Sub(item.ReportItem.Snapshots[j-1].USDValue).Div(item.ReportItem.Snapshots[j-1].USDValue)
-			benchmarkRates[j] = item.ReportItem.Snapshots[j].USDClosePrice.Sub(
-				item.ReportItem.Snapshots[j-1].USDClosePrice).Div(
-				item.ReportItem.Snapshots[j-1].USDClosePrice)
-		}
-	}
-	var err error
-	// remove the first entry as its zero and impacts
-	// ratio calculations as no movement has been made
-	benchmarkRates = benchmarkRates[1:]
-	returnsPerCandle = returnsPerCandle[1:]
-	var arithmeticBenchmarkAverage, geometricBenchmarkAverage decimal.Decimal
-	arithmeticBenchmarkAverage, err = gctmath.DecimalArithmeticMean(benchmarkRates)
-	if err != nil {
-		return nil, err
-	}
-	geometricBenchmarkAverage, err = gctmath.DecimalFinancialGeometricMean(benchmarkRates)
-	if err != nil {
-		return nil, err
-	}
-
-	intervalsPerYear := interval.IntervalsPerYear()
-	riskFreeRatePerCandle := item.RiskFreeRate.Div(decimal.NewFromFloat(intervalsPerYear))
-	riskFreeRateForPeriod := riskFreeRatePerCandle.Mul(decimal.NewFromInt(int64(len(benchmarkRates))))
-
-	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
-		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar decimal.Decimal
-
-	arithmeticReturnsPerCandle, err = gctmath.DecimalArithmeticMean(returnsPerCandle)
-	if err != nil {
-		return nil, err
-	}
-	geometricReturnsPerCandle, err = gctmath.DecimalFinancialGeometricMean(returnsPerCandle)
-	if err != nil {
-		return nil, err
-	}
-
-	arithmeticSharpe, err = gctmath.DecimalSharpeRatio(returnsPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
-	if err != nil {
-		return nil, err
-	}
-	arithmeticSortino, err = gctmath.DecimalSortinoRatio(returnsPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
-	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
-		if errors.Is(err, gctmath.ErrInexactConversion) {
-			log.Warnf(log.BackTester, "%v funding arithmetic sortino ratio %v", sep, err)
-		} else {
-			return nil, err
-		}
-	}
-	arithmeticInformation, err = gctmath.DecimalInformationRatio(returnsPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
-	if err != nil {
-		return nil, err
 	}
 	item.MaxDrawdown = CalculateBiggestEventDrawdown(item.ReportItem.USDPairCandle.GetStream())
-	mxhp := item.MaxDrawdown.Highest.Value
-	mdlp := item.MaxDrawdown.Lowest.Value
-	arithmeticCalmar, err = gctmath.DecimalCalmarRatio(mxhp, mdlp, arithmeticReturnsPerCandle, riskFreeRateForPeriod)
-	if err != nil {
-		return nil, err
-	}
-
-	item.ArithmeticRatios = Ratios{}
-	if !arithmeticSharpe.IsZero() {
-		item.ArithmeticRatios.SharpeRatio = arithmeticSharpe
-	}
-	if !arithmeticSortino.IsZero() {
-		item.ArithmeticRatios.SortinoRatio = arithmeticSortino
-	}
-	if !arithmeticInformation.IsZero() {
-		item.ArithmeticRatios.InformationRatio = arithmeticInformation
-	}
-	if !arithmeticCalmar.IsZero() {
-		item.ArithmeticRatios.CalmarRatio = arithmeticCalmar
-	}
-
-	geomSharpe, err = gctmath.DecimalSharpeRatio(returnsPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
-	if err != nil {
-		return nil, err
-	}
-	geomSortino, err = gctmath.DecimalSortinoRatio(returnsPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
-	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
-		if errors.Is(err, gctmath.ErrInexactConversion) {
-			log.Warnf(log.BackTester, "%v geometric sortino ratio %v", sep, err)
-		} else {
-			return nil, err
-		}
-	}
-	geomInformation, err = gctmath.DecimalInformationRatio(returnsPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
-	if err != nil {
-		return nil, err
-	}
-	geomCalmar, err = gctmath.DecimalCalmarRatio(mxhp, mdlp, geometricReturnsPerCandle, riskFreeRateForPeriod)
-	if err != nil {
-		return nil, err
-	}
-	item.GeometricRatios = Ratios{}
-	if !arithmeticSharpe.IsZero() {
-		item.GeometricRatios.SharpeRatio = geomSharpe
-	}
-	if !arithmeticSortino.IsZero() {
-		item.GeometricRatios.SortinoRatio = geomSortino
-	}
-	if !arithmeticInformation.IsZero() {
-		item.GeometricRatios.InformationRatio = geomInformation
-	}
-	if !arithmeticCalmar.IsZero() {
-		item.GeometricRatios.CalmarRatio = geomCalmar
-	}
-
-	if !item.ReportItem.InitialFunds.IsZero() {
-		cagr, err := gctmath.DecimalCompoundAnnualGrowthRate(
-			item.ReportItem.USDInitialFunds,
-			item.ReportItem.USDFinalFunds,
-			decimal.NewFromFloat(intervalsPerYear),
-			decimal.NewFromInt(int64(len(item.ReportItem.Snapshots))),
-		)
-		if err != nil {
-			return nil, err
-		}
-		if !cagr.IsZero() {
-			item.CompoundAnnualGrowthRate = cagr
-		}
-	}
 	return item, nil
 }
 
@@ -421,7 +218,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) {
 		}
 		log.Infof(log.BackTester, "Initial funds: %v", f.Report.Items[i].InitialFunds)
 		log.Infof(log.BackTester, "Final funds: %v", f.Report.Items[i].FinalFunds)
-		if !f.Report.DisableUSDTracking && f.UsingExchangeLevelFundsing {
+		if !f.Report.DisableUSDTracking && f.UsingExchangeLevelFunding {
 			log.Infof(log.BackTester, "Initial funds in USD: $%v", f.Report.Items[i].USDInitialFunds)
 			log.Infof(log.BackTester, "Final funds in USD: $%v", f.Report.Items[i].USDFinalFunds)
 		}
@@ -433,13 +230,13 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) {
 		if f.Report.Items[i].TransferFee.GreaterThan(decimal.Zero) {
 			log.Infof(log.BackTester, "Transfer fee: %v", f.Report.Items[i].TransferFee)
 		}
-		if f.Report.DisableUSDTracking || !f.UsingExchangeLevelFundsing {
+		if f.Report.DisableUSDTracking || !f.UsingExchangeLevelFunding {
 			log.Info(log.BackTester, "")
 			continue
 		}
 		log.Info(log.BackTester, "")
 	}
-	if f.Report.DisableUSDTracking || !f.UsingExchangeLevelFundsing {
+	if f.Report.DisableUSDTracking || !f.UsingExchangeLevelFunding {
 		return
 	}
 	log.Info(log.BackTester, "------------------Funding-Totals-----------------------------")

@@ -83,22 +83,7 @@
 						<a class="nav-link" href="#executive-summary">Executive Summary</a>
 					</li>
 					<li class="nav-item">
-						<a class="nav-link" href="#config">Config</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="#strategy-settings">Strategy Settings</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="#currency-settings">Currency Settings</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="#funding-settings">Funding Settings</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="#portfolio-settings">Portfolio Settings</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="#statistics-settings">Statistics Settings</a>
+						<a class="nav-link" href="#config">Config Settings</a>
 					</li>
 					<li class="nav-item">
 						<a class="nav-link" href="#warnings">Warnings</a>
@@ -110,13 +95,11 @@
 						<a class="nav-link" href="#strategy-statistics">Strategy Statistics</a>
 					</li>
 					<li class="nav-item">
-						<a class="nav-link" href="#currency-statistics">Currency Statistics</a>
+						<a class="nav-link" href="#currency-statistics">Pair Statistics</a>
 					</li>
-					{{ if ne .Config.StrategySettings.DisableUSDTracking true }}
 						<li class="nav-item">
 							<a class="nav-link" href="#funding-statistics">Funding Statistics</a>
 						</li>
-					{{ end }}
 					<li class="nav-item">
 						<a class="nav-link" href="#orders">Orders</a>
 					</li>
@@ -145,7 +128,6 @@
 	<div >
 		<h1>Results for {{.Statistics.StrategyName}} {{.Config.Nickname }}</h1>
 	</div>
-	<div >
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-dark">
 				<h2 id="executive-summary" class="px-4 card-header-title text-light">Executive Summary</h2>
@@ -222,7 +204,26 @@
 						</tbody>
 					</table>
 				{{ end }}
-				{{if $.Config.StrategySettings.UseExchangeLevelFunding}}
+				{{ if eq .Config.StrategySettings.DisableUSDTracking false}}
+					<h5>USD Totals</h5>
+					<table class="table table-hover table-bordered table-striped">
+						<tbody>
+						<tr>
+							<td><b>Initial Total Funds in USD</b></td>
+							<td><b>${{ .Statistics.FundingStatistics.TotalUSDStatistics.InitialHoldingValue.Value}}</b></td>
+						</tr>
+						<tr>
+							<td><b>Final Total Funds in USD</b></td>
+							<td><b>${{  .Statistics.FundingStatistics.TotalUSDStatistics.FinalHoldingValue.Value}}</b></td>
+						</tr>
+						<tr>
+							<td><b>Difference</b></td>
+							<td><b>{{ .Statistics.FundingStatistics.TotalUSDStatistics.HoldingValueDifference}}%</b></td>
+						</tr>
+						</tbody>
+					</table>
+				{{end}}
+				{{if .Config.StrategySettings.UseExchangeLevelFunding}}
 					<h5>Funding results</h5>
 					<table class="table table-hover table-bordered table-striped">
 						<thead>
@@ -232,7 +233,7 @@
 							<th>Currency</th>
 							<th>Initial Funds</th>
 							<th>Final Funds</th>
-							{{ if eq $.Statistics.FundingStatistics.Report.DisableUSDTracking false}}
+							{{ if eq .Config.StrategySettings.DisableUSDTracking false }}
 								<th>Initial Fund in USD</th>
 								<th>Final Funds in USD</th>
 							{{end}}
@@ -247,7 +248,7 @@
 								<td>{{.Currency}}</td>
 								<td>{{.InitialFunds}} {{.Currency}}</td>
 								<td>{{.FinalFunds}} {{.Currency}}</td>
-								{{ if eq $.Statistics.FundingStatistics.Report.DisableUSDTracking false}}
+								{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
 									<td>${{.USDInitialFunds}}</td>
 									<td>${{.USDFinalFunds}}</td>
 								{{ end }}
@@ -329,38 +330,15 @@
 						{{end}}
 						</tbody>
 					</table>
-					{{ if .Statistics.FundingStatistics.TotalUSDStatistics }}
-						<h5>Totals</h5>
-						<table class="table table-hover table-bordered table-striped">
-							<tbody>
-							<tr>
-								<td><b>Initial Total Funds in USD</b></td>
-								<td><b>${{ .Statistics.FundingStatistics.TotalUSDStatistics.InitialHoldingValue.Value}}</b></td>
-							</tr>
-							<tr>
-								<td><b>Final Total Funds in USD</b></td>
-								<td><b>${{  .Statistics.FundingStatistics.TotalUSDStatistics.FinalHoldingValue.Value}}</b></td>
-							</tr>
-							<tr>
-								<td><b>Difference</b></td>
-								<td><b>{{ .Statistics.FundingStatistics.TotalUSDStatistics.HoldingValueDifference}}%</b></td>
-							</tr>
-							</tbody>
-						</table>
-					{{end}}
 				{{end}}
-			</div>
 
+			</div>
 		</div>
-	</div>
-	<div >
 		<div class="card card-cascade narrower">
-			<div class="view view-cascade bg-primary">
+			<div class="view view-cascade bg-info">
 				<h2 id="config" class="px-4 card-header-title text-light">Config</h2>
 			</div>
 		</div>
-	</div>
-	<div >
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-info">
 				<h2 id="strategy-settings" class="px-4 card-header-title text-light">Strategy Settings</h2>
@@ -384,8 +362,6 @@
 				</table>
 			</div>
 		</div>
-	</div>
-	<div >
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-info">
 				<h2 id="currency-settings" class="px-4 card-header-title text-light">Currency Settings</h2>
@@ -436,9 +412,7 @@
 				</table>
 			</div>
 		</div>
-	</div>
 	{{ if .Statistics.FundingStatistics.Report }}
-		<div >
 			<div class="card card-cascade narrower">
 				<div class="view view-cascade bg-info">
 					<h2 id="funding-settings" class="px-4 card-header-title text-light">Funding Settings</h2>
@@ -470,9 +444,7 @@
 					</table>
 				</div>
 			</div>
-		</div>
 	{{ end }}
-	<div >
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-info">
 				<h2 id="portfolio-settings" class="px-4 card-header-title text-light">Portfolio Settings</h2>
@@ -508,8 +480,6 @@
 				</table>
 			</div>
 		</div>
-	</div>
-	<div >
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-info">
 				<h2 id="statistics-settings"  class="px-4 card-header-title text-light">Statistics Settings</h2>
@@ -570,8 +540,6 @@
 				</table>
 			</div>
 		</div>
-	</div>
-	<div>
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-success">
 				<h2 id="charts" class="px-4 card-header-title text-light">Charts</h2>
@@ -773,7 +741,7 @@
 				// Apply the theme
 				Highcharts.setOptions(Highcharts.theme);
 			</script>
-			{{ if eq .Statistics.FundingStatistics.Report.DisableUSDTracking false }}
+			{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
 			<div class="card-body card-body-cascade ">
 				<h3>USD Totals</h3>
 				<div id="usdtotals" style="max-height: 800px;min-height: 75vh;" >
@@ -891,11 +859,6 @@
 						});
 					</script>
 				</div>
-
-
-
-
-
 				{{ range .EnhancedCandles}}
 					<h3>{{.Exchange}} {{.Asset}} {{.Pair}} Transactions</h3>
 					<div id="{{.Exchange}}{{.Asset}}{{.Pair}}" style="max-height: 800px;min-height: 75vh;" >
@@ -1042,7 +1005,7 @@
 				{{end}}
 			</div>
 		</div>
-		<div >
+
 			<div class="card card-cascade narrower">
 				<div class="view view-cascade bg-primary">
 					<h2 id="strategy-statistics"  class="px-4 card-header-title text-light">Strategy Statistics</h2>
@@ -1092,538 +1055,481 @@
 					</table>
 				</div>
 			</div>
-			<div class="card card-cascade narrower">
-				<div class="view view-cascade bg-danger">
-					<h2 id="orders" class="px-4 card-header-title text-light">Currency Statistics</h2>
-				</div>
-			</div>
-				{{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
-					{{ range $asset, $unused := .}}
-						{{ range $pair, $val := .}}
-							<div class="card card-cascade narrower">
-								<div class="view view-cascade bg-info">
-									<h2  class="px-4 card-header-title text-light">Currency Statistics for {{$exchange}} {{ $asset}} {{ $pair}}</h2>
-								</div>
-								<div class="card-body card-body-cascade ">
+			{{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
+				{{ range $asset, $unused := .}}
+					{{ range $pair, $val := .}}
+						<div class="card card-cascade narrower">
+							<div class="view view-cascade bg-primary">
+								<h2 id="currency-statistics" class="px-4 card-header-title text-light">Pair Statistics for {{$exchange}} {{ $asset}} {{ $pair}}</h2>
+							</div>
+							<div class="card-body card-body-cascade ">
+								<table class="table table-hover table-bordered table-striped">
+									<tbody>
+									<tr>
+										<td><b>Base Initial Funds</b></td>
+										<td>{{ $val.FinalHoldings.BaseInitialFunds}} {{$val.FinalHoldings.Pair.Base}}</td>
+									</tr>
+									<tr>
+										<td><b>Quote Initial Funds</b></td>
+										<td>{{ $val.FinalHoldings.QuoteInitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+
+									<tr>
+										<td><b>Buy Orders</b></td>
+										<td>{{$val.BuyOrders}}</td>
+									</tr>
+									<tr>
+										<td><b>Buy Value</b></td>
+										<td>{{ $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Buy Amount</b></td>
+										<td>{{ $val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
+									</tr>
+									<tr>
+										<td><b>Sell Orders</b></td>
+										<td>{{$val.SellOrders}}</td>
+									</tr>
+									<tr>
+										<td><b>Sell Value</b></td>
+										<td>{{ $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Sell Amount</b></td>
+										<td>{{ $val.FinalHoldings.SoldAmount}} {{$val.FinalHoldings.Pair.Base}}</td>
+									</tr>
+									<tr>
+										<td><b>Total Orders</b></td>
+										<td>{{$val.TotalOrders}}</td>
+									</tr>
+									{{ if $val.MaxDrawdown.Highest.Value.IsZero }}
+									{{else}}
+										<tr>
+											<td><b>Biggest Drawdown</b></td>
+											<td><b>Start:</b> {{ $val.MaxDrawdown.Highest.Time }} <b>End:</b> {{ $val.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{printf "%.8v" $val.MaxDrawdown.DrawdownPercent}}%</td>
+										</tr>
+									{{ end }}
+									<tr>
+										<td><b>Starting Close Price</b></td>
+										<td>{{ $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Ending Close Price</b></td>
+										<td>{{ $val.EndingClosePrice}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									</tr>
+									<tr>
+										<td><b>Lowest Close Price</b></td>
+										<td>{{ $val.LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Highest Close Price</b></td>
+										<td>{{ $val.HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Highest Committed Funds</b></td>
+										<td>{{ $val.HighestCommittedFunds.Value}} at {{ $val.HighestCommittedFunds.Time}}</td>
+									</tr>
+									<tr>
+										<td><b>Market Movement</b></td>
+										<td>{{ $val.MarketMovement}}%</td>
+									</tr>
+									{{ if eq $.Statistics.FundingStatistics.UsingExchangeLevelFunding false }}
+										<tr>
+											<td><b>Strategy Movement</b></td>
+											<td>{{  $val.StrategyMovement}}%</td>
+										</tr>
+										<tr>
+											<td><b>Did it beat the market?</b></td>
+											<td>{{ .DoesPerformanceBeatTheMarket }}</td>
+										</tr>
+									{{ end }}
+									<tr>
+										<td><b>Total Value Lost to Volume Sizing</b></td>
+										<td>{{ $val.FinalHoldings.TotalValueLostToVolumeSizing}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Total Value Lost to Slippage</b></td>
+										<td>{{ $val.FinalHoldings.TotalValueLostToSlippage}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									</tr>
+									<tr>
+										<td><b>Total Value Lost</b></td>
+										<td>{{ $val.FinalHoldings.TotalValueLost}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Total Fees</b></td>
+										<td>{{ $val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									</tr>
+									<tr>
+										<td><b>Final Funds</b></td>
+										<td>{{ $val.FinalHoldings.QuoteSize}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Final Holdings</b></td>
+										<td>{{ $val.FinalHoldings.BaseSize}} {{$val.FinalHoldings.Pair.Base}}</td>
+									</tr>
+									{{ if eq $.Statistics.FundingStatistics.UsingExchangeLevelFunding false }}
+										<tr>
+											<td><b>Final Holdings Value</b></td>
+											<td>{{ $val.FinalHoldings.BaseValue}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+										</tr>
+										<tr>
+											<td><b>Total Value</b></td>
+											<td><b>{{ $val.FinalHoldings.TotalValue}} {{ $val.FinalHoldings.Pair.Quote}}</b></td>
+										</tr>
+									{{end }}
+									</tbody>
+								</table>
+								{{ if eq  $.Statistics.FundingStatistics.UsingExchangeLevelFunding false }}
+									Rates
 									<table class="table table-hover table-bordered table-striped">
 										<tbody>
 										<tr>
-											<td><b>Base Initial Funds</b></td>
-											<td>{{ $val.FinalHoldings.BaseInitialFunds}} {{$val.FinalHoldings.Pair.Base}}</td>
+											<td><b>Risk Free Rate</b></td>
+											<td>{{$.Statistics.RiskFreeRate}}%</td>
 										</tr>
 										<tr>
-											<td><b>Quote Initial Funds</b></td>
-											<td>{{ $val.FinalHoldings.QuoteInitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
+											<td><b>Compound Annual Growth Rate</b></td>
+											<td>{{$val.CompoundAnnualGrowthRate}}%</td>
 										</tr>
-
-										<tr>
-											<td><b>Buy Orders</b></td>
-											<td>{{$val.BuyOrders}}</td>
-										</tr>
-										<tr>
-											<td><b>Buy Value</b></td>
-											<td>{{ $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
-										</tr>
-										<tr>
-											<td><b>Buy Amount</b></td>
-											<td>{{ $val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
-										</tr>
-										<tr>
-											<td><b>Sell Orders</b></td>
-											<td>{{$val.SellOrders}}</td>
-										</tr>
-										<tr>
-											<td><b>Sell Value</b></td>
-											<td>{{ $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
-										</tr>
-										<tr>
-											<td><b>Sell Amount</b></td>
-											<td>{{ $val.FinalHoldings.SoldAmount}} {{$val.FinalHoldings.Pair.Base}}</td>
-										</tr>
-										<tr>
-											<td><b>Total Orders</b></td>
-											<td>{{$val.TotalOrders}}</td>
-										</tr>
-										{{ if $val.MaxDrawdown.Highest.Value.IsZero }}
-										{{else}}
-											<tr>
-												<td><b>Biggest Drawdown</b></td>
-												<td><b>Start:</b> {{ $val.MaxDrawdown.Highest.Time }} <b>End:</b> {{ $val.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{printf "%.8v" $val.MaxDrawdown.DrawdownPercent}}%</td>
-											</tr>
-										{{ end }}
-										<tr>
-											<td><b>Starting Close Price</b></td>
-											<td>{{ $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
-										</tr>
-										<tr>
-											<td><b>Ending Close Price</b></td>
-											<td>{{ $val.EndingClosePrice}} {{ $val.FinalHoldings.Pair.Quote }}</td>
-										</tr>
-										<tr>
-											<td><b>Lowest Close Price</b></td>
-											<td>{{ $val.LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
-										</tr>
-										<tr>
-											<td><b>Highest Close Price</b></td>
-											<td>{{ $val.HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
-										</tr>
-										<tr>
-											<td><b>Highest Committed Funds</b></td>
-											<td>{{ $val.HighestCommittedFunds.Value}} at {{ $val.HighestCommittedFunds.Time}}</td>
-										</tr>
-										<tr>
-											<td><b>Market Movement</b></td>
-											<td>{{ $val.MarketMovement}}%</td>
-										</tr>
-										{{ if eq $.Statistics.FundingStatistics.UsingExchangeLevelFundsing false }}
-											<tr>
-												<td><b>Strategy Movement</b></td>
-												<td>{{  $val.StrategyMovement}}%</td>
-											</tr>
-											<tr>
-												<td><b>Did it beat the market?</b></td>
-												<td>{{ .DoesPerformanceBeatTheMarket }}</td>
-											</tr>
-										{{ end }}
-										<tr>
-											<td><b>Total Value Lost to Volume Sizing</b></td>
-											<td>{{ $val.FinalHoldings.TotalValueLostToVolumeSizing}} {{$val.FinalHoldings.Pair.Quote}}</td>
-										</tr>
-										<tr>
-											<td><b>Total Value Lost to Slippage</b></td>
-											<td>{{ $val.FinalHoldings.TotalValueLostToSlippage}} {{ $val.FinalHoldings.Pair.Quote }}</td>
-										</tr>
-										<tr>
-											<td><b>Total Value Lost</b></td>
-											<td>{{ $val.FinalHoldings.TotalValueLost}} {{$val.FinalHoldings.Pair.Quote}}</td>
-										</tr>
-										<tr>
-											<td><b>Total Fees</b></td>
-											<td>{{ $val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
-										</tr>
-										<tr>
-											<td><b>Final Funds</b></td>
-											<td>{{ $val.FinalHoldings.QuoteSize}} {{ $val.FinalHoldings.Pair.Quote}}</td>
-										</tr>
-										<tr>
-											<td><b>Final Holdings</b></td>
-											<td>{{ $val.FinalHoldings.BaseSize}} {{$val.FinalHoldings.Pair.Base}}</td>
-										</tr>
-										{{ if eq $.Statistics.FundingStatistics.UsingExchangeLevelFundsing false }}
-
-											<tr>
-												<td><b>Final Holdings Value</b></td>
-												<td>{{ $val.FinalHoldings.BaseValue}} {{ $val.FinalHoldings.Pair.Quote }}</td>
-											</tr>
-											<tr>
-												<td><b>Total Value</b></td>
-												<td><b>{{ $val.FinalHoldings.TotalValue}} {{ $val.FinalHoldings.Pair.Quote}}</b></td>
-											</tr>
-										{{end }}
 										</tbody>
 									</table>
-									{{ if eq $.Statistics.FundingStatistics.UsingExchangeLevelFundsing false }}
-										Rates
-										<table class="table table-hover table-bordered table-striped">
-											<tbody>
-											<tr>
-												<td><b>Risk Free Rate</b></td>
-												<td>{{$.Statistics.RiskFreeRate}}%</td>
-											</tr>
-											<tr>
-												<td><b>Compound Annual Growth Rate</b></td>
-												<td>{{$val.CompoundAnnualGrowthRate}}%</td>
-											</tr>
-											</tbody>
-										</table>
-										{{if  $val.ShowMissingDataWarning}}
-											<h3 class="bg-warning">Missing data was detected during this backtesting run<br />
-												Ratio calculations will be skewed</h3>
-										{{end}}
-										Arithmetic Ratios
-										<table class="table table-hover table-bordered table-striped">
-											<tbody>
-											<tr>
-												<td><b>Sharpe Ratio</b></td>
-												<td>{{$val.ArithmeticRatios.SharpeRatio}}</td>
-											</tr>
-											<tr>
-												<td><b>Sortino Ratio</b></td>
-												<td>{{$val.ArithmeticRatios.SortinoRatio}}</td>
-											</tr>
-											<tr>
-												<td><b>Information Ratio</b></td>
-												<td>{{$val.ArithmeticRatios.InformationRatio}}</td>
-											</tr>
-											<tr>
-												<td><b>Calmar Ratio</b></td>
-												<td>{{$val.ArithmeticRatios.CalmarRatio}}</td>
-											</tr>
-											</tbody>
-										</table>
-										Geometric Ratios
-										<table class="table table-hover table-bordered table-striped">
-											<tbody>
-											<tr>
-												<td><b>Sharpe Ratio</b></td>
-												<td>{{$val.GeometricRatios.SharpeRatio}}</td>
-											</tr>
-											<tr>
-												<td><b>Sortino Ratio</b></td>
-												<td>{{$val.GeometricRatios.SortinoRatio}}</td>
-											</tr>
-											<tr>
-												<td><b>Information Ratio</b></td>
-												<td>{{$val.GeometricRatios.InformationRatio}}</td>
-											</tr>
-											<tr>
-												<td><b>Calmar Ratio</b></td>
-												<td>{{$val.GeometricRatios.CalmarRatio}}</td>
-											</tr>
-											</tbody>
-										</table>
-									{{end }}
-								</div>
+									{{if  $val.ShowMissingDataWarning}}
+										<h3 class="bg-warning">Missing data was detected during this backtesting run<br />
+											Ratio calculations will be skewed</h3>
+									{{end}}
+									Arithmetic Ratios
+									<table class="table table-hover table-bordered table-striped">
+										<tbody>
+										<tr>
+											<td><b>Sharpe Ratio</b></td>
+											<td>{{$val.ArithmeticRatios.SharpeRatio}}</td>
+										</tr>
+										<tr>
+											<td><b>Sortino Ratio</b></td>
+											<td>{{$val.ArithmeticRatios.SortinoRatio}}</td>
+										</tr>
+										<tr>
+											<td><b>Information Ratio</b></td>
+											<td>{{$val.ArithmeticRatios.InformationRatio}}</td>
+										</tr>
+										<tr>
+											<td><b>Calmar Ratio</b></td>
+											<td>{{$val.ArithmeticRatios.CalmarRatio}}</td>
+										</tr>
+										</tbody>
+									</table>
+									Geometric Ratios
+									<table class="table table-hover table-bordered table-striped">
+										<tbody>
+										<tr>
+											<td><b>Sharpe Ratio</b></td>
+											<td>{{$val.GeometricRatios.SharpeRatio}}</td>
+										</tr>
+										<tr>
+											<td><b>Sortino Ratio</b></td>
+											<td>{{$val.GeometricRatios.SortinoRatio}}</td>
+										</tr>
+										<tr>
+											<td><b>Information Ratio</b></td>
+											<td>{{$val.GeometricRatios.InformationRatio}}</td>
+										</tr>
+										<tr>
+											<td><b>Calmar Ratio</b></td>
+											<td>{{$val.GeometricRatios.CalmarRatio}}</td>
+										</tr>
+										</tbody>
+									</table>
+								{{end }}
+							</div>
+						</div>
+					{{end}}
+				{{end}}
+			{{end}}
+	{{ if $.Config.StrategySettings.DisableUSDTracking }}
+	{{ if $.Statistics.FundingStatistics.UsingExchangeLevelFunding }}
+	<div class="card card-cascade narrower">
+		<div class="view view-cascade bg-alert alert-warning">
+			<h2  id="funding-statistics"  class="px-4 card-header-title">Exchange level funding ratios require USD Tracking setting enabled</h2>
+		</div>
+	</div>
+	{{end}}
+	{{end}}
+		{{ range .Statistics.FundingStatistics.Items }}
+			<div class="card card-cascade narrower">
+				<div class="view view-cascade bg-primary">
+					<h2  id="funding-statistics"  class="px-4 card-header-title text-light"> Funding Statistics for {{.ReportItem.Exchange}} {{.ReportItem.Asset}} {{.ReportItem.Currency}}</h2>
+				</div>
+				<div class="card-body card-body-cascade ">
+					<table class="table table-hover table-bordered table-striped">
+						<tbody>
+						<tr>
+							<td><b>Initial Funds</b></td>
+							<td>{{.ReportItem.InitialFunds}}</td>
+						</tr>
+						<tr>
+							<td><b>Final Funds</b></td>
+							<td>{{.ReportItem.FinalFunds}}</td>
+						</tr>
+						<tr>
+							<td><b>Difference</b></td>
+							{{ if .ReportItem.ShowInfinite}}
+								<td>∞%</td>
+							{{else}}
+							<td>{{.ReportItem.Difference}}%</td>
+							{{end}}
+						</tr>
+						{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
+
+							<tr>
+							<td><b>Starting Close Price</b></td>
+							<td>{{.StartingClosePrice.Value}} at {{.StartingClosePrice.Time}}</td>
+						</tr>
+						<tr>
+							<td><b>Ending Close Price</b></td>
+							<td>{{.EndingClosePrice.Value}} at {{.EndingClosePrice.Time}}</td>
+						</tr>
+						<tr>
+							<td><b>Highest Close Price</b></td>
+							<td>{{.HighestClosePrice.Value}} at {{.HighestClosePrice.Time}}</td>
+						</tr>
+						<tr>
+							<td><b>Lowest Close Price</b></td>
+							<td>{{.LowestClosePrice.Value}} at {{.LowestClosePrice.Time}}</td>
+						</tr>
+						<tr>
+							<td><b>Market Movement</b></td>
+							<td>{{.MarketMovement}}</td>
+						</tr>
+						<tr>
+							<td><b>Strategy Movement</b></td>
+							<td>{{.StrategyMovement}}</td>
+						</tr>
+						<tr>
+							<td><b>Did Strategy Beat The Market?</b></td>
+							<td>{{.DidStrategyBeatTheMarket}}</td>
+						</tr>
+						<tr>
+							<td><b>Compound Annual Growth Rate</b></td>
+							<td>{{.CompoundAnnualGrowthRate}}%</td>
+						</tr>
+						{{end}}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		{{end}}
+		{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
+				<div class="card card-cascade narrower">
+					<div class="view view-cascade bg-primary">
+						<h2  class="px-4 card-header-title text-light">USD Totals Funding Statistics</h2>
+					</div>
+					<div class="card-body card-body-cascade ">
+						<table class="table table-hover table-bordered table-striped">
+							<tbody>
+							<tr>
+								<td><b>Initial Total USD Value</b></td>
+								<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.InitialHoldingValue}}</td>
+							</tr>
+							<tr>
+								<td><b>Final Total USD Value</b></td>
+								<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.FinalHoldingValue}}</td>
+							</tr>
+							<tr>
+								<td><b>Difference</b></td>
+								<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValueDifference}}%</td>
+							</tr>
+							<tr>
+								<td><b>Risk Free Rate</b></td>
+								<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.RiskFreeRate}}</td>
+							</tr>
+							<tr>
+								<td><b>Benchmark movement</b></td>
+								<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.BenchmarkMarketMovement}}</td>
+							</tr>
+							<tr>
+								<td><b>Overall strategy movement</b></td>
+								<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.StrategyMovement}}</td>
+							</tr>
+							<tr>
+								<td><b>Did strategy beat the benchmark?</b></td>
+								<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.DidStrategyBeatTheMarket}}</td>
+							</tr>
+							<tr>
+								<td><b>Did overall strategy make a profit?</b></td>
+								<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.DidStrategyMakeProfit}}</td>
+							</tr>
+							<tr>
+								<td><b>Highest Holdings</b></td>
+								<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.HighestHoldingValue.Value}} at {{.Statistics.FundingStatistics.TotalUSDStatistics.HighestHoldingValue.Time}}</td>
+							</tr>
+							<tr>
+								<td><b>Lowest Holdings</b></td>
+								<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.LowestHoldingValue.Value}} at {{.Statistics.FundingStatistics.TotalUSDStatistics.LowestHoldingValue.Time}}</td>
+							</tr>
+							<tr>
+								<td><b>Total Buy Orders</b></td>
+								<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.BuyOrders }}</td>
+							</tr>
+							<tr>
+								<td><b>Total Sell Orders</b></td>
+								<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.SellOrders }}</td>
+							</tr>
+							<tr>
+								<td><b>Total Orders</b></td>
+								<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.TotalOrders }}</td>
+							</tr>
+							<tr>
+								<td><b>Max Drawdown</b></td>
+								<td><b>Start:</b> {{ .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.Highest.Time }} <b>End:</b> {{ .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{.Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.DrawdownPercent}}%</td>
+							</tr>
+							</tbody>
+						</table>
+
+						{{if  $.Statistics.WasAnyDataMissing}}
+							<h3 class="bg-warning">Missing data was detected during this backtesting run<br />
+								Ratio calculations will be skewed</h3>
+						{{end}}
+						Arithmetic Ratios
+						<table class="table table-hover table-bordered table-striped">
+							<tbody>
+							<tr>
+								<td><b>Sharpe Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.SharpeRatio}}</td>
+							</tr>
+							<tr>
+								<td><b>Sortino Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.SortinoRatio}}</td>
+							</tr>
+							<tr>
+								<td><b>Information Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.InformationRatio}}</td>
+							</tr>
+							<tr>
+								<td><b>Calmar Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.CalmarRatio}}</td>
+							</tr>
+							</tbody>
+						</table>
+						Geometric Ratios
+						<table class="table table-hover table-bordered table-striped">
+							<tbody>
+							<tr>
+								<td><b>Sharpe Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.GeometricRatios.SharpeRatio}}</td>
+							</tr>
+							<tr>
+								<td><b>Sortino Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.GeometricRatios.SortinoRatio}}</td>
+							</tr>
+							<tr>
+								<td><b>Information Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.GeometricRatios.InformationRatio}}</td>
+							</tr>
+							<tr>
+								<td><b>Calmar Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.GeometricRatios.CalmarRatio}}</td>
+							</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+		{{ end }}
+
+		<div class="card card-cascade narrower">
+			<div class="view view-cascade bg-danger">
+				<h2 id="orders" class="px-4 card-header-title text-light">Orders</h2>
+			</div>
+			<div class="card-body card-body-cascade ">
+				{{ range $exchange, $unused :=  .Statistics.ExchangeAssetPairStatistics}}
+					{{ range $asset, $unused := .}}
+						{{ range $pair, $val := .}}
+							<div  >
+								<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
+							</div>
+							<div >
+								<table class="table table-hover table-bordered table-striped">
+									<tr>
+										<th>Date</th>
+										<th>Close Price</th>
+										<th>Side</th>
+										<th>Price</th>
+										<th>Amount</th>
+										<th>Fee</th>
+										<th>Total</th>
+										<th>Slippage Rate</th>
+									</tr>
+									<tbody >
+									{{range $val.FinalOrders.Orders}}
+										<tr>
+											<td>{{ .Detail.Date }}</td>
+											<td>{{ .ClosePrice}} {{$pair.Quote}}</td>
+											<td>{{ .Detail.Side }}</td>
+											<td>{{ .Detail.Price }} {{$pair.Quote}}</td>
+											<td>{{ .Detail.Amount }} {{$pair.Base}}</td>
+											<td>{{.Detail.Fee }} {{$pair.Quote}}</td>
+											<td>{{ .CostBasis }} {{$pair.Quote}}</td>
+											<td>{{ .SlippageRate }}%</td>
+										</tr>
+									{{end}}
+									</tbody>
+								</table>
 							</div>
 						{{end}}
 					{{end}}
 				{{end}}
 			</div>
-			{{ if ne .Config.StrategySettings.DisableUSDTracking true }}
-			<div class="card card-cascade narrower">
-				<div class="view view-cascade bg-danger">
-					<h2 id="orders" class="px-4 card-header-title text-light">Funding Statistics</h2>
-				</div>
+		</div>
+
+		<div class="card card-cascade narrower">
+			<div class="view view-cascade bg-secondary">
+				<h2 id="events"  class="px-4 card-header-title text-light">Events</h2>
 			</div>
-			{{ range .Statistics.FundingStatistics.Items }}
-					<div class="card card-cascade narrower">
-						<div class="view view-cascade bg-success">
-							<h2  class="px-4 card-header-title text-light">{{.ReportItem.Exchange}} {{.ReportItem.Asset}} {{.ReportItem.Currency}} Funding Statistics</h2>
-						</div>
-						<div class="card-body card-body-cascade ">
-							<table class="table table-hover table-bordered table-striped">
-								<tbody>
-								<tr>
-									<td><b>Initial Funds</b></td>
-									<td>{{.ReportItem.InitialFunds}}</td>
-								</tr>
-								<tr>
-									<td><b>Final Funds</b></td>
-									<td>{{.ReportItem.FinalFunds}}</td>
-								</tr>
-								<tr>
-									<td><b>Difference</b></td>
-									<td>{{.ReportItem.Difference}}%</td>
-								</tr>
-								{{ if ne $.Config.StrategySettings.DisableUSDTracking true }}
-								<tr>
-									<td><b>Starting Close Price</b></td>
-									<td>{{.StartingClosePrice}}</td>
-								</tr>
-								<tr>
-									<td><b>Ending Close Price</b></td>
-									<td>{{.EndingClosePrice}}</td>
-								</tr>
-								<tr>
-									<td><b>Highest Close Price</b></td>
-									<td>{{.HighestClosePrice}}</td>
-								</tr>
-								<tr>
-									<td><b>Lowest Close Price</b></td>
-									<td>{{.LowestClosePrice}}</td>
-								</tr>
-								<tr>
-									<td><b>Market Movement</b></td>
-									<td>{{.MarketMovement}}</td>
-								</tr>
-								<tr>
-									<td><b>Strategy Movement</b></td>
-									<td>{{.StrategyMovement}}</td>
-								</tr>
-								<tr>
-									<td><b>Did Strategy Beat The Market?</b></td>
-									<td>{{.DidStrategyBeatTheMarket}}</td>
-								</tr>
-								<tr>
-									<td><b>Compound Annual Growth Rate</b></td>
-									<td>{{.CompoundAnnualGrowthRate}}%</td>
-								</tr>
-								</tbody>
-							</table>
-
-							{{if  $.Statistics.WasAnyDataMissing}}
-								<h3 class="bg-warning">Missing data was detected during this backtesting run<br />
-									Ratio calculations will be skewed</h3>
-							{{end}}
-							Arithmetic Ratios
-							<table class="table table-hover table-bordered table-striped">
-								<tbody>
-								<tr>
-									<td><b>Sharpe Ratio</b></td>
-									<td>{{ .ArithmeticRatios.SharpeRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Sortino Ratio</b></td>
-									<td>{{.ArithmeticRatios.SortinoRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Information Ratio</b></td>
-									<td>{{.ArithmeticRatios.InformationRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Calmar Ratio</b></td>
-									<td>{{.ArithmeticRatios.CalmarRatio}}</td>
-								</tr>
-								</tbody>
-							</table>
-							Geometric Ratios
-							<table class="table table-hover table-bordered table-striped">
-								<tbody>
-								<tr>
-									<td><b>Sharpe Ratio</b></td>
-									<td>{{.GeometricRatios.SharpeRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Sortino Ratio</b></td>
-									<td>{{.GeometricRatios.SortinoRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Information Ratio</b></td>
-									<td>{{.GeometricRatios.InformationRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Calmar Ratio</b></td>
-									<td>{{.GeometricRatios.CalmarRatio}}</td>
-								</tr>
-								{{ end }}
-								</tbody>
-							</table>
-						</div>
-					</div>
-				{{end}}
-				{{ if ne .Config.StrategySettings.DisableUSDTracking true }}
-					<div class="card card-cascade narrower">
-						<div class="view view-cascade bg-success">
-							<h2  class="px-4 card-header-title text-light">USD Totals Funding Statistics</h2>
-						</div>
-						<div class="card-body card-body-cascade ">
-							<table class="table table-hover table-bordered table-striped">
-								<tbody>
-								<tr>
-									<td><b>Initial Total USD Value</b></td>
-									<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.InitialHoldingValue}}</td>
-								</tr>
-								<tr>
-									<td><b>Final Total USD Value</b></td>
-									<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.FinalHoldingValue}}</td>
-								</tr>
-								<tr>
-									<td><b>Difference</b></td>
-									<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValueDifference}}%</td>
-								</tr>
-								<tr>
-									<td><b>Risk Free Rate</b></td>
-									<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.RiskFreeRate}}</td>
-								</tr>
-								<tr>
-									<td><b>Benchmark movement</b></td>
-									<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.BenchmarkMarketMovement}}</td>
-								</tr>
-								<tr>
-									<td><b>Overall strategy movement</b></td>
-									<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.StrategyMovement}}</td>
-								</tr>
-								<tr>
-									<td><b>Did strategy beat the benchmark?</b></td>
-									<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.DidStrategyBeatTheMarket}}</td>
-								</tr>
-								<tr>
-									<td><b>Did overall strategy make a profit?</b></td>
-									<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.DidStrategyMakeProfit}}</td>
-								</tr>
-								<tr>
-									<td><b>Highest Holdings</b></td>
-									<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.HighestHoldingValue.Value}} at {{.Statistics.FundingStatistics.TotalUSDStatistics.HighestHoldingValue.Time}}</td>
-								</tr>
-								<tr>
-									<td><b>Lowest Holdings</b></td>
-									<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.LowestHoldingValue.Value}} at {{.Statistics.FundingStatistics.TotalUSDStatistics.LowestHoldingValue.Time}}</td>
-								</tr>
-								<tr>
-									<td><b>Total Buy Orders</b></td>
-									<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.BuyOrders }}</td>
-								</tr>
-								<tr>
-									<td><b>Total Sell Orders</b></td>
-									<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.SellOrders }}</td>
-								</tr>
-								<tr>
-									<td><b>Total Orders</b></td>
-									<td>${{.Statistics.FundingStatistics.TotalUSDStatistics.TotalOrders }}</td>
-								</tr>
-								<tr>
-									<td><b>Max Drawdown</b></td>
-									<td><b>Start:</b> {{ .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.Highest.Time }} <b>End:</b> {{ .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{.Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.DrawdownPercent}}%</td>
-								</tr>
-								<tr>
-									<td><b>Compound Annual Growth Rate</b></td>
-									<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.CompoundAnnualGrowthRate}}%</td>
-								</tr>
-								</tbody>
-							</table>
-
-							{{if  $.Statistics.WasAnyDataMissing}}
-								<h3 class="bg-warning">Missing data was detected during this backtesting run<br />
-									Ratio calculations will be skewed</h3>
-							{{end}}
-							Arithmetic Ratios
-							<table class="table table-hover table-bordered table-striped">
-								<tbody>
-								<tr>
-									<td><b>Sharpe Ratio</b></td>
-									<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.SharpeRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Sortino Ratio</b></td>
-									<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.SortinoRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Information Ratio</b></td>
-									<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.InformationRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Calmar Ratio</b></td>
-									<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.CalmarRatio}}</td>
-								</tr>
-								</tbody>
-							</table>
-							Geometric Ratios
-							<table class="table table-hover table-bordered table-striped">
-								<tbody>
-								<tr>
-									<td><b>Sharpe Ratio</b></td>
-									<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.GeometricRatios.SharpeRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Sortino Ratio</b></td>
-									<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.GeometricRatios.SortinoRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Information Ratio</b></td>
-									<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.GeometricRatios.InformationRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Calmar Ratio</b></td>
-									<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.GeometricRatios.CalmarRatio}}</td>
-								</tr>
-								</tbody>
-							</table>
-						</div>
-					</div>
-				{{ end }}
-				{{end}}
-			</div>
-			<div >
-				<div class="card card-cascade narrower">
-					<div class="view view-cascade bg-danger">
-						<h2 id="orders" class="px-4 card-header-title text-light">Orders</h2>
-					</div>
-					<div class="card-body card-body-cascade ">
-
-						{{ range $exchange, $unused :=  .Statistics.ExchangeAssetPairStatistics}}
-							{{ range $asset, $unused := .}}
-								{{ range $pair, $val := .}}
-									<div  >
-										<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
-									</div>
-									<div >
-										<table class="table table-hover table-bordered table-striped">
-											<tr>
-												<th>Date</th>
-												<th>Close Price</th>
-												<th>Side</th>
-												<th>Price</th>
-												<th>Amount</th>
-												<th>Fee</th>
-												<th>Total</th>
-												<th>Slippage Rate</th>
-											</tr>
-											<tbody >
-											{{range $val.FinalOrders.Orders}}
-												<tr>
-													<td>{{ .Detail.Date }}</td>
-													<td>{{ .ClosePrice}} {{$pair.Quote}}</td>
-													<td>{{ .Detail.Side }}</td>
-													<td>{{ .Detail.Price }} {{$pair.Quote}}</td>
-													<td>{{ .Detail.Amount }} {{$pair.Base}}</td>
-													<td>{{.Detail.Fee }} {{$pair.Quote}}</td>
-													<td>{{ .CostBasis }} {{$pair.Quote}}</td>
-													<td>{{ .SlippageRate }}%</td>
-												</tr>
-											{{end}}
-											</tbody>
-										</table>
-									</div>
-								{{end}}
-							{{end}}
+			<div class="card-body card-body-cascade ">
+				{{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
+					{{ range $asset, $unused :=.}}
+						{{ range $pair, $data := .}}
+							<div>
+								<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
+							</div>
+							<div >
+								<table class="table table-hover table-bordered table-striped">
+									<tr>
+										<th>Date</th>
+										<th>Price</th>
+										<th>Action</th>
+										<th>Why</th>
+										<th>{{$pair.Base}} Funds</th>
+										<th>{{$pair.Quote}} Funds</th>
+										<th>Total Value</th>
+									</tr>
+									<tbody >
+									{{range $ev := $data.Events}}
+										<tr>
+											{{ if ne $ev.FillEvent nil }}
+												<td><b>{{$ev.FillEvent.GetTime}}</b></td>
+												<td>{{$ev.FillEvent.GetClosePrice}} {{$pair.Quote}}</td>
+												<td>{{$ev.FillEvent.GetDirection}}</td>
+												<td>{{$ev.FillEvent.GetReason}}</td>
+											{{ else if ne $ev.SignalEvent nil}}
+												<td>{{$ev.SignalEvent.GetTime}}</td>
+												<td>{{ $ev.SignalEvent.GetPrice}} {{$pair.Quote}}</td>
+												<td>{{$ev.SignalEvent.GetDirection}}</td>
+												<td>{{$ev.SignalEvent.GetReason}}</td>
+											{{ end }}
+											<td>{{ $ev.Holdings.BaseSize}} {{$pair.Base}}</td>
+											<td>{{ $ev.Holdings.QuoteSize}} {{$pair.Quote}}</td>
+											<td>{{ $ev.Holdings.TotalValue}} {{$pair.Quote}}</td>
+										</tr>
+									{{end}}
+									</tbody>
+								</table>
+							</div>
 						{{end}}
-					</div>
-				</div>
-			</div>
-			<div >
-				<div class="card card-cascade narrower">
-					<div class="view view-cascade bg-warning">
-						<h2 id="events"  class="px-4 card-header-title text-light">Events</h2>
-					</div>
-					<div class="card-body card-body-cascade ">
-						{{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
-							{{ range $asset, $unused :=.}}
-								{{ range $pair, $data := .}}
-									<div >
-										<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
-									</div>
-									<div >
-										<table class="table table-hover table-bordered table-striped">
-											<tr>
-												<th>Date</th>
-												<th>Price</th>
-												<th>Action</th>
-												<th>Why</th>
-												<th>{{$pair.Base}} Funds</th>
-												<th>{{$pair.Quote}} Funds</th>
-												<th>Total Value</th>
-											</tr>
-											<tbody >
-											{{range $ev := $data.Events}}
-												<tr>
-													{{ if ne $ev.FillEvent nil }}
-														<td><b>{{$ev.FillEvent.GetTime}}</b></td>
-														<td>{{$ev.FillEvent.GetClosePrice}} {{$pair.Quote}}</td>
-														<td>{{$ev.FillEvent.GetDirection}}</td>
-														<td>{{$ev.FillEvent.GetReason}}</td>
-													{{ else if ne $ev.SignalEvent nil}}
-														<td>{{$ev.SignalEvent.GetTime}}</td>
-														<td>{{ $ev.SignalEvent.GetPrice}} {{$pair.Quote}}</td>
-														<td>{{$ev.SignalEvent.GetDirection}}</td>
-														<td>{{$ev.SignalEvent.GetReason}}</td>
-													{{ end }}
-													<td>{{ $ev.Holdings.BaseSize}} {{$pair.Base}}</td>
-													<td>{{ $ev.Holdings.QuoteSize}} {{$pair.Quote}}</td>
-													<td>{{ $ev.Holdings.TotalValue}} {{$pair.Quote}}</td>
-												</tr>
-											{{end}}
-											</tbody>
-										</table>
-									</div>
-								{{end}}
-							{{end}}
-						{{end}}
-					</div>
-				</div>
+					{{end}}
+				{{end}}
 			</div>
 		</div>
 	</div>
-</div>
 <script>
 	$(document).ready(function(){
 		var useDarkTheme = {{.UseDarkTheme}}
