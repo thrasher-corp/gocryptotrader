@@ -182,6 +182,7 @@ func TestOrderManagerStop(t *testing.T) {
 }
 
 func OrdersSetup(t *testing.T) *OrderManager {
+	t.Helper()
 	var wg sync.WaitGroup
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -377,8 +378,7 @@ func TestExists(t *testing.T) {
 		Exchange: testExchange,
 		ID:       "TestExists",
 	}
-	err := m.orderStore.add(o)
-	if err != nil {
+	if err := m.orderStore.add(o); err != nil {
 		t.Error(err)
 	}
 	b := m.orderStore.exists(o)
@@ -551,8 +551,7 @@ func TestCancelAllOrders(t *testing.T) {
 		ID:       "TestCancelAllOrders",
 		Status:   order.New,
 	}
-	err := m.orderStore.add(o)
-	if err != nil {
+	if err := m.orderStore.add(o); err != nil {
 		t.Error(err)
 	}
 
@@ -808,7 +807,7 @@ func TestProcessOrders(t *testing.T) {
 			},
 		},
 	}
-	exch.GetBase().Config = &config.ExchangeConfig{
+	exch.GetBase().Config = &config.Exchange{
 		CurrencyPairs: &currency.PairsManager{
 			UseGlobalFormat: true,
 			RequestFormat: &currency.PairFormat{

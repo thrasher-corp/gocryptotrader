@@ -376,8 +376,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 func TestSerialise(t *testing.T) {
 	t.Parallel()
 	s := Statistic{}
-	_, err := s.Serialise()
-	if err != nil {
+	if _, err := s.Serialise(); err != nil {
 		t.Error(err)
 	}
 }

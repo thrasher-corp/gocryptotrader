@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -28,9 +29,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (i *ItBit) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (i *ItBit) GetDefaultConfig() (*config.Exchange, error) {
 	i.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = i.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = i.BaseCurrencies
@@ -105,7 +106,7 @@ func (i *ItBit) SetDefaults() {
 }
 
 // Setup sets the exchange parameters from exchange config
-func (i *ItBit) Setup(exch *config.ExchangeConfig) error {
+func (i *ItBit) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		i.SetEnabled(false)
 		return nil
@@ -480,8 +481,8 @@ func (i *ItBit) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 // NOTE: This has not been implemented due to the fact you need to generate a
 // a specific wallet ID and they restrict the amount of deposit address you can
 // request limiting them to 2.
-func (i *ItBit) GetDepositAddress(_ context.Context, _ currency.Code, _ string) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (i *ItBit) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

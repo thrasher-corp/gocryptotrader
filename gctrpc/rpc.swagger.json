@@ -1127,6 +1127,38 @@
         ]
       }
     },
+    "/v1/getavailabletransferchains": {
+      "post": {
+        "operationId": "GoCryptoTrader_GetAvailableTransferChains",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAvailableTransferChainsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAvailableTransferChainsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getcommunicationrelayers": {
       "get": {
         "operationId": "GoCryptoTrader_GetCommunicationRelayers",
@@ -3656,6 +3688,31 @@
         }
       }
     },
+    "gctrpcDepositAddress": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "chain": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcDepositAddresses": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcDepositAddress"
+          }
+        }
+      }
+    },
     "gctrpcFiatWithdrawalEvent": {
       "type": "object",
       "properties": {
@@ -3891,6 +3948,28 @@
         }
       }
     },
+    "gctrpcGetAvailableTransferChainsRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "cryptocurrency": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetAvailableTransferChainsResponse": {
+      "type": "object",
+      "properties": {
+        "chains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "gctrpcGetCommunicationRelayersResponse": {
       "type": "object",
       "properties": {
@@ -3919,6 +3998,12 @@
         },
         "cryptocurrency": {
           "type": "string"
+        },
+        "chain": {
+          "type": "string"
+        },
+        "bypass": {
+          "type": "boolean"
         }
       }
     },
@@ -3926,6 +4011,9 @@
       "type": "object",
       "properties": {
         "address": {
+          "type": "string"
+        },
+        "tag": {
           "type": "string"
         }
       }
@@ -3944,7 +4032,7 @@
         "addresses": {
           "type": "object",
           "additionalProperties": {
-            "type": "string"
+            "$ref": "#/definitions/gctrpcDepositAddresses"
           }
         }
       }
@@ -5074,6 +5162,9 @@
           "format": "double"
         },
         "description": {
+          "type": "string"
+        },
+        "chain": {
           "type": "string"
         }
       }

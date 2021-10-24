@@ -23,8 +23,7 @@ import (
 func TestName(t *testing.T) {
 	t.Parallel()
 	d := Strategy{}
-	n := d.Name()
-	if n != Name {
+	if n := d.Name(); n != Name {
 		t.Errorf("expected %v", Name)
 	}
 }
@@ -94,8 +93,7 @@ func TestSetCustomSettings(t *testing.T) {
 func TestOnSignal(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	_, err := s.OnSignal(nil, nil)
-	if !errors.Is(err, errStrategyOnlySupportsSimultaneousProcessing) {
+	if _, err := s.OnSignal(nil, nil); !errors.Is(err, errStrategyOnlySupportsSimultaneousProcessing) {
 		t.Errorf("received: %v, expected: %v", err, errStrategyOnlySupportsSimultaneousProcessing)
 	}
 }

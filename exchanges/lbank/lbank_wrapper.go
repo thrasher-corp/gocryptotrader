@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -27,9 +28,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (l *Lbank) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (l *Lbank) GetDefaultConfig() (*config.Exchange, error) {
 	l.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = l.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = l.BaseCurrencies
@@ -119,7 +120,7 @@ func (l *Lbank) SetDefaults() {
 }
 
 // Setup sets exchange configuration profile
-func (l *Lbank) Setup(exch *config.ExchangeConfig) error {
+func (l *Lbank) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		l.SetEnabled(false)
 		return nil
@@ -224,8 +225,7 @@ func (l *Lbank) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (l *Lbank) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := l.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := l.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(l.Name, p, a)
@@ -387,12 +387,12 @@ allTrades:
 		tradeData, err = l.GetTrades(ctx,
 			p.String(),
 			int64(limit),
-			ts.UnixNano()/int64(time.Millisecond))
+			ts.UnixMilli())
 		if err != nil {
 			return nil, err
 		}
 		for i := range tradeData {
-			tradeTime := time.Unix(0, tradeData[i].DateMS*int64(time.Millisecond))
+			tradeTime := time.UnixMilli(tradeData[i].DateMS)
 			if tradeTime.Before(timestampStart) || tradeTime.After(timestampEnd) {
 				break allTrades
 			}
@@ -499,7 +499,7 @@ func (l *Lbank) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Can
 	var resp order.CancelAllResponse
 	orderIDs, err := l.getAllOpenOrderID(ctx)
 	if err != nil {
-		return resp, nil
+		return resp, err
 	}
 
 	for key := range orderIDs {
@@ -612,8 +612,8 @@ func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (l *Lbank) GetDepositAddress(ctx context.Context, c currency.Code, accountID string) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (l *Lbank) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -623,9 +623,10 @@ func (l *Lbank) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 		return nil, err
 	}
 	resp, err := l.Withdraw(ctx,
-		withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(),
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Currency.String(),
 		strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64),
-		"",
+		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.Description,
 		"")
 	if err != nil {
@@ -935,7 +936,7 @@ func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 
 	for x := range data {
 		ret.Candles = append(ret.Candles, kline.Candle{
-			Time:   time.Unix(data[x].TimeStamp, 0),
+			Time:   data[x].TimeStamp,
 			Open:   data[x].OpenPrice,
 			High:   data[x].HigestPrice,
 			Low:    data[x].LowestPrice,
@@ -981,11 +982,11 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 			return kline.Item{}, err
 		}
 		for i := range data {
-			if data[i].TimeStamp < dates.Ranges[x].Start.Ticks || data[i].TimeStamp > dates.Ranges[x].End.Ticks {
+			if data[i].TimeStamp.Unix() < dates.Ranges[x].Start.Ticks || data[i].TimeStamp.Unix() > dates.Ranges[x].End.Ticks {
 				continue
 			}
 			ret.Candles = append(ret.Candles, kline.Candle{
-				Time:   time.Unix(data[i].TimeStamp, 0).UTC(),
+				Time:   data[i].TimeStamp,
 				Open:   data[i].OpenPrice,
 				High:   data[i].HigestPrice,
 				Low:    data[i].LowestPrice,

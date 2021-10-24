@@ -52,7 +52,7 @@ func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
 	if !ok {
 		return time.Time{}, fmt.Errorf("unable to parse, value not float64: %T", raw)
 	}
-	return time.Unix(0, int64(ts)*int64(time.Millisecond)), nil
+	return time.UnixMilli(int64(ts)), nil
 }
 
 // TimeFromUnixTimestampDecimal converts a unix timestamp in decimal form to
@@ -76,23 +76,8 @@ func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
 	return time.Unix(i, 0), nil
 }
 
-// UnixMillis converts a UnixNano timestamp to milliseconds
-func UnixMillis(t time.Time) int64 {
-	return t.UnixNano() / int64(time.Millisecond)
-}
-
-// RecvWindow converts a supplied time.Duration to milliseconds
-func RecvWindow(d time.Duration) int64 {
-	return int64(d) / int64(time.Millisecond)
-}
-
 // BoolPtr takes in boolen condition and returns pointer version of it
 func BoolPtr(condition bool) *bool {
 	b := condition
 	return &b
-}
-
-// UnixMillisToNano converts Unix milli time to UnixNano
-func UnixMillisToNano(milli int64) int64 {
-	return milli * int64(time.Millisecond)
 }

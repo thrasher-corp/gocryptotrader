@@ -10,6 +10,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -23,7 +24,7 @@ type CustomEx struct {
 	exchange.Base
 }
 
-func (c *CustomEx) Setup(exch *config.ExchangeConfig) error {
+func (c *CustomEx) Setup(exch *config.Exchange) error {
 	return nil
 }
 
@@ -168,8 +169,8 @@ func (c *CustomEx) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	return order.Detail{}, nil
 }
 
-func (c *CustomEx) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", nil
+func (c *CustomEx) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, chain string) (*deposit.Address, error) {
+	return nil, nil
 }
 
 func (c *CustomEx) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
@@ -215,7 +216,7 @@ func (c *CustomEx) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return nil, nil
 }
 
-func (c *CustomEx) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (c *CustomEx) GetDefaultConfig() (*config.Exchange, error) {
 	return nil, nil
 }
 

@@ -251,8 +251,7 @@ func TestParsingOrders(t *testing.T) {
 		  },
 		  "type": "update"
 		}`)
-	err := f.wsHandleData(data)
-	if err != nil {
+	if err := f.wsHandleData(data); err != nil {
 		t.Error(err)
 	}
 }
@@ -274,8 +273,7 @@ func TestParsingWSTradesData(t *testing.T) {
 			}
 		]
 	}`)
-	err := f.wsHandleData(data)
-	if err != nil {
+	if err := f.wsHandleData(data); err != nil {
 		t.Error(err)
 	}
 }
@@ -295,8 +293,7 @@ func TestParsingWSTickerData(t *testing.T) {
 			"time": 1589505004.4237103
 		}
 	}`)
-	err := f.wsHandleData(data)
-	if err != nil {
+	if err := f.wsHandleData(data); err != nil {
 		t.Error(err)
 	}
 }
@@ -323,8 +320,7 @@ func TestParsingWSOrdersData(t *testing.T) {
 		},
 		"type": "update"
 	  }`)
-	err := f.wsHandleData(data)
-	if err != nil {
+	if err := f.wsHandleData(data); err != nil {
 		t.Error(err)
 	}
 }
@@ -360,8 +356,7 @@ func TestParsingMarketsData(t *testing.T) {
 				"group": "quarterly"}}},
 		"action": "partial"
 	  }`)
-	err := f.wsHandleData(data)
-	if err != nil {
+	if err := f.wsHandleData(data); err != nil {
 		t.Error(err)
 	}
 }

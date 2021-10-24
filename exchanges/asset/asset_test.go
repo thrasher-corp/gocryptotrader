@@ -62,8 +62,7 @@ func TestIsValid(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	_, err := New("Spota")
-	if err == nil {
+	if _, err := New("Spota"); err == nil {
 		t.Fatal("TestNew returned an unexpected result")
 	}
 

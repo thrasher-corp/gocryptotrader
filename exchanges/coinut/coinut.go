@@ -438,8 +438,7 @@ func (i *instrumentMap) Seed(curr string, id int64) {
 	}
 
 	// check to see if the instrument already exists
-	_, ok := i.Instruments[curr]
-	if ok {
+	if _, ok := i.Instruments[curr]; ok {
 		return
 	}
 

@@ -225,11 +225,22 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		invalidJSON := orderUpdate.Params[1].(map[string]interface{})
+		if len(orderUpdate.Params) < 2 {
+			return errors.New("unexpected orderUpdate.Params data length")
+		}
+		invalidJSON, ok := orderUpdate.Params[1].(map[string]interface{})
+		if !ok {
+			return errors.New("unable to type assert invalidJSON")
+		}
 		oStatus := order.UnknownStatus
 		oType := order.UnknownType
 		oSide := order.UnknownSide
-		switch orderUpdate.Params[0].(float64) {
+
+		orderStatus, ok := orderUpdate.Params[0].(float64)
+		if !ok {
+			return errors.New("unable to type assert orderStatus")
+		}
+		switch orderStatus {
 		case 1:
 			oStatus = order.New
 		case 2:
@@ -237,42 +248,57 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		case 3:
 			oStatus = order.Filled
 		}
-		switch invalidJSON["orderType"].(float64) {
+
+		orderType, ok := invalidJSON["orderType"].(float64)
+		if !ok {
+			return errors.New("unable to type assert orderType")
+		}
+		switch orderType {
 		case 1:
 			oType = order.Limit
 		case 2:
 			oType = order.Market
 		}
-		switch invalidJSON["type"].(float64) {
+
+		orderSide, ok := invalidJSON["type"].(float64)
+		if !ok {
+			return errors.New("unable to type assert orderSide")
+		}
+		switch orderSide {
 		case 1:
 			oSide = order.Sell
 		case 2:
 			oSide = order.Buy
 		}
+
 		var price, amount, filledTotal, left, fee float64
-		price, err = strconv.ParseFloat(invalidJSON["price"].(string), 64)
+		price, err = convert.FloatFromString(invalidJSON["price"])
 		if err != nil {
 			return err
 		}
-		amount, err = strconv.ParseFloat(invalidJSON["amount"].(string), 64)
+		amount, err = convert.FloatFromString(invalidJSON["amount"])
 		if err != nil {
 			return err
 		}
-		filledTotal, err = strconv.ParseFloat(invalidJSON["filledTotal"].(string), 64)
+		filledTotal, err = convert.FloatFromString(invalidJSON["filledTotal"])
 		if err != nil {
 			return err
 		}
-		left, err = strconv.ParseFloat(invalidJSON["left"].(string), 64)
+		left, err = convert.FloatFromString(invalidJSON["left"])
 		if err != nil {
 			return err
 		}
-		fee, err = strconv.ParseFloat(invalidJSON["dealFee"].(string), 64)
+		fee, err = convert.FloatFromString(invalidJSON["dealFee"])
 		if err != nil {
 			return err
 		}
 
 		var p currency.Pair
-		p, err = currency.NewPairFromString(invalidJSON["market"].(string))
+		pairStr, ok := invalidJSON["market"].(string)
+		if !ok {
+			return errors.New("unable to type assert market")
+		}
+		p, err = currency.NewPairFromString(pairStr)
 		if err != nil {
 			return err
 		}

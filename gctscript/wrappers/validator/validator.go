@@ -5,9 +5,11 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -216,12 +218,12 @@ func (w Wrapper) AccountInformation(ctx context.Context, exch string, assetType 
 }
 
 // DepositAddress validator for test execution/scripts
-func (w Wrapper) DepositAddress(exch string, _ currency.Code) (string, error) {
+func (w Wrapper) DepositAddress(exch, chain string, _ currency.Code) (*deposit.Address, error) {
 	if exch == exchError.String() {
-		return exch, errTestFailed
+		return nil, errTestFailed
 	}
 
-	return exch, nil
+	return &deposit.Address{Address: core.BitcoinDonationAddress}, nil
 }
 
 // WithdrawalCryptoFunds validator for test execution/scripts

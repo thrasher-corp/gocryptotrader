@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -156,16 +157,23 @@ func TestWrapperGetOrderInfo(t *testing.T) {
 
 func TestFuturesBatchOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
-	}
 	var data []PlaceBatchOrderData
 	var tempData PlaceBatchOrderData
-	tempData.PlaceOrderType = "cancel"
+	tempData.PlaceOrderType = "meow"
 	tempData.OrderID = "test123"
 	tempData.Symbol = "pi_xbtusd"
 	data = append(data, tempData)
 	_, err := k.FuturesBatchOrder(context.Background(), data)
+	if !errors.Is(err, errInvalidBatchOrderType) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidBatchOrderType)
+	}
+
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
+	}
+
+	data[0].PlaceOrderType = "cancel"
+	_, err = k.FuturesBatchOrder(context.Background(), data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -192,7 +200,7 @@ func TestFuturesSendOrder(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = k.FuturesSendOrder(context.Background(),
-		order.Limit, cp, "buy", "", "", "", 1, 1, 0.9)
+		order.Limit, cp, "buy", "", "", "", true, 1, 1, 0.9)
 	if err != nil {
 		t.Error(err)
 	}
@@ -557,6 +565,18 @@ func TestGetBalance(t *testing.T) {
 	_, err := k.GetBalance(context.Background())
 	if err == nil {
 		t.Error("GetBalance() Expected error")
+	}
+}
+
+// TestGetTradeBalance API endpoint test
+func TestGetDepositMethods(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("no api keys set")
+	}
+	_, err := k.GetDepositMethods(context.Background(), "USDT")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -1082,16 +1102,34 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 }
 
+func TestGetCryptoDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set")
+	}
+	_, err := k.GetCryptoDepositAddress(context.Background(), "Bitcoin", "XBT", false)
+	if err != nil {
+		t.Error(err)
+	}
+	if !canManipulateRealOrders {
+		t.Skip("canManipulateRealOrders not set, skipping test")
+	}
+	_, err = k.GetCryptoDepositAddress(context.Background(), "Bitcoin", "XBT", true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // TestGetDepositAddress wrapper test
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	if areTestAPIKeysSet() {
-		_, err := k.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := k.GetDepositAddress(context.Background(), currency.USDT, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error", err)
 		}
 	} else {
-		_, err := k.GetDepositAddress(context.Background(), currency.BTC, "")
+		_, err := k.GetDepositAddress(context.Background(), currency.BTC, "", "")
 		if err == nil {
 			t.Error("GetDepositAddress() error can not be nil")
 		}
@@ -1128,6 +1166,7 @@ func TestWithdrawCancel(t *testing.T) {
 // ---------------------------- Websocket tests -----------------------------------------
 
 func setupWsTests(t *testing.T) {
+	t.Helper()
 	if wsSetupRan {
 		return
 	}
@@ -1205,16 +1244,14 @@ func TestWsAddOrder(t *testing.T) {
 
 func TestWsCancelOrder(t *testing.T) {
 	setupWsTests(t)
-	err := k.wsCancelOrders([]string{"1337"})
-	if err != nil {
+	if err := k.wsCancelOrders([]string{"1337"}); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsCancelAllOrders(t *testing.T) {
 	setupWsTests(t)
-	_, err := k.wsCancelAllOrders()
-	if err != nil {
+	if _, err := k.wsCancelAllOrders(); err != nil {
 		t.Error(err)
 	}
 }
@@ -1994,6 +2031,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 		test := testCases[x]
 
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			ret := k.FormatExchangeKlineInterval(test.interval)
 
 			if ret != test.output {

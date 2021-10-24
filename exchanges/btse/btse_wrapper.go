@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -30,9 +31,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *BTSE) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *BTSE) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -167,7 +168,7 @@ func (b *BTSE) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
+func (b *BTSE) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
@@ -184,20 +185,14 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       btseWebsocket,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        b.WsConnect,
-		Subscriber:                       b.Subscribe,
-		UnSubscriber:                     b.Unsubscribe,
-		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
-		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		ExchangeConfig:        exch,
+		DefaultURL:            btseWebsocket,
+		RunningURL:            wsRunningURL,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -313,8 +308,7 @@ func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := b.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := b.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)
@@ -589,7 +583,7 @@ func (b *BTSE) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 
 	allOrders, err := b.CancelExistingOrder(ctx, "", fPair.String(), "")
 	if err != nil {
-		return resp, nil
+		return resp, err
 	}
 
 	resp.Status = make(map[string]string)
@@ -688,22 +682,39 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *BTSE) GetDepositAddress(ctx context.Context, c currency.Code, accountID string) (string, error) {
+func (b *BTSE) GetDepositAddress(ctx context.Context, c currency.Code, accountID, _ string) (*deposit.Address, error) {
 	address, err := b.GetWalletAddress(ctx, c.String())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+
+	exctractor := func(addr string) (string, string) {
+		if strings.Contains(addr, ":") {
+			split := strings.Split(addr, ":")
+			return split[0], split[1]
+		}
+		return addr, ""
+	}
+
 	if len(address) == 0 {
 		addressCreate, err := b.CreateWalletAddress(ctx, c.String())
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if len(addressCreate) != 0 {
-			return addressCreate[0].Address, nil
+			addr, tag := exctractor(addressCreate[0].Address)
+			return &deposit.Address{
+				Address: addr,
+				Tag:     tag,
+			}, nil
 		}
-		return "", errors.New("address not found")
+		return nil, errors.New("address not found")
 	}
-	return address[0].Address, nil
+	addr, tag := exctractor(address[0].Address)
+	return &deposit.Address{
+		Address: addr,
+		Tag:     tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

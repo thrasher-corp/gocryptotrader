@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -30,9 +31,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (c *COINUT) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (c *COINUT) GetDefaultConfig() (*config.Exchange, error) {
 	c.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = c.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = c.BaseCurrencies
@@ -130,7 +131,7 @@ func (c *COINUT) SetDefaults() {
 }
 
 // Setup sets the current exchange configuration
-func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
+func (c *COINUT) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		c.SetEnabled(false)
 		return nil
@@ -147,22 +148,16 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       coinutWebsocketURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        c.WsConnect,
-		Subscriber:                       c.Subscribe,
-		UnSubscriber:                     c.Unsubscribe,
-		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
-		Features:                         &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
-		SortBufferByUpdateIDs:            true,
+		ExchangeConfig:        exch,
+		DefaultURL:            coinutWebsocketURL,
+		RunningURL:            wsRunningURL,
+		Connector:             c.WsConnect,
+		Subscriber:            c.Subscribe,
+		Unsubscriber:          c.Unsubscribe,
+		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
+		Features:              &c.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
+		SortBufferByUpdateIDs: true,
 	})
 	if err != nil {
 		return err
@@ -630,18 +625,31 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (order.Submit
 		if err != nil {
 			return submitOrderResponse, err
 		}
-		responseMap := APIResponse.(map[string]interface{})
-		switch responseMap["reply"].(string) {
+		responseMap, ok := APIResponse.(map[string]interface{})
+		if !ok {
+			return submitOrderResponse, errors.New("unable to type assert responseMap")
+		}
+		orderType, ok := responseMap["reply"].(string)
+		if !ok {
+			return submitOrderResponse, errors.New("unable to type assert orderType")
+		}
+		switch orderType {
 		case "order_rejected":
 			return submitOrderResponse, fmt.Errorf("clientOrderID: %v was rejected: %v", o.ClientID, responseMap["reasons"])
 		case "order_filled":
-			orderID := responseMap["order_id"].(float64)
+			orderID, ok := responseMap["order_id"].(float64)
+			if !ok {
+				return submitOrderResponse, errors.New("unable to type assert orderID")
+			}
 			submitOrderResponse.OrderID = strconv.FormatFloat(orderID, 'f', -1, 64)
 			submitOrderResponse.IsOrderPlaced = true
 			submitOrderResponse.FullyMatched = true
 			return submitOrderResponse, nil
 		case "order_accepted":
-			orderID := responseMap["order_id"].(float64)
+			orderID, ok := responseMap["order_id"].(float64)
+			if !ok {
+				return submitOrderResponse, errors.New("unable to type assert orderID")
+			}
 			submitOrderResponse.OrderID = strconv.FormatFloat(orderID, 'f', -1, 64)
 			submitOrderResponse.IsOrderPlaced = true
 			return submitOrderResponse, nil
@@ -797,8 +805,8 @@ func (c *COINUT) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ as
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *COINUT) GetDepositAddress(_ context.Context, _ currency.Code, _ string) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (c *COINUT) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

@@ -109,7 +109,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			Last:         wsTicker.Data.Last,
 			Bid:          wsTicker.Data.Buy,
 			Ask:          wsTicker.Data.Sell,
-			LastUpdated:  time.Unix(0, wsTicker.Date*int64(time.Millisecond)),
+			LastUpdated:  time.UnixMilli(wsTicker.Date),
 			AssetType:    asset.Spot,
 			Pair:         p,
 		}

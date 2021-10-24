@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -29,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (h *HUOBI) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (h *HUOBI) GetDefaultConfig() (*config.Exchange, error) {
 	h.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = h.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = h.BaseCurrencies
@@ -78,7 +79,6 @@ func (h *HUOBI) SetDefaults() {
 	futures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -102,20 +102,22 @@ func (h *HUOBI) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				KlineFetching:     true,
-				TradeFetching:     true,
-				OrderbookFetching: true,
-				AutoPairUpdates:   true,
-				AccountInfo:       true,
-				GetOrder:          true,
-				GetOrders:         true,
-				CancelOrders:      true,
-				CancelOrder:       true,
-				SubmitOrder:       true,
-				CryptoDeposit:     true,
-				CryptoWithdrawal:  true,
-				TradeFee:          true,
+				TickerFetching:        true,
+				KlineFetching:         true,
+				TradeFetching:         true,
+				OrderbookFetching:     true,
+				AutoPairUpdates:       true,
+				AccountInfo:           true,
+				GetOrder:              true,
+				GetOrders:             true,
+				CancelOrders:          true,
+				CancelOrder:           true,
+				SubmitOrder:           true,
+				CryptoDeposit:         true,
+				CryptoWithdrawal:      true,
+				TradeFee:              true,
+				MultiChainDeposits:    true,
+				MultiChainWithdrawals: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				KlineFetching:          true,
@@ -162,7 +164,7 @@ func (h *HUOBI) SetDefaults() {
 	h.API.Endpoints = h.NewEndpoints()
 	err = h.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:         huobiAPIURL,
-		exchange.RestFutures:      huobiURL,
+		exchange.RestFutures:      huobiFuturesURL,
 		exchange.RestCoinMargined: huobiFuturesURL,
 		exchange.WebsocketSpot:    wsMarketURL,
 	})
@@ -176,7 +178,7 @@ func (h *HUOBI) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
+func (h *HUOBI) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 		return nil
@@ -193,20 +195,14 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsMarketURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        h.WsConnect,
-		Subscriber:                       h.Subscribe,
-		UnSubscriber:                     h.Unsubscribe,
-		GenerateSubscriptions:            h.GenerateDefaultSubscriptions,
-		Features:                         &h.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		ExchangeConfig:        exch,
+		DefaultURL:            wsMarketURL,
+		RunningURL:            wsRunningURL,
+		Connector:             h.WsConnect,
+		Subscriber:            h.Subscribe,
+		Unsubscriber:          h.Unsubscribe,
+		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
+		Features:              &h.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -274,7 +270,7 @@ func (h *HUOBI) Run() {
 
 	if common.StringDataContains(h.BaseCurrencies.Strings(), currency.CNY.String()) {
 		cfg := config.GetConfig()
-		var exchCfg *config.ExchangeConfig
+		var exchCfg *config.Exchange
 		exchCfg, err = cfg.GetExchangeConfig(h.Name)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -793,8 +789,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	err := account.Process(&info)
-	if err != nil {
+	if err := account.Process(&info); err != nil {
 		return info, err
 	}
 	return info, nil
@@ -844,7 +839,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 				Side:         side,
 				Price:        tradeData[i].Trades[j].Price,
 				Amount:       tradeData[i].Trades[j].Amount,
-				Timestamp:    time.Unix(0, tradeData[i].Timestamp*int64(time.Millisecond)),
+				Timestamp:    time.UnixMilli(tradeData[i].Timestamp),
 			})
 		}
 	}
@@ -1183,7 +1178,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			Pair:           p,
 			Type:           orderType,
 			Side:           orderSide,
-			Date:           time.Unix(0, respData.CreatedAt*int64(time.Millisecond)),
+			Date:           time.UnixMilli(respData.CreatedAt),
 			Status:         orderStatus,
 			Price:          respData.Price,
 			Amount:         respData.Amount,
@@ -1245,9 +1240,26 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (h *HUOBI) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	resp, err := h.QueryDepositAddress(ctx, cryptocurrency.Lower().String())
-	return resp.Address, err
+func (h *HUOBI) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+	resp, err := h.QueryDepositAddress(ctx, cryptocurrency)
+	if err != nil {
+		return nil, err
+	}
+
+	for x := range resp {
+		if chain != "" && strings.EqualFold(resp[x].Chain, chain) {
+			return &deposit.Address{
+				Address: resp[x].Address,
+				Tag:     resp[x].AddressTag,
+			}, nil
+		} else if chain == "" && strings.EqualFold(resp[x].Currency, cryptocurrency.String()) {
+			return &deposit.Address{
+				Address: resp[x].Address,
+				Tag:     resp[x].AddressTag,
+			}, nil
+		}
+	}
+	return nil, fmt.Errorf("unable to match deposit address currency or chain")
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -1260,6 +1272,7 @@ func (h *HUOBI) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 		withdrawRequest.Currency,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
+		withdrawRequest.Crypto.Chain,
 		withdrawRequest.Amount,
 		withdrawRequest.Crypto.FeeAmount)
 	if err != nil {
@@ -1349,7 +1362,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 						Pair:            req.Pairs[i],
 						Type:            orderType,
 						Side:            orderSide,
-						Date:            time.Unix(0, resp.Data[j].CreatedAt*int64(time.Millisecond)),
+						Date:            time.UnixMilli(resp.Data[j].CreatedAt),
 						Status:          orderStatus,
 						Price:           resp.Data[j].Price,
 						Amount:          resp.Data[j].OrderAmount,
@@ -1377,7 +1390,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 						Pair:           req.Pairs[i],
 						Exchange:       h.Name,
 						ExecutedAmount: resp[x].FilledAmount,
-						Date:           time.Unix(0, resp[x].CreatedAt*int64(time.Millisecond)),
+						Date:           time.UnixMilli(resp[x].CreatedAt),
 						Status:         order.Status(resp[x].State),
 						AccountID:      strconv.FormatInt(resp[x].AccountID, 10),
 						Fee:            resp[x].FilledFees,
@@ -1389,13 +1402,14 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		}
 	case asset.CoinMarginedFutures:
 		for x := range req.Pairs {
-			var currentPage int64 = 0
+			var currentPage int64
 			for done := false; !done; {
 				openOrders, err := h.GetSwapOpenOrders(ctx,
 					req.Pairs[x], currentPage, 50)
 				if err != nil {
 					return orders, err
 				}
+
 				var orderVars OrderVars
 				for x := range openOrders.Data.Orders {
 					orderVars, err = compatibleVars(openOrders.Data.Orders[x].Direction,
@@ -1425,11 +1439,13 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 						Pair:            p,
 					})
 				}
+				currentPage++
+				done = currentPage == openOrders.Data.TotalPage
 			}
 		}
 	case asset.Futures:
 		for x := range req.Pairs {
-			var currentPage int64 = 0
+			var currentPage int64
 			for done := false; !done; {
 				openOrders, err := h.FGetOpenOrders(ctx,
 					req.Pairs[x].Base, currentPage, 50)
@@ -1465,6 +1481,8 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 						Pair:            p,
 					})
 				}
+				currentPage++
+				done = currentPage == openOrders.Data.TotalPage
 			}
 		}
 	}
@@ -1508,7 +1526,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 					Pair:           req.Pairs[i],
 					Exchange:       h.Name,
 					ExecutedAmount: resp[x].FilledAmount,
-					Date:           time.Unix(0, resp[x].CreatedAt*int64(time.Millisecond)),
+					Date:           time.UnixMilli(resp[x].CreatedAt),
 					Status:         order.Status(resp[x].State),
 					AccountID:      strconv.FormatInt(resp[x].AccountID, 10),
 					Fee:            resp[x].FilledFees,
@@ -1519,7 +1537,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 	case asset.CoinMarginedFutures:
 		for x := range req.Pairs {
-			var currentPage int64 = 0
+			var currentPage int64
 			for done := false; !done; {
 				orderHistory, err := h.GetSwapOrderHistory(ctx,
 					req.Pairs[x],
@@ -1563,14 +1581,12 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 					})
 				}
 				currentPage++
-				if currentPage == orderHistory.Data.TotalPage {
-					done = true
-				}
+				done = currentPage == orderHistory.Data.TotalPage
 			}
 		}
 	case asset.Futures:
 		for x := range req.Pairs {
-			var currentPage int64 = 0
+			var currentPage int64
 			for done := false; !done; {
 				openOrders, err := h.FGetOrderHistory(ctx,
 					req.Pairs[x],
@@ -1624,9 +1640,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 					})
 				}
 				currentPage++
-				if currentPage == openOrders.Data.TotalPage {
-					done = true
-				}
+				done = currentPage == openOrders.Data.TotalPage
 			}
 		}
 	}
@@ -1762,4 +1776,23 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 		return resp, fmt.Errorf("invalid orderStatus")
 	}
 	return resp, nil
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (h *HUOBI) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	chains, err := h.GetCurrenciesIncludingChains(ctx, cryptocurrency)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(chains) == 0 {
+		return nil, errors.New("chain data isn't populated")
+	}
+
+	var availableChains []string
+	for x := range chains[0].ChainData {
+		availableChains = append(availableChains, chains[0].ChainData[x].Chain)
+	}
+	return availableChains, nil
 }

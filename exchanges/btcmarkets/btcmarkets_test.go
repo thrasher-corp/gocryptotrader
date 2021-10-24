@@ -340,11 +340,11 @@ func TestFetchDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.FetchDepositAddress(context.Background(), "LTC", -1, -1, -1)
+	_, err := b.FetchDepositAddress(context.Background(), currency.XRP, -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.FetchDepositAddress(context.Background(), fakePair, -1, -1, -1)
+	_, err = b.FetchDepositAddress(context.Background(), currency.NewCode("MOOCOW"), -1, -1, -1)
 	if err != nil {
 		t.Error("expected an error due to invalid assetID")
 	}

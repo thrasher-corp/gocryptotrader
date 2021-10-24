@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -29,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (c *CoinbasePro) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (c *CoinbasePro) GetDefaultConfig() (*config.Exchange, error) {
 	c.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = c.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = c.BaseCurrencies
@@ -148,7 +149,7 @@ func (c *CoinbasePro) SetDefaults() {
 }
 
 // Setup initialises the exchange parameters with the current configuration
-func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
+func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		c.SetEnabled(false)
 		return nil
@@ -165,21 +166,15 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       coinbaseproWebsocketURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        c.WsConnect,
-		Subscriber:                       c.Subscribe,
-		UnSubscriber:                     c.Unsubscribe,
-		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
-		Features:                         &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
+		ExchangeConfig:        exch,
+		DefaultURL:            coinbaseproWebsocketURL,
+		RunningURL:            wsRunningURL,
+		Connector:             c.WsConnect,
+		Subscriber:            c.Subscribe,
+		Unsubscriber:          c.Unsubscribe,
+		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
+		Features:              &c.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
 	})
 	if err != nil {
 		return err
@@ -432,7 +427,10 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		return book, err
 	}
 
-	obNew := orderbookNew.(OrderbookL1L2)
+	obNew, ok := orderbookNew.(OrderbookL1L2)
+	if !ok {
+		return book, errors.New("unable to type assert orderbook data")
+	}
 	for x := range obNew.Bids {
 		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: obNew.Bids[x].Amount,
@@ -649,8 +647,8 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *CoinbasePro) GetDepositAddress(_ context.Context, _ currency.Code, accountID string) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (c *CoinbasePro) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -29,9 +31,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bitmex) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *Bitmex) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -140,7 +142,7 @@ func (b *Bitmex) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
+func (b *Bitmex) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
@@ -157,21 +159,15 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       bitmexWSURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsEndpoint,
-		Connector:                        b.WsConnect,
-		Subscriber:                       b.Subscribe,
-		UnSubscriber:                     b.Unsubscribe,
-		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
-		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		UpdateEntriesByID:                true,
+		ExchangeConfig:        exch,
+		DefaultURL:            bitmexWSURL,
+		RunningURL:            wsEndpoint,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
+		UpdateEntriesByID:     true,
 	})
 	if err != nil {
 		return err
@@ -179,6 +175,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                  bitmexWSURL,
 	})
 }
 
@@ -318,8 +315,7 @@ func (b *Bitmex) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitmex) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := b.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := b.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 
@@ -415,27 +411,36 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 func (b *Bitmex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 
-	bal, err := b.GetAllUserMargin(ctx)
+	userMargins, err := b.GetAllUserMargin(ctx)
 	if err != nil {
 		return info, err
 	}
 
-	// Need to update to add Margin/Liquidity availibilty
+	var accountID string
 	var balances []account.Balance
-	for i := range bal {
+	// Need to update to add Margin/Liquidity availability
+	for i := range userMargins {
+		accountID = strconv.FormatInt(userMargins[i].Account, 10)
+
+		wallet, err := b.GetWalletInfo(ctx, userMargins[i].Currency)
+		if err != nil {
+			continue
+		}
+
 		balances = append(balances, account.Balance{
-			CurrencyName: currency.NewCode(bal[i].Currency),
-			TotalValue:   float64(bal[i].WalletBalance),
+			CurrencyName: currency.NewCode(wallet.Currency),
+			TotalValue:   wallet.Amount,
 		})
 	}
 
+	info.Accounts = append(info.Accounts,
+		account.SubAccount{
+			ID:         accountID,
+			Currencies: balances,
+		})
 	info.Exchange = b.Name
-	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currencies: balances,
-	})
 
-	err = account.Process(&info)
-	if err != nil {
+	if err := account.Process(&info); err != nil {
 		return account.Holdings{}, err
 	}
 
@@ -662,8 +667,14 @@ func (b *Bitmex) GetOrderInfo(ctx context.Context, orderID string, pair currency
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitmex) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	return b.GetCryptoDepositAddress(ctx, cryptocurrency.String())
+func (b *Bitmex) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
+	resp, err := b.GetCryptoDepositAddress(ctx, cryptocurrency.String())
+	if err != nil {
+		return nil, err
+	}
+	return &deposit.Address{
+		Address: resp,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

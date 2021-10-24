@@ -324,7 +324,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 	var intermediary json.RawMessage
 	err = i.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		n := i.Requester.GetNonce(true).String()
-		timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+		timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
 
 		var message []byte
 		message, err = json.Marshal([]string{method, urlPath, string(PayloadJSON), n, timestamp})

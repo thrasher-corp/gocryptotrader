@@ -54,7 +54,6 @@ func getNow() now {
 func (s *stack) Push(n *Node, tn now) {
 	if !atomic.CompareAndSwapUint32(&s.sema, neutral, active) {
 		// Stack is in use, for now we can dereference pointer
-		n = nil
 		return
 	}
 	// Adds a time when its placed back on to stack.

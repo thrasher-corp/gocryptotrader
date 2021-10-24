@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -29,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (h *HitBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (h *HitBTC) GetDefaultConfig() (*config.Exchange, error) {
 	h.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = h.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = h.BaseCurrencies
@@ -146,7 +147,7 @@ func (h *HitBTC) SetDefaults() {
 }
 
 // Setup sets user exchange configuration settings
-func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
+func (h *HitBTC) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 		return nil
@@ -163,22 +164,16 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       hitbtcWebsocketAddress,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        h.WsConnect,
-		Subscriber:                       h.Subscribe,
-		UnSubscriber:                     h.Unsubscribe,
-		GenerateSubscriptions:            h.GenerateDefaultSubscriptions,
-		Features:                         &h.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
-		SortBufferByUpdateIDs:            true,
+		ExchangeConfig:        exch,
+		DefaultURL:            hitbtcWebsocketAddress,
+		RunningURL:            wsRunningURL,
+		Connector:             h.WsConnect,
+		Subscriber:            h.Subscribe,
+		Unsubscriber:          h.Unsubscribe,
+		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
+		Features:              &h.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
+		SortBufferByUpdateIDs: true,
 	})
 	if err != nil {
 		return err
@@ -358,8 +353,7 @@ func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HitBTC) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := h.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := h.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(h.Name, p, a)
@@ -498,8 +492,8 @@ allTrades:
 			p.String(),
 			"",
 			"",
-			ts.UnixNano()/int64(time.Millisecond),
-			timestampEnd.UnixNano()/int64(time.Millisecond),
+			ts.UnixMilli(),
+			timestampEnd.UnixMilli(),
 			int64(limit),
 			0)
 		if err != nil {
@@ -647,13 +641,16 @@ func (h *HitBTC) GetOrderInfo(ctx context.Context, orderID string, pair currency
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (h *HitBTC) GetDepositAddress(ctx context.Context, c currency.Code, _ string) (string, error) {
-	resp, err := h.GetDepositAddresses(ctx, c.String())
+func (h *HitBTC) GetDepositAddress(ctx context.Context, currency currency.Code, _, _ string) (*deposit.Address, error) {
+	resp, err := h.GetDepositAddresses(ctx, currency.String())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return resp.Address, nil
+	return &deposit.Address{
+		Address: resp.Address,
+		Tag:     resp.PaymentID,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

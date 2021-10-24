@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -30,9 +31,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (g *Gateio) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (g *Gateio) GetDefaultConfig() (*config.Exchange, error) {
 	g.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = g.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = g.BaseCurrencies
@@ -72,23 +73,25 @@ func (g *Gateio) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				KlineFetching:       true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrders:        true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				UserTradeHistory:    true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				TradeFee:            true,
-				CryptoWithdrawalFee: true,
+				TickerBatching:        true,
+				TickerFetching:        true,
+				KlineFetching:         true,
+				TradeFetching:         true,
+				OrderbookFetching:     true,
+				AutoPairUpdates:       true,
+				AccountInfo:           true,
+				GetOrder:              true,
+				GetOrders:             true,
+				CancelOrders:          true,
+				CancelOrder:           true,
+				SubmitOrder:           true,
+				UserTradeHistory:      true,
+				CryptoDeposit:         true,
+				CryptoWithdrawal:      true,
+				TradeFee:              true,
+				CryptoWithdrawalFee:   true,
+				MultiChainDeposits:    true,
+				MultiChainWithdrawals: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -145,7 +148,7 @@ func (g *Gateio) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
+func (g *Gateio) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 		return nil
@@ -162,19 +165,13 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       gateioWebsocketEndpoint,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        g.WsConnect,
-		Subscriber:                       g.Subscribe,
-		GenerateSubscriptions:            g.GenerateDefaultSubscriptions,
-		Features:                         &g.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		ExchangeConfig:        exch,
+		DefaultURL:            gateioWebsocketEndpoint,
+		RunningURL:            wsRunningURL,
+		Connector:             g.WsConnect,
+		Subscriber:            g.Subscribe,
+		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+		Features:              &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -270,8 +267,7 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := g.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := g.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(g.Name, p, a)
@@ -411,8 +407,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	}
 
 	info.Exchange = g.Name
-	err := account.Process(&info)
-	if err != nil {
+	if err := account.Process(&info); err != nil {
 		return account.Holdings{}, err
 	}
 
@@ -628,17 +623,32 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (g *Gateio) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
+func (g *Gateio) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
 	addr, err := g.GetCryptoDepositAddress(ctx, cryptocurrency.String())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	if addr == gateioGenerateAddress {
-		return "",
+	if addr.Address == gateioGenerateAddress {
+		return nil,
 			errors.New("new deposit address is being generated, please retry again shortly")
 	}
-	return addr, nil
+
+	if chain != "" {
+		for x := range addr.MultichainAddresses {
+			if strings.EqualFold(addr.MultichainAddresses[x].Chain, chain) {
+				return &deposit.Address{
+					Address: addr.MultichainAddresses[x].Address,
+					Tag:     addr.MultichainAddresses[x].PaymentName,
+				}, nil
+			}
+		}
+		return nil, fmt.Errorf("network %s not found", chain)
+	}
+	return &deposit.Address{
+		Address: addr.Address,
+		Tag:     addr.Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -650,7 +660,10 @@ func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	return g.WithdrawCrypto(ctx,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
-		withdrawRequest.Amount)
+		withdrawRequest.Crypto.AddressTag,
+		withdrawRequest.Crypto.Chain,
+		withdrawRequest.Amount,
+	)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -866,4 +879,19 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return g.GetHistoricCandles(ctx, pair, a, start, end, interval)
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	chains, err := g.GetCryptoDepositAddress(ctx, cryptocurrency.String())
+	if err != nil {
+		return nil, err
+	}
+
+	var availableChains []string
+	for x := range chains.MultichainAddresses {
+		availableChains = append(availableChains, chains.MultichainAddresses[x].Chain)
+	}
+	return availableChains, nil
 }

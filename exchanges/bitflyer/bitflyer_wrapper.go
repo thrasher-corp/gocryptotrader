@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -26,9 +27,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bitflyer) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *Bitflyer) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -106,7 +107,7 @@ func (b *Bitflyer) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitflyer) Setup(exch *config.ExchangeConfig) error {
+func (b *Bitflyer) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
@@ -407,8 +408,8 @@ func (b *Bitflyer) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ 
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitflyer) GetDepositAddress(_ context.Context, _ currency.Code, _ string) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (b *Bitflyer) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

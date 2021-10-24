@@ -74,8 +74,7 @@ func TestConvert(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := c.Convert("AUD", "USD")
-	if err != nil {
+	if _, err := c.Convert("AUD", "USD"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -96,8 +95,7 @@ func TestGetCountries(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := c.GetCountries()
-	if err != nil {
+	if _, err := c.GetCountries(); err != nil {
 		t.Fatal(err)
 	}
 }

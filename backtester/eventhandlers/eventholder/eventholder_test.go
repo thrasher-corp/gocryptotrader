@@ -28,8 +28,7 @@ func TestAppendEvent(t *testing.T) {
 func TestNextEvent(t *testing.T) {
 	t.Parallel()
 	e := Holder{Queue: []common.EventHandler{}}
-	ev := e.NextEvent()
-	if ev != nil {
+	if ev := e.NextEvent(); ev != nil {
 		t.Error("expected not ok")
 	}
 

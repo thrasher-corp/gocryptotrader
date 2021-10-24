@@ -130,8 +130,7 @@ func TestRemoveECS(t *testing.T) {
 func TestMakeNewSessionDK(t *testing.T) {
 	t.Parallel()
 
-	_, _, err := makeNewSessionDK(nil)
-	if err == nil {
+	if _, _, err := makeNewSessionDK(nil); err == nil {
 		t.Fatal("makeNewSessionDK passed with nil key")
 	}
 }
@@ -238,6 +237,7 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 // setAnswersFile sets the given file as the current stdin
 // returns the close function to defer for reverting the stdin
 func setAnswersFile(t *testing.T, answerFile string) func() {
+	t.Helper()
 	oldIn := os.Stdin
 
 	inputFile, err := os.Open(answerFile)
@@ -359,6 +359,7 @@ func TestSaveConfigToFileWithErrorInPasswordPrompt(t *testing.T) {
 }
 
 func withInteractiveResponse(t *testing.T, response string, body func() error) error {
+	t.Helper()
 	// Answers to the prompt
 	responseFile, err := ioutil.TempFile("", "*.in")
 	if err != nil {

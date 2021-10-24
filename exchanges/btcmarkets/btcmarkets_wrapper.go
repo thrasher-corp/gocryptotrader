@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -29,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *BTCMarkets) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *BTCMarkets) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -136,7 +137,7 @@ func (b *BTCMarkets) SetDefaults() {
 }
 
 // Setup takes in an exchange configuration and sets all parameters
-func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
+func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
@@ -153,20 +154,14 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       btcMarketsWSURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsURL,
-		Connector:                        b.WsConnect,
-		Subscriber:                       b.Subscribe,
-		GenerateSubscriptions:            b.generateDefaultSubscriptions,
-		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
+		ExchangeConfig:        exch,
+		DefaultURL:            btcMarketsWSURL,
+		RunningURL:            wsURL,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		GenerateSubscriptions: b.generateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
 	})
 	if err != nil {
 		return err
@@ -332,8 +327,7 @@ func (b *BTCMarkets) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCMarkets) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := b.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := b.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)
@@ -649,12 +643,15 @@ func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, pair curr
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *BTCMarkets) GetDepositAddress(ctx context.Context, c currency.Code, accountID string) (string, error) {
-	temp, err := b.FetchDepositAddress(ctx, strings.ToUpper(c.String()), -1, -1, -1)
+func (b *BTCMarkets) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, _ string) (*deposit.Address, error) {
+	depositAddr, err := b.FetchDepositAddress(ctx, cryptocurrency, -1, -1, -1)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return temp.Address, nil
+	return &deposit.Address{
+		Address: depositAddr.Address,
+		Tag:     depositAddr.Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted

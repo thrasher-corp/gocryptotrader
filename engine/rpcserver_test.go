@@ -849,7 +849,7 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	b.Config = &config.ExchangeConfig{
+	b.Config = &config.Exchange{
 		Features: &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{SaveTradeData: false}},
 	}
 	em.Add(exch)
@@ -1557,8 +1557,7 @@ func TestGetActiveDataHistoryJobs(t *testing.T) {
 		Interval:  kline.OneMin,
 	}
 
-	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
+	if err := m.UpsertJob(dhj, false); !errors.Is(err, nil) {
 		t.Fatalf("received %v, expected %v", err, nil)
 	}
 

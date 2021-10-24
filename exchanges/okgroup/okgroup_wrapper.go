@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -29,7 +30,7 @@ import (
 // When circumstances change, wrapper funcs can be split appropriately
 
 // Setup sets user exchange configuration settings
-func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
+func (o *OKGroup) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		o.SetEnabled(false)
 		return nil
@@ -45,20 +46,14 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 	err = o.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsEndpoint,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsEndpoint,
-		Connector:                        o.WsConnect,
-		Subscriber:                       o.Subscribe,
-		UnSubscriber:                     o.Unsubscribe,
-		GenerateSubscriptions:            o.GenerateDefaultSubscriptions,
-		Features:                         &o.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		ExchangeConfig:        exch,
+		DefaultURL:            wsEndpoint,
+		RunningURL:            wsEndpoint,
+		Connector:             o.WsConnect,
+		Subscriber:            o.Subscribe,
+		Unsubscriber:          o.Unsubscribe,
+		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
+		Features:              &o.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -276,8 +271,7 @@ func (o *OKGroup) GetFundingHistory(ctx context.Context) (resp []exchange.FundHi
 
 // SubmitOrder submits a new order
 func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	err := s.Validate()
-	if err != nil {
+	if err := s.Validate(); err != nil {
 		return order.SubmitResponse{}, err
 	}
 
@@ -427,12 +421,15 @@ func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (o *OKGroup) GetDepositAddress(ctx context.Context, p currency.Code, _ string) (string, error) {
+func (o *OKGroup) GetDepositAddress(ctx context.Context, p currency.Code, _, _ string) (*deposit.Address, error) {
 	wallet, err := o.GetAccountDepositAddressForCurrency(ctx, p.Lower().String())
 	if err != nil || len(wallet) == 0 {
-		return "", err
+		return nil, err
 	}
-	return wallet[0].Address, nil
+	return &deposit.Address{
+		Address: wallet[0].Address,
+		Tag:     wallet[0].Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -625,37 +622,34 @@ func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	}
 
 	for x := range candles {
-		t := candles[x].([]interface{})
-		tempCandle := kline.Candle{}
+		t, ok := candles[x].([]interface{})
+		if !ok {
+			return kline.Item{}, errors.New("unable to type asset candle data")
+		}
+		if len(t) < 6 {
+			return kline.Item{}, errors.New("incorrect candles data length")
+		}
 		v, ok := t[0].(string)
 		if !ok {
-			return kline.Item{}, errors.New("unexpected value received")
+			return kline.Item{}, errors.New("unable to type asset time data")
 		}
-		tempCandle.Time, err = time.Parse(time.RFC3339, v)
-		if err != nil {
+		var tempCandle kline.Candle
+		if tempCandle.Time, err = time.Parse(time.RFC3339, v); err != nil {
 			return kline.Item{}, err
 		}
-		tempCandle.Open, err = convert.FloatFromString(t[1])
-		if err != nil {
+		if tempCandle.Open, err = convert.FloatFromString(t[1]); err != nil {
 			return kline.Item{}, err
 		}
-		tempCandle.High, err = convert.FloatFromString(t[2])
-		if err != nil {
+		if tempCandle.High, err = convert.FloatFromString(t[2]); err != nil {
 			return kline.Item{}, err
 		}
-
-		tempCandle.Low, err = convert.FloatFromString(t[3])
-		if err != nil {
+		if tempCandle.Low, err = convert.FloatFromString(t[3]); err != nil {
 			return kline.Item{}, err
 		}
-
-		tempCandle.Close, err = convert.FloatFromString(t[4])
-		if err != nil {
+		if tempCandle.Close, err = convert.FloatFromString(t[4]); err != nil {
 			return kline.Item{}, err
 		}
-
-		tempCandle.Volume, err = convert.FloatFromString(t[5])
-		if err != nil {
+		if tempCandle.Volume, err = convert.FloatFromString(t[5]); err != nil {
 			return kline.Item{}, err
 		}
 		ret.Candles = append(ret.Candles, tempCandle)
@@ -703,37 +697,37 @@ func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		}
 
 		for i := range candles {
-			t := candles[i].([]interface{})
-			tempCandle := kline.Candle{}
+			t, ok := candles[i].([]interface{})
+			if !ok {
+				return kline.Item{}, errors.New("unable to type assert candles data")
+			}
+			if len(t) < 6 {
+				return kline.Item{}, errors.New("candle data length invalid")
+			}
 			v, ok := t[0].(string)
 			if !ok {
-				return kline.Item{}, errors.New("unexpected value received")
+				return kline.Item{}, errors.New("unable to type assert time value")
 			}
-			tempCandle.Time, err = time.Parse(time.RFC3339, v)
-			if err != nil {
+			var tempCandle kline.Candle
+			if tempCandle.Time, err = time.Parse(time.RFC3339, v); err != nil {
 				return kline.Item{}, err
 			}
-			tempCandle.Open, err = convert.FloatFromString(t[1])
-			if err != nil {
+			if tempCandle.Open, err = convert.FloatFromString(t[1]); err != nil {
 				return kline.Item{}, err
 			}
-			tempCandle.High, err = convert.FloatFromString(t[2])
-			if err != nil {
-				return kline.Item{}, err
-			}
-
-			tempCandle.Low, err = convert.FloatFromString(t[3])
-			if err != nil {
+			if tempCandle.High, err = convert.FloatFromString(t[2]); err != nil {
 				return kline.Item{}, err
 			}
 
-			tempCandle.Close, err = convert.FloatFromString(t[4])
-			if err != nil {
+			if tempCandle.Low, err = convert.FloatFromString(t[3]); err != nil {
 				return kline.Item{}, err
 			}
 
-			tempCandle.Volume, err = convert.FloatFromString(t[5])
-			if err != nil {
+			if tempCandle.Close, err = convert.FloatFromString(t[4]); err != nil {
+				return kline.Item{}, err
+			}
+
+			if tempCandle.Volume, err = convert.FloatFromString(t[5]); err != nil {
 				return kline.Item{}, err
 			}
 			ret.Candles = append(ret.Candles, tempCandle)

@@ -270,6 +270,7 @@ func TestGetOrderStatus(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if tt.mock != mockTests {
 				t.Skip()
 			}
@@ -325,6 +326,7 @@ func TestGetOrderTrades(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if tt.mock != mockTests {
 				t.Skip()
 			}
@@ -457,9 +459,9 @@ func TestWithdraw(t *testing.T) {
 		Exchange: p.Name,
 		Crypto: withdraw.CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
-			FeeAmount: 1,
+			FeeAmount: 0,
 		},
-		Amount:        0.00001337,
+		Amount:        -1,
 		Currency:      currency.LTC,
 		Description:   "WITHDRAW IT ALL",
 		TradePassword: "Password",
@@ -475,8 +477,8 @@ func TestWithdraw(t *testing.T) {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	case !areTestAPIKeysSet() && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error(err)
+	case mockTests && err == nil:
+		t.Error("should error due to invalid amount")
 	}
 }
 
@@ -511,7 +513,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetDepositAddress(context.Background(), currency.DASH, "")
+	_, err := p.GetDepositAddress(context.Background(), currency.USDT, "", "USDTETH")
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetDepositAddress()", err)
@@ -519,6 +521,17 @@ func TestGetDepositAddress(t *testing.T) {
 		t.Error("GetDepositAddress() cannot be nil")
 	case mockTests && err != nil:
 		t.Error("Mock GetDepositAddress() err", err)
+	}
+}
+
+func TestGenerateNewAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set, skipping test")
+	}
+	_, err := p.GenerateNewAddress(context.Background(), currency.XRP.String())
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -1056,5 +1069,13 @@ func TestUpdateTickers(t *testing.T) {
 	err := p.UpdateTickers(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetAvailableTransferChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

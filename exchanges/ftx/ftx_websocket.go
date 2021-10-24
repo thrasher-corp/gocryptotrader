@@ -77,7 +77,7 @@ func (f *FTX) WsConnect() error {
 
 // WsAuth sends an authentication message to receive auth data
 func (f *FTX) WsAuth() error {
-	intNonce := time.Now().UnixNano() / 1000000
+	intNonce := time.Now().UnixMilli()
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
@@ -90,11 +90,13 @@ func (f *FTX) WsAuth() error {
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{Operation: "login",
 		Args: AuthenticationData{
-			Key:  f.API.Credentials.Key,
-			Sign: sign,
-			Time: intNonce,
+			Key:        f.API.Credentials.Key,
+			Sign:       sign,
+			Time:       intNonce,
+			SubAccount: f.API.Credentials.Subaccount,
 		},
 	}
+
 	return f.Websocket.Conn.SendJSONMessage(req)
 }
 

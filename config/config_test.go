@@ -35,8 +35,7 @@ func TestGetNonExistentDefaultFilePathDoesNotCreateDefaultDir(t *testing.T) {
 	if file.Exists(dir) {
 		t.Skip("The default directory already exists before running the test")
 	}
-	_, _, err := GetFilePath("")
-	if err != nil {
+	if _, _, err := GetFilePath(""); err != nil {
 		t.Fatal(err)
 	}
 	if file.Exists(dir) {
@@ -80,7 +79,7 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 	t.Parallel()
 
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{{
+		Exchanges: []Exchange{{
 			Name:    bfx,
 			Enabled: true,
 			BankAccounts: []banking.Account{
@@ -141,7 +140,7 @@ func TestCheckBankAccountConfig(t *testing.T) {
 func TestUpdateExchangeBankAccounts(t *testing.T) {
 	t.Parallel()
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{
 				Name:    bfx,
 				Enabled: true,
@@ -274,7 +273,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 func TestPurgeExchangeCredentials(t *testing.T) {
 	t.Parallel()
 	var c Config
-	c.Exchanges = []ExchangeConfig{
+	c.Exchanges = []Exchange{
 		{
 			Name: testString,
 			API: APIConfig{
@@ -484,7 +483,7 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
 				Pairs: map[asset.Item]*currency.PairStore{
@@ -521,7 +520,7 @@ func TestSupportsExchangeAssetType(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
 				Pairs: map[asset.Item]*currency.PairStore{
@@ -567,7 +566,7 @@ func TestSetPairs(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 		},
 	)
@@ -603,7 +602,7 @@ func TestGetCurrencyPairConfig(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 		},
 	)
@@ -655,7 +654,7 @@ func TestCheckPairConfigFormats(t *testing.T) {
 	}
 	// Test nil pair store
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 		},
 	)
@@ -755,7 +754,7 @@ func TestCheckPairConsistency(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 		},
 	)
@@ -904,7 +903,7 @@ func TestSupportsPair(t *testing.T) {
 	t.Parallel()
 	fmt := &currency.PairFormat{}
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{
 				Name:    bfx,
 				Enabled: true,
@@ -921,7 +920,7 @@ func TestSupportsPair(t *testing.T) {
 			},
 		},
 	}
-	assetType := asset.Spot
+	assetType := asset.Spot // nolint // ifshort false positive
 	if cfg.SupportsPair("asdf",
 		currency.NewPair(currency.BTC, currency.USD), assetType) {
 		t.Error(
@@ -946,7 +945,7 @@ func TestGetPairFormat(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name: testFakeExchangeName,
 		},
 	)
@@ -1044,7 +1043,7 @@ func TestGetAvailablePairs(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name:          testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{},
 		},
@@ -1087,7 +1086,7 @@ func TestGetEnabledPairs(t *testing.T) {
 	}
 
 	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
+		Exchange{
 			Name:          testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{},
 		},
@@ -1127,7 +1126,7 @@ func TestGetEnabledPairs(t *testing.T) {
 
 func TestGetEnabledExchanges(t *testing.T) {
 	t.Parallel()
-	cfg := &Config{Exchanges: []ExchangeConfig{
+	cfg := &Config{Exchanges: []Exchange{
 		{
 			Name:    bfx,
 			Enabled: true,
@@ -1144,7 +1143,7 @@ func TestGetEnabledExchanges(t *testing.T) {
 
 func TestGetDisabledExchanges(t *testing.T) {
 	t.Parallel()
-	cfg := &Config{Exchanges: []ExchangeConfig{
+	cfg := &Config{Exchanges: []Exchange{
 		{
 			Name:    bfx,
 			Enabled: true,
@@ -1181,7 +1180,7 @@ func TestGetDisabledExchanges(t *testing.T) {
 
 func TestCountEnabledExchanges(t *testing.T) {
 	t.Parallel()
-	cfg := &Config{Exchanges: []ExchangeConfig{
+	cfg := &Config{Exchanges: []Exchange{
 		{
 			Enabled: true,
 		},
@@ -1213,7 +1212,7 @@ func TestGetCurrencyPairDisplayConfig(t *testing.T) {
 func TestGetAllExchangeConfigs(t *testing.T) {
 	t.Parallel()
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{},
 		},
 	}
@@ -1225,7 +1224,7 @@ func TestGetAllExchangeConfigs(t *testing.T) {
 func TestGetExchangeConfig(t *testing.T) {
 	t.Parallel()
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{
 				Name: bfx,
 			},
@@ -1284,7 +1283,7 @@ func TestGetForexProviders(t *testing.T) {
 
 func TestGetPrimaryForexProvider(t *testing.T) {
 	t.Parallel()
-	fxr := "Fixer"
+	fxr := "Fixer" // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 	cfg := &Config{
 		Currency: CurrencyConfig{
 			ForexProviders: []currency.FXSettings{
@@ -1313,14 +1312,14 @@ func TestUpdateExchangeConfig(t *testing.T) {
 	t.Parallel()
 	ok := "OKEX"
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{
 				Name: ok,
 				API:  APIConfig{Credentials: APICredentialsConfig{}},
 			},
 		},
 	}
-	e := &ExchangeConfig{}
+	e := &Exchange{}
 	err := cfg.UpdateExchangeConfig(e)
 	if err == nil {
 		t.Error("Expected error from non-existent exchange")
@@ -1526,7 +1525,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	// Test websocket and HTTP timeout values
 	cfg.Exchanges[0].WebsocketResponseMaxLimit = 0
 	cfg.Exchanges[0].WebsocketResponseCheckTimeout = 0
-	cfg.Exchanges[0].OrderbookConfig.WebsocketBufferLimit = 0
+	cfg.Exchanges[0].Orderbook.WebsocketBufferLimit = 0
 	cfg.Exchanges[0].WebsocketTrafficTimeout = 0
 	cfg.Exchanges[0].HTTPTimeout = 0
 	err = cfg.CheckExchangeConfigValues()
@@ -1538,7 +1537,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Errorf("expected exchange %s to have updated WebsocketResponseMaxLimit value",
 			cfg.Exchanges[0].Name)
 	}
-	if cfg.Exchanges[0].OrderbookConfig.WebsocketBufferLimit == 0 {
+	if cfg.Exchanges[0].Orderbook.WebsocketBufferLimit == 0 {
 		t.Errorf("expected exchange %s to have updated WebsocketOrderbookBufferLimit value",
 			cfg.Exchanges[0].Name)
 	}
@@ -1706,7 +1705,7 @@ func TestRetrieveConfigCurrencyPairs(t *testing.T) {
 	cp1 := currency.NewPair(currency.DOGE, currency.XRP)
 	cp2 := currency.NewPair(currency.DOGE, currency.USD)
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{
 				Enabled: true,
 				BaseCurrencies: currency.Currencies{
@@ -1912,7 +1911,7 @@ func TestCheckConfig(t *testing.T) {
 	cp1 := currency.NewPair(currency.DOGE, currency.XRP)
 	cp2 := currency.NewPair(currency.DOGE, currency.USD)
 	cfg := &Config{
-		Exchanges: []ExchangeConfig{
+		Exchanges: []Exchange{
 			{
 				Name:    testFakeExchangeName,
 				Enabled: true,
@@ -1937,8 +1936,7 @@ func TestCheckConfig(t *testing.T) {
 			},
 		},
 	}
-	err := cfg.CheckConfig()
-	if err != nil {
+	if err := cfg.CheckConfig(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -2189,7 +2187,7 @@ func TestRemoveExchange(t *testing.T) {
 	t.Parallel()
 	var c Config
 	const testExchangeName = "0xBAAAAAAD"
-	c.Exchanges = append(c.Exchanges, ExchangeConfig{
+	c.Exchanges = append(c.Exchanges, Exchange{
 		Name: testExchangeName,
 	})
 	_, err := c.GetExchangeConfig(testExchangeName)
@@ -2209,6 +2207,7 @@ func TestRemoveExchange(t *testing.T) {
 }
 
 func TestGetDataPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		dir  string
@@ -2238,6 +2237,7 @@ func TestGetDataPath(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			t.Helper()
 			c := &Config{
 				DataDirectory: tt.dir,
 			}
@@ -2278,6 +2278,7 @@ func TestMigrateConfig(t *testing.T) {
 		{
 			name: "source present, no target dir",
 			setup: func(t *testing.T) {
+				t.Helper()
 				test, err := os.Create("test.json")
 				if err != nil {
 					t.Fatal(err)
@@ -2285,6 +2286,7 @@ func TestMigrateConfig(t *testing.T) {
 				test.Close()
 			},
 			cleanup: func(t *testing.T) {
+				t.Helper()
 				os.Remove("test.json")
 			},
 			args: args{
@@ -2297,6 +2299,7 @@ func TestMigrateConfig(t *testing.T) {
 		{
 			name: "source same as target",
 			setup: func(t *testing.T) {
+				t.Helper()
 				err := file.Write(filepath.Join(dir, File), nil)
 				if err != nil {
 					t.Fatal(err)
@@ -2312,6 +2315,7 @@ func TestMigrateConfig(t *testing.T) {
 		{
 			name: "source and target present",
 			setup: func(t *testing.T) {
+				t.Helper()
 				err := file.Write(filepath.Join(dir, File), nil)
 				if err != nil {
 					t.Fatal(err)

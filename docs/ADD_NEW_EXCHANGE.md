@@ -462,7 +462,7 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data
 // within time receive windows. NOTE: This is not always necessary and the above
 // SendHTTPRequest example will suffice. 
 	generate := func() (*request.Item, error) {
-		ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+		ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		var body io.Reader
 		var hmac, payload []byte
 		var err error
@@ -1028,8 +1028,7 @@ https://docs.ftx.com/#private-channels
 ```go
 // WsAuth sends an authentication message to receive auth data
 func (f *FTX) WsAuth() error {
-	intNonce := time.Now().UnixNano() / 1000000
-	strNonce := strconv.FormatInt(intNonce, 10)
+	strNonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	hmac := crypto.GetHMAC(
 		crypto.HashSHA256,
 		[]byte(strNonce+"websocket_login"),
@@ -1096,7 +1095,7 @@ Add websocket functionality if supported to Setup:
 
 ```go
 // Setup takes in the supplied exchange configuration details and sets params
-func (f *FTX) Setup(exch *config.ExchangeConfig) error {
+func (f *FTX) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		f.SetEnabled(false)
 		return nil
@@ -1109,23 +1108,27 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 
 	// Websocket details setup below
 	err = f.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       ftxWSURL, // Default ws endpoint so we can roll back via CLI if needed.
-		ExchangeName:                     exch.Name, // Sets websocket name to the exchange name.
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
-		Connector:                        f.WsConnect, // Connector function outlined above.
-		Subscriber:                       f.Subscribe, // Subscriber function outlined above.
-		UnSubscriber:                     f.Unsubscribe, // Unsubscriber function outlined above.
-		GenerateSubscriptions:            f.GenerateDefaultSubscriptions, // GenerateDefaultSubscriptions function outlined above.
-		Features:                         &f.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
+		ExchangeConfig:        	exch,
+		// DefaultURL defines the default endpoint in the event a rollback is 
+		// needed via gctcli.
+		DefaultURL:             ftxWSURL, 
+		RunningURL:             exch.API.Endpoints.WebsocketURL,
+		// Connector function outlined above.
+		Connector:              f.WsConnect, 
+		// Subscriber function outlined above.
+		Subscriber:             f.Subscribe, 
+		// Unsubscriber function outlined above.
+		UnSubscriber:           f.Unsubscribe,
+		// GenerateDefaultSubscriptions function outlined above. 
+		GenerateSubscriptions:  f.GenerateDefaultSubscriptions, 
+		// Defines the capabilities of the websocket outlined in supported 
+		// features struct. This allows the websocket connection to be flushed 
+		// appropriately if we have a pair/asset enable/disable change. This is 
+		// outlined below.
+		Features:               &f.Features.Supports.WebsocketCapabilities, 
 
-		// Orderbook buffer specific variables for processing orderbook updates via websocket feed. 
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		// Other orderbook buffer vars:
-		// BufferEnabled         bool 
+		// Orderbook buffer specific variables for processing orderbook updates 
+		// via websocket feed: 
 		// SortBuffer            bool 
 		// SortBufferByUpdateIDs bool 
 		// UpdateEntriesByID     bool 

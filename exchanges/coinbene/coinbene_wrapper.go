@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -29,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (c *Coinbene) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (c *Coinbene) GetDefaultConfig() (*config.Exchange, error) {
 	c.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = c.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = c.BaseCurrencies
@@ -92,17 +93,21 @@ func (c *Coinbene) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				TradeFetching:     true,
-				OrderbookFetching: true,
-				AccountBalance:    true,
-				AutoPairUpdates:   true,
-				GetOrder:          true,
-				GetOrders:         true,
-				CancelOrder:       true,
-				CancelOrders:      true,
-				SubmitOrder:       true,
-				TradeFee:          true,
+				TickerFetching:        true,
+				TradeFetching:         true,
+				OrderbookFetching:     true,
+				AccountBalance:        true,
+				AutoPairUpdates:       true,
+				GetOrder:              true,
+				GetOrders:             true,
+				CancelOrder:           true,
+				CancelOrders:          true,
+				SubmitOrder:           true,
+				TradeFee:              true,
+				CryptoDeposit:         true,
+				CryptoWithdrawal:      true,
+				MultiChainDeposits:    true,
+				MultiChainWithdrawals: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -118,7 +123,7 @@ func (c *Coinbene) SetDefaults() {
 				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.NoFiatWithdrawals |
-				exchange.WithdrawCryptoViaWebsiteOnly,
+				exchange.WithdrawCryptoWithAPIPermission,
 			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
@@ -164,7 +169,7 @@ func (c *Coinbene) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
+func (c *Coinbene) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		c.SetEnabled(false)
 		return nil
@@ -181,21 +186,15 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsContractURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        c.WsConnect,
-		Subscriber:                       c.Subscribe,
-		UnSubscriber:                     c.Unsubscribe,
-		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
-		Features:                         &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
+		ExchangeConfig:        exch,
+		DefaultURL:            wsContractURL,
+		RunningURL:            wsRunningURL,
+		Connector:             c.WsConnect,
+		Subscriber:            c.Subscribe,
+		Unsubscriber:          c.Unsubscribe,
+		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
+		Features:              &c.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
 	})
 	if err != nil {
 		return err
@@ -382,8 +381,7 @@ func (c *Coinbene) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *Coinbene) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := c.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := c.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(c.Name, p, a)
@@ -678,14 +676,47 @@ func (c *Coinbene) GetOrderInfo(ctx context.Context, orderID string, pair curren
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *Coinbene) GetDepositAddress(_ context.Context, _ currency.Code, _ string) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (c *Coinbene) GetDepositAddress(ctx context.Context, curr currency.Code, _, chain string) (*deposit.Address, error) {
+	d, err := c.ListDepositAddress(ctx, curr)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(d) == 0 {
+		return nil, errors.New("no address(es) returned, please create one via the Coinbene website")
+	}
+
+	if chain != "" {
+		for x := range d {
+			if strings.EqualFold(d[x].Chain, chain) {
+				return &deposit.Address{Address: d[x].Address, Tag: d[x].AddressTag}, nil
+			}
+		}
+		return nil, fmt.Errorf("no chain %s found", chain)
+	}
+	return &deposit.Address{Address: d[0].Address, Tag: d[0].AddressTag}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *Coinbene) WithdrawCryptocurrencyFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return nil, common.ErrFunctionNotSupported
+func (c *Coinbene) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.Withdraw(ctx,
+		withdrawRequest.Currency,
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Crypto.AddressTag,
+		withdrawRequest.Crypto.Chain,
+		withdrawRequest.Amount)
+	if err != nil {
+		return nil, err
+	}
+
+	return &withdraw.ExchangeResponse{
+		ID: resp.ID,
+	}, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
@@ -893,11 +924,17 @@ func (c *Coinbene) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	}
 
 	for x := range candles.Data {
+		if len(candles.Data[x]) < 6 {
+			return kline.Item{}, errors.New("unexpected candle data length")
+		}
 		var tempCandle kline.Candle
-		tempTime := candles.Data[x][0].(string)
+		tempTime, ok := candles.Data[x][0].(string)
+		if !ok {
+			return kline.Item{}, errors.New("timestamp conversion failed")
+		}
 		timestamp, err := time.Parse(time.RFC3339, tempTime)
 		if err != nil {
-			continue
+			return kline.Item{}, err
 		}
 		tempCandle.Time = timestamp
 		open, ok := candles.Data[x][1].(string)
@@ -954,4 +991,21 @@ func (c *Coinbene) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (c *Coinbene) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return c.GetHistoricCandles(ctx, pair, a, start, end, interval)
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (c *Coinbene) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	r, err := c.ListDepositAddress(ctx, cryptocurrency)
+	if err != nil {
+		return nil, err
+	}
+
+	var availableChains []string
+	for x := range r {
+		if r[x].Chain != "" {
+			availableChains = append(availableChains, r[x].Chain)
+		}
+	}
+	return availableChains, nil
 }

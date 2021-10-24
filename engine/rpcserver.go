@@ -17,6 +17,7 @@ import (
 	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/pquerna/otp/totp"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -62,6 +63,7 @@ var (
 	errAssetTypeUnset       = errors.New("asset type unset")
 	errDispatchSystem       = errors.New("dispatch system offline")
 	errCurrencyNotEnabled   = errors.New("currency not enabled")
+	errCurrencyNotSpecified = errors.New("a currency must be specified")
 	errCurrencyPairInvalid  = errors.New("currency provided is not found in the available pairs list")
 	errNoTrades             = errors.New("no trades returned from supplied params")
 	errNilRequestData       = errors.New("nil request data received, cannot continue")
@@ -109,8 +111,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 // StartRPCServer starts a gRPC server with TLS auth
 func StartRPCServer(engine *Engine) {
 	targetDir := utils.GetTLSDir(engine.Settings.DataDir)
-	err := checkCerts(targetDir)
-	if err != nil {
+	if err := checkCerts(targetDir); err != nil {
 		log.Errorf(log.GRPCSys, "gRPC checkCerts failed. err: %s\n", err)
 		return
 	}
@@ -678,7 +679,15 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			return errDispatchSystem
 		}
 
-		acc := (*data.(*interface{})).(account.Holdings)
+		d := *data.(*interface{})
+		if d == nil {
+			return errors.New("unable to type assert data")
+		}
+
+		acc, ok := d.(account.Holdings)
+		if !ok {
+			return errors.New("unable to type assert account holdings data")
+		}
 
 		var accounts []*gctrpc.Account
 		for x := range acc.Accounts {
@@ -1432,6 +1441,7 @@ func (s *RPCServer) CancelAllOrders(ctx context.Context, r *gctrpc.CancelAllOrde
 	}, nil
 }
 
+// ModifyOrder modifies an existing order if it exists
 func (s *RPCServer) ModifyOrder(ctx context.Context, r *gctrpc.ModifyOrderRequest) (*gctrpc.ModifyOrderResponse, error) {
 	assetType, err := asset.New(r.Asset)
 	if err != nil {
@@ -1524,28 +1534,90 @@ func (s *RPCServer) RemoveEvent(ctx context.Context, r *gctrpc.RemoveEventReques
 // GetCryptocurrencyDepositAddresses returns a list of cryptocurrency deposit
 // addresses specified by an exchange
 func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gctrpc.GetCryptocurrencyDepositAddressesRequest) (*gctrpc.GetCryptocurrencyDepositAddressesResponse, error) {
-	_, err := s.GetExchangeByName(r.Exchange)
+	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
+	if !exch.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+		return nil, exchange.ErrAuthenticatedRequestWithoutCredentialsSet
+	}
+
 	result, err := s.GetCryptocurrencyDepositAddressesByExchange(r.Exchange)
-	return &gctrpc.GetCryptocurrencyDepositAddressesResponse{Addresses: result}, err
+	if err != nil {
+		return nil, err
+	}
+
+	var resp gctrpc.GetCryptocurrencyDepositAddressesResponse
+	resp.Addresses = make(map[string]*gctrpc.DepositAddresses)
+	for k, v := range result {
+		var depositAddrs []*gctrpc.DepositAddress
+		for a := range v {
+			depositAddrs = append(depositAddrs, &gctrpc.DepositAddress{
+				Address: v[a].Address,
+				Tag:     v[a].Tag,
+				Chain:   v[a].Chain,
+			})
+		}
+		resp.Addresses[k] = &gctrpc.DepositAddresses{Addresses: depositAddrs}
+	}
+	return &resp, nil
 }
 
 // GetCryptocurrencyDepositAddress returns a cryptocurrency deposit address
 // specified by exchange and cryptocurrency
 func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctrpc.GetCryptocurrencyDepositAddressRequest) (*gctrpc.GetCryptocurrencyDepositAddressResponse, error) {
-	_, err := s.GetExchangeByName(r.Exchange)
+	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
+	}
+
+	if !exch.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+		return nil, exchange.ErrAuthenticatedRequestWithoutCredentialsSet
 	}
 
 	addr, err := s.GetExchangeCryptocurrencyDepositAddress(ctx,
 		r.Exchange,
 		"",
-		currency.NewCode(r.Cryptocurrency))
-	return &gctrpc.GetCryptocurrencyDepositAddressResponse{Address: addr}, err
+		r.Chain,
+		currency.NewCode(r.Cryptocurrency),
+		r.Bypass,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GetCryptocurrencyDepositAddressResponse{
+		Address: addr.Address,
+		Tag:     addr.Tag,
+	}, nil
+}
+
+// GetAvailableTransferChains returns the supported transfer chains specified by
+// exchange and cryptocurrency
+func (s *RPCServer) GetAvailableTransferChains(ctx context.Context, r *gctrpc.GetAvailableTransferChainsRequest) (*gctrpc.GetAvailableTransferChainsResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	curr := currency.NewCode(r.Cryptocurrency)
+	if curr.IsEmpty() {
+		return nil, errCurrencyNotSpecified
+	}
+
+	resp, err := exch.GetAvailableTransferChains(ctx, curr)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp) == 0 {
+		return nil, errors.New("no available transfer chains found")
+	}
+
+	return &gctrpc.GetAvailableTransferChainsResponse{
+		Chains: resp,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds withdraws cryptocurrency funds specified by
@@ -1566,8 +1638,37 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 			Address:    r.Address,
 			AddressTag: r.AddressTag,
 			FeeAmount:  r.Fee,
+			Chain:      r.Chain,
 		},
 	}
+
+	exchCfg, err := s.Config.GetExchangeConfig(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	if exchCfg.API.Credentials.OTPSecret != "" {
+		code, errOTP := totp.GenerateCode(exchCfg.API.Credentials.OTPSecret, time.Now())
+		if errOTP != nil {
+			return nil, errOTP
+		}
+
+		codeNum, errOTP := strconv.ParseInt(code, 10, 64)
+		if errOTP != nil {
+			return nil, errOTP
+		}
+		request.OneTimePassword = codeNum
+	}
+
+	if exchCfg.API.Credentials.PIN != "" {
+		pinCode, errPin := strconv.ParseInt(exchCfg.API.Credentials.PIN, 10, 64)
+		if err != nil {
+			return nil, errPin
+		}
+		request.PIN = pinCode
+	}
+
+	request.TradePassword = exchCfg.API.Credentials.TradePassword
 
 	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, request)
 	if err != nil {
@@ -1610,6 +1711,34 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 			Bank: *bankAccount,
 		},
 	}
+
+	exchCfg, err := s.Config.GetExchangeConfig(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	if exchCfg.API.Credentials.OTPSecret != "" {
+		code, errOTP := totp.GenerateCode(exchCfg.API.Credentials.OTPSecret, time.Now())
+		if err != nil {
+			return nil, errOTP
+		}
+
+		codeNum, errOTP := strconv.ParseInt(code, 10, 64)
+		if err != nil {
+			return nil, errOTP
+		}
+		request.OneTimePassword = codeNum
+	}
+
+	if exchCfg.API.Credentials.PIN != "" {
+		pinCode, errPIN := strconv.ParseInt(exchCfg.API.Credentials.PIN, 10, 64)
+		if err != nil {
+			return nil, errPIN
+		}
+		request.PIN = pinCode
+	}
+
+	request.TradePassword = exchCfg.API.Credentials.TradePassword
 
 	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, request)
 	if err != nil {
@@ -1977,7 +2106,16 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 			return errDispatchSystem
 		}
 
-		ob := (*data.(*interface{})).(orderbook.Base)
+		d := *data.(*interface{})
+		if d == nil {
+			return errors.New("unable to type assert data")
+		}
+
+		ob, ok := d.(orderbook.Base)
+		if !ok {
+			return errors.New("unable to type assert orderbook data")
+		}
+
 		bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
 		for i := range ob.Bids {
 			bids[i] = &gctrpc.OrderbookItem{
@@ -2050,7 +2188,16 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 		if !ok {
 			return errDispatchSystem
 		}
-		t := (*data.(*interface{})).(ticker.Price)
+
+		d := *data.(*interface{})
+		if d == nil {
+			return errors.New("unable to type assert data")
+		}
+
+		t, ok := d.(ticker.Price)
+		if !ok {
+			return errors.New("unable to type assert ticker data")
+		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
 			Pair: &gctrpc.CurrencyPair{
@@ -2099,7 +2246,16 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 		if !ok {
 			return errDispatchSystem
 		}
-		t := (*data.(*interface{})).(ticker.Price)
+
+		d := *data.(*interface{})
+		if d == nil {
+			return errors.New("unable to type assert data")
+		}
+
+		t, ok := d.(ticker.Price)
+		if !ok {
+			return errors.New("unable to type assert ticker data")
+		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
 			Pair: &gctrpc.CurrencyPair{
@@ -2355,7 +2511,11 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatus
 	}
 
 	gctscript.AllVMSync.Range(func(k, v interface{}) bool {
-		vm := v.(*gctscript.VM)
+		vm, ok := v.(*gctscript.VM)
+		if !ok {
+			log.Errorf(log.GRPCSys, "Unable to type assert gctscript.VM")
+			return false
+		}
 		resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
 			UUID:    vm.ID.String(),
 			Name:    vm.ShortName(),
@@ -2376,6 +2536,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 
 	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
+		// nolint:nilerr // error is returned in the GCTScriptQueryResponse
 		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
@@ -2415,9 +2576,8 @@ func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecu
 	}
 
 	script := filepath.Join(r.Script.Path, r.Script.Name)
-	err := gctVM.Load(script)
-	if err != nil {
-		return &gctrpc.GenericResponse{
+	if err := gctVM.Load(script); err != nil {
+		return &gctrpc.GenericResponse{ // nolint:nilerr // error is returned in the generic response
 			Status: MsgStatusError,
 			Data:   err.Error(),
 		}, nil
@@ -2439,7 +2599,7 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 
 	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil
+		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
 	}
 
 	if v, f := gctscript.AllVMSync.Load(UUID); f {
@@ -2603,7 +2763,7 @@ func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRe
 
 	err := s.gctScriptManager.ShutdownAll()
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
+		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
 	}
 
 	return &gctrpc.GenericResponse{
@@ -2621,6 +2781,7 @@ func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScri
 	if r.Status {
 		err := s.gctScriptManager.Autoload(r.Script, true)
 		if err != nil {
+			// nolint:nilerr // error is returned in the generic response
 			return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
 		}
 		return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " removed from autoload list"}, nil
@@ -2628,7 +2789,7 @@ func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScri
 
 	err := s.gctScriptManager.Autoload(r.Script, false)
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
+		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
 	}
 	return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " added to autoload list"}, nil
 }
@@ -2726,7 +2887,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.
 		return nil, err
 	}
 
-	base := exch.GetBase()
+	base := exch.GetBase() // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 	if base == nil {
 		return nil, errExchangeBaseNotFound
 	}

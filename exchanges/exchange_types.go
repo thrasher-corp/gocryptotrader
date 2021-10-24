@@ -126,6 +126,7 @@ type FundHistory struct {
 	CryptoToAddress   string
 	CryptoFromAddress string
 	CryptoTxID        string
+	CryptoChain       string
 	BankTo            string
 	BankFrom          string
 }
@@ -142,6 +143,7 @@ type WithdrawalHistory struct {
 	TransferType    string
 	CryptoToAddress string
 	CryptoTxID      string
+	CryptoChain     string
 	BankTo          string
 }
 
@@ -223,7 +225,7 @@ type Base struct {
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *stream.Websocket
 	*request.Requester
-	Config        *config.ExchangeConfig
+	Config        *config.Exchange
 	settingsMutex sync.RWMutex
 	// CanVerifyOrderbook determines if the orderbook verification can be bypassed,
 	// increasing potential update speed but decreasing confidence in orderbook

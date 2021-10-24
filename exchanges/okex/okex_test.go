@@ -187,6 +187,7 @@ func TestGetPerpSwapMarkets(t *testing.T) {
 }
 
 func testStandardErrorHandling(t *testing.T, err error) {
+	t.Helper()
 	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set")
 	}
@@ -1904,6 +1905,7 @@ func TestWithdraw(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange: o.Name,
 		Crypto: withdraw.CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
 			FeeAmount: 1,

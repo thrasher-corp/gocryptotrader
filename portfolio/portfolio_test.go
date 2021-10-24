@@ -27,7 +27,7 @@ func TestGetEthereumBalance(t *testing.T) {
 		t.Error("Portfolio GetEthereumBalance() address invalid")
 	}
 
-	response, err = b.GetEthereumBalance(nonsenseAddress)
+	_, err = b.GetEthereumBalance(nonsenseAddress)
 	if !errors.Is(err, errNotEthAddress) {
 		t.Errorf("received '%v', expected '%v'", err, errNotEthAddress)
 	}

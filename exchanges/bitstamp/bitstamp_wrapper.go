@@ -5,7 +5,6 @@ import (
 	"errors"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -28,9 +28,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bitstamp) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *Bitstamp) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -146,7 +146,7 @@ func (b *Bitstamp) SetDefaults() {
 }
 
 // Setup sets configuration values to bitstamp
-func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
+func (b *Bitstamp) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
@@ -163,20 +163,14 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       bitstampWSURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsURL,
-		Connector:                        b.WsConnect,
-		Subscriber:                       b.Subscribe,
-		UnSubscriber:                     b.Unsubscribe,
-		GenerateSubscriptions:            b.generateDefaultSubscriptions,
-		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		ExchangeConfig:        exch,
+		DefaultURL:            bitstampWSURL,
+		RunningURL:            wsURL,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.generateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -590,8 +584,21 @@ func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, pair curren
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitstamp) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _ string) (string, error) {
-	return b.GetCryptoDepositAddress(ctx, cryptocurrency)
+func (b *Bitstamp) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
+	addr, err := b.GetCryptoDepositAddress(ctx, cryptocurrency)
+	if err != nil {
+		return nil, err
+	}
+
+	var tag string
+	if addr.DestinationTag != 0 {
+		tag = strconv.FormatInt(addr.DestinationTag, 10)
+	}
+
+	return &deposit.Address{
+		Address: addr.Address,
+		Tag:     tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -604,21 +611,13 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 		withdrawRequest.Amount,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Currency.String(),
-		withdrawRequest.Crypto.AddressTag,
-		true)
+		withdrawRequest.Crypto.AddressTag)
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.Error) != 0 {
-		var details strings.Builder
-		for x := range resp.Error {
-			details.WriteString(strings.Join(resp.Error[x], ""))
-		}
-		return nil, errors.New(details.String())
-	}
 
 	return &withdraw.ExchangeResponse{
-		ID: resp.ID,
+		ID: strconv.FormatInt(resp.ID, 10),
 	}, nil
 }
 
@@ -643,17 +642,9 @@ func (b *Bitstamp) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withd
 	if err != nil {
 		return nil, err
 	}
-	if resp.Status == errStr {
-		var details strings.Builder
-		for x := range resp.Reason {
-			details.WriteString(strings.Join(resp.Reason[x], ""))
-		}
-		return nil, errors.New(details.String())
-	}
 
 	return &withdraw.ExchangeResponse{
-		ID:     resp.ID,
-		Status: resp.Status,
+		ID: strconv.FormatInt(resp.ID, 10),
 	}, nil
 }
 
@@ -684,17 +675,9 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(ctx context.Context, wit
 	if err != nil {
 		return nil, err
 	}
-	if resp.Status == errStr {
-		var details strings.Builder
-		for x := range resp.Reason {
-			details.WriteString(strings.Join(resp.Reason[x], ""))
-		}
-		return nil, errors.New(details.String())
-	}
 
 	return &withdraw.ExchangeResponse{
-		ID:     resp.ID,
-		Status: resp.Status,
+		ID: strconv.FormatInt(resp.ID, 10),
 	}, nil
 }
 

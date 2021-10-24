@@ -23,9 +23,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (o *OKCoin) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (o *OKCoin) GetDefaultConfig() (*config.Exchange, error) {
 	o.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = o.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = o.BaseCurrencies
@@ -316,8 +316,7 @@ func (o *OKCoin) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (o *OKCoin) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	err := o.UpdateTickers(ctx, a)
-	if err != nil {
+	if err := o.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(o.Name, p, a)

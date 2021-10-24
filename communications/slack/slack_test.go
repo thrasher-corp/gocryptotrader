@@ -25,8 +25,7 @@ func TestSetup(t *testing.T) {
 func TestConnect(t *testing.T) {
 	t.Parallel()
 	var s Slack
-	err := s.Connect()
-	if err == nil {
+	if err := s.Connect(); err == nil {
 		t.Error("slack Connect() error cannot be nil")
 	}
 }
@@ -43,8 +42,7 @@ func TestPushEvent(t *testing.T) {
 func TestBuildURL(t *testing.T) {
 	t.Parallel()
 	var s Slack
-	v := s.BuildURL("lol123")
-	if v != "https://slack.com/api/rtm.start?token=lol123" {
+	if v := s.BuildURL("lol123"); v != "https://slack.com/api/rtm.start?token=lol123" {
 		t.Error("slack BuildURL() error")
 	}
 }
@@ -183,8 +181,7 @@ func TestGetUsersInGroup(t *testing.T) {
 func TestNewConnection(t *testing.T) {
 	t.Parallel()
 	var s Slack
-	err := s.NewConnection()
-	if err == nil {
+	if err := s.NewConnection(); err == nil {
 		t.Error("slack NewConnection() error")
 	}
 }
@@ -192,8 +189,7 @@ func TestNewConnection(t *testing.T) {
 func TestWebsocketConnect(t *testing.T) {
 	t.Parallel()
 	var s Slack
-	err := s.WebsocketConnect()
-	if err == nil {
+	if err := s.WebsocketConnect(); err == nil {
 		t.Error("slack WebsocketConnect() error")
 	}
 }

@@ -347,7 +347,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	_, err := b.GetDepositAddress(context.Background(), currency.XRP, "")
+	_, err := b.GetDepositAddress(context.Background(), currency.BTC, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -543,12 +543,11 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestParseOrderTime(t *testing.T) {
-	expected := int64(1534792846)
 	actual, err := parseOrderTime("2018-08-20 19:20:46")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if expected != actual.Unix() {
+	if expected := int64(1534792846); expected != actual.Unix() {
 		t.Errorf("TestParseOrderTime expected: %d, got %d", expected, actual.Unix())
 	}
 }
@@ -920,8 +919,7 @@ func TestWsLogin(t *testing.T) {
 func TestWsSubscription(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{"event":"subscribe","channel":["orderBookL2Api:SFI-ETH_0","tradeHistory:SFI-ETH"]}`)
-	err := b.wsHandleData(data)
-	if err != nil {
+	if err := b.wsHandleData(data); err != nil {
 		t.Error(err)
 	}
 }

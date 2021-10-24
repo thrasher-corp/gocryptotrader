@@ -734,7 +734,7 @@ func (c *Config) GetCurrencyPairDisplayConfig() *CurrencyPairFormatConfig {
 }
 
 // GetAllExchangeConfigs returns all exchange configurations
-func (c *Config) GetAllExchangeConfigs() []ExchangeConfig {
+func (c *Config) GetAllExchangeConfigs() []Exchange {
 	m.Lock()
 	configs := c.Exchanges
 	m.Unlock()
@@ -742,7 +742,7 @@ func (c *Config) GetAllExchangeConfigs() []ExchangeConfig {
 }
 
 // GetExchangeConfig returns exchange configurations by its indivdual name
-func (c *Config) GetExchangeConfig(name string) (*ExchangeConfig, error) {
+func (c *Config) GetExchangeConfig(name string) (*Exchange, error) {
 	m.Lock()
 	defer m.Unlock()
 	for i := range c.Exchanges {
@@ -786,7 +786,7 @@ func (c *Config) GetPrimaryForexProvider() string {
 }
 
 // UpdateExchangeConfig updates exchange configurations
-func (c *Config) UpdateExchangeConfig(e *ExchangeConfig) error {
+func (c *Config) UpdateExchangeConfig(e *Exchange) error {
 	m.Lock()
 	defer m.Unlock()
 	for i := range c.Exchanges {
@@ -1015,12 +1015,20 @@ func (c *Config) CheckExchangeConfigValues() error {
 					defaultWebsocketTrafficTimeout)
 				c.Exchanges[i].WebsocketTrafficTimeout = defaultWebsocketTrafficTimeout
 			}
-			if c.Exchanges[i].OrderbookConfig.WebsocketBufferLimit <= 0 {
+			if c.Exchanges[i].Orderbook.WebsocketBufferLimit <= 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
 					defaultWebsocketOrderbookBufferLimit)
-				c.Exchanges[i].OrderbookConfig.WebsocketBufferLimit = defaultWebsocketOrderbookBufferLimit
+				c.Exchanges[i].Orderbook.WebsocketBufferLimit = defaultWebsocketOrderbookBufferLimit
+			}
+			if c.Exchanges[i].Orderbook.PublishPeriod == nil || c.Exchanges[i].Orderbook.PublishPeriod.Nanoseconds() < 0 {
+				log.Warnf(log.ConfigMgr,
+					"Exchange %s Websocket orderbook publish period value not set, defaulting to %v.",
+					c.Exchanges[i].Name,
+					DefaultOrderbookPublishPeriod)
+				publishPeriod := DefaultOrderbookPublishPeriod
+				c.Exchanges[i].Orderbook.PublishPeriod = &publishPeriod
 			}
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)
 			if err != nil {
@@ -1870,7 +1878,7 @@ func (c *Config) AssetTypeEnabled(a asset.Item, exch string) (bool, error) {
 
 	err = cfg.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
-		return false, nil
+		return false, nil // nolint:nilerr // non-fatal error
 	}
 	return true, nil
 }
