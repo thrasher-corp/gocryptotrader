@@ -65,12 +65,15 @@ func TestGenerateReport(t *testing.T) {
 				Watermark: "Binance - SPOT - BTC-USDT",
 				Candles: []DetailedCandle{
 					{
-						Time:           time.Now().Add(-time.Hour * 5).Unix(),
+						Year:           2020,
+						Month:          12,
+						Day:            12,
 						Open:           1337,
 						High:           1339,
 						Low:            1336,
 						Close:          1338,
 						Volume:         3,
+						VolumeColour:   "rgba(47, 194, 27, 0.8)",
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
 						OrderAmount:    decimal.NewFromInt(1337),
@@ -79,10 +82,12 @@ func TestGenerateReport(t *testing.T) {
 						Position:       "aboveBar",
 						Colour:         "green",
 						PurchasePrice:  50,
-						VolumeColour:   "rgba(47, 194, 27, 0.8)",
 					},
 					{
-						Time:           time.Now().Add(-time.Hour * 4).Unix(),
+						Year:           2020,
+						Month:          12,
+						Day:            12,
+						Hour:           1,
 						Open:           1332,
 						High:           1332,
 						Low:            1330,
@@ -99,7 +104,10 @@ func TestGenerateReport(t *testing.T) {
 						VolumeColour:   "rgba(252, 3, 3, 0.8)",
 					},
 					{
-						Time:           time.Now().Add(-time.Hour * 3).Unix(),
+						Year:           2020,
+						Month:          12,
+						Day:            12,
+						Hour:           2,
 						Open:           1337,
 						High:           1339,
 						Low:            1336,
@@ -116,7 +124,10 @@ func TestGenerateReport(t *testing.T) {
 						VolumeColour:   "rgba(47, 194, 27, 0.8)",
 					},
 					{
-						Time:           time.Now().Add(-time.Hour * 2).Unix(),
+						Year:           2020,
+						Month:          12,
+						Day:            12,
+						Hour:           3,
 						Open:           1337,
 						High:           1339,
 						Low:            1336,
@@ -133,7 +144,10 @@ func TestGenerateReport(t *testing.T) {
 						VolumeColour:   "rgba(252, 3, 3, 0.8)",
 					},
 					{
-						Time:         time.Now().Unix(),
+						Year:         2020,
+						Month:        12,
+						Day:          12,
+						Hour:         4,
 						Open:         1337,
 						High:         1339,
 						Low:          1336,
@@ -151,7 +165,9 @@ func TestGenerateReport(t *testing.T) {
 				Watermark: "BITTREX - SPOT - BTC-USD - 1d",
 				Candles: []DetailedCandle{
 					{
-						Time:           time.Now().Add(-time.Hour * 5).Unix(),
+						Year:           2020,
+						Month:          12,
+						Day:            12,
 						Open:           1337,
 						High:           1339,
 						Low:            1336,
@@ -168,7 +184,10 @@ func TestGenerateReport(t *testing.T) {
 						VolumeColour:   "rgba(47, 194, 27, 0.8)",
 					},
 					{
-						Time:           time.Now().Add(-time.Hour * 4).Unix(),
+						Year:           2020,
+						Month:          12,
+						Day:            12,
+						Hour:           1,
 						Open:           1332,
 						High:           1332,
 						Low:            1330,
@@ -185,7 +204,10 @@ func TestGenerateReport(t *testing.T) {
 						VolumeColour:   "rgba(252, 3, 3, 0.8)",
 					},
 					{
-						Time:           time.Now().Add(-time.Hour * 3).Unix(),
+						Year:           2020,
+						Month:          12,
+						Day:            12,
+						Hour:           2,
 						Open:           1337,
 						High:           1339,
 						Low:            1336,
@@ -202,7 +224,10 @@ func TestGenerateReport(t *testing.T) {
 						VolumeColour:   "rgba(47, 194, 27, 0.8)",
 					},
 					{
-						Time:           time.Now().Add(-time.Hour * 2).Unix(),
+						Year:           2020,
+						Month:          12,
+						Day:            12,
+						Hour:           3,
 						Open:           1337,
 						High:           1339,
 						Low:            1336,
@@ -219,7 +244,10 @@ func TestGenerateReport(t *testing.T) {
 						VolumeColour:   "rgba(252, 3, 3, 0.8)",
 					},
 					{
-						Time:         time.Now().Unix(),
+						Year:         2020,
+						Month:        12,
+						Day:          12,
+						Hour:         4,
 						Open:         1337,
 						High:         1339,
 						Low:          1336,
@@ -231,7 +259,6 @@ func TestGenerateReport(t *testing.T) {
 			},
 		},
 		Statistics: &statistics.Statistic{
-			Funding:      &funding.Report{},
 			StrategyName: "testStrat",
 			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic{
 				e: {
@@ -242,7 +269,6 @@ func TestGenerateReport(t *testing.T) {
 							HighestClosePrice:        decimal.NewFromInt(200),
 							MarketMovement:           decimal.NewFromInt(100),
 							StrategyMovement:         decimal.NewFromInt(100),
-							RiskFreeRate:             decimal.NewFromInt(1),
 							CompoundAnnualGrowthRate: decimal.NewFromInt(1),
 							BuyOrders:                1,
 							SellOrders:               1,
@@ -263,11 +289,11 @@ func TestGenerateReport(t *testing.T) {
 				MaxDrawdown: statistics.Swing{
 					Highest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Price: decimal.NewFromInt(1337),
+						Value: decimal.NewFromInt(1337),
 					},
 					Lowest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Price: decimal.NewFromInt(137),
+						Value: decimal.NewFromInt(137),
 					},
 					DrawdownPercent: decimal.NewFromInt(100),
 				},
@@ -281,11 +307,11 @@ func TestGenerateReport(t *testing.T) {
 				MaxDrawdown: statistics.Swing{
 					Highest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Price: decimal.NewFromInt(1337),
+						Value: decimal.NewFromInt(1337),
 					},
 					Lowest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Price: decimal.NewFromInt(137),
+						Value: decimal.NewFromInt(137),
 					},
 					DrawdownPercent: decimal.NewFromInt(100),
 				},
@@ -299,11 +325,11 @@ func TestGenerateReport(t *testing.T) {
 				MaxDrawdown: statistics.Swing{
 					Highest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Price: decimal.NewFromInt(1337),
+						Value: decimal.NewFromInt(1337),
 					},
 					Lowest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Price: decimal.NewFromInt(137),
+						Value: decimal.NewFromInt(137),
 					},
 					DrawdownPercent: decimal.NewFromInt(100),
 				},
@@ -313,6 +339,13 @@ func TestGenerateReport(t *testing.T) {
 		},
 	}
 	d.OutputPath = tempDir
+	d.Config.StrategySettings.DisableUSDTracking = true
+	d.Statistics.FundingStatistics = &statistics.FundingStatistics{
+		UsingExchangeLevelFunding: true,
+		Report: &funding.Report{
+			DisableUSDTracking: true,
+		},
+	}
 	err = d.GenerateReport()
 	if err != nil {
 		t.Error(err)

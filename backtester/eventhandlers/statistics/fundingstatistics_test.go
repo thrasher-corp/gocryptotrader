@@ -13,9 +13,9 @@ import (
 
 func TestCalculateTotalUSDFundingStatistics(t *testing.T) {
 	t.Parallel()
-	_, err := CalculateFundingStatistics(nil, nil)
-	if !errors.Is(err, funding.ErrFundsNotFound) {
-		t.Errorf("received %v expected %v", err, funding.ErrFundsNotFound)
+	_, err := CalculateFundingStatistics(nil, nil, decimal.Zero)
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
 	}
 	f := funding.SetupFundingManager(true, false)
 	item, err := funding.CreateItem("binance", asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
@@ -27,7 +27,7 @@ func TestCalculateTotalUSDFundingStatistics(t *testing.T) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 
-	_, err = CalculateFundingStatistics(f, nil)
+	_, err = CalculateFundingStatistics(f, nil, decimal.Zero)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
 	}

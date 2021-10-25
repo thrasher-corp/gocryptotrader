@@ -475,7 +475,7 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	f := &funding.FundManager{}
+	f := funding.SetupFundingManager(false, true)
 	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Error(err)
@@ -580,7 +580,7 @@ func TestFullCycleMulti(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	f := &funding.FundManager{}
+	f := funding.SetupFundingManager(false, true)
 	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Error(err)

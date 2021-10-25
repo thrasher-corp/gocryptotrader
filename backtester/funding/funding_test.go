@@ -797,7 +797,7 @@ func TestGenerateReport(t *testing.T) {
 	if report.Items[0].Exchange != item.exchange {
 		t.Error("expected matching name")
 	}
-	if !report.Items[1].USDFinalFunds.Equal(decimal.NewFromInt(200)) {
+	if !report.Items[1].FinalFunds.Equal(decimal.NewFromInt(200)) {
 		t.Errorf("received %v expected %v", report.Items[1].FinalFunds, decimal.NewFromInt(200))
 	}
 }

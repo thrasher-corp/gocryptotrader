@@ -1,8 +1,14 @@
 package statistics
 
 import (
+	"errors"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+)
+
+var (
+	errMissingSnapshots = errors.New("funding report item missing USD snapshots")
 )
 
 type relatedStat struct {

@@ -309,7 +309,6 @@ func TestAddHoldingsForTime(t *testing.T) {
 		TotalValueLostToVolumeSizing: eleet,
 		TotalValueLostToSlippage:     eleet,
 		TotalValueLost:               eleet,
-		RiskFreeRate:                 eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -392,9 +391,7 @@ func TestSetStrategyName(t *testing.T) {
 func TestPrintTotalResults(t *testing.T) {
 	t.Parallel()
 	s := Statistic{
-		Funding: &funding.Report{
-			Items: []funding.ReportItem{{}},
-		},
+		FundingStatistics: &FundingStatistics{},
 	}
 	s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies([]FinalResultsHolder{
 		{
@@ -577,8 +574,8 @@ func TestCalculateTheResults(t *testing.T) {
 	t.Parallel()
 	s := Statistic{}
 	err := s.CalculateAllResults(&funding.FundManager{})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilArguments)
 	}
 
 	tt := time.Now().Add(-gctkline.OneDay.Duration() * 7)
@@ -740,7 +737,7 @@ func TestCalculateTheResults(t *testing.T) {
 	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.QuoteInitialFunds = eleet
 	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.TotalValue = eleeet
 
-	funds := &funding.FundManager{}
+	funds := funding.SetupFundingManager(false, false)
 	pBase, err := funding.CreateItem(exch, a, p.Base, eleeet, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -767,6 +764,24 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	pair2, err := funding.CreatePair(pBase2, pQuote2)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = funds.AddPair(pair2)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = s.CalculateAllResults(funds)
+	if !errors.Is(err, errMissingSnapshots) {
+		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
+	}
+	err = s.CalculateAllResults(funds)
+	if !errors.Is(err, errMissingSnapshots) {
+		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
+	}
+
+	funds = funding.SetupFundingManager(false, true)
+	err = funds.AddPair(pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

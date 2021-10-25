@@ -153,6 +153,9 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 	}
 
 	closePrices := reportItem.Snapshots
+	if len(closePrices) == 0 {
+		return nil, errMissingSnapshots
+	}
 	item.StartingClosePrice = ValueAtTime{
 		Time:  closePrices[0].Time,
 		Value: closePrices[0].USDClosePrice,

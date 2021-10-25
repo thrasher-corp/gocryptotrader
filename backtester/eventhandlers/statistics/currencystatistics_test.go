@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -44,7 +43,6 @@ func TestCalculateResults(t *testing.T) {
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
 			Timestamp:                 tt1,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
-			RiskFreeRate:              decimal.NewFromInt(1),
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
@@ -84,7 +82,6 @@ func TestCalculateResults(t *testing.T) {
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
 			Timestamp:                 tt2,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
-			RiskFreeRate:              decimal.NewFromInt(1),
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
@@ -119,19 +116,7 @@ func TestCalculateResults(t *testing.T) {
 	}
 
 	cs.Events = append(cs.Events, ev, ev2)
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(13337), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(13337), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pair, err := funding.CreatePair(b, q)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = cs.CalculateResults(pair)
+	err := cs.CalculateResults(decimal.NewFromFloat(0.03))
 	if err != nil {
 		t.Error(err)
 	}
@@ -232,23 +217,7 @@ func TestPrintResults(t *testing.T) {
 	}
 
 	cs.Events = append(cs.Events, ev, ev2)
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pair, err := funding.CreatePair(b, q)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = cs.CalculateResults(pair)
-	if err != nil {
-		t.Error(err)
-	}
-	cs.PrintResults(exch, a, p, pair, true)
+	cs.PrintResults(exch, a, p, true)
 }
 
 func TestCalculateMaxDrawdown(t *testing.T) {
