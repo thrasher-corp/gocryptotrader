@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
 // TickerResponse is the response type
@@ -24,14 +22,16 @@ type TickerResponse struct {
 
 // Symbol holds symbol data
 type Symbol struct {
-	ID                   string  `json:"id"` // Symbol identifier. In the future, the description will simply use the symbol
-	BaseCurrency         string  `json:"baseCurrency"`
-	QuoteCurrency        string  `json:"quoteCurrency"`
-	QuantityIncrement    float64 `json:"quantityIncrement,string"`
-	TickSize             float64 `json:"tickSize,string"`
-	TakeLiquidityRate    float64 `json:"takeLiquidityRate,string"`    // Default fee rate
-	ProvideLiquidityRate float64 `json:"provideLiquidityRate,string"` // Default fee rate for market making trades
-	FeeCurrency          string  `json:"feeCurrency"`                 // Default fee rate for market making trades
+	Type                 string  `json:"type"`
+	BaseCurrency         string  `json:"base_currency"`
+	QuoteCurrency        string  `json:"quote_currency"`
+	QuantityIncrement    float64 `json:"quantity_increment,string"`
+	TickSize             float64 `json:"tick_size,string"`
+	TakeLiquidityRate    float64 `json:"take_rate,string"`
+	ProvideLiquidityRate float64 `json:"make_rate,string"` // Default fee rate for market making trades
+	FeeCurrency          string  `json:"fee_currency"`     // Default fee rate for market making trades
+	CanMarginTrade       bool    `json:"margin_trading"`
+	MaxInitialLeverage   float64 `json:"max_initial_leverage,string"`
 }
 
 // OrderbookResponse is the full orderbook response
@@ -731,6 +731,11 @@ type WsGetTradesResponseTrades struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-var depositFee = map[asset.Item]map[currency.Code]fee.Transfer{
-	asset.Spot: {currency.BTC: {Deposit: fee.Convert(0.0006)}}, // Dubious?
+// CommisionRate defines a maker and taker rate for a currency pair. NOTE:
+// Symbols have no delimiter so they will need to be matched with internal
+// systems.
+type CommisionRate struct {
+	Symbol string  `json:"symbol"`
+	Taker  float64 `json:"take_rate,string"`
+	Maker  float64 `json:"make_rate,string"`
 }

@@ -10,7 +10,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -22,7 +24,7 @@ const (
 	// Public
 	apiV2Trades    = "api/2/public/trades"
 	apiV2Currency  = "api/2/public/currency"
-	apiV2Symbol    = "api/2/public/symbol"
+	apiV3Symbol    = "api/3/public/symbol"
 	apiV2Ticker    = "api/2/public/ticker"
 	apiV2Orderbook = "api/2/public/orderbook"
 	apiV2Candles   = "api/2/public/candles"
@@ -35,11 +37,14 @@ const (
 	apiV2OrderHistory   = "api/2/history/order"
 	apiv2OpenOrders     = "api/2/order"
 	apiV2FeeInfo        = "api/2/trading/fee"
+	apiV3TradingFee     = "api/3/spot/fee"
 	orders              = "order"
 	apiOrder            = "api/2/order"
 	orderMove           = "moveOrder"
 	tradableBalances    = "returnTradableBalances"
 	transferBalance     = "transferBalance"
+
+	apiv3GetFeeEstimate = "/api/3/wallet/crypto/fee/estimate"
 )
 
 // HitBTC is the overarching type across the hitbtc package
@@ -83,32 +88,10 @@ func (h *HitBTC) GetCurrency(ctx context.Context, currency string) (Currencies, 
 	return resp.Data, h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp.Data)
 }
 
-// GetSymbols Return the actual list of currency symbols (currency pairs) traded
-// on HitBTC exchange. The first listed currency of a symbol is called the base
-// currency, and the second currency is called the quote currency. The currency
-// pair indicates how much of the quote currency is needed to purchase one unit
-// of the base currency.
-func (h *HitBTC) GetSymbols(ctx context.Context, symbol string) ([]string, error) {
-	var resp []Symbol
-	path := fmt.Sprintf("/%s/%s", apiV2Symbol, symbol)
-
-	ret := make([]string, 0, len(resp))
-	err := h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
-	if err != nil {
-		return ret, err
-	}
-
-	for _, x := range resp {
-		ret = append(ret, x.ID)
-	}
-	return ret, err
-}
-
-// GetSymbolsDetailed is the same as above but returns an array of symbols with
-// all their details.
-func (h *HitBTC) GetSymbolsDetailed(ctx context.Context) ([]Symbol, error) {
-	var resp []Symbol
-	path := fmt.Sprintf("/%s", apiV2Symbol)
+// GetSymbols returns a map of trading pairs enabled on the exchange.
+func (h *HitBTC) GetSymbols(ctx context.Context) (map[string]Symbol, error) {
+	var resp map[string]Symbol
+	path := fmt.Sprintf("/%s", apiV3Symbol)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
@@ -462,6 +445,36 @@ func (h *HitBTC) GetFeeInfo(ctx context.Context, currencyPair string) (Fee, erro
 		&result)
 
 	return result, err
+}
+
+// GetTradingCommission returns fee rates on currency pairs
+func (h *HitBTC) GetTradingCommission(ctx context.Context) ([]CommisionRate, error) {
+	var result []CommisionRate
+	err := h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		apiV3TradingFee,
+		url.Values{},
+		tradingRequests,
+		&result)
+
+	return result, err
+}
+
+// GetWithdrawalFeeEstimate returns fee rates on currency pairs
+func (h *HitBTC) GetWithdrawalFeeEstimate(ctx context.Context, c currency.Code, amount float64) (float64, error) {
+	var result struct {
+		Fee float64 `json:"fee,string"`
+	}
+	vals := url.Values{}
+	vals.Set("currency", c.String())
+	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+
+	path := common.EncodeURLValues(apiv3GetFeeEstimate, vals)
+	err := h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		path,
+		vals,
+		tradingRequests,
+		&result)
+	return result.Fee, err
 }
 
 // GetTradableBalances returns current tradable balances

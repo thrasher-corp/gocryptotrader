@@ -2,6 +2,7 @@ package hitbtc
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -939,6 +940,39 @@ func TestGetHistoricTrades(t *testing.T) {
 		currencyPair, asset.Spot,
 		time.Now().Add(-time.Minute*60*200),
 		time.Now().Add(-time.Minute*60*199))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	err := h.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected '%v'", err, asset.ErrNotSupported)
+	}
+
+	err = h.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip("no credentials set in test package")
+	}
+
+	err = h.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+}
+
+func TestGetWithdrawalFeeEstimate(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("no credentials set in test package")
+	}
+	_, err := h.GetWithdrawalFeeEstimate(context.Background(), currency.BTC, 1)
 	if err != nil {
 		t.Error(err)
 	}

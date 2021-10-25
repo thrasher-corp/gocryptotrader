@@ -159,11 +159,12 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	// NOTE: https://hitbtc.com/fee-tier
 	err = h.Fees.LoadStatic(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.002, Taker: 0.002},
+			asset.Spot: {Maker: 0.0009, Taker: 0.0009},
 		},
-		Transfer: depositFee,
+		// TODO: Transfer fees, minimal API support to load the full amount.
 	})
 	if err != nil {
 		return err
@@ -284,12 +285,12 @@ func (h *HitBTC) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (h *HitBTC) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
-	symbols, err := h.GetSymbolsDetailed(ctx)
+	format, err := h.GetPairFormat(asset, false)
 	if err != nil {
 		return nil, err
 	}
 
-	format, err := h.GetPairFormat(asset, false)
+	symbols, err := h.GetSymbols(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -925,28 +926,34 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 // UpdateCommissionFees updates current fees associated with account
 func (h *HitBTC) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	// TODO: Trade fees - see if we can get full definitions
-	// feeInfo, err := h.GetFeeInfo(feeBuilder.Pair.Base.String() +
-	// 	feeBuilder.Pair.Delimiter +
-	// 	feeBuilder.Pair.Quote.String())
 
-	// if err != nil {
-	// 	return 0, err
-	// }
-	// f = calculateTradingFee(feeInfo, feeBuilder.PurchasePrice,
-	// 	feeBuilder.Amount,
-	// 	feeBuilder.IsMaker)
+	fees, err := h.GetTradingCommission(context.Background())
+	if err != nil {
+		return err
+	}
 
-	// TODO: withdrawal defintions - full definitions
-	// currencyInfo, err := h.GetCurrency(feeBuilder.Pair.Base.String())
-	// if err != nil {
-	// 	return 0, err
-	// }
-	// f, err = strconv.ParseFloat(currencyInfo.PayoutFee, 64)
-	// if err != nil {
-	// 	return 0, err
-	// }
+	avail, err := h.GetAvailablePairs(a)
+	if err != nil {
+		return err
+	}
+
+	for x := range fees {
+		var pair currency.Pair
+		if fees[x].Symbol == "BONDUSD" { // No such trading pair
+			pair, err = avail.DeriveFrom("BONDUSDT")
+		} else {
+			pair, err = avail.DeriveFrom(fees[x].Symbol)
+		}
+		if err != nil {
+			return err
+		}
+
+		err = h.Fees.LoadDynamic(fees[x].Maker, fees[x].Taker, a, pair)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
