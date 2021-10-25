@@ -2,10 +2,17 @@ package currency
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"math/rand"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/log"
+)
+
+var (
+	errSymbolEmpty = errors.New("symbol is empty")
+	errPairsEmpty  = errors.New("pairs are empty")
 )
 
 // NewPairsFromStrings takes in currency pair strings and returns a currency
@@ -189,4 +196,37 @@ func (p Pairs) GetRandomPair() Pair {
 		return p[rand.Intn(pairsLen)] // nolint:gosec // basic number generation required, no need for crypo/rand
 	}
 	return Pair{}
+}
+
+// DeriveFrom matches symbol string to the available pairs list when no
+// delimiter is supplied.
+func (p Pairs) DeriveFrom(symbol string) (Pair, error) {
+	if len(p) == 0 {
+		return Pair{}, errPairsEmpty
+	}
+	if symbol == "" {
+		return Pair{}, errSymbolEmpty
+	}
+	symbol = strings.ToLower(symbol)
+pairs:
+	for x := range p {
+		if p[x].Len() != len(symbol) {
+			continue // Optim.
+		}
+		base := p[x].Base.Lower().String()
+		baseLength := len(base)
+		for y := 0; y < baseLength; y++ {
+			if base[y] != symbol[y] {
+				continue pairs
+			}
+		}
+		quote := p[x].Quote.Lower().String()
+		for y := 0; y < len(quote); y++ {
+			if quote[y] != symbol[baseLength+y] {
+				continue pairs
+			}
+		}
+		return p[x], nil
+	}
+	return Pair{}, fmt.Errorf("%w for symbol string %s", ErrPairNotFound, symbol)
 }

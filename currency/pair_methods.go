@@ -115,3 +115,8 @@ func (p Pair) IsEmpty() bool {
 func (p Pair) ContainsCurrency(c Code) bool {
 	return p.Base.Item == c.Item || p.Quote.Item == c.Item
 }
+
+// Len derives full length for match exclusion.
+func (p Pair) Len() int {
+	return len(p.Base.String()) + len(p.Quote.String())
+}
