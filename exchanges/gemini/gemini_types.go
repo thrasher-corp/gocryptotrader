@@ -1,6 +1,10 @@
 package gemini
 
-import "github.com/thrasher-corp/gocryptotrader/currency"
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
+)
 
 const (
 	marketDataLevel2 = "l2"
@@ -332,4 +336,76 @@ type wsL2MarketData struct {
 	Changes       [][3]string       `json:"changes"`
 	Trades        []wsTrade         `json:"trades"`
 	AuctionEvents []wsAuctionResult `json:"auction_events"`
+}
+
+var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
+	asset.Spot: {
+		currency.ZRX:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+		currency.AAVE:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+		currency.AMP:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(10)},
+		currency.BAL:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+		currency.BAT:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+		currency.BTC:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+		currency.BCH:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.002)},
+		currency.LINK:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+		currency.COMP:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+		currency.CRV:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.2)},
+		currency.DAI:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.1)},
+		currency.MANA:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(10)},
+		currency.ETH:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+		currency.FIL:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+		currency.KEEP:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+		currency.KNC:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.1)},
+		currency.LTC:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.002)},
+		currency.MKR:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+		currency.NXM:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+		currency.OXT:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+		currency.PAXG:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0001)},
+		currency.REN:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+		currency.STORJ:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+		currency.SNX:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.1)},
+		currency.UMA:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.02)},
+		currency.UNI:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.1)},
+		currency.YFI:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.00002)},
+		currency.ZEC:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.002)},
+		currency.GUSD:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)}, // Free
+		currency.BNT:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.02)},
+		currency.ONEINCH: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.1)},
+		currency.LRC:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+		currency.ENJ:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.2)},
+		currency.GRT:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.2)},
+		currency.SAND:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+		currency.SKL:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+		currency.BOND:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+		currency.OCEAN:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.2)},
+		currency.INJ:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.02)},
+		currency.LPT:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.02)},
+		currency.MATIC:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+		currency.CUBE:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.2)},
+		currency.SUSHI:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.02)},
+		currency.DOGE:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
+		currency.ALCX:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0004)},
+		currency.ANKR:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(3)},
+		currency.API3:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.1)},
+		currency.DDX:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.1)},
+		currency.FTM:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+		currency.MIR:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.05)},
+		currency.CTX:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.06)},
+		currency.XTZ:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.2)},
+		currency.ACH:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(4.81)},
+		currency.AXS:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.02)},
+		currency.ILV:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+		currency.MC02:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.08)},
+		currency.SLP:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+		currency.LUNA:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.04)},
+		currency.UST:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.5)},
+		currency.USDC:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.5)},
+		currency.WTON:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1.31)},
+		currency.EFIL:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+	},
+}
+
+var bankTransfers = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
+	fee.AutomaticClearingHouse: {},
+	fee.WireTransfer:           {},
 }

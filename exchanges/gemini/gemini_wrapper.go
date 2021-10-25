@@ -143,10 +143,13 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	// NOTE: https://www.gemini.com/fees/activetrader-fee-schedule#section-active-trader-fee-schedule
 	err = g.Fees.LoadStatic(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.01, Taker: 0.01},
+			asset.Spot: {Maker: 0.0025, Taker: 0.0035},
 		},
+		Transfer:        transferFees,
+		BankingTransfer: bankTransfers,
 	})
 	if err != nil {
 		return err
@@ -803,30 +806,14 @@ func (g *Gemini) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 // UpdateCommissionFees updates current fees associated with account
 func (g *Gemini) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	// TODO: Notional volume to calculate fees based off trading activity
-	// notionVolume, err := g.GetNotionalVolume()
-	// if err != nil {
-	// 	return 0, err
-	// }
-	// f = calculateTradingFee(&notionVolume, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	notionVolume, err := g.GetNotionalVolume(ctx)
+	if err != nil {
+		return err
+	}
 
-	// case fee.Withdrawal:
-	// TODO: no free transactions after 10; Need database to know how many trades have been done
-	// Could do via trade history, but would require analysis of response and dates to determine level of fee
-
-	// NOTE: no fees for international bank recheck
-	return nil
+	makerFee := float64(notionVolume.APIMakerFeeBPS) / 1e4
+	takerFee := float64(notionVolume.APITakerFeeBPS) / 1e4
+	return g.Fees.LoadDynamic(makerFee, takerFee, a, fee.OmitPair)
 }
-
-// func calculateTradingFee(notionVolume *NotionalVolume, purchasePrice, amount float64, isMaker bool) float64 {
-// 	var volumeFee float64
-// 	if isMaker {
-// 		volumeFee = (float64(notionVolume.APIMakerFeeBPS) / 10000)
-// 	} else {
-// 		volumeFee = (float64(notionVolume.APITakerFeeBPS) / 10000)
-// 	}
-
-// 	return volumeFee * amount * purchasePrice
-// }
