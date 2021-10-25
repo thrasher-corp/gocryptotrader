@@ -144,11 +144,11 @@ func TestOrderTypes(t *testing.T) {
 	}
 }
 
-func TestInferAmountsCostsAndTimes(t *testing.T) {
+func TestInferCostsAndTimes(t *testing.T) {
 	t.Parallel()
 
 	var detail Detail
-	_ = detail.InferAmountsCostsAndTimes()
+	detail.InferCostsAndTimes()
 	if detail.Amount != detail.ExecutedAmount+detail.RemainingAmount {
 		t.Errorf(
 			"Order detail amounts not equals. Expected 0, received %f",
@@ -157,7 +157,7 @@ func TestInferAmountsCostsAndTimes(t *testing.T) {
 	}
 
 	detail.CloseTime = time.Now()
-	_ = detail.InferAmountsCostsAndTimes()
+	detail.InferCostsAndTimes()
 	if detail.LastUpdated != detail.CloseTime {
 		t.Errorf(
 			"Order last updated not equals close time. Expected %s, received %s",
@@ -166,22 +166,9 @@ func TestInferAmountsCostsAndTimes(t *testing.T) {
 		)
 	}
 
-	var err error
-	detail.Amount = 1
-	err = detail.InferAmountsCostsAndTimes()
-	if detail.ExecutedAmount+detail.RemainingAmount != 0 {
-		t.Errorf(
-			"Order detail amounts not equals. Expected 0, received %f",
-			detail.ExecutedAmount+detail.RemainingAmount,
-		)
-	}
-	if !strings.Contains(err.Error(), ErrInvalidAmounts.Error()) {
-		t.Error("Expected error not returned")
-	}
-
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
-	_ = detail.InferAmountsCostsAndTimes()
+	detail.InferCostsAndTimes()
 	if detail.AverageExecutedPrice != 0 {
 		t.Errorf(
 			"Unexpected AverageExecutedPrice. Expected 0, received %f",
@@ -191,7 +178,7 @@ func TestInferAmountsCostsAndTimes(t *testing.T) {
 
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
-	_ = detail.InferAmountsCostsAndTimes()
+	detail.InferCostsAndTimes()
 	if detail.Cost != 0 {
 		t.Errorf(
 			"Unexpected Cost. Expected 0, received %f",
@@ -202,7 +189,7 @@ func TestInferAmountsCostsAndTimes(t *testing.T) {
 
 	detail.Amount = 1
 	detail.RemainingAmount = 1
-	_ = detail.InferAmountsCostsAndTimes()
+	detail.InferCostsAndTimes()
 	if detail.Amount != detail.ExecutedAmount+detail.RemainingAmount {
 		t.Errorf(
 			"Order detail amounts not equals. Expected 0, received %f",
@@ -214,7 +201,7 @@ func TestInferAmountsCostsAndTimes(t *testing.T) {
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
 	detail.Price = 2
-	_ = detail.InferAmountsCostsAndTimes()
+	detail.InferCostsAndTimes()
 	if detail.AverageExecutedPrice != 2 {
 		t.Errorf(
 			"Unexpected AverageExecutedPrice. Expected 2, received %f",
@@ -223,7 +210,7 @@ func TestInferAmountsCostsAndTimes(t *testing.T) {
 	}
 
 	detail = Detail{Amount: 1, ExecutedAmount: 2, Cost: 3, Price: 0}
-	_ = detail.InferAmountsCostsAndTimes()
+	detail.InferCostsAndTimes()
 	if detail.AverageExecutedPrice != 1.5 {
 		t.Errorf(
 			"Unexpected AverageExecutedPrice. Expected 1.5, received %f",
@@ -232,20 +219,11 @@ func TestInferAmountsCostsAndTimes(t *testing.T) {
 	}
 
 	detail = Detail{Amount: 1, ExecutedAmount: 2, AverageExecutedPrice: 3}
-	_ = detail.InferAmountsCostsAndTimes()
+	detail.InferCostsAndTimes()
 	if detail.Cost != 6 {
 		t.Errorf(
 			"Unexpected Cost. Expected 6, received %f",
 			detail.Cost,
-		)
-	}
-
-	detail = Detail{Amount: 1, Status: Cancelled}
-	_ = detail.InferAmountsCostsAndTimes()
-	if detail.RemainingAmount != 1 {
-		t.Errorf(
-			"Unexpected Remaining Amount. Expected 1, received %f",
-			detail.RemainingAmount,
 		)
 	}
 }

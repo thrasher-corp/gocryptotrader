@@ -992,11 +992,10 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 						Status:          order.Filled,
 						Price:           trades.Trades[x].Price,
 						Amount:          trades.Trades[x].Quantity,
+						ExecutedAmount:  trades.Trades[x].Quantity - trades.Trades[x].OpenQuantity,
 						RemainingAmount: trades.Trades[x].OpenQuantity,
 					}
-					if err = detail.InferAmountsCostsAndTimes(); err != nil {
-						log.Errorln(log.ExchangeSys, err)
-					}
+					detail.InferCostsAndTimes()
 					allOrders = append(allOrders, detail)
 				}
 				if len(trades.Trades) < 100 {

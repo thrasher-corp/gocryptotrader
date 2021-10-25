@@ -688,9 +688,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			Exchange:       e.Name,
 			Pair:           pair,
 		}
-		if err = detail.InferAmountsCostsAndTimes(); err != nil {
-			log.Errorln(log.ExchangeSys, err)
-		}
+		detail.InferCostsAndTimes()
 		orders = append(orders, detail)
 	}
 

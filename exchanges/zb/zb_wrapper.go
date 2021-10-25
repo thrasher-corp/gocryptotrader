@@ -830,6 +830,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 			ID:                   strconv.FormatInt(allOrders[i].ID, 10),
 			Amount:               allOrders[i].TotalAmount,
 			ExecutedAmount:       allOrders[i].TradeAmount,
+			RemainingAmount:      allOrders[i].TotalAmount - allOrders[i].TradeAmount,
 			Exchange:             z.Name,
 			Date:                 orderDate,
 			Price:                allOrders[i].Price,
@@ -837,9 +838,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 			Side:                 orderSide,
 			Pair:                 pair,
 		}
-		if err = detail.InferAmountsCostsAndTimes(); err != nil {
-			log.Errorln(log.ExchangeSys, err)
-		}
+		detail.InferCostsAndTimes()
 		orders = append(orders, detail)
 	}
 

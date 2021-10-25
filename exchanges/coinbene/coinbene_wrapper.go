@@ -780,7 +780,9 @@ func (c *Coinbene) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				tempResp.Side = order.Sell
 			}
 			tempResp.Date = tempData[y].OrderTime
-			tempResp.Status = order.Status(tempData[y].OrderStatus)
+			if tempResp.Status, err = order.StringToOrderStatus(tempData[y].OrderStatus); err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+			}
 			tempResp.Price = tempData[y].OrderPrice
 			tempResp.Amount = tempData[y].Amount
 			tempResp.ExecutedAmount = tempData[y].FilledAmount
@@ -837,17 +839,18 @@ func (c *Coinbene) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				tempResp.Side = order.Sell
 			}
 			tempResp.Date = tempData[y].OrderTime
-			tempResp.Status = order.Status(tempData[y].OrderStatus)
+			if tempResp.Status, err = order.StringToOrderStatus(tempData[y].OrderStatus); err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+			}
 			tempResp.Price = tempData[y].OrderPrice
 			tempResp.AverageExecutedPrice = tempData[y].AvgPrice
 			tempResp.Amount = tempData[y].Amount
 			tempResp.ExecutedAmount = tempData[y].FilledAmount
+			tempResp.RemainingAmount = tempData[y].Amount - tempData[y].FilledAmount
 			tempResp.Cost = tempData[y].Quantity
 			tempResp.CostAsset = tempResp.Pair.Quote
 			tempResp.Fee = tempData[y].TotalFee
-			if err = tempResp.InferAmountsCostsAndTimes(); err != nil {
-				log.Errorln(log.ExchangeSys, err)
-			}
+			tempResp.InferCostsAndTimes()
 			resp = append(resp, tempResp)
 		}
 	}

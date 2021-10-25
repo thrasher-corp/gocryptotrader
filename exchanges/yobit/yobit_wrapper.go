@@ -649,13 +649,12 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			Price:                allOrders[i].Rate,
 			AverageExecutedPrice: allOrders[i].Rate,
 			Side:                 side,
+			Status:               order.Filled,
 			Date:                 orderDate,
 			Pair:                 pair,
 			Exchange:             y.Name,
 		}
-		if err = detail.InferAmountsCostsAndTimes(); err != nil {
-			log.Errorln(log.ExchangeSys, err)
-		}
+		detail.InferCostsAndTimes()
 		orders = append(orders, detail)
 	}
 

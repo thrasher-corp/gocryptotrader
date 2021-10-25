@@ -781,21 +781,25 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			return nil, err
 		}
 		side := order.Side(strings.ToUpper(allOrders[i].Side))
+		status, err := order.StringToOrderStatus(allOrders[i].Status)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+		}
 		detail := order.Detail{
 			ID:                   allOrders[i].ID,
 			Amount:               allOrders[i].Quantity,
 			ExecutedAmount:       allOrders[i].CumQuantity,
+			RemainingAmount:      allOrders[i].Quantity - allOrders[i].CumQuantity,
 			Exchange:             h.Name,
 			Price:                allOrders[i].Price,
 			AverageExecutedPrice: allOrders[i].AvgPrice,
 			Date:                 allOrders[i].CreatedAt,
 			LastUpdated:          allOrders[i].UpdatedAt,
 			Side:                 side,
+			Status:               status,
 			Pair:                 pair,
 		}
-		if err = detail.InferAmountsCostsAndTimes(); err != nil {
-			log.Errorln(log.ExchangeSys, err)
-		}
+		detail.InferCostsAndTimes()
 		orders = append(orders, detail)
 	}
 

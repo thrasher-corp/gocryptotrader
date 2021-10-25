@@ -701,6 +701,7 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			orderDetail := order.Detail{
 				Amount:          resp.Data[i].Units,
 				Exchange:        b.Name,
+				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
 				ID:              resp.Data[i].OrderID,
 				Date:            resp.Data[i].OrderDate.Time(),
 				Price:           resp.Data[i].Price,
@@ -757,6 +758,7 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 
 			orderDetail := order.Detail{
 				Amount:          resp.Data[i].Units,
+				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
 				RemainingAmount: resp.Data[i].UnitsRemaining,
 				Exchange:        b.Name,
 				ID:              resp.Data[i].OrderID,
@@ -773,9 +775,7 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				orderDetail.Side = order.Sell
 			}
 
-			if err = orderDetail.InferAmountsCostsAndTimes(); err != nil {
-				log.Errorln(log.ExchangeSys, err)
-			}
+			orderDetail.InferCostsAndTimes()
 			orders = append(orders, orderDetail)
 		}
 	}

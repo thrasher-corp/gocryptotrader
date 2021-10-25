@@ -674,7 +674,9 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return orderInfo, err
 	}
 
-	orderInfo.Status, _ = order.StringToOrderStatus(resp.Status)
+	if orderInfo.Status, err = order.StringToOrderStatus(resp.Status); err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", p.Name, err)
+	}
 	orderInfo.Price = resp.Rate
 	orderInfo.Amount = resp.Amount
 	orderInfo.Cost = resp.Total
@@ -908,11 +910,10 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 				Price:                resp.Data[key][i].Rate,
 				AverageExecutedPrice: resp.Data[key][i].Rate,
 				Pair:                 pair,
+				Status:               order.Filled,
 				Exchange:             p.Name,
 			}
-			if err = detail.InferAmountsCostsAndTimes(); err != nil {
-				log.Errorln(log.ExchangeSys, err)
-			}
+			detail.InferCostsAndTimes()
 			orders = append(orders, detail)
 		}
 	}

@@ -901,7 +901,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 		status, err := order.StringToOrderStatus(orderInfo.Status)
 		if err != nil {
-			return orderDetail, err
+			log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
 		}
 		oType, err := order.StringToOrderType(orderInfo.Description.OrderType)
 		if err != nil {
@@ -1222,24 +1222,28 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 			}
 
 			side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
+			status, err := order.StringToOrderStatus(resp.Closed[i].Status)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+			}
 			orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
 			detail := order.Detail{
-				ID:             i,
-				Amount:         resp.Closed[i].Volume,
-				ExecutedAmount: resp.Closed[i].VolumeExecuted,
-				Cost:           resp.Closed[i].Cost,
-				CostAsset:      p.Quote,
-				Exchange:       k.Name,
-				Date:           convert.TimeFromUnixTimestampDecimal(resp.Closed[i].OpenTime),
-				CloseTime:      convert.TimeFromUnixTimestampDecimal(resp.Closed[i].CloseTime),
-				Price:          resp.Closed[i].Description.Price,
-				Side:           side,
-				Type:           orderType,
-				Pair:           p,
+				ID:              i,
+				Amount:          resp.Closed[i].Volume,
+				ExecutedAmount:  resp.Closed[i].VolumeExecuted,
+				RemainingAmount: resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted,
+				Cost:            resp.Closed[i].Cost,
+				CostAsset:       p.Quote,
+				Exchange:        k.Name,
+				Date:            convert.TimeFromUnixTimestampDecimal(resp.Closed[i].OpenTime),
+				CloseTime:       convert.TimeFromUnixTimestampDecimal(resp.Closed[i].CloseTime),
+				Price:           resp.Closed[i].Description.Price,
+				Side:            side,
+				Status:          status,
+				Type:            orderType,
+				Pair:            p,
 			}
-			if err = detail.InferAmountsCostsAndTimes(); err != nil {
-				log.Errorln(log.ExchangeSys, err)
-			}
+			detail.InferCostsAndTimes()
 			orders = append(orders, detail)
 		}
 	case asset.Futures:

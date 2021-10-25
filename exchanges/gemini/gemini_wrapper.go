@@ -779,9 +779,7 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 				format.Delimiter,
 			),
 		}
-		if err = detail.InferAmountsCostsAndTimes(); err != nil {
-			log.Errorln(log.ExchangeSys, err)
-		}
+		detail.InferCostsAndTimes()
 		orders = append(orders, detail)
 	}
 

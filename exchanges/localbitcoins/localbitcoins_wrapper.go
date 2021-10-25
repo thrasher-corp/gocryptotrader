@@ -638,6 +638,11 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 			status = "Closed"
 		}
 
+		orderStatus, err := order.StringToOrderStatus(status)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", l.Name, err)
+		}
+
 		orders = append(orders, order.Detail{
 			Amount: allTrades[i].Data.AmountBTC,
 			Price:  allTrades[i].Data.Amount,
@@ -645,7 +650,7 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 			Date:   orderDate,
 			Fee:    allTrades[i].Data.FeeBTC,
 			Side:   side,
-			Status: order.Status(status),
+			Status: orderStatus,
 			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				allTrades[i].Data.Currency,
 				format.Delimiter),

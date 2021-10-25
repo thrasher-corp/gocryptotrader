@@ -488,8 +488,8 @@ func (s Status) String() string {
 	return string(s)
 }
 
-// InferAmountsCostsAndTimes infer order costs using execution information and times when available
-func (d *Detail) InferAmountsCostsAndTimes() error {
+// InferCostsAndTimes infer order costs using execution information and times when available
+func (d *Detail) InferCostsAndTimes() {
 	if d.CostAsset.IsEmpty() {
 		d.CostAsset = d.Pair.Quote
 	}
@@ -502,29 +502,8 @@ func (d *Detail) InferAmountsCostsAndTimes() error {
 		}
 	}
 
-	if d.Amount > 0 {
-		if d.ExecutedAmount == 0 {
-			if d.RemainingAmount == 0 {
-				if d.Status == Cancelled || d.Status == Rejected || d.Status == InsufficientBalance || d.
-					Status == MarketUnavailable {
-					d.RemainingAmount = d.Amount
-				} else {
-					return fmt.Errorf(
-						"cannot infer order detail for %s %s: %w",
-						d.Exchange,
-						d.ID,
-						ErrInvalidAmounts,
-					)
-				}
-			}
-			d.ExecutedAmount = d.Amount - d.RemainingAmount
-		} else if d.RemainingAmount == 0 {
-			d.RemainingAmount = d.Amount - d.ExecutedAmount
-		}
-	}
-
 	if d.ExecutedAmount <= 0 {
-		return nil
+		return
 	}
 
 	if d.AverageExecutedPrice == 0 {
@@ -537,7 +516,6 @@ func (d *Detail) InferAmountsCostsAndTimes() error {
 	if d.Cost == 0 {
 		d.Cost = d.AverageExecutedPrice * d.ExecutedAmount
 	}
-	return nil
 }
 
 // FilterOrdersBySide removes any order details that don't match the
@@ -795,7 +773,8 @@ func StringToOrderStatus(status string) (Status, error) {
 	case strings.EqualFold(status, New.String()),
 		strings.EqualFold(status, "placed"):
 		return New, nil
-	case strings.EqualFold(status, Active.String()):
+	case strings.EqualFold(status, Active.String()),
+		strings.EqualFold(status, "STATUS_ACTIVE"): // BTSE case
 		return Active, nil
 	case strings.EqualFold(status, PartiallyFilled.String()),
 		strings.EqualFold(status, "partially matched"),
@@ -803,18 +782,20 @@ func StringToOrderStatus(status string) (Status, error) {
 		return PartiallyFilled, nil
 	case strings.EqualFold(status, Filled.String()),
 		strings.EqualFold(status, "fully matched"),
-		strings.EqualFold(status, "fully filled"):
+		strings.EqualFold(status, "fully filled"),
+		strings.EqualFold(status, "ORDER_FULLY_TRANSACTED"): // BTSE case
 		return Filled, nil
 	case strings.EqualFold(status, PartiallyCancelled.String()),
-		strings.EqualFold(status, "partially cancelled"):
+		strings.EqualFold(status, "partially cancelled"),
+		strings.EqualFold(status, "ORDER_PARTIALLY_TRANSACTED"): // BTSE case
 		return PartiallyCancelled, nil
 	case strings.EqualFold(status, Open.String()):
 		return Open, nil
 	case strings.EqualFold(status, Closed.String()):
 		return Closed, nil
-	case strings.EqualFold(status, Cancelled.String()):
-		return Cancelled, nil
-	case strings.EqualFold(status, "CANCELED"): // Kraken case
+	case strings.EqualFold(status, Cancelled.String()),
+		strings.EqualFold(status, "CANCELED"),        // Binance and Kraken case
+		strings.EqualFold(status, "ORDER_CANCELLED"): // BTSE case
 		return Cancelled, nil
 	case strings.EqualFold(status, PendingCancel.String()),
 		strings.EqualFold(status, "pending cancel"),

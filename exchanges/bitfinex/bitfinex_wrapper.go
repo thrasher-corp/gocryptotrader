@@ -973,9 +973,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			ExecutedAmount:       resp[i].ExecutedAmount,
 			Pair:                 pair,
 		}
-		if err = orderDetail.InferAmountsCostsAndTimes(); err != nil {
-			log.Errorln(log.ExchangeSys, err)
-		}
+		orderDetail.InferCostsAndTimes()
 
 		switch {
 		case resp[i].IsLive:

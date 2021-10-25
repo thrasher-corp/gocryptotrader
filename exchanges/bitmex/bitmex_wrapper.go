@@ -754,20 +754,26 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
+		orderStatus, err := order.StringToOrderStatus(resp[i].OrdStatus)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		}
 		orderType := orderTypeMap[resp[i].OrdType]
 		if orderType == "" {
 			orderType = order.UnknownType
 		}
 
 		orderDetail := order.Detail{
-			Date:     resp[i].Timestamp,
-			Price:    resp[i].Price,
-			Amount:   resp[i].OrderQty,
-			Exchange: b.Name,
-			ID:       resp[i].OrderID,
-			Side:     orderSide,
-			Type:     orderType,
-			Status:   order.Status(resp[i].OrdStatus),
+			Date:            resp[i].Timestamp,
+			Price:           resp[i].Price,
+			Amount:          resp[i].OrderQty,
+			ExecutedAmount:  resp[i].CumQty,
+			RemainingAmount: resp[i].LeavesQty,
+			Exchange:        b.Name,
+			ID:              resp[i].OrderID,
+			Side:            orderSide,
+			Status:          orderStatus,
+			Type:            orderType,
 			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
 				format.Delimiter),
@@ -805,6 +811,10 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
+		orderStatus, err := order.StringToOrderStatus(resp[i].OrdStatus)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		}
 		orderType := orderTypeMap[resp[i].OrdType]
 		if orderType == "" {
 			orderType = order.UnknownType
@@ -822,13 +832,11 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			Exchange:             b.Name,
 			ID:                   resp[i].OrderID,
 			Side:                 orderSide,
+			Status:               orderStatus,
 			Type:                 orderType,
-			Status:               order.Status(resp[i].OrdStatus),
 			Pair:                 pair,
 		}
-		if err = orderDetail.InferAmountsCostsAndTimes(); err != nil {
-			log.Errorln(log.ExchangeSys, err)
-		}
+		orderDetail.InferCostsAndTimes()
 
 		orders = append(orders, orderDetail)
 	}
