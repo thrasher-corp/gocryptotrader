@@ -354,6 +354,11 @@ func (b *Base) GetName() string {
 	return b.Name
 }
 
+// SetName is a method that overrides the name of the exchange base
+func (b *Base) SetName(name string) {
+	b.Name = name
+}
+
 // GetEnabledFeatures returns the exchanges enabled features
 func (b *Base) GetEnabledFeatures() FeaturesEnabled {
 	return b.Features.Enabled

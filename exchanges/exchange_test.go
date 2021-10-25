@@ -757,6 +757,20 @@ func TestGetName(t *testing.T) {
 	}
 }
 
+func TestSetName(t *testing.T) {
+	t.Parallel()
+
+	b := Base{
+		Name: "TESTNAME",
+	}
+
+	b.SetName("OTHER_TEST_NAME")
+
+	if name := b.GetName(); name != "OTHER_TEST_NAME" {
+		t.Error("Exchange GetName() returned incorrect name")
+	}
+}
+
 func TestGetFeatures(t *testing.T) {
 	t.Parallel()
 
