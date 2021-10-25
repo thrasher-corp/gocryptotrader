@@ -126,6 +126,10 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 						os.Exit(-1)
 					}
 					for j := range usdCandles.Candles {
+						// usd stablecoins do not all equal eachother,
+						// this is a simplified implementation that can allow
+						// USD tracking for many different currencies across many exchanges
+						// without retrieving candle history and exchange rates for n
 						usdCandles.Candles[j].Open = 1
 						usdCandles.Candles[j].High = 1
 						usdCandles.Candles[j].Low = 1

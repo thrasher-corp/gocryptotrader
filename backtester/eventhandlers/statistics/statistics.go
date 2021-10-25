@@ -197,7 +197,10 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 	if err != nil {
 		return err
 	}
-	s.FundingStatistics.PrintResults(s.WasAnyDataMissing)
+	err = s.FundingStatistics.PrintResults(s.WasAnyDataMissing)
+	if err != nil {
+		return err
+	}
 
 	s.TotalOrders = s.TotalBuyOrders + s.TotalSellOrders
 	if currCount > 1 {
