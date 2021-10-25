@@ -87,9 +87,10 @@ type Pair struct {
 
 // Report holds all funding data for result reporting
 type Report struct {
-	DisableUSDTracking bool
-	Items              []ReportItem
-	USDTotalsOverTime  map[time.Time]ItemSnapshot
+	DisableUSDTracking        bool
+	UsingExchangeLevelFunding bool
+	Items                     []ReportItem
+	USDTotalsOverTime         map[time.Time]ItemSnapshot
 }
 
 // ReportItem holds reporting fields

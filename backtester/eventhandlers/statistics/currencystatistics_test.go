@@ -1,6 +1,7 @@
 package statistics
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -298,7 +299,10 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 		Low:   decimal.NewFromInt(1339),
 	})
 
-	resp := CalculateBiggestEventDrawdown(events)
+	resp, err := CalculateBiggestEventDrawdown(events)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
 	if resp.Highest.Value != decimal.NewFromInt(1337) && !resp.Lowest.Value.Equal(decimal.NewFromInt(1238)) {
 		t.Error("unexpected max drawdown")
 	}

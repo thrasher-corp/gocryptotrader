@@ -1133,7 +1133,7 @@
 										<td><b>Market Movement</b></td>
 										<td>{{ $val.MarketMovement}}%</td>
 									</tr>
-									{{ if eq $.Statistics.FundingStatistics.UsingExchangeLevelFunding false }}
+									{{ if eq $.Statistics.FundingStatistics.Report.UsingExchangeLevelFunding false }}
 										<tr>
 											<td><b>Strategy Movement</b></td>
 											<td>{{  $val.StrategyMovement}}%</td>
@@ -1167,7 +1167,7 @@
 										<td><b>Final Holdings</b></td>
 										<td>{{ $val.FinalHoldings.BaseSize}} {{$val.FinalHoldings.Pair.Base}}</td>
 									</tr>
-									{{ if eq $.Statistics.FundingStatistics.UsingExchangeLevelFunding false }}
+									{{ if eq $.Statistics.FundingStatistics.Report.UsingExchangeLevelFunding false }}
 										<tr>
 											<td><b>Final Holdings Value</b></td>
 											<td>{{ $val.FinalHoldings.BaseValue}} {{ $val.FinalHoldings.Pair.Quote }}</td>
@@ -1179,7 +1179,7 @@
 									{{end }}
 									</tbody>
 								</table>
-								{{ if eq  $.Statistics.FundingStatistics.UsingExchangeLevelFunding false }}
+								{{ if eq  $.Statistics.FundingStatistics.Report.UsingExchangeLevelFunding false }}
 									Rates
 									<table class="table table-hover table-bordered table-striped">
 										<tbody>
@@ -1246,7 +1246,7 @@
 				{{end}}
 			{{end}}
 	{{ if $.Config.StrategySettings.DisableUSDTracking }}
-	{{ if $.Statistics.FundingStatistics.UsingExchangeLevelFunding }}
+	{{ if $.Statistics.FundingStatistics.Report.UsingExchangeLevelFunding }}
 	<div class="card card-cascade narrower">
 		<div class="view view-cascade bg-alert alert-warning">
 			<h2  id="funding-statistics"  class="px-4 card-header-title">Exchange level funding ratios require USD Tracking setting enabled</h2>

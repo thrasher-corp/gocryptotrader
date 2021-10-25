@@ -181,7 +181,9 @@ func (f *FundManager) USDTrackingDisabled() bool {
 // GenerateReport builds report data for result HTML report
 func (f *FundManager) GenerateReport() *Report {
 	report := Report{
-		USDTotalsOverTime: make(map[time.Time]ItemSnapshot),
+		USDTotalsOverTime:         make(map[time.Time]ItemSnapshot),
+		UsingExchangeLevelFunding: f.usingExchangeLevelFunding,
+		DisableUSDTracking:        f.disableUSDTracking,
 	}
 	var items []ReportItem
 	for i := range f.items {
@@ -230,7 +232,6 @@ func (f *FundManager) GenerateReport() *Report {
 		items = append(items, item)
 	}
 	report.Items = items
-	report.DisableUSDTracking = f.disableUSDTracking
 	return &report
 }
 

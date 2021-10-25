@@ -71,7 +71,11 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	// ratio calculations as no movement has been made
 	benchmarkRates = benchmarkRates[1:]
 	returnsPerCandle = returnsPerCandle[1:]
-	c.MaxDrawdown = CalculateBiggestEventDrawdown(allDataEvents)
+	c.MaxDrawdown, err = CalculateBiggestEventDrawdown(allDataEvents)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
 	interval := first.DataEvent.GetInterval()
 	intervalsPerYear := interval.IntervalsPerYear()
 	riskFreeRatePerCandle := riskFreeRate.Div(decimal.NewFromFloat(intervalsPerYear))
@@ -198,7 +202,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 }
 
 // CalculateBiggestEventDrawdown calculates the biggest drawdown using a slice of DataEvents
-func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) Swing {
+func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing, error) {
 	var lowestPrice, highestPrice decimal.Decimal
 	var lowestTime, highestTime time.Time
 	var swings []Swing
@@ -253,7 +257,7 @@ func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) Swing 
 		}
 		intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[0].GetInterval(), 0)
 		if err != nil {
-			log.Error(log.BackTester, err)
+			return Swing{}, err
 		}
 		drawdownPercent := decimal.Zero
 		if highestPrice.GreaterThan(decimal.Zero) {
@@ -287,7 +291,7 @@ func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) Swing 
 		}
 	}
 
-	return maxDrawdown
+	return maxDrawdown, nil
 }
 
 func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() {
