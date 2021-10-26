@@ -111,11 +111,18 @@ func (p Pairs) MarshalJSON() ([]byte, error) {
 
 // Upper returns an upper formatted pair list
 func (p Pairs) Upper() Pairs {
-	var upper Pairs
 	for i := range p {
-		upper = append(upper, p[i].Upper())
+		p[i] = p[i].Upper()
 	}
-	return upper
+	return p
+}
+
+// Lower returns an lower formatted pair list
+func (p Pairs) Lower() Pairs {
+	for i := range p {
+		p[i] = p[i].Lower()
+	}
+	return p
 }
 
 // Contains checks to see if a specified pair exists inside a currency pair

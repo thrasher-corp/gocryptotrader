@@ -2284,4 +2284,6 @@ var (
 	SLP        = NewCode("SLP")
 	WTON       = NewCode("WTON")
 	EFIL       = NewCode("EFIL")
+	MTX        = NewCode("MTX")
+	YGG        = NewCode("YGG")
 )
