@@ -260,6 +260,7 @@ func TestGenerateReport(t *testing.T) {
 		},
 		Statistics: &statistics.Statistic{
 			StrategyName: "testStrat",
+			RiskFreeRate: decimal.NewFromFloat(0.03),
 			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic{
 				e: {
 					a: {
@@ -274,11 +275,12 @@ func TestGenerateReport(t *testing.T) {
 							SellOrders:               1,
 							FinalHoldings:            holdings.Holding{},
 							FinalOrders:              compliance.Snapshot{},
+							ArithmeticRatios:         &statistics.Ratios{},
+							GeometricRatios:          &statistics.Ratios{},
 						},
 					},
 				},
 			},
-			RiskFreeRate:    decimal.NewFromFloat(0.03),
 			TotalBuyOrders:  1337,
 			TotalSellOrders: 1330,
 			TotalOrders:     200,
@@ -336,12 +338,14 @@ func TestGenerateReport(t *testing.T) {
 				MarketMovement:   decimal.NewFromInt(1337),
 				StrategyMovement: decimal.NewFromInt(1337),
 			},
+			CurrencyPairStatistics: nil,
+			WasAnyDataMissing:      false,
+			FundingStatistics:      nil,
 		},
 	}
 	d.OutputPath = tempDir
 	d.Config.StrategySettings.DisableUSDTracking = true
 	d.Statistics.FundingStatistics = &statistics.FundingStatistics{
-		UsingExchangeLevelFunding: true,
 		Report: &funding.Report{
 			DisableUSDTracking: true,
 		},

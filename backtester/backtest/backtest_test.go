@@ -207,7 +207,7 @@ func TestLoadDataDatabase(t *testing.T) {
 			DataType: common.CandleStr,
 			Interval: gctkline.OneMin.Duration(),
 			DatabaseData: &config.DatabaseData{
-				Config: &database.Config{
+				Config: database.Config{
 					Enabled: true,
 					Driver:  "sqlite3",
 					ConnectionDetails: drivers.ConnectionDetails{
@@ -239,7 +239,7 @@ func TestLoadDataDatabase(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	bt.databaseManager, err = engine.SetupDatabaseConnectionManager(cfg.DataSettings.DatabaseData.Config)
+	bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&cfg.DataSettings.DatabaseData.Config)
 	if err != nil {
 		t.Fatal(err)
 	}

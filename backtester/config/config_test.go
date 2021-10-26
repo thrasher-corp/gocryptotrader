@@ -140,7 +140,7 @@ func TestPrintSettings(t *testing.T) {
 			DatabaseData: &DatabaseData{
 				StartDate:        startDate,
 				EndDate:          endDate,
-				Config:           nil,
+				Config:           database.Config{},
 				InclusiveEndDate: false,
 			},
 		},
@@ -792,7 +792,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 			DatabaseData: &DatabaseData{
 				StartDate: startDate,
 				EndDate:   endDate,
-				Config: &database.Config{
+				Config: database.Config{
 					Enabled: true,
 					Verbose: false,
 					Driver:  "sqlite",

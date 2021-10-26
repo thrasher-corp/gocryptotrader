@@ -87,7 +87,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		return nil, err
 	}
 	if cfg.DataSettings.DatabaseData != nil {
-		bt.databaseManager, err = engine.SetupDatabaseConnectionManager(cfg.DataSettings.DatabaseData.Config)
+		bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&cfg.DataSettings.DatabaseData.Config)
 		if err != nil {
 			return nil, err
 		}
@@ -643,12 +643,10 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if cfg.DataSettings.DatabaseData.InclusiveEndDate {
 			cfg.DataSettings.DatabaseData.EndDate = cfg.DataSettings.DatabaseData.EndDate.Add(cfg.DataSettings.Interval)
 		}
-		if cfg.DataSettings.DatabaseData.Config != nil {
-			gctdatabase.DB.DataPath = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
-			err = gctdatabase.DB.SetConfig(cfg.DataSettings.DatabaseData.Config)
-			if err != nil {
-				return nil, err
-			}
+		gctdatabase.DB.DataPath = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
+		err = gctdatabase.DB.SetConfig(&cfg.DataSettings.DatabaseData.Config)
+		if err != nil {
+			return nil, err
 		}
 		var wg sync.WaitGroup
 		err = bt.databaseManager.Start(&wg)

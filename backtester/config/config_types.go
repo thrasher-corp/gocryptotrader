@@ -155,10 +155,10 @@ type CSVData struct {
 
 // DatabaseData defines all fields to configure database based data
 type DatabaseData struct {
-	StartDate        time.Time        `json:"start-date"`
-	EndDate          time.Time        `json:"end-date"`
-	Config           *database.Config `json:"config-override"`
-	InclusiveEndDate bool             `json:"inclusive-end-date"`
+	StartDate        time.Time       `json:"start-date"`
+	EndDate          time.Time       `json:"end-date"`
+	Config           database.Config `json:"config-override"`
+	InclusiveEndDate bool            `json:"inclusive-end-date"`
 }
 
 // LiveData defines all fields to configure live data

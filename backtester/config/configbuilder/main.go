@@ -417,7 +417,7 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	fmt.Println("Do you wish to override GoCryptoTrader's database config? y/n")
 	input = quickParse(reader)
 	if input == y || input == yes {
-		cfg.DataSettings.DatabaseData.Config = &database.Config{
+		cfg.DataSettings.DatabaseData.Config = database.Config{
 			Enabled: true,
 		}
 		fmt.Println("Do you want database verbose output? y/n")
@@ -453,12 +453,12 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 			}
 		}
 		cfg.DataSettings.DatabaseData.Config.Port = uint16(port)
-		err = database.DB.SetConfig(cfg.DataSettings.DatabaseData.Config)
+		err = database.DB.SetConfig(&cfg.DataSettings.DatabaseData.Config)
 		if err != nil {
 			return fmt.Errorf("database failed to set config: %w", err)
 		}
 		if cfg.DataSettings.DatabaseData.Config.Driver == database.DBPostgreSQL {
-			_, err = dbPSQL.Connect(cfg.DataSettings.DatabaseData.Config)
+			_, err = dbPSQL.Connect(&cfg.DataSettings.DatabaseData.Config)
 			if err != nil {
 				return fmt.Errorf("database failed to connect: %v", err)
 			}
