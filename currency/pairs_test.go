@@ -11,9 +11,18 @@ func TestPairsUpper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := "BTC_USD,BTC_AUD,BTC_LTC"
+	if expected := "BTC_USD,BTC_AUD,BTC_LTC"; pairs.Upper().Join() != expected {
+		t.Errorf("Pairs Join() error expected %s but received %s",
+			expected, pairs.Join())
+	}
+}
 
-	if pairs.Upper().Join() != expected {
+func TestPairsLower(t *testing.T) {
+	pairs, err := NewPairsFromStrings([]string{"BTC_USD", "BTC_AUD", "BTC_LTC"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected := "btc_usd,btc_aud,btc_ltc"; pairs.Lower().Join() != expected {
 		t.Errorf("Pairs Join() error expected %s but received %s",
 			expected, pairs.Join())
 	}
