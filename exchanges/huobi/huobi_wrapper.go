@@ -190,10 +190,12 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	// NOTE: https://www.huobi.com/en-us/fee/
 	err = h.Fees.LoadStatic(fee.Options{
-		// TODO: This is crypto/crypto pair add in crypto/Fiat 0.001 RECHECK
 		GlobalCommissions: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.002, Taker: 0.002},
+			asset.Spot:                {Maker: 0.002, Taker: 0.002},
+			asset.CoinMarginedFutures: {Maker: 0.002, Taker: 0.002},
+			asset.Futures:             {Maker: 0.002, Taker: 0.002},
 		},
 	})
 	if err != nil {
@@ -1803,4 +1805,43 @@ func (h *HUOBI) GetAvailableTransferChains(ctx context.Context, cryptocurrency c
 		availableChains = append(availableChains, chains[0].ChainData[x].Chain)
 	}
 	return availableChains, nil
+}
+
+// UpdateCommissionFees updates current fees associated with account
+func (h *HUOBI) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	avail, err := h.GetAvailablePairs(a)
+	if err != nil {
+		return err
+	}
+
+	fmtAvail := avail.Format("", "", false)[:20]
+
+	for left := 0; left < len(fmtAvail); {
+		right := left + 10
+		if right > len(fmtAvail) {
+			right = left + (len(fmtAvail) - left)
+		}
+
+		fees, err := h.GetFeeRates(context.Background(), fmtAvail[left:right])
+		if err != nil {
+			return err
+		}
+
+		for y := range fees {
+			var p currency.Pair
+			p, err = avail.DeriveFrom(fees[y].Symbol)
+			if err != nil {
+				return err
+			}
+			err = h.Fees.LoadDynamic(fees[y].ActualMakerRate, fees[y].ActualTakerRate, a, p)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

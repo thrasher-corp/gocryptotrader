@@ -2,6 +2,7 @@ package huobi
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"strconv"
@@ -2599,6 +2600,15 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	}
 }
 
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	err := h.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFormatFuturesPair(t *testing.T) {
 	r, err := h.formatFuturesPair(futuresTestPair)
 	if err != nil {
@@ -2626,5 +2636,28 @@ func TestFormatFuturesPair(t *testing.T) {
 	}
 	if r != availInstruments[0] {
 		t.Errorf("expected %s, got %s", availInstruments[0], r)
+	}
+}
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	err := h.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected '%v'", err, asset.ErrNotSupported)
+	}
+
+	// err = h.UpdateTradablePairs(context.Background(), false)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+
+	if !areTestAPIKeysSet() {
+		t.Skip("no credentials set in test package")
+	}
+
+	err = h.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 }

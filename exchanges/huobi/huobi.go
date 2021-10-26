@@ -65,6 +65,7 @@ const (
 	huobiStatusError                 = "error"
 	huobiMarginRates                 = "/margin/loan-info"
 	huobiCurrenciesReference         = "/v2/reference/currencies"
+	huobiFeeRate                     = "/reference/transact-fee-rate"
 )
 
 // HUOBI is the overarching type across this package
@@ -817,6 +818,43 @@ func (h *HUOBI) QueryWithdrawQuotas(ctx context.Context, cryptocurrency string) 
 		return WithdrawQuota{}, err
 	}
 	return resp.WithdrawQuota, nil
+}
+
+// CommissionRates defines exchange user fee rates for calculation in trading
+type CommissionRates struct {
+	Symbol          string  `json:"symbol"`
+	ActualMakerRate float64 `json:"actualMakerRate,string"`
+	ActualTakerRate float64 `json:"actualTakerRate,string"`
+	TakerFeeRate    float64 `json:"takerFeeRate,string"`
+	MakerFeeRate    float64 `json:"makerFeeRate,string"`
+}
+
+// GetCurrenciesIncludingChains returns currency and chain data
+func (h *HUOBI) GetFeeRates(ctx context.Context, pairs currency.Pairs) ([]CommissionRates, error) {
+	if len(pairs) == 0 {
+		return nil, errors.New("need some pairs fam")
+	}
+
+	if len(pairs) > 10 {
+		return nil, errors.New("too many pairs to get information from fam")
+	}
+
+	vals := url.Values{}
+	vals.Set("symbols", pairs.Lower().Join())
+
+	resp := struct {
+		Data []CommissionRates `json:"data"`
+	}{}
+
+	err := h.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpot,
+		http.MethodPost,
+		huobiFeeRate,
+		vals,
+		nil,
+		&resp,
+		true)
+	return resp.Data, err
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
