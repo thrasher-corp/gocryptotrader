@@ -3,7 +3,6 @@ package funding
 import (
 	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -31,6 +30,7 @@ var (
 	errNotEnoughFunds             = errors.New("not enough funds")
 	errCannotTransferToSameFunds  = errors.New("cannot send funds to self")
 	errTransferMustBeSameCurrency = errors.New("cannot transfer to different currency")
+	errCannotMatchTrackingToItem  = errors.New("cannot match tracking data to funding items")
 )
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
@@ -67,12 +67,18 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 // in the chronological list to establish the canon at X time
 func (f *FundManager) CreateSnapshot(t time.Time) {
 	for i := range f.items {
+		if f.items[i].snapshot == nil {
+			f.items[i].snapshot = make(map[time.Time]ItemSnapshot)
+		}
 		iss := ItemSnapshot{
 			Available: f.items[i].available,
 			Time:      t,
 		}
 		if !f.disableUSDTracking {
 			var usdClosePrice decimal.Decimal
+			if f.items[i].usdTrackingCandles == nil {
+				continue
+			}
 			usdCandles := f.items[i].usdTrackingCandles.GetStream()
 			for j := range usdCandles {
 				if usdCandles[j].GetTime().Equal(t) {
@@ -121,15 +127,12 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 						Interval: k.Item.Interval,
 						Candles:  make([]gctkline.Candle, len(k.Item.Candles)),
 					}
-
-					if num := copy(usdCandles.Candles, k.Item.Candles); num != len(k.Item.Candles) {
-						os.Exit(-1)
-					}
+					copy(usdCandles.Candles, k.Item.Candles)
 					for j := range usdCandles.Candles {
-						// usd stablecoins do not all equal eachother,
+						// usd stablecoins do not always match in value,
 						// this is a simplified implementation that can allow
 						// USD tracking for many different currencies across many exchanges
-						// without retrieving candle history and exchange rates for n
+						// without retrieving n candle history and exchange rates
 						usdCandles.Candles[j].Open = 1
 						usdCandles.Candles[j].High = 1
 						usdCandles.Candles[j].Low = 1
@@ -149,7 +152,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 	if baseSet {
 		return nil
 	}
-	return fmt.Errorf("cannot match %v %v %v to funding items", k.Item.Exchange, k.Item.Asset, k.Item.Pair)
+	return fmt.Errorf("%w %v %v %v", errCannotMatchTrackingToItem, k.Item.Exchange, k.Item.Asset, k.Item.Pair)
 }
 
 // CreatePair adds two funding items and associates them with one another

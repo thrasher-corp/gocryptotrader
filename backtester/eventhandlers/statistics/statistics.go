@@ -193,7 +193,7 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 			}
 		}
 	}
-	s.FundingStatistics, err = CalculateFundingStatistics(funds, s.ExchangeAssetPairStatistics, s.RiskFreeRate)
+	s.FundingStatistics, err = CalculateFundingStatistics(funds, s.ExchangeAssetPairStatistics, s.RiskFreeRate, s.CandleInterval)
 	if err != nil {
 		return err
 	}

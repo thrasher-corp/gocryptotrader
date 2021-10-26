@@ -17,12 +17,11 @@ import (
 
 // CalculateFundingStatistics calculates funding statistics for total USD strategy results
 // along with individual funding item statistics
-func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic, riskFreeRate decimal.Decimal) (*FundingStatistics, error) {
+func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic, riskFreeRate decimal.Decimal, interval gctkline.Interval) (*FundingStatistics, error) {
 	if currStats == nil {
 		return nil, common.ErrNilArguments
 	}
 	report := funds.GenerateReport()
-	var interval *gctkline.Interval
 	response := &FundingStatistics{
 		Report: report,
 	}
@@ -31,10 +30,6 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		var relevantStats []relatedCurrencyPairStatistics
 		for k, v := range exchangeAssetStats {
 			if k.Base == report.Items[i].Currency {
-				if interval == nil {
-					dataEventInterval := v.Events[0].DataEvent.GetInterval()
-					interval = &dataEventInterval
-				}
 				relevantStats = append(relevantStats, relatedCurrencyPairStatistics{isBaseCurrency: true, stat: v})
 				continue
 			}
@@ -116,7 +111,7 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 	benchmarkRates = benchmarkRates[1:]
 	returnsPerCandle = returnsPerCandle[1:]
 	usdStats.BenchmarkMarketMovement = benchmarkMovement.Sub(usdStats.HoldingValues[0].Value).Div(usdStats.HoldingValues[0].Value).Mul(decimal.NewFromInt(100))
-	usdStats.MaxDrawdown = CalculateBiggestValueAtTimeDrawdown(usdStats.HoldingValues, *interval)
+	usdStats.MaxDrawdown = CalculateBiggestValueAtTimeDrawdown(usdStats.HoldingValues, interval)
 	var err error
 	sep := "USD Totals |\t"
 	usdStats.ArithmeticRatios, usdStats.GeometricRatios, err = CalculateRatios(benchmarkRates, returnsPerCandle, riskFreeRatePerCandle, &usdStats.MaxDrawdown, sep)

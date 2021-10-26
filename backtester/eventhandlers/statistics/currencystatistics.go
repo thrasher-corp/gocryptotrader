@@ -330,7 +330,7 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 			intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, interval, 0)
 			if err != nil {
 				log.Error(log.BackTester, err)
-				continue
+				return Swing{}
 			}
 			swings = append(swings, Swing{
 				Highest: ValueAtTime{

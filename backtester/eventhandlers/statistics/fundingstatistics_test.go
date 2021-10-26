@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -17,7 +16,7 @@ import (
 
 func TestCalculateFundingStatistics(t *testing.T) {
 	t.Parallel()
-	_, err := CalculateFundingStatistics(nil, nil, decimal.Zero)
+	_, err := CalculateFundingStatistics(nil, nil, decimal.Zero, gctkline.OneHour)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
 	}
@@ -40,7 +39,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 
-	_, err = CalculateFundingStatistics(f, nil, decimal.Zero)
+	_, err = CalculateFundingStatistics(f, nil, decimal.Zero, gctkline.OneHour)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
 	}
@@ -58,8 +57,6 @@ func TestCalculateFundingStatistics(t *testing.T) {
 				Time: time.Now(),
 			},
 		},
-		SourceJobID:     uuid.UUID{},
-		ValidationJobID: uuid.UUID{},
 	}
 	dfk := &kline.DataFromKline{
 		Item: usdKline,
@@ -71,7 +68,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	}
 
 	cs := make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
-	_, err = CalculateFundingStatistics(f, cs, decimal.Zero)
+	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -89,10 +86,22 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	_, err = CalculateFundingStatistics(f, cs, decimal.Zero)
+	cs["binance"] = make(map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
+	cs["binance"][asset.Spot] = make(map[currency.Pair]*CurrencyPairStatistic)
+	cs["binance"][asset.Spot][currency.NewPair(currency.LTC, currency.USD)] = &CurrencyPairStatistic{}
+	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
+	if !errors.Is(err, errMissingSnapshots) {
+		t.Errorf("received %v expected %v", err, errMissingSnapshots)
+	}
+	f.CreateSnapshot(usdKline.Candles[0].Time)
+	f.CreateSnapshot(usdKline.Candles[1].Time)
+	cs["binance"][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &CurrencyPairStatistic{}
+
+	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
+
 }
 
 func TestCalculateIndividualFundingStatistics(t *testing.T) {

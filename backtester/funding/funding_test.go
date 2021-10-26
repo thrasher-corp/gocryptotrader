@@ -7,6 +7,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -763,10 +764,11 @@ func TestGenerateReport(t *testing.T) {
 		t.Error("expected 0")
 	}
 	item := &Item{
-		exchange:     "hello :)",
+		exchange:     exch,
 		initialFunds: decimal.NewFromInt(100),
 		available:    decimal.NewFromInt(200),
 		currency:     currency.BTC,
+		asset:        a,
 	}
 	err := f.AddItem(item)
 	if err != nil {
@@ -782,14 +784,40 @@ func TestGenerateReport(t *testing.T) {
 
 	f.usingExchangeLevelFunding = true
 	err = f.AddItem(&Item{
-		exchange:     "hello :)",
+		exchange:     exch,
 		initialFunds: decimal.NewFromInt(100),
 		available:    decimal.NewFromInt(200),
 		currency:     currency.USD,
+		asset:        a,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	dfk := &kline.DataFromKline{
+		Item: gctkline.Item{
+			Exchange: exch,
+			Pair:     currency.NewPair(currency.BTC, currency.USD),
+			Asset:    a,
+			Interval: gctkline.OneHour,
+			Candles: []gctkline.Candle{
+				{
+					Time: time.Now(),
+				},
+			},
+		},
+	}
+	err = dfk.Load()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = f.AddUSDTrackingData(dfk)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	f.items[0].usdTrackingCandles = dfk
+	f.CreateSnapshot(dfk.Item.Candles[0].Time)
+
 	report = f.GenerateReport()
 	if len(report.Items) != 2 {
 		t.Fatal("expected 2")
@@ -818,5 +846,142 @@ func TestMatchesCurrency(t *testing.T) {
 	}
 	if i.MatchesCurrency(currency.NewCode("")) {
 		t.Error("expected false")
+	}
+}
+
+func TestCreateSnapshot(t *testing.T) {
+	f := FundManager{}
+	f.CreateSnapshot(time.Time{})
+	f.items = append(f.items, &Item{
+		exchange:           "",
+		asset:              "",
+		currency:           currency.Code{},
+		initialFunds:       decimal.Decimal{},
+		available:          decimal.Decimal{},
+		reserved:           decimal.Decimal{},
+		transferFee:        decimal.Decimal{},
+		pairedWith:         nil,
+		usdTrackingCandles: nil,
+		snapshot:           nil,
+	})
+	f.CreateSnapshot(time.Time{})
+
+	dfk := &kline.DataFromKline{
+		Item: gctkline.Item{
+			Candles: []gctkline.Candle{
+				{
+					Time: time.Now(),
+				},
+			},
+		},
+	}
+	err := dfk.Load()
+	if err != nil {
+		t.Error(err)
+	}
+	f.items = append(f.items, &Item{
+		exchange:           "test",
+		asset:              asset.Spot,
+		currency:           currency.BTC,
+		initialFunds:       decimal.NewFromInt(1337),
+		available:          decimal.NewFromInt(1337),
+		reserved:           decimal.NewFromInt(1337),
+		transferFee:        decimal.NewFromInt(1337),
+		usdTrackingCandles: dfk,
+	})
+	f.CreateSnapshot(dfk.Item.Candles[0].Time)
+
+}
+
+func TestAddUSDTrackingData(t *testing.T) {
+	f := FundManager{}
+	err := f.AddUSDTrackingData(nil)
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
+	}
+
+	err = f.AddUSDTrackingData(&kline.DataFromKline{})
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
+	}
+
+	dfk := &kline.DataFromKline{
+		Item: gctkline.Item{
+			Candles: []gctkline.Candle{
+				{
+					Time: time.Now(),
+				},
+			},
+		},
+	}
+	err = dfk.Load()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = f.AddItem(quoteItem)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	f.disableUSDTracking = true
+	err = f.AddUSDTrackingData(dfk)
+	if !errors.Is(err, ErrUSDTrackingDisabled) {
+		t.Errorf("received '%v' expected '%v'", err, ErrUSDTrackingDisabled)
+	}
+
+	f.disableUSDTracking = false
+	err = f.AddUSDTrackingData(dfk)
+	if !errors.Is(err, errCannotMatchTrackingToItem) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotMatchTrackingToItem)
+	}
+
+	dfk = &kline.DataFromKline{
+		Item: gctkline.Item{
+			Exchange: exch,
+			Pair:     currency.NewPair(pair.Quote, currency.USD),
+			Asset:    a,
+			Interval: gctkline.OneHour,
+			Candles: []gctkline.Candle{
+				{
+					Time: time.Now(),
+				},
+			},
+		},
+	}
+	err = dfk.Load()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = f.AddUSDTrackingData(dfk)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	usdtItem, err := CreateItem(exch, a, currency.USDT, elite, decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = f.AddItem(usdtItem)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = f.AddUSDTrackingData(dfk)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+}
+
+func TestUSDTrackingDisabled(t *testing.T) {
+	f := FundManager{}
+	if f.USDTrackingDisabled() {
+		t.Error("received true, expected false")
+	}
+	f.disableUSDTracking = true
+	if !f.USDTrackingDisabled() {
+		t.Error("received false, expected true")
 	}
 }
