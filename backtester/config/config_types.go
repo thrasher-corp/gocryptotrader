@@ -58,6 +58,7 @@ type StrategySettings struct {
 	UseExchangeLevelFunding      bool                   `json:"use-exchange-level-funding"`
 	ExchangeLevelFunding         []ExchangeLevelFunding `json:"exchange-level-funding,omitempty"`
 	// If true, won't track USD values against currency pair
+	// bool language is opposite to encourage use by default
 	DisableUSDTracking bool                   `json:"disable-usd-tracking"`
 	CustomSettings     map[string]interface{} `json:"custom-settings,omitempty"`
 }

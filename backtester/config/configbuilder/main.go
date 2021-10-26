@@ -274,8 +274,11 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	if strings.Contains(customSettings, y) {
 		cfg.StrategySettings.CustomSettings = customSettingsLoop(reader)
 	}
-	fmt.Println("Will this strategy use simultaneous processing? y/n")
+	fmt.Println("Do you wish to have strategy performance tracked against USD? y/n")
 	yn := quickParse(reader)
+	cfg.StrategySettings.DisableUSDTracking = !strings.Contains(yn, y)
+	fmt.Println("Will this strategy use simultaneous processing? y/n")
+	yn = quickParse(reader)
 	cfg.StrategySettings.SimultaneousSignalProcessing = strings.Contains(yn, y)
 	if !cfg.StrategySettings.SimultaneousSignalProcessing {
 		return nil
