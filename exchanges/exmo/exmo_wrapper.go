@@ -670,21 +670,26 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 
 	var orders []order.Detail
 	for i := range allTrades {
-		symbol, err := currency.NewPairDelimiter(allTrades[i].Pair, "_")
+		pair, err := currency.NewPairDelimiter(allTrades[i].Pair, "_")
 		if err != nil {
 			return nil, err
 		}
 		orderDate := time.Unix(allTrades[i].Date, 0)
 		orderSide := order.Side(strings.ToUpper(allTrades[i].Type))
-		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(allTrades[i].TradeID, 10),
-			Amount:   allTrades[i].Quantity,
-			Date:     orderDate,
-			Price:    allTrades[i].Price,
-			Side:     orderSide,
-			Exchange: e.Name,
-			Pair:     symbol,
-		})
+		detail := order.Detail{
+			ID:             strconv.FormatInt(allTrades[i].TradeID, 10),
+			Amount:         allTrades[i].Quantity,
+			ExecutedAmount: allTrades[i].Quantity,
+			Cost:           allTrades[i].Amount,
+			CostAsset:      pair.Quote,
+			Date:           orderDate,
+			Price:          allTrades[i].Price,
+			Side:           orderSide,
+			Exchange:       e.Name,
+			Pair:           pair,
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

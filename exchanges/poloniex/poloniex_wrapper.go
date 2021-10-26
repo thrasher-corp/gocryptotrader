@@ -668,7 +668,9 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return orderInfo, err
 	}
 
-	orderInfo.Status, _ = order.StringToOrderStatus(resp.Status)
+	if orderInfo.Status, err = order.StringToOrderStatus(resp.Status); err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", p.Name, err)
+	}
 	orderInfo.Price = resp.Rate
 	orderInfo.Amount = resp.Amount
 	orderInfo.Cost = resp.Total
@@ -874,8 +876,8 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 
 	var orders []order.Detail
 	for key := range resp.Data {
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(key, format.Delimiter)
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(key, format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
@@ -893,15 +895,20 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 					resp.Data[key][i].Date)
 			}
 
-			orders = append(orders, order.Detail{
-				ID:       strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
-				Side:     orderSide,
-				Amount:   resp.Data[key][i].Amount,
-				Date:     orderDate,
-				Price:    resp.Data[key][i].Rate,
-				Pair:     symbol,
-				Exchange: p.Name,
-			})
+			detail := order.Detail{
+				ID:                   strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
+				Side:                 orderSide,
+				Amount:               resp.Data[key][i].Amount,
+				ExecutedAmount:       resp.Data[key][i].Amount,
+				Date:                 orderDate,
+				Price:                resp.Data[key][i].Rate,
+				AverageExecutedPrice: resp.Data[key][i].Rate,
+				Pair:                 pair,
+				Status:               order.Filled,
+				Exchange:             p.Name,
+			}
+			detail.InferCostsAndTimes()
+			orders = append(orders, detail)
 		}
 	}
 

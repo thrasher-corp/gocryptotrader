@@ -1016,6 +1016,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 			tempResp.ID = strconv.FormatInt(orderData[y].ID, 10)
 			tempResp.Amount = orderData[y].Size
 			tempResp.AssetType = assetType
+			tempResp.AverageExecutedPrice = orderData[y].AvgFillPrice
 			tempResp.ClientOrderID = orderData[y].ClientID
 			tempResp.Date = orderData[y].CreatedAt
 			tempResp.Exchange = f.Name
@@ -1080,6 +1081,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 			tempResp.Side = orderVars.Side
 			tempResp.Type = orderVars.OrderType
 			tempResp.Fee = orderVars.Fee
+			tempResp.InferCostsAndTimes()
 			resp = append(resp, tempResp)
 		}
 	}

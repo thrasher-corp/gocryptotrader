@@ -977,7 +977,7 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 						return nil, err
 					}
 
-					allOrders = append(allOrders, order.Detail{
+					detail := order.Detail{
 						Exchange:        c.Name,
 						ID:              strconv.FormatInt(trades.Trades[x].OrderID, 10),
 						Pair:            p,
@@ -986,9 +986,11 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 						Status:          order.Filled,
 						Price:           trades.Trades[x].Price,
 						Amount:          trades.Trades[x].Quantity,
-						ExecutedAmount:  trades.Trades[x].Quantity,
+						ExecutedAmount:  trades.Trades[x].Quantity - trades.Trades[x].OpenQuantity,
 						RemainingAmount: trades.Trades[x].OpenQuantity,
-					})
+					}
+					detail.InferCostsAndTimes()
+					allOrders = append(allOrders, detail)
 				}
 				if len(trades.Trades) < 100 {
 					break

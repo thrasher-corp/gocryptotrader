@@ -588,10 +588,6 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 	if errGo != nil {
 		return order.Detail{}, fmt.Errorf("error retrieving order %s : %s", orderID, errGo)
 	}
-	od, errOd := time.Parse(time.RFC3339, genOrderDetail.DoneAt)
-	if errOd != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order done at time: %s", errOd)
-	}
 	os, errOs := order.StringToOrderStatus(genOrderDetail.Status)
 	if errOs != nil {
 		return order.Detail{}, fmt.Errorf("error parsing order status: %s", errOs)
@@ -615,7 +611,7 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 		Pair:            p,
 		Side:            ss,
 		Type:            tt,
-		Date:            od,
+		Date:            genOrderDetail.DoneAt,
 		Status:          os,
 		Price:           genOrderDetail.Price,
 		Amount:          genOrderDetail.Size,
@@ -828,20 +824,31 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 			return nil, err
 		}
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
+		orderStatus, err := order.StringToOrderStatus(respOrders[i].Status)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+		}
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
-		orders = append(orders, order.Detail{
-			ID:             respOrders[i].ID,
-			Amount:         respOrders[i].Size,
-			ExecutedAmount: respOrders[i].FilledSize,
-			Type:           orderType,
-			Date:           respOrders[i].CreatedAt,
-			Fee:            respOrders[i].FillFees,
-			FeeAsset:       curr.Quote,
-			Side:           orderSide,
-			Pair:           curr,
-			Price:          respOrders[i].Price,
-			Exchange:       c.Name,
-		})
+		detail := order.Detail{
+			ID:              respOrders[i].ID,
+			Amount:          respOrders[i].Size,
+			ExecutedAmount:  respOrders[i].FilledSize,
+			RemainingAmount: respOrders[i].Size - respOrders[i].FilledSize,
+			Cost:            respOrders[i].ExecutedValue,
+			CostAsset:       curr.Quote,
+			Type:            orderType,
+			Date:            respOrders[i].CreatedAt,
+			CloseTime:       respOrders[i].DoneAt,
+			Fee:             respOrders[i].FillFees,
+			FeeAsset:        curr.Quote,
+			Side:            orderSide,
+			Status:          orderStatus,
+			Pair:            curr,
+			Price:           respOrders[i].Price,
+			Exchange:        c.Name,
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)

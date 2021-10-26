@@ -1130,7 +1130,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		orderSide := order.Side(resp.Side)
 		status, err := order.StringToOrderStatus(resp.Status)
 		if err != nil {
-			return respData, err
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 		}
 		orderType := order.Limit
 		if resp.Type == "MARKET" {
@@ -1295,6 +1295,10 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			for x := range resp {
 				orderSide := order.Side(strings.ToUpper(resp[x].Side))
 				orderType := order.Type(strings.ToUpper(resp[x].Type))
+				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+				}
 				orders = append(orders, order.Detail{
 					Amount:        resp[x].OrigQty,
 					Date:          resp[x].Time,
@@ -1304,7 +1308,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 					Side:          orderSide,
 					Type:          orderType,
 					Price:         resp[x].Price,
-					Status:        order.Status(resp[x].Status),
+					Status:        orderStatus,
 					Pair:          req.Pairs[i],
 					AssetType:     req.AssetType,
 					LastUpdated:   resp[x].UpdateTime,
@@ -1411,22 +1415,39 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			for i := range resp {
 				orderSide := order.Side(strings.ToUpper(resp[i].Side))
 				orderType := order.Type(strings.ToUpper(resp[i].Type))
+				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+				}
 				// New orders are covered in GetOpenOrders
-				if resp[i].Status == "NEW" {
+				if orderStatus == order.New {
 					continue
 				}
 
-				orders = append(orders, order.Detail{
-					Amount:   resp[i].OrigQty,
-					Date:     resp[i].Time,
-					Exchange: b.Name,
-					ID:       strconv.FormatInt(resp[i].OrderID, 10),
-					Side:     orderSide,
-					Type:     orderType,
-					Price:    resp[i].Price,
-					Pair:     req.Pairs[x],
-					Status:   order.Status(resp[i].Status),
-				})
+				var cost float64
+				// For some historical orders cummulativeQuoteQty will be < 0,
+				// meaning the data is not available at this time.
+				if resp[i].CummulativeQuoteQty > 0 {
+					cost = resp[i].CummulativeQuoteQty
+				}
+				detail := order.Detail{
+					Amount:          resp[i].OrigQty,
+					ExecutedAmount:  resp[i].ExecutedQty,
+					RemainingAmount: resp[i].OrigQty - resp[i].ExecutedQty,
+					Cost:            cost,
+					CostAsset:       req.Pairs[x].Quote,
+					Date:            resp[i].Time,
+					LastUpdated:     resp[i].UpdateTime,
+					Exchange:        b.Name,
+					ID:              strconv.FormatInt(resp[i].OrderID, 10),
+					Side:            orderSide,
+					Type:            orderType,
+					Price:           resp[i].Price,
+					Pair:            req.Pairs[x],
+					Status:          orderStatus,
+				}
+				detail.InferCostsAndTimes()
+				orders = append(orders, detail)
 			}
 		}
 	case asset.CoinMarginedFutures:

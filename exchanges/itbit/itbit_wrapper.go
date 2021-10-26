@@ -614,6 +614,10 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 
 		side := order.Side(strings.ToUpper(allOrders[j].Side))
+		status, err := order.StringToOrderStatus(allOrders[j].Status)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+		}
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -624,16 +628,21 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 				allOrders[j].CreatedTime)
 		}
 
-		orders = append(orders, order.Detail{
-			ID:              allOrders[j].ID,
-			Side:            side,
-			Amount:          allOrders[j].Amount,
-			ExecutedAmount:  allOrders[j].AmountFilled,
-			RemainingAmount: (allOrders[j].Amount - allOrders[j].AmountFilled),
-			Exchange:        i.Name,
-			Date:            orderDate,
-			Pair:            symbol,
-		})
+		detail := order.Detail{
+			ID:                   allOrders[j].ID,
+			Side:                 side,
+			Status:               status,
+			Amount:               allOrders[j].Amount,
+			ExecutedAmount:       allOrders[j].AmountFilled,
+			RemainingAmount:      allOrders[j].Amount - allOrders[j].AmountFilled,
+			Price:                allOrders[j].Price,
+			AverageExecutedPrice: allOrders[j].VolumeWeightedAveragePrice,
+			Exchange:             i.Name,
+			Date:                 orderDate,
+			Pair:                 symbol,
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

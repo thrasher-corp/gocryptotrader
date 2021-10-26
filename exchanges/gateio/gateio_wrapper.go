@@ -605,7 +605,9 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		orderDetail.ExecutedAmount = orders.Orders[x].FilledAmount
 		orderDetail.Amount = orders.Orders[x].InitialAmount
 		orderDetail.Date = time.Unix(orders.Orders[x].Timestamp, 0)
-		orderDetail.Status = order.Status(orders.Orders[x].Status)
+		if orderDetail.Status, err = order.StringToOrderStatus(orders.Orders[x].Status); err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+		}
 		orderDetail.Price = orders.Orders[x].Rate
 		orderDetail.Pair, err = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
 			format.Delimiter)
@@ -763,17 +765,22 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				return nil, err
 			}
 			side := order.Side(strings.ToUpper(resp.Orders[i].Type))
+			status, err := order.StringToOrderStatus(resp.Orders[i].Status)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+			}
 			orderDate := time.Unix(resp.Orders[i].Timestamp, 0)
 			orders = append(orders, order.Detail{
 				ID:              resp.Orders[i].OrderNumber,
 				Amount:          resp.Orders[i].Amount,
-				Price:           resp.Orders[i].Rate,
+				ExecutedAmount:  resp.Orders[i].Amount - resp.Orders[i].FilledAmount,
 				RemainingAmount: resp.Orders[i].FilledAmount,
+				Price:           resp.Orders[i].Rate,
 				Date:            orderDate,
 				Side:            side,
 				Exchange:        g.Name,
 				Pair:            symbol,
-				Status:          order.Status(resp.Orders[i].Status),
+				Status:          status,
 			})
 		}
 	}
@@ -805,22 +812,26 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var orders []order.Detail
 	for i := range trades {
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(trades[i].Pair, format.Delimiter)
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(trades[i].Pair, format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
 		side := order.Side(strings.ToUpper(trades[i].Type))
 		orderDate := time.Unix(trades[i].TimeUnix, 0)
-		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(trades[i].OrderID, 10),
-			Amount:   trades[i].Amount,
-			Price:    trades[i].Rate,
-			Date:     orderDate,
-			Side:     side,
-			Exchange: g.Name,
-			Pair:     symbol,
-		})
+		detail := order.Detail{
+			ID:                   strconv.FormatInt(trades[i].OrderID, 10),
+			Amount:               trades[i].Amount,
+			ExecutedAmount:       trades[i].Amount,
+			Price:                trades[i].Rate,
+			AverageExecutedPrice: trades[i].Rate,
+			Date:                 orderDate,
+			Side:                 side,
+			Exchange:             g.Name,
+			Pair:                 pair,
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

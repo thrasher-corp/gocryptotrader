@@ -692,12 +692,12 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				continue
 			}
 
-			orderDate := time.Unix(resp.Data[i].OrderDate, 0)
 			orderDetail := order.Detail{
 				Amount:          resp.Data[i].Units,
 				Exchange:        b.Name,
+				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
 				ID:              resp.Data[i].OrderID,
-				Date:            orderDate,
+				Date:            resp.Data[i].OrderDate.Time(),
 				Price:           resp.Data[i].Price,
 				RemainingAmount: resp.Data[i].UnitsRemaining,
 				Status:          order.Active,
@@ -750,14 +750,14 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				continue
 			}
 
-			orderDate := time.Unix(resp.Data[i].OrderDate, 0)
 			orderDetail := order.Detail{
 				Amount:          resp.Data[i].Units,
+				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
+				RemainingAmount: resp.Data[i].UnitsRemaining,
 				Exchange:        b.Name,
 				ID:              resp.Data[i].OrderID,
-				Date:            orderDate,
+				Date:            resp.Data[i].OrderDate.Time(),
 				Price:           resp.Data[i].Price,
-				RemainingAmount: resp.Data[i].UnitsRemaining,
 				Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 					resp.Data[i].PaymentCurrency,
 					format.Delimiter),
@@ -769,6 +769,7 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				orderDetail.Side = order.Sell
 			}
 
+			orderDetail.InferCostsAndTimes()
 			orders = append(orders, orderDetail)
 		}
 	}

@@ -757,18 +757,24 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		side := order.Side(strings.ToUpper(trades[i].Type))
 		orderDate := time.Unix(trades[i].Timestamp, 0)
 
-		orders = append(orders, order.Detail{
-			Amount:   trades[i].Amount,
-			ID:       strconv.FormatInt(trades[i].OrderID, 10),
-			Exchange: g.Name,
-			Date:     orderDate,
-			Side:     side,
-			Fee:      trades[i].FeeAmount,
-			Price:    trades[i].Price,
-			Pair: currency.NewPairWithDelimiter(trades[i].BaseCurrency,
+		detail := order.Detail{
+			ID:                   strconv.FormatInt(trades[i].OrderID, 10),
+			Amount:               trades[i].Amount,
+			ExecutedAmount:       trades[i].Amount,
+			Exchange:             g.Name,
+			Date:                 orderDate,
+			Side:                 side,
+			Fee:                  trades[i].FeeAmount,
+			Price:                trades[i].Price,
+			AverageExecutedPrice: trades[i].Price,
+			Pair: currency.NewPairWithDelimiter(
+				trades[i].BaseCurrency,
 				trades[i].QuoteCurrency,
-				format.Delimiter),
-		})
+				format.Delimiter,
+			),
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

@@ -376,6 +376,7 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 			orderDetail := order.Detail{
 				Amount:          resp[x].OpenOrders[y].QtyTotal,
 				Exchange:        a.Name,
+				ExecutedAmount:  resp[x].OpenOrders[y].QtyTotal - resp[x].OpenOrders[y].QtyRemaining,
 				AccountID:       strconv.FormatInt(int64(resp[x].OpenOrders[y].AccountID), 10),
 				ID:              strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
 				Price:           resp[x].OpenOrders[y].Price,
@@ -423,6 +424,7 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 				Amount:          resp[x].OpenOrders[y].QtyTotal,
 				AccountID:       strconv.FormatInt(int64(resp[x].OpenOrders[y].AccountID), 10),
 				Exchange:        a.Name,
+				ExecutedAmount:  resp[x].OpenOrders[y].QtyTotal - resp[x].OpenOrders[y].QtyRemaining,
 				ID:              strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
 				Price:           resp[x].OpenOrders[y].Price,
 				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,

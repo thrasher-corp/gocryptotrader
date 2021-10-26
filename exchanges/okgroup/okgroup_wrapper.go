@@ -408,16 +408,20 @@ func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		return resp, err
 	}
 
+	status, err := order.StringToOrderStatus(mOrder.Status)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+	}
 	resp = order.Detail{
 		Amount:         mOrder.Size,
 		Pair:           p,
 		Exchange:       o.Name,
 		Date:           mOrder.Timestamp,
 		ExecutedAmount: mOrder.FilledSize,
-		Status:         order.Status(mOrder.Status),
+		Status:         status,
 		Side:           order.Side(mOrder.Side),
 	}
-	return
+	return resp, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -501,6 +505,11 @@ func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			return resp, err
 		}
 		for i := range spotOpenOrders {
+			var status order.Status
+			status, err = order.StringToOrderStatus(spotOpenOrders[i].Status)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+			}
 			resp = append(resp, order.Detail{
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
@@ -511,7 +520,7 @@ func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				Type:           order.Type(spotOpenOrders[i].Type),
 				ExecutedAmount: spotOpenOrders[i].FilledSize,
 				Date:           spotOpenOrders[i].Timestamp,
-				Status:         order.Status(spotOpenOrders[i].Status),
+				Status:         status,
 			})
 		}
 	}
@@ -532,8 +541,8 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 		if err != nil {
 			return nil, err
 		}
-		var spotOpenOrders []GetSpotOrderResponse
-		spotOpenOrders, err = o.GetSpotOrders(ctx,
+		var spotOrders []GetSpotOrderResponse
+		spotOrders, err = o.GetSpotOrders(ctx,
 			GetSpotOrdersRequest{
 				Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
 				InstrumentID: fPair.String(),
@@ -541,19 +550,28 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 		if err != nil {
 			return resp, err
 		}
-		for i := range spotOpenOrders {
-			resp = append(resp, order.Detail{
-				ID:             spotOpenOrders[i].OrderID,
-				Price:          spotOpenOrders[i].Price,
-				Amount:         spotOpenOrders[i].Size,
-				Pair:           req.Pairs[x],
-				Exchange:       o.Name,
-				Side:           order.Side(spotOpenOrders[i].Side),
-				Type:           order.Type(spotOpenOrders[i].Type),
-				ExecutedAmount: spotOpenOrders[i].FilledSize,
-				Date:           spotOpenOrders[i].Timestamp,
-				Status:         order.Status(spotOpenOrders[i].Status),
-			})
+		for i := range spotOrders {
+			var status order.Status
+			status, err = order.StringToOrderStatus(spotOrders[i].Status)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+			}
+			detail := order.Detail{
+				ID:                   spotOrders[i].OrderID,
+				Price:                spotOrders[i].Price,
+				AverageExecutedPrice: spotOrders[i].PriceAvg,
+				Amount:               spotOrders[i].Size,
+				ExecutedAmount:       spotOrders[i].FilledSize,
+				RemainingAmount:      spotOrders[i].Size - spotOrders[i].FilledSize,
+				Pair:                 req.Pairs[x],
+				Exchange:             o.Name,
+				Side:                 order.Side(spotOrders[i].Side),
+				Type:                 order.Type(spotOrders[i].Type),
+				Date:                 spotOrders[i].Timestamp,
+				Status:               status,
+			}
+			detail.InferCostsAndTimes()
+			resp = append(resp, detail)
 		}
 	}
 	return resp, err
