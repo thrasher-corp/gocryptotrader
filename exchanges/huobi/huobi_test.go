@@ -1245,11 +1245,7 @@ func TestGetSwapTradingFeeInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	cp, err := currency.NewPairFromString("ETH-USD")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.GetSwapTradingFeeInfo(context.Background(), cp)
+	_, err := h.GetSwapTradingFeeInfo(context.Background(), currency.THETA)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2642,21 +2638,31 @@ func TestFormatFuturesPair(t *testing.T) {
 func TestUpdateCommissionFees(t *testing.T) {
 	t.Parallel()
 	h.Verbose = true
-	err := h.UpdateCommissionFees(context.Background(), asset.Futures)
+	err := h.UpdateCommissionFees(context.Background(), asset.DownsideProfitContract)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected '%v'", err, asset.ErrNotSupported)
 	}
 
-	// err = h.UpdateTradablePairs(context.Background(), false)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	err = h.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if !areTestAPIKeysSet() {
 		t.Skip("no credentials set in test package")
 	}
 
 	err = h.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	err = h.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	err = h.UpdateCommissionFees(context.Background(), asset.CoinMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}

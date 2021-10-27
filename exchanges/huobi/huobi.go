@@ -848,7 +848,7 @@ func (h *HUOBI) GetFeeRates(ctx context.Context, pairs currency.Pairs) ([]Commis
 
 	err := h.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
-		http.MethodPost,
+		http.MethodGet,
 		huobiFeeRate,
 		vals,
 		nil,

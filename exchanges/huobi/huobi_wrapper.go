@@ -1809,39 +1809,96 @@ func (h *HUOBI) GetAvailableTransferChains(ctx context.Context, cryptocurrency c
 
 // UpdateCommissionFees updates current fees associated with account
 func (h *HUOBI) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
-	if a != asset.Spot {
-		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
-	}
-
-	avail, err := h.GetAvailablePairs(a)
-	if err != nil {
-		return err
-	}
-
-	fmtAvail := avail.Format("", "", false)[:20]
-
-	for left := 0; left < len(fmtAvail); {
-		right := left + 10
-		if right > len(fmtAvail) {
-			right = left + (len(fmtAvail) - left)
-		}
-
-		fees, err := h.GetFeeRates(context.Background(), fmtAvail[left:right])
+	switch a {
+	case asset.Spot:
+		// This can theoretically handle all available pairs but under these
+		// circumstances, enabled pairs will suffice.
+		enabled, err := h.GetEnabledPairs(a)
 		if err != nil {
 			return err
 		}
 
-		for y := range fees {
-			var p currency.Pair
-			p, err = avail.DeriveFrom(fees[y].Symbol)
+		pFmt, err := h.GetPairFormat(a, true)
+		if err != nil {
+			return err
+		}
+
+		enabled = enabled.Format(pFmt.Delimiter, pFmt.Index, pFmt.Uppercase)
+		for left := 0; left < len(enabled); {
+			right := left + 10
+			if right > len(enabled) {
+				right = left + (len(enabled) - left)
+			}
+
+			fees, err := h.GetFeeRates(context.Background(), enabled[left:right])
 			if err != nil {
 				return err
 			}
-			err = h.Fees.LoadDynamic(fees[y].ActualMakerRate, fees[y].ActualTakerRate, a, p)
+
+			for y := range fees {
+				var p currency.Pair
+				p, err = enabled.DeriveFrom(fees[y].Symbol)
+				if err != nil {
+					return err
+				}
+				err = h.Fees.LoadDynamic(fees[y].ActualMakerRate, fees[y].ActualTakerRate, a, p)
+				if err != nil {
+					return err
+				}
+			}
+			left = right
+		}
+	case asset.Futures:
+		// TODO: These need to be expanded later for open taker and maker, as
+		// well as delivery fee when contracts expire.
+		contractFees, err := h.FContractTradingFee(ctx, currency.Code{})
+		if err != nil {
+			return err
+		}
+
+		// Getting available pairs does not have as much as an output impact
+		// as with spot requests.
+		avail, err := h.GetAvailablePairs(a)
+		if err != nil {
+			return err
+		}
+
+		for x := range contractFees.ContractTradingFeeData {
+			filter := currency.NewCode(contractFees.ContractTradingFeeData[x].Symbol)
+			contracts := avail.GetPairsByFilter(filter)
+			for y := range contracts {
+				err = h.Fees.LoadDynamic(contractFees.ContractTradingFeeData[x].CloseMakerFee,
+					contractFees.ContractTradingFeeData[x].CloseTakerFee,
+					a,
+					contracts[y])
+				if err != nil {
+					return err
+				}
+			}
+		}
+	case asset.CoinMarginedFutures:
+		// TODO: These need to be expanded later for open taker and maker
+		swapFee, err := h.GetSwapTradingFeeInfo(ctx, currency.Code{})
+		if err != nil {
+			return err
+		}
+
+		for x := range swapFee.Data {
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(swapFee.Data[x].ContractCode)
+			if err != nil {
+				return err
+			}
+			err = h.Fees.LoadDynamic(swapFee.Data[x].CloseMakerFee,
+				swapFee.Data[x].CloseTakerFee,
+				a,
+				pair)
 			if err != nil {
 				return err
 			}
 		}
+	default:
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	return nil
 }

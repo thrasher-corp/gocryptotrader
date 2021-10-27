@@ -588,14 +588,10 @@ func (h *HUOBI) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, o
 }
 
 // GetSwapTradingFeeInfo gets trading fee info for swaps
-func (h *HUOBI) GetSwapTradingFeeInfo(ctx context.Context, code currency.Pair) (SwapTradingFeeData, error) {
+func (h *HUOBI) GetSwapTradingFeeInfo(ctx context.Context, code currency.Code) (SwapTradingFeeData, error) {
 	var resp SwapTradingFeeData
 	req := make(map[string]interface{})
-	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
-	if err != nil {
-		return resp, err
-	}
-	req["contract_code"] = codeValue
+	req["contract_code"] = code.Lower().String()
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapTradingFeeInfo, nil, req, &resp)
 }
 
