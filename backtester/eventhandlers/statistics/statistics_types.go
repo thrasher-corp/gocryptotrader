@@ -47,6 +47,7 @@ type Statistic struct {
 	CurrencyPairStatistics      []CurrencyPairStatistic                                            `json:"currency-pair-statistics"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
 	WasAnyDataMissing           bool                                                               `json:"was-any-data-missing"`
 	FundingStatistics           *FundingStatistics                                                 `json:"funding-statistics"`
+	FundManager                 funding.IFundingManager                                            `json:"-"`
 }
 
 // FinalResultsHolder holds important stats about a currency's performance
@@ -66,7 +67,7 @@ type Handler interface {
 	SetEventForOffset(common.EventHandler) error
 	AddHoldingsForTime(*holdings.Holding) error
 	AddComplianceSnapshotForTime(compliance.Snapshot, fill.Event) error
-	CalculateAllResults(funding.IFundingManager) error
+	CalculateAllResults() error
 	Reset()
 	Serialise() (string, error)
 }

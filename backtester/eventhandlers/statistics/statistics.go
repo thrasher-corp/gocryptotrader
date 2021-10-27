@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -157,7 +156,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 
 // CalculateAllResults calculates the statistics of all exchange asset pair holdings,
 // orders, ratios and drawdowns
-func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
+func (s *Statistic) CalculateAllResults() error {
 	log.Info(log.BackTester, "calculating backtesting results")
 	s.PrintAllEventsChronologically()
 	currCount := 0
@@ -172,7 +171,7 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 				if err != nil {
 					log.Error(log.BackTester, err)
 				}
-				stats.PrintResults(exchangeName, assetItem, pair, funds.IsUsingExchangeLevelFunding())
+				stats.PrintResults(exchangeName, assetItem, pair, s.FundManager.IsUsingExchangeLevelFunding())
 				stats.FinalHoldings = last.Holdings
 				stats.InitialHoldings = stats.Events[0].Holdings
 				stats.FinalOrders = last.Transactions
@@ -193,7 +192,7 @@ func (s *Statistic) CalculateAllResults(funds funding.IFundingManager) error {
 			}
 		}
 	}
-	s.FundingStatistics, err = CalculateFundingStatistics(funds, s.ExchangeAssetPairStatistics, s.RiskFreeRate, s.CandleInterval)
+	s.FundingStatistics, err = CalculateFundingStatistics(s.FundManager, s.ExchangeAssetPairStatistics, s.RiskFreeRate, s.CandleInterval)
 	if err != nil {
 		return err
 	}

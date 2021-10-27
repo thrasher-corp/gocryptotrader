@@ -11,8 +11,8 @@
   {
    "exchange-name": "binance",
    "asset": "spot",
-   "base": "BTC",
-   "quote": "USDT",
+   "base": "LTC",
+   "quote": "BTC",
    "initial-quote-funds": "100000",
    "leverage": {
     "can-use-leverage": false,
@@ -44,17 +44,17 @@
   "database-data": {
    "start-date": "2020-08-01T00:00:00+10:00",
    "end-date": "2020-12-01T00:00:00+11:00",
-   "config-override": {
+   "config":  {
     "enabled": true,
-    "verbose": false,
+    "verbose": true,
     "driver": "sqlite",
     "connectionDetails": {
      "host": "localhost",
-     "port": 0,
-     "username": "",
-     "password": "",
-     "database": "testsqlite.db",
-     "sslmode": ""
+     "port": 5432,
+     "username": "postgres",
+     "password": "postgres",
+     "database": "database.db",
+     "sslmode": "disable"
     }
    },
    "inclusive-end-date": false

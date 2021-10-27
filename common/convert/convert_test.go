@@ -1,8 +1,11 @@
 package convert
 
 import (
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 func TestFloatFromString(t *testing.T) {
@@ -148,5 +151,63 @@ func TestBoolPtr(t *testing.T) {
 	z := BoolPtr(false)
 	if *z {
 		t.Fatal("false expected received true")
+	}
+}
+
+func TestFloatToCommaSeparatedString(t *testing.T) {
+	t.Parallel()
+	test := FloatToCommaSeparatedString(0, 3, ".", ",")
+	if strings.Contains(test, ",") {
+		t.Error("unexpected ','")
+	}
+	test = FloatToCommaSeparatedString(100, 3, ".", ",")
+	if strings.Contains(test, ",") {
+		t.Error("unexpected ','")
+	}
+	test = FloatToCommaSeparatedString(1000, 3, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = FloatToCommaSeparatedString(1000.1337, 1, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+	dec := strings.Split(test, ".")
+	if len(dec) == 1 {
+		t.Error("expected decimal place")
+	}
+	if dec[1] != "1" {
+		t.Error("expected decimal place")
+	}
+}
+
+func TestDecimalToCommaSeparatedString(t *testing.T) {
+	t.Parallel()
+	test := DecimalToCommaSeparatedString(decimal.Zero, 0, ".", ",")
+	if strings.Contains(test, ",") {
+		t.Log(test)
+		t.Error("unexpected ','")
+	}
+	test = DecimalToCommaSeparatedString(decimal.NewFromInt(100), 0, ".", ",")
+	if strings.Contains(test, ",") {
+		t.Log(test)
+		t.Error("unexpected ','")
+	}
+	test = DecimalToCommaSeparatedString(decimal.NewFromInt(1000), 0, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = DecimalToCommaSeparatedString(decimal.NewFromFloat(1000.1337), 1, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+	dec := strings.Split(test, ".")
+	if len(dec) == 1 {
+		t.Error("expected decimal place")
+	}
+	if dec[1] != "1" {
+		t.Error("expected decimal place")
 	}
 }

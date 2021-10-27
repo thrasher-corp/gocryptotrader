@@ -117,8 +117,8 @@ type CurrencySettings struct {
 	Asset        string `json:"asset"`
 	Base         string `json:"base"`
 	Quote        string `json:"quote"`
-	// PriceTrackingOnly is used for price tracking data only
-	PriceTrackingOnly bool `json:"-"`
+	// USDTrackingPair is used for price tracking data only
+	USDTrackingPair bool `json:"-"`
 
 	InitialBaseFunds   *decimal.Decimal `json:"initial-base-funds,omitempty"`
 	InitialQuoteFunds  *decimal.Decimal `json:"initial-quote-funds,omitempty"`
@@ -157,7 +157,7 @@ type CSVData struct {
 type DatabaseData struct {
 	StartDate        time.Time       `json:"start-date"`
 	EndDate          time.Time       `json:"end-date"`
-	Config           database.Config `json:"config-override"`
+	Config           database.Config `json:"config"`
 	InclusiveEndDate bool            `json:"inclusive-end-date"`
 }
 

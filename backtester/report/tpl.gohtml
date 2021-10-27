@@ -204,26 +204,7 @@
 						</tbody>
 					</table>
 				{{ end }}
-				{{ if eq .Config.StrategySettings.DisableUSDTracking false}}
-					<h5>USD Totals</h5>
-					<table class="table table-hover table-bordered table-striped">
-						<tbody>
-						<tr>
-							<td><b>Initial Total Funds in USD</b></td>
-							<td><b>${{ .Statistics.FundingStatistics.TotalUSDStatistics.InitialHoldingValue.Value}}</b></td>
-						</tr>
-						<tr>
-							<td><b>Final Total Funds in USD</b></td>
-							<td><b>${{  .Statistics.FundingStatistics.TotalUSDStatistics.FinalHoldingValue.Value}}</b></td>
-						</tr>
-						<tr>
-							<td><b>Difference</b></td>
-							<td><b>{{ .Statistics.FundingStatistics.TotalUSDStatistics.HoldingValueDifference}}%</b></td>
-						</tr>
-						</tbody>
-					</table>
-				{{end}}
-				{{if .Config.StrategySettings.UseExchangeLevelFunding}}
+								{{if .Config.StrategySettings.UseExchangeLevelFunding}}
 					<h5>Funding results</h5>
 					<table class="table table-hover table-bordered table-striped">
 						<thead>
@@ -288,7 +269,8 @@
 						</tbody>
 					</table>
 				{{else}}
-					<table class="table table-hover table-bordered table-striped">
+									<h5>Pair market movement</h5>
+									<table class="table table-hover table-bordered table-striped">
 						<thead>
 						<tr>
 							<th>Exchange</th>
@@ -331,7 +313,25 @@
 						</tbody>
 					</table>
 				{{end}}
-
+				{{ if eq .Config.StrategySettings.DisableUSDTracking false}}
+					<h5>USD Totals</h5>
+					<table class="table table-hover table-bordered table-striped">
+						<tbody>
+						<tr>
+							<td><b>Initial Total Funds in USD</b></td>
+							<td><b>${{ .Statistics.FundingStatistics.TotalUSDStatistics.InitialHoldingValue.Value}}</b></td>
+						</tr>
+						<tr>
+							<td><b>Final Total Funds in USD</b></td>
+							<td><b>${{  .Statistics.FundingStatistics.TotalUSDStatistics.FinalHoldingValue.Value}}</b></td>
+						</tr>
+						<tr>
+							<td><b>Difference</b></td>
+							<td><b>{{ .Statistics.FundingStatistics.TotalUSDStatistics.HoldingValueDifference}}%</b></td>
+						</tr>
+						</tbody>
+					</table>
+				{{end}}
 			</div>
 		</div>
 		<div class="card card-cascade narrower">
@@ -388,7 +388,7 @@
 					</thead>
 					<tbody>
 					{{ range .Config.CurrencySettings}}
-						{{if .PriceTrackingOnly}}
+						{{if .USDTrackingPair}}
 						{{else}}
 							<tr>
 								<td>{{.ExchangeName}}</td>
@@ -514,7 +514,7 @@
 					</thead>
 					<tbody>
 					{{ range .Config.CurrencySettings}}
-						{{if .PriceTrackingOnly}}
+						{{if .USDTrackingPair}}
 						{{else}}
 							{{if  .ShowExchangeOrderLimitWarning}}
 								<tr>
@@ -1462,11 +1462,11 @@
 									{{range $val.FinalOrders.Orders}}
 										<tr>
 											<td>{{ .Detail.Date }}</td>
-											<td>{{ .ClosePrice}} {{$pair.Quote}}</td>
+											<td>{{  .ClosePrice}} {{$pair.Quote}}</td>
 											<td>{{ .Detail.Side }}</td>
-											<td>{{ .Detail.Price }} {{$pair.Quote}}</td>
-											<td>{{ .Detail.Amount }} {{$pair.Base}}</td>
-											<td>{{.Detail.Fee }} {{$pair.Quote}}</td>
+											<td>{{ printf "%f"  .Detail.Price }} {{$pair.Quote}}</td>
+											<td>{{ printf "%f"  .Detail.Amount }} {{$pair.Base}}</td>
+											<td>{{ printf "%f" .Detail.Fee }} {{$pair.Quote}}</td>
 											<td>{{ .CostBasis }} {{$pair.Quote}}</td>
 											<td>{{ .SlippageRate }}%</td>
 										</tr>

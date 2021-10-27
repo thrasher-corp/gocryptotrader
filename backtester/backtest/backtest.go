@@ -327,6 +327,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		StrategyGoal:                cfg.Goal,
 		ExchangeAssetPairStatistics: make(map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic),
 		RiskFreeRate:                cfg.StatisticSettings.RiskFreeRate,
+		CandleInterval:              gctkline.Interval(cfg.DataSettings.Interval),
+		FundManager:                 bt.Funding,
 	}
 	bt.Statistic = stats
 	reports.Statistics = stats
@@ -356,11 +358,11 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 				}
 			}
 			cfg.CurrencySettings = append(cfg.CurrencySettings, config.CurrencySettings{
-				ExchangeName:      trackingPairs[i].Exchange,
-				Asset:             trackingPairs[i].Asset,
-				Base:              trackingPairs[i].Base,
-				Quote:             trackingPairs[i].Quote,
-				PriceTrackingOnly: true,
+				ExchangeName:    trackingPairs[i].Exchange,
+				Asset:           trackingPairs[i].Asset,
+				Base:            trackingPairs[i].Base,
+				Quote:           trackingPairs[i].Quote,
+				USDTrackingPair: true,
 			})
 		}
 	}
@@ -409,7 +411,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 
 		exchangeName := strings.ToLower(exch.GetName())
 		bt.Datas.Setup()
-		klineData, err := bt.loadData(cfg, exch, pair, a)
+		klineData, err := bt.loadData(cfg, exch, pair, a, cfg.CurrencySettings[i].USDTrackingPair)
 		if err != nil {
 			return resp, err
 		}
@@ -421,7 +423,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			return resp, err
 		}
 
-		if !cfg.CurrencySettings[i].PriceTrackingOnly {
+		if !cfg.CurrencySettings[i].USDTrackingPair {
 			bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
 			var makerFee, takerFee decimal.Decimal
 			if cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {
@@ -581,7 +583,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
-func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
+func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDPairing bool) (*kline.DataFromKline, error) {
 	if exch == nil {
 		return nil, engine.ErrExchangeNotFound
 	}
@@ -659,7 +661,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 				log.Error(log.BackTester, stopErr)
 			}
 		}()
-		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType)
+		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType, isUSDPairing)
 		if err != nil {
 			return nil, fmt.Errorf("unable to retrieve data from GoCryptoTrader database. Error: %v. Please ensure the database is setup correctly and has data before use", err)
 		}
@@ -730,7 +732,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	return resp, nil
 }
 
-func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item, dataType int64) (*kline.DataFromKline, error) {
+func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item, dataType int64, isUSDPairing bool) (*kline.DataFromKline, error) {
 	if cfg == nil || cfg.DataSettings.DatabaseData == nil {
 		return nil, errors.New("nil config data received")
 	}
@@ -745,7 +747,8 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 		strings.ToLower(name),
 		dataType,
 		fPair,
-		a)
+		a,
+		isUSDPairing)
 }
 
 func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.DataFromKline, error) {

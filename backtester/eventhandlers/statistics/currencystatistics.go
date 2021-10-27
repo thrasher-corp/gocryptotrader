@@ -8,6 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -127,22 +128,22 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	sep := fmt.Sprintf("%v %v %v |\t", e, a, p)
 	currStr := fmt.Sprintf("------------------Stats for %v %v %v------------------------------------------", e, a, p)
 	log.Infof(log.BackTester, currStr[:61])
-	log.Infof(log.BackTester, "%s Highest committed funds: %v at %v\n\n", sep, c.HighestCommittedFunds.Value.Round(8), c.HighestCommittedFunds.Time)
-	log.Infof(log.BackTester, "%s Buy orders: %d", sep, c.BuyOrders)
-	log.Infof(log.BackTester, "%s Buy value: %v", sep, last.Holdings.BoughtValue.Round(8))
-	log.Infof(log.BackTester, "%s Buy amount: %v %v", sep, last.Holdings.BoughtAmount.Round(8), last.Holdings.Pair.Base)
-	log.Infof(log.BackTester, "%s Sell orders: %d", sep, c.SellOrders)
-	log.Infof(log.BackTester, "%s Sell value: %v", sep, last.Holdings.SoldValue.Round(8))
-	log.Infof(log.BackTester, "%s Sell amount: %v %v", sep, last.Holdings.SoldAmount.Round(8), last.Holdings.Pair.Base)
-	log.Infof(log.BackTester, "%s Total orders: %d\n\n", sep, c.TotalOrders)
+	log.Infof(log.BackTester, "%s Highest committed funds: %v at %v\n\n", sep, convert.DecimalToCommaSeparatedString(c.HighestCommittedFunds.Value, 8, ".", ","), c.HighestCommittedFunds.Time)
+	log.Infof(log.BackTester, "%s Buy orders: %d", sep, convert.IntToCommaSeparatedString(c.BuyOrders, ","))
+	log.Infof(log.BackTester, "%s Buy value: %v", sep, convert.DecimalToCommaSeparatedString(last.Holdings.BoughtValue, 8, ".", ","))
+	log.Infof(log.BackTester, "%s Buy amount: %v %v", sep, convert.DecimalToCommaSeparatedString(last.Holdings.BoughtAmount, 8, ".", ","), last.Holdings.Pair.Base)
+	log.Infof(log.BackTester, "%s Sell orders: %d", sep, convert.IntToCommaSeparatedString(c.SellOrders, ","))
+	log.Infof(log.BackTester, "%s Sell value: %v", sep, convert.DecimalToCommaSeparatedString(last.Holdings.SoldValue, 8, ".", ","))
+	log.Infof(log.BackTester, "%s Sell amount: %v %v", sep, convert.DecimalToCommaSeparatedString(last.Holdings.SoldAmount, 8, ".", ","), last.Holdings.SoldAmount.Round(8))
+	log.Infof(log.BackTester, "%s Total orders: %d\n\n", sep, convert.IntToCommaSeparatedString(c.TotalOrders, ","))
 
 	log.Info(log.BackTester, "------------------Max Drawdown-------------------------------")
-	log.Infof(log.BackTester, "%s Highest Price of drawdown: %v", sep, c.MaxDrawdown.Highest.Value.Round(8))
+	log.Infof(log.BackTester, "%s Highest Price of drawdown: %v", sep, convert.DecimalToCommaSeparatedString(c.MaxDrawdown.Highest.Value, 8, ".", ","))
 	log.Infof(log.BackTester, "%s Time of highest price of drawdown: %v", sep, c.MaxDrawdown.Highest.Time)
-	log.Infof(log.BackTester, "%s Lowest Price of drawdown: %v", sep, c.MaxDrawdown.Lowest.Value.Round(8))
+	log.Infof(log.BackTester, "%s Lowest Price of drawdown: %v", sep, convert.DecimalToCommaSeparatedString(c.MaxDrawdown.Lowest.Value, 8, ".", ","))
 	log.Infof(log.BackTester, "%s Time of lowest price of drawdown: %v", sep, c.MaxDrawdown.Lowest.Time)
-	log.Infof(log.BackTester, "%s Calculated Drawdown: %v%%", sep, c.MaxDrawdown.DrawdownPercent.Round(2))
-	log.Infof(log.BackTester, "%s Difference: %v", sep, c.MaxDrawdown.Highest.Value.Sub(c.MaxDrawdown.Lowest.Value).Round(2))
+	log.Infof(log.BackTester, "%s Calculated Drawdown: %v%%", sep, convert.DecimalToCommaSeparatedString(c.MaxDrawdown.DrawdownPercent, 8, ".", ","))
+	log.Infof(log.BackTester, "%s Difference: %v", sep, convert.DecimalToCommaSeparatedString(c.MaxDrawdown.Highest.Value.Sub(c.MaxDrawdown.Lowest.Value), 2, ".", ","))
 	log.Infof(log.BackTester, "%s Drawdown length: %d\n\n", sep, c.MaxDrawdown.IntervalDuration)
 	if !usingExchangeLevelFunding {
 		log.Info(log.BackTester, "------------------Ratios------------------------------------------------")
@@ -169,14 +170,14 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	}
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
-	log.Infof(log.BackTester, "%s Starting Close Price: %v", sep, c.StartingClosePrice.Round(8))
-	log.Infof(log.BackTester, "%s Finishing Close Price: %v", sep, c.EndingClosePrice.Round(8))
-	log.Infof(log.BackTester, "%s Lowest Close Price: %v", sep, c.LowestClosePrice.Round(8))
-	log.Infof(log.BackTester, "%s Highest Close Price: %v", sep, c.HighestClosePrice.Round(8))
+	log.Infof(log.BackTester, "%s Starting Close Price: %s", sep, convert.DecimalToCommaSeparatedString(c.StartingClosePrice, 8, ".", ","))
+	log.Infof(log.BackTester, "%s Finishing Close Price: %s", sep, convert.DecimalToCommaSeparatedString(c.EndingClosePrice, 8, ".", ","))
+	log.Infof(log.BackTester, "%s Lowest Close Price: %s", sep, convert.DecimalToCommaSeparatedString(c.LowestClosePrice, 8, ".", ","))
+	log.Infof(log.BackTester, "%s Highest Close Price: %s", sep, convert.DecimalToCommaSeparatedString(c.HighestClosePrice, 8, ".", ","))
 
-	log.Infof(log.BackTester, "%s Market movement: %v%%", sep, c.MarketMovement.Round(2))
+	log.Infof(log.BackTester, "%s Market movement: %s%%", sep, convert.DecimalToCommaSeparatedString(c.MarketMovement, 2, ".", ","))
 	if !usingExchangeLevelFunding {
-		log.Infof(log.BackTester, "%s Strategy movement: %v%%", sep, c.StrategyMovement.Round(2))
+		log.Infof(log.BackTester, "%s Strategy movement: %s%%", sep, convert.DecimalToCommaSeparatedString(c.StrategyMovement, 2, ".", ","))
 		log.Infof(log.BackTester, "%s Did it beat the market: %v", sep, c.StrategyMovement.GreaterThan(c.MarketMovement))
 	}
 
@@ -189,9 +190,9 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	if !usingExchangeLevelFunding {
 		// the following have no direct translation to individual exchange level funds as they
 		// combine base and quote values
-		log.Infof(log.BackTester, "%s Final funds: %v", sep, last.Holdings.QuoteSize.Round(8))
-		log.Infof(log.BackTester, "%s Final holdings: %v", sep, last.Holdings.BaseSize.Round(8))
-		log.Infof(log.BackTester, "%s Final total value: %v\n\n", sep, last.Holdings.TotalValue.Round(8))
+		log.Infof(log.BackTester, "%s Final funds: %v", sep, convert.DecimalToCommaSeparatedString(last.Holdings.QuoteSize, 8, ".", ","))
+		log.Infof(log.BackTester, "%s Final holdings: %v", sep, convert.DecimalToCommaSeparatedString(last.Holdings.BaseSize, 8, ".", ","))
+		log.Infof(log.BackTester, "%s Final total value: %v\n\n", sep, convert.DecimalToCommaSeparatedString(last.Holdings.TotalValue, 8, ".", ","))
 	}
 	if len(errs) > 0 {
 		log.Info(log.BackTester, "------------------Errors-------------------------------------")

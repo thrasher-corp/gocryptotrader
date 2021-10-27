@@ -256,11 +256,9 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 		if f.Report.Items[i].TransferFee.GreaterThan(decimal.Zero) {
 			log.Infof(log.BackTester, "Transfer fee: %v", f.Report.Items[i].TransferFee)
 		}
-		if f.Report.DisableUSDTracking || !f.Report.UsingExchangeLevelFunding {
-			continue
-		}
+		log.Info(log.BackTester, "")
 	}
-	if f.Report.DisableUSDTracking || !f.Report.UsingExchangeLevelFunding {
+	if f.Report.DisableUSDTracking {
 		return nil
 	}
 	log.Info(log.BackTester, "------------------Funding-Totals-----------------------------")

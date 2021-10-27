@@ -28,7 +28,7 @@ func main() {
 			wd,
 			"config",
 			"examples",
-			"dca-api-candles-exchange-level-funding.strat"),
+			"dca-database-candles.strat"),
 		"the config containing strategy params")
 	flag.StringVar(
 		&templatePath,
@@ -108,7 +108,7 @@ func main() {
 		}
 	}
 
-	err = bt.Statistic.CalculateAllResults(bt.Funding)
+	err = bt.Statistic.CalculateAllResults()
 	if err != nil {
 		log.Error(log.BackTester, err)
 		os.Exit(1)

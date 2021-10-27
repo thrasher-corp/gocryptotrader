@@ -527,7 +527,7 @@ func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 		newOrder.Type,
 		newOrder.Date)
 
-	log.Debugln(log.OrderMgr, msg)
+	log.Debugf(log.OrderMgr, msg)
 	m.orderStore.commsManager.PushEvent(base.Event{
 		Type:    "order",
 		Message: msg,
