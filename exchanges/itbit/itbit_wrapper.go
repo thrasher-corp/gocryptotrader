@@ -116,12 +116,11 @@ func (i *ItBit) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
+	// NOTE: Cannot confirm fees
 	return i.Fees.LoadStatic(fee.Options{
-		// TODO: Check maker seems dubious
 		GlobalCommissions: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: -0.0003, Taker: 0.0035},
+			asset.Spot: {Maker: 0.002, Taker: 0.0035},
 		},
-		BankingTransfer: bankTransfer,
 	})
 }
 
@@ -667,9 +666,8 @@ func (i *ItBit) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 		return common.ErrNotYetImplemented
 	}
 
-	// TODO: Itbit has volume discounts, but not API endpoint to get the exact
-	// volume numbers When support is added, this needs to be updated to
-	// calculate the accurate volume fee.
-
+	// TODO: Itbit has volume discounts, but no API endpoint to get the exact
+	// volume numbers. When support is added, this needs to be updated to
+	// calculate the accurate volume fee. This is also called Paxos now.
 	return nil
 }
