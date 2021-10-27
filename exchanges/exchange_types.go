@@ -159,6 +159,8 @@ type FeaturesEnabled struct {
 	AutoPairUpdates bool
 	Kline           kline.ExchangeCapabilitiesEnabled
 	SaveTradeData   bool
+	TradeFeed       bool
+	FillsFeed       bool
 }
 
 // FeaturesSupported stores the exchanges supported features
