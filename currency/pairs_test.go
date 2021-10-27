@@ -167,6 +167,20 @@ func TestRemovePairsByFilter(t *testing.T) {
 	}
 }
 
+func TestGetPairsByFilter(t *testing.T) {
+	var pairs = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(LTC, USDT),
+	}
+
+	filtered := pairs.GetPairsByFilter(LTC)
+	if !filtered.Contains(NewPair(LTC, USDT), true) &&
+		!filtered.Contains(NewPair(LTC, USD), true) {
+		t.Error("TestRemovePairsByFilter unexpected result")
+	}
+}
+
 func TestRemove(t *testing.T) {
 	var pairs = Pairs{
 		NewPair(BTC, USD),

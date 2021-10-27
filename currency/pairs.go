@@ -109,7 +109,8 @@ func (p Pairs) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.Join())
 }
 
-// Upper returns an upper formatted pair list
+// Upper updates the original pairs and returns the pairs for convenience if
+// needed.
 func (p Pairs) Upper() Pairs {
 	for i := range p {
 		p[i] = p[i].Upper()
@@ -117,7 +118,8 @@ func (p Pairs) Upper() Pairs {
 	return p
 }
 
-// Lower returns an lower formatted pair list
+// Lower updates the original pairs and returns the pairs for convenience if
+// needed.
 func (p Pairs) Lower() Pairs {
 	for i := range p {
 		p[i] = p[i].Lower()
@@ -148,6 +150,19 @@ func (p Pairs) RemovePairsByFilter(filter Code) Pairs {
 	var pairs Pairs
 	for i := range p {
 		if p[i].ContainsCurrency(filter) {
+			continue
+		}
+		pairs = append(pairs, p[i])
+	}
+	return pairs
+}
+
+// GetPairsByFilter returns all pairs that have at least one match base or quote
+// to the filter code.
+func (p Pairs) GetPairsByFilter(filter Code) Pairs {
+	var pairs Pairs
+	for i := range p {
+		if !p[i].ContainsCurrency(filter) {
 			continue
 		}
 		pairs = append(pairs, p[i])
