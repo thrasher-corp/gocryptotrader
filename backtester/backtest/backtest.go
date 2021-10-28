@@ -583,7 +583,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
-func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDPairing bool) (*kline.DataFromKline, error) {
+func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
 	if exch == nil {
 		return nil, engine.ErrExchangeNotFound
 	}
@@ -621,7 +621,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			strings.ToLower(exch.GetName()),
 			cfg.DataSettings.Interval,
 			fPair,
-			a)
+			a,
+			isUSDTrackingPair)
 		if err != nil {
 			return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 		}
@@ -661,7 +662,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 				log.Error(log.BackTester, stopErr)
 			}
 		}()
-		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType, isUSDPairing)
+		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType, isUSDTrackingPair)
 		if err != nil {
 			return nil, fmt.Errorf("unable to retrieve data from GoCryptoTrader database. Error: %v. Please ensure the database is setup correctly and has data before use", err)
 		}
@@ -697,6 +698,9 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.DataSettings.LiveData != nil:
+		if isUSDTrackingPair {
+			return nil, errLiveUSDTrackingNotSupported
+		}
 		if len(cfg.CurrencySettings) > 1 {
 			return nil, errors.New("live data simulation only supports one currency")
 		}
@@ -732,7 +736,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	return resp, nil
 }
 
-func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item, dataType int64, isUSDPairing bool) (*kline.DataFromKline, error) {
+func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item, dataType int64, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
 	if cfg == nil || cfg.DataSettings.DatabaseData == nil {
 		return nil, errors.New("nil config data received")
 	}
@@ -748,7 +752,7 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 		dataType,
 		fPair,
 		a,
-		isUSDPairing)
+		isUSDTrackingPair)
 }
 
 func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.DataFromKline, error) {

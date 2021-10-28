@@ -62,6 +62,9 @@ func TestCalculateFundingStatistics(t *testing.T) {
 		Item: usdKline,
 	}
 	err = dfk.Load()
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
 	err = f.AddUSDTrackingData(dfk)
 	if !errors.Is(err, funding.ErrUSDTrackingDisabled) {
 		t.Errorf("received %v expected %v", err, funding.ErrUSDTrackingDisabled)
@@ -101,7 +104,6 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-
 }
 
 func TestCalculateIndividualFundingStatistics(t *testing.T) {

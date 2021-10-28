@@ -3,7 +3,6 @@ package backtest
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -176,7 +175,7 @@ func TestLoadDataAPI(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -243,7 +242,7 @@ func TestLoadDataDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if err != nil && !strings.Contains(err.Error(), "unable to retrieve data from GoCryptoTrader database") {
 		t.Error(err)
 	}
@@ -297,7 +296,7 @@ func TestLoadDataCSV(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if err != nil &&
 		!strings.Contains(err.Error(), "The system cannot find the file specified.") &&
 		!strings.Contains(err.Error(), "no such file or directory") {
@@ -358,7 +357,7 @@ func TestLoadDataLive(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -371,9 +370,7 @@ func TestLoadLiveData(t *testing.T) {
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
-	cfg := &config.Config{
-		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
-	}
+	cfg := &config.Config{}
 	err = loadLiveData(cfg, nil)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)

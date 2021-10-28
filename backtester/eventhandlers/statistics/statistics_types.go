@@ -122,9 +122,6 @@ type EventStore struct {
 	FillEvent    fill.Event
 }
 
-type CurrencyStatistic struct {
-}
-
 // CurrencyPairStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair
 type CurrencyPairStatistic struct {
 	ShowMissingDataWarning       bool `json:"-"`
@@ -186,12 +183,14 @@ type relatedCurrencyPairStatistics struct {
 	stat           *CurrencyPairStatistic
 }
 
+// FundingStatistics stores all funding related statistics
 type FundingStatistics struct {
 	Report             *funding.Report
 	Items              []FundingItemStatistics
 	TotalUSDStatistics *TotalFundingStatistics
 }
 
+// FundingItemStatistics holds statistics for funding items
 type FundingItemStatistics struct {
 	ReportItem *funding.ReportItem
 	// USD stats
@@ -211,6 +210,7 @@ type FundingItemStatistics struct {
 	HighestCommittedFunds    ValueAtTime
 }
 
+// TotalFundingStatistics holds values for overal statistics for funding items
 type TotalFundingStatistics struct {
 	HoldingValues            []ValueAtTime
 	InitialHoldingValue      ValueAtTime

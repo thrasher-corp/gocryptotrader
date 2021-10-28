@@ -20,7 +20,7 @@ import (
 )
 
 // LoadData is a basic csv reader which converts the found CSV file into a kline item
-func LoadData(dataType int64, filepath, exchangeName string, interval time.Duration, fPair currency.Pair, a asset.Item) (*gctkline.DataFromKline, error) {
+func LoadData(dataType int64, filepath, exchangeName string, interval time.Duration, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*gctkline.DataFromKline, error) {
 	resp := &gctkline.DataFromKline{}
 	csvFile, err := os.Open(filepath)
 	if err != nil {
@@ -98,6 +98,9 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 			candles.Candles = append(candles.Candles, candle)
 		}
 		if err != nil {
+			if isUSDTrackingPair {
+				return nil, fmt.Errorf("could not retrieve USD database candle data for %v %v %v. Please add USD pair data to your CSV or set `disable-usd-tracking` to `true` in your config. %v", exchangeName, a, fPair, err)
+			}
 			return nil, fmt.Errorf("could not read csv candle data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
 
@@ -149,6 +152,9 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 			return nil, fmt.Errorf("could not read csv trade data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
 	default:
+		if isUSDTrackingPair {
+			return nil, fmt.Errorf("could not process USD trade data for %v %v %v. Please add USD pair data to your CSV or set `disable-usd-tracking` to `true` in your config. %v", exchangeName, a, fPair, err)
+		}
 		return nil, fmt.Errorf("could not process csv data for %v %v %v, %w", exchangeName, a, fPair, common.ErrInvalidDataType)
 	}
 	resp.Item.Exchange = strings.ToLower(exchangeName)

@@ -890,7 +890,6 @@ func TestCreateSnapshot(t *testing.T) {
 		usdTrackingCandles: dfk,
 	})
 	f.CreateSnapshot(dfk.Item.Candles[0].Time)
-
 }
 
 func TestAddUSDTrackingData(t *testing.T) {

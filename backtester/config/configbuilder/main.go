@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
@@ -64,8 +63,7 @@ func main() {
 			BuySide:  config.MinMax{},
 			SellSide: config.MinMax{},
 		},
-		StatisticSettings:        config.StatisticSettings{},
-		GoCryptoTraderConfigPath: "",
+		StatisticSettings: config.StatisticSettings{},
 	}
 	fmt.Println("-----Strategy Settings-----")
 	var err error
@@ -118,29 +116,11 @@ func main() {
 		}
 	}
 
-	fmt.Println("-----GoCryptoTrader config Settings-----")
-	firstRun = true
-	for err != nil || firstRun {
-		firstRun = false
-		fmt.Printf("Enter the path to the GoCryptoTrader config you wish to use. Leave blank to use \"%v\"\n", gctconfig.DefaultFilePath())
-		path := quickParse(reader)
-		if path != "" {
-			cfg.GoCryptoTraderConfigPath = path
-		} else {
-			cfg.GoCryptoTraderConfigPath = gctconfig.DefaultFilePath()
-		}
-		_, err = os.Stat(cfg.GoCryptoTraderConfigPath)
-		if err != nil {
-			log.Println(err)
-		}
-	}
-
 	var resp []byte
 	resp, err = json.MarshalIndent(cfg, "", " ")
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	fmt.Println("Write strategy config to file? If no, the output will be on screen y/n")
 	yn := quickParse(reader)
 	if yn == y || yn == yes {

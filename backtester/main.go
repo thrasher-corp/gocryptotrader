@@ -28,7 +28,7 @@ func main() {
 			wd,
 			"config",
 			"examples",
-			"dca-database-candles.strat"),
+			"dca-api-candles.strat"),
 		"the config containing strategy params")
 	flag.StringVar(
 		&templatePath,
@@ -59,7 +59,7 @@ func main() {
 		&darkReport,
 		"darkreport",
 		false,
-		"sets the initial rerport to use a dark theme")
+		"sets the output report to use a dark theme by default")
 	flag.Parse()
 
 	var bt *backtest.BackTest
@@ -69,7 +69,6 @@ func main() {
 	log.GlobalLogConfig = &logConfig
 	log.SetupGlobalLogger()
 
-	fmt.Println("reading config...")
 	cfg, err = config.ReadConfigFromFile(configPath)
 	if err != nil {
 		fmt.Printf("Could not read config. Error: %v.\n", err)

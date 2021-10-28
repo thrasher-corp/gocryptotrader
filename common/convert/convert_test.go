@@ -210,4 +210,43 @@ func TestDecimalToCommaSeparatedString(t *testing.T) {
 	if dec[1] != "1" {
 		t.Error("expected decimal place")
 	}
+
+	test = DecimalToCommaSeparatedString(decimal.NewFromFloat(1000.1), 10, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+	dec = strings.Split(test, ".")
+	if len(dec) == 1 {
+		t.Error("expected decimal place")
+	}
+	if dec[1] != "1" {
+		t.Error("expected decimal place")
+	}
+}
+
+func TestIntToCommaSeparatedString(t *testing.T) {
+	t.Parallel()
+	test := IntToCommaSeparatedString(0, ",")
+	if strings.Contains(test, ",") {
+		t.Log(test)
+		t.Error("unexpected ','")
+	}
+	test = IntToCommaSeparatedString(100, ",")
+	if strings.Contains(test, ",") {
+		t.Log(test)
+		t.Error("unexpected ','")
+	}
+	test = IntToCommaSeparatedString(1000, ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = IntToCommaSeparatedString(1000000, ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+	dec := strings.Split(test, ",")
+	if len(dec) <= 2 {
+		t.Error("expected two commas place")
+	}
 }

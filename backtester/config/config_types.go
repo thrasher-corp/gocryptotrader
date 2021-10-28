@@ -28,14 +28,13 @@ var (
 
 // Config defines what is in an individual strategy config
 type Config struct {
-	Nickname                 string             `json:"nickname"`
-	Goal                     string             `json:"goal"`
-	StrategySettings         StrategySettings   `json:"strategy-settings"`
-	CurrencySettings         []CurrencySettings `json:"currency-settings"`
-	DataSettings             DataSettings       `json:"data-settings"`
-	PortfolioSettings        PortfolioSettings  `json:"portfolio-settings"`
-	StatisticSettings        StatisticSettings  `json:"statistic-settings"`
-	GoCryptoTraderConfigPath string             `json:"gocryptotrader-config-path"`
+	Nickname          string             `json:"nickname"`
+	Goal              string             `json:"goal"`
+	StrategySettings  StrategySettings   `json:"strategy-settings"`
+	CurrencySettings  []CurrencySettings `json:"currency-settings"`
+	DataSettings      DataSettings       `json:"data-settings"`
+	PortfolioSettings PortfolioSettings  `json:"portfolio-settings"`
+	StatisticSettings StatisticSettings  `json:"statistic-settings"`
 }
 
 // DataSettings is a container for each type of data retrieval setting.

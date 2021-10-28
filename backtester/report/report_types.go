@@ -6,6 +6,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -40,6 +41,7 @@ type Data struct {
 	UseDarkTheme          bool
 	USDTotalsChart        []TotalsChart
 	HoldingsOverTimeChart []TotalsChart
+	Prettify              PrettyNumbers
 }
 
 type TotalsChart struct {
@@ -97,4 +99,35 @@ type DetailedCandle struct {
 	Position       string
 	Colour         string
 	PurchasePrice  float64
+}
+
+// PrettyNumbers is used for report rendering
+// one cannot access packages when rendering data in a template
+// this struct exists purely to help make numbers look pretty
+type PrettyNumbers struct{}
+
+// Decimal2 renders a decimal nicely with 2 decimal places
+func (p *PrettyNumbers) Decimal2(d decimal.Decimal) string {
+	return convert.DecimalToCommaSeparatedString(d, 2, ".", ",")
+}
+
+// Decimal8 renders a decimal nicely with 8 decimal places
+func (p *PrettyNumbers) Decimal8(d decimal.Decimal) string {
+	return convert.DecimalToCommaSeparatedString(d, 8, ".", ",")
+}
+
+// Decimal64 renders a decimal nicely with the idea not to limit decimal places
+// and to make you nostalgic for Nintendo
+func (p *PrettyNumbers) Decimal64(d decimal.Decimal) string {
+	return convert.DecimalToCommaSeparatedString(d, 64, ".", ",")
+}
+
+// Float8 renders a float nicely with 8 decimal places
+func (p *PrettyNumbers) Float8(f float64) string {
+	return convert.FloatToCommaSeparatedString(f, 8, ".", ",")
+}
+
+// Int renders an int nicely
+func (p *PrettyNumbers) Int(i int64) string {
+	return convert.IntToCommaSeparatedString(i, ",")
 }

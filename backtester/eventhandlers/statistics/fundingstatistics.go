@@ -8,6 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -181,9 +182,6 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 		if relatedStats[i].isBaseCurrency {
 			item.BuyOrders += relatedStats[i].stat.BuyOrders
 			item.SellOrders += relatedStats[i].stat.SellOrders
-		} else {
-			item.BuyOrders += relatedStats[i].stat.SellOrders
-			item.SellOrders += relatedStats[i].stat.BuyOrders
 		}
 	}
 	item.TotalOrders = item.BuyOrders + item.SellOrders
@@ -234,71 +232,72 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 		return fmt.Errorf("%w requires report to be generated", common.ErrNilArguments)
 	}
 	log.Info(log.BackTester, "------------------Funding------------------------------------")
-	log.Info(log.BackTester, "------------------Funding Items------------------------------")
+	log.Info(log.BackTester, "------------------Funding Item Results-----------------------")
 	for i := range f.Report.Items {
-		log.Infof(log.BackTester, "Exchange: %v", f.Report.Items[i].Exchange)
-		log.Infof(log.BackTester, "Asset: %v", f.Report.Items[i].Asset)
-		log.Infof(log.BackTester, "Currency: %v", f.Report.Items[i].Currency)
+		sep := fmt.Sprintf("%v %v %v |\t", f.Report.Items[i].Exchange, f.Report.Items[i].Asset, f.Report.Items[i].Currency)
 		if !f.Report.Items[i].PairedWith.IsEmpty() {
-			log.Infof(log.BackTester, "Paired with: %v", f.Report.Items[i].PairedWith)
+			log.Infof(log.BackTester, "%s Paired with: %v", sep, f.Report.Items[i].PairedWith)
 		}
-		log.Infof(log.BackTester, "Initial funds: %v", f.Report.Items[i].InitialFunds)
-		log.Infof(log.BackTester, "Final funds: %v", f.Report.Items[i].FinalFunds)
+		log.Infof(log.BackTester, "%s Initial funds: %s", sep, convert.DecimalToCommaSeparatedString(f.Report.Items[i].InitialFunds, 8, ".", ","))
+		log.Infof(log.BackTester, "%s Final funds: %s", sep, convert.DecimalToCommaSeparatedString(f.Report.Items[i].FinalFunds, 8, ".", ","))
 		if !f.Report.DisableUSDTracking && f.Report.UsingExchangeLevelFunding {
-			log.Infof(log.BackTester, "Initial funds in USD: $%v", f.Report.Items[i].USDInitialFunds)
-			log.Infof(log.BackTester, "Final funds in USD: $%v", f.Report.Items[i].USDFinalFunds)
+			log.Infof(log.BackTester, "%s Initial funds in USD: $%s", sep, convert.DecimalToCommaSeparatedString(f.Report.Items[i].USDInitialFunds, 2, ".", ","))
+			log.Infof(log.BackTester, "%s Final funds in USD: $%s", sep, convert.DecimalToCommaSeparatedString(f.Report.Items[i].USDFinalFunds, 2, ".", ","))
 		}
 		if f.Report.Items[i].ShowInfinite {
-			log.Info(log.BackTester, "Difference: ∞%")
+			log.Infof(log.BackTester, "%s Difference: ∞%%", sep)
 		} else {
-			log.Infof(log.BackTester, "Difference: %v%%", f.Report.Items[i].Difference)
+			log.Infof(log.BackTester, "%s Difference: %s%%", sep, convert.DecimalToCommaSeparatedString(f.Report.Items[i].Difference, 8, ".", ","))
 		}
 		if f.Report.Items[i].TransferFee.GreaterThan(decimal.Zero) {
-			log.Infof(log.BackTester, "Transfer fee: %v", f.Report.Items[i].TransferFee)
+			log.Infof(log.BackTester, "%s Transfer fee: %s", sep, convert.DecimalToCommaSeparatedString(f.Report.Items[i].TransferFee, 8, ".", ","))
 		}
 		log.Info(log.BackTester, "")
 	}
 	if f.Report.DisableUSDTracking {
 		return nil
 	}
-	log.Info(log.BackTester, "------------------Funding-Totals-----------------------------")
-	log.Infof(log.BackTester, "Benchmark Market Movement: %v%%", f.TotalUSDStatistics.BenchmarkMarketMovement)
-	log.Infof(log.BackTester, "Strategy Movement: %v%%", f.TotalUSDStatistics.StrategyMovement)
-	log.Infof(log.BackTester, "Did strategy make a profit: %v", f.TotalUSDStatistics.DidStrategyMakeProfit)
-	log.Infof(log.BackTester, "Did strategy beat the benchmark: %v", f.TotalUSDStatistics.DidStrategyBeatTheMarket)
-	log.Infof(log.BackTester, "Buy Orders: %v", f.TotalUSDStatistics.BuyOrders)
-	log.Infof(log.BackTester, "Sell Orders: %v", f.TotalUSDStatistics.SellOrders)
-	log.Infof(log.BackTester, "Total Orders: %v", f.TotalUSDStatistics.TotalOrders)
-	log.Infof(log.BackTester, "Highest funds: %v at %v", f.TotalUSDStatistics.HighestHoldingValue.Value, f.TotalUSDStatistics.HighestHoldingValue.Time)
-	log.Infof(log.BackTester, "Lowest funds: %v at %v", f.TotalUSDStatistics.LowestHoldingValue.Value, f.TotalUSDStatistics.LowestHoldingValue.Time)
+	log.Info(log.BackTester, "------------------USD Tracking Totals------------------------")
+	sep := "USD Tracking Total |\t"
 
+	log.Infof(log.BackTester, "%s Initial value: $%s at %v", sep, convert.DecimalToCommaSeparatedString(f.TotalUSDStatistics.InitialHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.InitialHoldingValue.Time)
+	log.Infof(log.BackTester, "%s Final value: $%s at %v", sep, convert.DecimalToCommaSeparatedString(f.TotalUSDStatistics.FinalHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.FinalHoldingValue.Time)
+	log.Infof(log.BackTester, "%s Benchmark Market Movement: %s%%", sep, convert.DecimalToCommaSeparatedString(f.TotalUSDStatistics.BenchmarkMarketMovement, 8, ".", ","))
+	log.Infof(log.BackTester, "%s Strategy Movement: %s%%", sep, convert.DecimalToCommaSeparatedString(f.TotalUSDStatistics.StrategyMovement, 8, ".", ","))
+	log.Infof(log.BackTester, "%s Did strategy make a profit: %v", sep, f.TotalUSDStatistics.DidStrategyMakeProfit)
+	log.Infof(log.BackTester, "%s Did strategy beat the benchmark: %v", sep, f.TotalUSDStatistics.DidStrategyBeatTheMarket)
+	log.Infof(log.BackTester, "%s Buy Orders: %s", sep, convert.IntToCommaSeparatedString(f.TotalUSDStatistics.BuyOrders, ","))
+	log.Infof(log.BackTester, "%s Sell Orders: %s", sep, convert.IntToCommaSeparatedString(f.TotalUSDStatistics.SellOrders, ","))
+	log.Infof(log.BackTester, "%s Total Orders: %s", sep, convert.IntToCommaSeparatedString(f.TotalUSDStatistics.TotalOrders, ","))
+	log.Infof(log.BackTester, "%s Highest funds: $%s at %v", sep, convert.DecimalToCommaSeparatedString(f.TotalUSDStatistics.HighestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.HighestHoldingValue.Time)
+	log.Infof(log.BackTester, "%s Lowest funds: $%s at %v", sep, convert.DecimalToCommaSeparatedString(f.TotalUSDStatistics.LowestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.LowestHoldingValue.Time)
+
+	log.Info(log.BackTester, "------------------Ratios------------------------------------------------")
 	log.Info(log.BackTester, "------------------Rates-------------------------------------------------")
-	log.Infof(log.BackTester, "Risk free rate: %v%%", f.TotalUSDStatistics.RiskFreeRate.Mul(decimal.NewFromInt(100)).Round(2))
-	log.Infof(log.BackTester, "Compound Annual Growth Rate: %v%%", f.TotalUSDStatistics.CompoundAnnualGrowthRate)
-
+	log.Infof(log.BackTester, "%s Risk free rate: %s%%", sep, convert.DecimalToCommaSeparatedString(f.TotalUSDStatistics.RiskFreeRate.Mul(decimal.NewFromInt(100)), 2, ".", ","))
+	log.Infof(log.BackTester, "%s Compound Annual Growth Rate: %v%%", sep, convert.DecimalToCommaSeparatedString(f.TotalUSDStatistics.CompoundAnnualGrowthRate, 8, ".", ","))
 	if f.TotalUSDStatistics.ArithmeticRatios == nil || f.TotalUSDStatistics.GeometricRatios == nil {
 		return fmt.Errorf("%w missing ratio calculations", common.ErrNilArguments)
 	}
-	log.Info(log.BackTester, "------------------Ratios------------------------------------------------")
 	log.Info(log.BackTester, "------------------Arithmetic--------------------------------------------")
 	if wasAnyDataMissing {
 		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
 		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
 	}
-	log.Infof(log.BackTester, "Sharpe ratio: %v", f.TotalUSDStatistics.ArithmeticRatios.SharpeRatio.Round(4))
-	log.Infof(log.BackTester, "Sortino ratio: %v", f.TotalUSDStatistics.ArithmeticRatios.SortinoRatio.Round(4))
-	log.Infof(log.BackTester, "Information ratio: %v", f.TotalUSDStatistics.ArithmeticRatios.InformationRatio.Round(4))
-	log.Infof(log.BackTester, "Calmar ratio: %v\n\n", f.TotalUSDStatistics.ArithmeticRatios.CalmarRatio.Round(4))
+	log.Infof(log.BackTester, "%s Sharpe ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.SharpeRatio.Round(4))
+	log.Infof(log.BackTester, "%s Sortino ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.SortinoRatio.Round(4))
+	log.Infof(log.BackTester, "%s Information ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.InformationRatio.Round(4))
+	log.Infof(log.BackTester, "%s Calmar ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.CalmarRatio.Round(4))
 
 	log.Info(log.BackTester, "------------------Geometric--------------------------------------------")
 	if wasAnyDataMissing {
 		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
 		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
 	}
-	log.Infof(log.BackTester, "Sharpe ratio: %v", f.TotalUSDStatistics.GeometricRatios.SharpeRatio.Round(4))
-	log.Infof(log.BackTester, "Sortino ratio: %v", f.TotalUSDStatistics.GeometricRatios.SortinoRatio.Round(4))
-	log.Infof(log.BackTester, "Information ratio: %v", f.TotalUSDStatistics.GeometricRatios.InformationRatio.Round(4))
-	log.Infof(log.BackTester, "Calmar ratio: %v\n\n", f.TotalUSDStatistics.GeometricRatios.CalmarRatio.Round(4))
+	log.Infof(log.BackTester, "%s Sharpe ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.SharpeRatio.Round(4))
+	log.Infof(log.BackTester, "%s Sortino ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.SortinoRatio.Round(4))
+	log.Infof(log.BackTester, "%s Information ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.InformationRatio.Round(4))
+	log.Infof(log.BackTester, "%s Calmar ratio: %v\n\n", sep, f.TotalUSDStatistics.GeometricRatios.CalmarRatio.Round(4))
 
 	return nil
 }

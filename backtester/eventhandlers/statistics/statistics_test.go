@@ -573,7 +573,7 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 func TestCalculateTheResults(t *testing.T) {
 	t.Parallel()
 	s := Statistic{}
-	err := s.CalculateAllResults(&funding.FundManager{})
+	err := s.CalculateAllResults()
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilArguments)
 	}
@@ -771,11 +771,12 @@ func TestCalculateTheResults(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	err = s.CalculateAllResults(funds)
+	s.FundManager = funds
+	err = s.CalculateAllResults()
 	if !errors.Is(err, errMissingSnapshots) {
 		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
 	}
-	err = s.CalculateAllResults(funds)
+	err = s.CalculateAllResults()
 	if !errors.Is(err, errMissingSnapshots) {
 		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
 	}
@@ -789,7 +790,8 @@ func TestCalculateTheResults(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	err = s.CalculateAllResults(funds)
+	s.FundManager = funds
+	err = s.CalculateAllResults()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

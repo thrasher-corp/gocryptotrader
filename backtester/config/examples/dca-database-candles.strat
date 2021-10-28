@@ -11,8 +11,8 @@
   {
    "exchange-name": "binance",
    "asset": "spot",
-   "base": "LTC",
-   "quote": "BTC",
+   "base": "BTC",
+   "quote": "USDT",
    "initial-quote-funds": "100000",
    "leverage": {
     "can-use-leverage": false,
@@ -79,6 +79,5 @@
  },
  "statistic-settings": {
   "risk-free-rate": "0.03"
- },
- "gocryptotrader-config-path": ""
+ }
 }

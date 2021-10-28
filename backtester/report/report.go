@@ -23,7 +23,6 @@ func (d *Data) GenerateReport() error {
 	if err != nil {
 		return err
 	}
-
 	for i := range d.OriginalCandles {
 		for j := range d.OriginalCandles[i].Candles {
 			if d.OriginalCandles[i].Candles[j].ValidationIssues == "" {
@@ -101,7 +100,6 @@ func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 			Hour:   int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Hour()),
 			Second: int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Second()),
 		})
-
 	}
 	response = append(response, TotalsChart{
 		Name:       "Total USD value",
@@ -111,8 +109,7 @@ func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 	for i := range d.Statistics.FundingStatistics.Items {
 		var plots []ChartPlot
 		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
-			// exact matters less for chart rendering, ignoring "exact" response
-			floatValue, _ := d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].USDValue.Float64()
+			floatValue := d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].USDValue.InexactFloat64()
 			plots = append(plots, ChartPlot{
 				Value:  floatValue,
 				Year:   int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Year()),

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -111,18 +112,24 @@ func FloatToCommaSeparatedString(number float64, decimals uint, decPoint, thousa
 
 // DecimalToCommaSeparatedString converts a decimal number to a comma separated string at the thousand point
 // eg 1000 becomes 1,000
-func DecimalToCommaSeparatedString(number decimal.Decimal, rounding int32, decPoint, thousandsSep string) string {
+func DecimalToCommaSeparatedString(number decimal.Decimal, rounding int, decPoint, thousandsSep string) string {
 	neg := false
 	if number.LessThan(decimal.Zero) {
 		number = number.Abs()
 		neg = true
 	}
-	str := fmt.Sprintf("%v", number.Round(rounding))
-	return numberToCommaSeparatedString(str, int(rounding), decPoint, thousandsSep, neg)
+	str := number.String()
+	rnd := strings.Split(str, ".")
+	if len(rnd) == 1 {
+		rounding = 0
+	} else if len(rnd[1]) < rounding {
+		rounding = len(rnd[1])
+	}
+	return numberToCommaSeparatedString(number.StringFixed(int32(rounding)), rounding, decPoint, thousandsSep, neg)
 }
 
 func numberToCommaSeparatedString(str string, dec int, decPoint, thousandsSep string, neg bool) string {
-	prefix, suffix := "", ""
+	var prefix, suffix string
 	if len(str)-(dec+1) < 0 {
 		dec = 0
 	}

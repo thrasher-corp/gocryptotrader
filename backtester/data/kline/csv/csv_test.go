@@ -23,7 +23,8 @@ func TestLoadDataCandles(t *testing.T) {
 		exch,
 		gctkline.FifteenMin.Duration(),
 		p,
-		a)
+		a,
+		false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -39,7 +40,8 @@ func TestLoadDataTrades(t *testing.T) {
 		exch,
 		gctkline.FifteenMin.Duration(),
 		p,
-		a)
+		a,
+		false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -55,7 +57,8 @@ func TestLoadDataInvalid(t *testing.T) {
 		exch,
 		gctkline.FifteenMin.Duration(),
 		p,
-		a)
+		a,
+		false)
 	if !errors.Is(err, common.ErrInvalidDataType) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
 	}

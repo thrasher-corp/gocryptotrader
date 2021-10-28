@@ -95,6 +95,5 @@
  },
  "statistic-settings": {
   "risk-free-rate": "0.03"
- },
- "gocryptotrader-config-path": ""
+ }
 }

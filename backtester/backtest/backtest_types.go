@@ -15,15 +15,16 @@ import (
 )
 
 var (
-	errNilConfig           = errors.New("unable to setup backtester with nil config")
-	errInvalidConfigAsset  = errors.New("invalid asset in config")
-	errAmbiguousDataSource = errors.New("ambiguous settings received. Only one data type can be set")
-	errNoDataSource        = errors.New("no data settings set in config")
-	errIntervalUnset       = errors.New("candle interval unset")
-	errUnhandledDatatype   = errors.New("unhandled datatype")
-	errLiveDataTimeout     = errors.New("no data returned in 5 minutes, shutting down")
-	errNilData             = errors.New("nil data received")
-	errNilExchange         = errors.New("nil exchange received")
+	errNilConfig                   = errors.New("unable to setup backtester with nil config")
+	errInvalidConfigAsset          = errors.New("invalid asset in config")
+	errAmbiguousDataSource         = errors.New("ambiguous settings received. Only one data type can be set")
+	errNoDataSource                = errors.New("no data settings set in config")
+	errIntervalUnset               = errors.New("candle interval unset")
+	errUnhandledDatatype           = errors.New("unhandled datatype")
+	errLiveDataTimeout             = errors.New("no data returned in 5 minutes, shutting down")
+	errNilData                     = errors.New("nil data received")
+	errNilExchange                 = errors.New("nil exchange received")
+	errLiveUSDTrackingNotSupported = errors.New("USD tracking not supported for live data")
 )
 
 // BackTest is the main holder of all backtesting functionality
