@@ -981,3 +981,30 @@ func TestConvertToNewInterval(t *testing.T) {
 		t.Error("expected one candle")
 	}
 }
+
+func TestGetClosePriceAtTime(t *testing.T) {
+	tt := time.Now()
+	k := Item{
+		Candles: []Candle{
+			{
+				Time:  tt,
+				Close: 1337,
+			},
+			{
+				Time:  tt.Add(time.Hour),
+				Close: 1338,
+			},
+		},
+	}
+	price, err := k.GetClosePriceAtTime(tt)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expectec '%v'", err, nil)
+	}
+	if price != 1337 {
+		t.Errorf("received '%v' expectec '%v'", price, 1337)
+	}
+	_, err = k.GetClosePriceAtTime(tt.Add(time.Minute))
+	if !errors.Is(err, ErrNotFoundAtTime) {
+		t.Errorf("received '%v' expectec '%v'", err, ErrNotFoundAtTime)
+	}
+}

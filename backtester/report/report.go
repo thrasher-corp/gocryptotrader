@@ -83,6 +83,8 @@ func (d *Data) GenerateReport() error {
 	return nil
 }
 
+// CreateUSDTotalsChart used for creating a chart in the HTML report
+// to show how much the overall assets are worth over time
 func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 	if d.Statistics.FundingStatistics == nil || d.Statistics.FundingStatistics.Report.DisableUSDTracking {
 		return nil
@@ -90,10 +92,8 @@ func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 	var response []TotalsChart
 	var usdTotalChartPlot []ChartPlot
 	for i := range d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues {
-		// exact matters less for chart rendering, ignoring "exact" response
-		floatValue, _ := d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Value.Float64()
 		usdTotalChartPlot = append(usdTotalChartPlot, ChartPlot{
-			Value:  floatValue,
+			Value:  d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Value.InexactFloat64(),
 			Year:   int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Year()),
 			Month:  int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Month()),
 			Day:    int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Day()),
@@ -109,9 +109,8 @@ func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 	for i := range d.Statistics.FundingStatistics.Items {
 		var plots []ChartPlot
 		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
-			floatValue := d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].USDValue.InexactFloat64()
 			plots = append(plots, ChartPlot{
-				Value:  floatValue,
+				Value:  d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].USDValue.InexactFloat64(),
 				Year:   int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Year()),
 				Month:  int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Month()),
 				Day:    int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Day()),
@@ -128,6 +127,8 @@ func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 	return response
 }
 
+// CreateHoldingsOverTimeChart used for creating a chart in the HTML report
+// to show how many holdings of each type was held over the time of backtesting
 func (d *Data) CreateHoldingsOverTimeChart() []TotalsChart {
 	if d.Statistics.FundingStatistics == nil {
 		return nil
@@ -136,10 +137,8 @@ func (d *Data) CreateHoldingsOverTimeChart() []TotalsChart {
 	for i := range d.Statistics.FundingStatistics.Items {
 		var plots []ChartPlot
 		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
-			// exact matters less for chart rendering, ignoring "exact" response
-			floatValue, _ := d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Available.Float64()
 			plots = append(plots, ChartPlot{
-				Value:  floatValue,
+				Value:  d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
 				Year:   int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Year()),
 				Month:  int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Month()),
 				Day:    int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Day()),

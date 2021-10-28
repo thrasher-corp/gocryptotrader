@@ -64,7 +64,6 @@ func main() {
 
 	var bt *backtest.BackTest
 	var cfg *config.Config
-	// because globals
 	logConfig := log.GenDefaultSettings()
 	log.GlobalLogConfig = &logConfig
 	log.SetupGlobalLogger()

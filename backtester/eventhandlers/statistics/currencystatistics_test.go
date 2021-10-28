@@ -18,12 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func TestButts(t *testing.T) {
-	hi := make(map[bool]decimal.Decimal)
-	hi[true] = hi[true].Add(decimal.NewFromInt(1))
-	t.Log(hi)
-}
-
 func TestCalculateResults(t *testing.T) {
 	t.Parallel()
 	cs := CurrencyPairStatistic{}

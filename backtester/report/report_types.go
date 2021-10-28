@@ -44,11 +44,15 @@ type Data struct {
 	Prettify              PrettyNumbers
 }
 
+// TotalsChart holds chart plot data
+// to render charts in the report
 type TotalsChart struct {
 	Name       string
 	DataPoints []ChartPlot
 }
 
+// ChartPlot holds value data
+// for a chart
 type ChartPlot struct {
 	Value  float64
 	Year   int64

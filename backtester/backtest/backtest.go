@@ -646,7 +646,10 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if cfg.DataSettings.DatabaseData.InclusiveEndDate {
 			cfg.DataSettings.DatabaseData.EndDate = cfg.DataSettings.DatabaseData.EndDate.Add(cfg.DataSettings.Interval)
 		}
-		gctdatabase.DB.DataPath = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
+		if cfg.DataSettings.DatabaseData.Path == "" {
+			cfg.DataSettings.DatabaseData.Path = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
+		}
+		gctdatabase.DB.DataPath = filepath.Join(cfg.DataSettings.DatabaseData.Path)
 		err = gctdatabase.DB.SetConfig(&cfg.DataSettings.DatabaseData.Config)
 		if err != nil {
 			return nil, err

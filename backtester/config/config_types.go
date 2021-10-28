@@ -157,6 +157,7 @@ type DatabaseData struct {
 	StartDate        time.Time       `json:"start-date"`
 	EndDate          time.Time       `json:"end-date"`
 	Config           database.Config `json:"config"`
+	Path             string          `json:"path"`
 	InclusiveEndDate bool            `json:"inclusive-end-date"`
 }
 

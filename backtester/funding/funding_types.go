@@ -113,6 +113,8 @@ type ReportItem struct {
 	PairedWith    currency.Code
 }
 
+// ItemSnapshot holds USD values to allow for tracking
+// across backtesting results
 type ItemSnapshot struct {
 	Time          time.Time
 	Available     decimal.Decimal

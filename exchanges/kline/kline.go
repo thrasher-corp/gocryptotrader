@@ -474,6 +474,8 @@ func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 	return false
 }
 
+// GetClosePriceAtTime returns the close price of a candle
+// at a given time
 func (k *Item) GetClosePriceAtTime(t time.Time) (float64, error) {
 	for i := range k.Candles {
 		if k.Candles[i].Time.Equal(t) {

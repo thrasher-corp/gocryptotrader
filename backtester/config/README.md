@@ -134,6 +134,7 @@ See below for a set of tables and fields, expected values and what they can do
 | StartDate | The start date to retrieve data | `2021-01-23T11:00:00+11:00` |
 | EndDate | The end date to retrieve data | `2021-01-24T11:00:00+11:00` |
 | Config | This is the same struct used as your GoCryptoTrader database config. See below tables for breakdown | `see below` |
+| Path | If using SQLite, the path to the directory, not the file. Leaving blank will use GoCryptoTrader's default database path | `` |
 | InclusiveEndDate | When enabled, the end date's candle is included in the results. ie `2021-01-24T11:00:00+11:00` with a one hour candle, the final candle will be `2021-01-24T11:00:00+11:00` to `2021-01-24T12:00:00+11:00` | `false` |
 
 ##### database

@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
@@ -45,8 +44,9 @@ type Portfolio struct {
 type Handler interface {
 	OnSignal(signal.Event, *exchange.Settings, funding.IPairReserver) (*order.Order, error)
 	OnFill(fill.Event, funding.IPairReader) (*fill.Fill, error)
-	GetOrdersForEvent(common.EventHandler) ([]gctorder.Detail, error)
-	GetAllOrders() ([]gctorder.Detail, error)
+
+	GetLatestOrderSnapshotForEvent(common.EventHandler) (compliance.Snapshot, error)
+	GetLatestOrderSnapshots() ([]compliance.Snapshot, error)
 
 	ViewHoldingAtTimePeriod(common.EventHandler) (*holdings.Holding, error)
 	setHoldingsForOffset(*holdings.Holding, bool) error

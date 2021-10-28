@@ -150,10 +150,10 @@ Binaries will be published once the codebase reaches a stable condition.
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [dependabot[bot]](https://github.com/apps/dependabot) | 29 |
+| [lrascao](https://github.com/lrascao) | 15 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
-| [lrascao](https://github.com/lrascao) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
 | [ydm](https://github.com/ydm) | 13 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |

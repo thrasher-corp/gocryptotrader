@@ -395,6 +395,7 @@ func (s *Statistic) Serialise() (string, error) {
 	return string(resp), nil
 }
 
+// CalculateRatios creates arithmetic and geometric ratios from funding or currency pair data
 func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFreeRatePerCandle decimal.Decimal, maxDrawdown *Swing, logMessage string) (arithmeticStats, geometricStats *Ratios, err error) {
 	var arithmeticBenchmarkAverage, geometricBenchmarkAverage decimal.Decimal
 	arithmeticBenchmarkAverage, err = gctmath.DecimalArithmeticMean(benchmarkRates)

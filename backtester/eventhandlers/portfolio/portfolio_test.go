@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -551,5 +552,111 @@ func TestValue(t *testing.T) {
 	v = cs.Value()
 	if !v.Equal(decimal.NewFromInt(1337)) {
 		t.Errorf("expected %v, received %v", decimal.NewFromInt(1337), v)
+	}
+}
+
+func TestGetSnapshotAtTime(t *testing.T) {
+	t.Parallel()
+	p := Portfolio{}
+	_, err := p.GetLatestOrderSnapshotForEvent(&kline.Kline{})
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
+	}
+	cp := currency.NewPair(currency.XRP, currency.DOGE)
+	s, err := p.SetupCurrencySettingsMap("exch", asset.Spot, currency.NewPair(currency.XRP, currency.DOGE))
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	tt := time.Now()
+	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
+		{
+			Detail: &gctorder.Detail{
+				Exchange:  "exch",
+				AssetType: asset.Spot,
+				Pair:      cp,
+				Amount:    1337,
+			},
+		},
+	}, tt, 0, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	e := &kline.Kline{
+		Base: event.Base{
+			Exchange:     "exch",
+			Time:         tt,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: cp,
+			AssetType:    asset.Spot,
+		},
+	}
+
+	ss, err := p.GetLatestOrderSnapshotForEvent(e)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	if len(ss.Orders) != 1 {
+		t.Fatal("expected 1")
+	}
+	if ss.Orders[0].Amount != 1337 {
+		t.Error("expected 1")
+	}
+}
+
+func TestGetLatestSnapshot(t *testing.T) {
+	t.Parallel()
+	p := Portfolio{}
+	_, err := p.GetLatestOrderSnapshots()
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
+	}
+	cp := currency.NewPair(currency.XRP, currency.DOGE)
+	s, err := p.SetupCurrencySettingsMap("exch", asset.Spot, currency.NewPair(currency.XRP, currency.DOGE))
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	tt := time.Now()
+	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
+		{
+			Detail: &gctorder.Detail{
+				Exchange:  "exch",
+				AssetType: asset.Spot,
+				Pair:      cp,
+				Amount:    1337,
+			},
+		},
+	}, tt, 0, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	ss, err := p.GetLatestOrderSnapshots()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
+	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
+		ss[0].Orders[0],
+		{
+			Detail: &gctorder.Detail{
+				Exchange:  "exch",
+				AssetType: asset.Spot,
+				Pair:      cp,
+				Amount:    1338,
+			},
+		},
+	}, tt, 1, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
+	ss, err = p.GetLatestOrderSnapshots()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	if len(ss) != 1 {
+		t.Fatal("expected 1")
+	}
+	if len(ss[0].Orders) != 2 {
+		t.Error("expected 2")
 	}
 }

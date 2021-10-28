@@ -44,19 +44,20 @@
   "database-data": {
    "start-date": "2020-08-01T00:00:00+10:00",
    "end-date": "2020-12-01T00:00:00+11:00",
-   "config":  {
+   "config": {
     "enabled": true,
-    "verbose": true,
+    "verbose": false,
     "driver": "sqlite",
     "connectionDetails": {
      "host": "localhost",
-     "port": 5432,
+     "port": 0,
      "username": "postgres",
      "password": "postgres",
      "database": "database.db",
-     "sslmode": "disable"
+     "sslmode": ""
     }
    },
+   "path": "",
    "inclusive-end-date": false
   }
  },

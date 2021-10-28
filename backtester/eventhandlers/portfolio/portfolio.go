@@ -46,36 +46,27 @@ func (p *Portfolio) Reset() {
 	p.exchangeAssetPairSettings = nil
 }
 
-// GetOrdersForEvent gets orders related to the event
-func (p *Portfolio) GetOrdersForEvent(e common.EventHandler) ([]gctorder.Detail, error) {
+// GetLatestOrderSnapshotForEvent gets orders related to the event
+func (p *Portfolio) GetLatestOrderSnapshotForEvent(e common.EventHandler) (compliance.Snapshot, error) {
 	eapSettings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
 	if !ok {
-		return nil, nil
+		return compliance.Snapshot{}, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, e.GetExchange(), e.GetAssetType(), e.Pair())
 	}
-	var resp []gctorder.Detail
-	ss := eapSettings.ComplianceManager.GetLatestSnapshot()
-	for i := range ss.Orders {
-		if ss.Orders[i].IsActive() {
-			resp = append(resp, ss.Orders[i].Copy())
-		}
-	}
-	return resp, nil
+	return eapSettings.ComplianceManager.GetLatestSnapshot(), nil
 }
 
-// GetAllOrders returns all
-func (p *Portfolio) GetAllOrders() ([]gctorder.Detail, error) {
-	var resp []gctorder.Detail
+// GetLatestOrderSnapshots returns the latest snapshots from all stored pair data
+func (p *Portfolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
+	var resp []compliance.Snapshot
 	for _, exchangeMap := range p.exchangeAssetPairSettings {
 		for _, assetMap := range exchangeMap {
 			for _, pairMap := range assetMap {
-				ss := pairMap.ComplianceManager.GetLatestSnapshot()
-				for i := range ss.Orders {
-					if ss.Orders[i].IsActive() {
-						resp = append(resp, ss.Orders[i].Copy())
-					}
-				}
+				resp = append(resp, pairMap.ComplianceManager.GetLatestSnapshot())
 			}
 		}
+	}
+	if len(resp) == 0 {
+		return nil, errNoPortfolioSettings
 	}
 	return resp, nil
 }

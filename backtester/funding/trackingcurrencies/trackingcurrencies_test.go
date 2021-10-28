@@ -131,7 +131,7 @@ func TestFindMatchingUSDPairs(t *testing.T) {
 		tt := tests[i]
 		t.Run(tt.description, func(t *testing.T) {
 			t.Parallel()
-			basePair, quotePair, err := FindMatchingUSDPairs(tests[i].initialPair, tests[i].availablePairs)
+			basePair, quotePair, err := findMatchingUSDPairs(tests[i].initialPair, tests[i].availablePairs)
 			if !errors.Is(err, tests[i].expectedErr) {
 				t.Fatalf("'%v' received '%v' expected '%v'", tests[i].description, err, tests[i].expectedErr)
 			}
@@ -213,7 +213,7 @@ func TestPairContainsUSD(t *testing.T) {
 		tt := pairs[i]
 		t.Run(tt.description, func(t *testing.T) {
 			t.Parallel()
-			resp := PairContainsUSD(tt.pair)
+			resp := pairContainsUSD(tt.pair)
 			if resp != tt.expected {
 				t.Errorf("expected %v received %v", tt, resp)
 			}

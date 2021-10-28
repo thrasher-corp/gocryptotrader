@@ -10,13 +10,15 @@ import (
 )
 
 var (
+	// ErrCurrencyContainsUSD is raised when the currency already contains a USD equivalent
+	ErrCurrencyContainsUSD = errors.New("currency already contains a USD equivalent")
+	// ErrCurrencyDoesNotContainsUSD is raised when the currency does not contain a USD equivalent
+	ErrCurrencyDoesNotContainsUSD = errors.New("currency does not contains a USD equivalent")
 	errNilPairs                   = errors.New("cannot assess with nil available pairs")
 	errNoMatchingPairUSDFound     = errors.New("currency pair has no USD backed equivalent, cannot track price")
 	errCurrencyNotFoundInPairs    = errors.New("currency does not exist in available pairs")
 	errNoMatchingBaseUSDFound     = errors.New("base currency has no USD back equivalent, cannot track price")
 	errNoMatchingQuoteUSDFound    = errors.New("quote currency has no USD back equivalent, cannot track price")
-	ErrCurrencyContainsUSD        = errors.New("currency already contains a USD equivalent")
-	ErrCurrencyDoesNotContainsUSD = errors.New("currency does not contains a USD equivalent")
 	errNilPairsReceived           = errors.New("nil tracking pairs received")
 	errExchangeManagerRequired    = errors.New("exchange manager required")
 )
@@ -34,6 +36,9 @@ var rankedUSDs = []currency.Code{
 	currency.PAX,
 }
 
+// TrackingPair is basic pair data used
+// to create more pairs based whether they contain
+// a USD equivalent
 type TrackingPair struct {
 	Exchange string
 	Asset    string
@@ -62,7 +67,7 @@ func CreateUSDTrackingPairs(tp []TrackingPair, em *engine.ExchangeManager) ([]Tr
 		if err != nil {
 			return nil, err
 		}
-		if PairContainsUSD(pair) {
+		if pairContainsUSD(pair) {
 			resp = append(resp, tp[i])
 		} else {
 			b := exch.GetBase()
@@ -71,7 +76,7 @@ func CreateUSDTrackingPairs(tp []TrackingPair, em *engine.ExchangeManager) ([]Tr
 				return nil, err
 			}
 			pairs := b.CurrencyPairs.Pairs[a]
-			basePair, quotePair, err := FindMatchingUSDPairs(pair, pairs)
+			basePair, quotePair, err := findMatchingUSDPairs(pair, pairs)
 			if err != nil {
 				return nil, err
 			}
@@ -106,19 +111,19 @@ func CurrencyIsUSDTracked(code currency.Code) bool {
 	return false
 }
 
-// PairContainsUSD is a simple check to ensure that the currency pair
+// pairContainsUSD is a simple check to ensure that the currency pair
 // has some sort of matching USD currency
-func PairContainsUSD(pair currency.Pair) bool {
+func pairContainsUSD(pair currency.Pair) bool {
 	return CurrencyIsUSDTracked(pair.Base) || CurrencyIsUSDTracked(pair.Quote)
 }
 
-// FindMatchingUSDPairs will return a USD pair for both the base and quote currency provided
+// findMatchingUSDPairs will return a USD pair for both the base and quote currency provided
 // this will allow for data retrieval and total tracking on backtesting runs
-func FindMatchingUSDPairs(pair currency.Pair, pairs *currency.PairStore) (basePair, quotePair currency.Pair, err error) {
+func findMatchingUSDPairs(pair currency.Pair, pairs *currency.PairStore) (basePair, quotePair currency.Pair, err error) {
 	if pairs == nil {
 		return currency.Pair{}, currency.Pair{}, errNilPairs
 	}
-	if PairContainsUSD(pair) {
+	if pairContainsUSD(pair) {
 		return currency.Pair{}, currency.Pair{}, ErrCurrencyContainsUSD
 	}
 	if !pairs.Available.Contains(pair, true) {
