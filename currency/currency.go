@@ -88,6 +88,7 @@ func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
 			if p.Equal(pairs[x]) {
 				return pairs[x]
 			}
+			continue
 		}
 		if p.EqualIncludeReciprocal(pairs[x]) {
 			return pairs[x]
@@ -108,21 +109,13 @@ func FormatPairs(pairs []string, delimiter, index string) (Pairs, error) {
 		var err error
 		if delimiter != "" {
 			p, err = NewPairDelimiter(pairs[x], delimiter)
-			if err != nil {
-				return nil, err
-			}
+		} else if index != "" {
+			p, err = NewPairFromIndex(pairs[x], index)
 		} else {
-			if index != "" {
-				p, err = NewPairFromIndex(pairs[x], index)
-				if err != nil {
-					return Pairs{}, err
-				}
-			} else {
-				p, err = NewPairFromStrings(pairs[x][0:3], pairs[x][3:])
-				if err != nil {
-					return Pairs{}, err
-				}
-			}
+			p, err = NewPairFromStrings(pairs[x][0:3], pairs[x][3:])
+		}
+		if err != nil {
+			return nil, err
 		}
 		result = append(result, p)
 	}

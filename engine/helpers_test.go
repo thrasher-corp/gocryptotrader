@@ -98,8 +98,8 @@ func CreateTestBot(t *testing.T) *Engine {
 
 func TestGetSubsystemsStatus(t *testing.T) {
 	m := (&Engine{}).GetSubsystemsStatus()
-	if len(m) != 15 {
-		t.Fatalf("subsystem count is wrong expecting: %d but received: %d", 14, len(m))
+	if len(m) != 16 {
+		t.Fatalf("subsystem count is wrong expecting: %d but received: %d", 16, len(m))
 	}
 }
 

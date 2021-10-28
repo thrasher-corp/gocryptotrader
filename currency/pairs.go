@@ -254,7 +254,7 @@ pairs:
 }
 
 // GetCrypto returns all the cryptos contained in the list.
-func (p Pairs) GetCrypto() []Code {
+func (p Pairs) GetCrypto() Currencies {
 	m := make(map[*Item]bool)
 	for x := range p {
 		if p[x].Base.IsCryptocurrency() {
@@ -272,7 +272,7 @@ func (p Pairs) GetCrypto() []Code {
 }
 
 // GetFiat returns all the cryptos contained in the list.
-func (p Pairs) GetFiat() []Code {
+func (p Pairs) GetFiat() Currencies {
 	m := make(map[*Item]bool)
 	for x := range p {
 		if p[x].Base.IsFiatCurrency() {
@@ -291,7 +291,7 @@ func (p Pairs) GetFiat() []Code {
 
 // GetCurrencies returns the full currency code list contained derived from the
 // the pairs list.
-func (p Pairs) GetCurrencies() []Code {
+func (p Pairs) GetCurrencies() Currencies {
 	m := make(map[*Item]bool)
 	for x := range p {
 		m[p[x].Base.Item] = p[x].Base.UpperCase

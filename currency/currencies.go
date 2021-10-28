@@ -22,17 +22,17 @@ type Currencies []Code
 
 // Strings returns an array of currency strings
 func (c Currencies) Strings() []string {
-	var list []string
+	list := make([]string, len(c))
 	for i := range c {
-		list = append(list, c[i].String())
+		list[i] = c[i].String()
 	}
 	return list
 }
 
 // Contains checks to see if a currency code is contained in the currency list
-func (c Currencies) Contains(cc Code) bool {
+func (c Currencies) Contains(check Code) bool {
 	for i := range c {
-		if c[i].Item == cc.Item {
+		if c[i].Match(check) {
 			return true
 		}
 	}

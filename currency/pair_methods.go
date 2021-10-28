@@ -2,7 +2,6 @@ package currency
 
 import (
 	"encoding/json"
-	"strings"
 )
 
 // String returns a currency pair string
@@ -12,20 +11,16 @@ func (p Pair) String() string {
 
 // Lower converts the pair object to lowercase
 func (p Pair) Lower() Pair {
-	return Pair{
-		Delimiter: p.Delimiter,
-		Base:      p.Base.Lower(),
-		Quote:     p.Quote.Lower(),
-	}
+	p.Base = p.Base.Lower()
+	p.Quote = p.Quote.Lower()
+	return p
 }
 
 // Upper converts the pair object to uppercase
 func (p Pair) Upper() Pair {
-	return Pair{
-		Delimiter: p.Delimiter,
-		Base:      p.Base.Upper(),
-		Quote:     p.Quote.Upper(),
-	}
+	p.Base = p.Base.Upper()
+	p.Quote = p.Quote.Upper()
+	return p
 }
 
 // UnmarshalJSON comforms type to the umarshaler interface
@@ -41,9 +36,7 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 		return err
 	}
 
-	p.Base = newPair.Base
-	p.Quote = newPair.Quote
-	p.Delimiter = newPair.Delimiter
+	*p = newPair
 	return nil
 }
 
@@ -55,27 +48,23 @@ func (p Pair) MarshalJSON() ([]byte, error) {
 // Format changes the currency based on user preferences overriding the default
 // String() display
 func (p Pair) Format(delimiter string, uppercase bool) Pair {
-	newP := Pair{Base: p.Base, Quote: p.Quote, Delimiter: delimiter}
+	p.Delimiter = delimiter
 	if uppercase {
-		return newP.Upper()
+		return p.Upper()
 	}
-	return newP.Lower()
+	return p.Lower()
 }
 
 // Equal compares two currency pairs and returns whether or not they are equal
 func (p Pair) Equal(cPair Pair) bool {
-	return strings.EqualFold(p.Base.String(), cPair.Base.String()) &&
-		strings.EqualFold(p.Quote.String(), cPair.Quote.String())
+	return p.Base.Match(cPair.Base) && p.Quote.Match(cPair.Quote)
 }
 
 // EqualIncludeReciprocal compares two currency pairs and returns whether or not
 // they are the same including reciprocal currencies.
 func (p Pair) EqualIncludeReciprocal(cPair Pair) bool {
-	if (p.Base.Item == cPair.Base.Item && p.Quote.Item == cPair.Quote.Item) ||
-		(p.Base.Item == cPair.Quote.Item && p.Quote.Item == cPair.Base.Item) {
-		return true
-	}
-	return false
+	return (p.Base.Match(cPair.Base) && p.Quote.Match(cPair.Quote)) ||
+		(p.Base.Match(cPair.Quote) && p.Quote.Match(cPair.Base))
 }
 
 // IsCryptoPair checks to see if the pair is a crypto pair e.g. BTCLTC
@@ -97,7 +86,7 @@ func (p Pair) IsFiatPair() bool {
 
 // IsInvalid checks invalid pair if base and quote are the same
 func (p Pair) IsInvalid() bool {
-	return p.Base.Item == p.Quote.Item
+	return p.Base.Match(p.Quote)
 }
 
 // Swap turns the currency pair into its reciprocal
@@ -113,7 +102,7 @@ func (p Pair) IsEmpty() bool {
 
 // ContainsCurrency checks to see if a pair contains a specific currency
 func (p Pair) ContainsCurrency(c Code) bool {
-	return p.Base.Item == c.Item || p.Quote.Item == c.Item
+	return p.Base.Match(c) || p.Quote.Match(c)
 }
 
 // Len derives full length for match exclusion.

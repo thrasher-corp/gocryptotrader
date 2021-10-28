@@ -2017,7 +2017,7 @@ func TestSetSetCommission(t *testing.T) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
 	}
 
-	_, err = s.SetCommission(context.Background(), &gctrpc.SetCommissionRequest{Exchange: "fake"})
+	_, err = s.SetCommission(context.Background(), &gctrpc.SetCommissionRequest{Exchange: "fake", Pair: "btc-usd"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4184,9 +4184,12 @@ func (s *RPCServer) SetCommission(_ context.Context, r *gctrpc.SetCommissionRequ
 		return nil, err
 	}
 
-	pair, err := currency.NewPairFromString(r.Pair)
-	if err != nil {
-		return nil, err
+	var pair currency.Pair
+	if r.Pair != "" {
+		pair, err = currency.NewPairFromString(r.Pair)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = exch.SetCommissionFee(asset.Item(r.Asset), pair, r.Maker, r.Taker, r.IsSetAmount)
