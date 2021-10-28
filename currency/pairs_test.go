@@ -273,3 +273,46 @@ func TestDeriveFrom(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", got.Upper().String(), "USDCUSD")
 	}
 }
+
+func TestGetCrypto(t *testing.T) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+	}
+	contains(t, []Code{BTC, LTC, USDT}, pairs.GetCrypto())
+}
+
+func TestGetFiat(t *testing.T) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+	}
+	contains(t, []Code{USD, NZD}, pairs.GetFiat())
+}
+
+func TestGetCurrencies(t *testing.T) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+	}
+	contains(t, []Code{BTC, USD, LTC, NZD, USDT}, pairs.GetCurrencies())
+}
+
+func contains(t *testing.T, c1 []Code, c2 []Code) {
+	t.Helper()
+codes:
+	for x := range c1 {
+		for y := range c2 {
+			if c1[x].Match(c2[y]) {
+				continue codes
+			}
+		}
+		t.Fatalf("cannot find currency %s in returned currency list %v", c1[x], c2)
+	}
+}
