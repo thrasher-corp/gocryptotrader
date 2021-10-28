@@ -3,7 +3,6 @@ package statistics
 import (
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -52,32 +51,25 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		LowestHoldingValue:  ValueAtTime{},
 		RiskFreeRate:        riskFreeRate,
 	}
-	holdingValues := make(map[time.Time]decimal.Decimal)
-
 	for i := range response.Items {
 		usdStats.TotalOrders += response.Items[i].TotalOrders
 		usdStats.BuyOrders += response.Items[i].BuyOrders
 		usdStats.SellOrders += response.Items[i].SellOrders
-		for j := range response.Items[i].ReportItem.Snapshots {
-			lookup := holdingValues[response.Items[i].ReportItem.Snapshots[j].Time]
-			lookup = lookup.Add(response.Items[i].ReportItem.Snapshots[j].USDValue)
-			holdingValues[response.Items[i].ReportItem.Snapshots[j].Time] = lookup
-		}
 	}
-	for k, v := range holdingValues {
-		if usdStats.HighestHoldingValue.Value.LessThan(v) {
+	for k, v := range report.USDTotalsOverTime {
+		if usdStats.HighestHoldingValue.Value.LessThan(v.USDValue) {
 			usdStats.HighestHoldingValue.Time = k
-			usdStats.HighestHoldingValue.Value = v.Round(2)
+			usdStats.HighestHoldingValue.Value = v.USDValue
 		}
 		if usdStats.LowestHoldingValue.Value.IsZero() {
 			usdStats.LowestHoldingValue.Time = k
-			usdStats.LowestHoldingValue.Value = v.Round(2)
+			usdStats.LowestHoldingValue.Value = v.USDValue
 		}
-		if usdStats.LowestHoldingValue.Value.GreaterThan(v) && !usdStats.LowestHoldingValue.Value.IsZero() {
+		if usdStats.LowestHoldingValue.Value.GreaterThan(v.USDValue) && !usdStats.LowestHoldingValue.Value.IsZero() {
 			usdStats.LowestHoldingValue.Time = k
-			usdStats.LowestHoldingValue.Value = v.Round(2)
+			usdStats.LowestHoldingValue.Value = v.USDValue
 		}
-		usdStats.HoldingValues = append(usdStats.HoldingValues, ValueAtTime{Time: k, Value: v})
+		usdStats.HoldingValues = append(usdStats.HoldingValues, ValueAtTime{Time: k, Value: v.USDValue})
 	}
 	sort.Slice(usdStats.HoldingValues, func(i, j int) bool {
 		return usdStats.HoldingValues[i].Time.Before(usdStats.HoldingValues[j].Time)
