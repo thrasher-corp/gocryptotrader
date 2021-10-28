@@ -2598,7 +2598,6 @@ func TestGetAvailableTransferChains(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
 	err := h.UpdateTradablePairs(context.Background(), false)
 	if err != nil {
 		t.Fatal(err)
@@ -2637,7 +2636,6 @@ func TestFormatFuturesPair(t *testing.T) {
 
 func TestUpdateCommissionFees(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
 	err := h.UpdateCommissionFees(context.Background(), asset.DownsideProfitContract)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected '%v'", err, asset.ErrNotSupported)

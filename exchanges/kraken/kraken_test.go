@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -1998,5 +1999,22 @@ func TestChecksumCalculation(t *testing.T) {
 	err := validateCRC32(&testOb, krakenAPIDocChecksum, 5, 8)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	err := k.UpdateCommissionFees(context.Background(), asset.DownsideProfitContract)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected '%v'", err, asset.ErrNotSupported)
+	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip("no credentials set in test package")
+	}
+
+	err = k.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 }

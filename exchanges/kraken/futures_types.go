@@ -1,8 +1,6 @@
 package kraken
 
 import (
-	"sync"
-
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -221,11 +219,6 @@ type WsFuturesNotifications struct {
 		Note             string `json:"note"`
 		EffectiveTime    int64  `json:"effective_time"`
 	}
-}
-
-type assetTranslatorStore struct {
-	l      sync.RWMutex
-	Assets map[string]string
 }
 
 // FuturesOrderbookData stores orderbook data for futures

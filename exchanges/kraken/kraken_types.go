@@ -73,10 +73,6 @@ const (
 	krakenFormat = "2006-01-02T15:04:05.000Z"
 )
 
-var (
-	assetTranslator assetTranslatorStore
-)
-
 // GenericResponse stores general response data for functions that only return success
 type GenericResponse struct {
 	Timestamp string `json:"timestamp"`

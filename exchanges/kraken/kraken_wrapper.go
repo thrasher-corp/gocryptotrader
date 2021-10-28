@@ -1538,34 +1538,33 @@ func (k *Kraken) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 
 // UpdateCommissionFees updates current fees associated with account
 func (k *Kraken) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
-	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+	if a != asset.Spot && a != asset.Futures {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	// TODO: implement
-	// fee, err := k.GetTradeVolume(true, currency.Pair{})
-	// if err != nil {
-	// 	return err
-	// }
 
-	// fee.Fees
-	// return k.Fees.LoadDynamic(fee.MakerFee, fee.TakerFee, a, fee.OmitPair)
+	avail, err := k.GetAvailablePairs(a)
+	if err != nil {
+		return err
+	}
 
-	// depositMethods, err := k.GetDepositMethods(feeBuilder.FiatCurrency.String())
-	// 	if err != nil {
-	// 		return 0, err
-	// 	}
+	fees, err := k.GetTradeVolume(ctx, true, avail...)
+	if err != nil {
+		return err
+	}
 
-	// 	for _, i := range depositMethods {
-	// 		if feeBuilder.BankTransactionType == exchange.WireTransfer {
-	// 			if i.Method == "SynapsePay (US Wire)" {
-	// 				f = i.Fee
-	// 				return f, nil
-	// 			}
-	// 		}
-	// 	}
+	for key, maker := range fees.FeesMaker {
+		taker, ok := fees.Fees[key]
+		if !ok {
+			return errors.New("cannot match string")
+		}
+		pair, err := avail.DeriveFrom(key)
+		if err != nil {
+			return err
+		}
+		err = k.Fees.LoadDynamic(maker.Fee, taker.Fee, a, pair)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
-
-// func calculateTradingFee(currency string, feePair map[string]TradeVolumeFee, purchasePrice, amount float64) float64 {
-// 	return (feePair[currency].Fee / 100) * purchasePrice * amount
-// }
