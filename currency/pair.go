@@ -100,8 +100,7 @@ func NewPairFromString(currencyPair string) (Pair, error) {
 // apply the same format
 func NewPairFromFormattedPairs(currencyPair string, pairs Pairs, pairFmt PairFormat) (Pair, error) {
 	for x := range pairs {
-		fPair := pairFmt.Format(pairs[x])
-		if strings.EqualFold(fPair, currencyPair) {
+		if strings.EqualFold(pairFmt.Format(pairs[x]), currencyPair) {
 			return pairs[x], nil
 		}
 	}
