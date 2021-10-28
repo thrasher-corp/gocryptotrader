@@ -875,8 +875,7 @@ func TestCreateSnapshot(t *testing.T) {
 			},
 		},
 	}
-	err := dfk.Load()
-	if err != nil {
+	if err := dfk.Load(); err != nil {
 		t.Error(err)
 	}
 	f.items = append(f.items, &Item{
