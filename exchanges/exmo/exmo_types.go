@@ -3,6 +3,7 @@ package exmo
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -236,20 +237,20 @@ var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
 
 // transferBank the large list of predefined withdrawal and deposit fees for
 // fiat. Prone to change.
-var transferBank = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.Payeer: {
+var transferBank = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	bank.Payeer: {
 		currency.USD: {Deposit: fee.Convert(0.0249), IsPercentage: true},
 		currency.RUB: {Withdrawal: fee.Convert(0.0199), IsPercentage: true},
 	},
-	fee.SEPA: {
+	bank.SEPA: {
 		currency.EUR: {Deposit: fee.Convert(1), Withdrawal: fee.Convert(1)},
 	},
-	fee.AdvCash: {
+	bank.AdvCash: {
 		currency.USD: {Withdrawal: fee.Convert(0.0499), Deposit: fee.Convert(0.0049), IsPercentage: true},
 		currency.RUB: {Withdrawal: fee.Convert(0), Deposit: fee.Convert(0.0399), IsPercentage: true},
 		currency.KZT: {Withdrawal: fee.Convert(0.0099), Deposit: fee.Convert(0.0149), IsPercentage: true},
 	},
-	fee.ExmoGiftCard: {
+	bank.ExmoGiftCard: {
 		currency.USD: {Deposit: fee.Convert(0)},
 		currency.EUR: {Deposit: fee.Convert(0)},
 		currency.RUB: {Deposit: fee.Convert(0)},
@@ -257,11 +258,11 @@ var transferBank = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 		currency.UAH: {Deposit: fee.Convert(0)},
 		currency.KZT: {Deposit: fee.Convert(0)},
 	},
-	fee.VisaMastercard: {
+	bank.VisaMastercard: {
 		currency.USD: {Deposit: fee.Convert(0.0299), IsPercentage: true}, // + 35 cents??
 		currency.UAH: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0249), IsPercentage: true},
 	},
-	fee.Terminal: {
+	bank.Terminal: {
 		currency.UAH: {Deposit: fee.Convert(0.026), IsPercentage: true},
 	},
 }

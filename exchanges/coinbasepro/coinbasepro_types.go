@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -481,19 +482,19 @@ type wsStatus struct {
 
 // bankTransfers defines banking transfers. Subject to change.
 // NOTE: https://help.coinbase.com/en/pro/trading-and-funding/trading-rules-and-fees/fees
-var bankTransfers = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.AutomaticClearingHouse: {
+var bankTransfers = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	bank.AutomaticClearingHouse: {
 		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 		currency.EUR: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 		currency.GBP: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 	},
-	fee.WireTransfer: {
+	bank.WireTransfer: {
 		currency.USD: {Deposit: fee.Convert(10), Withdrawal: fee.Convert(25)},
 	},
-	fee.SEPA: {
+	bank.SEPA: {
 		currency.EUR: {Deposit: fee.Convert(.15), Withdrawal: fee.Convert(.15)},
 	},
-	fee.Swift: {
+	bank.Swift: {
 		currency.GBP: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
 	},
 }

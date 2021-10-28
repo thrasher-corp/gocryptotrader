@@ -3,6 +3,7 @@ package yobit
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -163,22 +164,22 @@ type RedeemCoupon struct {
 
 // internationBank the list of predefined withdrawal fees for international
 // bank transfers.
-var internationBank = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.PerfectMoney: {
+var internationBank = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	bank.PerfectMoney: {
 		currency.USD: {Withdrawal: fee.Convert(0.02), IsPercentage: true},
 	},
-	fee.Payeer: {
+	bank.Payeer: {
 		currency.USD: {Withdrawal: fee.Convert(0.03), IsPercentage: true},
 		currency.RUR: {Withdrawal: fee.Convert(0.006), IsPercentage: true},
 	},
-	fee.AdvCash: {
+	bank.AdvCash: {
 		currency.USD: {Withdrawal: fee.Convert(0.04), IsPercentage: true},
 		currency.RUR: {Withdrawal: fee.Convert(0.03), IsPercentage: true},
 	},
-	fee.Qiwi: {
+	bank.Qiwi: {
 		currency.RUR: {Withdrawal: fee.Convert(0.04), IsPercentage: true},
 	},
-	fee.Capitalist: {
+	bank.Capitalist: {
 		currency.RUR: {Withdrawal: fee.Convert(0.06), IsPercentage: true},
 	},
 }

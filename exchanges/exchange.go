@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -1484,13 +1485,13 @@ func (b *Base) SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit f
 
 // GetBankTransferFee returns the transfer fees to and from an exchange via
 // a bankerino
-func (b *Base) GetBankTransferFee(c currency.Code, transType fee.BankTransaction) (fee.Transfer, error) {
+func (b *Base) GetBankTransferFee(c currency.Code, transType bank.Transfer) (fee.Transfer, error) {
 	return b.Fees.GetBankTransferFee(c, transType)
 }
 
 // SetBankTransferFee sets the deposit and withdrawal fees for a currency for a
 // bank transaction
-func (b *Base) SetBankTransferFee(c currency.Code, transType fee.BankTransaction, withdraw, deposit float64, isPercentage bool) error {
+func (b *Base) SetBankTransferFee(c currency.Code, transType bank.Transfer, withdraw, deposit float64, isPercentage bool) error {
 	return b.Fees.SetBankTransferFee(c, transType, withdraw, deposit, isPercentage)
 }
 

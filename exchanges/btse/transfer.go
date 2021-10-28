@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -101,8 +102,8 @@ var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
 // bankTransferFees defines bank transfer fees between exchange and bank. Subject
 // to change.
 // NOTE: https://support.btse.com/en/support/solutions/articles/43000588188#Fiat
-var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.Swift: {
+var bankTransferFees = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	bank.Swift: {
 		currency.USD: {
 			Deposit:    getDeposit(currency.USD),
 			Withdrawal: getWithdrawal(currency.USD, standardRate, minimumUSDCharge, true)},
@@ -131,12 +132,12 @@ var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 			Deposit:    getDeposit(currency.CAD),
 			Withdrawal: getWithdrawal(currency.CAD, standardRate, minimumUSDCharge, true)},
 	},
-	fee.FasterPaymentService: {
+	bank.FasterPaymentService: {
 		currency.GBP: {
 			Deposit:    getDeposit(currency.GBP),
 			Withdrawal: getWithdrawal(currency.GBP, decimal.NewFromFloat(.0009), decimal.NewFromInt(3), false)},
 	},
-	fee.SEPA: {
+	bank.SEPA: {
 		currency.EUR: {
 			Deposit:    getDeposit(currency.EUR),
 			Withdrawal: getWithdrawal(currency.EUR, standardRate, decimal.NewFromInt(3), false)},

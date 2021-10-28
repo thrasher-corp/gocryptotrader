@@ -3,6 +3,7 @@ package gemini
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -405,7 +406,7 @@ var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
 	},
 }
 
-var bankTransfers = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.AutomaticClearingHouse: {},
-	fee.WireTransfer:           {},
+var bankTransfers = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	bank.AutomaticClearingHouse: {},
+	bank.WireTransfer:           {},
 }

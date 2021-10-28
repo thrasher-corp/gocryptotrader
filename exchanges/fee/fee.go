@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 )
 
 var (
@@ -36,7 +37,7 @@ func NewFeeDefinitions() *Definitions {
 		globalCommissions: make(map[asset.Item]*CommissionInternal),
 		pairCommissions:   make(map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal),
 		transfers:         make(map[asset.Item]map[*currency.Item]*transfer),
-		bankingTransfers:  make(map[BankTransaction]map[*currency.Item]*transfer),
+		bankingTransfers:  make(map[bank.Transfer]map[*currency.Item]*transfer),
 	}
 }
 
@@ -55,7 +56,7 @@ type Definitions struct {
 	// BankingTransfer defines a map of currencies with differing withdrawal and
 	// deposit fee definitions for banking. These will commonly be fixed real
 	// values.
-	bankingTransfers map[BankTransaction]map[*currency.Item]*transfer
+	bankingTransfers map[bank.Transfer]map[*currency.Item]*transfer
 	mtx              sync.RWMutex
 }
 
@@ -389,7 +390,7 @@ func (d *Definitions) GetAllFees() (Options, error) {
 		GlobalCommissions: make(map[asset.Item]Commission),
 		PairCommissions:   make(map[asset.Item]map[currency.Pair]Commission),
 		Transfer:          make(map[asset.Item]map[currency.Code]Transfer),
-		BankingTransfer:   make(map[BankTransaction]map[currency.Code]Transfer),
+		BankingTransfer:   make(map[bank.Transfer]map[currency.Code]Transfer),
 	}
 
 	for a, value := range d.globalCommissions {
@@ -519,7 +520,7 @@ func (d *Definitions) SetTransferFee(c currency.Code, a asset.Item, withdraw, de
 
 // GetBankTransferFee returns a snapshot of the current bank transfer rate for the
 // asset.
-func (d *Definitions) GetBankTransferFee(c currency.Code, transType BankTransaction) (Transfer, error) {
+func (d *Definitions) GetBankTransferFee(c currency.Code, transType bank.Transfer) (Transfer, error) {
 	if d == nil {
 		return Transfer{}, ErrDefinitionsAreNil
 	}
@@ -545,7 +546,7 @@ func (d *Definitions) GetBankTransferFee(c currency.Code, transType BankTransact
 // SetBankTransferFee sets new bank transfer fees
 // TODO: need min and max settings might deprecate due to complexity of value
 // types
-func (d *Definitions) SetBankTransferFee(c currency.Code, transType BankTransaction, withdraw, deposit float64, isPercentage bool) error {
+func (d *Definitions) SetBankTransferFee(c currency.Code, transType bank.Transfer, withdraw, deposit float64, isPercentage bool) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}
@@ -621,7 +622,7 @@ func (d *Definitions) LoadTransferFees(fees map[asset.Item]map[currency.Code]Tra
 
 // LoadBankTransferFees allows the loading of current banking transfer fees for
 // banking deposit and withdrawals
-func (d *Definitions) LoadBankTransferFees(fees map[BankTransaction]map[currency.Code]Transfer) error {
+func (d *Definitions) LoadBankTransferFees(fees map[bank.Transfer]map[currency.Code]Transfer) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}

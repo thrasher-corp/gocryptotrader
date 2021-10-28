@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -838,8 +839,8 @@ type WsCancelAllOrdersRequest struct {
 
 // bankTransferFees defines bank transfer fees. Subject to change.
 // Note: https://www.bitfinex.com/fees/#deposit-table
-var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.WireTransfer: {
+var bankTransferFees = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	bank.WireTransfer: {
 		currency.USD: {
 			Withdrawal:        fee.Convert(0.001),
 			MinimumWithdrawal: fee.Convert(60),
@@ -855,7 +856,7 @@ var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 			IsPercentage:      true,
 		},
 	},
-	fee.ExpressWireTransfer: {
+	bank.ExpressWireTransfer: {
 		currency.USD: {
 			Withdrawal:        fee.Convert(0.01),
 			MinimumWithdrawal: fee.Convert(100),

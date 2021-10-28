@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -770,40 +771,40 @@ type AllCoinsInfo struct {
 }
 
 // bankTransferFees defines current bank transfer fees, subject to change.
-var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.WireTransfer: {
+var bankTransferFees = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	bank.WireTransfer: {
 		currency.AUD: {Withdrawal: fee.Convert(0)},
 		currency.BRL: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(2.6)},
 		currency.PHP: {Deposit: fee.Convert(25), Withdrawal: fee.Convert(60)},
 		currency.TRY: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 		currency.UGX: {Withdrawal: fee.Convert(8000)},
 	},
-	fee.PayIDOsko: {
+	bank.PayIDOsko: {
 		currency.AUD: {Deposit: fee.Convert(0)},
 	},
-	fee.BankCardVisa: {
+	bank.BankCardVisa: {
 		currency.EUR: {Withdrawal: fee.Convert(0.01), IsPercentage: true},
 		currency.GBP: {Withdrawal: fee.Convert(0.01), IsPercentage: true},
 	},
-	fee.BankCardMastercard: {
+	bank.BankCardMastercard: {
 		currency.EUR: {Deposit: fee.Convert(0.018), IsPercentage: true},
 		currency.GBP: {Withdrawal: fee.Convert(0.01), IsPercentage: true},
 		currency.HKD: {Deposit: fee.Convert(0.035), IsPercentage: true},
 		currency.PEN: {Deposit: fee.Convert(0.035), IsPercentage: true},
 	},
-	fee.CreditCardMastercard: {
+	bank.CreditCardMastercard: {
 		currency.RUB: {Withdrawal: fee.Convert(250)},
 	},
-	fee.Sofort: {
+	bank.Sofort: {
 		currency.EUR: {Deposit: fee.Convert(0.02), IsPercentage: true},
 	},
-	fee.SEPA: {
+	bank.SEPA: {
 		currency.EUR: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1.5)},
 	},
-	fee.P2P: {
+	bank.P2P: {
 		currency.EUR: {Deposit: fee.Convert(0)},
 	},
-	fee.AdvCash: {
+	bank.AdvCash: {
 		currency.EUR: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 		currency.KZT: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 		currency.RUB: {Withdrawal: fee.Convert(0)},
@@ -816,53 +817,53 @@ var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
 			Withdrawal:   fee.Convert(0),
 			IsPercentage: true},
 	},
-	fee.Etana: {
+	bank.Etana: {
 		currency.EUR: {
 			Deposit:      fee.Convert(0.001),
 			Withdrawal:   fee.Convert(0.001),
 			IsPercentage: true},
 	},
-	fee.FasterPaymentService: {
+	bank.FasterPaymentService: {
 		currency.GBP: {Deposit: fee.Convert(0.05), Withdrawal: fee.Convert(0.5)},
 	},
-	fee.MobileMoney: {
+	bank.MobileMoney: {
 		currency.GHS: {Deposit: fee.Convert(0.025), IsPercentage: true},
 		currency.UGX: {
 			Deposit:      fee.Convert(0.035),
 			Withdrawal:   fee.Convert(0.015),
 			IsPercentage: true},
 	},
-	fee.CashTransfer: {
+	bank.CashTransfer: {
 		currency.NGN: {Withdrawal: fee.Convert(0)},
 	},
-	fee.YandexMoney: {
+	bank.YandexMoney: {
 		currency.RUB: {Withdrawal: fee.Convert(0.025), IsPercentage: true},
 	},
-	fee.BankCardMIR: {
+	bank.BankCardMIR: {
 		currency.RUB: {Withdrawal: fee.Convert(0.021), IsPercentage: true},
 	},
-	fee.Payeer: {
+	bank.Payeer: {
 		currency.RUB: {
 			Deposit:      fee.Convert(0),
 			Withdrawal:   fee.Convert(0.01),
 			IsPercentage: true},
 	},
-	fee.GEOPay: {
+	bank.GEOPay: {
 		currency.UAH: {
 			Deposit:      fee.Convert(0.008),
 			Withdrawal:   fee.Convert(0),
 			IsPercentage: true},
 	},
-	fee.SettlePay: {
+	bank.SettlePay: {
 		currency.UAH: {
 			Deposit:      fee.Convert(0.008),
 			Withdrawal:   fee.Convert(0),
 			IsPercentage: true},
 	},
-	fee.ExchangeFiatDWChannelSignetUSD: {
+	bank.ExchangeFiatDWChannelSignetUSD: {
 		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 	},
-	fee.ExchangeFiatDWChannelSwiftSignatureBar: {
+	bank.ExchangeFiatDWChannelSwiftSignatureBar: {
 		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(15)},
 	},
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -457,8 +458,8 @@ var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
 	},
 }
 
-var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.WireTransfer: {
+var bankTransferFees = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	bank.WireTransfer: {
 		currency.AUD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 	},
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
@@ -111,8 +112,8 @@ type FeeManagement interface {
 	SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, isPercentage bool) error
 
 	UpdateBankTransferFees(ctx context.Context) error
-	GetBankTransferFee(c currency.Code, transType fee.BankTransaction) (fee.Transfer, error)
-	SetBankTransferFee(c currency.Code, transType fee.BankTransaction, withdraw, deposit float64, isPercentage bool) error
+	GetBankTransferFee(c currency.Code, transType bank.Transfer) (fee.Transfer, error)
+	SetBankTransferFee(c currency.Code, transType bank.Transfer, withdraw, deposit float64, isPercentage bool) error
 }
 
 // CurrencyStateManagement defines functionality for currency state management

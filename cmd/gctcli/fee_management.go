@@ -108,7 +108,7 @@ var exchangeFeeManagementCommand = &cli.Command{
 						},
 						&cli.IntFlag{
 							Name:  "banktype",
-							Usage: "banking type refer too fee.BankTransaction type",
+							Usage: "banking type refer too bank.Transfer type",
 						},
 						&cli.Float64Flag{
 							Name:  "withdraw",

@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -248,17 +249,17 @@ type OHLCResponse struct {
 
 // bankTransfer defines bank transfer fees to and from the exchange. Subject to
 // change.
-var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.SEPA: {
+var bankTransfer = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	bank.SEPA: {
 		currency.EUR: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(3)},
 	},
-	fee.AutomaticClearingHouse: {
+	bank.AutomaticClearingHouse: {
 		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 	},
-	fee.FasterPaymentService: {
+	bank.FasterPaymentService: {
 		currency.GBP: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
 	},
-	fee.WireTransfer: {
+	bank.WireTransfer: {
 		currency.USD: {
 			Deposit:    fee.ConvertWithMaxAndMin(0.0005, 7.5, 300),
 			Withdrawal: fee.ConvertWithMaxAndMin(0.001, 25, 0),

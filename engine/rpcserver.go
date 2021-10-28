@@ -32,6 +32,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -4121,7 +4122,7 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 }
 
 // addTransferFee adds transfer fee to a list of rpc transfer fees
-func addTransferFee(c currency.Code, a asset.Item, bt fee.BankTransaction, val fee.Transfer, fees *[]*gctrpc.TransferFees) error {
+func addTransferFee(c currency.Code, a asset.Item, bt bank.Transfer, val fee.Transfer, fees *[]*gctrpc.TransferFees) error {
 	rpcOut := &gctrpc.TransferFees{
 		Currency:     c.String(),
 		IsPercentage: val.IsPercentage,
@@ -4223,7 +4224,7 @@ func (s *RPCServer) SetBankTransferFee(_ context.Context, r *gctrpc.SetBankTrans
 		return nil, err
 	}
 	err = exch.SetBankTransferFee(currency.NewCode(r.Currency),
-		fee.BankTransaction(r.BankType),
+		bank.Transfer(r.BankType),
 		r.Withdraw,
 		r.Deposit,
 		r.IsPercentage)

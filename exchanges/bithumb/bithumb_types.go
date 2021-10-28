@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -230,8 +231,8 @@ type MarketSell struct {
 }
 
 // bankTransferFees predefined banking transfer fees. Prone to change.
-var bankTransferFees = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.WireTransfer: {
+var bankTransferFees = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	bank.WireTransfer: {
 		currency.KRW: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1000)},
 	},
 }

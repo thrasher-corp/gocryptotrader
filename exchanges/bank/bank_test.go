@@ -1,4 +1,4 @@
-package fee
+package bank
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 
 func TestString(t *testing.T) {
 	testCases := []struct {
-		Value  BankTransaction
+		Value  Transfer
 		Return string
 	}{
 		{NotApplicable, "NotApplicable"},
@@ -45,9 +45,9 @@ func TestString(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	t.Parallel()
-	err := (BankTransaction)(255).Validate()
-	if !errors.Is(err, errUnknownBankTransaction) {
-		t.Fatalf("received: %v but expected: %v", err, errUnknownBankTransaction)
+	err := (Transfer)(255).Validate()
+	if !errors.Is(err, ErrUnknownTransfer) {
+		t.Fatalf("received: %v but expected: %v", err, ErrUnknownTransfer)
 	}
 	err = NotApplicable.Validate()
 	if !errors.Is(err, nil) {

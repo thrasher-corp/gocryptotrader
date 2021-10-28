@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 )
 
 func TestOptionsValidate(t *testing.T) {
@@ -55,17 +56,17 @@ func TestOptionsValidate(t *testing.T) {
 	}
 
 	err = (&Options{
-		BankingTransfer: map[BankTransaction]map[currency.Code]Transfer{
+		BankingTransfer: map[bank.Transfer]map[currency.Code]Transfer{
 			255: {currency.BTC: {Deposit: Convert(-1)}},
 		},
 	}).validate()
-	if !errors.Is(err, errUnknownBankTransaction) {
-		t.Fatalf("received: %v but expected: %v", err, errUnknownBankTransaction)
+	if !errors.Is(err, bank.ErrUnknownTransfer) {
+		t.Fatalf("received: %v but expected: %v", err, bank.ErrUnknownTransfer)
 	}
 
 	err = (&Options{
-		BankingTransfer: map[BankTransaction]map[currency.Code]Transfer{
-			WireTransfer: {currency.BTC: {Deposit: Convert(-1)}},
+		BankingTransfer: map[bank.Transfer]map[currency.Code]Transfer{
+			bank.WireTransfer: {currency.BTC: {Deposit: Convert(-1)}},
 		},
 	}).validate()
 	if !errors.Is(err, errDepositIsInvalid) {
@@ -73,8 +74,8 @@ func TestOptionsValidate(t *testing.T) {
 	}
 
 	err = (&Options{
-		BankingTransfer: map[BankTransaction]map[currency.Code]Transfer{
-			WireTransfer: {currency.BTC: {Withdrawal: Convert(-1)}},
+		BankingTransfer: map[bank.Transfer]map[currency.Code]Transfer{
+			bank.WireTransfer: {currency.BTC: {Withdrawal: Convert(-1)}},
 		},
 	}).validate()
 	if !errors.Is(err, errWithdrawalIsInvalid) {

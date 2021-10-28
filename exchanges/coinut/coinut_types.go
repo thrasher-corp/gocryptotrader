@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -748,15 +749,15 @@ var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
 
 // bankTransfers defines fiat currency banking withdrawal and deposit fees.
 // Subject to change.
-var bankTransfers = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.Xfers: {
+var bankTransfers = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	bank.Xfers: {
 		currency.SGD: {
 			Deposit:      fee.Convert(0.0055),
 			Withdrawal:   fee.Convert(0.0055),
 			IsPercentage: true,
 		},
 	},
-	fee.WireTransfer:        {currency.CAD: {}}, // Not available
-	fee.TelegraphicTransfer: {currency.USD: {}}, // Not available
-	fee.SDDomesticCheque:    {currency.USD: {}}, // Not available
+	bank.WireTransfer:        {currency.CAD: {}}, // Not available
+	bank.TelegraphicTransfer: {currency.USD: {}}, // Not available
+	bank.SDDomesticCheque:    {currency.USD: {}}, // Not available
 }

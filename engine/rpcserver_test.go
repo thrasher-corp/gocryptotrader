@@ -27,6 +27,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
@@ -134,8 +135,8 @@ func (f fExchange) GetAllFees() (fee.Options, error) {
 		Transfer: map[asset.Item]map[currency.Code]fee.Transfer{
 			asset.Spot: {currency.BTC: {}},
 		},
-		BankingTransfer: map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-			fee.WireTransfer: {currency.USD: {}},
+		BankingTransfer: map[bank.Transfer]map[currency.Code]fee.Transfer{
+			bank.WireTransfer: {currency.USD: {}},
 		},
 	}, nil
 }
@@ -161,7 +162,7 @@ func (f fExchange) SetCommissionFee(a asset.Item, pair currency.Pair, maker, tak
 }
 
 // SetBankTransferFee overrides interface function
-func (f fExchange) SetBankTransferFee(c currency.Code, transType fee.BankTransaction, withdraw, deposit float64, isPercentage bool) error {
+func (f fExchange) SetBankTransferFee(c currency.Code, transType bank.Transfer, withdraw, deposit float64, isPercentage bool) error {
 
 	return nil
 }

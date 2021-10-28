@@ -1,4 +1,4 @@
-package fee
+package bank
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 
 // Custom types for different internation banking options
 const (
-	NotApplicable BankTransaction = iota
+	NotApplicable Transfer = iota
 	WireTransfer
 	ExpressWireTransfer
 	PerfectMoney
@@ -52,14 +52,15 @@ const (
 	Terminal            // Exmo
 )
 
-var errUnknownBankTransaction = errors.New("unknown bank transaction type")
+// ErrUnknownTransfer defines an unknown bank transfer type error
+var ErrUnknownTransfer = errors.New("unknown bank transfer type")
 
-// BankTransaction defines the different fee types associated with bank
+// Transfer defines the different fee types associated with bank
 // transactions to and from an exchange.
-type BankTransaction uint8
+type Transfer uint8
 
 // String implements the stringer interface
-func (b BankTransaction) String() string {
+func (b Transfer) String() string {
 	switch b {
 	case NotApplicable:
 		return "NotApplicable"
@@ -153,7 +154,7 @@ func (b BankTransaction) String() string {
 }
 
 // Validates an international bank transaction option
-func (b BankTransaction) Validate() error {
+func (b Transfer) Validate() error {
 	switch b {
 	case NotApplicable,
 		WireTransfer,
@@ -200,6 +201,6 @@ func (b BankTransaction) Validate() error {
 		Terminal:
 		return nil
 	default:
-		return fmt.Errorf("%d: %w", b, errUnknownBankTransaction)
+		return fmt.Errorf("%d: %w", b, ErrUnknownTransfer)
 	}
 }

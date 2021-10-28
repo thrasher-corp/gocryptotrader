@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 )
 
 // Options defines fee loading options and is also used as a state snapshot, in
@@ -22,7 +23,7 @@ type Options struct {
 	// BankingTransfer defines a map of currencies with differing withdrawal and
 	// deposit fee definitions for banking. These will commonly be fixed real
 	// values.
-	BankingTransfer map[BankTransaction]map[currency.Code]Transfer
+	BankingTransfer map[bank.Transfer]map[currency.Code]Transfer
 }
 
 // validate checks for invalid values on struct, should be used prior to lock

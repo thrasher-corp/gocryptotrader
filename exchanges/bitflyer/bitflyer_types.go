@@ -3,6 +3,7 @@ package bitflyer
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -307,11 +308,11 @@ var transferFee = map[asset.Item]map[currency.Code]fee.Transfer{
 	},
 }
 
-var bankTransfer = map[fee.BankTransaction]map[currency.Code]fee.Transfer{
-	fee.AutomaticClearingHouse: {
+var bankTransfer = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	bank.AutomaticClearingHouse: {
 		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 	},
-	fee.FedWire: {
+	bank.FedWire: {
 		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
 	},
 	// NOTE: JPY bank withdrawals and deposits are not available.
