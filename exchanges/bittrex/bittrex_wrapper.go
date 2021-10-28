@@ -30,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bittrex) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *Bittrex) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -142,7 +142,7 @@ func (b *Bittrex) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bittrex) Setup(exch *config.ExchangeConfig) error {
+func (b *Bittrex) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
@@ -170,24 +170,18 @@ func (b *Bittrex) Setup(exch *config.ExchangeConfig) error {
 
 	// Websocket details setup below
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       bittrexAPIWSURL, // Default ws endpoint so we can roll back via CLI if needed.
-		ExchangeName:                     exch.Name,       // Sets websocket name to the exchange name.
-		RunningURL:                       wsRunningEndpoint,
-		Connector:                        b.WsConnect,                                // Connector function outlined above.
-		Subscriber:                       b.Subscribe,                                // Subscriber function outlined above.
-		UnSubscriber:                     b.Unsubscribe,                              // Unsubscriber function outlined above.
-		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,             // GenerateDefaultSubscriptions function outlined above.
-		Features:                         &b.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
+		ExchangeConfig:        exch,
+		DefaultURL:            bittrexAPIWSURL, // Default ws endpoint so we can roll back via CLI if needed.
+		RunningURL:            wsRunningEndpoint,
+		Connector:             b.WsConnect,                                // Connector function outlined above.
+		Subscriber:            b.Subscribe,                                // Subscriber function outlined above.
+		Unsubscriber:          b.Unsubscribe,                              // Unsubscriber function outlined above.
+		GenerateSubscriptions: b.GenerateDefaultSubscriptions,             // GenerateDefaultSubscriptions function outlined above.
+		Features:              &b.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
 
 		// Orderbook buffer specific variables for processing orderbook updates via websocket feed.
 		// Other orderbook buffer vars:
 		// UpdateEntriesByID     bool
-		OrderbookBufferLimit:  exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:         exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:            true,
 		SortBufferByUpdateIDs: true,
 	})
@@ -873,12 +867,13 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				continue
 			}
 
-			resp = append(resp, order.Detail{
+			detail := order.Detail{
 				Amount:          orderData[i].Quantity,
-				RemainingAmount: orderData[i].Quantity - orderData[i].FillQuantity,
 				ExecutedAmount:  orderData[i].FillQuantity,
+				RemainingAmount: orderData[i].Quantity - orderData[i].FillQuantity,
 				Price:           orderData[i].Limit,
 				Date:            orderData[i].CreatedAt,
+				CloseTime:       orderData[i].ClosedAt,
 				ID:              orderData[i].ID,
 				Exchange:        b.Name,
 				Type:            orderType,
@@ -886,7 +881,9 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				Status:          orderStatus,
 				Fee:             orderData[i].Commission,
 				Pair:            pair,
-			})
+			}
+			detail.InferCostsAndTimes()
+			resp = append(resp, detail)
 		}
 
 		order.FilterOrdersByType(&resp, req.Type)

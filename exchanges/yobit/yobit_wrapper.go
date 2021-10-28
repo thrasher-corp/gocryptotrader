@@ -30,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (y *Yobit) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (y *Yobit) GetDefaultConfig() (*config.Exchange, error) {
 	y.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = y.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = y.BaseCurrencies
@@ -112,7 +112,7 @@ func (y *Yobit) SetDefaults() {
 }
 
 // Setup sets exchange configuration parameters for Yobit
-func (y *Yobit) Setup(exch *config.ExchangeConfig) error {
+func (y *Yobit) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		y.SetEnabled(false)
 		return nil
@@ -638,22 +638,27 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 
 	var orders []order.Detail
 	for i := range allOrders {
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(allOrders[i].Pair, format.Delimiter)
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(allOrders[i].Pair, format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
 		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
 		side := order.Side(strings.ToUpper(allOrders[i].Type))
-		orders = append(orders, order.Detail{
-			ID:       strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
-			Amount:   allOrders[i].Amount,
-			Price:    allOrders[i].Rate,
-			Side:     side,
-			Date:     orderDate,
-			Pair:     symbol,
-			Exchange: y.Name,
-		})
+		detail := order.Detail{
+			ID:                   strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
+			Amount:               allOrders[i].Amount,
+			ExecutedAmount:       allOrders[i].Amount,
+			Price:                allOrders[i].Rate,
+			AverageExecutedPrice: allOrders[i].Rate,
+			Side:                 side,
+			Status:               order.Filled,
+			Date:                 orderDate,
+			Pair:                 pair,
+			Exchange:             y.Name,
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)

@@ -24,10 +24,26 @@ const (
 )
 
 var (
-	errClosedConnection = errors.New("use of closed network connection")
 	// ErrSubscriptionFailure defines an error when a subscription fails
 	ErrSubscriptionFailure = errors.New("subscription failure")
-	errAlreadyRunning      = errors.New("connection monitor is already running")
+
+	errAlreadyRunning                       = errors.New("connection monitor is already running")
+	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
+	errWebsocketIsNil                       = errors.New("websocket is nil")
+	errWebsocketSetupIsNil                  = errors.New("websocket setup is nil")
+	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
+	errWebsocketFeaturesIsUnset             = errors.New("websocket features is unset")
+	errConfigFeaturesIsNil                  = errors.New("exchange config features is nil")
+	errDefaultURLIsEmpty                    = errors.New("default url is empty")
+	errRunningURLIsEmpty                    = errors.New("running url cannot be empty")
+	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
+	errExchangeConfigNameUnset              = errors.New("exchange config name unset")
+	errInvalidTrafficTimeout                = errors.New("invalid traffic timeout")
+	errWebsocketSubscriberUnset             = errors.New("websocket subscriber function needs to be set")
+	errWebsocketUnsubscriberUnset           = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
+	errWebsocketConnectorUnset              = errors.New("websocket connector function not set")
+	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
+	errClosedConnection                     = errors.New("use of closed network connection")
 )
 
 // New initialises the websocket struct
@@ -44,91 +60,107 @@ func New() *Websocket {
 	}
 }
 
-var (
-	errSubscriberUnset           = errors.New("subscriber function needs to be set")
-	errGenerateSubsciptionsUnset = errors.New("generate subscriptions function needs to be set")
-)
-
 // Setup sets main variables for websocket connection
 func (w *Websocket) Setup(s *WebsocketSetup) error {
 	if w == nil {
-		return errors.New("websocket is nil")
+		return errWebsocketIsNil
 	}
 
 	if s == nil {
-		return errors.New("websocket setup is nil")
+		return errWebsocketSetupIsNil
 	}
 
 	if !w.Init {
-		return fmt.Errorf("%s Websocket already initialised",
-			s.ExchangeName)
+		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyInitialised)
 	}
 
-	w.verbose = s.Verbose
+	if s.ExchangeConfig == nil {
+		return errExchangeConfigIsNil
+	}
+
+	if s.ExchangeConfig.Name == "" {
+		return errExchangeConfigNameUnset
+	}
+	w.exchangeName = s.ExchangeConfig.Name
+	w.verbose = s.ExchangeConfig.Verbose
+
 	if s.Features == nil {
-		return errors.New("websocket features is unset")
+		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketFeaturesIsUnset)
 	}
-
 	w.features = s.Features
 
+	if s.ExchangeConfig.Features == nil {
+		return fmt.Errorf("%s %w", w.exchangeName, errConfigFeaturesIsNil)
+	}
+	w.enabled = s.ExchangeConfig.Features.Enabled.Websocket
+
+	if s.Connector == nil {
+		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketConnectorUnset)
+	}
+	w.connector = s.Connector
+
 	if s.Subscriber == nil {
-		return errSubscriberUnset
+		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketSubscriberUnset)
 	}
 	w.Subscriber = s.Subscriber
 
-	if w.features.Unsubscribe && s.UnSubscriber == nil {
-		return errors.New("features have been set yet channel unsubscriber is not set")
+	if w.features.Unsubscribe && s.Unsubscriber == nil {
+		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketUnsubscriberUnset)
 	}
-	w.Unsubscriber = s.UnSubscriber
+	w.Unsubscriber = s.Unsubscriber
 
 	if s.GenerateSubscriptions == nil {
-		return errGenerateSubsciptionsUnset
+		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketSubscriptionsGeneratorUnset)
 	}
 	w.GenerateSubs = s.GenerateSubscriptions
 
-	w.enabled = s.Enabled
 	if s.DefaultURL == "" {
-		return errors.New("default url is empty")
+		return fmt.Errorf("%s websocket %w", w.exchangeName, errDefaultURLIsEmpty)
 	}
 	w.defaultURL = s.DefaultURL
 	if s.RunningURL == "" {
-		return errors.New("running URL cannot be nil")
+		return fmt.Errorf("%s websocket %w", w.exchangeName, errRunningURLIsEmpty)
 	}
 	err := w.SetWebsocketURL(s.RunningURL, false, false)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s %w", w.exchangeName, err)
 	}
 
 	if s.RunningURLAuth != "" {
 		err = w.SetWebsocketURL(s.RunningURLAuth, true, false)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s %w", w.exchangeName, err)
 		}
 	}
 
-	w.connector = s.Connector
-	if s.ExchangeName == "" {
-		return errors.New("exchange name unset")
+	if s.ExchangeConfig.WebsocketTrafficTimeout < time.Second {
+		return fmt.Errorf("%s %w cannot be less than %s",
+			w.exchangeName,
+			errInvalidTrafficTimeout,
+			time.Second)
 	}
-	w.exchangeName = s.ExchangeName
-
-	if s.WebsocketTimeout < time.Second {
-		return fmt.Errorf("traffic timeout cannot be less than %s", time.Second)
-	}
-	w.trafficTimeout = s.WebsocketTimeout
+	w.trafficTimeout = s.ExchangeConfig.WebsocketTrafficTimeout
 
 	w.ShutdownC = make(chan struct{})
 	w.Wg = new(sync.WaitGroup)
-	w.SetCanUseAuthenticatedEndpoints(s.AuthenticatedWebsocketAPISupport)
+	w.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
-	return w.Orderbook.Setup(s.OrderbookBufferLimit,
-		s.BufferEnabled,
+	if err := w.Orderbook.Setup(s.ExchangeConfig,
 		s.SortBuffer,
 		s.SortBufferByUpdateIDs,
 		s.UpdateEntriesByID,
-		s.Verbose,
-		w.exchangeName,
+		w.DataHandler); err != nil {
+		return err
+	}
+
+	w.Trade.Setup(w.exchangeName,
+		s.TradeFeed,
 		w.DataHandler)
+
+	w.Fills.Setup(s.FillsFeed,
+		w.DataHandler)
+
+	return nil
 }
 
 // SetupNewConnection sets up an auth or unauth streaming connection
@@ -941,7 +973,7 @@ func checkWebsocketURL(s string) error {
 		return err
 	}
 	if u.Scheme != "ws" && u.Scheme != "wss" {
-		return fmt.Errorf("cannot set invalid websocket URL %s", s)
+		return fmt.Errorf("cannot set %w %s", errInvalidWebsocketURL, s)
 	}
 	return nil
 }

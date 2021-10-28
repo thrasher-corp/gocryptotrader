@@ -6,21 +6,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-var itemArray = [][]orderbook.Item{
-	{{Price: 1000, Amount: 1, ID: 1000}},
-	{{Price: 2000, Amount: 1, ID: 2000}},
-	{{Price: 3000, Amount: 1, ID: 3000}},
-	{{Price: 3000, Amount: 2, ID: 4000}},
-	{{Price: 4000, Amount: 0, ID: 6000}},
-	{{Price: 5000, Amount: 1, ID: 5000}},
-}
+var (
+	itemArray = [][]orderbook.Item{
+		{{Price: 1000, Amount: 1, ID: 1000}},
+		{{Price: 2000, Amount: 1, ID: 2000}},
+		{{Price: 3000, Amount: 1, ID: 3000}},
+		{{Price: 3000, Amount: 2, ID: 4000}},
+		{{Price: 4000, Amount: 0, ID: 6000}},
+		{{Price: 5000, Amount: 1, ID: 5000}},
+	}
 
-var cp, _ = currency.NewPairFromString("BTCUSD")
+	cp, _ = currency.NewPairFromString("BTCUSD")
+)
 
 const (
 	exchangeName = "exchangeTest"
@@ -712,22 +715,27 @@ func TestGetOrderbook(t *testing.T) {
 func TestSetup(t *testing.T) {
 	t.Parallel()
 	w := Orderbook{}
-	err := w.Setup(0, false, false, false, false, true, "", nil)
-	if !errors.Is(err, errUnsetExchangeName) {
-		t.Fatalf("expected error %v but received %v", errUnsetExchangeName, err)
+	err := w.Setup(nil, false, false, false, nil)
+	if !errors.Is(err, errExchangeConfigNil) {
+		t.Fatalf("expected error %v but received %v", errExchangeConfigNil, err)
 	}
 
-	err = w.Setup(0, false, false, false, false, false, "test", nil)
+	exchangeConfig := &config.Exchange{}
+	err = w.Setup(exchangeConfig, false, false, false, nil)
 	if !errors.Is(err, errUnsetDataHandler) {
 		t.Fatalf("expected error %v but received %v", errUnsetDataHandler, err)
 	}
 
-	err = w.Setup(0, true, false, false, false, true, "test", make(chan interface{}))
+	exchangeConfig.Orderbook.WebsocketBufferEnabled = true
+	err = w.Setup(exchangeConfig, false, false, false, make(chan interface{}))
 	if !errors.Is(err, errIssueBufferEnabledButNoLimit) {
 		t.Fatalf("expected error %v but received %v", errIssueBufferEnabledButNoLimit, err)
 	}
 
-	err = w.Setup(1337, true, true, true, true, false, "test", make(chan interface{}))
+	exchangeConfig.Orderbook.WebsocketBufferLimit = 1337
+	exchangeConfig.Orderbook.WebsocketBufferEnabled = true
+	exchangeConfig.Name = "test"
+	err = w.Setup(exchangeConfig, true, true, true, make(chan interface{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1002,7 +1010,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 func TestFlushOrderbook(t *testing.T) {
 	t.Parallel()
 	w := &Orderbook{}
-	err := w.Setup(5, false, false, false, false, false, "test", make(chan interface{}, 2))
+	err := w.Setup(&config.Exchange{Name: "test"}, false, false, false, make(chan interface{}, 2))
 	if err != nil {
 		t.Fatal(err)
 	}

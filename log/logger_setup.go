@@ -162,4 +162,5 @@ func init() {
 	Ticker = registerNewSubLogger("TICKER")
 	OrderBook = registerNewSubLogger("ORDERBOOK")
 	Trade = registerNewSubLogger("TRADE")
+	Fill = registerNewSubLogger("FILL")
 }

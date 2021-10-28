@@ -30,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (e *EXMO) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (e *EXMO) GetDefaultConfig() (*config.Exchange, error) {
 	e.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = e.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = e.BaseCurrencies
@@ -124,7 +124,7 @@ func (e *EXMO) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (e *EXMO) Setup(exch *config.ExchangeConfig) error {
+func (e *EXMO) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil
@@ -674,21 +674,26 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 
 	var orders []order.Detail
 	for i := range allTrades {
-		symbol, err := currency.NewPairDelimiter(allTrades[i].Pair, "_")
+		pair, err := currency.NewPairDelimiter(allTrades[i].Pair, "_")
 		if err != nil {
 			return nil, err
 		}
 		orderDate := time.Unix(allTrades[i].Date, 0)
 		orderSide := order.Side(strings.ToUpper(allTrades[i].Type))
-		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(allTrades[i].TradeID, 10),
-			Amount:   allTrades[i].Quantity,
-			Date:     orderDate,
-			Price:    allTrades[i].Price,
-			Side:     orderSide,
-			Exchange: e.Name,
-			Pair:     symbol,
-		})
+		detail := order.Detail{
+			ID:             strconv.FormatInt(allTrades[i].TradeID, 10),
+			Amount:         allTrades[i].Quantity,
+			ExecutedAmount: allTrades[i].Quantity,
+			Cost:           allTrades[i].Amount,
+			CostAsset:      pair.Quote,
+			Date:           orderDate,
+			Price:          allTrades[i].Price,
+			Side:           orderSide,
+			Exchange:       e.Name,
+			Pair:           pair,
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

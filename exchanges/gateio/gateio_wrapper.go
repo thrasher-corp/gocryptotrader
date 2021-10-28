@@ -32,9 +32,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (g *Gateio) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (g *Gateio) GetDefaultConfig() (*config.Exchange, error) {
 	g.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = g.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = g.BaseCurrencies
@@ -150,7 +150,7 @@ func (g *Gateio) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
+func (g *Gateio) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 		return nil
@@ -178,19 +178,13 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       gateioWebsocketEndpoint,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        g.WsConnect,
-		Subscriber:                       g.Subscribe,
-		GenerateSubscriptions:            g.GenerateDefaultSubscriptions,
-		Features:                         &g.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		ExchangeConfig:        exch,
+		DefaultURL:            gateioWebsocketEndpoint,
+		RunningURL:            wsRunningURL,
+		Connector:             g.WsConnect,
+		Subscriber:            g.Subscribe,
+		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+		Features:              &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -624,7 +618,9 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		orderDetail.ExecutedAmount = orders.Orders[x].FilledAmount
 		orderDetail.Amount = orders.Orders[x].InitialAmount
 		orderDetail.Date = time.Unix(orders.Orders[x].Timestamp, 0)
-		orderDetail.Status = order.Status(orders.Orders[x].Status)
+		if orderDetail.Status, err = order.StringToOrderStatus(orders.Orders[x].Status); err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+		}
 		orderDetail.Price = orders.Orders[x].Rate
 		orderDetail.Pair, err = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
 			format.Delimiter)
@@ -773,17 +769,22 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				return nil, err
 			}
 			side := order.Side(strings.ToUpper(resp.Orders[i].Type))
+			status, err := order.StringToOrderStatus(resp.Orders[i].Status)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+			}
 			orderDate := time.Unix(resp.Orders[i].Timestamp, 0)
 			orders = append(orders, order.Detail{
 				ID:              resp.Orders[i].OrderNumber,
 				Amount:          resp.Orders[i].Amount,
-				Price:           resp.Orders[i].Rate,
+				ExecutedAmount:  resp.Orders[i].Amount - resp.Orders[i].FilledAmount,
 				RemainingAmount: resp.Orders[i].FilledAmount,
+				Price:           resp.Orders[i].Rate,
 				Date:            orderDate,
 				Side:            side,
 				Exchange:        g.Name,
 				Pair:            symbol,
-				Status:          order.Status(resp.Orders[i].Status),
+				Status:          status,
 			})
 		}
 	}
@@ -815,22 +816,26 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var orders []order.Detail
 	for i := range trades {
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(trades[i].Pair, format.Delimiter)
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(trades[i].Pair, format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
 		side := order.Side(strings.ToUpper(trades[i].Type))
 		orderDate := time.Unix(trades[i].TimeUnix, 0)
-		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(trades[i].OrderID, 10),
-			Amount:   trades[i].Amount,
-			Price:    trades[i].Rate,
-			Date:     orderDate,
-			Side:     side,
-			Exchange: g.Name,
-			Pair:     symbol,
-		})
+		detail := order.Detail{
+			ID:                   strconv.FormatInt(trades[i].OrderID, 10),
+			Amount:               trades[i].Amount,
+			ExecutedAmount:       trades[i].Amount,
+			Price:                trades[i].Rate,
+			AverageExecutedPrice: trades[i].Rate,
+			Date:                 orderDate,
+			Side:                 side,
+			Exchange:             g.Name,
+			Pair:                 pair,
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

@@ -40,6 +40,7 @@ const (
 	defaultFeeManagerDelay               = time.Minute * 10
 	defaultCurrencyStateManagerDelay     = time.Minute
 	defaultMaxJobsPerCycle               = 5
+	DefaultOrderbookPublishPeriod        = time.Second * 10
 )
 
 // Constants here hold some messages
@@ -91,7 +92,7 @@ type Config struct {
 	Communications       base.CommunicationsConfig `json:"communications"`
 	RemoteControl        RemoteControlConfig       `json:"remoteControl"`
 	Portfolio            portfolio.Base            `json:"portfolioAddresses"`
-	Exchanges            []ExchangeConfig          `json:"exchanges"`
+	Exchanges            []Exchange                `json:"exchanges"`
 	BankAccounts         []banking.Account         `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
@@ -135,8 +136,8 @@ type ConnectionMonitorConfig struct {
 	CheckInterval    time.Duration `json:"checkInterval"`
 }
 
-// ExchangeConfig holds all the information needed for each enabled Exchange.
-type ExchangeConfig struct {
+// Exchange holds all the information needed for each enabled Exchange.
+type Exchange struct {
 	Name                          string                 `json:"name"`
 	Enabled                       bool                   `json:"enabled"`
 	Verbose                       bool                   `json:"verbose"`
@@ -153,7 +154,7 @@ type ExchangeConfig struct {
 	API                           APIConfig              `json:"api"`
 	Features                      *FeaturesConfig        `json:"features"`
 	BankAccounts                  []banking.Account      `json:"bankAccounts,omitempty"`
-	OrderbookConfig               `json:"orderbook"`
+	Orderbook                     Orderbook              `json:"orderbook"`
 
 	// Deprecated settings which will be removed in a future update
 	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`
@@ -289,6 +290,8 @@ type FeaturesEnabledConfig struct {
 	AutoPairUpdates bool `json:"autoPairUpdates"`
 	Websocket       bool `json:"websocketAPI"`
 	SaveTradeData   bool `json:"saveTradeData"`
+	TradeFeed       bool `json:"tradeFeed"`
+	FillsFeed       bool `json:"fillsFeed"`
 }
 
 // FeaturesConfig stores the exchanges supported and enabled features
@@ -339,9 +342,12 @@ type APIConfig struct {
 	Endpoints            map[string]string              `json:"urlEndpoints"`
 }
 
-// OrderbookConfig stores the orderbook configuration variables
-type OrderbookConfig struct {
+// Orderbook stores the orderbook configuration variables
+type Orderbook struct {
 	VerificationBypass     bool `json:"verificationBypass"`
 	WebsocketBufferLimit   int  `json:"websocketBufferLimit"`
 	WebsocketBufferEnabled bool `json:"websocketBufferEnabled"`
+	// PublishPeriod here is a pointer because we want to distinguish
+	// between zeroed out and missing.
+	PublishPeriod *time.Duration `json:"publishPeriod"`
 }

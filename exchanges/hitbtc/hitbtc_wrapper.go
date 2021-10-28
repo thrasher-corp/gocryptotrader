@@ -31,9 +31,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (h *HitBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (h *HitBTC) GetDefaultConfig() (*config.Exchange, error) {
 	h.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = h.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = h.BaseCurrencies
@@ -148,7 +148,7 @@ func (h *HitBTC) SetDefaults() {
 }
 
 // Setup sets user exchange configuration settings
-func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
+func (h *HitBTC) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 		return nil
@@ -176,22 +176,16 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       hitbtcWebsocketAddress,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        h.WsConnect,
-		Subscriber:                       h.Subscribe,
-		UnSubscriber:                     h.Unsubscribe,
-		GenerateSubscriptions:            h.GenerateDefaultSubscriptions,
-		Features:                         &h.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
-		SortBufferByUpdateIDs:            true,
+		ExchangeConfig:        exch,
+		DefaultURL:            hitbtcWebsocketAddress,
+		RunningURL:            wsRunningURL,
+		Connector:             h.WsConnect,
+		Subscriber:            h.Subscribe,
+		Unsubscriber:          h.Unsubscribe,
+		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
+		Features:              &h.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
+		SortBufferByUpdateIDs: true,
 	})
 	if err != nil {
 		return err
@@ -777,22 +771,33 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	var orders []order.Detail
 	for i := range allOrders {
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(allOrders[i].Symbol,
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(allOrders[i].Symbol,
 			format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
 		side := order.Side(strings.ToUpper(allOrders[i].Side))
-		orders = append(orders, order.Detail{
-			ID:       allOrders[i].ID,
-			Amount:   allOrders[i].Quantity,
-			Exchange: h.Name,
-			Price:    allOrders[i].Price,
-			Date:     allOrders[i].CreatedAt,
-			Side:     side,
-			Pair:     symbol,
-		})
+		status, err := order.StringToOrderStatus(allOrders[i].Status)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+		}
+		detail := order.Detail{
+			ID:                   allOrders[i].ID,
+			Amount:               allOrders[i].Quantity,
+			ExecutedAmount:       allOrders[i].CumQuantity,
+			RemainingAmount:      allOrders[i].Quantity - allOrders[i].CumQuantity,
+			Exchange:             h.Name,
+			Price:                allOrders[i].Price,
+			AverageExecutedPrice: allOrders[i].AvgPrice,
+			Date:                 allOrders[i].CreatedAt,
+			LastUpdated:          allOrders[i].UpdatedAt,
+			Side:                 side,
+			Status:               status,
+			Pair:                 pair,
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

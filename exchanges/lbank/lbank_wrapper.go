@@ -29,9 +29,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (l *Lbank) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (l *Lbank) GetDefaultConfig() (*config.Exchange, error) {
 	l.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = l.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = l.BaseCurrencies
@@ -121,7 +121,7 @@ func (l *Lbank) SetDefaults() {
 }
 
 // Setup sets exchange configuration profile
-func (l *Lbank) Setup(exch *config.ExchangeConfig) error {
+func (l *Lbank) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		l.SetEnabled(false)
 		return nil
@@ -800,10 +800,11 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 					resp.Status = "Invalid Order Status"
 				}
 				resp.Price = tempResp.Orders[x].Price
+				resp.AverageExecutedPrice = tempResp.Orders[x].AvgPrice
 				resp.Amount = tempResp.Orders[x].Amount
 				resp.Date = time.Unix(tempResp.Orders[x].CreateTime, 0)
 				resp.ExecutedAmount = tempResp.Orders[x].DealAmount
-				resp.RemainingAmount = tempResp.Orders[x].Price - tempResp.Orders[x].DealAmount
+				resp.RemainingAmount = tempResp.Orders[x].Amount - tempResp.Orders[x].DealAmount
 				// TODO: Verify this value
 				resp.Fee, err = l.Fees.CalculateTaker(tempResp.Orders[x].Price,
 					tempResp.Orders[x].Amount,
@@ -812,6 +813,7 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 				if err != nil {
 					resp.Fee = lbankFeeNotFound
 				}
+				resp.InferCostsAndTimes()
 				finalResp = append(finalResp, resp)
 				b++
 			}

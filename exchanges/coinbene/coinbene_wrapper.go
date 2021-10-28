@@ -31,9 +31,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (c *Coinbene) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (c *Coinbene) GetDefaultConfig() (*config.Exchange, error) {
 	c.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = c.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = c.BaseCurrencies
@@ -170,7 +170,7 @@ func (c *Coinbene) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
+func (c *Coinbene) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		c.SetEnabled(false)
 		return nil
@@ -197,21 +197,15 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsContractURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        c.WsConnect,
-		Subscriber:                       c.Subscribe,
-		UnSubscriber:                     c.Unsubscribe,
-		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
-		Features:                         &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
+		ExchangeConfig:        exch,
+		DefaultURL:            wsContractURL,
+		RunningURL:            wsRunningURL,
+		Connector:             c.WsConnect,
+		Subscriber:            c.Subscribe,
+		Unsubscriber:          c.Unsubscribe,
+		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
+		Features:              &c.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
 	})
 	if err != nil {
 		return err
@@ -791,7 +785,9 @@ func (c *Coinbene) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				tempResp.Side = order.Sell
 			}
 			tempResp.Date = tempData[y].OrderTime
-			tempResp.Status = order.Status(tempData[y].OrderStatus)
+			if tempResp.Status, err = order.StringToOrderStatus(tempData[y].OrderStatus); err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+			}
 			tempResp.Price = tempData[y].OrderPrice
 			tempResp.Amount = tempData[y].Amount
 			tempResp.ExecutedAmount = tempData[y].FilledAmount
@@ -848,12 +844,18 @@ func (c *Coinbene) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				tempResp.Side = order.Sell
 			}
 			tempResp.Date = tempData[y].OrderTime
-			tempResp.Status = order.Status(tempData[y].OrderStatus)
+			if tempResp.Status, err = order.StringToOrderStatus(tempData[y].OrderStatus); err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+			}
 			tempResp.Price = tempData[y].OrderPrice
+			tempResp.AverageExecutedPrice = tempData[y].AvgPrice
 			tempResp.Amount = tempData[y].Amount
 			tempResp.ExecutedAmount = tempData[y].FilledAmount
 			tempResp.RemainingAmount = tempData[y].Amount - tempData[y].FilledAmount
+			tempResp.Cost = tempData[y].Quantity
+			tempResp.CostAsset = tempResp.Pair.Quote
 			tempResp.Fee = tempData[y].TotalFee
+			tempResp.InferCostsAndTimes()
 			resp = append(resp, tempResp)
 		}
 	}

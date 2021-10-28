@@ -32,9 +32,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bitmex) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *Bitmex) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -143,7 +143,7 @@ func (b *Bitmex) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
+func (b *Bitmex) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
@@ -184,21 +184,15 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       bitmexWSURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsEndpoint,
-		Connector:                        b.WsConnect,
-		Subscriber:                       b.Subscribe,
-		UnSubscriber:                     b.Unsubscribe,
-		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
-		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		UpdateEntriesByID:                true,
+		ExchangeConfig:        exch,
+		DefaultURL:            bitmexWSURL,
+		RunningURL:            wsEndpoint,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
+		UpdateEntriesByID:     true,
 	})
 	if err != nil {
 		return err
@@ -770,20 +764,26 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
+		orderStatus, err := order.StringToOrderStatus(resp[i].OrdStatus)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		}
 		orderType := orderTypeMap[resp[i].OrdType]
 		if orderType == "" {
 			orderType = order.UnknownType
 		}
 
 		orderDetail := order.Detail{
-			Date:     resp[i].Timestamp,
-			Price:    resp[i].Price,
-			Amount:   float64(resp[i].OrderQty),
-			Exchange: b.Name,
-			ID:       resp[i].OrderID,
-			Side:     orderSide,
-			Type:     orderType,
-			Status:   order.Status(resp[i].OrdStatus),
+			Date:            resp[i].Timestamp,
+			Price:           resp[i].Price,
+			Amount:          resp[i].OrderQty,
+			ExecutedAmount:  resp[i].CumQty,
+			RemainingAmount: resp[i].LeavesQty,
+			Exchange:        b.Name,
+			ID:              resp[i].OrderID,
+			Side:            orderSide,
+			Status:          orderStatus,
+			Type:            orderType,
 			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
 				format.Delimiter),
@@ -821,23 +821,32 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
+		orderStatus, err := order.StringToOrderStatus(resp[i].OrdStatus)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		}
 		orderType := orderTypeMap[resp[i].OrdType]
 		if orderType == "" {
 			orderType = order.UnknownType
 		}
+		pair := currency.NewPairWithDelimiter(resp[i].Symbol, resp[i].SettlCurrency, format.Delimiter)
 
 		orderDetail := order.Detail{
-			Price:    resp[i].Price,
-			Amount:   float64(resp[i].OrderQty),
-			Exchange: b.Name,
-			ID:       resp[i].OrderID,
-			Side:     orderSide,
-			Type:     orderType,
-			Status:   order.Status(resp[i].OrdStatus),
-			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
-				resp[i].SettlCurrency,
-				format.Delimiter),
+			Price:                resp[i].Price,
+			AverageExecutedPrice: resp[i].AvgPx,
+			Amount:               resp[i].OrderQty,
+			ExecutedAmount:       resp[i].CumQty,
+			RemainingAmount:      resp[i].LeavesQty,
+			Date:                 resp[i].TransactTime,
+			CloseTime:            resp[i].Timestamp,
+			Exchange:             b.Name,
+			ID:                   resp[i].OrderID,
+			Side:                 orderSide,
+			Status:               orderStatus,
+			Type:                 orderType,
+			Pair:                 pair,
 		}
+		orderDetail.InferCostsAndTimes()
 
 		orders = append(orders, orderDetail)
 	}

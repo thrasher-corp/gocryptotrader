@@ -24,6 +24,14 @@ var (
 	ErrNoTradesSupplied = errors.New("no trades supplied")
 )
 
+// Trade used to hold data and methods related to trade dissemination and
+// storage
+type Trade struct {
+	exchangeName     string
+	dataHandler      chan interface{}
+	tradeFeedEnabled bool
+}
+
 // Data defines trade data
 type Data struct {
 	ID           uuid.UUID `json:"ID,omitempty"`

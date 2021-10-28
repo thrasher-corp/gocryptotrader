@@ -301,7 +301,7 @@ func TestSetFeatureDefaults(t *testing.T) {
 
 	// Test nil features with basic support capabilities
 	b := Base{
-		Config: &config.ExchangeConfig{
+		Config: &config.Exchange{
 			CurrencyPairs: &currency.PairsManager{},
 		},
 		Features: Features{
@@ -346,7 +346,7 @@ func TestSetAPICredentialDefaults(t *testing.T) {
 	t.Parallel()
 
 	b := Base{
-		Config: &config.ExchangeConfig{},
+		Config: &config.Exchange{},
 	}
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
@@ -367,7 +367,7 @@ func TestSetAPICredentialDefaults(t *testing.T) {
 func TestSetAutoPairDefaults(t *testing.T) {
 	t.Parallel()
 	bs := "Bitstamp"
-	cfg := &config.Config{Exchanges: []config.ExchangeConfig{
+	cfg := &config.Config{Exchanges: []config.Exchange{
 		{
 			Name:          bs,
 			CurrencyPairs: &currency.PairsManager{},
@@ -500,7 +500,7 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	t.Parallel()
 
 	b := Base{
-		Config: &config.ExchangeConfig{},
+		Config: &config.Exchange{},
 	}
 	b.SetCurrencyPairFormat()
 	if b.Config.CurrencyPairs == nil {
@@ -581,7 +581,7 @@ func TestLoadConfigPairs(t *testing.T) {
 				},
 			},
 		},
-		Config: &config.ExchangeConfig{
+		Config: &config.Exchange{
 			CurrencyPairs: &currency.PairsManager{},
 		},
 	}
@@ -1267,7 +1267,7 @@ func TestSetupDefaults(t *testing.T) {
 	t.Parallel()
 
 	var b = Base{Name: "awesomeTest"}
-	cfg := config.ExchangeConfig{
+	cfg := config.Exchange{
 		HTTPTimeout: time.Duration(-1),
 		API: config.APIConfig{
 			AuthenticatedSupport: true,
@@ -1320,12 +1320,14 @@ func TestSetupDefaults(t *testing.T) {
 	b.Websocket = stream.New()
 	b.Features.Supports.Websocket = true
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:               false,
-		WebsocketTimeout:      time.Second * 30,
+		ExchangeConfig: &config.Exchange{
+			WebsocketTrafficTimeout: time.Second * 30,
+			Name:                    "test",
+			Features:                &config.FeaturesConfig{},
+		},
 		Features:              &protocol.Features{},
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
-		ExchangeName:          "test",
 		Connector:             func() error { return nil },
 		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return []stream.ChannelSubscription{}, nil },
 		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
@@ -1451,7 +1453,7 @@ func TestSetPairs(t *testing.T) {
 				Uppercase: true,
 			},
 		},
-		Config: &config.ExchangeConfig{
+		Config: &config.Exchange{
 			CurrencyPairs: &currency.PairsManager{
 				UseGlobalFormat: true,
 				ConfigFormat: &currency.PairFormat{
@@ -1501,7 +1503,7 @@ func TestSetPairs(t *testing.T) {
 func TestUpdatePairs(t *testing.T) {
 	t.Parallel()
 	cfg := &config.Config{
-		Exchanges: []config.ExchangeConfig{
+		Exchanges: []config.Exchange{
 			{
 				Name:          defaultTestExchange,
 				CurrencyPairs: &currency.PairsManager{},
@@ -1668,12 +1670,19 @@ func TestIsWebsocketEnabled(t *testing.T) {
 
 	b.Websocket = stream.New()
 	err := b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:               true,
-		WebsocketTimeout:      time.Second * 30,
+		ExchangeConfig: &config.Exchange{
+			Enabled:                 true,
+			WebsocketTrafficTimeout: time.Second * 30,
+			Name:                    "test",
+			Features: &config.FeaturesConfig{
+				Enabled: config.FeaturesEnabledConfig{
+					Websocket: true,
+				},
+			},
+		},
 		Features:              &protocol.Features{},
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
-		ExchangeName:          "test",
 		Connector:             func() error { return nil },
 		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return nil, nil },
 		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
@@ -1828,7 +1837,7 @@ func TestGetAssetType(t *testing.T) {
 func TestGetFormattedPairAndAssetType(t *testing.T) {
 	t.Parallel()
 	b := Base{
-		Config: &config.ExchangeConfig{},
+		Config: &config.Exchange{},
 	}
 	b.SetCurrencyPairFormat()
 	b.Config.CurrencyPairs.UseGlobalFormat = true
@@ -1866,7 +1875,7 @@ func TestGetFormattedPairAndAssetType(t *testing.T) {
 
 func TestStoreAssetPairFormat(t *testing.T) {
 	b := Base{
-		Config: &config.ExchangeConfig{Name: "kitties"},
+		Config: &config.Exchange{Name: "kitties"},
 	}
 
 	err := b.StoreAssetPairFormat(asset.Item(""), currency.PairStore{})
@@ -1902,7 +1911,7 @@ func TestStoreAssetPairFormat(t *testing.T) {
 
 func TestSetGlobalPairsManager(t *testing.T) {
 	b := Base{
-		Config: &config.ExchangeConfig{Name: "kitties"},
+		Config: &config.Exchange{Name: "kitties"},
 	}
 
 	err := b.SetGlobalPairsManager(nil, nil, "")
@@ -2163,7 +2172,7 @@ func TestSetSaveTradeDataStatus(t *testing.T) {
 				SaveTradeData: false,
 			},
 		},
-		Config: &config.ExchangeConfig{
+		Config: &config.Exchange{
 			Features: &config.FeaturesConfig{
 				Enabled: config.FeaturesEnabledConfig{},
 			},
@@ -2191,7 +2200,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 		Features: Features{
 			Enabled: FeaturesEnabled{},
 		},
-		Config: &config.ExchangeConfig{
+		Config: &config.Exchange{
 			Features: &config.FeaturesConfig{
 				Enabled: config.FeaturesEnabledConfig{},
 			},
@@ -2285,7 +2294,7 @@ func TestSetAPIURL(t *testing.T) {
 	b := Base{
 		Name: "SomeExchange",
 	}
-	b.Config = &config.ExchangeConfig{}
+	b.Config = &config.Exchange{}
 	var mappy struct {
 		Mappymap map[string]string `json:"urlEndpoints"`
 	}

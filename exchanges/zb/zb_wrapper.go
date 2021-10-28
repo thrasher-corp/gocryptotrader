@@ -31,9 +31,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (z *ZB) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (z *ZB) GetDefaultConfig() (*config.Exchange, error) {
 	z.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = z.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = z.BaseCurrencies
@@ -149,7 +149,7 @@ func (z *ZB) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (z *ZB) Setup(exch *config.ExchangeConfig) error {
+func (z *ZB) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		z.SetEnabled(false)
 		return nil
@@ -176,19 +176,13 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = z.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       zbWebsocketAPI,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        z.WsConnect,
-		GenerateSubscriptions:            z.GenerateDefaultSubscriptions,
-		Subscriber:                       z.Subscribe,
-		Features:                         &z.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		ExchangeConfig:        exch,
+		DefaultURL:            zbWebsocketAPI,
+		RunningURL:            wsRunningURL,
+		Connector:             z.WsConnect,
+		GenerateSubscriptions: z.GenerateDefaultSubscriptions,
+		Subscriber:            z.Subscribe,
+		Features:              &z.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -820,23 +814,28 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 	}
 
 	for i := range allOrders {
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(allOrders[i].Currency,
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(allOrders[i].Currency,
 			format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
-		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(allOrders[i].ID, 10),
-			Amount:   allOrders[i].TotalAmount,
-			Exchange: z.Name,
-			Date:     orderDate,
-			Price:    allOrders[i].Price,
-			Side:     orderSide,
-			Pair:     symbol,
-		})
+		detail := order.Detail{
+			ID:                   strconv.FormatInt(allOrders[i].ID, 10),
+			Amount:               allOrders[i].TotalAmount,
+			ExecutedAmount:       allOrders[i].TradeAmount,
+			RemainingAmount:      allOrders[i].TotalAmount - allOrders[i].TradeAmount,
+			Exchange:             z.Name,
+			Date:                 orderDate,
+			Price:                allOrders[i].Price,
+			AverageExecutedPrice: allOrders[i].TradePrice,
+			Side:                 orderSide,
+			Pair:                 pair,
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

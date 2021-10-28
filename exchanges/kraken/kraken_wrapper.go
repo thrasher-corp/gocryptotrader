@@ -32,9 +32,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (k *Kraken) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (k *Kraken) GetDefaultConfig() (*config.Exchange, error) {
 	k.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = k.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = k.BaseCurrencies
@@ -191,7 +191,7 @@ func (k *Kraken) SetDefaults() {
 }
 
 // Setup sets current exchange configuration
-func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
+func (k *Kraken) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		k.SetEnabled(false)
 		return nil
@@ -222,21 +222,15 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 	err = k.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       krakenWSURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        k.WsConnect,
-		Subscriber:                       k.Subscribe,
-		UnSubscriber:                     k.Unsubscribe,
-		GenerateSubscriptions:            k.GenerateDefaultSubscriptions,
-		Features:                         &k.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
+		ExchangeConfig:        exch,
+		DefaultURL:            krakenWSURL,
+		RunningURL:            wsRunningURL,
+		Connector:             k.WsConnect,
+		Subscriber:            k.Subscribe,
+		Unsubscriber:          k.Unsubscribe,
+		GenerateSubscriptions: k.GenerateDefaultSubscriptions,
+		Features:              &k.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
 	})
 	if err != nil {
 		return err
@@ -617,7 +611,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		for name := range bal.Accounts {
 			for code := range bal.Accounts[name].Balances {
 				balances = append(balances, account.Balance{
-					CurrencyName: currency.NewCode(code),
+					CurrencyName: currency.NewCode(code).Upper(),
 					TotalValue:   bal.Accounts[name].Balances[code],
 				})
 			}
@@ -760,6 +754,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			"",
 			s.ClientOrderID,
 			"",
+			s.ImmediateOrCancel,
 			s.Amount,
 			s.Price,
 			0,
@@ -767,6 +762,14 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		if err != nil {
 			return submitOrderResponse, err
 		}
+
+		// check the status, anything that is not placed we error out
+		if order.SendStatus.Status != "placed" {
+			return submitOrderResponse,
+				fmt.Errorf("submit order failed: %s",
+					order.SendStatus.Status)
+		}
+
 		submitOrderResponse.OrderID = order.SendStatus.OrderID
 		submitOrderResponse.IsOrderPlaced = true
 	default:
@@ -912,7 +915,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 		status, err := order.StringToOrderStatus(orderInfo.Status)
 		if err != nil {
-			return orderDetail, err
+			log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
 		}
 		oType, err := order.StringToOrderType(orderInfo.Description.OrderType)
 		if err != nil {
@@ -1224,20 +1227,29 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 			}
 
 			side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
+			status, err := order.StringToOrderStatus(resp.Closed[i].Status)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+			}
 			orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
-			orders = append(orders, order.Detail{
+			detail := order.Detail{
 				ID:              i,
 				Amount:          resp.Closed[i].Volume,
-				RemainingAmount: (resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted),
 				ExecutedAmount:  resp.Closed[i].VolumeExecuted,
+				RemainingAmount: resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted,
+				Cost:            resp.Closed[i].Cost,
+				CostAsset:       p.Quote,
 				Exchange:        k.Name,
 				Date:            convert.TimeFromUnixTimestampDecimal(resp.Closed[i].OpenTime),
 				CloseTime:       convert.TimeFromUnixTimestampDecimal(resp.Closed[i].CloseTime),
 				Price:           resp.Closed[i].Description.Price,
 				Side:            side,
+				Status:          status,
 				Type:            orderType,
 				Pair:            p,
-			})
+			}
+			detail.InferCostsAndTimes()
+			orders = append(orders, detail)
 		}
 	case asset.Futures:
 		var orderHistory FuturesRecentOrdersData

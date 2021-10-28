@@ -32,9 +32,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (c *COINUT) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (c *COINUT) GetDefaultConfig() (*config.Exchange, error) {
 	c.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = c.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = c.BaseCurrencies
@@ -132,7 +132,7 @@ func (c *COINUT) SetDefaults() {
 }
 
 // Setup sets the current exchange configuration
-func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
+func (c *COINUT) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		c.SetEnabled(false)
 		return nil
@@ -163,22 +163,16 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       coinutWebsocketURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        c.WsConnect,
-		Subscriber:                       c.Subscribe,
-		UnSubscriber:                     c.Unsubscribe,
-		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
-		Features:                         &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
-		SortBufferByUpdateIDs:            true,
+		ExchangeConfig:        exch,
+		DefaultURL:            coinutWebsocketURL,
+		RunningURL:            wsRunningURL,
+		Connector:             c.WsConnect,
+		Subscriber:            c.Subscribe,
+		Unsubscriber:          c.Unsubscribe,
+		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
+		Features:              &c.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
+		SortBufferByUpdateIDs: true,
 	})
 	if err != nil {
 		return err
@@ -989,7 +983,7 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 						return nil, err
 					}
 
-					allOrders = append(allOrders, order.Detail{
+					detail := order.Detail{
 						Exchange:        c.Name,
 						ID:              strconv.FormatInt(trades.Trades[x].OrderID, 10),
 						Pair:            p,
@@ -998,9 +992,11 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 						Status:          order.Filled,
 						Price:           trades.Trades[x].Price,
 						Amount:          trades.Trades[x].Quantity,
-						ExecutedAmount:  trades.Trades[x].Quantity,
+						ExecutedAmount:  trades.Trades[x].Quantity - trades.Trades[x].OpenQuantity,
 						RemainingAmount: trades.Trades[x].OpenQuantity,
-					})
+					}
+					detail.InferCostsAndTimes()
+					allOrders = append(allOrders, detail)
 				}
 				if len(trades.Trades) < 100 {
 					break

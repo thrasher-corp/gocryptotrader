@@ -291,18 +291,18 @@ type Order struct {
 	ClOrdID               string    `json:"clOrdID"`
 	ClOrdLinkID           string    `json:"clOrdLinkID"`
 	ContingencyType       string    `json:"contingencyType"`
-	CumQty                int64     `json:"cumQty"`
+	CumQty                float64   `json:"cumQty"`
 	Currency              string    `json:"currency"`
 	DisplayQuantity       int64     `json:"displayQty"`
 	ExDestination         string    `json:"exDestination"`
 	ExecInst              string    `json:"execInst"`
-	LeavesQty             int64     `json:"leavesQty"`
+	LeavesQty             float64   `json:"leavesQty"`
 	MultiLegReportingType string    `json:"multiLegReportingType"`
 	OrdRejReason          string    `json:"ordRejReason"`
 	OrdStatus             string    `json:"ordStatus"`
 	OrdType               int64     `json:"ordType,string"`
 	OrderID               string    `json:"orderID"`
-	OrderQty              int64     `json:"orderQty"`
+	OrderQty              float64   `json:"orderQty"`
 	PegOffsetValue        float64   `json:"pegOffsetValue"`
 	PegPriceType          string    `json:"pegPriceType"`
 	Price                 float64   `json:"price"`
@@ -316,7 +316,7 @@ type Order struct {
 	Text                  string    `json:"text"`
 	TimeInForce           string    `json:"timeInForce"`
 	Timestamp             time.Time `json:"timestamp"`
-	TransactTime          string    `json:"transactTime"`
+	TransactTime          time.Time `json:"transactTime"`
 	Triggered             string    `json:"triggered"`
 	WorkingIndicator      bool      `json:"workingIndicator"`
 }

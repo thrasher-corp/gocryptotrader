@@ -31,9 +31,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (p *Poloniex) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (p *Poloniex) GetDefaultConfig() (*config.Exchange, error) {
 	p.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = p.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = p.BaseCurrencies
@@ -152,7 +152,7 @@ func (p *Poloniex) SetDefaults() {
 }
 
 // Setup sets user exchange configuration settings
-func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
+func (p *Poloniex) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		p.SetEnabled(false)
 		return nil
@@ -179,22 +179,16 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = p.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       poloniexWebsocketAddress,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        p.WsConnect,
-		Subscriber:                       p.Subscribe,
-		UnSubscriber:                     p.Unsubscribe,
-		GenerateSubscriptions:            p.GenerateDefaultSubscriptions,
-		Features:                         &p.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
-		SortBufferByUpdateIDs:            true,
+		ExchangeConfig:        exch,
+		DefaultURL:            poloniexWebsocketAddress,
+		RunningURL:            wsRunningURL,
+		Connector:             p.WsConnect,
+		Subscriber:            p.Subscribe,
+		Unsubscriber:          p.Unsubscribe,
+		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
+		Features:              &p.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
+		SortBufferByUpdateIDs: true,
 	})
 	if err != nil {
 		return err
@@ -685,7 +679,9 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return orderInfo, err
 	}
 
-	orderInfo.Status, _ = order.StringToOrderStatus(resp.Status)
+	if orderInfo.Status, err = order.StringToOrderStatus(resp.Status); err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", p.Name, err)
+	}
 	orderInfo.Price = resp.Rate
 	orderInfo.Amount = resp.Amount
 	orderInfo.Cost = resp.Total
@@ -882,8 +878,8 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 
 	var orders []order.Detail
 	for key := range resp.Data {
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(key, format.Delimiter)
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(key, format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
@@ -901,15 +897,20 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 					resp.Data[key][i].Date)
 			}
 
-			orders = append(orders, order.Detail{
-				ID:       strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
-				Side:     orderSide,
-				Amount:   resp.Data[key][i].Amount,
-				Date:     orderDate,
-				Price:    resp.Data[key][i].Rate,
-				Pair:     symbol,
-				Exchange: p.Name,
-			})
+			detail := order.Detail{
+				ID:                   strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
+				Side:                 orderSide,
+				Amount:               resp.Data[key][i].Amount,
+				ExecutedAmount:       resp.Data[key][i].Amount,
+				Date:                 orderDate,
+				Price:                resp.Data[key][i].Rate,
+				AverageExecutedPrice: resp.Data[key][i].Rate,
+				Pair:                 pair,
+				Status:               order.Filled,
+				Exchange:             p.Name,
+			}
+			detail.InferCostsAndTimes()
+			orders = append(orders, detail)
 		}
 	}
 

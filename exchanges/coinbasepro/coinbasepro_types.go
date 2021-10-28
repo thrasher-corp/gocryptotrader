@@ -126,7 +126,7 @@ type GeneralizedOrderResponse struct {
 	Funds          float64   `json:"funds,string"`
 	SpecifiedFunds float64   `json:"specified_funds,string"`
 	DoneReason     string    `json:"done_reason"`
-	DoneAt         string    `json:"done_at"`
+	DoneAt         time.Time `json:"done_at"`
 }
 
 // Funding holds funding data

@@ -32,9 +32,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (g *Gemini) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (g *Gemini) GetDefaultConfig() (*config.Exchange, error) {
 	g.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = g.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = g.BaseCurrencies
@@ -132,7 +132,7 @@ func (g *Gemini) SetDefaults() {
 }
 
 // Setup sets exchange configuration parameters
-func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
+func (g *Gemini) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 		return nil
@@ -168,20 +168,14 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       geminiWebsocketEndpoint,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        g.WsConnect,
-		Subscriber:                       g.Subscribe,
-		UnSubscriber:                     g.Unsubscribe,
-		GenerateSubscriptions:            g.GenerateDefaultSubscriptions,
-		Features:                         &g.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		ExchangeConfig:        exch,
+		DefaultURL:            geminiWebsocketEndpoint,
+		RunningURL:            wsRunningURL,
+		Connector:             g.WsConnect,
+		Subscriber:            g.Subscribe,
+		Unsubscriber:          g.Unsubscribe,
+		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+		Features:              &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -767,18 +761,24 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		side := order.Side(strings.ToUpper(trades[i].Type))
 		orderDate := time.Unix(trades[i].Timestamp, 0)
 
-		orders = append(orders, order.Detail{
-			Amount:   trades[i].Amount,
-			ID:       strconv.FormatInt(trades[i].OrderID, 10),
-			Exchange: g.Name,
-			Date:     orderDate,
-			Side:     side,
-			Fee:      trades[i].FeeAmount,
-			Price:    trades[i].Price,
-			Pair: currency.NewPairWithDelimiter(trades[i].BaseCurrency,
+		detail := order.Detail{
+			ID:                   strconv.FormatInt(trades[i].OrderID, 10),
+			Amount:               trades[i].Amount,
+			ExecutedAmount:       trades[i].Amount,
+			Exchange:             g.Name,
+			Date:                 orderDate,
+			Side:                 side,
+			Fee:                  trades[i].FeeAmount,
+			Price:                trades[i].Price,
+			AverageExecutedPrice: trades[i].Price,
+			Pair: currency.NewPairWithDelimiter(
+				trades[i].BaseCurrency,
 				trades[i].QuoteCurrency,
-				format.Delimiter),
-		})
+				format.Delimiter,
+			),
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

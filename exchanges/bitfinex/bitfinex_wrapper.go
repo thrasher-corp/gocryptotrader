@@ -32,9 +32,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bitfinex) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *Bitfinex) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -184,7 +184,7 @@ func (b *Bitfinex) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
+func (b *Bitfinex) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
@@ -212,21 +212,15 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       publicBitfinexWebsocketEndpoint,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsEndpoint,
-		Connector:                        b.WsConnect,
-		Subscriber:                       b.Subscribe,
-		UnSubscriber:                     b.Unsubscribe,
-		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
-		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		UpdateEntriesByID:                true,
+		ExchangeConfig:        exch,
+		DefaultURL:            publicBitfinexWebsocketEndpoint,
+		RunningURL:            wsEndpoint,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
+		UpdateEntriesByID:     true,
 	})
 	if err != nil {
 		return err
@@ -966,16 +960,18 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		}
 
 		orderDetail := order.Detail{
-			Amount:          resp[i].OriginalAmount,
-			Date:            orderDate,
-			Exchange:        b.Name,
-			ID:              strconv.FormatInt(resp[i].ID, 10),
-			Side:            orderSide,
-			Price:           resp[i].Price,
-			RemainingAmount: resp[i].RemainingAmount,
-			ExecutedAmount:  resp[i].ExecutedAmount,
-			Pair:            pair,
+			Amount:               resp[i].OriginalAmount,
+			Date:                 orderDate,
+			Exchange:             b.Name,
+			ID:                   strconv.FormatInt(resp[i].ID, 10),
+			Side:                 orderSide,
+			Price:                resp[i].Price,
+			AverageExecutedPrice: resp[i].AverageExecutionPrice,
+			RemainingAmount:      resp[i].RemainingAmount,
+			ExecutedAmount:       resp[i].ExecutedAmount,
+			Pair:                 pair,
 		}
+		orderDetail.InferCostsAndTimes()
 
 		switch {
 		case resp[i].IsLive:

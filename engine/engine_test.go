@@ -215,7 +215,7 @@ func TestUnloadExchange(t *testing.T) {
 	exch.SetEnabled(true)
 	em.Add(exch)
 	e := &Engine{ExchangeManager: em,
-		Config: &config.Config{Exchanges: []config.ExchangeConfig{{Name: testExchange}}},
+		Config: &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
 	}
 	err = e.UnloadExchange("asdf")
 	if !errors.Is(err, config.ErrExchangeNotFound) {
@@ -240,7 +240,7 @@ func TestDryRunParamInteraction(t *testing.T) {
 		ExchangeManager: SetupExchangeManager(),
 		Settings:        Settings{},
 		Config: &config.Config{
-			Exchanges: []config.ExchangeConfig{
+			Exchanges: []config.Exchange{
 				{
 					Name:                    testExchange,
 					WebsocketTrafficTimeout: time.Second,

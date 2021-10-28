@@ -144,6 +144,90 @@ func TestOrderTypes(t *testing.T) {
 	}
 }
 
+func TestInferCostsAndTimes(t *testing.T) {
+	t.Parallel()
+
+	var detail Detail
+	detail.InferCostsAndTimes()
+	if detail.Amount != detail.ExecutedAmount+detail.RemainingAmount {
+		t.Errorf(
+			"Order detail amounts not equals. Expected 0, received %f",
+			detail.Amount-(detail.ExecutedAmount+detail.RemainingAmount),
+		)
+	}
+
+	detail.CloseTime = time.Now()
+	detail.InferCostsAndTimes()
+	if detail.LastUpdated != detail.CloseTime {
+		t.Errorf(
+			"Order last updated not equals close time. Expected %s, received %s",
+			detail.CloseTime,
+			detail.LastUpdated,
+		)
+	}
+
+	detail.Amount = 1
+	detail.ExecutedAmount = 1
+	detail.InferCostsAndTimes()
+	if detail.AverageExecutedPrice != 0 {
+		t.Errorf(
+			"Unexpected AverageExecutedPrice. Expected 0, received %f",
+			detail.AverageExecutedPrice,
+		)
+	}
+
+	detail.Amount = 1
+	detail.ExecutedAmount = 1
+	detail.InferCostsAndTimes()
+	if detail.Cost != 0 {
+		t.Errorf(
+			"Unexpected Cost. Expected 0, received %f",
+			detail.Cost,
+		)
+	}
+	detail.ExecutedAmount = 0
+
+	detail.Amount = 1
+	detail.RemainingAmount = 1
+	detail.InferCostsAndTimes()
+	if detail.Amount != detail.ExecutedAmount+detail.RemainingAmount {
+		t.Errorf(
+			"Order detail amounts not equals. Expected 0, received %f",
+			detail.Amount-(detail.ExecutedAmount+detail.RemainingAmount),
+		)
+	}
+	detail.RemainingAmount = 0
+
+	detail.Amount = 1
+	detail.ExecutedAmount = 1
+	detail.Price = 2
+	detail.InferCostsAndTimes()
+	if detail.AverageExecutedPrice != 2 {
+		t.Errorf(
+			"Unexpected AverageExecutedPrice. Expected 2, received %f",
+			detail.AverageExecutedPrice,
+		)
+	}
+
+	detail = Detail{Amount: 1, ExecutedAmount: 2, Cost: 3, Price: 0}
+	detail.InferCostsAndTimes()
+	if detail.AverageExecutedPrice != 1.5 {
+		t.Errorf(
+			"Unexpected AverageExecutedPrice. Expected 1.5, received %f",
+			detail.AverageExecutedPrice,
+		)
+	}
+
+	detail = Detail{Amount: 1, ExecutedAmount: 2, AverageExecutedPrice: 3}
+	detail.InferCostsAndTimes()
+	if detail.Cost != 6 {
+		t.Errorf(
+			"Unexpected Cost. Expected 6, received %f",
+			detail.Cost,
+		)
+	}
+}
+
 func TestFilterOrdersByType(t *testing.T) {
 	t.Parallel()
 

@@ -112,6 +112,8 @@ type FeaturesEnabled struct {
 	AutoPairUpdates bool
 	Kline           kline.ExchangeCapabilitiesEnabled
 	SaveTradeData   bool
+	TradeFeed       bool
+	FillsFeed       bool
 }
 
 // FeaturesSupported stores the exchanges supported features
@@ -178,7 +180,7 @@ type Base struct {
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *stream.Websocket
 	*request.Requester
-	Config        *config.ExchangeConfig
+	Config        *config.Exchange
 	settingsMutex sync.RWMutex
 	// CanVerifyOrderbook determines if the orderbook verification can be bypassed,
 	// increasing potential update speed but decreasing confidence in orderbook

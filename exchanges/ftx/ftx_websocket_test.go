@@ -1,12 +1,14 @@
 package ftx
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -20,8 +22,20 @@ func parseRaw(t *testing.T, input string) interface{} {
 			Quote: currency.USDT,
 		},
 	}
+
+	dataC := make(chan interface{}, 1)
+
+	fills := fill.Fills{}
+	fills.Setup(true, dataC)
+
 	x := FTX{
 		exchange.Base{
+			Name: "FTX",
+			Features: exchange.Features{
+				Enabled: exchange.FeaturesEnabled{
+					FillsFeed: true,
+				},
+			},
 			CurrencyPairs: currency.PairsManager{
 				Pairs: map[asset.Item]*currency.PairStore{
 					asset.Spot: {
@@ -35,7 +49,8 @@ func parseRaw(t *testing.T, input string) interface{} {
 				},
 			},
 			Websocket: &stream.Websocket{
-				DataHandler: make(chan interface{}, 1),
+				DataHandler: dataC,
+				Fills:       fills,
 			},
 			Fees: f.Fees,
 		},
@@ -44,7 +59,15 @@ func parseRaw(t *testing.T, input string) interface{} {
 	if err := x.wsHandleData([]byte(input)); err != nil {
 		t.Fatal(err)
 	}
-	return <-x.Websocket.DataHandler
+
+	var ret interface{}
+	select {
+	case ret = <-x.Websocket.DataHandler:
+	default:
+		t.Error(fmt.Errorf("timed out waiting for channel data"))
+	}
+
+	return ret
 }
 
 func TestFTX_wsHandleData_Details(t *testing.T) {
@@ -154,10 +177,7 @@ func TestFTX_wsHandleData_wsFills(t *testing.T) {
            "type": "update",
            "data": {
                "id": 1234567890,
-               "market": "MARKET",
-               "future": "FUTURE",
-               "baseCurrency": "BTC",
-               "quoteCurrency": "USDT",
+               "market": "BTC-USDT",
                "type": "order",
                "side": "sell",
                "price": 32768,
@@ -172,27 +192,22 @@ func TestFTX_wsHandleData_wsFills(t *testing.T) {
            }
         }`
 	p := parseRaw(t, input)
-	x, ok := p.(WsFills)
+	x, ok := p.([]fill.Data)
 	if !ok {
-		t.Fatalf("have %T, want ftx.WsFills", p)
+		t.Fatalf("have %T, want []fill.Data", p)
 	}
-	if x.ID != 1234567890 ||
-		x.Market != "MARKET" ||
-		x.Future != "FUTURE" ||
-		x.BaseCurrency != "BTC" ||
-		x.QuoteCurrency != "USDT" ||
-		x.Type != "order" ||
-		x.Side != "sell" ||
-		x.Price != 32768 ||
-		x.Size != 2 ||
-		x.OrderID != 23456789012 ||
-		!x.Time.Equal(time.Unix(1628346762, 373010000).UTC()) ||
-		x.TradeID != 3456789012 ||
-		x.FeeRate != 8 ||
-		x.Fee != 16 ||
-		x.FeeCurrency != "FTT" ||
-		x.Liquidity != "maker" {
-		t.Error("parsed values do not match")
+
+	if x[0].Exchange != "FTX" ||
+		x[0].ID != "1234567890" ||
+		x[0].OrderID != "23456789012" ||
+		x[0].CurrencyPair.Base.String() != "BTC" ||
+		x[0].CurrencyPair.Quote.String() != "USDT" ||
+		x[0].Side != order.Sell ||
+		x[0].TradeID != "3456789012" ||
+		x[0].Price != 32768 ||
+		x[0].Amount != 2 ||
+		!x[0].Timestamp.Equal(time.Unix(1628346762, 373010000).UTC()) {
+		t.Errorf("parsed values do not match, x: %#v", x)
 	}
 }
 

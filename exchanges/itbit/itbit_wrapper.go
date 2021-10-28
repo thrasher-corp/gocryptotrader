@@ -30,9 +30,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (i *ItBit) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (i *ItBit) GetDefaultConfig() (*config.Exchange, error) {
 	i.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = i.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = i.BaseCurrencies
@@ -107,7 +107,7 @@ func (i *ItBit) SetDefaults() {
 }
 
 // Setup sets the exchange parameters from exchange config
-func (i *ItBit) Setup(exch *config.ExchangeConfig) error {
+func (i *ItBit) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		i.SetEnabled(false)
 		return nil
@@ -615,6 +615,10 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 
 		side := order.Side(strings.ToUpper(allOrders[j].Side))
+		status, err := order.StringToOrderStatus(allOrders[j].Status)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+		}
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -625,16 +629,21 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 				allOrders[j].CreatedTime)
 		}
 
-		orders = append(orders, order.Detail{
-			ID:              allOrders[j].ID,
-			Side:            side,
-			Amount:          allOrders[j].Amount,
-			ExecutedAmount:  allOrders[j].AmountFilled,
-			RemainingAmount: (allOrders[j].Amount - allOrders[j].AmountFilled),
-			Exchange:        i.Name,
-			Date:            orderDate,
-			Pair:            symbol,
-		})
+		detail := order.Detail{
+			ID:                   allOrders[j].ID,
+			Side:                 side,
+			Status:               status,
+			Amount:               allOrders[j].Amount,
+			ExecutedAmount:       allOrders[j].AmountFilled,
+			RemainingAmount:      allOrders[j].Amount - allOrders[j].AmountFilled,
+			Price:                allOrders[j].Price,
+			AverageExecutedPrice: allOrders[j].VolumeWeightedAveragePrice,
+			Exchange:             i.Name,
+			Date:                 orderDate,
+			Pair:                 symbol,
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

@@ -31,9 +31,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *BTCMarkets) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *BTCMarkets) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -137,7 +137,7 @@ func (b *BTCMarkets) SetDefaults() {
 }
 
 // Setup takes in an exchange configuration and sets all parameters
-func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
+func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
@@ -166,20 +166,14 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       btcMarketsWSURL,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsURL,
-		Connector:                        b.WsConnect,
-		Subscriber:                       b.Subscribe,
-		GenerateSubscriptions:            b.generateDefaultSubscriptions,
-		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
+		ExchangeConfig:        exch,
+		DefaultURL:            btcMarketsWSURL,
+		RunningURL:            wsURL,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		GenerateSubscriptions: b.generateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
+		SortBuffer:            true,
 	})
 	if err != nil {
 		return err
@@ -873,7 +867,10 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 			tempResp.ID = tempData.Orders[c].OrderID
 			tempResp.Date = tempData.Orders[c].CreationTime
 			tempResp.Price = tempData.Orders[c].Price
-			tempResp.ExecutedAmount = tempData.Orders[c].Amount
+			tempResp.Amount = tempData.Orders[c].Amount
+			tempResp.ExecutedAmount = tempData.Orders[c].Amount - tempData.Orders[c].OpenAmount
+			tempResp.RemainingAmount = tempData.Orders[c].OpenAmount
+			tempResp.InferCostsAndTimes()
 			resp = append(resp, tempResp)
 		}
 	}

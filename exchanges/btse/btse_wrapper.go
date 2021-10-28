@@ -32,9 +32,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *BTSE) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (b *BTSE) GetDefaultConfig() (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
@@ -169,7 +169,7 @@ func (b *BTSE) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
+func (b *BTSE) Setup(exch *config.Exchange) error {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
@@ -198,20 +198,14 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       btseWebsocket,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsRunningURL,
-		Connector:                        b.WsConnect,
-		Subscriber:                       b.Subscribe,
-		UnSubscriber:                     b.Unsubscribe,
-		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
-		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		ExchangeConfig:        exch,
+		DefaultURL:            btseWebsocket,
+		RunningURL:            wsRunningURL,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -667,7 +661,9 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		od.Type = orderIntToType(o[i].OrderType)
 
 		od.Price = o[i].Price
-		od.Status = order.Status(o[i].OrderState)
+		if od.Status, err = order.StringToOrderStatus(o[i].OrderState); err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		}
 
 		th, err := b.TradeHistory(ctx,
 			"",
@@ -801,6 +797,11 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 				side = order.Sell
 			}
 
+			status, err := order.StringToOrderStatus(resp[i].OrderState)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+			}
+
 			p, err := currency.NewPairDelimiter(resp[i].Symbol,
 				format.Delimiter)
 			if err != nil {
@@ -811,14 +812,16 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 			}
 
 			openOrder := order.Detail{
-				Pair:     p,
-				Exchange: b.Name,
-				Amount:   resp[i].Size,
-				ID:       resp[i].OrderID,
-				Date:     time.Unix(resp[i].Timestamp, 0),
-				Side:     side,
-				Price:    resp[i].Price,
-				Status:   order.Status(resp[i].OrderState),
+				Pair:            p,
+				Exchange:        b.Name,
+				Amount:          resp[i].Size,
+				ExecutedAmount:  resp[i].FilledSize,
+				RemainingAmount: resp[i].Size - resp[i].FilledSize,
+				ID:              resp[i].OrderID,
+				Date:            time.Unix(resp[i].Timestamp, 0),
+				Side:            side,
+				Price:           resp[i].Price,
+				Status:          status,
 			}
 
 			if resp[i].OrderType == 77 {
@@ -905,24 +908,26 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 			if !matchType(currentOrder[y].OrderType, orderDeref.Type) {
 				continue
 			}
+			orderStatus, err := order.StringToOrderStatus(currentOrder[x].OrderState)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+			}
+			orderTime := time.UnixMilli(currentOrder[y].Timestamp)
 			tempOrder := order.Detail{
-				Price:  currentOrder[y].Price,
-				Amount: currentOrder[y].Size,
-				Side:   order.Side(currentOrder[y].Side),
-				Pair:   orderDeref.Pairs[x],
+				ID:                   currentOrder[y].OrderID,
+				ClientID:             currentOrder[y].ClOrderID,
+				Exchange:             b.Name,
+				Price:                currentOrder[y].Price,
+				AverageExecutedPrice: currentOrder[y].AverageFillPrice,
+				Amount:               currentOrder[y].Size,
+				ExecutedAmount:       currentOrder[y].FilledSize,
+				RemainingAmount:      currentOrder[y].Size - currentOrder[y].FilledSize,
+				Date:                 orderTime,
+				Side:                 order.Side(currentOrder[y].Side),
+				Status:               orderStatus,
+				Pair:                 orderDeref.Pairs[x],
 			}
-			switch currentOrder[x].OrderState {
-			case "STATUS_ACTIVE":
-				tempOrder.Status = order.Active
-			case "ORDER_CANCELLED":
-				tempOrder.Status = order.Cancelled
-			case "ORDER_FULLY_TRANSACTED":
-				tempOrder.Status = order.Filled
-			case "ORDER_PARTIALLY_TRANSACTED":
-				tempOrder.Status = order.PartiallyFilled
-			default:
-				tempOrder.Status = order.UnknownStatus
-			}
+			tempOrder.InferCostsAndTimes()
 			resp = append(resp, tempOrder)
 		}
 	}
