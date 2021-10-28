@@ -515,7 +515,8 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 		Nickname: "ExampleStrategyDCALiveCandles",
 		Goal:     "To demonstrate live trading proof of concept against candle data",
 		StrategySettings: StrategySettings{
-			Name: dca,
+			Name:               dca,
+			DisableUSDTracking: true,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -657,7 +658,8 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 		Nickname: "ExampleStrategyDCACSVCandles",
 		Goal:     "To demonstrate the DCA strategy using CSV candle data",
 		StrategySettings: StrategySettings{
-			Name: dca,
+			Name:               dca,
+			DisableUSDTracking: true,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -715,7 +717,8 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 		Nickname: "ExampleStrategyDCACSVTrades",
 		Goal:     "To demonstrate the DCA strategy using CSV trade data",
 		StrategySettings: StrategySettings{
-			Name: dca,
+			Name:               dca,
+			DisableUSDTracking: true,
 		},
 		CurrencySettings: []CurrencySettings{
 			{

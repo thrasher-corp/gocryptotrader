@@ -51,9 +51,9 @@
     "connectionDetails": {
      "host": "localhost",
      "port": 0,
-     "username": "postgres",
-     "password": "postgres",
-     "database": "database.db",
+     "username": "",
+     "password": "",
+     "database": "testsqlite.db",
      "sslmode": ""
     }
    },
