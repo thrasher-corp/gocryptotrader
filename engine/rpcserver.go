@@ -4122,7 +4122,7 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 }
 
 // addTransferFee adds transfer fee to a list of rpc transfer fees
-func addTransferFee(c currency.Code, a asset.Item, bt bank.Transfer, val fee.Transfer, fees *[]*gctrpc.TransferFees) error {
+func addTransferFee(c currency.Code, chain string, bt bank.Transfer, val fee.Transfer, fees *[]*gctrpc.TransferFees) error {
 	rpcOut := &gctrpc.TransferFees{
 		Currency:     c.String(),
 		IsPercentage: val.IsPercentage,

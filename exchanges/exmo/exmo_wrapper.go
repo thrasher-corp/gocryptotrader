@@ -139,8 +139,8 @@ func (e *EXMO) Setup(exch *config.Exchange) error {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.003, Taker: 0.003},
 		},
-		Transfer:        transferFees,
-		BankingTransfer: transferBank,
+		ChainTransfer: transferFees,
+		BankTransfer:  transferBank,
 	})
 }
 

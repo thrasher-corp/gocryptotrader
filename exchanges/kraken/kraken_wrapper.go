@@ -211,7 +211,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0016, Taker: 0.0016},
 		},
-		Transfer: transferFees,
+		ChainTransfer: transferFees,
 	})
 	if err != nil {
 		return err

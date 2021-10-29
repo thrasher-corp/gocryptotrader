@@ -64,8 +64,8 @@ func TestLoadStatic(t *testing.T) {
 
 	d := &Definitions{
 		globalCommissions: make(map[asset.Item]*CommissionInternal),
-		transfers:         make(map[asset.Item]map[*currency.Item]*transfer),
-		bankingTransfers:  make(map[bank.Transfer]map[*currency.Item]*transfer),
+		chainTransfer:     make(map[*currency.Item]map[string]*transfer),
+		bankTransfer:      make(map[bank.Transfer]map[*currency.Item]*transfer),
 	}
 	err = d.LoadStatic(Options{
 		GlobalCommissions: map[asset.Item]Commission{
@@ -80,11 +80,11 @@ func TestLoadStatic(t *testing.T) {
 		GlobalCommissions: map[asset.Item]Commission{
 			asset.Spot: {},
 		},
-		Transfer: map[asset.Item]map[currency.Code]Transfer{
-			asset.Spot: {currency.BTC: {}},
+		ChainTransfer: []Transfer{
+			{Currency: currency.BTC},
 		},
-		BankingTransfer: map[bank.Transfer]map[currency.Code]Transfer{
-			bank.WireTransfer: {currency.BTC: {}},
+		BankTransfer: []Transfer{
+			{BankTransfer: bank.WireTransfer, Currency: currency.BTC},
 		},
 	})
 	if !errors.Is(err, nil) {
@@ -273,20 +273,20 @@ func TestCalculateDeposit(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
-	_, err = (&Definitions{}).CalculateDeposit(currency.BTC, asset.Spot, 0)
+	_, err = (&Definitions{}).CalculateDeposit(currency.BTC, "", 0)
 	if !errors.Is(err, errTransferFeeNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errTransferFeeNotFound)
 	}
 
 	d := &Definitions{
-		transfers: map[asset.Item]map[*currency.Item]*transfer{
-			asset.Spot: {
-				currency.BTC.Item: {Deposit: Convert(0.01)},
+		chainTransfer: map[*currency.Item]map[string]*transfer{
+			currency.BTC.Item: {
+				"": {Deposit: Convert(0.01)},
 			},
 		},
 	}
 
-	fee, err := d.CalculateDeposit(currency.BTC, asset.Spot, 10)
+	fee, err := d.CalculateDeposit(currency.BTC, "", 10)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -302,20 +302,20 @@ func TestGetDeposit(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
-	_, _, err = (&Definitions{}).GetDeposit(currency.BTC, asset.Spot)
+	_, _, err = (&Definitions{}).GetDeposit(currency.BTC, "")
 	if !errors.Is(err, errTransferFeeNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errTransferFeeNotFound)
 	}
 
 	d := &Definitions{
-		transfers: map[asset.Item]map[*currency.Item]*transfer{
-			asset.Spot: {
-				currency.BTC.Item: {Deposit: Convert(0.01)},
+		chainTransfer: map[*currency.Item]map[string]*transfer{
+			currency.BTC.Item: {
+				"": {Deposit: Convert(0.01)},
 			},
 		},
 	}
 
-	fee, percentage, err := d.GetDeposit(currency.BTC, asset.Spot)
+	fee, percentage, err := d.GetDeposit(currency.BTC, "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -335,20 +335,20 @@ func TestCalculateWithdrawal(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
-	_, err = (&Definitions{}).CalculateWithdrawal(currency.BTC, asset.Spot, 0)
+	_, err = (&Definitions{}).CalculateWithdrawal(currency.BTC, "", 0)
 	if !errors.Is(err, errTransferFeeNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errTransferFeeNotFound)
 	}
 
 	d := &Definitions{
-		transfers: map[asset.Item]map[*currency.Item]*transfer{
-			asset.Spot: {
-				currency.BTC.Item: {Withdrawal: Convert(0.01)},
+		chainTransfer: map[*currency.Item]map[string]*transfer{
+			currency.BTC.Item: {
+				"": {Withdrawal: Convert(0.01)},
 			},
 		},
 	}
 
-	fee, err := d.CalculateWithdrawal(currency.BTC, asset.Spot, 10)
+	fee, err := d.CalculateWithdrawal(currency.BTC, "", 10)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -369,20 +369,20 @@ func TestGetWithdrawal(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
 	}
 
-	_, _, err = (&Definitions{}).GetWithdrawal(currency.BTC, asset.Spot)
+	_, _, err = (&Definitions{}).GetWithdrawal(currency.BTC, "")
 	if !errors.Is(err, errTransferFeeNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errTransferFeeNotFound)
 	}
 
 	d := &Definitions{
-		transfers: map[asset.Item]map[*currency.Item]*transfer{
-			asset.Spot: {
-				currency.BTC.Item: {Withdrawal: Convert(0.01)},
+		chainTransfer: map[*currency.Item]map[string]*transfer{
+			currency.BTC.Item: {
+				"": {Withdrawal: Convert(0.01)},
 			},
 		},
 	}
 
-	fee, percentage, err := d.GetWithdrawal(currency.BTC, asset.Spot)
+	fee, percentage, err := d.GetWithdrawal(currency.BTC, "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -406,10 +406,10 @@ func TestGetAllFees(t *testing.T) {
 		globalCommissions: map[asset.Item]*CommissionInternal{
 			asset.Spot: {},
 		},
-		transfers: map[asset.Item]map[*currency.Item]*transfer{
-			asset.Spot: {currency.BTC.Item: {}},
+		chainTransfer: map[*currency.Item]map[string]*transfer{
+			currency.BTC.Item: {"": {}},
 		},
-		bankingTransfers: map[bank.Transfer]map[*currency.Item]*transfer{
+		bankTransfer: map[bank.Transfer]map[*currency.Item]*transfer{
 			bank.WireTransfer: {currency.BTC.Item: {}},
 		},
 	}
@@ -492,16 +492,16 @@ func TestGetTransferFee(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
 	}
 
-	_, err = (&Definitions{}).GetTransferFee(currency.BTC, asset.Spot)
+	_, err = (&Definitions{}).GetTransferFee(currency.BTC, "")
 	if !errors.Is(err, errRateNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
 	}
 
 	_, err = (&Definitions{
-		transfers: map[asset.Item]map[*currency.Item]*transfer{
-			asset.Spot: {currency.BTC.Item: {}},
+		chainTransfer: map[*currency.Item]map[string]*transfer{
+			currency.BTC.Item: {"": {}},
 		},
-	}).GetTransferFee(currency.BTC, asset.Spot)
+	}).GetTransferFee(currency.BTC, "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -528,30 +528,30 @@ func TestSetTransferFee(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
 	}
 
-	err = (&Definitions{}).SetTransferFee(currency.Code{}, asset.Spot, 0, 0, true)
+	err = (&Definitions{}).SetTransferFee(currency.Code{}, "", 0, 0, true)
 	if !errors.Is(err, errCurrencyIsEmpty) {
 		t.Fatalf("received: %v but expected: %v", err, errCurrencyIsEmpty)
 	}
 
-	err = (&Definitions{}).SetTransferFee(currency.BTC, asset.Spot, 0, 0, true)
+	err = (&Definitions{}).SetTransferFee(currency.BTC, "", 0, 0, true)
 	if !errors.Is(err, errTransferFeeNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errTransferFeeNotFound)
 	}
 
 	err = (&Definitions{
-		transfers: map[asset.Item]map[*currency.Item]*transfer{
-			asset.Spot: {currency.BTC.Item: {}},
+		chainTransfer: map[*currency.Item]map[string]*transfer{
+			currency.BTC.Item: {"": {}},
 		},
-	}).SetTransferFee(currency.BTC, asset.Spot, 0, 0, false)
+	}).SetTransferFee(currency.BTC, "", 0, 0, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 
 	err = (&Definitions{
-		transfers: map[asset.Item]map[*currency.Item]*transfer{
-			asset.Spot: {currency.BTC.Item: {}},
+		chainTransfer: map[*currency.Item]map[string]*transfer{
+			currency.BTC.Item: {"": {}},
 		},
-	}).SetTransferFee(currency.BTC, asset.Spot, 0, 0, true)
+	}).SetTransferFee(currency.BTC, "", 0, 0, true)
 	if !errors.Is(err, errFeeTypeMismatch) {
 		t.Fatalf("received: %v but expected: %v", err, errFeeTypeMismatch)
 	}
@@ -579,7 +579,7 @@ func TestGetBankTransferFee(t *testing.T) {
 	}
 
 	_, err = (&Definitions{
-		bankingTransfers: map[bank.Transfer]map[*currency.Item]*transfer{
+		bankTransfer: map[bank.Transfer]map[*currency.Item]*transfer{
 			bank.WireTransfer: {currency.USD.Item: {}},
 		},
 	}).GetBankTransferFee(currency.USD, bank.WireTransfer)
@@ -620,7 +620,7 @@ func TestSetBankTransferFee(t *testing.T) {
 	}
 
 	err = (&Definitions{
-		bankingTransfers: map[bank.Transfer]map[*currency.Item]*transfer{
+		bankTransfer: map[bank.Transfer]map[*currency.Item]*transfer{
 			bank.WireTransfer: {currency.USD.Item: {}},
 		},
 	}).SetBankTransferFee(currency.USD, bank.WireTransfer, 0, 0, false)
@@ -629,7 +629,7 @@ func TestSetBankTransferFee(t *testing.T) {
 	}
 
 	err = (&Definitions{
-		bankingTransfers: map[bank.Transfer]map[*currency.Item]*transfer{
+		bankTransfer: map[bank.Transfer]map[*currency.Item]*transfer{
 			bank.WireTransfer: {currency.USD.Item: {}},
 		},
 	}).SetBankTransferFee(currency.USD, bank.WireTransfer, 0, 0, true)

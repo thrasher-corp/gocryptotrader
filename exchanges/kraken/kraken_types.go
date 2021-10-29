@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -417,35 +416,33 @@ type CancelOrderResponse struct {
 
 // transferFees the list of predefined withdrawal and deposit fees. Prone to
 // change
-var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
-	asset.Spot: {
-		currency.ZUSD: {Withdrawal: fee.Convert(5)},
-		currency.ZEUR: {Withdrawal: fee.Convert(5)},
-		currency.USD:  {Withdrawal: fee.Convert(5)},
-		currency.EUR:  {Withdrawal: fee.Convert(5)},
-		currency.REP:  {Withdrawal: fee.Convert(0.01)},
-		currency.XXBT: {Withdrawal: fee.Convert(0.0005)},
-		currency.BTC:  {Withdrawal: fee.Convert(0.0005)},
-		currency.XBT:  {Withdrawal: fee.Convert(0.0005)},
-		currency.BCH:  {Withdrawal: fee.Convert(0.0001)},
-		currency.ADA:  {Withdrawal: fee.Convert(0.3)},
-		currency.DASH: {Withdrawal: fee.Convert(0.005)},
-		currency.XDG:  {Withdrawal: fee.Convert(2)},
-		currency.EOS:  {Withdrawal: fee.Convert(0.05)},
-		currency.ETH:  {Withdrawal: fee.Convert(0.005)},
-		currency.ETC:  {Withdrawal: fee.Convert(0.005)},
-		currency.GNO:  {Withdrawal: fee.Convert(0.005)},
-		currency.ICN:  {Withdrawal: fee.Convert(0.2)},
-		currency.LTC:  {Withdrawal: fee.Convert(0.001)},
-		currency.MLN:  {Withdrawal: fee.Convert(0.003)},
-		currency.XMR:  {Withdrawal: fee.Convert(0.05)},
-		currency.QTUM: {Withdrawal: fee.Convert(0.01)},
-		currency.XRP:  {Withdrawal: fee.Convert(0.02)},
-		currency.XLM:  {Withdrawal: fee.Convert(0.00002)},
-		currency.USDT: {Withdrawal: fee.Convert(5)},
-		currency.XTZ:  {Withdrawal: fee.Convert(0.05), Deposit: fee.Convert(0.05)},
-		currency.ZEC:  {Withdrawal: fee.Convert(0.0001)},
-	},
+var transferFees = []fee.Transfer{
+	{Currency: currency.ZUSD, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
+	{Currency: currency.ZEUR, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
+	{Currency: currency.USD, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
+	{Currency: currency.EUR, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
+	{Currency: currency.REP, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+	{Currency: currency.XXBT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0005)},
+	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0005)},
+	{Currency: currency.XBT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0005)},
+	{Currency: currency.BCH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0001)},
+	{Currency: currency.ADA, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.3)},
+	{Currency: currency.DASH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+	{Currency: currency.XDG, Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
+	{Currency: currency.EOS, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.05)},
+	{Currency: currency.ETH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+	{Currency: currency.ETC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+	{Currency: currency.GNO, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+	{Currency: currency.ICN, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.2)},
+	{Currency: currency.LTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+	{Currency: currency.MLN, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.003)},
+	{Currency: currency.XMR, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.05)},
+	{Currency: currency.QTUM, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+	{Currency: currency.XRP, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.02)},
+	{Currency: currency.XLM, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.00002)},
+	{Currency: currency.USDT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
+	{Currency: currency.XTZ, Deposit: fee.Convert(0.05), Withdrawal: fee.Convert(0.05)},
+	{Currency: currency.ZEC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0001)},
 }
 
 // DepositAddress defines a deposit address

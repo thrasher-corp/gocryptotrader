@@ -148,8 +148,8 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0025, Taker: 0.0035},
 		},
-		Transfer:        transferFees,
-		BankingTransfer: bankTransfers,
+		ChainTransfer: transferFees,
+		BankTransfer:  bankTransfers,
 	})
 	if err != nil {
 		return err

@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 )
 
 var (
@@ -33,6 +35,14 @@ type Transfer struct {
 	MinimumWithdrawal Value
 	// MaximumWithdrawal defines the maximum allowable withdrawal amount
 	MaximumWithdrawal Value
+	// Currency defines a currency identifier
+	Currency currency.Code
+	// Defines the chain that it can be withdrawn or depositted with. e.g. BEP20
+	// for BNB or other wrapped tokens on the same protocol.
+	Chain string
+	// BankTransfer defines the bank transfer protocol for delivering or
+	// receiving fiat currency from an exchange.
+	BankTransfer bank.Transfer
 }
 
 // convert returns an internal transfer struct

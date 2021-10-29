@@ -1474,13 +1474,13 @@ func (b *Base) SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker f
 }
 
 // GetTransferFee returns the transfer fees to and from an exchange via crypto
-func (b *Base) GetTransferFee(c currency.Code, a asset.Item) (fee.Transfer, error) {
-	return b.Fees.GetTransferFee(c, a)
+func (b *Base) GetTransferFee(c currency.Code, chain string) (fee.Transfer, error) {
+	return b.Fees.GetTransferFee(c, chain)
 }
 
 // SetTransferFee sets the deposit and withdrawal fees for a currency
-func (b *Base) SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, isPercentage bool) error {
-	return b.Fees.SetTransferFee(c, a, withdraw, deposit, isPercentage)
+func (b *Base) SetTransferFee(c currency.Code, chain string, withdraw, deposit float64, isPercentage bool) error {
+	return b.Fees.SetTransferFee(c, chain, withdraw, deposit, isPercentage)
 }
 
 // GetBankTransferFee returns the transfer fees to and from an exchange via

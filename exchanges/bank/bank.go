@@ -7,7 +7,7 @@ import (
 
 // Custom types for different internation banking options
 const (
-	NotApplicable Transfer = iota
+	NotApplicable Transfer = iota + 1
 	WireTransfer
 	ExpressWireTransfer
 	PerfectMoney

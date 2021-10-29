@@ -2,7 +2,6 @@ package exmo
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
@@ -178,66 +177,67 @@ type PairInformation struct {
 
 // transferFees the large list of predefined withdrawal and deposit fees.
 // Prone to change.
-var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
-	asset.Spot: {
-		currency.EXM:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(50)},
-		currency.ADA:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
-		currency.ALGO:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
-		currency.ATOM:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.05)},
-		currency.BCH:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
-		currency.BTC:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0005)},
-		currency.BTCV:    {Deposit: fee.Convert(0)},
-		currency.BTG:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
-		currency.BTT:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(100)},
-		currency.CHZ:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(30)},
-		currency.CRON:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.5)},
-		currency.DAI:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(7)},
-		currency.DASH:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.002)},
-		currency.DOGE:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
-		currency.ETC:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
-		currency.ETH:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.004)},
-		currency.GAS:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
-		currency.GNY:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(10)},
-		currency.GUSD:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(7)},
-		currency.HAI:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(50)},
-		currency.HB:      {Deposit: fee.Convert(0), Withdrawal: fee.Convert(4000)},
-		currency.HP:      {Deposit: fee.Convert(0), Withdrawal: fee.Convert(250)},
-		currency.IQN:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(3)},
-		currency.LINK:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.3)},
-		currency.LTC:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
-		currency.MKR:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.002)},
-		currency.MNC:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(4000)},
-		currency.NEO:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
-		currency.OMG:     {Deposit: fee.Convert(.1), Withdrawal: fee.Convert(1)},
-		currency.ONE:     {Withdrawal: fee.Convert(1)},
-		currency.ONG:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
-		currency.ONT:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
-		currency.PRQ:     {Withdrawal: fee.Convert(20)},
-		currency.QTUM:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
-		currency.ROOBEE:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1000)},
-		currency.SMART:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.5)},
-		currency.TONCOIN: {Withdrawal: fee.Convert(0.1)},
-		currency.TRX:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
-		currency.UNI:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.3)},
-		currency.USDC:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(25)},
-		currency.USDT:    {Deposit: fee.Convert(0), Withdrawal: fee.Convert(25)}, // TODO: TRC20 Chain
-		currency.VLX:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
-		currency.WAVES:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
-		currency.WXT:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(50)}, // TODO: ERC20 Chain
-		currency.XEM:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
-		currency.XLM:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
-		currency.XRP:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.02)},
-		currency.XTZ:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.1)},
-		currency.XYM:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.5)},
-		currency.YFI:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0002)},
-		currency.ZEC:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
-		currency.ZRC:     {Deposit: fee.Convert(0), Withdrawal: fee.Convert(28)},
-	},
+var transferFees = []fee.Transfer{
+	{Currency: currency.EXM, Deposit: fee.Convert(0), Withdrawal: fee.Convert(50)},
+	{Currency: currency.ADA, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+	{Currency: currency.ALGO, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+	{Currency: currency.ATOM, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.05)},
+	{Currency: currency.BCH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0005)},
+	{Currency: currency.BTCV, Deposit: fee.Convert(0)}, // No Withdrawal options
+	{Currency: currency.BTG, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+	{Currency: currency.BTT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(100)},
+	{Currency: currency.CHZ, Deposit: fee.Convert(0), Withdrawal: fee.Convert(30)},
+	{Currency: currency.CRON, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.5)},
+	{Currency: currency.DAI, Deposit: fee.Convert(0), Withdrawal: fee.Convert(7)},
+	{Currency: currency.DASH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.002)},
+	{Currency: currency.DOGE, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+	{Currency: currency.ETC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+	{Currency: currency.ETH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.004)},
+	{Currency: currency.GAS, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
+	{Currency: currency.GNY, Deposit: fee.Convert(0), Withdrawal: fee.Convert(10)},
+	{Currency: currency.GUSD, Deposit: fee.Convert(0), Withdrawal: fee.Convert(7)},
+	{Currency: currency.HAI, Deposit: fee.Convert(0), Withdrawal: fee.Convert(50)},
+	{Currency: currency.HB, Deposit: fee.Convert(0), Withdrawal: fee.Convert(4000)},
+	{Currency: currency.HP, Deposit: fee.Convert(0), Withdrawal: fee.Convert(250)},
+	{Currency: currency.IQN, Deposit: fee.Convert(0), Withdrawal: fee.Convert(3)},
+	{Currency: currency.LINK, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.3)},
+	{Currency: currency.LTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+	{Currency: currency.MKR, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.002)},
+	{Currency: currency.MNC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(4000)},
+	{Currency: currency.NEO, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
+	{Currency: currency.OMG, Deposit: fee.Convert(.1), Withdrawal: fee.Convert(1)},
+	{Currency: currency.ONE, Withdrawal: fee.Convert(1)}, // No deposit options
+	{Currency: currency.ONG, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
+	{Currency: currency.ONT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+	{Currency: currency.PRQ, Withdrawal: fee.Convert(20)},
+	{Currency: currency.QTUM, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+	{Currency: currency.ROOBEE, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1000)},
+	{Currency: currency.SMART, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.5)},
+	{Currency: currency.TONCOIN, Withdrawal: fee.Convert(0.1)}, // No deposit options
+	{Currency: currency.TRX, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+	{Currency: currency.UNI, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.3)},
+	{Currency: currency.USDC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(25)},
+	{Currency: currency.USDT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(25), Chain: "ERC20"},
+	{Currency: currency.USDT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(25), Chain: "TRC20"},
+	{Currency: currency.VLX, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+	{Currency: currency.WAVES, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+	{Currency: currency.WXT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(50), Chain: "ERC20"},
+	{Currency: currency.WXT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(50)},
+	{Currency: currency.XEM, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
+	{Currency: currency.XLM, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+	{Currency: currency.XRP, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.02)},
+	{Currency: currency.XTZ, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.1)},
+	{Currency: currency.XYM, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.5)},
+	{Currency: currency.YFI, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0002)},
+	{Currency: currency.ZEC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+	{Currency: currency.ZRC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(28)},
 }
 
 // transferBank the large list of predefined withdrawal and deposit fees for
 // fiat. Prone to change.
 var transferBank = map[bank.Transfer]map[currency.Code]fee.Transfer{
+	{Currency: currency.USD, BankTransfer: bank.Payeer, Deposit: fee.Convert(0), Withdrawal: fee.Convert(28)},
 	bank.Payeer: {
 		currency.USD: {Deposit: fee.Convert(0.0249), IsPercentage: true},
 		currency.RUB: {Withdrawal: fee.Convert(0.0199), IsPercentage: true},

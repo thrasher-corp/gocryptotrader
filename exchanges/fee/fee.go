@@ -29,6 +29,10 @@ var (
 
 	// OmitPair is a an empty pair designation for unused pair variables
 	OmitPair = currency.Pair{}
+
+	// AllAllowed defines a potential bank transfer when all foreign exchange
+	// currencies are allowed to operate.
+	AllAllowed = currency.NewCode("ALLALLOWED")
 )
 
 // NewFeeDefinitions generates a new fee struct for exchange usage
@@ -36,8 +40,8 @@ func NewFeeDefinitions() *Definitions {
 	return &Definitions{
 		globalCommissions: make(map[asset.Item]*CommissionInternal),
 		pairCommissions:   make(map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal),
-		transfers:         make(map[asset.Item]map[*currency.Item]*transfer),
-		bankingTransfers:  make(map[bank.Transfer]map[*currency.Item]*transfer),
+		chainTransfer:     make(map[*currency.Item]map[string]*transfer),
+		bankTransfer:      make(map[bank.Transfer]map[*currency.Item]*transfer),
 	}
 }
 
@@ -52,12 +56,12 @@ type Definitions struct {
 	pairCommissions map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal
 	// transfer defines a map of currencies with differing withdrawal and
 	// deposit fee definitions. These will commonly be real values.
-	transfers map[asset.Item]map[*currency.Item]*transfer
-	// BankingTransfer defines a map of currencies with differing withdrawal and
+	chainTransfer map[*currency.Item]map[string]*transfer
+	// bankTransfer defines a map of currencies with differing withdrawal and
 	// deposit fee definitions for banking. These will commonly be fixed real
 	// values.
-	bankingTransfers map[bank.Transfer]map[*currency.Item]*transfer
-	mtx              sync.RWMutex
+	bankTransfer map[bank.Transfer]map[*currency.Item]*transfer
+	mtx          sync.RWMutex
 }
 
 // LoadDynamic loads the current dynamic account fee structure for maker and
@@ -146,27 +150,23 @@ func (d *Definitions) LoadStatic(o Options) error {
 	}
 
 	// Loads exchange withdrawal and deposit fees
-	for as, m1 := range o.Transfer {
-		for code, value := range m1 {
-			cTrans, ok := d.transfers[as]
-			if !ok {
-				cTrans = make(map[*currency.Item]*transfer)
-				d.transfers[as] = cTrans
-			}
-			cTrans[code.Item] = value.convert()
+	for x := range o.ChainTransfer {
+		chainTransfer, ok := d.chainTransfer[o.ChainTransfer[x].Currency.Item]
+		if !ok {
+			chainTransfer = make(map[string]*transfer)
+			d.chainTransfer[o.ChainTransfer[x].Currency.Item] = chainTransfer
 		}
+		chainTransfer[o.ChainTransfer[x].Chain] = o.ChainTransfer[x].convert()
 	}
 
 	// Loads international banking withdrawal and deposit fees
-	for transactionType, m1 := range o.BankingTransfer {
-		for code, value := range m1 {
-			bTrans, ok := d.bankingTransfers[transactionType]
-			if !ok {
-				bTrans = make(map[*currency.Item]*transfer)
-				d.bankingTransfers[transactionType] = bTrans
-			}
-			bTrans[code.Item] = value.convert()
+	for x := range o.BankTransfer {
+		transferFees, ok := d.bankTransfer[o.BankTransfer[x].BankTransfer]
+		if !ok {
+			transferFees = make(map[*currency.Item]*transfer)
+			d.bankTransfer[o.BankTransfer[x].BankTransfer] = transferFees
 		}
+		transferFees[o.BankTransfer[x].Currency.Item] = o.BankTransfer[x].convert()
 	}
 	return nil
 }
@@ -307,14 +307,14 @@ func (d *Definitions) GetTaker(a asset.Item, pair currency.Pair) (fee float64, i
 }
 
 // CalculateDeposit returns calculated fee from the amount
-func (d *Definitions) CalculateDeposit(c currency.Code, a asset.Item, amount float64) (float64, error) {
+func (d *Definitions) CalculateDeposit(c currency.Code, chain string, amount float64) (float64, error) {
 	if d == nil {
 		return 0, ErrDefinitionsAreNil
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	t, err := d.get(c, a)
+	t, err := d.get(c, chain)
 	if err != nil {
 		return 0, err
 	}
@@ -322,14 +322,14 @@ func (d *Definitions) CalculateDeposit(c currency.Code, a asset.Item, amount flo
 }
 
 // GetDeposit returns the deposit fee associated with the currency
-func (d *Definitions) GetDeposit(c currency.Code, a asset.Item) (fee Value, isPercentage bool, err error) {
+func (d *Definitions) GetDeposit(c currency.Code, chain string) (fee Value, isPercentage bool, err error) {
 	if d == nil {
 		return nil, false, ErrDefinitionsAreNil
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	t, err := d.get(c, a)
+	t, err := d.get(c, chain)
 	if err != nil {
 		return nil, false, err
 	}
@@ -337,14 +337,14 @@ func (d *Definitions) GetDeposit(c currency.Code, a asset.Item) (fee Value, isPe
 }
 
 // CalculateDeposit returns calculated fee from the amount
-func (d *Definitions) CalculateWithdrawal(c currency.Code, a asset.Item, amount float64) (float64, error) {
+func (d *Definitions) CalculateWithdrawal(c currency.Code, chain string, amount float64) (float64, error) {
 	if d == nil {
 		return 0, ErrDefinitionsAreNil
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	t, err := d.get(c, a)
+	t, err := d.get(c, chain)
 	if err != nil {
 		return 0, err
 	}
@@ -352,26 +352,23 @@ func (d *Definitions) CalculateWithdrawal(c currency.Code, a asset.Item, amount 
 }
 
 // GetWithdrawal returns the withdrawal fee associated with the currency
-func (d *Definitions) GetWithdrawal(c currency.Code, a asset.Item) (fee Value, isPercentage bool, err error) {
+func (d *Definitions) GetWithdrawal(c currency.Code, chain string) (fee Value, isPercentage bool, err error) {
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	t, err := d.get(c, a)
+	t, err := d.get(c, chain)
 	if err != nil {
 		return nil, false, err
 	}
 	return t.Withdrawal, t.Percentage, nil
 }
 
-// get returns the fee structure by the currency and its asset type
-func (d *Definitions) get(c currency.Code, a asset.Item) (*transfer, error) {
+// get returns the fee structure by the currency and its chain type
+func (d *Definitions) get(c currency.Code, chain string) (*transfer, error) {
 	if c.String() == "" {
 		return nil, errCurrencyIsEmpty
 	}
 
-	if !a.IsValid() {
-		return nil, fmt.Errorf("%s, %w", a, asset.ErrNotSupported)
-	}
-	s, ok := d.transfers[a][c.Item]
+	s, ok := d.chainTransfer[c.Item][chain]
 	if !ok {
 		return nil, errTransferFeeNotFound
 	}
@@ -389,8 +386,6 @@ func (d *Definitions) GetAllFees() (Options, error) {
 	op := Options{
 		GlobalCommissions: make(map[asset.Item]Commission),
 		PairCommissions:   make(map[asset.Item]map[currency.Pair]Commission),
-		Transfer:          make(map[asset.Item]map[currency.Code]Transfer),
-		BankingTransfer:   make(map[bank.Transfer]map[currency.Code]Transfer),
 	}
 
 	for a, value := range d.globalCommissions {
@@ -411,20 +406,22 @@ func (d *Definitions) GetAllFees() (Options, error) {
 		}
 	}
 
-	for as, m1 := range d.transfers {
-		temp := make(map[currency.Code]Transfer)
-		for c, val := range m1 {
-			temp[currency.Code{Item: c, UpperCase: true}] = val.convert()
+	for currencyItem, m1 := range d.chainTransfer {
+		for chain, val := range m1 {
+			out := val.convert()
+			out.Currency = currency.Code{Item: currencyItem, UpperCase: true}
+			out.Chain = chain
+			op.ChainTransfer = append(op.ChainTransfer, out)
 		}
-		op.Transfer[as] = temp
 	}
 
-	for bankingID, m1 := range d.bankingTransfers {
-		temp := make(map[currency.Code]Transfer)
-		for c, val := range m1 {
-			temp[currency.Code{Item: c, UpperCase: true}] = val.convert()
+	for bankProtocol, m1 := range d.bankTransfer {
+		for currencyItem, val := range m1 {
+			out := val.convert()
+			out.Currency = currency.Code{Item: currencyItem, UpperCase: true}
+			out.BankTransfer = bankProtocol
+			op.BankTransfer = append(op.BankTransfer, out)
 		}
-		op.BankingTransfer[bankingID] = temp
 	}
 	return op, nil
 }
@@ -455,7 +452,7 @@ func (d *Definitions) SetCommissionFee(a asset.Item, pair currency.Pair, maker, 
 
 // GetTransferFee returns a snapshot of the current Commission rate for the
 // asset type.
-func (d *Definitions) GetTransferFee(c currency.Code, a asset.Item) (Transfer, error) {
+func (d *Definitions) GetTransferFee(c currency.Code, chain string) (Transfer, error) {
 	if d == nil {
 		return Transfer{}, ErrDefinitionsAreNil
 	}
@@ -464,13 +461,9 @@ func (d *Definitions) GetTransferFee(c currency.Code, a asset.Item) (Transfer, e
 		return Transfer{}, errCurrencyIsEmpty
 	}
 
-	if !a.IsValid() {
-		return Transfer{}, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
-	}
-
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	t, ok := d.transfers[a][c.Item]
+	t, ok := d.chainTransfer[c.Item][chain]
 	if !ok {
 		return Transfer{}, errRateNotFound
 	}
@@ -480,7 +473,7 @@ func (d *Definitions) GetTransferFee(c currency.Code, a asset.Item) (Transfer, e
 // SetTransferFees sets new transfer fees
 // TODO: need min and max settings might deprecate due to complexity of value
 // types
-func (d *Definitions) SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, isPercentage bool) error {
+func (d *Definitions) SetTransferFee(c currency.Code, chain string, withdraw, deposit float64, isPercentage bool) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}
@@ -493,17 +486,13 @@ func (d *Definitions) SetTransferFee(c currency.Code, a asset.Item, withdraw, de
 		return errDepositIsInvalid
 	}
 
-	if !a.IsValid() {
-		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
-	}
-
 	if c.String() == "" {
 		return errCurrencyIsEmpty
 	}
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	t, ok := d.transfers[a][c.Item]
+	t, ok := d.chainTransfer[c.Item][chain]
 	if !ok {
 		return errTransferFeeNotFound
 	}
@@ -536,7 +525,7 @@ func (d *Definitions) GetBankTransferFee(c currency.Code, transType bank.Transfe
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	t, ok := d.bankingTransfers[transType][c.Item]
+	t, ok := d.bankTransfer[transType][c.Item]
 	if !ok {
 		return Transfer{}, errRateNotFound
 	}
@@ -570,7 +559,7 @@ func (d *Definitions) SetBankTransferFee(c currency.Code, transType bank.Transfe
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	tFee, ok := d.bankingTransfers[transType][c.Item]
+	tFee, ok := d.bankTransfer[transType][c.Item]
 	if !ok {
 		return errBankTransferFeeNotFound
 	}
@@ -588,7 +577,7 @@ var errNoTransferFees = errors.New("missing transfer fees to load")
 
 // LoadTransferFees allows the loading of current transfer fees for
 // cryptocurrency deposit and withdrawals
-func (d *Definitions) LoadTransferFees(fees map[asset.Item]map[currency.Code]Transfer) error {
+func (d *Definitions) LoadTransferFees(fees map[string]map[currency.Code]Transfer) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}
@@ -599,19 +588,19 @@ func (d *Definitions) LoadTransferFees(fees map[asset.Item]map[currency.Code]Tra
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	for assetItem, m1 := range fees {
+	for chain, m1 := range fees {
 		for code, incomingVal := range m1 {
-			trAssets, ok := d.transfers[assetItem]
+			m1, ok := d.chainTransfer[code.Item]
 			if !ok {
-				trAssets = make(map[*currency.Item]*transfer)
-				d.transfers[assetItem] = trAssets
+				m1 = make(map[string]*transfer)
+				d.chainTransfer[code.Item] = m1
 			}
-			trVal, ok := trAssets[code.Item]
+			val, ok := m1[chain]
 			if !ok {
-				trAssets[code.Item] = incomingVal.convert()
+				m1[chain] = incomingVal.convert()
 				continue
 			}
-			err := trVal.update(incomingVal)
+			err := val.update(incomingVal)
 			if err != nil {
 				return fmt.Errorf("loading crypto fees error: %w", err)
 			}
@@ -635,10 +624,10 @@ func (d *Definitions) LoadBankTransferFees(fees map[bank.Transfer]map[currency.C
 	defer d.mtx.Unlock()
 	for bankType, m1 := range fees {
 		for code, incomingVal := range m1 {
-			trAssets, ok := d.bankingTransfers[bankType]
+			trAssets, ok := d.bankTransfer[bankType]
 			if !ok {
 				trAssets = make(map[*currency.Item]*transfer)
-				d.bankingTransfers[bankType] = trAssets
+				d.bankTransfer[bankType] = trAssets
 			}
 			trVal, ok := trAssets[code.Item]
 			if !ok {

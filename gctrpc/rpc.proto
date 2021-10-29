@@ -1005,7 +1005,7 @@ message Commission {
 
 message TransferFees {
     string currency = 1;
-    string asset = 2;
+    string chain = 2;
     bool deposit_enabled = 3;
     string deposit = 4;
     string maximum_deposit = 5;
@@ -1030,7 +1030,7 @@ message SetCommissionRequest {
 message SetTransferFeeRequest {
     string exchange = 1;
     string currency = 2;
-    string asset = 3;
+    string chain = 3;
     double withdraw = 4;
     double deposit = 5;
     bool is_percentage = 6;
