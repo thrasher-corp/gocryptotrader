@@ -90,13 +90,13 @@ func (by *Bybit) GetUSDTFuturesKlineData(symbol currency.Pair, interval string, 
 }
 
 // GetUSDTPublicTrades gets past public trades for USDTMarginedFutures.
-func (by *Bybit) GetUSDTPublicTrades(symbol currency.Pair, limit, fromID int64) ([]FuturesPublicTradesData, error) {
+func (by *Bybit) GetUSDTPublicTrades(symbol currency.Pair, limit int64) ([]FuturesPublicTradesData, error) {
 	resp := struct {
 		Data []FuturesPublicTradesData `json:"result"`
 	}{}
 
 	params := url.Values{}
-	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -106,5 +106,128 @@ func (by *Bybit) GetUSDTPublicTrades(symbol currency.Pair, limit, fromID int64) 
 	}
 
 	path := common.EncodeURLValues(ufuturesRecentTrades, params)
+	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, &resp)
+}
+
+// GetMarkPriceKline gets mark price kline data for USDTMarginedFutures.
+func (by *Bybit) GetUSDTMarkPriceKline(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]MarkPriceKlineData, error) {
+	resp := struct {
+		Data []MarkPriceKlineData `json:"result"`
+	}{}
+
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
+	if limit > 0 && limit <= 200 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
+		return resp.Data, errors.New("invalid interval parsed")
+	}
+	params.Set("interval", interval)
+	if !startTime.IsZero() {
+		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
+	} else {
+		return resp.Data, errors.New("startTime can't be zero or missing")
+	}
+
+	path := common.EncodeURLValues(ufuturesMarkPriceKline, params)
+	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, &resp)
+}
+
+// GetUSDTIndexPriceKline gets index price kline data for USDTMarginedFutures.
+func (by *Bybit) GetUSDTIndexPriceKline(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {
+	resp := struct {
+		Data []IndexPriceKlineData `json:"result"`
+	}{}
+
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
+	if limit > 0 && limit <= 200 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
+		return resp.Data, errors.New("invalid interval parsed")
+	}
+	params.Set("interval", interval)
+	if !startTime.IsZero() {
+		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
+	} else {
+		return resp.Data, errors.New("startTime can't be zero or missing")
+	}
+
+	path := common.EncodeURLValues(ufuturesIndexKline, params)
+	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, &resp)
+}
+
+// GetUSDTPremiumIndexPriceKline gets premium index price kline data for USDTMarginedFutures.
+func (by *Bybit) GetUSDTPremiumIndexPriceKline(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {
+	resp := struct {
+		Data []IndexPriceKlineData `json:"result"`
+	}{}
+
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
+	if limit > 0 && limit <= 200 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
+		return resp.Data, errors.New("invalid interval parsed")
+	}
+	params.Set("interval", interval)
+	if !startTime.IsZero() {
+		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
+	} else {
+		return resp.Data, errors.New("startTime can't be zero or missing")
+	}
+
+	path := common.EncodeURLValues(ufuturesIndexPremiumKline, params)
+	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, &resp)
+}
+
+// GetUSDTLastFundingRate returns latest generated funding fee
+func (by *Bybit) GetUSDTLastFundingRate(symbol currency.Pair) (FundingInfo, error) {
+	resp := struct {
+		Data FundingInfo `json:"result"`
+	}{}
+
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
+
+	path := common.EncodeURLValues(ufuturesGetLastFundingRate, params)
+	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, &resp)
+}
+
+// GetUSDTRiskLimit returns risk limit
+func (by *Bybit) GetUSDTRiskLimit(symbol currency.Pair) ([]RiskInfo, error) {
+	resp := struct {
+		Data []RiskInfo `json:"result"`
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+		if err != nil {
+			return resp.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	}
+
+	path := common.EncodeURLValues(ufuturesGetRiskLimit, params)
 	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, &resp)
 }
