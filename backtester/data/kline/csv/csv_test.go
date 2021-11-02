@@ -62,4 +62,16 @@ func TestLoadDataInvalid(t *testing.T) {
 	if !errors.Is(err, common.ErrInvalidDataType) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
 	}
+
+	_, err = LoadData(
+		-1,
+		filepath.Join("..", "..", "..", "..", "testdata", "binance_BTCUSDT_24h-trades_2020_11_16.csv"),
+		exch,
+		gctkline.FifteenMin.Duration(),
+		p,
+		a,
+		true)
+	if !errors.Is(err, errNoUSDData) {
+		t.Errorf("received: %v, expected: %v", err, errNoUSDData)
+	}
 }

@@ -214,4 +214,9 @@ func TestLoadDataInvalid(t *testing.T) {
 	if !errors.Is(err, common.ErrInvalidDataType) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
 	}
+
+	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, -1, p, a, true)
+	if !errors.Is(err, errNoUSDData) {
+		t.Errorf("received: %v, expected: %v", err, errNoUSDData)
+	}
 }

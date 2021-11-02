@@ -1,6 +1,7 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -13,6 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+var errNoUSDData = errors.New("could not retrieve USD database candle data")
 
 // LoadData retrieves data from an existing database using GoCryptoTrader's database handling implementation
 func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName string, dataType int64, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
@@ -58,7 +61,7 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 		resp.Item = klineItem
 	default:
 		if isUSDTrackingPair {
-			return nil, fmt.Errorf("could not retrieve USD database trade data for %v %v %v. Please add USD pair data to your CSV or set `disable-usd-tracking` to `true` in your config", exchangeName, a, fPair)
+			return nil, fmt.Errorf("%w for %v %v %v. Please add USD pair data to your CSV or set `disable-usd-tracking` to `true` in your config", errNoUSDData, exchangeName, a, fPair)
 		}
 		return nil, fmt.Errorf("could not retrieve database data for %v %v %v, %w", exchangeName, a, fPair, common.ErrInvalidDataType)
 	}
