@@ -31,7 +31,7 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 			a)
 		if err != nil {
 			if isUSDTrackingPair {
-				return nil, fmt.Errorf("could not retrieve USD database candle data for %v %v %v. Please save USD pair data to the database or set `disable-usd-tracking` to `true` in your config. %v", exchangeName, a, fPair, err)
+				return nil, fmt.Errorf("%w for %v %v %v. Please save USD candle pair data to the database or set `disable-usd-tracking` to `true` in your config. %v", errNoUSDData, exchangeName, a, fPair, err)
 			}
 			return nil, fmt.Errorf("could not retrieve database candle data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
@@ -56,6 +56,9 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 			gctkline.Interval(interval),
 			trades...)
 		if err != nil {
+			if isUSDTrackingPair {
+				return nil, fmt.Errorf("%w for %v %v %v. Please save USD pair trade data to the database or set `disable-usd-tracking` to `true` in your config. %v", errNoUSDData, exchangeName, a, fPair, err)
+			}
 			return nil, fmt.Errorf("could not retrieve database trade data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
 		resp.Item = klineItem
