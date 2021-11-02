@@ -951,11 +951,24 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		default:
 			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
 		}
-		o, err := b.FuturesNewOrder(ctx,
-			s.Pair, reqSide,
-			"", oType, "GTC", "",
-			s.ClientOrderID, "", "",
-			s.Amount, s.Price, 0, 0, 0, s.ReduceOnly)
+		o, err := b.FuturesNewOrder(
+			ctx,             // ctx
+			s.Pair,          // symbol
+			reqSide,         // side
+			"",              // positionSide
+			oType,           // orderType
+			"GTC",           // timeInForce
+			s.ClientOrderID, // newClientOrderID
+			"",              // closePosition
+			"",              // workingType
+			"",              // newOrderRespType
+			s.Amount,        // quantity
+			s.Price,         // price
+			0,               // stopPrice
+			0,               // activationPrice
+			0,               // callbackRate
+			s.ReduceOnly,    // reduceOnly
+		)
 		if err != nil {
 			return submitOrderResponse, err
 		}

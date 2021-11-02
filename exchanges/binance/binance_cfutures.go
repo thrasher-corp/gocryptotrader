@@ -973,9 +973,24 @@ func (b *Binance) GetFuturesBasisData(ctx context.Context, pair, contractType, p
 }
 
 // FuturesNewOrder sends a new futures order to the exchange
-func (b *Binance) FuturesNewOrder(ctx context.Context, symbol currency.Pair, side, positionSide, orderType, timeInForce,
-	newClientOrderID, closePosition, workingType, newOrderRespType string,
-	quantity, price, stopPrice, activationPrice, callbackRate float64, reduceOnly bool) (FuturesOrderPlaceData, error) {
+func (b *Binance) FuturesNewOrder(
+	ctx context.Context,
+	symbol currency.Pair,
+	side,
+	positionSide,
+	orderType,
+	timeInForce,
+	newClientOrderID,
+	closePosition,
+	workingType,
+	newOrderRespType string,
+	quantity,
+	price,
+	stopPrice,
+	activationPrice,
+	callbackRate float64,
+	reduceOnly bool,
+) (FuturesOrderPlaceData, error) {
 	var resp FuturesOrderPlaceData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
