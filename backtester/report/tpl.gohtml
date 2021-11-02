@@ -754,6 +754,7 @@
 								text: 'Holding value over strategy duration'
 							},
 							yAxis: {
+								type: 'logarithmic',
 								title: {
 									text: 'USD'
 								}
@@ -777,9 +778,11 @@
 								{{ range .USDTotalsChart }}
 								{
 									name: {{.Name}},
+									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
+									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
 									data: [
 										{{ range .DataPoints }}
-										[Date.UTC({{.Year}},{{.Month}},{{.Day}},{{.Hour}},{{.Second}}), {{.Value}}],
+											[{{.UnixMilli}}, {{.Value}}],
 										{{end}}
 									]
 								},
@@ -813,6 +816,7 @@
 								text: 'Holdings over strategy duration'
 							},
 							yAxis: {
+								type: 'logarithmic',
 								title: {
 									text: 'Quantity'
 								}
@@ -835,10 +839,12 @@
 							series: [
 								{{ range .HoldingsOverTimeChart }}
 								{
+									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
+									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
 									name: {{.Name}},
 									data: [
 										{{ range .DataPoints }}
-										[Date.UTC({{.Year}},{{.Month}},{{.Day}},{{.Hour}},{{.Second}}), {{.Value}}],
+											[{{.UnixMilli}},{{.Value}}],
 										{{end}}
 									]
 								},
@@ -872,18 +878,8 @@
 									i = 0;
 
 							{{ range .Candles}}
-							ohlc.push([
-								Date.UTC({{.Year}},{{.Month}},{{.Day}},{{.Hour}},{{.Second}}),
-								{{.Open}},
-								{{.High}},
-								{{.Low}},
-								{{.Close}},
-							]);
-
-							volume.push([
-								Date.UTC({{.Year}},{{.Month}},{{.Day}},{{.Hour}},{{.Second}}),
-								{{.Volume}},
-							]);
+							ohlc.push([{{.UnixMilli}},{{.Open}},{{.High}},{{.Low}},{{.Close}}]);
+							volume.push([{{.UnixMilli}},{{.Volume}}]);
 							{{end}}
 
 
@@ -908,6 +904,8 @@
 									type: 'datetime'
 								},
 								series: [{
+									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
+									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
 									type: 'candlestick',
 									id: '{{.Exchange}}{{.Asset}}{{.Pair}}-ohlc',
 									name: '{{.Exchange}} {{.Asset}} {{.Pair}} Prices',
@@ -921,12 +919,14 @@
 										type: 'flags',
 										name: 'Flags on series',
 										allowOverlapX: true,
+										pointStart: {{ $.Statistics.StartDate.UnixMilli }},
+										pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
 										data:
 												[
 													{{range .Candles}}
 													{{ if .Text }}
 													{
-														x: Date.UTC({{.Year}},{{.Month}},{{.Day}},{{.Hour}},{{.Second}}) ,
+														x: {{.UnixMilli}},
 														title: {{.Text}},
 														text: {{.OrderAmount}} + ' @ ' + {{.PurchasePrice}}
 													},

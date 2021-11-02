@@ -176,6 +176,8 @@ func (s *Statistic) CalculateAllResults() error {
 				stats.FinalHoldings = last.Holdings
 				stats.InitialHoldings = stats.Events[0].Holdings
 				stats.FinalOrders = last.Transactions
+				s.StartDate = stats.Events[0].DataEvent.GetTime()
+				s.EndDate = last.DataEvent.GetTime()
 
 				finalResults = append(finalResults, FinalResultsHolder{
 					Exchange:         exchangeName,

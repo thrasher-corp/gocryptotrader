@@ -54,13 +54,9 @@ type TotalsChart struct {
 // ChartPlot holds value data
 // for a chart
 type ChartPlot struct {
-	Value  float64
-	Year   int64
-	Month  int64
-	Day    int64
-	Hour   int64
-	Second int64
-	Flag   string
+	Value     float64
+	UnixMilli int64
+	Flag      string
 }
 
 // Warning holds any candle warnings
@@ -84,11 +80,7 @@ type DetailedKline struct {
 
 // DetailedCandle contains extra details to enable rich reporting results
 type DetailedCandle struct {
-	Year           int64
-	Month          int64
-	Day            int64
-	Hour           int64
-	Second         int64
+	UnixMilli      int64
 	Open           float64
 	High           float64
 	Low            float64

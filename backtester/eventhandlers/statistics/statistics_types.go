@@ -35,8 +35,8 @@ type Statistic struct {
 	StrategyDescription         string                                                             `json:"strategy-description"`
 	StrategyNickname            string                                                             `json:"strategy-nickname"`
 	StrategyGoal                string                                                             `json:"strategy-goal"`
-	StartDate                   time.Time                                                          `json:"start-time"`
-	EndTime                     time.Time                                                          `json:"end-time"`
+	StartDate                   time.Time                                                          `json:"start-date"`
+	EndDate                     time.Time                                                          `json:"end-date"`
 	CandleInterval              gctkline.Interval                                                  `json:"candle-interval"`
 	RiskFreeRate                decimal.Decimal                                                    `json:"risk-free-rate"`
 	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic `json:"exchange-asset-pair-statistics"`

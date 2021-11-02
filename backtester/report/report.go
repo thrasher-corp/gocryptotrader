@@ -93,12 +93,8 @@ func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 	var usdTotalChartPlot []ChartPlot
 	for i := range d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues {
 		usdTotalChartPlot = append(usdTotalChartPlot, ChartPlot{
-			Value:  d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Value.InexactFloat64(),
-			Year:   int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Year()),
-			Month:  int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Month()),
-			Day:    int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Day()),
-			Hour:   int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Hour()),
-			Second: int64(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().Second()),
+			Value:     d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Value.InexactFloat64(),
+			UnixMilli: d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().UnixMilli(),
 		})
 	}
 	response = append(response, TotalsChart{
@@ -110,12 +106,8 @@ func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 		var plots []ChartPlot
 		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
 			plots = append(plots, ChartPlot{
-				Value:  d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].USDValue.InexactFloat64(),
-				Year:   int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Year()),
-				Month:  int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Month()),
-				Day:    int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Day()),
-				Hour:   int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Hour()),
-				Second: int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Second()),
+				Value:     d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].USDValue.InexactFloat64(),
+				UnixMilli: d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
 			})
 		}
 		response = append(response, TotalsChart{
@@ -138,12 +130,8 @@ func (d *Data) CreateHoldingsOverTimeChart() []TotalsChart {
 		var plots []ChartPlot
 		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
 			plots = append(plots, ChartPlot{
-				Value:  d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
-				Year:   int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Year()),
-				Month:  int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Month()),
-				Day:    int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Day()),
-				Hour:   int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Hour()),
-				Second: int64(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().Second()),
+				Value:     d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
+				UnixMilli: d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
 			})
 		}
 		response = append(response, TotalsChart{
@@ -206,11 +194,7 @@ func (d *Data) enhanceCandles() error {
 			_, offset := time.Now().Zone()
 			tt := d.OriginalCandles[intVal].Candles[j].Time.Add(time.Duration(offset) * time.Second)
 			enhancedCandle := DetailedCandle{
-				Year:         int64(tt.UTC().Year()),
-				Month:        int64(tt.UTC().Month()),
-				Day:          int64(tt.UTC().Day()),
-				Hour:         int64(tt.UTC().Hour()),
-				Second:       int64(tt.UTC().Second()),
+				UnixMilli:    tt.UTC().UnixMilli(),
 				Open:         d.OriginalCandles[intVal].Candles[j].Open,
 				High:         d.OriginalCandles[intVal].Candles[j].High,
 				Low:          d.OriginalCandles[intVal].Candles[j].Low,
@@ -274,7 +258,6 @@ func (d *DetailedCandle) copyCloseFromPreviousEvent(enhancedKline *DetailedKline
 	d.High = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
 	d.Low = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
 	d.Close = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-
 	d.Colour = "white"
 	d.Position = "aboveBar"
 	d.Shape = "arrowDown"
