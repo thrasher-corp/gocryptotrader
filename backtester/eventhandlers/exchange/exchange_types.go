@@ -36,11 +36,11 @@ type Exchange struct {
 
 // Settings allow the eventhandler to size an order within the limitations set by the config file
 type Settings struct {
-	ExchangeName  string
+	Exchange      string
 	UseRealOrders bool
 
-	CurrencyPair currency.Pair
-	AssetType    asset.Item
+	Pair  currency.Pair
+	Asset asset.Item
 
 	ExchangeFee decimal.Decimal
 	MakerFee    decimal.Decimal

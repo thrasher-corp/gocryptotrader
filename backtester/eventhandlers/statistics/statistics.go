@@ -375,7 +375,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 	if len(errs) > 0 {
 		log.Info(log.BackTester, "------------------Errors-------------------------------------")
 		for i := range errs {
-			log.Info(log.BackTester, errs[i].Error())
+			log.Error(log.BackTester, errs[i].Error())
 		}
 	}
 }

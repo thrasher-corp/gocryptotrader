@@ -72,8 +72,8 @@ func TestCalculateFundingStatistics(t *testing.T) {
 
 	cs := make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
+	if !errors.Is(err, errNoRelevantStatsFound) {
+		t.Errorf("received %v expected %v", err, errNoRelevantStatsFound)
 	}
 
 	f = funding.SetupFundingManager(true, false)

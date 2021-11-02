@@ -26,7 +26,13 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		Report: report,
 	}
 	for i := range report.Items {
-		exchangeAssetStats := currStats[report.Items[i].Exchange][report.Items[i].Asset]
+		exchangeAssetStats, ok := currStats[report.Items[i].Exchange][report.Items[i].Asset]
+		if !ok {
+			return nil, fmt.Errorf("%w for %v %v",
+				errNoRelevantStatsFound,
+				report.Items[i].Exchange,
+				report.Items[i].Asset)
+		}
 		var relevantStats []relatedCurrencyPairStatistics
 		for k, v := range exchangeAssetStats {
 			if k.Base == report.Items[i].Currency {
@@ -104,8 +110,12 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 	benchmarkRates = benchmarkRates[1:]
 	returnsPerCandle = returnsPerCandle[1:]
 	usdStats.BenchmarkMarketMovement = benchmarkMovement.Sub(usdStats.HoldingValues[0].Value).Div(usdStats.HoldingValues[0].Value).Mul(decimal.NewFromInt(100))
-	usdStats.MaxDrawdown = CalculateBiggestValueAtTimeDrawdown(usdStats.HoldingValues, interval)
 	var err error
+	usdStats.MaxDrawdown, err = CalculateBiggestValueAtTimeDrawdown(usdStats.HoldingValues, interval)
+	if err != nil {
+		return nil, err
+	}
+
 	sep := "USD Totals |\t"
 	usdStats.ArithmeticRatios, usdStats.GeometricRatios, err = CalculateRatios(benchmarkRates, returnsPerCandle, riskFreeRatePerCandle, &usdStats.MaxDrawdown, sep)
 	if err != nil {
@@ -219,6 +229,7 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 	return item, nil
 }
 
+// PrintResults outputs all calculated funding statistics to the command line
 func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	if f.Report == nil {
 		return fmt.Errorf("%w requires report to be generated", common.ErrNilArguments)

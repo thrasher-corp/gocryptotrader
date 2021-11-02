@@ -138,7 +138,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		funds.IncreaseAvailable(limitReducedAmount.Mul(adjustedPrice), f.GetDirection())
 	}
 
-	ords, _ := orderManager.GetOrdersSnapshot("")
+	ords := orderManager.GetOrdersSnapshot("")
 	for i := range ords {
 		if ords[i].ID != orderID {
 			continue
@@ -313,16 +313,16 @@ func applySlippageToPrice(direction gctorder.Side, price, slippageRate decimal.D
 
 // SetExchangeAssetCurrencySettings sets the settings for an exchange, asset, currency
 func (e *Exchange) SetExchangeAssetCurrencySettings(exch string, a asset.Item, cp currency.Pair, c *Settings) {
-	if c.ExchangeName == "" ||
-		c.AssetType == "" ||
-		c.CurrencyPair.IsEmpty() {
+	if c.Exchange == "" ||
+		c.Asset == "" ||
+		c.Pair.IsEmpty() {
 		return
 	}
 
 	for i := range e.CurrencySettings {
-		if e.CurrencySettings[i].CurrencyPair == cp &&
-			e.CurrencySettings[i].AssetType == a &&
-			exch == e.CurrencySettings[i].ExchangeName {
+		if e.CurrencySettings[i].Pair == cp &&
+			e.CurrencySettings[i].Asset == a &&
+			exch == e.CurrencySettings[i].Exchange {
 			e.CurrencySettings[i] = *c
 			return
 		}
@@ -333,9 +333,9 @@ func (e *Exchange) SetExchangeAssetCurrencySettings(exch string, a asset.Item, c
 // GetCurrencySettings returns the settings for an exchange, asset currency
 func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pair) (Settings, error) {
 	for i := range e.CurrencySettings {
-		if e.CurrencySettings[i].CurrencyPair.Equal(cp) {
-			if e.CurrencySettings[i].AssetType == a {
-				if exch == e.CurrencySettings[i].ExchangeName {
+		if e.CurrencySettings[i].Pair.Equal(cp) {
+			if e.CurrencySettings[i].Asset == a {
+				if exch == e.CurrencySettings[i].Exchange {
 					return e.CurrencySettings[i], nil
 				}
 			}

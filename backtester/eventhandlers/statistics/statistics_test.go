@@ -796,3 +796,108 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
+
+func TestCalculateMaxDrawdown(t *testing.T) {
+	tt1 := time.Now().Add(-gctkline.OneDay.Duration() * 7).Round(gctkline.OneDay.Duration())
+	exch := testExchange
+	a := asset.Spot
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	var events []common.DataEventHandler
+	for i := int64(0); i < 100; i++ {
+		tt1 = tt1.Add(gctkline.OneDay.Duration())
+		even := event.Base{
+			Exchange:     exch,
+			Time:         tt1,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    a,
+		}
+		if i == 50 {
+			// throw in a wrench, a spike in price
+			events = append(events, &kline.Kline{
+				Base:  even,
+				Close: decimal.NewFromInt(1336),
+				High:  decimal.NewFromInt(1336),
+				Low:   decimal.NewFromInt(1336),
+			})
+		} else {
+			events = append(events, &kline.Kline{
+				Base:  even,
+				Close: decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
+				High:  decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
+				Low:   decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
+			})
+		}
+	}
+
+	tt1 = tt1.Add(gctkline.OneDay.Duration())
+	even := event.Base{
+		Exchange:     exch,
+		Time:         tt1,
+		Interval:     gctkline.OneDay,
+		CurrencyPair: p,
+		AssetType:    a,
+	}
+	events = append(events, &kline.Kline{
+		Base:  even,
+		Close: decimal.NewFromInt(1338),
+		High:  decimal.NewFromInt(1338),
+		Low:   decimal.NewFromInt(1338),
+	})
+
+	tt1 = tt1.Add(gctkline.OneDay.Duration())
+	even = event.Base{
+		Exchange:     exch,
+		Time:         tt1,
+		Interval:     gctkline.OneDay,
+		CurrencyPair: p,
+		AssetType:    a,
+	}
+	events = append(events, &kline.Kline{
+		Base:  even,
+		Close: decimal.NewFromInt(1337),
+		High:  decimal.NewFromInt(1337),
+		Low:   decimal.NewFromInt(1337),
+	})
+
+	tt1 = tt1.Add(gctkline.OneDay.Duration())
+	even = event.Base{
+		Exchange:     exch,
+		Time:         tt1,
+		Interval:     gctkline.OneDay,
+		CurrencyPair: p,
+		AssetType:    a,
+	}
+	events = append(events, &kline.Kline{
+		Base:  even,
+		Close: decimal.NewFromInt(1339),
+		High:  decimal.NewFromInt(1339),
+		Low:   decimal.NewFromInt(1339),
+	})
+
+	_, err := CalculateBiggestEventDrawdown(nil)
+	if !errors.Is(err, errReceivedNoData) {
+		t.Errorf("received %v expected %v", err, errReceivedNoData)
+	}
+
+	resp, err := CalculateBiggestEventDrawdown(events)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if resp.Highest.Value != decimal.NewFromInt(1337) && !resp.Lowest.Value.Equal(decimal.NewFromInt(1238)) {
+		t.Error("unexpected max drawdown")
+	}
+}
+
+func TestCalculateBiggestValueAtTimeDrawdown(t *testing.T) {
+	var interval gctkline.Interval
+	_, err := CalculateBiggestValueAtTimeDrawdown(nil, interval)
+	if !errors.Is(err, errReceivedNoData) {
+		t.Errorf("received %v expected %v", err, errReceivedNoData)
+	}
+
+	_, err = CalculateBiggestValueAtTimeDrawdown(nil, interval)
+	if !errors.Is(err, errReceivedNoData) {
+		t.Errorf("received %v expected %v", err, errReceivedNoData)
+	}
+}

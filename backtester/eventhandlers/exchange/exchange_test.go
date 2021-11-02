@@ -49,10 +49,10 @@ func TestSetCurrency(t *testing.T) {
 		t.Error("expected 0")
 	}
 	cs := &Settings{
-		ExchangeName:        testExchange,
+		Exchange:            testExchange,
 		UseRealOrders:       true,
-		CurrencyPair:        currency.NewPair(currency.BTC, currency.USDT),
-		AssetType:           asset.Spot,
+		Pair:                currency.NewPair(currency.BTC, currency.USDT),
+		Asset:               asset.Spot,
 		ExchangeFee:         decimal.Zero,
 		MakerFee:            decimal.Zero,
 		TakerFee:            decimal.Zero,
@@ -231,10 +231,10 @@ func TestExecuteOrder(t *testing.T) {
 	}
 
 	cs := Settings{
-		ExchangeName:        testExchange,
+		Exchange:            testExchange,
 		UseRealOrders:       false,
-		CurrencyPair:        p,
-		AssetType:           a,
+		Pair:                p,
+		Asset:               a,
 		ExchangeFee:         decimal.NewFromFloat(0.01),
 		MakerFee:            decimal.NewFromFloat(0.01),
 		TakerFee:            decimal.NewFromFloat(0.01),
@@ -345,10 +345,10 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 
 	cs := Settings{
-		ExchangeName:  testExchange,
+		Exchange:      testExchange,
 		UseRealOrders: false,
-		CurrencyPair:  p,
-		AssetType:     a,
+		Pair:          p,
+		Asset:         a,
 		ExchangeFee:   decimal.NewFromFloat(0.01),
 		MakerFee:      decimal.NewFromFloat(0.01),
 		TakerFee:      decimal.NewFromFloat(0.01),

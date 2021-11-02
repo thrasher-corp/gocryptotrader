@@ -169,6 +169,16 @@ func TestFloatToCommaSeparatedString(t *testing.T) {
 		t.Error("expected ','")
 	}
 
+	test = FloatToCommaSeparatedString(-1000, 3, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = FloatToCommaSeparatedString(-1000, 3000000, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
 	test = FloatToCommaSeparatedString(1000.1337, 1, ".", ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
@@ -211,6 +221,16 @@ func TestDecimalToCommaSeparatedString(t *testing.T) {
 		t.Error("expected decimal place")
 	}
 
+	test = DecimalToCommaSeparatedString(decimal.NewFromFloat(-1000.1337), 1, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = DecimalToCommaSeparatedString(decimal.NewFromFloat(-1000.1337), 100000, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
 	test = DecimalToCommaSeparatedString(decimal.NewFromFloat(1000.1), 10, ".", ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
@@ -241,6 +261,11 @@ func TestIntToCommaSeparatedString(t *testing.T) {
 		t.Error("expected ','")
 	}
 
+	test = IntToCommaSeparatedString(-1000, ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
 	test = IntToCommaSeparatedString(1000000, ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
@@ -248,5 +273,12 @@ func TestIntToCommaSeparatedString(t *testing.T) {
 	dec := strings.Split(test, ",")
 	if len(dec) <= 2 {
 		t.Error("expected two commas place")
+	}
+}
+
+func TestNumberToCommaSeparatedString(t *testing.T) {
+	resp := numberToCommaSeparatedString("1", 1337, ".", ",", false)
+	if strings.Contains(resp, ".") {
+		t.Error("expected no comma")
 	}
 }

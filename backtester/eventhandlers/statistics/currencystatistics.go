@@ -196,22 +196,23 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	if len(errs) > 0 {
 		log.Info(log.BackTester, "------------------Errors-------------------------------------")
 		for i := range errs {
-			log.Info(log.BackTester, errs[i].Error())
+			log.Error(log.BackTester, errs[i].Error())
 		}
 	}
 }
 
 // CalculateBiggestEventDrawdown calculates the biggest drawdown using a slice of DataEvents
 func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing, error) {
-	var lowestPrice, highestPrice decimal.Decimal
-	var lowestTime, highestTime time.Time
-	var swings []Swing
-	if len(closePrices) > 0 {
-		lowestPrice = closePrices[0].LowPrice()
-		highestPrice = closePrices[0].HighPrice()
-		lowestTime = closePrices[0].GetTime()
-		highestTime = closePrices[0].GetTime()
+	if len(closePrices) == 0 {
+		return Swing{}, fmt.Errorf("%w to calculate drawdowns", errReceivedNoData)
 	}
+	var swings []Swing
+	lowestPrice := closePrices[0].LowPrice()
+	highestPrice := closePrices[0].HighPrice()
+	lowestTime := closePrices[0].GetTime()
+	highestTime := closePrices[0].GetTime()
+	interval := closePrices[0].GetInterval()
+
 	for i := range closePrices {
 		currHigh := closePrices[i].HighPrice()
 		currLow := closePrices[i].LowPrice()
@@ -223,7 +224,7 @@ func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing
 		if highestPrice.LessThan(currHigh) && highestPrice.IsPositive() {
 			if lowestTime.Equal(highestTime) {
 				// create distinction if the greatest drawdown occurs within the same candle
-				lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
+				lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
 			}
 			intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[i].GetInterval(), 0)
 			if err != nil {
@@ -253,7 +254,7 @@ func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing
 		// need to close out the final drawdown
 		if lowestTime.Equal(highestTime) {
 			// create distinction if the greatest drawdown occurs within the same candle
-			lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
+			lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
 		}
 		intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[0].GetInterval(), 0)
 		if err != nil {
@@ -265,7 +266,7 @@ func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing
 		}
 		if lowestTime.Equal(highestTime) {
 			// create distinction if the greatest drawdown occurs within the same candle
-			lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
+			lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
 		}
 		swings = append(swings, Swing{
 			Highest: ValueAtTime{
@@ -304,16 +305,16 @@ func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() {
 }
 
 // CalculateBiggestValueAtTimeDrawdown calculates the biggest drawdown using a slice of ValueAtTimes
-func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gctkline.Interval) Swing {
-	var lowestPrice, highestPrice decimal.Decimal
-	var lowestTime, highestTime time.Time
-	var swings []Swing
-	if len(closePrices) > 0 {
-		lowestPrice = closePrices[0].Value
-		highestPrice = closePrices[0].Value
-		lowestTime = closePrices[0].Time
-		highestTime = closePrices[0].Time
+func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gctkline.Interval) (Swing, error) {
+	if len(closePrices) == 0 {
+		return Swing{}, fmt.Errorf("%w to calculate drawdowns", errReceivedNoData)
 	}
+	var swings []Swing
+	lowestPrice := closePrices[0].Value
+	highestPrice := closePrices[0].Value
+	lowestTime := closePrices[0].Time
+	highestTime := closePrices[0].Time
+
 	for i := range closePrices {
 		currHigh := closePrices[i].Value
 		currLow := closePrices[i].Value
@@ -325,12 +326,11 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 		if highestPrice.LessThan(currHigh) && highestPrice.IsPositive() {
 			if lowestTime.Equal(highestTime) {
 				// create distinction if the greatest drawdown occurs within the same candle
-				lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
+				lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
 			}
 			intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, interval, 0)
 			if err != nil {
-				log.Error(log.BackTester, err)
-				return Swing{}
+				return Swing{}, err
 			}
 			swings = append(swings, Swing{
 				Highest: ValueAtTime{
@@ -355,7 +355,7 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 		// need to close out the final drawdown
 		if lowestTime.Equal(highestTime) {
 			// create distinction if the greatest drawdown occurs within the same candle
-			lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
+			lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
 		}
 		intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, interval, 0)
 		if err != nil {
@@ -367,7 +367,7 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 		}
 		if lowestTime.Equal(highestTime) {
 			// create distinction if the greatest drawdown occurs within the same candle
-			lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
+			lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
 		}
 		swings = append(swings, Swing{
 			Highest: ValueAtTime{
@@ -393,5 +393,5 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 		}
 	}
 
-	return maxDrawdown
+	return maxDrawdown, nil
 }

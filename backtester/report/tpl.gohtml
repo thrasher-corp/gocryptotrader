@@ -236,7 +236,7 @@
 									<td>${{ $.Prettify.Decimal2 .USDFinalFunds}}</td>
 								{{ end }}
 								{{if .ShowInfinite}}
-									<td>∞%</td>
+									<td>Infinity%</td>
 								{{ else }}
 									<td>{{ .Difference}}%</td>
 								{{ end }}
@@ -1247,7 +1247,7 @@
 						<tr>
 							<td><b>Difference</b></td>
 							{{ if .ReportItem.ShowInfinite}}
-								<td>∞%</td>
+								<td>Infinity%</td>
 							{{else}}
 							<td>{{ $.Prettify.Decimal8 .ReportItem.Difference}}%</td>
 							{{end}}
@@ -1278,7 +1278,7 @@
 							{{ if .ReportItem.ShowInfinite}}
 								<td>{{$.Prettify.Decimal8 .StrategyMovement}}</td>
 							{{ else }}
-								<td>∞%</td>
+								<td>Infinity%</td>
 							{{end}}
 						</tr>
 						<tr>

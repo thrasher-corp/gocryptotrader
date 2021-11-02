@@ -383,14 +383,11 @@ func (p *Portfolio) setHoldingsForOffset(h *holdings.Holding, overwriteExisting 
 	if h.Timestamp.IsZero() {
 		return errHoldingsNoTimestamp
 	}
-	lookup := p.exchangeAssetPairSettings[h.Exchange][h.Asset][h.Pair]
-	if lookup == nil {
-		var err error
-		lookup, err = p.SetupCurrencySettingsMap(h.Exchange, h.Asset, h.Pair)
-		if err != nil {
-			return err
-		}
+	lookup, ok := p.exchangeAssetPairSettings[h.Exchange][h.Asset][h.Pair]
+	if !ok {
+		return fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, h.Exchange, h.Asset, h.Pair)
 	}
+
 	if overwriteExisting && len(lookup.HoldingsSnapshots) == 0 {
 		return errNoHoldings
 	}
@@ -429,30 +426,33 @@ func (p *Portfolio) ViewHoldingAtTimePeriod(ev common.EventHandler) (*holdings.H
 }
 
 // SetupCurrencySettingsMap ensures a map is created and no panics happen
-func (p *Portfolio) SetupCurrencySettingsMap(exch string, a asset.Item, cp currency.Pair) (*Settings, error) {
-	if exch == "" {
+func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings) (*Settings, error) {
+	if settings == nil {
+		return nil, errNoPortfolioSettings
+	}
+	if settings.Exchange == "" {
 		return nil, errExchangeUnset
 	}
-	if a == "" {
+	if settings.Asset == "" {
 		return nil, errAssetUnset
 	}
-	if cp.IsEmpty() {
+	if settings.Pair.IsEmpty() {
 		return nil, errCurrencyPairUnset
 	}
 	if p.exchangeAssetPairSettings == nil {
 		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*Settings)
 	}
-	if p.exchangeAssetPairSettings[exch] == nil {
-		p.exchangeAssetPairSettings[exch] = make(map[asset.Item]map[currency.Pair]*Settings)
+	if p.exchangeAssetPairSettings[settings.Exchange] == nil {
+		p.exchangeAssetPairSettings[settings.Exchange] = make(map[asset.Item]map[currency.Pair]*Settings)
 	}
-	if p.exchangeAssetPairSettings[exch][a] == nil {
-		p.exchangeAssetPairSettings[exch][a] = make(map[currency.Pair]*Settings)
+	if p.exchangeAssetPairSettings[settings.Exchange][settings.Asset] == nil {
+		p.exchangeAssetPairSettings[settings.Exchange][settings.Asset] = make(map[currency.Pair]*Settings)
 	}
-	if _, ok := p.exchangeAssetPairSettings[exch][a][cp]; !ok {
-		p.exchangeAssetPairSettings[exch][a][cp] = &Settings{}
+	if _, ok := p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair]; !ok {
+		p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair] = &Settings{}
 	}
 
-	return p.exchangeAssetPairSettings[exch][a][cp], nil
+	return p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair], nil
 }
 
 // GetLatestHoldings returns the latest holdings after being sorted by time
@@ -476,13 +476,4 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 		}
 	}
 	return holdings.Holding{}
-}
-
-// Value returns the total value of the latest holdings
-func (e *Settings) Value() decimal.Decimal {
-	latest := e.GetLatestHoldings()
-	if latest.Timestamp.IsZero() {
-		return decimal.Zero
-	}
-	return latest.TotalValue
 }

@@ -51,7 +51,9 @@ import (
 // New returns a new BackTest instance
 func New() *BackTest {
 	return &BackTest{
-		shutdown: make(chan struct{}),
+		shutdown:   make(chan struct{}),
+		Datas:      &data.HandlerPerCurrency{},
+		EventQueue: &eventholder.Holder{},
 	}
 }
 
@@ -77,8 +79,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 	var err error
 	bt := New()
 	bt.exchangeManager = engine.SetupExchangeManager()
-	var wg sync.WaitGroup
-	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &wg, false)
+	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, false)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +94,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		}
 	}
 
-	bt.Datas = &data.HandlerPerCurrency{}
-	bt.EventQueue = &eventholder.Holder{}
 	reports := &report.Data{
 		Config:       cfg,
 		TemplatePath: templatePath,
@@ -152,7 +151,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 			continue
 		}
 		var exch gctexchange.IBotExchange
-		exch, err = bt.exchangeManager.NewExchangeByName(strings.ToLower(cfg.CurrencySettings[i].ExchangeName))
+		exch, err = bt.exchangeManager.NewExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		if err != nil {
 			return nil, err
 		}
@@ -206,7 +205,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		q = currency.NewCode(cfg.CurrencySettings[i].Quote)
 		curr = currency.NewPair(b, q)
 		var exch gctexchange.IBotExchange
-		exch, err = bt.exchangeManager.GetExchangeByName(strings.ToLower(cfg.CurrencySettings[i].ExchangeName))
+		exch, err = bt.exchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
 		if err != nil {
 			return nil, err
 		}
@@ -376,7 +375,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 	for i := range e.CurrencySettings {
 		var lookup *portfolio.Settings
 
-		lookup, err = p.SetupCurrencySettingsMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
+		lookup, err = p.SetupCurrencySettingsMap(&e.CurrencySettings[i])
 		if err != nil {
 			return nil, err
 		}
@@ -497,11 +496,11 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			}
 
 			resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
-				ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
+				Exchange:            cfg.CurrencySettings[i].ExchangeName,
 				MinimumSlippageRate: cfg.CurrencySettings[i].MinimumSlippagePercent,
 				MaximumSlippageRate: cfg.CurrencySettings[i].MaximumSlippagePercent,
-				CurrencyPair:        pair,
-				AssetType:           a,
+				Pair:                pair,
+				Asset:               a,
 				ExchangeFee:         takerFee,
 				MakerFee:            takerFee,
 				TakerFee:            makerFee,
@@ -524,7 +523,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 }
 
 func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
-	e, err := bt.exchangeManager.GetExchangeByName(strings.ToLower(exch))
+	e, err := bt.exchangeManager.GetExchangeByName(exch)
 	if err != nil {
 		return nil, currency.Pair{}, "", err
 	}
@@ -654,8 +653,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		var wg sync.WaitGroup
-		err = bt.databaseManager.Start(&wg)
+		err = bt.databaseManager.Start(&sync.WaitGroup{})
 		if err != nil {
 			return nil, err
 		}

@@ -24,6 +24,8 @@ var (
 	errExchangeAssetPairStatsUnset = errors.New("exchangeAssetPairStatistics not setup")
 	errCurrencyStatisticsUnset     = errors.New("no data")
 	errMissingSnapshots            = errors.New("funding report item missing USD snapshots")
+	errNoRelevantStatsFound        = errors.New("no relevant currency pair statistics found")
+	errReceivedNoData              = errors.New("received no data")
 )
 
 // Statistic holds all statistical information for a backtester run, from drawdowns to ratios.

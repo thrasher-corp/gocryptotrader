@@ -468,7 +468,7 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = port.SetupCurrencySettingsMap(ex, a, cp)
+	_, err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ex, Asset: a, Pair: cp})
 	if err != nil {
 		t.Error(err)
 	}
@@ -573,7 +573,7 @@ func TestFullCycleMulti(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = port.SetupCurrencySettingsMap(ex, a, cp)
+	_, err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ex, Asset: a, Pair: cp})
 	if err != nil {
 		t.Error(err)
 	}

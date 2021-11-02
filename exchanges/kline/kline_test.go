@@ -844,7 +844,11 @@ func TestHasDataAtDate(t *testing.T) {
 
 func TestIntervalsPerYear(t *testing.T) {
 	t.Parallel()
-	i := OneYear
+	var i Interval
+	if i.IntervalsPerYear() != 0 {
+		t.Error("expected 0")
+	}
+	i = OneYear
 	if i.IntervalsPerYear() != 1.0 {
 		t.Error("expected 1")
 	}
