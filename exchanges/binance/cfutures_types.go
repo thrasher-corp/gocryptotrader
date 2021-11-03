@@ -3,6 +3,7 @@ package binance
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -204,6 +205,24 @@ type BatchCancelOrderData struct {
 	Msg           string  `json:"msg"`
 }
 
+type futuresNewOrderRequest struct {
+	symbol           currency.Pair
+	side             string
+	positionSide     string
+	orderType        string
+	timeInForce      string
+	newClientOrderID string
+	closePosition    string
+	workingType      string
+	newOrderRespType string
+	quantity         float64
+	price            float64
+	stopPrice        float64
+	activationPrice  float64
+	callbackRate     float64
+	reduceOnly       bool
+}
+
 // FuturesOrderPlaceData stores futures order data
 type FuturesOrderPlaceData struct {
 	OrderID       int64   `json:"orderId"`
@@ -213,7 +232,8 @@ type FuturesOrderPlaceData struct {
 	ClientOrderID string  `json:"clientOrderId"`
 	Price         float64 `json:"price,string"`
 	AvgPrice      float64 `json:"avgPrice,string"`
-	ExecuteQty    float64 `json:"executeQty,string"`
+	OrigQty       float64 `json:"origQty,string"`
+	ExecuteQty    float64 `json:"executedQty,string"`
 	CumQty        float64 `json:"cumQty,string"`
 	CumBase       float64 `json:"cumBase,string"`
 	TimeInForce   string  `json:"TimeInForce"`
