@@ -33,5 +33,6 @@ type SnapshotOrder struct {
 	VolumeAdjustedPrice decimal.Decimal `json:"volume-adjusted-price"`
 	SlippageRate        decimal.Decimal `json:"slippage-rate"`
 	CostBasis           decimal.Decimal `json:"cost-basis"`
-	*order.Detail       `json:"order-detail"`
+	SpotOrder           *order.Detail   `json:"order-detail"`
+	FuturesOrder        *order.Futures  `json:"futures-order"`
 }

@@ -75,6 +75,7 @@ type ExchangeLevelFunding struct {
 	Currency     string          `json:"currency"`
 	InitialFunds decimal.Decimal `json:"initial-funds"`
 	TransferFee  decimal.Decimal `json:"transfer-fee"`
+	Collateral   bool            `json:"collateral"`
 }
 
 // StatisticSettings adjusts ratios where

@@ -992,6 +992,11 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
+
+	err = bt.Portfolio.CalculatePNL(ev)
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
 	return nil
 }
 

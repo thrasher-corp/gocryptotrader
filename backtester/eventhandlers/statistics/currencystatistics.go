@@ -28,9 +28,9 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	last := c.Events[len(c.Events)-1]
 	lastPrice := last.DataEvent.GetClosePrice()
 	for i := range last.Transactions.Orders {
-		if last.Transactions.Orders[i].Side == gctorder.Buy {
+		if last.Transactions.Orders[i].SpotOrder.Side == gctorder.Buy {
 			c.BuyOrders++
-		} else if last.Transactions.Orders[i].Side == gctorder.Sell {
+		} else if last.Transactions.Orders[i].SpotOrder.Side == gctorder.Sell {
 			c.SellOrders++
 		}
 	}

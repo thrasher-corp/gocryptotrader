@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -114,6 +115,23 @@ type ModifyResponse struct {
 	OrderID string
 }
 
+// Futures order is a concept which holds both the opening and closing orders
+// for a futures contract. This allows for PNL calculations
+type Futures struct {
+	Side            Side
+	UnrealisedPNL   decimal.Decimal
+	RealisedPNL     decimal.Decimal
+	OpeningPosition *Detail
+	ClosingPosition *Detail
+	PNLHistory      []PNLHistory
+}
+
+type PNLHistory struct {
+	Price         decimal.Decimal
+	Amount        decimal.Decimal
+	UnrealisedPNL decimal.Decimal
+}
+
 // Detail contains all properties of an order
 // Each exchange has their own requirements, so not all fields
 // are required to be populated
@@ -146,6 +164,7 @@ type Detail struct {
 	Type                 Type
 	Side                 Side
 	Status               Status
+	UnrealisedPNL        decimal.Decimal
 	AssetType            asset.Item
 	Date                 time.Time
 	CloseTime            time.Time
@@ -295,6 +314,8 @@ const (
 	Bid         Side = "BID"
 	Ask         Side = "ASK"
 	UnknownSide Side = "UNKNOWN"
+	Long        Side = "LONG"
+	Short       Side = "SHORT"
 )
 
 // ByPrice used for sorting orders by price

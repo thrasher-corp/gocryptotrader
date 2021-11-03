@@ -295,7 +295,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 			ClosePrice:          fillEvent.GetClosePrice(),
 			VolumeAdjustedPrice: fillEvent.GetVolumeAdjustedPrice(),
 			SlippageRate:        fillEvent.GetSlippageRate(),
-			Detail:              fo,
+			SpotOrder:           fo,
 			CostBasis:           price.Mul(amount).Add(fee),
 		}
 		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
@@ -476,4 +476,28 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 		}
 	}
 	return holdings.Holding{}
+}
+
+// CalculatePNL will analyse any futures orders that have been placed over the backtesting run
+// that are not closed and calculate their PNL
+func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
+	orders, err := p.GetLatestOrderSnapshotForEvent(e)
+	if err != nil {
+		return err
+	}
+	for i := range orders.Orders {
+		if orders.Orders[i].FuturesOrder == nil {
+			continue
+		}
+		if orders.Orders[i].FuturesOrder.ClosingPosition != nil {
+			continue
+		}
+
+		openPrice := decimal.NewFromFloat(orders.Orders[i].FuturesOrder.OpeningPosition.Price)
+		openAmount := decimal.NewFromFloat(orders.Orders[i].FuturesOrder.OpeningPosition.Amount)
+		changeInPosition := e.ClosePrice().Sub(openPrice).Mul(openAmount)
+		orders.Orders[i].FuturesOrder.UnrealisedPNL = changeInPosition
+		orders.Orders[i].FuturesOrder.OpeningPosition.UnrealisedPNL = changeInPosition
+	}
+	return nil
 }

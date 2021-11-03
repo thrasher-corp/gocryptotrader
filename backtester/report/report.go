@@ -223,15 +223,15 @@ func (d *Data) enhanceCandles() error {
 				}
 			}
 			for k := range statsForCandles.FinalOrders.Orders {
-				if statsForCandles.FinalOrders.Orders[k].Detail == nil ||
-					!statsForCandles.FinalOrders.Orders[k].Date.Equal(d.OriginalCandles[intVal].Candles[j].Time) {
+				if statsForCandles.FinalOrders.Orders[k].SpotOrder == nil ||
+					!statsForCandles.FinalOrders.Orders[k].SpotOrder.Date.Equal(d.OriginalCandles[intVal].Candles[j].Time) {
 					continue
 				}
 				// an order was placed here, can enhance chart!
 				enhancedCandle.MadeOrder = true
-				enhancedCandle.OrderAmount = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Amount)
-				enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Price
-				enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Side
+				enhancedCandle.OrderAmount = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].SpotOrder.Amount)
+				enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].SpotOrder.Price
+				enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].SpotOrder.Side
 				if enhancedCandle.OrderDirection == order.Buy {
 					enhancedCandle.Colour = "green"
 					enhancedCandle.Position = "aboveBar"

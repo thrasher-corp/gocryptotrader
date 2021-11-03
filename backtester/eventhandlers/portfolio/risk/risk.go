@@ -59,7 +59,7 @@ func existingLeverageRatio(s compliance.Snapshot) decimal.Decimal {
 	}
 	var ordersWithLeverage decimal.Decimal
 	for o := range s.Orders {
-		if s.Orders[o].Leverage != 0 {
+		if s.Orders[o].SpotOrder.Leverage != 0 {
 			ordersWithLeverage = ordersWithLeverage.Add(decimal.NewFromInt(1))
 		}
 	}
