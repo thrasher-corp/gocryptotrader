@@ -482,19 +482,14 @@ type wsStatus struct {
 
 // bankTransfers defines banking transfers. Subject to change.
 // NOTE: https://help.coinbase.com/en/pro/trading-and-funding/trading-rules-and-fees/fees
-var bankTransfers = map[bank.Transfer]map[currency.Code]fee.Transfer{
-	bank.AutomaticClearingHouse: {
-		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
-		currency.EUR: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
-		currency.GBP: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
-	},
-	bank.WireTransfer: {
-		currency.USD: {Deposit: fee.Convert(10), Withdrawal: fee.Convert(25)},
-	},
-	bank.SEPA: {
-		currency.EUR: {Deposit: fee.Convert(.15), Withdrawal: fee.Convert(.15)},
-	},
-	bank.Swift: {
-		currency.GBP: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
-	},
+var bankTransfers = []fee.Transfer{
+	{Currency: currency.USD, BankTransfer: bank.AutomaticClearingHouse, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
+	{Currency: currency.EUR, BankTransfer: bank.AutomaticClearingHouse, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
+	{Currency: currency.GBP, BankTransfer: bank.AutomaticClearingHouse, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
+
+	{Currency: currency.USD, BankTransfer: bank.WireTransfer, Deposit: fee.Convert(10), Withdrawal: fee.Convert(25)},
+
+	{Currency: currency.EUR, BankTransfer: bank.SEPA, Deposit: fee.Convert(.15), Withdrawal: fee.Convert(.15)},
+
+	{Currency: currency.GBP, BankTransfer: bank.Swift, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
 }

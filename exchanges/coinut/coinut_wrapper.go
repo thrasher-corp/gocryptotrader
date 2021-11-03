@@ -150,8 +150,8 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0045, Taker: 0.005},
 		},
-		Transfer:        transferFees,
-		BankingTransfer: bankTransfers,
+		ChainTransfer: transferFees,
+		BankTransfer:  bankTransfers,
 	})
 	if err != nil {
 		return err

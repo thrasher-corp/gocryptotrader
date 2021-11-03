@@ -153,8 +153,8 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0085, Taker: 0.0085},
 		},
-		Transfer:        transferFees,
-		BankingTransfer: bankTransferFees,
+		ChainTransfer: transferFees,
+		BankTransfer:  bankTransferFees,
 	})
 	if err != nil {
 		return err
@@ -1081,23 +1081,18 @@ func (b *BTCMarkets) UpdateTransferFees(ctx context.Context) error {
 		return err
 	}
 
-	transferFees := map[asset.Item]map[currency.Code]fee.Transfer{}
+	var transferFees []fee.Transfer
 	for x := range temp {
-		m1, ok := transferFees[asset.Spot]
-		if !ok {
-			m1 = make(map[currency.Code]fee.Transfer)
-			transferFees[asset.Spot] = m1
-		}
-
 		if temp[x].AssetName.Item == currency.AUD.Item {
 			// Filter out fiat bank transfer
 			continue
 		}
 
-		m1[temp[x].AssetName] = fee.Transfer{
+		transferFees = append(transferFees, fee.Transfer{
+			Currency:   temp[x].AssetName,
 			Deposit:    fee.Convert(0),
 			Withdrawal: fee.Convert(temp[x].Fee),
-		}
+		})
 	}
 	return b.Fees.LoadTransferFees(transferFees)
 }

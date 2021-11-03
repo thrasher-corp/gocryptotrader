@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -282,12 +281,6 @@ type wsRequest struct {
 type wsResponse struct {
 	Nonce int64  `json:"nonce,omitempty"`
 	Reply string `json:"reply"`
-}
-
-type wsHeartbeatResp struct {
-	Nonce  int64         `json:"nonce"`
-	Reply  string        `json:"reply"`
-	Status []interface{} `json:"status"`
 }
 
 // WsTicker defines the resp for ticker updates from the websocket connection
@@ -714,50 +707,22 @@ type wsOrderContainer struct {
 // transferFees defines crypto currency withdrawal and deposit fees. Subject
 // to change.
 // NOTE: https://coinut.zendesk.com/hc/en-us/articles/360001471394-What-is-the-minimum-amount-to-deposit-withdraw-
-var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
-	asset.Spot: {
-		currency.BTC: {
-			Withdrawal: fee.ConvertWithMinimumAmount(0.0015, 0.0004),
-			Deposit:    fee.Convert(0),
-		},
-		currency.LTC: {
-			Withdrawal: fee.ConvertWithMinimumAmount(0.01, 0.001),
-			Deposit:    fee.Convert(0),
-		},
-		currency.ETH: {
-			Withdrawal: fee.ConvertWithMinimumAmount(0.05, 0.003),
-			Deposit:    fee.Convert(0),
-		},
-		currency.XMR: {
-			Withdrawal: fee.ConvertWithMinimumAmount(0.1, 0.04),
-			Deposit:    fee.Convert(0),
-		},
-		currency.USDT: { // ERC20 TODO: Add in OMNI chain support
-			Withdrawal: fee.ConvertWithMinimumAmount(20, 10),
-			Deposit:    fee.Convert(0),
-		},
-		currency.DAI: {
-			Withdrawal: fee.ConvertWithMinimumAmount(20, 10),
-			Deposit:    fee.Convert(0),
-		},
-		currency.XSGD: {
-			Withdrawal: fee.ConvertWithMinimumAmount(20, 10),
-			Deposit:    fee.Convert(0),
-		},
-	},
+var transferFees = []fee.Transfer{
+	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.0015, 0.0004)},
+	{Currency: currency.LTC, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.01, 0.001)},
+	{Currency: currency.ETH, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.05, 0.003)},
+	{Currency: currency.XMR, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.1, 0.04)},
+	{Currency: currency.USDT, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(20, 10), Chain: "ERC20"},
+	{Currency: currency.USDT, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(30, 10), Chain: "OMNI"},
+	{Currency: currency.DAI, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(20, 10)},
+	{Currency: currency.XSGD, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(20, 10)},
 }
 
 // bankTransfers defines fiat currency banking withdrawal and deposit fees.
 // Subject to change.
-var bankTransfers = map[bank.Transfer]map[currency.Code]fee.Transfer{
-	bank.Xfers: {
-		currency.SGD: {
-			Deposit:      fee.Convert(0.0055),
-			Withdrawal:   fee.Convert(0.0055),
-			IsPercentage: true,
-		},
-	},
-	bank.WireTransfer:        {currency.CAD: {}}, // Not available
-	bank.TelegraphicTransfer: {currency.USD: {}}, // Not available
-	bank.SDDomesticCheque:    {currency.USD: {}}, // Not available
+var bankTransfers = []fee.Transfer{
+	{Currency: currency.SGD, BankTransfer: bank.Xfers, Deposit: fee.Convert(0.0055), Withdrawal: fee.Convert(0.0055), IsPercentage: true},
+	{Currency: currency.CAD, BankTransfer: bank.WireTransfer},        // Not available
+	{Currency: currency.USD, BankTransfer: bank.TelegraphicTransfer}, // Not available
+	{Currency: currency.USD, BankTransfer: bank.SDDomesticCheque},    // Not available
 }

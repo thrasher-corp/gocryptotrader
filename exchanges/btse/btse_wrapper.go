@@ -185,8 +185,8 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 			asset.Spot:    {Maker: 0.001, Taker: 0.0012},
 			asset.Futures: {Maker: -0.0001, Taker: 0.0004},
 		},
-		Transfer:        transferFees,
-		BankingTransfer: bankTransferFees,
+		ChainTransfer: transferFees,
+		BankTransfer:  bankTransferFees,
 	})
 	if err != nil {
 		return err

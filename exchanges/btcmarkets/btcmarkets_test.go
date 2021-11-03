@@ -855,7 +855,7 @@ func TestUpdateTransferFees(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.Fees.GetTransferFee(currency.BTC, asset.Spot)
+	_, err = b.Fees.GetTransferFee(currency.BTC, "")
 	if err != nil {
 		t.Fatal(err)
 	}

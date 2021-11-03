@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
@@ -435,31 +434,27 @@ type WsError struct {
 // CandleResponse holds OHLCV data for exchange
 type CandleResponse [][6]string
 
-var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
-	asset.Spot: {
-		currency.BTC:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0003)},
-		currency.LTC:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
-		currency.ETH:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
-		currency.ETC:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
-		currency.XRP:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
-		currency.POWR: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(54)},
-		currency.OMG:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
-		currency.BCH:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0001)},
-		currency.BSV:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0001)},
-		currency.GNT:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(55)},
-		currency.BAT:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
-		currency.XLM:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
-		currency.ENJ:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(14)},
-		currency.LINK: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.6)},
-		currency.COMP: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.035)},
-		currency.ALGO: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
-		currency.MCAU: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0003)},
-		currency.USDT: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
-	},
+var transferFees = []fee.Transfer{
+	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0003)},
+	{Currency: currency.LTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+	{Currency: currency.ETH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+	{Currency: currency.ETC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+	{Currency: currency.XRP, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+	{Currency: currency.POWR, Deposit: fee.Convert(0), Withdrawal: fee.Convert(54)},
+	{Currency: currency.OMG, Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
+	{Currency: currency.BCH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0001)},
+	{Currency: currency.BSV, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0001)},
+	{Currency: currency.GNT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(55)},
+	{Currency: currency.BAT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
+	{Currency: currency.XLM, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+	{Currency: currency.ENJ, Deposit: fee.Convert(0), Withdrawal: fee.Convert(14)},
+	{Currency: currency.LINK, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.6)},
+	{Currency: currency.COMP, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.035)},
+	{Currency: currency.ALGO, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
+	{Currency: currency.MCAU, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0003)},
+	{Currency: currency.USDT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
 }
 
-var bankTransferFees = map[bank.Transfer]map[currency.Code]fee.Transfer{
-	bank.WireTransfer: {
-		currency.AUD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
-	},
+var bankTransferFees = []fee.Transfer{
+	{Currency: currency.AUD, BankTransfer: bank.WireTransfer, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 }

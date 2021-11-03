@@ -236,35 +236,27 @@ var transferFees = []fee.Transfer{
 
 // transferBank the large list of predefined withdrawal and deposit fees for
 // fiat. Prone to change.
-var transferBank = map[bank.Transfer]map[currency.Code]fee.Transfer{
-	{Currency: currency.USD, BankTransfer: bank.Payeer, Deposit: fee.Convert(0), Withdrawal: fee.Convert(28)},
-	bank.Payeer: {
-		currency.USD: {Deposit: fee.Convert(0.0249), IsPercentage: true},
-		currency.RUB: {Withdrawal: fee.Convert(0.0199), IsPercentage: true},
-	},
-	bank.SEPA: {
-		currency.EUR: {Deposit: fee.Convert(1), Withdrawal: fee.Convert(1)},
-	},
-	bank.AdvCash: {
-		currency.USD: {Withdrawal: fee.Convert(0.0499), Deposit: fee.Convert(0.0049), IsPercentage: true},
-		currency.RUB: {Withdrawal: fee.Convert(0), Deposit: fee.Convert(0.0399), IsPercentage: true},
-		currency.KZT: {Withdrawal: fee.Convert(0.0099), Deposit: fee.Convert(0.0149), IsPercentage: true},
-	},
-	bank.ExmoGiftCard: {
-		currency.USD: {Deposit: fee.Convert(0)},
-		currency.EUR: {Deposit: fee.Convert(0)},
-		currency.RUB: {Deposit: fee.Convert(0)},
-		currency.PLN: {Deposit: fee.Convert(0)},
-		currency.UAH: {Deposit: fee.Convert(0)},
-		currency.KZT: {Deposit: fee.Convert(0)},
-	},
-	bank.VisaMastercard: {
-		currency.USD: {Deposit: fee.Convert(0.0299), IsPercentage: true}, // + 35 cents??
-		currency.UAH: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0249), IsPercentage: true},
-	},
-	bank.Terminal: {
-		currency.UAH: {Deposit: fee.Convert(0.026), IsPercentage: true},
-	},
+var transferBank = []fee.Transfer{
+	{Currency: currency.USD, BankTransfer: bank.Payeer, Deposit: fee.Convert(0.0249)},
+	{Currency: currency.RUB, BankTransfer: bank.Payeer, Withdrawal: fee.Convert(0.0199)},
+
+	{Currency: currency.EUR, BankTransfer: bank.SEPA, Deposit: fee.Convert(1), Withdrawal: fee.Convert(1)},
+
+	{Currency: currency.USD, BankTransfer: bank.AdvCash, Withdrawal: fee.Convert(0.0499), Deposit: fee.Convert(0.0049), IsPercentage: true},
+	{Currency: currency.RUB, BankTransfer: bank.AdvCash, Withdrawal: fee.Convert(0), Deposit: fee.Convert(0.0399), IsPercentage: true},
+	{Currency: currency.KZT, BankTransfer: bank.AdvCash, Withdrawal: fee.Convert(0.0099), Deposit: fee.Convert(0.0149), IsPercentage: true},
+
+	{Currency: currency.USD, BankTransfer: bank.Payeer, Deposit: fee.Convert(0)},
+	{Currency: currency.EUR, BankTransfer: bank.Payeer, Deposit: fee.Convert(0)},
+	{Currency: currency.RUB, BankTransfer: bank.Payeer, Deposit: fee.Convert(0)},
+	{Currency: currency.PLN, BankTransfer: bank.Payeer, Deposit: fee.Convert(0)},
+	{Currency: currency.UAH, BankTransfer: bank.Payeer, Deposit: fee.Convert(0)},
+	{Currency: currency.KZT, BankTransfer: bank.Payeer, Deposit: fee.Convert(0)},
+
+	{Currency: currency.USD, BankTransfer: bank.VisaMastercard, Deposit: fee.Convert(0.0299), IsPercentage: true},
+	{Currency: currency.UAH, BankTransfer: bank.VisaMastercard, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0249), IsPercentage: true},
+
+	{Currency: currency.UAH, BankTransfer: bank.Terminal, Deposit: fee.Convert(0.026), IsPercentage: true},
 }
 
 // CryptoPaymentProvider stores the cryptocurrency transfer settings
