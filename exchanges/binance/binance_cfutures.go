@@ -65,6 +65,14 @@ const (
 	cfuturesNotionalBracket       = "/dapi/v1/leverageBracket"
 	cfuturesUsersForceOrders      = "/dapi/v1/forceOrders"
 	cfuturesADLQuantile           = "/dapi/v1/adlQuantile"
+
+	cfuturesLimit              = "LIMIT"
+	cfuturesMarket             = "MARKET"
+	cfuturesStop               = "STOP"
+	cfuturesTakeProfit         = "TAKE_PROFIT"
+	cfuturesStopMarket         = "STOP_MARKET"
+	cfuturesTakeProfitMarket   = "TAKE_PROFIT_MARKET"
+	cfuturesTrailingStopMarket = "TRAILING_STOP_MARKET"
 )
 
 // FuturesExchangeInfo stores CoinMarginedFutures, data

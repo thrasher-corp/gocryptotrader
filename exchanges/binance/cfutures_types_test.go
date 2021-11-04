@@ -53,13 +53,13 @@ func TestFuturesNewOrderRequest_Unmarshal(t *testing.T) {
 		x.CumQty != 32 ||
 		x.CumBase != 16 ||
 		x.TimeInForce != "GTC" ||
-		x.OrderType != "LIMIT" ||
+		x.OrderType != cfuturesLimit ||
 		!x.ReduceOnly ||
 		!x.ClosePosition ||
 		x.StopPrice != 2048 ||
 		x.WorkingType != "CONTRACT_PRICE" ||
 		!x.PriceProtect ||
-		x.OrigType != "MARKET" ||
+		x.OrigType != cfuturesMarket ||
 		x.UpdateTime != 1635931801320 ||
 		x.ActivatePrice != 64 ||
 		x.PriceRate != 32 {

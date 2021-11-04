@@ -935,19 +935,19 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		var oType string
 		switch s.Type {
 		case order.Limit:
-			oType = "LIMIT"
+			oType = cfuturesLimit
 		case order.Market:
-			oType = "MARKET"
+			oType = cfuturesMarket
 		case order.Stop:
-			oType = "STOP"
+			oType = cfuturesStop
 		case order.TakeProfit:
-			oType = "TAKE_PROFIT"
+			oType = cfuturesTakeProfit
 		case order.StopMarket:
-			oType = "STOP_MARKET"
+			oType = cfuturesStopMarket
 		case order.TakeProfitMarket:
-			oType = "TAKE_PROFIT_MARKET"
+			oType = cfuturesTakeProfitMarket
 		case order.TrailingStop:
-			oType = "TRAILING_STOP_MARKET"
+			oType = cfuturesTrailingStopMarket
 		default:
 			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
 		}
