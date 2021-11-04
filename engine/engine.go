@@ -860,7 +860,10 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 		return err
 	}
 
-	bot.ExchangeManager.Add(exch)
+	err = bot.ExchangeManager.Add(exch)
+	if err != nil {
+		return err
+	}
 	base := exch.GetBase()
 	if base.API.AuthenticatedSupport ||
 		base.API.AuthenticatedWebsocketSupport {

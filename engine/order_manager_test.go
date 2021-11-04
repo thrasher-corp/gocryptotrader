@@ -204,7 +204,10 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	fakeExchange := omfExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -766,7 +769,10 @@ func TestProcessOrders(t *testing.T) {
 	fakeExchange := omfExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

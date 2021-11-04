@@ -33,7 +33,10 @@ func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManage
 	if err != nil {
 		t.Fatal(err)
 	}
-	em.Add(b)
+	err = em.Add(b)
+	if err != nil {
+		t.Fatal(err)
+	}
 	pm, err := setupPortfolioManager(em, 0, &portfolio.Base{Addresses: []portfolio.Address{}})
 	if err != nil {
 		t.Fatal(err)

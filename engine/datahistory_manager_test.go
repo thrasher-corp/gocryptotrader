@@ -938,7 +938,10 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 		Available:    currency.Pairs{cp, cp2},
 		Enabled:      currency.Pairs{cp, cp2},
 		AssetEnabled: convert.BoolPtr(true)}
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	exch2, err := em.NewExchangeByName("Binance")
 	if !errors.Is(err, nil) {
@@ -955,7 +958,10 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
 
-	em.Add(exch2)
+	err = em.Add(exch2)
+	if err != nil {
+		t.Fatal(err)
+	}
 	j := &datahistoryjob.DataHistoryJob{
 		ID:               jobID,
 		Nickname:         "datahistoryjob",

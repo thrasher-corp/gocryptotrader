@@ -27,7 +27,10 @@ func TestExchangeManagerAdd(t *testing.T) {
 	m := SetupExchangeManager()
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
-	m.Add(b)
+	err := m.Add(b)
+	if err != nil {
+		t.Fatal(err)
+	}
 	exchanges, err := m.GetExchanges()
 	if err != nil {
 		t.Error("no exchange manager found")
@@ -49,7 +52,10 @@ func TestExchangeManagerGetExchanges(t *testing.T) {
 	}
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
-	m.Add(b)
+	err = m.Add(b)
+	if err != nil {
+		t.Fatal(err)
+	}
 	exchanges, err = m.GetExchanges()
 	if err != nil {
 		t.Error("no exchange manager found")
@@ -67,8 +73,11 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	}
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
-	m.Add(b)
-	err := m.RemoveExchange("Bitstamp")
+	err := m.Add(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = m.RemoveExchange("Bitstamp")
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Errorf("received: %v but expected: %v", err, ErrExchangeNotFound)
 	}

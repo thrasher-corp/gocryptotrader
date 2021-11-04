@@ -107,7 +107,10 @@ func TestProcessPortfolio(t *testing.T) {
 		t.Fatalf("error '%v', expected '%v'", err, nil)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	m, err := setupPortfolioManager(em, 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

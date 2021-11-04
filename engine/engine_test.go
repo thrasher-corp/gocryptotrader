@@ -179,7 +179,10 @@ func TestGetExchangeByName(t *testing.T) {
 	}
 	exch.SetDefaults()
 	exch.SetEnabled(true)
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	e := &Engine{ExchangeManager: em}
 
 	if !exch.IsEnabled() {
@@ -213,7 +216,10 @@ func TestUnloadExchange(t *testing.T) {
 	}
 	exch.SetDefaults()
 	exch.SetEnabled(true)
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	e := &Engine{ExchangeManager: em,
 		Config: &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
 	}

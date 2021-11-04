@@ -45,7 +45,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		log.Fatal(err)
+	}
 	engine.Bot.ExchangeManager = em
 	engine.Bot.WithdrawManager, err = engine.SetupWithdrawManager(em, nil, true)
 	if err != nil {

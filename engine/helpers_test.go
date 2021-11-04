@@ -1193,7 +1193,10 @@ func TestGetExchangeNames(t *testing.T) {
 		}
 		if exch != nil {
 			exch.SetDefaults()
-			bot.ExchangeManager.Add(exch)
+			err = bot.ExchangeManager.Add(exch)
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 	if e := bot.GetExchangeNames(false); len(e) != len(bot.Config.Exchanges) {

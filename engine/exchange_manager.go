@@ -44,6 +44,7 @@ var (
 	ErrExchangeAlreadyLoaded = errors.New("exchange already loaded")
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
 	errExchangeNameIsEmpty   = errors.New("exchange name is empty")
+	errExchangeIsNil         = errors.New("exchange is nil")
 )
 
 // CustomExchangeBuilder interface allows external applications to create
@@ -67,13 +68,14 @@ func SetupExchangeManager() *ExchangeManager {
 }
 
 // Add adds or replaces an exchange
-func (m *ExchangeManager) Add(exch exchange.IBotExchange) {
+func (m *ExchangeManager) Add(exch exchange.IBotExchange) error {
 	if exch == nil {
-		return
+		return fmt.Errorf("cannot add to manager %w", errExchangeIsNil)
 	}
 	m.m.Lock()
 	m.exchanges[strings.ToLower(exch.GetName())] = exch
 	m.m.Unlock()
+	return nil
 }
 
 // GetExchanges returns all stored exchanges

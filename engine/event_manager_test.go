@@ -129,7 +129,10 @@ func TestEventManagerAdd(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = m.Add(testExchange, "", EventConditionParams{}, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
 	if !errors.Is(err, errInvalidItem) {
 		t.Errorf("error '%v', expected '%v'", err, errInvalidItem)
@@ -185,7 +188,10 @@ func TestEventManagerRemove(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	id, err := m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, action)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -226,7 +232,10 @@ func TestGetEventCounter(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, action)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -272,7 +281,10 @@ func TestCheckEventCondition(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USD), asset.Spot, action)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

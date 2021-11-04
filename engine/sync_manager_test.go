@@ -50,7 +50,10 @@ func TestSyncManagerStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	m.exchangeManager = em
 	m.config.SyncContinuously = true
 	err = m.Start()
@@ -84,7 +87,10 @@ func TestSyncManagerStop(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	m, err = setupSyncManager(&Config{SyncTrades: true, SyncContinuously: true}, em, &config.RemoteControlConfig{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -132,7 +138,10 @@ func TestPrintTickerSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	m, err = setupSyncManager(&Config{SyncTrades: true, SyncContinuously: true}, em, &config.RemoteControlConfig{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -171,7 +180,10 @@ func TestPrintOrderbookSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	m, err = setupSyncManager(&Config{SyncTrades: true, SyncContinuously: true}, em, &config.RemoteControlConfig{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

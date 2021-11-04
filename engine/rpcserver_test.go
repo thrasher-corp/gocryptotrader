@@ -230,8 +230,10 @@ func RPCTestSetup(t *testing.T) *Engine {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	em.Add(exch)
-
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	exch, err = em.NewExchangeByName("Binance")
 	if err != nil {
 		t.Fatal(err)
@@ -246,7 +248,10 @@ func RPCTestSetup(t *testing.T) *Engine {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	engerino.ExchangeManager = em
 
 	engerino.Config.Database = dbConf
@@ -883,7 +888,10 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 	b.Config = &config.Exchange{
 		Features: &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{SaveTradeData: false}},
 	}
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: true})
 	if err != nil {
@@ -1006,7 +1014,10 @@ func TestGetAccountInfo(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	if !errors.Is(err, nil) {
@@ -1031,7 +1042,10 @@ func TestUpdateAccountInfo(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
 	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
@@ -1072,7 +1086,10 @@ func TestGetOrders(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false)
 	if !errors.Is(err, nil) {
@@ -1180,7 +1197,10 @@ func TestGetOrder(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false)
 	if !errors.Is(err, nil) {
@@ -1423,7 +1443,10 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 		AssetEnabled: convert.BoolPtr(true)}
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m, ExchangeManager: em}}
 	_, err = s.UpsertDataHistoryJob(context.Background(), nil)
 	if !errors.Is(err, errNilRequestData) {
@@ -1709,7 +1732,10 @@ func TestGetManagedOrders(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	em.Add(exch)
+	err = em.Add(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false)
 	if !errors.Is(err, nil) {
@@ -1942,7 +1968,10 @@ func TestGetAllFees(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
 	_, err = s.GetAllFees(context.Background(), &gctrpc.GetAllFeesRequest{Exchange: "wow"})
@@ -1977,7 +2006,10 @@ func TestSetTransferFee(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
 	_, err = s.SetTransferFee(context.Background(), &gctrpc.SetTransferFeeRequest{Exchange: "wow"})
@@ -2008,7 +2040,10 @@ func TestSetSetCommission(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
 	_, err = s.SetCommission(context.Background(), &gctrpc.SetCommissionRequest{Exchange: "wow"})
@@ -2039,7 +2074,10 @@ func TestSetBankTransferFee(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
 	_, err = s.SetBankTransferFee(context.Background(), &gctrpc.SetBankTransferFeeRequest{Exchange: "wow"})
@@ -2122,7 +2160,10 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
-	em.Add(fakeExchange)
+	err = em.Add(fakeExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := RPCServer{Engine: &Engine{ExchangeManager: em,
 		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em}}}
 
