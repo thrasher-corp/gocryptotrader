@@ -132,11 +132,9 @@ func (f fExchange) GetAllFees() (fee.Options, error) {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {},
 		},
-		Transfer: map[asset.Item]map[currency.Code]fee.Transfer{
-			asset.Spot: {currency.BTC: {}},
-		},
-		BankingTransfer: map[bank.Transfer]map[currency.Code]fee.Transfer{
-			bank.WireTransfer: {currency.USD: {}},
+		ChainTransfer: []fee.Transfer{{Currency: currency.BTC}},
+		BankTransfer: []fee.Transfer{
+			{Currency: currency.USD, BankTransfer: bank.WireTransfer},
 		},
 	}, nil
 }
@@ -152,7 +150,7 @@ func (f fExchange) GetCurrencyStateSnapshot() ([]currencystate.Snapshot, error) 
 }
 
 // SetTransferFee overrides interface function
-func (f fExchange) SetTransferFee(c currency.Code, a asset.Item, withdraw, deposit float64, isPercentage bool) error {
+func (f fExchange) SetTransferFee(c currency.Code, chain string, withdraw, deposit float64, isPercentage bool) error {
 	return nil
 }
 

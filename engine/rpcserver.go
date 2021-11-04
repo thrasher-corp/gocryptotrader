@@ -4096,22 +4096,18 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 	}
 
 	var transferFees []*gctrpc.TransferFees
-	for a, m1 := range ss.Transfer {
-		for c, val := range m1 {
-			err = addTransferFee(c, a, 0, val, &transferFees)
-			if err != nil {
-				return nil, err
-			}
+	for x := range ss.ChainTransfer {
+		err = addTransferFee(ss.ChainTransfer[x], &transferFees)
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	var bankingTransferFees []*gctrpc.TransferFees
-	for bt, m1 := range ss.BankingTransfer {
-		for c, val := range m1 {
-			err = addTransferFee(c, "", bt, val, &bankingTransferFees)
-			if err != nil {
-				return nil, err
-			}
+	for x := range ss.BankTransfer {
+		err = addTransferFee(ss.BankTransfer[x], &bankingTransferFees)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return &gctrpc.GetAllFeesResponse{
@@ -4122,16 +4118,12 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 }
 
 // addTransferFee adds transfer fee to a list of rpc transfer fees
-func addTransferFee(c currency.Code, chain string, bt bank.Transfer, val fee.Transfer, fees *[]*gctrpc.TransferFees) error {
+func addTransferFee(val fee.Transfer, fees *[]*gctrpc.TransferFees) error {
 	rpcOut := &gctrpc.TransferFees{
-		Currency:     c.String(),
+		Currency:     val.Currency.String(),
+		Chain:        val.Chain,
 		IsPercentage: val.IsPercentage,
-	}
-
-	if a.String() != "" {
-		rpcOut.Asset = a.String()
-	} else {
-		rpcOut.TransferType = bt.String()
+		TransferType: val.BankTransfer.String(),
 	}
 
 	if val.Deposit != nil {
@@ -4207,7 +4199,7 @@ func (s *RPCServer) SetTransferFee(_ context.Context, r *gctrpc.SetTransferFeeRe
 		return nil, err
 	}
 	err = exch.SetTransferFee(currency.NewCode(r.Currency),
-		asset.Item(r.Asset),
+		r.Chain,
 		r.Withdraw,
 		r.Deposit,
 		r.IsPercentage)
