@@ -288,6 +288,7 @@ type UAccountInformationV2Data struct {
 		EntryPrice             float64 `json:"entryPrice,string"`
 		MaxNotional            float64 `json:"maxNotional,string"`
 		PositionSide           string  `json:"positionSide"`
+		Amount                 float64 `json:"positionAmt,string"`
 	} `json:"positions"`
 }
 

@@ -714,16 +714,22 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		acc.Currencies = currencyDetails
 
 	case asset.USDTMarginedFutures:
-		accData, err := b.UAccountBalanceV2(ctx)
+		accData, err := b.UAccountInformationV2(ctx)
 		if err != nil {
 			return info, err
 		}
 		var currencyDetails []account.Balance
-		for i := range accData {
+		for i := range accData.Assets {
 			currencyDetails = append(currencyDetails, account.Balance{
-				CurrencyName: currency.NewCode(accData[i].Asset),
-				TotalValue:   accData[i].Balance,
-				Hold:         accData[i].Balance - accData[i].AvailableBalance,
+				CurrencyName: currency.NewCode(accData.Assets[i].Asset),
+				TotalValue:   accData.Assets[i].WalletBalance,
+				Hold:         accData.Assets[i].WalletBalance - accData.Assets[i].AvailableBalance,
+			})
+		}
+		for i := range accData.Positions {
+			currencyDetails = append(currencyDetails, account.Balance{
+				CurrencyName: currency.NewCode(accData.Positions[i].Symbol),
+				TotalValue:   accData.Positions[i].Amount,
 			})
 		}
 
