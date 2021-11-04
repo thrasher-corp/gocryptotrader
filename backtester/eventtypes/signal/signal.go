@@ -3,6 +3,7 @@ package signal
 import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -54,4 +55,28 @@ func (s *Signal) GetPrice() decimal.Decimal {
 // SetPrice sets the price
 func (s *Signal) SetPrice(f decimal.Decimal) {
 	s.ClosePrice = f
+}
+
+// GetAmount retrieves the order amount
+func (s *Signal) GetAmount() decimal.Decimal {
+	return s.Amount
+}
+
+// SetAmount sets the order amount
+func (s *Signal) SetAmount(d decimal.Decimal) {
+	s.Amount = d
+}
+
+// SetCloseOrderID links an existing order id
+// for a futures order set to be closed
+func (s *Signal) SetCloseOrderID(id string) {
+	if s.AssetType == asset.Futures {
+		s.CloseOrderID = id
+	}
+}
+
+// GetLinkedOrderID returns the order ID of a 
+// linked futures order
+func (s *Signal) GetLinkedOrderID() string {
+	return s.CloseOrderID
 }

@@ -579,7 +579,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	tt := time.Now()
 	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
 		{
-			Detail: &gctorder.Detail{
+			SpotOrder: &gctorder.Detail{
 				Exchange:  "exch",
 				AssetType: asset.Spot,
 				Pair:      cp,
@@ -607,7 +607,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	if len(ss.Orders) != 1 {
 		t.Fatal("expected 1")
 	}
-	if ss.Orders[0].Amount != 1337 {
+	if ss.Orders[0].SpotOrder.Amount != 1337 {
 		t.Error("expected 1")
 	}
 }
@@ -627,7 +627,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	tt := time.Now()
 	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
 		{
-			Detail: &gctorder.Detail{
+			SpotOrder: &gctorder.Detail{
 				Exchange:  "exch",
 				AssetType: asset.Spot,
 				Pair:      cp,
@@ -646,7 +646,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
 		ss[0].Orders[0],
 		{
-			Detail: &gctorder.Detail{
+			SpotOrder: &gctorder.Detail{
 				Exchange:  "exch",
 				AssetType: asset.Spot,
 				Pair:      cp,
@@ -667,5 +667,102 @@ func TestGetLatestSnapshot(t *testing.T) {
 	}
 	if len(ss[0].Orders) != 2 {
 		t.Error("expected 2")
+	}
+}
+
+func TestCalculatePNL(t *testing.T) {
+	p := &Portfolio{
+		riskFreeRate:              decimal.Decimal{},
+		sizeManager:               nil,
+		riskManager:               nil,
+		exchangeAssetPairSettings: nil,
+	}
+
+	ev := &kline.Kline{}
+	err := p.CalculatePNL(ev)
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
+	}
+
+	exch := "binance"
+	a := asset.Futures
+	pair, _ := currency.NewPairFromStrings("BTC", "1231")
+	s, err := p.SetupCurrencySettingsMap(&exchange.Settings{
+		Exchange:      exch,
+		UseRealOrders: false,
+		Pair:          pair,
+		Asset:         a,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	tt := time.Now()
+	tt0 := time.Now().Add(-time.Hour)
+	ev.Exchange = exch
+	ev.AssetType = a
+	ev.CurrencyPair = pair
+	ev.Time = tt0
+
+	err = p.CalculatePNL(ev)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
+	futuresOrder := &gctorder.Futures{
+		Side: gctorder.Short,
+		OpeningPosition: &gctorder.Detail{
+			Price:     1336,
+			Amount:    20,
+			Exchange:  exch,
+			Side:      gctorder.Short,
+			AssetType: asset.Futures,
+			Date:      tt0,
+			Pair:      pair,
+		},
+	}
+
+	ev.Close = decimal.NewFromInt(1337)
+	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
+		{
+			ClosePrice:   decimal.NewFromInt(1336),
+			FuturesOrder: futuresOrder,
+		},
+	}, tt0, 0, false)
+	err = p.CalculatePNL(ev)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
+	if len(futuresOrder.PNLHistory) == 0 {
+		t.Error("expected a pnl entry ( ͡° ͜ʖ ͡°)")
+	}
+
+	if !futuresOrder.UnrealisedPNL.Equal(decimal.NewFromInt(20)) {
+		// 20 orders * $1 difference * 1x leverage
+		t.Error("expected 20")
+	}
+
+	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
+		{
+			ClosePrice: decimal.NewFromInt(1336),
+			SpotOrder:  futuresOrder.OpeningPosition,
+		},
+	}, tt, 1, false)
+	err = p.CalculatePNL(ev)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
+	// coverage of logic
+	futuresOrder.ClosingPosition = futuresOrder.OpeningPosition
+	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
+		{
+			ClosePrice:   decimal.NewFromInt(1336),
+			FuturesOrder: futuresOrder,
+		},
+	}, tt.Add(time.Hour), 2, false)
+	err = p.CalculatePNL(ev)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }

@@ -121,14 +121,29 @@ type Futures struct {
 	Side            Side
 	UnrealisedPNL   decimal.Decimal
 	RealisedPNL     decimal.Decimal
+	UnderlyingAsset currency.Code
 	OpeningPosition *Detail
 	ClosingPosition *Detail
 	PNLHistory      []PNLHistory
 }
 
+// UpsertPNLEntry upserts an entry to PNLHistory field
+// with some basic checks
+func (f *Futures) UpsertPNLEntry(entry PNLHistory) {
+	if entry.Time.IsZero() {
+		return
+	}
+	for i := range f.PNLHistory {
+		if entry.Time.Equal(f.PNLHistory[i].Time) {
+			f.PNLHistory[i] = entry
+			return
+		}
+	}
+	f.PNLHistory = append(f.PNLHistory, entry)
+}
+
 type PNLHistory struct {
-	Price         decimal.Decimal
-	Amount        decimal.Decimal
+	Time          time.Time
 	UnrealisedPNL decimal.Decimal
 }
 

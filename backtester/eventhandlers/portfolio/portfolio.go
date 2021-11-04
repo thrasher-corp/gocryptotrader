@@ -99,7 +99,8 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			Interval:     ev.GetInterval(),
 			Reason:       ev.GetReason(),
 		},
-		Direction: ev.GetDirection(),
+		Direction:     ev.GetDirection(),
+		LinkedOrderID: ev.GetLinkedOrderID(),
 	}
 	if ev.GetDirection() == "" {
 		return o, errInvalidDirection
@@ -295,10 +296,29 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 			ClosePrice:          fillEvent.GetClosePrice(),
 			VolumeAdjustedPrice: fillEvent.GetVolumeAdjustedPrice(),
 			SlippageRate:        fillEvent.GetSlippageRate(),
-			SpotOrder:           fo,
 			CostBasis:           price.Mul(amount).Add(fee),
 		}
-		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
+		if fo.AssetType == asset.Spot {
+			snapOrder.SpotOrder = fo
+			prevSnap.Orders = append(prevSnap.Orders, snapOrder)
+		} else if fo.AssetType == asset.Futures {
+			var linked bool
+			for i := range prevSnap.Orders {
+				if prevSnap.Orders[i].FuturesOrder != nil &&
+					prevSnap.Orders[i].FuturesOrder.OpeningPosition != nil &&
+					prevSnap.Orders[i].FuturesOrder.OpeningPosition.ID == fillEvent.GetLinkedOrderID() {
+					prevSnap.Orders[i].FuturesOrder.ClosingPosition = fo
+					linked = true
+				}
+			}
+			if !linked {
+				snapOrder.FuturesOrder = &gctorder.Futures{
+					Side:            fillEvent.GetDirection(),
+					OpeningPosition: fo,
+				}
+				prevSnap.Orders = append(prevSnap.Orders, snapOrder)
+			}
+		}
 	}
 	return complianceManager.AddSnapshot(prevSnap.Orders, fillEvent.GetTime(), fillEvent.GetOffset(), false)
 }
@@ -493,11 +513,21 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
 			continue
 		}
 
+		if orders.Orders[i].FuturesOrder.OpeningPosition.Leverage == 0 {
+			orders.Orders[i].FuturesOrder.OpeningPosition.Leverage = 1
+		}
+		leverage := decimal.NewFromFloat(orders.Orders[i].FuturesOrder.OpeningPosition.Leverage)
 		openPrice := decimal.NewFromFloat(orders.Orders[i].FuturesOrder.OpeningPosition.Price)
 		openAmount := decimal.NewFromFloat(orders.Orders[i].FuturesOrder.OpeningPosition.Amount)
-		changeInPosition := e.ClosePrice().Sub(openPrice).Mul(openAmount)
+
+		changeInPosition := e.ClosePrice().Sub(openPrice).Mul(openAmount).Mul(leverage)
 		orders.Orders[i].FuturesOrder.UnrealisedPNL = changeInPosition
 		orders.Orders[i].FuturesOrder.OpeningPosition.UnrealisedPNL = changeInPosition
+		orders.Orders[i].FuturesOrder.UpsertPNLEntry(gctorder.PNLHistory{
+			Time:          e.GetTime(),
+			UnrealisedPNL: changeInPosition,
+		})
+
 	}
 	return nil
 }

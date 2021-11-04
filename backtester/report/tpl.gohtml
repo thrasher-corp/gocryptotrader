@@ -1455,12 +1455,12 @@
 									<tbody >
 									{{range $val.FinalOrders.Orders}}
 										<tr>
-											<td>{{ .Detail.Date }}</td>
+											<td>{{ .SpotOrder.Date }}</td>
 											<td>{{  $.Prettify.Decimal8 .ClosePrice}} {{$pair.Quote}}</td>
-											<td>{{ .Detail.Side }}</td>
-											<td>{{$.Prettify.Float8  .Detail.Price }} {{$pair.Quote}}</td>
-											<td>{{$.Prettify.Float8  .Detail.Amount }} {{$pair.Base}}</td>
-											<td>{{$.Prettify.Float8 .Detail.Fee }} {{$pair.Quote}}</td>
+											<td>{{ .SpotOrder.Side }}</td>
+											<td>{{$.Prettify.Float8  .SpotOrder.Price }} {{$pair.Quote}}</td>
+											<td>{{$.Prettify.Float8  .SpotOrder.Amount }} {{$pair.Base}}</td>
+											<td>{{$.Prettify.Float8 .SpotOrder.Fee }} {{$pair.Quote}}</td>
 											<td>{{ $.Prettify.Decimal8 .CostBasis }} {{$pair.Quote}}</td>
 											<td>{{ $.Prettify.Decimal8 .SlippageRate }}%</td>
 										</tr>

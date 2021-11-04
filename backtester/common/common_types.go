@@ -26,8 +26,6 @@ const (
 	// MissingData is signalled during the strategy/signal phase when data has been identified as missing
 	// No buy or sell events can occur
 	MissingData order.Side = "MISSING DATA"
-	Long        order.Side = "LONG"
-	Short       order.Side = "SHORT"
 	// CandleStr is a config readable data type to tell the backtester to retrieve candle data
 	CandleStr = "candle"
 	// TradeStr is a config readable data type to tell the backtester to retrieve trade data

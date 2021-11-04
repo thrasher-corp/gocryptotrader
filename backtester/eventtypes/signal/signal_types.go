@@ -17,6 +17,8 @@ type Event interface {
 	IsSignal() bool
 	GetSellLimit() decimal.Decimal
 	GetBuyLimit() decimal.Decimal
+	GetAmount() decimal.Decimal
+	GetLinkedOrderID() string
 }
 
 // Signal contains everything needed for a strategy to raise a signal event
@@ -27,7 +29,23 @@ type Signal struct {
 	LowPrice   decimal.Decimal
 	ClosePrice decimal.Decimal
 	Volume     decimal.Decimal
-	BuyLimit   decimal.Decimal
-	SellLimit  decimal.Decimal
-	Direction  order.Side
+	// BuyLimit sets a maximum buy from the strategy
+	// it differs from amount as it is more a suggestion
+	// use Amount if you wish to have a fillOrKill style amount
+	BuyLimit decimal.Decimal
+	// SellLimit sets a maximum sell from the strategy
+	// it differs from amount as it is more a suggestion
+	// use Amount if you wish to have a fillOrKill style amount
+	SellLimit decimal.Decimal
+	// Amount set the amount when you wish to allow
+	// a strategy to dictate order quantities
+	// if the amount is not allowed by the portfolio manager
+	// the order will not be placed
+	Amount    decimal.Decimal
+	Direction order.Side
+	// CloseOrderID is the order ID of the futures order
+	// to that is being closed. This linking allows the
+	// more detailed order.Futures struct to close out
+	// and have more detailed performance tracking
+	CloseOrderID string
 }
