@@ -577,7 +577,7 @@ var errNoTransferFees = errors.New("missing transfer fees to load")
 
 // LoadTransferFees allows the loading of current transfer fees for
 // cryptocurrency deposit and withdrawals
-func (d *Definitions) LoadTransferFees(fees map[string]map[currency.Code]Transfer) error {
+func (d *Definitions) LoadTransferFees(fees []Transfer) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}
@@ -588,22 +588,24 @@ func (d *Definitions) LoadTransferFees(fees map[string]map[currency.Code]Transfe
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	for chain, m1 := range fees {
-		for code, incomingVal := range m1 {
-			m1, ok := d.chainTransfer[code.Item]
-			if !ok {
-				m1 = make(map[string]*transfer)
-				d.chainTransfer[code.Item] = m1
-			}
-			val, ok := m1[chain]
-			if !ok {
-				m1[chain] = incomingVal.convert()
-				continue
-			}
-			err := val.update(incomingVal)
-			if err != nil {
-				return fmt.Errorf("loading crypto fees error: %w", err)
-			}
+	for x := range fees {
+		err := fees[x].validate()
+		if err != nil {
+			return fmt.Errorf("loading crypto fees error: %w", err)
+		}
+		m1, ok := d.chainTransfer[fees[x].Currency.Item]
+		if !ok {
+			m1 = make(map[string]*transfer)
+			d.chainTransfer[fees[x].Currency.Item] = m1
+		}
+		val, ok := m1[fees[x].Chain]
+		if !ok {
+			m1[fees[x].Chain] = fees[x].convert()
+			continue
+		}
+		err = val.update(fees[x])
+		if err != nil {
+			return fmt.Errorf("loading crypto fees error: %w", err)
 		}
 	}
 	return nil

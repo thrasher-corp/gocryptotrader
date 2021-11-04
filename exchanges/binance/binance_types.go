@@ -771,101 +771,142 @@ type AllCoinsInfo struct {
 }
 
 // bankTransferFees defines current bank transfer fees, subject to change.
-var bankTransferFees = map[bank.Transfer]map[currency.Code]fee.Transfer{
-	bank.WireTransfer: {
-		currency.AUD: {Withdrawal: fee.Convert(0)},
-		currency.BRL: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(2.6)},
-		currency.PHP: {Deposit: fee.Convert(25), Withdrawal: fee.Convert(60)},
-		currency.TRY: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
-		currency.UGX: {Withdrawal: fee.Convert(8000)},
-	},
-	bank.PayIDOsko: {
-		currency.AUD: {Deposit: fee.Convert(0)},
-	},
-	bank.BankCardVisa: {
-		currency.EUR: {Withdrawal: fee.Convert(0.01), IsPercentage: true},
-		currency.GBP: {Withdrawal: fee.Convert(0.01), IsPercentage: true},
-	},
-	bank.BankCardMastercard: {
-		currency.EUR: {Deposit: fee.Convert(0.018), IsPercentage: true},
-		currency.GBP: {Withdrawal: fee.Convert(0.01), IsPercentage: true},
-		currency.HKD: {Deposit: fee.Convert(0.035), IsPercentage: true},
-		currency.PEN: {Deposit: fee.Convert(0.035), IsPercentage: true},
-	},
-	bank.CreditCardMastercard: {
-		currency.RUB: {Withdrawal: fee.Convert(250)},
-	},
-	bank.Sofort: {
-		currency.EUR: {Deposit: fee.Convert(0.02), IsPercentage: true},
-	},
-	bank.SEPA: {
-		currency.EUR: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1.5)},
-	},
-	bank.P2P: {
-		currency.EUR: {Deposit: fee.Convert(0)},
-	},
-	bank.AdvCash: {
-		currency.EUR: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
-		currency.KZT: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
-		currency.RUB: {Withdrawal: fee.Convert(0)},
-		currency.TRY: {
-			Deposit:      fee.Convert(0.03),
-			Withdrawal:   fee.Convert(0),
-			IsPercentage: true},
-		currency.UAH: {
-			Deposit:      fee.Convert(0.005),
-			Withdrawal:   fee.Convert(0),
-			IsPercentage: true},
-	},
-	bank.Etana: {
-		currency.EUR: {
-			Deposit:      fee.Convert(0.001),
-			Withdrawal:   fee.Convert(0.001),
-			IsPercentage: true},
-	},
-	bank.FasterPaymentService: {
-		currency.GBP: {Deposit: fee.Convert(0.05), Withdrawal: fee.Convert(0.5)},
-	},
-	bank.MobileMoney: {
-		currency.GHS: {Deposit: fee.Convert(0.025), IsPercentage: true},
-		currency.UGX: {
-			Deposit:      fee.Convert(0.035),
-			Withdrawal:   fee.Convert(0.015),
-			IsPercentage: true},
-	},
-	bank.CashTransfer: {
-		currency.NGN: {Withdrawal: fee.Convert(0)},
-	},
-	bank.YandexMoney: {
-		currency.RUB: {Withdrawal: fee.Convert(0.025), IsPercentage: true},
-	},
-	bank.BankCardMIR: {
-		currency.RUB: {Withdrawal: fee.Convert(0.021), IsPercentage: true},
-	},
-	bank.Payeer: {
-		currency.RUB: {
-			Deposit:      fee.Convert(0),
-			Withdrawal:   fee.Convert(0.01),
-			IsPercentage: true},
-	},
-	bank.GEOPay: {
-		currency.UAH: {
-			Deposit:      fee.Convert(0.008),
-			Withdrawal:   fee.Convert(0),
-			IsPercentage: true},
-	},
-	bank.SettlePay: {
-		currency.UAH: {
-			Deposit:      fee.Convert(0.008),
-			Withdrawal:   fee.Convert(0),
-			IsPercentage: true},
-	},
-	bank.ExchangeFiatDWChannelSignetUSD: {
-		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
-	},
-	bank.ExchangeFiatDWChannelSwiftSignatureBar: {
-		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(15)},
-	},
+var bankTransferFees = []fee.Transfer{
+	{BankTransfer: bank.WireTransfer,
+		Currency:   currency.AUD,
+		Withdrawal: fee.Convert(0)},
+	{BankTransfer: bank.WireTransfer,
+		Currency:   currency.BRL,
+		Deposit:    fee.Convert(0),
+		Withdrawal: fee.Convert(2.6)},
+	{BankTransfer: bank.WireTransfer,
+		Currency:   currency.PHP,
+		Deposit:    fee.Convert(25),
+		Withdrawal: fee.Convert(60)},
+	{BankTransfer: bank.WireTransfer,
+		Currency:   currency.TRY,
+		Deposit:    fee.Convert(0),
+		Withdrawal: fee.Convert(0)},
+	{BankTransfer: bank.WireTransfer,
+		Currency:   currency.UGX,
+		Withdrawal: fee.Convert(8000)},
+
+	{BankTransfer: bank.PayIDOsko,
+		Currency: currency.AUD,
+		Deposit:  fee.Convert(0)},
+
+	{BankTransfer: bank.BankCardVisa,
+		Currency:   currency.EUR,
+		Withdrawal: fee.Convert(0.01), IsPercentage: true},
+	{BankTransfer: bank.BankCardVisa,
+		Currency:   currency.GBP,
+		Withdrawal: fee.Convert(0.01), IsPercentage: true},
+
+	{BankTransfer: bank.BankCardMastercard,
+		Currency: currency.EUR,
+		Deposit:  fee.Convert(0.018), IsPercentage: true},
+	{BankTransfer: bank.BankCardMastercard,
+		Currency:   currency.GBP,
+		Withdrawal: fee.Convert(0.01), IsPercentage: true},
+	{BankTransfer: bank.BankCardMastercard,
+		Currency: currency.HKD,
+		Deposit:  fee.Convert(0.035), IsPercentage: true},
+	{BankTransfer: bank.BankCardMastercard,
+		Currency: currency.PEN,
+		Deposit:  fee.Convert(0.035), IsPercentage: true},
+
+	{BankTransfer: bank.CreditCardMastercard,
+		Currency:   currency.RUB,
+		Withdrawal: fee.Convert(250)},
+
+	{BankTransfer: bank.Sofort,
+		Currency: currency.EUR,
+		Deposit:  fee.Convert(0.02), IsPercentage: true},
+
+	{BankTransfer: bank.SEPA,
+		Currency: currency.EUR,
+		Deposit:  fee.Convert(0), Withdrawal: fee.Convert(1.5)},
+
+	{BankTransfer: bank.P2P,
+		Currency: currency.EUR,
+		Deposit:  fee.Convert(0)},
+
+	{BankTransfer: bank.AdvCash,
+		Currency: currency.EUR,
+		Deposit:  fee.Convert(0), Withdrawal: fee.Convert(0)},
+	{BankTransfer: bank.AdvCash,
+		Currency: currency.KZT,
+		Deposit:  fee.Convert(0), Withdrawal: fee.Convert(0)},
+	{BankTransfer: bank.AdvCash,
+		Currency:   currency.RUB,
+		Withdrawal: fee.Convert(0)},
+	{BankTransfer: bank.AdvCash,
+		Currency:     currency.TRY,
+		Deposit:      fee.Convert(0.03),
+		Withdrawal:   fee.Convert(0),
+		IsPercentage: true},
+	{BankTransfer: bank.AdvCash,
+		Currency:     currency.UAH,
+		Deposit:      fee.Convert(0.005),
+		Withdrawal:   fee.Convert(0),
+		IsPercentage: true},
+
+	{BankTransfer: bank.Etana,
+		Currency:     currency.EUR,
+		Deposit:      fee.Convert(0.001),
+		Withdrawal:   fee.Convert(0.001),
+		IsPercentage: true},
+
+	{BankTransfer: bank.FasterPaymentService,
+		Currency: currency.GBP,
+		Deposit:  fee.Convert(0.05), Withdrawal: fee.Convert(0.5)},
+
+	{BankTransfer: bank.MobileMoney,
+		Currency: currency.GHS,
+		Deposit:  fee.Convert(0.025), IsPercentage: true},
+	{BankTransfer: bank.MobileMoney,
+		Currency:     currency.UGX,
+		Deposit:      fee.Convert(0.035),
+		Withdrawal:   fee.Convert(0.015),
+		IsPercentage: true},
+
+	{BankTransfer: bank.CashTransfer,
+		Currency:   currency.NGN,
+		Withdrawal: fee.Convert(0)},
+
+	{BankTransfer: bank.YandexMoney,
+		Currency:   currency.RUB,
+		Withdrawal: fee.Convert(0.025), IsPercentage: true},
+
+	{BankTransfer: bank.BankCardMIR,
+		Currency:   currency.RUB,
+		Withdrawal: fee.Convert(0.021), IsPercentage: true},
+
+	{BankTransfer: bank.Payeer,
+		Currency:     currency.RUB,
+		Deposit:      fee.Convert(0),
+		Withdrawal:   fee.Convert(0.01),
+		IsPercentage: true},
+
+	{BankTransfer: bank.GEOPay,
+		Currency:     currency.UAH,
+		Deposit:      fee.Convert(0.008),
+		Withdrawal:   fee.Convert(0),
+		IsPercentage: true},
+
+	{BankTransfer: bank.SettlePay,
+		Currency:     currency.UAH,
+		Deposit:      fee.Convert(0.008),
+		Withdrawal:   fee.Convert(0),
+		IsPercentage: true},
+
+	{BankTransfer: bank.ExchangeFiatDWChannelSignetUSD,
+		Currency: currency.USD,
+		Deposit:  fee.Convert(0), Withdrawal: fee.Convert(0)},
+
+	{BankTransfer: bank.ExchangeFiatDWChannelSwiftSignatureBar,
+		Currency: currency.USD,
+		Deposit:  fee.Convert(0), Withdrawal: fee.Convert(15)},
 }
 
 // Tier defines maker and taker fees for a fee tier

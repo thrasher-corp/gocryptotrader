@@ -1059,24 +1059,19 @@ func (b *Bittrex) UpdateTransferFees(ctx context.Context) error {
 		return err
 	}
 
-	transferFees := map[asset.Item]map[currency.Code]fee.Transfer{}
+	var transferFees []fee.Transfer
 	for i := range data {
-		m1, ok := transferFees[asset.Spot]
-		if !ok {
-			m1 = make(map[currency.Code]fee.Transfer)
-			transferFees[asset.Spot] = m1
+		newFees := fee.Transfer{
+			Currency: data[i].Symbol,
+			Chain:    data[i].CoinType,
 		}
-
-		if data[i].Status != "ONLINE" {
+		if data[i].Status == "ONLINE" {
 			// Turn off
-			m1[data[i].Symbol] = fee.Transfer{}
+			newFees.Deposit = fee.Convert(0)
+			newFees.Withdrawal = fee.Convert(data[i].TxFee)
 			continue
-		}
-
-		m1[data[i].Symbol] = fee.Transfer{
-			Deposit:    fee.Convert(0),
-			Withdrawal: fee.Convert(data[i].TxFee),
-		}
+		} // else will turn off asset.
+		transferFees = append(transferFees, newFees)
 	}
 	return b.Fees.LoadTransferFees(transferFees)
 }

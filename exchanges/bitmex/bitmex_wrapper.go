@@ -161,17 +161,16 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 			asset.Index:             {Maker: -0.0001, Taker: 0.0005},
 			asset.PerpetualContract: {Maker: -0.0001, Taker: 0.0005},
 		},
-		Transfer: map[asset.Item]map[currency.Code]fee.Transfer{
-			asset.Spot: {
-				currency.BTC: {
-					Deposit: fee.Convert(0),
-					// TODO: Withdrawals are subject to current blockchain fees
-					// Would need to add a seperate link that implements the
-					// fee.Value interface to generate correct fee withdraws
-					// ad-hoc, which can be added in a separate PR.
-					Withdrawal:     fee.ConvertBlockchain(currency.BTC.String()),
-					MinimumDeposit: fee.Convert(0.0001)},
-			},
+		ChainTransfer: []fee.Transfer{
+			{
+				Currency: currency.BTC,
+				Deposit:  fee.Convert(0),
+				// TODO: Withdrawals are subject to current blockchain fees
+				// Would need to add a seperate link that implements the
+				// fee.Value interface to generate correct fee withdraws
+				// ad-hoc, which can be added in a separate PR.
+				Withdrawal:     fee.ConvertBlockchain(currency.BTC.String()),
+				MinimumDeposit: fee.Convert(0.0001)},
 		},
 	})
 	if err != nil {

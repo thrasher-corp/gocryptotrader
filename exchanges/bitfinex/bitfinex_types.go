@@ -839,33 +839,30 @@ type WsCancelAllOrdersRequest struct {
 
 // bankTransferFees defines bank transfer fees. Subject to change.
 // Note: https://www.bitfinex.com/fees/#deposit-table
-var bankTransferFees = map[bank.Transfer]map[currency.Code]fee.Transfer{
-	bank.WireTransfer: {
-		currency.USD: {
-			Withdrawal:        fee.Convert(0.001),
-			MinimumWithdrawal: fee.Convert(60),
-			Deposit:           fee.Convert(0.001),
-			MinimumDeposit:    fee.Convert(60),
-			IsPercentage:      true,
-		},
-		currency.EUR: {
-			Withdrawal:        fee.Convert(0.001),
-			MinimumWithdrawal: fee.Convert(60),
-			Deposit:           fee.Convert(0.001),
-			MinimumDeposit:    fee.Convert(60),
-			IsPercentage:      true,
-		},
-	},
-	bank.ExpressWireTransfer: {
-		currency.USD: {
-			Withdrawal:        fee.Convert(0.01),
-			MinimumWithdrawal: fee.Convert(100),
-			IsPercentage:      true,
-		},
-		currency.EUR: {
-			Withdrawal:        fee.Convert(0.01),
-			MinimumWithdrawal: fee.Convert(100),
-			IsPercentage:      true,
-		},
-	},
+var bankTransferFees = []fee.Transfer{
+	{Currency: currency.USD,
+		BankTransfer:      bank.WireTransfer,
+		Withdrawal:        fee.Convert(0.001),
+		MinimumWithdrawal: fee.Convert(60),
+		Deposit:           fee.Convert(0.001),
+		MinimumDeposit:    fee.Convert(60),
+		IsPercentage:      true},
+	{Currency: currency.EUR,
+		BankTransfer:      bank.WireTransfer,
+		Withdrawal:        fee.Convert(0.001),
+		MinimumWithdrawal: fee.Convert(60),
+		Deposit:           fee.Convert(0.001),
+		MinimumDeposit:    fee.Convert(60),
+		IsPercentage:      true},
+
+	{Currency: currency.USD,
+		BankTransfer:      bank.ExpressWireTransfer,
+		Withdrawal:        fee.Convert(0.01),
+		MinimumWithdrawal: fee.Convert(100),
+		IsPercentage:      true},
+	{Currency: currency.EUR,
+		BankTransfer:      bank.ExpressWireTransfer,
+		Withdrawal:        fee.Convert(0.01),
+		MinimumWithdrawal: fee.Convert(100),
+		IsPercentage:      true},
 }

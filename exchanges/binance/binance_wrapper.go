@@ -231,7 +231,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 			asset.USDTMarginedFutures: {Maker: 0.02, Taker: 0.04},
 			asset.CoinMarginedFutures: {Maker: 0.01, Taker: 0.05},
 		},
-		BankingTransfer: bankTransferFees,
+		BankTransfer: bankTransferFees,
 	})
 	if err != nil {
 		return err
@@ -1844,18 +1844,12 @@ func (b *Binance) UpdateTransferFees(ctx context.Context) error {
 		return err
 	}
 
-	transferFee := map[asset.Item]map[currency.Code]fee.Transfer{}
+	transferFee := []fee.Transfer{}
 	for x := range coins {
 		for y := range coins[x].NetworkList {
+			chain := coins[x].Coin
 			if !coins[x].NetworkList[y].IsDefault {
-				// TODO: Implement an upgrade for different networks
-				continue
-			}
-
-			m1, ok := transferFee[asset.Spot]
-			if !ok {
-				m1 = make(map[currency.Code]fee.Transfer)
-				transferFee[asset.Spot] = m1
+				chain = coins[x].NetworkList[y].Network
 			}
 
 			var deposit fee.Value
@@ -1871,12 +1865,14 @@ func (b *Binance) UpdateTransferFees(ctx context.Context) error {
 				maxWithdraw = fee.Convert(coins[x].NetworkList[y].WithdrawMax)
 			}
 
-			m1[coins[x].Coin] = fee.Transfer{
+			transferFee = append(transferFee, fee.Transfer{
+				Currency:          coins[x].Coin,
 				Withdrawal:        withdrawal,
 				MinimumWithdrawal: minWithdraw,
 				MaximumWithdrawal: maxWithdraw,
 				Deposit:           deposit,
-			}
+				Chain:             chain.String(),
+			})
 		}
 	}
 	return b.Fees.LoadTransferFees(transferFee)

@@ -2,7 +2,6 @@ package bitflyer
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
@@ -298,22 +297,23 @@ type NewOrder struct {
 	TimeInForce    string  `json:"time_in_force"`
 }
 
-var transferFee = map[asset.Item]map[currency.Code]fee.Transfer{
-	asset.Spot: {
-		currency.BTC: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0004)},
-		currency.ETH: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
-		currency.ETC: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
-		currency.LTC: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
-		currency.BCH: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0002)},
-	},
+var transferFee = []fee.Transfer{
+	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0004)},
+	{Currency: currency.ETH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+	{Currency: currency.ETC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+	{Currency: currency.LTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+	{Currency: currency.BCH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0002)},
 }
 
-var bankTransfer = map[bank.Transfer]map[currency.Code]fee.Transfer{
-	bank.AutomaticClearingHouse: {
-		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
-	},
-	bank.FedWire: {
-		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
-	},
+var bankTransfer = []fee.Transfer{
+	{Currency: currency.USD,
+		BankTransfer: bank.AutomaticClearingHouse,
+		Deposit:      fee.Convert(0),
+		Withdrawal:   fee.Convert(0)},
+
+	{Currency: currency.USD,
+		BankTransfer: bank.FedWire,
+		Deposit:      fee.Convert(0),
+		Withdrawal:   fee.Convert(20)},
 	// NOTE: JPY bank withdrawals and deposits are not available.
 }

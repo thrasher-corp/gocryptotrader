@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
@@ -249,72 +248,74 @@ type OHLCResponse struct {
 
 // bankTransfer defines bank transfer fees to and from the exchange. Subject to
 // change.
-var bankTransfer = map[bank.Transfer]map[currency.Code]fee.Transfer{
-	bank.SEPA: {
-		currency.EUR: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(3)},
-	},
-	bank.AutomaticClearingHouse: {
-		currency.USD: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
-	},
-	bank.FasterPaymentService: {
-		currency.GBP: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
-	},
-	bank.WireTransfer: {
-		currency.USD: {
-			Deposit:    fee.ConvertWithMaxAndMin(0.0005, 7.5, 300),
-			Withdrawal: fee.ConvertWithMaxAndMin(0.001, 25, 0),
-		},
-		currency.EUR: {
-			Deposit:    fee.ConvertWithMaxAndMin(0.0005, 7.5, 300),
-			Withdrawal: fee.ConvertWithMaxAndMin(0.001, 25, 0),
-		},
-		currency.GBP: {
-			Deposit:    fee.ConvertWithMaxAndMin(0.0005, 5, 250),
-			Withdrawal: fee.ConvertWithMaxAndMin(0.001, 25, 0),
-		},
-	},
+var bankTransfer = []fee.Transfer{
+	{Currency: currency.EUR,
+		BankTransfer: bank.SEPA,
+		Deposit:      fee.Convert(0),
+		Withdrawal:   fee.Convert(3)},
+
+	{Currency: currency.USD,
+		BankTransfer: bank.AutomaticClearingHouse,
+		Deposit:      fee.Convert(0),
+		Withdrawal:   fee.Convert(0)},
+
+	{Currency: currency.GBP,
+		BankTransfer: bank.FasterPaymentService,
+		Deposit:      fee.Convert(0),
+		Withdrawal:   fee.Convert(2)},
+
+	{Currency: currency.USD,
+		BankTransfer: bank.WireTransfer,
+		Deposit:      fee.ConvertWithMaxAndMin(0.0005, 7.5, 300),
+		Withdrawal:   fee.ConvertWithMaxAndMin(0.001, 25, 0)},
+	{Currency: currency.EUR,
+		BankTransfer: bank.WireTransfer,
+		Deposit:      fee.ConvertWithMaxAndMin(0.0005, 7.5, 300),
+		Withdrawal:   fee.ConvertWithMaxAndMin(0.001, 25, 0)},
+	{Currency: currency.GBP,
+		BankTransfer: bank.WireTransfer,
+		Deposit:      fee.ConvertWithMaxAndMin(0.0005, 5, 250),
+		Withdrawal:   fee.ConvertWithMaxAndMin(0.001, 25, 0)},
 }
 
 // transferFees defines crypto transfer fees to and from the exchange. Subject
 // to change.
-var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{
-	asset.Spot: {
-		currency.BTC:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0005)},
-		currency.XRP:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.02)},
-		currency.LTC:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
-		currency.ETH:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0035)},
-		currency.BCH:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0001)},
-		currency.XLM:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
-		currency.PAX:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
-		currency.LINK:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
-		currency.OMG:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(3)},
-		currency.USDC:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
-		currency.AAVE:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.07)},
-		currency.BAT:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
-		currency.UMA:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(.2)},
-		currency.DAI:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
-		currency.KNC:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(4)},
-		currency.MKR:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(.005)},
-		currency.ZRX:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(3)},
-		currency.GUSD:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
-		currency.ALGO:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(.1)},
-		currency.AUDIO: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
-		currency.CRV:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
-		currency.SNX:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(.2)},
-		currency.UNI:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(.2)},
-		currency.YFI:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(.0002)},
-		currency.COMP:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(.03)},
-		currency.GRT:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(25)},
-		currency.USDT:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(7)},
-		currency.EURT:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
-		currency.MATIC: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
-		currency.SUSHI: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
-		currency.CHZ:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(10)},
-		currency.ENJ:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
-		currency.ALPHA: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
-		currency.AXS:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(.1)},
-		currency.FTT:   {Deposit: fee.Convert(0), Withdrawal: fee.Convert(.1)},
-		currency.SAND:  {Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
-		currency.STORJ: {Deposit: fee.Convert(0), Withdrawal: fee.Convert(3)},
-	},
+var transferFees = []fee.Transfer{
+	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0005)},
+	{Currency: currency.XRP, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.02)},
+	{Currency: currency.LTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+	{Currency: currency.ETH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0035)},
+	{Currency: currency.BCH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0001)},
+	{Currency: currency.XLM, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+	{Currency: currency.PAX, Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
+	{Currency: currency.LINK, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+	{Currency: currency.OMG, Deposit: fee.Convert(0), Withdrawal: fee.Convert(3)},
+	{Currency: currency.USDC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(20)},
+	{Currency: currency.AAVE, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.07)},
+	{Currency: currency.BAT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
+	{Currency: currency.UMA, Deposit: fee.Convert(0), Withdrawal: fee.Convert(.2)},
+	{Currency: currency.DAI, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+	{Currency: currency.KNC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(4)},
+	{Currency: currency.MKR, Deposit: fee.Convert(0), Withdrawal: fee.Convert(.005)},
+	{Currency: currency.ZRX, Deposit: fee.Convert(0), Withdrawal: fee.Convert(3)},
+	{Currency: currency.GUSD, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+	{Currency: currency.ALGO, Deposit: fee.Convert(0), Withdrawal: fee.Convert(.1)},
+	{Currency: currency.AUDIO, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+	{Currency: currency.CRV, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+	{Currency: currency.SNX, Deposit: fee.Convert(0), Withdrawal: fee.Convert(.2)},
+	{Currency: currency.UNI, Deposit: fee.Convert(0), Withdrawal: fee.Convert(.2)},
+	{Currency: currency.YFI, Deposit: fee.Convert(0), Withdrawal: fee.Convert(.0002)},
+	{Currency: currency.COMP, Deposit: fee.Convert(0), Withdrawal: fee.Convert(.03)},
+	{Currency: currency.GRT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(25)},
+	{Currency: currency.USDT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(7)},
+	{Currency: currency.EURT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
+	{Currency: currency.MATIC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
+	{Currency: currency.SUSHI, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
+	{Currency: currency.CHZ, Deposit: fee.Convert(0), Withdrawal: fee.Convert(10)},
+	{Currency: currency.ENJ, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
+	{Currency: currency.ALPHA, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
+	{Currency: currency.AXS, Deposit: fee.Convert(0), Withdrawal: fee.Convert(.1)},
+	{Currency: currency.FTT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(.1)},
+	{Currency: currency.SAND, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
+	{Currency: currency.STORJ, Deposit: fee.Convert(0), Withdrawal: fee.Convert(3)},
 }

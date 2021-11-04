@@ -169,8 +169,8 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 			// NOTE: There is no difference between taker and maker fees.
 			asset.Spot: {Maker: 0.005, Taker: 0.005},
 		},
-		BankingTransfer: bankTransfer,
-		Transfer:        transferFees,
+		BankTransfer:  bankTransfer,
+		ChainTransfer: transferFees,
 	})
 	if err != nil {
 		return err
@@ -966,15 +966,13 @@ func (b *Bitstamp) UpdateCommissionFees(ctx context.Context, a asset.Item) error
 		return err
 	}
 
-	var transferFees = map[asset.Item]map[currency.Code]fee.Transfer{}
+	var transferFees = []fee.Transfer{}
 	for base, balance := range balances {
-		tM1, ok := transferFees[a]
-		if !ok {
-			tM1 = make(map[currency.Code]fee.Transfer)
-			transferFees[a] = tM1
-		}
-
-		tM1[base] = fee.Transfer{Withdrawal: fee.Convert(balance.WithdrawalFee)}
+		transferFees = append(transferFees, fee.Transfer{
+			Currency:   base,
+			Deposit:    fee.Convert(0),
+			Withdrawal: fee.Convert(balance.WithdrawalFee),
+		})
 
 		for quote, val := range balance.TransactionFees {
 			// NOTE: There is no differentiation between maker and taker fees

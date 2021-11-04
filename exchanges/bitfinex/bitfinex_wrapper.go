@@ -200,7 +200,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.001, Taker: 0.001},
 		},
-		BankingTransfer: bankTransferFees,
+		BankTransfer: bankTransferFees,
 	})
 	if err != nil {
 		return err
@@ -1212,17 +1212,13 @@ func (b *Bitfinex) UpdateTransferFees(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	transferFee := map[asset.Item]map[currency.Code]fee.Transfer{}
+	transferFee := []fee.Transfer{}
 	for code, value := range withdrawFees {
-		m1, ok := transferFee[asset.Spot]
-		if !ok {
-			m1 = make(map[currency.Code]fee.Transfer)
-			transferFee[asset.Spot] = m1
-		}
-		m1[code] = fee.Transfer{
+		transferFee = append(transferFee, fee.Transfer{
+			Currency:   code,
 			Withdrawal: fee.Convert(value),
 			Deposit:    fee.Convert(0), // Default on deposit
-		}
+		})
 	}
 	return b.Fees.LoadTransferFees(transferFee)
 }

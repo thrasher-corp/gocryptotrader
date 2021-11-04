@@ -162,8 +162,8 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0004, Taker: 0.0025},
 		},
-		Transfer:        transferFees,
-		BankingTransfer: bankTransferFees,
+		ChainTransfer: transferFees,
+		BankTransfer:  bankTransferFees,
 	})
 	if err != nil {
 		return err
