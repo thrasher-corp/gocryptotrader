@@ -17,7 +17,7 @@ func TestFuturesNewOrderRequest_Unmarshal(t *testing.T) {
   "avgPrice": "2.00",
   "origQty": "8",
   "executedQty": "4",
-  "cumQty": "8",
+  "cumQty": "32",
   "cumBase": "16",
   "timeInForce": "GTC",
   "type": "LIMIT",
@@ -28,8 +28,10 @@ func TestFuturesNewOrderRequest_Unmarshal(t *testing.T) {
   "stopPrice": "2048",
   "workingType": "CONTRACT_PRICE",
   "priceProtect": true,
-  "origType": "LIMIT_OR_SOMETHING",
-  "updateTime": 1635931801320
+  "origType": "MARKET",
+  "updateTime": 1635931801320,
+  "activatePrice": "64",
+  "priceRate": "32"
 }
 `
 
@@ -48,7 +50,7 @@ func TestFuturesNewOrderRequest_Unmarshal(t *testing.T) {
 		x.AvgPrice != 2 ||
 		x.OrigQty != 8 ||
 		x.ExecuteQty != 4 ||
-		x.CumQty != 8 ||
+		x.CumQty != 32 ||
 		x.CumBase != 16 ||
 		x.TimeInForce != "GTC" ||
 		x.OrderType != "LIMIT" ||
@@ -57,8 +59,10 @@ func TestFuturesNewOrderRequest_Unmarshal(t *testing.T) {
 		x.StopPrice != 2048 ||
 		x.WorkingType != "CONTRACT_PRICE" ||
 		!x.PriceProtect ||
-		x.OrigType != "LIMIT_OR_SOMETHING" ||
-		x.UpdateTime != 1635931801320 {
+		x.OrigType != "MARKET" ||
+		x.UpdateTime != 1635931801320 ||
+		x.ActivatePrice != 64 ||
+		x.PriceRate != 32 {
 		// If any of these values isn't set as expected, mark test as failed.
 		t.Errorf("unmarshaling failed: %v", x)
 	}
