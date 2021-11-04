@@ -73,8 +73,8 @@ var exchangeFeeManagementCommand = &cli.Command{
 							Usage: "the currency for transfer",
 						},
 						&cli.StringFlag{
-							Name:  "asset",
-							Usage: "the asset type",
+							Name:  "chain",
+							Usage: "the chain type",
 						},
 						&cli.Float64Flag{
 							Name:  "withdraw",
@@ -255,11 +255,11 @@ func setTransferFees(c *cli.Context) error {
 		code = c.Args().Get(1)
 	}
 
-	var asset string
-	if c.IsSet("asset") {
-		asset = c.String("asset")
+	var chain string
+	if c.IsSet("chain") {
+		chain = c.String("chain")
 	} else {
-		asset = c.Args().Get(2)
+		chain = c.Args().Get(2)
 	}
 
 	var withdraw float64
@@ -306,7 +306,7 @@ func setTransferFees(c *cli.Context) error {
 		&gctrpc.SetTransferFeeRequest{
 			Exchange:     exchange,
 			Currency:     code,
-			Asset:        asset,
+			Chain:        chain,
 			Withdraw:     withdraw,
 			Deposit:      deposit,
 			IsPercentage: !setValue,
