@@ -905,7 +905,7 @@ func TestFuturesNewOrder(t *testing.T) {
 	}
 	_, err := b.FuturesNewOrder(
 		context.Background(),
-		futuresNewOrderRequest{
+		&futuresNewOrderRequest{
 			symbol:           currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
 			side:             "BUY",
 			positionSide:     "",

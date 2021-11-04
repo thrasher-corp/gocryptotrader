@@ -953,7 +953,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		}
 		o, err := b.FuturesNewOrder(
 			ctx,
-			futuresNewOrderRequest{
+			&futuresNewOrderRequest{
 				symbol:           s.Pair,
 				side:             reqSide,
 				positionSide:     "",
