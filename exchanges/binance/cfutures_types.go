@@ -208,21 +208,21 @@ type BatchCancelOrderData struct {
 // FuturesNewOrderRequest stores all the data needed to submit a
 // delivery/coin-margined-futures order.
 type FuturesNewOrderRequest struct {
-	symbol           currency.Pair
-	side             string
-	positionSide     string
-	orderType        string
-	timeInForce      string
-	newClientOrderID string
-	closePosition    string
-	workingType      string
-	newOrderRespType string
-	quantity         float64
-	price            float64
-	stopPrice        float64
-	activationPrice  float64
-	callbackRate     float64
-	reduceOnly       bool
+	Symbol           currency.Pair
+	Side             string
+	PositionSide     string
+	OrderType        string
+	TimeInForce      string
+	NewClientOrderID string
+	ClosePosition    string
+	WorkingType      string
+	NewOrderRespType string
+	Quantity         float64
+	Price            float64
+	StopPrice        float64
+	ActivationPrice  float64
+	CallbackRate     float64
+	ReduceOnly       bool
 }
 
 // FuturesOrderPlaceData stores futures order data
