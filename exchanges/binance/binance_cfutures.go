@@ -981,7 +981,7 @@ func (b *Binance) GetFuturesBasisData(ctx context.Context, pair, contractType, p
 }
 
 // FuturesNewOrder sends a new futures order to the exchange
-func (b *Binance) FuturesNewOrder(ctx context.Context, x *futuresNewOrderRequest) (
+func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest) (
 	FuturesOrderPlaceData,
 	error,
 ) {

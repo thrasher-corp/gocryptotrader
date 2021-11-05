@@ -205,7 +205,7 @@ type BatchCancelOrderData struct {
 	Msg           string  `json:"msg"`
 }
 
-type futuresNewOrderRequest struct {
+type FuturesNewOrderRequest struct {
 	symbol           currency.Pair
 	side             string
 	positionSide     string
