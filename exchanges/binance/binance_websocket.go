@@ -318,9 +318,13 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 
 				switch streamType[1] {
 				case "trade":
-					if !b.IsSaveTradeDataEnabled() {
+					saveTradeData := b.IsSaveTradeDataEnabled()
+
+					if !saveTradeData &&
+						!b.IsTradeFeedEnabled() {
 						return nil
 					}
+
 					var t TradeStream
 					err := json.Unmarshal(rawData, &t)
 					if err != nil {
@@ -348,15 +352,16 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					return b.AddTradesToBuffer(trade.Data{
-						CurrencyPair: pair,
-						Timestamp:    t.TimeStamp,
-						Price:        price,
-						Amount:       amount,
-						Exchange:     b.Name,
-						AssetType:    asset.Spot,
-						TID:          strconv.FormatInt(t.TradeID, 10),
-					})
+					return b.Websocket.Trade.Update(saveTradeData,
+						trade.Data{
+							CurrencyPair: pair,
+							Timestamp:    t.TimeStamp,
+							Price:        price,
+							Amount:       amount,
+							Exchange:     b.Name,
+							AssetType:    asset.Spot,
+							TID:          strconv.FormatInt(t.TradeID, 10),
+						})
 				case "ticker":
 					var t TickerStream
 					err := json.Unmarshal(rawData, &t)
